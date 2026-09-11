@@ -36,6 +36,7 @@ import { ContentEditorPanelErrorBoundary } from "./content-editor-panel-error-bo
 import { useContentEditorWorkspace } from "./content-editor-workspace-context";
 import { contentEditorWorkspaceViewMessages } from "./content-editor-workspace.messages";
 import { ContentEditorComfortableResizableLayout } from "./content-editor-workspace-resizable-layout";
+import { ContentEditorEditorPanelSkeleton } from "./content-editor-workspace-skeleton";
 import { resolveSegmentIntelligenceForDisplay } from "./store/content-editor-workspace-store-utils";
 
 const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
@@ -87,7 +88,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   className,
   queueSearch,
   isQueueFetchingPage = false,
-  isQueueLoading = false,
+  isQueueListLoading = false,
+  isTranslationViewLoading = false,
   isCommentsLoading = false,
   isSegmentTargetLoading = false,
   isImageBusy = false,
@@ -147,34 +149,48 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
     selectedSegmentIdForIntelligence,
   ]);
 
-  if (!selectedSegment && isQueueLoading) {
-    return (
-      <div
-        className={cn(
-          "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
-          className,
-        )}
-      >
-        <ContentEditorPanelErrorBoundary scope="queue" resetKeys={[queueSearch, queueFilter]}>
-          <ContentEditorQueuePanel
-            segments={[]}
-            selectedSegmentId=""
-            onSelectSegment={() => undefined}
-            search={queueSearch}
-            queueFilter={queueFilter}
-            showSelection={store.selectionMode}
-            isFetchingPage={isQueueFetchingPage}
-            isQueueLoading
-            pagination={queuePagination}
-            hasMoreQueue={hasMoreQueue}
-            onLoadMoreQueue={onLoadMoreQueue}
-          />
-        </ContentEditorPanelErrorBoundary>
-      </div>
-    );
-  }
+  const showTranslationViewSkeleton = isTranslationViewLoading || store.ui.translationViewLoading;
 
   if (!selectedSegment) {
+    const emptyQueuePanel = (
+      <ContentEditorPanelErrorBoundary scope="queue" resetKeys={[queueSearch, queueFilter]}>
+        <ContentEditorQueuePanel
+          segments={queueSegments}
+          selectedSegmentId=""
+          onSelectSegment={dependencies.navigation.onSelectSegment}
+          search={queueSearch}
+          queueFilter={queueFilter}
+          checkedSegmentIds={checkedSegmentIds}
+          onToggleSegmentChecked={onToggleSegmentChecked}
+          showSelection={store.selectionMode}
+          isFetchingPage={isQueueFetchingPage}
+          isQueueLoading={isQueueListLoading}
+          pagination={queuePagination}
+          hasMoreQueue={hasMoreQueue}
+          onLoadMoreQueue={onLoadMoreQueue}
+        />
+      </ContentEditorPanelErrorBoundary>
+    );
+
+    if (showTranslationViewSkeleton && !isCompact && !isFileView && !isSideBySideDesktop) {
+      return (
+        <div
+          className={cn(
+            "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
+            className,
+          )}
+        >
+          <ContentEditorComfortableResizableLayout
+            queue={emptyQueuePanel}
+            editor={<ContentEditorEditorPanelSkeleton />}
+            intelligence={
+              <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-border" />
+            }
+          />
+        </div>
+      );
+    }
+
     return (
       <div
         className={cn(
@@ -182,23 +198,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           className,
         )}
       >
-        <ContentEditorPanelErrorBoundary scope="queue" resetKeys={[queueSearch, queueFilter]}>
-          <ContentEditorQueuePanel
-            segments={queueSegments}
-            selectedSegmentId=""
-            onSelectSegment={dependencies.navigation.onSelectSegment}
-            search={queueSearch}
-            queueFilter={queueFilter}
-            checkedSegmentIds={checkedSegmentIds}
-            onToggleSegmentChecked={onToggleSegmentChecked}
-            showSelection={store.selectionMode}
-            isFetchingPage={isQueueFetchingPage}
-            isQueueLoading={isQueueLoading}
-            pagination={queuePagination}
-            hasMoreQueue={hasMoreQueue}
-            onLoadMoreQueue={onLoadMoreQueue}
-          />
-        </ContentEditorPanelErrorBoundary>
+        {emptyQueuePanel}
       </div>
     );
   }
@@ -341,7 +341,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           search={queueSearch}
           queueFilter={queueFilter}
           isFetchingPage={isQueueFetchingPage}
-          isQueueLoading={isQueueLoading}
+          isTranslationViewLoading={showTranslationViewSkeleton}
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
@@ -505,6 +505,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   }
 
   function renderEditorPanel() {
+    if (showTranslationViewSkeleton) {
+      return <ContentEditorEditorPanelSkeleton />;
+    }
+
     if (isFileView) {
       return renderFileViewPanel();
     }
@@ -625,7 +629,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onToggleSegmentChecked={onToggleSegmentChecked}
           showSelection={store.selectionMode}
           isFetchingPage={isQueueFetchingPage}
-          isQueueLoading={isQueueLoading}
+          isQueueLoading={isQueueListLoading}
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}

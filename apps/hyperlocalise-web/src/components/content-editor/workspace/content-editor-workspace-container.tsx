@@ -90,6 +90,10 @@ export interface ContentEditorWorkspaceContainerProps {
   availableQueueSorts?: ContentEditorQueueSort[];
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
+  isQueueListLoading?: boolean;
+  isQueueDataPending?: boolean;
+  isTranslationViewLoading?: boolean;
+  /** @deprecated Use isQueueListLoading or isQueueDataPending. */
   isQueueLoading?: boolean;
   isImageBusy?: boolean;
   isMaxLengthSaving?: boolean;
@@ -128,7 +132,10 @@ const ContentEditorWorkspaceContainerObserver = observer(
     availableQueueSorts,
     isQueueSearchPending,
     isQueueFetchingPage,
-    isQueueLoading,
+    isQueueListLoading,
+    isQueueDataPending,
+    isTranslationViewLoading,
+    isQueueLoading: legacyIsQueueLoading,
     isImageBusy,
     isMaxLengthSaving,
     queuePagination,
@@ -174,10 +181,18 @@ const ContentEditorWorkspaceContainerObserver = observer(
       }
     }, [queueSearch, store]);
 
+    const resolvedQueueListLoading = isQueueListLoading ?? legacyIsQueueLoading ?? false;
+    const resolvedQueueDataPending =
+      isQueueDataPending ?? legacyIsQueueLoading ?? resolvedQueueListLoading;
+
+    useEffect(() => {
+      store.ui.setTranslationViewLoading(Boolean(isTranslationViewLoading));
+    }, [isTranslationViewLoading, store]);
+
     // Cache hits make the query look ready before ContentEditorQueryBridge writes the
     // snapshot. Block bulk targets until both the query and the store agree.
     const isQueueBulkBlocked =
-      Boolean(isQueueLoading) || !store.hasIngestedQueueSnapshot(queueSnapshot ?? null);
+      Boolean(resolvedQueueDataPending) || !store.hasIngestedQueueSnapshot(queueSnapshot ?? null);
 
     return (
       <>
@@ -304,7 +319,8 @@ const ContentEditorWorkspaceContainerObserver = observer(
             className={className}
             queueSearch={queueSearch}
             isQueueFetchingPage={isQueueFetchingPage}
-            isQueueLoading={isQueueLoading}
+            isQueueListLoading={resolvedQueueListLoading}
+            isTranslationViewLoading={store.ui.translationViewLoading}
             isCommentsLoading={store.isCommentsLoading}
             isSegmentTargetLoading={store.isSegmentTargetLoading}
             isImageBusy={isImageBusy}

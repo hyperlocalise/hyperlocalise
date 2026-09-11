@@ -20,7 +20,7 @@ import { cn } from "@/lib/primitives/cn";
 import { ContentEditorQueueSkeletonList } from "@/components/content-editor/queue/content-editor-queue-skeleton-list";
 import { contentEditorWorkspaceSkeletonMessages } from "./content-editor-workspace-skeleton.messages";
 
-function ContentEditorEditorPanelSkeleton() {
+export function ContentEditorEditorPanelSkeleton() {
   const intl = useIntl();
 
   return (

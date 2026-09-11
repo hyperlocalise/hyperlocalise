@@ -156,6 +156,12 @@ export interface ContentEditorWorkspaceViewProps {
   className?: string;
   queueSearch?: string;
   isQueueFetchingPage?: boolean;
+  /** Shows skeleton rows while search/filter results are pending. */
+  isQueueListLoading?: boolean;
+  /** Blocks bulk actions until the queue snapshot is ready. */
+  isQueueDataPending?: boolean;
+  isTranslationViewLoading?: boolean;
+  /** @deprecated Use isQueueListLoading or isQueueDataPending. */
   isQueueLoading?: boolean;
   queuePagination?: {
     offset: number;

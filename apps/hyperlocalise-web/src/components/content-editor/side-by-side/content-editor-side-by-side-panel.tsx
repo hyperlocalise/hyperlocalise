@@ -76,7 +76,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   search = "",
   queueFilter = "all",
   isFetchingPage = false,
-  isQueueLoading = false,
+  isTranslationViewLoading = false,
   pagination = null,
   hasMoreQueue = false,
   onLoadMoreQueue,
@@ -140,7 +140,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   search?: string;
   queueFilter?: ContentEditorQueueFilter;
   isFetchingPage?: boolean;
-  isQueueLoading?: boolean;
+  isTranslationViewLoading?: boolean;
   pagination?: ContentEditorQueuePagination | null;
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
@@ -217,7 +217,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col">
-            {isQueueLoading && segments.length === 0 ? (
+            {isTranslationViewLoading && segments.length === 0 ? (
               <ContentEditorQueueSkeletonList className="px-4 py-3" />
             ) : segments.length === 0 ? (
               <div className="flex flex-1 items-center justify-center px-4 py-8 text-sm text-muted-foreground">

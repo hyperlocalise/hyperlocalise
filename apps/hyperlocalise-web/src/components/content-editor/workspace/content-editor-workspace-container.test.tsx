@@ -29,6 +29,8 @@ import {
 } from "@/components/content-editor/shared/content-editor.fixture";
 import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 
+import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
+
 import { ContentEditorWorkspaceContainer } from "./content-editor-workspace-container";
 
 async function waitForTargetEditor() {
@@ -108,6 +110,25 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       />,
     );
 
+    expect(screen.getByText("No segments in queue.")).toBeInTheDocument();
+  });
+
+  it("shows translation-view skeleton without queue skeleton while a file loads", () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createContentEditorLoadingWorkspaceState({
+          sourcePath: "app/dashboard/index.tsx",
+          sourceLocale: "en-US",
+          targetLocale: "vi",
+        })}
+        initialViewMode="comfortable"
+        isTranslationViewLoading
+      />,
+    );
+
+    expect(screen.getByLabelText("Loading editor")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Loading queue")).not.toBeInTheDocument();
+    expect(screen.getByText("Queue")).toBeInTheDocument();
     expect(screen.getByText("No segments in queue.")).toBeInTheDocument();
   });
 

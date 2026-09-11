@@ -327,3 +327,29 @@ export function resolveCatFileIdentity(input: {
     resourceType: input.resourceType ?? input.contentEditorFile?.provider?.resourceType,
   };
 }
+
+export function createContentEditorLoadingWorkspaceState(input: {
+  sourcePath: string;
+  sourceLocale: string;
+  targetLocale: string;
+}): ContentEditorWorkspaceState {
+  const filename = input.sourcePath.split("/").pop() ?? input.sourcePath;
+
+  return {
+    fileContext: {
+      sourcePath: input.sourcePath,
+      filename,
+      sourceLocale: input.sourceLocale,
+      targetLocale: input.targetLocale,
+      providerKind: null,
+      canEditTranslations: true,
+      canAddComments: true,
+    },
+    queueSegments: [],
+    selectedSegmentId: "",
+    formatChecks: [],
+    intelligence: {
+      glossaryTerms: [],
+    },
+  };
+}
