@@ -12,6 +12,9 @@
  */
 import type { FAQPage, WithContext } from "schema-dts";
 
+import type { AppLocale } from "@/lib/app-i18n/locales";
+import { jsonLdInLanguage } from "@/lib/seo/json-ld-in-language";
+
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
 export type HomepageFaqItem = {
@@ -182,10 +185,14 @@ export function getHomepageFaqItems(locale: string): HomepageFaqItem[] {
   ];
 }
 
-export function buildHomepageFaqJsonLd(items: readonly HomepageFaqItem[]): WithContext<FAQPage> {
+export function buildHomepageFaqJsonLd(
+  locale: AppLocale,
+  items: readonly HomepageFaqItem[],
+): WithContext<FAQPage> {
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
+    inLanguage: jsonLdInLanguage(locale),
     mainEntity: items.map((item) => ({
       "@type": "Question",
       name: item.question,
