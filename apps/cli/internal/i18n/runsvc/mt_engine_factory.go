@@ -137,11 +137,15 @@ func resolveDeepLConfig(lookupEnv func(string) (string, bool), profileName strin
 	if err != nil {
 		return mt.Config{}, err
 	}
-	baseURL := strings.TrimSpace(profile.BaseURL)
+	baseURL := normalizeDeepLBaseURL(profile.BaseURL)
 	if baseURL != mt.DeepLProBaseURL && baseURL != mt.DeepLFreeBaseURL {
 		return mt.Config{}, &MTEngineConfigError{Profile: profileName, Field: "base_url", Message: "must be the DeepL Free or Pro base URL"}
 	}
 	return mt.Config{APIKey: apiKey, BaseURL: baseURL}, nil
+}
+
+func normalizeDeepLBaseURL(baseURL string) string {
+	return strings.TrimRight(strings.TrimSpace(baseURL), "/")
 }
 
 func resolveEnvValue(lookupEnv func(string) (string, bool), profileName, field, envName string) (string, error) {

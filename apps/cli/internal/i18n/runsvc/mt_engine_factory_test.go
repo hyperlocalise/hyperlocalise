@@ -221,6 +221,67 @@ func TestMTEngineFactoryDeepLMissingOrInvalidBaseURLFailsSafely(t *testing.T) {
 	}
 }
 
+func TestMTEngineFactoryDeepLBaseURLTrailingSlashIsNormalized(t *testing.T) {
+	tests := []struct {
+		name    string
+		baseURL string
+		want    string
+	}{
+		{name: "pro, no trailing slash", baseURL: mt.DeepLProBaseURL, want: mt.DeepLProBaseURL},
+		{name: "pro, single trailing slash", baseURL: mt.DeepLProBaseURL + "/", want: mt.DeepLProBaseURL},
+		{name: "pro, double trailing slash", baseURL: mt.DeepLProBaseURL + "//", want: mt.DeepLProBaseURL},
+		{name: "pro, whitespace and trailing slash", baseURL: "  " + mt.DeepLProBaseURL + "/  ", want: mt.DeepLProBaseURL},
+		{name: "free, no trailing slash", baseURL: mt.DeepLFreeBaseURL, want: mt.DeepLFreeBaseURL},
+		{name: "free, single trailing slash", baseURL: mt.DeepLFreeBaseURL + "/", want: mt.DeepLFreeBaseURL},
+		{name: "free, double trailing slash", baseURL: mt.DeepLFreeBaseURL + "//", want: mt.DeepLFreeBaseURL},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profiles := map[string]config.MTProfile{
+				"deepl-slash": {Provider: "deepl", APIKeyEnv: "DEEPL_KEY", BaseURL: tt.baseURL},
+			}
+			lookupEnv := lookupEnvFromMap(map[string]string{"DEEPL_KEY": "secret"})
+			ctor := &fakeConstructor{engine: &fakeMTEngine{}}
+			registrations := map[string]mtProviderRegistration{
+				mtProviderDeepL: {constructor: ctor.construct, resolveConfig: resolveDeepLConfig},
+			}
+
+			f := newTestMTEngineFactory(profiles, lookupEnv, registrations)
+
+			if err := f.BuildSelected([]string{"deepl-slash"}); err != nil {
+				t.Fatalf("BuildSelected: unexpected error for base_url=%q: %v", tt.baseURL, err)
+			}
+			if ctor.calls != 1 {
+				t.Fatalf("constructor calls=%d, want 1", ctor.calls)
+			}
+			if ctor.configs[0].BaseURL != tt.want {
+				t.Fatalf("constructed BaseURL=%q, want %q", ctor.configs[0].BaseURL, tt.want)
+			}
+		})
+	}
+}
+
+func TestNormalizeDeepLBaseURLStripsTrailingSlashesAndWhitespace(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{input: mt.DeepLProBaseURL, want: mt.DeepLProBaseURL},
+		{input: mt.DeepLProBaseURL + "/", want: mt.DeepLProBaseURL},
+		{input: mt.DeepLProBaseURL + "///", want: mt.DeepLProBaseURL},
+		{input: "  " + mt.DeepLFreeBaseURL + "/  ", want: mt.DeepLFreeBaseURL},
+		{input: "", want: ""},
+		{input: "   ", want: ""},
+	}
+
+	for _, tt := range tests {
+		if got := normalizeDeepLBaseURL(tt.input); got != tt.want {
+			t.Fatalf("normalizeDeepLBaseURL(%q)=%q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
 func TestMTEngineFactoryReusesOneEngineAcrossMultipleSelections(t *testing.T) {
 	profiles := map[string]config.MTProfile{
 		"google-default": {Provider: "google", APIKeyEnv: "GOOGLE_KEY"},
