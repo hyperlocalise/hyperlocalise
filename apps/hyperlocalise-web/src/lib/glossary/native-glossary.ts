@@ -909,6 +909,7 @@ export class NativeGlossary extends Glossary {
 
   async updateConcept(conceptId: string, input: GlossaryConceptInput) {
     const preserveOmittedTerms = input.preserveOmittedTerms === true;
+    const deletedTermIds = new Set(input.deletedTermIds ?? []);
     const normalizedInput = normalizeNativeConcept(
       toNativeConceptInput(input, this.input.glossary.sourceLocale),
     );
@@ -983,6 +984,7 @@ export class NativeGlossary extends Glossary {
           forbidden: term.forbidden ?? existing?.forbidden ?? false,
         };
         if (existing) {
+          if (deletedTermIds.has(existing.id)) continue;
           retainedIds.add(existing.id);
           const termChanges = diffGlossaryFields(
             historyValue(existing as unknown as Record<string, unknown>, TERM_HISTORY_FIELDS),
@@ -1043,8 +1045,12 @@ export class NativeGlossary extends Glossary {
       const orphanIds = preserveOmittedTerms
         ? []
         : loaded.terms.map((term) => term.id).filter((termId) => !retainedIds.has(termId));
-      if (orphanIds.length > 0) {
-        for (const orphanId of orphanIds) {
+      const explicitDeleteIds = loaded.terms
+        .map((term) => term.id)
+        .filter((termId) => deletedTermIds.has(termId));
+      const deleteIds = [...new Set([...orphanIds, ...explicitDeleteIds])];
+      if (deleteIds.length > 0) {
+        for (const orphanId of deleteIds) {
           const orphan = loaded.terms.find((term) => term.id === orphanId);
           if (!orphan) continue;
           await appendGlossaryHistoryEvent(tx, {
@@ -1067,7 +1073,7 @@ export class NativeGlossary extends Glossary {
             and(
               eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
               eq(schema.glossaryTerms.conceptId, conceptId),
-              inArray(schema.glossaryTerms.id, orphanIds),
+              inArray(schema.glossaryTerms.id, deleteIds),
             ),
           );
       }

@@ -242,6 +242,7 @@ export const updateGlossaryConceptBodySchema = z
     figure: z.string().url().max(2_000).optional().or(z.literal("")),
     url: z.string().url().max(2_000).optional().or(z.literal("")),
     preserveOmittedTerms: z.boolean().optional(),
+    deletedTermIds: z.array(z.string().trim().min(1).max(128)).max(1_000).optional(),
     terms: z.array(upsertGlossaryConceptTermBodySchema).max(1_000).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {

@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -305,6 +305,7 @@ export function GlossaryConceptDetail({
   const [creatingTermDrafts, setCreatingTermDrafts] = useState<CreatingTermDraft[]>([]);
   const [termDrafts, setTermDrafts] = useState<Record<string, TermDraft>>({});
   const [deletedTermIds, setDeletedTermIds] = useState<Set<string>>(new Set());
+  const initializedConceptIdRef = useRef<string | null>(null);
   const [expandedTermIds, setExpandedTermIds] = useState<Set<string>>(new Set());
   const [expandedCreatingTermIds, setExpandedCreatingTermIds] = useState<Set<string>>(new Set());
   const [termToDeleteId, setTermToDeleteId] = useState<string | null>(null);
@@ -318,6 +319,7 @@ export function GlossaryConceptDetail({
   );
 
   const isCreatingConcept = conceptId === "new";
+  const availableTermLocales = availableConceptTermLocales();
   const conceptQuery = useQuery({
     queryKey: ["glossary-concept", organizationSlug, glossaryId, conceptId],
     enabled: Boolean(isConceptGlossary) && !isCreatingConcept,
@@ -357,7 +359,15 @@ export function GlossaryConceptDetail({
             sortDir: "asc",
             includeArchived: "false",
             ...(termCursor ? { cursor: termCursor } : {}),
-            ...(languageFilter.trim() ? { search: languageFilter.trim() } : {}),
+            ...(languageFilter.trim()
+              ? {
+                  locale: availableTermLocales.find(
+                    (locale) =>
+                      locale.toLowerCase() === languageFilter.trim().toLowerCase() ||
+                      getLocaleLabel(locale).toLowerCase() === languageFilter.trim().toLowerCase(),
+                  ),
+                }
+              : {}),
           },
         },
         { init: { signal } },
@@ -392,20 +402,33 @@ export function GlossaryConceptDetail({
   }, [conceptId, sourceLanguage.locale]);
 
   useEffect(() => {
-    if (selectedConcept) {
-      setConceptDraft(conceptDraftFromRecord(selectedConcept));
-      setTermDrafts(
-        Object.fromEntries(
-          selectedConcept.terms.map((term) => [term.id, termDraftFromRecord(term)]),
-        ),
-      );
-      setDeletedTermIds(new Set());
-      setNewTermLocale(null);
-      setNewTermDraft(emptyTermDraft);
-      setCreatingTermDrafts([]);
-      setExpandedTermIds(new Set());
-      setExpandedCreatingTermIds(new Set());
-    }
+    if (!selectedConcept || initializedConceptIdRef.current === selectedConcept.id) return;
+    initializedConceptIdRef.current = selectedConcept.id;
+    setConceptDraft(conceptDraftFromRecord(selectedConcept));
+    setTermDrafts(
+      Object.fromEntries(selectedConcept.terms.map((term) => [term.id, termDraftFromRecord(term)])),
+    );
+    setDeletedTermIds(new Set());
+    setNewTermLocale(null);
+    setNewTermDraft(emptyTermDraft);
+    setCreatingTermDrafts([]);
+    setExpandedTermIds(new Set());
+    setExpandedCreatingTermIds(new Set());
+  }, [selectedConcept]);
+
+  useEffect(() => {
+    if (!selectedConcept || initializedConceptIdRef.current !== selectedConcept.id) return;
+    setTermDrafts((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const term of selectedConcept.terms) {
+        if (!next[term.id]) {
+          next[term.id] = termDraftFromRecord(term);
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
   }, [selectedConcept]);
 
   const conceptTermCandidates = isCreatingConcept
@@ -433,10 +456,10 @@ export function GlossaryConceptDetail({
           : []),
       ];
 
-  const sourceTermText = selectConceptDetailSourceTermText(
-    conceptTermCandidates,
-    sourceLanguage.locale,
-  );
+  const sourceTermText =
+    selectConceptDetailSourceTermText(conceptTermCandidates, sourceLanguage.locale) ||
+    conceptRecord?.primaryTerm ||
+    "";
 
   const goBack = () => router.push(glossaryHref);
 
@@ -583,6 +606,7 @@ export function GlossaryConceptDetail({
             primaryTerm,
             url: draft.url || undefined,
             preserveOmittedTerms: true,
+            deletedTermIds: [...deletedTermIds],
             terms: terms.map((term) => ({
               ...term,
               partOfSpeech: term.partOfSpeech as GlossaryPartOfSpeech,
@@ -594,26 +618,17 @@ export function GlossaryConceptDetail({
             await readApiError(response, intl.formatMessage(messages.saveConceptFailed)),
           );
         concept = (await response.json()).concept as GlossaryConceptRecord;
-        await Promise.all(
-          [...deletedTermIds].map(async (termId) => {
-            const deleteResponse = await apiClient.api.orgs[":organizationSlug"].glossaries[
-              ":glossaryId"
-            ].concepts[":conceptId"].terms[":termId"].$delete({
-              param: { organizationSlug, glossaryId, conceptId, termId },
-            });
-            if (!deleteResponse.ok) {
-              throw new Error(
-                await readApiError(deleteResponse, intl.formatMessage(messages.saveConceptFailed)),
-              );
-            }
-          }),
-        );
       }
 
       return { concept, created };
     },
     onSuccess: async ({ concept, created }) => {
       await Promise.all([invalidateConcepts(), invalidateConceptDetail()]);
+      setConceptDraft(conceptDraftFromRecord(concept));
+      setTermDrafts(
+        Object.fromEntries(concept.terms.map((term) => [term.id, termDraftFromRecord(term)])),
+      );
+      setDeletedTermIds(new Set());
       if (created) router.replace(conceptHref(concept.id));
       setNewTermLocale(null);
       setNewTermDraft(emptyTermDraft);
@@ -645,7 +660,6 @@ export function GlossaryConceptDetail({
   });
 
   const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
-  const availableTermLocales = availableConceptTermLocales();
   const unsortedTermGroups = (selectedConcept?.terms ?? [])
     .filter((term) => !deletedTermIds.has(term.id))
     .filter(
@@ -835,6 +849,7 @@ export function GlossaryConceptDetail({
                   className="pl-8"
                   placeholder={intl.formatMessage(messages.filterLanguages)}
                   value={languageFilter}
+                  disabled={isDirty}
                   onChange={(event) => {
                     setLanguageFilter(event.target.value);
                     setTermCursor(undefined);

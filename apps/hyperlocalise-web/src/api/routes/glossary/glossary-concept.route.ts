@@ -1029,7 +1029,7 @@ export function createGlossaryConceptRoutes(
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         const current = await product.getConcept(conceptId);
         if (!current) return glossaryNotFoundResponse(c);
-        const { preserveOmittedTerms, ...conceptPayload } = payload;
+        const { preserveOmittedTerms, deletedTermIds, ...conceptPayload } = payload;
         const merged = {
           ...current,
           ...conceptPayload,
@@ -1060,6 +1060,7 @@ export function createGlossaryConceptRoutes(
         const updateInput: GlossaryConceptInput = {
           ...merged,
           preserveOmittedTerms,
+          deletedTermIds,
         };
         let updated;
         try {
