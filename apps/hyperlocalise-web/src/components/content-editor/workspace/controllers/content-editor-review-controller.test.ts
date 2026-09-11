@@ -344,6 +344,104 @@ describe("ContentEditorReviewController", () => {
       expect(workspace.selectedSegmentId).toBe("seg-01");
     });
 
+    it("does not write approve results after a file scope change", async () => {
+      let resolveApprove: ((status: string) => void) | undefined;
+      const onApprove = vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            resolveApprove = resolve;
+          }),
+      );
+      const { controller, workspace } = createController(undefined, {
+        review: { onApprove },
+      });
+      workspace.attachControllers(controller);
+
+      const approvePromise = controller.approve("seg-02", "Stale translation");
+      workspace.prepareFileScopeChange({
+        sourcePath: "locales/messages.po",
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+      });
+      workspace.ingestQueue(
+        createContentEditorWorkspaceState({
+          selectedSegmentId: "seg-02",
+          segments: [
+            {
+              id: "seg-02",
+              index: 1,
+              key: "hello",
+              sourceText: "Hello",
+              targetText: "Bonjour",
+              sourceLocale: "en-US",
+              targetLocale: "fr-FR",
+              status: "pending",
+            },
+          ],
+          queueSegments: [{ id: "seg-02", index: 1, key: "hello", sourceText: "Hello" }],
+        }),
+      );
+
+      resolveApprove?.("reviewed");
+      await approvePromise;
+
+      expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Bonjour");
+      expect(workspace.getSegmentView("seg-02")?.status).toBe("pending");
+      expect(workspace.selectedSegmentId).toBe("seg-02");
+      expect(workspace.isApproving).toBe(false);
+    });
+
+    it("does not clear a newer approve flag when a stale approve finishes", async () => {
+      let resolveStaleApprove: ((status: string) => void) | undefined;
+      const onApprove = vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<string>((resolve) => {
+              resolveStaleApprove = resolve;
+            }),
+        )
+        .mockImplementationOnce(() => new Promise<string>(() => undefined));
+      const { controller, workspace } = createController(undefined, {
+        review: { onApprove },
+      });
+      workspace.attachControllers(controller);
+
+      const staleApprove = controller.approve("seg-02", "Stale translation");
+      workspace.prepareFileScopeChange({
+        sourcePath: "locales/messages.po",
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+      });
+      workspace.ingestQueue(
+        createContentEditorWorkspaceState({
+          selectedSegmentId: "seg-02",
+          segments: [
+            {
+              id: "seg-02",
+              index: 1,
+              key: "hello",
+              sourceText: "Hello",
+              targetText: "Bonjour",
+              sourceLocale: "en-US",
+              targetLocale: "fr-FR",
+              status: "pending",
+            },
+          ],
+          queueSegments: [{ id: "seg-02", index: 1, key: "hello", sourceText: "Hello" }],
+        }),
+      );
+
+      void controller.approve("seg-02", "Bonjour");
+      expect(workspace.isApproving).toBe(true);
+
+      resolveStaleApprove?.("reviewed");
+      await staleApprove;
+
+      expect(workspace.isApproving).toBe(true);
+      expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Bonjour");
+    });
+
     it("adds save failure checks when approve fails", async () => {
       const { controller, workspace } = createController(undefined, {
         review: {
@@ -377,6 +475,52 @@ describe("ContentEditorReviewController", () => {
       expect(onSaveDraft).toHaveBeenCalledWith("seg-02", "Deuxième");
       expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Deuxième");
       expect(workspace.getSegmentView("seg-02")?.status).toBe("needs_review");
+      expect(workspace.isSavingDraft).toBe(false);
+    });
+
+    it("does not write draft results after a file scope change", async () => {
+      let resolveDraft: ((status: string) => void) | undefined;
+      const onSaveDraft = vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            resolveDraft = resolve;
+          }),
+      );
+      const { controller, workspace } = createController(undefined, {
+        review: { onSaveDraft },
+      });
+      workspace.attachControllers(controller);
+
+      const savePromise = controller.saveDraft("seg-02", "Stale draft");
+      workspace.prepareFileScopeChange({
+        sourcePath: "locales/messages.po",
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+      });
+      workspace.ingestQueue(
+        createContentEditorWorkspaceState({
+          selectedSegmentId: "seg-02",
+          segments: [
+            {
+              id: "seg-02",
+              index: 1,
+              key: "hello",
+              sourceText: "Hello",
+              targetText: "Bonjour",
+              sourceLocale: "en-US",
+              targetLocale: "fr-FR",
+              status: "pending",
+            },
+          ],
+          queueSegments: [{ id: "seg-02", index: 1, key: "hello", sourceText: "Hello" }],
+        }),
+      );
+
+      resolveDraft?.("needs_review");
+      await savePromise;
+
+      expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Bonjour");
+      expect(workspace.getSegmentView("seg-02")?.status).toBe("pending");
       expect(workspace.isSavingDraft).toBe(false);
     });
 

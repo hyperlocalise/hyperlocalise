@@ -71,6 +71,7 @@ type UnsavedNavigationPrompt = {
 interface WorkspaceControllerLifecycle {
   start(): void;
   dispose(): void;
+  invalidateFileScope?(): void;
 }
 
 const defaultFileContext: ContentEditorFileContext = {
@@ -223,6 +224,7 @@ export class ContentEditorWorkspaceOrchestrator {
 
   validationSequence = 0;
   reviewSequence = 0;
+  fileScopeGeneration = 0;
   private controllers: WorkspaceControllerLifecycle[] = [];
   private dirtyStateDisposer?: IReactionDisposer;
   private beforeUnloadHandler?: (event: BeforeUnloadEvent) => void;
@@ -237,6 +239,7 @@ export class ContentEditorWorkspaceOrchestrator {
       {
         validationSequence: false,
         reviewSequence: false,
+        fileScopeGeneration: false,
         loadingSegmentIds: computed({ equals: loadingSegmentIdsEqual }),
       },
       { autoBind: true },
@@ -708,6 +711,20 @@ export class ContentEditorWorkspaceOrchestrator {
     targetLocale: string;
   }) {
     const filename = input.sourcePath.split("/").pop() ?? input.sourcePath;
+    this.fileScopeGeneration += 1;
+    this.reviewSequence += 1;
+    this.validationSequence += 1;
+    this.isApproving = false;
+    this.isSavingDraft = false;
+    this.isBulkActionPending = false;
+    this.isPostingComment = false;
+    this.isResolvingComment = false;
+    this.resolvingCommentId = null;
+    this.commentPostError = undefined;
+    this.isValidating = false;
+    this.isGeneratingAiRecommendation = false;
+    this.isRunningFormatChecks = false;
+    this.isLoadingVisualContext = false;
     this.lastHydratedSnapshot = null;
     this.lastHydratedQueueIdentity = "";
     this.initialSegmentJumpApplied = false;
@@ -730,6 +747,13 @@ export class ContentEditorWorkspaceOrchestrator {
     };
     this.page.beginFileScopeChange(input.sourcePath, input.targetLocale);
     this.ui.setTranslationViewLoading(true);
+    for (const controller of this.controllers) {
+      controller.invalidateFileScope?.();
+    }
+  }
+
+  isFileScopeCurrent(generation: number) {
+    return this.fileScopeGeneration === generation;
   }
 
   hasHydratedTarget(segmentId: string) {

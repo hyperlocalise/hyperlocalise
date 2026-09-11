@@ -132,6 +132,22 @@ export class ContentEditorReviewController {
 
   dispose() {
     this.disposed = true;
+    this.abortPendingValidation();
+    this.lastVisibleCheckFingerprint.clear();
+    this.workspace.clearFormatCheckLoading();
+    this.selectedSegmentDisposer?.();
+    this.selectedSegmentDisposer = undefined;
+    this.visibleSegmentsDisposer?.();
+    this.visibleSegmentsDisposer = undefined;
+  }
+
+  invalidateFileScope() {
+    this.abortPendingValidation();
+    this.lastVisibleCheckFingerprint.clear();
+    this.workspace.clearFormatCheckLoading();
+  }
+
+  private abortPendingValidation() {
     if (this.validationTimeout) {
       clearTimeout(this.validationTimeout);
       this.validationTimeout = null;
@@ -142,16 +158,14 @@ export class ContentEditorReviewController {
       controller.abort();
     }
     this.segmentValidationControllers.clear();
-    this.lastVisibleCheckFingerprint.clear();
-    this.workspace.clearFormatCheckLoading();
-    this.selectedSegmentDisposer?.();
-    this.selectedSegmentDisposer = undefined;
-    this.visibleSegmentsDisposer?.();
-    this.visibleSegmentsDisposer = undefined;
   }
 
   get canRunChecks() {
     return Boolean(this.ports.services?.validateFormat || this.ports.services?.runQaChecks);
+  }
+
+  private isCurrentFileScope(generation: number) {
+    return !this.disposed && this.workspace.isFileScopeCurrent(generation);
   }
 
   async runChecks(
@@ -183,6 +197,7 @@ export class ContentEditorReviewController {
 
     const isSelected = this.workspace.selectedSegmentId === segment.id;
     const sequence = quiet || !isSelected ? null : this.workspace.beginValidation();
+    const fileScopeGeneration = this.workspace.fileScopeGeneration;
     this.workspace.setFormatCheckLoading(segment.id, true);
     try {
       const glossaryTerms =
@@ -196,7 +211,8 @@ export class ContentEditorReviewController {
       if (
         this.disposed ||
         abortController.signal.aborted ||
-        (sequence !== null && !this.workspace.isValidationCurrent(sequence))
+        (sequence !== null && !this.workspace.isValidationCurrent(sequence)) ||
+        !this.isCurrentFileScope(fileScopeGeneration)
       ) {
         return;
       }
@@ -360,6 +376,7 @@ export class ContentEditorReviewController {
   }
 
   async approve(segmentId: string, targetText: string) {
+    const fileScopeGeneration = this.workspace.fileScopeGeneration;
     this.workspace.isApproving = true;
     try {
       // Resolve the next row before the status change so Needs Review (and other
@@ -374,6 +391,9 @@ export class ContentEditorReviewController {
 
       const nextStatus =
         (await this.ports.review?.onApprove?.(segmentId, targetText)) ?? "reviewed";
+      if (!this.isCurrentFileScope(fileScopeGeneration)) {
+        return;
+      }
       this.workspace.markSegmentSaved(
         segmentId,
         targetText,
@@ -396,6 +416,9 @@ export class ContentEditorReviewController {
         );
       }
     } catch (error) {
+      if (!this.isCurrentFileScope(fileScopeGeneration)) {
+        return;
+      }
       this.workspace.addSaveFailureCheck(
         segmentId,
         error instanceof Error
@@ -406,7 +429,9 @@ export class ContentEditorReviewController {
         this.ports.intl.formatMessage(contentEditorWorkspaceContainerMessages.saveFailedLabel),
       );
     } finally {
-      this.workspace.isApproving = false;
+      if (this.isCurrentFileScope(fileScopeGeneration)) {
+        this.workspace.isApproving = false;
+      }
     }
   }
 
@@ -415,15 +440,22 @@ export class ContentEditorReviewController {
     if (!saveDraft) {
       return;
     }
+    const fileScopeGeneration = this.workspace.fileScopeGeneration;
     this.workspace.isSavingDraft = true;
     try {
       const nextStatus = (await saveDraft(segmentId, targetText)) ?? "needs_review";
+      if (!this.isCurrentFileScope(fileScopeGeneration)) {
+        return;
+      }
       this.workspace.markSegmentSaved(
         segmentId,
         targetText,
         nextStatus as ContentEditorSegmentStatus,
       );
     } catch (error) {
+      if (!this.isCurrentFileScope(fileScopeGeneration)) {
+        return;
+      }
       this.workspace.addSaveFailureCheck(
         segmentId,
         error instanceof Error
@@ -434,7 +466,9 @@ export class ContentEditorReviewController {
         this.ports.intl.formatMessage(contentEditorWorkspaceContainerMessages.saveFailedLabel),
       );
     } finally {
-      this.workspace.isSavingDraft = false;
+      if (this.isCurrentFileScope(fileScopeGeneration)) {
+        this.workspace.isSavingDraft = false;
+      }
     }
   }
 
@@ -443,18 +477,24 @@ export class ContentEditorReviewController {
     if (!addComment) {
       return;
     }
+    const fileScopeGeneration = this.workspace.fileScopeGeneration;
     this.workspace.commentPostError = undefined;
     this.workspace.isPostingComment = true;
     try {
       await addComment(segmentId, input);
     } catch (error) {
+      if (!this.isCurrentFileScope(fileScopeGeneration)) {
+        return;
+      }
       this.workspace.commentPostError =
         error instanceof Error
           ? error.message
           : this.ports.intl.formatMessage(contentEditorEditorPanelMessages.commentPostFailed);
       throw error;
     } finally {
-      this.workspace.isPostingComment = false;
+      if (this.isCurrentFileScope(fileScopeGeneration)) {
+        this.workspace.isPostingComment = false;
+      }
     }
   }
 
@@ -463,20 +503,26 @@ export class ContentEditorReviewController {
     if (!resolveComment) {
       return;
     }
+    const fileScopeGeneration = this.workspace.fileScopeGeneration;
     this.workspace.commentPostError = undefined;
     this.workspace.resolvingCommentId = commentId;
     this.workspace.isResolvingComment = true;
     try {
       await resolveComment(segmentId, commentId);
     } catch (error) {
+      if (!this.isCurrentFileScope(fileScopeGeneration)) {
+        return;
+      }
       this.workspace.commentPostError =
         error instanceof Error
           ? error.message
           : this.ports.intl.formatMessage(contentEditorEditorPanelMessages.commentResolveFailed);
       throw error;
     } finally {
-      this.workspace.isResolvingComment = false;
-      this.workspace.resolvingCommentId = null;
+      if (this.isCurrentFileScope(fileScopeGeneration)) {
+        this.workspace.isResolvingComment = false;
+        this.workspace.resolvingCommentId = null;
+      }
     }
   }
 
@@ -510,12 +556,16 @@ export class ContentEditorReviewController {
     if (segmentIds.length === 0) {
       return;
     }
+    const fileScopeGeneration = this.workspace.fileScopeGeneration;
     this.workspace.isBulkActionPending = true;
     try {
       if (this.ports.review?.onBulkApprove) {
         await this.ports.review.onBulkApprove(segmentIds);
       } else {
         for (const segmentId of segmentIds) {
+          if (!this.isCurrentFileScope(fileScopeGeneration)) {
+            return;
+          }
           const segment = this.workspace.getSegmentView(segmentId);
           if (segment) {
             await this.approve(segmentId, segment.targetText);
@@ -523,8 +573,10 @@ export class ContentEditorReviewController {
         }
       }
     } finally {
-      this.workspace.isBulkActionPending = false;
-      this.workspace.clearChecked();
+      if (this.isCurrentFileScope(fileScopeGeneration)) {
+        this.workspace.isBulkActionPending = false;
+        this.workspace.clearChecked();
+      }
     }
   }
 
@@ -533,6 +585,7 @@ export class ContentEditorReviewController {
     if (segmentIds.length === 0) {
       return;
     }
+    const fileScopeGeneration = this.workspace.fileScopeGeneration;
     this.workspace.isBulkActionPending = true;
     try {
       if (this.ports.review?.onBulkSkip) {
@@ -543,8 +596,10 @@ export class ContentEditorReviewController {
         }
       }
     } finally {
-      this.workspace.isBulkActionPending = false;
-      this.workspace.clearChecked();
+      if (this.isCurrentFileScope(fileScopeGeneration)) {
+        this.workspace.isBulkActionPending = false;
+        this.workspace.clearChecked();
+      }
     }
   }
 
@@ -561,7 +616,11 @@ export class ContentEditorReviewController {
       return;
     }
 
+    const fileScopeGeneration = this.workspace.fileScopeGeneration;
     await this.ports.review.onSetLocked(segmentIds, isLocked);
+    if (!this.isCurrentFileScope(fileScopeGeneration)) {
+      return;
+    }
     this.workspace.setSegmentsLocked(segmentIds, isLocked);
   }
 
@@ -584,13 +643,19 @@ export class ContentEditorReviewController {
       return;
     }
 
+    const fileScopeGeneration = this.workspace.fileScopeGeneration;
     this.workspace.isBulkActionPending = true;
     try {
       await handler(segmentIds);
+      if (!this.isCurrentFileScope(fileScopeGeneration)) {
+        return;
+      }
       this.workspace.setSegmentsHidden(segmentIds, isHidden);
     } finally {
-      this.workspace.isBulkActionPending = false;
-      this.workspace.clearChecked();
+      if (this.isCurrentFileScope(fileScopeGeneration)) {
+        this.workspace.isBulkActionPending = false;
+        this.workspace.clearChecked();
+      }
     }
   }
 
@@ -605,13 +670,19 @@ export class ContentEditorReviewController {
       return;
     }
 
+    const fileScopeGeneration = this.workspace.fileScopeGeneration;
     this.workspace.isBulkActionPending = true;
     try {
       await handler(segmentIds);
+      if (!this.isCurrentFileScope(fileScopeGeneration)) {
+        return;
+      }
       this.workspace.setSegmentsLocked(segmentIds, isLocked);
     } finally {
-      this.workspace.isBulkActionPending = false;
-      this.workspace.clearChecked();
+      if (this.isCurrentFileScope(fileScopeGeneration)) {
+        this.workspace.isBulkActionPending = false;
+        this.workspace.clearChecked();
+      }
     }
   }
 }

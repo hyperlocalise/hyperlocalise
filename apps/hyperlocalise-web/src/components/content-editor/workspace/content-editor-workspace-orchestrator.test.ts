@@ -1249,6 +1249,8 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
     expect(store.queueSegments).toEqual([]);
     expect(store.selectedSegmentId).toBe("");
     expect(store.ui.translationViewLoading).toBe(true);
+    expect(store.isFileScopeCurrent(0)).toBe(false);
+    expect(store.isFileScopeCurrent(store.fileScopeGeneration)).toBe(true);
     expect(store.page.selectedSourcePath).toBe("locales/messages.po");
     expect(store.page.targetLocale).toBe("fr-FR");
     expect(store.page.showFileSidebar).toBe(true);
