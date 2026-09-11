@@ -28,6 +28,7 @@ const (
 type Document struct {
 	languageRules []languageRule
 	languageMaps  []languageMap
+	cascade       bool
 	fingerprint   string
 }
 
@@ -56,7 +57,44 @@ type Span struct {
 
 type srxXML struct {
 	XMLName xml.Name `xml:"srx"`
+	Header  srxHeaderXML
 	Body    srxBodyXML
+}
+
+type srxHeaderXML struct {
+	Cascade string
+}
+
+func (s *srxXML) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	s.XMLName = start.Name
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch localName(t.Name) {
+			case "header":
+				s.Header.Cascade = strings.TrimSpace(attrValue(t.Attr, "cascade"))
+				if err := d.Skip(); err != nil {
+					return err
+				}
+			case "body":
+				if err := s.Body.UnmarshalXML(d, t); err != nil {
+					return err
+				}
+			default:
+				if err := d.Skip(); err != nil {
+					return err
+				}
+			}
+		case xml.EndElement:
+			if localName(t.Name) == localName(start.Name) {
+				return nil
+			}
+		}
+	}
 }
 
 type srxBodyXML struct {
@@ -276,10 +314,15 @@ func Parse(data []byte) (*Document, error) {
 	if len(raw.Body.LanguageRules) == 0 {
 		return nil, fmt.Errorf("srx: languagerules must not be empty")
 	}
+	cascade, err := parseCascade(raw.Header.Cascade)
+	if err != nil {
+		return nil, err
+	}
 
 	doc := &Document{
 		languageRules: make([]languageRule, 0, len(raw.Body.LanguageRules)),
 		languageMaps:  make([]languageMap, 0, len(raw.Body.LanguageMaps)),
+		cascade:       cascade,
 	}
 	seen := make(map[string]struct{}, len(raw.Body.LanguageRules))
 	for i, rawRule := range raw.Body.LanguageRules {
@@ -321,6 +364,17 @@ func Parse(data []byte) (*Document, error) {
 	}
 	doc.fingerprint = fingerprintDocument(data)
 	return doc, nil
+}
+
+func parseCascade(value string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "no":
+		return false, nil
+	case "yes":
+		return true, nil
+	default:
+		return false, fmt.Errorf("srx: header cascade must be yes or no")
+	}
 }
 
 func compileRule(raw srxRuleXML, languageIdx, ruleIdx int) (rule, error) {
@@ -477,14 +531,27 @@ func (d *Document) rulesForLanguage(language string) []rule {
 	if dash := strings.IndexAny(normalized, "-_"); dash > 0 {
 		candidates = append(candidates, normalized[:dash])
 	}
-	for _, mapping := range d.languageMaps {
-		for _, candidate := range candidates {
-			if candidate == "" {
+	if len(d.languageMaps) > 0 {
+		accumulated := make([]rule, 0)
+		seen := make(map[string]struct{})
+		for _, mapping := range d.languageMaps {
+			if !languageMapMatches(mapping, candidates) {
 				continue
 			}
-			if mapping.pattern.MatchString(candidate) {
-				return d.rulesNamed(mapping.rule)
+			if _, dup := seen[mapping.rule]; dup {
+				if !d.cascade {
+					break
+				}
+				continue
 			}
+			seen[mapping.rule] = struct{}{}
+			accumulated = append(accumulated, d.rulesNamed(mapping.rule)...)
+			if !d.cascade {
+				return accumulated
+			}
+		}
+		if len(accumulated) > 0 {
+			return accumulated
 		}
 	}
 	if len(d.languageRules) == 1 {
@@ -499,6 +566,18 @@ func (d *Document) rulesForLanguage(language string) []rule {
 		return d.languageRules[0].rules
 	}
 	return nil
+}
+
+func languageMapMatches(mapping languageMap, candidates []string) bool {
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		if mapping.pattern.MatchString(candidate) {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *Document) rulesNamed(name string) []rule {
@@ -576,6 +655,30 @@ func IsNamedTemplate(spec string) bool {
 // SpanKey builds a stable per-span entry key from a parser file key.
 func SpanKey(fileKey string, index int) string {
 	return fileKey + spanKeyInfix + strconv.Itoa(index)
+}
+
+// IsReservedSpanKey reports whether a parser key already uses the reserved SRX span suffix.
+func IsReservedSpanKey(entryKey string) bool {
+	_, _, ok := SplitSpanKey(entryKey)
+	return ok
+}
+
+// ReservedSpanKeys returns sorted source keys that collide with synthetic span keys.
+func ReservedSpanKeys(entries map[string]string) []string {
+	if len(entries) == 0 {
+		return nil
+	}
+	reserved := make([]string, 0)
+	for key := range entries {
+		if IsReservedSpanKey(key) {
+			reserved = append(reserved, key)
+		}
+	}
+	if len(reserved) == 0 {
+		return nil
+	}
+	sort.Strings(reserved)
+	return reserved
 }
 
 // SplitSpanKey extracts the original file key and span index.

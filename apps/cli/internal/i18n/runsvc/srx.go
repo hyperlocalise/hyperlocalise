@@ -51,14 +51,17 @@ func (s *Service) compileSRX(spec string) (*srx.Document, string, error) {
 	return compiled.doc, compiled.fingerprint, nil
 }
 
-func applySRXToEntries(doc *srx.Document, sourcePath, parserMode, language string, entries, contextByKey map[string]string) (map[string]string, map[string]string, []string) {
+func applySRXToEntries(doc *srx.Document, sourcePath, parserMode, language string, entries, contextByKey map[string]string) (map[string]string, map[string]string, []string, error) {
 	if doc == nil || len(entries) == 0 {
-		return entries, contextByKey, nil
+		return entries, contextByKey, nil, nil
 	}
 	if !srx.FormatSupports(sourcePath, parserMode) {
 		return entries, contextByKey, []string{
 			fmt.Sprintf("srx ignored for %s: format is already segmented or incompatible", sourcePath),
-		}
+		}, nil
+	}
+	if reserved := srx.ReservedSpanKeys(entries); len(reserved) > 0 {
+		return nil, nil, nil, fmt.Errorf("source %q has keys that collide with reserved srx span keys: %s", sourcePath, strings.Join(reserved, ", "))
 	}
 
 	splitEntries := make(map[string]string, len(entries))
@@ -87,7 +90,7 @@ func applySRXToEntries(doc *srx.Document, sourcePath, parserMode, language strin
 			}
 		}
 	}
-	return splitEntries, splitContext, nil
+	return splitEntries, splitContext, nil, nil
 }
 
 func joinSRXStagedEntries(doc *srx.Document, sourcePath, parserMode, sourceLocale, targetLocale string, sourceEntries, staged, existing map[string]string) map[string]string {

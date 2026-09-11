@@ -51,6 +51,7 @@ func TestParseRejectsEmptyAndInvalid(t *testing.T) {
 		{name: "invalid after regex", input: `<srx><body><languagerules><languagerule languagename="A"><rule break="yes"><afterbreak>(</afterbreak></rule></languagerule></languagerules></body></srx>`, wantErr: "invalid afterbreak"},
 		{name: "unknown map target", input: `<srx><body><languagerules><languagerule languagename="A"/></languagerules><maprules><languagemap languagepattern=".*" languagerulename="Missing"/></maprules></body></srx>`, wantErr: "unknown languagerulename"},
 		{name: "invalid language pattern", input: `<srx><body><languagerules><languagerule languagename="A"/></languagerules><maprules><languagemap languagepattern="(" languagerulename="A"/></maprules></body></srx>`, wantErr: "invalid languagepattern"},
+		{name: "invalid cascade", input: `<srx><header cascade="maybe"/><body><languagerules><languagerule languagename="A"/></languagerules></body></srx>`, wantErr: "cascade must be yes or no"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -226,6 +227,58 @@ func TestSpanKeyRoundTrip(t *testing.T) {
 	}
 	if _, _, ok := SplitSpanKey("#srx.1"); ok {
 		t.Fatal("expected missing file key to fail")
+	}
+}
+
+func TestSegmentCascadesMatchingLanguageMaps(t *testing.T) {
+	t.Parallel()
+	const rules = `
+    <languagerules>
+      <languagerule languagename="FrenchExceptions">
+        <rule break="no"><beforebreak>M\.</beforebreak><afterbreak>\s</afterbreak></rule>
+      </languagerule>
+      <languagerule languagename="Default">
+        <rule break="yes"><beforebreak>[\.!\?]</beforebreak><afterbreak>\s</afterbreak></rule>
+      </languagerule>
+    </languagerules>
+    <maprules>
+      <languagemap languagepattern="fr.*" languagerulename="FrenchExceptions"/>
+      <languagemap languagepattern=".*" languagerulename="Default"/>
+    </maprules>`
+	cascade, err := Parse([]byte(`<srx><header segmentsubflows="yes" cascade="yes"/><body>` + rules + `</body></srx>`))
+	if err != nil {
+		t.Fatalf("parse cascade yes: %v", err)
+	}
+	noCascade, err := Parse([]byte(`<srx><header cascade="no"/><body>` + rules + `</body></srx>`))
+	if err != nil {
+		t.Fatalf("parse cascade no: %v", err)
+	}
+
+	text := "M. Dupont partit. Ensuite."
+	if got := spanTexts(cascade.Segment(text, "fr-FR")); !equalStrings(got, []string{"M. Dupont partit.", " Ensuite."}) {
+		t.Fatalf("cascade yes spans = %#v", got)
+	}
+	if got := spanTexts(noCascade.Segment(text, "fr-FR")); !equalStrings(got, []string{text}) {
+		t.Fatalf("cascade no should use only the first map, got %#v", got)
+	}
+	if got := spanTexts(cascade.Segment(text, "en")); !equalStrings(got, []string{"M.", " Dupont partit.", " Ensuite."}) {
+		t.Fatalf("english cascade spans = %#v", got)
+	}
+}
+
+func TestReservedSpanKeys(t *testing.T) {
+	t.Parallel()
+	got := ReservedSpanKeys(map[string]string{
+		"hello":      "Hello",
+		"foo#srx.0":  "span",
+		"bar#srx.10": "later",
+	})
+	want := []string{"bar#srx.10", "foo#srx.0"}
+	if !equalStrings(got, want) {
+		t.Fatalf("reserved = %#v, want %#v", got, want)
+	}
+	if IsReservedSpanKey("hello") || !IsReservedSpanKey("hello#srx.0") {
+		t.Fatal("IsReservedSpanKey mismatch")
 	}
 }
 

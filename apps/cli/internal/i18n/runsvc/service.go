@@ -582,7 +582,11 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							return nil, nil, fmt.Errorf("planning tasks: %w", compileErr)
 						}
 						var srxWarnings []string
-						sourceEntries, sourceContextByKey, srxWarnings = applySRXToEntries(doc, sourcePath, parserMode, cfg.Locales.Source, sourceEntries, sourceContextByKey)
+						var applyErr error
+						sourceEntries, sourceContextByKey, srxWarnings, applyErr = applySRXToEntries(doc, sourcePath, parserMode, cfg.Locales.Source, sourceEntries, sourceContextByKey)
+						if applyErr != nil {
+							return nil, nil, fmt.Errorf("planning tasks: %w", applyErr)
+						}
 						planWarnings = append(planWarnings, srxWarnings...)
 						srxFingerprint = fingerprint
 					}

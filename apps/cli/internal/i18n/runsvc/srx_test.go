@@ -656,12 +656,33 @@ func TestCompileSRXReadsProjectFile(t *testing.T) {
 	}
 }
 
+func TestPlanTasksRejectsReservedSRXSpanKeys(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	cfg := withMappingSRX(testConfig(sourcePath, targetPath), "default")
+	svc.readFile = func(path string) ([]byte, error) {
+		if path == sourcePath {
+			return []byte(`{"hello":"Hello. World.","hello#srx.0":"Already a key."}`), nil
+		}
+		return nil, filepath.ErrBadPattern
+	}
+
+	_, _, err := svc.planTasks(&cfg, "", "", nil, nil, nil, nil)
+	if err == nil {
+		t.Fatal("expected reserved span key error")
+	}
+	if !strings.Contains(err.Error(), "hello#srx.0") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestApplySRXToEntriesCopiesContextToSpans(t *testing.T) {
 	doc, err := srx.LoadTemplate("default")
 	if err != nil {
 		t.Fatalf("template: %v", err)
 	}
-	entries, contextByKey, warnings := applySRXToEntries(
+	entries, contextByKey, warnings, err := applySRXToEntries(
 		doc,
 		"en.json",
 		"json",
@@ -669,6 +690,9 @@ func TestApplySRXToEntriesCopiesContextToSpans(t *testing.T) {
 		map[string]string{"hello": "Hello. World."},
 		map[string]string{"hello": "Greeting"},
 	)
+	if err != nil {
+		t.Fatalf("apply srx: %v", err)
+	}
 	if len(warnings) != 0 {
 		t.Fatalf("warnings: %#v", warnings)
 	}
