@@ -82,6 +82,14 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 	if err != nil {
 		return nil, err
 	}
+	stagedEntries := output.entries
+	if strings.TrimSpace(output.srxSpec) != "" {
+		joined, joinErr := s.joinStagedSRXOutput(output, values)
+		if joinErr != nil {
+			return nil, joinErr
+		}
+		stagedEntries = joined
+	}
 	if keep != nil {
 		for key := range values {
 			if _, ok := keep[key]; !ok {
@@ -90,16 +98,16 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 		}
 	}
 	if keep == nil {
-		maps.Copy(values, output.entries)
+		maps.Copy(values, stagedEntries)
 	} else {
-		for key, value := range output.entries {
+		for key, value := range stagedEntries {
 			if _, ok := keep[key]; ok {
 				values[key] = value
 			}
 		}
 	}
 
-	content, warnings, err := s.marshalTargetFile(targetPath, output.sourcePath, output.sourceLocale, output.targetLocale, values, output.entries, keep)
+	content, warnings, err := s.marshalTargetFile(targetPath, output.sourcePath, output.sourceLocale, output.targetLocale, values, stagedEntries, keep)
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +147,37 @@ func (s *Service) loadExistingTargetWithWarnings(path, targetLocale string) (map
 		return nil, nil, fmt.Errorf("flush outputs: parse target file %q: %w", path, err)
 	}
 	return entries, nil, nil
+}
+
+func (s *Service) joinStagedSRXOutput(output stagedOutput, existing map[string]string) (map[string]string, error) {
+	doc, _, err := s.compileSRX(output.srxSpec)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: compile srx %q: %w", output.srxSpec, err)
+	}
+	sourceEntries, parserMode, err := s.loadSourceEntriesForJoin(output.sourcePath)
+	if err != nil {
+		return nil, err
+	}
+	if mode := strings.TrimSpace(output.parserMode); mode != "" {
+		parserMode = mode
+	}
+	return joinSRXStagedEntries(doc, output.sourcePath, parserMode, output.sourceLocale, output.targetLocale, sourceEntries, output.entries, existing), nil
+}
+
+func (s *Service) loadSourceEntriesForJoin(sourcePath string) (map[string]string, string, error) {
+	content, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, "", fmt.Errorf("flush outputs: source file %q does not exist", sourcePath)
+		}
+		return nil, "", fmt.Errorf("flush outputs: read source file %q: %w", sourcePath, err)
+	}
+	parser := s.newParser()
+	entries, _, parseErr := parser.ParseWithContext(sourcePath, content)
+	if parseErr != nil {
+		return nil, "", fmt.Errorf("flush outputs: parse source file %q: %w", sourcePath, parseErr)
+	}
+	return entries, parserModeForSource(sourcePath, content), nil
 }
 
 func parseExistingTargetEntries(path string, content []byte, targetLocale string, parser *translationfileparser.Strategy) (map[string]string, error) {

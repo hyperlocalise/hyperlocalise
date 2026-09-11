@@ -6,7 +6,7 @@ description: "Plan and execute local translation generation from configured sour
 ## Usage
 
 ```bash
-hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <path>] [--locale <locale>] [--dry-run] [--workers <count>] [--output <report.json>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
+hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <path>] [--locale <locale>] [--dry-run] [--workers <count>] [--output <report.json>] [--srx <default|html|markdown|path>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
 ```
 
 ## Behavior
@@ -185,9 +185,18 @@ For generic XML (`.xml`, `.resx`), `run` translates text-only leaf elements and 
 - `--workers`: number of parallel translation workers (defaults to CPU cores)
 - `--progress`: progress rendering mode (`auto|on|off`, default: `auto`)
 - `--output`: write machine-readable JSON run report to the given path
+- `--srx`: override `buckets.*.files[].srx` for this invocation. Accepts a built-in template (`default`, `html`, `markdown`) or a project-relative SRX 2.0 file. Mapping `srx` stays off unless you set this flag or the file mapping.
 - `--experimental-context-memory`: enable two-stage context memory generation before translating each scope
 - `--context-memory-scope`: context sharing scope (`file|bucket|group`, default `file`)
 - `--context-memory-max-chars`: maximum context memory length injected into each translation request (default `1200`)
+
+## Sentence segmentation (`srx`)
+
+`run` can split string values with SRX 2.0 before translation. This is a text-level segmenter, not a JSON parser: each leaf stays one file key, and `run` writes the joined translation back to that key.
+
+Enable it per mapping with `buckets.*.files[].srx`, or override every mapping for one invocation with `--srx`. Both accept `default`, `html`, `markdown`, or a project-relative SRX 2.0 file. Segmentation stays off when neither is set.
+
+`run` skips already-segmented formats (XLIFF, PO, SRT, VTT, xcstrings, stringsdict) and FormatJS/ARB parser modes. Values that contain ICU, printf, or Fluent `{ $var }` placeholders stay one unit. Changing the SRX rules changes the lock hash so those tasks run again.
 
 ## Prompt contract for `run`
 

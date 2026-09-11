@@ -47,6 +47,7 @@ type runOptions struct {
 	contextMemoryScope        string
 	contextMemoryMaxChars     int
 	outputDetail              string
+	srx                       string
 }
 
 var runFunc = runsvc.Run
@@ -96,6 +97,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.contextMemoryScope, "context-memory-scope", runsvc.ContextMemoryScopeFile, "scope for experimental context memory: file|bucket|group")
 	cmd.Flags().IntVar(&o.contextMemoryMaxChars, "context-memory-max-chars", 1200, "maximum context memory characters injected into each translation request")
 	cmd.Flags().StringVar(&o.outputDetail, "output-detail", runsvc.ReportJSONDetailSummary, "for --output JSON: summary (default; counts, tokens, failures, warnings only—no task or prune lists) or full (complete report including tasks and batches)")
+	cmd.Flags().StringVar(&o.srx, "srx", "", "override buckets.*.files[].srx for this run (default, html, markdown, or a project-relative SRX 2.0 file)")
 
 	return cmd
 }
@@ -330,6 +332,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		PrefilledEntries:          prefilled.Flat,
 		PrefilledByLocale:         prefilled.ByLocale,
 		PrefilledTargetPath:       prefilledTargetPath,
+		SRX:                       o.srx,
 	}
 	if renderer != nil {
 		input.OnEvent = func(event runsvc.Event) {

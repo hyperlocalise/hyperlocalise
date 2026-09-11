@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "srx",
+    srcs = [
+        "skip.go",
+        "srx.go",
+        "templates.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/srx",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "srx_test",
+    srcs = [
+        "skip_test.go",
+        "srx_test.go",
+        "templates_test.go",
+    ],
+    embed = [":srx"],
+)
