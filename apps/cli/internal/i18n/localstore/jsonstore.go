@@ -117,6 +117,10 @@ func matchesKeyPrefix(key string, prefixes []string) bool {
 }
 
 func (s *JSONStore) ApplyPull(_ context.Context, plan syncsvc.ApplyPullPlan) (syncsvc.ApplyResult, error) {
+	if err := validateFlatJSONPlan(plan); err != nil {
+		return syncsvc.ApplyResult{}, err
+	}
+
 	byLocale := make(map[string][]storage.Entry)
 	for _, entry := range plan.Creates {
 		if err := s.validateWritableLocale(entry.Locale); err != nil {
@@ -215,13 +219,49 @@ func resolveLocalePattern(buckets map[string]config.BucketConfig) (string, strin
 	for _, name := range names {
 		bucket := buckets[name]
 		for _, file := range bucket.Files {
-			if strings.TrimSpace(file.To) != "" {
-				return file.To, file.From, nil
+			pattern := strings.TrimSpace(file.To)
+			if pattern == "" {
+				continue
 			}
+			if err := validateJSONLocalePattern(pattern); err != nil {
+				return "", "", err
+			}
+			return pattern, file.From, nil
 		}
 	}
 
 	return "", "", fmt.Errorf("new json store: buckets.*.files[].to is required")
+}
+
+func validateJSONLocalePattern(pattern string) error {
+	if strings.ContainsAny(pattern, "*?") {
+		return fmt.Errorf("new json store: files[].to %q uses a glob; TMS sync requires one concrete JSON locale file", pattern)
+	}
+	if strings.ToLower(filepath.Ext(pattern)) != ".json" {
+		return fmt.Errorf("new json store: files[].to %q is not a JSON locale file; TMS sync currently supports flat JSON only", pattern)
+	}
+	return nil
+}
+
+func validateFlatJSONPlan(plan syncsvc.ApplyPullPlan) error {
+	seen := make(map[string]struct{})
+	check := func(entries []storage.Entry) error {
+		for _, entry := range entries {
+			if strings.TrimSpace(entry.Context) != "" {
+				return fmt.Errorf("json store cannot represent contextual entries (key %q locale %q context %q)", entry.Key, entry.Locale, entry.Context)
+			}
+			dup := entry.Locale + "\x1f" + entry.Key
+			if _, ok := seen[dup]; ok {
+				return fmt.Errorf("json store cannot represent duplicate key %q in locale %q", entry.Key, entry.Locale)
+			}
+			seen[dup] = struct{}{}
+		}
+		return nil
+	}
+	if err := check(plan.Creates); err != nil {
+		return err
+	}
+	return check(plan.Updates)
 }
 
 type entryMeta struct {

@@ -30,7 +30,7 @@ Use `--dry-run` to preview the report without writing files.
 
 ## TMS entry sync
 
-TMS pull writes flat JSON locale files from the first bucket `files[].to` mapping (bucket names sorted) plus sidecar metadata. Nested JSON objects are not supported on this path. Provider file commands such as `crowdin` and `phrase` keep their own config and behavior.
+TMS pull writes flat JSON locale files from the first bucket `files[].to` mapping (bucket names sorted) plus sidecar metadata. The mapping must be one concrete `.json` path template, not YAML/MDX/ARB or a glob. Nested JSON objects and contextual entries (the same key under more than one context) are not supported on this path. Provider file commands such as `crowdin` and `phrase` keep their own config and behavior.
 
 `--output json` on the TMS path prints a `syncsvc` entry report (`creates`, `updates`, `conflicts`, …), not the Hyperlocalise file-count report.
 

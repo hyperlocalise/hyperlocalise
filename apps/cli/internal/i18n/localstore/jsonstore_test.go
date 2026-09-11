@@ -210,6 +210,48 @@ func TestJSONStoreReadSnapshotRelativePatternUsesConfigRoot(t *testing.T) {
 	}
 }
 
+func TestJSONStoreRejectsNonJSONAndGlobMappings(t *testing.T) {
+	t.Parallel()
+	cfg := func(to string) *config.I18NConfig {
+		return &config.I18NConfig{
+			Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+			Buckets: map[string]config.BucketConfig{
+				"ui": {Files: []config.BucketFileMapping{{To: to}}},
+			},
+		}
+	}
+	if _, err := NewJSONStore(cfg("lang/{{target}}.yaml")); err == nil || !strings.Contains(err.Error(), "flat JSON") {
+		t.Fatalf("yaml mapping error = %v", err)
+	}
+	if _, err := NewJSONStore(cfg("lang/*.json")); err == nil || !strings.Contains(err.Error(), "glob") {
+		t.Fatalf("glob mapping error = %v", err)
+	}
+}
+
+func TestJSONStoreApplyPullRejectsContextualAndDuplicateKeys(t *testing.T) {
+	t.Parallel()
+	store := mustNewStore(t, filepath.Join(t.TempDir(), "lang", "[locale].json"))
+	_, err := store.ApplyPull(context.Background(), syncsvc.ApplyPullPlan{
+		Creates: []storage.Entry{
+			{Key: "hello", Locale: "fr", Context: "button", Value: "bonjour"},
+			{Key: "hello", Locale: "fr", Context: "title", Value: "salut"},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "contextual") {
+		t.Fatalf("contextual entries error = %v", err)
+	}
+
+	_, err = store.ApplyPull(context.Background(), syncsvc.ApplyPullPlan{
+		Creates: []storage.Entry{
+			{Key: "hello", Locale: "fr", Value: "bonjour"},
+			{Key: "hello", Locale: "fr", Value: "salut"},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "duplicate key") {
+		t.Fatalf("duplicate key error = %v", err)
+	}
+}
+
 func TestJSONStoreApplyPullRejectsUnconfiguredLocale(t *testing.T) {
 	store := mustNewStore(t, filepath.Join(t.TempDir(), "lang", "[locale].json"))
 	_, err := store.ApplyPull(context.Background(), syncsvc.ApplyPullPlan{

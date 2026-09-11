@@ -270,7 +270,7 @@ Prompt variables:
 
 When `hyperlocalise` is set, `sync push` uploads source files and `sync pull` downloads translated files reconstructed by the API. Translation jobs are created by Hyperlocalise automation or in the web app, not by the CLI. A `hyperlocalise` block wins over `storage.adapter` when both are set.
 
-When `hyperlocalise` is absent, set `storage.adapter` so `sync push` and `sync pull` use TMS entry sync. Keep `storage` for provider-specific file commands as well.
+When `hyperlocalise` is absent, set `storage.adapter` so `sync push` and `sync pull` use TMS entry sync. That path uses the first bucket `files[].to` mapping and currently requires one concrete flat JSON locale file. Keep `storage` for provider-specific file commands as well.
 
 For API keys, sample config, and CI, see [Connect the CLI](/platform/cli).
 
