@@ -45,6 +45,8 @@ type stagedOutput struct {
 	sourcePath   string
 	sourceLocale string
 	targetLocale string
+	srxSpec      string
+	parserMode   string
 	binary       []byte
 	binaryOutput bool
 }
@@ -85,7 +87,16 @@ func newExecutorState(tasks []Task, projectRoot string, initialStaged map[string
 		entries := map[string]string{}
 		maps.Copy(entries, output.entries)
 		binary := append([]byte(nil), output.binary...)
-		staged[targetPath] = stagedOutput{entries: entries, sourcePath: output.sourcePath, sourceLocale: output.sourceLocale, targetLocale: output.targetLocale, binary: binary, binaryOutput: output.binaryOutput}
+		staged[targetPath] = stagedOutput{
+			entries:      entries,
+			sourcePath:   output.sourcePath,
+			sourceLocale: output.sourceLocale,
+			targetLocale: output.targetLocale,
+			srxSpec:      output.srxSpec,
+			parserMode:   output.parserMode,
+			binary:       binary,
+			binaryOutput: output.binaryOutput,
+		}
 	}
 
 	state := &executorState{
@@ -535,7 +546,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 			markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
 			return false
 		}
-		if err := stageTaskOutput(state.staged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, translated, &state.stageMu); err != nil {
+		if err := stageTaskOutput(state.staged, task, translated, &state.stageMu); err != nil {
 			recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
 			markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
 			return false
@@ -656,15 +667,28 @@ func recordTaskFailure(report *executionReport, reportMu *sync.Mutex, total int,
 	}, tokenUsage))
 }
 
-func stageTaskOutput(staged map[string]stagedOutput, targetPath, sourcePath, sourceLocale, targetLocale, entryKey, value string, stageMu *sync.Mutex) error {
+func stageTaskOutput(staged map[string]stagedOutput, task Task, value string, stageMu *sync.Mutex) error {
 	if stageMu != nil {
 		stageMu.Lock()
 		defer stageMu.Unlock()
 	}
 
+	targetPath := task.TargetPath
+	sourcePath := task.SourcePath
+	sourceLocale := task.SourceLocale
+	targetLocale := task.TargetLocale
+	entryKey := task.EntryKey
+
 	bucket, ok := staged[targetPath]
 	if !ok {
-		bucket = stagedOutput{entries: map[string]string{}, sourcePath: sourcePath, sourceLocale: sourceLocale, targetLocale: targetLocale}
+		bucket = stagedOutput{
+			entries:      map[string]string{},
+			sourcePath:   sourcePath,
+			sourceLocale: sourceLocale,
+			targetLocale: targetLocale,
+			srxSpec:      task.SRXSpec,
+			parserMode:   task.ParserMode,
+		}
 		staged[targetPath] = bucket
 	} else if bucket.sourcePath != sourcePath {
 		return fmt.Errorf("output staging conflict: %s has conflicting source paths", targetPath)
@@ -672,9 +696,17 @@ func stageTaskOutput(staged map[string]stagedOutput, targetPath, sourcePath, sou
 		return fmt.Errorf("output staging conflict: %s has conflicting source locales", targetPath)
 	} else if bucket.targetLocale != "" && bucket.targetLocale != targetLocale {
 		return fmt.Errorf("output staging conflict: %s has conflicting target locales", targetPath)
+	} else if bucket.srxSpec != "" && task.SRXSpec != "" && bucket.srxSpec != task.SRXSpec {
+		return fmt.Errorf("output staging conflict: %s has conflicting srx specs", targetPath)
 	}
 	if bucket.binaryOutput {
 		return fmt.Errorf("output staging conflict: %s mixes image and text outputs", targetPath)
+	}
+	if bucket.srxSpec == "" {
+		bucket.srxSpec = task.SRXSpec
+	}
+	if bucket.parserMode == "" {
+		bucket.parserMode = task.ParserMode
 	}
 
 	if existing, exists := bucket.entries[entryKey]; exists && existing != value {

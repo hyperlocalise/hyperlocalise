@@ -49,6 +49,7 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		endRunSpan(planSpan, err, "config_path_root")
 		return Report{}, err
 	}
+	s.srxOverride = strings.TrimSpace(in.SRX)
 
 	planned, planWarnings, err := s.planTasks(cfg, in.Bucket, in.Group, in.TargetLocales, in.SourcePaths, in.FixTargets, in.FixMarkdownScopes)
 	if err != nil {
@@ -275,7 +276,7 @@ func applyFlatPrefilledEntries(tasks []Task, staged map[string]stagedOutput, ent
 			filtered = append(filtered, task)
 			continue
 		}
-		if err := stageTaskOutput(staged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, value, nil); err != nil {
+		if err := stageTaskOutput(staged, task, value, nil); err != nil {
 			return nil, 0, fmt.Errorf("stage prefilled output for %s: %w", taskIdentity(task.TargetPath, task.EntryKey), err)
 		}
 		reused++
@@ -304,7 +305,7 @@ func applyLocaleKeyedPrefilledEntries(tasks []Task, staged map[string]stagedOutp
 			filtered = append(filtered, task)
 			continue
 		}
-		if err := stageTaskOutput(staged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, value, nil); err != nil {
+		if err := stageTaskOutput(staged, task, value, nil); err != nil {
 			return nil, 0, nil, fmt.Errorf("stage prefilled output for %s: %w", taskIdentity(task.TargetPath, task.EntryKey), err)
 		}
 		reused++
@@ -409,7 +410,7 @@ func applyLockFilterWithReader(planned []Task, completed map[string]lockfile.Run
 				}
 				stageErr = stageImageOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, content, nil)
 			} else {
-				stageErr = stageTaskOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, cp.Value, nil)
+				stageErr = stageTaskOutput(checkpointStaged, task, cp.Value, nil)
 			}
 			if stageErr != nil {
 				return Report{}, nil, nil, false, fmt.Errorf("stage checkpoint output for %s: %w", identity, stageErr)

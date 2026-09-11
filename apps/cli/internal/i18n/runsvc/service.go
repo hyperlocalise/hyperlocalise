@@ -18,6 +18,7 @@ import (
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/srx"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
@@ -56,6 +57,9 @@ type Input struct {
 	// The CLI defaults to summary; an empty value normalizes to full for backward compatibility with
 	// library callers that omit the field. Run applies NormalizeReportJSONDetail again (idempotent).
 	ReportJSONDetail string
+	// SRX overrides buckets.*.files[].srx for this invocation. Accepts a built-in
+	// template name (default, html, markdown) or a project-relative SRX 2.0 file.
+	SRX string
 	// PrefilledEntries is the legacy flat map keyed by entry id. Requires PrefilledTargetPath.
 	PrefilledEntries map[string]string
 	// PrefilledByLocale is locale -> entry id -> value. Mutually exclusive with PrefilledEntries.
@@ -201,6 +205,8 @@ type Task struct {
 	ParserMode      string `json:"-"`
 	PromptVersion   string `json:"-"`
 	OutputFormat    string `json:"-"`
+	SRXSpec         string `json:"-"`
+	SRXFingerprint  string `json:"-"`
 
 	sourceTextHash           string
 	sourceContextFingerprint string
@@ -320,6 +326,14 @@ type Service struct {
 
 	lockPersistBatchSize     int
 	lockPersistFlushInterval time.Duration
+
+	srxOverride string
+	srxDocs     map[string]*compiledSRX
+}
+
+type compiledSRX struct {
+	doc         *srx.Document
+	fingerprint string
 }
 
 func New() *Service {
@@ -408,6 +422,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 	filterFixes := len(fixSet) > 0 || len(markdownScopeSet) > 0
 
 	tasks := make([]Task, 0)
+	var planWarnings []string
 
 	for _, groupName := range groups {
 		if filteredGroup != "" && groupName != filteredGroup {
@@ -559,6 +574,18 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 					sourceEntries := snapshot.entries
 					sourceContextByKey := snapshot.entryContext
 					parserMode := snapshot.parserMode
+					srxSpec := resolveMappingSRXSpec(s.srxOverride, file.SRX)
+					var srxFingerprint string
+					if srxSpec != "" {
+						doc, fingerprint, compileErr := s.compileSRX(srxSpec)
+						if compileErr != nil {
+							return nil, nil, fmt.Errorf("planning tasks: %w", compileErr)
+						}
+						var srxWarnings []string
+						sourceEntries, sourceContextByKey, srxWarnings = applySRXToEntries(doc, sourcePath, parserMode, cfg.Locales.Source, sourceEntries, sourceContextByKey)
+						planWarnings = append(planWarnings, srxWarnings...)
+						srxFingerprint = fingerprint
+					}
 					keys := sortedEntryKeys(sourceEntries)
 
 					// Fix runs keep only a small matching subset after filterFixes;
@@ -599,6 +626,8 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								PromptVersion:            promptVersion,
 								sourceTextHash:           snapshot.sourceTextHashes[key],
 								sourceContextFingerprint: snapshot.sourceContextFingerprints[key],
+								SRXSpec:                  srxSpec,
+								SRXFingerprint:           srxFingerprint,
 							}
 
 							switch selection.Type {
@@ -661,7 +690,6 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 		}
 	}
 
-	var planWarnings []string
 	if len(fixSet) > 0 {
 		seen := make(map[string]struct{})
 		for _, ft := range fixTargets {

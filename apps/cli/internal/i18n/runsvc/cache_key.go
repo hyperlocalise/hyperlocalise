@@ -211,6 +211,9 @@ func lockTaskHashWithContextFingerprint(task Task, sourceContextFingerprint stri
 		"parser_mode="+strings.TrimSpace(task.ParserMode),
 		"source_context_fingerprint="+sourceContextFingerprint,
 	)
+	if fingerprint := strings.TrimSpace(task.SRXFingerprint); fingerprint != "" {
+		parts = append(parts, "srx_fingerprint="+fingerprint)
+	}
 	if includeLegacyDefaults {
 		parts = append(parts, "retrieval_corpus_snapshot_version="+legacyDefaultRetrievalSnapshot())
 	}

@@ -208,6 +208,20 @@ func TestLockTaskHashStillIncludesNonMarkdownSourceContext(t *testing.T) {
 	}
 }
 
+func TestLockTaskHashChangesWhenSRXFingerprintChanges(t *testing.T) {
+	task := baseLockTask()
+	without := lockTaskHash(task)
+	task.SRXFingerprint = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	with := lockTaskHash(task)
+	if with == without {
+		t.Fatal("expected srx fingerprint to change lock hash")
+	}
+	task.SRXFingerprint = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	if lockTaskHash(task) == with {
+		t.Fatal("expected different fingerprints to change lock hash")
+	}
+}
+
 func TestLockTaskHashReusesCachedNonMarkdownContextFingerprint(t *testing.T) {
 	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"
