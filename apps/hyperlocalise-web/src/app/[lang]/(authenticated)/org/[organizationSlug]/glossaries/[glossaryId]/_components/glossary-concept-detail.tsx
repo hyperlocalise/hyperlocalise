@@ -296,6 +296,14 @@ export function GlossaryConceptDetail({
   const glossaryHref = `/org/${organizationSlug}/glossaries/${glossaryId}`;
   const conceptHref = (id: string) => `${glossaryHref}/concepts/${id}`;
   const [languageFilter, setLanguageFilter] = useState("");
+  const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
+  const matchingTermLocales = normalizedLanguageFilter
+    ? availableConceptTermLocales().filter(
+        (locale) =>
+          getLocaleLabel(locale).toLowerCase().includes(normalizedLanguageFilter) ||
+          locale.toLowerCase().includes(normalizedLanguageFilter),
+      )
+    : undefined;
   const [localePickerOpen, setLocalePickerOpen] = useState(false);
   const [newTermLocale, setNewTermLocale] = useState<string | null>(null);
   const [newTermDraft, setNewTermDraft] = useState<TermDraft>(emptyTermDraft);
@@ -333,7 +341,14 @@ export function GlossaryConceptDetail({
     },
   });
   const termPageQuery = useQuery({
-    queryKey: ["glossary-concept-terms-page", organizationSlug, glossaryId, conceptId, termCursor],
+    queryKey: [
+      "glossary-concept-terms-page",
+      organizationSlug,
+      glossaryId,
+      conceptId,
+      termCursor,
+      matchingTermLocales,
+    ],
     enabled: Boolean(isConceptGlossary) && !isCreatingConcept,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
@@ -345,6 +360,7 @@ export function GlossaryConceptDetail({
           sort: "term",
           sortDir: "asc",
           includeArchived: "false",
+          ...(matchingTermLocales ? { locales: matchingTermLocales } : {}),
           ...(termCursor ? { cursor: termCursor } : {}),
         },
       });
@@ -459,9 +475,14 @@ export function GlossaryConceptDetail({
     ]);
 
   const invalidateConceptDetail = () =>
-    queryClient.invalidateQueries({
-      queryKey: ["glossary-concept", organizationSlug, glossaryId, conceptId],
-    });
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["glossary-concept", organizationSlug, glossaryId, conceptId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["glossary-concept-terms-page", organizationSlug, glossaryId, conceptId],
+      }),
+    ]);
   const saveConcept = useMutation({
     mutationFn: async (draft: ConceptDraft) => {
       let concept: GlossaryConceptRecord;
@@ -597,7 +618,6 @@ export function GlossaryConceptDetail({
     onError: (error) => toast.error(error.message),
   });
 
-  const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
   const availableTermLocales = availableConceptTermLocales();
   const pagedTermIds = new Set(
     (termPageQuery.isSuccess ? termPageQuery.data.terms : (selectedConcept?.terms ?? [])).map(

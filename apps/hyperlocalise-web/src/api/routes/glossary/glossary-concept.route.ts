@@ -154,6 +154,7 @@ function toCrowdinTermRecord(
     userId?: number | null;
     createdAt?: string | null;
     updatedAt?: string | null;
+    version?: number;
   },
 ) {
   const createdAt = term.createdAt ?? new Date(0).toISOString();
@@ -182,6 +183,7 @@ function toCrowdinTermRecord(
     externalUserId: term.userId == null ? null : String(term.userId),
     externalCreatedAt: createdAt,
     externalUpdatedAt: updatedAt,
+    version: term.version,
     createdAt,
     updatedAt,
   };
@@ -210,6 +212,7 @@ function toCrowdinConceptRecord(
     }>;
     externalCreatedAt?: string | null;
     externalUpdatedAt?: string | null;
+    version?: number;
     reviewStatus?: string;
     reviewReason?: string | null;
     terms: Array<{
@@ -227,6 +230,7 @@ function toCrowdinConceptRecord(
       userId?: number | null;
       createdAt?: string | null;
       updatedAt?: string | null;
+      version?: number;
     }>;
   },
 ) {
@@ -258,6 +262,7 @@ function toCrowdinConceptRecord(
     externalUpdatedAt: updatedAt,
     reviewStatus: value.reviewStatus ?? "approved",
     reviewReason: value.reviewReason ?? null,
+    version: value.version,
     createdAt,
     updatedAt,
     terms: value.terms.map((term) => toCrowdinTermRecord(glossary, conceptId, term)),
@@ -1080,6 +1085,13 @@ export function createGlossaryConceptRoutes(
         });
         if (!result.ok) {
           if (result.code === "not_found") return glossaryNotFoundResponse(c);
+          if (result.code === "primary_term") {
+            return badRequestResponse(
+              c,
+              "glossary_primary_term_archived",
+              "The primary source term cannot be archived independently",
+            );
+          }
           return conflictResponse(
             c,
             "glossary_version_conflict",
@@ -1177,6 +1189,11 @@ export function createGlossaryConceptRoutes(
                     url: term.url !== undefined ? (term.url ?? undefined) : existing?.url,
                     lemma: term.lemma !== undefined ? (term.lemma ?? undefined) : existing?.lemma,
                     forbidden: term.forbidden ?? existing?.forbidden ?? false,
+                    reviewStatus: existing
+                      ? undefined
+                      : isGlossaryReviewAllowed(c.var.auth.membership.role)
+                        ? "approved"
+                        : "proposed",
                   };
                 }),
         } satisfies GlossaryConcept;

@@ -71,7 +71,7 @@ export const glossaryReviewDecisionSchema = z.enum([
 export const glossaryReviewBodySchema = z.object({
   decision: glossaryReviewDecisionSchema,
   reason: z.string().trim().max(10_000).nullable().optional(),
-  expectedVersion: z.number().int().positive().optional(),
+  expectedVersion: z.number().int().positive(),
 });
 
 export const glossaryArchiveBodySchema = z.object({
@@ -109,6 +109,7 @@ export const glossaryTermPageQuerySchema = z.object({
   cursor: z.string().trim().max(2_000).optional(),
   search: z.string().trim().max(200).optional(),
   locale: localeInputSchema.optional(),
+  locales: z.array(localeInputSchema).max(100).optional(),
   reviewStatus: glossaryReviewStatusSchema.optional(),
   includeArchived: queryBooleanSchema.default(false),
   sort: z.enum(["created_at", "updated_at", "term"]).default("updated_at"),
@@ -313,6 +314,7 @@ export const glossaryRecordSchema = z.object({
   lastSyncErrorMessage: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  version: z.number().int().positive().optional(),
 });
 
 export const glossaryConceptTermRecordSchema = z.object({
@@ -371,6 +373,7 @@ export const glossaryConceptRecordSchema = z.object({
   externalUpdatedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  version: z.number().int().positive().optional(),
   terms: z.array(glossaryConceptTermRecordSchema),
   reviewStatus: glossaryReviewStatusSchema.optional(),
   reviewReason: z.string().nullable().optional(),

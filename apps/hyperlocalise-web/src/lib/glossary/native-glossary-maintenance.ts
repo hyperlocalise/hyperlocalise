@@ -20,7 +20,12 @@ type MaintenanceResult<T> =
   | { ok: true; value: T }
   | {
       ok: false;
-      code: "not_found" | "version_conflict" | "invalid_transition" | "reason_required";
+      code:
+        | "not_found"
+        | "version_conflict"
+        | "invalid_transition"
+        | "reason_required"
+        | "primary_term";
       currentVersion?: number;
       currentStatus?: string;
     };
@@ -234,6 +239,13 @@ export async function setGlossaryTermArchived(input: {
       ),
     });
     if (!current) return { ok: false, code: "not_found" };
+    const glossary = await tx.query.glossaries.findFirst({
+      where: eq(schema.glossaries.id, input.glossaryId),
+      columns: { sourceLocale: true },
+    });
+    if (input.archived && glossary?.sourceLocale === current.locale) {
+      return { ok: false, code: "primary_term" };
+    }
     if (input.expectedVersion !== undefined && current.version !== input.expectedVersion) {
       return { ok: false, code: "version_conflict", currentVersion: current.version };
     }

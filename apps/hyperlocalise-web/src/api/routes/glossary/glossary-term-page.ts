@@ -12,7 +12,7 @@
  */
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
-import { and, asc, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
@@ -112,6 +112,9 @@ function whereFor(glossaryId: string, conceptId: string | undefined, filters: Fi
   if (conceptId) conditions.push(eq(schema.glossaryTerms.conceptId, conceptId));
   if (!filters.includeArchived) conditions.push(sql`${schema.glossaryTerms.archivedAt} is null`);
   if (filters.locale) conditions.push(eq(schema.glossaryTerms.locale, filters.locale));
+  if (filters.locales?.length) {
+    conditions.push(inArray(schema.glossaryTerms.locale, filters.locales));
+  }
   if (filters.reviewStatus)
     conditions.push(eq(schema.glossaryTerms.reviewStatus, filters.reviewStatus));
   if (filters.search) {

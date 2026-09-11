@@ -153,6 +153,7 @@ export type GlossaryConceptTerm = NativeGlossaryTermInput & {
   userId?: number;
   createdAt?: string;
   updatedAt?: string;
+  version?: number;
 };
 
 export type NativeGlossaryLanguageDetails = {
@@ -181,6 +182,7 @@ export type GlossaryConcept = {
   externalUpdatedAt?: string | null;
   reviewStatus?: "proposed" | "approved" | "rejected" | "superseded";
   reviewReason?: string | null;
+  version?: number;
   terms: GlossaryConceptTerm[];
 };
 

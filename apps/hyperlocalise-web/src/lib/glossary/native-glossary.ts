@@ -601,6 +601,7 @@ export class NativeGlossary extends Glossary {
       externalUserId: null,
       externalCreatedAt: loaded.concept.createdAt.toISOString(),
       externalUpdatedAt: loaded.concept.updatedAt.toISOString(),
+      version: loaded.concept.version,
       languageDetails: loaded.concept.languageDetails?.map((detail) => ({
         locale: detail.locale,
         userId: detail.userId,
@@ -629,6 +630,7 @@ export class NativeGlossary extends Glossary {
         reviewReason: term.reviewReason,
         createdAt: term.createdAt.toISOString(),
         updatedAt: term.updatedAt.toISOString(),
+        version: term.version,
       })),
     };
   }
@@ -652,6 +654,7 @@ export class NativeGlossary extends Glossary {
       reviewReason: term.reviewReason,
       createdAt: term.createdAt.toISOString(),
       updatedAt: term.updatedAt.toISOString(),
+      version: term.version,
     };
   }
 
