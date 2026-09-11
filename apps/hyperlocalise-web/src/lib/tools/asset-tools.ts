@@ -20,6 +20,7 @@ import { flattenNativeConceptTermsToPairs } from "@/lib/glossary/flatten-native-
 import { buildGlossaryTsQuery } from "@/lib/glossary/glossary";
 import { concordanceSourceContainsTerm } from "@/lib/glossary/native-glossary";
 import { groupConceptTerms } from "@/lib/glossary/query-glossary-terms";
+import { isMemorySearchableForExecution } from "@/lib/memory/memory-capabilities";
 import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
@@ -37,14 +38,14 @@ import type { ToolContext } from "@/lib/tools/types";
  * Strips characters that have special meaning in Postgres tsquery syntax
  * so that untrusted input cannot break the query.
  */
-function buildTsQuery(input: string): string {
+function buildTsQuery(input: string, operator: " & " | " | " = " & "): string {
   const sanitized = input
     .replace(/[&|!():*<>]/g, " ")
     .trim()
     .split(/\s+/)
     .filter(Boolean)
     .map((w) => `${w}:*`)
-    .join(" & ");
+    .join(operator);
   return sanitized;
 }
 
@@ -341,6 +342,168 @@ export function createQueryGlossaryTool(ctx: ToolContext) {
  * If no exact match is found, falls back to the full-text search vector on
  * `memoryEntries.searchVector` for lexical similarity.
  */
+export type QueryTranslationMemoryInput = {
+  sourceText: string;
+  sourceLocale: string;
+  targetLocale: string;
+  projectId?: string;
+  memoryId?: string;
+  limit: number;
+};
+
+export async function queryTranslationMemoryMatches(
+  ctx: ToolContext,
+  {
+    sourceText,
+    sourceLocale,
+    targetLocale,
+    projectId,
+    memoryId,
+    limit,
+  }: QueryTranslationMemoryInput,
+) {
+  const db = ctx.db;
+  const normalized = normalizeTranslationMemorySourceText(sourceText);
+
+  let memoryIds: string[] | undefined;
+
+  if (projectId) {
+    const accessibleProject = await toolCanAccessProject(ctx, projectId);
+
+    if (!accessibleProject) {
+      return { matches: [] };
+    }
+
+    const attached = await db
+      .select({
+        memoryId: schema.projectMemories.memoryId,
+      })
+      .from(schema.projectMemories)
+      .where(
+        and(
+          eq(schema.projectMemories.projectId, projectId),
+          eq(schema.projectMemories.organizationId, ctx.organizationId),
+        ),
+      );
+
+    memoryIds = attached.map(({ memoryId }) => memoryId);
+
+    if (memoryIds.length === 0) {
+      return { matches: [] };
+    }
+  }
+
+  if (memoryId) {
+    if (memoryIds && !memoryIds.includes(memoryId)) {
+      return { matches: [] };
+    }
+
+    memoryIds = [memoryId];
+  }
+
+  const searchableMemoryConditions = [await toolProjectLinkedMemoryWhere(ctx)];
+
+  if (memoryIds) {
+    searchableMemoryConditions.push(inArray(schema.memories.id, memoryIds));
+  }
+
+  const searchableMemories = await db
+    .select({
+      id: schema.memories.id,
+      source: schema.memories.source,
+      status: schema.memories.status,
+      capabilityMode: schema.memories.capabilityMode,
+      externalProviderKind: schema.memories.externalProviderKind,
+    })
+    .from(schema.memories)
+    .where(and(...searchableMemoryConditions));
+
+  memoryIds = searchableMemories.filter(isMemorySearchableForExecution).map(({ id }) => id);
+
+  if (memoryIds.length === 0) {
+    return { matches: [] };
+  }
+
+  const exactConditions = [
+    eq(schema.memoryEntries.normalizedSourceText, normalized),
+    eq(schema.memoryEntries.sourceLocale, sourceLocale),
+    eq(schema.memoryEntries.targetLocale, targetLocale),
+    eq(schema.memoryEntries.reviewStatus, "approved"),
+    inArray(schema.memoryEntries.memoryId, memoryIds),
+  ];
+
+  const exactMatches = await db
+    .select({
+      id: schema.memoryEntries.id,
+      memoryId: schema.memoryEntries.memoryId,
+      sourceText: schema.memoryEntries.sourceText,
+      targetText: schema.memoryEntries.targetText,
+      sourceLocale: schema.memoryEntries.sourceLocale,
+      targetLocale: schema.memoryEntries.targetLocale,
+      matchScore: schema.memoryEntries.matchScore,
+      provenance: schema.memoryEntries.provenance,
+    })
+    .from(schema.memoryEntries)
+    .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
+    .where(and(...exactConditions))
+    .limit(limit);
+
+  if (exactMatches.length > 0) {
+    return {
+      matches: exactMatches.map((match) => ({
+        ...match,
+        rank: 1,
+      })),
+    };
+  }
+
+  const tsQuery = buildTsQuery(sourceText, " | ");
+
+  if (!tsQuery) {
+    return { matches: [] };
+  }
+
+  const fuzzyConditions = [
+    sql`${schema.memoryEntries.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+    eq(schema.memoryEntries.sourceLocale, sourceLocale),
+    eq(schema.memoryEntries.targetLocale, targetLocale),
+    eq(schema.memoryEntries.reviewStatus, "approved"),
+    inArray(schema.memoryEntries.memoryId, memoryIds),
+  ];
+
+  const fuzzyMatches = await db
+    .select({
+      id: schema.memoryEntries.id,
+      memoryId: schema.memoryEntries.memoryId,
+      sourceText: schema.memoryEntries.sourceText,
+      targetText: schema.memoryEntries.targetText,
+      sourceLocale: schema.memoryEntries.sourceLocale,
+      targetLocale: schema.memoryEntries.targetLocale,
+      matchScore: schema.memoryEntries.matchScore,
+      provenance: schema.memoryEntries.provenance,
+      rank: sql<number>`
+        ts_rank(
+          ${schema.memoryEntries.searchVector},
+          to_tsquery('simple', ${tsQuery})
+        )
+      `.as("rank"),
+    })
+    .from(schema.memoryEntries)
+    .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
+    .where(and(...fuzzyConditions))
+    .orderBy(
+      sql`ts_rank(
+        ${schema.memoryEntries.searchVector},
+        to_tsquery('simple', ${tsQuery})
+      ) DESC`,
+    )
+    .limit(limit);
+
+  return {
+    matches: fuzzyMatches,
+  };
+}
+
 export function createQueryTranslationMemoryTool(ctx: ToolContext) {
   return tool({
     description: "Search translation memory for previous accepted translations of a source text.",
@@ -354,113 +517,6 @@ export function createQueryTranslationMemoryTool(ctx: ToolContext) {
         .describe("Optional project ID to restrict to attached memories."),
       limit: z.number().min(1).max(10).default(5).describe("Maximum results to return."),
     }),
-    execute: async ({ sourceText, sourceLocale, targetLocale, projectId, limit }) => {
-      const db = ctx.db;
-      const normalized = normalizeTranslationMemorySourceText(sourceText);
-
-      let memoryIds: string[] | undefined;
-      if (projectId) {
-        const accessibleProject = await toolCanAccessProject(ctx, projectId);
-        if (!accessibleProject) {
-          return { matches: [] };
-        }
-
-        const attached = await db
-          .select({ memoryId: schema.projectMemories.memoryId })
-          .from(schema.projectMemories)
-          .where(
-            and(
-              eq(schema.projectMemories.projectId, projectId),
-              eq(schema.projectMemories.organizationId, ctx.organizationId),
-            ),
-          );
-        memoryIds = attached.map((a) => a.memoryId);
-        if (memoryIds.length === 0) {
-          return { matches: [] };
-        }
-      }
-
-      // Exact match on normalized text first.
-      const exactConditions = [
-        eq(schema.memoryEntries.normalizedSourceText, normalized),
-        eq(schema.memoryEntries.sourceLocale, sourceLocale),
-        eq(schema.memoryEntries.targetLocale, targetLocale),
-        eq(schema.memoryEntries.reviewStatus, "approved"),
-        await toolProjectLinkedMemoryWhere(ctx),
-      ];
-      if (memoryIds) {
-        exactConditions.push(inArray(schema.memoryEntries.memoryId, memoryIds));
-      }
-
-      const exactMatches = await db
-        .select({
-          id: schema.memoryEntries.id,
-          sourceText: schema.memoryEntries.sourceText,
-          targetText: schema.memoryEntries.targetText,
-          sourceLocale: schema.memoryEntries.sourceLocale,
-          targetLocale: schema.memoryEntries.targetLocale,
-          matchScore: schema.memoryEntries.matchScore,
-          provenance: schema.memoryEntries.provenance,
-        })
-        .from(schema.memoryEntries)
-        .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
-        .where(and(...exactConditions))
-        .limit(limit);
-
-      if (exactMatches.length > 0) {
-        return {
-          matches: exactMatches.map((m) => ({ ...m, rank: 1.0 })),
-        };
-      }
-
-      // Fallback to lexical full-text search.
-      const tsQuery = buildTsQuery(sourceText);
-      if (!tsQuery) {
-        return { matches: [] };
-      }
-
-      const fuzzyConditions = [
-        sql`${schema.memoryEntries.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-        eq(schema.memoryEntries.sourceLocale, sourceLocale),
-        eq(schema.memoryEntries.targetLocale, targetLocale),
-        eq(schema.memoryEntries.reviewStatus, "approved"),
-        await toolProjectLinkedMemoryWhere(ctx),
-      ];
-      if (memoryIds) {
-        fuzzyConditions.push(inArray(schema.memoryEntries.memoryId, memoryIds));
-      }
-
-      const fuzzyMatches = await db
-        .select({
-          id: schema.memoryEntries.id,
-          sourceText: schema.memoryEntries.sourceText,
-          targetText: schema.memoryEntries.targetText,
-          sourceLocale: schema.memoryEntries.sourceLocale,
-          targetLocale: schema.memoryEntries.targetLocale,
-          matchScore: schema.memoryEntries.matchScore,
-          provenance: schema.memoryEntries.provenance,
-          rank: sql<number>`ts_rank(${schema.memoryEntries.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-            "rank",
-          ),
-        })
-        .from(schema.memoryEntries)
-        .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
-        .where(and(...fuzzyConditions))
-        .orderBy(desc(sql`rank`))
-        .limit(limit);
-
-      return {
-        matches: fuzzyMatches.map((m) => ({
-          id: m.id,
-          sourceText: m.sourceText,
-          targetText: m.targetText,
-          sourceLocale: m.sourceLocale,
-          targetLocale: m.targetLocale,
-          matchScore: m.matchScore,
-          provenance: m.provenance,
-          rank: m.rank,
-        })),
-      };
-    },
+    execute: async (input) => queryTranslationMemoryMatches(ctx, input),
   });
 }
