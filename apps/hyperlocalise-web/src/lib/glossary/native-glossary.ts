@@ -958,6 +958,16 @@ export class NativeGlossary extends Glossary {
           ),
         );
       if (!current) return false;
+      const terms = await tx
+        .select({
+          id: schema.glossaryTerms.id,
+          locale: schema.glossaryTerms.locale,
+          term: schema.glossaryTerms.term,
+          description: schema.glossaryTerms.description,
+          note: schema.glossaryTerms.note,
+        })
+        .from(schema.glossaryTerms)
+        .where(eq(schema.glossaryTerms.conceptId, conceptId));
       await this.recordHistoryEvent(tx, {
         conceptId,
         eventType: "concept_deleted",
@@ -967,6 +977,11 @@ export class NativeGlossary extends Glossary {
           { field: "primaryTerm", before: current.primaryTerm, after: null },
           { field: "subject", before: current.subject, after: null },
           { field: "definition", before: current.definition, after: null },
+          {
+            field: "terms",
+            before: terms,
+            after: null,
+          },
         ],
       });
       await tx.delete(schema.glossaryConcepts).where(eq(schema.glossaryConcepts.id, conceptId));
@@ -1346,30 +1361,28 @@ export class NativeGlossary extends Glossary {
         )
         .returning();
       if (term) {
+        const changes: GlossaryHistoryChange[] = [
+          { field: "locale", before: before.locale, after: term.locale },
+          { field: "term", before: before.term, after: term.term },
+          { field: "description", before: before.description, after: term.description },
+          { field: "note", before: before.note, after: term.note },
+          { field: "partOfSpeech", before: before.partOfSpeech, after: term.partOfSpeech },
+          { field: "gender", before: before.gender, after: term.gender },
+          { field: "termType", before: before.termType, after: term.termType },
+          { field: "url", before: before.url, after: term.url },
+          { field: "lemma", before: before.lemma, after: term.lemma },
+          { field: "status", before: before.status, after: term.status },
+          { field: "forbidden", before: before.forbidden, after: term.forbidden },
+          { field: "reviewStatus", before: before.reviewStatus, after: term.reviewStatus },
+          { field: "reviewReason", before: before.reviewReason, after: term.reviewReason },
+        ].filter((change) => change.before !== change.after);
         await this.recordHistoryEvent(tx, {
           conceptId,
           termId,
           eventType: "term_updated",
           version: term.version,
-          changedFields: [
-            "locale",
-            "term",
-            "description",
-            "note",
-            "partOfSpeech",
-            "gender",
-            "termType",
-            "url",
-            "lemma",
-            "status",
-            "forbidden",
-          ],
-          changes: [
-            { field: "term", before: before.term, after: term.term },
-            { field: "locale", before: before.locale, after: term.locale },
-            { field: "description", before: before.description, after: term.description },
-            { field: "reviewStatus", before: before.reviewStatus, after: term.reviewStatus },
-          ],
+          changedFields: changes.map((change) => change.field),
+          changes,
         });
       }
       return term ? this.toTermRecord(term) : null;
@@ -1458,6 +1471,7 @@ export class NativeGlossary extends Glossary {
             isNotNull(concordanceSourceTerms.term),
             sql`${concordanceSourceTerms.archivedAt} is null`,
             sql`${schema.glossaryConcepts.archivedAt} is null`,
+            eq(schema.glossaryConcepts.reviewStatus, "approved"),
             eq(concordanceSourceTerms.reviewStatus, "approved"),
             sql`${concordanceSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
           ),
@@ -1531,6 +1545,7 @@ export class NativeGlossary extends Glossary {
             inArray(schema.glossaryTerms.conceptId, conceptIds),
             sql`${schema.glossaryTerms.archivedAt} is null`,
             eq(schema.glossaryTerms.reviewStatus, "approved"),
+            eq(schema.glossaryConcepts.reviewStatus, "approved"),
             inArray(schema.glossaryTerms.locale, [sourceLocale, ...query.targetLocales]),
           ),
         ),

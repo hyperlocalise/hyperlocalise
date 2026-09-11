@@ -392,6 +392,11 @@ export function GlossaryConceptDetail({
   }, [conceptId, sourceLanguage.locale]);
 
   useEffect(() => {
+    setTermCursor(undefined);
+    setTermCursorStack([]);
+  }, [normalizedLanguageFilter]);
+
+  useEffect(() => {
     if (selectedConcept) {
       setConceptDraft(conceptDraftFromRecord(selectedConcept));
       setTermDrafts(

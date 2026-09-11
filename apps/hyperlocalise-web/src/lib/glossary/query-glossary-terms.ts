@@ -219,6 +219,7 @@ async function listOrderedNativeConceptSummaries(
       and(
         eq(schema.glossaryTerms.conceptId, schema.glossaryConcepts.id),
         eq(schema.glossaryTerms.locale, input.sourceLocale),
+        eq(schema.glossaryConcepts.reviewStatus, "approved"),
         eq(schema.glossaryTerms.reviewStatus, "approved"),
         isNotNull(schema.glossaryTerms.term),
       ),
@@ -231,6 +232,7 @@ async function listOrderedNativeConceptSummaries(
         eq(schema.glossaries.sourceLocale, input.sourceLocale),
         eq(schema.glossaries.status, "active"),
         sql`${schema.glossaryConcepts.archivedAt} is null`,
+        eq(schema.glossaryConcepts.reviewStatus, "approved"),
         sql`${schema.glossaryTerms.archivedAt} is null`,
       ),
     )
@@ -303,6 +305,7 @@ async function fetchNativeConceptTermRows(
         eq(schema.glossaries.sourceLocale, input.sourceLocale),
         eq(schema.glossaries.status, "active"),
         sql`${schema.glossaryConcepts.archivedAt} is null`,
+        eq(schema.glossaryConcepts.reviewStatus, "approved"),
         sql`${schema.glossaryTerms.archivedAt} is null`,
         isNotNull(schema.glossaryTerms.conceptId),
         isNotNull(schema.glossaryTerms.term),
@@ -434,6 +437,7 @@ export async function listNativeGlossaryTermPairs(
         eq(schema.glossaries.sourceLocale, input.sourceLocale),
         eq(schema.glossaries.status, "active"),
         sql`${schema.glossaryConcepts.archivedAt} is null`,
+        eq(schema.glossaryConcepts.reviewStatus, "approved"),
         sql`${schema.glossaryTerms.archivedAt} is null`,
         isNotNull(schema.glossaryTerms.conceptId),
         isNotNull(schema.glossaryTerms.term),
