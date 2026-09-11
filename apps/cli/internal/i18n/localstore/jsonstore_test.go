@@ -168,6 +168,48 @@ func TestEntryMetaIDStable(t *testing.T) {
 	}
 }
 
+func TestJSONStoreReadSnapshotRelativePatternUsesConfigRoot(t *testing.T) {
+	configDir := t.TempDir()
+	langDir := filepath.Join(configDir, "lang")
+	if err := os.MkdirAll(langDir, 0o755); err != nil {
+		t.Fatalf("mkdir lang dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(langDir, "fr.json"), []byte("{\"hello\":\"bonjour\"}\n"), 0o644); err != nil {
+		t.Fatalf("write locale file: %v", err)
+	}
+
+	t.Chdir(t.TempDir())
+
+	store, err := NewJSONStoreInRoot(&config.I18NConfig{
+		Locales: config.LocaleConfig{
+			Source:  "en",
+			Targets: []string{"fr"},
+		},
+		Buckets: map[string]config.BucketConfig{
+			"json": {
+				Files: []config.BucketFileMapping{{
+					From: "lang/{{source}}.json",
+					To:   "lang/{{target}}.json",
+				}},
+			},
+		},
+	}, configDir)
+	if err != nil {
+		t.Fatalf("new json store: %v", err)
+	}
+
+	snap, err := store.ReadSnapshot(context.Background(), syncsvc.LocalReadRequest{Locales: []string{"fr"}})
+	if err != nil {
+		t.Fatalf("read snapshot: %v", err)
+	}
+	if got := len(snap.Entries); got != 1 {
+		t.Fatalf("expected 1 entry, got %d", got)
+	}
+	if got := snap.Entries[0].Value; got != "bonjour" {
+		t.Fatalf("unexpected value: %q", got)
+	}
+}
+
 func TestJSONStoreApplyPullRejectsUnconfiguredLocale(t *testing.T) {
 	store := mustNewStore(t, filepath.Join(t.TempDir(), "lang", "[locale].json"))
 	_, err := store.ApplyPull(context.Background(), syncsvc.ApplyPullPlan{
