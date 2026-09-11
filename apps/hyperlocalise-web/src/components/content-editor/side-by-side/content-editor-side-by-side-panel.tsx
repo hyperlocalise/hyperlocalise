@@ -41,6 +41,34 @@ import { ContentEditorSideBySideResizableLayout } from "@/components/content-edi
 import { ContentEditorSideBySideIntelligencePanel } from "./content-editor-side-by-side-intelligence-panel";
 import { ContentEditorSideBySideVirtualList } from "./content-editor-side-by-side-virtual-list";
 
+export function ContentEditorSideBySidePanelSkeleton({ className }: { className?: string }) {
+  return (
+    <ContentEditorSideBySideResizableLayout
+      className={cn("bg-background", className)}
+      editor={
+        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+          <div className="shrink-0 border-b border-border px-4 py-3">
+            <div className="grid grid-cols-2 gap-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <p className="border-r border-border pr-4">
+                <FormattedMessage {...contentEditorSideBySidePanelMessages.sourceColumn} />
+              </p>
+              <p className="pl-4">
+                <FormattedMessage {...contentEditorSideBySidePanelMessages.translationColumn} />
+              </p>
+            </div>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ContentEditorQueueSkeletonList className="px-4 py-3" />
+          </div>
+        </div>
+      }
+      intelligence={
+        <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-border" />
+      }
+    />
+  );
+}
+
 export const ContentEditorSideBySidePanel = observer(function ContentEditorSideBySidePanel({
   segments,
   focusedSegmentId,

@@ -26,7 +26,10 @@ import { resolveCatLinkedIssueTranslationKeyId } from "@/components/content-edit
 import { ContentEditorEditorIssuesSection } from "@/components/content-editor/issues/content-editor-editor-issues-section";
 import { ContentEditorQueuePanel } from "@/components/content-editor/queue/content-editor-queue-panel";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
-import { ContentEditorSideBySidePanel } from "@/components/content-editor/side-by-side/content-editor-side-by-side-panel";
+import {
+  ContentEditorSideBySidePanel,
+  ContentEditorSideBySidePanelSkeleton,
+} from "@/components/content-editor/side-by-side/content-editor-side-by-side-panel";
 import type { ContentEditorWorkspaceViewProps } from "@/components/content-editor/shared/dependencies";
 import { contentEditorWorkspaceMessages } from "@/components/content-editor/shared/content-editor.messages";
 
@@ -36,7 +39,10 @@ import { ContentEditorPanelErrorBoundary } from "./content-editor-panel-error-bo
 import { useContentEditorWorkspace } from "./content-editor-workspace-context";
 import { contentEditorWorkspaceViewMessages } from "./content-editor-workspace.messages";
 import { ContentEditorComfortableResizableLayout } from "./content-editor-workspace-resizable-layout";
-import { ContentEditorEditorPanelSkeleton } from "./content-editor-workspace-skeleton";
+import {
+  ContentEditorCompactWorkspaceSkeleton,
+  ContentEditorEditorPanelSkeleton,
+} from "./content-editor-workspace-skeleton";
 import { resolveSegmentIntelligenceForDisplay } from "./store/content-editor-workspace-store-utils";
 
 const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
@@ -172,7 +178,46 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       </ContentEditorPanelErrorBoundary>
     );
 
-    if (showTranslationViewSkeleton && !isCompact && !isFileView && !isSideBySideDesktop) {
+    if (showTranslationViewSkeleton) {
+      if (isCompact) {
+        return (
+          <div
+            className={cn(
+              "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
+              className,
+            )}
+          >
+            <ContentEditorCompactWorkspaceSkeleton />
+          </div>
+        );
+      }
+
+      if (isFileView) {
+        return (
+          <div
+            className={cn(
+              "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
+              className,
+            )}
+          >
+            <ContentEditorEditorPanelSkeleton />
+          </div>
+        );
+      }
+
+      if (isSideBySideDesktop) {
+        return (
+          <div
+            className={cn(
+              "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
+              className,
+            )}
+          >
+            <ContentEditorSideBySidePanelSkeleton className="min-h-0 flex-1" />
+          </div>
+        );
+      }
+
       return (
         <div
           className={cn(

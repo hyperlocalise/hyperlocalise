@@ -132,6 +132,58 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     expect(screen.getByText("No segments in queue.")).toBeInTheDocument();
   });
 
+  it("shows the compact editor skeleton while a file loads on a narrow viewport", () => {
+    const originalMatchMedia = window.matchMedia;
+    const matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("max-width"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    window.matchMedia = matchMedia;
+
+    try {
+      renderCatWorkspace(
+        <ContentEditorWorkspaceContainer
+          initialState={createContentEditorLoadingWorkspaceState({
+            sourcePath: "app/dashboard/index.tsx",
+            sourceLocale: "en-US",
+            targetLocale: "vi",
+          })}
+          initialViewMode="comfortable"
+          isTranslationViewLoading
+        />,
+      );
+
+      expect(screen.getByLabelText("Loading editor")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Loading queue")).not.toBeInTheDocument();
+      expect(screen.queryByText("No segments in queue.")).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it("shows the side-by-side translation skeleton while a file loads", () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createContentEditorLoadingWorkspaceState({
+          sourcePath: "app/dashboard/index.tsx",
+          sourceLocale: "en-US",
+          targetLocale: "vi",
+        })}
+        initialViewMode="side-by-side"
+        isTranslationViewLoading
+      />,
+    );
+
+    expect(screen.getByText("Source string")).toBeInTheDocument();
+    expect(screen.getByText("Translation")).toBeInTheDocument();
+    expect(screen.getByLabelText("Loading segments")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Loading queue")).not.toBeInTheDocument();
+    expect(screen.queryByText("No segments in queue.")).not.toBeInTheDocument();
+  });
+
   it("calls approve after editing the target translation", async () => {
     const user = userEvent.setup();
     const onApprove = vi.fn().mockResolvedValue("reviewed");
