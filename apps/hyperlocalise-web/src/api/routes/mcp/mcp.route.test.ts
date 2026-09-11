@@ -25,6 +25,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { organizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { IssueSheetCommentService } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
+import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import {
   createAuthorizationCode,
@@ -6309,6 +6310,806 @@ describe("mcpRoutes", () => {
       .limit(1);
 
     expect(saved).toBeUndefined();
+  });
+
+  it("advertises query_translation_memory with bounded inputs", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/list",
+            params: {},
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "query_translation_memory");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("translation memory");
+
+    expect(tool?.inputSchema?.required).toEqual(
+      expect.arrayContaining(["sourceText", "sourceLocale", "targetLocale"]),
+    );
+
+    expect(tool?.inputSchema?.required).not.toEqual(
+      expect.arrayContaining(["projectId", "memoryId", "limit"]),
+    );
+
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      sourceText: {
+        type: "string",
+        minLength: 1,
+      },
+      sourceLocale: {
+        type: "string",
+        minLength: 1,
+        maxLength: 50,
+      },
+      targetLocale: {
+        type: "string",
+        minLength: 1,
+        maxLength: 50,
+      },
+      projectId: {
+        type: "string",
+      },
+      memoryId: {
+        type: "string",
+      },
+      limit: {
+        type: "integer",
+        minimum: 1,
+        maximum: 20,
+        default: 10,
+      },
+    });
+  });
+
+  it("returns empty matches when translation memory has no matching entry", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText: "This sentence has never been translated",
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toEqual({
+      matches: [],
+    });
+  });
+
+  it("returns memory_not_found for an inaccessible translation memory", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText: "Save changes",
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        memoryId: randomUUID(),
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "memory_not_found",
+    });
+  });
+
+  it("returns an exact translation memory match linked to the project", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        createdByUserId: auth.user.localUserId,
+        name: "Product translations",
+        description: "Approved product translations",
+        status: "active",
+        source: "native",
+      })
+      .returning({ id: schema.memories.id });
+
+    await db.insert(schema.projectMemories).values({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      memoryId: memory.id,
+    });
+
+    await db.insert(schema.memoryEntries).values({
+      memoryId: memory.id,
+      sourceLocale: "en-US",
+      targetLocale: "vi-VN",
+      sourceText: "Save changes",
+      normalizedSourceText: normalizeTranslationMemorySourceText("Save changes"),
+      targetText: "Lưu thay đổi",
+      matchScore: 100,
+      provenance: "manual",
+      reviewStatus: "approved",
+      createdByUserId: auth.user.localUserId,
+    });
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText: "  SAVE   changes ",
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        projectId: stored.project.id,
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toEqual({
+      matches: [
+        {
+          memoryId: memory.id,
+          sourceText: "Save changes",
+          targetText: "Lưu thay đổi",
+          locale: "vi-VN",
+          similarity: 1,
+        },
+      ],
+    });
+  });
+
+  it("does not return translation memories that are not linked to the project", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const [linkedMemory, unlinkedMemory] = await db
+      .insert(schema.memories)
+      .values([
+        {
+          organizationId: auth.organization.localOrganizationId,
+          createdByUserId: auth.user.localUserId,
+          name: "Linked memory",
+          description: "",
+          status: "active",
+          source: "native",
+        },
+        {
+          organizationId: auth.organization.localOrganizationId,
+          createdByUserId: auth.user.localUserId,
+          name: "Unlinked memory",
+          description: "",
+          status: "active",
+          source: "native",
+        },
+      ])
+      .returning({ id: schema.memories.id });
+
+    await db.insert(schema.projectMemories).values({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      memoryId: linkedMemory.id,
+    });
+
+    const sourceText = "Delete workspace";
+    const normalizedSourceText = normalizeTranslationMemorySourceText(sourceText);
+
+    await db.insert(schema.memoryEntries).values([
+      {
+        memoryId: linkedMemory.id,
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        sourceText,
+        normalizedSourceText,
+        targetText: "Xóa không gian làm việc",
+        matchScore: 100,
+        provenance: "manual",
+        reviewStatus: "approved",
+        createdByUserId: auth.user.localUserId,
+      },
+      {
+        memoryId: unlinkedMemory.id,
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        sourceText,
+        normalizedSourceText,
+        targetText: "Xóa workspace",
+        matchScore: 100,
+        provenance: "manual",
+        reviewStatus: "approved",
+        createdByUserId: auth.user.localUserId,
+      },
+    ]);
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText,
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        projectId: stored.project.id,
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toEqual({
+      matches: [
+        {
+          memoryId: linkedMemory.id,
+          sourceText,
+          targetText: "Xóa không gian làm việc",
+          locale: "vi-VN",
+          similarity: 1,
+        },
+      ],
+    });
+  });
+
+  it("returns memory_not_found when the selected memory is not linked to the project", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        createdByUserId: auth.user.localUserId,
+        name: "Unlinked memory",
+        description: "",
+        status: "active",
+        source: "native",
+      })
+      .returning({ id: schema.memories.id });
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText: "Save changes",
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        projectId: stored.project.id,
+        memoryId: memory.id,
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "memory_not_found",
+    });
+  });
+
+  it("returns project_not_found for an inaccessible project", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText: "Save changes",
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        projectId: `project_${randomUUID()}`,
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "project_not_found",
+    });
+  });
+
+  it("returns memory_not_found for a malformed memory ID", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText: "Save changes",
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        memoryId: "missing_memory",
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "memory_not_found",
+    });
+  });
+
+  it("returns a ranked fuzzy translation memory match", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        createdByUserId: auth.user.localUserId,
+        name: "Checkout translations",
+        description: "",
+        status: "active",
+        source: "native",
+      })
+      .returning({ id: schema.memories.id });
+
+    await db.insert(schema.projectMemories).values({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      memoryId: memory.id,
+    });
+
+    await db.insert(schema.memoryEntries).values({
+      memoryId: memory.id,
+      sourceLocale: "en-US",
+      targetLocale: "vi-VN",
+      sourceText: "Start checkout",
+      normalizedSourceText: normalizeTranslationMemorySourceText("Start checkout"),
+      targetText: "Bắt đầu thanh toán",
+      matchScore: 100,
+      provenance: "manual",
+      reviewStatus: "approved",
+      createdByUserId: auth.user.localUserId,
+    });
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText: "checkout",
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        projectId: stored.project.id,
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+
+    expect(result.output).toMatchObject({
+      matches: [
+        {
+          memoryId: memory.id,
+          sourceText: "Start checkout",
+          targetText: "Bắt đầu thanh toán",
+          locale: "vi-VN",
+          similarity: expect.any(Number),
+        },
+      ],
+    });
+
+    const matches = result.output.matches as Array<{
+      similarity: number;
+    }>;
+
+    expect(matches[0]?.similarity).toBeGreaterThan(0);
+    expect(matches[0]?.similarity).toBeLessThan(1);
+  });
+
+  it("returns only approved matches for the requested locale pair", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const memories = await db
+      .insert(schema.memories)
+      .values([
+        {
+          organizationId: auth.organization.localOrganizationId,
+          createdByUserId: auth.user.localUserId,
+          name: "Approved Vietnamese memory",
+          description: "",
+          status: "active",
+          source: "native",
+        },
+        {
+          organizationId: auth.organization.localOrganizationId,
+          createdByUserId: auth.user.localUserId,
+          name: "French memory",
+          description: "",
+          status: "active",
+          source: "native",
+        },
+        {
+          organizationId: auth.organization.localOrganizationId,
+          createdByUserId: auth.user.localUserId,
+          name: "Draft Vietnamese memory",
+          description: "",
+          status: "active",
+          source: "native",
+        },
+      ])
+      .returning({ id: schema.memories.id });
+
+    const [approvedMemory, wrongLocaleMemory, draftMemory] = memories;
+
+    await db.insert(schema.projectMemories).values(
+      memories.map(({ id }) => ({
+        organizationId: auth.organization.localOrganizationId,
+        projectId: stored.project.id,
+        memoryId: id,
+      })),
+    );
+
+    const sourceText = "Invite members";
+    const normalizedSourceText = normalizeTranslationMemorySourceText(sourceText);
+
+    await db.insert(schema.memoryEntries).values([
+      {
+        memoryId: approvedMemory.id,
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        sourceText,
+        normalizedSourceText,
+        targetText: "Mời thành viên",
+        matchScore: 100,
+        provenance: "manual",
+        reviewStatus: "approved",
+        createdByUserId: auth.user.localUserId,
+      },
+      {
+        memoryId: wrongLocaleMemory.id,
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+        sourceText,
+        normalizedSourceText,
+        targetText: "Inviter des membres",
+        matchScore: 100,
+        provenance: "manual",
+        reviewStatus: "approved",
+        createdByUserId: auth.user.localUserId,
+      },
+      {
+        memoryId: draftMemory.id,
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        sourceText,
+        normalizedSourceText,
+        targetText: "Mời các thành viên",
+        matchScore: 100,
+        provenance: "manual",
+        reviewStatus: "draft",
+        createdByUserId: auth.user.localUserId,
+      },
+    ]);
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText,
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        projectId: stored.project.id,
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toEqual({
+      matches: [
+        {
+          memoryId: approvedMemory.id,
+          sourceText,
+          targetText: "Mời thành viên",
+          locale: "vi-VN",
+          similarity: 1,
+        },
+      ],
+    });
+  });
+
+  async function createAttachedMemoryEntry(input: {
+    organizationId: string;
+    userId: string;
+    projectId: string;
+    memoryName: string;
+    sourceText: string;
+    targetText: string;
+    sourceLocale?: string;
+    targetLocale?: string;
+    reviewStatus?: string;
+  }) {
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({
+        organizationId: input.organizationId,
+        createdByUserId: input.userId,
+        name: input.memoryName,
+        description: "",
+        status: "active",
+        source: "native",
+      })
+      .returning({ id: schema.memories.id });
+
+    await db.insert(schema.projectMemories).values({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      memoryId: memory.id,
+    });
+
+    const [entry] = await db
+      .insert(schema.memoryEntries)
+      .values({
+        memoryId: memory.id,
+        sourceLocale: input.sourceLocale ?? "en-US",
+        targetLocale: input.targetLocale ?? "vi-VN",
+        sourceText: input.sourceText,
+        normalizedSourceText: normalizeTranslationMemorySourceText(input.sourceText),
+        targetText: input.targetText,
+        matchScore: 100,
+        provenance: "manual",
+        reviewStatus: input.reviewStatus ?? "approved",
+        createdByUserId: input.userId,
+      })
+      .returning({ id: schema.memoryEntries.id });
+
+    return {
+      memoryId: memory.id,
+      entryId: entry.id,
+    };
+  }
+
+  it("limits the number of translation memory matches", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const sourceText = "Save changes";
+
+    for (const index of [1, 2, 3]) {
+      await createAttachedMemoryEntry({
+        organizationId: auth.organization.localOrganizationId,
+        userId: auth.user.localUserId,
+        projectId: stored.project.id,
+        memoryName: `Product translations ${index}`,
+        sourceText,
+        targetText: `Lưu thay đổi ${index}`,
+      });
+    }
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText,
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        projectId: stored.project.id,
+        limit: 2,
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+
+    const matches = result.output.matches as Array<{
+      targetText: string;
+    }>;
+
+    expect(matches).toHaveLength(2);
+
+    for (const match of matches) {
+      expect(["Lưu thay đổi 1", "Lưu thay đổi 2", "Lưu thay đổi 3"]).toContain(match.targetText);
+    }
+  });
+
+  it("truncates long translation memory segments", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const sourceText = `${"a".repeat(3_998)}𐐷${"c".repeat(500)}`;
+    const targetText = "b".repeat(4_500);
+
+    const { memoryId } = await createAttachedMemoryEntry({
+      organizationId: auth.organization.localOrganizationId,
+      userId: auth.user.localUserId,
+      projectId: stored.project.id,
+      memoryName: "Long segment translations",
+      sourceText,
+      targetText,
+    });
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText,
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        projectId: stored.project.id,
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+
+    const matches = result.output.matches as Array<{
+      memoryId: string;
+      sourceText: string;
+      targetText: string;
+      locale: string;
+      similarity: number;
+    }>;
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({
+      memoryId,
+      locale: "vi-VN",
+      similarity: 1,
+    });
+
+    expect(Array.from(matches[0]?.sourceText ?? "")).toHaveLength(4_000);
+    expect(matches[0]?.sourceText.endsWith("𐐷…")).toBe(true);
+    expect(matches[0]?.sourceText).not.toContain("�");
+
+    expect(matches[0]?.targetText).toHaveLength(4_000);
+    expect(matches[0]?.targetText.endsWith("…")).toBe(true);
+  });
+
+  it("returns memory_not_found for another organization's translation memory", async () => {
+    const accessible = await fixture.createStoredProjectFixture();
+    const inaccessible = await fixture.createStoredProjectFixture();
+
+    const headers = await authenticatedMcpHeaders(accessible.identity);
+
+    const [foreignMemory] = await db
+      .insert(schema.memories)
+      .values({
+        organizationId: inaccessible.organization.id,
+        createdByUserId: inaccessible.user.id,
+        name: "Foreign translation memory",
+        description: "",
+        status: "active",
+        source: "native",
+      })
+      .returning({ id: schema.memories.id });
+
+    if (!foreignMemory) {
+      throw new Error("expected foreign memory fixture");
+    }
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText: "Save changes",
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        memoryId: foreignMemory.id,
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "memory_not_found",
+    });
+  });
+
+  it("returns stored entries from a synced external translation memory", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        createdByUserId: auth.user.localUserId,
+        name: "Synced Crowdin memory",
+        description: "",
+        status: "active",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProjectId: "crowdin-project-1",
+        externalMemoryId: "crowdin-memory-1",
+        capabilityMode: "synced_import",
+        syncState: "synced",
+        localeCoverage: ["en-US", "vi-VN"],
+      })
+      .returning({ id: schema.memories.id });
+
+    if (!memory) {
+      throw new Error("expected synced memory fixture");
+    }
+
+    await db.insert(schema.projectMemories).values({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      memoryId: memory.id,
+    });
+
+    await db.insert(schema.memoryEntries).values({
+      memoryId: memory.id,
+      sourceLocale: "en-US",
+      targetLocale: "vi-VN",
+      sourceText: "Publish changes",
+      normalizedSourceText: normalizeTranslationMemorySourceText("Publish changes"),
+      targetText: "Xuất bản thay đổi",
+      matchScore: 100,
+      provenance: "crowdin_sync",
+      reviewStatus: "approved",
+      createdByUserId: auth.user.localUserId,
+    });
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "query_translation_memory", {
+        sourceText: "Publish changes",
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        projectId: stored.project.id,
+        memoryId: memory.id,
+        limit: 10,
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toEqual({
+      matches: [
+        {
+          memoryId: memory.id,
+          sourceText: "Publish changes",
+          targetText: "Xuất bản thay đổi",
+          locale: "vi-VN",
+          similarity: 1,
+        },
+      ],
+    });
   });
 
   it("returns provider_cat_unsupported for a provider-only translation update", async () => {

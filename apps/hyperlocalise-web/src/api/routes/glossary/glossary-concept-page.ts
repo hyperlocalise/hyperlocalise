@@ -155,6 +155,9 @@ function termExistsWhere(
     conditions.push(eq(schema.glossaryTerms.caseSensitive, filters.caseSensitive));
   if (filters.forbidden !== undefined)
     conditions.push(eq(schema.glossaryTerms.forbidden, filters.forbidden));
+  if (filters.partOfSpeech)
+    conditions.push(eq(schema.glossaryTerms.partOfSpeech, filters.partOfSpeech));
+  if (filters.termType) conditions.push(eq(schema.glossaryTerms.termType, filters.termType));
   if (filters.createdByUserId)
     conditions.push(eq(schema.glossaryTerms.createdByUserId, filters.createdByUserId));
   if (filters.reviewedByUserId)
@@ -183,6 +186,8 @@ function buildWhere(glossaryId: string, filters: FilterFields): SQL {
       filters.provenance ||
       filters.caseSensitive !== undefined ||
       filters.forbidden !== undefined ||
+      filters.partOfSpeech ||
+      filters.termType ||
       filters.createdByUserId ||
       filters.reviewedByUserId ||
       filters.importBatchId)

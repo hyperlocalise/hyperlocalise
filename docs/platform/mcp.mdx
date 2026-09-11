@@ -59,6 +59,7 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 | `create_glossary_concept` | Create concept-linked source and target terms in a native glossary                                                                                                   |
 | `upload_sources`       | Upload a source file to a project using UTF-8 `content` or binary `contentBase64`                                                                                       |
 | `download_translations` | Download a reconstructed UTF-8 target file (`projectId`, `sourcePath`, `locale`)                                                                                         |
+| `query_translation_memory` | Search approved translation-memory entries for exact and lexical matches, optionally scoped by project or memory |
 
 `list_files` returns metadata only: `id` (stored file or source-file id), `sourcePath`, `filename`, `contentType`, `byteSize`, `updatedAt`, and `sourceLocale` when known. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`. The tool does not return file contents. Inaccessible projects return `project_not_found`. Use the listed `sourcePath` values for later upload, download, or `run_workflow` calls.
 
@@ -103,6 +104,28 @@ Native pairs come from concept-linked terms. Leftover `source_term` / `target_te
 `create_glossary_concept` adds one source term and one target term to a new concept in a native glossary. Provide `glossaryId`, `sourceLocale`, `sourceTerm`, `targetLocale`, and `targetTerm`; optional fields include `description`, `partOfSpeech`, and `forbidden`. The response contains `conceptId`, `sourceTermId`, and `targetTermId`. When `forbidden` is true, the target term is stored as not recommended so glossary searches and translation review can tell agents not to use it.
 
 Creating glossary concepts requires glossary-management permission. Missing or inaccessible glossaries return `glossary_not_found`, provider-synced glossaries return `glossary_read_only`, and a term already present for the same locale in the glossary returns `duplicate_glossary_concept_term`.
+
+### Translation memory search
+
+`query_translation_memory` searches previously approved translations for a source segment.
+
+Required input:
+
+- `sourceText`
+- `sourceLocale`
+- `targetLocale`
+
+Optional input:
+
+- `projectId` restricts the search to translation memories linked to an accessible project.
+- `memoryId` restricts the search to one accessible translation memory.
+- `limit` controls the number of results from 1 to 20 and defaults to 10.
+
+The tool first searches for an exact match using normalized source text. If no exact match exists, it falls back to lexical full-text search. Results are ranked and returned with `memoryId`, `sourceText`, `targetText`, `locale`, and `similarity` when available.
+
+Only approved memory entries are returned. When `projectId` is provided, unlinked memories are excluded. Missing or inaccessible projects return `project_not_found`. Missing, inaccessible, malformed, or project-unlinked memories return `memory_not_found`.
+
+Provider-backed translation memories use entries already stored or synchronized in Hyperlocalise. This tool does not initiate a live provider search.
 
 ### Board (issues)
 
@@ -203,7 +226,7 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `idempotency_conflict`                         | The supplied idempotency key is already associated with a different workflow payload                                  |
 | `ai_features_required`                         | AI translation features are not available for the organization                                                        |
 | `ai_features_check_failed`                     | Hyperlocalise could not verify AI feature availability                                                                |
-| `project_not_found`                            | Wrong `projectId` or missing project access on `list_files`, `list_translations`, `get_project_status`, or `list_jobs` |
+| `project_not_found`                            | Wrong `projectId` or missing project access on project-scoped tools, including `query_translation_memory`            |
 | `glossary_not_found`                           | Wrong `glossaryId`, missing glossary access, or a provider glossary on `query_glossary`                                |
 | `glossary_read_only`                           | `create_glossary_concept` targeted a provider-synced glossary                                                        |
 | `duplicate_glossary_concept_term`              | A source or target term already exists for the same locale in the native glossary                                    |
@@ -218,7 +241,8 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `source_file_not_found`                        | The requested source path does not exist in the accessible project                                                     |
 | `translations_not_found`                       | The source file has no translation keys available to reconstruct                                                       |
 | `source_file_too_large`                        | The translation reconstruction exceeds the public API key limit                                                        |
-| `unsupported_binary_download`                  | The reconstructed file cannot be returned as UTF-8 text                                                                 |
+| `unsupported_binary_download`                  | The reconstructed file cannot be returned as UTF-8 text                                                                |
+| `memory_not_found`                             | `query_translation_memory` targeted a missing, inaccessible, malformed, or project-unlinked translation memory         |
 
 ## Next
 

@@ -231,6 +231,8 @@ export type GlossaryConceptInput = {
   url?: string | null;
   figure?: string | null;
   terms?: Array<GlossaryConceptRequestTerm | GlossaryConceptTerm>;
+  preserveOmittedTerms?: boolean;
+  deletedTermIds?: string[];
 };
 
 export class GlossaryValidationError extends Error {

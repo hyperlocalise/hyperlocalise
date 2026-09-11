@@ -151,6 +151,20 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		return report, nil
 	}
 
+	// Prebuild engines for all selected MT profiles before task execution so
+	// invalid runtime configuration fails the run before any work begins.
+	var mtEngines *mtEngineFactory
+	if mtProfileNames := selectedMTProfileNames(executable); len(mtProfileNames) > 0 {
+		mtEngines = newMTEngineFactory(mtProfilesFromConfig(cfg))
+		_, mtSpan := startRunSpan(ctx, "run.mt_engines")
+		if err := mtEngines.BuildSelected(mtProfileNames); err != nil {
+			endRunSpan(mtSpan, err, "mt_engines")
+			emitter.emit(completedEvent(report))
+			return report, err
+		}
+		endRunSpan(mtSpan, nil, "")
+	}
+
 	contextPlan := contextMemoryPlan{}
 	if in.ExperimentalContextMemory && len(executable) > 0 {
 		_, cmSpan := startRunSpan(ctx, "run.context_memory")
