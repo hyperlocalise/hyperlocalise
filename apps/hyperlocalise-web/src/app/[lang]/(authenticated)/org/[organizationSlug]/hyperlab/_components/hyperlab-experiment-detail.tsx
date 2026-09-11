@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Add01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { observer } from "mobx-react-lite";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -69,6 +70,11 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
 
+import { HyperlabExperimentQueryBridge } from "../store/hyperlab-query-bridge";
+import {
+  HyperlabWorkspaceProvider,
+  useHyperlabWorkspace,
+} from "../store/hyperlab-workspace-context";
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
   hyperlabClient,
@@ -83,13 +89,7 @@ import {
 import { HyperlabAudienceSelector } from "./hyperlab-audience-selector";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
 import { HyperlabRolloutControl } from "./hyperlab-rollout-control";
-import {
-  equalVariantRollouts,
-  inspectWallTime,
-  isoToWallTime,
-  rolloutToPercent,
-  timezoneSelectItems,
-} from "./hyperlab-schedule";
+import { equalVariantRollouts, rolloutToPercent, timezoneSelectItems } from "./hyperlab-schedule";
 import { HyperlabStatusBadge } from "./hyperlab-status-badge";
 import { HyperlabLoadError } from "./hyperlab-ui";
 
@@ -111,23 +111,31 @@ export function HyperlabExperimentDetail({
   experimentId: string;
   canWrite: boolean;
 }) {
+  return (
+    <HyperlabWorkspaceProvider>
+      <HyperlabExperimentDetailConnected
+        organizationSlug={organizationSlug}
+        experimentId={experimentId}
+        canWrite={canWrite}
+      />
+    </HyperlabWorkspaceProvider>
+  );
+}
+
+const HyperlabExperimentDetailConnected = observer(function HyperlabExperimentDetailConnected({
+  organizationSlug,
+  experimentId,
+  canWrite,
+}: {
+  organizationSlug: string;
+  experimentId: string;
+  canWrite: boolean;
+}) {
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
   const client = hyperlabClient();
-  const [name, setName] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [startTime, setStartTime] = useState("09:00");
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("17:00");
-  const [timezone, setTimezone] = useState("UTC");
-  const [audienceId, setAudienceId] = useState("");
-  const [rolloutPercentage, setRolloutPercentage] = useState(10000);
-  const [detailsBaseline, setDetailsBaseline] = useState("");
-  const [rolloutBaseline, setRolloutBaseline] = useState("");
-  const [variantSplits, setVariantSplits] = useState<Record<string, number>>({});
-  const [addVariantOpen, setAddVariantOpen] = useState(false);
-  const [variantKey, setVariantKey] = useState("");
+  const { experiment: experimentStore, ui: uiStore } = useHyperlabWorkspace();
 
   const detailQuery = useQuery({
     queryKey: hyperlabQueryKeys.experiment(organizationSlug, experimentId),
@@ -164,45 +172,6 @@ export function HyperlabExperimentDetail({
   const experiment = detailQuery.data?.experiment;
   const variants = detailQuery.data?.variants ?? EMPTY_VARIANTS;
 
-  useEffect(() => {
-    if (!experiment) {
-      return;
-    }
-    const zone = experiment.timezone || "UTC";
-    const start = isoToWallTime(experiment.startAt, zone);
-    const end = isoToWallTime(experiment.endAt, zone);
-    setName(experiment.name);
-    setTimezone(zone);
-    setStartDate(start.date);
-    setStartTime(start.time);
-    setEndDate(end.date);
-    setEndTime(end.time);
-    setAudienceId(experiment.audienceId ?? "");
-    setRolloutPercentage(experiment.rolloutPercentage);
-    setDetailsBaseline(
-      JSON.stringify({
-        name: experiment.name,
-        zone,
-        start: start.date,
-        startTime: start.time,
-        end: end.date,
-        endTime: end.time,
-      }),
-    );
-    setRolloutBaseline(
-      JSON.stringify({
-        audienceId: experiment.audienceId ?? "",
-        rolloutPercentage: experiment.rolloutPercentage,
-      }),
-    );
-  }, [experiment]);
-
-  useEffect(() => {
-    setVariantSplits(
-      Object.fromEntries(variants.map((variant) => [variant.id, variant.rolloutPercentage])),
-    );
-  }, [variants]);
-
   async function refresh() {
     await queryClient.invalidateQueries({
       queryKey: hyperlabQueryKeys.experiment(organizationSlug, experimentId),
@@ -213,41 +182,24 @@ export function HyperlabExperimentDetail({
     await queryClient.invalidateQueries({ queryKey: hyperlabQueryKeys.flags(organizationSlug) });
   }
 
-  const detailsDirty =
-    JSON.stringify({
-      name,
-      zone: timezone,
-      start: startDate,
-      startTime,
-      end: endDate,
-      endTime,
-    }) !== detailsBaseline;
-  const rolloutDirty = JSON.stringify({ audienceId, rolloutPercentage }) !== rolloutBaseline;
-  const splitDirty = variants.some(
-    (variant) => variantSplits[variant.id] !== variant.rolloutPercentage,
-  );
-  const splitTotal = variants.reduce((sum, variant) => sum + (variantSplits[variant.id] ?? 0), 0);
-  const startWall = inspectWallTime(startDate, startTime, timezone);
-  const endWall = inspectWallTime(endDate, endTime, timezone);
-  const scheduleReady = Boolean(startWall.iso && endWall.iso);
-
   const saveDetails = useMutation({
     mutationFn: async () => {
-      if (!startWall.iso || !endWall.iso) {
+      if (!experimentStore.startWall.iso || !experimentStore.endWall.iso) {
         throw new Error(intl.formatMessage(messages.scheduleNonexistent));
       }
       const response = await client.experiments[":experimentId"].$put({
         param: { organizationSlug, experimentId },
         json: {
-          name,
-          timezone,
-          startAt: startWall.iso,
-          endAt: endWall.iso,
+          name: experimentStore.name,
+          timezone: experimentStore.timezone,
+          startAt: experimentStore.startWall.iso,
+          endAt: experimentStore.endWall.iso,
         },
       });
       return readHyperlabJson(response, intl.formatMessage(messages.loadError));
     },
     onSuccess: async () => {
+      experimentStore.markDetailsSaved();
       toast.success(intl.formatMessage(messages.saveSuccess));
       await refresh();
     },
@@ -261,13 +213,14 @@ export function HyperlabExperimentDetail({
       const response = await client.experiments[":experimentId"].$put({
         param: { organizationSlug, experimentId },
         json: {
-          audienceId: audienceId || null,
-          rolloutPercentage,
+          audienceId: experimentStore.audienceId || null,
+          rolloutPercentage: experimentStore.rolloutPercentage,
         },
       });
       return readHyperlabJson(response, intl.formatMessage(messages.loadError));
     },
     onSuccess: async () => {
+      experimentStore.markRolloutSaved();
       toast.success(intl.formatMessage(messages.saveSuccess));
       await refresh();
     },
@@ -278,7 +231,7 @@ export function HyperlabExperimentDetail({
 
   const saveSplits = useMutation({
     mutationFn: async () => {
-      if (splitTotal !== 10000) {
+      if (experimentStore.splitTotal !== 10000) {
         throw new Error(intl.formatMessage(messages.variantSplitWarning));
       }
       const response = await client.experiments[":experimentId"].rollouts.$put({
@@ -286,13 +239,15 @@ export function HyperlabExperimentDetail({
         json: {
           rollouts: variants.map((variant) => ({
             variantId: variant.id,
-            rolloutPercentage: variantSplits[variant.id] ?? variant.rolloutPercentage,
+            rolloutPercentage:
+              experimentStore.variantSplits[variant.id] ?? variant.rolloutPercentage,
           })),
         },
       });
       return readHyperlabJson(response, intl.formatMessage(messages.loadError));
     },
     onSuccess: async () => {
+      experimentStore.markSplitsSaved();
       toast.success(intl.formatMessage(messages.saveSuccess));
       await refresh();
     },
@@ -337,7 +292,7 @@ export function HyperlabExperimentDetail({
       const response = await client.experiments[":experimentId"].variants.$post({
         param: { organizationSlug, experimentId },
         json: {
-          key: variantKey,
+          key: uiStore.variantKey,
           isControl: variants.length === 0,
           rolloutPercentage: shares[shares.length - 1] ?? 10000,
           siblingRollouts: variants.map((variant, index) => ({
@@ -350,8 +305,7 @@ export function HyperlabExperimentDetail({
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.createSuccess));
-      setAddVariantOpen(false);
-      setVariantKey("");
+      uiStore.resetAddVariantDialog();
       await refresh();
     },
     onError: (error) => {
@@ -382,7 +336,7 @@ export function HyperlabExperimentDetail({
     { value: "active", label: intl.formatMessage(messages.statusActive) },
     { value: "archived", label: intl.formatMessage(messages.statusArchived) },
   ];
-  const timezoneItems = timezoneSelectItems(timezone);
+  const timezoneItems = timezoneSelectItems(experimentStore.timezone);
   const flags = flagsQuery.data ?? EMPTY_FLAGS;
   const assignmentsByVariant = useMemo(() => {
     const map = new Map<string, HyperlabAssignment[]>();
@@ -395,418 +349,448 @@ export function HyperlabExperimentDetail({
   }, [assignmentsQuery.data]);
 
   return (
-    <HyperlabPageShell
-      title={experiment?.name ?? intl.formatMessage(messages.experimentsTitle)}
-      description={intl.formatMessage(messages.experimentsDescription)}
-      backHref={`/org/${organizationSlug}/hyperlab/experiments`}
-      actions={
-        experiment && canWrite ? (
-          <Row spacing="1u" alignY="center">
-            {experiment ? (
-              <HyperlabStatusBadge status={experiment.status} endAt={experiment.endAt} />
-            ) : null}
-            <Select
-              value={experiment.status}
-              items={statusItems}
-              onValueChange={(next) => {
-                if (next === "draft" || next === "active" || next === "archived") {
-                  changeStatus.mutate(next);
-                }
-              }}
-            >
-              <SelectTrigger
-                className="w-36"
-                aria-label={intl.formatMessage(messages.experimentStatusLabel)}
+    <>
+      <HyperlabExperimentQueryBridge snapshot={detailQuery.data} />
+      <HyperlabPageShell
+        title={experiment?.name ?? intl.formatMessage(messages.experimentsTitle)}
+        description={intl.formatMessage(messages.experimentsDescription)}
+        backHref={`/org/${organizationSlug}/hyperlab/experiments`}
+        actions={
+          experiment && canWrite ? (
+            <Row spacing="1u" alignY="center">
+              {experiment ? (
+                <HyperlabStatusBadge status={experiment.status} endAt={experiment.endAt} />
+              ) : null}
+              <Select
+                value={experiment.status}
+                items={statusItems}
+                onValueChange={(next) => {
+                  if (next === "draft" || next === "active" || next === "archived") {
+                    changeStatus.mutate(next);
+                  }
+                }}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {statusItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value} label={item.label}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {experiment.status !== "active" ? (
-              <AlertDialog>
-                <AlertDialogTrigger render={<Button variant="destructive" />}>
-                  <FormattedMessage {...messages.delete} />
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      <FormattedMessage {...messages.deleteExperimentTitle} />
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      <FormattedMessage
-                        {...messages.deleteExperimentBody}
-                        values={{ name: experiment.name }}
-                      />
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>
-                      <FormattedMessage {...messages.cancel} />
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      variant="destructive"
-                      onClick={() => deleteExperiment.mutate()}
-                      disabled={deleteExperiment.isPending}
-                    >
-                      <FormattedMessage {...messages.deleteExperiment} />
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            ) : null}
-          </Row>
-        ) : experiment ? (
-          <HyperlabStatusBadge status={experiment.status} endAt={experiment.endAt} />
-        ) : null
-      }
-    >
-      <Rows spacing="2u">
-        {detailQuery.isError ? (
-          <HyperlabLoadError error={detailQuery.error} onRetry={() => void detailQuery.refetch()} />
-        ) : null}
-        {experiment ? (
-          <>
-            <Card className={detailsDirty ? "ring-foreground/40" : undefined}>
-              <CardHeader>
-                <CardTitle>
-                  <FormattedMessage {...messages.detailsCardTitle} />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor="hyperlab-experiment-name">
-                      <FormattedMessage {...messages.experimentNameLabel} />
-                    </FieldLabel>
-                    <Input
-                      id="hyperlab-experiment-name"
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      disabled={!canWrite}
-                    />
-                  </Field>
-                  <Columns spacing="1.5u" collapseBelow="small">
-                    <Column width="1/3">
-                      <Field>
-                        <FieldLabel htmlFor="hyperlab-start-date">
-                          <FormattedMessage {...messages.startDateLabel} />
-                        </FieldLabel>
-                        <Input
-                          id="hyperlab-start-date"
-                          type="date"
-                          value={startDate}
-                          onChange={(event) => setStartDate(event.target.value)}
-                          disabled={!canWrite}
+                <SelectTrigger
+                  className="w-36"
+                  aria-label={intl.formatMessage(messages.experimentStatusLabel)}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {statusItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value} label={item.label}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              {experiment.status !== "active" ? (
+                <AlertDialog>
+                  <AlertDialogTrigger render={<Button variant="destructive" />}>
+                    <FormattedMessage {...messages.delete} />
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        <FormattedMessage {...messages.deleteExperimentTitle} />
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        <FormattedMessage
+                          {...messages.deleteExperimentBody}
+                          values={{ name: experiment.name }}
                         />
-                      </Field>
-                    </Column>
-                    <Column width="1/3">
-                      <Field>
-                        <FieldLabel htmlFor="hyperlab-start-time">
-                          <FormattedMessage {...messages.startTimeLabel} />
-                        </FieldLabel>
-                        <Input
-                          id="hyperlab-start-time"
-                          type="time"
-                          value={startTime}
-                          onChange={(event) => setStartTime(event.target.value)}
-                          disabled={!canWrite}
-                        />
-                        {startWall.status === "nonexistent" || startWall.status === "invalid" ? (
-                          <FieldDescription>
-                            <FormattedMessage {...messages.scheduleNonexistent} />
-                          </FieldDescription>
-                        ) : null}
-                        {startWall.status === "ambiguous" ? (
-                          <FieldDescription>
-                            <FormattedMessage {...messages.scheduleAmbiguous} />
-                          </FieldDescription>
-                        ) : null}
-                      </Field>
-                    </Column>
-                    <Column width="1/3">
-                      <Field>
-                        <FieldLabel>
-                          <FormattedMessage {...messages.timezoneLabel} />
-                        </FieldLabel>
-                        <Select
-                          value={timezone}
-                          items={timezoneItems}
-                          onValueChange={(next) => {
-                            if (next) {
-                              setTimezone(next);
-                            }
-                          }}
-                          disabled={!canWrite}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              {timezoneItems.map((item) => (
-                                <SelectItem key={item.value} value={item.value} label={item.label}>
-                                  {item.label}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                    </Column>
-                  </Columns>
-                  <Columns spacing="1.5u" collapseBelow="small">
-                    <Column width="1/3">
-                      <Field>
-                        <FieldLabel htmlFor="hyperlab-end-date">
-                          <FormattedMessage {...messages.endDateLabel} />
-                        </FieldLabel>
-                        <Input
-                          id="hyperlab-end-date"
-                          type="date"
-                          value={endDate}
-                          onChange={(event) => setEndDate(event.target.value)}
-                          disabled={!canWrite}
-                        />
-                      </Field>
-                    </Column>
-                    <Column width="1/3">
-                      <Field>
-                        <FieldLabel htmlFor="hyperlab-end-time">
-                          <FormattedMessage {...messages.endTimeLabel} />
-                        </FieldLabel>
-                        <Input
-                          id="hyperlab-end-time"
-                          type="time"
-                          value={endTime}
-                          onChange={(event) => setEndTime(event.target.value)}
-                          disabled={!canWrite}
-                        />
-                        {endWall.status === "nonexistent" || endWall.status === "invalid" ? (
-                          <FieldDescription>
-                            <FormattedMessage {...messages.scheduleNonexistent} />
-                          </FieldDescription>
-                        ) : null}
-                        {endWall.status === "ambiguous" ? (
-                          <FieldDescription>
-                            <FormattedMessage {...messages.scheduleAmbiguous} />
-                          </FieldDescription>
-                        ) : null}
-                      </Field>
-                    </Column>
-                  </Columns>
-                </FieldGroup>
-              </CardContent>
-              {canWrite ? (
-                <CardFooter className="gap-3">
-                  <Button
-                    type="button"
-                    onClick={() => saveDetails.mutate()}
-                    disabled={saveDetails.isPending || !detailsDirty || !scheduleReady}
-                  >
-                    {saveDetails.isPending ? <Spinner data-icon="inline-start" /> : null}
-                    <FormattedMessage
-                      {...(saveDetails.isPending ? messages.saving : messages.save)}
-                    />
-                  </Button>
-                  {detailsDirty ? (
-                    <TypographyP size="small" tone="subtle">
-                      <FormattedMessage {...messages.unsavedChanges} />
-                    </TypographyP>
-                  ) : null}
-                </CardFooter>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>
+                        <FormattedMessage {...messages.cancel} />
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        variant="destructive"
+                        onClick={() => deleteExperiment.mutate()}
+                        disabled={deleteExperiment.isPending}
+                      >
+                        <FormattedMessage {...messages.deleteExperiment} />
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               ) : null}
-            </Card>
-
-            <Card className={rolloutDirty ? "ring-foreground/40" : undefined}>
-              <CardHeader>
-                <CardTitle>
-                  <FormattedMessage {...messages.rolloutCardTitle} />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Rows spacing="2u">
-                  <HyperlabAudienceSelector
-                    organizationSlug={organizationSlug}
-                    value={audienceId}
-                    onChange={setAudienceId}
-                    disabled={!canWrite}
-                    hint={intl.formatMessage(messages.audienceRolloutHint)}
-                  />
-                  <HyperlabRolloutControl
-                    id="hyperlab-experiment-rollout"
-                    value={rolloutPercentage}
-                    onChange={setRolloutPercentage}
-                    disabled={!canWrite}
-                  />
-                  <TypographyP size="small" tone="subtle">
-                    <FormattedMessage {...messages.rolloutHint} />
-                  </TypographyP>
-                </Rows>
-              </CardContent>
-              {canWrite ? (
-                <CardFooter className="gap-3">
-                  <Button
-                    type="button"
-                    onClick={() => saveRollout.mutate()}
-                    disabled={saveRollout.isPending || !rolloutDirty}
-                  >
-                    {saveRollout.isPending ? <Spinner data-icon="inline-start" /> : null}
-                    <FormattedMessage
-                      {...(saveRollout.isPending ? messages.saving : messages.saveRollout)}
-                    />
-                  </Button>
-                  {rolloutDirty ? (
-                    <TypographyP size="small" tone="subtle">
-                      <FormattedMessage {...messages.unsavedChanges} />
-                    </TypographyP>
-                  ) : null}
-                </CardFooter>
-              ) : null}
-            </Card>
-
-            {experiment.kind === "ab" && variants.length > 0 ? (
-              <Card className={splitDirty ? "ring-foreground/40" : undefined}>
+            </Row>
+          ) : experiment ? (
+            <HyperlabStatusBadge status={experiment.status} endAt={experiment.endAt} />
+          ) : null
+        }
+      >
+        <Rows spacing="2u">
+          {detailQuery.isError ? (
+            <HyperlabLoadError
+              error={detailQuery.error}
+              onRetry={() => void detailQuery.refetch()}
+            />
+          ) : null}
+          {experiment ? (
+            <>
+              <Card className={experimentStore.detailsDirty ? "ring-foreground/40" : undefined}>
                 <CardHeader>
                   <CardTitle>
-                    <FormattedMessage {...messages.variantSplitTitle} />
+                    <FormattedMessage {...messages.detailsCardTitle} />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <FieldGroup>
+                    <Field>
+                      <FieldLabel htmlFor="hyperlab-experiment-name">
+                        <FormattedMessage {...messages.experimentNameLabel} />
+                      </FieldLabel>
+                      <Input
+                        id="hyperlab-experiment-name"
+                        value={experimentStore.name}
+                        onChange={(event) => experimentStore.setName(event.target.value)}
+                        disabled={!canWrite}
+                      />
+                    </Field>
+                    <Columns spacing="1.5u" collapseBelow="small">
+                      <Column width="1/3">
+                        <Field>
+                          <FieldLabel htmlFor="hyperlab-start-date">
+                            <FormattedMessage {...messages.startDateLabel} />
+                          </FieldLabel>
+                          <Input
+                            id="hyperlab-start-date"
+                            type="date"
+                            value={experimentStore.startDate}
+                            onChange={(event) => experimentStore.setStartDate(event.target.value)}
+                            disabled={!canWrite}
+                          />
+                        </Field>
+                      </Column>
+                      <Column width="1/3">
+                        <Field>
+                          <FieldLabel htmlFor="hyperlab-start-time">
+                            <FormattedMessage {...messages.startTimeLabel} />
+                          </FieldLabel>
+                          <Input
+                            id="hyperlab-start-time"
+                            type="time"
+                            value={experimentStore.startTime}
+                            onChange={(event) => experimentStore.setStartTime(event.target.value)}
+                            disabled={!canWrite}
+                          />
+                          {experimentStore.startWall.status === "nonexistent" ||
+                          experimentStore.startWall.status === "invalid" ? (
+                            <FieldDescription>
+                              <FormattedMessage {...messages.scheduleNonexistent} />
+                            </FieldDescription>
+                          ) : null}
+                          {experimentStore.startWall.status === "ambiguous" ? (
+                            <FieldDescription>
+                              <FormattedMessage {...messages.scheduleAmbiguous} />
+                            </FieldDescription>
+                          ) : null}
+                        </Field>
+                      </Column>
+                      <Column width="1/3">
+                        <Field>
+                          <FieldLabel>
+                            <FormattedMessage {...messages.timezoneLabel} />
+                          </FieldLabel>
+                          <Select
+                            value={experimentStore.timezone}
+                            items={timezoneItems}
+                            onValueChange={(next) => {
+                              if (next) {
+                                experimentStore.setTimezone(next);
+                              }
+                            }}
+                            disabled={!canWrite}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {timezoneItems.map((item) => (
+                                  <SelectItem
+                                    key={item.value}
+                                    value={item.value}
+                                    label={item.label}
+                                  >
+                                    {item.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                      </Column>
+                    </Columns>
+                    <Columns spacing="1.5u" collapseBelow="small">
+                      <Column width="1/3">
+                        <Field>
+                          <FieldLabel htmlFor="hyperlab-end-date">
+                            <FormattedMessage {...messages.endDateLabel} />
+                          </FieldLabel>
+                          <Input
+                            id="hyperlab-end-date"
+                            type="date"
+                            value={experimentStore.endDate}
+                            onChange={(event) => experimentStore.setEndDate(event.target.value)}
+                            disabled={!canWrite}
+                          />
+                        </Field>
+                      </Column>
+                      <Column width="1/3">
+                        <Field>
+                          <FieldLabel htmlFor="hyperlab-end-time">
+                            <FormattedMessage {...messages.endTimeLabel} />
+                          </FieldLabel>
+                          <Input
+                            id="hyperlab-end-time"
+                            type="time"
+                            value={experimentStore.endTime}
+                            onChange={(event) => experimentStore.setEndTime(event.target.value)}
+                            disabled={!canWrite}
+                          />
+                          {experimentStore.endWall.status === "nonexistent" ||
+                          experimentStore.endWall.status === "invalid" ? (
+                            <FieldDescription>
+                              <FormattedMessage {...messages.scheduleNonexistent} />
+                            </FieldDescription>
+                          ) : null}
+                          {experimentStore.endWall.status === "ambiguous" ? (
+                            <FieldDescription>
+                              <FormattedMessage {...messages.scheduleAmbiguous} />
+                            </FieldDescription>
+                          ) : null}
+                        </Field>
+                      </Column>
+                    </Columns>
+                  </FieldGroup>
+                </CardContent>
+                {canWrite ? (
+                  <CardFooter className="gap-3">
+                    <Button
+                      type="button"
+                      onClick={() => saveDetails.mutate()}
+                      disabled={
+                        saveDetails.isPending ||
+                        !experimentStore.detailsDirty ||
+                        !experimentStore.scheduleReady
+                      }
+                    >
+                      {saveDetails.isPending ? <Spinner data-icon="inline-start" /> : null}
+                      <FormattedMessage
+                        {...(saveDetails.isPending ? messages.saving : messages.save)}
+                      />
+                    </Button>
+                    {experimentStore.detailsDirty ? (
+                      <TypographyP size="small" tone="subtle">
+                        <FormattedMessage {...messages.unsavedChanges} />
+                      </TypographyP>
+                    ) : null}
+                  </CardFooter>
+                ) : null}
+              </Card>
+
+              <Card className={experimentStore.rolloutDirty ? "ring-foreground/40" : undefined}>
+                <CardHeader>
+                  <CardTitle>
+                    <FormattedMessage {...messages.rolloutCardTitle} />
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Rows spacing="2u">
-                    {variants.map((variant) => (
-                      <HyperlabRolloutControl
-                        key={variant.id}
-                        id={`hyperlab-variant-split-${variant.id}`}
-                        value={variantSplits[variant.id] ?? variant.rolloutPercentage}
-                        onChange={(next) =>
-                          setVariantSplits((current) => ({ ...current, [variant.id]: next }))
-                        }
-                        disabled={!canWrite}
-                        label={
-                          variant.isControl ? intl.formatMessage(messages.control) : variant.key
-                        }
-                      />
-                    ))}
-                    <TypographyP size="small" tone={splitTotal === 10000 ? "subtle" : "critical"}>
-                      <FormattedMessage
-                        {...(splitTotal === 10000
-                          ? messages.variantSplitTotal
-                          : messages.variantSplitWarning)}
-                        values={{ value: rolloutToPercent(splitTotal) }}
-                      />
-                    </TypographyP>
+                    <HyperlabAudienceSelector
+                      organizationSlug={organizationSlug}
+                      value={experimentStore.audienceId}
+                      onChange={(value) => experimentStore.setAudienceId(value)}
+                      disabled={!canWrite}
+                      hint={intl.formatMessage(messages.audienceRolloutHint)}
+                    />
+                    <HyperlabRolloutControl
+                      id="hyperlab-experiment-rollout"
+                      value={experimentStore.rolloutPercentage}
+                      onChange={(value) => experimentStore.setRolloutPercentage(value)}
+                      disabled={!canWrite}
+                    />
                     <TypographyP size="small" tone="subtle">
-                      <FormattedMessage {...messages.variantRolloutHint} />
+                      <FormattedMessage {...messages.rolloutHint} />
                     </TypographyP>
                   </Rows>
                 </CardContent>
                 {canWrite ? (
-                  <CardFooter>
+                  <CardFooter className="gap-3">
                     <Button
                       type="button"
-                      onClick={() => saveSplits.mutate()}
-                      disabled={saveSplits.isPending || !splitDirty || splitTotal !== 10000}
+                      onClick={() => saveRollout.mutate()}
+                      disabled={saveRollout.isPending || !experimentStore.rolloutDirty}
                     >
-                      {saveSplits.isPending ? <Spinner data-icon="inline-start" /> : null}
+                      {saveRollout.isPending ? <Spinner data-icon="inline-start" /> : null}
                       <FormattedMessage
-                        {...(saveSplits.isPending ? messages.saving : messages.saveVariantSplits)}
+                        {...(saveRollout.isPending ? messages.saving : messages.saveRollout)}
                       />
                     </Button>
+                    {experimentStore.rolloutDirty ? (
+                      <TypographyP size="small" tone="subtle">
+                        <FormattedMessage {...messages.unsavedChanges} />
+                      </TypographyP>
+                    ) : null}
                   </CardFooter>
                 ) : null}
               </Card>
-            ) : null}
 
-            <Rows spacing="1.5u">
-              <Row spacing="1.5u" align="spaceBetween" alignY="center">
-                <TypographyP weight="medium">
-                  <FormattedMessage {...messages.variantsTitle} />
-                </TypographyP>
-                {canWrite && experiment.kind === "ab" ? (
-                  <Dialog open={addVariantOpen} onOpenChange={setAddVariantOpen}>
-                    <DialogTrigger render={<Button variant="secondary" />}>
-                      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
-                      <FormattedMessage {...messages.addVariant} />
-                    </DialogTrigger>
-                    <DialogContent>
-                      <form
-                        className="flex flex-col gap-4"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          addVariant.mutate();
-                        }}
+              {experiment.kind === "ab" && variants.length > 0 ? (
+                <Card className={experimentStore.splitDirty ? "ring-foreground/40" : undefined}>
+                  <CardHeader>
+                    <CardTitle>
+                      <FormattedMessage {...messages.variantSplitTitle} />
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Rows spacing="2u">
+                      {variants.map((variant) => (
+                        <HyperlabRolloutControl
+                          key={variant.id}
+                          id={`hyperlab-variant-split-${variant.id}`}
+                          value={
+                            experimentStore.variantSplits[variant.id] ?? variant.rolloutPercentage
+                          }
+                          onChange={(next) => experimentStore.setVariantSplit(variant.id, next)}
+                          disabled={!canWrite}
+                          label={
+                            variant.isControl ? intl.formatMessage(messages.control) : variant.key
+                          }
+                        />
+                      ))}
+                      <TypographyP
+                        size="small"
+                        tone={experimentStore.splitTotal === 10000 ? "subtle" : "critical"}
                       >
-                        <DialogHeader>
-                          <DialogTitle>
-                            <FormattedMessage {...messages.addVariantTitle} />
-                          </DialogTitle>
-                          <DialogDescription>
-                            <FormattedMessage {...messages.addVariantDescription} />
-                          </DialogDescription>
-                        </DialogHeader>
-                        <Field>
-                          <FieldLabel htmlFor="hyperlab-new-variant-key">
-                            <FormattedMessage {...messages.variantKeyLabel} />
-                          </FieldLabel>
-                          <Input
-                            id="hyperlab-new-variant-key"
-                            value={variantKey}
-                            onChange={(event) => setVariantKey(event.target.value)}
-                            placeholder={intl.formatMessage(messages.variantKeyPlaceholder)}
-                            required
-                          />
-                        </Field>
-                        <DialogFooter>
-                          <Button
-                            type="submit"
-                            disabled={!variantKey.trim() || addVariant.isPending}
-                          >
-                            {addVariant.isPending ? <Spinner data-icon="inline-start" /> : null}
-                            <FormattedMessage {...messages.addVariant} />
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                ) : null}
-              </Row>
-              {variants.length === 0 ? (
-                <TypographyP size="small" tone="subtle">
-                  <FormattedMessage {...messages.noVariants} />
-                </TypographyP>
-              ) : (
-                variants.map((variant) => (
-                  <HyperlabVariantCard
-                    key={variant.id}
-                    organizationSlug={organizationSlug}
-                    experiment={experiment}
-                    variant={variant}
-                    flags={flags}
-                    assignments={assignmentsByVariant.get(variant.id) ?? []}
-                    canWrite={canWrite}
-                    canDeleteVariant={experiment.kind === "ab" && variants.length > 1}
-                    onRefresh={refresh}
-                  />
-                ))
-              )}
-            </Rows>
-          </>
-        ) : null}
-      </Rows>
-    </HyperlabPageShell>
-  );
-}
+                        <FormattedMessage
+                          {...(experimentStore.splitTotal === 10000
+                            ? messages.variantSplitTotal
+                            : messages.variantSplitWarning)}
+                          values={{ value: rolloutToPercent(experimentStore.splitTotal) }}
+                        />
+                      </TypographyP>
+                      <TypographyP size="small" tone="subtle">
+                        <FormattedMessage {...messages.variantRolloutHint} />
+                      </TypographyP>
+                    </Rows>
+                  </CardContent>
+                  {canWrite ? (
+                    <CardFooter>
+                      <Button
+                        type="button"
+                        onClick={() => saveSplits.mutate()}
+                        disabled={
+                          saveSplits.isPending ||
+                          !experimentStore.splitDirty ||
+                          experimentStore.splitTotal !== 10000
+                        }
+                      >
+                        {saveSplits.isPending ? <Spinner data-icon="inline-start" /> : null}
+                        <FormattedMessage
+                          {...(saveSplits.isPending ? messages.saving : messages.saveVariantSplits)}
+                        />
+                      </Button>
+                    </CardFooter>
+                  ) : null}
+                </Card>
+              ) : null}
 
-function HyperlabVariantCard({
+              <Rows spacing="1.5u">
+                <Row spacing="1.5u" align="spaceBetween" alignY="center">
+                  <TypographyP weight="medium">
+                    <FormattedMessage {...messages.variantsTitle} />
+                  </TypographyP>
+                  {canWrite && experiment.kind === "ab" ? (
+                    <Dialog
+                      open={uiStore.addVariantOpen}
+                      onOpenChange={(open) => uiStore.setAddVariantOpen(open)}
+                    >
+                      <DialogTrigger render={<Button variant="secondary" />}>
+                        <HugeiconsIcon
+                          icon={Add01Icon}
+                          strokeWidth={1.8}
+                          data-icon="inline-start"
+                        />
+                        <FormattedMessage {...messages.addVariant} />
+                      </DialogTrigger>
+                      <DialogContent>
+                        <form
+                          className="flex flex-col gap-4"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            addVariant.mutate();
+                          }}
+                        >
+                          <DialogHeader>
+                            <DialogTitle>
+                              <FormattedMessage {...messages.addVariantTitle} />
+                            </DialogTitle>
+                            <DialogDescription>
+                              <FormattedMessage {...messages.addVariantDescription} />
+                            </DialogDescription>
+                          </DialogHeader>
+                          <Field>
+                            <FieldLabel htmlFor="hyperlab-new-variant-key">
+                              <FormattedMessage {...messages.variantKeyLabel} />
+                            </FieldLabel>
+                            <Input
+                              id="hyperlab-new-variant-key"
+                              value={uiStore.variantKey}
+                              onChange={(event) => uiStore.setVariantKey(event.target.value)}
+                              placeholder={intl.formatMessage(messages.variantKeyPlaceholder)}
+                              required
+                            />
+                          </Field>
+                          <DialogFooter>
+                            <Button
+                              type="submit"
+                              disabled={!uiStore.variantKey.trim() || addVariant.isPending}
+                            >
+                              {addVariant.isPending ? <Spinner data-icon="inline-start" /> : null}
+                              <FormattedMessage {...messages.addVariant} />
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  ) : null}
+                </Row>
+                {variants.length === 0 ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...messages.noVariants} />
+                  </TypographyP>
+                ) : (
+                  variants.map((variant) => (
+                    <HyperlabVariantCard
+                      key={variant.id}
+                      organizationSlug={organizationSlug}
+                      experiment={experiment}
+                      variant={variant}
+                      flags={flags}
+                      assignments={assignmentsByVariant.get(variant.id) ?? []}
+                      canWrite={canWrite}
+                      canDeleteVariant={experiment.kind === "ab" && variants.length > 1}
+                      onRefresh={refresh}
+                    />
+                  ))
+                )}
+              </Rows>
+            </>
+          ) : null}
+        </Rows>
+      </HyperlabPageShell>
+    </>
+  );
+});
+
+const HyperlabVariantCard = observer(function HyperlabVariantCard({
   organizationSlug,
   experiment,
   variant,
@@ -827,13 +811,10 @@ function HyperlabVariantCard({
 }) {
   const intl = useIntl();
   const client = hyperlabClient();
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [audienceId, setAudienceId] = useState(variant.audienceId ?? "");
+  const { ui: uiStore } = useHyperlabWorkspace();
+  const audienceId = uiStore.getVariantAudienceDraft(variant.id, variant.audienceId ?? "");
+  const sheetOpen = uiStore.isVariantSheetOpen(variant.id);
   const flagsById = new Map(flags.map((flag) => [flag.id, flag]));
-
-  useEffect(() => {
-    setAudienceId(variant.audienceId ?? "");
-  }, [variant.audienceId]);
 
   const saveAudience = useMutation({
     mutationFn: async () => {
@@ -964,7 +945,7 @@ function HyperlabVariantCard({
               <HyperlabAudienceSelector
                 organizationSlug={organizationSlug}
                 value={audienceId}
-                onChange={setAudienceId}
+                onChange={(value) => uiStore.setVariantAudienceDraft(variant.id, value)}
                 disabled={!canWrite}
                 hint={intl.formatMessage(messages.variantAudienceHint)}
               />
@@ -991,7 +972,7 @@ function HyperlabVariantCard({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setSheetOpen(true)}
+                  onClick={() => uiStore.setVariantSheetOpen(variant.id, true)}
                 >
                   <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
                   <FormattedMessage {...messages.attachFlag} />
@@ -1047,7 +1028,7 @@ function HyperlabVariantCard({
       </CardContent>
       <AttachFlagSheet
         open={sheetOpen}
-        onOpenChange={setSheetOpen}
+        onOpenChange={(open) => uiStore.setVariantSheetOpen(variant.id, open)}
         organizationSlug={organizationSlug}
         variant={variant}
         flags={flags}
@@ -1056,7 +1037,7 @@ function HyperlabVariantCard({
       />
     </Card>
   );
-}
+});
 
 function AttachFlagSheet({
   open,
