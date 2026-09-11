@@ -1,6 +1,6 @@
 {
-  "id": "47bece07-4ded-47a6-89fc-305b556769f4",
-  "prevId": "1b2960e4-2199-4787-9a85-1d2c4d9ab2c6",
+  "id": "c488f996-2dbe-47cd-9928-d0954f61cd28",
+  "prevId": "47bece07-4ded-47a6-89fc-305b556769f4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -15510,6 +15510,14 @@
           "notNull": true,
           "default": "'active'"
         },
+        "kind": {
+          "name": "kind",
+          "type": "workspace_automation_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'agent'"
+        },
         "name": {
           "name": "name",
           "type": "text",
@@ -15555,6 +15563,19 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "sync_config": {
+          "name": "sync_config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "sync_fingerprint": {
+          "name": "sync_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "project_id": {
           "name": "project_id",
@@ -15665,6 +15686,34 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "workspace_automations_content_sync_fingerprint_key": {
+          "name": "workspace_automations_content_sync_fingerprint_key",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sync_fingerprint",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"workspace_automations\".\"kind\" = 'content_sync' AND \"workspace_automations\".\"project_id\" IS NOT NULL AND \"workspace_automations\".\"sync_fingerprint\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -27342,6 +27391,14 @@
         "active",
         "paused",
         "archived"
+      ]
+    },
+    "public.workspace_automation_kind": {
+      "name": "workspace_automation_kind",
+      "schema": "public",
+      "values": [
+        "agent",
+        "content_sync"
       ]
     },
     "public.workspace_automation_run_status": {

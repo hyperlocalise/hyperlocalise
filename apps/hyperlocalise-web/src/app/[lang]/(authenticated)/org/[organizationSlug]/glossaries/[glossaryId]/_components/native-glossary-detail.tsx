@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -29,6 +29,11 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { GlossaryProjectRecord, GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
+import {
+  glossaryPartOfSpeechValues,
+  glossaryTermStatusValues,
+  glossaryTermTypeValues,
+} from "@/lib/glossary/glossary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -190,6 +195,24 @@ export function NativeGlossaryDetail({
   const [selectedConceptIds, setSelectedConceptIds] = useState<Set<string>>(new Set());
   const [conceptSort, setConceptSort] = useState<"asc" | "desc">("asc");
   const [conceptSearch, setConceptSearch] = useState("");
+  const [conceptLocale, setConceptLocale] = useState("");
+  const [conceptReviewStatus, setConceptReviewStatus] = useState<
+    "" | "proposed" | "approved" | "rejected" | "superseded"
+  >("");
+  const [conceptTermReviewStatus, setConceptTermReviewStatus] = useState<
+    "" | "proposed" | "approved" | "rejected" | "superseded"
+  >("");
+  const [conceptLinguisticStatus, setConceptLinguisticStatus] = useState<
+    "" | (typeof glossaryTermStatusValues)[number]
+  >("");
+  const [conceptPartOfSpeech, setConceptPartOfSpeech] = useState<
+    "" | (typeof glossaryPartOfSpeechValues)[number]
+  >("");
+  const [conceptTermType, setConceptTermType] = useState<
+    "" | (typeof glossaryTermTypeValues)[number]
+  >("");
+  const [conceptProvenance, setConceptProvenance] = useState<"" | "manual" | "sync">("");
+  const [conceptForbidden, setConceptForbidden] = useState<"" | "true" | "false">("");
   const [conceptCursor, setConceptCursor] = useState<string | undefined>();
   const [, setConceptCursorStack] = useState<string[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -219,6 +242,14 @@ export function NativeGlossaryDetail({
       organizationSlug,
       glossaryId,
       conceptSearch,
+      conceptLocale,
+      conceptReviewStatus,
+      conceptTermReviewStatus,
+      conceptLinguisticStatus,
+      conceptPartOfSpeech,
+      conceptTermType,
+      conceptProvenance,
+      conceptForbidden,
       conceptCursor,
       conceptSort,
     ],
@@ -232,8 +263,16 @@ export function NativeGlossaryDetail({
           limit: "50",
           sort: "primary_term",
           sortDir: conceptSort,
-          includeArchived: "false",
+          includeArchived: "false" as const,
           ...(conceptSearch.trim() ? { search: conceptSearch.trim() } : {}),
+          ...(conceptLocale ? { locale: conceptLocale } : {}),
+          ...(conceptReviewStatus ? { reviewStatus: conceptReviewStatus } : {}),
+          ...(conceptTermReviewStatus ? { termReviewStatus: conceptTermReviewStatus } : {}),
+          ...(conceptLinguisticStatus ? { linguisticStatus: conceptLinguisticStatus } : {}),
+          ...(conceptPartOfSpeech ? { partOfSpeech: conceptPartOfSpeech } : {}),
+          ...(conceptTermType ? { termType: conceptTermType } : {}),
+          ...(conceptProvenance ? { provenance: conceptProvenance } : {}),
+          ...(conceptForbidden ? { forbidden: conceptForbidden === "true" } : {}),
           ...(conceptCursor ? { cursor: conceptCursor } : {}),
         },
       });
@@ -533,6 +572,11 @@ export function NativeGlossaryDetail({
     if (nextSearch !== conceptSearch) setConceptSearch(nextSearch);
   };
 
+  const resetForFilter = <T extends string>(setter: Dispatch<SetStateAction<T>>, value: string) => {
+    resetConceptCursor();
+    setter((value === "all" ? "" : value) as T);
+  };
+
   const goToNextConceptPage = () => {
     const nextCursor = conceptsQuery.data?.nextCursor;
     if (!nextCursor) return;
@@ -672,6 +716,136 @@ export function NativeGlossaryDetail({
                 placeholder="Search concepts"
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
+            </div>
+            <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+              <Select
+                value={conceptLocale || "all"}
+                onValueChange={(value) => resetForFilter(setConceptLocale, value ?? "all")}
+              >
+                <SelectTrigger aria-label="Filter by locale">
+                  <SelectValue placeholder="Locale" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All locales</SelectItem>
+                  {[glossary.sourceLocale, ...glossary.localeCoverage]
+                    .filter((locale, index, locales) => locales.indexOf(locale) === index)
+                    .map((locale) => (
+                      <SelectItem key={locale} value={locale}>
+                        {locale}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={conceptReviewStatus || "all"}
+                onValueChange={(value) => resetForFilter(setConceptReviewStatus, value ?? "all")}
+              >
+                <SelectTrigger aria-label="Filter by concept review status">
+                  <SelectValue placeholder="Concept review" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All concept review</SelectItem>
+                  {["proposed", "approved", "rejected", "superseded"].map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={conceptTermReviewStatus || "all"}
+                onValueChange={(value) =>
+                  resetForFilter(setConceptTermReviewStatus, value ?? "all")
+                }
+              >
+                <SelectTrigger aria-label="Filter by term review status">
+                  <SelectValue placeholder="Term review" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All term review</SelectItem>
+                  {["proposed", "approved", "rejected", "superseded"].map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={conceptLinguisticStatus || "all"}
+                onValueChange={(value) =>
+                  resetForFilter(setConceptLinguisticStatus, value ?? "all")
+                }
+              >
+                <SelectTrigger aria-label="Filter by term status">
+                  <SelectValue placeholder="Term status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All term status</SelectItem>
+                  {glossaryTermStatusValues.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={conceptPartOfSpeech || "all"}
+                onValueChange={(value) => resetForFilter(setConceptPartOfSpeech, value ?? "all")}
+              >
+                <SelectTrigger aria-label="Filter by part of speech">
+                  <SelectValue placeholder="Part of speech" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All parts of speech</SelectItem>
+                  {glossaryPartOfSpeechValues.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={conceptTermType || "all"}
+                onValueChange={(value) => resetForFilter(setConceptTermType, value ?? "all")}
+              >
+                <SelectTrigger aria-label="Filter by term type">
+                  <SelectValue placeholder="Term type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All term types</SelectItem>
+                  {glossaryTermTypeValues.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={conceptProvenance || "all"}
+                onValueChange={(value) => resetForFilter(setConceptProvenance, value ?? "all")}
+              >
+                <SelectTrigger aria-label="Filter by provenance">
+                  <SelectValue placeholder="Provenance" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All provenance</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                  <SelectItem value="sync">Sync</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={conceptForbidden || "all"}
+                onValueChange={(value) => resetForFilter(setConceptForbidden, value ?? "all")}
+              >
+                <SelectTrigger aria-label="Filter by forbidden state">
+                  <SelectValue placeholder="Forbidden" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All terms</SelectItem>
+                  <SelectItem value="true">Forbidden only</SelectItem>
+                  <SelectItem value="false">Allowed only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             {canManage || canContribute ? (
               <div className="flex flex-wrap items-center justify-end gap-2">

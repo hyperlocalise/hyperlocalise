@@ -141,6 +141,9 @@ async function createMemoryWithEntry(input: {
   name: string;
   sourceText: string;
   targetText: string;
+  status?: "draft" | "active" | "archived";
+  source?: "native" | "external_tms";
+  capabilityMode?: "live_search" | "synced_import" | "reference_only";
 }) {
   const [memory] = await db
     .insert(schema.memories)
@@ -148,7 +151,10 @@ async function createMemoryWithEntry(input: {
       organizationId: input.organizationId,
       name: input.name,
       description: "",
-      status: "active",
+      status: input.status ?? "active",
+      source: input.source ?? "native",
+      externalProviderKind: input.source === "external_tms" ? "crowdin" : undefined,
+      capabilityMode: input.capabilityMode,
     })
     .returning();
 
@@ -691,6 +697,66 @@ describe("createQueryTranslationMemoryTool", () => {
       sourceText: "Start checkout",
       targetText: "Commencer le paiement",
     });
+  });
+
+  it("returns fuzzy matches when the query contains an additional word", async () => {
+    const organization = await createOrganization();
+
+    await createMemoryWithEntry({
+      organizationId: organization.id,
+      name: "Edited Segment Memory",
+      sourceText: "Hello world",
+      targetText: "Bonjour le monde",
+    });
+
+    const result = await executeMemorySearch({
+      organizationId: organization.id,
+      sourceText: "Hello brave world",
+    });
+
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]).toMatchObject({
+      sourceText: "Hello world",
+      targetText: "Bonjour le monde",
+    });
+  });
+
+  it("excludes inactive and reference-only memories", async () => {
+    const organization = await createOrganization();
+
+    await createMemoryWithEntry({
+      organizationId: organization.id,
+      name: "Active Memory",
+      sourceText: "Start checkout",
+      targetText: "Commencer le paiement",
+    });
+    await createMemoryWithEntry({
+      organizationId: organization.id,
+      name: "Archived Memory",
+      sourceText: "Start checkout",
+      targetText: "Traduction archivée",
+      status: "archived",
+    });
+    await createMemoryWithEntry({
+      organizationId: organization.id,
+      name: "Reference-only Memory",
+      sourceText: "Start checkout",
+      targetText: "Traduction de référence",
+      source: "external_tms",
+      capabilityMode: "reference_only",
+    });
+
+    const exact = await executeMemorySearch({
+      organizationId: organization.id,
+      sourceText: "Start checkout",
+    });
+    const fuzzy = await executeMemorySearch({
+      organizationId: organization.id,
+      sourceText: "checkout",
+    });
+
+    expect(exact.matches.map(({ targetText }) => targetText)).toEqual(["Commencer le paiement"]);
+    expect(fuzzy.matches.map(({ targetText }) => targetText)).toEqual(["Commencer le paiement"]);
   });
 
   it("does not use a project ID from another organization to read attached memories", async () => {

@@ -1,0 +1,1 @@
+ALTER TABLE "glossary_history_events" DROP CONSTRAINT "glossary_history_events_glossary_id_glossaries_id_fk";

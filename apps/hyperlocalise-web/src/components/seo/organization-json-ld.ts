@@ -12,35 +12,43 @@
  */
 import type { Organization, WithContext } from "schema-dts";
 
-export const organizationJsonLd: WithContext<Organization> = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "@id": "https://www.hyperlocalise.com/#organization",
-  name: "Hyperlocalise",
-  url: "https://www.hyperlocalise.com",
-  logo: {
-    "@type": "ImageObject",
-    url: "https://www.hyperlocalise.com/images/logo.png",
-  },
-  description:
-    "Agentic localisation platform that connects product change signals, AI translation, human review, and release workflows.",
-  foundingDate: "2026",
-  founders: [
-    {
-      "@type": "Person",
-      name: "Minh Cung",
-      sameAs: "https://www.linkedin.com/in/minhcung/",
+import type { AppLocale } from "@/lib/app-i18n/locales";
+import { jsonLdInLanguage } from "@/lib/seo/json-ld-in-language";
+
+export function buildOrganizationJsonLd(locale: AppLocale): WithContext<Organization> & {
+  inLanguage: string;
+} {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://www.hyperlocalise.com/#organization",
+    name: "Hyperlocalise",
+    url: "https://www.hyperlocalise.com",
+    logo: {
+      "@type": "ImageObject",
+      url: "https://www.hyperlocalise.com/images/logo.png",
     },
-    {
-      "@type": "Person",
-      name: "Hans Bui",
-      sameAs: "https://www.linkedin.com/in/hansbui/",
+    description:
+      "Agentic localisation platform that connects product change signals, AI translation, human review, and release workflows.",
+    foundingDate: "2026",
+    founders: [
+      {
+        "@type": "Person",
+        name: "Minh Cung",
+        sameAs: "https://www.linkedin.com/in/minhcung/",
+      },
+      {
+        "@type": "Person",
+        name: "Hans Bui",
+        sameAs: "https://www.linkedin.com/in/hansbui/",
+      },
+    ],
+    sameAs: ["https://www.linkedin.com/company/hyperlocalise/"],
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "sales",
+      email: "minh@hyperlocalise.com",
     },
-  ],
-  sameAs: ["https://www.linkedin.com/company/hyperlocalise/"],
-  contactPoint: {
-    "@type": "ContactPoint",
-    contactType: "sales",
-    email: "minh@hyperlocalise.com",
-  },
-};
+    inLanguage: jsonLdInLanguage(locale),
+  };
+}
