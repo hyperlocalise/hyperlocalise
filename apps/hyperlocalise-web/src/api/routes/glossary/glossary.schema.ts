@@ -89,6 +89,9 @@ export const glossaryConceptPageQuerySchema = z.object({
 export const glossaryHistoryQuerySchema = z.object({
   conceptId: z.string().uuid().optional(),
   termId: z.string().uuid().optional(),
+  cursor: z.string().trim().max(2_000).optional(),
+  search: z.string().trim().max(200).optional(),
+  eventType: z.string().trim().min(1).max(80).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
@@ -392,6 +395,39 @@ export const glossaryConceptPageResponseSchema = z.object({
   }),
 });
 
+export const glossaryHistoryChangeSchema = z.object({
+  field: z.string(),
+  before: z.unknown(),
+  after: z.unknown(),
+});
+
+export const glossaryHistoryEventSchema = z.object({
+  id: z.string().uuid(),
+  conceptId: z.string().uuid().nullable(),
+  termId: z.string().uuid().nullable(),
+  eventType: z.string(),
+  actorKind: z.string(),
+  actorUserId: z.string().uuid().nullable(),
+  actorCredentialId: z.string().nullable(),
+  actorDisplayName: z.string(),
+  version: z.number().int(),
+  reason: z.string().nullable(),
+  changedFields: z.array(z.string()),
+  changes: z.array(glossaryHistoryChangeSchema),
+  attributes: z.record(z.string(), z.unknown()),
+  occurredAt: z.string().datetime(),
+});
+
+export const glossaryHistoryPageResponseSchema = z.object({
+  events: z.array(glossaryHistoryEventSchema),
+  nextCursor: z.string().nullable(),
+  pagination: z.object({
+    limit: z.number().int().positive(),
+    returned: z.number().int().nonnegative(),
+    hasMore: z.boolean(),
+  }),
+});
+
 export const glossaryConceptTermResponseSchema = z.object({
   term: glossaryConceptTermRecordSchema,
 });
@@ -429,5 +465,7 @@ export type GlossaryConceptResponse = z.infer<typeof glossaryConceptResponseSche
 export type GlossaryConceptsResponse = z.infer<typeof glossaryConceptsResponseSchema>;
 export type GlossaryConceptSummary = z.infer<typeof glossaryConceptSummarySchema>;
 export type GlossaryConceptPageResponse = z.infer<typeof glossaryConceptPageResponseSchema>;
+export type GlossaryHistoryEventRecord = z.infer<typeof glossaryHistoryEventSchema>;
+export type GlossaryHistoryPageResponse = z.infer<typeof glossaryHistoryPageResponseSchema>;
 export type GlossaryConceptTermResponse = z.infer<typeof glossaryConceptTermResponseSchema>;
 export type GlossaryConceptTermsResponse = z.infer<typeof glossaryConceptTermsResponseSchema>;

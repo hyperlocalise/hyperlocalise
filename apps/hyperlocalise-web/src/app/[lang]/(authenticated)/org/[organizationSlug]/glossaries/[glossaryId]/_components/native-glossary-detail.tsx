@@ -657,6 +657,9 @@ export function NativeGlossaryDetail({
                 <FormattedMessage {...messages.conceptsDescription} />
               </TypographyP>
             </div>
+            <Link href={`${glossaryHref}/history`} className="text-sm text-primary hover:underline">
+              <FormattedMessage {...messages.glossaryHistory} />
+            </Link>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-72">
               <label htmlFor="glossary-concept-search" className="sr-only">
                 Search concepts
