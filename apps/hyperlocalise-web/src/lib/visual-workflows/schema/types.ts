@@ -14,7 +14,7 @@ import type { Edge, Node } from "@xyflow/react";
 
 import type { EmailProviderSlug } from "@/lib/email/constants";
 
-export const VISUAL_WORKFLOW_SCHEMA_VERSION = 1 as const;
+export const VISUAL_WORKFLOW_SCHEMA_VERSION = 2 as const;
 
 export type VisualCatalogType =
   | "trigger.manual"
@@ -56,7 +56,30 @@ export type VisualWorkflowScheduleConfig = {
   timezone?: string;
 };
 
-export type MockNodeRunStatus = "idle" | "running" | "succeeded" | "failed";
+export type MockNodeRunStatus =
+  | "idle"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "skipped"
+  | "blocked"
+  | "cancelled"
+  | "handled_error"
+  | "needs_attention";
+export type WorkflowValueType = "string" | "number" | "boolean" | "object" | "array" | "unknown";
+export type WorkflowBinding = (
+  | { kind: "literal"; value: unknown }
+  | { kind: "reference"; nodeId: string; path: (string | number)[] }
+  | { kind: "template"; template: string }
+  | { kind: "secret"; credentialId: string }
+) & { optional?: boolean; fallback?: unknown };
+export type WorkflowOutputField = { path: string; type: WorkflowValueType; optional?: boolean };
+export type WorkflowNodeContract = {
+  inputs?: Record<string, WorkflowBinding>;
+  outputFields?: WorkflowOutputField[];
+  bodyNodeIds?: string[];
+  collect?: Record<string, WorkflowBinding>;
+};
 
 export type VisualNodeConfig =
   | { kind: "trigger.manual" }
@@ -71,6 +94,7 @@ export type VisualNodeConfig =
   | {
       kind: "action.http";
       method: HttpMethod;
+      idempotencyHeader?: string;
       url: string;
       headers?: VisualKeyValuePair[];
       queryParams?: VisualKeyValuePair[];
@@ -79,6 +103,7 @@ export type VisualNodeConfig =
       auth?: {
         type: HttpAuthType;
         token?: string;
+        credentialId?: string;
         headerName?: string;
       };
       parseJsonBody?: boolean;
@@ -114,10 +139,11 @@ export type VisualNodeConfig =
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
   | { kind: "logic.for_each"; collection: string };
 
-export type VisualWorkflowNodeData = {
+export type VisualWorkflowNodeData = WorkflowNodeContract & {
   catalogType: VisualCatalogType;
   config: VisualNodeConfig;
   runStatus: MockNodeRunStatus;
+  lastInput?: Record<string, unknown> | null;
   lastOutput?: Record<string, unknown> | null;
   lastError?: Record<string, unknown> | null;
   previewSubtitle?: string;
@@ -127,7 +153,7 @@ export type VisualWorkflowNodeData = {
 export type VisualWorkflowRfNode = Node<VisualWorkflowNodeData, VisualCatalogType>;
 export type VisualWorkflowRfEdge = Edge;
 
-export type CanonicalVisualWorkflowNode = {
+export type CanonicalVisualWorkflowNode = WorkflowNodeContract & {
   id: string;
   type: VisualCatalogType;
   config: VisualNodeConfig;
@@ -162,7 +188,12 @@ export type VisualWorkflowValidationIssue = {
     | "invalid_edge"
     | "invalid_trigger_config"
     | "invalid_node_config"
-    | "nested_for_each";
+    | "nested_for_each"
+    | "duplicate_id"
+    | "cycle"
+    | "invalid_handle"
+    | "invalid_binding"
+    | "invalid_loop";
   nodeId?: string;
   edgeId?: string;
 };

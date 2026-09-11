@@ -35,6 +35,9 @@ export const visualWorkflows = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
+    publishedDefinition: jsonb("published_definition").$type<Record<string, unknown>>(),
+    publishedVersion: integer("published_version"),
+    revision: integer("revision").notNull().default(1),
     definitionVersion: integer("definition_version").notNull().default(1),
     triggerFingerprint: text("trigger_fingerprint"),
     nextRunAt: timestamp("next_run_at", { withTimezone: true }),

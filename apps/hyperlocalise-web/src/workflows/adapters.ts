@@ -173,7 +173,9 @@ export function createVisualWorkflowExecutionQueue(): VisualWorkflowExecutionQue
       if (shouldRunWorkflowInlineLocally()) {
         const { executeVisualWorkflowStep } =
           await import("@/workflows/steps/visual-workflow-execution");
-        await executeVisualWorkflowStep(event);
+        let result = await executeVisualWorkflowStep(event);
+        for (let slice = 0; result.ok && result.value.continueExecution && slice < 1000; slice++)
+          result = await executeVisualWorkflowStep(event);
         return { ids: ["local_inline_visual_workflow"] };
       }
 

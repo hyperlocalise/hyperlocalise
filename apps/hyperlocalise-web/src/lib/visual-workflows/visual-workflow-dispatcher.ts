@@ -58,7 +58,15 @@ async function listAllActiveVisualWorkflows(
       limit: ACTIVE_WORKFLOW_PAGE_SIZE,
       offset,
     });
-    workflows.push(...page);
+    workflows.push(
+      ...page
+        .filter((workflow) => workflow.publishedDefinition)
+        .map((workflow) => ({
+          ...workflow,
+          definition: workflow.publishedDefinition!,
+          definitionVersion: workflow.publishedVersion!,
+        })),
+    );
 
     if (page.length < ACTIVE_WORKFLOW_PAGE_SIZE) {
       break;
@@ -251,12 +259,12 @@ export async function dispatchVisualWorkflowsForGithubPush(input: {
         queue: input.queue,
       });
       results.push(result);
-    } catch (error) {
+    } catch {
       logger.error(
         {
           visualWorkflowId: workflow.id,
           deliveryId: input.deliveryId,
-          error: error instanceof Error ? error.message : String(error),
+          error: "workflow_dispatch_failed",
         },
         "visual workflow github push dispatch failed",
       );
@@ -313,12 +321,12 @@ export async function dispatchVisualWorkflowsForGithubPullRequest(input: {
         queue: input.queue,
       });
       results.push(result);
-    } catch (error) {
+    } catch {
       logger.error(
         {
           visualWorkflowId: workflow.id,
           deliveryId: input.deliveryId,
-          error: error instanceof Error ? error.message : String(error),
+          error: "workflow_dispatch_failed",
         },
         "visual workflow github pull request dispatch failed",
       );
@@ -357,12 +365,12 @@ export async function dispatchVisualWorkflowsForSourceUpload(input: {
         queue: input.queue,
       });
       results.push(result);
-    } catch (error) {
+    } catch {
       logger.error(
         {
           visualWorkflowId: workflow.id,
           sourceFileId: input.sourceFileId,
-          error: error instanceof Error ? error.message : String(error),
+          error: "workflow_dispatch_failed",
         },
         "visual workflow source upload dispatch failed",
       );
@@ -404,11 +412,11 @@ export async function dispatchDueScheduledVisualWorkflows(input?: {
         queue: input?.queue,
       });
       results.push(result);
-    } catch (error) {
+    } catch {
       logger.error(
         {
           visualWorkflowId: workflow.id,
-          error: error instanceof Error ? error.message : String(error),
+          error: "workflow_dispatch_failed",
         },
         "visual workflow scheduled dispatch failed",
       );

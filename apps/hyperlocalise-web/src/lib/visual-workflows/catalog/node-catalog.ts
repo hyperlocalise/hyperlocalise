@@ -179,7 +179,7 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
     case "ai.agent":
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
-      return { kind: "logic.for_each", collection: "" };
+      return { kind: "logic.for_each", collection: "[]" };
     default:
       return assertNever(type);
   }

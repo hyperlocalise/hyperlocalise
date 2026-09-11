@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { compileWorkflowIssues } from "./compile-workflow";
 import { isTriggerType } from "../catalog/node-catalog";
 import {
   getVisualWorkflowTriggerNode,
@@ -117,6 +118,8 @@ function collectSchemaConfigIssues(
 export function validateVisualWorkflowDefinition(
   definition: VisualWorkflowDefinition,
 ): VisualWorkflowValidationIssue[] {
+  const schemaIssues = collectSchemaConfigIssues(definition);
+  if (schemaIssues.length) return schemaIssues;
   const nodes: VisualWorkflowRfNode[] = definition.nodes.map((node) => ({
     id: node.id,
     type: node.type,
@@ -136,7 +139,10 @@ export function validateVisualWorkflowDefinition(
     targetHandle: edge.targetHandle,
   }));
 
-  const issues = validateVisualWorkflowGraph(nodes, edges);
+  const issues = [
+    ...validateVisualWorkflowGraph(nodes, edges),
+    ...compileWorkflowIssues(definition),
+  ];
   const graph = buildVisualWorkflowGraphIndex(definition);
   if (graph) {
     for (const node of definition.nodes) {

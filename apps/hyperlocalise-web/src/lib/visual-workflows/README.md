@@ -1,104 +1,43 @@
 # Visual workflows
 
-Deterministic automation graphs stored in Postgres and executed by a small in-process interpreter. Phase 1 covers manual triggers, HTTP actions, if/else branching, and single-shot AI prompts.
+Organization-scoped automation graphs with typed data bindings, immutable published versions, mock draft tests, and durable action recovery. The `workspace-visual-workflows` flag remains off by default.
 
-User-facing docs: [`docs/platform/visual-workflows.mdx`](../../../../docs/platform/visual-workflows.mdx).
+User guide: [`docs/platform/visual-workflows.mdx`](../../../../../docs/platform/visual-workflows.mdx).
 
-## Layout
+## Definition and publishing
 
-| Path                              | Role                                                           |
-| --------------------------------- | -------------------------------------------------------------- |
-| `catalog/node-catalog.ts`         | Node types exposed in the editor picker and default configs    |
-| `schema/`                         | Canonical definition types, Zod schema, React Flow serializers |
-| `validation/validate-workflow.ts` | Graph invariants (single trigger, reachability, valid edges)   |
-| `visual-workflows.ts`             | CRUD for `visual_workflows` rows                               |
-| `visual-workflow-runs.ts`         | Run lifecycle, idempotency, node run persistence               |
-| `runtime/`                        | Interpreter, per-node executors, template expressions          |
-| `preview/fake-run.ts`             | Client-side fake execution for editor preview                  |
+Schema v2 stores stable node IDs, execution edges, typed `inputs`, optional declared `outputFields`, and editor positions. A binding is a literal, reference (`nodeId` plus string/number path segments), text template, or organization credential reference. Direct references preserve JSON types. Missing required values fail before execution; optional references can specify a fallback. HTTP JSON is unknown until a schema is declared. Samples do not guarantee fields.
 
-API routes live in [`src/api/routes/visual-workflow/`](../../api/routes/visual-workflow/) and mount at `/api/orgs/:organizationSlug/visual-workflows`.
+`catalog/node-contracts.ts` supplies node input/output contracts and mock samples. `validation/compile-workflow.ts` validates handles, references, types, branch availability, cycles, and loop scopes. Loops have explicit `each` and `done` handles, `bodyNodeIds`, and collected bindings. Nested loops are rejected.
 
-## Feature flag
+Saving changes a draft and increments its revision. Save and publish API requests require `expectedRevision`; stale writes return 409. Publishing validates and atomically selects an immutable version. Automatic and ordinary manual runs use that version. Draft tests carry their own snapshot and never save or publish. Legacy records remain in the database but are not executable through the v2 editor; recreate them or explicitly convert them before use.
 
-`workspaceVisualWorkflowsFlag` (`workspace-visual-workflows`) gates UI routes and API handlers. Default is off.
+## Execution and recovery
 
-## Definition schema
+A run and dispatch outbox row are inserted transactionally. The scheduler reconciles undispatched and abandoned work. Expiring run claims use a token to fence stale workers. Each durable step reconstructs execution from encrypted completed results and executes at most one new external action. Node history is keyed by run, node, iteration, and attempt. Loop items run sequentially in isolated contexts.
 
-Definitions are versioned JSON (`schemaVersion: 1`) with:
+Connections settle selected or skipped. Joins wait for every incoming connection and execute when at least one is selected. Handled failures remain visible. Unexecuted nodes are marked skipped, blocked, or cancelled.
 
-- `nodes[]` — `{ id, type, config }` where `type` is a `VisualCatalogType`
-- `edges[]` — `{ id, source, target, sourceHandle, targetHandle }`
-- `editor.positions` — canvas layout metadata
+HTTP GET and explicitly configured provider idempotency headers permit up to three attempts with exponential backoff. Other external operations are not blindly retried after an uncertain outcome. `needs_attention` requires provider inspection and an explicit retry acknowledging duplication. A manual retry retains completed action results and old attempts, resets the deadline, and queues recovery. Cancellation is cooperative and aborts supported in-flight requests; it cannot undo an external effect already accepted by a provider. Pausing prevents new automatic runs.
 
-If nodes use `logic.if`, outgoing edges must use `sourceHandle` `"true"` or `"false"`.
+Limits are centralized in `runtime/limits.ts`: 200 nodes, 400 edges, 100 loop items, 1,000 steps, 30-second HTTP timeout, 120-second AI timeout, and 15-minute run deadline. HTTP responses are parsed completely within the shared public-fetch size limit before producing a truncated display preview.
 
-## Execution pipeline
+## Credentials and inspection
 
-```text
-POST .../visual-workflows/:id/runs
-        |
-        v
-createVisualWorkflowRun (stores definition snapshot in inputSnapshot)
-        |
-        v
-enqueueVisualWorkflowRunOnce -> createVisualWorkflowExecutionQueue
-        |
-        v
-visualWorkflowExecutionWorkflow (Vercel Workflow)
-        |
-        v
-executeVisualWorkflowStep
-        |
-        v
-runVisualWorkflowInterpreter
-        |
-        +-- trigger.manual
-        +-- action.http   (withPublicHttpFetch, bounded body)
-        +-- logic.if      (selectNextEdges by branchResult)
-        +-- ai.agent      (generateText via organization AI Engine)
-        `-- logic.for_each (unsupported in Phase 1)
-```
+Credential APIs return metadata only. HTTP credentials and recovery payloads use the existing credential encryption master key. Definitions carry IDs, never resolved values. Inspection snapshots redact sensitive keys and known secret values, including downstream echoes. Preserve the encryption key across worker restarts and deployments.
 
-The interpreter performs a topological walk with a queue. Nodes with multiple incoming edges wait until all predecessors complete. Skipped if/else branches propagate skips to downstream nodes on the untaken path.
+Run inspection uses the executed snapshot independently of the current draft. It exposes mode, version, node states, redacted inputs/outputs, errors, iteration, and attempt history. Structured logs carry run/node/iteration/attempt/outcome; reconciliation logs queue age and stalled-work recovery. Persisted timestamps and statuses support duration, failure, retry, and unresolved-write monitoring.
 
-Local dev can execute inline when `shouldRunWorkflowInlineLocally()` is true (see [`src/workflows/adapters.ts`](../../workflows/adapters.ts)).
+## Operator recovery
 
-## Template expressions
+1. Inspect the selected run and provider delivery records before retrying `needs_attention`.
+2. Use the run's retry action with explicit duplication acknowledgement. Never manually reset successful node records.
+3. For queued or abandoned running work, verify the scheduler and durable worker are available. Reconciliation re-enqueues expired claims; duplicate delivery is fenced by the run claim.
+4. For credential failures, verify organization ownership and the encryption key. Do not paste decrypted credentials into logs or run inputs.
+5. Cancel a selected run to stop further steps; pause the workflow to prevent future automatic runs.
 
-`runtime/expressions.ts` resolves `{{ trigger.* }}` and `{{ nodes.<id>.* }}` in URLs, conditions, and prompts. Conditions support numeric and string comparisons after resolution.
+## Rollout and validation
 
-## Persistence
+Apply generated Drizzle migrations 0116 and 0117 using `vp run db:migrate` before enabling the feature. No deployment or migration application is performed by this change. Keep the flag off, enable an internal organization first, and only expand after the acceptance suite is executed successfully.
 
-- `visual_workflows` — draft/active/paused/archived workflows with monotonic `definitionVersion`
-- `visual_workflow_runs` — queued/running/terminal runs, optional idempotency key per workflow
-- `visual_workflow_node_runs` — per-node input/output snapshots and errors
-
-Runs capture the definition at enqueue time under `inputSnapshot.definitionSnapshot` so replay/debug stays stable across edits.
-
-## Testing
-
-- Unit tests: `visual-workflow.test.ts`, `runtime/runtime.test.ts`, `editor/visual-workflow-editor-graph.ts`
-- Route tests: `visual-workflow.route.test.ts` (uses real Hono app + WorkOS test auth)
-
-Run from `apps/hyperlocalise-web`:
-
-```bash
-vp test src/lib/visual-workflows
-vp test src/api/routes/visual-workflow
-```
-
-## Phase boundaries
-
-Implemented:
-
-- Manual trigger only (`triggerSource: "manual"`)
-- HTTP GET/POST/PUT/PATCH/DELETE
-- If/else with true/false handles
-- AI agent single-turn `generateText`
-
-Not implemented yet:
-
-- Scheduled or webhook triggers
-- `logic.for_each` loops
-- Additional action nodes (Slack, translation, etc.)
-- Public `/v1` API exposure
+Regression coverage lives in `runtime/production-contracts.test.ts`, existing runtime tests, database service tests, and API route tests. For this implementation pass, execution tests, database migration validation, browser acceptance, and production build validation were explicitly deferred by the user; only `vp check --fix` was requested. Static checks do not establish rollout readiness.

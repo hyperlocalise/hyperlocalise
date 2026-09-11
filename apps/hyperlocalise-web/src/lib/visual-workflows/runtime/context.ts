@@ -21,7 +21,10 @@ export function createVisualWorkflowExecutionContext(input: {
   return {
     trigger: {
       ...input.triggerInput,
-      triggeredAt: new Date().toISOString(),
+      triggeredAt:
+        typeof input.triggerInput?.triggeredAt === "string"
+          ? input.triggerInput.triggeredAt
+          : new Date().toISOString(),
     },
     nodes: {},
   };

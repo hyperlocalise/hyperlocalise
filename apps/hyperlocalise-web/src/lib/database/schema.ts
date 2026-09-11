@@ -32,6 +32,7 @@ export * from "./schema/jobs";
 export * from "./schema/agents";
 export * from "./schema/visual-workflows";
 export * from "./schema/visual-workflow-runs";
+export * from "./schema/visual-workflow-infrastructure";
 export * from "./schema/files";
 export * from "./schema/project-strings";
 export * from "./schema/project-image-variants";

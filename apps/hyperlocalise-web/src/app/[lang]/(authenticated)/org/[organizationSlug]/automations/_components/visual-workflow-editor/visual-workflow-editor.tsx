@@ -24,7 +24,6 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { runFakeWorkflow } from "@/lib/visual-workflows/preview/fake-run";
 import { runPlaygroundWorkflow } from "@/lib/visual-workflows/preview/playground-run";
 import {
   createDefaultConfig,
@@ -49,7 +48,6 @@ import type {
 } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowStatus } from "@/lib/visual-workflows/visual-workflow-types";
 import { validateVisualWorkflowDefinition } from "@/lib/visual-workflows/validation/validate-workflow";
-import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import { applyVisualWorkflowConnection, VisualWorkflowCanvas } from "./visual-workflow-canvas";
 import {
@@ -57,6 +55,13 @@ import {
   type VisualWorkflowAddFrom,
 } from "./visual-workflow-canvas-actions";
 import { VisualWorkflowChrome } from "./visual-workflow-chrome";
+import {
+  redactWorkflowSnapshot,
+  collectWorkflowSecrets,
+} from "@/lib/visual-workflows/runtime/snapshots";
+import { WorkflowJsonField } from "./workflow-data-panel";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FieldLabel } from "@/components/ui/field";
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
 import { VisualWorkflowEditorPanel } from "./visual-workflow-editor-panel";
 import { VisualWorkflowExecutionsPanel } from "./visual-workflow-executions-panel";
@@ -79,7 +84,6 @@ export function VisualWorkflowEditor({
   organizationSlug,
   visualWorkflowId,
   visualWorkflowsApi,
-  onPersistBeforeTest,
   workflowStatus = "draft",
   onStatusChange,
   statusUpdating = false,
@@ -104,6 +108,9 @@ export function VisualWorkflowEditor({
   onDelete?: () => void;
   isDeleting?: boolean;
 }) {
+  const [testPayload, setTestPayload] = useState<Record<string, unknown>>({});
+  const [mockOutputs, setMockOutputs] = useState<Record<string, Record<string, unknown>>>({});
+  const [liveTest, setLiveTest] = useState(false);
   const intl = useIntl();
   const [activeTab, setActiveTab] = useState<"editor" | "executions">("editor");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -292,6 +299,7 @@ export function VisualWorkflowEditor({
       nodeRuns: Array<{
         nodeId: string;
         status: string;
+        inputSnapshot?: Record<string, unknown>;
         outputSnapshot?: Record<string, unknown>;
         error?: Record<string, unknown> | null;
       }>,
@@ -304,13 +312,7 @@ export function VisualWorkflowEditor({
             return node;
           }
           const mappedStatus: MockNodeRunStatus =
-            nodeRun.status === "running"
-              ? "running"
-              : nodeRun.status === "succeeded"
-                ? "succeeded"
-                : nodeRun.status === "failed"
-                  ? "failed"
-                  : "idle";
+            nodeRun.status === "queued" ? "idle" : (nodeRun.status as MockNodeRunStatus);
           return {
             ...node,
             data: {
@@ -320,6 +322,7 @@ export function VisualWorkflowEditor({
                 nodeRun.outputSnapshot && Object.keys(nodeRun.outputSnapshot).length > 0
                   ? nodeRun.outputSnapshot
                   : null,
+              lastInput: nodeRun.inputSnapshot ?? null,
               lastError: nodeRun.error ?? null,
             },
           };
@@ -344,16 +347,28 @@ export function VisualWorkflowEditor({
     const definition = toVisualWorkflowDefinition({ name, nodes, edges });
 
     try {
-      if (organizationSlug && visualWorkflowId && visualWorkflowsApi && onPersistBeforeTest) {
-        await onPersistBeforeTest(definition);
+      if (organizationSlug && visualWorkflowId && visualWorkflowsApi) {
         const idempotencyKey = `manual-${visualWorkflowId}-${Date.now()}`;
         const { run } = await visualWorkflowsApi.createVisualWorkflowRun(
           organizationSlug,
           visualWorkflowId,
-          { idempotencyKey },
+          {
+            idempotencyKey,
+            definition,
+            inputSnapshot: testPayload,
+            mode: liveTest ? "live" : "mock",
+            mockOutputs,
+          },
         );
 
-        const terminalStatuses = new Set(["succeeded", "failed", "cancelled", "skipped"]);
+        const terminalStatuses = new Set([
+          "succeeded",
+          "failed",
+          "cancelled",
+          "skipped",
+          "needs_attention",
+        ]);
+        setSelectedRunId(run.id);
         let latestRun = run;
         while (!terminalStatuses.has(latestRun.status)) {
           if (controller.signal.aborted) {
@@ -372,11 +387,13 @@ export function VisualWorkflowEditor({
         if (latestRun.status === "failed") {
           toast.error(intl.formatMessage(messages.testRunFailed));
         }
-      } else if (playgroundMode) {
+      } else {
         const result = await runPlaygroundWorkflow({
           name,
           nodes,
           edges,
+          triggerInput: testPayload,
+          mockOutputs,
           signal: controller.signal,
           onStatus: setRunStatus,
           onOutput: setNodeOutputSnapshot,
@@ -384,13 +401,6 @@ export function VisualWorkflowEditor({
         if (result === "failed") {
           toast.error(intl.formatMessage(messages.testRunFailed));
         }
-      } else {
-        await runFakeWorkflow({
-          nodes,
-          edges,
-          signal: controller.signal,
-          onStatus: setRunStatus,
-        });
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -399,11 +409,13 @@ export function VisualWorkflowEditor({
     }
   }, [
     applyNodeRunStatuses,
+    testPayload,
+    mockOutputs,
+    liveTest,
     edges,
     intl,
     name,
     nodes,
-    onPersistBeforeTest,
     organizationSlug,
     playgroundMode,
     setNodeOutputSnapshot,
@@ -413,7 +425,8 @@ export function VisualWorkflowEditor({
   ]);
 
   const draftJson = useCallback(() => {
-    return `${JSON.stringify(toVisualWorkflowDefinition({ name, nodes, edges }), null, 2)}\n`;
+    const definition = toVisualWorkflowDefinition({ name, nodes, edges });
+    return `${JSON.stringify(redactWorkflowSnapshot(definition, collectWorkflowSecrets(definition)), null, 2)}\n`;
   }, [edges, name, nodes]);
 
   const onExport = useCallback(() => {
@@ -433,7 +446,7 @@ export function VisualWorkflowEditor({
   }, [draftJson]);
 
   const handleSave = useCallback(() => {
-    if (!onSave || saveDisabled) {
+    if (!onSave) {
       return;
     }
     void onSave(toVisualWorkflowDefinition({ name, nodes, edges }));
@@ -459,7 +472,7 @@ export function VisualWorkflowEditor({
         onCopy={onCopy}
         onSave={onSave ? handleSave : undefined}
         isSaving={isSaving}
-        saveDisabled={saveDisabled}
+        saveDisabled={false}
         previewMode={previewMode}
         playgroundMode={playgroundMode}
         activeTab={activeTab}
@@ -470,6 +483,49 @@ export function VisualWorkflowEditor({
         onDelete={onDelete}
         isDeleting={isDeleting}
       />
+      {activeTab === "editor" && organizationSlug ? (
+        <details className="border-b border-border px-4 py-2">
+          <summary className="cursor-pointer text-sm">
+            {intl.formatMessage({
+              description: "Visual workflow editor control",
+              id: "iF8OgIZ53W",
+              defaultMessage: "Test settings · mock by default",
+            })}
+          </summary>
+          <div className="grid gap-3 py-3 md:grid-cols-2">
+            <WorkflowJsonField
+              label={intl.formatMessage({
+                description: "Visual workflow editor control",
+                id: "SfxPvLTS+B",
+                defaultMessage: "Trigger payload (JSON)",
+              })}
+              value={testPayload}
+              onChange={(value) => setTestPayload(value as Record<string, unknown>)}
+            />
+            <WorkflowJsonField
+              label={intl.formatMessage({
+                description: "Visual workflow editor control",
+                id: "UsvrwYmjnb",
+                defaultMessage: "Mock outputs by node ID (JSON)",
+              })}
+              value={mockOutputs}
+              onChange={(value) => setMockOutputs(value as Record<string, Record<string, unknown>>)}
+            />
+            <FieldLabel>
+              <Checkbox
+                checked={liveTest}
+                onCheckedChange={(value) => setLiveTest(Boolean(value))}
+              />
+              {intl.formatMessage({
+                description: "Visual workflow editor control",
+                id: "RnDCfBW6QI",
+                defaultMessage:
+                  "Live test: sends real requests, generates AI content, and delivers notifications. Does not publish.",
+              })}
+            </FieldLabel>
+          </div>
+        </details>
+      ) : null}
       {activeTab === "executions" && organizationSlug && visualWorkflowId && visualWorkflowsApi ? (
         <VisualWorkflowExecutionsPanel
           organizationSlug={organizationSlug}
@@ -511,6 +567,18 @@ export function VisualWorkflowEditor({
             {showConfig && selectedNode ? (
               <VisualWorkflowConfigPanel
                 node={selectedNode}
+                organizationSlug={organizationSlug}
+                nodes={nodes}
+                edges={edges}
+                onChangeContract={(patch) =>
+                  setNodes((current) =>
+                    current.map((node) =>
+                      node.id === selectedNode.id
+                        ? { ...node, data: { ...node.data, ...patch } }
+                        : node,
+                    ),
+                  )
+                }
                 issues={issues}
                 onBack={() => {
                   setPanelMode("picker");
@@ -561,7 +629,7 @@ function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
     case "nested_for_each":
       return messages.nestedForEach;
     default:
-      return assertNever(code);
+      return messages.invalidNodeConfig;
   }
 }
 

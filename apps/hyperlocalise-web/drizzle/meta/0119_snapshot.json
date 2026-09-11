@@ -1,5 +1,5 @@
 {
-  "id": "dc01344a-496a-4fa1-a771-749944b7b41e",
+  "id": "1b2960e4-2199-4787-9a85-1d2c4d9ab2c6",
   "prevId": "c9836b13-6912-463f-aca3-acde4e7bf571",
   "version": "7",
   "dialect": "postgresql",
@@ -15523,14 +15523,6 @@
           "notNull": true,
           "default": "'active'"
         },
-        "kind": {
-          "name": "kind",
-          "type": "workspace_automation_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'agent'"
-        },
         "name": {
           "name": "name",
           "type": "text",
@@ -15576,19 +15568,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
-        },
-        "sync_config": {
-          "name": "sync_config",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "sync_fingerprint": {
-          "name": "sync_fingerprint",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "project_id": {
           "name": "project_id",
@@ -15699,34 +15678,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "workspace_automations_content_sync_fingerprint_key": {
-          "name": "workspace_automations_content_sync_fingerprint_key",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "project_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sync_fingerprint",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"workspace_automations\".\"kind\" = 'content_sync' AND \"workspace_automations\".\"project_id\" IS NOT NULL AND \"workspace_automations\".\"sync_fingerprint\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -15841,6 +15792,25 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "published_definition": {
+          "name": "published_definition",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_version": {
+          "name": "published_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
         },
         "definition_version": {
           "name": "definition_version",
@@ -16044,6 +16014,26 @@
           "primaryKey": false,
           "notNull": true
         },
+        "iteration": {
+          "name": "iteration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": -1
+        },
+        "attempt": {
+          "name": "attempt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "encrypted_output": {
+          "name": "encrypted_output",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "status": {
           "name": "status",
           "type": "visual_workflow_node_run_status",
@@ -16135,6 +16125,18 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last"
+            },
+            {
+              "expression": "iteration",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "attempt",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
             }
           ],
           "isUnique": true,
@@ -16199,6 +16201,37 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'live'"
+        },
+        "encrypted_payload": {
+          "name": "encrypted_payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lease_token": {
+          "name": "lease_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lease_expires_at": {
+          "name": "lease_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancel_requested_at": {
+          "name": "cancel_requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "trigger_source": {
           "name": "trigger_source",
@@ -16364,6 +16397,255 @@
         "visual_workflow_runs_organization_id_organizations_id_fk": {
           "name": "visual_workflow_runs_organization_id_organizations_id_fk",
           "tableFrom": "visual_workflow_runs",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.visual_workflow_credentials": {
+      "name": "visual_workflow_credentials",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "encrypted_value": {
+          "name": "encrypted_value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "visual_workflow_credentials_organization_id_organizations_id_fk": {
+          "name": "visual_workflow_credentials_organization_id_organizations_id_fk",
+          "tableFrom": "visual_workflow_credentials",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.visual_workflow_outbox": {
+      "name": "visual_workflow_outbox",
+      "schema": "",
+      "columns": {
+        "run_id": {
+          "name": "run_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workflow_id": {
+          "name": "workflow_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lease_expires_at": {
+          "name": "lease_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dispatched_at": {
+          "name": "dispatched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "visual_workflow_outbox_run_id_visual_workflow_runs_id_fk": {
+          "name": "visual_workflow_outbox_run_id_visual_workflow_runs_id_fk",
+          "tableFrom": "visual_workflow_outbox",
+          "tableTo": "visual_workflow_runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "visual_workflow_outbox_organization_id_organizations_id_fk": {
+          "name": "visual_workflow_outbox_organization_id_organizations_id_fk",
+          "tableFrom": "visual_workflow_outbox",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "visual_workflow_outbox_workflow_id_visual_workflows_id_fk": {
+          "name": "visual_workflow_outbox_workflow_id_visual_workflows_id_fk",
+          "tableFrom": "visual_workflow_outbox",
+          "tableTo": "visual_workflows",
+          "columnsFrom": [
+            "workflow_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.visual_workflow_versions": {
+      "name": "visual_workflow_versions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "workflow_id": {
+          "name": "workflow_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "definition": {
+          "name": "definition",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "visual_workflow_version_unique": {
+          "name": "visual_workflow_version_unique",
+          "columns": [
+            {
+              "expression": "workflow_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "version",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "visual_workflow_versions_workflow_id_visual_workflows_id_fk": {
+          "name": "visual_workflow_versions_workflow_id_visual_workflows_id_fk",
+          "tableFrom": "visual_workflow_versions",
+          "tableTo": "visual_workflows",
+          "columnsFrom": [
+            "workflow_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "visual_workflow_versions_organization_id_organizations_id_fk": {
+          "name": "visual_workflow_versions_organization_id_organizations_id_fk",
+          "tableFrom": "visual_workflow_versions",
           "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
@@ -27035,7 +27317,11 @@
         "running",
         "succeeded",
         "failed",
-        "skipped"
+        "skipped",
+        "blocked",
+        "cancelled",
+        "handled_error",
+        "needs_attention"
       ]
     },
     "public.visual_workflow_run_status": {
@@ -27047,7 +27333,8 @@
         "succeeded",
         "failed",
         "cancelled",
-        "skipped"
+        "skipped",
+        "needs_attention"
       ]
     },
     "public.visual_workflow_run_trigger_source": {
@@ -27068,14 +27355,6 @@
         "active",
         "paused",
         "archived"
-      ]
-    },
-    "public.workspace_automation_kind": {
-      "name": "workspace_automation_kind",
-      "schema": "public",
-      "values": [
-        "agent",
-        "content_sync"
       ]
     },
     "public.workspace_automation_run_status": {
