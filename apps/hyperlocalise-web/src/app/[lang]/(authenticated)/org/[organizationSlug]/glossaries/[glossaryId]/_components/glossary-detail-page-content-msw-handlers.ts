@@ -58,6 +58,26 @@ export function createGlossaryDetailMswHandlers({
       "/api/orgs/:organizationSlug/glossaries/:glossaryId",
       () => new HttpResponse(null, { status: 204 }),
     ),
+    http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts/page", () =>
+      HttpResponse.json({
+        concepts: currentConcepts.map((concept) => ({
+          id: concept.id,
+          glossaryId: concept.glossaryId,
+          primaryTerm: concept.primaryTerm,
+          subject: concept.subject,
+          definition: concept.definition,
+          reviewStatus: "approved",
+          termCount: concept.terms.length,
+          localeCount: new Set(concept.terms.map((term) => term.locale)).size,
+          archivedAt: null,
+          createdAt: concept.createdAt,
+          updatedAt: concept.updatedAt,
+        })),
+        nextCursor: null,
+        total: currentConcepts.length,
+        pagination: { limit: 50, returned: currentConcepts.length, hasMore: false },
+      }),
+    ),
     http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts", async () => {
       if (conceptsLoading) await delay("infinite");
       return HttpResponse.json({

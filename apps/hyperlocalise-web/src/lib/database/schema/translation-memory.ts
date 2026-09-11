@@ -203,6 +203,24 @@ export const glossaryConcepts = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
+    // Concept-level editorial state; term rows retain their own granular state.
+    reviewStatus: text("review_status").notNull().default("approved"),
+    version: integer("version").notNull().default(1),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    modifiedByUserId: uuid("modified_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    archivedByUserId: uuid("archived_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     // Provider timestamps retained independently from local audit timestamps.
     externalCreatedAt: timestamp("external_created_at", { withTimezone: true }),
     externalUpdatedAt: timestamp("external_updated_at", { withTimezone: true }),
@@ -217,6 +235,14 @@ export const glossaryConcepts = pgTable(
   (table) => [
     uniqueIndex("glossary_concepts_glossary_external_key").on(table.glossaryId, table.externalKey),
     index("idx_glossary_concepts_glossary_created_at").on(table.glossaryId, table.createdAt),
+    index("idx_glossary_concepts_glossary_updated_at_id").on(
+      table.glossaryId,
+      table.updatedAt,
+      table.id,
+    ),
+    index("idx_glossary_concepts_glossary_archived_at").on(table.glossaryId, table.archivedAt),
+    index("idx_glossary_concepts_created_by_user_id").on(table.createdByUserId),
+    index("idx_glossary_concepts_reviewed_by_user_id").on(table.reviewedByUserId),
   ],
 );
 
@@ -267,6 +293,23 @@ export const glossaryTerms = pgTable(
     provenance: glossaryTermProvenanceEnum("provenance").notNull().default("manual"),
     // Review status for agent suggestions vs human-approved terms.
     reviewStatus: text("review_status").notNull().default("approved"),
+    version: integer("version").notNull().default(1),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    modifiedByUserId: uuid("modified_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    archivedByUserId: uuid("archived_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    importBatchId: uuid("import_batch_id"),
     // Extensible metadata for tags, domains, or import provenance.
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
@@ -301,6 +344,16 @@ export const glossaryTerms = pgTable(
     index("idx_glossary_terms_glossary_created_at").on(table.glossaryId, table.createdAt),
     index("idx_glossary_terms_concept_id").on(table.conceptId),
     index("idx_glossary_terms_concept_locale").on(table.conceptId, table.locale),
+    index("idx_glossary_terms_glossary_updated_at_id").on(
+      table.glossaryId,
+      table.updatedAt,
+      table.id,
+    ),
+    index("idx_glossary_terms_review_status").on(table.glossaryId, table.reviewStatus),
+    index("idx_glossary_terms_provenance").on(table.glossaryId, table.provenance),
+    index("idx_glossary_terms_created_by_user_id").on(table.glossaryId, table.createdByUserId),
+    index("idx_glossary_terms_reviewed_by_user_id").on(table.glossaryId, table.reviewedByUserId),
+    index("idx_glossary_terms_archived_at").on(table.glossaryId, table.archivedAt),
     index("idx_glossary_terms_search_vector").using("gin", table.searchVector),
   ],
 );
