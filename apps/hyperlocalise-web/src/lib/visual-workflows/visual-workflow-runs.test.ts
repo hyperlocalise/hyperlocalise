@@ -20,7 +20,6 @@ import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 
-import { createDefaultConfig } from "./catalog/node-catalog";
 import type { VisualWorkflowDefinition } from "./schema/types";
 import {
   createVisualWorkflowRun,
@@ -30,7 +29,11 @@ import {
   getVisualWorkflowRunById,
   listVisualWorkflowRuns,
 } from "./visual-workflow-runs";
-import { createVisualWorkflow, updateVisualWorkflow } from "./visual-workflows";
+import {
+  createVisualWorkflow,
+  updateVisualWorkflow,
+  publishVisualWorkflow,
+} from "./visual-workflows";
 
 const fixture = createAuthTestFixture();
 
@@ -42,6 +45,25 @@ afterEach(async () => {
   await fixture.cleanup();
 });
 
+function scheduledWorkflowDefinition(name = "Run coverage"): VisualWorkflowDefinition {
+  return {
+    schemaVersion: 2,
+    name,
+    nodes: [
+      {
+        id: "t",
+        type: "trigger.scheduled",
+        config: {
+          kind: "trigger.scheduled",
+          schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+        },
+      },
+    ],
+    edges: [],
+    editor: { positions: { t: { x: 0, y: 0 } } },
+  };
+}
+
 async function seedWorkflow(input?: { definition?: VisualWorkflowDefinition }) {
   const identity = fixture.createWorkosIdentityWithRole("admin");
   const { user, organization } = await syncWorkosIdentity(db, identity);
@@ -49,12 +71,18 @@ async function seedWorkflow(input?: { definition?: VisualWorkflowDefinition }) {
     organizationId: organization.id,
     authorUserId: user.id,
     name: "Run coverage",
-    definition: input?.definition,
+    definition: input?.definition ?? scheduledWorkflowDefinition(),
   });
   if (isErr(created)) {
     throw new Error(`failed to create visual workflow: ${created.error.code}`);
   }
-  return { organizationId: organization.id, workflow: created.value };
+  const published = await publishVisualWorkflow({
+    organizationId: organization.id,
+    visualWorkflowId: created.value.id,
+    expectedRevision: created.value.revision,
+  });
+  if (isErr(published)) throw new Error(published.error.code);
+  return { organizationId: organization.id, workflow: published.value };
 }
 
 describe("visual workflow runs", () => {
@@ -74,7 +102,7 @@ describe("visual workflow runs", () => {
     expect(first.inputSnapshot).toMatchObject({
       lead: "Ada",
       definitionSnapshot: expect.objectContaining({
-        schemaVersion: 1,
+        schemaVersion: 2,
         name: "Run coverage",
       }),
     });
@@ -181,19 +209,7 @@ describe("visual workflow runs", () => {
   });
 
   it("claims queued runs once, executes trigger graphs, and returns already_finished", async () => {
-    const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
-      name: "Trigger only",
-      nodes: [
-        {
-          id: "t",
-          type: "trigger.manual",
-          config: createDefaultConfig("trigger.manual"),
-        },
-      ],
-      edges: [],
-      editor: { positions: {} },
-    };
+    const definition = scheduledWorkflowDefinition("Trigger only");
     const { organizationId, workflow } = await seedWorkflow({ definition });
     const run = await createVisualWorkflowRun({
       organizationId,
@@ -246,6 +262,7 @@ describe("visual workflow runs", () => {
       .update(schema.visualWorkflowRuns)
       .set({
         inputSnapshot: { lead: "no-definition" },
+        encryptedPayload: null,
         definitionVersion: workflow.definitionVersion,
       })
       .where(eq(schema.visualWorkflowRuns.id, run.id));
@@ -272,6 +289,7 @@ describe("visual workflow runs", () => {
     });
     expect(executed?.status).toBe("failed");
     expect(executed?.error).toMatchObject({
+      code: "visual_workflow_definition_snapshot_missing",
       message: "visual_workflow_definition_snapshot_missing",
     });
   });

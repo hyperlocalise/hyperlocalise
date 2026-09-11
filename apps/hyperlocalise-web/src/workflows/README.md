@@ -67,7 +67,7 @@ runWorkspaceOrchestrator (ToolLoopAgent)
 
 ## Visual Workflow Execution
 
-Advanced (visual) workflows are deterministic graphs edited in Cloud Automations. Manual runs create a `visual_workflow_runs` row and enqueue `visualWorkflowExecutionWorkflow`:
+Visual workflows use immutable published definitions for production runs and isolated snapshots for mock/live draft tests. Run creation inserts a transactional dispatch outbox. Expiring worker claims and scheduler reconciliation recover abandoned dispatches. Each `executeVisualWorkflowStep` restores completed node results and performs at most one new external action, then continues in another durable step. See the visual workflow README below for credential handling, loop scope, cancellation, and recovery.
 
 ```text
 POST /api/orgs/:slug/visual-workflows/:id/runs

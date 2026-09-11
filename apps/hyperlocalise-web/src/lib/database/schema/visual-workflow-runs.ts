@@ -43,6 +43,11 @@ export const visualWorkflowRuns = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
+    mode: text("mode").notNull().default("live"),
+    encryptedPayload: jsonb("encrypted_payload").$type<Record<string, unknown>>(),
+    leaseToken: text("lease_token"),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    cancelRequestedAt: timestamp("cancel_requested_at", { withTimezone: true }),
     triggerSource: visualWorkflowRunTriggerSourceEnum("trigger_source").notNull(),
     status: visualWorkflowRunStatusEnum("status").notNull().default("queued"),
     idempotencyKey: text("idempotency_key"),
@@ -88,6 +93,9 @@ export const visualWorkflowNodeRuns = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     nodeId: text("node_id").notNull(),
     nodeType: text("node_type").notNull(),
+    iteration: integer("iteration").notNull().default(-1),
+    attempt: integer("attempt").notNull().default(1),
+    encryptedOutput: jsonb("encrypted_output").$type<Record<string, unknown>>(),
     status: visualWorkflowNodeRunStatusEnum("status").notNull().default("queued"),
     inputSnapshot: jsonb("input_snapshot")
       .$type<Record<string, unknown>>()
@@ -108,6 +116,11 @@ export const visualWorkflowNodeRuns = pgTable(
   },
   (table) => [
     index("idx_visual_workflow_node_runs_run").on(table.runId, table.createdAt),
-    uniqueIndex("idx_visual_workflow_node_runs_run_node").on(table.runId, table.nodeId),
+    uniqueIndex("idx_visual_workflow_node_runs_run_node").on(
+      table.runId,
+      table.nodeId,
+      table.iteration,
+      table.attempt,
+    ),
   ],
 );

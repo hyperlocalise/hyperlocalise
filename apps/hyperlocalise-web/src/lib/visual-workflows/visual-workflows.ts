@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import "server-only";
+import { hasLiteralHttpCredentials } from "./validation/credential-policy";
 
 import { and, desc, eq, isNull, isNotNull, lte, asc, ne } from "drizzle-orm";
 
@@ -60,6 +61,10 @@ function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | nu
     name: row.name,
     definition: parsedDefinition.data,
     definitionVersion: row.definitionVersion,
+    revision: row.revision,
+    publishedVersion: row.publishedVersion,
+    publishedDefinition:
+      visualWorkflowDefinitionSchema.safeParse(row.publishedDefinition).data ?? null,
     triggerFingerprint: row.triggerFingerprint,
     nextRunAt: row.nextRunAt ? toIsoString(row.nextRunAt) : null,
     createdAt: toIsoString(row.createdAt),
@@ -70,6 +75,7 @@ function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | nu
 function validateVisualWorkflowPayload(input: {
   name: string;
   definition: VisualWorkflowDefinition;
+  draft?: boolean;
 }): Result<VisualWorkflowDefinition, VisualWorkflowValidationError> {
   const parsed = visualWorkflowDefinitionSchema.safeParse(input.definition);
   if (!parsed.success) {
@@ -84,7 +90,23 @@ function validateVisualWorkflowPayload(input: {
     name: input.name.trim(),
   };
 
-  const issues = validateVisualWorkflowDefinition(normalized);
+  if (normalized.nodes.some(hasLiteralHttpCredentials))
+    return err({
+      code: "invalid_definition",
+      message: "Use credential references for sensitive fields.",
+    });
+  const issues = input.draft
+    ? normalized.nodes
+        .filter(
+          (node) =>
+            node.config.kind === "action.http" &&
+            (node.config.auth?.token ||
+              node.config.headers?.some(
+                (header) => /^(authorization|x-api-key|cookie)$/i.test(header.key) && header.value,
+              )),
+        )
+        .map((node) => ({ code: "invalid_node_config", nodeId: node.id }))
+    : validateVisualWorkflowDefinition(normalized);
   if (issues.length > 0) {
     return err({
       code: "invalid_graph",
@@ -121,7 +143,9 @@ function schedulingConfigChanged(input: {
     return true;
   }
 
-  const existingTrigger = getVisualWorkflowTriggerNode(input.existing.definition);
+  const existingTrigger = getVisualWorkflowTriggerNode(
+    input.existing.publishedDefinition ?? input.existing.definition,
+  );
   const nextTrigger = getVisualWorkflowTriggerNode(input.nextDefinition);
 
   return (
@@ -246,18 +270,16 @@ export async function createVisualWorkflow(input: {
   });
   const name = input.name?.trim() || stampedDefinition.name;
 
-  const validated = validateVisualWorkflowPayload({ name, definition: stampedDefinition });
+  const validated = validateVisualWorkflowPayload({
+    name,
+    definition: stampedDefinition,
+    draft: true,
+  });
   if (isErr(validated)) {
     return validated;
   }
 
-  const status = input.status ?? "draft";
-  if (status === "active") {
-    const activeTrigger = validateActiveVisualWorkflowTrigger(validated.value);
-    if (!activeTrigger.ok) {
-      return err({ code: "invalid_active_trigger", message: activeTrigger.message });
-    }
-  }
+  const status = "draft" as const;
 
   const created = await dbClient.transaction(async (tx) => {
     const [row] = await tx
@@ -304,6 +326,7 @@ export async function createVisualWorkflow(input: {
 }
 
 export async function updateVisualWorkflow(input: {
+  expectedRevision?: number;
   organizationId: string;
   visualWorkflowId: string;
   actorWorkosUserId?: string | null;
@@ -337,6 +360,9 @@ export async function updateVisualWorkflow(input: {
     return err({ code: "visual_workflow_not_found" });
   }
 
+  if (input.expectedRevision !== undefined && input.expectedRevision !== existing.revision)
+    return err({ code: "version_conflict", message: "Workflow changed. Reload before saving." });
+
   const projectId =
     input.projectId === undefined
       ? existing.projectId
@@ -367,6 +393,7 @@ export async function updateVisualWorkflow(input: {
   const validated = validateVisualWorkflowPayload({
     name: nextName,
     definition: stampedDefinition,
+    draft: true,
   });
   if (isErr(validated)) {
     return validated;
@@ -374,7 +401,9 @@ export async function updateVisualWorkflow(input: {
 
   const nextStatus = input.status ?? existing.status;
   if (nextStatus === "active") {
-    const activeTrigger = validateActiveVisualWorkflowTrigger(validated.value);
+    if (!existing.publishedDefinition)
+      return err({ code: "invalid_definition", message: "Publish a version before activating." });
+    const activeTrigger = validateActiveVisualWorkflowTrigger(existing.publishedDefinition);
     if (!activeTrigger.ok) {
       return err({ code: "invalid_active_trigger", message: activeTrigger.message });
     }
@@ -383,13 +412,13 @@ export async function updateVisualWorkflow(input: {
   const definitionChanged = JSON.stringify(existing.definition) !== JSON.stringify(validated.value);
   const schedulingChanged = schedulingConfigChanged({
     existing,
-    nextDefinition: validated.value,
+    nextDefinition: existing.publishedDefinition ?? validated.value,
     nextStatus,
   });
   const scheduling = resolveWorkflowSchedulingMetadata({
     workflowId: existing.id,
     status: nextStatus,
-    definition: validated.value,
+    definition: existing.publishedDefinition ?? validated.value,
   });
   const resolvedNextRunAt = schedulingChanged
     ? scheduling.nextRunAt
@@ -404,6 +433,7 @@ export async function updateVisualWorkflow(input: {
     .update(schema.visualWorkflows)
     .set({
       name: validated.value.name,
+      revision: existing.revision + 1,
       definition: validated.value,
       status: nextStatus,
       projectId,
@@ -417,6 +447,7 @@ export async function updateVisualWorkflow(input: {
       and(
         eq(schema.visualWorkflows.organizationId, input.organizationId),
         eq(schema.visualWorkflows.id, input.visualWorkflowId),
+        eq(schema.visualWorkflows.revision, existing.revision),
         // CAS: lose the race to delete rather than overwrite archived.
         ne(schema.visualWorkflows.status, "archived"),
       ),
@@ -424,7 +455,7 @@ export async function updateVisualWorkflow(input: {
     .returning();
 
   if (!row) {
-    return err({ code: "visual_workflow_not_found" });
+    return err({ code: "version_conflict", message: "Workflow changed. Reload before saving." });
   }
 
   const mapped = mapVisualWorkflowRow(row);
@@ -517,6 +548,12 @@ export async function listDueScheduledVisualWorkflows(input: {
   return rows
     .map((row) => mapVisualWorkflowRow(row))
     .filter((row): row is VisualWorkflowRecord => row !== null)
+    .filter((workflow) => workflow.publishedDefinition !== null)
+    .map((workflow) => ({
+      ...workflow,
+      definition: workflow.publishedDefinition!,
+      definitionVersion: workflow.publishedVersion!,
+    }))
     .filter((workflow) => {
       const trigger = workflow.definition.nodes.find((node) => node.type === "trigger.scheduled");
       return Boolean(trigger);
@@ -540,7 +577,7 @@ export async function advanceVisualWorkflowNextRun(input: {
   }
 
   const nextRunAt = resolveNextRunAtForVisualWorkflow(
-    { status: workflow.status, definition: workflow.definition },
+    { status: workflow.status, definition: workflow.publishedDefinition ?? workflow.definition },
     input.completedAt ?? new Date(),
   );
 
@@ -556,4 +593,72 @@ export async function advanceVisualWorkflowNextRun(input: {
         eq(schema.visualWorkflows.organizationId, input.organizationId),
       ),
     );
+}
+
+export async function publishVisualWorkflow(input: {
+  organizationId: string;
+  visualWorkflowId: string;
+  expectedRevision: number;
+}): Promise<
+  Result<
+    VisualWorkflowRecord,
+    VisualWorkflowValidationError | { code: "visual_workflow_not_found" }
+  >
+> {
+  return db.transaction(async (tx) => {
+    const existing = await getVisualWorkflowById({ ...input, dbClient: tx });
+    if (!existing || existing.status === "archived")
+      return err({ code: "visual_workflow_not_found" as const });
+    if (existing.revision !== input.expectedRevision)
+      return err({
+        code: "version_conflict" as const,
+        message: "Workflow changed. Reload before publishing.",
+      });
+    const validation = validateVisualWorkflowPayload({
+      name: existing.name,
+      definition: existing.definition,
+    });
+    if (isErr(validation)) return validation;
+    const trigger = validateActiveVisualWorkflowTrigger(validation.value);
+    if (!trigger.ok)
+      return err({ code: "invalid_active_trigger" as const, message: trigger.message });
+    const version = existing.definitionVersion;
+    const scheduling = resolveWorkflowSchedulingMetadata({
+      workflowId: existing.id,
+      status: "active",
+      definition: validation.value,
+    });
+    const [row] = await tx
+      .update(schema.visualWorkflows)
+      .set({
+        publishedDefinition: validation.value,
+        publishedVersion: version,
+        status: "active",
+        revision: existing.revision + 1,
+        ...scheduling,
+      })
+      .where(
+        and(
+          eq(schema.visualWorkflows.id, existing.id),
+          eq(schema.visualWorkflows.organizationId, input.organizationId),
+          eq(schema.visualWorkflows.revision, input.expectedRevision),
+        ),
+      )
+      .returning();
+    if (!row)
+      return err({
+        code: "version_conflict" as const,
+        message: "Workflow changed. Reload before publishing.",
+      });
+    await tx
+      .insert(schema.visualWorkflowVersions)
+      .values({
+        workflowId: existing.id,
+        organizationId: input.organizationId,
+        version,
+        definition: validation.value,
+      })
+      .onConflictDoNothing();
+    return ok(mapVisualWorkflowRow(row)!);
+  });
 }

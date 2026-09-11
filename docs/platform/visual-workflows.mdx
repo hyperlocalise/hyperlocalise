@@ -1,123 +1,65 @@
 ---
 title: "Visual workflows"
-description: "Build and run deterministic automation graphs with triggers, HTTP actions, branching, and AI steps."
+description: "Connect typed data between workflow nodes, test drafts safely, and publish automation versions."
 ---
 
-**Visual workflows** let operators compose deterministic automation graphs on a canvas. They complement [agent automations](/platform/automations), which use an LLM orchestrator and tool plan.
+Visual workflows compose fixed automation steps on a canvas. Your organization must have the `workspace-visual-workflows` feature enabled. Open **Automations → Visual workflows** to create or inspect a workflow.
 
-The feature is in Beta. It is gated by the `workspace-visual-workflows` flag for your organization.
+## Build and connect data
 
-## Where to find them
+1. Choose a manual, scheduled, GitHub, or source-upload trigger.
+2. Add HTTP, AI, Slack, email, condition, switch, Set, or For each nodes.
+3. Connect execution order on the canvas.
+4. Open a node's **Inputs** section. Select a typed literal, an upstream field, or a text template. Use **Configuration** for provider and action settings.
+5. Review **Outputs** for expected fields. Test results show actual redacted values.
 
-Open organization **Automations**. When visual workflows are enabled, click **Visual workflows** to open the list at `/org/{slug}/automations/visual-workflows`.
+Direct field bindings preserve objects, arrays, numbers, booleans, and null. Templates produce text, for example `Summary: {{ nodes.summarize.text }}`. Missing required values stop the action. Fields from a conditional branch need an optional binding or fallback because that branch may be skipped.
 
-From there you can create a workflow, open the canvas editor, change the trigger, delete a workflow, and inspect run history per workflow.
+HTTP JSON responses have an unknown shape until you declare output fields such as `json.items` with type `array`. Samples help discover fields but do not guarantee their presence. HTTP bodies can be structured JSON; binding resolution happens before serialization, so quotes and line breaks remain valid JSON. AI nodes can declare structured `json.*` output fields.
 
-Visual workflows are organization-scoped today. They do not appear on project-scoped automation pages.
+## Loops and branching
 
-## Agent automations vs visual workflows
+**For each** requires an array. Connect **Each item** to the body, select the body nodes in the inspector, and connect **Done** to the next step. Body nodes can read the loop's `item` and `index`. Configure collected output bindings to expose `iterationOutputs` after the loop. Items run sequentially; an empty array follows Done with an empty result. Nested loops are not supported.
 
-| | Agent automations | Visual workflows |
-| --- | --- | --- |
-| **Execution model** | LLM orchestrator picks tools from `toolConfig` | Deterministic graph interpreter walks nodes in order |
-| **Triggers** | Manual, schedule, GitHub, upload, Contentful | Manual only (Phase 1) |
-| **Best for** | Open-ended playbooks with GitHub, Slack, translation tools | Fixed HTTP calls, branching, and short AI prompts in a known graph |
-| **Run history** | Automation run history | Per-workflow runs with per-node snapshots |
+Conditions use true/false connections. Switches use case/default connections. Action failures can stop, continue with a visible handled error, or select an error branch. A merge waits for all incoming connections to settle and runs if any is selected.
 
-Use agent automations when the agent should decide which tools to call. Use visual workflows when the steps, order, and branches are fixed.
+## Test, save, and publish
 
-## Build a workflow
+Tests default to **mock** mode. Enter a trigger payload and optional per-action mock outputs. Mock execution follows the same bindings, branches, and loops without calling external services.
 
-1. Click **New workflow** on the visual workflows list.
-2. Add nodes from the picker: **Manual trigger**, **HTTP request**, **If / else**, or **AI agent**.
-3. Connect nodes on the canvas. The graph must have exactly one trigger and every non-trigger node must be reachable from it.
-4. Configure each node in the side panel.
-5. Save. Workflows start in **draft** status; set **active** when you are ready to run them.
+Select **live** explicitly to test real integrations. Live testing can send notifications and change external systems. It never publishes your draft.
 
-### Node types (Phase 1)
+**Save** updates the draft. **Publish** validates and activates an immutable version. Active workflows continue using the published version while you edit or test. Concurrent changes return a conflict rather than overwrite another editor's work. Pause prevents new automatic runs; it does not cancel existing runs.
 
-| Node | Purpose |
+## Credentials
+
+Create or select an organization credential for HTTP authentication. Sensitive header and body fields can reference a credential using a destination such as `headers.X-API-Key` or `body.token`. Credential APIs and the editor return metadata only. Do not place credentials in URLs or literal authentication fields. Slack and email use the existing organization connections.
+
+## Inspect and recover runs
+
+Open a historical run to see its executed graph, version, mock/live mode, and node details independently of the current draft. Details include redacted inputs and outputs, errors, iterations, and attempts. Skipped, blocked, cancelled, handled-error, and needs-attention states remain visible.
+
+Cancel stops further steps and supported requests. An external action may already have completed. If a run needs attention, inspect the provider before retrying: retry requires acknowledgement that an uncertain action might be duplicated. Successful completed actions are retained during recovery.
+
+## Limits
+
+A workflow supports 200 nodes, 400 connections, 100 loop items, and 1,000 execution steps. HTTP requests time out after 30 seconds, AI requests after 120 seconds, and a run after 15 minutes. HTTP responses must fit the shared security size limit and contain valid JSON when declared as JSON.
+
+Old definition formats must be recreated or explicitly converted before execution. New integrations, arbitrary code nodes, and nested loops are outside this release.
+
+## Organization API
+
+All routes use `/api/orgs/{slug}/visual-workflows` and require organization operator access and the feature flag.
+
+| Operation | Method and suffix |
 | --- | --- |
-| **Manual trigger** | Entry point for manual runs. Exposes trigger input to downstream nodes. |
-| **HTTP request** | Calls a public HTTPS URL with `GET`, `POST`, `PUT`, `PATCH`, or `DELETE`. Responses include status and a bounded body snippet (up to 8,000 characters). |
-| **If / else** | Evaluates a condition and follows the **true** or **false** outgoing edge. |
-| **AI agent** | Sends a prompt to the workspace AI Engine model and stores the generated text on the node output. |
+| Create or list | `POST /`, `GET /` |
+| Read or save draft | `GET /{id}`, `PATCH /{id}` with `expectedRevision` |
+| Publish | `POST /{id}/publish` with `expectedRevision` |
+| Test draft | `POST /{id}/test` with definition, payload, mode, mock outputs, and idempotency key |
+| Run published version | `POST /{id}/runs` with idempotency key |
+| Inspect history | `GET /{id}/runs`, `GET /{id}/runs/{runId}` |
+| Cancel or retry | `POST /{id}/runs/{runId}/cancel`, `POST /{id}/runs/{runId}/retry` |
+| Credential metadata/create | `GET /credentials`, `POST /credentials` |
 
-**For each** loop nodes appear in the picker but are not executable in Phase 1.
-
-### Template expressions
-
-HTTP URLs, if conditions, and AI prompts support `{{ ... }}` placeholders that resolve at run time:
-
-- `{{ trigger.field }}` — value from the manual run input
-- `{{ nodes.<nodeId>.field }}` — output from an upstream node (for example `{{ nodes.http-1.body }}`)
-
-If conditions support comparison operators (`===`, `!==`, `==`, `!=`, `>`, `>=`, `<`, `<=`) after templates are resolved. Empty conditions evaluate to false.
-
-### Graph validation
-
-Saving rejects invalid graphs:
-
-- Missing or multiple triggers
-- Edges pointing at missing nodes
-- Nodes not reachable from the trigger
-
-## Run a workflow
-
-From the editor, queue a **manual run**. Cloud creates a run record, enqueues execution, and updates each node as it progresses.
-
-Run statuses: `queued`, `running`, `succeeded`, `failed`, `cancelled`, or `skipped`.
-
-Each run stores a definition snapshot so you can inspect what executed even if the workflow definition changed later.
-
-### Idempotency
-
-Manual runs require an `idempotencyKey`. Reusing the same key for the same workflow returns the existing run instead of creating a duplicate.
-
-## HTTP action constraints
-
-HTTP nodes use the same SSRF-safe fetch path as other public outbound requests in Cloud:
-
-- Only public HTTPS URLs are allowed
-- Redirects are not followed automatically
-- Non-2xx responses fail the node
-
-Do not put secrets in URLs. Prefer short-lived tokens in trigger input when you must pass credentials.
-
-## Permissions and API
-
-Visual workflow routes require an organization **operator** role (admin or localization manager). The feature flag must also be enabled.
-
-Authenticated JSON API (session cookie or equivalent app auth):
-
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/api/orgs/{slug}/visual-workflows` | List workflows (`status`, `projectId`, pagination) |
-| `POST` | `/api/orgs/{slug}/visual-workflows` | Create a workflow |
-| `GET` | `/api/orgs/{slug}/visual-workflows/{id}` | Read one workflow |
-| `PATCH` | `/api/orgs/{slug}/visual-workflows/{id}` | Update name, status, project, or definition |
-| `DELETE` | `/api/orgs/{slug}/visual-workflows/{id}` | Archive (delete) a workflow |
-| `GET` | `/api/orgs/{slug}/visual-workflows/{id}/runs` | List runs |
-| `POST` | `/api/orgs/{slug}/visual-workflows/{id}/runs` | Queue a manual run (`idempotencyKey` required) |
-| `GET` | `/api/orgs/{slug}/visual-workflows/{id}/runs/{runId}` | Run detail with node snapshots |
-
-Responses use resource-keyed envelopes (`visualWorkflow`, `visualWorkflows`, `run`, `runs`). Errors follow the standard `{ error, message, details? }` shape.
-
-When the flag is off, routes return `forbidden` with `visual_workflows_feature_disabled`.
-
-## Troubleshooting
-
-| Symptom | Likely cause |
-| --- | --- |
-| **Visual workflows** link missing | `workspace-visual-workflows` flag is off for the org |
-| Save fails with graph errors | Multiple triggers, orphan node, or broken edge — check validation messages |
-| HTTP node fails with `http_error` | Target returned a non-2xx status |
-| HTTP node fails with `http_request_failed` | Blocked URL, network error, or SSRF validation failure |
-| AI node fails with `ai_agent_failed` | AI Engine misconfiguration or provider error |
-| Run stuck in `queued` | Workflow worker not processing — check deployment/workflow queue health |
-
-## Next
-
-- [Automations](/platform/automations)
-- [Integrations](/platform/integrations)
-- [MCP server](/platform/mcp)
+Responses use resource-keyed envelopes. Reusing a run idempotency key returns the existing run. A stale draft revision returns HTTP 409.

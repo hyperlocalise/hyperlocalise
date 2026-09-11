@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { reconcileWorkflowRuns } from "./workflow-recovery";
 import { createLogger } from "@/lib/log";
 
 import { dispatchDueScheduledVisualWorkflows } from "./visual-workflow-dispatcher";
@@ -27,6 +28,7 @@ export async function runVisualWorkflowScheduler(input?: {
   now?: Date;
   limit?: number;
 }): Promise<VisualWorkflowSchedulerResult> {
+  await reconcileWorkflowRuns();
   const results = await dispatchDueScheduledVisualWorkflows({
     now: input?.now,
     limit: input?.limit,

@@ -55,13 +55,17 @@ describe("visual workflow expressions", () => {
     expect(evaluateVisualWorkflowCondition("{{trigger.score}} > 5", context)).toBe(true);
   });
 
-  it("treats blank and falsey literals as false and unknown paths as empty", () => {
+  it("rejects missing paths while preserving falsey values", () => {
     const context = createVisualWorkflowExecutionContext({
       triggerInput: { label: "alpha" },
     });
 
-    expect(resolveVisualWorkflowTemplate("{{trigger.missing}}", context)).toBe("");
-    expect(evaluateVisualWorkflowCondition("{{trigger.missing}}", context)).toBe(false);
+    expect(() => resolveVisualWorkflowTemplate("{{trigger.missing}}", context)).toThrow(
+      "missing_workflow_input",
+    );
+    expect(() => evaluateVisualWorkflowCondition("{{trigger.missing}}", context)).toThrow(
+      "missing_workflow_input",
+    );
     expect(evaluateVisualWorkflowCondition("false", context)).toBe(false);
     expect(evaluateVisualWorkflowCondition("0", context)).toBe(false);
     expect(evaluateVisualWorkflowCondition("{{trigger.label}} != beta", context)).toBe(true);
@@ -72,6 +76,31 @@ describe("visual workflow expressions", () => {
 describe("visual workflow node execution edges", () => {
   beforeEach(() => {
     withPublicHttpFetchMock.mockReset();
+  });
+
+  it("emits triggeredAt and scheduledRunAt for scheduled triggers", async () => {
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({
+      triggerInput: { hello: "world", triggeredAt: "2026-09-10T12:00:00.000Z" },
+    });
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "t",
+        type: "trigger.scheduled",
+        config: createDefaultConfig("trigger.scheduled"),
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      output: {
+        hello: "world",
+        triggeredAt: "2026-09-10T12:00:00.000Z",
+        scheduledRunAt: "2026-09-10T12:00:00.000Z",
+      },
+    });
   });
 
   it("resolves empty for_each collections to an empty item list", async () => {
@@ -144,7 +173,7 @@ describe("visual workflow node execution edges", () => {
       ok: false,
       error: {
         code: "http_request_failed",
-        message: "Blocked host is not allowed.",
+        message: "HTTP request failed. Check the URL, response format, size, and timeout.",
       },
     });
     expect(withPublicHttpFetchMock).toHaveBeenCalledWith(
@@ -189,6 +218,42 @@ describe("visual workflow node execution edges", () => {
         json: { ok: true },
       },
     });
+  });
+
+  it("sends resolved header secrets without template expansion", async () => {
+    withPublicHttpFetchMock.mockResolvedValue({
+      status: 200,
+      statusText: "OK",
+      ok: true,
+      body: "{}",
+      json: {},
+    });
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context: createVisualWorkflowExecutionContext({ triggerInput: {} }),
+      inputsResolved: true,
+      node: {
+        id: "http",
+        type: "action.http",
+        config: {
+          kind: "action.http",
+          method: "GET",
+          url: "https://example.com/secure",
+          onError: "stop",
+          headers: [{ key: "Authorization", value: "Bearer {{literal-secret}}" }],
+        },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(withPublicHttpFetchMock).toHaveBeenCalledWith(
+      "https://example.com/secure",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer {{literal-secret}}" }),
+      }),
+      expect.any(Function),
+    );
   });
 
   it("fails non-ok HTTP responses when failOnHttpError is defaulted", async () => {
@@ -288,7 +353,7 @@ describe("visual workflow node execution edges", () => {
       ok: true,
       output: {
         greeting: "Hello Ada",
-        count: 3,
+        count: "3",
       },
     });
   });
@@ -323,9 +388,13 @@ describe("visual workflow node execution edges", () => {
 });
 
 describe("visual workflow interpreter", () => {
+  beforeEach(() => {
+    withPublicHttpFetchMock.mockReset();
+  });
+
   it("walks trigger and if nodes without following the false branch", async () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Branching",
       nodes: [
         { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
@@ -362,7 +431,7 @@ describe("visual workflow interpreter", () => {
 
   it("waits for all incoming branches before executing join nodes", async () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Join",
       nodes: [
         { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
@@ -403,7 +472,7 @@ describe("visual workflow interpreter", () => {
 
   it("still reaches join nodes when untaken if branches reconverge", async () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Conditional join",
       nodes: [
         { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
@@ -445,12 +514,13 @@ describe("visual workflow interpreter", () => {
 
   it("runs loop body once per collection item", async () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Loop",
       nodes: [
         { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
         {
           id: "loop",
+          bodyNodeIds: ["noop"],
           type: "logic.for_each",
           config: { kind: "logic.for_each", collection: "{{trigger.items}}" },
         },
@@ -458,7 +528,7 @@ describe("visual workflow interpreter", () => {
       ],
       edges: [
         { id: "e1", source: "t", target: "loop", sourceHandle: null, targetHandle: null },
-        { id: "e2", source: "loop", target: "noop", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "loop", target: "noop", sourceHandle: "each", targetHandle: null },
       ],
       editor: { positions: {} },
     };
@@ -481,12 +551,13 @@ describe("visual workflow interpreter", () => {
 
   it("orders multi-node loop bodies by dependencies", async () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Ordered loop body",
       nodes: [
         { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
         {
           id: "loop",
+          bodyNodeIds: ["first", "second"],
           type: "logic.for_each",
           config: { kind: "logic.for_each", collection: "{{trigger.items}}" },
         },
@@ -495,7 +566,7 @@ describe("visual workflow interpreter", () => {
       ],
       edges: [
         { id: "e1", source: "t", target: "loop", sourceHandle: null, targetHandle: null },
-        { id: "e2", source: "loop", target: "first", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "loop", target: "first", sourceHandle: "each", targetHandle: null },
         { id: "e3", source: "first", target: "second", sourceHandle: "true", targetHandle: null },
       ],
       editor: { positions: {} },
@@ -519,12 +590,13 @@ describe("visual workflow interpreter", () => {
 
   it("respects conditional branching inside loop bodies", async () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Loop branching",
       nodes: [
         { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
         {
           id: "loop",
+          bodyNodeIds: ["iff", "taken", "skipped"],
           type: "logic.for_each",
           config: { kind: "logic.for_each", collection: "{{trigger.items}}" },
         },
@@ -534,7 +606,7 @@ describe("visual workflow interpreter", () => {
       ],
       edges: [
         { id: "e1", source: "t", target: "loop", sourceHandle: null, targetHandle: null },
-        { id: "e2", source: "loop", target: "iff", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "loop", target: "iff", sourceHandle: "each", targetHandle: null },
         { id: "e3", source: "iff", target: "taken", sourceHandle: "true", targetHandle: null },
         { id: "e4", source: "iff", target: "skipped", sourceHandle: "false", targetHandle: null },
       ],
@@ -560,12 +632,13 @@ describe("visual workflow interpreter", () => {
 
   it("clears loop body outputs between iterations", async () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Loop stale outputs",
       nodes: [
         { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
         {
           id: "loop",
+          bodyNodeIds: ["iff", "taken", "join"],
           type: "logic.for_each",
           config: { kind: "logic.for_each", collection: "{{trigger.items}}" },
         },
@@ -583,7 +656,7 @@ describe("visual workflow interpreter", () => {
       ],
       edges: [
         { id: "e1", source: "t", target: "loop", sourceHandle: null, targetHandle: null },
-        { id: "e2", source: "loop", target: "iff", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "loop", target: "iff", sourceHandle: "each", targetHandle: null },
         { id: "e3", source: "iff", target: "taken", sourceHandle: "true", targetHandle: null },
         { id: "e4", source: "taken", target: "join", sourceHandle: "true", targetHandle: null },
       ],
@@ -608,7 +681,7 @@ describe("visual workflow interpreter", () => {
 
   it("continues after a failed node when onError is continue", async () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Continue on error",
       nodes: [
         { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
@@ -618,7 +691,7 @@ describe("visual workflow interpreter", () => {
           config: {
             kind: "action.http",
             method: "GET",
-            url: "",
+            url: "https://example.com/continue-on-error",
             onError: "continue",
           },
         },
@@ -630,6 +703,8 @@ describe("visual workflow interpreter", () => {
       ],
       editor: { positions: {} },
     };
+
+    withPublicHttpFetchMock.mockRejectedValue(new Error("upstream unavailable"));
 
     const started: string[] = [];
     const result = await runVisualWorkflowInterpreter({
@@ -648,7 +723,7 @@ describe("visual workflow interpreter", () => {
 
   it("follows error branches when onError is branch", async () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Error branch",
       nodes: [
         { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
@@ -658,7 +733,7 @@ describe("visual workflow interpreter", () => {
           config: {
             kind: "action.http",
             method: "GET",
-            url: "",
+            url: "https://example.com/error-branch",
             onError: "branch",
           },
         },
@@ -672,6 +747,8 @@ describe("visual workflow interpreter", () => {
       ],
       editor: { positions: {} },
     };
+
+    withPublicHttpFetchMock.mockRejectedValue(new Error("upstream unavailable"));
 
     const started: string[] = [];
     const result = await runVisualWorkflowInterpreter({
@@ -689,9 +766,9 @@ describe("visual workflow interpreter", () => {
     expect(started).not.toContain("success");
   });
 
-  it("runs nested for-each loops for every outer and inner item", async () => {
+  it("rejects nested for-each loops", async () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Nested loop",
       nodes: [
         { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
@@ -727,7 +804,7 @@ describe("visual workflow interpreter", () => {
       },
     });
 
-    expect(result.ok).toBe(true);
-    expect(started.filter((nodeId) => nodeId === "noop")).toHaveLength(3);
+    expect(result.ok).toBe(false);
+    expect(started.filter((nodeId) => nodeId === "noop")).toHaveLength(0);
   });
 });

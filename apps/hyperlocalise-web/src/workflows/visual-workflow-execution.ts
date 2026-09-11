@@ -20,7 +20,10 @@ export async function visualWorkflowExecutionWorkflow(event: VisualWorkflowExecu
   "use workflow";
 
   const { workflowRunId } = getWorkflowMetadata();
-  const result = await executeVisualWorkflowStep(event);
+  let result = await executeVisualWorkflowStep(event);
+  for (let slice = 0; result.ok && result.value.continueExecution && slice < 1000; slice += 1) {
+    result = await executeVisualWorkflowStep(event);
+  }
 
   if (!result.ok) {
     return {

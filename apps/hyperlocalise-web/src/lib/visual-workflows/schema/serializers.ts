@@ -51,6 +51,10 @@ export function toVisualWorkflowDefinition(
       id: node.id,
       type: node.data.catalogType,
       config: node.data.config,
+      inputs: node.data.inputs,
+      outputFields: node.data.outputFields,
+      bodyNodeIds: node.data.bodyNodeIds,
+      collect: node.data.collect,
     })),
     edges: state.edges.map((edge) => ({
       id: edge.id,
@@ -82,6 +86,10 @@ export function fromVisualWorkflowDefinition(
       ...dimensions,
       data: {
         catalogType: type,
+        inputs: node.inputs,
+        outputFields: node.outputFields,
+        bodyNodeIds: node.bodyNodeIds,
+        collect: node.collect,
         config,
         runStatus: "idle",
       },

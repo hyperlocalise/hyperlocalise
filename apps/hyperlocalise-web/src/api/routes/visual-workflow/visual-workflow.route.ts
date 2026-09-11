@@ -10,6 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createVisualWorkflowExecutionQueue } from "@/workflows/adapters";
+import { validateVisualWorkflowDefinition } from "@/lib/visual-workflows/validation/validate-workflow";
+import {
+  createWorkflowCredential,
+  listWorkflowCredentials,
+} from "@/lib/visual-workflows/workflow-credentials";
+import {
+  requestWorkflowCancellation,
+  retryWorkflowRun,
+} from "@/lib/visual-workflows/workflow-recovery";
+import { stampEmailNodePipesUsersOnDefinition } from "@/lib/visual-workflows/stamp-email-node-pipes-users";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -19,6 +30,7 @@ import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/r
 import { workspaceVisualWorkflowsFlag } from "@/lib/flags/workspace-flags";
 import { isErr } from "@/lib/primitives/result/results";
 import {
+  publishVisualWorkflow,
   createVisualWorkflow,
   deleteVisualWorkflow,
   getVisualWorkflowById,
@@ -26,6 +38,8 @@ import {
   updateVisualWorkflow,
 } from "@/lib/visual-workflows/visual-workflows";
 import {
+  createVisualWorkflowRun,
+  enqueueVisualWorkflowRunOnce,
   dispatchManualVisualWorkflowRun,
   getVisualWorkflowRunById,
   listVisualWorkflowRuns,
@@ -33,6 +47,10 @@ import {
 import type { VisualWorkflowValidationError } from "@/lib/visual-workflows/visual-workflow-types";
 
 import {
+  workflowTestSchema,
+  workflowPublishSchema,
+  workflowCredentialSchema,
+  workflowRetrySchema,
   createVisualWorkflowBodySchema,
   createVisualWorkflowRunBodySchema,
   listVisualWorkflowRunsQuerySchema,
@@ -142,6 +160,8 @@ function mapVisualWorkflowValidationError(
   c: Parameters<typeof badRequestResponse>[0],
   error: VisualWorkflowValidationError,
 ) {
+  if (error.code === "version_conflict")
+    return c.json({ error: error.code, message: error.message }, 409);
   if (error.code === "invalid_graph") {
     return badRequestResponse(c, error.code, "Workflow graph is invalid.", {
       issues: error.issues,
@@ -200,6 +220,124 @@ export function createVisualWorkflowRoutes() {
 
       return c.json({ visualWorkflow: result.value }, 201);
     })
+    .get("/credentials", async (c) =>
+      c.json({
+        credentials: await listWorkflowCredentials(c.var.auth.organization.localOrganizationId),
+      }),
+    )
+    .post(
+      "/credentials",
+      validator("json", (value, c) => {
+        const parsed = workflowCredentialSchema.safeParse(value);
+        return parsed.success ? parsed.data : badRequestResponse(c, "invalid_credential");
+      }),
+      async (c) => {
+        const body = c.req.valid("json");
+        return c.json(
+          {
+            credential: await createWorkflowCredential(
+              c.var.auth.organization.localOrganizationId,
+              body.name,
+              body.value,
+            ),
+          },
+          201,
+        );
+      },
+    )
+    .post(
+      "/:visualWorkflowId/publish",
+      validateVisualWorkflowParams,
+      validator("json", (value, c) => {
+        const parsed = workflowPublishSchema.safeParse(value);
+        return parsed.success ? parsed.data : badRequestResponse(c, "invalid_publish_payload");
+      }),
+      async (c) => {
+        const result = await publishVisualWorkflow({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          visualWorkflowId: c.req.valid("param").visualWorkflowId,
+          expectedRevision: c.req.valid("json").expectedRevision,
+        });
+        if (isErr(result))
+          return result.error.code === "visual_workflow_not_found"
+            ? notFoundResponse(c, result.error.code)
+            : mapVisualWorkflowValidationError(c, result.error);
+        return c.json({ visualWorkflow: result.value });
+      },
+    )
+    .post(
+      "/:visualWorkflowId/test",
+      validateVisualWorkflowParams,
+      validator("json", (value, c) => {
+        const parsed = workflowTestSchema.safeParse(value);
+        return parsed.success ? parsed.data : badRequestResponse(c, "invalid_test_payload");
+      }),
+      async (c) => {
+        const body = c.req.valid("json"),
+          organizationId = c.var.auth.organization.localOrganizationId,
+          visualWorkflowId = c.req.valid("param").visualWorkflowId;
+        const workflow = await getVisualWorkflowById({ organizationId, visualWorkflowId });
+        if (!workflow || workflow.status === "archived")
+          return notFoundResponse(c, "visual_workflow_not_found");
+        const definition = stampEmailNodePipesUsersOnDefinition({
+          definition: body.definition,
+          previousDefinition: workflow.definition,
+          actorWorkosUserId: c.var.auth.user.workosUserId,
+        });
+        const issues = validateVisualWorkflowDefinition(definition);
+        if (issues.length)
+          return badRequestResponse(
+            c,
+            "invalid_graph",
+            "Fix workflow validation issues before testing.",
+            { issues },
+          );
+        const run = await createVisualWorkflowRun({
+          organizationId,
+          visualWorkflowId,
+          triggerSource: "manual",
+          testDefinition: definition,
+          mode: body.mode,
+          mockOutputs: body.mockOutputs,
+          inputSnapshot: body.inputSnapshot,
+          idempotencyKey: `test:${body.idempotencyKey}`,
+        });
+        const queue = createVisualWorkflowExecutionQueue();
+        const dispatch = await enqueueVisualWorkflowRunOnce({
+          runId: run.id,
+          organizationId,
+          enqueue: () =>
+            queue
+              .enqueue({ visualWorkflowRunId: run.id, visualWorkflowId, organizationId })
+              .then(() => undefined),
+        });
+        return c.json({ run, dispatch: { runId: run.id, enqueued: dispatch.enqueuedNow } }, 202);
+      },
+    )
+    .post("/:visualWorkflowId/runs/:runId/cancel", validateVisualWorkflowRunParams, async (c) => {
+      const run = await requestWorkflowCancellation({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        ...c.req.valid("param"),
+      });
+      return run ? c.json({ run }, 202) : notFoundResponse(c, "visual_workflow_run_not_found");
+    })
+    .post(
+      "/:visualWorkflowId/runs/:runId/retry",
+      validateVisualWorkflowRunParams,
+      validator("json", (value, c) => {
+        const parsed = workflowRetrySchema.safeParse(value);
+        return parsed.success
+          ? parsed.data
+          : badRequestResponse(c, "retry_acknowledgement_required");
+      }),
+      async (c) => {
+        const run = await retryWorkflowRun({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          ...c.req.valid("param"),
+        });
+        return run ? c.json({ run }, 202) : badRequestResponse(c, "run_not_retryable");
+      },
+    )
     .get("/:visualWorkflowId", validateVisualWorkflowParams, async (c) => {
       const { visualWorkflowId } = c.req.valid("param");
       const visualWorkflow = await getVisualWorkflowById({
@@ -220,6 +358,7 @@ export function createVisualWorkflowRoutes() {
         organizationId: c.var.auth.organization.localOrganizationId,
         visualWorkflowId,
         actorWorkosUserId: c.var.auth.user.workosUserId,
+        expectedRevision: body.expectedRevision,
         name: body.name,
         definition: body.definition,
         status: body.status,
@@ -284,6 +423,10 @@ export function createVisualWorkflowRoutes() {
         const body = c.req.valid("json");
         const organizationId = c.var.auth.organization.localOrganizationId;
 
+        const workflow = await getVisualWorkflowById({ organizationId, visualWorkflowId });
+        if (!workflow || workflow.status === "archived")
+          return notFoundResponse(c, "visual_workflow_not_found");
+        if (!workflow.publishedDefinition) return badRequestResponse(c, "workflow_not_published");
         const result = await dispatchManualVisualWorkflowRun({
           organizationId,
           visualWorkflowId,
