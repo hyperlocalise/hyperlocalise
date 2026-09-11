@@ -109,6 +109,7 @@ import type { ApiAuthContext } from "@/api/auth/workos";
 import {
   isQueryableNativeGlossaryId,
   queryGlossaryTerms,
+  queryTranslationMemoryMatches,
   type QueryGlossaryHit,
 } from "@/lib/tools/asset-tools";
 import { loadMcpTranslation } from "@/api/routes/mcp/mcp-get-translation";
@@ -139,7 +140,9 @@ import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { getOwnedGlossary, isGlossaryManageAllowed } from "@/api/routes/glossary/glossary.shared";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { GlossaryValidationError } from "@/lib/glossary/glossary";
+import { toolCanAccessMemory, toolCanAccessProject } from "@/lib/tools/tool-access";
 import { mcpCreateGlossaryConceptInputSchema } from "./mcp-create-glossary-concept.schema";
+import { mcpQueryTranslationMemoryInputSchema } from "./mcp-query-translation-memory.schema";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -814,6 +817,42 @@ function decodeMcpBase64(value: string): Uint8Array | null {
   }
 
   return new Uint8Array(decoded);
+}
+
+const MAX_MCP_TRANSLATION_MEMORY_SEGMENT_LENGTH = 4_000;
+
+function truncateMcpTranslationMemorySegment(value: string) {
+  const codePoints = Array.from(value);
+
+  if (codePoints.length <= MAX_MCP_TRANSLATION_MEMORY_SEGMENT_LENGTH) {
+    return value;
+  }
+
+  return `${codePoints.slice(0, MAX_MCP_TRANSLATION_MEMORY_SEGMENT_LENGTH - 1).join("")}…`;
+}
+
+function compactMcpTranslationMemoryMatch(match: {
+  memoryId: string;
+  sourceText: string;
+  targetText: string;
+  targetLocale: string;
+  rank?: number;
+}) {
+  return {
+    memoryId: match.memoryId,
+    sourceText: truncateMcpTranslationMemorySegment(match.sourceText),
+    targetText: truncateMcpTranslationMemorySegment(match.targetText),
+    locale: match.targetLocale,
+    ...(match.rank === undefined
+      ? {}
+      : {
+          similarity: match.rank,
+        }),
+  };
+}
+
+function isQueryableTranslationMemoryId(value: string) {
+  return z.uuid().safeParse(value).success;
 }
 
 function mcpToolContext(apiAuth: ApiAuthContext): ToolContext {
@@ -2512,6 +2551,68 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   );
 
   registerZernioMcpTools(server, apiAuth);
+
+  server.registerTool(
+    "query_translation_memory",
+    {
+      description: "Find exact and similar translation memory matches for a source segment.",
+      inputSchema: mcpQueryTranslationMemoryInputSchema,
+    },
+    async ({ sourceText, sourceLocale, targetLocale, projectId, memoryId, limit }) => {
+      const ctx = mcpToolContext(apiAuth);
+
+      if (projectId && !(await toolCanAccessProject(ctx, projectId))) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      if (memoryId) {
+        if (
+          !isQueryableTranslationMemoryId(memoryId) ||
+          !(await toolCanAccessMemory(ctx, memoryId))
+        ) {
+          return mcpToolError("memory_not_found", "Translation memory not found or inaccessible");
+        }
+      }
+
+      if (projectId && memoryId) {
+        const [attachment] = await db
+          .select({ id: schema.projectMemories.id })
+          .from(schema.projectMemories)
+          .where(
+            and(
+              eq(schema.projectMemories.organizationId, apiAuth.organization.localOrganizationId),
+              eq(schema.projectMemories.projectId, projectId),
+              eq(schema.projectMemories.memoryId, memoryId),
+            ),
+          )
+          .limit(1);
+
+        if (!attachment) {
+          return mcpToolError("memory_not_found", "Translation memory not found or inaccessible");
+        }
+      }
+
+      const result = await queryTranslationMemoryMatches(ctx, {
+        sourceText,
+        sourceLocale,
+        targetLocale,
+        projectId,
+        memoryId,
+        limit,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              matches: result.matches.map(compactMcpTranslationMemoryMatch),
+            }),
+          },
+        ],
+      };
+    },
+  );
 
   return server;
 }
