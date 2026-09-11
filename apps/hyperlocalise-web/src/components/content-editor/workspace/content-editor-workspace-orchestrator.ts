@@ -43,6 +43,8 @@ import {
 } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 
 import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-view-mode";
+import { ContentEditorPageStore } from "@/components/content-editor/page/content-editor-page-store";
+
 import { ContentEditorIntelligenceStore } from "./store/content-editor-intelligence-store";
 import { ContentEditorQueueStore } from "./store/content-editor-queue-store";
 import { ContentEditorSegmentDraft } from "./store/content-editor-segment-draft";
@@ -182,6 +184,7 @@ export class ContentEditorWorkspaceOrchestrator {
   readonly queue = new ContentEditorQueueStore();
   readonly segments = new ContentEditorSegmentStore();
   readonly intelligenceState = new ContentEditorIntelligenceStore();
+  readonly page = new ContentEditorPageStore();
   readonly ui: ContentEditorWorkspaceUiStore;
 
   jobTitle?: string;
@@ -695,6 +698,40 @@ export class ContentEditorWorkspaceOrchestrator {
     this.ingestQueue(initialState, initialSegmentKeyOrId);
   }
 
+  /**
+   * File or locale changed while the page store stays mounted. Drop the previous
+   * file's queue so chrome can keep rendering, then wait for the next snapshot.
+   */
+  prepareFileScopeChange(input: {
+    sourcePath: string;
+    sourceLocale: string;
+    targetLocale: string;
+  }) {
+    const filename = input.sourcePath.split("/").pop() ?? input.sourcePath;
+    this.lastHydratedSnapshot = null;
+    this.lastHydratedQueueIdentity = "";
+    this.initialSegmentJumpApplied = false;
+    this.hydratedTargetSegmentIds = new Set();
+    this.locallyCommittedTargetTexts = new Map();
+    this.preSaveTargetTexts = new Map();
+    this.localStatusOverrides = new Map();
+    this.applySnapshotQueueMeta([], {});
+    this.selectedSegmentId = "";
+    this.formatChecks = [];
+    this.segmentFormatChecks = {};
+    this.fileContext = {
+      sourcePath: input.sourcePath,
+      filename,
+      sourceLocale: input.sourceLocale,
+      targetLocale: input.targetLocale,
+      providerKind: null,
+      canEditTranslations: true,
+      canAddComments: true,
+    };
+    this.page.beginFileScopeChange(input.sourcePath, input.targetLocale);
+    this.ui.setTranslationViewLoading(true);
+  }
+
   hasHydratedTarget(segmentId: string) {
     return this.hydratedTargetSegmentIds.has(segmentId);
   }
@@ -800,6 +837,7 @@ export class ContentEditorWorkspaceOrchestrator {
 
       this.lastHydratedSnapshot = normalizedNext;
       this.lastHydratedQueueIdentity = queueSnapshotIdentity(normalizedNext);
+      this.ui.setTranslationViewLoading(false);
     });
   }
 

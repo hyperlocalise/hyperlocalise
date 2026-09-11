@@ -13,25 +13,14 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
-import {
-  ContentEditorFileTreePicker,
-  ContentEditorLocaleSelect,
-} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers";
-import {
-  ContentEditorFilesSidebar,
-  ContentEditorPageBody,
-} from "@/components/content-editor/files/content-editor-files-sidebar";
-import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
+import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import type { ContentEditorWorkspaceState } from "@/components/content-editor/shared/types";
 import {
   writeCatWorkspaceViewMode,
   type ContentEditorWorkspaceViewMode,
 } from "@/components/content-editor/workspace/content-editor-workspace-view-mode";
-import { Button } from "@/components/ui/button";
 
 import { ContentEditorWorkspaceContainer } from "./content-editor-workspace-container";
 
@@ -90,49 +79,38 @@ export function ContentEditorPageShellStoryView({
   );
 
   return (
-    <main className="flex h-svh min-h-0 flex-col overflow-hidden bg-background text-foreground">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4">
-        <div className="flex min-w-0 shrink-0 items-center gap-2">
-          <Button variant="outline" size="icon-sm" className="size-8 shrink-0" type="button">
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-          </Button>
-
-          <div className="lg:hidden">
-            <ContentEditorFileTreePicker
-              files={files}
-              selectedSourcePath={selectedSourcePath}
-              onSelectFile={setSelectedSourcePath}
-            />
-          </div>
-
-          <ContentEditorLocaleSelect
-            targetLocales={targetLocales}
-            selectedTargetLocale={targetLocale}
-            onTargetLocaleChange={setTargetLocale}
-          />
-        </div>
-
-        <ContentEditorQueueToolbarHost />
-      </div>
-
-      <ContentEditorPageBody
-        sidebar={
-          <ContentEditorFilesSidebar
-            className="hidden w-[17.5rem] shrink-0 lg:flex"
-            files={files}
-            selectedSourcePath={selectedSourcePath}
-            onSelectFile={setSelectedSourcePath}
-          />
-        }
-      >
-        <ContentEditorWorkspaceContainer
-          key={`${selectedSourcePath}:${targetLocale}:${activeEntry.initialViewMode}`}
-          initialState={workspaceState}
-          initialViewMode={activeEntry.initialViewMode}
-          className={className ?? "min-h-0 flex-1"}
-          {...workspaceProps}
-        />
-      </ContentEditorPageBody>
-    </main>
+    <ContentEditorPageRoot
+      initialState={workspaceState}
+      chrome={{
+        files,
+        selectedSourcePath,
+        allFiles: false,
+        canUseAllFiles: false,
+        targetLocale,
+        targetLocales,
+        repositoryFullNames: [],
+        selectedRepositoryFullName: null,
+        activitySourcePath: selectedSourcePath,
+        organizationSlug: "story",
+        projectId: "story",
+        showFileSidebar: true,
+        showActivityLog: false,
+      }}
+      backHref="#"
+      actions={{
+        onSelectFile: setSelectedSourcePath,
+        onLocaleChange: setTargetLocale,
+      }}
+      className="mx-0 my-0 h-svh sm:mx-0 lg:mx-0"
+    >
+      <ContentEditorWorkspaceContainer
+        initialState={workspaceState}
+        queueSnapshot={workspaceState}
+        fileScopeKey={`${selectedSourcePath}:${targetLocale}:${activeEntry.initialViewMode}`}
+        initialViewMode={activeEntry.initialViewMode}
+        className={className ?? "min-h-0 flex-1"}
+        {...workspaceProps}
+      />
+    </ContentEditorPageRoot>
   );
 }

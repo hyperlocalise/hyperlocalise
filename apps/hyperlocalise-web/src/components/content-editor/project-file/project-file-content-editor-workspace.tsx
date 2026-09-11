@@ -848,9 +848,9 @@ export function ProjectFileContentEditorWorkspace({
 
       <AiFeaturesUpgradeHrefProvider value={upgradePlanHref}>
         <ContentEditorWorkspaceContainer
-          key={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
           initialState={workspaceForRender}
           queueSnapshot={workspaceState}
+          fileScopeKey={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
           pageNavigationGuardRef={resolvedPageNavigationGuardRef}
           lazySegment={{
             organizationSlug,

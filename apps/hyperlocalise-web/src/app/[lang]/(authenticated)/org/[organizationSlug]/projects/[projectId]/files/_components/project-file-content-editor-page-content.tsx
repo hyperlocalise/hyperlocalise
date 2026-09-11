@@ -23,13 +23,9 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
+import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
+import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
-import {
-  ContentEditorFilesSidebar,
-  ContentEditorPageBody,
-} from "@/components/content-editor/files/content-editor-files-sidebar";
-import { ContentEditorActivityLogButton } from "@/components/content-editor/activity-log/content-editor-activity-log-dialog";
-import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import {
   attemptCatPageNavigation,
   type ContentEditorPageNavigationGuardRef,
@@ -72,10 +68,6 @@ import {
   sortFilesByPath,
 } from "./project-files-tree-panel";
 import { projectFileCatPageContentMessages as messages } from "./project-file-content-editor-page-content.messages";
-import {
-  ContentEditorFileTreePicker,
-  ContentEditorLocaleSelect,
-} from "../../_components/content-editor-header-pickers";
 
 type ProjectFileContentEditorGithubRepository = {
   fullName: string;
@@ -583,122 +575,94 @@ export function ProjectFileContentEditorPageContent({
     attemptCatPageNavigation(pageNavigationGuardRef, navigate);
   };
 
-  return (
-    <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
-        <div className="flex min-w-0 shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="size-8 shrink-0"
-            render={<Link href={filesHref} />}
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-          </Button>
-
-          {contentEditorFiles.length > 0 || allFiles ? (
-            <div className="lg:hidden">
-              <ContentEditorFileTreePicker
-                files={contentEditorFiles}
-                selectedSourcePath={sourcePath ?? ""}
-                onSelectFile={handleFileChange}
-                allFilesSelected={allFiles}
-                onSelectAllFiles={canUseAllFiles ? handleSelectAllFiles : undefined}
-                repositoryFullNames={enabledRepositoryFullNames}
-                selectedRepositoryFullName={selectedRepositoryFullName}
-                onRepositoryChange={handleRepositoryChange}
-              />
-            </div>
-          ) : (
-            <TypographyP className="max-w-44 font-mono" lineClamp={1} size="xsmall" tone="subtle">
-              {sourcePath}
-            </TypographyP>
-          )}
-
-          {workspaceTargetLocales.length > 0 ? (
-            <ContentEditorLocaleSelect
-              targetLocales={workspaceTargetLocales}
-              selectedTargetLocale={targetLocale}
-              onTargetLocaleChange={handleLocaleChange}
-            />
-          ) : null}
-
-          <ContentEditorActivityLogButton
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            sourcePath={allFiles ? CONTENT_EDITOR_ALL_FILES_SOURCE_PATH : (sourcePath as string)}
-          />
-        </div>
-
-        <ContentEditorQueueToolbarHost />
-      </div>
-
-      {(repositoriesQuery.isError ||
-        (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName)) && (
-        <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
-          {repositoriesQuery.isError ? (
-            <TypographyP size="xsmall" tone="subtle">
-              <FormattedMessage {...messages.repositoriesLoadFailed} />
-            </TypographyP>
-          ) : (
-            <TypographyP size="xsmall" tone="subtle">
-              <FormattedMessage {...messages.selectRepositoryForContext} />
-            </TypographyP>
-          )}
-        </div>
-      )}
-
-      {localeFallbackMessage ? (
-        <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+  const resolvedSourcePath = allFiles
+    ? CONTENT_EDITOR_ALL_FILES_SOURCE_PATH
+    : (sourcePath as string);
+  const pageActions = {
+    onSelectFile: handleFileChange,
+    onSelectAllFiles: canUseAllFiles ? handleSelectAllFiles : undefined,
+    onLocaleChange: handleLocaleChange,
+    onRepositoryChange: handleRepositoryChange,
+  };
+  const repositoryBanner =
+    repositoriesQuery.isError ||
+    (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName) ? (
+      <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+        {repositoriesQuery.isError ? (
           <TypographyP size="xsmall" tone="subtle">
-            {localeFallbackMessage}
+            <FormattedMessage {...messages.repositoriesLoadFailed} />
           </TypographyP>
-        </div>
-      ) : null}
+        ) : (
+          <TypographyP size="xsmall" tone="subtle">
+            <FormattedMessage {...messages.selectRepositoryForContext} />
+          </TypographyP>
+        )}
+      </div>
+    ) : null;
 
-      <ContentEditorPageBody
-        sidebar={
-          contentEditorFiles.length > 0 || allFiles ? (
-            <ContentEditorFilesSidebar
-              className="hidden w-[17.5rem] shrink-0 lg:flex"
-              files={contentEditorFiles}
-              selectedSourcePath={sourcePath}
-              onSelectFile={handleFileChange}
-              allFilesSelected={allFiles}
-              onSelectAllFiles={canUseAllFiles ? handleSelectAllFiles : undefined}
-              repositoryFullNames={enabledRepositoryFullNames}
-              selectedRepositoryFullName={selectedRepositoryFullName}
-              onRepositoryChange={handleRepositoryChange}
-            />
-          ) : undefined
-        }
-      >
-        <ProjectFileContentEditorWorkspace
-          key={`${allFiles ? CONTENT_EDITOR_ALL_FILES_SOURCE_PATH : sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}`}
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          sourceLocale={sourceLocale}
-          sourcePath={allFiles ? CONTENT_EDITOR_ALL_FILES_SOURCE_PATH : (sourcePath as string)}
-          externalResourceId={allFiles ? null : resolvedExternalResourceId}
-          resourceType={allFiles ? undefined : resolvedResourceType}
-          targetLocale={targetLocale}
-          targetLocales={workspaceTargetLocales}
-          highlightLocale={highlightLocale}
-          repositoryFullName={selectedRepositoryFullName}
-          canLookupFreshContext={canLookupFreshCatRepositoryContext(
-            enabledRepositoryFullNames,
-            selectedRepositoryFullName,
-          )}
-          initialSegmentKey={initialSegmentKey}
-          initialQueueFilter={initialQueueFilter}
-          initialQueueSort={initialQueueSort}
-          initialSearch={initialSearch}
-          sourcePathsFilter={sourcePaths}
-          layout="fullscreen"
-          className="min-h-0 flex-1"
-          pageNavigationGuardRef={pageNavigationGuardRef}
-        />
-      </ContentEditorPageBody>
-    </main>
+  return (
+    <ContentEditorPageRoot
+      initialState={createContentEditorLoadingWorkspaceState({
+        sourcePath: resolvedSourcePath,
+        sourceLocale,
+        targetLocale,
+      })}
+      initialQueueFilter={initialQueueFilter}
+      initialQueueSort={initialQueueSort}
+      initialSearch={initialSearch}
+      chrome={{
+        files: contentEditorFiles,
+        selectedSourcePath: sourcePath,
+        allFiles,
+        canUseAllFiles,
+        targetLocale,
+        targetLocales: workspaceTargetLocales,
+        repositoryFullNames: enabledRepositoryFullNames,
+        selectedRepositoryFullName,
+        activitySourcePath: resolvedSourcePath,
+        organizationSlug,
+        projectId,
+        showFileSidebar: contentEditorFiles.length > 0 || allFiles,
+      }}
+      backHref={filesHref}
+      actions={pageActions}
+      banners={
+        <>
+          {repositoryBanner}
+          {localeFallbackMessage ? (
+            <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+              <TypographyP size="xsmall" tone="subtle">
+                {localeFallbackMessage}
+              </TypographyP>
+            </div>
+          ) : null}
+        </>
+      }
+    >
+      <ProjectFileContentEditorWorkspace
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        sourceLocale={sourceLocale}
+        sourcePath={resolvedSourcePath}
+        externalResourceId={allFiles ? null : resolvedExternalResourceId}
+        resourceType={allFiles ? undefined : resolvedResourceType}
+        targetLocale={targetLocale}
+        targetLocales={workspaceTargetLocales}
+        highlightLocale={highlightLocale}
+        repositoryFullName={selectedRepositoryFullName}
+        canLookupFreshContext={canLookupFreshCatRepositoryContext(
+          enabledRepositoryFullNames,
+          selectedRepositoryFullName,
+        )}
+        initialSegmentKey={initialSegmentKey}
+        initialQueueFilter={initialQueueFilter}
+        initialQueueSort={initialQueueSort}
+        initialSearch={initialSearch}
+        sourcePathsFilter={sourcePaths}
+        layout="fullscreen"
+        className="min-h-0 flex-1"
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+    </ContentEditorPageRoot>
   );
 }

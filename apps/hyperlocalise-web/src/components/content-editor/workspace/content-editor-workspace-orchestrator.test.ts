@@ -1217,3 +1217,63 @@ describe("ContentEditorWorkspaceOrchestrator queue snapshot ingest", () => {
     expect(store.hasIngestedQueueSnapshot(sameIds)).toBe(true);
   });
 });
+
+describe("ContentEditorWorkspaceOrchestrator file scope", () => {
+  it("clears queue data and marks the translation view loading without dropping page chrome", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }),
+    );
+    store.page.applyChrome({
+      files: [],
+      selectedSourcePath: "app/dashboard/index.tsx",
+      allFiles: false,
+      canUseAllFiles: false,
+      targetLocale: "vi",
+      targetLocales: ["vi"],
+      repositoryFullNames: [],
+      selectedRepositoryFullName: null,
+      activitySourcePath: "app/dashboard/index.tsx",
+      organizationSlug: "acme",
+      projectId: "proj_1",
+      showFileSidebar: true,
+    });
+
+    expect(store.queueSegments.length).toBeGreaterThan(0);
+
+    store.prepareFileScopeChange({
+      sourcePath: "locales/messages.po",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+    });
+
+    expect(store.queueSegments).toEqual([]);
+    expect(store.selectedSegmentId).toBe("");
+    expect(store.ui.translationViewLoading).toBe(true);
+    expect(store.page.selectedSourcePath).toBe("locales/messages.po");
+    expect(store.page.targetLocale).toBe("fr-FR");
+    expect(store.page.showFileSidebar).toBe(true);
+    expect(store.page.organizationSlug).toBe("acme");
+
+    const nextSnapshot = createContentEditorWorkspaceState({
+      selectedSegmentId: "seg-01",
+      segments: [
+        {
+          id: "seg-01",
+          index: 1,
+          key: "hello",
+          sourceText: "Hello",
+          targetText: "Bonjour",
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          status: "pending",
+        },
+      ],
+      queueSegments: [{ id: "seg-01", index: 1, key: "hello", sourceText: "Hello" }],
+    });
+    store.ingestQueue(nextSnapshot);
+
+    expect(store.ui.translationViewLoading).toBe(false);
+    expect(store.queueSegments.map((segment) => segment.id)).toEqual(["seg-01"]);
+    expect(store.page.showFileSidebar).toBe(true);
+  });
+});

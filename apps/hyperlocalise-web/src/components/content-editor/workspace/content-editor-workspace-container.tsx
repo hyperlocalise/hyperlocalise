@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { observer } from "mobx-react-lite";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
@@ -52,6 +52,7 @@ import { ContentEditorWorkspaceView } from "./content-editor-workspace";
 import {
   ContentEditorWorkspaceProvider,
   useContentEditorWorkspace,
+  useOptionalCatWorkspace,
 } from "./content-editor-workspace-context";
 import type { ContentEditorWorkspaceOrchestrator } from "./content-editor-workspace-orchestrator";
 import type { ContentEditorPageNavigationGuardRef } from "./content-editor-page-navigation-guard";
@@ -108,6 +109,8 @@ export interface ContentEditorWorkspaceContainerProps {
   nativeIssuesEnabled?: boolean;
   onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
   isDownloadingFilteredView?: boolean;
+  /** Stable identity for the open file/locale. Changing this resets workspace data only. */
+  fileScopeKey?: string;
 }
 
 const ContentEditorWorkspaceContainerObserver = observer(
@@ -147,6 +150,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
     nativeIssuesEnabled = false,
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
+    fileScopeKey,
   }: ContentEditorWorkspaceContainerProps & { store: ContentEditorWorkspaceOrchestrator }) {
     const controller = useContentEditorWorkspaceRuntime({
       store,
@@ -185,7 +189,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
     const resolvedQueueDataPending =
       isQueueDataPending ?? legacyIsQueueLoading ?? resolvedQueueListLoading;
 
-    useEffect(() => {
+    useLayoutEffect(() => {
       store.ui.setTranslationViewLoading(Boolean(isTranslationViewLoading));
     }, [isTranslationViewLoading, store]);
 
@@ -200,6 +204,13 @@ const ContentEditorWorkspaceContainerObserver = observer(
         {onPageLimitChange ? (
           <ContentEditorWorkspaceViewModeSync onPageLimitChange={onPageLimitChange} />
         ) : null}
+        <ContentEditorFileScopeSync
+          store={store}
+          fileScopeKey={fileScopeKey}
+          sourcePath={lazySegment?.sourcePath ?? store.fileContext.sourcePath}
+          sourceLocale={store.fileContext.sourceLocale}
+          targetLocale={lazySegment?.targetLocale ?? store.fileContext.targetLocale}
+        />
         <ContentEditorQueryBridge
           snapshot={queueSnapshot ?? null}
           initialSegmentKeyOrId={initialSegmentKeyOrId}
@@ -384,6 +395,42 @@ const ContentEditorWorkspaceContainerObserver = observer(
   },
 );
 
+function ContentEditorFileScopeSync({
+  store,
+  fileScopeKey,
+  sourcePath,
+  sourceLocale,
+  targetLocale,
+}: {
+  store: ContentEditorWorkspaceOrchestrator;
+  fileScopeKey?: string;
+  sourcePath: string;
+  sourceLocale: string;
+  targetLocale: string;
+}) {
+  const lastScopeKeyRef = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    if (!fileScopeKey) {
+      return;
+    }
+
+    if (lastScopeKeyRef.current === null) {
+      lastScopeKeyRef.current = fileScopeKey;
+      return;
+    }
+
+    if (lastScopeKeyRef.current === fileScopeKey) {
+      return;
+    }
+
+    lastScopeKeyRef.current = fileScopeKey;
+    store.prepareFileScopeChange({ sourcePath, sourceLocale, targetLocale });
+  }, [fileScopeKey, sourceLocale, sourcePath, store, targetLocale]);
+
+  return null;
+}
+
 export function ContentEditorWorkspaceContainer({
   initialState,
   initialSegmentKeyOrId,
@@ -393,6 +440,23 @@ export function ContentEditorWorkspaceContainer({
   queueSort,
   ...props
 }: ContentEditorWorkspaceContainerProps) {
+  const existingStore = useOptionalCatWorkspace();
+  const inner = (
+    <ContentEditorWorkspaceContainerInner
+      initialState={initialState}
+      initialSegmentKeyOrId={initialSegmentKeyOrId}
+      initialViewMode={initialViewMode}
+      queueFilter={queueFilter}
+      queueSearch={queueSearch}
+      queueSort={queueSort}
+      {...props}
+    />
+  );
+
+  if (existingStore) {
+    return inner;
+  }
+
   return (
     <ContentEditorWorkspaceProvider
       initialState={initialState}
@@ -402,15 +466,7 @@ export function ContentEditorWorkspaceContainer({
       initialQueueSort={queueSort}
       initialSearch={queueSearch}
     >
-      <ContentEditorWorkspaceContainerInner
-        initialState={initialState}
-        initialSegmentKeyOrId={initialSegmentKeyOrId}
-        initialViewMode={initialViewMode}
-        queueFilter={queueFilter}
-        queueSearch={queueSearch}
-        queueSort={queueSort}
-        {...props}
-      />
+      {inner}
     </ContentEditorWorkspaceProvider>
   );
 }
