@@ -38,8 +38,15 @@ import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapt
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
+import {
+  reviewGlossaryConcept,
+  reviewGlossaryTerm,
+  setGlossaryConceptArchived,
+  setGlossaryTermArchived,
+} from "@/lib/glossary/native-glossary-maintenance";
 import { listGlossaryConceptsPage } from "./glossary-concept-page";
 import { listGlossaryHistoryPage } from "./glossary-history-page";
+import { listGlossaryTermsPage } from "./glossary-term-page";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { toNativeGlossaryLocale } from "@/lib/providers/adapters/crowdin/crowdin-glossary-language";
 import {
@@ -54,6 +61,9 @@ import {
   createGlossaryConceptTermBodySchema,
   glossaryConceptPageQuerySchema,
   glossaryHistoryQuerySchema,
+  glossaryReviewBodySchema,
+  glossaryArchiveBodySchema,
+  glossaryTermPageQuerySchema,
   glossaryIdParamsSchema,
   glossaryConceptIdParamsSchema,
   glossaryConceptTermIdParamsSchema,
@@ -73,6 +83,7 @@ import {
   glossaryNotFoundResponse,
   invalidGlossaryPayloadResponse,
   isGlossaryManageAllowed,
+  isGlossaryReviewAllowed,
   nativeGlossaryConceptsOnlyResponse,
 } from "./glossary.shared";
 
@@ -135,6 +146,9 @@ function toCrowdinTermRecord(
     gender?: string | null;
     url?: string | null;
     lemma?: string | null;
+    provenance?: "manual" | "sync";
+    reviewStatus?: string;
+    reviewReason?: string | null;
     userId?: number | null;
     createdAt?: string | null;
     updatedAt?: string | null;
@@ -159,9 +173,10 @@ function toCrowdinTermRecord(
     status: localStatus(term.status),
     caseSensitive: false,
     forbidden: false,
-    provenance: "sync",
+    provenance: term.provenance ?? "sync",
     externalKey: String(term.id),
-    reviewStatus: "draft",
+    reviewStatus: term.reviewStatus ?? "approved",
+    reviewReason: term.reviewReason ?? null,
     externalUserId: term.userId == null ? null : String(term.userId),
     externalCreatedAt: createdAt,
     externalUpdatedAt: updatedAt,
@@ -193,6 +208,8 @@ function toCrowdinConceptRecord(
     }>;
     externalCreatedAt?: string | null;
     externalUpdatedAt?: string | null;
+    reviewStatus?: string;
+    reviewReason?: string | null;
     terms: Array<{
       id?: number | string;
       locale: string;
@@ -237,6 +254,8 @@ function toCrowdinConceptRecord(
     })),
     externalCreatedAt: createdAt,
     externalUpdatedAt: updatedAt,
+    reviewStatus: value.reviewStatus ?? "approved",
+    reviewReason: value.reviewReason ?? null,
     createdAt,
     updatedAt,
     terms: value.terms.map((term) => toCrowdinTermRecord(glossary, conceptId, term)),
@@ -521,7 +540,12 @@ export function createGlossaryConceptRoutes(
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         let created;
         try {
-          created = await product.createConcept(payload);
+          created = await product.createConcept({
+            ...payload,
+            reviewStatus:
+              payload.reviewStatus ??
+              (isGlossaryReviewAllowed(c.var.auth.membership.role) ? "approved" : "proposed"),
+          });
         } catch (error) {
           const response = glossaryValidationErrorResponse(c, error);
           if (response) return response;
@@ -902,6 +926,168 @@ export function createGlossaryConceptRoutes(
         );
       },
     )
+    .post(
+      "/:conceptId/review",
+      validator("param", validateConceptParams),
+      validator("json", (value, c) => validateJson(glossaryReviewBodySchema, value, c)),
+      async (c) => {
+        const { glossaryId, conceptId } = c.req.valid("param");
+        const payload = c.req.valid("json");
+        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+        if (!glossary) return glossaryNotFoundResponse(c);
+        if (glossary.source !== "native") return externalTmsGlossaryImmutableResponse(c);
+        if (!isGlossaryReviewAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return externalTmsGlossaryImmutableResponse(c);
+        const result = await reviewGlossaryConcept({
+          glossaryId,
+          conceptId,
+          actorUserId: c.var.auth.user.localUserId,
+          ...payload,
+        });
+        if (!result.ok) {
+          if (result.code === "not_found") return glossaryNotFoundResponse(c);
+          if (result.code === "version_conflict") {
+            return conflictResponse(
+              c,
+              "glossary_version_conflict",
+              "The concept changed; reload and try again",
+              {
+                currentVersion: result.currentVersion,
+              },
+            );
+          }
+          return badRequestResponse(
+            c,
+            `glossary_${result.code}`,
+            "The review decision is not valid",
+          );
+        }
+        const concept = await product.getConcept(conceptId);
+        return concept
+          ? c.json({ concept: toGlossaryConceptRecord(glossary, concept) }, 200)
+          : glossaryNotFoundResponse(c);
+      },
+    )
+    .post(
+      "/:conceptId/archive",
+      validator("param", validateConceptParams),
+      validator("json", (value, c) => validateJson(glossaryArchiveBodySchema, value, c)),
+      async (c) => {
+        const { glossaryId, conceptId } = c.req.valid("param");
+        const payload = c.req.valid("json");
+        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+        if (!glossary) return glossaryNotFoundResponse(c);
+        if (glossary.source !== "native") return externalTmsGlossaryImmutableResponse(c);
+        if (!isGlossaryReviewAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return externalTmsGlossaryImmutableResponse(c);
+        const result = await setGlossaryConceptArchived({
+          glossaryId,
+          conceptId,
+          actorUserId: c.var.auth.user.localUserId,
+          ...payload,
+        });
+        if (!result.ok) {
+          if (result.code === "not_found") return glossaryNotFoundResponse(c);
+          return conflictResponse(
+            c,
+            "glossary_version_conflict",
+            "The concept changed; reload and try again",
+            {
+              currentVersion: result.currentVersion,
+            },
+          );
+        }
+        const concept = await product.getConcept(conceptId);
+        return concept
+          ? c.json({ concept: toGlossaryConceptRecord(glossary, concept) }, 200)
+          : glossaryNotFoundResponse(c);
+      },
+    )
+    .post(
+      "/:conceptId/terms/:termId/review",
+      validator("param", validateConceptTermParams),
+      validator("json", (value, c) => validateJson(glossaryReviewBodySchema, value, c)),
+      async (c) => {
+        const { glossaryId, conceptId, termId } = c.req.valid("param");
+        const payload = c.req.valid("json");
+        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+        if (!glossary) return glossaryNotFoundResponse(c);
+        if (glossary.source !== "native") return externalTmsGlossaryImmutableResponse(c);
+        if (!isGlossaryReviewAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return externalTmsGlossaryImmutableResponse(c);
+        const result = await reviewGlossaryTerm({
+          glossaryId,
+          conceptId,
+          termId,
+          actorUserId: c.var.auth.user.localUserId,
+          ...payload,
+        });
+        if (!result.ok) {
+          if (result.code === "not_found") return glossaryNotFoundResponse(c);
+          if (result.code === "version_conflict") {
+            return conflictResponse(
+              c,
+              "glossary_version_conflict",
+              "The term changed; reload and try again",
+              {
+                currentVersion: result.currentVersion,
+              },
+            );
+          }
+          return badRequestResponse(
+            c,
+            `glossary_${result.code}`,
+            "The review decision is not valid",
+          );
+        }
+        const concept = await product.getConcept(conceptId);
+        const term = concept?.terms.find((candidate) => String(candidate.id) === termId);
+        return term
+          ? c.json({ term: toGlossaryTermRecord(glossary, conceptId, term) }, 200)
+          : glossaryNotFoundResponse(c);
+      },
+    )
+    .post(
+      "/:conceptId/terms/:termId/archive",
+      validator("param", validateConceptTermParams),
+      validator("json", (value, c) => validateJson(glossaryArchiveBodySchema, value, c)),
+      async (c) => {
+        const { glossaryId, conceptId, termId } = c.req.valid("param");
+        const payload = c.req.valid("json");
+        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+        if (!glossary) return glossaryNotFoundResponse(c);
+        if (glossary.source !== "native") return externalTmsGlossaryImmutableResponse(c);
+        if (!isGlossaryReviewAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return externalTmsGlossaryImmutableResponse(c);
+        const result = await setGlossaryTermArchived({
+          glossaryId,
+          conceptId,
+          termId,
+          actorUserId: c.var.auth.user.localUserId,
+          ...payload,
+        });
+        if (!result.ok) {
+          if (result.code === "not_found") return glossaryNotFoundResponse(c);
+          return conflictResponse(
+            c,
+            "glossary_version_conflict",
+            "The term changed; reload and try again",
+            {
+              currentVersion: result.currentVersion,
+            },
+          );
+        }
+        const concept = await product.getConcept(conceptId);
+        const term = concept?.terms.find((candidate) => String(candidate.id) === termId);
+        return term
+          ? c.json({ term: toGlossaryTermRecord(glossary, conceptId, term) }, 200)
+          : glossaryNotFoundResponse(c);
+      },
+    )
     .get("/:conceptId", validator("param", validateConceptParams), async (c) => {
       const { glossaryId, conceptId } = c.req.valid("param");
       const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
@@ -912,6 +1098,28 @@ export function createGlossaryConceptRoutes(
       if (!concept) return glossaryNotFoundResponse(c);
       return c.json({ concept: toGlossaryConceptRecord(glossary, concept) }, 200);
     })
+    .get(
+      "/:conceptId/terms/page",
+      validator("param", validateConceptParams),
+      validator("query", (value, c) => {
+        const parsed = glossaryTermPageQuerySchema.safeParse(value);
+        return parsed.success ? parsed.data : invalidGlossaryPayloadResponse(c);
+      }),
+      async (c) => {
+        const { glossaryId, conceptId } = c.req.valid("param");
+        const query = c.req.valid("query");
+        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+        if (!glossary) return glossaryNotFoundResponse(c);
+        if (glossary.source !== "native") return nativeGlossaryConceptsOnlyResponse(c);
+        const concept = await getGlossaryProduct({ auth: c.var.auth, glossary })?.getConcept(
+          conceptId,
+        );
+        if (!concept) return glossaryNotFoundResponse(c);
+        const page = await listGlossaryTermsPage(glossaryId, query, conceptId);
+        if ("code" in page) return badRequestResponse(c, page.code, page.message);
+        return c.json(page, 200);
+      },
+    )
     .patch(
       "/:conceptId",
       validator("param", validateConceptParams),
@@ -954,8 +1162,20 @@ export function createGlossaryConceptRoutes(
                     url: term.url !== undefined ? (term.url ?? undefined) : existing?.url,
                     lemma: term.lemma !== undefined ? (term.lemma ?? undefined) : existing?.lemma,
                     forbidden: term.forbidden ?? existing?.forbidden ?? false,
+                    reviewStatus:
+                      term.reviewStatus ??
+                      (isGlossaryReviewAllowed(c.var.auth.membership.role)
+                        ? existing?.reviewStatus
+                        : "proposed"),
+                    reviewReason: term.reviewReason ?? existing?.reviewReason,
                   };
                 }),
+          reviewStatus:
+            payload.reviewStatus ??
+            (isGlossaryReviewAllowed(c.var.auth.membership.role)
+              ? current.reviewStatus
+              : "proposed"),
+          reviewReason: payload.reviewReason ?? current.reviewReason,
         } satisfies GlossaryConcept;
         let updated;
         try {
@@ -1026,6 +1246,10 @@ export function createGlossaryConceptRoutes(
             gender: payload.gender ?? undefined,
             url: payload.url ?? undefined,
             lemma: payload.lemma ?? undefined,
+            reviewStatus:
+              payload.reviewStatus ??
+              (isGlossaryReviewAllowed(c.var.auth.membership.role) ? "approved" : "proposed"),
+            reviewReason: payload.reviewReason,
           });
         } catch (error) {
           const response = glossaryValidationErrorResponse(c, error);
@@ -1086,6 +1310,12 @@ export function createGlossaryConceptRoutes(
             url: payload.url ?? existing.url ?? "",
             lemma: payload.lemma ?? existing.lemma ?? "",
             forbidden: payload.forbidden ?? existing.forbidden ?? false,
+            reviewStatus:
+              payload.reviewStatus ??
+              (isGlossaryReviewAllowed(c.var.auth.membership.role)
+                ? existing.reviewStatus
+                : "proposed"),
+            reviewReason: payload.reviewReason ?? existing.reviewReason,
           });
         } catch (error) {
           const response = glossaryValidationErrorResponse(c, error);

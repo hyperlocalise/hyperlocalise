@@ -825,6 +825,12 @@ export function NativeGlossaryDetail({
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap items-center gap-2 font-medium">
                         {concept.primaryTerm}
+                        <Badge
+                          variant={concept.reviewStatus === "approved" ? "secondary" : "outline"}
+                          className="text-[10px] font-normal uppercase tracking-wide"
+                        >
+                          {concept.reviewStatus}
+                        </Badge>
                       </div>
                     </td>
                     <td className="max-w-xs truncate px-3 py-3 text-muted-foreground">

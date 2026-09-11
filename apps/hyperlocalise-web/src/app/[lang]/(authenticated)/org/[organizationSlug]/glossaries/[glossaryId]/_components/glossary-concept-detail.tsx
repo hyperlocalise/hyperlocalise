@@ -305,6 +305,8 @@ export function GlossaryConceptDetail({
   const [expandedTermIds, setExpandedTermIds] = useState<Set<string>>(new Set());
   const [expandedCreatingTermIds, setExpandedCreatingTermIds] = useState<Set<string>>(new Set());
   const [termToDeleteId, setTermToDeleteId] = useState<string | null>(null);
+  const [termCursor, setTermCursor] = useState<string | undefined>();
+  const [, setTermCursorStack] = useState<string[]>([]);
   const [conceptDraft, setConceptDraft] = useState<ConceptDraft>(emptyConceptDraft);
   const { glossaryQuery, glossary, canContribute, isConceptGlossary, sourceLanguage } = useGlossary(
     {
@@ -330,6 +332,29 @@ export function GlossaryConceptDetail({
       return (await response.json()).concept as GlossaryConceptRecord;
     },
   });
+  const termPageQuery = useQuery({
+    queryKey: ["glossary-concept-terms-page", organizationSlug, glossaryId, conceptId, termCursor],
+    enabled: Boolean(isConceptGlossary) && !isCreatingConcept,
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].concepts[":conceptId"].terms.page.$get({
+        param: { organizationSlug, glossaryId, conceptId },
+        query: {
+          limit: "100",
+          sort: "term",
+          sortDir: "asc",
+          includeArchived: "false",
+          ...(termCursor ? { cursor: termCursor } : {}),
+        },
+      });
+      if (!response.ok) {
+        throw await readApiResponseError(response, intl.formatMessage(messages.loadConceptsFailed));
+      }
+      return response.json();
+    },
+    placeholderData: (previous) => previous,
+  });
   const selectedConcept = conceptQuery.data ?? null;
   useEffect(() => {
     if (conceptId === "new") {
@@ -345,6 +370,8 @@ export function GlossaryConceptDetail({
       setNewTermDraft(emptyTermDraft);
       setExpandedTermIds(new Set());
       setExpandedCreatingTermIds(new Set());
+      setTermCursor(undefined);
+      setTermCursorStack([]);
     }
   }, [conceptId, sourceLanguage.locale]);
 
@@ -572,7 +599,13 @@ export function GlossaryConceptDetail({
 
   const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
   const availableTermLocales = availableConceptTermLocales();
-  const unsortedTermGroups = (selectedConcept?.terms ?? [])
+  const pagedTermIds = new Set(
+    (termPageQuery.isSuccess ? termPageQuery.data.terms : (selectedConcept?.terms ?? [])).map(
+      (term) => term.id,
+    ),
+  );
+  const displayedTerms = selectedConcept?.terms.filter((term) => pagedTermIds.has(term.id)) ?? [];
+  const unsortedTermGroups = displayedTerms
     .filter((term) => !deletedTermIds.has(term.id))
     .filter(
       (term) =>
@@ -598,6 +631,19 @@ export function GlossaryConceptDetail({
     termGroupsWithPendingLocale,
     sourceLanguage.locale,
   );
+  const goToNextTermPage = () => {
+    const nextCursor = termPageQuery.data?.nextCursor;
+    if (!nextCursor) return;
+    setTermCursorStack((current) => [...current, termCursor ?? ""]);
+    setTermCursor(nextCursor);
+  };
+  const goToPreviousTermPage = () => {
+    setTermCursorStack((current) => {
+      const next = [...current];
+      setTermCursor(next.pop() || undefined);
+      return next;
+    });
+  };
   const creatingTermGroups = sortConceptDetailTermGroups(
     creatingTermDrafts
       .filter(
@@ -1674,6 +1720,33 @@ export function GlossaryConceptDetail({
             </div>
           </div>
         </div>
+        {!isCreatingConcept &&
+        termPageQuery.isSuccess &&
+        (termPageQuery.data.pagination.hasMore || termCursor) ? (
+          <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!termCursor || termPageQuery.isFetching}
+              onClick={goToPreviousTermPage}
+            >
+              Previous terms
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {termPageQuery.data.pagination.returned} of {termPageQuery.data.total} terms
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!termPageQuery.data.nextCursor || termPageQuery.isFetching}
+              onClick={goToNextTermPage}
+            >
+              Next terms
+            </Button>
+          </div>
+        ) : null}
         {canContribute ? (
           <div className="flex w-full flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
             <Button

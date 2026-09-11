@@ -61,6 +61,24 @@ export const glossaryReviewStatusSchema = z.enum([
   "superseded",
 ]);
 
+export const glossaryReviewDecisionSchema = z.enum([
+  "proposed",
+  "approved",
+  "rejected",
+  "superseded",
+]);
+
+export const glossaryReviewBodySchema = z.object({
+  decision: glossaryReviewDecisionSchema,
+  reason: z.string().trim().max(10_000).nullable().optional(),
+  expectedVersion: z.number().int().positive().optional(),
+});
+
+export const glossaryArchiveBodySchema = z.object({
+  archived: z.boolean(),
+  expectedVersion: z.number().int().positive().optional(),
+});
+
 const queryBooleanSchema = z
   .union([z.boolean(), z.enum(["true", "false"])])
   .transform((value) => value === true || value === "true");
@@ -83,6 +101,17 @@ export const glossaryConceptPageQuerySchema = z.object({
   modifiedTo: z.string().datetime().optional(),
   includeArchived: queryBooleanSchema.default(false),
   sort: z.enum(["created_at", "updated_at", "primary_term"]).default("updated_at"),
+  sortDir: z.enum(["asc", "desc"]).default("desc"),
+});
+
+export const glossaryTermPageQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().trim().max(2_000).optional(),
+  search: z.string().trim().max(200).optional(),
+  locale: localeInputSchema.optional(),
+  reviewStatus: glossaryReviewStatusSchema.optional(),
+  includeArchived: queryBooleanSchema.default(false),
+  sort: z.enum(["created_at", "updated_at", "term"]).default("updated_at"),
   sortDir: z.enum(["asc", "desc"]).default("desc"),
 });
 
@@ -175,6 +204,8 @@ export const createGlossaryConceptTermBodySchema = z.object({
   description: z.string().max(10_000).optional(),
   caseSensitive: z.boolean().optional().default(false),
   forbidden: z.boolean().optional().default(false),
+  reviewStatus: glossaryReviewStatusSchema.optional(),
+  reviewReason: z.string().max(10_000).nullable().optional(),
 });
 
 export const createGlossaryConceptBodySchema = z.object({
@@ -186,6 +217,8 @@ export const createGlossaryConceptBodySchema = z.object({
   figure: z.string().url().max(2_000).optional().or(z.literal("")),
   url: z.string().url().max(2_000).optional().or(z.literal("")),
   terms: z.array(createGlossaryConceptTermBodySchema).max(1_000).optional(),
+  reviewStatus: glossaryReviewStatusSchema.optional(),
+  reviewReason: z.string().max(10_000).nullable().optional(),
 });
 
 export const upsertGlossaryConceptTermBodySchema = z.object({
@@ -202,6 +235,8 @@ export const upsertGlossaryConceptTermBodySchema = z.object({
   description: z.string().max(10_000).optional(),
   caseSensitive: z.boolean().optional(),
   forbidden: z.boolean().optional(),
+  reviewStatus: glossaryReviewStatusSchema.optional(),
+  reviewReason: z.string().max(10_000).nullable().optional(),
 });
 
 export const updateGlossaryConceptBodySchema = z
@@ -213,6 +248,8 @@ export const updateGlossaryConceptBodySchema = z
     note: z.string().max(10_000).optional(),
     figure: z.string().url().max(2_000).optional().or(z.literal("")),
     url: z.string().url().max(2_000).optional().or(z.literal("")),
+    reviewStatus: glossaryReviewStatusSchema.optional(),
+    reviewReason: z.string().max(10_000).nullable().optional(),
     terms: z.array(upsertGlossaryConceptTermBodySchema).max(1_000).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
@@ -233,6 +270,8 @@ export const updateGlossaryConceptTermBodySchema = z
     description: z.string().max(10_000).optional(),
     caseSensitive: z.boolean().optional(),
     forbidden: z.boolean().optional(),
+    reviewStatus: glossaryReviewStatusSchema.optional(),
+    reviewReason: z.string().max(10_000).nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "at least one field must be provided",
@@ -300,6 +339,7 @@ export const glossaryConceptTermRecordSchema = z.object({
   provenance: z.string(),
   externalKey: z.string().nullable().optional(),
   reviewStatus: z.string(),
+  reviewReason: z.string().nullable().optional(),
   externalUserId: z.string().nullable().optional(),
   externalCreatedAt: z.string().datetime().nullable().optional(),
   externalUpdatedAt: z.string().datetime().nullable().optional(),
@@ -336,6 +376,8 @@ export const glossaryConceptRecordSchema = z.object({
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   terms: z.array(glossaryConceptTermRecordSchema),
+  reviewStatus: glossaryReviewStatusSchema.optional(),
+  reviewReason: z.string().nullable().optional(),
 });
 
 export const glossaryProjectRecordSchema = z.object({
@@ -395,6 +437,33 @@ export const glossaryConceptPageResponseSchema = z.object({
   }),
 });
 
+export const glossaryTermSummarySchema = z.object({
+  id: z.string().uuid(),
+  glossaryId: z.string().uuid(),
+  conceptId: z.string().uuid().nullable(),
+  locale: z.string().nullable(),
+  term: z.string().nullable(),
+  description: z.string(),
+  note: z.string(),
+  reviewStatus: glossaryReviewStatusSchema,
+  provenance: z.string(),
+  version: z.number().int().positive(),
+  archivedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const glossaryTermPageResponseSchema = z.object({
+  terms: z.array(glossaryTermSummarySchema),
+  nextCursor: z.string().nullable(),
+  total: z.number().int().nonnegative(),
+  pagination: z.object({
+    limit: z.number().int().positive(),
+    returned: z.number().int().nonnegative(),
+    hasMore: z.boolean(),
+  }),
+});
+
 export const glossaryHistoryChangeSchema = z.object({
   field: z.string(),
   before: z.unknown(),
@@ -443,6 +512,7 @@ export type GlossaryConceptTermIdParams = z.infer<typeof glossaryConceptTermIdPa
 export type GlossaryProjectParams = z.infer<typeof glossaryProjectParamsSchema>;
 export type ListGlossaryQuery = z.infer<typeof listGlossaryQuerySchema>;
 export type GlossaryConceptPageQuery = z.infer<typeof glossaryConceptPageQuerySchema>;
+export type GlossaryTermPageQuery = z.infer<typeof glossaryTermPageQuerySchema>;
 export type GlossaryHistoryQuery = z.infer<typeof glossaryHistoryQuerySchema>;
 export type CreateGlossaryBody = z.infer<typeof createGlossaryBodySchema>;
 export type UpdateGlossaryBody = z.infer<typeof updateGlossaryBodySchema>;

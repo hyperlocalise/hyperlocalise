@@ -142,6 +142,9 @@ export type NativeGlossaryTermInput = {
   url?: string;
   lemma?: string;
   forbidden?: boolean;
+  reviewStatus?: "proposed" | "approved" | "rejected" | "superseded";
+  reviewReason?: string | null;
+  provenance?: "manual" | "sync";
 };
 
 export type GlossaryConceptTerm = NativeGlossaryTermInput & {
@@ -176,6 +179,8 @@ export type GlossaryConcept = {
   languageDetails?: NativeGlossaryLanguageDetails[];
   externalCreatedAt?: string | null;
   externalUpdatedAt?: string | null;
+  reviewStatus?: "proposed" | "approved" | "rejected" | "superseded";
+  reviewReason?: string | null;
   terms: GlossaryConceptTerm[];
 };
 
@@ -219,6 +224,8 @@ export type GlossaryConceptRequestTerm = {
   url?: string | null;
   lemma?: string | null;
   forbidden?: boolean;
+  reviewStatus?: "proposed" | "approved" | "rejected" | "superseded";
+  reviewReason?: string | null;
 };
 
 export type GlossaryConceptInput = {
@@ -230,6 +237,8 @@ export type GlossaryConceptInput = {
   note?: string;
   url?: string | null;
   figure?: string | null;
+  reviewStatus?: "proposed" | "approved" | "rejected" | "superseded";
+  reviewReason?: string | null;
   terms?: Array<GlossaryConceptRequestTerm | GlossaryConceptTerm>;
 };
 

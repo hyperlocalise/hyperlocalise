@@ -47,6 +47,7 @@ import type {
   NativeGlossaryTermInput,
   GlossaryProjectRecord,
 } from "./glossary";
+import type { GlossaryHistoryChange } from "@/lib/database/schema/glossary-history";
 
 const concordanceSourceTerms = alias(schema.glossaryTerms, "concordance_native_source_terms");
 const NATIVE_CONCORDANCE_CANDIDATE_PAGE_SIZE = 200;
@@ -283,6 +284,8 @@ function toNativeConceptInput(input: GlossaryConceptInput, sourceLocale: string)
     note: input.note,
     url: input.url,
     figure: input.figure,
+    reviewStatus: input.reviewStatus,
+    reviewReason: input.reviewReason,
     terms: (input.terms ?? []).map((term) => {
       if ("term" in term) {
         return {
@@ -298,6 +301,8 @@ function toNativeConceptInput(input: GlossaryConceptInput, sourceLocale: string)
           url: term.url || undefined,
           lemma: term.lemma ?? undefined,
           forbidden: term.forbidden,
+          reviewStatus: term.reviewStatus,
+          reviewReason: term.reviewReason,
         };
       }
       return { ...term };
@@ -525,6 +530,32 @@ export class NativeGlossary extends Glossary {
     return glossaryRow ?? null;
   }
 
+  private async recordHistoryEvent(
+    database: DatabaseClient,
+    input: {
+      conceptId?: string;
+      termId?: string;
+      eventType: string;
+      version: number;
+      changedFields: string[];
+      changes?: GlossaryHistoryChange[];
+    },
+  ) {
+    await database.insert(schema.glossaryHistoryEvents).values({
+      organizationId: this.input.auth.organization.localOrganizationId,
+      glossaryId: this.input.glossary.id,
+      conceptId: input.conceptId,
+      termId: input.termId,
+      eventType: input.eventType,
+      actorKind: "user",
+      actorUserId: this.input.auth.user.localUserId,
+      version: input.version,
+      changedFields: input.changedFields,
+      changes: input.changes ?? [],
+      attributes: { origin: "native_ui" },
+    });
+  }
+
   private async loadConcept(conceptId: string, database: DatabaseClient = db) {
     const [concept] = await database
       .select()
@@ -578,6 +609,8 @@ export class NativeGlossary extends Glossary {
         createdAt: detail.createdAt,
         updatedAt: detail.updatedAt,
       })),
+      reviewStatus: loaded.concept.reviewStatus as GlossaryConcept["reviewStatus"],
+      reviewReason: loaded.concept.reviewReason,
       terms: loaded.terms.map((term) => ({
         id: term.id,
         locale: term.locale ?? "",
@@ -591,6 +624,9 @@ export class NativeGlossary extends Glossary {
         url: term.url ?? undefined,
         lemma: term.lemma ?? undefined,
         forbidden: term.forbidden,
+        provenance: term.provenance,
+        reviewStatus: term.reviewStatus as NativeGlossaryTermInput["reviewStatus"],
+        reviewReason: term.reviewReason,
         createdAt: term.createdAt.toISOString(),
         updatedAt: term.updatedAt.toISOString(),
       })),
@@ -611,6 +647,9 @@ export class NativeGlossary extends Glossary {
       url: term.url ?? undefined,
       lemma: term.lemma ?? undefined,
       forbidden: term.forbidden,
+      provenance: term.provenance,
+      reviewStatus: term.reviewStatus as NativeGlossaryTermInput["reviewStatus"],
+      reviewReason: term.reviewReason,
       createdAt: term.createdAt.toISOString(),
       updatedAt: term.updatedAt.toISOString(),
     };
@@ -705,6 +744,10 @@ export class NativeGlossary extends Glossary {
           url: normalizedInput.url || null,
           figure: normalizedInput.figure || null,
           languageDetails: normalizedInput.languageDetails ?? [],
+          createdByUserId: this.input.actorUserId ?? this.input.auth.user.localUserId,
+          modifiedByUserId: this.input.actorUserId ?? this.input.auth.user.localUserId,
+          reviewStatus: normalizedInput.reviewStatus ?? "approved",
+          reviewReason: normalizedInput.reviewReason ?? null,
         })
         .returning();
       if (normalizedInput.terms.length > 0) {
@@ -726,9 +769,25 @@ export class NativeGlossary extends Glossary {
             status: term.status ?? "draft",
             forbidden: term.forbidden ?? false,
             provenance: "manual" as const,
+            createdByUserId: this.input.actorUserId ?? this.input.auth.user.localUserId,
+            modifiedByUserId: this.input.actorUserId ?? this.input.auth.user.localUserId,
+            reviewStatus: term.reviewStatus ?? "approved",
+            reviewReason: term.reviewReason ?? null,
           })),
         );
       }
+      await this.recordHistoryEvent(tx, {
+        conceptId: concept.id,
+        eventType: "concept_created",
+        version: concept.version,
+        changedFields: ["concept", "terms"],
+        changes: [
+          { field: "primaryTerm", before: null, after: concept.primaryTerm },
+          { field: "subject", before: null, after: concept.subject },
+          { field: "definition", before: null, after: concept.definition },
+          { field: "terms", before: 0, after: normalizedInput.terms.length },
+        ],
+      });
       return concept;
     });
     if (!created) {
@@ -760,6 +819,14 @@ export class NativeGlossary extends Glossary {
           url: normalizedInput.url || null,
           figure: normalizedInput.figure || null,
           languageDetails: normalizedInput.languageDetails ?? [],
+          version: sql`${schema.glossaryConcepts.version} + 1`,
+          modifiedByUserId: this.input.actorUserId ?? this.input.auth.user.localUserId,
+          ...(normalizedInput.reviewStatus !== undefined
+            ? { reviewStatus: normalizedInput.reviewStatus }
+            : {}),
+          ...(normalizedInput.reviewReason !== undefined
+            ? { reviewReason: normalizedInput.reviewReason }
+            : {}),
         })
         .where(eq(schema.glossaryConcepts.id, conceptId));
       // Match Crowdin concept PATCH reconcile: terms present in the payload are
@@ -785,6 +852,17 @@ export class NativeGlossary extends Glossary {
           lemma: term.lemma ?? null,
           status: term.status ?? "draft",
           forbidden: term.forbidden ?? existing?.forbidden ?? false,
+          modifiedByUserId: this.input.actorUserId ?? this.input.auth.user.localUserId,
+          ...(term.reviewStatus !== undefined
+            ? { reviewStatus: term.reviewStatus }
+            : existing
+              ? { reviewStatus: existing.reviewStatus }
+              : { reviewStatus: "approved" as const }),
+          ...(term.reviewReason !== undefined
+            ? { reviewReason: term.reviewReason }
+            : existing
+              ? { reviewReason: existing.reviewReason }
+              : { reviewReason: null }),
         };
         if (existing) {
           retainedIds.add(existing.id);
@@ -798,6 +876,7 @@ export class NativeGlossary extends Glossary {
             conceptId,
             ...values,
             provenance: "manual" as const,
+            createdByUserId: this.input.actorUserId ?? this.input.auth.user.localUserId,
           });
         }
       }
@@ -816,6 +895,39 @@ export class NativeGlossary extends Glossary {
             ),
           );
       }
+      await this.recordHistoryEvent(tx, {
+        conceptId,
+        eventType: "concept_updated",
+        version: loaded.concept.version + 1,
+        changedFields: [
+          "primaryTerm",
+          "subject",
+          "definition",
+          "translatable",
+          "note",
+          "url",
+          "figure",
+          "terms",
+        ],
+        changes: [
+          {
+            field: "primaryTerm",
+            before: loaded.concept.primaryTerm,
+            after: normalizedInput.primaryTerm,
+          },
+          {
+            field: "subject",
+            before: loaded.concept.subject,
+            after: normalizedInput.subject ?? "",
+          },
+          {
+            field: "definition",
+            before: loaded.concept.definition,
+            after: normalizedInput.definition ?? "",
+          },
+          { field: "terms", before: loaded.terms.length, after: normalizedInput.terms.length },
+        ],
+      });
       return true;
     });
     if (!updated) return null;
@@ -823,16 +935,37 @@ export class NativeGlossary extends Glossary {
   }
 
   async deleteConcept(conceptId: string) {
-    const deleted = await db
-      .delete(schema.glossaryConcepts)
-      .where(
-        and(
-          eq(schema.glossaryConcepts.id, conceptId),
-          eq(schema.glossaryConcepts.glossaryId, this.input.glossary.id),
-        ),
-      )
-      .returning({ id: schema.glossaryConcepts.id });
-    return deleted.length > 0;
+    return db.transaction(async (tx) => {
+      const [current] = await tx
+        .select({
+          id: schema.glossaryConcepts.id,
+          version: schema.glossaryConcepts.version,
+          primaryTerm: schema.glossaryConcepts.primaryTerm,
+          subject: schema.glossaryConcepts.subject,
+          definition: schema.glossaryConcepts.definition,
+        })
+        .from(schema.glossaryConcepts)
+        .where(
+          and(
+            eq(schema.glossaryConcepts.id, conceptId),
+            eq(schema.glossaryConcepts.glossaryId, this.input.glossary.id),
+          ),
+        );
+      if (!current) return false;
+      await this.recordHistoryEvent(tx, {
+        conceptId,
+        eventType: "concept_deleted",
+        version: current.version + 1,
+        changedFields: ["concept", "terms"],
+        changes: [
+          { field: "primaryTerm", before: current.primaryTerm, after: null },
+          { field: "subject", before: current.subject, after: null },
+          { field: "definition", before: current.definition, after: null },
+        ],
+      });
+      await tx.delete(schema.glossaryConcepts).where(eq(schema.glossaryConcepts.id, conceptId));
+      return true;
+    });
   }
 
   async importConcepts(entries: GlossaryConceptImportEntry[]) {
@@ -1135,6 +1268,19 @@ export class NativeGlossary extends Glossary {
           provenance: "manual" as const,
         })
         .returning();
+      if (created) {
+        await this.recordHistoryEvent(tx, {
+          conceptId,
+          termId: created.id,
+          eventType: "term_created",
+          version: created.version,
+          changedFields: ["term"],
+          changes: [
+            { field: "locale", before: null, after: created.locale },
+            { field: "term", before: null, after: created.term },
+          ],
+        });
+      }
       return created ?? null;
     });
     return term ? this.toTermRecord(term) : null;
@@ -1142,48 +1288,108 @@ export class NativeGlossary extends Glossary {
 
   async updateTerm(conceptId: string, termId: string, input: NativeGlossaryTermInput) {
     const normalizedInput = normalizeNativeTerm(input);
-    const [term] = await db
-      .update(schema.glossaryTerms)
-      .set({
-        locale: normalizedInput.locale,
-        term: normalizedInput.text,
-        sourceTerm: normalizedInput.text,
-        targetTerm: normalizedInput.text,
-        description: normalizedInput.description ?? "",
-        note: normalizedInput.note ?? "",
-        partOfSpeech: normalizedInput.partOfSpeech ?? "",
-        gender: normalizedInput.gender ?? null,
-        termType: normalizedInput.type ?? null,
-        url: normalizedInput.url ?? null,
-        lemma: normalizedInput.lemma ?? null,
-        status: normalizedInput.status ?? "draft",
-        ...(normalizedInput.forbidden === undefined
-          ? {}
-          : { forbidden: normalizedInput.forbidden }),
-      })
-      .where(
-        and(
-          eq(schema.glossaryTerms.id, termId),
-          eq(schema.glossaryTerms.conceptId, conceptId),
-          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-        ),
-      )
-      .returning();
-    return term ? this.toTermRecord(term) : null;
+    return db.transaction(async (tx) => {
+      const [before] = await tx
+        .select()
+        .from(schema.glossaryTerms)
+        .where(
+          and(
+            eq(schema.glossaryTerms.id, termId),
+            eq(schema.glossaryTerms.conceptId, conceptId),
+            eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+          ),
+        );
+      if (!before) return null;
+      const [term] = await tx
+        .update(schema.glossaryTerms)
+        .set({
+          locale: normalizedInput.locale,
+          term: normalizedInput.text,
+          sourceTerm: normalizedInput.text,
+          targetTerm: normalizedInput.text,
+          description: normalizedInput.description ?? "",
+          note: normalizedInput.note ?? "",
+          partOfSpeech: normalizedInput.partOfSpeech ?? "",
+          gender: normalizedInput.gender ?? null,
+          termType: normalizedInput.type ?? null,
+          url: normalizedInput.url ?? null,
+          lemma: normalizedInput.lemma ?? null,
+          status: normalizedInput.status ?? "draft",
+          ...(normalizedInput.forbidden === undefined
+            ? {}
+            : { forbidden: normalizedInput.forbidden }),
+          version: sql`${schema.glossaryTerms.version} + 1`,
+          modifiedByUserId: this.input.actorUserId ?? this.input.auth.user.localUserId,
+          ...(normalizedInput.reviewStatus !== undefined
+            ? { reviewStatus: normalizedInput.reviewStatus }
+            : {}),
+          ...(normalizedInput.reviewReason !== undefined
+            ? { reviewReason: normalizedInput.reviewReason }
+            : {}),
+        })
+        .where(
+          and(
+            eq(schema.glossaryTerms.id, termId),
+            eq(schema.glossaryTerms.conceptId, conceptId),
+            eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+          ),
+        )
+        .returning();
+      if (term) {
+        await this.recordHistoryEvent(tx, {
+          conceptId,
+          termId,
+          eventType: "term_updated",
+          version: term.version,
+          changedFields: [
+            "locale",
+            "term",
+            "description",
+            "note",
+            "partOfSpeech",
+            "gender",
+            "termType",
+            "url",
+            "lemma",
+            "status",
+            "forbidden",
+          ],
+          changes: [
+            { field: "term", before: before.term, after: term.term },
+            { field: "locale", before: before.locale, after: term.locale },
+            { field: "description", before: before.description, after: term.description },
+            { field: "reviewStatus", before: before.reviewStatus, after: term.reviewStatus },
+          ],
+        });
+      }
+      return term ? this.toTermRecord(term) : null;
+    });
   }
 
   async deleteTerm(conceptId: string, termId: string) {
-    const deleted = await db
-      .delete(schema.glossaryTerms)
-      .where(
-        and(
-          eq(schema.glossaryTerms.id, termId),
-          eq(schema.glossaryTerms.conceptId, conceptId),
-          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-        ),
-      )
-      .returning({ id: schema.glossaryTerms.id });
-    return deleted.length > 0;
+    return db.transaction(async (tx) => {
+      const [current] = await tx
+        .select({ id: schema.glossaryTerms.id, version: schema.glossaryTerms.version })
+        .from(schema.glossaryTerms)
+        .where(
+          and(
+            eq(schema.glossaryTerms.id, termId),
+            eq(schema.glossaryTerms.conceptId, conceptId),
+            eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+          ),
+        );
+      if (!current) return false;
+      await this.recordHistoryEvent(tx, {
+        conceptId,
+        termId,
+        eventType: "term_deleted",
+        version: current.version + 1,
+        changedFields: ["term"],
+        changes: [{ field: "term", before: current.id, after: null }],
+      });
+      await tx.delete(schema.glossaryTerms).where(eq(schema.glossaryTerms.id, termId));
+      return true;
+    });
   }
 
   async searchConcordance(

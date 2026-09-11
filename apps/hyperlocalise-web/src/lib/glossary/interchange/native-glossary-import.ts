@@ -13,6 +13,7 @@
 import { and, eq, notInArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import type { GlossaryHistoryChange } from "@/lib/database/schema/glossary-history";
 import {
   diagnostic,
   emptyImportReportCounts,
@@ -296,6 +297,7 @@ export async function applyNativeGlossaryImport(input: {
   );
   const retainedConceptIds = new Set<string>();
   const retainedTermIds = new Set<string>();
+  const historyChanges: GlossaryHistoryChange[] = [];
   let mutated = false;
 
   let backupCleanup: (() => Promise<void>) | undefined;
@@ -307,6 +309,7 @@ export async function applyNativeGlossaryImport(input: {
       .limit(1)
       .for("update");
     if (!glossary) throw new Error("glossary_not_found");
+    const actorUserId = input.report?.createdByUserId ?? null;
     const existingConcepts = await tx
       .select()
       .from(schema.glossaryConcepts)
@@ -507,9 +510,23 @@ export async function applyNativeGlossaryImport(input: {
             : existing
               ? { updatedAt: existing.updatedAt }
               : {}),
+          ...(actorUserId ? { modifiedByUserId: actorUserId } : {}),
         };
         let concept = existing;
         if (concept) {
+          for (const field of [
+            "primaryTerm",
+            "subject",
+            "definition",
+            "translatable",
+            "note",
+          ] as const) {
+            const before = concept[field];
+            const after = conceptValues[field];
+            if (JSON.stringify(before) !== JSON.stringify(after)) {
+              historyChanges.push({ field: `concept.${field}`, before, after });
+            }
+          }
           await tx
             .update(schema.glossaryConcepts)
             .set(conceptUpdateValues)
@@ -525,6 +542,9 @@ export async function applyNativeGlossaryImport(input: {
               ...conceptValues,
               ...(conceptCreatedAt !== undefined ? { createdAt: conceptCreatedAt } : {}),
               ...(conceptUpdatedAt !== undefined ? { updatedAt: conceptUpdatedAt } : {}),
+              ...(actorUserId
+                ? { createdByUserId: actorUserId, modifiedByUserId: actorUserId }
+                : {}),
             })
             .returning();
           if (!created) throw new Error("glossary_concept_create_failed");
@@ -682,8 +702,23 @@ export async function applyNativeGlossaryImport(input: {
               : existingTerm
                 ? { updatedAt: existingTerm.updatedAt }
                 : {}),
+            ...(actorUserId ? { modifiedByUserId: actorUserId } : {}),
           };
           if (existingTerm) {
+            for (const field of [
+              "locale",
+              "term",
+              "description",
+              "note",
+              "reviewStatus",
+              "provenance",
+            ] as const) {
+              const before = existingTerm[field];
+              const after = values[field];
+              if (JSON.stringify(before) !== JSON.stringify(after)) {
+                historyChanges.push({ field: `term.${field}`, before, after });
+              }
+            }
             await tx
               .update(schema.glossaryTerms)
               .set(termUpdateValues)
@@ -693,6 +728,10 @@ export async function applyNativeGlossaryImport(input: {
             termByStableKey.set(incomingTerm.id, existingTerm);
             bump(counts, input.mode === "merge" ? "merged" : "updated", "term");
           } else {
+            historyChanges.push(
+              { field: "term.locale", before: null, after: values.locale },
+              { field: "term.term", before: null, after: values.term },
+            );
             const [created] = await tx
               .insert(schema.glossaryTerms)
               .values({
@@ -700,6 +739,9 @@ export async function applyNativeGlossaryImport(input: {
                 ...values,
                 ...(termCreatedAt !== undefined ? { createdAt: termCreatedAt } : {}),
                 ...(termUpdatedAt !== undefined ? { updatedAt: termUpdatedAt } : {}),
+                ...(actorUserId
+                  ? { createdByUserId: actorUserId, modifiedByUserId: actorUserId }
+                  : {}),
               })
               .returning();
             if (!created) throw new Error("glossary_term_create_failed");
@@ -762,7 +804,7 @@ export async function applyNativeGlossaryImport(input: {
         actorCredentialId: null,
         version: 1,
         changedFields: ["concepts", "terms"],
-        changes: [],
+        changes: historyChanges,
         attributes: {
           source: "native",
           importRunId: report.id,

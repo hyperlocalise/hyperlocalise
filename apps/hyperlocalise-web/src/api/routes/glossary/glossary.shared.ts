@@ -199,6 +199,10 @@ export function isGlossaryManageAllowed(role: ApiAuthContext["membership"]["role
   return hasCapability(role, "glossaries:write");
 }
 
+export function isGlossaryReviewAllowed(role: ApiAuthContext["membership"]["role"]) {
+  return hasCapability(role, "reviews:approve");
+}
+
 export function isGlossaryContributorRole(role: ApiAuthContext["membership"]["role"]) {
   return role === "translator" || isGlossaryManageAllowed(role);
 }

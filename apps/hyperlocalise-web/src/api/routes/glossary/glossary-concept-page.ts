@@ -145,6 +145,7 @@ function termExistsWhere(
     eq(schema.glossaryTerms.conceptId, conceptId),
     eq(schema.glossaryTerms.glossaryId, schema.glossaryConcepts.glossaryId),
   ];
+  if (!filters.includeArchived) conditions.push(sql`${schema.glossaryTerms.archivedAt} is null`);
   if (filters.locale) conditions.push(eq(schema.glossaryTerms.locale, filters.locale));
   if (filters.termReviewStatus)
     conditions.push(eq(schema.glossaryTerms.reviewStatus, filters.termReviewStatus));
@@ -202,8 +203,22 @@ function buildWhere(glossaryId: string, filters: FilterFields): SQL {
       ilike(schema.glossaryConcepts.definition, `%${search}%`),
       ilike(schema.glossaryConcepts.note, `%${search}%`),
     ];
-    if (UUID_PATTERN.test(search))
+    if (UUID_PATTERN.test(search)) {
       searchTerms.push(eq(schema.glossaryConcepts.id, search.toLowerCase()));
+      searchTerms.push(
+        exists(
+          db
+            .select({ id: schema.glossaryTerms.id })
+            .from(schema.glossaryTerms)
+            .where(
+              and(
+                eq(schema.glossaryTerms.conceptId, schema.glossaryConcepts.id),
+                eq(schema.glossaryTerms.id, search.toLowerCase()),
+              ),
+            ),
+        ),
+      );
+    }
     searchTerms.push(
       exists(
         db
@@ -212,8 +227,11 @@ function buildWhere(glossaryId: string, filters: FilterFields): SQL {
           .where(
             and(
               eq(schema.glossaryTerms.conceptId, schema.glossaryConcepts.id),
+              filters.includeArchived ? undefined : sql`${schema.glossaryTerms.archivedAt} is null`,
               or(
                 ilike(schema.glossaryTerms.term, `%${search}%`),
+                ilike(schema.glossaryTerms.sourceTerm, `%${search}%`),
+                ilike(schema.glossaryTerms.targetTerm, `%${search}%`),
                 ilike(schema.glossaryTerms.description, `%${search}%`),
                 ilike(schema.glossaryTerms.note, `%${search}%`),
                 sql`${schema.glossaryTerms.metadata}::text ilike ${`%${search}%`}`,
@@ -298,7 +316,12 @@ export async function listGlossaryConceptsPage(
           localeCount: sql<number>`count(distinct ${schema.glossaryTerms.locale})`,
         })
         .from(schema.glossaryTerms)
-        .where(inArray(schema.glossaryTerms.conceptId, ids))
+        .where(
+          and(
+            inArray(schema.glossaryTerms.conceptId, ids),
+            filters.includeArchived ? undefined : sql`${schema.glossaryTerms.archivedAt} is null`,
+          ),
+        )
         .groupBy(schema.glossaryTerms.conceptId)
     : [];
   const counts = new Map(termCounts.map((row) => [row.conceptId, row]));
