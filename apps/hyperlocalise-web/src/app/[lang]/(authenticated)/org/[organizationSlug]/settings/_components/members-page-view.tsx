@@ -610,6 +610,10 @@ export function MembersPageView({
                   <TypographyP className="text-flame-100" size="small">
                     {teamsLoadError}
                   </TypographyP>
+                ) : inviteTeams.length === 0 && !isLoadingTeams ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...membersPageContentMessages.teamEmptyFallback} />
+                  </TypographyP>
                 ) : (
                   <Select
                     value={inviteTeamId}
@@ -618,7 +622,7 @@ export function MembersPageView({
                         onInviteTeamIdChange(value);
                       }
                     }}
-                    disabled={isInviting || isLoadingTeams || inviteTeams.length === 0}
+                    disabled={isInviting || isLoadingTeams}
                   >
                     <SelectTrigger className="border-border bg-muted">
                       <SelectValue>
@@ -635,9 +639,11 @@ export function MembersPageView({
                     </SelectContent>
                   </Select>
                 )}
-                <FieldDescription>
-                  <FormattedMessage {...membersPageContentMessages.teamDescription} />
-                </FieldDescription>
+                {inviteTeams.length > 0 ? (
+                  <FieldDescription>
+                    <FormattedMessage {...membersPageContentMessages.teamDescription} />
+                  </FieldDescription>
+                ) : null}
               </Field>
             ) : null}
             <DialogFooter>
@@ -647,9 +653,7 @@ export function MembersPageView({
               <Button
                 type="submit"
                 disabled={
-                  isInviting ||
-                  (inviteRequiresTeam &&
-                    (isLoadingTeams || Boolean(teamsLoadError) || !inviteTeamId))
+                  isInviting || (inviteRequiresTeam && (isLoadingTeams || Boolean(teamsLoadError)))
                 }
               >
                 <FormattedMessage {...membersPageContentMessages.sendInvitation} />

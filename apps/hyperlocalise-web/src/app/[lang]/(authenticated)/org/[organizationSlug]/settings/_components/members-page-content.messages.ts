@@ -222,6 +222,12 @@ export const membersPageContentMessages = defineMessages({
     id: "CE4Mjxv5Pv",
     description: "Help text for the invite member team field",
   },
+  teamEmptyFallback: {
+    defaultMessage:
+      "No teams are listed yet. The default team will be created automatically when you send the invitation.",
+    id: "PR5FHHiklX",
+    description: "Help text when the workspace has no teams to select during invite",
+  },
   teamsLoadFailed: {
     defaultMessage: "Failed to load teams",
     id: "q+KBl5AglO",

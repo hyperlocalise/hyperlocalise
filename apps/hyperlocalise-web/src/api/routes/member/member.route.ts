@@ -125,13 +125,20 @@ async function reconcileMemberMembershipFromWorkos(input: {
   });
 }
 
+type CreatedTeamMembership = {
+  teamId: string;
+  userId: string;
+};
+
 async function ensureTeamAccessForInvitedMember(input: {
   organizationId: string;
   userId: string;
   role: OrganizationMembershipRole;
   teamId?: string;
   database: DatabaseClient;
-}): Promise<{ error: "team_not_found" } | undefined> {
+}): Promise<
+  { error: "team_not_found" } | { createdTeamMembership?: CreatedTeamMembership } | undefined
+> {
   // Operators already see every project via teams:write. Non-operators need an
   // explicit team membership or projects they create stay invisible.
   if (hasCapability(input.role, "teams:write") && !input.teamId) {
@@ -154,21 +161,33 @@ async function ensureTeamAccessForInvitedMember(input: {
       return { error: "team_not_found" };
     }
 
-    await ensureTeamMembership({
+    const membershipResult = await ensureTeamMembership({
       teamId: team.id,
       userId: input.userId,
       role: "member",
       database: input.database,
     });
-    return;
+
+    return membershipResult.created
+      ? { createdTeamMembership: { teamId: team.id, userId: input.userId } }
+      : {};
   }
 
-  await ensureDefaultWorkspaceTeamMembership({
+  const defaultTeamResult = await ensureDefaultWorkspaceTeamMembership({
     organizationId: input.organizationId,
     userId: input.userId,
     role: "member",
     database: input.database,
   });
+
+  return defaultTeamResult.created
+    ? {
+        createdTeamMembership: {
+          teamId: defaultTeamResult.team.id,
+          userId: input.userId,
+        },
+      }
+    : {};
 }
 
 async function inviteOrganizationMember(input: {
@@ -229,7 +248,7 @@ async function inviteOrganizationMember(input: {
       teamId: input.teamId,
       database,
     });
-    if (teamAccessResult?.error) {
+    if (teamAccessResult && "error" in teamAccessResult) {
       return teamAccessResult;
     }
 
@@ -240,6 +259,7 @@ async function inviteOrganizationMember(input: {
       membershipId: existingMembership.membershipId,
       localUserId: existingMembership.localUserId,
       isNewUser: false,
+      createdTeamMembership: teamAccessResult?.createdTeamMembership,
       member: toMemberSummary(
         {
           userId: existingMembership.localUserId,
@@ -309,7 +329,7 @@ async function inviteOrganizationMember(input: {
     teamId: input.teamId,
     database,
   });
-  if (teamAccessResult?.error) {
+  if (teamAccessResult && "error" in teamAccessResult) {
     return teamAccessResult;
   }
 
@@ -317,6 +337,7 @@ async function inviteOrganizationMember(input: {
     membershipId: membership.id,
     localUserId: user.id,
     isNewUser,
+    createdTeamMembership: teamAccessResult?.createdTeamMembership,
     member: toMemberSummary(
       {
         userId: user.id,
@@ -468,6 +489,17 @@ async function deliverWorkosInvitation(input: {
   }
 
   await sendWorkosInvitation(workos, invitationPayload);
+}
+
+async function rollbackCreatedTeamMembership(input: CreatedTeamMembership) {
+  await db
+    .delete(schema.teamMemberships)
+    .where(
+      and(
+        eq(schema.teamMemberships.teamId, input.teamId),
+        eq(schema.teamMemberships.userId, input.userId),
+      ),
+    );
 }
 
 async function rollbackPendingInvite(input: {
@@ -682,6 +714,10 @@ export function createMemberRoutes() {
             .update(schema.organizationMemberships)
             .set({ role: pendingInvite.previousRole })
             .where(eq(schema.organizationMemberships.id, pendingInvite.membershipId));
+        }
+
+        if ("createdTeamMembership" in pendingInvite && pendingInvite.createdTeamMembership) {
+          await rollbackCreatedTeamMembership(pendingInvite.createdTeamMembership);
         }
 
         if (isWorkosInvitationRevokedNotDeliveredError(error)) {

@@ -176,6 +176,21 @@ describe("MembersPageView", () => {
     ).toBeInTheDocument();
   });
 
+  it("allows sending an invitation when no teams are listed", () => {
+    renderMembersPage({
+      isInviteOpen: true,
+      inviteTeams: [],
+      inviteTeamId: "",
+    });
+
+    expect(
+      screen.getByText(
+        "No teams are listed yet. The default team will be created automatically when you send the invitation.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send invitation" })).toBeEnabled();
+  });
+
   it("hides the team selector when inviting an operator role", () => {
     renderMembersPage({
       isInviteOpen: true,
