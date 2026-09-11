@@ -7650,6 +7650,51 @@ describe("mcpRoutes", () => {
     });
   });
 
+  it("returns unsupported_file for unsupported source extensions", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "upload_sources",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath: "binaries/payload.exe",
+                contentBase64: Buffer.from("MZ").toString("base64"),
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "unsupported_file",
+    });
+  });
+
   it("uploads a UTF-8 source file to a native project", async () => {
     const stored = await fixture.createStoredProjectFixture();
     const headers = await authenticatedMcpHeaders(stored.identity);
