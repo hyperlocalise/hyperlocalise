@@ -212,6 +212,21 @@ export const membersPageContentMessages = defineMessages({
     id: "rcANTRobpQ",
     description: "Label for the invite member role field",
   },
+  teamLabel: {
+    defaultMessage: "Team",
+    id: "8Dn6LPaujp",
+    description: "Label for the invite member team field",
+  },
+  teamDescription: {
+    defaultMessage: "Invited members are added to this team so they can access projects.",
+    id: "CE4Mjxv5Pv",
+    description: "Help text for the invite member team field",
+  },
+  teamsLoadFailed: {
+    defaultMessage: "Failed to load teams",
+    id: "q+KBl5AglO",
+    description: "Error when the teams list request fails for the invite dialog",
+  },
   cancel: {
     defaultMessage: "Cancel",
     id: "R1l6Bs+7Ss",

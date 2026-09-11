@@ -217,6 +217,57 @@ describe("memberRoutes", () => {
     expect(membership?.role).toBe("member");
   });
 
+  it("adds invited members to the selected team", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    const organization = (
+      await db
+        .select({ id: schema.organizations.id })
+        .from(schema.organizations)
+        .where(eq(schema.organizations.slug, ownerIdentity.organization.slug ?? ""))
+        .limit(1)
+    )[0]!;
+
+    const [customTeam] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: organization.id,
+        slug: "localization",
+        name: "Localization",
+      })
+      .returning({ id: schema.teams.id });
+
+    const response = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "localization-invite@example.com", role: "translator", teamId: customTeam.id },
+      headers,
+    );
+
+    expect(response.status).toBe(201);
+
+    const invitedUser = (
+      await db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.email, "localization-invite@example.com"))
+        .limit(1)
+    )[0]!;
+
+    const [membership] = await db
+      .select({ role: schema.teamMemberships.role })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, customTeam.id),
+          eq(schema.teamMemberships.userId, invitedUser.id),
+        ),
+      )
+      .limit(1);
+
+    expect(membership?.role).toBe("member");
+  });
+
   it("does not add invited operators to the default workspace team", async () => {
     const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);

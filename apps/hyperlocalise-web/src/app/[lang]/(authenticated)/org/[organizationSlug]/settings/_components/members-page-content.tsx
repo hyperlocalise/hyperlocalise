@@ -12,13 +12,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { hasCapability } from "@/api/auth/policy";
+import { createTeamsApi } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/teams/_components/teams-api";
 import { apiClient } from "@/lib/api-client-instance";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 
 import { membersPageContentMessages } from "./members-page-content.messages";
 import { MembersPageView } from "./members-page-view";
@@ -29,6 +32,12 @@ import {
 } from "./members-settings-view-model";
 
 const membersQueryKey = (organizationSlug: string) => ["workspace-members", organizationSlug];
+const teamsQueryKey = (organizationSlug: string) => ["workspace-teams", organizationSlug];
+const teamsApi = createTeamsApi(apiClient);
+
+function resolveDefaultTeamId(teams: { id: string; slug: string }[]) {
+  return teams.find((team) => team.slug === DEFAULT_WORKSPACE_TEAM_SLUG)?.id ?? teams[0]?.id ?? "";
+}
 
 async function readMemberError(response: Response, fallback: string) {
   const body = await response.json().catch(() => null);
@@ -50,8 +59,14 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<OrganizationMembershipRole>("member");
+  const [inviteTeamId, setInviteTeamId] = useState("");
   const [removingMember, setRemovingMember] = useState<MembersListMember | null>(null);
   const [editingMember, setEditingMember] = useState<MembersListMember | null>(null);
+
+  const teamsQuery = useQuery({
+    queryKey: teamsQueryKey(organizationSlug),
+    queryFn: () => teamsApi.listTeams(organizationSlug),
+  });
 
   const membersQuery = useQuery({
     queryKey: membersQueryKey(organizationSlug),
@@ -73,9 +88,30 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
 
   const pageState = resolveMembersPageState(membersQuery.data, intl);
   const { members, assignableRoles, canInvite } = pageState;
+  const inviteTeams = teamsQuery.data ?? [];
+  const defaultInviteTeamId = resolveDefaultTeamId(inviteTeams);
+  const inviteRequiresTeam = !hasCapability(inviteRole, "teams:write");
+
+  useEffect(() => {
+    if (!isInviteOpen || inviteTeams.length === 0) {
+      return;
+    }
+
+    setInviteTeamId((currentTeamId) => {
+      if (currentTeamId && inviteTeams.some((team) => team.id === currentTeamId)) {
+        return currentTeamId;
+      }
+
+      return defaultInviteTeamId;
+    });
+  }, [defaultInviteTeamId, inviteTeams, isInviteOpen]);
 
   const inviteMember = useMutation({
-    mutationFn: async (input: { email: string; role: OrganizationMembershipRole }) => {
+    mutationFn: async (input: {
+      email: string;
+      role: OrganizationMembershipRole;
+      teamId?: string;
+    }) => {
       const response = await apiClient.api.orgs[":organizationSlug"].members.$post({
         param: { organizationSlug },
         json: input,
@@ -93,6 +129,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
     onSuccess: async () => {
       setInviteEmail("");
       setInviteRole("member");
+      setInviteTeamId(defaultInviteTeamId);
       setIsInviteOpen(false);
       await queryClient.invalidateQueries({ queryKey: membersQueryKey(organizationSlug) });
       toast.success(intl.formatMessage(membersPageContentMessages.invitationSentToast));
@@ -169,7 +206,18 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
       return;
     }
 
-    inviteMember.mutate({ email: inviteEmail.trim(), role: inviteRole });
+    inviteMember.mutate({
+      email: inviteEmail.trim(),
+      role: inviteRole,
+      ...(inviteRequiresTeam && inviteTeamId ? { teamId: inviteTeamId } : {}),
+    });
+  }
+
+  function handleInviteOpenChange(open: boolean) {
+    setIsInviteOpen(open);
+    if (open && defaultInviteTeamId) {
+      setInviteTeamId(defaultInviteTeamId);
+    }
   }
 
   return (
@@ -189,14 +237,26 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
       isInviteOpen={isInviteOpen}
       inviteEmail={inviteEmail}
       inviteRole={inviteRole}
+      inviteTeams={inviteTeams}
+      inviteTeamId={inviteTeamId}
+      inviteRequiresTeam={inviteRequiresTeam}
+      isLoadingTeams={teamsQuery.isLoading}
+      teamsLoadError={
+        teamsQuery.isError
+          ? teamsQuery.error instanceof Error
+            ? teamsQuery.error.message
+            : intl.formatMessage(membersPageContentMessages.teamsLoadFailed)
+          : null
+      }
       isInviting={inviteMember.isPending}
       removingMember={removingMember}
       isRemoving={removeMember.isPending}
       editingMember={editingMember}
       isUpdatingRole={updateRole.isPending}
-      onInviteOpenChange={setIsInviteOpen}
+      onInviteOpenChange={handleInviteOpenChange}
       onInviteEmailChange={setInviteEmail}
       onInviteRoleChange={setInviteRole}
+      onInviteTeamIdChange={setInviteTeamId}
       onInviteSubmit={handleInviteSubmit}
       onRemovingMemberChange={setRemovingMember}
       onRemoveMember={(workosUserId) => removeMember.mutate(workosUserId)}
