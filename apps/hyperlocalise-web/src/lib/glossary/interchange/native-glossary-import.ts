@@ -297,6 +297,7 @@ export async function applyNativeGlossaryImport(input: {
   const retainedConceptIds = new Set<string>();
   const retainedTermIds = new Set<string>();
   let mutated = false;
+  const actorUserId = input.report?.createdByUserId ?? null;
 
   let backupCleanup: (() => Promise<void>) | undefined;
   const transaction = db.transaction(async (tx) => {
@@ -507,6 +508,7 @@ export async function applyNativeGlossaryImport(input: {
             : existing
               ? { updatedAt: existing.updatedAt }
               : {}),
+          ...(existing ? { modifiedByUserId: actorUserId, version: existing.version + 1 } : {}),
         };
         let concept = existing;
         if (concept) {
@@ -525,6 +527,8 @@ export async function applyNativeGlossaryImport(input: {
               ...conceptValues,
               ...(conceptCreatedAt !== undefined ? { createdAt: conceptCreatedAt } : {}),
               ...(conceptUpdatedAt !== undefined ? { updatedAt: conceptUpdatedAt } : {}),
+              createdByUserId: actorUserId,
+              modifiedByUserId: actorUserId,
             })
             .returning();
           if (!created) throw new Error("glossary_concept_create_failed");
@@ -682,6 +686,9 @@ export async function applyNativeGlossaryImport(input: {
               : existingTerm
                 ? { updatedAt: existingTerm.updatedAt }
                 : {}),
+            ...(existingTerm
+              ? { modifiedByUserId: actorUserId, version: existingTerm.version + 1 }
+              : {}),
           };
           if (existingTerm) {
             await tx
@@ -700,6 +707,8 @@ export async function applyNativeGlossaryImport(input: {
                 ...values,
                 ...(termCreatedAt !== undefined ? { createdAt: termCreatedAt } : {}),
                 ...(termUpdatedAt !== undefined ? { updatedAt: termUpdatedAt } : {}),
+                createdByUserId: actorUserId,
+                modifiedByUserId: actorUserId,
               })
               .returning();
             if (!created) throw new Error("glossary_term_create_failed");

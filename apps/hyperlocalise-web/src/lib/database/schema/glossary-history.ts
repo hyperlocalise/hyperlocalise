@@ -14,7 +14,6 @@ import { sql } from "drizzle-orm";
 import { index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { organizations, users } from "./organizations";
-import { glossaries } from "./translation-memory";
 
 export type GlossaryHistoryChange = {
   field: string;
@@ -30,9 +29,7 @@ export const glossaryHistoryEvents = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    glossaryId: uuid("glossary_id")
-      .notNull()
-      .references(() => glossaries.id, { onDelete: "cascade" }),
+    glossaryId: uuid("glossary_id").notNull(),
     // Immutable audit identifiers. They intentionally do not reference live rows so history
     // can survive future concept or term deletion.
     conceptId: uuid("concept_id"),

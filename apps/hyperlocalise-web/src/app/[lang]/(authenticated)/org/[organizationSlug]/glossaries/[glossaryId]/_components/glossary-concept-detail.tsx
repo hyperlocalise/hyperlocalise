@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import type {
   GlossaryConceptRecord,
   GlossaryConceptTermRecord,
+  GlossaryTermPageResponse,
   CreateGlossaryConceptBody,
   UpsertGlossaryConceptTermBody,
 } from "@/api/routes/glossary/glossary.schema";
@@ -296,12 +297,15 @@ export function GlossaryConceptDetail({
   const glossaryHref = `/org/${organizationSlug}/glossaries/${glossaryId}`;
   const conceptHref = (id: string) => `${glossaryHref}/concepts/${id}`;
   const [languageFilter, setLanguageFilter] = useState("");
+  const [termCursor, setTermCursor] = useState<string | undefined>();
+  const [, setTermCursorStack] = useState<string[]>([]);
   const [localePickerOpen, setLocalePickerOpen] = useState(false);
   const [newTermLocale, setNewTermLocale] = useState<string | null>(null);
   const [newTermDraft, setNewTermDraft] = useState<TermDraft>(emptyTermDraft);
   const [creatingTermDrafts, setCreatingTermDrafts] = useState<CreatingTermDraft[]>([]);
   const [termDrafts, setTermDrafts] = useState<Record<string, TermDraft>>({});
   const [deletedTermIds, setDeletedTermIds] = useState<Set<string>>(new Set());
+  const initializedConceptIdRef = useRef<string | null>(null);
   const [expandedTermIds, setExpandedTermIds] = useState<Set<string>>(new Set());
   const [expandedCreatingTermIds, setExpandedCreatingTermIds] = useState<Set<string>>(new Set());
   const [termToDeleteId, setTermToDeleteId] = useState<string | null>(null);
@@ -315,6 +319,7 @@ export function GlossaryConceptDetail({
   );
 
   const isCreatingConcept = conceptId === "new";
+  const availableTermLocales = availableConceptTermLocales();
   const conceptQuery = useQuery({
     queryKey: ["glossary-concept", organizationSlug, glossaryId, conceptId],
     enabled: Boolean(isConceptGlossary) && !isCreatingConcept,
@@ -323,6 +328,7 @@ export function GlossaryConceptDetail({
         ":glossaryId"
       ].concepts[":conceptId"].$get({
         param: { organizationSlug, glossaryId, conceptId },
+        query: { includeTerms: "false" },
       });
       if (!response.ok) {
         throw await readApiResponseError(response, intl.formatMessage(messages.loadConceptsFailed));
@@ -330,7 +336,54 @@ export function GlossaryConceptDetail({
       return (await response.json()).concept as GlossaryConceptRecord;
     },
   });
-  const selectedConcept = conceptQuery.data ?? null;
+  const conceptRecord = conceptQuery.data ?? null;
+  const termsQuery = useQuery({
+    queryKey: [
+      "glossary-concept-terms-page",
+      organizationSlug,
+      glossaryId,
+      conceptId,
+      termCursor,
+      languageFilter,
+    ],
+    enabled: Boolean(conceptRecord) && !isCreatingConcept,
+    queryFn: async ({ signal }) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].concepts[":conceptId"].terms.page.$get(
+        {
+          param: { organizationSlug, glossaryId, conceptId },
+          query: {
+            limit: "50",
+            sort: "locale",
+            sortDir: "asc",
+            includeArchived: "false",
+            ...(termCursor ? { cursor: termCursor } : {}),
+            ...(languageFilter.trim()
+              ? {
+                  locale: availableTermLocales.find(
+                    (locale) =>
+                      locale.toLowerCase() === languageFilter.trim().toLowerCase() ||
+                      getLocaleLabel(locale).toLowerCase() === languageFilter.trim().toLowerCase(),
+                  ),
+                }
+              : {}),
+          },
+        },
+        { init: { signal } },
+      );
+      if (!response.ok) {
+        throw await readApiResponseError(response, intl.formatMessage(messages.loadConceptsFailed));
+      }
+      return (await response.json()) as GlossaryTermPageResponse;
+    },
+    placeholderData: (previous) => previous,
+  });
+  const termPageTerms = termsQuery.data?.terms;
+  const selectedConcept = useMemo(
+    () => (conceptRecord ? { ...conceptRecord, terms: termPageTerms ?? [] } : null),
+    [conceptRecord, termPageTerms],
+  );
   useEffect(() => {
     if (conceptId === "new") {
       setConceptDraft(emptyConceptDraft);
@@ -349,20 +402,33 @@ export function GlossaryConceptDetail({
   }, [conceptId, sourceLanguage.locale]);
 
   useEffect(() => {
-    if (selectedConcept) {
-      setConceptDraft(conceptDraftFromRecord(selectedConcept));
-      setTermDrafts(
-        Object.fromEntries(
-          selectedConcept.terms.map((term) => [term.id, termDraftFromRecord(term)]),
-        ),
-      );
-      setDeletedTermIds(new Set());
-      setNewTermLocale(null);
-      setNewTermDraft(emptyTermDraft);
-      setCreatingTermDrafts([]);
-      setExpandedTermIds(new Set());
-      setExpandedCreatingTermIds(new Set());
-    }
+    if (!selectedConcept || initializedConceptIdRef.current === selectedConcept.id) return;
+    initializedConceptIdRef.current = selectedConcept.id;
+    setConceptDraft(conceptDraftFromRecord(selectedConcept));
+    setTermDrafts(
+      Object.fromEntries(selectedConcept.terms.map((term) => [term.id, termDraftFromRecord(term)])),
+    );
+    setDeletedTermIds(new Set());
+    setNewTermLocale(null);
+    setNewTermDraft(emptyTermDraft);
+    setCreatingTermDrafts([]);
+    setExpandedTermIds(new Set());
+    setExpandedCreatingTermIds(new Set());
+  }, [selectedConcept]);
+
+  useEffect(() => {
+    if (!selectedConcept || initializedConceptIdRef.current !== selectedConcept.id) return;
+    setTermDrafts((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const term of selectedConcept.terms) {
+        if (!next[term.id]) {
+          next[term.id] = termDraftFromRecord(term);
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
   }, [selectedConcept]);
 
   const conceptTermCandidates = isCreatingConcept
@@ -390,12 +456,28 @@ export function GlossaryConceptDetail({
           : []),
       ];
 
-  const sourceTermText = selectConceptDetailSourceTermText(
-    conceptTermCandidates,
-    sourceLanguage.locale,
-  );
+  const sourceTermText =
+    selectConceptDetailSourceTermText(conceptTermCandidates, sourceLanguage.locale) ||
+    conceptRecord?.primaryTerm ||
+    "";
 
   const goBack = () => router.push(glossaryHref);
+
+  const goToNextTermPage = () => {
+    const nextCursor = termsQuery.data?.nextCursor;
+    if (!nextCursor || isDirty) return;
+    setTermCursorStack((current) => [...current, termCursor ?? ""]);
+    setTermCursor(nextCursor);
+  };
+
+  const goToPreviousTermPage = () => {
+    if (isDirty) return;
+    setTermCursorStack((current) => {
+      const next = [...current];
+      setTermCursor(next.pop() || undefined);
+      return next;
+    });
+  };
 
   const updateTermDraft = (termId: string, patch: Partial<TermDraft>) => {
     setTermDrafts((current) => {
@@ -523,6 +605,8 @@ export function GlossaryConceptDetail({
             ...draft,
             primaryTerm,
             url: draft.url || undefined,
+            preserveOmittedTerms: true,
+            deletedTermIds: [...deletedTermIds],
             terms: terms.map((term) => ({
               ...term,
               partOfSpeech: term.partOfSpeech as GlossaryPartOfSpeech,
@@ -540,6 +624,11 @@ export function GlossaryConceptDetail({
     },
     onSuccess: async ({ concept, created }) => {
       await Promise.all([invalidateConcepts(), invalidateConceptDetail()]);
+      setConceptDraft(conceptDraftFromRecord(concept));
+      setTermDrafts(
+        Object.fromEntries(concept.terms.map((term) => [term.id, termDraftFromRecord(term)])),
+      );
+      setDeletedTermIds(new Set());
       if (created) router.replace(conceptHref(concept.id));
       setNewTermLocale(null);
       setNewTermDraft(emptyTermDraft);
@@ -571,7 +660,6 @@ export function GlossaryConceptDetail({
   });
 
   const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
-  const availableTermLocales = availableConceptTermLocales();
   const unsortedTermGroups = (selectedConcept?.terms ?? [])
     .filter((term) => !deletedTermIds.has(term.id))
     .filter(
@@ -761,7 +849,12 @@ export function GlossaryConceptDetail({
                   className="pl-8"
                   placeholder={intl.formatMessage(messages.filterLanguages)}
                   value={languageFilter}
-                  onChange={(event) => setLanguageFilter(event.target.value)}
+                  disabled={isDirty}
+                  onChange={(event) => {
+                    setLanguageFilter(event.target.value);
+                    setTermCursor(undefined);
+                    setTermCursorStack([]);
+                  }}
                 />
               </div>
               <Button
@@ -775,6 +868,33 @@ export function GlossaryConceptDetail({
                 <FormattedMessage {...messages.addTerm} />
               </Button>
             </div>
+            {!isCreatingConcept &&
+            termsQuery.data &&
+            (termsQuery.data.pagination.hasMore || termCursor) ? (
+              <div className="flex items-center justify-between gap-2 border-b border-border pb-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!termCursor || isDirty || termsQuery.isFetching}
+                  onClick={goToPreviousTermPage}
+                >
+                  Previous terms
+                </Button>
+                <TypographyP size="xsmall" tone="subtle" className="tabular-nums">
+                  {termsQuery.data.pagination.returned} of {termsQuery.data.total}
+                </TypographyP>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!termsQuery.data.nextCursor || isDirty || termsQuery.isFetching}
+                  onClick={goToNextTermPage}
+                >
+                  Next terms
+                </Button>
+              </div>
+            ) : null}
             <Dialog open={localePickerOpen} onOpenChange={setLocalePickerOpen}>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
