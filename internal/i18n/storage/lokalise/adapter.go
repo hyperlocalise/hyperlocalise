@@ -164,10 +164,7 @@ func (a *Adapter) Capabilities() storage.Capabilities {
 }
 
 func (a *Adapter) Pull(ctx context.Context, req storage.PullRequest) (storage.PullResult, error) {
-	locales := req.Locales
-	if len(locales) == 0 && len(a.cfg.TargetLanguages) > 0 {
-		locales = append([]string(nil), a.cfg.TargetLanguages...)
-	}
+	locales := resolvePullLocales(req, a.cfg.TargetLanguages)
 
 	keys, revision, err := a.client.ListKeys(ctx, ListKeysInput{
 		ProjectID: a.cfg.ProjectID,

@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -95,13 +96,11 @@ func isLoopbackHost(host string) bool {
 
 func (c *HTTPClient) ListKeys(ctx context.Context, in ListKeysInput) ([]KeyTranslation, string, error) {
 	revision := time.Now().UTC().Format(time.RFC3339Nano)
-	allowed := make(map[string]struct{}, len(in.Locales))
+	requestedLocales := make([]string, 0, len(in.Locales))
 	for _, locale := range in.Locales {
-		trimmed := strings.TrimSpace(locale)
-		if trimmed == "" {
-			continue
+		if trimmed := strings.TrimSpace(locale); trimmed != "" {
+			requestedLocales = append(requestedLocales, trimmed)
 		}
-		allowed[trimmed] = struct{}{}
 	}
 
 	cursor := ""
@@ -128,14 +127,17 @@ func (c *HTTPClient) ListKeys(ctx context.Context, in ListKeysInput) ([]KeyTrans
 				continue
 			}
 			for _, tr := range key.Translations {
-				locale := strings.TrimSpace(tr.LanguageISO)
-				if locale == "" {
+				languageISO := strings.TrimSpace(tr.LanguageISO)
+				if languageISO == "" {
 					continue
 				}
-				if len(allowed) > 0 {
-					if _, ok := allowed[locale]; !ok {
+				locale := languageISO
+				if len(requestedLocales) > 0 {
+					matched := matchRequestedLocale(languageISO, requestedLocales)
+					if matched == "" {
 						continue
 					}
+					locale = matched
 				}
 				value := strings.TrimSpace(tr.Translation)
 				if value == "" {
@@ -170,12 +172,29 @@ func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslatio
 		return "", err
 	}
 
-	creates := make([]lokaliseapi.NewKey, 0, len(byKey))
-	updates := make([]lokaliseapi.BulkUpdateKey, 0, len(byKey))
-
+	type keyedGroup struct {
+		group        groupedKey
+		translations []lokaliseapi.NewTranslation
+	}
+	groups := make([]keyedGroup, 0, len(byKey))
 	for group, translations := range byKey {
-		newKey := buildNewKey(group, translations)
-		if keyID, ok := existingKeyIDs[group]; ok {
+		if len(translations) == 0 {
+			continue
+		}
+		groups = append(groups, keyedGroup{group: group, translations: translations})
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		if groups[i].group.Key != groups[j].group.Key {
+			return groups[i].group.Key < groups[j].group.Key
+		}
+		return groups[i].group.Context < groups[j].group.Context
+	})
+
+	creates := make([]lokaliseapi.NewKey, 0, len(groups))
+	updates := make([]lokaliseapi.BulkUpdateKey, 0, len(groups))
+	for _, item := range groups {
+		newKey := buildNewKey(item.group, item.translations)
+		if keyID, ok := existingKeyIDs[item.group]; ok {
 			updates = append(updates, lokaliseapi.BulkUpdateKey{
 				KeyID:  keyID,
 				NewKey: newKey,
@@ -187,13 +206,14 @@ func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslatio
 
 	keysSvc := c.api.Keys()
 	keysSvc.SetContext(ctx)
-	if len(updates) > 0 {
-		if _, err := keysSvc.BulkUpdate(in.ProjectID, updates); err != nil {
+	chunkSize := upsertChunkSize()
+	for _, chunk := range chunkSlice(updates, chunkSize) {
+		if _, err := keysSvc.BulkUpdate(in.ProjectID, chunk); err != nil {
 			return "", fmt.Errorf("bulk update keys: %w", err)
 		}
 	}
-	if len(creates) > 0 {
-		if _, err := keysSvc.Create(in.ProjectID, creates); err != nil {
+	for _, chunk := range chunkSlice(creates, chunkSize) {
+		if _, err := keysSvc.Create(in.ProjectID, chunk); err != nil {
 			return "", fmt.Errorf("create keys: %w", err)
 		}
 	}
@@ -207,27 +227,51 @@ type groupedKey struct {
 }
 
 func groupEntriesByKey(entries []KeyTranslation) map[groupedKey][]lokaliseapi.NewTranslation {
-	byKey := make(map[groupedKey][]lokaliseapi.NewTranslation)
+	byKey := make(map[groupedKey]map[string]lokaliseapi.NewTranslation)
 	for _, entry := range entries {
 		key := strings.TrimSpace(entry.Key)
 		locale := strings.TrimSpace(entry.Locale)
 		if key == "" || locale == "" {
 			continue
 		}
+		if strings.TrimSpace(entry.Value) == "" {
+			continue
+		}
 		group := groupedKey{Key: key, Context: entry.Context}
-		byKey[group] = append(byKey[group], lokaliseapi.NewTranslation{
-			LanguageISO: locale,
+		translations := byKey[group]
+		if translations == nil {
+			translations = make(map[string]lokaliseapi.NewTranslation)
+			byKey[group] = translations
+		}
+		languageISO := toLokaliseLanguageISO(locale)
+		translations[normalizeLocaleCode(languageISO)] = lokaliseapi.NewTranslation{
+			LanguageISO: languageISO,
 			Translation: entry.Value,
-		})
+		}
 	}
-	return byKey
+
+	out := make(map[groupedKey][]lokaliseapi.NewTranslation, len(byKey))
+	for group, translations := range byKey {
+		if len(translations) == 0 {
+			continue
+		}
+		items := make([]lokaliseapi.NewTranslation, 0, len(translations))
+		for _, tr := range translations {
+			items = append(items, tr)
+		}
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].LanguageISO < items[j].LanguageISO
+		})
+		out[group] = items
+	}
+	return out
 }
 
 func buildNewKey(group groupedKey, translations []lokaliseapi.NewTranslation) lokaliseapi.NewKey {
 	platforms := []string{"web"}
 	trans := translations
 	newKey := lokaliseapi.NewKey{
-		KeyName:      map[string]string{"web": group.Key},
+		KeyName:      group.Key,
 		Platforms:    &platforms,
 		Translations: &trans,
 	}

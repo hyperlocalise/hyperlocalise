@@ -26,8 +26,8 @@ This package implements a `StorageAdapter` for `hyperlocalise`, backed by Lokali
       | HTTPClient.ListKeys()  |              | HTTPClient.Upsert...()   |
       | - Keys.List (paged)    |              | 1) Keys.List (paged)     |
       | - include translations |              | 2) split existing/missing|
-      | - locale filtering     |              | 3) Keys.BulkUpdate       |
-      +-----------+------------+              | 4) Keys.Create           |
+      | - locale filtering     |              | 3) Keys.BulkUpdate (500) |
+      +-----------+------------+              | 4) Keys.Create (500)     |
                   |                           +------------+-------------+
                   v                                        |
       +------------------------+                           v
