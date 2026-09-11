@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, notInArray } from "drizzle-orm";
+import { and, eq, notInArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import type { GlossaryHistoryChange } from "@/lib/database/schema/glossary-history";
@@ -28,6 +28,23 @@ import {
 } from "./glossary-import-reports";
 
 const IMPORT_BATCH_SIZE = 250;
+
+function normalizeImportedReviewStatus(value: string | undefined, fallback = "approved") {
+  switch (value) {
+    case "proposed":
+    case "approved":
+    case "rejected":
+    case "superseded":
+      return value;
+    case "draft":
+    case "pending":
+    case "needs_review":
+    case "suggested":
+      return "proposed";
+    default:
+      return fallback;
+  }
+}
 type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type CreateGlossaryImportBackup = (input: {
   tx: DatabaseTransaction;
@@ -510,6 +527,7 @@ export async function applyNativeGlossaryImport(input: {
             : existing
               ? { updatedAt: existing.updatedAt }
               : {}),
+          ...(existing ? { version: sql`${schema.glossaryConcepts.version} + 1` } : {}),
           ...(actorUserId ? { modifiedByUserId: actorUserId } : {}),
         };
         let concept = existing;
@@ -659,7 +677,10 @@ export async function applyNativeGlossaryImport(input: {
             lemma:
               incomingTerm.lemma !== undefined ? incomingTerm.lemma : (existingTerm?.lemma ?? null),
             status: incomingTerm.status ?? existingTerm?.status ?? "draft",
-            reviewStatus: incomingTerm.reviewStatus ?? existingTerm?.reviewStatus ?? "approved",
+            reviewStatus: normalizeImportedReviewStatus(
+              incomingTerm.reviewStatus,
+              normalizeImportedReviewStatus(existingTerm?.reviewStatus),
+            ),
             caseSensitive: incomingTerm.caseSensitive ?? existingTerm?.caseSensitive ?? false,
             forbidden: incomingTerm.forbidden ?? existingTerm?.forbidden ?? false,
             provenance,
@@ -683,9 +704,7 @@ export async function applyNativeGlossaryImport(input: {
             ...(incomingTerm.url !== undefined ? { url: incomingTerm.url } : {}),
             ...(incomingTerm.lemma !== undefined ? { lemma: incomingTerm.lemma } : {}),
             ...(incomingTerm.status !== undefined ? { status: incomingTerm.status } : {}),
-            ...(incomingTerm.reviewStatus !== undefined
-              ? { reviewStatus: incomingTerm.reviewStatus }
-              : {}),
+            reviewStatus: values.reviewStatus,
             ...(incomingTerm.caseSensitive !== undefined
               ? { caseSensitive: incomingTerm.caseSensitive }
               : {}),
@@ -702,6 +721,7 @@ export async function applyNativeGlossaryImport(input: {
               : existingTerm
                 ? { updatedAt: existingTerm.updatedAt }
                 : {}),
+            ...(existingTerm ? { version: sql`${schema.glossaryTerms.version} + 1` } : {}),
             ...(actorUserId ? { modifiedByUserId: actorUserId } : {}),
           };
           if (existingTerm) {

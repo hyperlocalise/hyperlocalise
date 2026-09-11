@@ -214,6 +214,9 @@ function buildWhere(glossaryId: string, filters: FilterFields): SQL {
               and(
                 eq(schema.glossaryTerms.conceptId, schema.glossaryConcepts.id),
                 eq(schema.glossaryTerms.id, search.toLowerCase()),
+                filters.includeArchived
+                  ? undefined
+                  : sql`${schema.glossaryTerms.archivedAt} is null`,
               ),
             ),
         ),

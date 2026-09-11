@@ -1376,7 +1376,11 @@ export class NativeGlossary extends Glossary {
   async deleteTerm(conceptId: string, termId: string) {
     return db.transaction(async (tx) => {
       const [current] = await tx
-        .select({ id: schema.glossaryTerms.id, version: schema.glossaryTerms.version })
+        .select({
+          id: schema.glossaryTerms.id,
+          version: schema.glossaryTerms.version,
+          term: schema.glossaryTerms.term,
+        })
         .from(schema.glossaryTerms)
         .where(
           and(
@@ -1392,7 +1396,7 @@ export class NativeGlossary extends Glossary {
         eventType: "term_deleted",
         version: current.version + 1,
         changedFields: ["term"],
-        changes: [{ field: "term", before: current.id, after: null }],
+        changes: [{ field: "term", before: current.term, after: null }],
       });
       await tx.delete(schema.glossaryTerms).where(eq(schema.glossaryTerms.id, termId));
       return true;

@@ -248,8 +248,6 @@ export const updateGlossaryConceptBodySchema = z
     note: z.string().max(10_000).optional(),
     figure: z.string().url().max(2_000).optional().or(z.literal("")),
     url: z.string().url().max(2_000).optional().or(z.literal("")),
-    reviewStatus: glossaryReviewStatusSchema.optional(),
-    reviewReason: z.string().max(10_000).nullable().optional(),
     terms: z.array(upsertGlossaryConceptTermBodySchema).max(1_000).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
@@ -270,8 +268,6 @@ export const updateGlossaryConceptTermBodySchema = z
     description: z.string().max(10_000).optional(),
     caseSensitive: z.boolean().optional(),
     forbidden: z.boolean().optional(),
-    reviewStatus: glossaryReviewStatusSchema.optional(),
-    reviewReason: z.string().max(10_000).nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "at least one field must be provided",

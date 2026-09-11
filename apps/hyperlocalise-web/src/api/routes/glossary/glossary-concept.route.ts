@@ -12,6 +12,7 @@
  */
 import { Hono } from "hono";
 import { validator } from "hono/validator";
+import { and, eq } from "drizzle-orm";
 
 import { conflictResponse, badRequestResponse } from "@/api/response.schema";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
@@ -37,6 +38,7 @@ import { createStoredFile, sha256Hex } from "@/lib/file-storage/records";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
+import { db, schema } from "@/lib/database/client";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import {
   reviewGlossaryConcept,
@@ -1117,9 +1119,16 @@ export function createGlossaryConceptRoutes(
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
         if (glossary.source !== "native") return nativeGlossaryConceptsOnlyResponse(c);
-        const concept = await getGlossaryProduct({ auth: c.var.auth, glossary })?.getConcept(
-          conceptId,
-        );
+        const [concept] = await db
+          .select({ id: schema.glossaryConcepts.id })
+          .from(schema.glossaryConcepts)
+          .where(
+            and(
+              eq(schema.glossaryConcepts.id, conceptId),
+              eq(schema.glossaryConcepts.glossaryId, glossaryId),
+            ),
+          )
+          .limit(1);
         if (!concept) return glossaryNotFoundResponse(c);
         const page = await listGlossaryTermsPage(glossaryId, query, conceptId);
         if ("code" in page) return badRequestResponse(c, page.code, page.message);
@@ -1168,16 +1177,8 @@ export function createGlossaryConceptRoutes(
                     url: term.url !== undefined ? (term.url ?? undefined) : existing?.url,
                     lemma: term.lemma !== undefined ? (term.lemma ?? undefined) : existing?.lemma,
                     forbidden: term.forbidden ?? existing?.forbidden ?? false,
-                    reviewStatus: isGlossaryReviewAllowed(c.var.auth.membership.role)
-                      ? (term.reviewStatus ?? existing?.reviewStatus)
-                      : "proposed",
-                    reviewReason: term.reviewReason ?? existing?.reviewReason,
                   };
                 }),
-          reviewStatus: isGlossaryReviewAllowed(c.var.auth.membership.role)
-            ? (payload.reviewStatus ?? current.reviewStatus)
-            : "proposed",
-          reviewReason: payload.reviewReason ?? current.reviewReason,
         } satisfies GlossaryConcept;
         let updated;
         try {
@@ -1312,10 +1313,6 @@ export function createGlossaryConceptRoutes(
             url: payload.url ?? existing.url ?? "",
             lemma: payload.lemma ?? existing.lemma ?? "",
             forbidden: payload.forbidden ?? existing.forbidden ?? false,
-            reviewStatus: isGlossaryReviewAllowed(c.var.auth.membership.role)
-              ? (payload.reviewStatus ?? existing.reviewStatus)
-              : "proposed",
-            reviewReason: payload.reviewReason ?? existing.reviewReason,
           });
         } catch (error) {
           const response = glossaryValidationErrorResponse(c, error);
