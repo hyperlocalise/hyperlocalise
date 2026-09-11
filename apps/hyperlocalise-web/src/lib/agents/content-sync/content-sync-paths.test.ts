@@ -43,19 +43,20 @@ describe("content sync paths", () => {
   });
 
   it("builds a stable fingerprint for uniqueness", () => {
-    expect(
-      buildContentSyncFingerprint({
-        provider: "github",
-        resourceKey: "acme/web",
-        providerFolder: "/locales/",
-      }),
-    ).toBe(
+    const fingerprint = buildContentSyncFingerprint({
+      provider: "github",
+      resourceKey: "acme/web",
+      providerFolder: "/locales/",
+    });
+    expect(fingerprint).toBe(
       buildContentSyncFingerprint({
         provider: "github",
         resourceKey: "acme/web",
         providerFolder: "locales",
       }),
     );
+    expect(fingerprint.includes("\u0000")).toBe(false);
+    expect(fingerprint).toBe(JSON.stringify(["github", "acme/web", "locales"]));
   });
 
   it("requires a provider folder for git sources", () => {

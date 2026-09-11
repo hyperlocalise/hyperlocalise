@@ -32,11 +32,11 @@ export function buildContentSyncFingerprint(input: {
   resourceKey: string;
   providerFolder: string;
 }): string {
-  return [
+  return JSON.stringify([
     input.provider.trim(),
     input.resourceKey.trim(),
     normalizeContentSyncFolder(input.providerFolder),
-  ].join("\u0000");
+  ]);
 }
 
 export function joinContentSyncPath(folder: string, relativePath: string): string {
