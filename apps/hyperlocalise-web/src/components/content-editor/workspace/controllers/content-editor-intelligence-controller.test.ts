@@ -450,6 +450,73 @@ describe("ContentEditorIntelligenceController", () => {
       expect(workspace.isLoadingVisualContext).toBe(false);
     });
 
+    it("does not merge visual context after a file scope change", async () => {
+      let resolveVisualContext: ((value: { screenshots: never[] }) => void) | undefined;
+      const lookupSegmentVisualContext = vi.fn(
+        () =>
+          new Promise<{ screenshots: never[] }>((resolve) => {
+            resolveVisualContext = resolve;
+          }),
+      );
+      const workspace = createTestWorkspace({
+        fileContext: {
+          sourcePath: "app/page.tsx",
+          filename: "page.tsx",
+          sourceLocale: "en-US",
+          targetLocale: "vi",
+          providerKind: "crowdin",
+          canEditTranslations: true,
+          canAddComments: true,
+        },
+      });
+      const { controller } = createController(workspace, {
+        intl,
+        services: { lookupSegmentVisualContext },
+      });
+      workspace.attachControllers(controller);
+
+      controller.panelVisible("seg-02");
+      workspace.prepareFileScopeChange({
+        sourcePath: "locales/messages.po",
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+      });
+      workspace.ingestQueue(
+        createContentEditorWorkspaceState({
+          selectedSegmentId: "seg-02",
+          segments: [
+            {
+              id: "seg-02",
+              index: 1,
+              key: "hello",
+              sourceText: "Hello",
+              targetText: "Bonjour",
+              sourceLocale: "en-US",
+              targetLocale: "fr-FR",
+              status: "pending",
+            },
+          ],
+          queueSegments: [{ id: "seg-02", index: 1, key: "hello", sourceText: "Hello" }],
+          fileContext: {
+            sourcePath: "locales/messages.po",
+            filename: "messages.po",
+            sourceLocale: "en-US",
+            targetLocale: "fr-FR",
+            providerKind: "crowdin",
+            canEditTranslations: true,
+            canAddComments: true,
+          },
+        }),
+      );
+
+      resolveVisualContext?.({ screenshots: [] });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(workspace.segmentIntelligence["seg-02"]?.visualContext).toBeUndefined();
+      expect(workspace.isLoadingVisualContext).toBe(false);
+    });
+
     it("skips visual context lookup for native providers", async () => {
       const lookupSegmentVisualContext = vi.fn();
       const workspace = createTestWorkspace({
