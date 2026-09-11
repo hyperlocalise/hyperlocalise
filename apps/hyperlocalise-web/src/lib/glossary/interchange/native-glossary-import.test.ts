@@ -91,6 +91,97 @@ describe("native glossary import concurrency", () => {
     expect(report?.run.counts).toEqual(result.counts);
   });
 
+  it("persists one durable history event with the completed import report", async () => {
+    const { glossary, user } = await fixture.createStoredGlossaryFixture();
+    const result = await applyNativeGlossaryImport({
+      glossaryId: glossary.id,
+      mode: "merge",
+      document: {
+        concepts: [
+          {
+            id: "stable-concept",
+            primaryTerm: "Checkout",
+            terms: [{ id: "stable-term", locale: "en", term: "Checkout" }],
+          },
+        ],
+        diagnostics: [],
+      },
+      report: {
+        organizationId: glossary.organizationId,
+        glossaryId: glossary.id,
+        createdByUserId: user.id,
+        format: "csv",
+        mode: "merge",
+        options: {},
+        sourceTotals: { concepts: 1, terms: 1 },
+      },
+    });
+
+    const events = await db
+      .select()
+      .from(schema.glossaryHistoryEvents)
+      .where(eq(schema.glossaryHistoryEvents.glossaryId, glossary.id));
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      organizationId: glossary.organizationId,
+      glossaryId: glossary.id,
+      conceptId: null,
+      termId: null,
+      eventType: "imported",
+      actorKind: "user",
+      actorUserId: user.id,
+      version: 1,
+      changedFields: ["concepts", "terms"],
+      changes: [],
+    });
+    expect(events[0]?.attributes).toEqual({
+      source: "native",
+      importRunId: result.reportId,
+      format: "csv",
+      mode: "merge",
+      sourceTotals: { concepts: 1, terms: 1 },
+      counts: result.counts,
+    });
+    expect(JSON.stringify(events[0]?.attributes)).not.toContain("Checkout");
+  });
+
+  it("does not persist history for a no-op import", async () => {
+    const { glossary, user } = await fixture.createStoredGlossaryFixture();
+    const document: GlossaryImportDocument = {
+      concepts: [
+        {
+          id: "stable-concept",
+          primaryTerm: "Checkout",
+          terms: [{ id: "stable-term", locale: "en", term: "Checkout" }],
+        },
+      ],
+      diagnostics: [],
+    };
+
+    await applyNativeGlossaryImport({ glossaryId: glossary.id, mode: "merge", document });
+    await applyNativeGlossaryImport({
+      glossaryId: glossary.id,
+      mode: "create",
+      document,
+      report: {
+        organizationId: glossary.organizationId,
+        glossaryId: glossary.id,
+        createdByUserId: user.id,
+        format: "csv",
+        mode: "create",
+        options: {},
+        sourceTotals: { concepts: 1, terms: 1 },
+      },
+    });
+
+    const events = await db
+      .select()
+      .from(schema.glossaryHistoryEvents)
+      .where(eq(schema.glossaryHistoryEvents.glossaryId, glossary.id));
+    expect(events).toHaveLength(0);
+  });
+
   it("rolls back glossary changes when the atomic report cannot be persisted", async () => {
     const { glossary } = await fixture.createStoredGlossaryFixture();
     const cleanupBackup = vi.fn(async () => undefined);
@@ -132,6 +223,12 @@ describe("native glossary import concurrency", () => {
       .where(eq(schema.glossaryTerms.glossaryId, glossary.id));
     expect(concepts).toHaveLength(0);
     expect(terms).toHaveLength(0);
+
+    const events = await db
+      .select()
+      .from(schema.glossaryHistoryEvents)
+      .where(eq(schema.glossaryHistoryEvents.glossaryId, glossary.id));
+    expect(events).toHaveLength(0);
   });
 });
 
