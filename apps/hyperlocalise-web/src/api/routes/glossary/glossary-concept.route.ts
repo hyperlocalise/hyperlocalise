@@ -38,6 +38,8 @@ import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapt
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
+import { listGlossaryConceptsPage } from "./glossary-concept-page";
+import { listGlossaryHistoryPage } from "./glossary-history-page";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { toNativeGlossaryLocale } from "@/lib/providers/adapters/crowdin/crowdin-glossary-language";
 import {
@@ -50,6 +52,8 @@ import {
 import {
   createGlossaryConceptBodySchema,
   createGlossaryConceptTermBodySchema,
+  glossaryConceptPageQuerySchema,
+  glossaryHistoryQuerySchema,
   glossaryIdParamsSchema,
   glossaryConceptIdParamsSchema,
   glossaryConceptTermIdParamsSchema,
@@ -436,6 +440,54 @@ export function createGlossaryConceptRoutes(
 ) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
+    .get(
+      "/page",
+      validator("param", validateGlossaryParams),
+      validator("query", (value, c) => {
+        const parsed = glossaryConceptPageQuerySchema.safeParse(value);
+        return parsed.success ? parsed.data : invalidGlossaryPayloadResponse(c);
+      }),
+      async (c) => {
+        const { glossaryId } = c.req.valid("param");
+        const query = c.req.valid("query");
+        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+        if (!glossary) return glossaryNotFoundResponse(c);
+        if (glossary.source !== "native") {
+          return badRequestResponse(
+            c,
+            "external_glossary_page_unsupported",
+            "Provider-backed glossaries do not expose the native management index",
+          );
+        }
+        const page = await listGlossaryConceptsPage(glossaryId, query);
+        if ("code" in page) return badRequestResponse(c, page.code, page.message);
+        return c.json(page, 200);
+      },
+    )
+    .get(
+      "/history",
+      validator("param", validateGlossaryParams),
+      validator("query", (value, c) => {
+        const parsed = glossaryHistoryQuerySchema.safeParse(value);
+        return parsed.success ? parsed.data : invalidGlossaryPayloadResponse(c);
+      }),
+      async (c) => {
+        const { glossaryId } = c.req.valid("param");
+        const query = c.req.valid("query");
+        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+        if (!glossary) return glossaryNotFoundResponse(c);
+        if (glossary.source !== "native") {
+          return badRequestResponse(
+            c,
+            "external_glossary_history_unsupported",
+            "Provider-backed glossaries do not expose local history",
+          );
+        }
+        const page = await listGlossaryHistoryPage(glossaryId, query);
+        if ("code" in page) return badRequestResponse(c, page.code, page.message);
+        return c.json(page, 200);
+      },
+    )
     .get("/", validator("param", validateGlossaryParams), async (c) => {
       const { glossaryId } = c.req.valid("param");
       const glossary = await getOwnedGlossary(c.var.auth, glossaryId);

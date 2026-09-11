@@ -10,36 +10,28 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { hasCapability } from "@/api/auth/policy";
+import { GlossaryHistoryPage } from "../_components/glossary-history-page";
+import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { GlossaryDetailPage as GlossaryDetailPageView } from "./_components/glossary-detail-page";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default function GlossaryDetailPage({
+export default function GlossaryHistoryRoute({
   params,
 }: {
   params: Promise<{ organizationSlug: string; glossaryId: string }>;
 }) {
   return (
     <OrgPageSuspense>
-      <GlossaryDetailPageLoader params={params} />
+      <GlossaryHistoryPageLoader params={params} />
     </OrgPageSuspense>
   );
 }
 
-async function GlossaryDetailPageLoader({
+async function GlossaryHistoryPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; glossaryId: string }>;
 }) {
   const { organizationSlug, glossaryId } = await params;
-  const auth = await requireAppAuthContext({ organizationSlug });
-
-  return (
-    <GlossaryDetailPageView
-      organizationSlug={organizationSlug}
-      glossaryId={glossaryId}
-      canManageGlossaries={hasCapability(auth.membership.role, "glossaries:write")}
-    />
-  );
+  await requireAppAuthContext({ organizationSlug });
+  return <GlossaryHistoryPage organizationSlug={organizationSlug} glossaryId={glossaryId} />;
 }

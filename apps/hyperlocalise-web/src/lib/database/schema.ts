@@ -17,6 +17,7 @@ export * from "./schema/providers";
 export * from "./schema/projects";
 export * from "./schema/translation-memory";
 export * from "./schema/glossary-interchange";
+export * from "./schema/glossary-history";
 export * from "./schema/github";
 export * from "./schema/integrations";
 export * from "./schema/contentful";

@@ -17,7 +17,7 @@ import type { GlossaryConceptRecord, GlossaryRecord } from "@/api/routes/glossar
 
 import { createGlossaryDetailMswHandlers } from "./glossary-detail-page-content-msw-handlers";
 import { GlossaryConceptDetail } from "./glossary-concept-detail";
-import { GlossaryDetail } from "./glossary-detail-page-content";
+import { NativeGlossaryDetail } from "./native-glossary-detail";
 
 const fixedNow = "2026-08-19T12:00:00.000Z";
 const glossaryId = "glossary-1";
@@ -115,8 +115,8 @@ const onConceptUpdate = fn();
 const onTermDelete = fn();
 
 const meta = {
-  title: "App/Glossaries/Detail",
-  component: GlossaryDetail,
+  title: "App/Glossaries/Native detail",
+  component: NativeGlossaryDetail,
   parameters: {
     layout: "fullscreen",
   },
@@ -125,7 +125,7 @@ const meta = {
     glossaryId,
     canManageGlossaries: true,
   },
-} satisfies Meta<typeof GlossaryDetail>;
+} satisfies Meta<typeof NativeGlossaryDetail>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -175,17 +175,6 @@ const teamGlossaryFixture: GlossaryRecord = {
   controlLevel: "team",
   teamId: "team-product-1",
   teamName: "Product",
-};
-
-const providerGlossaryFixture: GlossaryRecord = {
-  ...glossaryFixture,
-  name: "Phrase Term Base",
-  source: "external_tms",
-  controlLevel: "org",
-  externalProviderKind: "phrase",
-  externalProjectId: "phrase-project-9",
-  externalResourceType: "term_base",
-  externalGlossaryId: "tb-42",
 };
 
 function createListStoryParameters(
@@ -254,21 +243,6 @@ export const OrgTranslatorReadOnly: Story = {
     await expect(
       canvas.queryByRole("textbox", { name: "Edit glossary name" }),
     ).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: "Add concept" })).not.toBeInTheDocument();
-  },
-};
-
-export const ProviderReadOnly: Story = {
-  args: {
-    canManageGlossaries: false,
-  },
-  parameters: createListStoryParameters(providerGlossaryFixture, { canContribute: false }),
-  play: async ({ canvas }) => {
-    await expect(
-      await canvas.findByRole("heading", { name: "Phrase Term Base" }),
-    ).toBeInTheDocument();
-    await expect(canvas.getByText("Provider")).toBeInTheDocument();
-    await expect(canvas.queryByRole("combobox", { name: "Control" })).not.toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Add concept" })).not.toBeInTheDocument();
   },
 };

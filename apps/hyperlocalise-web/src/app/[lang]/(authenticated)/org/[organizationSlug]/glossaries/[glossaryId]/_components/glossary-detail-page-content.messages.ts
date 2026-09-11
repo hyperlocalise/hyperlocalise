@@ -95,6 +95,11 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "OU8ZFDP47O",
     description: "Accessible label for the glossary actions menu",
   },
+  glossaryHistory: {
+    defaultMessage: "View history",
+    id: "DzmZ+KrwIu",
+    description: "Link to the glossary history page",
+  },
   exportAsTbx: {
     defaultMessage: "Export as TBX",
     id: "Jh6eXznG+8",
