@@ -44,7 +44,7 @@ func resolveTMSLocales(cfg *config.I18NConfig, requested []string) ([]string, er
 		return append([]string(nil), cfg.Locales.Targets...), nil
 	}
 
-	allowed := make(map[string]struct{}, len(cfg.Locales.Targets)+1)
+	allowed := make(map[string]struct{})
 	if source := strings.TrimSpace(cfg.Locales.Source); source != "" {
 		allowed[source] = struct{}{}
 	}
