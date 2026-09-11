@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import type {
   GlossaryConceptRecord,
   GlossaryConceptTermRecord,
+  GlossaryTermPageResponse,
   CreateGlossaryConceptBody,
   UpsertGlossaryConceptTermBody,
 } from "@/api/routes/glossary/glossary.schema";
@@ -296,6 +297,8 @@ export function GlossaryConceptDetail({
   const glossaryHref = `/org/${organizationSlug}/glossaries/${glossaryId}`;
   const conceptHref = (id: string) => `${glossaryHref}/concepts/${id}`;
   const [languageFilter, setLanguageFilter] = useState("");
+  const [termCursor, setTermCursor] = useState<string | undefined>();
+  const [, setTermCursorStack] = useState<string[]>([]);
   const [localePickerOpen, setLocalePickerOpen] = useState(false);
   const [newTermLocale, setNewTermLocale] = useState<string | null>(null);
   const [newTermDraft, setNewTermDraft] = useState<TermDraft>(emptyTermDraft);
@@ -323,6 +326,7 @@ export function GlossaryConceptDetail({
         ":glossaryId"
       ].concepts[":conceptId"].$get({
         param: { organizationSlug, glossaryId, conceptId },
+        query: { includeTerms: "false" },
       });
       if (!response.ok) {
         throw await readApiResponseError(response, intl.formatMessage(messages.loadConceptsFailed));
@@ -330,7 +334,44 @@ export function GlossaryConceptDetail({
       return (await response.json()).concept as GlossaryConceptRecord;
     },
   });
-  const selectedConcept = conceptQuery.data ?? null;
+  const conceptRecord = conceptQuery.data ?? null;
+  const termsQuery = useQuery({
+    queryKey: [
+      "glossary-concept-terms-page",
+      organizationSlug,
+      glossaryId,
+      conceptId,
+      termCursor,
+      languageFilter,
+    ],
+    enabled: Boolean(conceptRecord) && !isCreatingConcept,
+    queryFn: async ({ signal }) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].concepts[":conceptId"].terms.page.$get(
+        {
+          param: { organizationSlug, glossaryId, conceptId },
+          query: {
+            limit: "50",
+            sort: "locale",
+            sortDir: "asc",
+            includeArchived: "false",
+            ...(termCursor ? { cursor: termCursor } : {}),
+            ...(languageFilter.trim() ? { search: languageFilter.trim() } : {}),
+          },
+        },
+        { init: { signal } },
+      );
+      if (!response.ok) {
+        throw await readApiResponseError(response, intl.formatMessage(messages.loadConceptsFailed));
+      }
+      return (await response.json()) as GlossaryTermPageResponse;
+    },
+    placeholderData: (previous) => previous,
+  });
+  const selectedConcept = conceptRecord
+    ? { ...conceptRecord, terms: termsQuery.data?.terms ?? [] }
+    : null;
   useEffect(() => {
     if (conceptId === "new") {
       setConceptDraft(emptyConceptDraft);
@@ -396,6 +437,22 @@ export function GlossaryConceptDetail({
   );
 
   const goBack = () => router.push(glossaryHref);
+
+  const goToNextTermPage = () => {
+    const nextCursor = termsQuery.data?.nextCursor;
+    if (!nextCursor || isDirty) return;
+    setTermCursorStack((current) => [...current, termCursor ?? ""]);
+    setTermCursor(nextCursor);
+  };
+
+  const goToPreviousTermPage = () => {
+    if (isDirty) return;
+    setTermCursorStack((current) => {
+      const next = [...current];
+      setTermCursor(next.pop() || undefined);
+      return next;
+    });
+  };
 
   const updateTermDraft = (termId: string, patch: Partial<TermDraft>) => {
     setTermDrafts((current) => {
@@ -761,7 +818,11 @@ export function GlossaryConceptDetail({
                   className="pl-8"
                   placeholder={intl.formatMessage(messages.filterLanguages)}
                   value={languageFilter}
-                  onChange={(event) => setLanguageFilter(event.target.value)}
+                  onChange={(event) => {
+                    setLanguageFilter(event.target.value);
+                    setTermCursor(undefined);
+                    setTermCursorStack([]);
+                  }}
                 />
               </div>
               <Button
@@ -775,6 +836,33 @@ export function GlossaryConceptDetail({
                 <FormattedMessage {...messages.addTerm} />
               </Button>
             </div>
+            {!isCreatingConcept &&
+            termsQuery.data &&
+            (termsQuery.data.pagination.hasMore || termCursor) ? (
+              <div className="flex items-center justify-between gap-2 border-b border-border pb-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!termCursor || isDirty || termsQuery.isFetching}
+                  onClick={goToPreviousTermPage}
+                >
+                  Previous terms
+                </Button>
+                <TypographyP size="xsmall" tone="subtle" className="tabular-nums">
+                  {termsQuery.data.pagination.returned} of {termsQuery.data.total}
+                </TypographyP>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!termsQuery.data.nextCursor || isDirty || termsQuery.isFetching}
+                  onClick={goToNextTermPage}
+                >
+                  Next terms
+                </Button>
+              </div>
+            ) : null}
             <Dialog open={localePickerOpen} onOpenChange={setLocalePickerOpen}>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>

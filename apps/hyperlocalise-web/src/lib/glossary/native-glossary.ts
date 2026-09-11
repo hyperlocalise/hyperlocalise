@@ -29,6 +29,11 @@ import {
   type NormalizedGlossaryMatch,
 } from "@/lib/providers/contracts/glossary-match";
 import { buildGlossaryTsQuery, isValidatedTrailingSVariant } from "./glossary";
+import {
+  appendGlossaryHistoryEvent,
+  diffGlossaryFields,
+  historyActorFromUser,
+} from "./glossary-history";
 import type { GlossaryProviderContext } from "./glossary-provider";
 import {
   Glossary,
@@ -53,6 +58,46 @@ const NATIVE_CONCORDANCE_CANDIDATE_PAGE_SIZE = 200;
 
 type GlossaryTermRow = typeof schema.glossaryTerms.$inferSelect;
 type GlossaryConceptRow = typeof schema.glossaryConcepts.$inferSelect;
+
+const CONCEPT_HISTORY_FIELDS = [
+  "primaryTerm",
+  "subject",
+  "definition",
+  "translatable",
+  "note",
+  "url",
+  "figure",
+  "languageDetails",
+  "reviewStatus",
+  "archivedAt",
+] as const;
+
+const TERM_HISTORY_FIELDS = [
+  "locale",
+  "term",
+  "description",
+  "note",
+  "partOfSpeech",
+  "gender",
+  "termType",
+  "url",
+  "lemma",
+  "status",
+  "caseSensitive",
+  "forbidden",
+  "provenance",
+  "reviewStatus",
+  "archivedAt",
+] as const;
+
+function historyValue(row: Record<string, unknown> | null, fields: readonly string[]) {
+  return Object.fromEntries(
+    fields.map((field) => {
+      const value = row?.[field] ?? null;
+      return [field, value instanceof Date ? value.toISOString() : value];
+    }),
+  );
+}
 
 type NativeConceptSourceHit = {
   conceptId: string;
@@ -381,17 +426,41 @@ export class NativeGlossary extends Glossary {
     if (Object.keys(updates).length === 0) {
       return this.input.glossary;
     }
-    const [glossary] = await db
-      .update(schema.glossaries)
-      .set(updates)
-      .where(
-        and(
-          eq(schema.glossaries.id, this.input.glossary.id),
-          eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+    const actor = historyActorFromUser(this.input.actorUserId ?? this.input.auth.user.localUserId);
+    return db.transaction(async (tx) => {
+      const [before] = await tx
+        .select()
+        .from(schema.glossaries)
+        .where(
+          and(
+            eq(schema.glossaries.id, this.input.glossary.id),
+            eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (!before) return null;
+      const [glossary] = await tx
+        .update(schema.glossaries)
+        .set(updates)
+        .where(eq(schema.glossaries.id, this.input.glossary.id))
+        .returning();
+      if (!glossary) return null;
+      const fields = ["name", "description", "sourceLocale"] as const;
+      await appendGlossaryHistoryEvent(tx, {
+        organizationId: this.input.auth.organization.localOrganizationId,
+        glossaryId: this.input.glossary.id,
+        target: { resourceKind: "glossary" },
+        eventType: "updated",
+        actor,
+        changes: diffGlossaryFields(
+          historyValue(before as unknown as Record<string, unknown>, fields),
+          historyValue(glossary as unknown as Record<string, unknown>, fields),
+          fields,
         ),
-      )
-      .returning();
-    return glossary ?? null;
+      });
+      return glossary;
+    });
   }
 
   async updateWithAttachmentGuard(payload: {
@@ -424,9 +493,7 @@ export class NativeGlossary extends Glossary {
 
     return db.transaction(async (tx) => {
       const [glossaryRow] = await tx
-        .select({
-          sourceLocale: schema.glossaries.sourceLocale,
-        })
+        .select()
         .from(schema.glossaries)
         .where(
           and(
@@ -489,21 +556,77 @@ export class NativeGlossary extends Glossary {
         )
         .returning();
 
+      if (glossary) {
+        const fields = ["name", "description", "sourceLocale"] as const;
+        await appendGlossaryHistoryEvent(tx, {
+          organizationId: this.input.auth.organization.localOrganizationId,
+          glossaryId: this.input.glossary.id,
+          target: { resourceKind: "glossary" },
+          eventType: "updated",
+          actor: historyActorFromUser(this.input.actorUserId ?? this.input.auth.user.localUserId),
+          changes: diffGlossaryFields(
+            historyValue(glossaryRow as unknown as Record<string, unknown>, fields),
+            historyValue(glossary as unknown as Record<string, unknown>, fields),
+            fields,
+          ),
+        });
+      }
+
       return glossary ? { status: "updated", glossary } : { status: "not_found" };
     });
   }
 
   async delete() {
-    const deleted = await db
-      .delete(schema.glossaries)
-      .where(
-        and(
-          eq(schema.glossaries.id, this.input.glossary.id),
-          eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+    const actor = historyActorFromUser(this.input.actorUserId ?? this.input.auth.user.localUserId);
+    return db.transaction(async (tx) => {
+      const [glossary] = await tx
+        .select()
+        .from(schema.glossaries)
+        .where(
+          and(
+            eq(schema.glossaries.id, this.input.glossary.id),
+            eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (!glossary) return false;
+      await appendGlossaryHistoryEvent(tx, {
+        organizationId: this.input.auth.organization.localOrganizationId,
+        glossaryId: glossary.id,
+        target: { resourceKind: "glossary" },
+        eventType: "deleted",
+        actor,
+        changes: diffGlossaryFields(
+          historyValue(glossary as unknown as Record<string, unknown>, [
+            "name",
+            "description",
+            "sourceLocale",
+            "source",
+            "controlLevel",
+            "teamId",
+          ]),
+          null,
+          ["name", "description", "sourceLocale", "source", "controlLevel", "teamId"],
         ),
-      )
-      .returning({ id: schema.glossaries.id });
-    return deleted.length > 0;
+        attributes: {
+          glossarySnapshot: {
+            id: glossary.id,
+            name: glossary.name,
+            description: glossary.description,
+            sourceLocale: glossary.sourceLocale,
+            source: glossary.source,
+            controlLevel: glossary.controlLevel,
+            teamId: glossary.teamId,
+          },
+        },
+      });
+      const deleted = await tx
+        .delete(schema.glossaries)
+        .where(eq(schema.glossaries.id, glossary.id))
+        .returning({ id: schema.glossaries.id });
+      return deleted.length > 0;
+    });
   }
 
   private async lockGlossaryRow(database: DatabaseClient = db) {
@@ -525,7 +648,11 @@ export class NativeGlossary extends Glossary {
     return glossaryRow ?? null;
   }
 
-  private async loadConcept(conceptId: string, database: DatabaseClient = db) {
+  private async loadConcept(
+    conceptId: string,
+    database: DatabaseClient = db,
+    options: { includeTerms?: boolean } = {},
+  ) {
     const [concept] = await database
       .select()
       .from(schema.glossaryConcepts)
@@ -538,10 +665,13 @@ export class NativeGlossary extends Glossary {
       .limit(1);
     if (!concept) return null;
 
-    const terms = await database
-      .select()
-      .from(schema.glossaryTerms)
-      .where(eq(schema.glossaryTerms.conceptId, concept.id));
+    const terms =
+      options.includeTerms === false
+        ? []
+        : await database
+            .select()
+            .from(schema.glossaryTerms)
+            .where(eq(schema.glossaryTerms.conceptId, concept.id));
     return { concept, terms };
   }
 
@@ -647,8 +777,8 @@ export class NativeGlossary extends Glossary {
     );
   }
 
-  async getConcept(conceptId: string) {
-    const loaded = await this.loadConcept(conceptId);
+  async getConcept(conceptId: string, options: { includeTerms?: boolean } = {}) {
+    const loaded = await this.loadConcept(conceptId, db, options);
     return loaded ? this.toConceptRecord(loaded) : null;
   }
 
@@ -656,6 +786,7 @@ export class NativeGlossary extends Glossary {
     const normalizedInput = normalizeNativeConcept(
       toNativeConceptInput(input, this.input.glossary.sourceLocale),
     );
+    const actor = historyActorFromUser(this.input.actorUserId ?? this.input.auth.user.localUserId);
     const created = await db.transaction(async (tx) => {
       if (!(await this.lockGlossaryRow(tx))) {
         return null;
@@ -705,29 +836,68 @@ export class NativeGlossary extends Glossary {
           url: normalizedInput.url || null,
           figure: normalizedInput.figure || null,
           languageDetails: normalizedInput.languageDetails ?? [],
+          createdByUserId: actor.userId,
+          modifiedByUserId: actor.userId,
         })
         .returning();
+      if (!concept) return null;
+      const createdTerms = [] as GlossaryTermRow[];
       if (normalizedInput.terms.length > 0) {
-        await tx.insert(schema.glossaryTerms).values(
-          normalizedInput.terms.map((term) => ({
-            glossaryId: this.input.glossary.id,
-            conceptId: concept.id,
-            locale: term.locale,
-            term: term.text,
-            sourceTerm: term.text,
-            targetTerm: term.text,
-            description: term.description ?? "",
-            note: term.note ?? "",
-            partOfSpeech: term.partOfSpeech ?? "",
-            gender: term.gender ?? null,
-            termType: term.type ?? null,
-            url: term.url ?? null,
-            lemma: term.lemma ?? null,
-            status: term.status ?? "draft",
-            forbidden: term.forbidden ?? false,
-            provenance: "manual" as const,
-          })),
+        createdTerms.push(
+          ...(await tx
+            .insert(schema.glossaryTerms)
+            .values(
+              normalizedInput.terms.map((term) => ({
+                glossaryId: this.input.glossary.id,
+                conceptId: concept.id,
+                locale: term.locale,
+                term: term.text,
+                sourceTerm: term.text,
+                targetTerm: term.text,
+                description: term.description ?? "",
+                note: term.note ?? "",
+                partOfSpeech: term.partOfSpeech ?? "",
+                gender: term.gender ?? null,
+                termType: term.type ?? null,
+                url: term.url ?? null,
+                lemma: term.lemma ?? null,
+                status: term.status ?? "draft",
+                forbidden: term.forbidden ?? false,
+                provenance: "manual" as const,
+                createdByUserId: actor.userId,
+                modifiedByUserId: actor.userId,
+              })),
+            )
+            .returning()),
         );
+      }
+      await appendGlossaryHistoryEvent(tx, {
+        organizationId: this.input.auth.organization.localOrganizationId,
+        glossaryId: this.input.glossary.id,
+        target: { resourceKind: "concept", conceptId: concept.id },
+        eventType: "created",
+        actor,
+        version: concept.version,
+        changes: diffGlossaryFields(
+          null,
+          historyValue(concept as unknown as Record<string, unknown>, CONCEPT_HISTORY_FIELDS),
+          CONCEPT_HISTORY_FIELDS,
+        ),
+      });
+      for (const term of createdTerms) {
+        await appendGlossaryHistoryEvent(tx, {
+          organizationId: this.input.auth.organization.localOrganizationId,
+          glossaryId: this.input.glossary.id,
+          target: { resourceKind: "term", conceptId: concept.id, termId: term.id },
+          eventType: "created",
+          actor,
+          version: term.version,
+          changes: diffGlossaryFields(
+            null,
+            historyValue(term as unknown as Record<string, unknown>, TERM_HISTORY_FIELDS),
+            TERM_HISTORY_FIELDS,
+          ),
+        });
       }
       return concept;
     });
@@ -741,6 +911,7 @@ export class NativeGlossary extends Glossary {
     const normalizedInput = normalizeNativeConcept(
       toNativeConceptInput(input, this.input.glossary.sourceLocale),
     );
+    const actor = historyActorFromUser(this.input.actorUserId ?? this.input.auth.user.localUserId);
     const updated = await db.transaction(async (tx) => {
       if (!(await this.lockGlossaryRow(tx))) {
         return false;
@@ -749,19 +920,40 @@ export class NativeGlossary extends Glossary {
       const loaded = await this.loadConcept(conceptId, tx);
       if (!loaded) return false;
 
-      await tx
-        .update(schema.glossaryConcepts)
-        .set({
-          primaryTerm: normalizedInput.primaryTerm,
-          subject: normalizedInput.subject ?? "",
-          definition: normalizedInput.definition ?? "",
-          translatable: normalizedInput.translatable ?? true,
-          note: normalizedInput.note ?? "",
-          url: normalizedInput.url || null,
-          figure: normalizedInput.figure || null,
-          languageDetails: normalizedInput.languageDetails ?? [],
-        })
-        .where(eq(schema.glossaryConcepts.id, conceptId));
+      const nextConceptValues = {
+        primaryTerm: normalizedInput.primaryTerm,
+        subject: normalizedInput.subject ?? "",
+        definition: normalizedInput.definition ?? "",
+        translatable: normalizedInput.translatable ?? true,
+        note: normalizedInput.note ?? "",
+        url: normalizedInput.url || null,
+        figure: normalizedInput.figure || null,
+        languageDetails: normalizedInput.languageDetails ?? [],
+      };
+      const conceptChanges = diffGlossaryFields(
+        historyValue(loaded.concept as unknown as Record<string, unknown>, CONCEPT_HISTORY_FIELDS),
+        historyValue(nextConceptValues, CONCEPT_HISTORY_FIELDS),
+        CONCEPT_HISTORY_FIELDS,
+      );
+      if (conceptChanges.length > 0) {
+        await tx
+          .update(schema.glossaryConcepts)
+          .set({
+            ...nextConceptValues,
+            modifiedByUserId: actor.userId,
+            version: loaded.concept.version + 1,
+          })
+          .where(eq(schema.glossaryConcepts.id, conceptId));
+        await appendGlossaryHistoryEvent(tx, {
+          organizationId: this.input.auth.organization.localOrganizationId,
+          glossaryId: this.input.glossary.id,
+          target: { resourceKind: "concept", conceptId },
+          eventType: "updated",
+          actor,
+          version: loaded.concept.version + 1,
+          changes: conceptChanges,
+        });
+      }
       // Match Crowdin concept PATCH reconcile: terms present in the payload are
       // upserted; existing concept terms omitted from the payload are deleted.
       // The glossary UI defers term deletion until Save by omitting those ids.
@@ -788,17 +980,56 @@ export class NativeGlossary extends Glossary {
         };
         if (existing) {
           retainedIds.add(existing.id);
-          await tx
-            .update(schema.glossaryTerms)
-            .set(values)
-            .where(eq(schema.glossaryTerms.id, existing.id));
+          const termChanges = diffGlossaryFields(
+            historyValue(existing as unknown as Record<string, unknown>, TERM_HISTORY_FIELDS),
+            historyValue(values, TERM_HISTORY_FIELDS),
+            TERM_HISTORY_FIELDS,
+          );
+          if (termChanges.length > 0) {
+            await tx
+              .update(schema.glossaryTerms)
+              .set({ ...values, modifiedByUserId: actor.userId, version: existing.version + 1 })
+              .where(eq(schema.glossaryTerms.id, existing.id));
+            await appendGlossaryHistoryEvent(tx, {
+              organizationId: this.input.auth.organization.localOrganizationId,
+              glossaryId: this.input.glossary.id,
+              target: { resourceKind: "term", conceptId, termId: existing.id },
+              eventType: "updated",
+              actor,
+              version: existing.version + 1,
+              changes: termChanges,
+            });
+          }
         } else {
-          await tx.insert(schema.glossaryTerms).values({
-            glossaryId: this.input.glossary.id,
-            conceptId,
-            ...values,
-            provenance: "manual" as const,
-          });
+          const [createdTerm] = await tx
+            .insert(schema.glossaryTerms)
+            .values({
+              glossaryId: this.input.glossary.id,
+              conceptId,
+              ...values,
+              provenance: "manual" as const,
+              createdByUserId: actor.userId,
+              modifiedByUserId: actor.userId,
+            })
+            .returning();
+          if (createdTerm) {
+            await appendGlossaryHistoryEvent(tx, {
+              organizationId: this.input.auth.organization.localOrganizationId,
+              glossaryId: this.input.glossary.id,
+              target: { resourceKind: "term", conceptId, termId: createdTerm.id },
+              eventType: "created",
+              actor,
+              version: createdTerm.version,
+              changes: diffGlossaryFields(
+                null,
+                historyValue(
+                  createdTerm as unknown as Record<string, unknown>,
+                  TERM_HISTORY_FIELDS,
+                ),
+                TERM_HISTORY_FIELDS,
+              ),
+            });
+          }
         }
       }
 
@@ -806,6 +1037,23 @@ export class NativeGlossary extends Glossary {
         .map((term) => term.id)
         .filter((termId) => !retainedIds.has(termId));
       if (orphanIds.length > 0) {
+        for (const orphanId of orphanIds) {
+          const orphan = loaded.terms.find((term) => term.id === orphanId);
+          if (!orphan) continue;
+          await appendGlossaryHistoryEvent(tx, {
+            organizationId: this.input.auth.organization.localOrganizationId,
+            glossaryId: this.input.glossary.id,
+            target: { resourceKind: "term", conceptId, termId: orphan.id },
+            eventType: "deleted",
+            actor,
+            version: orphan.version,
+            changes: diffGlossaryFields(
+              historyValue(orphan as unknown as Record<string, unknown>, TERM_HISTORY_FIELDS),
+              null,
+              TERM_HISTORY_FIELDS,
+            ),
+          });
+        }
         await tx
           .delete(schema.glossaryTerms)
           .where(
@@ -823,16 +1071,48 @@ export class NativeGlossary extends Glossary {
   }
 
   async deleteConcept(conceptId: string) {
-    const deleted = await db
-      .delete(schema.glossaryConcepts)
-      .where(
-        and(
-          eq(schema.glossaryConcepts.id, conceptId),
-          eq(schema.glossaryConcepts.glossaryId, this.input.glossary.id),
+    const actor = historyActorFromUser(this.input.actorUserId ?? this.input.auth.user.localUserId);
+    return db.transaction(async (tx) => {
+      if (!(await this.lockGlossaryRow(tx))) return false;
+      const loaded = await this.loadConcept(conceptId, tx);
+      if (!loaded) return false;
+      for (const term of loaded.terms) {
+        await appendGlossaryHistoryEvent(tx, {
+          organizationId: this.input.auth.organization.localOrganizationId,
+          glossaryId: this.input.glossary.id,
+          target: { resourceKind: "term", conceptId, termId: term.id },
+          eventType: "deleted",
+          actor,
+          version: term.version,
+          changes: diffGlossaryFields(
+            historyValue(term as unknown as Record<string, unknown>, TERM_HISTORY_FIELDS),
+            null,
+            TERM_HISTORY_FIELDS,
+          ),
+        });
+      }
+      await appendGlossaryHistoryEvent(tx, {
+        organizationId: this.input.auth.organization.localOrganizationId,
+        glossaryId: this.input.glossary.id,
+        target: { resourceKind: "concept", conceptId },
+        eventType: "deleted",
+        actor,
+        version: loaded.concept.version,
+        changes: diffGlossaryFields(
+          historyValue(
+            loaded.concept as unknown as Record<string, unknown>,
+            CONCEPT_HISTORY_FIELDS,
+          ),
+          null,
+          CONCEPT_HISTORY_FIELDS,
         ),
-      )
-      .returning({ id: schema.glossaryConcepts.id });
-    return deleted.length > 0;
+      });
+      const deleted = await tx
+        .delete(schema.glossaryConcepts)
+        .where(eq(schema.glossaryConcepts.id, conceptId))
+        .returning({ id: schema.glossaryConcepts.id });
+      return deleted.length > 0;
+    });
   }
 
   async importConcepts(entries: GlossaryConceptImportEntry[]) {
@@ -1004,6 +1284,16 @@ export class NativeGlossary extends Glossary {
         return { status: "team_native_project_required" };
       }
 
+      const [existingAttachment] = await tx
+        .select()
+        .from(schema.projectGlossaries)
+        .where(
+          and(
+            eq(schema.projectGlossaries.projectId, projectId),
+            eq(schema.projectGlossaries.glossaryId, this.input.glossary.id),
+          ),
+        )
+        .limit(1);
       await tx
         .insert(schema.projectGlossaries)
         .values({
@@ -1016,6 +1306,20 @@ export class NativeGlossary extends Glossary {
           target: [schema.projectGlossaries.projectId, schema.projectGlossaries.glossaryId],
           set: { priority },
         });
+
+      await appendGlossaryHistoryEvent(tx, {
+        organizationId,
+        glossaryId: this.input.glossary.id,
+        target: { resourceKind: "project" },
+        eventType: "project_attached",
+        actor: historyActorFromUser(this.input.actorUserId ?? this.input.auth.user.localUserId),
+        changes: diffGlossaryFields(
+          existingAttachment ? { priority: existingAttachment.priority } : null,
+          { priority },
+          ["priority"],
+        ),
+        attributes: { projectId },
+      });
 
       return { status: "attached" };
     });
@@ -1060,6 +1364,7 @@ export class NativeGlossary extends Glossary {
         .select({
           projectId: schema.projects.id,
           source: schema.projects.source,
+          priority: schema.projectGlossaries.priority,
         })
         .from(schema.projectGlossaries)
         .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
@@ -1100,12 +1405,23 @@ export class NativeGlossary extends Glossary {
           ),
         );
 
+      await appendGlossaryHistoryEvent(tx, {
+        organizationId: this.input.auth.organization.localOrganizationId,
+        glossaryId: this.input.glossary.id,
+        target: { resourceKind: "project" },
+        eventType: "project_detached",
+        actor: historyActorFromUser(this.input.actorUserId ?? this.input.auth.user.localUserId),
+        changes: diffGlossaryFields({ priority: target.priority }, null, ["priority"]),
+        attributes: { projectId },
+      });
+
       return "detached";
     });
   }
 
   async createTerm(conceptId: string, input: NativeGlossaryTermInput) {
     const normalizedInput = normalizeNativeTerm(input);
+    const actor = historyActorFromUser(this.input.actorUserId ?? this.input.auth.user.localUserId);
     const term = await db.transaction(async (tx) => {
       if (!(await this.lockGlossaryRow(tx))) {
         return null;
@@ -1133,8 +1449,25 @@ export class NativeGlossary extends Glossary {
           status: normalizedInput.status ?? "draft",
           forbidden: normalizedInput.forbidden ?? false,
           provenance: "manual" as const,
+          createdByUserId: actor.userId,
+          modifiedByUserId: actor.userId,
         })
         .returning();
+      if (created) {
+        await appendGlossaryHistoryEvent(tx, {
+          organizationId: this.input.auth.organization.localOrganizationId,
+          glossaryId: this.input.glossary.id,
+          target: { resourceKind: "term", conceptId, termId: created.id },
+          eventType: "created",
+          actor,
+          version: created.version,
+          changes: diffGlossaryFields(
+            null,
+            historyValue(created as unknown as Record<string, unknown>, TERM_HISTORY_FIELDS),
+            TERM_HISTORY_FIELDS,
+          ),
+        });
+      }
       return created ?? null;
     });
     return term ? this.toTermRecord(term) : null;
@@ -1142,9 +1475,23 @@ export class NativeGlossary extends Glossary {
 
   async updateTerm(conceptId: string, termId: string, input: NativeGlossaryTermInput) {
     const normalizedInput = normalizeNativeTerm(input);
-    const [term] = await db
-      .update(schema.glossaryTerms)
-      .set({
+    const actor = historyActorFromUser(this.input.actorUserId ?? this.input.auth.user.localUserId);
+    const term = await db.transaction(async (tx) => {
+      if (!(await this.lockGlossaryRow(tx))) return null;
+      const [existing] = await tx
+        .select()
+        .from(schema.glossaryTerms)
+        .where(
+          and(
+            eq(schema.glossaryTerms.id, termId),
+            eq(schema.glossaryTerms.conceptId, conceptId),
+            eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (!existing) return null;
+      const values = {
         locale: normalizedInput.locale,
         term: normalizedInput.text,
         sourceTerm: normalizedInput.text,
@@ -1160,30 +1507,70 @@ export class NativeGlossary extends Glossary {
         ...(normalizedInput.forbidden === undefined
           ? {}
           : { forbidden: normalizedInput.forbidden }),
-      })
-      .where(
-        and(
-          eq(schema.glossaryTerms.id, termId),
-          eq(schema.glossaryTerms.conceptId, conceptId),
-          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-        ),
-      )
-      .returning();
+      };
+      const changes = diffGlossaryFields(
+        historyValue(existing as unknown as Record<string, unknown>, TERM_HISTORY_FIELDS),
+        historyValue(values, TERM_HISTORY_FIELDS),
+        TERM_HISTORY_FIELDS,
+      );
+      if (changes.length === 0) return existing;
+      const [updated] = await tx
+        .update(schema.glossaryTerms)
+        .set({ ...values, modifiedByUserId: actor.userId, version: existing.version + 1 })
+        .where(eq(schema.glossaryTerms.id, termId))
+        .returning();
+      if (updated) {
+        await appendGlossaryHistoryEvent(tx, {
+          organizationId: this.input.auth.organization.localOrganizationId,
+          glossaryId: this.input.glossary.id,
+          target: { resourceKind: "term", conceptId, termId },
+          eventType: "updated",
+          actor,
+          version: updated.version,
+          changes,
+        });
+      }
+      return updated ?? null;
+    });
     return term ? this.toTermRecord(term) : null;
   }
 
   async deleteTerm(conceptId: string, termId: string) {
-    const deleted = await db
-      .delete(schema.glossaryTerms)
-      .where(
-        and(
-          eq(schema.glossaryTerms.id, termId),
-          eq(schema.glossaryTerms.conceptId, conceptId),
-          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+    const actor = historyActorFromUser(this.input.actorUserId ?? this.input.auth.user.localUserId);
+    return db.transaction(async (tx) => {
+      if (!(await this.lockGlossaryRow(tx))) return false;
+      const [term] = await tx
+        .select()
+        .from(schema.glossaryTerms)
+        .where(
+          and(
+            eq(schema.glossaryTerms.id, termId),
+            eq(schema.glossaryTerms.conceptId, conceptId),
+            eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (!term) return false;
+      await appendGlossaryHistoryEvent(tx, {
+        organizationId: this.input.auth.organization.localOrganizationId,
+        glossaryId: this.input.glossary.id,
+        target: { resourceKind: "term", conceptId, termId },
+        eventType: "deleted",
+        actor,
+        version: term.version,
+        changes: diffGlossaryFields(
+          historyValue(term as unknown as Record<string, unknown>, TERM_HISTORY_FIELDS),
+          null,
+          TERM_HISTORY_FIELDS,
         ),
-      )
-      .returning({ id: schema.glossaryTerms.id });
-    return deleted.length > 0;
+      });
+      const deleted = await tx
+        .delete(schema.glossaryTerms)
+        .where(eq(schema.glossaryTerms.id, termId))
+        .returning({ id: schema.glossaryTerms.id });
+      return deleted.length > 0;
+    });
   }
 
   async searchConcordance(
