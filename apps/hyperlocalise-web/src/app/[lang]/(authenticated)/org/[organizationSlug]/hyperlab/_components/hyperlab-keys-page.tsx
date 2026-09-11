@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { observer } from "mobx-react-lite";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -24,6 +24,10 @@ import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
 import { TypographyP } from "@/components/ui/typography";
 
+import {
+  HyperlabWorkspaceProvider,
+  useHyperlabWorkspace,
+} from "../store/hyperlab-workspace-context";
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
   hyperlabClient,
@@ -49,10 +53,24 @@ export function HyperlabKeysPage({
   organizationSlug: string;
   canWrite: boolean;
 }) {
+  return (
+    <HyperlabWorkspaceProvider>
+      <HyperlabKeysPageConnected organizationSlug={organizationSlug} canWrite={canWrite} />
+    </HyperlabWorkspaceProvider>
+  );
+}
+
+const HyperlabKeysPageConnected = observer(function HyperlabKeysPageConnected({
+  organizationSlug,
+  canWrite,
+}: {
+  organizationSlug: string;
+  canWrite: boolean;
+}) {
   const intl = useIntl();
   const queryClient = useQueryClient();
   const client = hyperlabClient();
-  const [createdSecret, setCreatedSecret] = useState<string | null>(null);
+  const { ui: uiStore } = useHyperlabWorkspace();
   const keysQuery = useQuery({
     queryKey: hyperlabQueryKeys.keys(organizationSlug),
     queryFn: async () => {
@@ -66,7 +84,10 @@ export function HyperlabKeysPage({
   });
   const keys = keysQuery.data ?? [];
   const createAction = canWrite ? (
-    <HyperlabCreateKeyDialog organizationSlug={organizationSlug} onCreated={setCreatedSecret} />
+    <HyperlabCreateKeyDialog
+      organizationSlug={organizationSlug}
+      onCreated={(secret) => uiStore.setCreatedSecret(secret)}
+    />
   ) : null;
 
   const revokeMutation = useMutation({
@@ -92,20 +113,20 @@ export function HyperlabKeysPage({
       actions={createAction}
     >
       <Rows spacing="2u">
-        {createdSecret ? (
+        {uiStore.createdSecret ? (
           <Box border="standard" borderRadius="standard" background="muted" padding="2u">
             <Rows spacing="1u">
               <TypographyP wrapStyle="pretty" size="small" weight="medium">
                 <FormattedMessage {...messages.copySecret} />
               </TypographyP>
-              <code className="overflow-x-auto text-sm">{createdSecret}</code>
+              <code className="overflow-x-auto text-sm">{uiStore.createdSecret}</code>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="w-fit"
                 onClick={() => {
-                  void navigator.clipboard.writeText(createdSecret);
+                  void navigator.clipboard.writeText(uiStore.createdSecret ?? "");
                   toast.success(intl.formatMessage(messages.copied));
                 }}
               >
@@ -169,4 +190,4 @@ export function HyperlabKeysPage({
       </Rows>
     </HyperlabPageShell>
   );
-}
+});

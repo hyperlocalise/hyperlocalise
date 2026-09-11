@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { observer } from "mobx-react-lite";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -26,6 +26,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 
+import { HyperlabAudienceQueryBridge } from "../store/hyperlab-query-bridge";
+import {
+  HyperlabWorkspaceProvider,
+  useHyperlabWorkspace,
+} from "../store/hyperlab-workspace-context";
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
   hyperlabClient,
@@ -33,12 +38,7 @@ import {
   readHyperlabJson,
   type HyperlabAudience,
 } from "./hyperlab-api";
-import {
-  criterionToRuleGroup,
-  emptyRuleGroup,
-  ruleGroupToCriterion,
-  type HyperlabRuleGroup,
-} from "./hyperlab-criterion";
+import { ruleGroupToCriterion } from "./hyperlab-criterion";
 import { HyperlabCriterionBuilder } from "./hyperlab-criterion-builder";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
 import { HyperlabLoadError } from "./hyperlab-ui";
@@ -52,13 +52,30 @@ export function HyperlabAudienceDetail({
   audienceId: string;
   canWrite: boolean;
 }) {
+  return (
+    <HyperlabWorkspaceProvider>
+      <HyperlabAudienceDetailConnected
+        organizationSlug={organizationSlug}
+        audienceId={audienceId}
+        canWrite={canWrite}
+      />
+    </HyperlabWorkspaceProvider>
+  );
+}
+
+const HyperlabAudienceDetailConnected = observer(function HyperlabAudienceDetailConnected({
+  organizationSlug,
+  audienceId,
+  canWrite,
+}: {
+  organizationSlug: string;
+  audienceId: string;
+  canWrite: boolean;
+}) {
   const intl = useIntl();
   const queryClient = useQueryClient();
   const client = hyperlabClient();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [group, setGroup] = useState<HyperlabRuleGroup>(emptyRuleGroup);
-  const [baseline, setBaseline] = useState("");
+  const { audience: audienceStore } = useHyperlabWorkspace();
 
   const detailQuery = useQuery({
     queryKey: hyperlabQueryKeys.audience(organizationSlug, audienceId),
@@ -73,40 +90,20 @@ export function HyperlabAudienceDetail({
     },
   });
 
-  useEffect(() => {
-    if (!detailQuery.data) {
-      return;
-    }
-    const audience = detailQuery.data.audience;
-    const nextGroup = criterionToRuleGroup(audience.criterion);
-    setName(audience.name);
-    setDescription(audience.description ?? "");
-    setGroup(nextGroup);
-    setBaseline(
-      JSON.stringify({
-        name: audience.name,
-        description: audience.description ?? "",
-        group: nextGroup,
-      }),
-    );
-  }, [detailQuery.data]);
-
-  const current = JSON.stringify({ name, description, group });
-  const dirty = current !== baseline && Boolean(detailQuery.data);
-
   const saveMutation = useMutation({
     mutationFn: async () => {
       const response = await client.audiences[":audienceId"].$put({
         param: { organizationSlug, audienceId },
         json: {
-          name,
-          description: description || null,
-          criterion: ruleGroupToCriterion(group),
+          name: audienceStore.name,
+          description: audienceStore.description || null,
+          criterion: ruleGroupToCriterion(audienceStore.group),
         },
       });
       return readHyperlabJson(response, intl.formatMessage(messages.loadError));
     },
     onSuccess: async () => {
+      audienceStore.markSaved();
       toast.success(intl.formatMessage(messages.saveSuccess));
       await queryClient.invalidateQueries({
         queryKey: hyperlabQueryKeys.audience(organizationSlug, audienceId),
@@ -123,77 +120,87 @@ export function HyperlabAudienceDetail({
   const audience = detailQuery.data?.audience;
 
   return (
-    <HyperlabPageShell
-      title={audience?.name ?? intl.formatMessage(messages.audiencesTitle)}
-      description={intl.formatMessage(messages.audiencesDescription)}
-      backHref={`/org/${organizationSlug}/hyperlab/audiences`}
-    >
-      <Rows spacing="2u">
-        {detailQuery.isError ? (
-          <HyperlabLoadError error={detailQuery.error} onRetry={() => void detailQuery.refetch()} />
-        ) : null}
-        {audience ? (
-          <Card className={dirty ? "ring-foreground/40" : undefined}>
-            <CardHeader>
-              <CardTitle>
-                <FormattedMessage {...messages.audienceRulesTitle} />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Rows spacing="2u">
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor="hyperlab-audience-name">
-                      <FormattedMessage {...messages.audienceNameLabel} />
-                    </FieldLabel>
-                    <Input
-                      id="hyperlab-audience-name"
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      disabled={!canWrite}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="hyperlab-audience-note">
-                      <FormattedMessage {...messages.audienceDescriptionLabel} />
-                    </FieldLabel>
-                    <Textarea
-                      id="hyperlab-audience-note"
-                      value={description}
-                      onChange={(event) => setDescription(event.target.value)}
-                      rows={3}
-                      disabled={!canWrite}
-                    />
-                  </Field>
-                </FieldGroup>
-                <TypographyP size="small" tone="subtle">
-                  <FormattedMessage {...messages.audienceRulesHint} />
-                </TypographyP>
-                <HyperlabCriterionBuilder group={group} onChange={setGroup} disabled={!canWrite} />
-              </Rows>
-            </CardContent>
-            {canWrite ? (
-              <CardFooter className="gap-3">
-                <Button
-                  type="button"
-                  onClick={() => saveMutation.mutate()}
-                  disabled={saveMutation.isPending || !dirty}
-                >
-                  {saveMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
-                  <FormattedMessage
-                    {...(saveMutation.isPending ? messages.saving : messages.save)}
-                  />
-                </Button>
-                {dirty ? (
+    <>
+      <HyperlabAudienceQueryBridge audience={audience} />
+      <HyperlabPageShell
+        title={audience?.name ?? intl.formatMessage(messages.audiencesTitle)}
+        description={intl.formatMessage(messages.audiencesDescription)}
+        backHref={`/org/${organizationSlug}/hyperlab/audiences`}
+      >
+        <Rows spacing="2u">
+          {detailQuery.isError ? (
+            <HyperlabLoadError
+              error={detailQuery.error}
+              onRetry={() => void detailQuery.refetch()}
+            />
+          ) : null}
+          {audience ? (
+            <Card className={audienceStore.isDirty ? "ring-foreground/40" : undefined}>
+              <CardHeader>
+                <CardTitle>
+                  <FormattedMessage {...messages.audienceRulesTitle} />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Rows spacing="2u">
+                  <FieldGroup>
+                    <Field>
+                      <FieldLabel htmlFor="hyperlab-audience-name">
+                        <FormattedMessage {...messages.audienceNameLabel} />
+                      </FieldLabel>
+                      <Input
+                        id="hyperlab-audience-name"
+                        value={audienceStore.name}
+                        onChange={(event) => audienceStore.setName(event.target.value)}
+                        disabled={!canWrite}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="hyperlab-audience-note">
+                        <FormattedMessage {...messages.audienceDescriptionLabel} />
+                      </FieldLabel>
+                      <Textarea
+                        id="hyperlab-audience-note"
+                        value={audienceStore.description}
+                        onChange={(event) => audienceStore.setDescription(event.target.value)}
+                        rows={3}
+                        disabled={!canWrite}
+                      />
+                    </Field>
+                  </FieldGroup>
                   <TypographyP size="small" tone="subtle">
-                    <FormattedMessage {...messages.unsavedChanges} />
+                    <FormattedMessage {...messages.audienceRulesHint} />
                   </TypographyP>
-                ) : null}
-              </CardFooter>
-            ) : null}
-          </Card>
-        ) : null}
-      </Rows>
-    </HyperlabPageShell>
+                  <HyperlabCriterionBuilder
+                    group={audienceStore.group}
+                    onChange={(group) => audienceStore.setGroup(group)}
+                    disabled={!canWrite}
+                  />
+                </Rows>
+              </CardContent>
+              {canWrite ? (
+                <CardFooter className="gap-3">
+                  <Button
+                    type="button"
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending || !audienceStore.isDirty}
+                  >
+                    {saveMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
+                    <FormattedMessage
+                      {...(saveMutation.isPending ? messages.saving : messages.save)}
+                    />
+                  </Button>
+                  {audienceStore.isDirty ? (
+                    <TypographyP size="small" tone="subtle">
+                      <FormattedMessage {...messages.unsavedChanges} />
+                    </TypographyP>
+                  ) : null}
+                </CardFooter>
+              ) : null}
+            </Card>
+          ) : null}
+        </Rows>
+      </HyperlabPageShell>
+    </>
   );
-}
+});
