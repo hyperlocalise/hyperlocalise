@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability } from "@/api/auth/policy";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import { getWorkspaceFeatureFlagEnabled, workspaceDomainsFlag } from "@/lib/flags/workspace-flags";
 import { requireAppCapability } from "@/lib/workos/app-auth";
@@ -34,5 +35,10 @@ async function DomainsPageLoader({ params }: { params: Promise<{ organizationSlu
     return <FeatureTeaserPage feature="domains" scope="workspace" />;
   }
 
-  return <DomainsPageContent organizationSlug={organizationSlug} />;
+  return (
+    <DomainsPageContent
+      organizationSlug={organizationSlug}
+      allowLinkDomains={hasCapability(auth.membership.role, "projects:create")}
+    />
+  );
 }

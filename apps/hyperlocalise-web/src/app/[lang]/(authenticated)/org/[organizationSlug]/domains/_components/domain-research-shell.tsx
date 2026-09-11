@@ -7,16 +7,16 @@
  * included in this application's LICENSE file.
  *
  * Change Date: Four years after publication of the applicable version.
-    10| *
+ *
  * On the Change Date, in accordance with the Business Source License, use
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { type ReactNode, useEffect, useId } from "react";
+import { type ReactNode, useId } from "react";
 import { Globe02Icon } from "@hugeicons/core-free-icons";
+import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { useSearchParams } from "next/navigation";
 import { DomainResearchContext } from "./domain-research-context";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
@@ -30,38 +30,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
 import type { DomainResearchNavId } from "@/lib/domains/research-prototype";
-import { filterCatalogForLocale, resolveDomainLocale } from "@/lib/domains/research-prototype";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
-import { buildDomainPath } from "@/components/app-shell/navigation-config";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
+import {
+  DomainResearchShellStoreProvider,
+  useDomainResearchShellStore,
+} from "../store/domains-store-context";
+import { DomainResearchQueryBridge } from "../store/domain-research-query-bridge";
+import { DomainResearchShellUrlSync } from "../store/domain-research-shell-url-sync";
 
 import { DomainResearchEmpty, DomainResearchMissingDomain } from "./domain-research-empty";
 import { DomainStatusBadge } from "./domain-status-badge";
 import { domainResearchSharedMessages as sharedMessages } from "./domain-research-shared.messages";
 import { domainResearchShellMessages as messages } from "./domain-research-shell.messages";
-import { useLiveDomainResearch } from "./use-live-domain-research";
 
 import styles from "./domain-header.module.css";
-
-function hrefForLocale({
-  organizationSlug,
-  linkedDomainId,
-  surface,
-  search,
-  localeId,
-}: {
-  organizationSlug: string;
-  linkedDomainId: string;
-  surface?: DomainResearchNavId;
-  search: string;
-  localeId: string;
-}) {
-  const params = new URLSearchParams(search);
-  params.set("locale", localeId);
-  return `${buildDomainPath(organizationSlug, linkedDomainId, surface)}?${params}`;
-}
 
 export function DomainResearchShell({
   organizationSlug,
@@ -74,29 +59,33 @@ export function DomainResearchShell({
   surface: DomainResearchNavId;
   children: ReactNode;
 }) {
+  return (
+    <DomainResearchShellStoreProvider
+      organizationSlug={organizationSlug}
+      linkedDomainId={linkedDomainId}
+      surface={surface}
+    >
+      <DomainResearchQueryBridge />
+      <DomainResearchShellUrlSync />
+      <DomainResearchShellView>{children}</DomainResearchShellView>
+    </DomainResearchShellStoreProvider>
+  );
+}
+
+const DomainResearchShellView = observer(function DomainResearchShellView({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const intl = useIntl();
   const router = useOrgRouter();
-  const liveResearch = useLiveDomainResearch(organizationSlug, linkedDomainId);
-  const searchParams = useSearchParams();
-  const search = searchParams.toString();
-  const requestedLocaleId = searchParams.get("locale");
+  const store = useDomainResearchShellStore();
   const localeSelectId = useId();
 
-  const liveCatalog = liveResearch.data?.catalog ?? null;
-  const domain = liveCatalog?.domain ?? null;
-  const locale = domain ? resolveDomainLocale(domain, requestedLocaleId) : null;
-  const localeId = locale?.id;
+  const domain = store.domain;
+  const locale = store.locale;
 
-  useEffect(() => {
-    if (!localeId || requestedLocaleId === localeId) return;
-    router.replace(hrefForLocale({ organizationSlug, linkedDomainId, surface, search, localeId }), {
-      scroll: false,
-    });
-    // useOrgRouter() returns a new object each render; depending on it recanonicalizes forever
-    // while the URL is still stale.
-  }, [linkedDomainId, localeId, organizationSlug, requestedLocaleId, search, surface]);
-
-  if (liveResearch.isPending) {
+  if (store.loadStatus === "loading") {
     return (
       <WorkspacePageShell>
         <TypographyP size="small" tone="subtle">
@@ -106,7 +95,7 @@ export function DomainResearchShell({
     );
   }
 
-  if (liveResearch.isError) {
+  if (store.loadStatus === "error") {
     return (
       <WorkspacePageShell>
         <TypographyP size="small" tone="subtle">
@@ -119,38 +108,16 @@ export function DomainResearchShell({
   if (!domain || !locale) {
     return (
       <WorkspacePageShell>
-        <DomainResearchMissingDomain organizationSlug={organizationSlug} />
+        <DomainResearchMissingDomain organizationSlug={store.organizationSlug} />
       </WorkspacePageShell>
     );
   }
 
-  const filteredCatalog = liveCatalog ? filterCatalogForLocale(liveCatalog, locale.id) : null;
-  const catalog =
-    filteredCatalog &&
-    filteredCatalog.keywords.length === 0 &&
-    filteredCatalog.ranks.length === 0 &&
-    ((liveCatalog?.keywords.length ?? 0) > 0 || (liveCatalog?.ranks.length ?? 0) > 0)
-      ? null
-      : filteredCatalog;
-  const verifyHref = domain.domainSlug
-    ? `/org/${organizationSlug}/link-domain/${domain.domainSlug}`
-    : null;
-
-  function researchHref(nextLocaleId: string) {
-    return hrefForLocale({
-      organizationSlug,
-      linkedDomainId,
-      surface,
-      search,
-      localeId: nextLocaleId,
-    });
-  }
+  const verifyHref = store.verifyHref;
 
   function changeLocale(nextLocaleId: string) {
-    router.replace(researchHref(nextLocaleId), { scroll: false });
+    router.replace(store.hrefForLocale(nextLocaleId), { scroll: false });
   }
-
-  const isPending = domain.status !== "verified";
 
   return (
     <WorkspacePageShell className="gap-5">
@@ -165,7 +132,7 @@ export function DomainResearchShell({
           actions={
             <>
               <DomainStatusBadge status={domain.status} />
-              {isPending && verifyHref ? (
+              {store.isPending && verifyHref ? (
                 <Button size="sm" render={<OrgNavLink href={verifyHref} />}>
                   <FormattedMessage {...sharedMessages.verifyCta} />
                 </Button>
@@ -206,7 +173,7 @@ export function DomainResearchShell({
         </p>
       </div>
 
-      {isPending ? (
+      {store.isPending ? (
         <DomainResearchEmpty
           title={<FormattedMessage {...sharedMessages.pendingTitle} />}
           description={<FormattedMessage {...sharedMessages.pendingDescription} />}
@@ -218,11 +185,14 @@ export function DomainResearchShell({
             ) : undefined
           }
         />
-      ) : catalog ? (
-        <DomainResearchContext value={catalog} key={`${linkedDomainId}-${locale.id}`}>
+      ) : store.showResearchContent && store.activeCatalog ? (
+        <DomainResearchContext
+          value={store.activeCatalog}
+          key={`${store.linkedDomainId}-${locale.id}`}
+        >
           {children}
         </DomainResearchContext>
-      ) : (
+      ) : store.showLocaleEmpty ? (
         <DomainResearchEmpty
           title={<FormattedMessage {...messages.localeEmptyTitle} />}
           description={
@@ -232,7 +202,7 @@ export function DomainResearchShell({
             />
           }
         />
-      )}
+      ) : null}
     </WorkspacePageShell>
   );
-}
+});

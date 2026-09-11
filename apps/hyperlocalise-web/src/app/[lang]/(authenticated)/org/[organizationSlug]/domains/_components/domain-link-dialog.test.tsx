@@ -62,6 +62,20 @@ describe("domain locale editing", () => {
     expect(onSave).toHaveBeenCalledWith({ ...domain, locales: domain.locales.slice(1) });
   });
 
+  it("continues with hostname only in the live variant", () => {
+    const onContinue = vi.fn();
+    render(
+      <IntlProvider locale="en">
+        <DomainLinkDialog open variant="live" onOpenChange={() => {}} onContinue={onContinue} />
+      </IntlProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Hostname"), { target: { value: "shop.example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
+    expect(onContinue).toHaveBeenCalledWith("shop.example.com");
+    expect(screen.queryByText("Select at least one locale.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Preview only/i)).not.toBeInTheDocument();
+  });
+
   it("rejects duplicate hostnames instead of adding another domain row", () => {
     const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
     const onSave = vi.fn();
