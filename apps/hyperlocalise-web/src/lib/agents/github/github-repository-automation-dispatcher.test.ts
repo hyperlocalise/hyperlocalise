@@ -16,7 +16,9 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+import { createWorkspaceAutomation } from "@/lib/agents/workspace-automations";
 import { db, schema } from "@/lib/database/client";
+import { isOk } from "@/lib/primitives/result/results";
 
 import {
   dispatchGithubRepositoryAutomationForPush,
@@ -158,6 +160,61 @@ describe("github repository automation dispatch", () => {
     expect(jobs).toHaveLength(1);
     expect(jobs[0]?.status).toBe("skipped");
     expect(jobs[0]?.skipReason).toBe("branch_not_configured");
+  });
+
+  it("skips push automation when an active content sync owns the same project repo", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    await fixture.authHeadersFor(stored.identity);
+
+    const repository = await seedRepositoryAutomation({
+      organizationId: stored.organization.id,
+    });
+
+    await upsertGithubRepositoryAutomationSettings({
+      organizationId: stored.organization.id,
+      githubInstallationRepositoryId: repository.id,
+      githubRepositoryId: repository.githubRepositoryId,
+      settings: {
+        workflows: {
+          pushSource: { enabled: true, projectId: stored.project.id },
+        },
+        trigger: { mode: "push", branches: ["main"] },
+      },
+    });
+
+    const automation = await createWorkspaceAutomation({
+      organizationId: stored.organization.id,
+      authorUserId: stored.user.id,
+      name: "Content sync owns repo",
+      instructions: "",
+      projectId: stored.project.id,
+      kind: "content_sync",
+      syncConfig: {
+        provider: "github",
+        connectionId: repository.id,
+        resourceKey: `${repository.owner}/${repository.name}`,
+        providerFolder: "locales",
+        projectFolder: `github/${repository.owner}/${repository.name}`,
+      },
+    });
+    expect(isOk(automation)).toBe(true);
+
+    const result = await dispatchGithubRepositoryAutomationForPush({
+      deliveryId: "delivery-content-sync-owns",
+      organizationId: stored.organization.id,
+      githubInstallationId: repository.githubInstallationId,
+      githubInstallationRepositoryId: repository.id,
+      githubRepositoryId: repository.githubRepositoryId,
+      branch: "main",
+      commitBefore: "abc",
+      commitAfter: "def",
+    });
+
+    expect(result.outcome).toBe("skipped");
+    if (result.outcome !== "skipped") {
+      throw new Error("expected skipped outcome");
+    }
+    expect(result.skipReason).toBe("project_content_sync_owns_repository");
   });
 
   it("enqueues exactly one queued job per push delivery", async () => {
