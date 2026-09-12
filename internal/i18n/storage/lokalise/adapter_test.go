@@ -14,12 +14,27 @@ import (
 type fakeClient struct {
 	keys         []KeyTranslation
 	listRevision string
+	listIn       ListKeysInput
 	upsertIn     UpsertTranslationsInput
 	upsertErr    error
 }
 
-func (f *fakeClient) ListKeys(_ context.Context, _ ListKeysInput) ([]KeyTranslation, string, error) {
-	return f.keys, f.listRevision, nil
+func (f *fakeClient) ListKeys(_ context.Context, in ListKeysInput) ([]KeyTranslation, string, error) {
+	f.listIn = in
+	if len(in.Locales) == 0 {
+		return f.keys, f.listRevision, nil
+	}
+	filtered := make([]KeyTranslation, 0, len(f.keys))
+	for _, key := range f.keys {
+		matched := matchRequestedLocale(key.Locale, in.Locales)
+		if matched == "" {
+			continue
+		}
+		copy := key
+		copy.Locale = matched
+		filtered = append(filtered, copy)
+	}
+	return filtered, f.listRevision, nil
 }
 
 func (f *fakeClient) UpsertTranslations(_ context.Context, in UpsertTranslationsInput) (string, error) {
@@ -190,6 +205,56 @@ func TestNewBuildsAdapterFromRawConfig(t *testing.T) {
 
 	if got := adapter.Name(); got != AdapterName {
 		t.Fatalf("unexpected adapter name: %q", got)
+	}
+}
+
+func TestAdapterPullUsesTargetLanguagesWhenLocalesEmpty(t *testing.T) {
+	client := &fakeClient{listRevision: "rev1"}
+	adapter, err := NewWithClient(Config{
+		ProjectID:       "123",
+		APIToken:        "token",
+		TargetLanguages: []string{"fr", "de"},
+	}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	_, err = adapter.Pull(context.Background(), storage.PullRequest{})
+	if err != nil {
+		t.Fatalf("pull: %v", err)
+	}
+	if got := client.listIn.Locales; len(got) != 2 || got[0] != "fr" || got[1] != "de" {
+		t.Fatalf("list locales = %#v, want [fr de]", got)
+	}
+}
+
+func TestAdapterPullUsesEntryIDsBeforeTargetLanguages(t *testing.T) {
+	client := &fakeClient{
+		listRevision: "rev1",
+		keys: []KeyTranslation{
+			{Key: "hello", Locale: "en_US", Value: "Hello"},
+		},
+	}
+	adapter, err := NewWithClient(Config{
+		ProjectID:       "123",
+		APIToken:        "token",
+		TargetLanguages: []string{"fr"},
+	}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	result, err := adapter.Pull(context.Background(), storage.PullRequest{
+		EntryIDs: []storage.EntryID{{Key: "hello", Locale: "en-US"}},
+	})
+	if err != nil {
+		t.Fatalf("pull: %v", err)
+	}
+	if got := client.listIn.Locales; len(got) != 1 || got[0] != "en-US" {
+		t.Fatalf("list locales = %#v, want [en-US]", got)
+	}
+	if len(result.Snapshot.Entries) != 1 || result.Snapshot.Entries[0].Locale != "en-US" {
+		t.Fatalf("unexpected entries: %+v", result.Snapshot.Entries)
 	}
 }
 

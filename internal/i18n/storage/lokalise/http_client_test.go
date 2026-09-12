@@ -79,7 +79,7 @@ func TestBuildNewKey(t *testing.T) {
 		[]lokaliseapi.NewTranslation{{LanguageISO: "fr", Translation: "Valider"}},
 	)
 
-	if got, ok := newKey.KeyName.(map[string]string); !ok || got["web"] != "checkout.submit" {
+	if got, ok := newKey.KeyName.(string); !ok || got != "checkout.submit" {
 		t.Fatalf("unexpected key name payload: %#v", newKey.KeyName)
 	}
 	if newKey.Description == nil || *newKey.Description != "button label" {

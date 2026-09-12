@@ -27,8 +27,21 @@ description: "Configure Lokalise API v2 for pull/push synchronization."
 - default env var: `LOKALISE_API_TOKEN`
 - override with `apiTokenEnv`
 
+## Locale codes
+
+Hyperlocalise `i18n.yml` locales may use hyphens (`en-US`) while Lokalise `lang_iso` values often use underscores (`en_US`). Entry sync maps between these forms on pull and push.
+
+- Pull with explicit `locales`, `EntryIDs`, or `targetLanguages` returns only those languages.
+- Pull with none of the above set returns every language present on remote keys.
+- Push sends at most 500 keys per create or bulk-update request.
+
+## Sync via `storage.adapter`
+
+When `sync push` / `sync pull` use the flat JSON local store (`lang/{{target}}.json`), remote keys with a Lokalise description (adapter context) cannot be written locally. Use projects without contextual keys for JSON sync, or keep contextual keys out of the pulled locale set.
+
 ## Common issues
 
 - unauthorized errors: token missing or insufficient scope
-- locale mismatch: align Lokalise language codes with target locales
+- locale mismatch: align Lokalise language codes with target locales in `i18n.yml` or `targetLanguages`
 - timeout errors: increase `timeoutSeconds` for large projects
+- `sync pull` fails on contextual remote keys: flat JSON locale files do not store adapter context; remove description-only keys from the project or avoid pulling them

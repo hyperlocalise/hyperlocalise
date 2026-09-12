@@ -48,7 +48,7 @@ func startLokaliseKeysServer(t *testing.T, initial []mockLokaliseKey) (*httptest
 			body, _ := io.ReadAll(r.Body)
 			var payload struct {
 				Keys []struct {
-					KeyName      map[string]string   `json:"key_name"`
+					KeyName      json.RawMessage     `json:"key_name"`
 					Description  string              `json:"description"`
 					Translations []map[string]string `json:"translations"`
 				} `json:"keys"`
@@ -62,7 +62,7 @@ func startLokaliseKeysServer(t *testing.T, initial []mockLokaliseKey) (*httptest
 				store.creates++
 				item := mockLokaliseKey{
 					KeyID:        int64(len(store.keys) + 1),
-					KeyName:      key.KeyName,
+					KeyName:      decodeMockKeyName(key.KeyName),
 					Description:  key.Description,
 					Translations: key.Translations,
 				}
@@ -81,6 +81,21 @@ func startLokaliseKeysServer(t *testing.T, initial []mockLokaliseKey) (*httptest
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 	return srv, store
+}
+
+func decodeMockKeyName(raw json.RawMessage) map[string]string {
+	var asString string
+	if err := json.Unmarshal(raw, &asString); err == nil {
+		if strings.TrimSpace(asString) == "" {
+			return map[string]string{}
+		}
+		return map[string]string{"web": asString}
+	}
+	var asMap map[string]string
+	if err := json.Unmarshal(raw, &asMap); err != nil {
+		return map[string]string{}
+	}
+	return asMap
 }
 
 func writeTMSAdapterConfig(t *testing.T, dir, extraStorageConfig string) string {
