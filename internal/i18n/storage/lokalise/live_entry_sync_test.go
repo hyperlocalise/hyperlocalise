@@ -18,14 +18,16 @@ func TestLiveEntrySyncPullPushAndLocaleFilter(t *testing.T) {
 		t.Skip("set LOKALISE_LIVE=1 with LOKALISE_API_TOKEN and LOKALISE_PROJECT_ID to run live entry sync")
 	}
 
+	httpClient := mustLiveHTTPClient(t, token)
 	adapter, err := NewWithClient(Config{
 		ProjectID:      projectID,
 		APIToken:       token,
 		TimeoutSeconds: 60,
-	}, mustLiveHTTPClient(t, token))
+	}, httpClient)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
 	}
+	scheduleLiveTestKeyCleanup(t, httpClient, projectID)
 
 	ctx := context.Background()
 	viPull, err := adapter.Pull(ctx, storage.PullRequest{Locales: []string{"vi"}})
