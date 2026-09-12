@@ -59,6 +59,15 @@ describe("integrations-page-content", () => {
     expect(integration?.logoSrc).toBe("/images/zernio-logo.svg");
   });
 
+  it("lists Statsig as a coming-soon experimentation integration", () => {
+    const integration = getMarketingIntegrationBySlug("en", "statsig");
+
+    expect(integration?.name).toBe("Statsig");
+    expect(integration?.category).toBe("experimentation");
+    expect(integration?.status).toBe("coming-soon");
+    expect(integration?.logoSrc).toBe("/images/statsig-logo.png");
+  });
+
   it("returns related integrations for catalog entries with relatedSlugs", () => {
     const integration = getMarketingIntegrationBySlug("en", "github");
     expect(integration).not.toBeNull();

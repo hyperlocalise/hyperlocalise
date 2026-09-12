@@ -142,6 +142,7 @@ export function IntegrationsIndexPage({
                       <Column key={integration.slug} width="1/3">
                         <IntegrationCard
                           categoryLabel={getCategoryLabelForIntegration(lang, integration.category)}
+                          comingSoonLabel={copy.comingSoon}
                           integration={integration}
                           lang={lang}
                         />

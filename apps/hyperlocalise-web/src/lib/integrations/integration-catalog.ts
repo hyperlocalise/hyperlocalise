@@ -367,11 +367,12 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     category: "experimentation",
     status: "coming-soon",
     type: "partner",
-    marketing: false,
+    marketing: true,
     workspace: true,
     logoSrc: "/images/statsig-logo.png",
     websiteUrl: "https://www.statsig.com",
     relatedSlugs: ["hyperlab"],
+    keywords: ["Statsig localization", "feature flags localization", "localized experiments"],
   },
   {
     slug: "hyperseo",

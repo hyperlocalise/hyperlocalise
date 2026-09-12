@@ -130,6 +130,23 @@ export const CustomerEngagement: Story = {
   },
 };
 
+export const ExperimentationComingSoon: Story = {
+  parameters: {
+    msw: {
+      handlers: integrationsConnectedMswHandlers,
+    },
+  },
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole("tab", { name: "Experimentation" }));
+    await expect(canvas.getByRole("heading", { name: "Experimentation" })).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlab")).toBeInTheDocument();
+    await expect(canvas.getByText("Statsig")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Coming soon" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Open" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("heading", { name: "SEO tools" })).not.toBeInTheDocument();
+  },
+};
+
 export const GuidelinesComingSoon: Story = {
   parameters: {
     msw: {
