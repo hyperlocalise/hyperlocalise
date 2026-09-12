@@ -15,7 +15,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -84,6 +84,8 @@ type QaDetailResponse = {
   total: number;
 };
 
+const FINDINGS_PAGE_SIZE = 100;
+
 export function QaProjectPageContent({
   organizationSlug,
   projectId,
@@ -116,10 +118,11 @@ export function QaProjectPageContent({
 
   const latestId = listQuery.data?.reports[0]?.id;
   const activeRunId = selectedRunId ?? latestId;
-  const detailQuery = useQuery({
+  const detailQuery = useInfiniteQuery({
     queryKey: [...listKey, activeRunId, locale, checkType],
     enabled: Boolean(activeRunId),
-    queryFn: async () => {
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
         "qa-reports"
       ][":runId"].$get({
@@ -127,7 +130,8 @@ export function QaProjectPageContent({
         query: {
           locale: locale === "all" ? undefined : locale,
           checkType: isQaCheckType(checkType) ? checkType : undefined,
-          limit: 100,
+          limit: FINDINGS_PAGE_SIZE,
+          offset: pageParam,
         },
       });
       if (!response.ok) {
@@ -135,7 +139,13 @@ export function QaProjectPageContent({
       }
       return (await response.json()) as QaDetailResponse;
     },
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((count, page) => count + page.findings.length, 0);
+      return loaded < lastPage.total ? loaded : undefined;
+    },
   });
+  const findings = detailQuery.data?.pages.flatMap((page) => page.findings) ?? [];
+  const findingsTotal = detailQuery.data?.pages[0]?.total ?? 0;
 
   const runMutation = useMutation({
     mutationFn: async () => {
@@ -337,52 +347,78 @@ export function QaProjectPageContent({
         </div>
       ) : null}
 
-      {detailQuery.data && detailQuery.data.findings.length === 0 ? (
+      {detailQuery.isSuccess && findings.length === 0 ? (
         <TypographyP tone="subtle">{intl.formatMessage(messages.noFindings)}</TypographyP>
       ) : null}
 
-      {detailQuery.data && detailQuery.data.findings.length > 0 ? (
-        <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="bg-muted text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.key)}</th>
-                <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.locale)}</th>
-                <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.check)}</th>
-                <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.source)}</th>
-                <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.target)}</th>
-                <th className="px-3 py-2 font-medium" />
-              </tr>
-            </thead>
-            <tbody>
-              {detailQuery.data.findings.map((finding) => (
-                <tr key={finding.id} className="border-t border-border">
-                  <td className="px-3 py-2 align-top font-medium">{finding.key}</td>
-                  <td className="px-3 py-2 align-top">{finding.targetLocale}</td>
-                  <td className="px-3 py-2 align-top">
-                    <Badge variant={finding.severity === "error" ? "destructive" : "warning"}>
-                      {finding.checkType}
-                    </Badge>
-                    <TypographyP size="xsmall" tone="subtle">
-                      {finding.message}
-                    </TypographyP>
-                  </td>
-                  <td className="max-w-56 px-3 py-2 align-top break-words">{finding.sourceText}</td>
-                  <td className="max-w-56 px-3 py-2 align-top break-words">{finding.targetText}</td>
-                  <td className="px-3 py-2 align-top">
-                    <Button
-                      nativeButton={false}
-                      render={<Link href={finding.editorHref} />}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      <FormattedMessage {...messages.openEditor} />
-                    </Button>
-                  </td>
+      {findings.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="bg-muted text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.key)}</th>
+                  <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.locale)}</th>
+                  <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.check)}</th>
+                  <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.source)}</th>
+                  <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.target)}</th>
+                  <th className="px-3 py-2 font-medium" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {findings.map((finding) => (
+                  <tr key={finding.id} className="border-t border-border">
+                    <td className="px-3 py-2 align-top font-medium">{finding.key}</td>
+                    <td className="px-3 py-2 align-top">{finding.targetLocale}</td>
+                    <td className="px-3 py-2 align-top">
+                      <Badge variant={finding.severity === "error" ? "destructive" : "warning"}>
+                        {finding.checkType}
+                      </Badge>
+                      <TypographyP size="xsmall" tone="subtle">
+                        {finding.message}
+                      </TypographyP>
+                    </td>
+                    <td className="max-w-56 px-3 py-2 align-top break-words">{finding.sourceText}</td>
+                    <td className="max-w-56 px-3 py-2 align-top break-words">{finding.targetText}</td>
+                    <td className="px-3 py-2 align-top">
+                      <Button
+                        nativeButton={false}
+                        render={<Link href={finding.editorHref} />}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        <FormattedMessage {...messages.openEditor} />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <TypographyP size="xsmall" tone="subtle">
+              {intl.formatMessage(messages.findingsShown, {
+                shown: findings.length,
+                total: findingsTotal,
+              })}
+            </TypographyP>
+            {detailQuery.hasNextPage ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                disabled={detailQuery.isFetchingNextPage}
+                onClick={() => {
+                  void detailQuery.fetchNextPage();
+                }}
+              >
+                <FormattedMessage
+                  {...(detailQuery.isFetchingNextPage ? messages.loadingMore : messages.loadMore)}
+                />
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </ProjectPageShell>

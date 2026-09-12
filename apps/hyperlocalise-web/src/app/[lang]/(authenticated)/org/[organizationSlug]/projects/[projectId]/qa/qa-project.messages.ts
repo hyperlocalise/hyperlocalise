@@ -156,4 +156,19 @@ export const qaProjectMessages = defineMessages({
     id: "uXvES3jNQD",
     description: "Project QA scheduled trigger label",
   },
+  loadMore: {
+    defaultMessage: "Load more",
+    id: "qaPrLoadMore01",
+    description: "Project QA load more findings",
+  },
+  loadingMore: {
+    defaultMessage: "Loading…",
+    id: "qaPrLoadMore02",
+    description: "Project QA loading more findings",
+  },
+  findingsShown: {
+    defaultMessage: "Showing {shown} of {total}",
+    id: "qaPrShown01",
+    description: "Project QA findings pagination count",
+  },
 });
