@@ -38,8 +38,13 @@ scans.
    matches the scan snapshot. Live go-svc / glossary checks then merge in and
    win on overlapping families. Scan findings remain when go-svc is unavailable.
 
+Scans start from visible keys crossed with the project's target locales and
+left-join stored translations. A missing translation row is an empty target, so
+untouched locales still produce `not_localized` findings.
+
 Scans run in the API request (or cron tick). Native QA checks are cheap string
-comparisons. Concurrent scans on the same project return `409`.
+comparisons. Concurrent scans on the same project return `409`. A partial unique
+index allows only one `running` scan per project.
 
 ## Non-goals
 

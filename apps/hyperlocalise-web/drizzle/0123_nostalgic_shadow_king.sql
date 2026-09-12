@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "translation_qa_runs_one_running_per_project" ON "translation_qa_runs" USING btree ("organization_id","project_id") WHERE "translation_qa_runs"."status" = 'running';

@@ -307,4 +307,162 @@ describe("project QA reports", () => {
     expect(latest.findings.some((finding) => finding.key === "reuse")).toBe(true);
     expect(latest.findings.some((finding) => finding.checkType === "same_as_source")).toBe(true);
   });
+
+  it("scans keys that have no translation row yet", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    await db.insert(schema.projectTranslationKeys).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      key: "welcome",
+      sourceText: "Welcome",
+      normalizedSourceText: "welcome",
+    });
+
+    const createResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as {
+      report: { id: string; segmentCount: number; findingCount: number };
+    };
+    expect(created.report.segmentCount).toBe(2);
+
+    const detailResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ][":runId"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+          runId: created.report.id,
+        },
+        query: { checkType: "not_localized" },
+      },
+      { headers },
+    );
+
+    expect(detailResponse.status).toBe(200);
+    const detail = (await detailResponse.json()) as {
+      findings: Array<{ key: string; targetLocale: string; targetText: string }>;
+      total: number;
+    };
+    expect(detail.total).toBe(2);
+    expect(detail.findings.map((finding) => finding.targetLocale).toSorted()).toEqual([
+      "de-DE",
+      "fr-FR",
+    ]);
+    expect(detail.findings.every((finding) => finding.targetText === "")).toBe(true);
+  });
+
+  it("pages findings after the first page", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    await db.insert(schema.projectTranslationKeys).values(
+      ["one", "two", "three"].map((key) => ({
+        organizationId: organization.id,
+        projectId: project.id,
+        key,
+        sourceText: key,
+        normalizedSourceText: key,
+      })),
+    );
+
+    const createResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { report: { id: string } };
+
+    const firstPage = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ][":runId"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+          runId: created.report.id,
+        },
+        query: { limit: 2, offset: 0 },
+      },
+      { headers },
+    );
+    const secondPage = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ][":runId"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+          runId: created.report.id,
+        },
+        query: { limit: 2, offset: 2 },
+      },
+      { headers },
+    );
+
+    expect(firstPage.status).toBe(200);
+    expect(secondPage.status).toBe(200);
+    const first = (await firstPage.json()) as {
+      findings: Array<{ id: string }>;
+      total: number;
+    };
+    const second = (await secondPage.json()) as {
+      findings: Array<{ id: string }>;
+      total: number;
+    };
+    expect(first.total).toBe(6);
+    expect(second.total).toBe(6);
+    expect(first.findings).toHaveLength(2);
+    expect(second.findings).toHaveLength(2);
+    expect(second.findings[0]?.id).not.toBe(first.findings[0]?.id);
+  });
+
+  it("rejects a second scan while one is running", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    await db.insert(schema.translationQaRuns).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      status: "running",
+      summary: { byCheckType: {}, bySeverity: {}, byLocale: {} },
+      startedAt: new Date(),
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "qa_scan_in_progress" });
+  });
 });

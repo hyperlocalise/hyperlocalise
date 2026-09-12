@@ -10,7 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { organizations, users } from "./organizations";
 import { projects } from "./projects";
@@ -67,6 +77,9 @@ export const translationQaRuns = pgTable(
       table.createdAt,
     ),
     index("idx_translation_qa_runs_project_status").on(table.projectId, table.status),
+    uniqueIndex("translation_qa_runs_one_running_per_project")
+      .on(table.organizationId, table.projectId)
+      .where(sql`${table.status} = 'running'`),
   ],
 );
 
