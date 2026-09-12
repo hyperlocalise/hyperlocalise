@@ -2,9 +2,13 @@ package runsvc
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/mt"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
@@ -431,5 +435,232 @@ func TestProcessMTBatchPartialValidationFailureAllowsSiblingsToSucceed(t *testin
 	}
 	if staged.entries["good0"] != "bonjour" || staged.entries["good2"] != "monde" {
 		t.Fatalf("staged entries=%v, want good0/good2 only", staged.entries)
+	}
+}
+
+func TestIsRetryableMTError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"rate_limited", &mt.Error{Code: mt.ErrorCodeRateLimited}, true},
+		{"upstream_unavailable", &mt.Error{Code: mt.ErrorCodeUpstreamUnavailable}, true},
+		{"deadline_exceeded", context.DeadlineExceeded, true},
+		{"auth_failed", &mt.Error{Code: mt.ErrorCodeAuthFailed}, false},
+		{"validation", &mt.Error{Code: mt.ErrorCodeValidation}, false},
+		{"unsupported_language_pair", &mt.Error{Code: mt.ErrorCodeUnsupportedLanguagePair}, false},
+		{"generic_upstream", &mt.Error{Code: mt.ErrorCodeUpstream}, false},
+		{"canceled", context.Canceled, false},
+		{"unclassified", errors.New("boom"), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isRetryableMTError(tt.err); got != tt.want {
+				t.Fatalf("isRetryableMTError(%v) = %v, want %v", tt.err, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTranslateMTBatchWithRetryRetrySucceeds(t *testing.T) {
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	sleepCalls := 0
+	sleepWithContext = func(_ context.Context, _ time.Duration) error {
+		sleepCalls++
+		return nil
+	}
+
+	engine := &scriptedMTEngine{results: []scriptedMTResult{
+		{err: &mt.Error{Code: mt.ErrorCodeRateLimited, Message: "slow down"}},
+	}}
+	svc := newTestService()
+	req := mt.Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hello"}}
+
+	resp, err := svc.translateMTBatchWithRetry(context.Background(), engine, req)
+	if err != nil {
+		t.Fatalf("translateMTBatchWithRetry: %v", err)
+	}
+	if got := engine.callCount(); got != 2 {
+		t.Fatalf("engine.Translate call count=%d, want 2", got)
+	}
+	if sleepCalls != 1 {
+		t.Fatalf("sleepWithContext calls=%d, want 1", sleepCalls)
+	}
+	if len(resp.Translations) != 1 || resp.Translations[0] != "hello" {
+		t.Fatalf("resp=%+v, want the echoed source from the second (successful) call", resp)
+	}
+}
+
+func TestTranslateMTBatchWithRetryExhaustsRetries(t *testing.T) {
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	sleepCalls := 0
+	sleepWithContext = func(_ context.Context, _ time.Duration) error {
+		sleepCalls++
+		return nil
+	}
+
+	persistentErr := &mt.Error{Code: mt.ErrorCodeUpstreamUnavailable, Message: "down"}
+	engine := &scriptedMTEngine{results: []scriptedMTResult{
+		{err: persistentErr},
+		{err: persistentErr},
+		{err: persistentErr},
+	}}
+	svc := newTestService()
+	req := mt.Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hello"}}
+
+	_, err := svc.translateMTBatchWithRetry(context.Background(), engine, req)
+	if err == nil {
+		t.Fatal("expected error after exhausting retries")
+	}
+	if got := engine.callCount(); got != mtBatchMaxAttempts {
+		t.Fatalf("engine.Translate call count=%d, want %d", got, mtBatchMaxAttempts)
+	}
+	if sleepCalls != mtBatchMaxAttempts-1 {
+		t.Fatalf("sleepWithContext calls=%d, want %d", sleepCalls, mtBatchMaxAttempts-1)
+	}
+	var mtErr *mt.Error
+	if !errors.As(err, &mtErr) {
+		t.Fatalf("error type=%T, want it to unwrap to *mt.Error via errors.As", err)
+	}
+	if mtErr.Code != mt.ErrorCodeUpstreamUnavailable {
+		t.Fatalf("mtErr.Code=%q, want %q", mtErr.Code, mt.ErrorCodeUpstreamUnavailable)
+	}
+}
+
+func TestTranslateMTBatchWithRetryNonRetryableErrorReturnsImmediately(t *testing.T) {
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	sleepWithContext = func(_ context.Context, _ time.Duration) error {
+		t.Fatal("sleepWithContext should not be called for a non-retryable error")
+		return nil
+	}
+
+	engine := &scriptedMTEngine{results: []scriptedMTResult{
+		{err: &mt.Error{Code: mt.ErrorCodeAuthFailed, Message: "bad key"}},
+	}}
+	svc := newTestService()
+	req := mt.Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hello"}}
+
+	_, err := svc.translateMTBatchWithRetry(context.Background(), engine, req)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if got := engine.callCount(); got != 1 {
+		t.Fatalf("engine.Translate call count=%d, want 1 (non-retryable errors must not retry)", got)
+	}
+	var mtErr *mt.Error
+	if !errors.As(err, &mtErr) || mtErr.Code != mt.ErrorCodeAuthFailed {
+		t.Fatalf("err=%v, want it to unwrap to *mt.Error{Code: ErrorCodeAuthFailed}", err)
+	}
+}
+
+func TestProcessMTBatchNonRetryableErrorFailsImmediatelyPreservingErrorCode(t *testing.T) {
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	sleepWithContext = func(_ context.Context, _ time.Duration) error {
+		t.Fatal("sleepWithContext should not be called for a non-retryable error")
+		return nil
+	}
+
+	tasks := []Task{
+		{EntryKey: "k0", TargetPath: "out.json", SourcePath: "in.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", SourceText: "hello"},
+	}
+	key := mtGroupKey{profileName: "p1", sourceLocale: "en", targetLocale: "fr"}
+	svc := newTestService()
+	state := newMTBatchTestState(t, tasks)
+	emitter := newEventEmitter(func(Event) {})
+	completions := make(chan taskCompletion, 1)
+	targetFailures := make(chan string, 1)
+	engine := &scriptedMTEngine{results: []scriptedMTResult{
+		{err: &mt.Error{Code: mt.ErrorCodeAuthFailed, Message: "bad key"}},
+	}}
+
+	svc.processMTBatch(context.Background(), engine, key, tasks, completions, targetFailures, state, emitter)
+	emitter.close()
+
+	if got := engine.callCount(); got != 1 {
+		t.Fatalf("engine.Translate call count=%d, want 1", got)
+	}
+	if state.report.Failed != 1 || state.report.Succeeded != 0 {
+		t.Fatalf("report.Failed=%d report.Succeeded=%d, want 1/0", state.report.Failed, state.report.Succeeded)
+	}
+	if len(state.report.Failures) != 1 {
+		t.Fatalf("report.Failures=%+v, want exactly one entry", state.report.Failures)
+	}
+	if !strings.Contains(state.report.Failures[0].Reason, string(mt.ErrorCodeAuthFailed)) {
+		t.Fatalf("failure reason=%q, want it to preserve the mt error code %q", state.report.Failures[0].Reason, mt.ErrorCodeAuthFailed)
+	}
+}
+
+// blockingMTEngine blocks Translate until cancelled or explicitly unblocked.
+type blockingMTEngine struct {
+	unblock chan struct{}
+	calls   atomic.Int32
+}
+
+func (e *blockingMTEngine) Translate(ctx context.Context, req mt.Request) (mt.Response, error) {
+	e.calls.Add(1)
+	select {
+	case <-ctx.Done():
+		return mt.Response{}, ctx.Err()
+	case <-e.unblock:
+		return mt.Response{Translations: append([]string(nil), req.Sources...)}, nil
+	}
+}
+
+func TestTranslateMTBatchWithRetryCancellationDuringInFlightRequest(t *testing.T) {
+	engine := &blockingMTEngine{unblock: make(chan struct{})}
+	defer close(engine.unblock)
+	ctx, cancel := context.WithCancel(context.Background())
+	req := mt.Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hello"}}
+
+	svc := newTestService()
+	done := make(chan struct{})
+	var err error
+	go func() {
+		_, err = svc.translateMTBatchWithRetry(ctx, engine, req)
+		close(done)
+	}()
+
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("translateMTBatchWithRetry did not return promptly after cancellation")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err=%v, want context.Canceled", err)
+	}
+	if got := engine.calls.Load(); got != 1 {
+		t.Fatalf("engine.Translate call count=%d, want 1 (a cancelled in-flight request must not be retried)", got)
+	}
+}
+
+func TestTranslateMTBatchWithRetryCancellationDuringBackoffSleep(t *testing.T) {
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	ctx, cancel := context.WithCancel(context.Background())
+	sleepWithContext = func(sleepCtx context.Context, _ time.Duration) error {
+		cancel() // simulate cancellation arriving while backoff is in progress
+		<-sleepCtx.Done()
+		return sleepCtx.Err()
+	}
+
+	engine := &scriptedMTEngine{results: []scriptedMTResult{
+		{err: &mt.Error{Code: mt.ErrorCodeRateLimited, Message: "slow down"}},
+	}}
+	svc := newTestService()
+	req := mt.Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hello"}}
+
+	_, err := svc.translateMTBatchWithRetry(ctx, engine, req)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err=%v, want context.Canceled", err)
+	}
+	if got := engine.callCount(); got != 1 {
+		t.Fatalf("engine.Translate call count=%d, want 1 (must not retry after the backoff sleep was cancelled)", got)
 	}
 }

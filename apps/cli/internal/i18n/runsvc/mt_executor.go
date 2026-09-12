@@ -2,6 +2,7 @@ package runsvc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
@@ -12,6 +13,9 @@ import (
 // mtBatchSize is a provider-neutral run-service bound.
 // Provider-specific batching remains inside internal/mt.
 const mtBatchSize = 50
+
+// mtBatchMaxAttempts bounds retries of a single mt.Engine.Translate call.
+const mtBatchMaxAttempts = 3
 
 type mtGroupKey struct {
 	profileName  string
@@ -104,7 +108,7 @@ func (s *Service) processMTBatch(ctx context.Context, engine mt.Engine, key mtGr
 		req.Sources[i] = task.SourceText
 	}
 
-	resp, err := engine.Translate(ctx, req)
+	resp, err := s.translateMTBatchWithRetry(ctx, engine, req)
 	if err != nil {
 		s.failMTBatch(ctx, batch, fmt.Errorf("mt batch translation failed for profile %q (%s -> %s): %w", key.profileName, key.sourceLocale, key.targetLocale, err), targetFailures, state, emitter)
 		return
@@ -189,4 +193,41 @@ func (s *Service) failMTBatch(ctx context.Context, batch []Task, err error, targ
 	for _, task := range batch {
 		s.failMTTask(ctx, task, err, targetFailures, state, emitter)
 	}
+}
+
+func (s *Service) translateMTBatchWithRetry(ctx context.Context, engine mt.Engine, req mt.Request) (mt.Response, error) {
+	for attempt := 0; attempt < mtBatchMaxAttempts; attempt++ {
+		resp, err := engine.Translate(ctx, req)
+		if err == nil {
+			return resp, nil
+		}
+		if !isRetryableMTError(err) || attempt+1 >= mtBatchMaxAttempts {
+			return mt.Response{}, err
+		}
+		delay := translationRetryDelay(attempt)
+		if waitErr := sleepWithContext(ctx, delay); waitErr != nil {
+			return mt.Response{}, waitErr
+		}
+	}
+	panic("unreachable")
+}
+
+// internal/mt has no timeout error code, so DeadlineExceeded is treated as
+// the retryable timeout case.
+func isRetryableMTError(err error) bool {
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	if mtErr, ok := mt.AsError(err); ok {
+		switch mtErr.Code {
+		case mt.ErrorCodeRateLimited, mt.ErrorCodeUpstreamUnavailable:
+			return true
+		default: // ErrorCodeAuthFailed, ErrorCodeValidation, ErrorCodeUnsupportedLanguagePair, ErrorCodeUpstream
+			return false
+		}
+	}
+	return false
 }
