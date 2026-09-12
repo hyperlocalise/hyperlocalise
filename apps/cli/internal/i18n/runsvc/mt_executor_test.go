@@ -4,15 +4,61 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 	"github.com/hyperlocalise/hyperlocalise/internal/mt"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
+
+// Builds a test factory that maps each profile to its supplied fake engine.
+func newTestMTEngineFactoryWithEngines(t *testing.T, engines map[string]mt.Engine) *mtEngineFactory {
+	t.Helper()
+	profiles := make(map[string]config.MTProfile, len(engines))
+	registrations := make(map[string]mtProviderRegistration, len(engines))
+	names := make([]string, 0, len(engines))
+	noopResolve := func(func(string) (string, bool), string, config.MTProfile) (mt.Config, error) {
+		return mt.Config{}, nil
+	}
+	for name, engine := range engines {
+		provider := "fake-" + name
+		profiles[name] = config.MTProfile{Provider: provider}
+		e := engine
+		registrations[provider] = mtProviderRegistration{
+			constructor:   func(mt.Config) (mt.Engine, error) { return e, nil },
+			resolveConfig: noopResolve,
+		}
+		names = append(names, name)
+	}
+	factory := newTestMTEngineFactory(profiles, lookupEnvFromMap(nil), registrations)
+	if err := factory.BuildSelected(names); err != nil {
+		t.Fatalf("BuildSelected: %v", err)
+	}
+	return factory
+}
+
+func newTestExecutePoolLockState() *lockfile.File {
+	return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{}, RunCheckpoint: map[string]lockfile.RunCheckpoint{}}
+}
+
+// Returns a test Service that serves the supplied source files and treats
+// all other paths as nonexistent.
+func newTestServiceForExecutePool(sources map[string]string) *Service {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		if content, ok := sources[path]; ok {
+			return []byte(content), nil
+		}
+		return nil, os.ErrNotExist
+	}
+	svc.writeFile = func(string, []byte) error { return nil }
+	return svc
+}
 
 type scriptedMTResult struct {
 	resp mt.Response
@@ -662,5 +708,178 @@ func TestTranslateMTBatchWithRetryCancellationDuringBackoffSleep(t *testing.T) {
 	}
 	if got := engine.callCount(); got != 1 {
 		t.Fatalf("engine.Translate call count=%d, want 1 (must not retry after the backoff sleep was cancelled)", got)
+	}
+}
+
+func TestExecutePoolMixedLLMAndMTExecution(t *testing.T) {
+	llmTasks := []Task{
+		{EntryKey: "greet", TargetPath: "llm-out.json", SourcePath: "llm-in.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeLLM, ProfileName: "default", SourceText: "hello"},
+	}
+	mtTasks := []Task{
+		{EntryKey: "greet", TargetPath: "mt-out.json", SourcePath: "mt-in.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeMT, ProfileName: "p1", SourceText: "hello"},
+	}
+
+	svc := newTestServiceForExecutePool(map[string]string{
+		"llm-in.json": `{"greet":"hello"}`,
+		"mt-in.json":  `{"greet":"hello"}`,
+	})
+	engine := &scriptedMTEngine{}
+	factory := newTestMTEngineFactoryWithEngines(t, map[string]mt.Engine{"p1": engine})
+	emitter := newEventEmitter(func(Event) {})
+
+	staged, flushedTargets, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil)
+	emitter.close()
+	if err != nil {
+		t.Fatalf("executePool: %v", err)
+	}
+	if execReport.Succeeded != 2 {
+		t.Fatalf("execReport.Succeeded=%d, want 2", execReport.Succeeded)
+	}
+	if execReport.Failed != 0 {
+		t.Fatalf("execReport.Failed=%d, want 0", execReport.Failed)
+	}
+	if _, ok := flushedTargets["llm-out.json"]; !ok {
+		t.Fatalf("llm-out.json was not flushed")
+	}
+	if _, ok := flushedTargets["mt-out.json"]; !ok {
+		t.Fatalf("mt-out.json was not flushed")
+	}
+	if got := engine.callCount(); got != 1 {
+		t.Fatalf("mt engine.Translate call count=%d, want 1", got)
+	}
+	if _, ok := staged["llm-out.json"]; ok {
+		t.Fatalf("llm-out.json should already be flushed and removed from staged, got %v", staged)
+	}
+}
+
+func TestExecutePoolGroupsMTTasksByProfileAndLocalePair(t *testing.T) {
+	mtTasks := []Task{
+		{EntryKey: "a", TargetPath: "out-a.json", SourcePath: "in-a.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", TranslationType: config.TranslationTypeMT, SourceText: "a"},
+		{EntryKey: "b", TargetPath: "out-b.json", SourcePath: "in-b.json", SourceLocale: "en", TargetLocale: "de", ProfileName: "p2", TranslationType: config.TranslationTypeMT, SourceText: "b"},
+		{EntryKey: "c", TargetPath: "out-c.json", SourcePath: "in-c.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", TranslationType: config.TranslationTypeMT, SourceText: "c"},
+		{EntryKey: "d", TargetPath: "out-d.json", SourcePath: "in-d.json", SourceLocale: "en", TargetLocale: "de", ProfileName: "p2", TranslationType: config.TranslationTypeMT, SourceText: "d"},
+	}
+
+	svc := newTestServiceForExecutePool(map[string]string{
+		"in-a.json": `{"a":"a"}`,
+		"in-b.json": `{"b":"b"}`,
+		"in-c.json": `{"c":"c"}`,
+		"in-d.json": `{"d":"d"}`,
+	})
+	engineP1 := &scriptedMTEngine{}
+	engineP2 := &scriptedMTEngine{}
+	factory := newTestMTEngineFactoryWithEngines(t, map[string]mt.Engine{"p1": engineP1, "p2": engineP2})
+	emitter := newEventEmitter(func(Event) {})
+
+	_, _, execReport, err := svc.executePool(context.Background(), nil, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil)
+	emitter.close()
+	if err != nil {
+		t.Fatalf("executePool: %v", err)
+	}
+	if execReport.Succeeded != 4 {
+		t.Fatalf("execReport.Succeeded=%d, want 4", execReport.Succeeded)
+	}
+	if got := engineP1.callCount(); got != 1 {
+		t.Fatalf("engineP1 call count=%d, want 1 (both p1/en->fr tasks belong to one group/batch)", got)
+	}
+	if got := engineP2.callCount(); got != 1 {
+		t.Fatalf("engineP2 call count=%d, want 1 (both p2/en->de tasks belong to one group/batch)", got)
+	}
+	if got := len(engineP1.requestAt(0).Sources); got != 2 {
+		t.Fatalf("engineP1 request Sources length=%d, want 2", got)
+	}
+	if got := len(engineP2.requestAt(0).Sources); got != 2 {
+		t.Fatalf("engineP2 request Sources length=%d, want 2", got)
+	}
+}
+
+func TestMaxTranslationsAppliedBeforeMTBatching(t *testing.T) {
+	executable := []Task{
+		{EntryKey: "keep-llm", TargetPath: "llm-out.json", SourcePath: "llm-in.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeLLM, ProfileName: "default", SourceText: "hello"},
+		{EntryKey: "keep-mt", TargetPath: "mt-out-1.json", SourcePath: "mt-in-1.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeMT, ProfileName: "p1", SourceText: "world"},
+		{EntryKey: "deferred-mt", TargetPath: "mt-out-2.json", SourcePath: "mt-in-2.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeMT, ProfileName: "p1", SourceText: "should-not-be-sent"},
+	}
+
+	limited, deferred := applyMaxTranslationsLimit(executable, 2)
+	if deferred != 1 {
+		t.Fatalf("deferred=%d, want 1", deferred)
+	}
+	llmTasks, mtTasks := partitionMTTasks(limited)
+	if got, want := entryKeys(mtTasks), []string{"keep-mt"}; !equalStrings(got, want) {
+		t.Fatalf("mtTasks entry keys=%v, want %v (deferred-mt must be excluded before partitioning)", got, want)
+	}
+
+	svc := newTestServiceForExecutePool(map[string]string{
+		"llm-in.json":  `{"keep-llm":"hello"}`,
+		"mt-in-1.json": `{"keep-mt":"world"}`,
+	})
+	engine := &scriptedMTEngine{}
+	factory := newTestMTEngineFactoryWithEngines(t, map[string]mt.Engine{"p1": engine})
+	emitter := newEventEmitter(func(Event) {})
+
+	_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil)
+	emitter.close()
+	if err != nil {
+		t.Fatalf("executePool: %v", err)
+	}
+	if execReport.Succeeded != 2 {
+		t.Fatalf("execReport.Succeeded=%d, want 2 (keep-llm + keep-mt only)", execReport.Succeeded)
+	}
+	if got := engine.callCount(); got != 1 {
+		t.Fatalf("engine.Translate call count=%d, want 1", got)
+	}
+	if got := engine.requestAt(0).Sources; len(got) != 1 || got[0] != "world" {
+		t.Fatalf("engine received Sources=%v, want [world] (deferred-mt must never reach the engine)", got)
+	}
+}
+
+func TestExecutePoolContextMemoryExcludesMTTasks(t *testing.T) {
+	llmTasks := []Task{
+		{EntryKey: "l1", TargetPath: "llm-a.json", SourcePath: "src-a.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeLLM, ProfileName: "default", SourceText: "hello"},
+		{EntryKey: "l2", TargetPath: "llm-b.json", SourcePath: "src-b.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeLLM, ProfileName: "default", SourceText: "world"},
+	}
+	mtTasks := []Task{
+		{EntryKey: "m1", TargetPath: "mt-a.json", SourcePath: "mt-src-a.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", TranslationType: config.TranslationTypeMT, SourceText: "m1", ContextKey: "keyB"},
+		{EntryKey: "m2", TargetPath: "mt-b.json", SourcePath: "mt-src-b.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", TranslationType: config.TranslationTypeMT, SourceText: "m2", ContextKey: "keyA"},
+		{EntryKey: "m3", TargetPath: "mt-c.json", SourcePath: "mt-src-c.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", TranslationType: config.TranslationTypeMT, SourceText: "m3", ContextKey: "keyB"},
+	}
+
+	contextPlan := buildContextMemoryPlan(llmTasks, "", 0)
+	if !contextPlan.Enabled {
+		t.Fatalf("test setup: expected buildContextMemoryPlan to produce an enabled plan")
+	}
+
+	svc := newTestServiceForExecutePool(map[string]string{
+		"src-a.json":    `{"l1":"hello"}`,
+		"src-b.json":    `{"l2":"world"}`,
+		"mt-src-a.json": `{"m1":"m1"}`,
+		"mt-src-b.json": `{"m2":"m2"}`,
+		"mt-src-c.json": `{"m3":"m3"}`,
+	})
+	engine := &scriptedMTEngine{}
+	factory := newTestMTEngineFactoryWithEngines(t, map[string]mt.Engine{"p1": engine})
+	emitter := newEventEmitter(func(Event) {})
+
+	_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextPlan, factory, emitter, false, nil)
+	emitter.close()
+	if err != nil {
+		t.Fatalf("executePool: %v", err)
+	}
+	if execReport.Succeeded != 5 {
+		t.Fatalf("execReport.Succeeded=%d, want 5 (2 llm + 3 mt)", execReport.Succeeded)
+	}
+
+	if got := engine.callCount(); got != 1 {
+		t.Fatalf("engine.Translate call count=%d, want 1 (all 3 mt tasks share one profile/locale group)", got)
+	}
+	if got, want := engine.requestAt(0).Sources, []string{"m1", "m2", "m3"}; !equalStrings(got, want) {
+		t.Fatalf("engine received Sources=%v, want %v (original plan order, not interleaved by ContextKey)", got, want)
+	}
+
+	for i, task := range mtTasks {
+		want := []string{"keyB", "keyA", "keyB"}[i]
+		if task.ContextKey != want {
+			t.Fatalf("mtTasks[%d].ContextKey=%q, want %q (must be untouched by context-memory planning)", i, task.ContextKey, want)
+		}
 	}
 }

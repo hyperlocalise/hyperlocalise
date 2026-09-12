@@ -231,3 +231,32 @@ func isRetryableMTError(err error) bool {
 	}
 	return false
 }
+
+// runMTTasks executes MT groups and batches sequentially.
+// batchSize is parameterized for deterministic batch-boundary tests.
+func (s *Service) runMTTasks(ctx context.Context, tasks []Task, batchSize int, mtEngines *mtEngineFactory, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, emitter *eventEmitter) {
+	if len(tasks) == 0 {
+		return
+	}
+	if mtEngines == nil {
+		s.failMTBatch(ctx, tasks, errors.New("mt: engine factory not initialized"), targetFailures, state, emitter)
+		return
+	}
+
+	for _, group := range groupMTTasksByProfile(tasks) {
+		if ctx.Err() != nil {
+			return
+		}
+		engine, err := mtEngines.Engine(group.key.profileName)
+		if err != nil {
+			s.failMTBatch(ctx, group.tasks, fmt.Errorf("mt: resolve engine for profile %q: %w", group.key.profileName, err), targetFailures, state, emitter)
+			continue
+		}
+		for _, batch := range splitMTBatches(group.tasks, batchSize) {
+			if ctx.Err() != nil {
+				return
+			}
+			s.processMTBatch(ctx, engine, group.key, batch, completions, targetFailures, state, emitter)
+		}
+	}
+}
