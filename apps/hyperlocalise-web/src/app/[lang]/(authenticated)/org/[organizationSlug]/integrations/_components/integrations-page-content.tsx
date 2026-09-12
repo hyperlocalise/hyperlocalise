@@ -60,6 +60,7 @@ import { agentIntegrationsSectionMessages } from "./agent-integrations-section.m
 import {
   CollaborationIntegrationsSection,
   CustomerEngagementIntegrationsSection,
+  ExperimentationIntegrationsSection,
   GuidelineIntegrationsSection,
   SourceControlIntegrationsSection,
 } from "./agent-integrations-section";
@@ -1083,6 +1084,12 @@ export function IntegrationsPageContent({
           ) : null}
           {showCategory("customer-engagement") ? (
             <IntegrationCategorySection categoryId="customer-engagement">
+              {canManageProviderIntegrations ? (
+                <ZernioConnectionPanel
+                  organizationSlug={organizationSlug}
+                  disabled={!userIsAdmin}
+                />
+              ) : null}
               <CustomerEngagementIntegrationsSection
                 organizationSlug={organizationSlug}
                 userIsAdmin={userIsAdmin}
@@ -1092,15 +1099,7 @@ export function IntegrationsPageContent({
           ) : null}
           {showCategory("experimentation") && canManageProviderIntegrations ? (
             <IntegrationCategorySection categoryId="experimentation">
-              <IntegrationRow
-                name={intl.formatMessage(integrationsPageContentMessages.hyperlabName)}
-                description={intl.formatMessage(integrationsPageContentMessages.hyperlabDetail)}
-                icon={<IntegrationLogo src="/images/logo.png" />}
-                iconMuted
-                action="open"
-                href={`/org/${organizationSlug}/hyperlab`}
-                isLast
-              />
+              <ExperimentationIntegrationsSection organizationSlug={organizationSlug} />
             </IntegrationCategorySection>
           ) : null}
           {showCategory("seo-tools") && canManageProviderIntegrations ? (
@@ -1112,7 +1111,6 @@ export function IntegrationsPageContent({
                 iconMuted
                 action="coming-soon"
               />
-              <ZernioConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
               <SemrushConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
               <AhrefsConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
               {workspacePipesSeoToolSlugs.map((slug, index) => (

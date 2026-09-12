@@ -26,10 +26,17 @@ type IntegrationCardProps = {
   integration: MarketingIntegration;
   lang: string;
   categoryLabel: string;
+  comingSoonLabel: string;
 };
 
-export function IntegrationCard({ integration, lang, categoryLabel }: IntegrationCardProps) {
+export function IntegrationCard({
+  integration,
+  lang,
+  categoryLabel,
+  comingSoonLabel,
+}: IntegrationCardProps) {
   const href = getIntegrationPath(lang, integration.slug);
+  const isComingSoon = integration.status === "coming-soon";
 
   if (!href) {
     return null;
@@ -55,7 +62,10 @@ export function IntegrationCard({ integration, lang, categoryLabel }: Integratio
             <TypographyP weight="medium">{integration.name}</TypographyP>
             <TypographyMuted size="small">{integration.tagline}</TypographyMuted>
           </Rows>
-          <Badge variant="secondary">{categoryLabel}</Badge>
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant="secondary">{categoryLabel}</Badge>
+            {isComingSoon ? <Badge variant="outline">{comingSoonLabel}</Badge> : null}
+          </div>
         </Rows>
       </Box>
     </Link>

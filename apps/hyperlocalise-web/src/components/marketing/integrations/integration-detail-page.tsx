@@ -314,6 +314,7 @@ export function IntegrationDetailPage({ integration }: IntegrationDetailPageProp
                                 appLocale,
                                 related.category,
                               )}
+                              comingSoonLabel={copy.statusComingSoon}
                               integration={related}
                               lang={appLocale}
                             />
