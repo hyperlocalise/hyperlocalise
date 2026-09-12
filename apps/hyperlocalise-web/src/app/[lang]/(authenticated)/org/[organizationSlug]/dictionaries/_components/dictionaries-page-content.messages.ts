@@ -17,17 +17,17 @@ import { defineMessages } from "react-intl";
 export const dictionariesPageContentMessages = defineMessages({
   loadFailed: {
     defaultMessage: "Failed to load dictionaries.",
-    id: "d8kP4nW2qL",
+    id: "mUSeeXuwsP",
     description: "Error when the dictionaries list cannot be loaded",
   },
   createFailed: {
     defaultMessage: "Could not create the dictionary.",
-    id: "m3rT7bH9sC",
+    id: "GDYRoIeaNO",
     description: "Error when creating a spellcheck dictionary fails",
   },
   nameRequired: {
     defaultMessage: "Enter a name.",
-    id: "v6wN1cJ8pA",
+    id: "YbMmg9p0CC",
     description: "Validation error for an empty dictionary name",
   },
 });

@@ -21,10 +21,7 @@ import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { filterDictionaryListRows, type ApiDictionary } from "./dictionary-list";
-import {
-  DictionariesPageView,
-  type DictionaryCreateForm,
-} from "./dictionaries-page-view";
+import { DictionariesPageView, type DictionaryCreateForm } from "./dictionaries-page-view";
 import { dictionariesPageContentMessages } from "./dictionaries-page-content.messages";
 
 function createEmptyForm(): DictionaryCreateForm {

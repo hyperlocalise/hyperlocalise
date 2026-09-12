@@ -358,12 +358,12 @@ export const contentEditorFormatChecksMessages = defineMessages({
   },
   addToDictionary: {
     defaultMessage: "Add to dictionary",
-    id: "c8kQ2nR4wL",
+    id: "SULea/W/vK",
     description: "Button to add a spelling warning token to the project spellcheck dictionary",
   },
   addingToDictionary: {
     defaultMessage: "Adding…",
-    id: "p3mH7vT9sB",
+    id: "AmrdIWCCiJ",
     description: "Busy label while a spelling token is added to a dictionary",
   },
 });

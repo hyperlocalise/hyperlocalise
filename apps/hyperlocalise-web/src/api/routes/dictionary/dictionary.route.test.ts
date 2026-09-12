@@ -70,12 +70,15 @@ describe("dictionaryRoutes", () => {
   });
 
   it("creates a library, adds a word, attaches it once, and resolves the union", async () => {
-    const { identity, organization, user, dictionary } = await fixture.createStoredDictionaryFixture();
+    const { identity, organization, user, dictionary } =
+      await fixture.createStoredDictionaryFixture();
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
     const project = await fixture.createNativeProject(organization.id, user.id);
 
-    const createWord = await client.api.orgs[":organizationSlug"].dictionaries[":dictionaryId"].words.$post(
+    const createWord = await client.api.orgs[":organizationSlug"].dictionaries[
+      ":dictionaryId"
+    ].words.$post(
       {
         param: { organizationSlug, dictionaryId: dictionary.id },
         json: { locale: "en-US", word: "Hyperlocalise" },
@@ -102,7 +105,9 @@ describe("dictionaryRoutes", () => {
       { headers },
     );
 
-    const attachPrimary = await client.api.orgs[":organizationSlug"].dictionaries[":dictionaryId"].projects.$post(
+    const attachPrimary = await client.api.orgs[":organizationSlug"].dictionaries[
+      ":dictionaryId"
+    ].projects.$post(
       {
         param: { organizationSlug, dictionaryId: dictionary.id },
         json: { projectId: project.id, priority: 0 },
@@ -111,7 +116,9 @@ describe("dictionaryRoutes", () => {
     );
     expect(attachPrimary.status).toBe(200);
 
-    const attachAgain = await client.api.orgs[":organizationSlug"].dictionaries[":dictionaryId"].projects.$post(
+    const attachAgain = await client.api.orgs[":organizationSlug"].dictionaries[
+      ":dictionaryId"
+    ].projects.$post(
       {
         param: { organizationSlug, dictionaryId: dictionary.id },
         json: { projectId: project.id, priority: 5 },
@@ -131,7 +138,9 @@ describe("dictionaryRoutes", () => {
       { headers },
     );
 
-    const resolved = await client.api.orgs[":organizationSlug"].projects[":projectId"].dictionaries.resolved.$get(
+    const resolved = await client.api.orgs[":organizationSlug"].projects[":projectId"].dictionaries[
+      "resolved"
+    ].$get(
       {
         param: { organizationSlug, projectId: project.id },
         query: { locale: "en-US" },

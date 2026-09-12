@@ -53,6 +53,7 @@ export function useProjectSpellcheckDictionary(input: {
   organizationSlug: string;
   projectId: string;
   locale: string;
+  canWriteDictionaries?: boolean;
 }): SpellcheckDictionaryContextValue {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -64,7 +65,7 @@ export function useProjectSpellcheckDictionary(input: {
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
-      ].dictionaries.resolved.$get({
+      ].dictionaries["resolved"].$get({
         param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
         query: { locale: trimmedLocale },
       });
@@ -158,11 +159,17 @@ export function useProjectSpellcheckDictionary(input: {
     () => ({
       acceptedWords: resolvedQuery.data?.words ?? [],
       defaultDictionaryId: defaultDictionary?.id ?? null,
-      canAddWords: Boolean(defaultDictionary),
+      canAddWords: Boolean(input.canWriteDictionaries && defaultDictionary),
       addWord,
       isAdding: addMutation.isPending,
     }),
-    [addMutation.isPending, addWord, defaultDictionary, resolvedQuery.data?.words],
+    [
+      addMutation.isPending,
+      addWord,
+      defaultDictionary,
+      input.canWriteDictionaries,
+      resolvedQuery.data?.words,
+    ],
   );
 }
 

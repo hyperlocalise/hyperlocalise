@@ -27,7 +27,7 @@ export function foldSpellcheckWord(word: string): string {
 
 export function normalizeSpellcheckWord(raw: string): NormalizedSpellcheckWord | null {
   const trimmed = raw.trim().normalize("NFC");
-  if (!trimmed || [...trimmed].length > SPELLCHECK_MAX_WORD_LENGTH) {
+  if (!trimmed || Array.from(trimmed).length > SPELLCHECK_MAX_WORD_LENGTH) {
     return null;
   }
 

@@ -14,7 +14,7 @@ reconcile, webhooks, and member mutations.
 | `developer`            | Manage projects and technical jobs (sync, repos); read integrations. No review approval, credentials, members, or billing.     |
 | `reviewer`             | Contribute to jobs, run AI actions, push draft translations; approve reviews and write-back. No org administration.            |
 | `translator`           | Contribute to assigned jobs, run AI actions, and push draft translations. No approvals or org administration.                  |
-| `member`               | Read workspace, project, team, glossary, memory, and job surfaces only.                                                        |
+| `member`               | Read workspace, project, team, glossary, memory, dictionary, and job surfaces only.                                            |
 
 Unknown WorkOS slugs map to `null` during reconcile and receive **no**
 capabilities (default deny).

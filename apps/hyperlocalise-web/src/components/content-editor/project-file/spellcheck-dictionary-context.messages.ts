@@ -17,22 +17,22 @@ import { defineMessages } from "react-intl";
 export const spellcheckDictionaryContextMessages = defineMessages({
   loadFailed: {
     defaultMessage: "Failed to load spellcheck dictionaries.",
-    id: "r5tY2mK8pQ",
+    id: "qFVbPH/1i/",
     description: "Error when CAT cannot load the project spellcheck allow-list",
   },
   noDictionary: {
     defaultMessage: "Attach a dictionary to this project first.",
-    id: "w9nL4cH6sD",
+    id: "4nClT7nOrr",
     description: "Error when adding a spelling word with no attached dictionary",
   },
   addFailed: {
     defaultMessage: "Could not add that word to the dictionary.",
-    id: "b2jF7vX1kP",
+    id: "ne00IJ9KEp",
     description: "Error when adding a CAT spelling token to a dictionary fails",
   },
   addSuccess: {
     defaultMessage: "Added {word} to {dictionary}.",
-    id: "h6qM3zT8nA",
+    id: "5SC8fmjKp8",
     description: "Toast after a spelling token is added to a dictionary",
   },
 });

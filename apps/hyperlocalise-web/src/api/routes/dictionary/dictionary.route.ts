@@ -266,44 +266,52 @@ export function createDictionaryRoutes() {
         .where(eq(schema.spellcheckDictionaries.id, dictionary.id));
       return c.body(null, 204);
     })
-    .get("/:dictionaryId/words", validateDictionaryParams, validateListDictionaryWordsQuery, async (c) => {
-      const dictionary = await getOwnedDictionary(c.var.auth, c.req.valid("param").dictionaryId);
-      if (!dictionary) {
-        return dictionaryNotFoundResponse(c);
-      }
+    .get(
+      "/:dictionaryId/words",
+      validateDictionaryParams,
+      validateListDictionaryWordsQuery,
+      async (c) => {
+        const dictionary = await getOwnedDictionary(c.var.auth, c.req.valid("param").dictionaryId);
+        if (!dictionary) {
+          return dictionaryNotFoundResponse(c);
+        }
 
-      const query = c.req.valid("query");
-      const locale = query?.locale;
-      const limit = query?.limit ?? 100;
-      const offset = query?.offset ?? 0;
-      const where = locale
-        ? and(
-            eq(schema.spellcheckDictionaryWords.dictionaryId, dictionary.id),
-            eq(schema.spellcheckDictionaryWords.locale, locale),
-          )
-        : eq(schema.spellcheckDictionaryWords.dictionaryId, dictionary.id);
+        const query = c.req.valid("query");
+        const locale = query?.locale;
+        const limit = query?.limit ?? 100;
+        const offset = query?.offset ?? 0;
+        const where = locale
+          ? and(
+              eq(schema.spellcheckDictionaryWords.dictionaryId, dictionary.id),
+              eq(schema.spellcheckDictionaryWords.locale, locale),
+            )
+          : eq(schema.spellcheckDictionaryWords.dictionaryId, dictionary.id);
 
-      const [words, totalRow] = await Promise.all([
-        db
-          .select()
-          .from(schema.spellcheckDictionaryWords)
-          .where(where)
-          .orderBy(asc(schema.spellcheckDictionaryWords.locale), asc(schema.spellcheckDictionaryWords.word))
-          .limit(limit)
-          .offset(offset),
-        db.select({ total: count() }).from(schema.spellcheckDictionaryWords).where(where),
-      ]);
+        const [words, totalRow] = await Promise.all([
+          db
+            .select()
+            .from(schema.spellcheckDictionaryWords)
+            .where(where)
+            .orderBy(
+              asc(schema.spellcheckDictionaryWords.locale),
+              asc(schema.spellcheckDictionaryWords.word),
+            )
+            .limit(limit)
+            .offset(offset),
+          db.select({ total: count() }).from(schema.spellcheckDictionaryWords).where(where),
+        ]);
 
-      return c.json({
-        words: words.map((word) => ({
-          id: word.id,
-          locale: word.locale,
-          word: word.word,
-          createdAt: word.createdAt.toISOString(),
-        })),
-        total: Number(totalRow[0]?.total ?? 0),
-      });
-    })
+        return c.json({
+          words: words.map((word) => ({
+            id: word.id,
+            locale: word.locale,
+            word: word.word,
+            createdAt: word.createdAt.toISOString(),
+          })),
+          total: Number(totalRow[0]?.total ?? 0),
+        });
+      },
+    )
     .post(
       "/:dictionaryId/words",
       validateDictionaryParams,
@@ -353,7 +361,11 @@ export function createDictionaryRoutes() {
             201,
           );
         } catch {
-          return conflictResponse(c, "dictionary_word_exists", "That word is already in this locale");
+          return conflictResponse(
+            c,
+            "dictionary_word_exists",
+            "That word is already in this locale",
+          );
         }
       },
     )
@@ -528,29 +540,25 @@ export function createDictionaryRoutes() {
         return c.json({ projects });
       },
     )
-    .delete(
-      "/:dictionaryId/projects/:projectId",
-      validateDictionaryProjectParams,
-      async (c) => {
-        if (!isDictionaryMutationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
-        }
+    .delete("/:dictionaryId/projects/:projectId", validateDictionaryProjectParams, async (c) => {
+      if (!isDictionaryMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
 
-        const params = c.req.valid("param");
-        const dictionary = await getOwnedDictionary(c.var.auth, params.dictionaryId);
-        if (!dictionary) {
-          return dictionaryNotFoundResponse(c);
-        }
+      const params = c.req.valid("param");
+      const dictionary = await getOwnedDictionary(c.var.auth, params.dictionaryId);
+      if (!dictionary) {
+        return dictionaryNotFoundResponse(c);
+      }
 
-        await db
-          .delete(schema.projectSpellcheckDictionaries)
-          .where(
-            and(
-              eq(schema.projectSpellcheckDictionaries.dictionaryId, dictionary.id),
-              eq(schema.projectSpellcheckDictionaries.projectId, params.projectId),
-            ),
-          );
-        return c.body(null, 204);
-      },
-    );
+      await db
+        .delete(schema.projectSpellcheckDictionaries)
+        .where(
+          and(
+            eq(schema.projectSpellcheckDictionaries.dictionaryId, dictionary.id),
+            eq(schema.projectSpellcheckDictionaries.projectId, params.projectId),
+          ),
+        );
+      return c.body(null, 204);
+    });
 }

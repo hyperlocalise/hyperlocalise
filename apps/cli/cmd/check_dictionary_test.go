@@ -5,9 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolveCheckDictionaryDirFlagOverridesConfig(t *testing.T) {

@@ -32,10 +32,7 @@ import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { normalizeSpellcheckWord } from "@/lib/spellcheck-dictionary/normalize-word";
 
-import {
-  PageHeader,
-  WorkspacePageShell,
-} from "../../../_components/workspace-resource-shared";
+import { PageHeader, WorkspacePageShell } from "../../../_components/workspace-resource-shared";
 import type { ApiDictionary } from "../../_components/dictionary-list";
 import { dictionaryDetailMessages } from "./dictionary-detail-page-content.messages";
 
@@ -162,7 +159,9 @@ export function DictionaryDetailPageContent({
       queryClient.invalidateQueries({
         queryKey: ["spellcheck-dictionary", organizationSlug, dictionaryId],
       }),
-      queryClient.invalidateQueries({ queryKey: ["dictionary-words", organizationSlug, dictionaryId] }),
+      queryClient.invalidateQueries({
+        queryKey: ["dictionary-words", organizationSlug, dictionaryId],
+      }),
       queryClient.invalidateQueries({
         queryKey: ["dictionary-projects", organizationSlug, dictionaryId],
       }),
@@ -193,7 +192,11 @@ export function DictionaryDetailPageContent({
       await invalidateDictionary();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : intl.formatMessage(dictionaryDetailMessages.addFailed));
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(dictionaryDetailMessages.addFailed),
+      );
     },
   });
 
@@ -317,7 +320,9 @@ export function DictionaryDetailPageContent({
       <PageHeader
         icon={TextFontIcon}
         title={dictionary?.name ?? dictionaryId}
-        description={dictionary?.description || intl.formatMessage(dictionaryDetailMessages.wordsTitle)}
+        description={
+          dictionary?.description || intl.formatMessage(dictionaryDetailMessages.wordsTitle)
+        }
       />
 
       {dictionaryQuery.isError ? (

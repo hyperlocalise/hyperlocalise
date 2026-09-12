@@ -20,7 +20,7 @@ import { testClient } from "hono/testing";
 
 type Client = ReturnType<typeof testClient<AppType>>;
 
-export function createDictionaryTestFixture(client?: Client) {
+export function createDictionaryTestFixture(_client?: Client) {
   const authFixture = createAuthTestFixture();
 
   async function createStoredDictionaryFixture() {
@@ -38,7 +38,11 @@ export function createDictionaryTestFixture(client?: Client) {
     return { identity, organization, user, dictionary };
   }
 
-  async function createNativeProject(organizationId: string, userId: string, name = "Dictionary Project") {
+  async function createNativeProject(
+    organizationId: string,
+    userId: string,
+    name = "Dictionary Project",
+  ) {
     const [project] = await db
       .insert(schema.projects)
       .values({

@@ -247,7 +247,7 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
     case "dictionaries":
       return intl.formatMessage({
         defaultMessage: "Dictionaries",
-        id: "n7Wp3tL8qK",
+        id: "njHQVnCm4E",
         description: "App shell breadcrumb title for the spellcheck dictionaries page",
       });
     case "domains":

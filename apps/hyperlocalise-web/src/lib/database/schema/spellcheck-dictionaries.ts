@@ -108,6 +108,9 @@ export const projectSpellcheckDictionaries = pgTable(
       table.dictionaryId,
     ),
     index("idx_project_spellcheck_dictionaries_org").on(table.organizationId),
-    index("idx_project_spellcheck_dictionaries_project_priority").on(table.projectId, table.priority),
+    index("idx_project_spellcheck_dictionaries_project_priority").on(
+      table.projectId,
+      table.priority,
+    ),
   ],
 );

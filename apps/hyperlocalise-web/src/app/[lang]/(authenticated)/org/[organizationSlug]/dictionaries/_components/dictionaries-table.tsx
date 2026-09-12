@@ -44,7 +44,8 @@ function DictionaryRow({
   organizationSlug: string;
 }) {
   const intl = useIntl();
-  const tone = dictionary.status === "active" ? "safe" : dictionary.status === "draft" ? "watch" : "info";
+  const tone =
+    dictionary.status === "active" ? "safe" : dictionary.status === "draft" ? "watch" : "info";
 
   return (
     <div className="grid gap-3 px-5 py-4 md:grid-cols-[1.6fr_0.8fr_0.8fr] md:items-center">

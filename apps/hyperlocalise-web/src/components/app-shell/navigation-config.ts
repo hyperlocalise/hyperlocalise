@@ -326,7 +326,7 @@ export function buildGlobalNavigationGroups(
         {
           label: intl.formatMessage({
             defaultMessage: "Dictionaries",
-            id: "k4Nm8qP2wR",
+            id: "AHkrOWSoWW",
             description: "Sidebar navigation item for spellcheck dictionaries",
           }),
           href: org("dictionaries"),
