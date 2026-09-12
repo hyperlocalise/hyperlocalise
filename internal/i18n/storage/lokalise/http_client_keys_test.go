@@ -21,7 +21,7 @@ func TestListKeysFiltersRequestedLocales(t *testing.T) {
 		writeLokaliseJSON(t, w, map[string]any{
 			"keys": []map[string]any{
 				{
-					"key_id":  1,
+					"key_id":   1,
 					"key_name": map[string]string{"web": "hello"},
 					"translations": []map[string]string{
 						{"language_iso": "en_US", "translation": "Hello"},
@@ -55,7 +55,7 @@ func TestListKeysReturnsAllLanguagesWhenLocalesEmpty(t *testing.T) {
 		writeLokaliseJSON(t, w, map[string]any{
 			"keys": []map[string]any{
 				{
-					"key_id":  1,
+					"key_id":   1,
 					"key_name": map[string]string{"web": "hello"},
 					"translations": []map[string]string{
 						{"language_iso": "en_US", "translation": "Hello"},
