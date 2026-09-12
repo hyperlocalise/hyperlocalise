@@ -22,7 +22,6 @@ import { type AppLocale, DEFAULT_APP_LOCALE } from "@/lib/app-i18n/locales";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { withAuth } from "@/lib/workos/server-auth";
 
-import { headingFontForLocale } from "./root-layout-fonts";
 import { RootDocumentLocale } from "./root-document-locale";
 
 type RootLayoutProvidersProps = {
@@ -64,25 +63,21 @@ function RootLayoutProvidersInner({
   initialAuth,
   locale,
 }: RootLayoutProvidersInnerProps) {
-  const headingFontClassName = headingFontForLocale(locale).variable;
-
   return (
     <>
       <RootDocumentLocale locale={locale} />
-      <div className={headingFontClassName}>
-        <AuthKitProvider initialAuth={initialAuth}>
-          <I18nProvider locale={locale}>
-            <QueryProvider>
-              <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-                <TooltipProvider>
-                  {children}
-                  <Toaster richColors closeButton />
-                </TooltipProvider>
-              </ThemeProvider>
-            </QueryProvider>
-          </I18nProvider>
-        </AuthKitProvider>
-      </div>
+      <AuthKitProvider initialAuth={initialAuth}>
+        <I18nProvider locale={locale}>
+          <QueryProvider>
+            <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+              <TooltipProvider>
+                {children}
+                <Toaster richColors closeButton />
+              </TooltipProvider>
+            </ThemeProvider>
+          </QueryProvider>
+        </I18nProvider>
+      </AuthKitProvider>
     </>
   );
 }

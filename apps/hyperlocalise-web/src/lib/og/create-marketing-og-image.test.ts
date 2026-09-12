@@ -16,26 +16,29 @@ import { createMarketingOgImage } from "./create-marketing-og-image";
 import { loadMarketingOgFonts } from "./load-marketing-og-fonts";
 
 describe("loadMarketingOgFonts", () => {
-  it("uses Noto Serif + Inter for Vietnamese", async () => {
+  it("uses Inter Bold + Inter Regular for Vietnamese", async () => {
     const fonts = await loadMarketingOgFonts("vi-VN");
-    expect(fonts.headingFontFamily).toBe("Noto Serif");
+    expect(fonts.headingFontFamily).toBe("Inter");
     expect(fonts.bodyFontFamily).toBe("Inter");
-    expect(fonts.fonts.map((font) => font.name)).toEqual(["Noto Serif", "Inter"]);
+    expect(fonts.fonts.map((font) => font.name)).toEqual(["Inter", "Inter"]);
+    expect(fonts.fonts.map((font) => font.weight)).toEqual([700, 400]);
   });
 
-  it("uses Noto Serif SC for Simplified Chinese", async () => {
+  it("uses Noto Serif SC for Simplified Chinese glyph coverage", async () => {
     const fonts = await loadMarketingOgFonts("zh-CN");
     expect(fonts.headingFontFamily).toBe("Noto Serif SC");
     expect(fonts.bodyFontFamily).toContain("Noto Serif SC");
     expect(fonts.fonts.some((font) => font.name === "Noto Serif SC")).toBe(true);
+    expect(fonts.fonts.some((font) => font.name === "Inter")).toBe(true);
   });
 
-  it("uses Domine + Inter for Latin locales", async () => {
+  it("uses Inter for Latin locales", async () => {
     for (const locale of ["en", "de-DE", "fr-FR"] as const) {
       const fonts = await loadMarketingOgFonts(locale);
-      expect(fonts.headingFontFamily).toBe("Domine");
+      expect(fonts.headingFontFamily).toBe("Inter");
       expect(fonts.bodyFontFamily).toBe("Inter");
-      expect(fonts.fonts.map((font) => font.name)).toEqual(["Domine", "Inter"]);
+      expect(fonts.fonts.map((font) => font.name)).toEqual(["Inter", "Inter"]);
+      expect(fonts.fonts.map((font) => font.weight)).toEqual([700, 400]);
     }
   });
 });
@@ -54,7 +57,7 @@ describe("createMarketingOgImage", () => {
     expect(bytes.byteLength).toBeGreaterThan(10_000);
   });
 
-  it("renders Vietnamese copy without throwing (Noto Serif + Inter vietnamese)", async () => {
+  it("renders Vietnamese copy without throwing (Inter vietnamese)", async () => {
     const response = await createMarketingOgImage({
       heading: "Kiểm tra bản địa hóa website là gì?",
       description:

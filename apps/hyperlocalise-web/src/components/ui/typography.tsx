@@ -69,6 +69,7 @@ export type ColorTokenCssVariable =
   | "--color-dew-700"
   | "--color-dew-500"
   | "--color-dew-100"
+  | "--color-ice"
   | "--color-ink"
   | "--color-navy"
   | "--color-slate"
@@ -173,7 +174,7 @@ const titleSizeClasses = {
 const weightClasses = {
   regular: "font-normal",
   medium: "font-medium",
-  bold: "font-semibold",
+  bold: "font-bold",
 } as const satisfies Record<TypographyWeight, string>;
 
 const alignmentClasses = {
