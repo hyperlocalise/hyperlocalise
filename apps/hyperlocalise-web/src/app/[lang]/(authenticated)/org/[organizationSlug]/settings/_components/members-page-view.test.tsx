@@ -60,7 +60,7 @@ const assignableRoles: OrganizationMembershipRole[] = [
 ];
 
 function renderMembersPage(overrides: Partial<Parameters<typeof MembersPageView>[0]> = {}) {
-  const props = {
+  const props: Parameters<typeof MembersPageView>[0] = {
     organizationSlug: "acme",
     members: [createMember()],
     assignableRoles,
@@ -70,6 +70,21 @@ function renderMembersPage(overrides: Partial<Parameters<typeof MembersPageView>
     isInviteOpen: false,
     inviteEmail: "",
     inviteRole: "member" as const,
+    inviteTeams: [
+      {
+        id: "team-default",
+        slug: "default",
+        name: "Default team",
+        memberCount: 1,
+        currentUserRole: "manager",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+    inviteTeamId: "team-default",
+    inviteRequiresTeam: true,
+    isLoadingTeams: false,
+    teamsLoadError: null,
     isInviting: false,
     removingMember: null,
     isRemoving: false,
@@ -78,6 +93,7 @@ function renderMembersPage(overrides: Partial<Parameters<typeof MembersPageView>
     onInviteOpenChange: vi.fn(),
     onInviteEmailChange: vi.fn(),
     onInviteRoleChange: vi.fn(),
+    onInviteTeamIdChange: vi.fn(),
     onInviteSubmit: vi.fn(),
     onRemovingMemberChange: vi.fn(),
     onRemoveMember: vi.fn(),
@@ -148,6 +164,41 @@ describe("MembersPageView", () => {
     await user.click(await screen.findByText("Remove member..."));
 
     expect(props.onRemovingMemberChange).toHaveBeenCalledWith(member);
+  });
+
+  it("shows the team selector in the invite dialog for non-operator roles", () => {
+    renderMembersPage({ isInviteOpen: true });
+
+    expect(screen.getByText("Team")).toBeInTheDocument();
+    expect(screen.getByText("Default team")).toBeInTheDocument();
+    expect(
+      screen.getByText("Invited members are added to this team so they can access projects."),
+    ).toBeInTheDocument();
+  });
+
+  it("allows sending an invitation when no teams are listed", () => {
+    renderMembersPage({
+      isInviteOpen: true,
+      inviteTeams: [],
+      inviteTeamId: "",
+    });
+
+    expect(
+      screen.getByText(
+        "No teams are listed yet. The default team will be created automatically when you send the invitation.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send invitation" })).toBeEnabled();
+  });
+
+  it("hides the team selector when inviting an operator role", () => {
+    renderMembersPage({
+      isInviteOpen: true,
+      inviteRole: "admin",
+      inviteRequiresTeam: false,
+    });
+
+    expect(screen.queryByText("Team")).not.toBeInTheDocument();
   });
 
   it("hides the actions menu when the member cannot be managed", () => {

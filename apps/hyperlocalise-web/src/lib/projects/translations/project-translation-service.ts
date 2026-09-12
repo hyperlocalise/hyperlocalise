@@ -691,6 +691,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     targetLocale: string;
     /** When true, export every source key (translation text or source fallback). Used by sync pull. */
     includeAllSourceKeys?: boolean;
+    /** When true, omit source-text fallbacks and keep only ready translations. */
+    readyTranslationsOnly?: boolean;
   }): Promise<{
     prefilled: Record<string, string>;
     retryKeys: string[];
@@ -756,7 +758,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           if (canPrefill) {
             prefilled[key.key] = translation!.text;
             translatedKeyCount += 1;
-          } else {
+          } else if (!input.readyTranslationsOnly) {
             prefilled[key.key] = key.sourceText;
           }
           continue;
@@ -780,7 +782,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           continue;
         }
 
-        if (input.includeAllSourceKeys) {
+        if (input.includeAllSourceKeys && !input.readyTranslationsOnly) {
           prefilled[key.key] = key.sourceText;
         }
       }

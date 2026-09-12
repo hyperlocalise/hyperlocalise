@@ -90,6 +90,11 @@ export function getIntegrationsIndexCopy(locale: string) {
       id: "Lm4tSgDdPG",
       description: "Empty state when integrations search returns no results",
     }),
+    comingSoon: intl.formatMessage({
+      defaultMessage: "Coming soon",
+      id: "cDM7ee3Tdp",
+      description: "Status badge on coming-soon integration cards",
+    }),
     metadata: {
       title: intl.formatMessage({
         defaultMessage: "Integrations | Hyperlocalise",

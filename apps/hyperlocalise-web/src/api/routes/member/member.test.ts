@@ -217,6 +217,57 @@ describe("memberRoutes", () => {
     expect(membership?.role).toBe("member");
   });
 
+  it("adds invited members to the selected team", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    const organization = (
+      await db
+        .select({ id: schema.organizations.id })
+        .from(schema.organizations)
+        .where(eq(schema.organizations.slug, ownerIdentity.organization.slug ?? ""))
+        .limit(1)
+    )[0]!;
+
+    const [customTeam] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: organization.id,
+        slug: "localization",
+        name: "Localization",
+      })
+      .returning({ id: schema.teams.id });
+
+    const response = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "localization-invite@example.com", role: "translator", teamId: customTeam.id },
+      headers,
+    );
+
+    expect(response.status).toBe(201);
+
+    const invitedUser = (
+      await db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.email, "localization-invite@example.com"))
+        .limit(1)
+    )[0]!;
+
+    const [membership] = await db
+      .select({ role: schema.teamMemberships.role })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, customTeam.id),
+          eq(schema.teamMemberships.userId, invitedUser.id),
+        ),
+      )
+      .limit(1);
+
+    expect(membership?.role).toBe("member");
+  });
+
   it("does not add invited operators to the default workspace team", async () => {
     const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
@@ -647,6 +698,69 @@ describe("memberRoutes", () => {
     ).json()) as MembersResponse;
     const member = listBody.members.find((row) => row.email === "role-change@example.com");
     expect(member?.role).toBe("admin");
+  });
+
+  it("rolls back a newly selected team when resend delivery fails", async () => {
+    resendInvitationMock.mockReset();
+    listInvitationsMock.mockReset();
+
+    listInvitationsMock.mockImplementation(async () => ({
+      data: [{ id: "invitation_mock", state: "pending" }],
+    }));
+    resendInvitationMock.mockRejectedValueOnce(new Error("workos unavailable"));
+
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    const organization = (
+      await db
+        .select({ id: schema.organizations.id })
+        .from(schema.organizations)
+        .where(eq(schema.organizations.slug, ownerIdentity.organization.slug ?? ""))
+        .limit(1)
+    )[0]!;
+
+    const [customTeam] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: organization.id,
+        slug: "rollback-team",
+        name: "Rollback team",
+      })
+      .returning({ id: schema.teams.id });
+
+    await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "rollback-team@example.com", role: "developer" },
+      headers,
+    );
+
+    const invitedUser = (
+      await db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.email, "rollback-team@example.com"))
+        .limit(1)
+    )[0]!;
+
+    const failedResend = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "rollback-team@example.com", role: "developer", teamId: customTeam.id },
+      headers,
+    );
+    expect(failedResend.status).toBe(500);
+
+    const customTeamMembership = await db
+      .select({ id: schema.teamMemberships.id })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, customTeam.id),
+          eq(schema.teamMemberships.userId, invitedUser.id),
+        ),
+      );
+
+    expect(customTeamMembership).toEqual([]);
   });
 
   it("rolls back a role change when resend delivery fails", async () => {

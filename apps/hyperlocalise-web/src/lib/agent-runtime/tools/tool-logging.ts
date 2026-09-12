@@ -187,6 +187,7 @@ function summarizeValue(value: unknown, key?: string, depth = 0): unknown {
 
 function summarizeToolContext(ctx: ToolContext): SafeRecord {
   const githubContext = ctx.githubContext;
+  const gitlabContext = ctx.gitlabContext;
   return {
     conversationId: ctx.conversationId,
     workflowRunId: ctx.workflowRunId ?? null,
@@ -197,6 +198,7 @@ function summarizeToolContext(ctx: ToolContext): SafeRecord {
     repositorySource: ctx.repositorySource ?? null,
     sandboxId: ctx.sandboxId ?? null,
     hasGithubContext: Boolean(githubContext),
+    hasGitlabContext: Boolean(gitlabContext),
     githubContext: githubContext
       ? {
           installationId: githubContext.installationId,
@@ -207,6 +209,17 @@ function summarizeToolContext(ctx: ToolContext): SafeRecord {
               : null,
           commitSha: githubContext.commitSha ? githubContext.commitSha.slice(0, 12) : null,
           commentId: githubContext.commentId ?? null,
+        }
+      : null,
+    gitlabContext: gitlabContext
+      ? {
+          projectId: gitlabContext.projectId,
+          mergeRequestIid: gitlabContext.mergeRequestIid ?? null,
+          branch:
+            typeof gitlabContext.branch === "string"
+              ? summarizeString(gitlabContext.branch, "branch")
+              : null,
+          commitSha: gitlabContext.commitSha ? gitlabContext.commitSha.slice(0, 12) : null,
         }
       : null,
   };

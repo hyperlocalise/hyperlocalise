@@ -17,6 +17,7 @@ import type { IntegrationCategory } from "@/lib/integrations/integration-catalog
 export const PIPES_PROVIDER_SLUGS = [
   "ahrefs",
   "atlassian",
+  "gitlab",
   "hubspot",
   "intercom",
   "mailchimp",
@@ -33,6 +34,7 @@ export type PipesProviderSlug = (typeof PIPES_PROVIDER_SLUGS)[number];
 export const PIPES_PROVIDER_CATEGORIES = {
   ahrefs: "seo-tools",
   similarweb: "seo-tools",
+  gitlab: "source-control",
   intercom: "customer-engagement",
   hubspot: "customer-engagement",
   mailchimp: "customer-engagement",

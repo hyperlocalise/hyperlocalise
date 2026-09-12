@@ -58,7 +58,6 @@ import {
   type ContentEditorPageNavigationGuard,
   type ContentEditorPageNavigationGuardRef,
 } from "@/components/content-editor/workspace/content-editor-page-navigation-guard";
-import { ContentEditorWorkspaceSkeleton } from "@/components/content-editor/workspace/content-editor-workspace-skeleton";
 import {
   contentEditorPageLimitForViewMode,
   readCatWorkspaceViewMode,
@@ -73,7 +72,10 @@ import {
   type ContentEditorLinkedIssueSegmentContext,
 } from "@/components/content-editor/issues/content-editor-linked-issues-dialog";
 
-import { projectFileCatToWorkspaceState } from "./project-file-content-editor-mapper";
+import {
+  createContentEditorLoadingWorkspaceState,
+  projectFileCatToWorkspaceState,
+} from "./project-file-content-editor-mapper";
 import { projectFileCatWorkspaceMessages } from "./project-file-content-editor-workspace.messages";
 import { fetchCatSegmentValidation } from "./project-file-content-editor-validation";
 import { useContentEditorMutations } from "./use-content-editor-mutations";
@@ -750,22 +752,12 @@ export function ProjectFileContentEditorWorkspace({
 
   const isFullscreen = layout === "fullscreen";
 
-  const isQueueLoading =
+  const isQueueDataPending =
     isSearchPending ||
     (contentEditorQuery.isLoading && !contentEditorFile) ||
     contentEditorQuery.isPlaceholderData;
-
-  if (contentEditorQuery.isLoading && !contentEditorFile) {
-    return (
-      <ContentEditorWorkspaceSkeleton
-        className={cn(
-          "min-h-0 flex-1",
-          isFullscreen && "rounded-lg border border-border",
-          className,
-        )}
-      />
-    );
-  }
+  const isQueueListLoading = isSearchPending;
+  const isTranslationViewLoading = contentEditorQuery.isLoading && !contentEditorFile;
 
   if (contentEditorQuery.isError) {
     return (
@@ -780,7 +772,15 @@ export function ProjectFileContentEditorWorkspace({
     );
   }
 
-  const workspaceForRender = workspaceState;
+  const workspaceForRender =
+    workspaceState ??
+    (isTranslationViewLoading
+      ? createContentEditorLoadingWorkspaceState({
+          sourcePath,
+          sourceLocale,
+          targetLocale,
+        })
+      : null);
   if (!workspaceForRender) {
     return null;
   }
@@ -848,9 +848,9 @@ export function ProjectFileContentEditorWorkspace({
 
       <AiFeaturesUpgradeHrefProvider value={upgradePlanHref}>
         <ContentEditorWorkspaceContainer
-          key={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
           initialState={workspaceForRender}
           queueSnapshot={workspaceState}
+          fileScopeKey={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
           pageNavigationGuardRef={resolvedPageNavigationGuardRef}
           lazySegment={{
             organizationSlug,
@@ -937,7 +937,9 @@ export function ProjectFileContentEditorWorkspace({
           availableQueueSorts={availableQueueSorts}
           isQueueSearchPending={isSearchPending}
           isQueueFetchingPage={isFetchingNextPage}
-          isQueueLoading={isQueueLoading}
+          isQueueListLoading={isQueueListLoading}
+          isQueueDataPending={isQueueDataPending}
+          isTranslationViewLoading={isTranslationViewLoading}
           isImageBusy={isImageBusy}
           isMaxLengthSaving={isSavingMaxLength}
           queuePagination={pagination}

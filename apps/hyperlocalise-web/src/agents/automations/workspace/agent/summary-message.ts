@@ -114,10 +114,19 @@ export function buildOrchestratorRunSummaryMessage(session: WorkspaceOrchestrato
     githubAgentResult && typeof githubAgentResult.digest === "string"
       ? githubAgentResult.digest.trim()
       : null;
+  const gitlabAgentResult = session.stepResults.use_gitlab_repository;
+  const gitlabDigest =
+    gitlabAgentResult && typeof gitlabAgentResult.digest === "string"
+      ? gitlabAgentResult.digest.trim()
+      : null;
   const crowdinSummary = asString(session.stepResults.use_crowdin?.summary);
 
   if (githubDigest) {
     return githubDigest;
+  }
+
+  if (gitlabDigest) {
+    return gitlabDigest;
   }
 
   if (crowdinSummary) {

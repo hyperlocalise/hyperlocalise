@@ -23,6 +23,7 @@ import {
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import {
   buildFileTranslationInstructions,
+  getOrCreateConversationGitlabRepositorySandbox,
   getOrCreateConversationRepositorySandbox,
   resolveConversationRepositoryContext,
   stopStaleRepositorySandbox,
@@ -308,6 +309,7 @@ async function processSlackMessage(
       return [{ role: chatMessage.role, content: chatMessage.content }];
     });
     const storedRepositoryContext = threadState?.repositoryGitHubContext ?? null;
+    const storedGitLabContext = threadState?.repositoryGitLabContext ?? null;
     const languageModel = await resolveHyperlocaliseAgentLanguageModel({
       organizationId,
     });
@@ -315,7 +317,7 @@ async function processSlackMessage(
       currentMessage: message.text,
       conversationText,
       hasFileAttachments: hasTranslationAttachments,
-      hasStoredRepositoryContext: Boolean(storedRepositoryContext),
+      hasStoredRepositoryContext: Boolean(storedRepositoryContext ?? storedGitLabContext),
       surface: "slack",
       model: languageModel.model,
     });
@@ -323,7 +325,7 @@ async function processSlackMessage(
       {
         needsRepositoryTools: classification.needsRepositoryTools,
         continuesRepositoryThread: classification.continuesRepositoryThread,
-        hasStoredRepositoryContext: Boolean(storedRepositoryContext),
+        hasStoredRepositoryContext: Boolean(storedRepositoryContext ?? storedGitLabContext),
         hasConnectorConfig: Boolean(connectorConfig),
       },
       "slack agent conversation classified",
@@ -332,6 +334,7 @@ async function processSlackMessage(
     const repositoryResolution = await resolveConversationRepositoryContext({
       surface: "slack",
       organizationId,
+      localUserId: membership.localUserId,
       projectId,
       conversationText,
       classification,
@@ -348,13 +351,18 @@ async function processSlackMessage(
     }
 
     const resolvedRepositoryContext = repositoryResolution.context;
+    const resolvedGitlabContext = repositoryResolution.gitlabContext;
     const repositoryContextInstructions = repositoryResolution.instructions;
     let updatedThreadState = repositoryResolution.updatedSession;
 
-    if (updatedThreadState?.repositoryGitHubContext) {
+    if (
+      updatedThreadState?.repositoryGitHubContext ||
+      updatedThreadState?.repositoryGitLabContext
+    ) {
       await thread.setState({
         ...threadState,
         repositoryGitHubContext: updatedThreadState.repositoryGitHubContext,
+        repositoryGitLabContext: updatedThreadState.repositoryGitLabContext,
       });
     }
 
@@ -423,6 +431,34 @@ async function processSlackMessage(
         }
         throw error;
       }
+    } else if (resolvedGitlabContext) {
+      const sandboxResult = await getOrCreateConversationGitlabRepositorySandbox({
+        conversationId: interactionId,
+        surface: "slack",
+        gitlabContext: resolvedGitlabContext,
+        repositorySession: updatedThreadState ?? latestThreadState,
+        organizationId,
+        localUserId: membership.localUserId,
+      });
+      sandboxId = sandboxResult.sandboxId;
+      updatedThreadState = sandboxResult.updatedSession;
+      try {
+        await thread.setState({
+          ...latestThreadState,
+          ...updatedThreadState,
+        });
+        await stopStaleRepositorySandbox(sandboxResult.staleSandboxId, log);
+      } catch (error) {
+        if (sandboxResult.sandboxCreated) {
+          await stopRepositorySandbox(sandboxResult.sandboxId).catch((cleanupError: unknown) => {
+            log.warn(
+              { err: serializeErrorForLog(cleanupError), sandboxId: sandboxResult.sandboxId },
+              "gitlab repository sandbox cleanup failed after slack state write failure",
+            );
+          });
+        }
+        throw error;
+      }
     }
 
     const [hasTmsIntegration, hasVisualMockSkill] = await Promise.all([
@@ -446,7 +482,11 @@ async function processSlackMessage(
           ? {
               sandboxId,
               githubContext: resolvedRepositoryContext,
-              workMode: hasVisualMockSkill ? ("write" as const) : ("read_only" as const),
+              gitlabContext: resolvedGitlabContext,
+              workMode:
+                hasVisualMockSkill && resolvedRepositoryContext
+                  ? ("write" as const)
+                  : ("read_only" as const),
               repositorySource: "slack" as const,
               actor: {
                 sourceUserId: message.author.userId,
@@ -466,7 +506,7 @@ async function processSlackMessage(
     });
     log.info(
       {
-        hasRepositoryContext: Boolean(resolvedRepositoryContext),
+        hasRepositoryContext: Boolean(resolvedRepositoryContext ?? resolvedGitlabContext),
         hasSandbox: Boolean(sandboxId),
         hasFileAttachments: hasTranslationAttachments,
       },

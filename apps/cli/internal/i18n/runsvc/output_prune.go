@@ -20,6 +20,8 @@ func buildPlannedTargetMetadata(planned []Task) (map[string]stagedOutput, error)
 				sourcePath:   task.SourcePath,
 				sourceLocale: task.SourceLocale,
 				targetLocale: task.TargetLocale,
+				srxSpec:      task.SRXSpec,
+				parserMode:   task.ParserMode,
 			}
 			continue
 		}
@@ -32,6 +34,16 @@ func buildPlannedTargetMetadata(planned []Task) (map[string]stagedOutput, error)
 		if existing.targetLocale != "" && existing.targetLocale != task.TargetLocale {
 			return nil, fmt.Errorf("output staging conflict: %s has conflicting target locales", task.TargetPath)
 		}
+		if existing.srxSpec != "" && task.SRXSpec != "" && existing.srxSpec != task.SRXSpec {
+			return nil, fmt.Errorf("output staging conflict: %s has conflicting srx specs", task.TargetPath)
+		}
+		if existing.srxSpec == "" && task.SRXSpec != "" {
+			existing.srxSpec = task.SRXSpec
+		}
+		if existing.parserMode == "" && task.ParserMode != "" {
+			existing.parserMode = task.ParserMode
+		}
+		metadata[task.TargetPath] = existing
 	}
 	return metadata, nil
 }
@@ -47,7 +59,7 @@ func buildPlannedTargetKeySet(planned []Task) map[string]map[string]struct{} {
 			bucket = map[string]struct{}{}
 			keep[task.TargetPath] = bucket
 		}
-		bucket[task.EntryKey] = struct{}{}
+		bucket[plannedFileKey(task.EntryKey)] = struct{}{}
 	}
 	return keep
 }

@@ -38,6 +38,7 @@ import {
   enqueueWorkspaceAutomationRunOnce,
   getWorkspaceAutomationById,
   getWorkspaceAutomationRunByIdempotencyKey,
+  listContentSyncAutomations,
   listDueContentfulWorkspaceAutomations,
   listSourceUploadWorkspaceAutomations,
   listWorkspaceAutomations,
@@ -45,6 +46,7 @@ import {
 import {
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
+  isContentSyncAutomation,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationRunRecord,
   type WorkspaceAutomationRunTriggerSource,
@@ -180,7 +182,9 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
   const plan = buildWorkspaceOrchestratorPlan(input.automation, { templateSkillId });
   const skipReason =
     input.preDispatchSkipReason ??
-    (!planHasActionableTool(plan) ? "no_enabled_tools" : null) ??
+    (!isContentSyncAutomation(input.automation) && !planHasActionableTool(plan)
+      ? "no_enabled_tools"
+      : null) ??
     null;
 
   const { idempotencyKey, existing } = await resolveDispatchTargetRun({
@@ -295,21 +299,25 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
     return null;
   }
 
+  const isContentSync = isContentSyncAutomation(input.automation);
   if (
+    !isContentSync &&
     input.automation.triggerConfig.mode !== "manual" &&
     input.automation.triggerConfig.mode !== "scheduled"
   ) {
     return null;
   }
 
-  const plan = buildWorkspaceOrchestratorPlan(input.automation, {
-    templateSkillId:
-      typeof input.inputSnapshot?.templateSkillId === "string"
-        ? input.inputSnapshot.templateSkillId
-        : null,
-  });
-  if (!planHasActionableTool(plan)) {
-    return null;
+  if (!isContentSync) {
+    const plan = buildWorkspaceOrchestratorPlan(input.automation, {
+      templateSkillId:
+        typeof input.inputSnapshot?.templateSkillId === "string"
+          ? input.inputSnapshot.templateSkillId
+          : null,
+    });
+    if (!planHasActionableTool(plan)) {
+      return null;
+    }
   }
 
   const contentfulEntryId =
@@ -542,16 +550,32 @@ export async function dispatchWorkspaceAutomationsForContentfulWebhook(input: {
   contentTypeId?: string | null;
   queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult[]> {
-  const candidateAutomations = await listWorkspaceAutomations({
-    organizationId: input.organizationId,
-    status: "active",
-    contentfulWebhookConnectionId: input.connectionId,
-    contentfulWebhookContentTypeId: input.contentTypeId,
-    limit: 100,
-  });
-  const automations = candidateAutomations.filter((automation) =>
-    hasWorkspaceAutomationContentfulWorkflow(automation.toolConfig),
-  );
+  const [candidateAutomations, contentSyncAutomations] = await Promise.all([
+    listWorkspaceAutomations({
+      organizationId: input.organizationId,
+      status: "active",
+      contentfulWebhookConnectionId: input.connectionId,
+      contentfulWebhookContentTypeId: input.contentTypeId,
+      limit: 100,
+    }),
+    listContentSyncAutomations({
+      organizationId: input.organizationId,
+      contentfulConnectionId: input.connectionId,
+      status: "active",
+    }),
+  ]);
+  const automations = [
+    ...candidateAutomations.filter((automation) =>
+      hasWorkspaceAutomationContentfulWorkflow(automation.toolConfig),
+    ),
+    ...contentSyncAutomations.filter((automation) => {
+      const types = automation.syncConfig?.contentTypeIds ?? [];
+      if (types.length === 0 || !input.contentTypeId) {
+        return true;
+      }
+      return types.includes(input.contentTypeId);
+    }),
+  ];
 
   logger.info(
     {

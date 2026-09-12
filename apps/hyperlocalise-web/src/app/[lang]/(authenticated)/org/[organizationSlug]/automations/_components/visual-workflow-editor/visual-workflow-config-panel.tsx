@@ -12,6 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { WorkflowCredentialField } from "./workflow-credential-field";
+import { WorkflowDataPanel } from "./workflow-data-panel";
+import type {
+  WorkflowNodeContract,
+  VisualWorkflowRfEdge,
+} from "@/lib/visual-workflows/schema/types";
 import { ArrowLeft01Icon, Delete02Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -29,7 +35,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
-import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { isTriggerType } from "@/lib/visual-workflows/catalog/node-catalog";
 import {
   isVisualTriggerCatalogType,
@@ -56,6 +61,10 @@ const TIMEZONES = ["UTC", "America/New_York", "America/Los_Angeles", "Europe/Lon
 
 export function VisualWorkflowConfigPanel({
   node,
+  nodes = [],
+  edges = [],
+  onChangeContract,
+  organizationSlug,
   issues,
   onBack,
   onChangeConfig,
@@ -63,6 +72,10 @@ export function VisualWorkflowConfigPanel({
   onDeleteNode,
 }: {
   node: VisualWorkflowRfNode;
+  organizationSlug?: string;
+  nodes?: readonly VisualWorkflowRfNode[];
+  edges?: readonly VisualWorkflowRfEdge[];
+  onChangeContract?: (patch: WorkflowNodeContract) => void;
   issues: readonly VisualWorkflowValidationIssue[];
   onBack: () => void;
   onChangeConfig: (config: VisualNodeConfig) => void;
@@ -82,6 +95,15 @@ export function VisualWorkflowConfigPanel({
         </Button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+        {onChangeContract ? (
+          <WorkflowDataPanel
+            node={node}
+            nodes={nodes}
+            edges={edges}
+            organizationSlug={organizationSlug}
+            onChange={onChangeContract}
+          />
+        ) : null}
         <h2 className="text-sm font-medium">
           <FormattedMessage {...messages.configTitle} />
         </h2>
@@ -115,6 +137,18 @@ export function VisualWorkflowConfigPanel({
                 }
                 onChangeConfig({ ...config, method: value });
               }}
+            />
+            <TextField
+              id="vw-http-idempotency"
+              label={intl.formatMessage({
+                defaultMessage: "Provider idempotency header (optional)",
+                id: "DCJppnaACE",
+                description: "HTTP provider supported idempotency header name",
+              })}
+              value={config.idempotencyHeader ?? ""}
+              onChange={(value) =>
+                onChangeConfig({ ...config, idempotencyHeader: value || undefined })
+              }
             />
             <TextField
               id="vw-http-url"
@@ -179,21 +213,22 @@ export function VisualWorkflowConfigPanel({
             />
             {(config.auth?.type ?? "none") !== "none" ? (
               <>
-                <TextField
-                  id="vw-http-auth-token"
-                  label={intl.formatMessage(messages.httpAuthToken)}
-                  value={config.auth?.token ?? ""}
-                  onChange={(value) =>
-                    onChangeConfig({
-                      ...config,
-                      auth: {
-                        type: config.auth?.type ?? "bearer",
-                        token: value,
-                        headerName: config.auth?.headerName,
-                      },
-                    })
-                  }
-                />
+                {organizationSlug ? (
+                  <WorkflowCredentialField
+                    organizationSlug={organizationSlug}
+                    value={config.auth?.credentialId}
+                    onChange={(credentialId) =>
+                      onChangeConfig({
+                        ...config,
+                        auth: {
+                          type: config.auth?.type ?? "bearer",
+                          credentialId,
+                          headerName: config.auth?.headerName,
+                        },
+                      })
+                    }
+                  />
+                ) : null}
                 {config.auth?.type === "api_key" ? (
                   <TextField
                     id="vw-http-auth-header"
@@ -204,7 +239,7 @@ export function VisualWorkflowConfigPanel({
                         ...config,
                         auth: {
                           type: "api_key",
-                          token: config.auth?.token ?? "",
+                          credentialId: config.auth?.credentialId,
                           headerName: value,
                         },
                       })
@@ -572,17 +607,6 @@ export function VisualWorkflowConfigPanel({
               value={config.onError ?? "stop"}
               onChange={(onError) => onChangeConfig({ ...config, onError })}
             />
-            <div className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
-              <p>
-                <FormattedMessage {...messages.aiModelSlot} />
-              </p>
-              <p>
-                <FormattedMessage {...messages.aiToolsSlot} />
-              </p>
-              <p className="mt-1 text-xs">
-                <FormattedMessage {...messages.stubSlotHint} />
-              </p>
-            </div>
           </>
         ) : null}
         {config.kind === "trigger.manual" ? (
@@ -879,6 +903,6 @@ function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
     case "nested_for_each":
       return messages.nestedForEach;
     default:
-      return assertNever(code);
+      return messages.invalidNodeConfig;
   }
 }

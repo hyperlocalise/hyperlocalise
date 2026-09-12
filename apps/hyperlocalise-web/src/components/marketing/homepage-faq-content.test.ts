@@ -17,12 +17,13 @@ import { buildHomepageFaqJsonLd, getHomepageFaqItems } from "./homepage-faq-cont
 describe("homepage FAQ content", () => {
   it("builds matching visible content and FAQPage structured data", () => {
     const items = getHomepageFaqItems("en");
-    const jsonLd = buildHomepageFaqJsonLd(items);
+    const jsonLd = buildHomepageFaqJsonLd("en", items);
 
     expect(items).toHaveLength(12);
     expect(jsonLd).toMatchObject({
       "@context": "https://schema.org",
       "@type": "FAQPage",
+      inLanguage: "en",
     });
     expect(jsonLd.mainEntity).toEqual(
       items.map((item) => ({

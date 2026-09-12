@@ -25,6 +25,7 @@ export const visualWorkflowRunStatusSchema = z.enum([
   "failed",
   "cancelled",
   "skipped",
+  "needs_attention",
 ]);
 export const visualWorkflowNodeRunStatusSchema = z.enum([
   "queued",
@@ -32,6 +33,10 @@ export const visualWorkflowNodeRunStatusSchema = z.enum([
   "succeeded",
   "failed",
   "skipped",
+  "blocked",
+  "cancelled",
+  "handled_error",
+  "needs_attention",
 ]);
 
 export type VisualWorkflowRunTriggerSource = z.infer<typeof visualWorkflowRunTriggerSourceSchema>;
@@ -44,6 +49,8 @@ export type VisualWorkflowNodeRunRecord = {
   organizationId: string;
   nodeId: string;
   nodeType: string;
+  iteration?: number;
+  attempt?: number;
   status: VisualWorkflowNodeRunStatus;
   inputSnapshot: Record<string, unknown>;
   outputSnapshot: Record<string, unknown>;
@@ -59,6 +66,7 @@ export type VisualWorkflowRunRecord = {
   visualWorkflowId: string;
   organizationId: string;
   triggerSource: VisualWorkflowRunTriggerSource;
+  mode?: "mock" | "live";
   status: VisualWorkflowRunStatus;
   idempotencyKey: string | null;
   definitionVersion: number;

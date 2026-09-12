@@ -32,6 +32,7 @@ import {
   inboxStatusEnum,
   interactionSourceEnum,
   messageSenderTypeEnum,
+  workspaceAutomationKindEnum,
   workspaceAutomationRunStatusEnum,
   workspaceAutomationRunTriggerSourceEnum,
   workspaceAutomationStatusEnum,
@@ -53,6 +54,7 @@ export const workspaceAutomations = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
     status: workspaceAutomationStatusEnum("status").notNull().default("active"),
+    kind: workspaceAutomationKindEnum("kind").notNull().default("agent"),
     name: text("name").notNull(),
     instructions: text("instructions").notNull(),
     // Gateway model id used when this automation runs (orchestrator and nested agents).
@@ -73,6 +75,11 @@ export const workspaceAutomations = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
+    syncConfig: jsonb("sync_config")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    syncFingerprint: text("sync_fingerprint"),
     // Hyperlocalise project owned by the automation header; tools read this value.
     projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     configVersion: integer("config_version").notNull().default(1),
@@ -88,6 +95,11 @@ export const workspaceAutomations = pgTable(
     index("idx_workspace_automations_org_next_run").on(table.organizationId, table.nextRunAt),
     index("idx_workspace_automations_github_repo").on(table.githubInstallationRepositoryId),
     index("idx_workspace_automations_org_project").on(table.organizationId, table.projectId),
+    uniqueIndex("workspace_automations_content_sync_fingerprint_key")
+      .on(table.organizationId, table.projectId, table.syncFingerprint)
+      .where(
+        sql`${table.kind} = 'content_sync' AND ${table.projectId} IS NOT NULL AND ${table.syncFingerprint} IS NOT NULL`,
+      ),
   ],
 );
 

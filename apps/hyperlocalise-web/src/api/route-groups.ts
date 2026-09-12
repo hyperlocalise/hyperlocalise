@@ -48,6 +48,7 @@ import { createMentionSuggestionsRoutes } from "./routes/mentions/mention-sugges
 import { createIssueNotificationsRoutes } from "./routes/notifications/notifications.route";
 import { createNotificationPreferencesRoutes } from "./routes/notification-preferences/notification-preferences.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
+import { createGitlabRoutes } from "./routes/gitlab/gitlab.route";
 import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
@@ -182,7 +183,8 @@ export function createOrgAgentsRoutes() {
     .route("/agent-email", createAgentEmailRoutes())
     .route("/agent-slack", createAgentSlackRoutes())
     .route("/slack-connect", createSlackConnectRoutes())
-    .route("/github-installation", createGithubInstallationRoutes());
+    .route("/github-installation", createGithubInstallationRoutes())
+    .route("/gitlab", createGitlabRoutes());
 }
 
 export function createOrgWorkspaceRoutes() {

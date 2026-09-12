@@ -22,7 +22,7 @@ func defaultSyncCommonOptions() syncCommonOptions {
 func newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "upload source files and download translated files from Hyperlocalise",
+		Short: "upload or download translations via Hyperlocalise or a TMS storage adapter",
 	}
 
 	cmd.AddCommand(newSyncPullCmd())

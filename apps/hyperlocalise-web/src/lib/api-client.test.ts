@@ -51,6 +51,7 @@ describe("createApiClient", () => {
     expect(typeof org["agent-slack"].$get).toBe("function");
     expect(typeof org["slack-connect"].$get).toBe("function");
     expect(typeof org["github-installation"].$get).toBe("function");
+    expect(typeof org.gitlab.projects.$get).toBe("function");
     expect(typeof org.teams.$get).toBe("function");
     expect(typeof org.members.$get).toBe("function");
     expect(typeof org.workspace.$get).toBe("function");
@@ -69,6 +70,7 @@ describe("createApiClient", () => {
     expectTypeOf(org.glossaries.$get).toBeFunction();
     expectTypeOf(org["tms-provider"].connection.$get).toBeFunction();
     expectTypeOf(org["github-installation"].$get).toBeFunction();
+    expectTypeOf(org.gitlab.projects.$get).toBeFunction();
     expectTypeOf(org.teams.$get).toBeFunction();
     expectTypeOf(org.files.$post).toBeFunction();
     expectTypeOf(client.api.v1.files.$post).toBeFunction();

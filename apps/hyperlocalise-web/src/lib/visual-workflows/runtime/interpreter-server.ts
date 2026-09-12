@@ -39,6 +39,7 @@ export async function runVisualWorkflowInterpreter(input: {
 }): Promise<VisualWorkflowInterpreterResult> {
   return runVisualWorkflowInterpreterCore({
     ...input,
-    executeNode: input.executeNode ?? executeVisualWorkflowNode,
+    executeNode:
+      input.executeNode ?? ((args) => executeVisualWorkflowNode({ ...args, inputsResolved: true })),
   });
 }

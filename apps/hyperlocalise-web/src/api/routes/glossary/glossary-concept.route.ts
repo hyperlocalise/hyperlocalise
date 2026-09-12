@@ -12,6 +12,7 @@
  */
 import { Hono } from "hono";
 import { validator } from "hono/validator";
+import { and, eq } from "drizzle-orm";
 
 import { conflictResponse, badRequestResponse } from "@/api/response.schema";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
@@ -38,6 +39,11 @@ import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapt
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
+import { db, schema } from "@/lib/database/client";
+import { NativeGlossary as NativeGlossaryProduct } from "@/lib/glossary/native-glossary";
+import { listGlossaryConceptsPage } from "./glossary-concept-page";
+import { listGlossaryTermsPage } from "./glossary-term-page";
+import { listGlossaryHistoryPage } from "./glossary-history-page";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { toNativeGlossaryLocale } from "@/lib/providers/adapters/crowdin/crowdin-glossary-language";
 import {
@@ -45,11 +51,16 @@ import {
   selectGlossaryPrimaryTerm,
   type NativeGlossary,
   type GlossaryConcept,
+  type GlossaryConceptInput,
 } from "@/lib/glossary/glossary";
 
 import {
   createGlossaryConceptBodySchema,
   createGlossaryConceptTermBodySchema,
+  glossaryConceptPageQuerySchema,
+  glossaryConceptGetQuerySchema,
+  glossaryTermPageQuerySchema,
+  glossaryHistoryQuerySchema,
   glossaryIdParamsSchema,
   glossaryConceptIdParamsSchema,
   glossaryConceptTermIdParamsSchema,
@@ -132,6 +143,10 @@ function toCrowdinTermRecord(
     url?: string | null;
     lemma?: string | null;
     userId?: number | null;
+    caseSensitive?: boolean;
+    forbidden?: boolean;
+    provenance?: string;
+    reviewStatus?: string;
     createdAt?: string | null;
     updatedAt?: string | null;
   },
@@ -153,11 +168,11 @@ function toCrowdinTermRecord(
     url: term.url ?? null,
     lemma: term.lemma ?? null,
     status: localStatus(term.status),
-    caseSensitive: false,
-    forbidden: false,
-    provenance: "sync",
+    caseSensitive: term.caseSensitive ?? false,
+    forbidden: term.forbidden ?? false,
+    provenance: term.provenance ?? "sync",
     externalKey: String(term.id),
-    reviewStatus: "draft",
+    reviewStatus: term.reviewStatus ?? "draft",
     externalUserId: term.userId == null ? null : String(term.userId),
     externalCreatedAt: createdAt,
     externalUpdatedAt: updatedAt,
@@ -436,6 +451,130 @@ export function createGlossaryConceptRoutes(
 ) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
+    .get(
+      "/page",
+      validator("param", validateGlossaryParams),
+      validator("query", (value, c) => {
+        const parsed = glossaryConceptPageQuerySchema.safeParse(value);
+        return parsed.success ? parsed.data : invalidGlossaryPayloadResponse(c);
+      }),
+      async (c) => {
+        const { glossaryId } = c.req.valid("param");
+        const query = c.req.valid("query");
+        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+        if (!glossary) return glossaryNotFoundResponse(c);
+        if (glossary && glossary.source !== "native") {
+          return badRequestResponse(
+            c,
+            "external_glossary_page_unsupported",
+            "Provider-backed glossaries do not expose the native management index",
+          );
+        }
+        const page = await listGlossaryConceptsPage(glossaryId, query);
+        if ("code" in page) return badRequestResponse(c, page.code, page.message);
+        return c.json(page, 200);
+      },
+    )
+    .get(
+      "/history",
+      validator("param", validateGlossaryParams),
+      validator("query", (value, c) => {
+        const parsed = glossaryHistoryQuerySchema.safeParse(value);
+        return parsed.success ? parsed.data : invalidGlossaryPayloadResponse(c);
+      }),
+      async (c) => {
+        const { glossaryId } = c.req.valid("param");
+        const query = c.req.valid("query");
+        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+        if (!glossary) {
+          const [deletedGlossaryHistory] = await db
+            .select({ id: schema.glossaryHistoryEvents.id })
+            .from(schema.glossaryHistoryEvents)
+            .where(
+              and(
+                eq(
+                  schema.glossaryHistoryEvents.organizationId,
+                  c.var.auth.organization.localOrganizationId,
+                ),
+                eq(schema.glossaryHistoryEvents.glossaryId, glossaryId),
+              ),
+            )
+            .limit(1);
+          if (!deletedGlossaryHistory) return glossaryNotFoundResponse(c);
+        }
+        if (glossary && glossary.source !== "native") {
+          return badRequestResponse(
+            c,
+            "external_glossary_history_unsupported",
+            "Provider-backed glossaries do not expose local history",
+          );
+        }
+        const page = await listGlossaryHistoryPage(glossaryId, query);
+        if ("code" in page) return badRequestResponse(c, page.code, page.message);
+        return c.json(page, 200);
+      },
+    )
+    .get(
+      "/:conceptId/terms/page",
+      validator("param", validateConceptParams),
+      validator("query", (value, c) => {
+        const parsed = glossaryTermPageQuerySchema.safeParse(value);
+        return parsed.success ? parsed.data : invalidGlossaryPayloadResponse(c);
+      }),
+      async (c) => {
+        const { glossaryId, conceptId } = c.req.valid("param");
+        const query = c.req.valid("query");
+        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+        if (!glossary) return glossaryNotFoundResponse(c);
+        if (glossary.source !== "native") {
+          return badRequestResponse(
+            c,
+            "external_glossary_terms_page_unsupported",
+            "Provider-backed glossaries do not expose the native term index",
+          );
+        }
+        const [concept] = await db
+          .select({ id: schema.glossaryConcepts.id })
+          .from(schema.glossaryConcepts)
+          .where(
+            and(
+              eq(schema.glossaryConcepts.glossaryId, glossaryId),
+              eq(schema.glossaryConcepts.id, conceptId),
+            ),
+          )
+          .limit(1);
+        if (!concept) return glossaryNotFoundResponse(c);
+        const page = await listGlossaryTermsPage(glossaryId, conceptId, query);
+        if ("code" in page) return badRequestResponse(c, page.code, page.message);
+        return c.json(
+          {
+            ...page,
+            terms: page.terms.map((term) =>
+              toGlossaryTermRecord(glossary, conceptId, {
+                id: term.id,
+                locale: term.locale ?? "",
+                text: term.term ?? term.sourceTerm,
+                description: term.description,
+                note: term.note,
+                partOfSpeech: term.partOfSpeech,
+                type: term.termType,
+                gender: term.gender,
+                status: term.status,
+                caseSensitive: term.caseSensitive,
+                forbidden: term.forbidden,
+                provenance: term.provenance,
+                reviewStatus: term.reviewStatus,
+                url: term.url,
+                lemma: term.lemma,
+                createdAt: term.createdAt.toISOString(),
+                updatedAt: term.updatedAt.toISOString(),
+              }),
+            ),
+          },
+          200,
+        );
+      },
+    )
     .get("/", validator("param", validateGlossaryParams), async (c) => {
       const { glossaryId } = c.req.valid("param");
       const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
@@ -850,16 +989,28 @@ export function createGlossaryConceptRoutes(
         );
       },
     )
-    .get("/:conceptId", validator("param", validateConceptParams), async (c) => {
-      const { glossaryId, conceptId } = c.req.valid("param");
-      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-      if (!glossary) return glossaryNotFoundResponse(c);
-      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
-      if (!product) return nativeGlossaryConceptsOnlyResponse(c);
-      const concept = await product.getConcept(conceptId);
-      if (!concept) return glossaryNotFoundResponse(c);
-      return c.json({ concept: toGlossaryConceptRecord(glossary, concept) }, 200);
-    })
+    .get(
+      "/:conceptId",
+      validator("param", validateConceptParams),
+      validator("query", (value, c) => {
+        const parsed = glossaryConceptGetQuerySchema.safeParse(value);
+        return parsed.success ? parsed.data : invalidGlossaryPayloadResponse(c);
+      }),
+      async (c) => {
+        const { glossaryId, conceptId } = c.req.valid("param");
+        const query = c.req.valid("query");
+        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+        if (!glossary) return glossaryNotFoundResponse(c);
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return nativeGlossaryConceptsOnlyResponse(c);
+        const concept =
+          product instanceof NativeGlossaryProduct
+            ? await product.getConcept(conceptId, { includeTerms: query.includeTerms })
+            : await product.getConcept(conceptId);
+        if (!concept) return glossaryNotFoundResponse(c);
+        return c.json({ concept: toGlossaryConceptRecord(glossary, concept) }, 200);
+      },
+    )
     .patch(
       "/:conceptId",
       validator("param", validateConceptParams),
@@ -878,9 +1029,10 @@ export function createGlossaryConceptRoutes(
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         const current = await product.getConcept(conceptId);
         if (!current) return glossaryNotFoundResponse(c);
+        const { preserveOmittedTerms, deletedTermIds, ...conceptPayload } = payload;
         const merged = {
           ...current,
-          ...payload,
+          ...conceptPayload,
           terms:
             payload.terms === undefined
               ? current.terms
@@ -905,9 +1057,14 @@ export function createGlossaryConceptRoutes(
                   };
                 }),
         } satisfies GlossaryConcept;
+        const updateInput: GlossaryConceptInput = {
+          ...merged,
+          preserveOmittedTerms,
+          deletedTermIds,
+        };
         let updated;
         try {
-          updated = await product.updateConcept(conceptId, merged);
+          updated = await product.updateConcept(conceptId, updateInput);
         } catch (error) {
           const response = glossaryValidationErrorResponse(c, error);
           if (response) return response;

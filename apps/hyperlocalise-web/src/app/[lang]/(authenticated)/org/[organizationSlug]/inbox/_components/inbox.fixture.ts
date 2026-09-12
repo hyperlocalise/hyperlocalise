@@ -12,7 +12,8 @@
  */
 import type { UIMessage } from "ai";
 
-import type { InboxGithubRepository } from "./inbox-api";
+import { chatRepositorySelectionKey } from "../../_components/chat-repository";
+import type { InboxChatRepository } from "./inbox-api";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
 import type {
   Conversation,
@@ -85,18 +86,21 @@ export function createLinkedJob(overrides: Partial<LinkedJob> = {}): LinkedJob {
   };
 }
 
-export function createGithubRepository(
-  overrides: Partial<InboxGithubRepository> = {},
-): InboxGithubRepository {
+export function createChatRepository(
+  overrides: Partial<InboxChatRepository> = {},
+): InboxChatRepository {
+  const fullName = overrides.fullName ?? "hyperlocalise/hyperlocalise-web";
+  const provider = overrides.provider ?? "github";
+  const name = overrides.name ?? "hyperlocalise-web";
+
   return {
-    id: "repo_website",
-    githubRepositoryId: "101",
-    owner: "hyperlocalise",
-    name: "hyperlocalise-web",
-    fullName: "hyperlocalise/hyperlocalise-web",
     archived: false,
     defaultBranch: "main",
     enabled: true,
+    fullName,
+    name,
+    provider,
+    selectionKey: chatRepositorySelectionKey(provider, fullName),
     ...overrides,
   };
 }
@@ -195,13 +199,16 @@ export const linkedJobsFixture: LinkedJob[] = [
   }),
 ];
 
-export const repositoriesFixture: InboxGithubRepository[] = [
-  createGithubRepository(),
-  createGithubRepository({
-    id: "repo_mobile",
-    githubRepositoryId: "102",
+export const repositoriesFixture: InboxChatRepository[] = [
+  createChatRepository(),
+  createChatRepository({
     name: "mobile-app",
     fullName: "hyperlocalise/mobile-app",
+  }),
+  createChatRepository({
+    provider: "gitlab",
+    name: "docs",
+    fullName: "hyperlocalise/platform/docs",
   }),
 ];
 

@@ -46,6 +46,7 @@ const {
   loadMessagesMock,
   resolveOrganizationHasTmsIntegrationMock,
   resolveSlackRepositoryGitHubContextMock,
+  resolveSlackRepositoryGitLabContextMock,
   resolveHyperlocaliseAgentLanguageModelMock,
 } = vi.hoisted(() => ({
   agentGenerateMock: vi.fn(),
@@ -56,6 +57,7 @@ const {
   loadMessagesMock: vi.fn(async () => []),
   resolveOrganizationHasTmsIntegrationMock: vi.fn(async () => false),
   resolveSlackRepositoryGitHubContextMock: vi.fn(),
+  resolveSlackRepositoryGitLabContextMock: vi.fn(async () => ({ status: "not_applicable" })),
   resolveHyperlocaliseAgentLanguageModelMock: vi.fn(async () => ({
     model: "org-model",
     source: "gateway" as const,
@@ -136,6 +138,11 @@ vi.mock("@/lib/agents/repository-context", async (importOriginal) => {
     getOrganizationRepositoryConnectorConfig: vi.fn(async () => null),
   };
 });
+
+vi.mock("@/lib/gitlab/repository-context", () => ({
+  buildRepositoryGitLabContextInstructions: vi.fn(() => "resolved-gitlab-context"),
+  resolveConversationRepositoryGitLabContext: resolveSlackRepositoryGitLabContextMock,
+}));
 
 vi.mock("@ai-sdk/openai", () => ({
   openai: vi.fn(() => "mock-model"),
@@ -484,6 +491,7 @@ describe("handleNewConversation", () => {
     interactionHasTranslationAttachmentsMock.mockResolvedValue(false);
     loggerChildMock.info.mockClear();
     resolveSlackRepositoryGitHubContextMock.mockResolvedValue({ status: "not_applicable" });
+    resolveSlackRepositoryGitLabContextMock.mockResolvedValue({ status: "not_applicable" });
     classifyConversationMock.mockImplementation(async () => createMockClassification());
   });
 
@@ -1485,6 +1493,7 @@ describe("handleSubscribedMessage", () => {
     loadMessagesMock.mockResolvedValue([]);
     interactionHasTranslationAttachmentsMock.mockResolvedValue(false);
     resolveSlackRepositoryGitHubContextMock.mockResolvedValue({ status: "not_applicable" });
+    resolveSlackRepositoryGitLabContextMock.mockResolvedValue({ status: "not_applicable" });
     classifyConversationMock.mockImplementation(async () => createMockClassification());
   });
 

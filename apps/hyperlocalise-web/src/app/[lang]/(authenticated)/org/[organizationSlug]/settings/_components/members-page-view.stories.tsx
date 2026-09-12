@@ -80,6 +80,30 @@ const meta = {
     isInviteOpen: false,
     inviteEmail: "",
     inviteRole: "member",
+    inviteTeams: [
+      {
+        id: "team-default",
+        slug: "default",
+        name: "Default team",
+        memberCount: 3,
+        currentUserRole: "manager",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      {
+        id: "team-localization",
+        slug: "localization",
+        name: "Localization",
+        memberCount: 2,
+        currentUserRole: "manager",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+    inviteTeamId: "team-default",
+    inviteRequiresTeam: true,
+    isLoadingTeams: false,
+    teamsLoadError: null,
     isInviting: false,
     removingMember: null,
     isRemoving: false,
@@ -88,6 +112,7 @@ const meta = {
     onInviteOpenChange: fn(),
     onInviteEmailChange: fn(),
     onInviteRoleChange: fn(),
+    onInviteTeamIdChange: fn(),
     onInviteSubmit: fn(),
     onRemovingMemberChange: fn(),
     onRemoveMember: fn(),
@@ -125,5 +150,16 @@ export const OpensChangeRoleFromMenu: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Actions for Mina Chen" }));
     await userEvent.click(await canvas.findByText("Change role..."));
     await expect(args.onEditingMemberChange).toHaveBeenCalledWith(mina);
+  },
+};
+
+export const InviteDialogOpen: Story = {
+  args: {
+    isInviteOpen: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("dialog", { name: "Invite member" })).toBeInTheDocument();
+    await expect(canvas.getByText("Team")).toBeInTheDocument();
+    await expect(canvas.getByText("Default team")).toBeInTheDocument();
   },
 };

@@ -19,6 +19,7 @@ import {
   getTemplateExecutorAgent,
   mergeWorkspaceTemplateSkills,
   composeGithubRepoInstructions,
+  composeGitlabRepoInstructions,
   listWorkspaceTemplateSkills,
   resolveWorkspaceOrchestratorSharedSkills,
 } from "./workspace-template-manifest";
@@ -162,6 +163,14 @@ describe("workspace template manifest", () => {
     expect(instructions).toContain("`git diff` exit code 1");
     expect(instructions).toContain("last 24 hours");
     expect(instructions).toContain("i18n.yml");
+    expect(instructions).not.toContain("Translation Review Results");
+  });
+
+  it("composes gitlab repo instructions from the GitLab skill", () => {
+    const instructions = composeGitlabRepoInstructions({});
+
+    expect(instructions).toContain("Read-only");
+    expect(instructions).toContain("gitHistory");
     expect(instructions).not.toContain("Translation Review Results");
   });
 

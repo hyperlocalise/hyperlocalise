@@ -9,6 +9,7 @@ go_library(
         "//apps/cli/internal/i18n/pathresolver",
         "//apps/cli/internal/i18n/syncsvc",
         "//internal/i18n/storage",
+        "//internal/pathguard",
         "//pkg/i18nconfig",
     ],
 )

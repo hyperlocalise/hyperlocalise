@@ -27,6 +27,7 @@ import {
 import {
   conflictResponse,
   internalErrorResponse,
+  notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
 import {
@@ -43,7 +44,10 @@ import type { ActivityLogEventInput } from "@/lib/activity-log/activity-log-cont
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
-import { ensureDefaultWorkspaceTeamMembership } from "@/lib/teams/default-workspace-team";
+import {
+  ensureDefaultWorkspaceTeamMembership,
+  ensureTeamMembership,
+} from "@/lib/teams/default-workspace-team";
 import { membershipRoleToWorkosRoleSlug } from "@/lib/workos/membership-role";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 
@@ -121,30 +125,76 @@ async function reconcileMemberMembershipFromWorkos(input: {
   });
 }
 
-async function ensureDefaultTeamAccessForInvitedMember(input: {
+type CreatedTeamMembership = {
+  teamId: string;
+  userId: string;
+};
+
+async function ensureTeamAccessForInvitedMember(input: {
   organizationId: string;
   userId: string;
   role: OrganizationMembershipRole;
+  teamId?: string;
   database: DatabaseClient;
-}) {
+}): Promise<
+  { error: "team_not_found" } | { createdTeamMembership?: CreatedTeamMembership } | undefined
+> {
   // Operators already see every project via teams:write. Non-operators need an
-  // explicit default-team membership or projects they create stay invisible.
-  if (hasCapability(input.role, "teams:write")) {
+  // explicit team membership or projects they create stay invisible.
+  if (hasCapability(input.role, "teams:write") && !input.teamId) {
     return;
   }
 
-  await ensureDefaultWorkspaceTeamMembership({
+  if (input.teamId) {
+    const [team] = await input.database
+      .select({ id: schema.teams.id })
+      .from(schema.teams)
+      .where(
+        and(
+          eq(schema.teams.id, input.teamId),
+          eq(schema.teams.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1);
+
+    if (!team) {
+      return { error: "team_not_found" };
+    }
+
+    const membershipResult = await ensureTeamMembership({
+      teamId: team.id,
+      userId: input.userId,
+      role: "member",
+      database: input.database,
+    });
+
+    return membershipResult.created
+      ? { createdTeamMembership: { teamId: team.id, userId: input.userId } }
+      : {};
+  }
+
+  const defaultTeamResult = await ensureDefaultWorkspaceTeamMembership({
     organizationId: input.organizationId,
     userId: input.userId,
     role: "member",
     database: input.database,
   });
+
+  return defaultTeamResult.created
+    ? {
+        createdTeamMembership: {
+          teamId: defaultTeamResult.team.id,
+          userId: input.userId,
+        },
+      }
+    : {};
 }
 
 async function inviteOrganizationMember(input: {
   organizationId: string;
   email: string;
   role: OrganizationMembershipRole;
+  teamId?: string;
   placeholderWorkosUserId: string;
   db?: DatabaseClient;
 }) {
@@ -191,12 +241,16 @@ async function inviteOrganizationMember(input: {
         .where(eq(schema.organizationMemberships.id, existingMembership.membershipId));
     }
 
-    await ensureDefaultTeamAccessForInvitedMember({
+    const teamAccessResult = await ensureTeamAccessForInvitedMember({
       organizationId: input.organizationId,
       userId: existingMembership.localUserId,
       role: input.role,
+      teamId: input.teamId,
       database,
     });
+    if (teamAccessResult && "error" in teamAccessResult) {
+      return teamAccessResult;
+    }
 
     return {
       resend: true as const,
@@ -205,6 +259,7 @@ async function inviteOrganizationMember(input: {
       membershipId: existingMembership.membershipId,
       localUserId: existingMembership.localUserId,
       isNewUser: false,
+      createdTeamMembership: teamAccessResult?.createdTeamMembership,
       member: toMemberSummary(
         {
           userId: existingMembership.localUserId,
@@ -267,17 +322,22 @@ async function inviteOrganizationMember(input: {
       createdAt: schema.organizationMemberships.createdAt,
     });
 
-  await ensureDefaultTeamAccessForInvitedMember({
+  const teamAccessResult = await ensureTeamAccessForInvitedMember({
     organizationId: input.organizationId,
     userId: user.id,
     role: input.role,
+    teamId: input.teamId,
     database,
   });
+  if (teamAccessResult && "error" in teamAccessResult) {
+    return teamAccessResult;
+  }
 
   return {
     membershipId: membership.id,
     localUserId: user.id,
     isNewUser,
+    createdTeamMembership: teamAccessResult?.createdTeamMembership,
     member: toMemberSummary(
       {
         userId: user.id,
@@ -431,6 +491,17 @@ async function deliverWorkosInvitation(input: {
   await sendWorkosInvitation(workos, invitationPayload);
 }
 
+async function rollbackCreatedTeamMembership(input: CreatedTeamMembership) {
+  await db
+    .delete(schema.teamMemberships)
+    .where(
+      and(
+        eq(schema.teamMemberships.teamId, input.teamId),
+        eq(schema.teamMemberships.userId, input.userId),
+      ),
+    );
+}
+
 async function rollbackPendingInvite(input: {
   membershipId: string;
   localUserId: string;
@@ -511,6 +582,24 @@ export function createMemberRoutes() {
       }
 
       const normalizedEmail = payload.email.trim().toLowerCase();
+
+      if (payload.teamId) {
+        const [team] = await db
+          .select({ id: schema.teams.id })
+          .from(schema.teams)
+          .where(
+            and(
+              eq(schema.teams.id, payload.teamId),
+              eq(schema.teams.organizationId, organizationId),
+            ),
+          )
+          .limit(1);
+
+        if (!team) {
+          return notFoundResponse(c, "team_not_found", "Team not found");
+        }
+      }
+
       const [existingMembershipForEmail] = await db
         .select({ id: schema.organizationMemberships.id })
         .from(schema.users)
@@ -541,6 +630,7 @@ export function createMemberRoutes() {
               organizationId,
               email: normalizedEmail,
               role: payload.role,
+              teamId: payload.teamId,
               placeholderWorkosUserId: `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`,
               db: tx,
             }),
@@ -568,11 +658,16 @@ export function createMemberRoutes() {
           organizationId,
           email: normalizedEmail,
           role: payload.role,
+          teamId: payload.teamId,
           placeholderWorkosUserId: `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`,
         });
       }
 
       if ("error" in pendingInvite) {
+        if (pendingInvite.error === "team_not_found") {
+          return notFoundResponse(c, "team_not_found", "Team not found");
+        }
+
         return memberAlreadyExistsResponse(c);
       }
 
@@ -619,6 +714,10 @@ export function createMemberRoutes() {
             .update(schema.organizationMemberships)
             .set({ role: pendingInvite.previousRole })
             .where(eq(schema.organizationMemberships.id, pendingInvite.membershipId));
+        }
+
+        if ("createdTeamMembership" in pendingInvite && pendingInvite.createdTeamMembership) {
+          await rollbackCreatedTeamMembership(pendingInvite.createdTeamMembership);
         }
 
         if (isWorkosInvitationRevokedNotDeliveredError(error)) {

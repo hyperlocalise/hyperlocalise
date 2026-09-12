@@ -49,12 +49,17 @@ export function DomainLinkDialog({
   domain,
   existingDomains = [],
   onSave,
+  onContinue,
+  variant = "prototype",
 }: {
   domain?: DomainResearchDomain;
   existingDomains?: DomainResearchDomain[];
   onSave?: (domain: DomainResearchDomain) => void;
+  /** Live claim flow: continue with hostname only (no locale selection). */
+  onContinue?: (domainKey: string) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  variant?: "prototype" | "live";
 }) {
   const intl = useIntl();
   const hostnameId = useId();
@@ -89,6 +94,11 @@ export function DomainLinkDialog({
     }
     if (existingDomains.some((item) => item.id !== domain?.id && item.domainKey === nextHostname)) {
       setError(intl.formatMessage(messages.hostnameDuplicate));
+      return;
+    }
+    if (variant === "live" && !domain) {
+      onContinue?.(nextHostname);
+      onOpenChange(false);
       return;
     }
     const locales = DOMAIN_RESEARCH_MARKETS.filter((locale) => localeIds.includes(locale.id));
@@ -127,7 +137,13 @@ export function DomainLinkDialog({
               <FormattedMessage {...(domain ? messages.editTitle : messages.title)} />
             </DialogTitle>
             <DialogDescription>
-              <FormattedMessage {...(domain ? messages.editDescription : messages.description)} />
+              <FormattedMessage
+                {...(domain
+                  ? messages.editDescription
+                  : variant === "live"
+                    ? messages.liveDescription
+                    : messages.description)}
+              />
             </DialogDescription>
           </DialogHeader>
 
@@ -150,41 +166,49 @@ export function DomainLinkDialog({
             <FieldError errors={error ? [{ message: error }] : undefined} />
           </Field>
 
-          <FieldSet
-            className="grid gap-3"
-            aria-describedby={localeError ? `${marketId}-error` : undefined}
-          >
-            <FieldLegend variant="label">
-              <FormattedMessage {...messages.marketLabel} />
-            </FieldLegend>
-            <FieldGroup className="gap-3">
-              {DOMAIN_RESEARCH_MARKETS.map((locale) => (
-                <Field key={locale.id} orientation="horizontal" data-invalid={Boolean(localeError)}>
-                  <Checkbox
-                    id={`${marketId}-${locale.id}`}
-                    checked={localeIds.includes(locale.id)}
-                    aria-invalid={Boolean(localeError)}
-                    onCheckedChange={(checked) => {
-                      setLocaleIds((current) =>
-                        checked
-                          ? [...current, locale.id]
-                          : current.filter((id) => id !== locale.id),
-                      );
-                      setLocaleError(null);
-                    }}
-                  />
-                  <FieldLabel htmlFor={`${marketId}-${locale.id}`}>{locale.label}</FieldLabel>
-                </Field>
-              ))}
-            </FieldGroup>
-            <FieldError
-              id={`${marketId}-error`}
-              errors={localeError ? [{ message: localeError }] : undefined}
-            />
-          </FieldSet>
-          <p className="text-sm text-muted-foreground">
-            <FormattedMessage {...messages.prototypeNotice} />
-          </p>
+          {variant === "prototype" ? (
+            <>
+              <FieldSet
+                className="grid gap-3"
+                aria-describedby={localeError ? `${marketId}-error` : undefined}
+              >
+                <FieldLegend variant="label">
+                  <FormattedMessage {...messages.marketLabel} />
+                </FieldLegend>
+                <FieldGroup className="gap-3">
+                  {DOMAIN_RESEARCH_MARKETS.map((locale) => (
+                    <Field
+                      key={locale.id}
+                      orientation="horizontal"
+                      data-invalid={Boolean(localeError)}
+                    >
+                      <Checkbox
+                        id={`${marketId}-${locale.id}`}
+                        checked={localeIds.includes(locale.id)}
+                        aria-invalid={Boolean(localeError)}
+                        onCheckedChange={(checked) => {
+                          setLocaleIds((current) =>
+                            checked
+                              ? [...current, locale.id]
+                              : current.filter((id) => id !== locale.id),
+                          );
+                          setLocaleError(null);
+                        }}
+                      />
+                      <FieldLabel htmlFor={`${marketId}-${locale.id}`}>{locale.label}</FieldLabel>
+                    </Field>
+                  ))}
+                </FieldGroup>
+                <FieldError
+                  id={`${marketId}-error`}
+                  errors={localeError ? [{ message: localeError }] : undefined}
+                />
+              </FieldSet>
+              <p className="text-sm text-muted-foreground">
+                <FormattedMessage {...messages.prototypeNotice} />
+              </p>
+            </>
+          ) : null}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

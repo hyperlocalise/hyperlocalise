@@ -22,6 +22,7 @@ import { HomepageFaqSection } from "@/components/marketing/homepage-faq-section"
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { JsonLd } from "@/components/seo/json-ld";
+import { jsonLdInLanguage } from "@/lib/seo/json-ld-in-language";
 import { RecentBlogPostsSection } from "@/components/marketing/recent-blog-posts-section";
 import { TourfinderTestimonialSection } from "@/components/marketing/tourfinder-testimonial-section";
 import {
@@ -34,7 +35,7 @@ import {
 } from "@/components/marketing/pricing/pricing-page-content";
 import { PricingPlansSection } from "@/components/marketing/pricing/pricing-plans-section";
 import { getIntlShape } from "@/lib/app-i18n/intl";
-import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { DEFAULT_APP_LOCALE, normalizeAppLocale, type AppLocale } from "@/lib/app-i18n/locales";
 import { getAllPosts } from "@/lib/blog/blog-post";
 import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -95,12 +96,13 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   };
 }
 
-function buildJsonLd(locale: string): WithContext<WebApplication> & object {
+function buildJsonLd(locale: AppLocale): WithContext<WebApplication> & object {
   const intl = getIntlShape(locale);
 
   return {
     "@context": "https://schema.org",
     "@type": "WebApplication",
+    inLanguage: jsonLdInLanguage(locale),
     name: "Hyperlocalise",
     applicationCategory: "DeveloperApplication",
     operatingSystem: "Cloud",
@@ -172,9 +174,10 @@ async function HomepagePricing({ params }: HomePageProps) {
 
 async function HomepageFaq({ params }: HomePageProps) {
   const { lang } = await params;
-  const jsonLd = buildJsonLd(lang);
-  const faqItems = getHomepageFaqItems(lang);
-  const faqJsonLd = buildHomepageFaqJsonLd(faqItems);
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const jsonLd = buildJsonLd(locale);
+  const faqItems = getHomepageFaqItems(locale);
+  const faqJsonLd = buildHomepageFaqJsonLd(locale, faqItems);
 
   return (
     <>

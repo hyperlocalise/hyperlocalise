@@ -12,9 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { observer } from "mobx-react-lite";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -39,6 +39,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 
+import { HyperlabFlagQueryBridge } from "../store/hyperlab-query-bridge";
+import {
+  HyperlabWorkspaceProvider,
+  useHyperlabWorkspace,
+} from "../store/hyperlab-workspace-context";
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
   hyperlabClient,
@@ -62,12 +67,32 @@ export function HyperlabFlagDetail({
   flagId: string;
   canWrite: boolean;
 }) {
+  return (
+    <HyperlabWorkspaceProvider>
+      <HyperlabFlagDetailConnected
+        organizationSlug={organizationSlug}
+        flagId={flagId}
+        canWrite={canWrite}
+      />
+    </HyperlabWorkspaceProvider>
+  );
+}
+
+const HyperlabFlagDetailConnected = observer(function HyperlabFlagDetailConnected({
+  organizationSlug,
+  flagId,
+  canWrite,
+}: {
+  organizationSlug: string;
+  flagId: string;
+  canWrite: boolean;
+}) {
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
   const client = hyperlabClient();
-  const [description, setDescription] = useState("");
-  const [configText, setConfigText] = useState("{}");
+  const store = useHyperlabWorkspace();
+  const { flag: flagStore } = store;
 
   const detailQuery = useQuery({
     queryKey: hyperlabQueryKeys.flag(organizationSlug, flagId),
@@ -104,25 +129,15 @@ export function HyperlabFlagDetail({
     },
   });
 
-  useEffect(() => {
-    if (!detailQuery.data) {
-      return;
-    }
-    setDescription(detailQuery.data.flag.description ?? "");
-    if (detailQuery.data.config.value !== null && detailQuery.data.config.value !== undefined) {
-      setConfigText(JSON.stringify(detailQuery.data.config.value, null, 2));
-    }
-  }, [detailQuery.data]);
-
   const saveMutation = useMutation({
     mutationFn: async () => {
       const response = await client.flags[":flagId"].$put({
         param: { organizationSlug, flagId },
-        json: { description },
+        json: { description: flagStore.description },
       });
       await readHyperlabJson(response, intl.formatMessage(messages.loadError));
       if (detailQuery.data?.flag.kind === "config") {
-        const parsed = JSON.parse(configText) as unknown;
+        const parsed = JSON.parse(flagStore.configText) as unknown;
         const configResponse = await client.flags[":flagId"].config.$put({
           param: { organizationSlug, flagId },
           json: { value: parsed },
@@ -131,6 +146,7 @@ export function HyperlabFlagDetail({
       }
     },
     onSuccess: async () => {
+      flagStore.markSaved();
       toast.success(intl.formatMessage(messages.saveSuccess));
       await queryClient.invalidateQueries({
         queryKey: hyperlabQueryKeys.flag(organizationSlug, flagId),
@@ -169,138 +185,144 @@ export function HyperlabFlagDetail({
   const assignments = assignmentsQuery.data ?? [];
 
   return (
-    <HyperlabPageShell
-      title={flag?.key ?? intl.formatMessage(messages.flagsTitle)}
-      description={intl.formatMessage(messages.flagsDescription)}
-      backHref={`/org/${organizationSlug}/hyperlab/flags`}
-      actions={
-        canWrite ? (
-          <AlertDialog>
-            <AlertDialogTrigger render={<Button variant="outline" />}>
-              <FormattedMessage {...messages.delete} />
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  <FormattedMessage {...messages.deleteFlagTitle} />
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  <FormattedMessage
-                    {...messages.deleteFlagBody}
-                    values={{ name: flag?.key ?? "" }}
-                  />
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>
-                  <FormattedMessage {...messages.cancel} />
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  variant="destructive"
-                  onClick={() => deleteMutation.mutate()}
-                  disabled={deleteMutation.isPending}
-                >
-                  <FormattedMessage {...messages.delete} />
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        ) : null
-      }
-    >
-      <Rows spacing="2u">
-        {detailQuery.isError ? (
-          <HyperlabLoadError error={detailQuery.error} onRetry={() => void detailQuery.refetch()} />
-        ) : null}
-        {flag ? (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  <FormattedMessage {...messages.generalCardTitle} />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor="hyperlab-flag-key">
-                      <FormattedMessage {...messages.flagKeyLabel} />
-                    </FieldLabel>
-                    <Input id="hyperlab-flag-key" value={flag.key} disabled />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="hyperlab-flag-description">
-                      <FormattedMessage {...messages.flagDescriptionLabel} />
-                    </FieldLabel>
-                    <Input
-                      id="hyperlab-flag-description"
-                      value={description}
-                      onChange={(event) => setDescription(event.target.value)}
-                      disabled={!canWrite}
+    <>
+      <HyperlabFlagQueryBridge flag={flag} config={detailQuery.data?.config} />
+      <HyperlabPageShell
+        title={flag?.key ?? intl.formatMessage(messages.flagsTitle)}
+        description={intl.formatMessage(messages.flagsDescription)}
+        backHref={`/org/${organizationSlug}/hyperlab/flags`}
+        actions={
+          canWrite ? (
+            <AlertDialog>
+              <AlertDialogTrigger render={<Button variant="outline" />}>
+                <FormattedMessage {...messages.delete} />
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    <FormattedMessage {...messages.deleteFlagTitle} />
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    <FormattedMessage
+                      {...messages.deleteFlagBody}
+                      values={{ name: flag?.key ?? "" }}
                     />
-                  </Field>
-                  {flag.kind === "config" ? (
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>
+                    <FormattedMessage {...messages.cancel} />
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={() => deleteMutation.mutate()}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <FormattedMessage {...messages.delete} />
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null
+        }
+      >
+        <Rows spacing="2u">
+          {detailQuery.isError ? (
+            <HyperlabLoadError
+              error={detailQuery.error}
+              onRetry={() => void detailQuery.refetch()}
+            />
+          ) : null}
+          {flag ? (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    <FormattedMessage {...messages.generalCardTitle} />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <FieldGroup>
                     <Field>
-                      <FieldLabel htmlFor="hyperlab-flag-config">
-                        <FormattedMessage {...messages.configJsonLabel} />
+                      <FieldLabel htmlFor="hyperlab-flag-key">
+                        <FormattedMessage {...messages.flagKeyLabel} />
                       </FieldLabel>
-                      <Textarea
-                        id="hyperlab-flag-config"
-                        value={configText}
-                        onChange={(event) => setConfigText(event.target.value)}
-                        rows={8}
+                      <Input id="hyperlab-flag-key" value={flag.key} disabled />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="hyperlab-flag-description">
+                        <FormattedMessage {...messages.flagDescriptionLabel} />
+                      </FieldLabel>
+                      <Input
+                        id="hyperlab-flag-description"
+                        value={flagStore.description}
+                        onChange={(event) => flagStore.setDescription(event.target.value)}
                         disabled={!canWrite}
                       />
-                      <FieldDescription>
-                        <FormattedMessage {...messages.configJsonHint} />
-                      </FieldDescription>
                     </Field>
-                  ) : null}
-                </FieldGroup>
-              </CardContent>
-              {canWrite ? (
-                <CardFooter>
-                  <Button
-                    type="button"
-                    onClick={() => saveMutation.mutate()}
-                    disabled={saveMutation.isPending}
-                  >
-                    {saveMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
-                    <FormattedMessage
-                      {...(saveMutation.isPending ? messages.saving : messages.save)}
+                    {flag.kind === "config" ? (
+                      <Field>
+                        <FieldLabel htmlFor="hyperlab-flag-config">
+                          <FormattedMessage {...messages.configJsonLabel} />
+                        </FieldLabel>
+                        <Textarea
+                          id="hyperlab-flag-config"
+                          value={flagStore.configText}
+                          onChange={(event) => flagStore.setConfigText(event.target.value)}
+                          rows={8}
+                          disabled={!canWrite}
+                        />
+                        <FieldDescription>
+                          <FormattedMessage {...messages.configJsonHint} />
+                        </FieldDescription>
+                      </Field>
+                    ) : null}
+                  </FieldGroup>
+                </CardContent>
+                {canWrite ? (
+                  <CardFooter>
+                    <Button
+                      type="button"
+                      onClick={() => saveMutation.mutate()}
+                      disabled={saveMutation.isPending || !flagStore.isDirty}
+                    >
+                      {saveMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
+                      <FormattedMessage
+                        {...(saveMutation.isPending ? messages.saving : messages.save)}
+                      />
+                    </Button>
+                  </CardFooter>
+                ) : null}
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    <FormattedMessage {...messages.assignmentsTitle} />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {assignments.length === 0 ? (
+                    <TypographyP size="small" tone="subtle">
+                      <FormattedMessage {...messages.noAssignments} />
+                    </TypographyP>
+                  ) : (
+                    <FlagAssignmentList
+                      organizationSlug={organizationSlug}
+                      assignments={assignments}
+                      experiments={experimentsQuery.data ?? []}
+                      client={client}
+                      loadError={intl.formatMessage(messages.loadError)}
                     />
-                  </Button>
-                </CardFooter>
-              ) : null}
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  <FormattedMessage {...messages.assignmentsTitle} />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {assignments.length === 0 ? (
-                  <TypographyP size="small" tone="subtle">
-                    <FormattedMessage {...messages.noAssignments} />
-                  </TypographyP>
-                ) : (
-                  <FlagAssignmentList
-                    organizationSlug={organizationSlug}
-                    assignments={assignments}
-                    experiments={experimentsQuery.data ?? []}
-                    client={client}
-                    loadError={intl.formatMessage(messages.loadError)}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </>
-        ) : null}
-      </Rows>
-    </HyperlabPageShell>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
+        </Rows>
+      </HyperlabPageShell>
+    </>
   );
-}
+});
 
 function FlagAssignmentList({
   organizationSlug,

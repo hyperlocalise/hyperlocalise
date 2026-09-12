@@ -11,11 +11,14 @@
  * Version 2.0 or later.
  */
 import "server-only";
+import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql, or, isNull, lte } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 
+import { encryptWorkflowPayload, decryptWorkflowPayload } from "./workflow-credentials";
+import { redactWorkflowSnapshot, collectWorkflowSecrets } from "./runtime/snapshots";
 import { visualWorkflowDefinitionSchema } from "./schema/definition-schema";
 import type { VisualWorkflowDefinition } from "./schema/types";
 import type { VisualWorkflowRecord } from "./visual-workflow-types";
@@ -31,6 +34,7 @@ import type {
 type VisualWorkflowRunRow = typeof schema.visualWorkflowRuns.$inferSelect;
 type VisualWorkflowNodeRunRow = typeof schema.visualWorkflowNodeRuns.$inferSelect;
 
+const EXECUTION_PLAN_VERSION = 2;
 const DEFINITION_SNAPSHOT_KEY = "definitionSnapshot";
 
 const TERMINAL_VISUAL_WORKFLOW_RUN_STATUSES = new Set<VisualWorkflowRunStatus>([
@@ -38,6 +42,7 @@ const TERMINAL_VISUAL_WORKFLOW_RUN_STATUSES = new Set<VisualWorkflowRunStatus>([
   "failed",
   "cancelled",
   "skipped",
+  "needs_attention",
 ]);
 
 function buildRunInputSnapshot(input: {
@@ -48,14 +53,8 @@ function buildRunInputSnapshot(input: {
   return {
     ...triggerInput,
     [DEFINITION_SNAPSHOT_KEY]: input.definition,
+    executionPlanVersion: EXECUTION_PLAN_VERSION,
   };
-}
-
-function extractTriggerInputFromRunSnapshot(
-  inputSnapshot: Record<string, unknown>,
-): Record<string, unknown> {
-  const { [DEFINITION_SNAPSHOT_KEY]: _ignored, ...triggerInput } = inputSnapshot;
-  return triggerInput;
 }
 
 function resolveRunDefinition(input: {
@@ -91,18 +90,21 @@ async function claimVisualWorkflowRunForExecution(input: {
   visualWorkflowId: string;
   dbClient?: DatabaseClient;
 }): Promise<
-  | { kind: "claimed"; run: VisualWorkflowRunRecord }
+  | { kind: "claimed"; run: VisualWorkflowRunRecord; leaseToken: string }
   | { kind: "already_finished"; run: VisualWorkflowRunRecord }
   | { kind: "already_running"; run: VisualWorkflowRunRecord }
   | null
 > {
   const dbClient = input.dbClient ?? db;
   const now = new Date();
+  const leaseToken = randomUUID();
   const [claimed] = await dbClient
     .update(schema.visualWorkflowRuns)
     .set({
       status: "running",
-      startedAt: now,
+      leaseToken,
+      leaseExpiresAt: new Date(now.getTime() + 180000),
+      startedAt: sql`coalesce(${schema.visualWorkflowRuns.startedAt}, ${now})`,
       updatedAt: now,
     })
     .where(
@@ -110,13 +112,22 @@ async function claimVisualWorkflowRunForExecution(input: {
         eq(schema.visualWorkflowRuns.id, input.runId),
         eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
         eq(schema.visualWorkflowRuns.visualWorkflowId, input.visualWorkflowId),
-        eq(schema.visualWorkflowRuns.status, "queued"),
+        or(
+          eq(schema.visualWorkflowRuns.status, "queued"),
+          and(
+            eq(schema.visualWorkflowRuns.status, "running"),
+            or(
+              isNull(schema.visualWorkflowRuns.leaseExpiresAt),
+              lte(schema.visualWorkflowRuns.leaseExpiresAt, now),
+            ),
+          ),
+        ),
       ),
     )
     .returning();
 
   if (claimed) {
-    return { kind: "claimed", run: serializeRun(claimed) };
+    return { kind: "claimed", run: serializeRun(claimed), leaseToken };
   }
 
   const run = await getVisualWorkflowRunById({
@@ -142,6 +153,7 @@ async function claimVisualWorkflowRunForExecution(input: {
 
 async function finishVisualWorkflowRun(input: {
   runId: string;
+  leaseToken?: string;
   organizationId: string;
   status: Extract<VisualWorkflowRunStatus, "succeeded" | "failed">;
   error?: Record<string, unknown> | null;
@@ -157,6 +169,7 @@ async function finishVisualWorkflowRun(input: {
         eq(schema.visualWorkflowRuns.id, input.runId),
         eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
         eq(schema.visualWorkflowRuns.status, "running"),
+        ...(input.leaseToken ? [eq(schema.visualWorkflowRuns.leaseToken, input.leaseToken)] : []),
       ),
     )
     .limit(1);
@@ -190,6 +203,7 @@ async function finishVisualWorkflowRun(input: {
         eq(schema.visualWorkflowRuns.id, input.runId),
         eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
         eq(schema.visualWorkflowRuns.status, "running"),
+        ...(input.leaseToken ? [eq(schema.visualWorkflowRuns.leaseToken, input.leaseToken)] : []),
       ),
     )
     .returning();
@@ -204,7 +218,7 @@ function visualWorkflowRunEnqueueCommitted(outputSummary: Record<string, unknown
 
 function visualWorkflowRunEnqueueInProgress(outputSummary: Record<string, unknown>): boolean {
   const marker = outputSummary.executionEnqueuedAt;
-  return typeof marker === "string" && marker.length > 0;
+  return typeof marker === "string" && Date.now() - Date.parse(marker) < 180000;
 }
 
 async function clearVisualWorkflowRunEnqueueMarker(input: {
@@ -307,6 +321,8 @@ function serializeNodeRun(row: VisualWorkflowNodeRunRow): VisualWorkflowNodeRunR
     organizationId: row.organizationId,
     nodeId: row.nodeId,
     nodeType: row.nodeType,
+    iteration: row.iteration,
+    attempt: row.attempt,
     status: row.status,
     inputSnapshot: row.inputSnapshot,
     outputSnapshot: row.outputSnapshot,
@@ -327,6 +343,7 @@ function serializeRun(
     visualWorkflowId: row.visualWorkflowId,
     organizationId: row.organizationId,
     triggerSource: row.triggerSource,
+    mode: row.mode as "live" | "mock",
     status: row.status,
     idempotencyKey: row.idempotencyKey,
     definitionVersion: row.definitionVersion,
@@ -452,15 +469,20 @@ export async function createVisualWorkflowRun(input: {
   inputSnapshot?: Record<string, unknown>;
   status?: VisualWorkflowRunStatus;
   matchedDefinitionVersion?: number;
+  testDefinition?: VisualWorkflowDefinition;
+  mode?: "mock" | "live";
+  mockOutputs?: Record<string, Record<string, unknown>>;
   dbClient?: DatabaseClient;
 }): Promise<VisualWorkflowRunRecord> {
-  const dbClient = input.dbClient ?? db;
+  if (!input.dbClient)
+    return db.transaction((tx) => createVisualWorkflowRun({ ...input, dbClient: tx }));
+  const dbClient = input.dbClient;
   const workflow = await getVisualWorkflowById({
     organizationId: input.organizationId,
     visualWorkflowId: input.visualWorkflowId,
     dbClient,
   });
-  if (!workflow) {
+  if (!workflow || workflow.status === "archived") {
     throw new Error("visual_workflow_not_found");
   }
 
@@ -468,7 +490,7 @@ export async function createVisualWorkflowRun(input: {
     if (workflow.status !== "active") {
       throw new VisualWorkflowDispatchMismatchError("workflow_not_active");
     }
-    if (workflow.definitionVersion !== input.matchedDefinitionVersion) {
+    if (workflow.publishedVersion !== input.matchedDefinitionVersion) {
       throw new VisualWorkflowDispatchMismatchError("workflow_definition_changed");
     }
   }
@@ -485,6 +507,9 @@ export async function createVisualWorkflowRun(input: {
     }
   }
 
+  const definition = input.testDefinition ?? workflow.publishedDefinition;
+  if (!definition) throw new Error("workflow_not_published");
+  const payload = buildRunInputSnapshot({ triggerInput: input.inputSnapshot, definition });
   const [row] = await dbClient
     .insert(schema.visualWorkflowRuns)
     .values({
@@ -493,11 +518,18 @@ export async function createVisualWorkflowRun(input: {
       triggerSource: input.triggerSource,
       status: input.status ?? "queued",
       idempotencyKey: input.idempotencyKey ?? null,
-      definitionVersion: workflow.definitionVersion,
-      inputSnapshot: buildRunInputSnapshot({
-        triggerInput: input.inputSnapshot,
-        definition: workflow.definition,
+      definitionVersion: input.testDefinition
+        ? workflow.definitionVersion
+        : workflow.publishedVersion!,
+      mode: input.mode ?? "live",
+      encryptedPayload: encryptWorkflowPayload({
+        ...payload,
+        mockOutputs: input.mockOutputs ?? {},
       }),
+      inputSnapshot: redactWorkflowSnapshot(payload, collectWorkflowSecrets(payload)) as Record<
+        string,
+        unknown
+      >,
     })
     .onConflictDoNothing({
       target: [
@@ -525,6 +557,10 @@ export async function createVisualWorkflowRun(input: {
     throw new Error("failed_to_create_visual_workflow_run");
   }
 
+  await dbClient
+    .insert(schema.visualWorkflowOutbox)
+    .values({ runId: row.id, organizationId: row.organizationId, workflowId: row.visualWorkflowId })
+    .onConflictDoNothing();
   return serializeRun(row);
 }
 
@@ -595,6 +631,10 @@ export async function enqueueVisualWorkflowRunOnce(input: {
 
   try {
     await input.enqueue();
+    await dbClient
+      .update(schema.visualWorkflowOutbox)
+      .set({ dispatchedAt: new Date(), leaseExpiresAt: null })
+      .where(eq(schema.visualWorkflowOutbox.runId, input.runId));
     await markVisualWorkflowRunEnqueueCommitted({
       runId: input.runId,
       organizationId: input.organizationId,
@@ -613,6 +653,7 @@ export async function enqueueVisualWorkflowRunOnce(input: {
 
 export async function updateVisualWorkflowRun(input: {
   runId: string;
+  leaseToken?: string;
   organizationId: string;
   status?: VisualWorkflowRunStatus;
   outputSummary?: Record<string, unknown>;
@@ -635,6 +676,7 @@ export async function updateVisualWorkflowRun(input: {
     .where(
       and(
         eq(schema.visualWorkflowRuns.id, input.runId),
+        ...(input.leaseToken ? [eq(schema.visualWorkflowRuns.leaseToken, input.leaseToken)] : []),
         eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
       ),
     )
@@ -645,9 +687,13 @@ export async function updateVisualWorkflowRun(input: {
 
 export async function upsertVisualWorkflowNodeRun(input: {
   runId: string;
+  leaseToken?: string;
   organizationId: string;
   nodeId: string;
   nodeType: string;
+  iteration?: number;
+  attempt?: number;
+  encryptedOutput?: Record<string, unknown>;
   status: VisualWorkflowNodeRunStatus;
   inputSnapshot?: Record<string, unknown>;
   outputSnapshot?: Record<string, unknown>;
@@ -656,11 +702,28 @@ export async function upsertVisualWorkflowNodeRun(input: {
   finishedAt?: Date | null;
   dbClient?: DatabaseClient;
 }): Promise<VisualWorkflowNodeRunRecord> {
+  if (input.leaseToken && !input.dbClient)
+    return db.transaction(async (tx) => {
+      const [run] = await tx
+        .select({ id: schema.visualWorkflowRuns.id })
+        .from(schema.visualWorkflowRuns)
+        .where(
+          and(
+            eq(schema.visualWorkflowRuns.id, input.runId),
+            eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+            eq(schema.visualWorkflowRuns.leaseToken, input.leaseToken!),
+          ),
+        )
+        .for("update");
+      if (!run) throw new Error("workflow_lease_lost");
+      return upsertVisualWorkflowNodeRun({ ...input, dbClient: tx });
+    });
   const dbClient = input.dbClient ?? db;
   const conflictUpdate: Partial<typeof schema.visualWorkflowNodeRuns.$inferInsert> & {
     updatedAt: Date;
   } = {
     status: input.status,
+    ...(input.encryptedOutput ? { encryptedOutput: input.encryptedOutput } : {}),
     updatedAt: new Date(),
   };
 
@@ -687,6 +750,9 @@ export async function upsertVisualWorkflowNodeRun(input: {
       organizationId: input.organizationId,
       nodeId: input.nodeId,
       nodeType: input.nodeType,
+      iteration: input.iteration ?? -1,
+      attempt: input.attempt ?? 1,
+      encryptedOutput: input.encryptedOutput,
       status: input.status,
       inputSnapshot: input.inputSnapshot ?? {},
       outputSnapshot: input.outputSnapshot ?? {},
@@ -695,7 +761,12 @@ export async function upsertVisualWorkflowNodeRun(input: {
       finishedAt: input.finishedAt ?? null,
     })
     .onConflictDoUpdate({
-      target: [schema.visualWorkflowNodeRuns.runId, schema.visualWorkflowNodeRuns.nodeId],
+      target: [
+        schema.visualWorkflowNodeRuns.runId,
+        schema.visualWorkflowNodeRuns.nodeId,
+        schema.visualWorkflowNodeRuns.iteration,
+        schema.visualWorkflowNodeRuns.attempt,
+      ],
       set: conflictUpdate,
     })
     .returning();
@@ -731,17 +802,18 @@ export async function executeVisualWorkflowRun(input: {
   runId: string;
   organizationId: string;
   visualWorkflowId: string;
-}): Promise<VisualWorkflowRunRecord | null> {
+}): Promise<(VisualWorkflowRunRecord & { executionLeaseBusy?: boolean }) | null> {
   const claim = await claimVisualWorkflowRunForExecution(input);
   if (!claim) {
     return null;
   }
 
   if (claim.kind === "already_finished" || claim.kind === "already_running") {
-    return claim.run;
+    return { ...claim.run, executionLeaseBusy: claim.kind === "already_running" };
   }
 
   const run = claim.run;
+  const leaseToken = claim.leaseToken;
 
   const workflow = await getVisualWorkflowById({
     organizationId: input.organizationId,
@@ -749,6 +821,7 @@ export async function executeVisualWorkflowRun(input: {
   });
   if (!workflow) {
     return finishVisualWorkflowRun({
+      leaseToken,
       runId: input.runId,
       organizationId: input.organizationId,
       status: "failed",
@@ -756,41 +829,114 @@ export async function executeVisualWorkflowRun(input: {
     });
   }
 
-  const definition = resolveRunDefinition({ run, workflow });
-  if (!definition) {
+  const [stored] = await db
+    .select()
+    .from(schema.visualWorkflowRuns)
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, run.id),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+  const payload = stored?.encryptedPayload
+    ? (decryptWorkflowPayload(stored.encryptedPayload) as Record<string, unknown>)
+    : run.inputSnapshot;
+  const definition = resolveRunDefinition({ run: { ...run, inputSnapshot: payload }, workflow });
+  if (!definition)
     return finishVisualWorkflowRun({
-      runId: input.runId,
+      leaseToken,
+      runId: run.id,
       organizationId: input.organizationId,
       status: "failed",
-      error: { message: "visual_workflow_definition_snapshot_missing" },
+      error: {
+        code: "visual_workflow_definition_snapshot_missing",
+        message: "visual_workflow_definition_snapshot_missing",
+      },
+    });
+  if (payload.executionPlanVersion !== EXECUTION_PLAN_VERSION)
+    return finishVisualWorkflowRun({
+      leaseToken,
+      runId: run.id,
+      organizationId: input.organizationId,
+      status: "failed",
+      error: { code: "invalid_definition", message: "Recreate this workflow using schema v2." },
+    });
+  if (stored?.cancelRequestedAt) {
+    return updateVisualWorkflowRun({
+      leaseToken,
+      runId: run.id,
+      organizationId: input.organizationId,
+      status: "cancelled",
+      completedAt: new Date(),
     });
   }
-
-  const { runVisualWorkflowInterpreter } = await import("./runtime/interpreter-server");
-  const result = await runVisualWorkflowInterpreter({
+  if (run.startedAt && Date.now() - Date.parse(run.startedAt) > 900000)
+    return finishVisualWorkflowRun({
+      leaseToken,
+      runId: run.id,
+      organizationId: input.organizationId,
+      status: "failed",
+      error: { code: "execution_limit", message: "Run deadline exceeded." },
+    });
+  const { executeDurableWorkflowSlice } = await import("./runtime/durable-slice");
+  const result = await executeDurableWorkflowSlice({
+    leaseToken,
+    run,
     definition,
+    payload,
     organizationId: input.organizationId,
-    triggerInput: extractTriggerInputFromRunSnapshot(run.inputSnapshot),
-    onNodeUpdate: async (update) => {
-      await upsertVisualWorkflowNodeRun({
-        runId: input.runId,
-        organizationId: input.organizationId,
-        nodeId: update.nodeId,
-        nodeType: update.nodeType,
-        status: update.status,
-        ...(update.inputSnapshot !== undefined ? { inputSnapshot: update.inputSnapshot } : {}),
-        ...(update.outputSnapshot !== undefined ? { outputSnapshot: update.outputSnapshot } : {}),
-        ...(update.error !== undefined ? { error: update.error } : {}),
-        ...(update.status === "running" ? { startedAt: new Date() } : {}),
-        ...(update.status === "succeeded" || update.status === "failed"
-          ? { finishedAt: new Date() }
-          : {}),
-      });
-    },
+  }).catch(async (error: unknown) => {
+    if (error instanceof Error && error.message === "workflow_lease_lost") throw error;
+    await updateVisualWorkflowRun({
+      leaseToken,
+      runId: run.id,
+      organizationId: input.organizationId,
+      status: "needs_attention",
+      completedAt: new Date(),
+      error: {
+        code: "recovery_failed",
+        message:
+          "Execution could not be recovered. Check credentials and provider delivery before retrying.",
+      },
+    });
+    return null;
   });
+  if (!result)
+    return getVisualWorkflowRunById({
+      organizationId: input.organizationId,
+      visualWorkflowId: input.visualWorkflowId,
+      runId: run.id,
+    });
+  if (!result.ok && result.error.code === "yield_execution") {
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({ leaseExpiresAt: null })
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.id, run.id),
+          eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
+        ),
+      );
+    return getVisualWorkflowRunById({
+      organizationId: input.organizationId,
+      visualWorkflowId: input.visualWorkflowId,
+      runId: run.id,
+    });
+  }
+  if (!result.ok && ["needs_attention", "cancelled"].includes(String(result.error.code)))
+    return updateVisualWorkflowRun({
+      leaseToken,
+      runId: run.id,
+      organizationId: input.organizationId,
+      status: result.error.code as "needs_attention" | "cancelled",
+      error: result.error,
+      completedAt: new Date(),
+    });
 
   if (!result.ok) {
     return finishVisualWorkflowRun({
+      leaseToken,
       runId: input.runId,
       organizationId: input.organizationId,
       status: "failed",
@@ -805,6 +951,7 @@ export async function executeVisualWorkflowRun(input: {
   }
 
   return finishVisualWorkflowRun({
+    leaseToken,
     runId: input.runId,
     organizationId: input.organizationId,
     status: "succeeded",
@@ -832,7 +979,7 @@ export async function dispatchManualVisualWorkflowRun(input: {
   const { buildVisualWorkflowManualIdempotencyKey } = await import("./dispatch/idempotency");
   const persistedIdempotencyKey = buildVisualWorkflowManualIdempotencyKey({
     visualWorkflowId: input.visualWorkflowId,
-    definitionVersion: workflow.definitionVersion,
+    definitionVersion: workflow.publishedVersion ?? workflow.definitionVersion,
     idempotencyKey: input.idempotencyKey,
   });
 

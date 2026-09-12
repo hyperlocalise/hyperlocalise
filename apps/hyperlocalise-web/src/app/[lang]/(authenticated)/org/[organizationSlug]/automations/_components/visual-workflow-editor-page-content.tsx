@@ -14,7 +14,7 @@
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
@@ -27,7 +27,11 @@ import type { VisualWorkflowDefinition } from "@/lib/visual-workflows/schema/typ
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 
 import { VisualWorkflowDeleteDialog } from "./visual-workflow-delete-dialog";
-import { createVisualWorkflowsApi, type VisualWorkflowsApi } from "./visual-workflows-api";
+import {
+  publishWorkflowVersion,
+  createVisualWorkflowsApi,
+  type VisualWorkflowsApi,
+} from "./visual-workflows-api";
 import { VisualWorkflowEditor } from "./visual-workflow-editor/visual-workflow-editor";
 import { visualWorkflowEditorMessages } from "./visual-workflow-editor/visual-workflow-editor.messages";
 import { visualWorkflowsPageMessages } from "./visual-workflows-page.messages";
@@ -44,6 +48,7 @@ export function VisualWorkflowEditorPageContent({
   visualWorkflowsApi?: VisualWorkflowsApi;
 }) {
   const router = useRouter();
+  const revision = useRef(workflow.revision);
   const orgRouter = useOrgRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   useAppShellSidebar({ forceCollapsed: true });
@@ -57,11 +62,17 @@ export function VisualWorkflowEditorPageContent({
       definition: VisualWorkflowDefinition;
       status?: VisualWorkflowRecord["status"];
     }) =>
-      injectedApi.updateVisualWorkflow(organizationSlug, workflow.id, {
-        name: input.definition.name,
-        definition: input.definition,
-        ...(input.status ? { status: input.status } : {}),
-      }),
+      injectedApi
+        .updateVisualWorkflow(organizationSlug, workflow.id, {
+          expectedRevision: revision.current,
+          name: input.definition.name,
+          definition: input.definition,
+          ...(input.status ? { status: input.status } : {}),
+        })
+        .then((record) => {
+          revision.current = record.revision;
+          return record;
+        }),
   });
 
   const saveMutation = {
@@ -98,8 +109,16 @@ export function VisualWorkflowEditorPageContent({
     try {
       await persistMutation.mutateAsync({
         definition,
-        status: active ? "active" : "paused",
+        ...(active ? {} : { status: "paused" as const }),
       });
+      if (active) {
+        const published = await publishWorkflowVersion(
+          organizationSlug,
+          workflow.id,
+          revision.current,
+        );
+        revision.current = published.revision;
+      }
       router.refresh();
       toast.success(
         active ? (
@@ -138,7 +157,6 @@ export function VisualWorkflowEditorPageContent({
         organizationSlug={organizationSlug}
         visualWorkflowId={workflow.id}
         visualWorkflowsApi={injectedApi}
-        onPersistBeforeTest={(definition) => saveMutation.mutateAsync({ definition })}
         workflowStatus={workflow.status}
         onStatusChange={handleStatusChange}
         statusUpdating={saveMutation.isPending}

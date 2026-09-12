@@ -20,7 +20,7 @@ import { cn } from "@/lib/primitives/cn";
 import { ContentEditorQueueSkeletonList } from "@/components/content-editor/queue/content-editor-queue-skeleton-list";
 import { contentEditorWorkspaceSkeletonMessages } from "./content-editor-workspace-skeleton.messages";
 
-function ContentEditorEditorPanelSkeleton() {
+export function ContentEditorEditorPanelSkeleton() {
   const intl = useIntl();
 
   return (
@@ -149,7 +149,7 @@ function ContentEditorQueuePanelSkeleton() {
   );
 }
 
-function ContentEditorCompactWorkspaceSkeleton() {
+export function ContentEditorCompactWorkspaceSkeleton() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-border px-4 py-3">

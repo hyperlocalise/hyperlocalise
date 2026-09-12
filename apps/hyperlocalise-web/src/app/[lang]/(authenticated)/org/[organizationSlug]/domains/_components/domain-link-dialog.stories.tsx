@@ -36,3 +36,7 @@ export const Default: Story = {};
 export const EditMultipleLocales: Story = {
   args: { domain: getResearchPrototypeDomain("hyperlocalise-com")! },
 };
+
+export const LiveClaim: Story = {
+  args: { variant: "live" as const },
+};

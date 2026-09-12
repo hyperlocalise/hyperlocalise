@@ -70,20 +70,20 @@ export const integrationCatalogCopy = {
     },
     tagline: {
       defaultMessage:
-        "Connect GitLab so Hyperlocalise can inspect localized strings, review merge requests, and open localization fixes.",
+        "Connect GitLab.com through Pipes so Hyperlocalise can clone projects into chat and automations.",
       id: "ezhaX1jR0b",
       description: "GitLab integration description on the integrations page",
     },
     overview: [
       {
         defaultMessage:
-          "GitLab support lets Hyperlocalise inspect localized strings, review merge requests, and open localization fixes from GitLab repositories.",
+          "GitLab support lets Hyperlocalise inspect localized strings from GitLab.com projects in chat and automations.",
         id: "intGitLabOverview0",
         description: "GitLab integration marketing overview paragraph",
       },
       {
         defaultMessage:
-          "This connector is on the roadmap for teams that run localization workflows on GitLab instead of GitHub.",
+          "Connect GitLab.com through WorkOS Pipes so Hyperlocalise can list membership projects and clone them.",
         id: "intGitLabOverview1",
         description: "GitLab integration marketing overview paragraph",
       },
@@ -674,6 +674,54 @@ export const integrationCatalogCopy = {
         "Use Hyperlab inside Hyperlocalise to experiment with localized experiences before global rollout.",
       id: "intHyperlabMetaDescription",
       description: "Hyperlab integration marketing page meta description",
+    },
+  },
+  statsig: {
+    name: {
+      defaultMessage: "Statsig",
+      id: "intStatsigName",
+      description: "Statsig integration name on the integrations page",
+    },
+    tagline: {
+      defaultMessage:
+        "Connect Statsig to run localized experiments and ship copy behind feature flags.",
+      id: "intStatsigTagline",
+      description: "Statsig integration description on the integrations page",
+    },
+    overview: [
+      {
+        defaultMessage:
+          "Statsig support will let teams run localized experiments and ship copy behind feature flags without leaving Hyperlocalise.",
+        id: "intStatsigOverview0",
+        description: "Statsig integration marketing overview paragraph",
+      },
+      {
+        defaultMessage:
+          "This connector is planned for teams that use Statsig for feature gates and A/B tests.",
+        id: "intStatsigOverview1",
+        description: "Statsig integration marketing overview paragraph",
+      },
+    ],
+    productName: {
+      defaultMessage: "Statsig",
+      id: "intStatsigProductName",
+      description: "Statsig integration product name on marketing detail page",
+    },
+    productDescription: {
+      defaultMessage: "Feature flags and experiment targeting for localized copy.",
+      id: "intStatsigProductDescription",
+      description: "Statsig integration product description on marketing detail page",
+    },
+    metadataTitle: {
+      defaultMessage: "Statsig integration | Hyperlocalise",
+      id: "intStatsigMetaTitle",
+      description: "Statsig integration marketing page meta title",
+    },
+    metadataDescription: {
+      defaultMessage:
+        "Connect Statsig to Hyperlocalise to run localized experiments and ship copy behind feature flags.",
+      id: "intStatsigMetaDescription",
+      description: "Statsig integration marketing page meta description",
     },
   },
   jira: {

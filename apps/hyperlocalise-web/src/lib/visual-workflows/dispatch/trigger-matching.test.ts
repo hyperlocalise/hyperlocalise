@@ -31,6 +31,9 @@ function workflowRecord(definition: VisualWorkflowDefinition): VisualWorkflowRec
     name: definition.name,
     definition,
     definitionVersion: 1,
+    revision: 1,
+    publishedVersion: null,
+    publishedDefinition: null,
     triggerFingerprint: null,
     nextRunAt: null,
     createdAt: new Date().toISOString(),
@@ -41,7 +44,7 @@ function workflowRecord(definition: VisualWorkflowDefinition): VisualWorkflowRec
 describe("visual workflow trigger matching", () => {
   it("computes github trigger fingerprint from repository and events", () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "GitHub",
       nodes: [
         {
@@ -66,7 +69,7 @@ describe("visual workflow trigger matching", () => {
 
   it("matches github push when branch pattern matches", () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "GitHub",
       nodes: [
         {
@@ -99,7 +102,7 @@ describe("visual workflow trigger matching", () => {
 
   it("rejects activating workflows with manual triggers", () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Manual",
       nodes: [{ id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") }],
       edges: [],
@@ -112,7 +115,7 @@ describe("visual workflow trigger matching", () => {
 
   it("rejects scheduled triggers with invalid time zones", () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Scheduled",
       nodes: [
         {

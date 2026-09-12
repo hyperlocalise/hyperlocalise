@@ -12,25 +12,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { supportsProviderContentEditorFile } from "@/lib/providers/capabilities/provider-content-editor-capabilities";
 
-import {
-  ContentEditorFileTreePicker,
-  ContentEditorLocaleSelect,
-} from "../../../../_components/content-editor-header-pickers";
 import { ProjectPageShell, useProjectPageQuery } from "../../../../_components/project-page-shell";
 import {
   contentEditorFileRepositoryPreferenceKey,
@@ -51,13 +43,9 @@ import {
   sortJobContentEditorProviderFiles,
 } from "./select-job-content-editor-repository";
 import { jobCatPageContentMessages } from "./job-content-editor-page-content.messages";
+import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
+import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
-import {
-  ContentEditorFilesSidebar,
-  ContentEditorPageBody,
-} from "@/components/content-editor/files/content-editor-files-sidebar";
-import { ContentEditorActivityLogButton } from "@/components/content-editor/activity-log/content-editor-activity-log-dialog";
-import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import {
   attemptCatPageNavigation,
   type ContentEditorPageNavigationGuardRef,
@@ -645,90 +633,60 @@ export function JobContentEditorPageContent({
     };
 
     return (
-      <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
-          <div className="flex min-w-0 shrink-0 items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon-sm"
-              className="size-8 shrink-0"
-              render={<Link href={taskHref} />}
-            >
-              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-            </Button>
-
-            <div className="lg:hidden">
-              <ContentEditorFileTreePicker
-                files={jobFiles}
-                selectedSourcePath=""
-                onSelectFile={handleJobFileChange}
-                allFilesSelected
-                onSelectAllFiles={canUseAllFiles ? handleJobSelectAllFiles : undefined}
-                repositoryFullNames={enabledRepositoryFullNames}
-                selectedRepositoryFullName={selectedRepositoryFullName}
-                onRepositoryChange={handleRepositoryChange}
-              />
-            </div>
-
-            {jobTargetLocales.length > 0 ? (
-              <ContentEditorLocaleSelect
-                targetLocales={jobTargetLocales}
-                selectedTargetLocale={selectedTargetLocale}
-                onTargetLocaleChange={handleAllFilesLocaleChange}
-              />
-            ) : null}
-
-            <ContentEditorActivityLogButton
-              organizationSlug={organizationSlug}
-              projectId={projectId}
-              sourcePath={CONTENT_EDITOR_ALL_FILES_SOURCE_PATH}
-            />
-          </div>
-
-          <ContentEditorQueueToolbarHost />
-        </div>
-
-        {repositoryBanner}
-
-        <ContentEditorPageBody
-          sidebar={
-            <ContentEditorFilesSidebar
-              className="hidden w-[17.5rem] shrink-0 lg:flex"
-              files={jobFiles}
-              selectedSourcePath={null}
-              onSelectFile={handleJobFileChange}
-              allFilesSelected
-              onSelectAllFiles={canUseAllFiles ? handleJobSelectAllFiles : undefined}
-              repositoryFullNames={enabledRepositoryFullNames}
-              selectedRepositoryFullName={selectedRepositoryFullName}
-              onRepositoryChange={handleRepositoryChange}
-            />
-          }
-        >
-          <ProjectFileContentEditorWorkspace
-            key={`${CONTENT_EDITOR_ALL_FILES_SOURCE_PATH}:${selectedTargetLocale}`}
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            sourceLocale={sourceLocale}
-            sourcePath={CONTENT_EDITOR_ALL_FILES_SOURCE_PATH}
-            targetLocale={selectedTargetLocale}
-            highlightLocale={selectedTargetLocale}
-            repositoryFullName={selectedRepositoryFullName}
-            canLookupFreshContext={canLookupFreshCatRepositoryContext(
-              enabledRepositoryFullNames,
-              selectedRepositoryFullName,
-            )}
-            initialSegmentKey={initialSegmentKey}
-            initialQueueFilter={initialQueueFilter}
-            initialQueueSort={initialQueueSort}
-            initialSearch={initialSearch}
-            sourcePathsFilter={serializeCatSourcePathsFilter(jobSourcePaths)}
-            layout="fullscreen"
-            className="min-h-0 flex-1"
-            pageNavigationGuardRef={pageNavigationGuardRef}
-          />
-        </ContentEditorPageBody>
-      </main>
+      <ContentEditorPageRoot
+        initialState={createContentEditorLoadingWorkspaceState({
+          sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
+          sourceLocale,
+          targetLocale: selectedTargetLocale,
+        })}
+        initialQueueFilter={initialQueueFilter}
+        initialQueueSort={initialQueueSort}
+        initialSearch={initialSearch}
+        chrome={{
+          files: jobFiles,
+          selectedSourcePath: null,
+          allFiles: true,
+          canUseAllFiles,
+          targetLocale: selectedTargetLocale,
+          targetLocales: jobTargetLocales,
+          repositoryFullNames: enabledRepositoryFullNames,
+          selectedRepositoryFullName,
+          activitySourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
+          organizationSlug,
+          projectId,
+          showFileSidebar: true,
+        }}
+        backHref={taskHref}
+        actions={{
+          onSelectFile: handleJobFileChange,
+          onSelectAllFiles: canUseAllFiles ? handleJobSelectAllFiles : undefined,
+          onLocaleChange: handleAllFilesLocaleChange,
+          onRepositoryChange: handleRepositoryChange,
+        }}
+        banners={repositoryBanner}
+      >
+        <ProjectFileContentEditorWorkspace
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          sourceLocale={sourceLocale}
+          sourcePath={CONTENT_EDITOR_ALL_FILES_SOURCE_PATH}
+          targetLocale={selectedTargetLocale}
+          highlightLocale={selectedTargetLocale}
+          repositoryFullName={selectedRepositoryFullName}
+          canLookupFreshContext={canLookupFreshCatRepositoryContext(
+            enabledRepositoryFullNames,
+            selectedRepositoryFullName,
+          )}
+          initialSegmentKey={initialSegmentKey}
+          initialQueueFilter={initialQueueFilter}
+          initialQueueSort={initialQueueSort}
+          initialSearch={initialSearch}
+          sourcePathsFilter={serializeCatSourcePathsFilter(jobSourcePaths)}
+          layout="fullscreen"
+          className="min-h-0 flex-1"
+          pageNavigationGuardRef={pageNavigationGuardRef}
+        />
+      </ContentEditorPageRoot>
     );
   }
 
@@ -847,85 +805,58 @@ export function JobContentEditorPageContent({
     }
 
     return (
-      <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
-          <div className="flex min-w-0 shrink-0 items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon-sm"
-              className="size-8 shrink-0"
-              render={<Link href={taskHref} />}
-            >
-              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-            </Button>
-
-            <div className="lg:hidden">
-              <ContentEditorFileTreePicker
-                files={[selectedFile]}
-                selectedSourcePath={selectedFile.sourcePath}
-                onSelectFile={() => undefined}
-                repositoryFullNames={enabledRepositoryFullNames}
-                selectedRepositoryFullName={selectedRepositoryFullName}
-                onRepositoryChange={handleRepositoryChange}
-              />
-            </div>
-
-            {jobTargetLocales.length > 0 ? (
-              <ContentEditorLocaleSelect
-                targetLocales={jobTargetLocales}
-                selectedTargetLocale={activeTargetLocale}
-                onTargetLocaleChange={handleLocaleChange}
-              />
-            ) : null}
-
-            <ContentEditorActivityLogButton
-              organizationSlug={organizationSlug}
-              projectId={projectId}
-              sourcePath={selectedFile.sourcePath}
-            />
-          </div>
-
-          <ContentEditorQueueToolbarHost />
-        </div>
-
-        {repositoryBanner}
-
-        <ContentEditorPageBody
-          sidebar={
-            <ContentEditorFilesSidebar
-              className="hidden w-[17.5rem] shrink-0 lg:flex"
-              files={[selectedFile]}
-              selectedSourcePath={selectedFile.sourcePath}
-              onSelectFile={() => undefined}
-              repositoryFullNames={enabledRepositoryFullNames}
-              selectedRepositoryFullName={selectedRepositoryFullName}
-              onRepositoryChange={handleRepositoryChange}
-            />
-          }
-        >
-          <ProjectFileContentEditorWorkspace
-            key={`${selectedFile.sourcePath}:${activeTargetLocale}`}
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            sourceLocale={sourceLocale}
-            sourcePath={selectedFile.sourcePath}
-            targetLocale={activeTargetLocale}
-            highlightLocale={activeTargetLocale}
-            repositoryFullName={selectedRepositoryFullName}
-            canLookupFreshContext={canLookupFreshCatRepositoryContext(
-              enabledRepositoryFullNames,
-              selectedRepositoryFullName,
-            )}
-            initialSegmentKey={initialSegmentKey}
-            initialQueueFilter={initialQueueFilter}
-            initialQueueSort={initialQueueSort}
-            initialSearch={initialSearch}
-            layout="fullscreen"
-            className="min-h-0 flex-1"
-            pageNavigationGuardRef={pageNavigationGuardRef}
-          />
-        </ContentEditorPageBody>
-      </main>
+      <ContentEditorPageRoot
+        initialState={createContentEditorLoadingWorkspaceState({
+          sourcePath: selectedFile.sourcePath,
+          sourceLocale,
+          targetLocale: activeTargetLocale,
+        })}
+        initialQueueFilter={initialQueueFilter}
+        initialQueueSort={initialQueueSort}
+        initialSearch={initialSearch}
+        chrome={{
+          files: [selectedFile],
+          selectedSourcePath: selectedFile.sourcePath,
+          allFiles: false,
+          canUseAllFiles: false,
+          targetLocale: activeTargetLocale,
+          targetLocales: jobTargetLocales,
+          repositoryFullNames: enabledRepositoryFullNames,
+          selectedRepositoryFullName,
+          activitySourcePath: selectedFile.sourcePath,
+          organizationSlug,
+          projectId,
+          showFileSidebar: true,
+        }}
+        backHref={taskHref}
+        actions={{
+          onSelectFile: () => undefined,
+          onLocaleChange: handleLocaleChange,
+          onRepositoryChange: handleRepositoryChange,
+        }}
+        banners={repositoryBanner}
+      >
+        <ProjectFileContentEditorWorkspace
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          sourceLocale={sourceLocale}
+          sourcePath={selectedFile.sourcePath}
+          targetLocale={activeTargetLocale}
+          highlightLocale={activeTargetLocale}
+          repositoryFullName={selectedRepositoryFullName}
+          canLookupFreshContext={canLookupFreshCatRepositoryContext(
+            enabledRepositoryFullNames,
+            selectedRepositoryFullName,
+          )}
+          initialSegmentKey={initialSegmentKey}
+          initialQueueFilter={initialQueueFilter}
+          initialQueueSort={initialQueueSort}
+          initialSearch={initialSearch}
+          layout="fullscreen"
+          className="min-h-0 flex-1"
+          pageNavigationGuardRef={pageNavigationGuardRef}
+        />
+      </ContentEditorPageRoot>
     );
   }
 
@@ -990,105 +921,65 @@ export function JobContentEditorPageContent({
   };
 
   return (
-    <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
-        <div className="flex min-w-0 shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="size-8 shrink-0"
-            render={<Link href={taskHref} />}
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-          </Button>
-
-          <div className="lg:hidden">
-            <ContentEditorFileTreePicker
-              files={providerFiles}
-              selectedSourcePath={selectedFile.sourcePath}
-              onSelectFile={handleFileChange}
-              allFilesSelected={false}
-              onSelectAllFiles={
-                canUseAllFiles
-                  ? () =>
-                      navigateToAllFiles(
-                        providerFiles.map((file) => file.sourcePath),
-                        selectedTargetLocale,
-                      )
-                  : undefined
-              }
-              repositoryFullNames={enabledRepositoryFullNames}
-              selectedRepositoryFullName={selectedRepositoryFullName}
-              onRepositoryChange={handleRepositoryChange}
-            />
-          </div>
-
-          {jobTargetLocales.length > 0 ? (
-            <ContentEditorLocaleSelect
-              targetLocales={jobTargetLocales}
-              selectedTargetLocale={selectedTargetLocale}
-              onTargetLocaleChange={handleLocaleChange}
-            />
-          ) : null}
-
-          <ContentEditorActivityLogButton
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            sourcePath={selectedFile.sourcePath}
-          />
-        </div>
-
-        <ContentEditorQueueToolbarHost />
-      </div>
-
-      {repositoryBanner}
-
-      <ContentEditorPageBody
-        sidebar={
-          <ContentEditorFilesSidebar
-            className="hidden w-[17.5rem] shrink-0 lg:flex"
-            files={providerFiles}
-            selectedSourcePath={selectedFile.sourcePath}
-            onSelectFile={handleFileChange}
-            allFilesSelected={false}
-            onSelectAllFiles={
-              canUseAllFiles
-                ? () =>
-                    navigateToAllFiles(
-                      providerFiles.map((file) => file.sourcePath),
-                      selectedTargetLocale,
-                    )
-                : undefined
-            }
-            repositoryFullNames={enabledRepositoryFullNames}
-            selectedRepositoryFullName={selectedRepositoryFullName}
-            onRepositoryChange={handleRepositoryChange}
-          />
-        }
-      >
-        <ProjectFileContentEditorWorkspace
-          key={`${selectedFile.sourcePath}:${selectedTargetLocale}`}
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          sourceLocale={sourceLocale}
-          sourcePath={selectedFile.sourcePath}
-          externalResourceId={selectedFile.provider.externalResourceId}
-          resourceType={selectedFile.provider.resourceType}
-          targetLocale={selectedTargetLocale}
-          repositoryFullName={selectedRepositoryFullName}
-          canLookupFreshContext={canLookupFreshCatRepositoryContext(
-            enabledRepositoryFullNames,
-            selectedRepositoryFullName,
-          )}
-          initialSegmentKey={initialSegmentKey}
-          initialQueueFilter={initialQueueFilter}
-          initialQueueSort={initialQueueSort}
-          initialSearch={initialSearch}
-          layout="fullscreen"
-          className="min-h-0 flex-1"
-          pageNavigationGuardRef={pageNavigationGuardRef}
-        />
-      </ContentEditorPageBody>
-    </main>
+    <ContentEditorPageRoot
+      initialState={createContentEditorLoadingWorkspaceState({
+        sourcePath: selectedFile.sourcePath,
+        sourceLocale,
+        targetLocale: selectedTargetLocale,
+      })}
+      initialQueueFilter={initialQueueFilter}
+      initialQueueSort={initialQueueSort}
+      initialSearch={initialSearch}
+      chrome={{
+        files: providerFiles,
+        selectedSourcePath: selectedFile.sourcePath,
+        allFiles: false,
+        canUseAllFiles,
+        targetLocale: selectedTargetLocale,
+        targetLocales: jobTargetLocales,
+        repositoryFullNames: enabledRepositoryFullNames,
+        selectedRepositoryFullName,
+        activitySourcePath: selectedFile.sourcePath,
+        organizationSlug,
+        projectId,
+        showFileSidebar: true,
+      }}
+      backHref={taskHref}
+      actions={{
+        onSelectFile: handleFileChange,
+        onSelectAllFiles: canUseAllFiles
+          ? () =>
+              navigateToAllFiles(
+                providerFiles.map((file) => file.sourcePath),
+                selectedTargetLocale,
+              )
+          : undefined,
+        onLocaleChange: handleLocaleChange,
+        onRepositoryChange: handleRepositoryChange,
+      }}
+      banners={repositoryBanner}
+    >
+      <ProjectFileContentEditorWorkspace
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        sourceLocale={sourceLocale}
+        sourcePath={selectedFile.sourcePath}
+        externalResourceId={selectedFile.provider.externalResourceId}
+        resourceType={selectedFile.provider.resourceType}
+        targetLocale={selectedTargetLocale}
+        repositoryFullName={selectedRepositoryFullName}
+        canLookupFreshContext={canLookupFreshCatRepositoryContext(
+          enabledRepositoryFullNames,
+          selectedRepositoryFullName,
+        )}
+        initialSegmentKey={initialSegmentKey}
+        initialQueueFilter={initialQueueFilter}
+        initialQueueSort={initialQueueSort}
+        initialSearch={initialSearch}
+        layout="fullscreen"
+        className="min-h-0 flex-1"
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+    </ContentEditorPageRoot>
   );
 }

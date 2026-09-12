@@ -58,20 +58,35 @@ export function ProjectAvatar({
   className?: string;
   compact?: boolean;
 }) {
-  const sizeClass = compact ? "size-9 rounded-lg" : "size-10 rounded-lg";
+  const sizeClass = compact ? "size-5 rounded-md" : "size-8 rounded-lg";
   const avatarLabel = projectAvatarLabelFromName(project.name);
+  const showProviderMark =
+    !compact && project.source === "external_tms" && Boolean(project.externalProviderKind);
 
   return (
     <span className={cn("relative shrink-0", className)}>
-      <Avatar className={cn(sizeClass, "after:rounded-lg")} title={project.name}>
+      <Avatar
+        className={cn(sizeClass, compact ? "after:rounded-md" : "after:rounded-lg")}
+        title={project.name}
+      >
         {project.logoUrl ? (
-          <AvatarImage src={project.logoUrl} alt="" className="rounded-lg object-cover" />
+          <AvatarImage
+            src={project.logoUrl}
+            alt=""
+            referrerPolicy="no-referrer"
+            className={cn("object-contain", compact ? "rounded-md" : "rounded-lg")}
+          />
         ) : null}
-        <AvatarFallback className="overflow-hidden rounded-lg bg-background text-xs font-medium text-foreground">
-          {avatarLabel}
+        <AvatarFallback
+          className={cn(
+            "overflow-hidden bg-muted font-medium text-foreground",
+            compact ? "rounded-md text-[9px]" : "rounded-lg text-xs",
+          )}
+        >
+          {compact ? avatarLabel.slice(0, 2) : avatarLabel}
         </AvatarFallback>
       </Avatar>
-      {project.source === "external_tms" && project.externalProviderKind ? (
+      {showProviderMark ? (
         <span className="absolute -right-1 -bottom-1 rounded-md border border-border bg-background p-0.5 shadow-sm">
           <TmsProviderBrandMark
             providerKind={project.externalProviderKind}

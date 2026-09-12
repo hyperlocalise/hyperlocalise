@@ -10,9 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 
-export type { RepositoryAgentGitHubContext };
+export type { RepositoryAgentGitHubContext, RepositoryAgentGitLabContext };
 
 export function getSlackRepositoryContextKey(context: RepositoryAgentGitHubContext): string {
   return JSON.stringify({
@@ -30,6 +31,7 @@ export type SlackRepositorySandboxSession = {
   repositoryContextKey: string;
   createdAt: string;
   lastUsedAt: string;
+  credentialOwnerWorkosUserId?: string;
 };
 
 export type SlackImageLocalizationOutput = {
@@ -59,6 +61,7 @@ export type PendingSlackImageTask = {
 export type SlackBotThreadState = {
   warnedNonMemberUsers?: string[];
   repositoryGitHubContext?: RepositoryAgentGitHubContext;
+  repositoryGitLabContext?: RepositoryAgentGitLabContext;
   repositorySandboxSession?: SlackRepositorySandboxSession;
   pendingSlackImageTask?: PendingSlackImageTask;
   imageSourceAssets?: SlackImageSourceAsset[];

@@ -28,6 +28,7 @@ export const memberWorkosUserIdParamsSchema = z.object({
 export const inviteMemberBodySchema = z.object({
   email: z.string().trim().email().max(320),
   role: organizationMembershipRoleSchema.default("member"),
+  teamId: z.string().uuid().optional(),
 });
 
 export const updateMemberBodySchema = z.object({

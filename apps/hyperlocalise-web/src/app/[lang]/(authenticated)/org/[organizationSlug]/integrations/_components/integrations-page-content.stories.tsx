@@ -65,10 +65,12 @@ export const Default: Story = {
     await expect(canvas.getByText("Projects & files")).toBeInTheDocument();
     await expect(canvas.getByText("Pages")).toBeInTheDocument();
     await expect(canvas.getByText("Hyperlab")).toBeInTheDocument();
+    await expect(canvas.getByText("Statsig")).toBeInTheDocument();
     await expect(canvas.getByText("HyperSEO")).toBeInTheDocument();
     await expect(canvas.getAllByText("Included").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Collaboration")).toBeInTheDocument();
     await expect(canvas.getByText("Customer engagement")).toBeInTheDocument();
+    await expect(canvas.getByText("Zernio")).toBeInTheDocument();
     await expect(canvas.queryByText("Model provider")).not.toBeInTheDocument();
     await expect(canvas.getByText("GitHub")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
@@ -108,6 +110,40 @@ export const FilteredCategory: Story = {
     await expect(canvas.getByRole("heading", { name: "MCP servers" })).toBeInTheDocument();
     await expect(canvas.getByText("MCP Server")).toBeInTheDocument();
     await expect(canvas.queryByRole("heading", { name: "Source control" })).not.toBeInTheDocument();
+  },
+};
+
+export const CustomerEngagement: Story = {
+  parameters: {
+    msw: {
+      handlers: integrationsConnectedMswHandlers,
+    },
+  },
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole("tab", { name: "Customer engagement" }));
+    await expect(canvas.getByRole("heading", { name: "Customer engagement" })).toBeInTheDocument();
+    await expect(canvas.getByText("Zernio")).toBeInTheDocument();
+    await expect(canvas.getByText("Intercom")).toBeInTheDocument();
+    await expect(canvas.queryByText("Semrush")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Ahrefs")).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("heading", { name: "SEO tools" })).not.toBeInTheDocument();
+  },
+};
+
+export const ExperimentationComingSoon: Story = {
+  parameters: {
+    msw: {
+      handlers: integrationsConnectedMswHandlers,
+    },
+  },
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole("tab", { name: "Experimentation" }));
+    await expect(canvas.getByRole("heading", { name: "Experimentation" })).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlab")).toBeInTheDocument();
+    await expect(canvas.getByText("Statsig")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Coming soon" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Open" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("heading", { name: "SEO tools" })).not.toBeInTheDocument();
   },
 };
 
@@ -195,6 +231,7 @@ export const WithoutProviderIntegrations: Story = {
     await expect(canvas.getByText("Collaboration")).toBeInTheDocument();
     await expect(canvas.getByText("Guidelines")).toBeInTheDocument();
     await expect(canvas.getByText("Customer engagement")).toBeInTheDocument();
+    await expect(canvas.queryByText("Zernio")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Translation Management System")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Model provider")).not.toBeInTheDocument();
   },

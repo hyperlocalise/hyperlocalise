@@ -168,6 +168,90 @@ func TestEntryMetaIDStable(t *testing.T) {
 	}
 }
 
+func TestJSONStoreReadSnapshotRelativePatternUsesConfigRoot(t *testing.T) {
+	configDir := t.TempDir()
+	langDir := filepath.Join(configDir, "lang")
+	if err := os.MkdirAll(langDir, 0o755); err != nil {
+		t.Fatalf("mkdir lang dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(langDir, "fr.json"), []byte("{\"hello\":\"bonjour\"}\n"), 0o644); err != nil {
+		t.Fatalf("write locale file: %v", err)
+	}
+
+	t.Chdir(t.TempDir())
+
+	store, err := NewJSONStoreInRoot(&config.I18NConfig{
+		Locales: config.LocaleConfig{
+			Source:  "en",
+			Targets: []string{"fr"},
+		},
+		Buckets: map[string]config.BucketConfig{
+			"json": {
+				Files: []config.BucketFileMapping{{
+					From: "lang/{{source}}.json",
+					To:   "lang/{{target}}.json",
+				}},
+			},
+		},
+	}, configDir)
+	if err != nil {
+		t.Fatalf("new json store: %v", err)
+	}
+
+	snap, err := store.ReadSnapshot(context.Background(), syncsvc.LocalReadRequest{Locales: []string{"fr"}})
+	if err != nil {
+		t.Fatalf("read snapshot: %v", err)
+	}
+	if got := len(snap.Entries); got != 1 {
+		t.Fatalf("expected 1 entry, got %d", got)
+	}
+	if got := snap.Entries[0].Value; got != "bonjour" {
+		t.Fatalf("unexpected value: %q", got)
+	}
+}
+
+func TestJSONStoreRejectsNonJSONAndGlobMappings(t *testing.T) {
+	t.Parallel()
+	cfg := func(to string) *config.I18NConfig {
+		return &config.I18NConfig{
+			Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+			Buckets: map[string]config.BucketConfig{
+				"ui": {Files: []config.BucketFileMapping{{To: to}}},
+			},
+		}
+	}
+	if _, err := NewJSONStore(cfg("lang/{{target}}.yaml")); err == nil || !strings.Contains(err.Error(), "flat JSON") {
+		t.Fatalf("yaml mapping error = %v", err)
+	}
+	if _, err := NewJSONStore(cfg("lang/*.json")); err == nil || !strings.Contains(err.Error(), "glob") {
+		t.Fatalf("glob mapping error = %v", err)
+	}
+}
+
+func TestJSONStoreApplyPullRejectsContextualAndDuplicateKeys(t *testing.T) {
+	t.Parallel()
+	store := mustNewStore(t, filepath.Join(t.TempDir(), "lang", "[locale].json"))
+	_, err := store.ApplyPull(context.Background(), syncsvc.ApplyPullPlan{
+		Creates: []storage.Entry{
+			{Key: "hello", Locale: "fr", Context: "button", Value: "bonjour"},
+			{Key: "hello", Locale: "fr", Context: "title", Value: "salut"},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "contextual") {
+		t.Fatalf("contextual entries error = %v", err)
+	}
+
+	_, err = store.ApplyPull(context.Background(), syncsvc.ApplyPullPlan{
+		Creates: []storage.Entry{
+			{Key: "hello", Locale: "fr", Value: "bonjour"},
+			{Key: "hello", Locale: "fr", Value: "salut"},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "duplicate key") {
+		t.Fatalf("duplicate key error = %v", err)
+	}
+}
+
 func TestJSONStoreApplyPullRejectsUnconfiguredLocale(t *testing.T) {
 	store := mustNewStore(t, filepath.Join(t.TempDir(), "lang", "[locale].json"))
 	_, err := store.ApplyPull(context.Background(), syncsvc.ApplyPullPlan{

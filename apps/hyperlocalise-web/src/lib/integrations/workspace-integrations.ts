@@ -38,6 +38,12 @@ export const workspaceComingSoonCustomerEngagementSlugs = [
   "loops",
 ] as const;
 
+export const workspaceComingSoonExperimentationSlugs = ["statsig"] as const;
+
+export const workspacePipesSourceControlSlugs = [
+  "gitlab",
+] as const satisfies readonly PipesProviderSlug[];
+
 export const workspacePipesCollaborationSlugs = [
   "atlassian",
 ] as const satisfies readonly PipesProviderSlug[];

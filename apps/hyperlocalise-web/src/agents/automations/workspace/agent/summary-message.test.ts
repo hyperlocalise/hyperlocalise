@@ -146,6 +146,37 @@ describe("buildOrchestratorRunSummaryMessage", () => {
     expect(message).toBe("Daily digest: 3 PRs merged.");
   });
 
+  it("prefers gitlab repository digests when GitHub is absent", () => {
+    const message = buildOrchestratorRunSummaryMessage(
+      createSession({
+        stepResults: {
+          use_gitlab_repository: {
+            digest: "GitLab digest: 2 MRs merged.",
+          },
+        },
+      }),
+    );
+
+    expect(message).toBe("GitLab digest: 2 MRs merged.");
+  });
+
+  it("prefers the github digest when both GitHub and GitLab ran", () => {
+    const message = buildOrchestratorRunSummaryMessage(
+      createSession({
+        stepResults: {
+          use_github_repository: {
+            digest: "GitHub digest wins.",
+          },
+          use_gitlab_repository: {
+            digest: "GitLab digest should lose.",
+          },
+        },
+      }),
+    );
+
+    expect(message).toBe("GitHub digest wins.");
+  });
+
   it("prefers the github digest alone when Crowdin also ran", () => {
     const message = buildOrchestratorRunSummaryMessage(
       createSession({

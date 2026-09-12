@@ -43,7 +43,7 @@ export async function auditRepositoryMutation(
     },
     action: input.action,
     source: ctx.repositorySource ?? (ctx.actor ? "repository_agent" : "unknown"),
-    provider: ctx.githubContext ? "github" : "repository",
+    provider: ctx.githubContext ? "github" : ctx.gitlabContext ? "gitlab" : "repository",
     status: input.status,
     details: input.details ?? {},
   });

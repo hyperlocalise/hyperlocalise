@@ -12,8 +12,26 @@
  */
 import { z } from "zod";
 
+import {
+  contentSyncConfigSchema,
+  resolveWorkspaceAutomationKind,
+  workspaceAutomationKindSchema,
+  type ContentSyncConfig,
+  type WorkspaceAutomationKind,
+} from "@/lib/agents/content-sync/content-sync-types";
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
+
+export {
+  contentSyncConfigSchema,
+  contentSyncProviderSchema,
+  DEFAULT_WORKSPACE_AUTOMATION_KIND,
+  resolveWorkspaceAutomationKind,
+  workspaceAutomationKindSchema,
+  type ContentSyncConfig,
+  type ContentSyncProvider,
+  type WorkspaceAutomationKind,
+} from "@/lib/agents/content-sync/content-sync-types";
 
 export const workspaceAutomationStatusSchema = z.enum(["active", "paused", "archived"]);
 
@@ -105,8 +123,9 @@ export const triggerConfigSchema = z
 
 export const repositoryTargetSchema = z
   .object({
-    kind: z.enum(["none", "github"]).default("none"),
+    kind: z.enum(["none", "github", "gitlab"]).default("none"),
     githubInstallationRepositoryId: z.string().uuid().optional(),
+    gitlabPathWithNamespace: z.string().trim().min(1).max(512).optional(),
   })
   .default({ kind: "none" });
 
@@ -246,6 +265,13 @@ const ahrefsToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const gitlabToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+  })
+  .default({ enabled: false });
+
 const crowdinToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -322,6 +348,7 @@ const toolConfigObjectSchema = z
     semrush: semrushToolConfigSchema.optional(),
     zernio: zernioToolConfigSchema.optional(),
     ahrefs: ahrefsToolConfigSchema.optional(),
+    gitlab: gitlabToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
@@ -339,6 +366,8 @@ export const workspaceAutomationConfigSchema = z.object({
   triggerConfig: triggerConfigSchema,
   repositoryTarget: repositoryTargetSchema,
   toolConfig: toolConfigSchema,
+  kind: workspaceAutomationKindSchema.optional(),
+  syncConfig: contentSyncConfigSchema.optional(),
 });
 
 export type WorkspaceAutomationStatus = z.infer<typeof workspaceAutomationStatusSchema>;
@@ -370,6 +399,7 @@ export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchem
 export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
 export type WorkspaceAutomationZernioToolConfig = z.infer<typeof zernioToolConfigSchema>;
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
+export type WorkspaceAutomationGitlabToolConfig = z.infer<typeof gitlabToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
@@ -381,6 +411,30 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "github_repository_target_required";
       message: "Enabled GitHub tools require a GitHub repository target.";
+    }
+  | {
+      code: "gitlab_repository_target_required";
+      message: "Enabled GitLab tools require a GitLab project target.";
+    }
+  | {
+      code: "gitlab_github_exclusive";
+      message: "GitHub and GitLab cannot be enabled on the same automation.";
+    }
+  | {
+      code: "gitlab_agent_trigger_required";
+      message: "GitLab repo agent automations support scheduled or manual triggers only.";
+    }
+  | {
+      code: "gitlab_not_connected";
+      message: "Connect GitLab in Integrations before using it.";
+    }
+  | {
+      code: "gitlab_pipes_needs_reauthorization";
+      message: "Reconnect GitLab in Integrations, then try again.";
+    }
+  | {
+      code: "gitlab_pipes_unavailable";
+      message: "WorkOS is not configured, so GitLab cannot connect through Pipes.";
     }
   | {
       code: "project_required";
@@ -404,7 +458,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "scheduled_workflow_required";
-      message: "Scheduled automations require at least one GitHub, Contentful, Queries, Web Search, or Crowdin workflow tool.";
+      message: "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.";
     }
   | {
       code: "invalid_automation_timezone";
@@ -525,6 +579,26 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "crowdin_not_connected";
       message: "Connect Crowdin in Integrations before using Crowdin review tools.";
+    }
+  | {
+      code: "content_sync_config_required";
+      message: "Content sync requires a provider, resource, and project folder.";
+    }
+  | {
+      code: "content_sync_provider_folder_required";
+      message: "Git content sync requires a provider folder.";
+    }
+  | {
+      code: "content_sync_folder_invalid";
+      message: "Choose a safe relative folder path.";
+    }
+  | {
+      code: "content_sync_duplicate";
+      message: "This project already syncs that source folder.";
+    }
+  | {
+      code: "content_sync_connection_required";
+      message: "Connect this provider in Integrations before enabling content sync.";
     };
 
 export function hasWorkspaceAutomationContentfulWorkflow(
@@ -586,6 +660,10 @@ export function hasWorkspaceAutomationAhrefsTool(toolConfig: WorkspaceAutomation
   return Boolean(toolConfig.ahrefs?.enabled);
 }
 
+export function hasWorkspaceAutomationGitlabTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.gitlab?.enabled);
+}
+
 export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.crowdin?.enabled);
 }
@@ -600,6 +678,7 @@ export type WorkspaceAutomationRecord = {
   authorUserId: string | null;
   authorName?: string | null;
   status: WorkspaceAutomationStatus;
+  kind?: WorkspaceAutomationKind;
   name: string;
   instructions: string;
   model: WorkspaceAutomationModel;
@@ -607,11 +686,21 @@ export type WorkspaceAutomationRecord = {
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
+  syncConfig?: ContentSyncConfig | null;
   configVersion: number;
   nextRunAt: string | null;
+  lastRunStatus?: WorkspaceAutomationRunStatus | null;
+  lastRunError?: string | null;
+  lastRunAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
+
+export function isContentSyncAutomation(
+  automation: Pick<WorkspaceAutomationRecord, "kind">,
+): boolean {
+  return resolveWorkspaceAutomationKind(automation.kind) === "content_sync";
+}
 
 type AutomationAuthor = {
   firstName: string | null;

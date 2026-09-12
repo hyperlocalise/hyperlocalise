@@ -25,6 +25,8 @@ export class ContentEditorWorkspaceUiStore {
   previewLoadingSegmentId: string | null = null;
   previewTargetLoading = false;
   previewCommentsLoading = false;
+  /** True while the translation/editor pane is waiting for a new file snapshot. */
+  translationViewLoading = false;
   visibleSideBySideSegmentIds: string[] = [];
   // Explicit initial modes (e.g. marketing demos) must not overwrite the
   // visitor's real CAT workspace preference.
@@ -81,5 +83,9 @@ export class ContentEditorWorkspaceUiStore {
     this.previewLoadingSegmentId = segmentId;
     this.previewTargetLoading = state.isTargetLoading;
     this.previewCommentsLoading = state.isCommentsLoading;
+  }
+
+  setTranslationViewLoading(loading: boolean) {
+    this.translationViewLoading = loading;
   }
 }

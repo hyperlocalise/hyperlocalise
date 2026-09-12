@@ -54,6 +54,8 @@ import { TypographyP } from "@/components/ui/typography";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { cn } from "@/lib/primitives/cn";
 
+import type { TeamSummaryRow } from "../../teams/_components/teams-api";
+
 import { WorkspacePeopleNav } from "../../_components/workspace-people-nav";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 
@@ -375,6 +377,11 @@ export function MembersPageView({
   isInviteOpen,
   inviteEmail,
   inviteRole,
+  inviteTeams,
+  inviteTeamId,
+  inviteRequiresTeam,
+  isLoadingTeams,
+  teamsLoadError,
   isInviting,
   removingMember,
   isRemoving,
@@ -383,6 +390,7 @@ export function MembersPageView({
   onInviteOpenChange,
   onInviteEmailChange,
   onInviteRoleChange,
+  onInviteTeamIdChange,
   onInviteSubmit,
   onRemovingMemberChange,
   onRemoveMember,
@@ -398,6 +406,11 @@ export function MembersPageView({
   isInviteOpen: boolean;
   inviteEmail: string;
   inviteRole: OrganizationMembershipRole;
+  inviteTeams: TeamSummaryRow[];
+  inviteTeamId: string;
+  inviteRequiresTeam: boolean;
+  isLoadingTeams: boolean;
+  teamsLoadError: string | null;
   isInviting: boolean;
   removingMember: MembersListMember | null;
   isRemoving: boolean;
@@ -406,6 +419,7 @@ export function MembersPageView({
   onInviteOpenChange: (open: boolean) => void;
   onInviteEmailChange: (email: string) => void;
   onInviteRoleChange: (role: OrganizationMembershipRole) => void;
+  onInviteTeamIdChange: (teamId: string) => void;
   onInviteSubmit: (event: React.SyntheticEvent) => void;
   onRemovingMemberChange: (member: MembersListMember | null) => void;
   onRemoveMember: (workosUserId: string) => void;
@@ -587,11 +601,61 @@ export function MembersPageView({
               </Select>
               <FieldDescription>{getRoleDescription(inviteRole, intl)}</FieldDescription>
             </Field>
+            {inviteRequiresTeam ? (
+              <Field>
+                <FieldLabel>
+                  <FormattedMessage {...membersPageContentMessages.teamLabel} />
+                </FieldLabel>
+                {teamsLoadError ? (
+                  <TypographyP className="text-flame-100" size="small">
+                    {teamsLoadError}
+                  </TypographyP>
+                ) : inviteTeams.length === 0 && !isLoadingTeams ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...membersPageContentMessages.teamEmptyFallback} />
+                  </TypographyP>
+                ) : (
+                  <Select
+                    value={inviteTeamId}
+                    onValueChange={(value) => {
+                      if (value) {
+                        onInviteTeamIdChange(value);
+                      }
+                    }}
+                    disabled={isInviting || isLoadingTeams}
+                  >
+                    <SelectTrigger className="border-border bg-muted">
+                      <SelectValue>
+                        {inviteTeams.find((team) => team.id === inviteTeamId)?.name ??
+                          intl.formatMessage(membersPageContentMessages.loading)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {inviteTeams.map((team) => (
+                        <SelectItem key={team.id} value={team.id} label={team.name}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {inviteTeams.length > 0 ? (
+                  <FieldDescription>
+                    <FormattedMessage {...membersPageContentMessages.teamDescription} />
+                  </FieldDescription>
+                ) : null}
+              </Field>
+            ) : null}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onInviteOpenChange(false)}>
                 <FormattedMessage {...membersPageContentMessages.cancel} />
               </Button>
-              <Button type="submit" disabled={isInviting}>
+              <Button
+                type="submit"
+                disabled={
+                  isInviting || (inviteRequiresTeam && (isLoadingTeams || Boolean(teamsLoadError)))
+                }
+              >
                 <FormattedMessage {...membersPageContentMessages.sendInvitation} />
               </Button>
             </DialogFooter>

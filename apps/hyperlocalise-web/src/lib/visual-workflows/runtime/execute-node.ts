@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { generateText } from "ai";
+import { generateText, Output } from "ai";
 
 import {
   runWorkspaceAutomationEmailNotificationTool,
@@ -34,15 +34,27 @@ import {
 
 export type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
+import { z } from "zod";
+import { WORKFLOW_LIMITS } from "./limits";
+import { workflowStructuredOutputSchema } from "./structured-output";
 const MAX_HTTP_BODY_CHARS = 8_000;
 
 export async function executeVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
   context: VisualWorkflowExecutionContext;
   organizationId: string;
+  signal?: AbortSignal;
+  inputsResolved?: boolean;
+  idempotencyKey?: string;
 }): Promise<VisualWorkflowNodeExecutionResult> {
   const { node, context } = input;
-  const logicResult = executeLogicVisualWorkflowNode({ node, context });
+  const text = (value: string) =>
+    input.inputsResolved ? value : resolveVisualWorkflowTemplate(value, context);
+  const logicResult = executeLogicVisualWorkflowNode({
+    node,
+    context,
+    inputsResolved: input.inputsResolved,
+  });
   if (logicResult.ok || logicResult.error.code !== "not_logic_node") {
     return logicResult;
   }
@@ -50,12 +62,14 @@ export async function executeVisualWorkflowNode(input: {
   switch (node.config.kind) {
     case "action.http": {
       const httpConfig = node.config;
-      const url = resolveVisualWorkflowTemplate(httpConfig.url, context).trim();
+      const url = text(httpConfig.url).trim();
       if (!url) {
         return { ok: false, error: { code: "missing_url", message: "HTTP URL is required." } };
       }
 
-      const queryParams = resolveKeyValuePairs(httpConfig.queryParams, context);
+      const queryParams = resolveKeyValuePairs(httpConfig.queryParams, context, {
+        resolved: input.inputsResolved,
+      });
       const resolvedUrl = appendQueryParams(url, queryParams);
       const bodyType = httpConfig.bodyType ?? "none";
       const requestBody = resolveHttpRequestBody({
@@ -63,14 +77,22 @@ export async function executeVisualWorkflowNode(input: {
         bodyType,
         context,
         method: httpConfig.method,
+        resolved:
+          input.inputsResolved ||
+          Boolean(node.inputs?.body) ||
+          Object.keys(node.inputs ?? {}).some((name) => name.startsWith("body.")),
       });
       const headers = buildHttpRequestHeaders({
-        headers: resolveKeyValuePairs(httpConfig.headers, context),
+        headers: resolveKeyValuePairs(httpConfig.headers, context, {
+          resolved: input.inputsResolved,
+        }),
         auth: httpConfig.auth
           ? {
               type: httpConfig.auth.type,
               token: httpConfig.auth.token
-                ? resolveVisualWorkflowTemplate(httpConfig.auth.token, context)
+                ? input.inputsResolved || httpConfig.auth.credentialId
+                  ? httpConfig.auth.token
+                  : resolveVisualWorkflowTemplate(httpConfig.auth.token, context)
                 : undefined,
               headerName: httpConfig.auth.headerName,
             }
@@ -78,6 +100,8 @@ export async function executeVisualWorkflowNode(input: {
         bodyType,
         hasBody: Boolean(requestBody),
       });
+      if (httpConfig.idempotencyHeader && input.idempotencyKey)
+        headers[httpConfig.idempotencyHeader] = input.idempotencyKey;
       const parseJsonBody = httpConfig.parseJsonBody ?? true;
 
       try {
@@ -86,18 +110,27 @@ export async function executeVisualWorkflowNode(input: {
           {
             method: httpConfig.method,
             redirect: "manual",
+            signal: input.signal
+              ? AbortSignal.any([input.signal, AbortSignal.timeout(WORKFLOW_LIMITS.httpTimeoutMs)])
+              : AbortSignal.timeout(WORKFLOW_LIMITS.httpTimeoutMs),
             headers,
             body: requestBody,
           },
           async (response) => {
             const bodyBytes = await readBoundedResponseBody(response);
-            const bodyText = new TextDecoder().decode(bodyBytes).slice(0, MAX_HTTP_BODY_CHARS);
+            const bodyText = new TextDecoder().decode(bodyBytes);
             const json = parseHttpResponseBody(bodyText, parseJsonBody);
             return {
               status: response.status,
               statusText: response.statusText,
               ok: response.ok,
               body: bodyText,
+              bodyPreview: bodyText.slice(0, MAX_HTTP_BODY_CHARS),
+              headers: Object.fromEntries(
+                [...response.headers].filter(
+                  ([key]) => !/^(set-cookie|authorization|cookie|x-api-key)$/i.test(key),
+                ),
+              ),
               json,
             };
           },
@@ -116,18 +149,24 @@ export async function executeVisualWorkflowNode(input: {
 
         return { ok: true, output: result };
       } catch (error) {
+        const code =
+          error instanceof Error && error.message === "invalid_http_json"
+            ? "invalid_http_json"
+            : error instanceof Error && error.message.startsWith("Response too large")
+              ? "http_response_too_large"
+              : "http_request_failed";
         return {
           ok: false,
           error: {
-            code: "http_request_failed",
-            message: error instanceof Error ? error.message : "HTTP request failed.",
+            code,
+            message: "HTTP request failed. Check the URL, response format, size, and timeout.",
           },
         };
       }
     }
     case "action.notify_slack": {
-      const channelId = resolveVisualWorkflowTemplate(node.config.channelId, context).trim();
-      const message = resolveVisualWorkflowTemplate(node.config.message, context).trim();
+      const channelId = text(node.config.channelId).trim();
+      const message = text(node.config.message).trim();
       if (!channelId) {
         return {
           ok: false,
@@ -166,10 +205,10 @@ export async function executeVisualWorkflowNode(input: {
       };
     }
     case "action.notify_email": {
-      const from = resolveVisualWorkflowTemplate(node.config.from, context).trim();
-      const recipientsRaw = resolveVisualWorkflowTemplate(node.config.recipients, context).trim();
-      const subject = resolveVisualWorkflowTemplate(node.config.subject, context).trim();
-      const message = resolveVisualWorkflowTemplate(node.config.message, context).trim();
+      const from = text(node.config.from).trim();
+      const recipientsRaw = text(node.config.recipients).trim();
+      const subject = text(node.config.subject).trim();
+      const message = text(node.config.message).trim();
       const workosUserId = node.config.workosUserId?.trim();
 
       if (!workosUserId) {
@@ -182,7 +221,7 @@ export async function executeVisualWorkflowNode(input: {
           },
         };
       }
-      if (!from) {
+      if (!z.email().safeParse(from).success) {
         return {
           ok: false,
           error: { code: "missing_from", message: "Sender email address is required." },
@@ -192,7 +231,10 @@ export async function executeVisualWorkflowNode(input: {
         .split(/[\n,;]+/)
         .map((entry) => entry.trim())
         .filter(Boolean);
-      if (recipients.length === 0) {
+      if (
+        recipients.length === 0 ||
+        recipients.some((recipient) => !z.email().safeParse(recipient).success)
+      ) {
         return {
           ok: false,
           error: { code: "missing_recipients", message: "At least one recipient is required." },
@@ -241,7 +283,7 @@ export async function executeVisualWorkflowNode(input: {
       };
     }
     case "ai.agent": {
-      const prompt = resolveVisualWorkflowTemplate(node.config.prompt, context).trim();
+      const prompt = text(node.config.prompt).trim();
       if (!prompt) {
         return { ok: false, error: { code: "missing_prompt", message: "AI prompt is required." } };
       }
@@ -250,22 +292,37 @@ export async function executeVisualWorkflowNode(input: {
         const { model } = await resolveHyperlocaliseAgentLanguageModel({
           organizationId: input.organizationId,
         });
+        const structured =
+          node.outputFields?.some((field) => field.path.startsWith("json.")) ?? false;
         const result = await generateText({
           model,
           prompt,
+          maxRetries: 0,
+          ...(structured
+            ? {
+                output: Output.object({
+                  schema: workflowStructuredOutputSchema(node.outputFields ?? []),
+                }),
+              }
+            : {}),
+          abortSignal: input.signal
+            ? AbortSignal.any([input.signal, AbortSignal.timeout(WORKFLOW_LIMITS.aiTimeoutMs)])
+            : AbortSignal.timeout(WORKFLOW_LIMITS.aiTimeoutMs),
         });
+        const json = structured ? result.output : undefined;
         return {
           ok: true,
           output: {
             text: result.text,
+            ...(json !== undefined ? { json } : {}),
           },
         };
-      } catch (error) {
+      } catch {
         return {
           ok: false,
           error: {
             code: "ai_agent_failed",
-            message: error instanceof Error ? error.message : "AI agent step failed.",
+            message: "AI generation failed or returned an invalid structured result.",
           },
         };
       }

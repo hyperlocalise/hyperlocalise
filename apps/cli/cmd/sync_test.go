@@ -38,9 +38,40 @@ func TestSyncPullHelpDoesNotExposeManifestFlag(t *testing.T) {
 	if !strings.Contains(help, "--dry-run") {
 		t.Fatalf("sync pull help should keep --dry-run flag:\n%s", help)
 	}
+	if !strings.Contains(help, "--fail-on-conflict") {
+		t.Fatalf("sync pull help should expose --fail-on-conflict:\n%s", help)
+	}
+	if !strings.Contains(help, "--apply-curated-over-draft") {
+		t.Fatalf("sync pull help should expose --apply-curated-over-draft:\n%s", help)
+	}
+	if strings.Contains(help, "--force-conflicts") {
+		t.Fatalf("sync pull help should not expose --force-conflicts:\n%s", help)
+	}
 }
 
-func TestSyncPullRequiresHyperlocaliseConfig(t *testing.T) {
+func TestSyncPushHelpExposesTMSConflictFlags(t *testing.T) {
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"sync", "push", "--help"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("sync push help: %v", err)
+	}
+	help := out.String()
+	if !strings.Contains(help, "--force-conflicts") {
+		t.Fatalf("sync push help should expose --force-conflicts:\n%s", help)
+	}
+	if !strings.Contains(help, "--fail-on-conflict") {
+		t.Fatalf("sync push help should expose --fail-on-conflict:\n%s", help)
+	}
+	if strings.Contains(help, "--apply-curated-over-draft") {
+		t.Fatalf("sync push help should not expose --apply-curated-over-draft:\n%s", help)
+	}
+}
+
+func TestSyncRequiresHyperlocaliseOrStorageAdapter(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
 	content := `{
@@ -53,6 +84,54 @@ func TestSyncPullRequiresHyperlocaliseConfig(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
+	for _, args := range [][]string{
+		{"sync", "pull", "--config", configPath},
+		{"sync", "push", "--config", configPath},
+	} {
+		cmd := newRootCmd("")
+		out := bytes.NewBuffer(nil)
+		cmd.SetOut(out)
+		cmd.SetErr(out)
+		cmd.SetArgs(args)
+
+		err := cmd.Execute()
+		if err == nil {
+			t.Fatalf("expected %v error without hyperlocalise or storage.adapter", args)
+		}
+		if !strings.Contains(err.Error(), "hyperlocalise") || !strings.Contains(err.Error(), "storage.adapter") {
+			t.Fatalf("%v unexpected error: %v", args, err)
+		}
+	}
+}
+
+func TestSyncNativeRejectsForceConflicts(t *testing.T) {
+	t.Setenv("HYPERLOCALISE_API_KEY", "")
+	dir := t.TempDir()
+	configPath := writeSyncTestConfig(t, dir, `"hyperlocalise": {"project_id": "proj"}`)
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"sync", "push", "--config", configPath, "--force-conflicts"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected native sync push to reject --force-conflicts")
+	}
+	if !strings.Contains(err.Error(), "does not support --force-conflicts") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSyncBothConfigsNativeWins(t *testing.T) {
+	t.Setenv("HYPERLOCALISE_API_KEY", "")
+	dir := t.TempDir()
+	configPath := writeSyncTestConfig(t, dir, `
+	  "hyperlocalise": {"project_id": "proj"},
+	  "storage": {"adapter": "not-a-real-adapter", "config": {"projectID": "proj"}}
+	`)
+
 	cmd := newRootCmd("")
 	out := bytes.NewBuffer(nil)
 	cmd.SetOut(out)
@@ -61,11 +140,101 @@ func TestSyncPullRequiresHyperlocaliseConfig(t *testing.T) {
 
 	err := cmd.Execute()
 	if err == nil {
-		t.Fatalf("expected sync pull error without hyperlocalise config")
+		t.Fatalf("expected native path error when both configs are set")
 	}
-	if !strings.Contains(err.Error(), "hyperlocalise config is required") {
+	if !strings.Contains(err.Error(), "hyperlocalise api key is required") {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	if strings.Contains(err.Error(), "unknown adapter") {
+		t.Fatalf("native path should win over storage.adapter: %v", err)
+	}
+}
+
+func TestSyncAdapterOnlyUnknownAdapter(t *testing.T) {
+	dir := t.TempDir()
+	configPath := writeSyncTestConfig(t, dir, `"storage": {"adapter": "not-a-real-adapter", "config": {"projectID": "proj"}}`)
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"sync", "pull", "--config", configPath})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected adapter-only sync to fail for unknown adapter")
+	}
+	if !strings.Contains(err.Error(), "unknown adapter") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(err.Error(), "hyperlocalise config is required") {
+		t.Fatalf("adapter-only path should not require hyperlocalise: %v", err)
+	}
+}
+
+func TestSyncAdapterOnlyRegistersBuiltins(t *testing.T) {
+	t.Setenv("LOKALISE_API_TOKEN", "")
+	t.Setenv("HL652_MISSING_LOKALISE_TOKEN", "")
+	dir := t.TempDir()
+	configPath := writeSyncTestConfig(t, dir, `"storage": {"adapter": "lokalise", "config": {"projectID": "proj", "apiTokenEnv": "HL652_MISSING_LOKALISE_TOKEN"}}`)
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"sync", "push", "--config", configPath})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected lokalise adapter config error")
+	}
+	if !strings.Contains(err.Error(), "API token is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(err.Error(), "unknown adapter") {
+		t.Fatalf("lokalise should be registered via RegisterBuiltins: %v", err)
+	}
+	if strings.Contains(err.Error(), "hyperlocalise config is required") {
+		t.Fatalf("adapter-only path should not require hyperlocalise: %v", err)
+	}
+}
+
+func TestSyncAdapterOnlyAllowsForceConflicts(t *testing.T) {
+	dir := t.TempDir()
+	configPath := writeSyncTestConfig(t, dir, `"storage": {"adapter": "not-a-real-adapter", "config": {"projectID": "proj"}}`)
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"sync", "push", "--config", configPath, "--force-conflicts"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected adapter-only sync push to fail after routing")
+	}
+	if strings.Contains(err.Error(), "does not support --force-conflicts") {
+		t.Fatalf("TMS path should accept --force-conflicts: %v", err)
+	}
+	if !strings.Contains(err.Error(), "unknown adapter") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func writeSyncTestConfig(t *testing.T, dir, extraJSON string) string {
+	t.Helper()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"json":{"files":[{"from":"lang/{{source}}.json","to":"lang/{{target}}.json"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["json"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}},
+	  ` + extraJSON + `
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	return configPath
 }
 
 func TestHyperlocaliseSyncRecognizesFluentFiles(t *testing.T) {

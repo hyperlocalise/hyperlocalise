@@ -10,31 +10,34 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { CanonicalVisualWorkflowEdge } from "../schema/types";
-import type { CanonicalVisualWorkflowNode, VisualWorkflowDefinition } from "../schema/types";
+import type {
+  CanonicalVisualWorkflowNode,
+  VisualWorkflowDefinition,
+  MockNodeRunStatus,
+} from "../schema/types";
 import {
   createVisualWorkflowExecutionContext,
   setNodeOutput,
   type VisualWorkflowExecutionContext,
 } from "./context";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
-import {
-  buildVisualWorkflowGraphIndex,
-  selectNextEdges,
-  type VisualWorkflowGraphIndex,
-} from "./graph-index";
-import { findForEachLoopRegion, incomingEdgesForNode, sortLoopBodyNodes } from "./loop-region";
+import { buildVisualWorkflowGraphIndex, selectNextEdges } from "./graph-index";
+import { validateVisualWorkflowDefinition } from "../validation/validate-workflow";
 import { resolveNodeErrorBehavior } from "./node-options";
+import { resolveWorkflowNodeInputs, resolveWorkflowBinding } from "./bindings";
+import { getWorkflowOutputFields, matchesWorkflowType } from "../catalog/node-contracts";
+import { readWorkflowPath } from "./bindings";
+import { WORKFLOW_LIMITS } from "./limits";
 
 export type VisualWorkflowInterpreterNodeUpdate = {
   nodeId: string;
   nodeType: string;
-  status: "running" | "succeeded" | "failed";
+  status: Exclude<MockNodeRunStatus, "idle">;
+  iteration?: number;
   inputSnapshot?: Record<string, unknown>;
   outputSnapshot?: Record<string, unknown>;
   error?: Record<string, unknown> | null;
 };
-
 export type VisualWorkflowInterpreterResult =
   | {
       ok: true;
@@ -48,325 +51,12 @@ export type VisualWorkflowInterpreterResult =
       failedNodeId: string;
       error: Record<string, unknown>;
     };
-
-function releasePredecessorEdge(input: {
-  pendingIncoming: Map<string, number>;
-  queue: string[];
-  targetNodeId: string;
-}) {
-  const remaining = (input.pendingIncoming.get(input.targetNodeId) ?? 1) - 1;
-  input.pendingIncoming.set(input.targetNodeId, remaining);
-  if (remaining === 0) {
-    input.queue.push(input.targetNodeId);
-  }
-}
-
-function propagateSkippedNode(input: {
-  nodeId: string;
-  graph: VisualWorkflowGraphIndex;
-  completed: Set<string>;
-  skipped: Set<string>;
-  pendingIncoming: Map<string, number>;
-  queue: string[];
-}) {
-  if (input.completed.has(input.nodeId) || input.skipped.has(input.nodeId)) {
-    return;
-  }
-
-  input.skipped.add(input.nodeId);
-
-  for (const outEdge of input.graph.outgoingByNodeId.get(input.nodeId) ?? []) {
-    releaseSkippedOutgoingEdge({
-      edge: outEdge,
-      graph: input.graph,
-      completed: input.completed,
-      skipped: input.skipped,
-      pendingIncoming: input.pendingIncoming,
-      queue: input.queue,
-    });
-  }
-}
-
-function releaseSkippedOutgoingEdge(input: {
-  edge: CanonicalVisualWorkflowEdge;
-  graph: VisualWorkflowGraphIndex;
-  completed: Set<string>;
-  skipped: Set<string>;
-  pendingIncoming: Map<string, number>;
-  queue: string[];
-}) {
-  const targetId = input.edge.target;
-  const remaining = (input.pendingIncoming.get(targetId) ?? 1) - 1;
-  input.pendingIncoming.set(targetId, remaining);
-
-  if (remaining > 0) {
-    return;
-  }
-
-  if (input.completed.has(targetId) || input.skipped.has(targetId)) {
-    return;
-  }
-
-  propagateSkippedNode({
-    nodeId: targetId,
-    graph: input.graph,
-    completed: input.completed,
-    skipped: input.skipped,
-    pendingIncoming: input.pendingIncoming,
-    queue: input.queue,
-  });
-}
-
-type RunNodeResult =
-  | {
-      ok: true;
-      branchResult?: boolean;
-      switchCase?: string;
-      useErrorBranch?: boolean;
-      nodeType: string;
-      executedNodeIds?: string[];
-    }
-  | { ok: false; error: Record<string, unknown> };
-
-function releaseBranchingOutgoingEdges(input: {
-  node: { type: string };
-  outgoing: readonly CanonicalVisualWorkflowEdge[];
-  nextEdges: readonly CanonicalVisualWorkflowEdge[];
-  graph: VisualWorkflowGraphIndex;
-  completed: Set<string>;
-  skipped: Set<string>;
-  pendingIncoming: Map<string, number>;
-  queue: string[];
-  scope?: Set<string>;
-}) {
-  if (input.node.type !== "logic.if" && input.node.type !== "logic.switch") {
-    return;
-  }
-
-  const selectedEdgeIds = new Set(input.nextEdges.map((edge) => edge.id));
-  for (const edge of input.outgoing) {
-    if (selectedEdgeIds.has(edge.id)) {
-      continue;
-    }
-    if (input.scope && !input.scope.has(edge.target)) {
-      continue;
-    }
-
-    releaseSkippedOutgoingEdge({
-      edge,
-      graph: input.graph,
-      completed: input.completed,
-      skipped: input.skipped,
-      pendingIncoming: input.pendingIncoming,
-      queue: input.queue,
-    });
-  }
-}
-
-function releaseNodeOutgoingEdges(input: {
-  node: { id: string; type: string };
-  execution: Extract<RunNodeResult, { ok: true }>;
-  graph: VisualWorkflowGraphIndex;
-  pendingIncoming: Map<string, number>;
-  queue: string[];
-  completed: Set<string>;
-  skipped: Set<string>;
-  scope?: Set<string>;
-}) {
-  const outgoing = input.graph.outgoingByNodeId.get(input.node.id) ?? [];
-  const nextEdges = selectNextEdges({
-    nodeType: input.node.type as import("../schema/types").VisualCatalogType,
-    branchResult: input.execution.branchResult ?? null,
-    switchCase: input.execution.switchCase ?? null,
-    useErrorBranch: input.execution.useErrorBranch ?? false,
-    outgoing,
-  });
-
-  for (const edge of nextEdges) {
-    if (input.scope && !input.scope.has(edge.target)) {
-      continue;
-    }
-    releasePredecessorEdge({
-      pendingIncoming: input.pendingIncoming,
-      queue: input.queue,
-      targetNodeId: edge.target,
-    });
-  }
-
-  releaseBranchingOutgoingEdges({
-    node: input.node,
-    outgoing,
-    nextEdges,
-    graph: input.graph,
-    completed: input.completed,
-    skipped: input.skipped,
-    pendingIncoming: input.pendingIncoming,
-    queue: input.queue,
-    scope: input.scope,
-  });
-}
-
-function clearLoopBodyState(input: {
-  context: VisualWorkflowExecutionContext;
-  nodeResults: Record<string, Record<string, unknown>>;
-  bodyNodeIds: readonly string[];
-}) {
-  for (const bodyNodeId of input.bodyNodeIds) {
-    delete input.context.nodes[bodyNodeId];
-    delete input.nodeResults[bodyNodeId];
-  }
-}
-
-async function runScopedSubgraph(input: {
-  graph: VisualWorkflowGraphIndex;
-  nodeIds: readonly string[];
-  runNode: (nodeId: string) => Promise<RunNodeResult>;
-  runScopedNode: (nodeId: string) => Promise<RunNodeResult>;
-}): Promise<
-  | { ok: true; lastCompletedNodeId?: string }
-  | { ok: false; failedNodeId: string; error: Record<string, unknown> }
-> {
-  const scope = new Set(input.nodeIds);
-  const pendingIncoming = new Map<string, number>();
-  const completed = new Set<string>();
-  const skipped = new Set<string>();
-  const queue: string[] = [];
-  let lastCompletedNodeId: string | undefined;
-
-  for (const nodeId of input.nodeIds) {
-    const incomingCount = incomingEdgesForNode(input.graph, nodeId).filter((edge) =>
-      scope.has(edge.source),
-    ).length;
-    pendingIncoming.set(nodeId, incomingCount);
-    if (incomingCount === 0) {
-      queue.push(nodeId);
-    }
-  }
-
-  while (queue.length > 0) {
-    const nodeId = queue.shift();
-    if (!nodeId || completed.has(nodeId) || skipped.has(nodeId)) {
-      continue;
-    }
-    completed.add(nodeId);
-
-    const execution = await input.runScopedNode(nodeId);
-    if (!execution.ok) {
-      return { ok: false, failedNodeId: nodeId, error: execution.error };
-    }
-    lastCompletedNodeId = nodeId;
-
-    const node = input.graph.nodesById.get(nodeId);
-    if (!node) {
-      continue;
-    }
-
-    releaseNodeOutgoingEdges({
-      node,
-      execution,
-      graph: input.graph,
-      pendingIncoming,
-      queue,
-      completed,
-      skipped,
-      scope,
-    });
-  }
-
-  return { ok: true, lastCompletedNodeId };
-}
-
-type ForEachExecutionContext = {
-  graph: VisualWorkflowGraphIndex;
-  context: VisualWorkflowExecutionContext;
-  nodeResults: Record<string, Record<string, unknown>>;
-  runNode: (nodeId: string) => Promise<RunNodeResult>;
-  executeForEachNode: (forEachNodeId: string) => Promise<RunNodeResult>;
-};
-
-async function executeForEachLoop(
-  input: ForEachExecutionContext & {
-    forEachNodeId: string;
-  },
-): Promise<RunNodeResult> {
-  const execution = await input.runNode(input.forEachNodeId);
-  if (!execution.ok) {
-    return execution;
-  }
-
-  const items = (input.nodeResults[input.forEachNodeId]?.items as unknown[]) ?? [];
-  const { bodyNodeIds } = findForEachLoopRegion({
-    graph: input.graph,
-    forEachNodeId: input.forEachNodeId,
-  });
-  const orderedBody = sortLoopBodyNodes(input.graph, input.forEachNodeId, bodyNodeIds);
-  const iterationOutputs: Record<string, unknown>[] = [];
-  const executedNodeIds = new Set<string>();
-
-  for (let index = 0; index < items.length; index += 1) {
-    setNodeOutput(input.context, input.forEachNodeId, {
-      ...input.nodeResults[input.forEachNodeId],
-      item: items[index],
-      index,
-    });
-
-    clearLoopBodyState({
-      context: input.context,
-      nodeResults: input.nodeResults,
-      bodyNodeIds: orderedBody,
-    });
-
-    const bodyResult = await runScopedSubgraph({
-      graph: input.graph,
-      nodeIds: orderedBody,
-      runNode: input.runNode,
-      runScopedNode: async (nodeId) => {
-        const node = input.graph.nodesById.get(nodeId);
-        if (node?.type === "logic.for_each") {
-          const nested = await input.executeForEachNode(nodeId);
-          if (nested.ok && nested.executedNodeIds) {
-            for (const executedNodeId of nested.executedNodeIds) {
-              executedNodeIds.add(executedNodeId);
-            }
-          }
-          return nested;
-        }
-
-        const result = await input.runNode(nodeId);
-        if (result.ok) {
-          executedNodeIds.add(nodeId);
-        }
-        return result;
-      },
-    });
-    if (!bodyResult.ok) {
-      return { ok: false, error: bodyResult.error };
-    }
-
-    const lastBodyNodeId = bodyResult.lastCompletedNodeId;
-    iterationOutputs.push(
-      lastBodyNodeId ? (input.nodeResults[lastBodyNodeId] ?? {}) : { item: items[index], index },
-    );
-  }
-
-  setNodeOutput(input.context, input.forEachNodeId, {
-    ...input.nodeResults[input.forEachNodeId],
-    iterationOutputs,
-  });
-  input.nodeResults[input.forEachNodeId] =
-    input.context.nodes[input.forEachNodeId] ?? input.nodeResults[input.forEachNodeId] ?? {};
-
-  return {
-    ok: true,
-    nodeType: "logic.for_each",
-    executedNodeIds: [...new Set([input.forEachNodeId, ...executedNodeIds])],
-  };
-}
-
 export type VisualWorkflowInterpreterExecuteNode = (args: {
   node: CanonicalVisualWorkflowNode;
   context: VisualWorkflowExecutionContext;
   organizationId: string;
+  iteration?: number;
+  signal?: AbortSignal;
 }) => Promise<VisualWorkflowNodeExecutionResult>;
 
 export async function runVisualWorkflowInterpreter(input: {
@@ -375,190 +65,237 @@ export async function runVisualWorkflowInterpreter(input: {
   triggerInput?: Record<string, unknown>;
   executeNode: VisualWorkflowInterpreterExecuteNode;
   onNodeUpdate?: (update: VisualWorkflowInterpreterNodeUpdate) => Promise<void> | void;
+  signal?: AbortSignal;
+  shouldCancel?: () => Promise<boolean>;
 }): Promise<VisualWorkflowInterpreterResult> {
-  const graph = buildVisualWorkflowGraphIndex(input.definition);
-  if (!graph) {
-    return {
-      ok: false,
-      context: createVisualWorkflowExecutionContext({ triggerInput: input.triggerInput }),
-      nodeResults: {},
-      failedNodeId: "",
-      error: { message: "Workflow graph is invalid." },
-    };
-  }
-
   const context = createVisualWorkflowExecutionContext({ triggerInput: input.triggerInput });
   const nodeResults: Record<string, Record<string, unknown>> = {};
-  const completed = new Set<string>();
-  const skipped = new Set<string>();
-  const pendingIncoming = new Map(graph.incomingCountByNodeId);
-  const queue = [graph.triggerNodeId];
-  const executeNodeFn = input.executeNode;
-
-  const runNode = async (nodeId: string): Promise<RunNodeResult> => {
-    const node = graph.nodesById.get(nodeId);
-    if (!node) {
-      return { ok: false, error: { message: "Node not found." } };
-    }
-
-    await input.onNodeUpdate?.({
-      nodeId,
-      nodeType: node.type,
-      status: "running",
-      inputSnapshot: {
-        config: node.config,
-      },
-    });
-
-    const execution = await executeNodeFn({
-      node,
-      context,
-      organizationId: input.organizationId,
-    });
-
-    if (!execution.ok) {
-      const errorBehavior = resolveNodeErrorBehavior(node.config);
-      if (errorBehavior === "continue") {
-        const errorOutput = { failed: true, error: execution.error };
-        setNodeOutput(context, nodeId, errorOutput);
-        nodeResults[nodeId] = errorOutput;
-        await input.onNodeUpdate?.({
-          nodeId,
-          nodeType: node.type,
-          status: "succeeded",
-          outputSnapshot: errorOutput,
-        });
-        return { ok: true, nodeType: node.type };
-      }
-      if (errorBehavior === "branch") {
-        const errorOutput = { failed: true, error: execution.error };
-        setNodeOutput(context, nodeId, errorOutput);
-        nodeResults[nodeId] = errorOutput;
-        await input.onNodeUpdate?.({
-          nodeId,
-          nodeType: node.type,
-          status: "failed",
-          error: execution.error,
-          outputSnapshot: errorOutput,
-        });
-        return { ok: true, nodeType: node.type, useErrorBranch: true };
-      }
-
-      await input.onNodeUpdate?.({
-        nodeId,
-        nodeType: node.type,
-        status: "failed",
-        error: execution.error,
-      });
-      return { ok: false, error: execution.error };
-    }
-
-    setNodeOutput(context, nodeId, execution.output);
-    nodeResults[nodeId] = execution.output;
-
-    await input.onNodeUpdate?.({
-      nodeId,
-      nodeType: node.type,
-      status: "succeeded",
-      outputSnapshot: execution.output,
-    });
-
-    return {
-      ok: true,
-      branchResult: execution.branchResult,
-      switchCase: execution.switchCase,
-      nodeType: node.type,
-    };
-  };
-
-  const forEachContext: ForEachExecutionContext = {
-    graph,
+  const fail = (
+    nodeId: string,
+    error: Record<string, unknown>,
+  ): VisualWorkflowInterpreterResult => ({
+    ok: false,
     context,
     nodeResults,
-    runNode,
-    executeForEachNode: async () => ({ ok: false, error: { message: "Loop executor not ready." } }),
+    failedNodeId: nodeId,
+    error,
+  });
+  const issues = validateVisualWorkflowDefinition(input.definition);
+  if (issues.length)
+    return fail("", { code: "invalid_graph", message: "Workflow graph is invalid.", issues });
+  const graph = buildVisualWorkflowGraphIndex(input.definition)!;
+  let stepCount = 0;
+  const deadline = Date.now() + WORKFLOW_LIMITS.runTimeoutMs;
+  const settledIds = new Set<string>();
+  const bodyIds = new Set(input.definition.nodes.flatMap((node) => node.bodyNodeIds ?? []));
+  const emit = async (
+    node: CanonicalVisualWorkflowNode,
+    status: VisualWorkflowInterpreterNodeUpdate["status"],
+    iteration?: number,
+    extra: Partial<VisualWorkflowInterpreterNodeUpdate> = {},
+  ) => {
+    if (status !== "running") settledIds.add(node.id);
+    return input.onNodeUpdate?.({
+      nodeId: node.id,
+      nodeType: node.type,
+      status,
+      iteration,
+      ...extra,
+    });
   };
-  forEachContext.executeForEachNode = async (forEachNodeId) =>
-    executeForEachLoop({ ...forEachContext, forEachNodeId });
-
-  while (queue.length > 0) {
-    const nodeId = queue.shift();
-    if (!nodeId || completed.has(nodeId) || skipped.has(nodeId)) {
-      continue;
-    }
-    completed.add(nodeId);
-
-    const node = graph.nodesById.get(nodeId);
-    if (!node) {
-      continue;
-    }
-
-    if (node.type === "logic.for_each") {
-      const execution = await executeForEachLoop({ ...forEachContext, forEachNodeId: nodeId });
-      if (!execution.ok) {
-        return {
-          ok: false,
-          context,
-          nodeResults,
-          failedNodeId: nodeId,
-          error: execution.error,
-        };
-      }
-
-      const { exitTargetIds } = findForEachLoopRegion({
-        graph,
-        forEachNodeId: nodeId,
-      });
-
-      for (const executedNodeId of execution.executedNodeIds ?? []) {
-        completed.add(executedNodeId);
-      }
-
-      for (const exitTargetId of exitTargetIds) {
-        if (completed.has(exitTargetId)) {
+  const runScope = async (
+    ids: Set<string>,
+    entry: Set<string>,
+    iteration?: number,
+  ): Promise<{ nodeId: string; error: Record<string, unknown> } | null> => {
+    const states = new Map<string, "selected" | "skipped">();
+    const completed = new Set<string>();
+    while (completed.size < ids.size) {
+      let progressed = false;
+      for (const id of ids) {
+        if (completed.has(id)) continue;
+        const node = graph.nodesById.get(id)!;
+        const incoming = input.definition.edges.filter(
+          (edge) => edge.target === id && ids.has(edge.source),
+        );
+        if (incoming.some((edge) => !states.has(edge.id))) continue;
+        const selected =
+          entry.has(id) || incoming.some((edge) => states.get(edge.id) === "selected");
+        completed.add(id);
+        progressed = true;
+        const outgoing = (graph.outgoingByNodeId.get(id) ?? []).filter((edge) =>
+          ids.has(edge.target),
+        );
+        if (!selected) {
+          await emit(node, "skipped", iteration);
+          for (const edge of outgoing) states.set(edge.id, "skipped");
           continue;
         }
-        releasePredecessorEdge({
-          pendingIncoming,
-          queue,
-          targetNodeId: exitTargetId,
-        });
+        if (input.signal?.aborted || (await input.shouldCancel?.())) {
+          await emit(node, "cancelled", iteration);
+          return { nodeId: id, error: { code: "cancelled", message: "Run cancelled." } };
+        }
+        if (++stepCount > WORKFLOW_LIMITS.steps || Date.now() > deadline)
+          return {
+            nodeId: id,
+            error: { code: "execution_limit", message: "Workflow execution limit exceeded." },
+          };
+        let execution: VisualWorkflowNodeExecutionResult;
+        try {
+          const resolved = resolveWorkflowNodeInputs(node, context);
+          await emit(node, "running", iteration, { inputSnapshot: { config: resolved.config } });
+          execution = await input.executeNode({
+            node: resolved,
+            context,
+            organizationId: input.organizationId,
+            iteration,
+            signal: input.signal,
+          });
+        } catch {
+          execution = {
+            ok: false,
+            error: {
+              code: "invalid_node_input",
+              message:
+                "Input resolution or node execution failed. Check required fields and types.",
+            },
+          };
+        }
+        if (execution.ok && node.type !== "logic.for_each") {
+          for (const field of getWorkflowOutputFields(node)) {
+            const value = readWorkflowPath(execution.output, field.path.split("."));
+            if (value === undefined && field.optional) continue;
+            if (value === undefined || !matchesWorkflowType(value, field.type)) {
+              execution = {
+                ok: false,
+                error: {
+                  code: "invalid_node_output",
+                  message: "Node output does not match its declared schema.",
+                },
+              };
+              break;
+            }
+          }
+        }
+        let errorBranch = false;
+        if (!execution.ok) {
+          if (
+            ["yield_execution", "needs_attention", "cancelled"].includes(execution.error.code ?? "")
+          ) {
+            if (execution.error.code !== "yield_execution")
+              await emit(node, execution.error.code as "needs_attention" | "cancelled", iteration, {
+                error: execution.error,
+              });
+            return { nodeId: id, error: execution.error };
+          }
+          const behavior = resolveNodeErrorBehavior(node.config);
+          await emit(node, behavior === "stop" ? "failed" : "handled_error", iteration, {
+            error: execution.error,
+          });
+          if (behavior === "stop") return { nodeId: id, error: execution.error };
+          errorBranch = behavior === "branch";
+          setNodeOutput(context, id, { failed: true, error: execution.error });
+          nodeResults[id] = context.nodes[id]!;
+        } else {
+          setNodeOutput(context, id, execution.output);
+          nodeResults[id] = execution.output;
+          if (node.type === "logic.for_each") {
+            const items = execution.output.items;
+            if (!Array.isArray(items) || items.length > WORKFLOW_LIMITS.loopItems)
+              return {
+                nodeId: id,
+                error: {
+                  code: "loop_limit",
+                  message: "Loop requires an array with at most 100 items.",
+                },
+              };
+            const outputs: Record<string, unknown>[] = [];
+            for (let index = 0; index < items.length; index++) {
+              for (const bodyId of node.bodyNodeIds ?? []) {
+                delete context.nodes[bodyId];
+                delete nodeResults[bodyId];
+              }
+              setNodeOutput(context, id, { item: items[index], index, count: items.length });
+              const body = new Set(node.bodyNodeIds ?? []);
+              const starts = new Set(
+                (graph.outgoingByNodeId.get(id) ?? [])
+                  .filter((edge) => edge.sourceHandle === "each")
+                  .map((edge) => edge.target),
+              );
+              const failure = await runScope(body, starts, index);
+              if (failure) {
+                if (failure.error.code !== "yield_execution")
+                  await emit(node, "failed", iteration, { error: failure.error });
+                return failure;
+              }
+              const collected: Record<string, unknown> = {};
+              try {
+                for (const [key, binding] of Object.entries(node.collect ?? {}))
+                  collected[key] = resolveWorkflowBinding(binding, context);
+              } catch {
+                const error = {
+                  code: "invalid_collection_output",
+                  message:
+                    "A collected loop value is missing. Add an optional binding or fallback.",
+                };
+                await emit(node, "failed", iteration, { error });
+                return { nodeId: id, error };
+              }
+              outputs.push(collected);
+            }
+            for (const bodyId of node.bodyNodeIds ?? []) {
+              delete context.nodes[bodyId];
+              delete nodeResults[bodyId];
+            }
+            execution = { ok: true, output: { count: items.length, iterationOutputs: outputs } };
+            setNodeOutput(context, id, execution.output);
+            nodeResults[id] = execution.output;
+          }
+          await emit(node, "succeeded", iteration, {
+            outputSnapshot: execution.output,
+            error: null,
+          });
+        }
+        const next =
+          node.type === "logic.for_each"
+            ? outgoing.filter((edge) => edge.sourceHandle === "done")
+            : selectNextEdges({
+                nodeType: node.type,
+                branchResult: execution.ok ? (execution.branchResult ?? null) : null,
+                switchCase: execution.ok ? (execution.switchCase ?? null) : null,
+                useErrorBranch: errorBranch,
+                outgoing,
+              });
+        const selectedIds = new Set(next.map((edge) => edge.id));
+        for (const edge of outgoing)
+          states.set(edge.id, selectedIds.has(edge.id) ? "selected" : "skipped");
       }
-
-      continue;
+      if (!progressed) {
+        for (const id of ids)
+          if (!completed.has(id)) await emit(graph.nodesById.get(id)!, "blocked", iteration);
+        return {
+          nodeId: "",
+          error: {
+            code: "unresolved_dependencies",
+            message: "Workflow dependencies did not settle.",
+          },
+        };
+      }
     }
-
-    const execution = await runNode(nodeId);
-    if (!execution.ok) {
-      return {
-        ok: false,
-        context,
-        nodeResults,
-        failedNodeId: nodeId,
-        error: execution.error,
-      };
-    }
-
-    releaseNodeOutgoingEdges({
-      node,
-      execution,
-      graph,
-      pendingIncoming,
-      queue,
-      completed,
-      skipped,
-    });
-  }
-
-  return {
-    ok: true,
-    context,
-    nodeResults,
+    return null;
   };
+  const failure = await runScope(
+    new Set(input.definition.nodes.filter((node) => !bodyIds.has(node.id)).map((node) => node.id)),
+    new Set([graph.triggerNodeId]),
+  );
+  if (failure && failure.error.code !== "yield_execution")
+    for (const node of input.definition.nodes)
+      if (!settledIds.has(node.id))
+        await emit(node, failure.error.code === "cancelled" ? "cancelled" : "blocked");
+  if (!failure)
+    for (const node of input.definition.nodes)
+      if (!settledIds.has(node.id)) await emit(node, "skipped");
+  return failure ? fail(failure.nodeId, failure.error) : { ok: true, context, nodeResults };
 }
-
-export function getVisualWorkflowGraphIndex(definition: VisualWorkflowDefinition) {
-  return buildVisualWorkflowGraphIndex(definition);
-}
-
-export type { VisualWorkflowGraphIndex };
+export const getVisualWorkflowGraphIndex = buildVisualWorkflowGraphIndex;
+export type { VisualWorkflowGraphIndex } from "./graph-index";

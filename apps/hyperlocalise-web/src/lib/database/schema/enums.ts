@@ -214,6 +214,13 @@ export const workspaceAutomationStatusEnum = pgEnum("workspace_automation_status
   "archived",
 ]);
 /**
+ * Distinguishes LLM playbooks from deterministic project content sync.
+ */
+export const workspaceAutomationKindEnum = pgEnum("workspace_automation_kind", [
+  "agent",
+  "content_sync",
+]);
+/**
  * Records why a persisted workspace automation run was created.
  */
 export const workspaceAutomationRunTriggerSourceEnum = pgEnum(
@@ -259,6 +266,7 @@ export const visualWorkflowRunStatusEnum = pgEnum("visual_workflow_run_status", 
   "failed",
   "cancelled",
   "skipped",
+  "needs_attention",
 ]);
 /**
  * Tracks per-node execution status within a visual workflow run.
@@ -269,6 +277,10 @@ export const visualWorkflowNodeRunStatusEnum = pgEnum("visual_workflow_node_run_
   "succeeded",
   "failed",
   "skipped",
+  "blocked",
+  "cancelled",
+  "handled_error",
+  "needs_attention",
 ]);
 /**
  * Defines where automated TMS agent settings apply: organization-wide, project-specific, or provider-credential-specific.

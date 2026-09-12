@@ -16,162 +16,15 @@ import type {
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
 } from "../schema/types";
-import { executeLogicVisualWorkflowNode } from "../runtime/execute-logic-node";
-import type { VisualWorkflowNodeExecutionResult } from "../runtime/execution-result";
+import { createMockWorkflowExecutor } from "../runtime/mock-executor";
 import { runVisualWorkflowInterpreter } from "../runtime/interpreter";
-import { resolveVisualWorkflowTemplate } from "../runtime/expressions";
-import type { CanonicalVisualWorkflowNode } from "../schema/types";
-import type { VisualWorkflowExecutionContext } from "../runtime/context";
-
+import { redactWorkflowSnapshot, collectWorkflowSecrets } from "../runtime/snapshots";
 const PLAYGROUND_ORGANIZATION_ID = "00000000-0000-4000-8000-000000000099";
-
-async function executePlaygroundVisualWorkflowNode(input: {
-  node: CanonicalVisualWorkflowNode;
-  context: VisualWorkflowExecutionContext;
-  organizationId: string;
-}): Promise<VisualWorkflowNodeExecutionResult> {
-  const logicResult = executeLogicVisualWorkflowNode({
-    node: input.node,
-    context: input.context,
-  });
-  if (logicResult.ok || logicResult.error.code !== "not_logic_node") {
-    return logicResult;
-  }
-
-  switch (input.node.config.kind) {
-    case "action.http": {
-      const url = resolveVisualWorkflowTemplate(input.node.config.url, input.context).trim();
-      if (!url) {
-        return { ok: false, error: { code: "missing_url", message: "HTTP URL is required." } };
-      }
-
-      return {
-        ok: true,
-        output: {
-          status: 200,
-          statusText: "OK",
-          ok: true,
-          body: JSON.stringify({ playground: true, url }),
-          json: { playground: true, url },
-          simulated: true,
-        },
-      };
-    }
-    case "action.notify_slack": {
-      const channelId = resolveVisualWorkflowTemplate(
-        input.node.config.channelId,
-        input.context,
-      ).trim();
-      const message = resolveVisualWorkflowTemplate(
-        input.node.config.message,
-        input.context,
-      ).trim();
-      if (!channelId) {
-        return {
-          ok: false,
-          error: { code: "missing_channel", message: "Slack channel ID is required." },
-        };
-      }
-      if (!message) {
-        return {
-          ok: false,
-          error: { code: "missing_message", message: "Slack message is required." },
-        };
-      }
-
-      return {
-        ok: true,
-        output: {
-          sent: true,
-          channelId,
-          message,
-          simulated: true,
-        },
-      };
-    }
-    case "action.notify_email": {
-      const from = resolveVisualWorkflowTemplate(input.node.config.from, input.context).trim();
-      const recipientsRaw = resolveVisualWorkflowTemplate(
-        input.node.config.recipients,
-        input.context,
-      ).trim();
-      const subject = resolveVisualWorkflowTemplate(
-        input.node.config.subject,
-        input.context,
-      ).trim();
-      const message = resolveVisualWorkflowTemplate(
-        input.node.config.message,
-        input.context,
-      ).trim();
-      if (!from) {
-        return {
-          ok: false,
-          error: { code: "missing_from", message: "Sender email address is required." },
-        };
-      }
-      const recipients = recipientsRaw
-        .split(/[\n,;]+/)
-        .map((entry) => entry.trim())
-        .filter(Boolean);
-      if (recipients.length === 0) {
-        return {
-          ok: false,
-          error: { code: "missing_recipients", message: "At least one recipient is required." },
-        };
-      }
-      if (!subject) {
-        return {
-          ok: false,
-          error: { code: "missing_subject", message: "Email subject is required." },
-        };
-      }
-      if (!message) {
-        return {
-          ok: false,
-          error: { code: "missing_message", message: "Email message is required." },
-        };
-      }
-
-      return {
-        ok: true,
-        output: {
-          sent: true,
-          provider: input.node.config.provider,
-          from,
-          recipients,
-          subject,
-          message,
-          simulated: true,
-        },
-      };
-    }
-    case "ai.agent": {
-      const prompt = resolveVisualWorkflowTemplate(input.node.config.prompt, input.context).trim();
-      if (!prompt) {
-        return { ok: false, error: { code: "missing_prompt", message: "AI prompt is required." } };
-      }
-
-      return {
-        ok: true,
-        output: {
-          text: `Playground response for: ${prompt.slice(0, 120)}`,
-          simulated: true,
-        },
-      };
-    }
-    default:
-      return {
-        ok: false,
-        error: {
-          code: "unsupported_node",
-          message: "Unsupported node type.",
-        },
-      };
-  }
-}
 
 export async function runPlaygroundWorkflow(options: {
   name: string;
+  triggerInput?: Record<string, unknown>;
+  mockOutputs?: Record<string, Record<string, unknown>>;
   nodes: readonly VisualWorkflowRfNode[];
   edges: readonly VisualWorkflowRfEdge[];
   signal?: AbortSignal;
@@ -196,30 +49,27 @@ export async function runPlaygroundWorkflow(options: {
     definition,
     organizationId: PLAYGROUND_ORGANIZATION_ID,
     triggerInput: {
+      ...options.triggerInput,
       playground: true,
       triggeredAt: new Date().toISOString(),
     },
-    executeNode: executePlaygroundVisualWorkflowNode,
+    signal: options.signal,
+    executeNode: createMockWorkflowExecutor(options.mockOutputs),
     onNodeUpdate: async (update) => {
       if (options.signal?.aborted) {
         return;
       }
 
-      if (update.status === "running") {
-        options.onStatus(update.nodeId, "running");
-        return;
-      }
-
-      if (update.status === "succeeded") {
-        options.onStatus(update.nodeId, "succeeded");
-        options.onOutput?.(update.nodeId, update.outputSnapshot ?? null, null);
-        return;
-      }
-
-      if (update.status === "failed") {
-        options.onStatus(update.nodeId, "failed");
-        options.onOutput?.(update.nodeId, update.outputSnapshot ?? null, update.error ?? null);
-      }
+      options.onStatus(update.nodeId, update.status);
+      const secrets = collectWorkflowSecrets(options.triggerInput);
+      options.onOutput?.(
+        update.nodeId,
+        redactWorkflowSnapshot(update.outputSnapshot ?? null, secrets) as Record<
+          string,
+          unknown
+        > | null,
+        redactWorkflowSnapshot(update.error ?? null, secrets) as Record<string, unknown> | null,
+      );
     },
   });
 

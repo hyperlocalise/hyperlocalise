@@ -100,11 +100,12 @@ describe("pricing page content", () => {
 
   it("builds matching FAQ content and FAQPage structured data", () => {
     const items = getPricingFaqItems("en");
-    const jsonLd = buildPricingFaqJsonLd(items);
+    const jsonLd = buildPricingFaqJsonLd("en", items);
 
     expect(items.length).toBeGreaterThan(0);
     expect(jsonLd).toMatchObject({
       "@type": "FAQPage",
+      inLanguage: "en",
       mainEntity: items.map((item) => ({
         "@type": "Question",
         name: item.question,

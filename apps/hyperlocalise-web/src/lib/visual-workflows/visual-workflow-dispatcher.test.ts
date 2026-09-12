@@ -34,7 +34,11 @@ import {
   dispatchVisualWorkflowsForSourceUpload,
 } from "./visual-workflow-dispatcher";
 import { listVisualWorkflowRuns } from "./visual-workflow-runs";
-import { createVisualWorkflow, getVisualWorkflowById } from "./visual-workflows";
+import {
+  createVisualWorkflow,
+  getVisualWorkflowById,
+  publishVisualWorkflow,
+} from "./visual-workflows";
 import type { VisualWorkflowRecord } from "./visual-workflow-types";
 
 const fixture = createAuthTestFixture();
@@ -110,7 +114,7 @@ async function seedOrgScope() {
 
 function scheduledDefinition(name = "Scheduled ping"): VisualWorkflowDefinition {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     name,
     nodes: [
       {
@@ -136,7 +140,7 @@ function githubDefinition(
   },
 ): VisualWorkflowDefinition {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     name: input?.name ?? "GitHub ping",
     nodes: [
       {
@@ -160,7 +164,7 @@ function sourceUploadDefinition(
   name = "Source upload ping",
 ): VisualWorkflowDefinition {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     name,
     nodes: [
       {
@@ -194,7 +198,13 @@ async function createActiveWorkflow(input: {
   if (isErr(created)) {
     throw new Error(`failed to create visual workflow: ${JSON.stringify(created.error)}`);
   }
-  return created.value;
+  const published = await publishVisualWorkflow({
+    organizationId: input.organizationId,
+    visualWorkflowId: created.value.id,
+    expectedRevision: created.value.revision,
+  });
+  if (isErr(published)) throw new Error(published.error.code);
+  return published.value;
 }
 
 function trackingQueue() {

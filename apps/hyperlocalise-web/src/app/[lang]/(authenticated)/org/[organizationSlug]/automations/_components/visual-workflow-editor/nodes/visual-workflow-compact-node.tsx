@@ -15,7 +15,7 @@
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { defineMessages, FormattedMessage, useIntl } from "react-intl";
 
 import { Card } from "@/components/ui/card";
 import {
@@ -31,6 +31,24 @@ import { cn } from "@/lib/primitives/cn";
 import { useVisualWorkflowCanvasActions } from "../visual-workflow-canvas-actions";
 import { visualWorkflowEditorMessages as messages } from "../visual-workflow-editor.messages";
 
+const nodeStatusMessages = defineMessages({
+  running: { defaultMessage: "Running", id: "ZWQ+8S8rpv", description: "Workflow node status" },
+  succeeded: { defaultMessage: "Succeeded", id: "Xrszg9pweO", description: "Workflow node status" },
+  failed: { defaultMessage: "Failed", id: "0McReeKvvn", description: "Workflow node status" },
+  skipped: { defaultMessage: "Skipped", id: "M4fWpCxmyH", description: "Workflow node status" },
+  blocked: { defaultMessage: "Blocked", id: "7l8Z5CE6R2", description: "Workflow node status" },
+  cancelled: { defaultMessage: "Cancelled", id: "d+3V9LkYqX", description: "Workflow node status" },
+  handled_error: {
+    defaultMessage: "Handled error",
+    id: "oTsWk//pCE",
+    description: "Workflow node status",
+  },
+  needs_attention: {
+    defaultMessage: "Needs attention",
+    id: "42qlKZdHsf",
+    description: "Workflow node status",
+  },
+});
 const HANDLE_CLASS = "size-2.5! border-2 border-background bg-primary";
 
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
@@ -40,7 +58,6 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   const isTrigger = isTriggerType(data.catalogType);
   const isIf = data.catalogType === "logic.if";
   const isSwitch = data.catalogType === "logic.switch";
-  const isAi = data.catalogType === "ai.agent";
   const showErrorHandle = nodeSupportsErrorBranch(data.config);
   const title = intl.formatMessage(titleMessage(data.catalogType));
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
@@ -93,6 +110,23 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             type="source"
           />
         </>
+      ) : data.catalogType === "logic.for_each" ? (
+        <>
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[35%]!")}
+            id="each"
+            position={Position.Right}
+            type="source"
+            aria-label="Each item"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[65%]!")}
+            id="done"
+            position={Position.Right}
+            type="source"
+            aria-label="Done"
+          />
+        </>
       ) : isSwitch ? (
         switchHandles.map((handle, index) => (
           <Handle
@@ -137,6 +171,29 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </div>
       ) : null}
 
+      {data.catalogType === "logic.for_each" ? (
+        <div className="pointer-events-none absolute inset-y-0 right-[-3.5rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
+          <span>
+            <FormattedMessage
+              defaultMessage="Each item"
+              id="7eZfUxSh+m"
+              description="Workflow loop body connection"
+            />
+          </span>
+          <span>
+            <FormattedMessage
+              defaultMessage="Done"
+              id="zZIbqHg71N"
+              description="Workflow loop completion connection"
+            />
+          </span>
+        </div>
+      ) : null}
+      {data.runStatus && data.runStatus !== "idle" ? (
+        <p className="mt-2 text-center text-xs text-muted-foreground" role="status">
+          {intl.formatMessage(nodeStatusMessages[data.runStatus])}
+        </p>
+      ) : null}
       {isSwitch ? (
         <div className="pointer-events-none absolute inset-y-0 right-[-2.8rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
           {switchHandles.map((handle) => (
@@ -148,17 +205,6 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       {showErrorHandle && !isIf && !isSwitch ? (
         <div className="pointer-events-none absolute top-[72%] right-[-2.6rem] text-[10px] font-medium text-destructive">
           <FormattedMessage {...messages.errorHandle} />
-        </div>
-      ) : null}
-
-      {isAi ? (
-        <div className="mt-2 grid gap-1 border-t border-border pt-2 text-left text-[11px] text-muted-foreground">
-          <span>
-            <FormattedMessage {...messages.aiModelSlot} />
-          </span>
-          <span>
-            <FormattedMessage {...messages.aiToolsSlot} />
-          </span>
         </div>
       ) : null}
 
@@ -178,7 +224,13 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             event.stopPropagation();
             onAddFromNode({
               nodeId: id,
-              handleId: isIf ? "true" : isSwitch ? "0" : undefined,
+              handleId: isIf
+                ? "true"
+                : isSwitch
+                  ? "0"
+                  : data.catalogType === "logic.for_each"
+                    ? "each"
+                    : undefined,
             });
           }}
         >

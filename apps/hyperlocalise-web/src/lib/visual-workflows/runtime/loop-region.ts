@@ -35,51 +35,13 @@ export function findForEachLoopRegion(input: {
   bodyNodeIds: string[];
   exitTargetIds: string[];
 } {
-  const entryTargets = (input.graph.outgoingByNodeId.get(input.forEachNodeId) ?? []).map(
-    (edge) => edge.target,
-  );
-  const body = new Set<string>();
-  const queue = [...entryTargets];
-
-  while (queue.length > 0) {
-    const nodeId = queue.shift();
-    if (!nodeId || body.has(nodeId) || nodeId === input.forEachNodeId) {
-      continue;
-    }
-
-    const incoming = incomingEdgesForNode(input.graph, nodeId);
-    const belongsToBody = incoming.every(
-      (edge) => edge.source === input.forEachNodeId || body.has(edge.source),
-    );
-    if (!belongsToBody) {
-      continue;
-    }
-
-    body.add(nodeId);
-
-    const node = input.graph.nodesById.get(nodeId);
-    if (node?.type === "logic.for_each") {
-      continue;
-    }
-
-    for (const edge of input.graph.outgoingByNodeId.get(nodeId) ?? []) {
-      queue.push(edge.target);
-    }
-  }
-
-  const exitTargets = new Set<string>();
-  for (const bodyNodeId of body) {
-    for (const edge of input.graph.outgoingByNodeId.get(bodyNodeId) ?? []) {
-      if (!body.has(edge.target) && edge.target !== input.forEachNodeId) {
-        exitTargets.add(edge.target);
-      }
-    }
-  }
-
-  const bodyNodeIds = [...body].toSorted((left, right) => left.localeCompare(right));
-  const exitTargetIds = [...exitTargets].toSorted((left, right) => left.localeCompare(right));
-
-  return { bodyNodeIds, exitTargetIds };
+  const node = input.graph.nodesById.get(input.forEachNodeId);
+  return {
+    bodyNodeIds: [...(node?.bodyNodeIds ?? [])],
+    exitTargetIds: (input.graph.outgoingByNodeId.get(input.forEachNodeId) ?? [])
+      .filter((edge) => edge.sourceHandle === "done")
+      .map((edge) => edge.target),
+  };
 }
 
 export function sortLoopBodyNodes(

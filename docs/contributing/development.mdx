@@ -1,22 +1,24 @@
 ---
 title: "Development"
-description: "Develop and validate the hyperlocalise CLI in Go."
+description: "Develop and validate the Hyperlocalise CLI and Cloud web app locally."
 ---
 
-## Prerequisites
+## CLI (Go)
+
+### Prerequisites
 
 - Go 1.26+
 - `git`
 - `make` available in your shell
 
-## Clone repository
+### Clone repository
 
 ```bash
 git clone https://github.com/hyperlocalise/hyperlocalise.git
 cd hyperlocalise
 ```
 
-## Bootstrap tools and modules
+### Bootstrap tools and modules
 
 ```bash
 make bootstrap
@@ -24,7 +26,7 @@ make bootstrap
 
 This downloads Go modules and installs the pinned lint toolchain.
 
-## Daily development loop
+### Daily development loop
 
 ```bash
 make fmt
@@ -33,7 +35,7 @@ make test
 make check-build
 ```
 
-## Run the CLI locally
+### Run the CLI locally
 
 ```bash
 make run
@@ -41,14 +43,14 @@ make run
 go run -ldflags "-X main.version=dev" ./apps/cli
 ```
 
-## Install local binary
+### Install local binary
 
 ```bash
 make install
 hyperlocalise version
 ```
 
-## Key code locations
+### Key code locations
 
 - `apps/cli/cmd/`: Cobra commands, flags, and CLI output behavior
 - `pkg/i18nconfig/`: `i18n.yml` and `i18n.jsonc` parsing and validation
@@ -56,10 +58,42 @@ hyperlocalise version
 - `apps/cli/internal/i18n/syncsvc/`: sync orchestration and conflict logic
 - `internal/i18n/storage/`: adapter contracts and provider integrations
 
-## Before opening a PR
+### Before opening a PR
 
 ```bash
 make precommit
 ```
 
 This runs formatting, linting, tests, and build checks in the same flow used by contributors.
+
+## Cloud web app
+
+The Next.js app lives in `apps/hyperlocalise-web`. See [`apps/hyperlocalise-web/README.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/hyperlocalise-web/README.md) for setup, `.env`, Postgres, and `vp run dev`.
+
+Contributor conventions (Hono routes, Drizzle migrations, API envelopes, E2E) are in [`apps/hyperlocalise-web/AGENTS.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/hyperlocalise-web/AGENTS.md).
+
+### Prerequisites
+
+- Docker for PostgreSQL (`docker compose up -d` from the repo root)
+- [`vp`](https://vite.plus) with `vp env setup`
+- `make bootstrap` from the repository root
+
+### Daily loop
+
+From `apps/hyperlocalise-web`:
+
+```bash
+vp install
+vp run db:migrate   # after schema changes: vp run db:generate first
+vp run dev          # Next.js on http://localhost:3000
+vp check --fix
+vp test
+```
+
+### go-svc sidecar
+
+Spellcheck, Domains research, and Hyperlab OFREP evaluate routes run in [`apps/go-svc`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/go-svc/README.md). Set `GO_SVC_URL` in the web `.env` when testing Domains or CAT validation locally. Domains research also needs `DATAFORSEO_API_KEY` on `go-svc`.
+
+### Before opening a web PR
+
+Run `vp check --fix` and `vp test` in `apps/hyperlocalise-web`. Go changes in the monorepo still need `make fmt`, `make lint`, and `make test` from the root when touched.
