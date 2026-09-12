@@ -239,6 +239,9 @@
   "+YUbta511H": {
     "defaultMessage": "Mở trò chuyện"
   },
+  "+YoX875s0d": {
+    "defaultMessage": "Đồng bộ ngay"
+  },
   "+aLhmpE/3m": {
     "defaultMessage": "Type"
   },
@@ -685,6 +688,9 @@
   },
   "/o1j6afCQe": {
     "defaultMessage": "Cancel"
+  },
+  "/ocvKucgs3": {
+    "defaultMessage": "Đồng bộ hóa lần cuối không thành công"
   },
   "/powsKQ55L": {
     "defaultMessage": "Hyperlocalise kết hợp AI với quy trình đánh giá của con người, các bài đánh giá hồi quy, kiểm tra thuật ngữ và các bước kiểm soát trước khi phát hành, nhằm ngăn chất lượng bản địa hóa âm thầm suy giảm theo thời gian."
@@ -2041,6 +2047,9 @@
   },
   "3CBfdb8CgM": {
     "defaultMessage": "Khả năng hiển thị của AI"
+  },
+  "3CMhz0O70x": {
+    "defaultMessage": "Đồng bộ nội dung"
   },
   "3CTikplBoF": {
     "defaultMessage": "Chọn một lần chạy để xem trạng thái ở cấp độ nút."
@@ -3968,6 +3977,9 @@
   "8CUaNB5YrW": {
     "defaultMessage": "Văn bản"
   },
+  "8Dn6LPaujp": {
+    "defaultMessage": "Team"
+  },
   "8DwB2zNR0Z": {
     "defaultMessage": "TMS bên ngoài"
   },
@@ -5575,6 +5587,9 @@
   },
   "CE2lOIg1r+": {
     "defaultMessage": "Các trường này luôn có sẵn trên các issue."
+  },
+  "CE4Mjxv5Pv": {
+    "defaultMessage": "Các thành viên được mời sẽ được thêm vào nhóm này để họ có thể truy cập các dự án."
   },
   "CFK4BGiWin": {
     "defaultMessage": "Trạng thái đánh giá"
@@ -7991,6 +8006,9 @@
   "IeIy523DjY": {
     "defaultMessage": "Mỗi ánh sáng đều kể một câu chuyện. Khám phá những địa điểm, con người và khoảnh khắc đời thường gắn kết chúng ta."
   },
+  "IeNzfp4aLj": {
+    "defaultMessage": "Các tác vụ đồng bộ hóa nội dung của dự án sẽ chuyển tệp giữa một nguồn đã kết nối và một dự án Hyperlocalise."
+  },
   "If/xnDCxst": {
     "defaultMessage": "Cấu hình"
   },
@@ -8539,6 +8557,9 @@
   },
   "K3dTcxv8UP": {
     "defaultMessage": "Vai trò này có thể kiểm tra các chuỗi nhưng không thể ghi bản dịch trở lại."
+  },
+  "K4+ynunWBF": {
+    "defaultMessage": "GitLab"
   },
   "K4A2HqIbMM": {
     "defaultMessage": "Nội dung hỗ trợ trở nên lỗi thời ngay khi được phát hành bằng tiếng Anh"
@@ -10136,6 +10157,9 @@
   "OJm01EvxZW": {
     "defaultMessage": "Không thể tạo các tác vụ Crowdin"
   },
+  "OL7E13SfCy": {
+    "defaultMessage": "NGUỒN"
+  },
   "OLljhH3V9D": {
     "defaultMessage": "Theo dõi các công việc Hyperlocalise và công việc TMS trực tiếp trên toàn bộ workspace."
   },
@@ -10543,6 +10567,9 @@
   },
   "PQSsu6Ru/k": {
     "defaultMessage": "Revoked"
+  },
+  "PR5FHHiklX": {
+    "defaultMessage": "Chưa có nhóm nào được liệt kê. Nhóm mặc định sẽ được tự động tạo khi bạn gửi lời mời."
   },
   "PRW9ZtkzIN": {
     "defaultMessage": "18 tệp chính sách · Tuân thủ"
@@ -11096,6 +11123,9 @@
   "QpIX9JaUhS": {
     "defaultMessage": "Check localisation progress"
   },
+  "QpmZurrWHD": {
+    "defaultMessage": "GitHub"
+  },
   "Qpt4IfmhcE": {
     "defaultMessage": "Cột CSV"
   },
@@ -11611,6 +11641,9 @@
   },
   "SKhTQyZkDY": {
     "defaultMessage": "Completed"
+  },
+  "SLGNO7qFzS": {
+    "defaultMessage": "Đã xếp hàng đồng bộ hóa"
   },
   "SLg8IXCI6V": {
     "defaultMessage": "Các nhóm nhỏ không thể xây dựng một quy trình mới cho từng quốc gia. Bạn cần một cách để mở rộng quy mô ra mắt thị trường mà không khiến đội ngũ sản phẩm bị quá tải."
@@ -14996,6 +15029,9 @@
   "bM4e1lioLc": {
     "defaultMessage": "Không thể tải bộ nhớ"
   },
+  "bM4iJBgaAJ": {
+    "defaultMessage": "Tài nguyên"
+  },
   "bMFBHYX/jE": {
     "defaultMessage": "Để lại nhận xét… Sử dụng @ để đề cập{Jsii"
   },
@@ -15278,6 +15314,9 @@
   "cCjEeqCM8J": {
     "defaultMessage": "Try"
   },
+  "cDM7ee3Tdp": {
+    "defaultMessage": "Sắp ra mắt"
+  },
   "cDw6CT/CPx": {
     "defaultMessage": "Chuyển đổi dự án"
   },
@@ -15418,6 +15457,9 @@
   },
   "cZBJLZRh+f": {
     "defaultMessage": "Công việc sẽ chuyển sang trạng thái đã hủy và ngừng chạy. Bạn có thể tạo một công việc mới nếu cần thực hiện lại."
+  },
+  "cZWsBhk2ee": {
+    "defaultMessage": "Trước tiên, hãy kết nối một nguồn trong mục Tích hợp."
   },
   "cZaYlDA8+F": {
     "defaultMessage": "Đúng vậy — hãy giữ cách diễn đạt trực tiếp và tự tin. Nội dung ra mắt bằng tiếng Pháp đã được phê duyệt sử dụng các động từ chủ động và tránh lối dịch sát chữ từ tiếng Anh."

@@ -239,6 +239,9 @@
   "+YUbta511H": {
     "defaultMessage": "Chat öffnen"
   },
+  "+YoX875s0d": {
+    "defaultMessage": "Jetzt synchronisieren"
+  },
   "+aLhmpE/3m": {
     "defaultMessage": "Typ"
   },
@@ -685,6 +688,9 @@
   },
   "/o1j6afCQe": {
     "defaultMessage": "Abbrechen"
+  },
+  "/ocvKucgs3": {
+    "defaultMessage": "Letzte Synchronisierung fehlgeschlagen"
   },
   "/powsKQ55L": {
     "defaultMessage": "Hyperlocalise kombiniert KI mit menschlicher Prüfung, Regressionsevaluierungen, Terminologieprüfungen und Freigabegates, damit die Lokalisierungsqualität im Laufe der Zeit nicht unbemerkt nachlässt."
@@ -2041,6 +2047,9 @@
   },
   "3CBfdb8CgM": {
     "defaultMessage": "KI-Sichtbarkeit"
+  },
+  "3CMhz0O70x": {
+    "defaultMessage": "Inhalts-Synchronisierung"
   },
   "3CTikplBoF": {
     "defaultMessage": "Wählen Sie einen Lauf aus, um den Status auf Knotenebene zu überprüfen."
@@ -3968,6 +3977,9 @@
   "8CUaNB5YrW": {
     "defaultMessage": "Text"
   },
+  "8Dn6LPaujp": {
+    "defaultMessage": "Team"
+  },
   "8DwB2zNR0Z": {
     "defaultMessage": "Externes TMS"
   },
@@ -5575,6 +5587,9 @@
   },
   "CE2lOIg1r+": {
     "defaultMessage": "Diese Felder sind bei Issues immer verfügbar."
+  },
+  "CE4Mjxv5Pv": {
+    "defaultMessage": "Eingeladene Mitglieder werden diesem Team hinzugefügt, damit sie auf Projekte zugreifen können."
   },
   "CFK4BGiWin": {
     "defaultMessage": "Bewertungsstatus"
@@ -7991,6 +8006,9 @@
   "IeIy523DjY": {
     "defaultMessage": "Jedes Licht erzählt eine Geschichte. Entdecken Sie die Orte, Menschen und alltäglichen Momente, die uns verbinden."
   },
+  "IeNzfp4aLj": {
+    "defaultMessage": "Projektsynchronisierungen für Inhalte verschieben Dateien zwischen einer verbundenen Quelle und einem Hyperlocalise-Projekt."
+  },
   "If/xnDCxst": {
     "defaultMessage": "Konfigurieren"
   },
@@ -8539,6 +8557,9 @@
   },
   "K3dTcxv8UP": {
     "defaultMessage": "Diese Rolle kann Zeichenfolgen prüfen, aber keine Übersetzungen zurückschreiben."
+  },
+  "K4+ynunWBF": {
+    "defaultMessage": "GitLab"
   },
   "K4A2HqIbMM": {
     "defaultMessage": "Support-Inhalte veralten in dem Moment, in dem sie auf Englisch veröffentlicht werden"
@@ -10136,6 +10157,9 @@
   "OJm01EvxZW": {
     "defaultMessage": "Crowdin-Jobs konnten nicht erstellt werden"
   },
+  "OL7E13SfCy": {
+    "defaultMessage": "Quelle"
+  },
   "OLljhH3V9D": {
     "defaultMessage": "Hyperlocalise-Aufträge und Live-TMS-Aufträge im gesamten Workspace verfolgen."
   },
@@ -10543,6 +10567,9 @@
   },
   "PQSsu6Ru/k": {
     "defaultMessage": "Widerrufen"
+  },
+  "PR5FHHiklX": {
+    "defaultMessage": "Noch keine Teams aufgeführt. Das Standardteam wird automatisch erstellt, wenn Sie die Einladung senden."
   },
   "PRW9ZtkzIN": {
     "defaultMessage": "18 Richtliniendateien · Compliance"
@@ -11096,6 +11123,9 @@
   "QpIX9JaUhS": {
     "defaultMessage": "Lokalisierungsfortschritt prüfen"
   },
+  "QpmZurrWHD": {
+    "defaultMessage": "GitHub"
+  },
   "Qpt4IfmhcE": {
     "defaultMessage": "CSV-Spalte"
   },
@@ -11611,6 +11641,9 @@
   },
   "SKhTQyZkDY": {
     "defaultMessage": "Abgeschlossen"
+  },
+  "SLGNO7qFzS": {
+    "defaultMessage": "Synchronisierung eingereiht"
   },
   "SLg8IXCI6V": {
     "defaultMessage": "Kleine Teams können sich nicht für jedes Land einen neuen Prozess leisten. Sie brauchen eine Möglichkeit, Markteinführungen zu skalieren, ohne das Produktteam zu überlasten."
@@ -14996,6 +15029,9 @@
   "bM4e1lioLc": {
     "defaultMessage": "Speicher konnte nicht geladen werden"
   },
+  "bM4iJBgaAJ": {
+    "defaultMessage": "Ressource"
+  },
   "bMFBHYX/jE": {
     "defaultMessage": "Kommentar hinterlassen … Mit @ erwähnen"
   },
@@ -15278,6 +15314,9 @@
   "cCjEeqCM8J": {
     "defaultMessage": "Ausprobieren"
   },
+  "cDM7ee3Tdp": {
+    "defaultMessage": "Demnächst verfügbar"
+  },
   "cDw6CT/CPx": {
     "defaultMessage": "Projekt wechseln"
   },
@@ -15418,6 +15457,9 @@
   },
   "cZBJLZRh+f": {
     "defaultMessage": "Der Auftrag wird auf „Abgebrochen“ gesetzt und die Ausführung beendet. Sie können einen neuen Auftrag erstellen, wenn Sie die Aufgabe erneut ausführen möchten."
+  },
+  "cZWsBhk2ee": {
+    "defaultMessage": "Verbinden Sie zuerst eine Quelle unter „Integrationen“."
   },
   "cZaYlDA8+F": {
     "defaultMessage": "Ja — halten Sie es direkt und selbstbewusst. Der genehmigte FR-Launchtext verwendet aktive Verben und vermeidet wörtliche Übertragungen aus dem Englischen."
