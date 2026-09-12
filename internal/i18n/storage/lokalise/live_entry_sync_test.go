@@ -27,7 +27,7 @@ func TestLiveEntrySyncPullPushAndLocaleFilter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
 	}
-	scheduleLiveTestKeyCleanup(t, httpClient, projectID)
+	keyRegistry := newLiveTestKeyRegistry(t, httpClient, projectID)
 
 	ctx := context.Background()
 	viPull, err := adapter.Pull(ctx, storage.PullRequest{Locales: []string{"vi"}})
@@ -50,6 +50,8 @@ func TestLiveEntrySyncPullPushAndLocaleFilter(t *testing.T) {
 
 	stamp := time.Now().UTC().Format("20060102T150405")
 	key := fmt.Sprintf("hl662.live.%s", stamp)
+	enusKey := "hl662.enus." + stamp
+	keyRegistry.Track(key, key+".empty", enusKey)
 	value := fmt.Sprintf("live-%s", stamp)
 	push, err := adapter.Push(ctx, storage.PushRequest{
 		Entries: []storage.Entry{
@@ -65,7 +67,7 @@ func TestLiveEntrySyncPullPushAndLocaleFilter(t *testing.T) {
 	}
 
 	if _, mapErr := adapter.Push(ctx, storage.PushRequest{
-		Entries: []storage.Entry{{Key: "hl662.enus." + stamp, Context: "hl662", Locale: "en-US", Value: "mapped"}},
+		Entries: []storage.Entry{{Key: enusKey, Context: "hl662", Locale: "en-US", Value: "mapped"}},
 	}); mapErr != nil {
 		t.Logf("en-US push rejected as expected if project has no en_US: %v", mapErr)
 	}
