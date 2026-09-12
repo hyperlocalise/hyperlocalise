@@ -510,6 +510,7 @@ func (a *localeOnlyAdapter) Pull(_ context.Context, req storage.PullRequest) (st
 	}
 	return storage.PullResult{Snapshot: storage.CatalogSnapshot{Entries: entries}}, nil
 }
+
 func (a *localeOnlyAdapter) Push(_ context.Context, _ storage.PushRequest) (storage.PushResult, error) {
 	return a.pushResult, nil
 }
