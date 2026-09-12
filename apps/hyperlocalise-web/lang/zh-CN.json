@@ -239,6 +239,9 @@
   "+YUbta511H": {
     "defaultMessage": "打开聊天"
   },
+  "+YoX875s0d": {
+    "defaultMessage": "立即同步"
+  },
   "+aLhmpE/3m": {
     "defaultMessage": "Type"
   },
@@ -685,6 +688,9 @@
   },
   "/o1j6afCQe": {
     "defaultMessage": "Cancel"
+  },
+  "/ocvKucgs3": {
+    "defaultMessage": "上次同步失败"
   },
   "/powsKQ55L": {
     "defaultMessage": "Hyperlocalise 将 AI 与人工审核、回归评估、术语检查和发布关卡相结合，确保本地化质量不会随着时间推移而悄然下滑。"
@@ -2041,6 +2047,9 @@
   },
   "3CBfdb8CgM": {
     "defaultMessage": "AI 可见性"
+  },
+  "3CMhz0O70x": {
+    "defaultMessage": "内容同步"
   },
   "3CTikplBoF": {
     "defaultMessage": "选择一个运行以查看节点级状态。"
@@ -3968,6 +3977,9 @@
   "8CUaNB5YrW": {
     "defaultMessage": "文本"
   },
+  "8Dn6LPaujp": {
+    "defaultMessage": "Team"
+  },
   "8DwB2zNR0Z": {
     "defaultMessage": "外部 TMS"
   },
@@ -5575,6 +5587,9 @@
   },
   "CE2lOIg1r+": {
     "defaultMessage": "这些字段始终可用于问题。"
+  },
+  "CE4Mjxv5Pv": {
+    "defaultMessage": "受邀成员将被添加到此团队，以便他们访问项目。"
   },
   "CFK4BGiWin": {
     "defaultMessage": "审核状态"
@@ -7991,6 +8006,9 @@
   "IeIy523DjY": {
     "defaultMessage": "每一束光都在诉说一个故事。探索那些将我们联系在一起的地点、人物，以及日常生活中的点滴瞬间。"
   },
+  "IeNzfp4aLj": {
+    "defaultMessage": "项目内容同步可在已连接的源与一个 Hyperlocalise 项目之间移动文件。"
+  },
   "If/xnDCxst": {
     "defaultMessage": "配置"
   },
@@ -8539,6 +8557,9 @@
   },
   "K3dTcxv8UP": {
     "defaultMessage": "此角色可以查看字符串，但无法将翻译写回。"
+  },
+  "K4+ynunWBF": {
+    "defaultMessage": "GitLab"
   },
   "K4A2HqIbMM": {
     "defaultMessage": "支持内容在以英文发布的那一刻起就会过时"
@@ -10136,6 +10157,9 @@
   "OJm01EvxZW": {
     "defaultMessage": "创建 Crowdin 作业失败"
   },
+  "OL7E13SfCy": {
+    "defaultMessage": "来源"
+  },
   "OLljhH3V9D": {
     "defaultMessage": "跟踪整个工作区中的 Hyperlocalise 任务和实时 TMS 任务。"
   },
@@ -10543,6 +10567,9 @@
   },
   "PQSsu6Ru/k": {
     "defaultMessage": "Revoked"
+  },
+  "PR5FHHiklX": {
+    "defaultMessage": "目前尚未列出任何团队。发送邀请时，系统将自动创建默认团队。"
   },
   "PRW9ZtkzIN": {
     "defaultMessage": "18 个策略文件 · 合规"
@@ -11096,6 +11123,9 @@
   "QpIX9JaUhS": {
     "defaultMessage": "Check localisation progress"
   },
+  "QpmZurrWHD": {
+    "defaultMessage": "GitHub"
+  },
   "Qpt4IfmhcE": {
     "defaultMessage": "CSV 列"
   },
@@ -11611,6 +11641,9 @@
   },
   "SKhTQyZkDY": {
     "defaultMessage": "Completed"
+  },
+  "SLGNO7qFzS": {
+    "defaultMessage": "同步已排队"
   },
   "SLg8IXCI6V": {
     "defaultMessage": "小团队无法为每个国家都采用一套新流程。你需要一种能够扩展市场发布、同时又不会让产品团队疲于应付的方法。"
@@ -14996,6 +15029,9 @@
   "bM4e1lioLc": {
     "defaultMessage": "无法加载记忆"
   },
+  "bM4iJBgaAJ": {
+    "defaultMessage": "资源"
+  },
   "bMFBHYX/jE": {
     "defaultMessage": "发表评论……使用 @ 提及他人"
   },
@@ -15278,6 +15314,9 @@
   "cCjEeqCM8J": {
     "defaultMessage": "Try"
   },
+  "cDM7ee3Tdp": {
+    "defaultMessage": "即将推出"
+  },
   "cDw6CT/CPx": {
     "defaultMessage": "切换项目"
   },
@@ -15418,6 +15457,9 @@
   },
   "cZBJLZRh+f": {
     "defaultMessage": "任务将变为“已取消”状态并停止运行。如果之后仍需要执行此工作，可以创建新任务。"
+  },
+  "cZWsBhk2ee": {
+    "defaultMessage": "请先在“集成”中连接一个源。"
   },
   "cZaYlDA8+F": {
     "defaultMessage": "是的——保持直接、自信。已批准的 FR 上线文案使用主动动词，避免从英语逐字直译。"

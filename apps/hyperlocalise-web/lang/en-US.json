@@ -4591,6 +4591,10 @@
     "defaultMessage": "Text",
     "description": "Issue column type label for text"
   },
+  "8Dn6LPaujp": {
+    "defaultMessage": "Team",
+    "description": "Label for the invite member team field"
+  },
   "8DwB2zNR0Z": {
     "defaultMessage": "External TMS",
     "description": "Source label for external TMS translation memories without a provider badge"
@@ -6510,6 +6514,10 @@
   "CE2lOIg1r+": {
     "defaultMessage": "These fields are always available on issues.",
     "description": "Description for core system issue fields"
+  },
+  "CE4Mjxv5Pv": {
+    "defaultMessage": "Invited members are added to this team so they can access projects.",
+    "description": "Help text for the invite member team field"
   },
   "CFK4BGiWin": {
     "defaultMessage": "Review state",
@@ -12287,6 +12295,10 @@
     "defaultMessage": "Could not expand ideas for this market.",
     "description": "Error toast when seed expansion fails"
   },
+  "PR5FHHiklX": {
+    "defaultMessage": "No teams are listed yet. The default team will be created automatically when you send the invitation.",
+    "description": "Help text when the workspace has no teams to select during invite"
+  },
   "PRW9ZtkzIN": {
     "defaultMessage": "18 policy files · Compliance",
     "description": "Example SharePoint library detail in the source preview"
@@ -17778,6 +17790,10 @@
   "cCjEeqCM8J": {
     "defaultMessage": "Try",
     "description": "Sidebar group label for gated features that are not yet enabled"
+  },
+  "cDM7ee3Tdp": {
+    "defaultMessage": "Coming soon",
+    "description": "Status badge on coming-soon integration cards"
   },
   "cDw6CT/CPx": {
     "defaultMessage": "Switch project",
@@ -24239,6 +24255,10 @@
     "defaultMessage": "Service-level agreement",
     "description": "Pricing matrix row label for SLA"
   },
+  "q+KBl5AglO": {
+    "defaultMessage": "Failed to load teams",
+    "description": "Error when the teams list request fails for the invite dialog"
+  },
   "q+l1A/4r0n": {
     "defaultMessage": "Open Editor",
     "description": "Context menu action to open a project file in the Content Editor"
@@ -27938,6 +27958,10 @@
   "y6su8h1cH4": {
     "defaultMessage": "Auto",
     "description": "Web Search provider option that lets the agent choose Perplexity or Exa"
+  },
+  "y7AjSFsGUH": {
+    "defaultMessage": "Enter the hostname from your localisation audit. You will verify ownership on the next step.",
+    "description": "Link domain dialog description for the live claim flow"
   },
   "y7TyDgtZHB": {
     "defaultMessage": "https://api.lokalise.com/api2",

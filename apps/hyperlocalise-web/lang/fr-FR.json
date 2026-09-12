@@ -239,6 +239,9 @@
   "+YUbta511H": {
     "defaultMessage": "Ouvrir le chat"
   },
+  "+YoX875s0d": {
+    "defaultMessage": "Synchroniser maintenant"
+  },
   "+aLhmpE/3m": {
     "defaultMessage": "Type"
   },
@@ -685,6 +688,9 @@
   },
   "/o1j6afCQe": {
     "defaultMessage": "Annuler"
+  },
+  "/ocvKucgs3": {
+    "defaultMessage": "Échec de la dernière synchronisation"
   },
   "/powsKQ55L": {
     "defaultMessage": "Hyperlocalise combine l’IA avec une relecture humaine, des évaluations de régression, des vérifications terminologiques et des étapes de validation de mise en production afin que la qualité de la localisation ne se dégrade pas insidieusement au fil du temps."
@@ -2041,6 +2047,9 @@
   },
   "3CBfdb8CgM": {
     "defaultMessage": "Visibilité de l’IA"
+  },
+  "3CMhz0O70x": {
+    "defaultMessage": "Synchronisation du contenu"
   },
   "3CTikplBoF": {
     "defaultMessage": "Sélectionnez une exécution pour inspecter l’état au niveau des nœuds."
@@ -3968,6 +3977,9 @@
   "8CUaNB5YrW": {
     "defaultMessage": "Texte"
   },
+  "8Dn6LPaujp": {
+    "defaultMessage": "Team"
+  },
   "8DwB2zNR0Z": {
     "defaultMessage": "TMS externe"
   },
@@ -5575,6 +5587,9 @@
   },
   "CE2lOIg1r+": {
     "defaultMessage": "Ces champs sont toujours disponibles sur les problèmes."
+  },
+  "CE4Mjxv5Pv": {
+    "defaultMessage": "Les membres invités sont ajoutés à cette équipe afin de pouvoir accéder aux projets."
   },
   "CFK4BGiWin": {
     "defaultMessage": "État de l’avis"
@@ -7991,6 +8006,9 @@
   "IeIy523DjY": {
     "defaultMessage": "Chaque lumière raconte une histoire. Découvrez les lieux, les personnes et les instants du quotidien qui nous relient."
   },
+  "IeNzfp4aLj": {
+    "defaultMessage": "Les synchronisations de contenu du projet déplacent des fichiers entre une source connectée et un projet Hyperlocalise."
+  },
   "If/xnDCxst": {
     "defaultMessage": "Configurer"
   },
@@ -8539,6 +8557,9 @@
   },
   "K3dTcxv8UP": {
     "defaultMessage": "Ce rôle peut consulter les chaînes, mais ne peut pas réécrire les traductions."
+  },
+  "K4+ynunWBF": {
+    "defaultMessage": "GitLab"
   },
   "K4A2HqIbMM": {
     "defaultMessage": "Le contenu d’assistance devient obsolète dès sa publication en anglais"
@@ -10136,6 +10157,9 @@
   "OJm01EvxZW": {
     "defaultMessage": "Échec de la création des tâches Crowdin"
   },
+  "OL7E13SfCy": {
+    "defaultMessage": "SOURCE"
+  },
   "OLljhH3V9D": {
     "defaultMessage": "Suivez les tâches Hyperlocalise et les tâches TMS en direct dans tout l’espace de travail."
   },
@@ -10543,6 +10567,9 @@
   },
   "PQSsu6Ru/k": {
     "defaultMessage": "Révoquée"
+  },
+  "PR5FHHiklX": {
+    "defaultMessage": "Aucune équipe n’est encore répertoriée. L’équipe par défaut sera créée automatiquement lorsque vous enverrez l’invitation."
   },
   "PRW9ZtkzIN": {
     "defaultMessage": "18 fichiers de politique · Conformité"
@@ -11096,6 +11123,9 @@
   "QpIX9JaUhS": {
     "defaultMessage": "Vérifier la progression de la localisation"
   },
+  "QpmZurrWHD": {
+    "defaultMessage": "GitHub"
+  },
   "Qpt4IfmhcE": {
     "defaultMessage": "Colonne CSV"
   },
@@ -11612,6 +11642,9 @@
   "SKhTQyZkDY": {
     "defaultMessage": "Terminé"
   },
+  "SLGNO7qFzS": {
+    "defaultMessage": "Synchronisation mise en file d’attente"
+  },
   "SLg8IXCI6V": {
     "defaultMessage": "Les petites équipes ne peuvent pas se permettre un nouveau processus pour chaque pays. Vous avez besoin d’un moyen de déployer les lancements sur de nouveaux marchés sans submerger l’équipe produit."
   },
@@ -12105,7 +12138,7 @@
     "defaultMessage": "Prévisions (USD)"
   },
   "TjFXSXtMQ3": {
-    "defaultMessage": "Timing preserved"
+    "defaultMessage": "Synchronisation préservée"
   },
   "Tl0CYs/kQf": {
     "defaultMessage": "Exécution planifiée · 1er du mois"
@@ -14996,6 +15029,9 @@
   "bM4e1lioLc": {
     "defaultMessage": "Impossible de charger la mémoire"
   },
+  "bM4iJBgaAJ": {
+    "defaultMessage": "Ressource"
+  },
   "bMFBHYX/jE": {
     "defaultMessage": "Laissez un commentaire… Utilisez @ pour mentionner quelqu’un"
   },
@@ -15278,6 +15314,9 @@
   "cCjEeqCM8J": {
     "defaultMessage": "Try"
   },
+  "cDM7ee3Tdp": {
+    "defaultMessage": "Bientôt disponible"
+  },
   "cDw6CT/CPx": {
     "defaultMessage": "Changer de projet"
   },
@@ -15418,6 +15457,9 @@
   },
   "cZBJLZRh+f": {
     "defaultMessage": "Le traitement sera annulé et cessera de s’exécuter. Vous pouvez créer un nouveau traitement si vous devez reprendre ce travail."
+  },
+  "cZWsBhk2ee": {
+    "defaultMessage": "Connectez d’abord une source dans les intégrations."
   },
   "cZaYlDA8+F": {
     "defaultMessage": "Oui — gardez un ton direct et assuré. Le texte de lancement FR approuvé privilégie les verbes d’action et évite les calques littéraux de l’anglais."
