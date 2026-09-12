@@ -35,12 +35,14 @@ function readFont(fileName: string) {
 }
 
 /**
- * Satori resolves one face per family name, so each loaded file must embed every
- * glyph we need for that face. These TTFs are Google Fonts downloads with Latin,
- * Latin-ext, and Vietnamese (or CJK) coverage baked in — matching the locale
- * heading faces chosen in `src/app/layout.tsx`.
+ * Satori resolves one face per family name + weight, so each loaded file must
+ * embed every glyph we need for that face. These TTFs are Google Fonts downloads
+ * with Latin, Latin-ext, and Vietnamese coverage baked in.
+ *
+ * Inter has no CJK glyphs. Simplified Chinese OG images keep Noto Serif SC as a
+ * coverage face so Satori does not tofu.
  */
-const interFontPromise = readFont("inter-400-vietnamese-complete.ttf").then(
+const interRegularFontPromise = readFont("inter-400-vietnamese-complete.ttf").then(
   (data): MarketingOgFont => ({
     name: "Inter",
     data,
@@ -49,18 +51,9 @@ const interFontPromise = readFont("inter-400-vietnamese-complete.ttf").then(
   }),
 );
 
-const domineFontPromise = readFont("domine-700-latin-ext-complete.ttf").then(
+const interBoldFontPromise = readFont("inter-700-vietnamese-complete.ttf").then(
   (data): MarketingOgFont => ({
-    name: "Domine",
-    data,
-    weight: 700,
-    style: "normal",
-  }),
-);
-
-const notoSerifFontPromise = readFont("noto-serif-700-vietnamese-complete.ttf").then(
-  (data): MarketingOgFont => ({
-    name: "Noto Serif",
+    name: "Inter",
     data,
     weight: 700,
     style: "normal",
@@ -78,31 +71,26 @@ const notoSerifScFontPromise = readFont("noto-serif-sc-chinese-simplified-700-no
 
 /**
  * Load OG fonts for a marketing locale.
- * Mirrors `headingFontForLocale` in `src/app/layout.tsx`: Domine for Latin locales,
- * Noto Serif for Vietnamese, Noto Serif SC for Simplified Chinese.
+ * Inter Bold for headings and Inter Regular for body. zh-CN still loads
+ * Noto Serif SC so CJK glyphs render in Satori.
  */
 export async function loadMarketingOgFonts(locale: AppLocale): Promise<MarketingOgFonts> {
-  if (locale === "vi-VN") {
-    const [headingFont, bodyFont] = await Promise.all([notoSerifFontPromise, interFontPromise]);
-    return {
-      headingFontFamily: "Noto Serif",
-      bodyFontFamily: "Inter",
-      fonts: [headingFont, bodyFont],
-    };
-  }
+  const [headingFont, bodyFont] = await Promise.all([
+    interBoldFontPromise,
+    interRegularFontPromise,
+  ]);
 
   if (locale === "zh-CN") {
-    const [headingFont, bodyFont] = await Promise.all([notoSerifScFontPromise, interFontPromise]);
+    const cjkFont = await notoSerifScFontPromise;
     return {
       headingFontFamily: "Noto Serif SC",
       bodyFontFamily: "Noto Serif SC, Inter",
-      fonts: [headingFont, bodyFont],
+      fonts: [cjkFont, headingFont, bodyFont],
     };
   }
 
-  const [headingFont, bodyFont] = await Promise.all([domineFontPromise, interFontPromise]);
   return {
-    headingFontFamily: "Domine",
+    headingFontFamily: "Inter",
     bodyFontFamily: "Inter",
     fonts: [headingFont, bodyFont],
   };

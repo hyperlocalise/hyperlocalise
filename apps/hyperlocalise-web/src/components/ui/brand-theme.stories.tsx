@@ -59,9 +59,9 @@ export const Overview: Story = {
       <ThemeSpecimen
         theme="marketing"
         title="Launch in every market"
-        subtitle="Serif display headings"
+        subtitle="Inter Bold headings"
       />
-      <ThemeSpecimen theme="product" title="Review queue" subtitle="Sans product headings" />
+      <ThemeSpecimen theme="product" title="Review queue" subtitle="Inter Semibold headings" />
     </div>
   ),
   play: async ({ canvas }) => {

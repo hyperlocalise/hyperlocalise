@@ -1,5 +1,5 @@
 import type { Preview } from "@storybook/nextjs-vite";
-import { Domine, Geist_Mono, Inter, Noto_Serif, Noto_Serif_SC } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import { initialize, mswLoader } from "msw-storybook-addon";
 import "@pierre/trees/web-components";
 
@@ -21,37 +21,10 @@ const inter = Inter({
   variable: "--font-sans",
 });
 
-const domine = Domine({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-heading-marketing",
-});
-
-const notoSerif = Noto_Serif({
-  subsets: ["latin", "latin-ext", "vietnamese"],
-  variable: "--font-heading-marketing",
-});
-
-const notoSerifSc = Noto_Serif_SC({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  preload: false,
-  variable: "--font-heading-marketing",
-});
-
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
-
-function headingFontVariable(locale: string | undefined) {
-  if (locale === "vi-VN") {
-    return notoSerif.variable;
-  }
-  if (locale === "zh-CN") {
-    return notoSerifSc.variable;
-  }
-  return domine.variable;
-}
 
 const preview: Preview = {
   globalTypes: {
@@ -81,7 +54,7 @@ const preview: Preview = {
       },
     },
     brandTheme: {
-      description: "Heading typography for marketing vs product",
+      description: "Heading weight for marketing vs product",
       toolbar: {
         title: "Brand",
         icon: "paragraph",
@@ -112,14 +85,7 @@ const preview: Preview = {
             theme={(globals.theme as StorybookTheme | undefined) ?? "light"}
           >
             <TooltipProvider>
-              <div
-                className={cn(
-                  "font-sans antialiased",
-                  geistMono.variable,
-                  inter.variable,
-                  headingFontVariable(globals.locale),
-                )}
-              >
+              <div className={cn("font-sans antialiased", geistMono.variable, inter.variable)}>
                 <BrandThemeProvider
                   theme={globals.brandTheme === "marketing" ? "marketing" : "product"}
                 >
@@ -145,13 +111,12 @@ const preview: Preview = {
       handlers: mswHandlers,
     },
   },
-  async beforeEach({ globals }) {
+  async beforeEach() {
     document.documentElement.classList.add(
       "font-sans",
       "antialiased",
       geistMono.variable,
       inter.variable,
-      headingFontVariable(globals.locale),
     );
   },
 };
