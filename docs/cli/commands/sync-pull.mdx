@@ -1,6 +1,6 @@
 ---
 title: "sync pull"
-description: "Download translated files reconstructed by the Hyperlocalise API."
+description: "Download translated files from Hyperlocalise or pull translation entries from a TMS adapter."
 ---
 
 ## Usage
@@ -11,16 +11,28 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 ## Default behavior
 
-`sync pull` writes translated files to local paths from `i18n.yml`. Use `--dry-run` when you want to preview the report without writing files.
+`sync pull` follows `i18n.yml`:
 
-For each configured source file and target locale, the CLI calls the public Hyperlocalise API to reconstruct the translated file from project translation state. The CLI does not read job IDs or a local jobs manifest.
+- When `hyperlocalise` is set, the CLI reconstructs translated files from the public Hyperlocalise API and writes them to target paths from `i18n.yml`. It does not read job IDs or a local jobs manifest.
+- When `hyperlocalise` is absent and `storage.adapter` is set, the CLI pulls translation entries through the builtin TMS adapter registry (`syncsvc`) into flat JSON locale files plus sidecar metadata.
+- When both blocks are set, the Hyperlocalise API path wins. TMS entry sync is not used.
+
+Use `--dry-run` to preview the report without writing files.
 
 ## Flags
 
 - `--config`: config path
-- `--locale`: target locale(s), repeatable
+- `--locale`: locale(s) to sync, repeatable. On the TMS path, omitted locales default to `locales.targets`. Source locale is allowed on the TMS path.
 - `--dry-run`: preview only
 - `--output`: `text`, `json`, or `markdown`
+- `--fail-on-conflict`: TMS adapters only. Exit non-zero when the report contains conflicts. Default: `false` (conflicts stay in the report; non-conflicting creates and updates still apply). Ignored on the Hyperlocalise API path.
+- `--apply-curated-over-draft`: TMS adapters only. Allow remote curated values to replace local LLM drafts. Default: `false` (that case is reported as a conflict). Ignored on the Hyperlocalise API path.
+
+## TMS entry sync
+
+TMS pull writes flat JSON locale files from the first bucket `files[].to` mapping (bucket names sorted) plus sidecar metadata. The mapping must be one concrete `.json` path template, not YAML/MDX/ARB or a glob. Nested JSON objects and contextual entries (the same key under more than one context) are not supported on this path. Provider file commands such as `crowdin` and `phrase` keep their own config and behavior.
+
+`--output json` on the TMS path prints a `syncsvc` entry report (`creates`, `updates`, `conflicts`, …), not the Hyperlocalise file-count report.
 
 ## Example
 
@@ -34,9 +46,8 @@ hl pull --locale es-ES
 
 ## Notes
 
-- When no translation exists for a source path and locale, pull skips that target file.
+- On the Hyperlocalise API path, when no translation exists for a source path and locale, pull skips that target file.
 - Output files are mapped by locale to the target paths from `i18n.yml`.
-- Provider-specific TMS commands such as `crowdin` and `phrase` keep their own config and behavior.
 
 ## See also
 

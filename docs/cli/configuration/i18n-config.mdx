@@ -276,7 +276,7 @@ Prompt variables:
 
 ## Hyperlocalise
 
-`hyperlocalise` configures the public Hyperlocalise web API for `sync push` and `sync pull`.
+`hyperlocalise` configures the public Hyperlocalise web API for `sync push` and `sync pull` when that block is present.
 
 - `project_id` (required unless `project_id_env` is set): Hyperlocalise project ID.
 - `project_id_env` (optional): environment variable that contains the project ID.
@@ -284,7 +284,9 @@ Prompt variables:
 - `api_key_env` (optional): environment variable that contains the API key. Defaults to `HYPERLOCALISE_API_KEY`.
 - `timeout_seconds` (optional): HTTP timeout for sync API calls. Defaults to `1200`.
 
-`sync push` uploads source files. `sync pull` downloads translated files reconstructed by the API. Translation jobs are created by Hyperlocalise automation or in the web app, not by the CLI.
+When `hyperlocalise` is set, `sync push` uploads source files and `sync pull` downloads translated files reconstructed by the API. Translation jobs are created by Hyperlocalise automation or in the web app, not by the CLI. A `hyperlocalise` block wins over `storage.adapter` when both are set.
+
+When `hyperlocalise` is absent, set `storage.adapter` so `sync push` and `sync pull` use TMS entry sync. That path uses the first bucket `files[].to` mapping and currently requires one concrete flat JSON locale file. Keep `storage` for provider-specific file commands as well.
 
 For API keys, sample config, and CI, see [Connect the CLI](/platform/cli).
 
@@ -383,5 +385,5 @@ Then edit the generated `i18n.yml` for your project.
 - Keep group targets inside `locales.targets`.
 - Keep group buckets aligned with `buckets` keys.
 - Keep profile names consistent between `profiles` and `rules`.
-- Use `hyperlocalise` for `sync push` and `sync pull`.
-- Keep `storage` for provider-specific TMS adapter configuration.
+- Use `hyperlocalise` when `sync push` and `sync pull` should talk to the Hyperlocalise API. That block wins if `storage.adapter` is also set.
+- Use `storage.adapter` without `hyperlocalise` when `sync push` and `sync pull` should run TMS entry sync. Keep `storage` for provider-specific file commands as well.

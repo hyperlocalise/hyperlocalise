@@ -1,6 +1,6 @@
 ---
 title: "sync push"
-description: "Upload source files to Hyperlocalise."
+description: "Upload source files to Hyperlocalise or push translation entries to a TMS adapter."
 ---
 
 ## Usage
@@ -11,19 +11,28 @@ hyperlocalise sync push [--config <path>] [flags]
 
 ## Default behavior
 
-`sync push` uploads source files to Hyperlocalise. Use `--dry-run` when you want to preview the report without uploading files.
+`sync push` follows `i18n.yml`:
 
-During a real push, Hyperlocalise reads configured source files from `i18n.yml` and uploads each source file to the public Hyperlocalise API. It does not create translation jobs. Configure automation in Hyperlocalise when you want AI translation to run after upload.
+- When `hyperlocalise` is set, the CLI uploads source files to the public Hyperlocalise API. It does not create translation jobs. Configure automation in Hyperlocalise when you want AI translation to run after upload.
+- When `hyperlocalise` is absent and `storage.adapter` is set, the CLI pushes translation entries through the builtin TMS adapter registry (`syncsvc`).
+- When both blocks are set, the Hyperlocalise API path wins. TMS entry sync is not used.
 
-`sync push` uses the top-level `hyperlocalise` config block. It does not use the `storage` TMS adapter block.
+Use `--dry-run` to preview the report without uploading files or pushing entries.
 
 ## Flags
 
 - `--config`: config path
-- `--locale`: target locale(s), repeatable
+- `--locale`: locale(s) to sync, repeatable. On the TMS path, omitted locales default to `locales.targets`. Source locale is allowed on the TMS path.
 - `--dry-run`: preview only
 - `--output`: `text`, `json`, or `markdown`
-- `--force-conflicts`: not supported for Hyperlocalise sync
+- `--force-conflicts`: TMS adapters only. Rejected on the Hyperlocalise API path. Default: `false`
+- `--fail-on-conflict`: TMS adapters only. Exit non-zero when the report contains conflicts. Default: `false` (conflicts stay in the report; push of non-conflicting entries still proceeds). Ignored on the Hyperlocalise API path.
+
+## TMS entry sync
+
+TMS push reads flat JSON locale files from the first bucket `files[].to` mapping (bucket names sorted) plus sidecar metadata. The mapping must be one concrete `.json` path template, not YAML/MDX/ARB or a glob. Nested JSON objects and contextual entries (the same key under more than one context) are not supported on this path. Provider file commands such as `crowdin` and `phrase` keep their own config and behavior.
+
+`--output json` on the TMS path prints a `syncsvc` entry report (`creates`, `updates`, `conflicts`, …), not the Hyperlocalise file-count report.
 
 ## Example
 
@@ -37,7 +46,7 @@ hl push --locale es-ES
 
 ## Notes
 
-- Push exits non-zero when one or more uploads fail.
+- Hyperlocalise push exits non-zero when one or more uploads fail.
 - Provider-specific TMS commands such as `crowdin` and `phrase` keep their own config and behavior.
 
 ## See also

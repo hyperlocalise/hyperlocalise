@@ -444,12 +444,75 @@ func TestPushPostVerifyDetectsMismatch(t *testing.T) {
 	if got := len(verifyReq.EntryIDs); got != 1 || verifyReq.EntryIDs[0] != (storage.EntryID{Key: "hello", Locale: "fr"}) {
 		t.Fatalf("unexpected verification entry ids: %+v", verifyReq.EntryIDs)
 	}
-	if got := len(verifyReq.Locales); got != 0 {
-		t.Fatalf("expected verification pull to avoid locale-wide scope, got locales=%+v", verifyReq.Locales)
+	if got := len(verifyReq.Locales); got != 1 || verifyReq.Locales[0] != "fr" {
+		t.Fatalf("expected verification pull locales [fr], got %+v", verifyReq.Locales)
 	}
 	if report.Conflicts[len(report.Conflicts)-1].Reason != "post_push_remote_mismatch" {
 		t.Fatalf("unexpected conflict reason: %+v", report.Conflicts)
 	}
+}
+
+func TestPushPostVerifyUsesAppliedLocalesWhenAdapterIgnoresEntryIDs(t *testing.T) {
+	svc := New()
+	local := &fakeLocalStore{
+		readSnapshot: storage.CatalogSnapshot{
+			Entries: []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour"}},
+		},
+	}
+	adapter := &localeOnlyAdapter{
+		baseline: storage.PullResult{Snapshot: storage.CatalogSnapshot{}},
+		byLocale: map[string]storage.CatalogSnapshot{
+			"fr": {Entries: []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour"}}},
+		},
+		pushResult: storage.PushResult{Applied: []storage.EntryID{{Key: "hello", Locale: "fr"}}},
+	}
+
+	if _, err := svc.Push(context.Background(), PushInput{
+		Adapter: adapter,
+		Local:   local,
+	}); err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if got := len(adapter.pullReqs); got != 2 {
+		t.Fatalf("expected baseline and verification pulls, got %d", got)
+	}
+	if got := adapter.pullReqs[1].Locales; len(got) != 1 || got[0] != "fr" {
+		t.Fatalf("expected verification locales [fr], got %+v", adapter.pullReqs[1].Locales)
+	}
+}
+
+type localeOnlyAdapter struct {
+	baseline   storage.PullResult
+	byLocale   map[string]storage.CatalogSnapshot
+	pullReqs   []storage.PullRequest
+	pushResult storage.PushResult
+	pulled     int
+}
+
+func (a *localeOnlyAdapter) Name() string                       { return "locale-only" }
+func (a *localeOnlyAdapter) Capabilities() storage.Capabilities { return storage.Capabilities{} }
+func (a *localeOnlyAdapter) Pull(_ context.Context, req storage.PullRequest) (storage.PullResult, error) {
+	a.pullReqs = append(a.pullReqs, req)
+	a.pulled++
+	if a.pulled == 1 {
+		return a.baseline, nil
+	}
+	if len(req.Locales) == 0 {
+		return storage.PullResult{}, nil
+	}
+	var entries []storage.Entry
+	for _, locale := range req.Locales {
+		snap, ok := a.byLocale[locale]
+		if !ok {
+			continue
+		}
+		entries = append(entries, snap.Entries...)
+	}
+	return storage.PullResult{Snapshot: storage.CatalogSnapshot{Entries: entries}}, nil
+}
+
+func (a *localeOnlyAdapter) Push(_ context.Context, _ storage.PushRequest) (storage.PushResult, error) {
+	return a.pushResult, nil
 }
 
 func TestPullDoesNotApplyCuratedOverDraftWhenDisabled(t *testing.T) {

@@ -13,16 +13,22 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/syncsvc"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
+	"github.com/hyperlocalise/hyperlocalise/internal/pathguard"
 	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
 type JSONStore struct {
 	cfg           *config.I18NConfig
+	root          string
 	localePattern string
 	namespace     string
 }
 
 func NewJSONStore(cfg *config.I18NConfig) (*JSONStore, error) {
+	return NewJSONStoreInRoot(cfg, "")
+}
+
+func NewJSONStoreInRoot(cfg *config.I18NConfig, root string) (*JSONStore, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("new json store: config is nil")
 	}
@@ -32,7 +38,12 @@ func NewJSONStore(cfg *config.I18NConfig) (*JSONStore, error) {
 		return nil, err
 	}
 
-	return &JSONStore{cfg: cfg, localePattern: localePattern, namespace: namespace}, nil
+	return &JSONStore{
+		cfg:           cfg,
+		root:          strings.TrimSpace(root),
+		localePattern: localePattern,
+		namespace:     namespace,
+	}, nil
 }
 
 func (s *JSONStore) ReadSnapshot(ctx context.Context, req syncsvc.LocalReadRequest) (storage.CatalogSnapshot, error) {
@@ -51,7 +62,10 @@ func (s *JSONStore) readSnapshot(_ context.Context, req syncsvc.LocalReadRequest
 
 	var entries []storage.Entry
 	for _, locale := range locales {
-		path := s.localePath(locale)
+		path, err := s.localePath(locale)
+		if err != nil {
+			return storage.CatalogSnapshot{}, fmt.Errorf("resolve locale path for %q: %w", locale, err)
+		}
 		valueMap, err := readLocaleValues(path)
 		if err != nil {
 			return storage.CatalogSnapshot{}, fmt.Errorf("read locale file %q: %w", path, err)
@@ -103,6 +117,10 @@ func matchesKeyPrefix(key string, prefixes []string) bool {
 }
 
 func (s *JSONStore) ApplyPull(_ context.Context, plan syncsvc.ApplyPullPlan) (syncsvc.ApplyResult, error) {
+	if err := validateFlatJSONPlan(plan); err != nil {
+		return syncsvc.ApplyResult{}, err
+	}
+
 	byLocale := make(map[string][]storage.Entry)
 	for _, entry := range plan.Creates {
 		if err := s.validateWritableLocale(entry.Locale); err != nil {
@@ -120,7 +138,10 @@ func (s *JSONStore) ApplyPull(_ context.Context, plan syncsvc.ApplyPullPlan) (sy
 	applied := make([]storage.EntryID, 0)
 
 	for locale, entries := range byLocale {
-		path := s.localePath(locale)
+		path, err := s.localePath(locale)
+		if err != nil {
+			return syncsvc.ApplyResult{}, fmt.Errorf("resolve locale path for %q: %w", locale, err)
+		}
 		values, err := readLocaleValues(path)
 		if err != nil {
 			return syncsvc.ApplyResult{}, fmt.Errorf("read locale file %q before apply: %w", path, err)
@@ -151,8 +172,25 @@ func (s *JSONStore) ApplyPull(_ context.Context, plan syncsvc.ApplyPullPlan) (sy
 	return syncsvc.ApplyResult{Applied: applied}, nil
 }
 
-func (s *JSONStore) localePath(locale string) string {
-	return pathresolver.ResolveTargetPath(s.localePattern, s.cfg.Locales.Source, locale)
+func (s *JSONStore) localePath(locale string) (string, error) {
+	resolved := pathresolver.ResolveTargetPath(s.localePattern, s.cfg.Locales.Source, locale)
+	trimmed := strings.TrimSpace(resolved)
+	if trimmed == "" {
+		return "", fmt.Errorf("locale path is empty")
+	}
+	candidate := trimmed
+	if !filepath.IsAbs(candidate) {
+		if s.root == "" {
+			return "", fmt.Errorf("config root is required for relative path %q", trimmed)
+		}
+		candidate = filepath.Join(s.root, candidate)
+	}
+	if s.root != "" {
+		if err := pathguard.EnsureUnderRoot(s.root, candidate); err != nil {
+			return "", err
+		}
+	}
+	return candidate, nil
 }
 
 func (s *JSONStore) validateWritableLocale(locale string) error {
@@ -181,13 +219,49 @@ func resolveLocalePattern(buckets map[string]config.BucketConfig) (string, strin
 	for _, name := range names {
 		bucket := buckets[name]
 		for _, file := range bucket.Files {
-			if strings.TrimSpace(file.To) != "" {
-				return file.To, file.From, nil
+			pattern := strings.TrimSpace(file.To)
+			if pattern == "" {
+				continue
 			}
+			if err := validateJSONLocalePattern(pattern); err != nil {
+				return "", "", err
+			}
+			return pattern, file.From, nil
 		}
 	}
 
 	return "", "", fmt.Errorf("new json store: buckets.*.files[].to is required")
+}
+
+func validateJSONLocalePattern(pattern string) error {
+	if strings.ContainsAny(pattern, "*?") {
+		return fmt.Errorf("new json store: files[].to %q uses a glob; TMS sync requires one concrete JSON locale file", pattern)
+	}
+	if strings.ToLower(filepath.Ext(pattern)) != ".json" {
+		return fmt.Errorf("new json store: files[].to %q is not a JSON locale file; TMS sync currently supports flat JSON only", pattern)
+	}
+	return nil
+}
+
+func validateFlatJSONPlan(plan syncsvc.ApplyPullPlan) error {
+	seen := make(map[string]struct{})
+	check := func(entries []storage.Entry) error {
+		for _, entry := range entries {
+			if strings.TrimSpace(entry.Context) != "" {
+				return fmt.Errorf("json store cannot represent contextual entries (key %q locale %q context %q)", entry.Key, entry.Locale, entry.Context)
+			}
+			dup := entry.Locale + "\x1f" + entry.Key
+			if _, ok := seen[dup]; ok {
+				return fmt.Errorf("json store cannot represent duplicate key %q in locale %q", entry.Key, entry.Locale)
+			}
+			seen[dup] = struct{}{}
+		}
+		return nil
+	}
+	if err := check(plan.Creates); err != nil {
+		return err
+	}
+	return check(plan.Updates)
 }
 
 type entryMeta struct {

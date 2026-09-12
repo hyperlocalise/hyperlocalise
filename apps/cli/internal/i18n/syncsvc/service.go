@@ -361,7 +361,10 @@ func verifyAppliedEntries(ctx context.Context, adapter storage.StorageAdapter, p
 		return nil, nil
 	}
 
-	verifyResult, err := adapter.Pull(ctx, storage.PullRequest{EntryIDs: append([]storage.EntryID(nil), applied...)})
+	verifyResult, err := adapter.Pull(ctx, storage.PullRequest{
+		EntryIDs: append([]storage.EntryID(nil), applied...),
+		Locales:  localesFromEntryIDs(applied),
+	})
 	if err != nil {
 		return nil, []storage.Warning{{
 			Code:    "post_push_verify_failed",
@@ -403,4 +406,22 @@ func verifyAppliedEntries(ctx context.Context, adapter storage.StorageAdapter, p
 	}
 
 	return conflicts, nil
+}
+
+func localesFromEntryIDs(ids []storage.EntryID) []string {
+	seen := make(map[string]struct{}, len(ids))
+	locales := make([]string, 0, len(ids))
+	for _, id := range ids {
+		locale := strings.TrimSpace(id.Locale)
+		if locale == "" {
+			continue
+		}
+		if _, ok := seen[locale]; ok {
+			continue
+		}
+		seen[locale] = struct{}{}
+		locales = append(locales, locale)
+	}
+	slices.Sort(locales)
+	return locales
 }
