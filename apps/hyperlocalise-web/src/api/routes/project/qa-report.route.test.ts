@@ -93,7 +93,9 @@ describe("project QA reports", () => {
     );
 
     expect(createResponse.status).toBe(201);
-    const created = await createResponse.json();
+    const created = (await createResponse.json()) as {
+      report: { id: string; findingCount: number; errorCount: number };
+    };
     expect(created.report.findingCount).toBeGreaterThan(0);
     expect(created.report.errorCount).toBeGreaterThan(0);
 
@@ -106,12 +108,15 @@ describe("project QA reports", () => {
           projectId: project.id,
           runId: created.report.id,
         },
+        query: {},
       },
       { headers },
     );
 
     expect(detailResponse.status).toBe(200);
-    const detail = await detailResponse.json();
+    const detail = (await detailResponse.json()) as {
+      findings: Array<{ checkType: string; editorHref: string }>;
+    };
     expect(detail.findings.some((finding) => finding.checkType === "not_localized")).toBe(true);
     expect(detail.findings[0]?.editorHref).toContain("/files/content-editor");
   });
@@ -160,12 +165,13 @@ describe("project QA reports", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = (await response.json()) as { settings: { cadence: string } };
     expect(body.settings.cadence).toBe("daily");
   });
 
   it("lists native projects only on the workspace QA page", async () => {
-    const { identity, organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
 
     const [providerProject] = await db
@@ -193,7 +199,7 @@ describe("project QA reports", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = (await response.json()) as { reports: Array<{ projectId: string }> };
     expect(body.reports.some((row) => row.projectId === project.id)).toBe(true);
     expect(body.reports.some((row) => row.projectId === providerProject?.id)).toBe(false);
   });
@@ -240,5 +246,65 @@ describe("project QA reports", () => {
 
     expect(nativeRuns).toHaveLength(1);
     expect(providerRuns).toHaveLength(0);
+  });
+
+  it("returns latest scan findings for CAT to reuse", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    const [hello] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "reuse",
+        sourceText: "Save",
+        normalizedSourceText: "save",
+      })
+      .returning();
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: hello!.id,
+      targetLocale: "fr-FR",
+      text: "Save",
+      status: "draft",
+    });
+
+    const createResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+
+    const latestResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ]["latest-findings"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+        },
+        query: { locale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(latestResponse.status).toBe(200);
+    const latest = (await latestResponse.json()) as {
+      runId: string | null;
+      findings: Array<{ key: string; checkType: string; targetText: string }>;
+    };
+    expect(latest.runId).toBeTruthy();
+    expect(latest.findings.some((finding) => finding.key === "reuse")).toBe(true);
+    expect(latest.findings.some((finding) => finding.checkType === "same_as_source")).toBe(true);
   });
 });

@@ -10,11 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
-import type { TranslationQaCheckType, TranslationQaScanCadence, TranslationQaSeverity } from "./types";
+import type {
+  TranslationQaCheckType,
+  TranslationQaScanCadence,
+  TranslationQaSeverity,
+} from "./types";
 
 const emptySummary = {
   byCheckType: {},
@@ -119,6 +124,67 @@ export async function listTranslationQaFindings(input: {
   };
 }
 
+export async function listLatestSucceededQaFindingsForCat(input: {
+  organizationId: string;
+  projectId: string;
+  locale: string;
+  sourcePath?: string;
+  limit?: number;
+}) {
+  const [run] = await db
+    .select({ id: schema.translationQaRuns.id })
+    .from(schema.translationQaRuns)
+    .where(
+      and(
+        eq(schema.translationQaRuns.organizationId, input.organizationId),
+        eq(schema.translationQaRuns.projectId, input.projectId),
+        eq(schema.translationQaRuns.status, "succeeded"),
+      ),
+    )
+    .orderBy(desc(schema.translationQaRuns.completedAt), desc(schema.translationQaRuns.createdAt))
+    .limit(1);
+
+  if (!run) {
+    return { runId: null, findings: [] as Array<typeof schema.translationQaFindings.$inferSelect> };
+  }
+
+  const filters = [
+    eq(schema.translationQaFindings.organizationId, input.organizationId),
+    eq(schema.translationQaFindings.projectId, input.projectId),
+    eq(schema.translationQaFindings.runId, run.id),
+    eq(schema.translationQaFindings.targetLocale, input.locale),
+  ];
+  if (input.sourcePath && !isContentEditorAllFilesSourcePath(input.sourcePath)) {
+    filters.push(
+      or(
+        eq(schema.translationQaFindings.sourcePath, input.sourcePath),
+        isNull(schema.translationQaFindings.sourcePath),
+      )!,
+    );
+  }
+
+  const findings = await db
+    .select({
+      id: schema.translationQaFindings.id,
+      translationKeyId: schema.translationQaFindings.translationKeyId,
+      key: schema.translationQaFindings.key,
+      sourcePath: schema.translationQaFindings.sourcePath,
+      targetLocale: schema.translationQaFindings.targetLocale,
+      checkType: schema.translationQaFindings.checkType,
+      severity: schema.translationQaFindings.severity,
+      category: schema.translationQaFindings.category,
+      message: schema.translationQaFindings.message,
+      relatedTokens: schema.translationQaFindings.relatedTokens,
+      targetText: schema.translationQaFindings.targetText,
+    })
+    .from(schema.translationQaFindings)
+    .where(and(...filters))
+    .orderBy(schema.translationQaFindings.key, schema.translationQaFindings.checkType)
+    .limit(input.limit ?? 2000);
+
+  return { runId: run.id, findings };
+}
+
 export async function listLatestTranslationQaRunsForOrganization(organizationId: string) {
   const latestRun = db
     .selectDistinctOn([schema.translationQaRuns.projectId], {
@@ -175,7 +241,10 @@ export async function updateProjectQaScanCadence(input: {
     .update(schema.projects)
     .set({ qaScanCadence: input.cadence })
     .where(
-      and(eq(schema.projects.organizationId, input.organizationId), eq(schema.projects.id, input.projectId)),
+      and(
+        eq(schema.projects.organizationId, input.organizationId),
+        eq(schema.projects.id, input.projectId),
+      ),
     )
     .returning({
       qaScanCadence: schema.projects.qaScanCadence,

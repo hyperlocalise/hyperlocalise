@@ -25,6 +25,7 @@ import {
 import { buildTranslationQaFindingHref } from "@/lib/qa/finding-href";
 import {
   getTranslationQaRun,
+  listLatestSucceededQaFindingsForCat,
   listTranslationQaFindings,
   listTranslationQaRuns,
   updateProjectQaScanCadence,
@@ -34,6 +35,7 @@ import type { TranslationQaScanCadence } from "@/lib/qa/types";
 
 import {
   qaReportFindingsQuerySchema,
+  qaReportLatestFindingsQuerySchema,
   qaReportProjectParamsSchema,
   qaReportRunParamsSchema,
   qaReportSettingsBodySchema,
@@ -42,7 +44,12 @@ import {
 const validateProjectParams = validator("param", (value, c) => {
   const parsed = qaReportProjectParamsSchema.safeParse(value);
   if (!parsed.success) {
-    return validationErrorResponse(c, "invalid_project_params", "Invalid project", parsed.error.issues);
+    return validationErrorResponse(
+      c,
+      "invalid_project_params",
+      "Invalid project",
+      parsed.error.issues,
+    );
   }
   return parsed.data;
 });
@@ -50,7 +57,25 @@ const validateProjectParams = validator("param", (value, c) => {
 const validateRunParams = validator("param", (value, c) => {
   const parsed = qaReportRunParamsSchema.safeParse(value);
   if (!parsed.success) {
-    return validationErrorResponse(c, "invalid_qa_report_params", "Invalid QA report", parsed.error.issues);
+    return validationErrorResponse(
+      c,
+      "invalid_qa_report_params",
+      "Invalid QA report",
+      parsed.error.issues,
+    );
+  }
+  return parsed.data;
+});
+
+const validateLatestFindingsQuery = validator("query", (value, c) => {
+  const parsed = qaReportLatestFindingsQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return validationErrorResponse(
+      c,
+      "invalid_qa_report_query",
+      "Invalid QA report query",
+      parsed.error.issues,
+    );
   }
   return parsed.data;
 });
@@ -90,7 +115,11 @@ function serializeRun(run: {
   findingCount: number;
   errorCount: number;
   warningCount: number;
-  summary: { byCheckType: Record<string, number>; bySeverity: Record<string, number>; byLocale: Record<string, number> };
+  summary: {
+    byCheckType: Record<string, number>;
+    bySeverity: Record<string, number>;
+    byLocale: Record<string, number>;
+  };
   errorCode: string | null;
   errorMessage: string | null;
   startedAt: Date | null;
@@ -136,7 +165,11 @@ export function createProjectQaReportRoutes() {
         return projectNotFoundResponse(c);
       }
       if (resolved.kind === "unsupported") {
-        return badRequestResponse(c, "qa_scan_not_supported", "QA reports are available for native projects");
+        return badRequestResponse(
+          c,
+          "qa_scan_not_supported",
+          "QA reports are available for native projects",
+        );
       }
 
       const reports = await listTranslationQaRuns({
@@ -168,7 +201,11 @@ export function createProjectQaReportRoutes() {
         return projectNotFoundResponse(c);
       }
       if (resolved.kind === "unsupported") {
-        return badRequestResponse(c, "qa_scan_not_supported", "QA reports are available for native projects");
+        return badRequestResponse(
+          c,
+          "qa_scan_not_supported",
+          "QA reports are available for native projects",
+        );
       }
 
       const result = await runProjectTranslationQaScan({
@@ -181,7 +218,11 @@ export function createProjectQaReportRoutes() {
         if (result.code === "scan_in_progress") {
           return conflictResponse(c, "qa_scan_in_progress", "A QA scan is already running");
         }
-        return badRequestResponse(c, "qa_scan_not_supported", "QA reports are available for native projects");
+        return badRequestResponse(
+          c,
+          "qa_scan_not_supported",
+          "QA reports are available for native projects",
+        );
       }
 
       const report = await getTranslationQaRun({
@@ -207,7 +248,11 @@ export function createProjectQaReportRoutes() {
         return projectNotFoundResponse(c);
       }
       if (resolved.kind === "unsupported") {
-        return badRequestResponse(c, "qa_scan_not_supported", "QA reports are available for native projects");
+        return badRequestResponse(
+          c,
+          "qa_scan_not_supported",
+          "QA reports are available for native projects",
+        );
       }
 
       const settings = await updateProjectQaScanCadence({
@@ -228,6 +273,48 @@ export function createProjectQaReportRoutes() {
         200,
       );
     })
+    .get("/latest-findings", validateProjectParams, validateLatestFindingsQuery, async (c) => {
+      const { projectId } = c.req.valid("param");
+      const query = c.req.valid("query");
+      const resolved = await requireNativeProject(c.var.auth, projectId);
+      if (resolved.kind === "missing") {
+        return projectNotFoundResponse(c);
+      }
+      if (resolved.kind === "unsupported") {
+        return badRequestResponse(
+          c,
+          "qa_scan_not_supported",
+          "QA reports are available for native projects",
+        );
+      }
+
+      const { runId, findings } = await listLatestSucceededQaFindingsForCat({
+        organizationId: resolved.project.organizationId,
+        projectId: resolved.project.id,
+        locale: query.locale,
+        sourcePath: query.sourcePath,
+        limit: query.limit,
+      });
+
+      return c.json(
+        {
+          runId,
+          findings: findings.map((finding) => ({
+            translationKeyId: finding.translationKeyId,
+            key: finding.key,
+            sourcePath: finding.sourcePath,
+            targetLocale: finding.targetLocale,
+            checkType: finding.checkType,
+            severity: finding.severity,
+            category: finding.category,
+            message: finding.message,
+            relatedTokens: finding.relatedTokens,
+            targetText: finding.targetText,
+          })),
+        },
+        200,
+      );
+    })
     .get("/:runId", validateRunParams, validateFindingsQuery, async (c) => {
       const { projectId, runId } = c.req.valid("param");
       const query = c.req.valid("query");
@@ -236,7 +323,11 @@ export function createProjectQaReportRoutes() {
         return projectNotFoundResponse(c);
       }
       if (resolved.kind === "unsupported") {
-        return badRequestResponse(c, "qa_scan_not_supported", "QA reports are available for native projects");
+        return badRequestResponse(
+          c,
+          "qa_scan_not_supported",
+          "QA reports are available for native projects",
+        );
       }
 
       const report = await getTranslationQaRun({
@@ -276,7 +367,8 @@ export function createProjectQaReportRoutes() {
             sourceText: finding.sourceText,
             targetText: finding.targetText,
             editorHref: buildTranslationQaFindingHref({
-              organizationSlug: c.req.param("organizationSlug") ?? c.var.auth.organization.slug ?? "",
+              organizationSlug:
+                c.req.param("organizationSlug") ?? c.var.auth.organization.slug ?? "",
               projectId: resolved.project.id,
               sourcePath: finding.sourcePath,
               targetLocale: finding.targetLocale,

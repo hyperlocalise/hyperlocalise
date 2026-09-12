@@ -33,6 +33,10 @@ scans.
 4. **Dashboard.** Project QA shows the latest summary, findings, run history,
    a run button, and the schedule toggle. Workspace QA lists the latest native
    scan per project.
+5. **CAT merge.** The editor loads the latest succeeded scan for the open
+   locale and shows those findings immediately when the target text still
+   matches the scan snapshot. Live go-svc / glossary checks then merge in and
+   win on overlapping families. Scan findings remain when go-svc is unavailable.
 
 Scans run in the API request (or cron tick). Native QA checks are cheap string
 comparisons. Concurrent scans on the same project return `409`.
@@ -47,6 +51,7 @@ comparisons. Concurrent scans on the same project return `409`.
 ## Testing
 
 - Unit tests for each check
-- Route tests for start, list, findings, settings, and native-only rejection
+- Route tests for start, list, findings, settings, CAT latest-findings, and native-only rejection
 - Cron tests for auth and due-project selection
 - Navigation tests for the QA item
+- Unit tests for mapping scan findings onto CAT checks and merging live + scan results

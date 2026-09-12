@@ -135,6 +135,38 @@ describe("ContentEditorReviewController", () => {
       );
     });
 
+    it("prefers live CAT checks over matching on-demand scan findings", async () => {
+      const validateFormat = vi.fn().mockResolvedValue([
+        {
+          id: "qa-same-as-source",
+          label: "Same as source",
+          status: "warn",
+          message: "Live check",
+          category: "qa",
+        },
+      ]);
+      const runQaChecks = vi.fn().mockResolvedValue([
+        {
+          id: "qa-same-as-source",
+          label: "Same as source",
+          status: "warn",
+          message: "Scan check",
+          category: "qa",
+        },
+      ]);
+      const { controller, workspace } = createController(undefined, {
+        services: { validateFormat, runQaChecks },
+      });
+      const segment = workspace.getSegmentView("seg-02");
+      expect(segment).toBeDefined();
+
+      await controller.runChecks(segment!, "Deuxième");
+
+      expect(workspace.segmentFormatChecks["seg-02"]).toEqual([
+        expect.objectContaining({ id: "qa-same-as-source", message: "Live check" }),
+      ]);
+    });
+
     it("uses glossaryTermsOverride when provided", async () => {
       const validateFormat = vi.fn().mockResolvedValue([]);
       const overrideTerms: ContentEditorGlossaryTerm[] = [

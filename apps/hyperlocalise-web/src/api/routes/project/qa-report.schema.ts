@@ -38,6 +38,12 @@ export const qaReportFindingsQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).optional(),
 });
 
+export const qaReportLatestFindingsQuerySchema = z.object({
+  locale: z.string().trim().min(1).max(32),
+  sourcePath: z.string().trim().min(1).max(1024).optional(),
+  limit: z.coerce.number().int().min(1).max(2000).optional(),
+});
+
 export const qaReportSettingsBodySchema = z.object({
   cadence: z.enum(translationQaScanCadences),
 });
@@ -88,7 +94,10 @@ export const qaReportSettingsSchema = z.object({
   canManageSchedule: z.boolean(),
 });
 
-export const qaReportListResponseSchema = successEnvelopeSchema("reports", z.array(qaReportSchema)).extend({
+export const qaReportListResponseSchema = successEnvelopeSchema(
+  "reports",
+  z.array(qaReportSchema),
+).extend({
   settings: qaReportSettingsSchema,
 });
 
