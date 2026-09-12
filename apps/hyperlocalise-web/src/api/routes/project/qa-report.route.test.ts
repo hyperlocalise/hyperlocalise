@@ -312,6 +312,11 @@ describe("project QA reports", () => {
     const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
 
+    await db
+      .update(schema.projects)
+      .set({ targetLocales: ["fr-FR", "de-DE"] })
+      .where(eq(schema.projects.id, project.id));
+
     await db.insert(schema.projectTranslationKeys).values({
       organizationId: organization.id,
       projectId: project.id,
@@ -430,10 +435,10 @@ describe("project QA reports", () => {
       findings: Array<{ id: string }>;
       total: number;
     };
-    expect(first.total).toBe(6);
-    expect(second.total).toBe(6);
+    expect(first.total).toBe(3);
+    expect(second.total).toBe(3);
     expect(first.findings).toHaveLength(2);
-    expect(second.findings).toHaveLength(2);
+    expect(second.findings).toHaveLength(1);
     expect(second.findings[0]?.id).not.toBe(first.findings[0]?.id);
   });
 
