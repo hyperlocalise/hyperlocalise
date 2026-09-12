@@ -158,17 +158,17 @@ export const qaProjectMessages = defineMessages({
   },
   loadMore: {
     defaultMessage: "Load more",
-    id: "qaPrLoadMore01",
+    id: "RcSX5Vc4DS",
     description: "Project QA load more findings",
   },
   loadingMore: {
     defaultMessage: "Loading…",
-    id: "qaPrLoadMore02",
+    id: "TqMzymk92f",
     description: "Project QA loading more findings",
   },
   findingsShown: {
     defaultMessage: "Showing {shown} of {total}",
-    id: "qaPrShown01",
+    id: "iQ+Qd5bwId",
     description: "Project QA findings pagination count",
   },
 });

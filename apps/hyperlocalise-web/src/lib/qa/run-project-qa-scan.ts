@@ -161,7 +161,9 @@ export async function runProjectTranslationQaScan(input: {
       for (const key of keys) {
         for (const targetLocale of locales) {
           segmentCount += 1;
-          const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
+          const translation = translationByKeyLocale.get(
+            `${key.translationKeyId}\0${targetLocale}`,
+          );
           const targetText = translation?.text ?? "";
           const checks = validateTranslationSegment({
             sourceText: key.sourceText,

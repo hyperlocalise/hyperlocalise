@@ -44,17 +44,11 @@ function describeIntroducedEscapedChars(tokens: readonly string[]) {
 
 function isHexByte(value: string) {
   const code = value.charCodeAt(0);
-  return (
-    (code >= 48 && code <= 57) ||
-    (code >= 97 && code <= 102) ||
-    (code >= 65 && code <= 70)
-  );
+  return (code >= 48 && code <= 57) || (code >= 97 && code <= 102) || (code >= 65 && code <= 70);
 }
 
 function isControlCodePoint(codePoint: number) {
-  return (
-    (codePoint >= 0 && codePoint <= 0x1f) || (codePoint >= 0x7f && codePoint <= 0x9f)
-  );
+  return (codePoint >= 0 && codePoint <= 0x1f) || (codePoint >= 0x7f && codePoint <= 0x9f);
 }
 
 function controlCharToken(codePoint: number) {
@@ -141,7 +135,7 @@ function extractSpecialCharLiterals(value: string) {
   }
 
   const tokens: string[] = [];
-  for (let index = 0; index < value.length; ) {
+  for (let index = 0; index < value.length;) {
     if (value[index] !== "\\") {
       index += 1;
       continue;

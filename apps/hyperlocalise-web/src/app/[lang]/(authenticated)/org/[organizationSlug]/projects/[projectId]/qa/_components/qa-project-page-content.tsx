@@ -378,8 +378,12 @@ export function QaProjectPageContent({
                         {finding.message}
                       </TypographyP>
                     </td>
-                    <td className="max-w-56 px-3 py-2 align-top break-words">{finding.sourceText}</td>
-                    <td className="max-w-56 px-3 py-2 align-top break-words">{finding.targetText}</td>
+                    <td className="max-w-56 px-3 py-2 align-top break-words">
+                      {finding.sourceText}
+                    </td>
+                    <td className="max-w-56 px-3 py-2 align-top break-words">
+                      {finding.targetText}
+                    </td>
                     <td className="px-3 py-2 align-top">
                       <Button
                         nativeButton={false}
