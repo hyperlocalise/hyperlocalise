@@ -74,7 +74,7 @@ export const users = pgTable(
     workosMembershipsReconciledAt: timestamp("workos_memberships_reconciled_at", {
       withTimezone: true,
     }),
-    // When the first-registration welcome email was sent. Null until claimed.
+    // When the first-registration welcome email was delivered. Null until Resend succeeds.
     onboardingEmailSentAt: timestamp("onboarding_email_sent_at", {
       withTimezone: true,
     }),

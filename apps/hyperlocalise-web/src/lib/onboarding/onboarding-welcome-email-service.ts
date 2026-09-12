@@ -27,6 +27,7 @@ import { SITE_URL } from "@/lib/seo/site-url";
 const GETTING_STARTED_URL = "https://hyperlocalise.dev/platform/getting-started";
 const MCP_DOCS_URL = "https://hyperlocalise.dev/platform/mcp";
 const CLI_DOCS_URL = "https://hyperlocalise.dev/cli/workflows/ci-automation";
+export const ONBOARDING_WELCOME_EMAIL_REPLY_TO = "minh@hyperlocalise.com";
 
 const logger = createLogger("onboarding-welcome-email");
 
@@ -47,25 +48,22 @@ function resendFromAddress(): string | null {
     : env.RESEND_FROM_ADDRESS;
 }
 
-async function claimOnboardingWelcomeEmail(
-  database: DatabaseClient,
-  userId: string,
-): Promise<boolean> {
-  const now = new Date();
-  const [claimed] = await database
-    .update(schema.users)
-    .set({ onboardingEmailSentAt: now, updatedAt: now })
-    .where(and(eq(schema.users.id, userId), isNull(schema.users.onboardingEmailSentAt)))
-    .returning({ id: schema.users.id });
+async function welcomeEmailAlreadySent(database: DatabaseClient, userId: string): Promise<boolean> {
+  const [row] = await database
+    .select({ sentAt: schema.users.onboardingEmailSentAt })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1);
 
-  return Boolean(claimed);
+  return Boolean(row?.sentAt);
 }
 
-async function releaseOnboardingWelcomeEmailClaim(database: DatabaseClient, userId: string) {
+async function markOnboardingWelcomeEmailSent(database: DatabaseClient, userId: string) {
+  const now = new Date();
   await database
     .update(schema.users)
-    .set({ onboardingEmailSentAt: null, updatedAt: new Date() })
-    .where(eq(schema.users.id, userId));
+    .set({ onboardingEmailSentAt: now, updatedAt: now })
+    .where(and(eq(schema.users.id, userId), isNull(schema.users.onboardingEmailSentAt)));
 }
 
 export async function sendOnboardingWelcomeEmail(input: {
@@ -85,8 +83,7 @@ export async function sendOnboardingWelcomeEmail(input: {
     return { ok: true, skipped: true, reason: "resend_not_configured" };
   }
 
-  const claimed = await claimOnboardingWelcomeEmail(database, input.userId);
-  if (!claimed) {
+  if (await welcomeEmailAlreadySent(database, input.userId)) {
     return { ok: true, skipped: true, reason: "already_sent" };
   }
 
@@ -104,32 +101,30 @@ export async function sendOnboardingWelcomeEmail(input: {
     codexSnippet: `codex mcp add hyperlocalise --url ${mcpUrl}`,
   };
 
-  try {
-    const html = await render(OnboardingWelcomeEmail(emailProps));
-    const text = onboardingWelcomeEmailText(emailProps);
-    const resend = new Resend(env.RESEND_API_KEY);
-    const result = await resend.emails.send(
-      {
-        from,
-        to: [input.email],
-        subject: ONBOARDING_WELCOME_EMAIL_SUBJECT,
-        html,
-        text,
-      },
-      { idempotencyKey: `onboarding-welcome-email/${input.userId}` },
-    );
+  const html = await render(OnboardingWelcomeEmail(emailProps));
+  const text = onboardingWelcomeEmailText(emailProps);
+  const resend = new Resend(env.RESEND_API_KEY);
+  const result = await resend.emails.send(
+    {
+      from,
+      to: [input.email],
+      replyTo: ONBOARDING_WELCOME_EMAIL_REPLY_TO,
+      subject: ONBOARDING_WELCOME_EMAIL_SUBJECT,
+      html,
+      text,
+    },
+    { idempotencyKey: `onboarding-welcome-email/${input.userId}` },
+  );
 
-    if (result.error) {
-      throw new Error(result.error.message);
-    }
-
-    logger.info("onboarding_welcome_email_sent", {
-      userId: input.userId,
-    });
-
-    return { ok: true, skipped: false, resendId: result.data?.id ?? null };
-  } catch (error) {
-    await releaseOnboardingWelcomeEmailClaim(database, input.userId);
-    throw error;
+  if (result.error) {
+    throw new Error(result.error.message);
   }
+
+  await markOnboardingWelcomeEmailSent(database, input.userId);
+
+  logger.info("onboarding_welcome_email_sent", {
+    userId: input.userId,
+  });
+
+  return { ok: true, skipped: false, resendId: result.data?.id ?? null };
 }

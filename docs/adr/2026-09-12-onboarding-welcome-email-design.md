@@ -24,11 +24,12 @@ Resend.
 Send one welcome email from the existing WorkOS webhook on `user.created` only.
 
 - Sync the local user first, then send.
-- Claim `users.onboarding_email_sent_at` before calling Resend so webhook retries
-  and concurrent deliveries cannot send twice.
-- Use a Resend idempotency key keyed by user id as a second guard.
-- Skip quietly when Resend is not configured. Release the claim and fail the
-  webhook when Resend is configured and the send fails, so WorkOS retries.
+- Call Resend with an idempotency key keyed by user id, then write
+  `users.onboarding_email_sent_at` only after the send succeeds. A process
+  crash between those steps can retry; Resend returns the same delivery.
+- Set Reply-To to `minh@hyperlocalise.com`.
+- Skip quietly when Resend is not configured. Fail the webhook when Resend
+  is configured and the send fails, so WorkOS retries.
 - Do not send on `user.updated` or membership events.
 - Keep the copy transactional: create a project, add source files, install the
   CLI in GitHub Actions, and connect MCP. Link to Cloud and to

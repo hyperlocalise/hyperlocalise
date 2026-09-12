@@ -43,7 +43,10 @@ vi.mock("@/lib/env", async (importOriginal) => {
 
 import { db, schema } from "@/lib/database/client";
 
-import { sendOnboardingWelcomeEmail } from "./onboarding-welcome-email-service";
+import {
+  ONBOARDING_WELCOME_EMAIL_REPLY_TO,
+  sendOnboardingWelcomeEmail,
+} from "./onboarding-welcome-email-service";
 
 describe("sendOnboardingWelcomeEmail", () => {
   const createdUserIds: string[] = [];
@@ -95,6 +98,7 @@ describe("sendOnboardingWelcomeEmail", () => {
       {
         from: string;
         to: string[];
+        replyTo: string;
         subject: string;
         html: string;
         text: string;
@@ -103,6 +107,7 @@ describe("sendOnboardingWelcomeEmail", () => {
     ];
     expect(sendArgs.from).toBe("Hyperlocalise <hello@example.com>");
     expect(sendArgs.to).toEqual([user.email]);
+    expect(sendArgs.replyTo).toBe(ONBOARDING_WELCOME_EMAIL_REPLY_TO);
     expect(sendArgs.subject).toBe("Getting started with Hyperlocalise");
     expect(sendArgs.html).toContain("Hello Dev, and welcome to Hyperlocalise.");
     expect(sendArgs.html).toContain(
@@ -121,9 +126,9 @@ describe("sendOnboardingWelcomeEmail", () => {
     expect(row.sentAt).toBeInstanceOf(Date);
   });
 
-  it("releases the claim when Resend fails", async () => {
+  it("does not mark the email sent when Resend fails, then sends on retry", async () => {
     const user = await insertUser();
-    resendSend.mockResolvedValue({ data: null, error: { message: "rate limited" } });
+    resendSend.mockResolvedValueOnce({ data: null, error: { message: "rate limited" } });
 
     await expect(
       sendOnboardingWelcomeEmail({
@@ -133,10 +138,24 @@ describe("sendOnboardingWelcomeEmail", () => {
       }),
     ).rejects.toThrow("rate limited");
 
+    const [failed] = await db
+      .select({ sentAt: schema.users.onboardingEmailSentAt })
+      .from(schema.users)
+      .where(eq(schema.users.id, user.id));
+    expect(failed.sentAt).toBeNull();
+
+    resendSend.mockResolvedValueOnce({ data: { id: "email_2" }, error: null });
+    const retry = await sendOnboardingWelcomeEmail({
+      userId: user.id,
+      email: user.email,
+      firstName: "Dev",
+    });
+
+    expect(retry).toEqual({ ok: true, skipped: false, resendId: "email_2" });
     const [row] = await db
       .select({ sentAt: schema.users.onboardingEmailSentAt })
       .from(schema.users)
       .where(eq(schema.users.id, user.id));
-    expect(row.sentAt).toBeNull();
+    expect(row.sentAt).toBeInstanceOf(Date);
   });
 });
