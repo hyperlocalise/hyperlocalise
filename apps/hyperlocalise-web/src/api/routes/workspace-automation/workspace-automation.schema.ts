@@ -13,11 +13,15 @@
 import { z } from "zod";
 
 import {
+  contentSyncConfigSchema,
+  repositoryTargetSchema,
+  toolConfigSchema,
+  triggerConfigSchema,
   workspaceAutomationConfigSchema,
   workspaceAutomationModelSchema,
   workspaceAutomationStatusSchema,
 } from "@/lib/agents/workspace-automation-types";
-import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
+import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const workspaceAutomationIdParamSchema = z.object({
   automationId: z.string().uuid(),
@@ -35,24 +39,47 @@ export const listWorkspaceAutomationsQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-export const createWorkspaceAutomationBodySchema = workspaceAutomationConfigSchema
-  .extend({
-    status: workspaceAutomationStatusSchema.optional(),
-    name: z.string().trim().min(1).max(120),
-    instructions: z.string().trim().min(1).max(20_000),
-    model: workspaceAutomationModelSchema.optional(),
-    nextRunAt: z.string().datetime().nullable().optional(),
-  })
-  .strict();
+const agentAutomationCreateFields = {
+  status: workspaceAutomationStatusSchema.optional(),
+  name: z.string().trim().min(1).max(120),
+  instructions: z.string().trim().min(1).max(20_000),
+  model: workspaceAutomationModelSchema.optional(),
+  nextRunAt: z.string().datetime().nullable().optional(),
+};
+
+export const createWorkspaceAutomationBodySchema = z.union([
+  z
+    .object({
+      status: workspaceAutomationStatusSchema.optional(),
+      name: z.string().trim().min(1).max(120),
+      instructions: z.string().trim().max(20_000).optional(),
+      model: workspaceAutomationModelSchema.optional(),
+      nextRunAt: z.string().datetime().nullable().optional(),
+      kind: z.literal("content_sync"),
+      projectId: projectIdSchema,
+      syncConfig: contentSyncConfigSchema,
+      triggerConfig: triggerConfigSchema.optional(),
+      repositoryTarget: repositoryTargetSchema.optional(),
+      toolConfig: toolConfigSchema.optional(),
+    })
+    .strict(),
+  workspaceAutomationConfigSchema
+    .extend({
+      ...agentAutomationCreateFields,
+      kind: z.literal("agent").optional(),
+    })
+    .strict(),
+]);
 
 export const updateWorkspaceAutomationBodySchema = workspaceAutomationConfigSchema
   .partial()
   .extend({
     status: workspaceAutomationStatusSchema.optional(),
     name: z.string().trim().min(1).max(120).optional(),
-    instructions: z.string().trim().min(1).max(20_000).optional(),
+    instructions: z.string().trim().max(20_000).optional(),
     model: workspaceAutomationModelSchema.optional(),
     nextRunAt: z.string().datetime().nullable().optional(),
+    syncConfig: contentSyncConfigSchema.optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {

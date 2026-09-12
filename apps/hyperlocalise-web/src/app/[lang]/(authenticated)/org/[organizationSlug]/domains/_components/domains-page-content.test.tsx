@@ -23,6 +23,8 @@ import { DomainsPageContent } from "./domains-page-content";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/en/org/acme/domains",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("next/link", () => ({
@@ -31,14 +33,14 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-function renderPage() {
+function renderPage({ allowLinkDomains = true }: { allowLinkDomains?: boolean } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <IntlProvider locale="en">
       <QueryClientProvider client={queryClient}>
-        <DomainsPageContent organizationSlug="acme" />
+        <DomainsPageContent organizationSlug="acme" allowLinkDomains={allowLinkDomains} />
       </QueryClientProvider>
     </IntlProvider>,
   );
@@ -61,7 +63,23 @@ describe("domains page content", () => {
     await waitFor(() => {
       expect(screen.getByText("No linked domains yet")).toBeInTheDocument();
     });
+    expect(screen.getByRole("button", { name: "Link domain" })).toBeInTheDocument();
     expect(screen.queryByText("hyperlocalise.com")).not.toBeInTheDocument();
+  });
+
+  it("hides the link action when the user cannot create projects", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ linkedDomains: [] }),
+      }),
+    );
+    renderPage({ allowLinkDomains: false });
+    await waitFor(() => {
+      expect(screen.getByText("No linked domains yet")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "Link domain" })).not.toBeInTheDocument();
   });
 
   it("renders linked domains returned by the API", async () => {

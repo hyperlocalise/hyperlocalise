@@ -43,6 +43,8 @@ import {
 } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 
 import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-view-mode";
+import { ContentEditorPageStore } from "@/components/content-editor/page/content-editor-page-store";
+
 import { ContentEditorIntelligenceStore } from "./store/content-editor-intelligence-store";
 import { ContentEditorQueueStore } from "./store/content-editor-queue-store";
 import { ContentEditorSegmentDraft } from "./store/content-editor-segment-draft";
@@ -69,6 +71,7 @@ type UnsavedNavigationPrompt = {
 interface WorkspaceControllerLifecycle {
   start(): void;
   dispose(): void;
+  invalidateFileScope?(): void;
 }
 
 const defaultFileContext: ContentEditorFileContext = {
@@ -182,6 +185,7 @@ export class ContentEditorWorkspaceOrchestrator {
   readonly queue = new ContentEditorQueueStore();
   readonly segments = new ContentEditorSegmentStore();
   readonly intelligenceState = new ContentEditorIntelligenceStore();
+  readonly page = new ContentEditorPageStore();
   readonly ui: ContentEditorWorkspaceUiStore;
 
   jobTitle?: string;
@@ -220,6 +224,7 @@ export class ContentEditorWorkspaceOrchestrator {
 
   validationSequence = 0;
   reviewSequence = 0;
+  fileScopeGeneration = 0;
   private controllers: WorkspaceControllerLifecycle[] = [];
   private dirtyStateDisposer?: IReactionDisposer;
   private beforeUnloadHandler?: (event: BeforeUnloadEvent) => void;
@@ -234,6 +239,7 @@ export class ContentEditorWorkspaceOrchestrator {
       {
         validationSequence: false,
         reviewSequence: false,
+        fileScopeGeneration: false,
         loadingSegmentIds: computed({ equals: loadingSegmentIdsEqual }),
       },
       { autoBind: true },
@@ -695,6 +701,61 @@ export class ContentEditorWorkspaceOrchestrator {
     this.ingestQueue(initialState, initialSegmentKeyOrId);
   }
 
+  /**
+   * File or locale changed while the page store stays mounted. Drop the previous
+   * file's queue so chrome can keep rendering, then wait for the next snapshot.
+   */
+  prepareFileScopeChange(input: {
+    sourcePath: string;
+    sourceLocale: string;
+    targetLocale: string;
+  }) {
+    const filename = input.sourcePath.split("/").pop() ?? input.sourcePath;
+    this.fileScopeGeneration += 1;
+    this.reviewSequence += 1;
+    this.validationSequence += 1;
+    this.isApproving = false;
+    this.isSavingDraft = false;
+    this.isBulkActionPending = false;
+    this.isPostingComment = false;
+    this.isResolvingComment = false;
+    this.resolvingCommentId = null;
+    this.commentPostError = undefined;
+    this.isValidating = false;
+    this.isGeneratingAiRecommendation = false;
+    this.isRunningFormatChecks = false;
+    this.isLoadingVisualContext = false;
+    this.lastHydratedSnapshot = null;
+    this.lastHydratedQueueIdentity = "";
+    this.initialSegmentJumpApplied = false;
+    this.hydratedTargetSegmentIds = new Set();
+    this.locallyCommittedTargetTexts = new Map();
+    this.preSaveTargetTexts = new Map();
+    this.localStatusOverrides = new Map();
+    this.applySnapshotQueueMeta([], {});
+    this.selectedSegmentId = "";
+    this.formatChecks = [];
+    this.segmentFormatChecks = {};
+    this.fileContext = {
+      sourcePath: input.sourcePath,
+      filename,
+      sourceLocale: input.sourceLocale,
+      targetLocale: input.targetLocale,
+      providerKind: null,
+      canEditTranslations: true,
+      canAddComments: true,
+    };
+    this.page.beginFileScopeChange(input.sourcePath, input.targetLocale);
+    this.ui.setTranslationViewLoading(true);
+    for (const controller of this.controllers) {
+      controller.invalidateFileScope?.();
+    }
+  }
+
+  isFileScopeCurrent(generation: number) {
+    return this.fileScopeGeneration === generation;
+  }
+
   hasHydratedTarget(segmentId: string) {
     return this.hydratedTargetSegmentIds.has(segmentId);
   }
@@ -800,6 +861,7 @@ export class ContentEditorWorkspaceOrchestrator {
 
       this.lastHydratedSnapshot = normalizedNext;
       this.lastHydratedQueueIdentity = queueSnapshotIdentity(normalizedNext);
+      this.ui.setTranslationViewLoading(false);
     });
   }
 

@@ -30,7 +30,10 @@ import type {
   WorkspaceAutomationTemplate,
   WorkspaceAutomationTemplateCategory,
 } from "@/lib/agents/workspace-automation-templates";
-import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
+import {
+  isContentSyncAutomation,
+  type WorkspaceAutomationRecord,
+} from "@/lib/agents/workspace-automation-types";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { AutomationTemplateFlow, AutomationTemplateTriggerIcon } from "./automation-template-flow";
@@ -46,6 +49,7 @@ import {
   resolveTemplateCategoryTabs,
   resolveVisibleAutomations,
 } from "./automations-page-view-model";
+import { ContentSyncCard } from "./content-sync-card";
 import { GithubAutoReviewCard } from "./github-auto-review-card";
 
 const AUTOMATION_LIST_GRID_CLASS =
@@ -232,10 +236,16 @@ export function AutomationsPageView({
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
 
   const visibleAutomations = useMemo(
-    () => resolveVisibleAutomations(automations, projectId),
+    () =>
+      resolveVisibleAutomations(automations, projectId).filter(
+        (automation) => !isContentSyncAutomation(automation),
+      ),
     [automations, projectId],
   );
-  const stats = useMemo(() => resolveAutomationPageStats(visibleAutomations), [visibleAutomations]);
+  const stats = useMemo(
+    () => resolveAutomationPageStats(resolveVisibleAutomations(automations, projectId)),
+    [automations, projectId],
+  );
   const sortedTemplates = useMemo(() => resolveSortedAutomationTemplates(templates), [templates]);
   const templateCategoryTabs = useMemo(
     () => resolveTemplateCategoryTabs(sortedTemplates),
@@ -314,6 +324,12 @@ export function AutomationsPageView({
           </CardHeader>
         </Card>
       </section>
+
+      <ContentSyncCard
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        automations={automations}
+      />
 
       {projectId ? null : (
         <GithubAutoReviewCard

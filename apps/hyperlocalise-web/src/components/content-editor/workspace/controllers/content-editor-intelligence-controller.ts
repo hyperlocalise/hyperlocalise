@@ -79,6 +79,20 @@ export class ContentEditorIntelligenceController {
     this.inFlight.clear();
   }
 
+  invalidateFileScope() {
+    this.invalidateContextLookupGeneration();
+    this.concordanceAttempts.clear();
+    this.visualContextAttempts.clear();
+    this.loadedSegmentIds.clear();
+    for (const segmentId of this.inFlight.keys()) {
+      this.nextConcordanceGeneration(segmentId);
+      this.workspace.endConcordanceLoad(segmentId);
+    }
+    this.inFlight.clear();
+    this.workspace.isLoadingVisualContext = false;
+    this.visualContextLoadingSegmentId = null;
+  }
+
   async loadConcordance(
     segmentId: string,
   ): Promise<ContentEditorSegmentConcordanceResult | undefined> {
@@ -209,14 +223,15 @@ export class ContentEditorIntelligenceController {
     this.visualContextAttempts.add(segmentId);
     this.workspace.isLoadingVisualContext = true;
     this.visualContextLoadingSegmentId = segmentId;
+    const fileScopeGeneration = this.workspace.fileScopeGeneration;
     void lookupSegmentVisualContext(segment)
       .then((visualContext) => {
-        if (!this.disposed) {
+        if (!this.disposed && this.workspace.isFileScopeCurrent(fileScopeGeneration)) {
           this.workspace.mergeSegmentIntelligence(segmentId, { visualContext });
         }
       })
       .catch(() => {
-        if (!this.disposed) {
+        if (!this.disposed && this.workspace.isFileScopeCurrent(fileScopeGeneration)) {
           this.workspace.upsertFormatCheck(segmentId, {
             id: `visual-context-failed-${segmentId}`,
             label: this.ports.intl.formatMessage(contentEditorIntelligencePanelMessages.panelTitle),
@@ -229,7 +244,10 @@ export class ContentEditorIntelligenceController {
         }
       })
       .finally(() => {
-        if (segmentId === this.visualContextLoadingSegmentId) {
+        if (
+          segmentId === this.visualContextLoadingSegmentId &&
+          this.workspace.isFileScopeCurrent(fileScopeGeneration)
+        ) {
           this.workspace.isLoadingVisualContext = false;
           this.visualContextLoadingSegmentId = null;
         }

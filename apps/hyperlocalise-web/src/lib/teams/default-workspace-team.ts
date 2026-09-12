@@ -84,19 +84,31 @@ export async function ensureTeamMembership(input: {
   userId: string;
   role?: TeamMembershipRole;
   database?: DatabaseClient;
-}) {
+}): Promise<{ created: boolean }> {
   const database = input.database ?? db;
 
-  await database
-    .insert(schema.teamMemberships)
-    .values({
-      teamId: input.teamId,
-      userId: input.userId,
-      role: input.role ?? "member",
-    })
-    .onConflictDoNothing({
-      target: [schema.teamMemberships.teamId, schema.teamMemberships.userId],
-    });
+  const [existingMembership] = await database
+    .select({ id: schema.teamMemberships.id })
+    .from(schema.teamMemberships)
+    .where(
+      and(
+        eq(schema.teamMemberships.teamId, input.teamId),
+        eq(schema.teamMemberships.userId, input.userId),
+      ),
+    )
+    .limit(1);
+
+  if (existingMembership) {
+    return { created: false };
+  }
+
+  await database.insert(schema.teamMemberships).values({
+    teamId: input.teamId,
+    userId: input.userId,
+    role: input.role ?? "member",
+  });
+
+  return { created: true };
 }
 
 export async function ensureDefaultWorkspaceTeamMembership(input: {
@@ -108,14 +120,14 @@ export async function ensureDefaultWorkspaceTeamMembership(input: {
   const database = input.database ?? db;
   const team = await ensureDefaultWorkspaceTeam(input.organizationId, database);
 
-  await ensureTeamMembership({
+  const membershipResult = await ensureTeamMembership({
     teamId: team.id,
     userId: input.userId,
     role: input.role,
     database,
   });
 
-  return team;
+  return { team, created: membershipResult.created };
 }
 
 export async function backfillOrganizationProjectTeams(organizationId: string) {

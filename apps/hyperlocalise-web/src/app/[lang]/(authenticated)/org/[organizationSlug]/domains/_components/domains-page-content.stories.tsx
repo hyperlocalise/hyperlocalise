@@ -28,7 +28,7 @@ const meta = {
     nextjs: { appDirectory: true, navigation: { pathname: "/en/org/domains-preview/domains" } },
     msw: { handlers: domainResearchMswHandlers() },
   },
-  args: { organizationSlug: ORGANIZATION_SLUG },
+  args: { organizationSlug: ORGANIZATION_SLUG, allowLinkDomains: true },
 } satisfies Meta<typeof DomainsPageContent>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -45,5 +45,6 @@ export const Empty: Story = {
   },
   play: async ({ canvas }) => {
     await expect(await canvas.findByText("No linked domains yet")).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Link domain" })).toBeInTheDocument();
   },
 };

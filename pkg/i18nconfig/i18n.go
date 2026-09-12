@@ -68,6 +68,9 @@ type BucketConfig struct {
 type BucketFileMapping struct {
 	From string `json:"from" jsonschema:"required"`
 	To   string `json:"to" jsonschema:"required"`
+	// SRX is an optional sentence-segmentation spec for `run`.
+	// Use a built-in template name (default, html, markdown) or a project-relative SRX 2.0 file.
+	SRX string `json:"srx,omitempty"`
 }
 
 // GroupConfig selects locales and buckets.
@@ -458,6 +461,9 @@ func (c I18NConfig) validateProjectPaths(configDir string) error {
 			if err := validateProjectPath(root, file.To); err != nil {
 				return fmt.Errorf("buckets.%s.files[%d].to: %w", bucketName, i, err)
 			}
+			if err := validateSRXPath(root, file.SRX); err != nil {
+				return fmt.Errorf("buckets.%s.files[%d].srx: %w", bucketName, i, err)
+			}
 		}
 	}
 
@@ -613,8 +619,70 @@ func validateBucket(name string, bucket BucketConfig) error {
 		if !containsPlaceholder(fromSuffix) && !containsPlaceholder(toSuffix) && fromSuffix != toSuffix && !isSupportedImageSuffixPair(fromSuffix, toSuffix) {
 			return fmt.Errorf("buckets.%s.files[%d]: file suffix mismatch: from=%q and to=%q must have the same extension", name, i, file.From, file.To)
 		}
+		if err := validateSRXSpec(name, i, file.SRX); err != nil {
+			return err
+		}
 	}
 
+	return nil
+}
+
+func validateSRXSpec(bucketName string, index int, spec string) error {
+	trimmed := strings.TrimSpace(spec)
+	if trimmed == "" || isNamedSRXTemplate(trimmed) {
+		return nil
+	}
+	if err := validateRelativeConfigPath(trimmed); err != nil {
+		return fmt.Errorf("buckets.%s.files[%d].srx: %w", bucketName, index, err)
+	}
+	return nil
+}
+
+func validateSRXPath(root, spec string) error {
+	trimmed := strings.TrimSpace(spec)
+	if trimmed == "" || isNamedSRXTemplate(trimmed) {
+		return nil
+	}
+	if err := validateProjectPath(root, trimmed); err != nil {
+		return err
+	}
+	candidate := trimmed
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(root, candidate)
+	}
+	cleaned, err := canonicalPathForContainment(candidate)
+	if err != nil {
+		return fmt.Errorf("resolve path: %w", err)
+	}
+	info, err := os.Stat(cleaned)
+	if err != nil {
+		return fmt.Errorf("file %q does not exist", trimmed)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("path %q must be a file", trimmed)
+	}
+	return nil
+}
+
+func isNamedSRXTemplate(spec string) bool {
+	switch strings.ToLower(strings.TrimSpace(spec)) {
+	case "default", "html", "markdown":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateRelativeConfigPath(value string) error {
+	normalized := filepath.ToSlash(strings.TrimSpace(value))
+	if normalized == "" {
+		return fmt.Errorf("must not be empty")
+	}
+	for _, segment := range strings.Split(normalized, "/") {
+		if segment == ".." {
+			return fmt.Errorf("path must not contain parent directory traversal")
+		}
+	}
 	return nil
 }
 

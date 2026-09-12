@@ -44,8 +44,10 @@ import {
   listWorkspaceAutomations,
   updateWorkspaceAutomation,
 } from "@/lib/agents/workspace-automations";
+import { resolveContentSyncRepositoryTarget } from "@/lib/agents/content-sync/content-sync-config";
 import {
   type WorkspaceAutomationConfigValidationError,
+  type WorkspaceAutomationKind,
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automation-types";
@@ -284,6 +286,7 @@ async function validateAutomationReferences(input: {
   projectId?: string | null;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
+  contentfulConnectionId?: string;
 }): Promise<
   | "ok"
   | "github_repository_not_found"
@@ -323,7 +326,8 @@ async function validateAutomationReferences(input: {
     }
   }
 
-  const contentfulConnectionId = input.toolConfig.contentful?.connectionId;
+  const contentfulConnectionId =
+    input.toolConfig.contentful?.connectionId ?? input.contentfulConnectionId;
   if (contentfulConnectionId) {
     const foundConnection = await contentfulConnectionExists({
       organizationId: input.organizationId,
@@ -463,12 +467,22 @@ export function createWorkspaceAutomationRoutes(
     .post("/", validateCreateBody, async (c) => {
       const payload = c.req.valid("json");
       const organizationId = c.var.auth.organization.localOrganizationId;
+      const kind: WorkspaceAutomationKind =
+        payload.kind === "content_sync" ? "content_sync" : "agent";
+      const repositoryTarget =
+        kind === "content_sync" && payload.syncConfig
+          ? resolveContentSyncRepositoryTarget(payload.syncConfig)
+          : (payload.repositoryTarget ?? { kind: "none" });
 
       const referenceError = await validateAutomationReferences({
         organizationId,
         projectId: payload.projectId,
-        repositoryTarget: payload.repositoryTarget,
-        toolConfig: payload.toolConfig,
+        repositoryTarget,
+        toolConfig: payload.toolConfig ?? {},
+        contentfulConnectionId:
+          payload.syncConfig?.provider === "contentful"
+            ? payload.syncConfig.connectionId
+            : undefined,
       });
       if (referenceError !== "ok") {
         return mapReferenceError(c, referenceError);
@@ -480,13 +494,15 @@ export function createWorkspaceAutomationRoutes(
           authorUserId: c.var.auth.user.localUserId,
           actorWorkosUserId: c.var.auth.user.workosUserId,
           status: payload.status,
+          kind,
           name: payload.name,
-          instructions: payload.instructions,
+          instructions: payload.instructions ?? "",
           model: payload.model,
           projectId: payload.projectId ?? null,
           triggerConfig: payload.triggerConfig,
-          repositoryTarget: payload.repositoryTarget,
+          repositoryTarget,
           toolConfig: payload.toolConfig,
+          syncConfig: payload.syncConfig,
           nextRunAt: parseNextRunAt(payload.nextRunAt),
         };
 
@@ -661,6 +677,7 @@ export function createWorkspaceAutomationRoutes(
           triggerConfig: payload.triggerConfig,
           repositoryTarget: payload.repositoryTarget,
           toolConfig: payload.toolConfig,
+          syncConfig: payload.syncConfig,
           nextRunAt: parseNextRunAt(payload.nextRunAt),
         };
         const shouldEnforceAutomationLimit =

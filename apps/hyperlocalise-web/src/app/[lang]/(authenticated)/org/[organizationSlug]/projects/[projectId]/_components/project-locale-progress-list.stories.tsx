@@ -68,6 +68,7 @@ export const Empty: Story = {
 export const Loading: Story = {
   args: {
     locales: [],
+    expectedLocaleCount: projectOverviewLocaleProgressFixture.length,
     isLoading: true,
   },
 };

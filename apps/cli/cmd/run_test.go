@@ -1634,6 +1634,30 @@ func TestRunMaxTranslationsFlagPlumbedToServiceInput(t *testing.T) {
 	}
 }
 
+func TestRunSRXFlagPlumbedToServiceInput(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	var gotInput runsvc.Input
+	runFunc = func(_ context.Context, input runsvc.Input) (runsvc.Report, error) {
+		gotInput = input
+		return runsvc.Report{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--srx", "markdown"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with srx: %v", err)
+	}
+	if gotInput.SRX != "markdown" {
+		t.Fatalf("expected Input.SRX=markdown, got %q", gotInput.SRX)
+	}
+}
+
 func TestRunRejectsNegativeMaxTranslationsFlag(t *testing.T) {
 	cmd := newRootCmd("")
 	out := bytes.NewBuffer(nil)

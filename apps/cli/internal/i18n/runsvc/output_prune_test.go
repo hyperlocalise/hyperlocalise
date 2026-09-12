@@ -6,6 +6,39 @@ import (
 	"testing"
 )
 
+func TestBuildPlannedTargetKeySetCollapsesSRXSpanKeys(t *testing.T) {
+	planned := []Task{
+		{TargetPath: "/tmp/a.json", EntryKey: "hello#srx.0"},
+		{TargetPath: "/tmp/a.json", EntryKey: "hello#srx.1"},
+		{TargetPath: "/tmp/a.json", EntryKey: "bye"},
+	}
+
+	got := buildPlannedTargetKeySet(planned)
+	if _, ok := got["/tmp/a.json"]["hello"]; !ok {
+		t.Fatalf("expected original file key hello, got %#v", got)
+	}
+	if _, ok := got["/tmp/a.json"]["hello#srx.0"]; ok {
+		t.Fatalf("span key should not stay in prune keep-set: %#v", got)
+	}
+	if _, ok := got["/tmp/a.json"]["bye"]; !ok {
+		t.Fatalf("missing key bye: %#v", got)
+	}
+}
+
+func TestBuildPlannedTargetMetadataCopiesSRXSpec(t *testing.T) {
+	planned := []Task{
+		{TargetPath: "/tmp/a.json", SourcePath: "/tmp/en.json", SourceLocale: "en", TargetLocale: "fr", SRXSpec: "default", ParserMode: "json"},
+		{TargetPath: "/tmp/a.json", SourcePath: "/tmp/en.json", SourceLocale: "en", TargetLocale: "fr", SRXSpec: "default", ParserMode: "json"},
+	}
+	got, err := buildPlannedTargetMetadata(planned)
+	if err != nil {
+		t.Fatalf("metadata: %v", err)
+	}
+	if got["/tmp/a.json"].srxSpec != "default" || got["/tmp/a.json"].parserMode != "json" {
+		t.Fatalf("unexpected metadata: %+v", got["/tmp/a.json"])
+	}
+}
+
 func TestBuildPlannedTargetKeySet(t *testing.T) {
 	planned := []Task{
 		{TargetPath: "/tmp/a.json", EntryKey: "hello"},

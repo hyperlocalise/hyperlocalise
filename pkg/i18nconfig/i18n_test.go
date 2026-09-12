@@ -1300,6 +1300,106 @@ func TestLoadRejectsUnsafeLocaleForPathTemplates(t *testing.T) {
 	}
 }
 
+func TestLoadAcceptsNamedSRXTemplates(t *testing.T) {
+	path := writeConfigFile(t, `{
+	  "locales": {"source": "en-US", "targets": ["fr-FR"]},
+	  "buckets": {"docs": {"files": [
+	    {"from": "docs/{{source}}.md", "to": "docs/{{target}}.md", "srx": "markdown"},
+	    {"from": "emails/{{source}}.html", "to": "emails/{{target}}.html", "srx": "HTML"}
+	  ]}},
+	  "llm": {"profiles": {"default": {"provider": "openai", "model": "gpt-5.2"}}}
+	}`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load named srx config: %v", err)
+	}
+	if got := cfg.Buckets["docs"].Files[0].SRX; got != "markdown" {
+		t.Fatalf("first srx = %q, want markdown", got)
+	}
+	if got := cfg.Buckets["docs"].Files[1].SRX; got != "HTML" {
+		t.Fatalf("second srx = %q, want HTML", got)
+	}
+}
+
+func TestLoadAcceptsSRXFileUnderConfigDirectory(t *testing.T) {
+	dir := t.TempDir()
+	srxPath := filepath.Join(dir, "rules", "custom.srx")
+	if err := os.MkdirAll(filepath.Dir(srxPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(srxPath, []byte(`<srx><body><languagerules><languagerule languagename="A"/></languagerules></body></srx>`), 0o600); err != nil {
+		t.Fatalf("write srx: %v", err)
+	}
+	configPath := filepath.Join(dir, "i18n.yml")
+	content := "locales:\n  source: en-US\n  targets: [fr-FR]\nbuckets:\n  ui:\n    files:\n      - from: lang/{{source}}.json\n        to: lang/{{target}}.json\n        srx: rules/custom.srx\nllm:\n  profiles:\n    default:\n      provider: openai\n      model: gpt-5.2\n"
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("load srx file config: %v", err)
+	}
+	if got := cfg.Buckets["ui"].Files[0].SRX; got != "rules/custom.srx" {
+		t.Fatalf("srx = %q", got)
+	}
+}
+
+func TestLoadRejectsMissingSRXFile(t *testing.T) {
+	path := writeConfigFile(t, `{
+	  "locales": {"source": "en-US", "targets": ["fr-FR"]},
+	  "buckets": {"ui": {"files": [{"from": "a.json", "to": "b.json", "srx": "missing.srx"}]}},
+	  "llm": {"profiles": {"default": {"provider": "openai", "model": "gpt-5.2"}}}
+	}`)
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected missing srx file to fail")
+	}
+	if !strings.Contains(err.Error(), "srx") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestLoadRejectsSRXPathTraversal(t *testing.T) {
+	path := writeConfigFile(t, `{
+	  "locales": {"source": "en-US", "targets": ["fr-FR"]},
+	  "buckets": {"ui": {"files": [{"from": "a.json", "to": "b.json", "srx": "../secrets.srx"}]}},
+	  "llm": {"profiles": {"default": {"provider": "openai", "model": "gpt-5.2"}}}
+	}`)
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected srx traversal to be rejected")
+	}
+}
+
+func TestValidateAcceptsNamedSRXTemplates(t *testing.T) {
+	for _, spec := range []string{"default", "HTML", "markdown"} {
+		cfg := I18NConfig{
+			Locales: LocaleConfig{Source: "en-US", Targets: []string{"fr-FR"}},
+			Buckets: map[string]BucketConfig{
+				"ui": {Files: []BucketFileMapping{{From: "a.json", To: "b.json", SRX: spec}}},
+			},
+			LLM: LLMConfig{Profiles: map[string]LLMProfile{"default": {Provider: "openai", Model: "x"}}},
+		}
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("Validate(%q): %v", spec, err)
+		}
+	}
+}
+
+func TestValidateRejectsUnknownNamedSRXWithoutFilesystem(t *testing.T) {
+	cfg := I18NConfig{
+		Locales: LocaleConfig{Source: "en-US", Targets: []string{"fr-FR"}},
+		Buckets: map[string]BucketConfig{
+			"ui": {Files: []BucketFileMapping{{From: "a.json", To: "b.json", SRX: "../x.srx"}}},
+		},
+		LLM: LLMConfig{Profiles: map[string]LLMProfile{"default": {Provider: "openai", Model: "x"}}},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected traversal spec to fail Validate")
+	}
+}
+
 func writeConfigFile(t *testing.T, content string) string {
 	t.Helper()
 

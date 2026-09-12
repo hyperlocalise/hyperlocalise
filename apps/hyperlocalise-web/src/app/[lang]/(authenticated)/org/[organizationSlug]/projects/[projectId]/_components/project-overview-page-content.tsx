@@ -448,6 +448,7 @@ export function ProjectOverviewPageContentView({
             <Rows spacing="4u">
               <ProjectLocaleProgressList
                 locales={locales}
+                expectedLocaleCount={project.targetLocales.length}
                 isLoading={isLocaleProgressLoading}
                 isError={isLocaleProgressError}
                 settingsHref={settingsHref}

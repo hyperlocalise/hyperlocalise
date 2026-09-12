@@ -30,6 +30,7 @@ import {
 } from "./github-repository-automation-jobs";
 import { enqueueGithubRepositoryAutomationJob } from "./github-repository-automation-worker";
 import { githubRepositoryAutomationJobHasRunnableWorkflow } from "./github-repository-automation-workflows";
+import { listContentSyncAutomations } from "@/lib/agents/workspace-automations";
 
 const logger = createLogger("github-repo-automation-dispatch");
 
@@ -86,6 +87,27 @@ export async function dispatchGithubRepositoryAutomationForPush(
       ...input,
       configVersion: settingsRecord.configVersion,
       skipReason: "branch_not_configured",
+    });
+  }
+
+  const contentSyncs = await listContentSyncAutomations({
+    organizationId: input.organizationId,
+    githubInstallationRepositoryId: input.githubInstallationRepositoryId,
+    status: "active",
+  });
+  const repoProjectIds = [
+    settingsRecord.settings.workflows.pushSource.projectId,
+    settingsRecord.settings.workflows.pullTranslations.projectId,
+  ].filter((value): value is string => Boolean(value?.trim()));
+  if (
+    contentSyncs.some(
+      (automation) => automation.projectId && repoProjectIds.includes(automation.projectId),
+    )
+  ) {
+    return recordPushSkip({
+      ...input,
+      configVersion: settingsRecord.configVersion,
+      skipReason: "project_content_sync_owns_repository",
     });
   }
 

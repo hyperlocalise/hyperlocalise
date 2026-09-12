@@ -61,8 +61,24 @@ Each file mapping uses:
 
 - `from`: source path template
 - `to`: target path template
+- optional `srx`: built-in sentence-break template (`default`, `html`, `markdown`) or a project-relative SRX 2.0 file. When set, `run` splits string values into sentence spans before translation and joins them back to the original keys on write. JSON and YAML stay unsplit unless `srx` is set. Already-segmented formats (XLIFF, PO, SRT, VTT, xcstrings, stringsdict) and FormatJS/ARB parser modes ignore `srx`. ICU, printf, and Fluent `{ $var }` values stay one unit. `hl run --srx` overrides this field for the whole invocation.
 
 Use `{{source}}`, `{{target}}`, and `{{localeDir}}` in templates. `{{localeDir}}` resolves to an empty segment when target equals source, and to the target locale otherwise.
+
+```yaml
+buckets:
+  docs:
+    files:
+      - from: docs/{{source}}.md
+        to: docs/{{target}}.md
+        srx: markdown
+      - from: emails/{{source}}.html
+        to: emails/{{target}}.html
+        srx: html
+      - from: lang/{{source}}.json
+        to: lang/{{target}}.json
+        srx: rules/product.srx
+```
 
 ### PHP array locale mapping patterns
 
