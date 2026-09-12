@@ -27,8 +27,6 @@ import {
   Text,
 } from "@react-email/components";
 
-import { SITE_URL } from "@/lib/seo/site-url";
-
 export type OnboardingWelcomeEmailProps = {
   firstName?: string | null;
   appUrl: string;
@@ -49,19 +47,8 @@ const CARD_BG = "#FFFFFF";
 const TEXT = "#000000";
 const MUTED = "#6B7280";
 const LINK = "#2563EB";
-const MESH_LINK = "#BFDBFE";
 const PRIMARY = "#006BFF";
-const SNIPPET_BG = "rgba(255,255,255,0.94)";
-const MESH_HEADING = "#FFFFFF";
-const MESH_BODY = "#F3F4F6";
-const MESH_MUTED = "#E5E7EB";
-
-export const ONBOARDING_SECTION_MESHES = {
-  project: `${SITE_URL}/images/mesh/mesh-gradient-1784863888954.jpg`,
-  files: `${SITE_URL}/images/mesh/mesh-gradient-1784864073608.jpg`,
-  cli: `${SITE_URL}/images/mesh/mesh-gradient-1784864042890.jpg`,
-  mcp: `${SITE_URL}/images/mesh/mesh-gradient-1784863799475.jpg`,
-} as const;
+const SNIPPET_BG = "#F4F4F5";
 
 export const ONBOARDING_WELCOME_EMAIL_SUBJECT = "Getting started with Hyperlocalise";
 
@@ -196,40 +183,31 @@ export function OnboardingWelcomeEmail({
             your coding agent.
           </Text>
 
-          <Text style={{ margin: "0 0 20px", fontSize: 15, lineHeight: "24px", color: TEXT }}>
+          <Text style={{ margin: "0 0 32px", fontSize: 15, lineHeight: "24px", color: TEXT }}>
             Here are a few ways to get started:
           </Text>
 
-          <OnboardingMeshSection
-            title="Create a project"
-            meshSrc={ONBOARDING_SECTION_MESHES.project}
-          >
-            <Text style={meshBodyText}>
+          <OnboardingStepSection title="Create a project">
+            <Text style={stepBodyText}>
               Open <strong>Projects</strong>, name the project, and choose the source locale plus
               the target locales you need now.
             </Text>
-          </OnboardingMeshSection>
+          </OnboardingStepSection>
 
-          <OnboardingMeshSection
-            title="Add source content"
-            meshSrc={ONBOARDING_SECTION_MESHES.files}
-          >
-            <Text style={meshBodyText}>
+          <OnboardingStepSection title="Add source content">
+            <Text style={stepBodyText}>
               Upload JSON, YAML, XLIFF, PO, or other supported files from <strong>Files</strong>, or
               connect GitHub under <strong>Integrations</strong>.
             </Text>
-          </OnboardingMeshSection>
+          </OnboardingStepSection>
 
-          <OnboardingMeshSection
-            title="Use the CLI in GitHub Actions"
-            meshSrc={ONBOARDING_SECTION_MESHES.cli}
-          >
-            <Text style={meshBodyText}>
+          <OnboardingStepSection title="Use the CLI in GitHub Actions">
+            <Text style={stepBodyText}>
               When source files live in a repo, install the CLI in CI, store an organization API key
               as <strong>HYPERLOCALISE_API_KEY</strong>, and run{" "}
               <code style={inlineCode}>hyperlocalise sync push</code> to upload sources. Setup notes
               are in our{" "}
-              <Link href={cliDocsUrl} style={{ color: MESH_LINK, textDecoration: "underline" }}>
+              <Link href={cliDocsUrl} style={{ color: LINK, textDecoration: "underline" }}>
                 GitHub Actions docs
               </Link>
               .
@@ -237,17 +215,14 @@ export function OnboardingWelcomeEmail({
             <Section style={snippetCard}>
               <Text style={snippetText}>{ONBOARDING_CLI_GITHUB_ACTION_SNIPPET}</Text>
             </Section>
-          </OnboardingMeshSection>
+          </OnboardingStepSection>
 
-          <OnboardingMeshSection
-            title="Connect Hyperlocalise's MCP"
-            meshSrc={ONBOARDING_SECTION_MESHES.mcp}
-          >
-            <Text style={meshBodyText}>
+          <OnboardingStepSection title="Connect Hyperlocalise's MCP">
+            <Text style={stepBodyText}>
               MCP lets your agent read projects, files, glossaries, and jobs in your workspace. Open{" "}
               <strong>Overview</strong>, pick Claude, Codex, or Cursor, and follow the snippet.
               Setup notes are in our{" "}
-              <Link href={mcpDocsUrl} style={{ color: MESH_LINK, textDecoration: "underline" }}>
+              <Link href={mcpDocsUrl} style={{ color: LINK, textDecoration: "underline" }}>
                 MCP docs
               </Link>
               .
@@ -258,10 +233,10 @@ export function OnboardingWelcomeEmail({
             <Section style={snippetCard}>
               <Text style={snippetText}>{codexSnippet}</Text>
             </Section>
-            <Text style={{ ...meshBodyText, fontSize: 13, color: MESH_MUTED, marginBottom: 0 }}>
+            <Text style={{ ...stepBodyText, fontSize: 13, color: MUTED, marginBottom: 0 }}>
               MCP URL: {mcpUrl}
             </Text>
-          </OnboardingMeshSection>
+          </OnboardingStepSection>
 
           <Section style={{ textAlign: "center", marginTop: 8 }}>
             <Button
@@ -306,28 +281,10 @@ export function OnboardingWelcomeEmail({
   );
 }
 
-function OnboardingMeshSection({
-  title,
-  meshSrc,
-  children,
-}: {
-  title: string;
-  meshSrc: string;
-  children: ReactNode;
-}) {
+function OnboardingStepSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <Section
-      style={{
-        backgroundColor: "#2A2420",
-        backgroundImage: `linear-gradient(180deg, rgba(12,12,12,0.32) 0%, rgba(12,12,12,0.55) 100%), url(${meshSrc})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        borderRadius: 16,
-        padding: "22px 20px",
-        marginBottom: 16,
-      }}
-    >
-      <Heading as="h2" style={meshHeading}>
+    <Section style={{ margin: "0 0 48px" }}>
+      <Heading as="h2" style={stepHeading}>
         {title}
       </Heading>
       {children}
@@ -335,19 +292,19 @@ function OnboardingMeshSection({
   );
 }
 
-const meshHeading = {
-  margin: "0 0 10px",
-  fontSize: 20,
+const stepHeading = {
+  margin: "0 0 8px",
+  fontSize: 16,
   fontWeight: 700,
-  lineHeight: "26px",
-  color: MESH_HEADING,
+  lineHeight: "24px",
+  color: TEXT,
 };
 
-const meshBodyText = {
+const stepBodyText = {
   margin: "0 0 12px",
   fontSize: 15,
   lineHeight: "24px",
-  color: MESH_BODY,
+  color: TEXT,
 };
 
 const snippetCard = {
