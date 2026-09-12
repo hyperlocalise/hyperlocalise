@@ -66,6 +66,40 @@ describe("validateTranslationSegment", () => {
     ]);
   });
 
+  it("covers CAT unicode, hex, and decoded control escapes", () => {
+    expect(
+      validateTranslationSegment({
+        sourceText: "Save",
+        targetText: "Enregistrer\\n\\u00A0",
+        targetLocale: "fr-FR",
+      }).flatMap((check) => check.relatedTokens),
+    ).toEqual(["\\n", "\\u00A0"]);
+
+    expect(
+      validateTranslationSegment({
+        sourceText: "Included",
+        targetText: "Inclus\u0000granted",
+        targetLocale: "fr-FR",
+      }).flatMap((check) => check.relatedTokens),
+    ).toEqual(["\\u0000"]);
+
+    expect(
+      validateTranslationSegment({
+        sourceText: "Included",
+        targetText: "Inclus\u0008\u001b\u000b\u000c\u007f\u0085",
+        targetLocale: "fr-FR",
+      }).flatMap((check) => check.relatedTokens),
+    ).toEqual(["\\f", "\\u0008", "\\u001b", "\\u007f", "\\u0085", "\\v"]);
+
+    expect(
+      validateTranslationSegment({
+        sourceText: "Icon \\U0001F600 and \\x1F",
+        targetText: "Icône \\U0001F600 and \\x1F",
+        targetLocale: "fr-FR",
+      }),
+    ).toEqual([]);
+  });
+
   it("fails translations that exceed maxLength", () => {
     const checks = validateTranslationSegment({
       sourceText: "Hi",

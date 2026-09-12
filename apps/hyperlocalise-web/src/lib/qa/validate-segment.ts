@@ -19,13 +19,6 @@ import type {
 } from "./types";
 
 const PLACEHOLDER_PATTERN = /\{[^{}\s]+\}|%\d*\$?[sd]|%\w+/gu;
-const ESCAPE_LITERALS = ["\\t", "\\n", "\\r", "\\0", "\\b"] as const;
-const CONTROL_CHAR_TOKENS: ReadonlyArray<readonly [string, string]> = [
-  ["\t", "\\t"],
-  ["\n", "\\n"],
-  ["\r", "\\r"],
-  ["\0", "\\0"],
-];
 
 function countRunes(value: string) {
   let count = 0;
@@ -49,23 +42,170 @@ function describeIntroducedEscapedChars(tokens: readonly string[]) {
   return `Target introduces escaped characters (${tokens.join(", ")}) that are not in the source.`;
 }
 
+function isHexByte(value: string) {
+  const code = value.charCodeAt(0);
+  return (
+    (code >= 48 && code <= 57) ||
+    (code >= 97 && code <= 102) ||
+    (code >= 65 && code <= 70)
+  );
+}
+
+function isControlCodePoint(codePoint: number) {
+  return (
+    (codePoint >= 0 && codePoint <= 0x1f) || (codePoint >= 0x7f && codePoint <= 0x9f)
+  );
+}
+
+function controlCharToken(codePoint: number) {
+  switch (codePoint) {
+    case 0x09:
+      return "\\t";
+    case 0x0a:
+      return "\\n";
+    case 0x0d:
+      return "\\r";
+    case 0x0b:
+      return "\\v";
+    case 0x0c:
+      return "\\f";
+    default:
+      if (isControlCodePoint(codePoint)) {
+        return `\\u${codePoint.toString(16).padStart(4, "0")}`;
+      }
+      return "";
+  }
+}
+
+function extractControlCharTokens(value: string) {
+  const tokens: string[] = [];
+  for (const character of value) {
+    const token = controlCharToken(character.codePointAt(0) ?? -1);
+    if (token) {
+      tokens.push(token);
+    }
+  }
+  return tokens;
+}
+
+function readSpecialCharLiteral(value: string, start: number) {
+  if (value[start] !== "\\") {
+    return null;
+  }
+
+  const rest = value.slice(start);
+  if (rest.startsWith("\\r\\n")) {
+    return { token: "\\r\\n", width: 4 };
+  }
+  if (rest.startsWith("\\r")) {
+    return { token: "\\r", width: 2 };
+  }
+  if (rest.startsWith("\\n")) {
+    return { token: "\\n", width: 2 };
+  }
+  if (rest.startsWith("\\t")) {
+    return { token: "\\t", width: 2 };
+  }
+
+  if (rest.startsWith("\\u") || rest.startsWith("\\U")) {
+    const hexLen = rest[1] === "U" ? 8 : 4;
+    if (start + 2 + hexLen > value.length) {
+      return null;
+    }
+    const hex = value.slice(start + 2, start + 2 + hexLen);
+    for (const digit of hex) {
+      if (!isHexByte(digit)) {
+        return null;
+      }
+    }
+    return { token: value.slice(start, start + 2 + hexLen), width: 2 + hexLen };
+  }
+
+  if (rest.startsWith("\\x")) {
+    let end = start + 2;
+    while (end < value.length && end < start + 4 && isHexByte(value[end] ?? "")) {
+      end += 1;
+    }
+    if (end === start + 2) {
+      return null;
+    }
+    return { token: value.slice(start, end), width: end - start };
+  }
+
+  return null;
+}
+
+function extractSpecialCharLiterals(value: string) {
+  if (!value.includes("\\")) {
+    return [];
+  }
+
+  const tokens: string[] = [];
+  for (let index = 0; index < value.length; ) {
+    if (value[index] !== "\\") {
+      index += 1;
+      continue;
+    }
+    const literal = readSpecialCharLiteral(value, index);
+    if (literal) {
+      tokens.push(literal.token);
+      index += literal.width;
+      continue;
+    }
+    index += 1;
+  }
+  return tokens;
+}
+
+function extraTokens(got: readonly string[], expected: readonly string[]) {
+  const expectedCounts = new Map<string, number>();
+  for (const token of expected) {
+    expectedCounts.set(token, (expectedCounts.get(token) ?? 0) + 1);
+  }
+
+  const extras: string[] = [];
+  const seen = new Set<string>();
+  for (const token of got) {
+    const remaining = expectedCounts.get(token) ?? 0;
+    if (remaining > 0) {
+      expectedCounts.set(token, remaining - 1);
+      continue;
+    }
+    if (seen.has(token)) {
+      continue;
+    }
+    seen.add(token);
+    extras.push(token);
+  }
+  return extras;
+}
+
+/**
+ * Escape sequences and control characters that appear in target but not source.
+ * Matches go-svc `IntroducedEscapedChars`: literal `\t` `\n` `\r` `\r\n` `\u`
+ * `\U` `\x`, plus decoded Cc controls including `\v` `\f` NUL, backspace, and C1.
+ */
 export function introducedEscapedChars(source: string, target: string) {
   if (!target || target === source) {
     return [];
   }
 
-  const extras = new Set<string>();
-  for (const token of ESCAPE_LITERALS) {
-    if (target.includes(token) && !source.includes(token)) {
-      extras.add(token);
-    }
+  const hasLiteralEscapes = target.includes("\\");
+  const controlTokens = extractControlCharTokens(target);
+  if (!hasLiteralEscapes && controlTokens.length === 0) {
+    return [];
   }
-  for (const [char, token] of CONTROL_CHAR_TOKENS) {
-    if (target.includes(char) && !source.includes(char)) {
-      extras.add(token);
-    }
+
+  const extras: string[] = [];
+  if (hasLiteralEscapes) {
+    extras.push(
+      ...extraTokens(extractSpecialCharLiterals(target), extractSpecialCharLiterals(source)),
+    );
   }
-  return [...extras].toSorted();
+  if (controlTokens.length > 0) {
+    extras.push(...extraTokens(controlTokens, extractControlCharTokens(source)));
+  }
+  return [...new Set(extras)].toSorted();
 }
 
 function glossaryTermsForLocale(
