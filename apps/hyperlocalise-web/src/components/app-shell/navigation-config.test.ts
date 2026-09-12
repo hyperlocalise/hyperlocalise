@@ -220,6 +220,7 @@ describe("path builders", () => {
     expect(byLabel.get("Hyperlab")?.featureFlagKey).toBe(WORKSPACE_HYPERLAB_FLAG);
     expect(byLabel.get("Reports")?.href).toBe("/org/acme/reports");
     expect(byLabel.get("Reports")?.featureFlagKey).toBe(WORKSPACE_REPORTS_FLAG);
+    expect(byLabel.get("QA")?.href).toBe("/org/acme/qa");
 
     expect(groups.map((group) => group.label)).toEqual([undefined, "Agents", "Workspace"]);
     expect(groups[1]?.items.map((item) => item.label)).toEqual([
@@ -233,6 +234,7 @@ describe("path builders", () => {
       "Queries",
       "Overview",
       "Reports",
+      "QA",
     ]);
   });
 
@@ -242,6 +244,7 @@ describe("path builders", () => {
     expect(items.map((item) => [item.label, item.href])).toEqual([
       ["Overview", "/org/acme/projects/proj_1"],
       ["Reports", "/org/acme/projects/proj_1/reports"],
+      ["QA", "/org/acme/projects/proj_1/qa"],
       ["Files", "/org/acme/projects/proj_1/files"],
       ["Content Editor", "/org/acme/projects/proj_1/strings"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
@@ -459,6 +462,15 @@ describe("buildProjectNavigationItems", () => {
     });
     const items = buildProjectNavigationItems("acme", projectId, intl);
     expect(items.find((item) => item.label === "Content Editor")).toBeUndefined();
+  });
+
+  it("hides QA for provider projects", () => {
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+    const items = buildProjectNavigationItems("acme", projectId, intl);
+    expect(items.find((item) => item.label === "QA")).toBeUndefined();
   });
 
   it("includes an Automations item gated by the workspace automations flag", () => {

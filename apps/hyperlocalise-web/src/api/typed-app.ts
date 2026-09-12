@@ -44,6 +44,7 @@ import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/gi
 import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
 import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
 import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
+import { createTranslationQaScanRoutes } from "./routes/cron/translation-qa-scan.route";
 
 /**
  * Chained Hono schema for `testClient`. Keep this out of Next's typecheck
@@ -114,7 +115,8 @@ function createInternalRoutes() {
     )
     .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
     .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
-    .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes());
+    .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes())
+    .route("/cron/translation-qa-scan", createTranslationQaScanRoutes());
 }
 
 function createWebhookRoutes(options: CreateAppOptions) {

@@ -119,6 +119,14 @@ export const projects = pgTable(
       .default(false),
     // Changes whenever grouping policy changes so open CAT workspaces can defer a safe refresh.
     contentEditorGroupingRevision: integer("cat_grouping_revision").notNull().default(0),
+    /**
+     * Native QA scan cadence. `off` is manual only. `daily` lets the QA cron
+     * start a scan when the last run is older than a day.
+     */
+    qaScanCadence: text("qa_scan_cadence", { enum: ["off", "daily"] })
+      .notNull()
+      .default("off"),
+    qaScanLastRunAt: timestamp("qa_scan_last_run_at", { withTimezone: true }),
     // When the project record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When project metadata was last changed.
@@ -143,5 +151,6 @@ export const projects = pgTable(
     index("idx_projects_created_by_user_id").on(table.createdByUserId),
     check("projects_identifier_format_check", sql`${table.identifier} ~ '^[A-Z][A-Z0-9]{0,9}$'`),
     check("projects_issue_number_seq_check", sql`${table.issueNumberSeq} >= 0`),
+    check("projects_qa_scan_cadence_check", sql`${table.qaScanCadence} in ('off', 'daily')`),
   ],
 );

@@ -33,6 +33,7 @@ import {
   Bookmark01Icon,
   CenterFocusIcon,
   ChartHistogramIcon,
+  CheckmarkCircle02Icon,
   Copy01Icon,
   CubeIcon,
   DashboardSquare01Icon,
@@ -182,6 +183,15 @@ export function buildGlobalNavigationGroups(
           href: org("reports"),
           icon: ChartHistogramIcon,
           featureFlagKey: WORKSPACE_REPORTS_FLAG,
+        },
+        {
+          label: intl.formatMessage({
+            defaultMessage: "QA",
+            id: "k2QaW8nR1p",
+            description: "Sidebar navigation item for workspace translation QA reports",
+          }),
+          href: org("qa"),
+          icon: CheckmarkCircle02Icon,
         },
       ],
     },
@@ -388,6 +398,21 @@ export function buildProjectNavigationItems(
       icon: ChartHistogramIcon,
       featureFlagKey: WORKSPACE_REPORTS_FLAG,
     },
+  ];
+
+  if (!providerKind) {
+    items.push({
+      label: intl.formatMessage({
+        defaultMessage: "QA",
+        id: "m4QaP7xL9s",
+        description: "Project sidebar navigation item for translation QA reports",
+      }),
+      href: project("qa"),
+      icon: CheckmarkCircle02Icon,
+    });
+  }
+
+  items.push(
     {
       label: intl.formatMessage({
         defaultMessage: "Files",
@@ -397,7 +422,7 @@ export function buildProjectNavigationItems(
       href: project("files"),
       icon: File01Icon,
     },
-  ];
+  );
 
   if (showContentEditor) {
     items.push({
