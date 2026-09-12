@@ -38,6 +38,7 @@ membership further limits which projects appear in listings.
 | `teams:read`                 | ✓     | ✓                    | ✓         | ✓        | ✓          | ✓      |
 | `glossaries:read`            | ✓     | ✓                    | ✓         | ✓        | ✓          | ✓      |
 | `memories:read`              | ✓     | ✓                    | ✓         | ✓        | ✓          | ✓      |
+| `dictionaries:read`          | ✓     | ✓                    | ✓         | ✓        | ✓          | ✓      |
 | `jobs:read`                  | ✓     | ✓                    | ✓         | ✓        | ✓          | ✓      |
 | `experiments:read`           | ✓     | ✓                    | ✓         | ✓        | ✓          | ✓      |
 | `jobs:create`                | ✓     | ✓                    | ✓         | ✓        | ✓          |        |
@@ -55,6 +56,7 @@ membership further limits which projects appear in listings.
 | `projects:write`             | ✓     | ✓                    | ✓         |          |            |        |
 | `glossaries:write`           | ✓     | ✓                    |           |          |            |        |
 | `memories:write`             | ✓     | ✓                    |           |          |            |        |
+| `dictionaries:write`         | ✓     | ✓                    |           |          |            |        |
 | `memories:review`            | ✓     | ✓                    |           | ✓        |            |        |
 | `provider_credentials:read`  | ✓     | ✓                    |           |          |            |        |
 | `provider_credentials:write` | ✓     | ✓                    |           |          |            |        |

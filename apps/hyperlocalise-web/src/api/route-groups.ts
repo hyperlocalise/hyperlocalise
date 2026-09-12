@@ -40,6 +40,7 @@ import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semru
 import { createZernioConnectionRoutes } from "./routes/zernio-connection/zernio-connection.route";
 import { createIntercomConnectionRoutes } from "./routes/intercom-connection/intercom-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
+import { createDictionaryRoutes } from "./routes/dictionary/dictionary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
 import { createOrganizationIssueSheetRoutes } from "./routes/issues/organization-issue-sheet.route";
@@ -125,6 +126,7 @@ export function createOrgKnowledgeRoutes(
 ) {
   return new Hono()
     .route("/glossaries", createGlossaryRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
+    .route("/dictionaries", createDictionaryRoutes())
     .route("/knowledge-memory", createKnowledgeMemoryRoutes())
     .route("/translation-memories", createMemoryRoutes());
 }

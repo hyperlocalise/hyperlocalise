@@ -20,6 +20,8 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { Button } from "@/components/ui/button";
+import { useSpellcheckDictionaryContext } from "@/components/content-editor/project-file/spellcheck-dictionary-context";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -60,6 +62,7 @@ function formatCheckStatusLabel(
 
 export function ContentEditorFormatChecks({ checks }: { checks: ContentEditorFormatCheck[] }) {
   const intl = useIntl();
+  const dictionary = useSpellcheckDictionaryContext();
 
   if (checks.length === 0) {
     return (
@@ -94,6 +97,27 @@ export function ContentEditorFormatChecks({ checks }: { checks: ContentEditorFor
                 </span>
               </div>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{check.message}</p>
+              {check.category === "spelling" &&
+              check.status !== "pass" &&
+              dictionary.canAddWords &&
+              check.relatedTokens?.[0] ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  disabled={dictionary.isAdding}
+                  onClick={() => {
+                    void dictionary.addWord(check.relatedTokens![0]);
+                  }}
+                >
+                  {dictionary.isAdding ? (
+                    <FormattedMessage {...contentEditorFormatChecksMessages.addingToDictionary} />
+                  ) : (
+                    <FormattedMessage {...contentEditorFormatChecksMessages.addToDictionary} />
+                  )}
+                </Button>
+              ) : null}
             </div>
           </li>
         ))}

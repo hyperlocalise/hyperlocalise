@@ -1387,6 +1387,95 @@ func TestValidateAcceptsNamedSRXTemplates(t *testing.T) {
 	}
 }
 
+func TestLoadSpellcheckDictionaryDir(t *testing.T) {
+	path := writeConfigFileNamed(t, "i18n.yml", `
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+buckets:
+  ui:
+    files:
+      - from: a.json
+        to: b.json
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: x
+spellcheck:
+  dictionary_dir: .hyperlocalise/dictionaries
+`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Spellcheck == nil || cfg.Spellcheck.DictionaryDir != ".hyperlocalise/dictionaries" {
+		t.Fatalf("Spellcheck.DictionaryDir = %#v", cfg.Spellcheck)
+	}
+
+	configDir := filepath.Dir(path)
+	resolved := ResolveSpellcheckDictionaryDir(cfg, "", configDir)
+	if resolved != filepath.Join(configDir, ".hyperlocalise/dictionaries") {
+		t.Fatalf("resolved dir = %q", resolved)
+	}
+
+	flagDir := filepath.Join(t.TempDir(), "override")
+	if got := ResolveSpellcheckDictionaryDir(cfg, flagDir, configDir); got != flagDir {
+		t.Fatalf("flag override = %q, want %q", got, flagDir)
+	}
+}
+
+func TestValidateRejectsSpellcheckDictionaryTraversal(t *testing.T) {
+	cfg := I18NConfig{
+		Locales: LocaleConfig{Source: "en-US", Targets: []string{"fr-FR"}},
+		Buckets: map[string]BucketConfig{
+			"ui": {Files: []BucketFileMapping{{From: "a.json", To: "b.json"}}},
+		},
+		LLM:        LLMConfig{Profiles: map[string]LLMProfile{"default": {Provider: "openai", Model: "x"}}},
+		Spellcheck: &SpellcheckConfig{DictionaryDir: "../secrets"},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected spellcheck traversal to fail Validate")
+	}
+
+	path := writeConfigFileNamed(t, "i18n.yml", `
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+buckets:
+  ui:
+    files:
+      - from: a.json
+        to: b.json
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: x
+spellcheck:
+  dictionary_dir: ../outside
+`)
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected Load to reject dictionary_dir traversal")
+	}
+}
+
+func TestValidateAcceptsMissingSpellcheckConfig(t *testing.T) {
+	cfg := I18NConfig{
+		Locales: LocaleConfig{Source: "en-US", Targets: []string{"fr-FR"}},
+		Buckets: map[string]BucketConfig{
+			"ui": {Files: []BucketFileMapping{{From: "a.json", To: "b.json"}}},
+		},
+		LLM: LLMConfig{Profiles: map[string]LLMProfile{"default": {Provider: "openai", Model: "x"}}},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate without spellcheck: %v", err)
+	}
+}
+
 func TestValidateRejectsUnknownNamedSRXWithoutFilesystem(t *testing.T) {
 	cfg := I18NConfig{
 		Locales: LocaleConfig{Source: "en-US", Targets: []string{"fr-FR"}},

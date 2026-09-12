@@ -86,6 +86,7 @@ export async function fetchCatSegmentValidation(
     sourcePath: string;
     targetLocale: string;
     maxLength?: number;
+    acceptedWords?: readonly string[];
     signal?: AbortSignal;
     intl: ContentEditorFormatMessageIntl;
   },
@@ -118,6 +119,9 @@ export async function fetchCatSegmentValidation(
         sourcePath: input.sourcePath,
         ...(input.maxLength != null && input.maxLength > 0 ? { maxLength: input.maxLength } : {}),
         ...(targetLocale ? { targetLocale } : {}),
+        ...(input.acceptedWords && input.acceptedWords.length > 0
+          ? { acceptedWords: input.acceptedWords }
+          : {}),
         modes,
       }),
       signal: input.signal,

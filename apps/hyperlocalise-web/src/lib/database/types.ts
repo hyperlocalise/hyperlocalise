@@ -17,6 +17,9 @@ import type {
   githubInstallations,
   glossaries,
   memories,
+  spellcheckDictionaries,
+  spellcheckDictionaryWords,
+  projectSpellcheckDictionaries,
   jobs,
   jobKindEnum,
   jobStatusEnum,
@@ -70,6 +73,12 @@ export type NewGlossaryHistoryEvent = typeof glossaryHistoryEvents.$inferInsert;
 
 export type Memory = typeof memories.$inferSelect;
 export type NewMemory = typeof memories.$inferInsert;
+
+export type SpellcheckDictionary = typeof spellcheckDictionaries.$inferSelect;
+export type NewSpellcheckDictionary = typeof spellcheckDictionaries.$inferInsert;
+export type SpellcheckDictionaryWord = typeof spellcheckDictionaryWords.$inferSelect;
+export type NewSpellcheckDictionaryWord = typeof spellcheckDictionaryWords.$inferInsert;
+export type ProjectSpellcheckDictionary = typeof projectSpellcheckDictionaries.$inferSelect;
 
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;

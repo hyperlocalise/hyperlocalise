@@ -91,6 +91,7 @@ type checkOptions struct {
 	fixDryRun         bool
 	workers           int
 	quiet             bool
+	dictionaryDir     string
 }
 
 type checkFinding struct {
@@ -316,6 +317,7 @@ func newCheckLikeCmd(use, short string, fixDefault bool) *cobra.Command {
 	cmd.Flags().BoolVar(&o.fixDryRun, "fix-dry-run", false, "with --fix, plan translation tasks without writing targets or calling the API")
 	cmd.Flags().IntVar(&o.workers, "workers", 0, "with --fix, number of parallel translation workers (default: number of CPU cores)")
 	cmd.Flags().BoolVar(&o.quiet, "quiet", false, "omit warning-severity findings from output and JSON report; exit 0 when only warnings exist (errors and --fix still use the full result)")
+	cmd.Flags().StringVar(&o.dictionaryDir, "dictionary-dir", "", "directory of per-locale spellcheck allow-lists ({locale}.txt); overrides spellcheck.dictionary_dir")
 
 	return cmd
 }
@@ -365,6 +367,11 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 		resolveSpan.SetStatus(codes.Error, "load_config")
 		resolveSpan.End()
 		return checkReport{}, fmt.Errorf("load config: %w", err)
+	}
+	if _, err := resolveCheckDictionaryDir(cfg, o.dictionaryDir, o.configPath); err != nil {
+		resolveSpan.SetStatus(codes.Error, "resolve_dictionary_dir")
+		resolveSpan.End()
+		return checkReport{}, err
 	}
 	locales, err := resolveStatusLocales(cfg, o.locales, o.group)
 	if err != nil {

@@ -78,6 +78,10 @@ import {
 } from "./project-file-content-editor-mapper";
 import { projectFileCatWorkspaceMessages } from "./project-file-content-editor-workspace.messages";
 import { fetchCatSegmentValidation } from "./project-file-content-editor-validation";
+import {
+  SpellcheckDictionaryProvider,
+  useProjectSpellcheckDictionary,
+} from "./spellcheck-dictionary-context";
 import { useContentEditorMutations } from "./use-content-editor-mutations";
 import { useContentEditorSegmentQuery } from "./use-content-editor-segment-query";
 import { useContentEditorWorkspaceQuerySync } from "./use-content-editor-workspace-query-sync";
@@ -173,6 +177,11 @@ export function ProjectFileContentEditorWorkspace({
   }, [highlightLocale, targetLocaleProp, targetLocales]);
 
   const targetLocale = targetLocaleProp ?? targetLocaleState;
+  const spellcheckDictionary = useProjectSpellcheckDictionary({
+    organizationSlug,
+    projectId,
+    locale: targetLocale,
+  });
   const showLocaleSelector = !targetLocaleProp && (targetLocales?.length ?? 0) > 0;
 
   const {
@@ -336,6 +345,7 @@ export function ProjectFileContentEditorWorkspace({
         sourcePath,
         targetLocale: segment.targetLocale,
         maxLength: segment.maxLength,
+        acceptedWords: spellcheckDictionary.acceptedWords,
         signal: options?.signal,
         intl,
       });
@@ -364,7 +374,7 @@ export function ProjectFileContentEditorWorkspace({
         ...glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
       ];
     },
-    [intl, sourcePath],
+    [intl, sourcePath, spellcheckDictionary.acceptedWords],
   );
 
   const isNativeProject = !contentEditorFile?.provider;
@@ -786,6 +796,7 @@ export function ProjectFileContentEditorWorkspace({
   }
 
   return (
+    <SpellcheckDictionaryProvider value={spellcheckDictionary}>
     <div
       className={cn(
         isFullscreen ? "flex h-full min-h-0 flex-1 flex-col gap-3" : "space-y-3",
@@ -960,5 +971,6 @@ export function ProjectFileContentEditorWorkspace({
         segment={linkedIssuesSegment}
       />
     </div>
+    </SpellcheckDictionaryProvider>
   );
 }
