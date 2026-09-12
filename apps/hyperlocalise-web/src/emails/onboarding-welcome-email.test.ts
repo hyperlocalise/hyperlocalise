@@ -38,9 +38,13 @@ describe("onboarding welcome email", () => {
     expect(text).toContain("Create a project");
     expect(text).toContain("Add source content");
     expect(text).toContain("Connect Hyperlocalise's MCP");
+    expect(text).toContain("Use the CLI in GitHub Actions");
+    expect(text).toContain("- uses: hyperlocalise/hyperlocalise/install@v1");
+    expect(text).toContain("hyperlocalise sync push");
     expect(text).toContain(onboardingWelcomeEmailFixture.claudeSnippet);
     expect(text).toContain(onboardingWelcomeEmailFixture.codexSnippet);
     expect(text).toContain(onboardingWelcomeEmailFixture.gettingStartedUrl);
+    expect(text).toContain(onboardingWelcomeEmailFixture.cliDocsUrl);
     expect(text).toContain(onboardingWelcomeEmailFixture.mcpDocsUrl);
     expect(text).toContain(onboardingWelcomeEmailFixture.appUrl);
   });
@@ -50,7 +54,10 @@ describe("onboarding welcome email", () => {
 
     expect(html).toContain("Hello Dev, and welcome to Hyperlocalise.");
     expect(html).toContain("Create a project");
+    expect(html).toContain("Use the CLI in GitHub Actions");
+    expect(html).toContain("hyperlocalise/hyperlocalise/install@v1");
     expect(html).toContain("Connect Hyperlocalise");
+    expect(html).toContain(onboardingWelcomeEmailFixture.cliDocsUrl);
     expect(html).toContain(onboardingWelcomeEmailFixture.mcpDocsUrl);
     expect(html).toContain(onboardingWelcomeEmailFixture.claudeSnippet);
     expect(html).toContain("Open Hyperlocalise");

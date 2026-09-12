@@ -26,6 +26,7 @@ import { SITE_URL } from "@/lib/seo/site-url";
 
 const GETTING_STARTED_URL = "https://hyperlocalise.dev/platform/getting-started";
 const MCP_DOCS_URL = "https://hyperlocalise.dev/platform/mcp";
+const CLI_DOCS_URL = "https://hyperlocalise.dev/cli/workflows/ci-automation";
 
 const logger = createLogger("onboarding-welcome-email");
 
@@ -96,6 +97,7 @@ export async function sendOnboardingWelcomeEmail(input: {
     appUrl: origin,
     gettingStartedUrl: GETTING_STARTED_URL,
     mcpDocsUrl: MCP_DOCS_URL,
+    cliDocsUrl: CLI_DOCS_URL,
     mcpUrl,
     brandLogoUrl: `${origin}/images/logo.png`,
     claudeSnippet: `claude mcp add -t http hyperlocalise ${mcpUrl}`,

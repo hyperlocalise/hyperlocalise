@@ -31,11 +31,15 @@ export type OnboardingWelcomeEmailProps = {
   appUrl: string;
   gettingStartedUrl: string;
   mcpDocsUrl: string;
+  cliDocsUrl: string;
   mcpUrl: string;
   brandLogoUrl: string;
   claudeSnippet: string;
   codexSnippet: string;
 };
+
+export const ONBOARDING_CLI_GITHUB_ACTION_SNIPPET =
+  "- uses: hyperlocalise/hyperlocalise/install@v1";
 
 const PAGE_BG = "#F7F7F7";
 const CARD_BG = "#FFFFFF";
@@ -76,6 +80,12 @@ export function onboardingWelcomeEmailText(props: OnboardingWelcomeEmailProps): 
     "Add source content",
     "Upload JSON, YAML, XLIFF, PO, or other supported files from Files, or connect GitHub under Integrations.",
     "",
+    "Use the CLI in GitHub Actions",
+    "When source files live in a repo, install the CLI in CI, store an organization API key as HYPERLOCALISE_API_KEY, and run sync push to upload sources.",
+    "",
+    ONBOARDING_CLI_GITHUB_ACTION_SNIPPET,
+    "Then: hyperlocalise sync push",
+    "",
     "Connect Hyperlocalise's MCP",
     "MCP lets your agent read projects, files, glossaries, and jobs in your workspace. Open Overview, pick Claude, Codex, or Cursor, and follow the snippet.",
     "",
@@ -85,6 +95,7 @@ export function onboardingWelcomeEmailText(props: OnboardingWelcomeEmailProps): 
     "",
     `Open Hyperlocalise: ${props.appUrl}`,
     `Getting started: ${props.gettingStartedUrl}`,
+    `CLI in GitHub Actions: ${props.cliDocsUrl}`,
     `MCP docs: ${props.mcpDocsUrl}`,
     "",
     "You received this because you created a Hyperlocalise account.",
@@ -96,6 +107,7 @@ export function OnboardingWelcomeEmail({
   appUrl,
   gettingStartedUrl,
   mcpDocsUrl,
+  cliDocsUrl,
   mcpUrl,
   brandLogoUrl,
   claudeSnippet,
@@ -218,6 +230,39 @@ export function OnboardingWelcomeEmail({
               color: TEXT,
             }}
           >
+            Use the CLI in GitHub Actions
+          </Heading>
+          <Text style={{ margin: "0 0 12px", fontSize: 15, lineHeight: "24px", color: TEXT }}>
+            When source files live in a repo, install the CLI in CI, store an organization API key
+            as <strong>HYPERLOCALISE_API_KEY</strong>, and run{" "}
+            <code style={inlineCode}>hyperlocalise sync push</code> to upload sources. Setup notes
+            are in our{" "}
+            <Link href={cliDocsUrl} style={{ color: LINK, textDecoration: "underline" }}>
+              GitHub Actions docs
+            </Link>
+            .
+          </Text>
+          <Section
+            style={{
+              marginBottom: 20,
+              backgroundColor: SNIPPET_BG,
+              borderRadius: 6,
+              padding: "10px 12px",
+            }}
+          >
+            <Text style={snippetText}>{ONBOARDING_CLI_GITHUB_ACTION_SNIPPET}</Text>
+          </Section>
+
+          <Heading
+            as="h2"
+            style={{
+              margin: "0 0 8px",
+              fontSize: 16,
+              fontWeight: 700,
+              lineHeight: "24px",
+              color: TEXT,
+            }}
+          >
             Connect Hyperlocalise&apos;s MCP
           </Heading>
           <Text style={{ margin: "0 0 12px", fontSize: 15, lineHeight: "24px", color: TEXT }}>
@@ -237,19 +282,7 @@ export function OnboardingWelcomeEmail({
               padding: "10px 12px",
             }}
           >
-            <Text
-              style={{
-                margin: 0,
-                fontSize: 13,
-                lineHeight: "20px",
-                color: TEXT,
-                fontFamily:
-                  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                wordBreak: "break-all",
-              }}
-            >
-              {claudeSnippet}
-            </Text>
+            <Text style={snippetText}>{claudeSnippet}</Text>
           </Section>
           <Section
             style={{
@@ -259,19 +292,7 @@ export function OnboardingWelcomeEmail({
               padding: "10px 12px",
             }}
           >
-            <Text
-              style={{
-                margin: 0,
-                fontSize: 13,
-                lineHeight: "20px",
-                color: TEXT,
-                fontFamily:
-                  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                wordBreak: "break-all",
-              }}
-            >
-              {codexSnippet}
-            </Text>
+            <Text style={snippetText}>{codexSnippet}</Text>
           </Section>
           <Text style={{ margin: "0 0 24px", fontSize: 13, lineHeight: "20px", color: MUTED }}>
             MCP URL: {mcpUrl}
@@ -303,6 +324,10 @@ export function OnboardingWelcomeEmail({
               Getting started
             </Link>
             {" · "}
+            <Link href={cliDocsUrl} style={{ color: LINK, textDecoration: "none" }}>
+              CLI in GitHub Actions
+            </Link>
+            {" · "}
             <Link href={mcpDocsUrl} style={{ color: LINK, textDecoration: "none" }}>
               MCP docs
             </Link>
@@ -315,5 +340,21 @@ export function OnboardingWelcomeEmail({
     </Html>
   );
 }
+
+const snippetText = {
+  margin: 0,
+  fontSize: 13,
+  lineHeight: "20px",
+  color: TEXT,
+  fontFamily:
+    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+  wordBreak: "break-all" as const,
+};
+
+const inlineCode = {
+  fontFamily:
+    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+  fontSize: 13,
+};
 
 export default OnboardingWelcomeEmail;

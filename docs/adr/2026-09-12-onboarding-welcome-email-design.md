@@ -30,8 +30,9 @@ Send one welcome email from the existing WorkOS webhook on `user.created` only.
 - Skip quietly when Resend is not configured. Release the claim and fail the
   webhook when Resend is configured and the send fails, so WorkOS retries.
 - Do not send on `user.updated` or membership events.
-- Keep the copy transactional: create a project, add source files, connect MCP.
-  Link to Cloud and to `hyperlocalise.dev` getting-started and MCP docs.
+- Keep the copy transactional: create a project, add source files, install the
+  CLI in GitHub Actions, and connect MCP. Link to Cloud and to
+  `hyperlocalise.dev` getting-started, CI, and MCP docs.
 
 ## Consequences
 

@@ -109,6 +109,9 @@ describe("sendOnboardingWelcomeEmail", () => {
       "claude mcp add -t http hyperlocalise https://app.example.com/mcp",
     );
     expect(sendArgs.text).toContain("https://hyperlocalise.dev/platform/getting-started");
+    expect(sendArgs.text).toContain("https://hyperlocalise.dev/cli/workflows/ci-automation");
+    expect(sendArgs.html).toContain("Use the CLI in GitHub Actions");
+    expect(sendArgs.html).toContain("hyperlocalise/hyperlocalise/install@v1");
     expect(sendOptions.idempotencyKey).toBe(`onboarding-welcome-email/${user.id}`);
 
     const [row] = await db
