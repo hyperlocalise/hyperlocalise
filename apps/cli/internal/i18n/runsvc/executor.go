@@ -137,13 +137,17 @@ func newExecutorState(tasks []Task, projectRoot string, initialStaged map[string
 	return state, nil
 }
 
-func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, activeRunID string, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, emitter *eventEmitter, omitPerEntryBatches bool, parityRetry *markdownParityRetryInput) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
-	scheduledTasks := tasks
+func (s *Service) executePool(ctx context.Context, llmTasks []Task, mtTasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, activeRunID string, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, mtEngines *mtEngineFactory, emitter *eventEmitter, omitPerEntryBatches bool, parityRetry *markdownParityRetryInput) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
+	scheduledTasks := llmTasks
 	if contextPlan.Enabled {
-		scheduledTasks = interleaveTasksByContextKey(tasks)
+		scheduledTasks = interleaveTasksByContextKey(llmTasks)
 	}
 
-	state, err := newExecutorState(scheduledTasks, s.projectRoot, initialStaged, pruneTargets, contextPlan, omitPerEntryBatches)
+	// Executor state needs per-target accounting for both LLM and MT tasks.
+	combined := make([]Task, 0, len(scheduledTasks)+len(mtTasks))
+	combined = append(combined, scheduledTasks...)
+	combined = append(combined, mtTasks...)
+	state, err := newExecutorState(combined, s.projectRoot, initialStaged, pruneTargets, contextPlan, omitPerEntryBatches)
 	if err != nil {
 		return nil, nil, executionReport{}, err
 	}
@@ -179,6 +183,14 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged m
 	for range workerCount {
 		wg.Add(1)
 		go s.runWorker(ctx, jobs, completions, targetFailures, state, emitter, &wg, cancel)
+	}
+
+	if len(mtTasks) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.runMTTasks(ctx, mtTasks, mtBatchSize, mtEngines, completions, targetFailures, state, emitter)
+		}()
 	}
 
 	go s.feedJobs(ctx, jobs, scheduledTasks)
