@@ -20,12 +20,14 @@ import { IntegrationRow } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { EmailIntegrationRow } from "./email-integration-row";
 import { GitHubIntegrationRow } from "./github-integration-row";
+import { integrationsPageContentMessages } from "./integrations-page-content.messages";
 import { PipesConnectionPanel } from "./pipes-connection-panel";
 import { SlackIntegrationRow } from "./slack-integration-row";
 import {
   resolveWorkspaceIntegrationsBySlugs,
   workspaceComingSoonCollaborationSlugs,
   workspaceComingSoonCustomerEngagementSlugs,
+  workspaceComingSoonExperimentationSlugs,
   workspaceComingSoonGuidelineSlugs,
   workspacePipesCollaborationSlugs,
   workspacePipesCustomerEngagementSlugs,
@@ -199,6 +201,37 @@ export function CustomerEngagementIntegrationsSection({
           key={agent.slug}
           integration={agent}
           isLast={index === comingSoonCustomerEngagementAgents.length - 1}
+        />
+      ))}
+    </>
+  );
+}
+
+export function ExperimentationIntegrationsSection({
+  organizationSlug,
+}: {
+  organizationSlug: string;
+}) {
+  const intl = useIntl();
+  const comingSoonExperimentation = useWorkspaceIntegrations(
+    workspaceComingSoonExperimentationSlugs,
+  );
+
+  return (
+    <>
+      <IntegrationRow
+        name={intl.formatMessage(integrationsPageContentMessages.hyperlabName)}
+        description={intl.formatMessage(integrationsPageContentMessages.hyperlabDetail)}
+        icon={<IntegrationLogo src="/images/logo.png" />}
+        iconMuted
+        action="open"
+        href={`/org/${organizationSlug}/hyperlab`}
+      />
+      {comingSoonExperimentation.map((integration, index) => (
+        <ComingSoonIntegrationRow
+          key={integration.slug}
+          integration={integration}
+          isLast={index === comingSoonExperimentation.length - 1}
         />
       ))}
     </>

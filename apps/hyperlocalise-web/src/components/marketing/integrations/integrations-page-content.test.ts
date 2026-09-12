@@ -51,6 +51,14 @@ describe("integrations-page-content", () => {
     expect(integration?.setupSteps.length).toBeGreaterThan(0);
   });
 
+  it("lists Zernio under customer engagement", () => {
+    const integration = getMarketingIntegrationBySlug("en", "zernio");
+
+    expect(integration?.name).toBe("Zernio");
+    expect(integration?.category).toBe("customer-engagement");
+    expect(integration?.logoSrc).toBe("/images/zernio-logo.svg");
+  });
+
   it("returns related integrations for catalog entries with relatedSlugs", () => {
     const integration = getMarketingIntegrationBySlug("en", "github");
     expect(integration).not.toBeNull();

@@ -676,6 +676,19 @@ export const integrationCatalogCopy = {
       description: "Hyperlab integration marketing page meta description",
     },
   },
+  statsig: {
+    name: {
+      defaultMessage: "Statsig",
+      id: "intStatsigName",
+      description: "Statsig integration name on the integrations page",
+    },
+    tagline: {
+      defaultMessage:
+        "Connect Statsig to run localized experiments and ship copy behind feature flags.",
+      id: "intStatsigTagline",
+      description: "Statsig integration description on the integrations page",
+    },
+  },
   jira: {
     name: {
       defaultMessage: "Jira",
