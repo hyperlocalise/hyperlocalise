@@ -33,7 +33,7 @@ import { Switch } from "@/components/ui/switch";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
-import { translationQaCheckTypes } from "@/lib/qa/types";
+import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
 
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
 import { qaProjectMessages as messages } from "../qa-project.messages";
@@ -125,9 +125,9 @@ export function QaProjectPageContent({
       ][":runId"].$get({
         param: { organizationSlug, projectId, runId: activeRunId! },
         query: {
-          ...(locale !== "all" ? { locale } : {}),
-          ...(checkType !== "all" ? { checkType } : {}),
-          limit: "100",
+          locale: locale === "all" ? undefined : locale,
+          checkType: isQaCheckType(checkType) ? checkType : undefined,
+          limit: 100,
         },
       });
       if (!response.ok) {
@@ -143,7 +143,7 @@ export function QaProjectPageContent({
         "qa-reports"
       ].$post({ param: { organizationSlug, projectId } });
       if (!response.ok) {
-        throw new Error(await readApiResponseError(response, intl.formatMessage(messages.runError)));
+        throw await readApiResponseError(response, intl.formatMessage(messages.runError));
       }
       return response.json();
     },
@@ -290,7 +290,14 @@ export function QaProjectPageContent({
 
       {selectedReport ? (
         <div className="flex flex-wrap gap-3">
-          <Select value={locale} onValueChange={setLocale}>
+          <Select
+            value={locale}
+            onValueChange={(value) => {
+              if (value) {
+                setLocale(value);
+              }
+            }}
+          >
             <SelectTrigger className="w-44">
               <SelectValue placeholder={intl.formatMessage(messages.allLocales)} />
             </SelectTrigger>
@@ -305,7 +312,14 @@ export function QaProjectPageContent({
               ))}
             </SelectContent>
           </Select>
-          <Select value={checkType} onValueChange={setCheckType}>
+          <Select
+            value={checkType}
+            onValueChange={(value) => {
+              if (value) {
+                setCheckType(value);
+              }
+            }}
+          >
             <SelectTrigger className="w-56">
               <SelectValue placeholder={intl.formatMessage(messages.allChecks)} />
             </SelectTrigger>
@@ -373,6 +387,10 @@ export function QaProjectPageContent({
       ) : null}
     </ProjectPageShell>
   );
+}
+
+function isQaCheckType(value: string): value is TranslationQaCheckType {
+  return (translationQaCheckTypes as readonly string[]).includes(value);
 }
 
 function isUnsupportedQaError(error: unknown) {

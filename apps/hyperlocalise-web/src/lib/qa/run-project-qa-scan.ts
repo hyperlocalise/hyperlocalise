@@ -17,12 +17,27 @@ import { createLogger } from "@/lib/log";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
 
 import { emptyTranslationQaSummary } from "./qa-report-store";
-import type { TranslationQaCheckType, TranslationQaRunTrigger, TranslationQaSeverity } from "./types";
+import type {
+  TranslationQaCheckType,
+  TranslationQaRunTrigger,
+  TranslationQaSeverity,
+} from "./types";
 import { validateTranslationSegment } from "./validate-segment";
 
 const logger = createLogger("translation-qa-scan");
 const SEGMENT_PAGE_SIZE = 250;
 const FINDING_INSERT_CHUNK = 100;
+
+type QaScanSegmentRow = {
+  translationId: string;
+  translationKeyId: string;
+  key: string;
+  sourceText: string;
+  maxLength: number | null;
+  targetLocale: string;
+  targetText: string;
+  sourcePath: string | null;
+};
 
 export type TranslationQaScanResult =
   | { ok: true; runId: string }
@@ -118,7 +133,7 @@ export async function runProjectTranslationQaScan(input: {
     let afterLocale: string | null = null;
 
     for (;;) {
-      const rows = await db
+      const rows: QaScanSegmentRow[] = await db
         .select({
           translationId: schema.projectTranslations.id,
           translationKeyId: schema.projectTranslationKeys.id,
@@ -136,22 +151,20 @@ export async function runProjectTranslationQaScan(input: {
         )
         .leftJoin(
           schema.repositorySourceFiles,
-          eq(
-            schema.projectTranslationKeys.repositorySourceFileId,
-            schema.repositorySourceFiles.id,
-          ),
+          eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
         )
         .where(
           and(
             eq(schema.projectTranslations.organizationId, input.organizationId),
             eq(schema.projectTranslations.projectId, input.projectId),
             eq(schema.projectTranslationKeys.isHidden, false),
-            afterKeyId && afterLocale
-              ? sqlKeyLocaleCursor(afterKeyId, afterLocale)
-              : undefined,
+            afterKeyId && afterLocale ? sqlKeyLocaleCursor(afterKeyId, afterLocale) : undefined,
           ),
         )
-        .orderBy(asc(schema.projectTranslationKeys.id), asc(schema.projectTranslations.targetLocale))
+        .orderBy(
+          asc(schema.projectTranslationKeys.id),
+          asc(schema.projectTranslations.targetLocale),
+        )
         .limit(SEGMENT_PAGE_SIZE);
 
       if (rows.length === 0) {
@@ -230,7 +243,10 @@ export async function runProjectTranslationQaScan(input: {
       .update(schema.projects)
       .set({ qaScanLastRunAt: completedAt })
       .where(
-        and(eq(schema.projects.organizationId, input.organizationId), eq(schema.projects.id, input.projectId)),
+        and(
+          eq(schema.projects.organizationId, input.organizationId),
+          eq(schema.projects.id, input.projectId),
+        ),
       );
 
     logger.info(

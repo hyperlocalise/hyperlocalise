@@ -12,7 +12,7 @@
  */
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
-import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
+import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 import { QaProjectPageContent } from "./_components/qa-project-page-content";
 
 export default function ProjectQaPage({

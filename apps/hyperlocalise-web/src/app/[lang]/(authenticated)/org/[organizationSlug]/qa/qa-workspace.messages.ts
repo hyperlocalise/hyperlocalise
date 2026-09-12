@@ -17,57 +17,58 @@ import { defineMessages } from "react-intl";
 export const qaWorkspaceMessages = defineMessages({
   title: {
     defaultMessage: "Translation QA",
-    id: "qaWsTitle01",
+    id: "6PydP1CR24",
     description: "Workspace QA page title",
   },
   description: {
-    defaultMessage: "Latest native project scans. Run a check from a project to populate this list.",
-    id: "qaWsDesc01",
+    defaultMessage:
+      "Latest native project scans. Run a check from a project to populate this list.",
+    id: "m5SCEn+8Ys",
     description: "Workspace QA page description",
   },
   empty: {
     defaultMessage: "No native projects yet.",
-    id: "qaWsEmpty01",
+    id: "h6siz+8bqw",
     description: "Workspace QA empty state",
   },
   neverRun: {
     defaultMessage: "Not scanned",
-    id: "qaWsNever01",
+    id: "coLjATj12b",
     description: "Workspace QA when a project has no scan",
   },
   findings: {
     defaultMessage: "{count, plural, one {# issue} other {# issues}}",
-    id: "qaWsFind01",
+    id: "Z2biIz/+mo",
     description: "Workspace QA finding count",
   },
   openProject: {
     defaultMessage: "Open QA",
-    id: "qaWsOpen01",
+    id: "LLpCWroQtR",
     description: "Workspace QA link to a project",
   },
   daily: {
     defaultMessage: "Daily",
-    id: "qaWsDaily01",
+    id: "8AjMtlrawH",
     description: "Workspace QA daily cadence label",
   },
   manual: {
     defaultMessage: "Manual",
-    id: "qaWsMan01",
+    id: "hN4fiihgrQ",
     description: "Workspace QA manual cadence label",
   },
   loadError: {
     defaultMessage: "Could not load QA reports.",
-    id: "qaWsErr01",
+    id: "9hOQ1Cn/qy",
     description: "Workspace QA load error",
   },
   lastRun: {
     defaultMessage: "Last scan {date}",
-    id: "qaWsLast01",
+    id: "MwgUCiCSez",
     description: "Workspace QA last scan timestamp",
   },
   counts: {
     defaultMessage: "{errors} errors · {warnings} warnings",
-    id: "qaWsCnt01",
+    id: "RwdjBGDnCb",
     description: "Workspace QA error and warning counts",
   },
 });

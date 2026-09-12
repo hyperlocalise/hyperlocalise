@@ -23,10 +23,7 @@ import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
 
-import {
-  PageHeader,
-  WorkspacePageShell,
-} from "../../_components/workspace-resource-shared";
+import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { qaWorkspaceMessages as messages } from "../qa-workspace.messages";
 
 type WorkspaceQaRow = {

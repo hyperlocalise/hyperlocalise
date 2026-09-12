@@ -187,7 +187,7 @@ export function buildGlobalNavigationGroups(
         {
           label: intl.formatMessage({
             defaultMessage: "QA",
-            id: "k2QaW8nR1p",
+            id: "zb6LNN3XG2",
             description: "Sidebar navigation item for workspace translation QA reports",
           }),
           href: org("qa"),
@@ -404,7 +404,7 @@ export function buildProjectNavigationItems(
     items.push({
       label: intl.formatMessage({
         defaultMessage: "QA",
-        id: "m4QaP7xL9s",
+        id: "jDgpB2Pv9x",
         description: "Project sidebar navigation item for translation QA reports",
       }),
       href: project("qa"),
@@ -412,17 +412,15 @@ export function buildProjectNavigationItems(
     });
   }
 
-  items.push(
-    {
-      label: intl.formatMessage({
-        defaultMessage: "Files",
-        id: "IMr6sfD/7/",
-        description: "Project sidebar navigation item for project files",
-      }),
-      href: project("files"),
-      icon: File01Icon,
-    },
-  );
+  items.push({
+    label: intl.formatMessage({
+      defaultMessage: "Files",
+      id: "IMr6sfD/7/",
+      description: "Project sidebar navigation item for project files",
+    }),
+    href: project("files"),
+    icon: File01Icon,
+  });
 
   if (showContentEditor) {
     items.push({

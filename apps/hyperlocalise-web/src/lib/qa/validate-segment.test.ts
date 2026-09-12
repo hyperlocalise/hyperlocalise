@@ -38,10 +38,7 @@ describe("validateTranslationSegment", () => {
       targetLocale: "fr-FR",
     });
 
-    expect(checks.map((check) => check.checkType)).toEqual([
-      "not_localized",
-      "whitespace_only",
-    ]);
+    expect(checks.map((check) => check.checkType)).toEqual(["not_localized", "whitespace_only"]);
   });
 
   it("warns when the target matches the source", () => {

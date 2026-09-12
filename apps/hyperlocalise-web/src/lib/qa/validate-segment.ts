@@ -28,7 +28,11 @@ const CONTROL_CHAR_TOKENS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 function countRunes(value: string) {
-  return [...value].length;
+  let count = 0;
+  for (const _character of value) {
+    count += 1;
+  }
+  return count;
 }
 
 function collectPlaceholders(value: string) {

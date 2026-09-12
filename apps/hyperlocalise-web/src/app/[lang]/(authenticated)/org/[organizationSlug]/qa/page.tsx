@@ -27,11 +27,7 @@ export default function WorkspaceQaPage({
   );
 }
 
-async function WorkspaceQaLoader({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string }>;
-}) {
+async function WorkspaceQaLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   await requireAppAuthContext({ organizationSlug });
   return <QaWorkspacePageContent organizationSlug={organizationSlug} />;
