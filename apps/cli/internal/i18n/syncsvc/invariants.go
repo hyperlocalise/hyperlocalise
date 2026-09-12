@@ -10,6 +10,7 @@ import (
 
 const (
 	conflictReasonInvariantViolation = "invariant_violation"
+	conflictReasonUnknownProvenance  = "unknown_provenance_mismatch"
 )
 
 func validateEntryInvariant(candidate, baseline storage.Entry) []string {

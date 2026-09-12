@@ -331,7 +331,7 @@ func TestPushKeepsPartialAppliedOnAdapterError(t *testing.T) {
 	}
 }
 
-func TestPushAllowsUnknownProvenanceMismatch(t *testing.T) {
+func TestPushConflictsUnknownProvenanceMismatch(t *testing.T) {
 	svc := New()
 	local := &fakeLocalStore{
 		readSnapshot: storage.CatalogSnapshot{
@@ -369,11 +369,73 @@ func TestPushAllowsUnknownProvenanceMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("push sync dry-run: %v", err)
 	}
-	if got := len(report.Conflicts); got != 0 {
-		t.Fatalf("expected 0 conflicts, got %d", got)
+	if got := len(report.Conflicts); got != 1 {
+		t.Fatalf("expected 1 conflict, got %d", got)
 	}
-	if got := len(report.Updates); got != 1 {
-		t.Fatalf("expected 1 update, got %d", got)
+	if report.Conflicts[0].Reason != conflictReasonUnknownProvenance {
+		t.Fatalf("unexpected conflict reason: %q", report.Conflicts[0].Reason)
+	}
+	if got := len(report.Updates); got != 0 {
+		t.Fatalf("expected 0 updates, got %d", got)
+	}
+
+	forced, err := svc.Push(context.Background(), PushInput{
+		Adapter: adapter,
+		Local:   local,
+		Options: PushOptions{DryRun: true, ForceConflicts: true},
+	})
+	if err != nil {
+		t.Fatalf("push sync force dry-run: %v", err)
+	}
+	if got := len(forced.Conflicts); got != 0 {
+		t.Fatalf("expected 0 conflicts with force, got %d", got)
+	}
+	if got := len(forced.Updates); got != 1 {
+		t.Fatalf("expected 1 update with force, got %d", got)
+	}
+}
+
+func TestPullConflictsUnknownProvenanceMismatch(t *testing.T) {
+	svc := New()
+	local := &fakeLocalStore{
+		readSnapshot: storage.CatalogSnapshot{
+			Entries: []storage.Entry{{
+				Key:    "hello",
+				Locale: "fr",
+				Value:  "handwritten-local",
+				Provenance: storage.EntryProvenance{
+					Origin: storage.OriginUnknown,
+				},
+			}},
+		},
+	}
+	adapter := &fakeAdapter{
+		pullResult: storage.PullResult{
+			Snapshot: storage.CatalogSnapshot{
+				Entries: []storage.Entry{{Key: "hello", Locale: "fr", Value: "remote-curated"}},
+			},
+		},
+	}
+
+	report, err := svc.Pull(context.Background(), PullInput{
+		Adapter: adapter,
+		Local:   local,
+		Options: PullOptions{DryRun: false, ApplyCuratedOverDraft: false},
+	})
+	if err != nil {
+		t.Fatalf("pull sync: %v", err)
+	}
+	if got := len(report.Conflicts); got != 1 {
+		t.Fatalf("expected 1 conflict, got %d", got)
+	}
+	if report.Conflicts[0].Reason != conflictReasonUnknownProvenance {
+		t.Fatalf("unexpected conflict reason: %q", report.Conflicts[0].Reason)
+	}
+	if got := len(report.Updates); got != 0 {
+		t.Fatalf("expected 0 updates, got %d", got)
+	}
+	if got := len(local.applied.Updates); got != 0 {
+		t.Fatalf("expected no local apply, got %d", got)
 	}
 }
 
