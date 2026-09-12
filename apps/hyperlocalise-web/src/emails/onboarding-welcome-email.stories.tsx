@@ -102,7 +102,10 @@ export const NamedRecipient: Story = {
     await expect(canvas.getByText("Hello Dev, and welcome to Hyperlocalise.")).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Open Hyperlocalise" })).toBeInTheDocument();
     await expect(canvas.getByText(onboardingWelcomeEmailFixture.claudeSnippet)).toBeInTheDocument();
-    await expect(canvas.getByText("Use the CLI in GitHub Actions")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("heading", { name: "Use the CLI in GitHub Actions" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Create a project" })).toBeInTheDocument();
   },
 };
 

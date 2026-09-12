@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ReactNode } from "react";
 import {
   Body,
   Button,
@@ -25,6 +26,8 @@ import {
   Section,
   Text,
 } from "@react-email/components";
+
+import { SITE_URL } from "@/lib/seo/site-url";
 
 export type OnboardingWelcomeEmailProps = {
   firstName?: string | null;
@@ -46,8 +49,19 @@ const CARD_BG = "#FFFFFF";
 const TEXT = "#000000";
 const MUTED = "#6B7280";
 const LINK = "#2563EB";
+const MESH_LINK = "#BFDBFE";
 const PRIMARY = "#006BFF";
-const SNIPPET_BG = "#F4F4F5";
+const SNIPPET_BG = "rgba(255,255,255,0.94)";
+const MESH_HEADING = "#FFFFFF";
+const MESH_BODY = "#F3F4F6";
+const MESH_MUTED = "#E5E7EB";
+
+export const ONBOARDING_SECTION_MESHES = {
+  project: `${SITE_URL}/images/mesh/mesh-gradient-1784863888954.jpg`,
+  files: `${SITE_URL}/images/mesh/mesh-gradient-1784864073608.jpg`,
+  cli: `${SITE_URL}/images/mesh/mesh-gradient-1784864042890.jpg`,
+  mcp: `${SITE_URL}/images/mesh/mesh-gradient-1784863799475.jpg`,
+} as const;
 
 export const ONBOARDING_WELCOME_EMAIL_SUBJECT = "Getting started with Hyperlocalise";
 
@@ -186,119 +200,70 @@ export function OnboardingWelcomeEmail({
             Here are a few ways to get started:
           </Text>
 
-          <Heading
-            as="h2"
-            style={{
-              margin: "0 0 8px",
-              fontSize: 16,
-              fontWeight: 700,
-              lineHeight: "24px",
-              color: TEXT,
-            }}
+          <OnboardingMeshSection
+            title="Create a project"
+            meshSrc={ONBOARDING_SECTION_MESHES.project}
           >
-            Create a project
-          </Heading>
-          <Text style={{ margin: "0 0 16px", fontSize: 15, lineHeight: "24px", color: TEXT }}>
-            Open <strong>Projects</strong>, name the project, and choose the source locale plus the
-            target locales you need now.
-          </Text>
+            <Text style={meshBodyText}>
+              Open <strong>Projects</strong>, name the project, and choose the source locale plus
+              the target locales you need now.
+            </Text>
+          </OnboardingMeshSection>
 
-          <Heading
-            as="h2"
-            style={{
-              margin: "0 0 8px",
-              fontSize: 16,
-              fontWeight: 700,
-              lineHeight: "24px",
-              color: TEXT,
-            }}
+          <OnboardingMeshSection
+            title="Add source content"
+            meshSrc={ONBOARDING_SECTION_MESHES.files}
           >
-            Add source content
-          </Heading>
-          <Text style={{ margin: "0 0 16px", fontSize: 15, lineHeight: "24px", color: TEXT }}>
-            Upload JSON, YAML, XLIFF, PO, or other supported files from <strong>Files</strong>, or
-            connect GitHub under <strong>Integrations</strong>.
-          </Text>
+            <Text style={meshBodyText}>
+              Upload JSON, YAML, XLIFF, PO, or other supported files from <strong>Files</strong>, or
+              connect GitHub under <strong>Integrations</strong>.
+            </Text>
+          </OnboardingMeshSection>
 
-          <Heading
-            as="h2"
-            style={{
-              margin: "0 0 8px",
-              fontSize: 16,
-              fontWeight: 700,
-              lineHeight: "24px",
-              color: TEXT,
-            }}
+          <OnboardingMeshSection
+            title="Use the CLI in GitHub Actions"
+            meshSrc={ONBOARDING_SECTION_MESHES.cli}
           >
-            Use the CLI in GitHub Actions
-          </Heading>
-          <Text style={{ margin: "0 0 12px", fontSize: 15, lineHeight: "24px", color: TEXT }}>
-            When source files live in a repo, install the CLI in CI, store an organization API key
-            as <strong>HYPERLOCALISE_API_KEY</strong>, and run{" "}
-            <code style={inlineCode}>hyperlocalise sync push</code> to upload sources. Setup notes
-            are in our{" "}
-            <Link href={cliDocsUrl} style={{ color: LINK, textDecoration: "underline" }}>
-              GitHub Actions docs
-            </Link>
-            .
-          </Text>
-          <Section
-            style={{
-              marginBottom: 20,
-              backgroundColor: SNIPPET_BG,
-              borderRadius: 6,
-              padding: "10px 12px",
-            }}
-          >
-            <Text style={snippetText}>{ONBOARDING_CLI_GITHUB_ACTION_SNIPPET}</Text>
-          </Section>
+            <Text style={meshBodyText}>
+              When source files live in a repo, install the CLI in CI, store an organization API key
+              as <strong>HYPERLOCALISE_API_KEY</strong>, and run{" "}
+              <code style={inlineCode}>hyperlocalise sync push</code> to upload sources. Setup notes
+              are in our{" "}
+              <Link href={cliDocsUrl} style={{ color: MESH_LINK, textDecoration: "underline" }}>
+                GitHub Actions docs
+              </Link>
+              .
+            </Text>
+            <Section style={snippetCard}>
+              <Text style={snippetText}>{ONBOARDING_CLI_GITHUB_ACTION_SNIPPET}</Text>
+            </Section>
+          </OnboardingMeshSection>
 
-          <Heading
-            as="h2"
-            style={{
-              margin: "0 0 8px",
-              fontSize: 16,
-              fontWeight: 700,
-              lineHeight: "24px",
-              color: TEXT,
-            }}
+          <OnboardingMeshSection
+            title="Connect Hyperlocalise's MCP"
+            meshSrc={ONBOARDING_SECTION_MESHES.mcp}
           >
-            Connect Hyperlocalise&apos;s MCP
-          </Heading>
-          <Text style={{ margin: "0 0 12px", fontSize: 15, lineHeight: "24px", color: TEXT }}>
-            MCP lets your agent read projects, files, glossaries, and jobs in your workspace. Open{" "}
-            <strong>Overview</strong>, pick Claude, Codex, or Cursor, and follow the snippet. Setup
-            notes are in our{" "}
-            <Link href={mcpDocsUrl} style={{ color: LINK, textDecoration: "underline" }}>
-              MCP docs
-            </Link>
-            .
-          </Text>
-          <Section
-            style={{
-              marginBottom: 8,
-              backgroundColor: SNIPPET_BG,
-              borderRadius: 6,
-              padding: "10px 12px",
-            }}
-          >
-            <Text style={snippetText}>{claudeSnippet}</Text>
-          </Section>
-          <Section
-            style={{
-              marginBottom: 20,
-              backgroundColor: SNIPPET_BG,
-              borderRadius: 6,
-              padding: "10px 12px",
-            }}
-          >
-            <Text style={snippetText}>{codexSnippet}</Text>
-          </Section>
-          <Text style={{ margin: "0 0 24px", fontSize: 13, lineHeight: "20px", color: MUTED }}>
-            MCP URL: {mcpUrl}
-          </Text>
+            <Text style={meshBodyText}>
+              MCP lets your agent read projects, files, glossaries, and jobs in your workspace. Open{" "}
+              <strong>Overview</strong>, pick Claude, Codex, or Cursor, and follow the snippet.
+              Setup notes are in our{" "}
+              <Link href={mcpDocsUrl} style={{ color: MESH_LINK, textDecoration: "underline" }}>
+                MCP docs
+              </Link>
+              .
+            </Text>
+            <Section style={{ ...snippetCard, marginBottom: 8 }}>
+              <Text style={snippetText}>{claudeSnippet}</Text>
+            </Section>
+            <Section style={snippetCard}>
+              <Text style={snippetText}>{codexSnippet}</Text>
+            </Section>
+            <Text style={{ ...meshBodyText, fontSize: 13, color: MESH_MUTED, marginBottom: 0 }}>
+              MCP URL: {mcpUrl}
+            </Text>
+          </OnboardingMeshSection>
 
-          <Section style={{ textAlign: "center" }}>
+          <Section style={{ textAlign: "center", marginTop: 8 }}>
             <Button
               href={appUrl}
               style={{
@@ -340,6 +305,57 @@ export function OnboardingWelcomeEmail({
     </Html>
   );
 }
+
+function OnboardingMeshSection({
+  title,
+  meshSrc,
+  children,
+}: {
+  title: string;
+  meshSrc: string;
+  children: ReactNode;
+}) {
+  return (
+    <Section
+      style={{
+        backgroundColor: "#2A2420",
+        backgroundImage: `linear-gradient(180deg, rgba(12,12,12,0.32) 0%, rgba(12,12,12,0.55) 100%), url(${meshSrc})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        borderRadius: 16,
+        padding: "22px 20px",
+        marginBottom: 16,
+      }}
+    >
+      <Heading as="h2" style={meshHeading}>
+        {title}
+      </Heading>
+      {children}
+    </Section>
+  );
+}
+
+const meshHeading = {
+  margin: "0 0 10px",
+  fontSize: 20,
+  fontWeight: 700,
+  lineHeight: "26px",
+  color: MESH_HEADING,
+};
+
+const meshBodyText = {
+  margin: "0 0 12px",
+  fontSize: 15,
+  lineHeight: "24px",
+  color: MESH_BODY,
+};
+
+const snippetCard = {
+  backgroundColor: SNIPPET_BG,
+  borderRadius: 6,
+  padding: "10px 12px",
+  marginBottom: 12,
+};
 
 const snippetText = {
   margin: 0,

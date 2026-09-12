@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { onboardingWelcomeEmailFixture } from "./onboarding-welcome-email.fixture";
 import {
+  ONBOARDING_SECTION_MESHES,
   OnboardingWelcomeEmail,
   displayFirstName,
   onboardingWelcomeEmailText,
@@ -61,5 +62,9 @@ describe("onboarding welcome email", () => {
     expect(html).toContain(onboardingWelcomeEmailFixture.mcpDocsUrl);
     expect(html).toContain(onboardingWelcomeEmailFixture.claudeSnippet);
     expect(html).toContain("Open Hyperlocalise");
+    expect(html).toContain(ONBOARDING_SECTION_MESHES.project);
+    expect(html).toContain(ONBOARDING_SECTION_MESHES.files);
+    expect(html).toContain(ONBOARDING_SECTION_MESHES.cli);
+    expect(html).toContain(ONBOARDING_SECTION_MESHES.mcp);
   });
 });
