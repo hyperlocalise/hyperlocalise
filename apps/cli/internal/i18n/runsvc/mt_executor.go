@@ -108,7 +108,13 @@ func (s *Service) processMTBatch(ctx context.Context, engine mt.Engine, key mtGr
 		req.Sources[i] = task.SourceText
 	}
 
+	// Hold the worker permit across retries and backoff to preserve worker-slot semantics.
+	if err := acquireTranslateSem(ctx, state.translateSem); err != nil {
+		s.failMTBatch(ctx, batch, err, targetFailures, state, emitter)
+		return
+	}
 	resp, err := s.translateMTBatchWithRetry(ctx, engine, req)
+	releaseTranslateSem(state.translateSem)
 	if err != nil {
 		s.failMTBatch(ctx, batch, fmt.Errorf("mt batch translation failed for profile %q (%s -> %s): %w", key.profileName, key.sourceLocale, key.targetLocale, err), targetFailures, state, emitter)
 		return

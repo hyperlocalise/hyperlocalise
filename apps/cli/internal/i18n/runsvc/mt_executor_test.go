@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 	"github.com/hyperlocalise/hyperlocalise/internal/mt"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
@@ -881,5 +882,162 @@ func TestExecutePoolContextMemoryExcludesMTTasks(t *testing.T) {
 		if task.ContextKey != want {
 			t.Fatalf("mtTasks[%d].ContextKey=%q, want %q (must be untouched by context-memory planning)", i, task.ContextKey, want)
 		}
+	}
+}
+
+// concurrencyGate coordinates deterministic concurrency tests.
+type concurrencyGate struct {
+	mu      sync.Mutex
+	current int
+	max     int
+	entered chan struct{}
+	release chan struct{}
+}
+
+func newConcurrencyGate(capacity int) *concurrencyGate {
+	return &concurrencyGate{
+		entered: make(chan struct{}, capacity),
+		release: make(chan struct{}),
+	}
+}
+
+func (g *concurrencyGate) enter() {
+	g.mu.Lock()
+	g.current++
+	if g.current > g.max {
+		g.max = g.current
+	}
+	g.mu.Unlock()
+
+	g.entered <- struct{}{}
+	<-g.release
+
+	g.mu.Lock()
+	g.current--
+	g.mu.Unlock()
+}
+
+func (g *concurrencyGate) openGate() {
+	close(g.release)
+}
+
+func (g *concurrencyGate) maxObserved() int {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.max
+}
+
+func assertNoFurtherEntry(t *testing.T, g *concurrencyGate) {
+	t.Helper()
+	select {
+	case <-g.entered:
+		t.Fatalf("an additional translation call entered while the configured worker budget was already fully held")
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+type gatedMTEngine struct {
+	gate *concurrencyGate
+}
+
+func (e *gatedMTEngine) Translate(_ context.Context, req mt.Request) (mt.Response, error) {
+	e.gate.enter()
+	return mt.Response{Translations: append([]string(nil), req.Sources...)}, nil
+}
+
+func TestExecutePoolSharedConcurrencyBudgetWorkersOne(t *testing.T) {
+	llmTasks := []Task{
+		{EntryKey: "l1", TargetPath: "llm-a.json", SourcePath: "src-a.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeLLM, ProfileName: "default", SourceText: "hello"},
+	}
+	mtTasks := []Task{
+		{EntryKey: "m1", TargetPath: "mt-a.json", SourcePath: "mt-src-a.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", TranslationType: config.TranslationTypeMT, SourceText: "m1"},
+	}
+
+	svc := newTestServiceForExecutePool(map[string]string{
+		"src-a.json":    `{"l1":"hello"}`,
+		"mt-src-a.json": `{"m1":"m1"}`,
+	})
+	gate := newConcurrencyGate(8)
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		gate.enter()
+		return strings.ToUpper(req.Source), nil
+	}
+	factory := newTestMTEngineFactoryWithEngines(t, map[string]mt.Engine{"p1": &gatedMTEngine{gate: gate}})
+	emitter := newEventEmitter(func(Event) {})
+
+	type poolResult struct {
+		execReport executionReport
+		err        error
+	}
+	done := make(chan poolResult, 1)
+	go func() {
+		_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 1, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil)
+		done <- poolResult{execReport: execReport, err: err}
+	}()
+
+	<-gate.entered
+	assertNoFurtherEntry(t, gate)
+	gate.openGate()
+
+	res := <-done
+	emitter.close()
+	if res.err != nil {
+		t.Fatalf("executePool: %v", res.err)
+	}
+	if res.execReport.Succeeded != 2 {
+		t.Fatalf("execReport.Succeeded=%d, want 2", res.execReport.Succeeded)
+	}
+	if got := gate.maxObserved(); got != 1 {
+		t.Fatalf("observed max concurrency=%d, want 1 with --workers=1 (a second LLM/MT translation must not enter while the first is blocked)", got)
+	}
+}
+
+func TestExecutePoolSharedConcurrencyBudgetLargerWorkerCount(t *testing.T) {
+	llmTasks := []Task{
+		{EntryKey: "l1", TargetPath: "llm-a.json", SourcePath: "src-a.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeLLM, ProfileName: "default", SourceText: "hello"},
+		{EntryKey: "l2", TargetPath: "llm-b.json", SourcePath: "src-b.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeLLM, ProfileName: "default", SourceText: "world"},
+	}
+	mtTasks := []Task{
+		{EntryKey: "m1", TargetPath: "mt-a.json", SourcePath: "mt-src-a.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", TranslationType: config.TranslationTypeMT, SourceText: "m1"},
+	}
+
+	svc := newTestServiceForExecutePool(map[string]string{
+		"src-a.json":    `{"l1":"hello"}`,
+		"src-b.json":    `{"l2":"world"}`,
+		"mt-src-a.json": `{"m1":"m1"}`,
+	})
+	gate := newConcurrencyGate(8)
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		gate.enter()
+		return strings.ToUpper(req.Source), nil
+	}
+	factory := newTestMTEngineFactoryWithEngines(t, map[string]mt.Engine{"p1": &gatedMTEngine{gate: gate}})
+	emitter := newEventEmitter(func(Event) {})
+
+	type poolResult struct {
+		execReport executionReport
+		err        error
+	}
+	done := make(chan poolResult, 1)
+	go func() {
+		_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil)
+		done <- poolResult{execReport: execReport, err: err}
+	}()
+
+	<-gate.entered
+	<-gate.entered
+	assertNoFurtherEntry(t, gate)
+	gate.openGate()
+
+	res := <-done
+	emitter.close()
+	if res.err != nil {
+		t.Fatalf("executePool: %v", res.err)
+	}
+	if res.execReport.Succeeded != 3 {
+		t.Fatalf("execReport.Succeeded=%d, want 3", res.execReport.Succeeded)
+	}
+	if got := gate.maxObserved(); got != 2 {
+		t.Fatalf("observed max concurrency=%d, want 2 with --workers=2 (a third translation must not enter while two are blocked)", got)
 	}
 }
