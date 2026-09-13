@@ -204,6 +204,37 @@ describe("project QA reports", () => {
     expect(body.reports.some((row) => row.projectId === providerProject?.id)).toBe(false);
   });
 
+  it("exposes failed latest scans on the workspace QA page", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    await db.insert(schema.translationQaRuns).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "scheduled",
+      status: "failed",
+      summary: { byCheckType: {}, bySeverity: {}, byLocale: {} },
+      errorCode: "qa_scan_failed",
+      completedAt: new Date(),
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["qa-reports"].$get(
+      { param: { organizationSlug: identity.organization.slug! } },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      reports: Array<{
+        projectId: string;
+        report: { status: string; findingCount: number } | null;
+      }>;
+    };
+    const row = body.reports.find((entry) => entry.projectId === project.id);
+    expect(row?.report?.status).toBe("failed");
+    expect(row?.report?.findingCount).toBe(0);
+  });
+
   it("schedules daily scans for native projects and ignores provider projects", async () => {
     const { organization, project, user } = await projectFixture.createStoredProjectFixture();
 
@@ -440,6 +471,36 @@ describe("project QA reports", () => {
     expect(first.findings).toHaveLength(2);
     expect(second.findings).toHaveLength(1);
     expect(second.findings[0]?.id).not.toBe(first.findings[0]?.id);
+  });
+
+  it("reclaims a stale running scan so a new scan can start", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const startedAt = new Date(Date.now() - 11 * 60 * 1000);
+
+    await db.insert(schema.translationQaRuns).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      status: "running",
+      summary: { byCheckType: {}, bySeverity: {}, byLocale: {} },
+      startedAt,
+      createdAt: startedAt,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
   });
 
   it("rejects a second scan while one is running", async () => {

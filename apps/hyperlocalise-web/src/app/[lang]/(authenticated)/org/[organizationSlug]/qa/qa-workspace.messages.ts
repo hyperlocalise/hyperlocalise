@@ -36,6 +36,16 @@ export const qaWorkspaceMessages = defineMessages({
     id: "coLjATj12b",
     description: "Workspace QA when a project has no scan",
   },
+  failed: {
+    defaultMessage: "Last scan failed",
+    id: "YNnCNeuDLL",
+    description: "Workspace QA when the latest scan failed",
+  },
+  running: {
+    defaultMessage: "Scan in progress",
+    id: "xQT8yHFRak",
+    description: "Workspace QA when a scan is still running",
+  },
   findings: {
     defaultMessage: "{count, plural, one {# issue} other {# issues}}",
     id: "Z2biIz/+mo",

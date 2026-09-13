@@ -54,6 +54,7 @@ export type TranslationQaFindingLike = {
   category: string;
   message: string;
   relatedTokens: string[];
+  sourceText: string;
   targetText: string;
   translationKeyId?: string | null;
   key: string;
@@ -84,7 +85,7 @@ export function isTranslationQaCheckType(value: string): value is TranslationQaC
 
 export function formatChecksFromScanFindings(
   findings: readonly TranslationQaFindingLike[],
-  segment: { id: string; key: string; targetLocale: string },
+  segment: { id: string; key: string; targetLocale: string; sourceText: string },
   value: string,
 ): ContentEditorFormatCheck[] {
   return findings.flatMap((finding) => {
@@ -92,7 +93,8 @@ export function formatChecksFromScanFindings(
     if (
       !matchesSegment ||
       finding.targetLocale !== segment.targetLocale ||
-      finding.targetText !== value
+      finding.targetText !== value ||
+      finding.sourceText !== segment.sourceText
     ) {
       return [];
     }

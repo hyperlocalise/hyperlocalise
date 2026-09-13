@@ -44,7 +44,8 @@ untouched locales still produce `not_localized` findings.
 
 Scans run in the API request (or cron tick). Native QA checks are cheap string
 comparisons. Concurrent scans on the same project return `409`. A partial unique
-index allows only one `running` scan per project.
+index allows only one `running` scan per project. Running rows older than
+ten minutes are marked failed so a crashed request cannot block later scans.
 
 ## Non-goals
 

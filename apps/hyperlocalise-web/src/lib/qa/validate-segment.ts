@@ -29,7 +29,21 @@ function countRunes(value: string) {
 }
 
 function collectPlaceholders(value: string) {
-  return [...value.matchAll(PLACEHOLDER_PATTERN)].map((match) => match[0]).toSorted();
+  return [...value.matchAll(PLACEHOLDER_PATTERN)].map((match) => match[0]);
+}
+
+function leftoverPlaceholders(sourceTokens: readonly string[], targetTokens: readonly string[]) {
+  const remaining = [...targetTokens];
+  const absent: string[] = [];
+  for (const token of sourceTokens) {
+    const index = remaining.indexOf(token);
+    if (index === -1) {
+      absent.push(token);
+    } else {
+      remaining.splice(index, 1);
+    }
+  }
+  return { absent, extra: remaining };
 }
 
 function describeIntroducedEscapedChars(tokens: readonly string[]) {
@@ -274,10 +288,10 @@ export function validateTranslationSegment(input: TranslationQaSegmentInput): Tr
   }
 
   if (targetTrimmed !== "") {
-    const sourcePlaceholders = new Set(collectPlaceholders(source));
-    const targetPlaceholders = new Set(collectPlaceholders(target));
-    const absent = [...sourcePlaceholders].filter((token) => !targetPlaceholders.has(token));
-    const extra = [...targetPlaceholders].filter((token) => !sourcePlaceholders.has(token));
+    const { absent, extra } = leftoverPlaceholders(
+      collectPlaceholders(source),
+      collectPlaceholders(target),
+    );
     if (absent.length > 0 || extra.length > 0) {
       checks.push({
         checkType: "placeholder_mismatch",

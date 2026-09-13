@@ -294,6 +294,7 @@ export function createProjectQaReportRoutes() {
         locale: query.locale,
         sourcePath: query.sourcePath,
         limit: query.limit,
+        offset: query.offset,
       });
 
       return c.json(
@@ -309,6 +310,7 @@ export function createProjectQaReportRoutes() {
             category: finding.category,
             message: finding.message,
             relatedTokens: finding.relatedTokens,
+            sourceText: finding.sourceText,
             targetText: finding.targetText,
           })),
         },

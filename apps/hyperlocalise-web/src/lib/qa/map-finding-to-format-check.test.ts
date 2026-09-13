@@ -26,6 +26,7 @@ describe("mapQaFindingToFormatCheck", () => {
         category: "qa",
         message: "Target value is empty.",
         relatedTokens: [],
+        sourceText: "Hello",
         targetText: "",
         key: "hello",
         targetLocale: "fr-FR",
@@ -48,6 +49,7 @@ describe("mapQaFindingToFormatCheck", () => {
         category: "qa",
         message: "?",
         relatedTokens: [],
+        sourceText: "Hello",
         targetText: "",
         key: "hello",
         targetLocale: "fr-FR",
@@ -55,13 +57,14 @@ describe("mapQaFindingToFormatCheck", () => {
     ).toBeNull();
   });
 
-  it("reuses scan findings only when the target text still matches", () => {
+  it("reuses scan findings only when source and target text still match", () => {
     const finding = {
       checkType: "same_as_source",
       severity: "warning" as const,
       category: "qa",
       message: "Target value matches source.",
       relatedTokens: [],
+      sourceText: "Save",
       targetText: "Save",
       translationKeyId: "key-1",
       key: "cta.save",
@@ -71,15 +74,22 @@ describe("mapQaFindingToFormatCheck", () => {
     expect(
       formatChecksFromScanFindings(
         [finding],
-        { id: "key-1", key: "cta.save", targetLocale: "fr-FR" },
+        { id: "key-1", key: "cta.save", targetLocale: "fr-FR", sourceText: "Save" },
         "Save",
       ),
     ).toHaveLength(1);
     expect(
       formatChecksFromScanFindings(
         [finding],
-        { id: "key-1", key: "cta.save", targetLocale: "fr-FR" },
+        { id: "key-1", key: "cta.save", targetLocale: "fr-FR", sourceText: "Save" },
         "Enregistrer",
+      ),
+    ).toEqual([]);
+    expect(
+      formatChecksFromScanFindings(
+        [finding],
+        { id: "key-1", key: "cta.save", targetLocale: "fr-FR", sourceText: "Save changes" },
+        "Save",
       ),
     ).toEqual([]);
   });

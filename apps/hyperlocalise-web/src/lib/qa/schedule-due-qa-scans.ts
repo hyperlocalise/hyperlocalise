@@ -15,12 +15,13 @@ import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 
-import { runProjectTranslationQaScan } from "./run-project-qa-scan";
+import { reclaimStaleTranslationQaRuns, runProjectTranslationQaScan } from "./run-project-qa-scan";
 
 const logger = createLogger("translation-qa-scan-cron");
 const DAY_MS = 20 * 60 * 60 * 1000;
 
 export async function runDueTranslationQaScans(input: { limit: number }) {
+  await reclaimStaleTranslationQaRuns();
   const cutoff = new Date(Date.now() - DAY_MS);
   const dueProjects = await db
     .select({

@@ -32,6 +32,7 @@ type WorkspaceQaRow = {
   cadence: "off" | "daily";
   lastRunAt: string | null;
   report: {
+    status: "queued" | "running" | "succeeded" | "failed";
     findingCount: number;
     errorCount: number;
     warningCount: number;
@@ -78,11 +79,9 @@ export function QaWorkspacePageContent({ organizationSlug }: { organizationSlug:
             </CardHeader>
             <CardContent className="flex flex-col gap-3 px-5 pt-3 pb-5">
               <TypographyP size="small" tone="subtle">
-                {row.report
-                  ? intl.formatMessage(messages.findings, { count: row.report.findingCount })
-                  : intl.formatMessage(messages.neverRun)}
+                {workspaceQaHeadline(intl, row.report)}
               </TypographyP>
-              {row.report ? (
+              {row.report?.status === "succeeded" ? (
                 <TypographyP size="xsmall" tone="subtle">
                   {intl.formatMessage(messages.counts, {
                     errors: row.report.errorCount,
@@ -120,4 +119,17 @@ export function QaWorkspacePageContent({ organizationSlug }: { organizationSlug:
       </div>
     </WorkspacePageShell>
   );
+}
+
+function workspaceQaHeadline(intl: ReturnType<typeof useIntl>, report: WorkspaceQaRow["report"]) {
+  if (!report) {
+    return intl.formatMessage(messages.neverRun);
+  }
+  if (report.status === "failed") {
+    return intl.formatMessage(messages.failed);
+  }
+  if (report.status === "running" || report.status === "queued") {
+    return intl.formatMessage(messages.running);
+  }
+  return intl.formatMessage(messages.findings, { count: report.findingCount });
 }

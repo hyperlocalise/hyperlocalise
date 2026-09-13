@@ -116,6 +116,21 @@ describe("validateTranslationSegment", () => {
     ]);
   });
 
+  it("fails when the target drops a repeated placeholder", () => {
+    const checks = validateTranslationSegment({
+      sourceText: "%s %s",
+      targetText: "%s",
+      targetLocale: "fr-FR",
+    });
+
+    expect(checks).toEqual([
+      expect.objectContaining({
+        checkType: "placeholder_mismatch",
+        relatedTokens: ["%s"],
+      }),
+    ]);
+  });
+
   it("fails missing placeholders", () => {
     const checks = validateTranslationSegment({
       sourceText: "Hello {name}",

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, eq, gt, inArray } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
@@ -27,6 +27,8 @@ import { validateTranslationSegment } from "./validate-segment";
 const logger = createLogger("translation-qa-scan");
 const KEY_PAGE_SIZE = 250;
 const FINDING_INSERT_CHUNK = 100;
+/** Longer than the 300s API timeout so a live scan is not reaped mid-run. */
+export const STALE_RUNNING_SCAN_MS = 10 * 60 * 1000;
 
 type QaScanKeyRow = {
   translationKeyId: string;
@@ -268,12 +270,47 @@ export async function runProjectTranslationQaScan(input: {
   }
 }
 
+export async function reclaimStaleTranslationQaRuns(input?: {
+  organizationId?: string;
+  projectId?: string;
+}) {
+  const cutoff = new Date(Date.now() - STALE_RUNNING_SCAN_MS);
+  const filters = [
+    eq(schema.translationQaRuns.status, "running"),
+    lt(
+      sql`coalesce(${schema.translationQaRuns.startedAt}, ${schema.translationQaRuns.createdAt})`,
+      cutoff,
+    ),
+  ];
+  if (input?.organizationId) {
+    filters.push(eq(schema.translationQaRuns.organizationId, input.organizationId));
+  }
+  if (input?.projectId) {
+    filters.push(eq(schema.translationQaRuns.projectId, input.projectId));
+  }
+
+  await db
+    .update(schema.translationQaRuns)
+    .set({
+      status: "failed",
+      errorCode: "qa_scan_stale",
+      errorMessage: "Scan did not finish before the lease expired.",
+      completedAt: new Date(),
+    })
+    .where(and(...filters));
+}
+
 async function claimTranslationQaRun(input: {
   organizationId: string;
   projectId: string;
   trigger: TranslationQaRunTrigger;
   createdByUserId?: string | null;
 }): Promise<TranslationQaScanResult> {
+  await reclaimStaleTranslationQaRuns({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+  });
+
   try {
     const [run] = await db
       .insert(schema.translationQaRuns)

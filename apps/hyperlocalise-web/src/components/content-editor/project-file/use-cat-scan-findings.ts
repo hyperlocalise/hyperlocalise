@@ -48,37 +48,49 @@ export function useCatScanFindings(input: {
     enabled:
       input.enabled && Boolean(input.organizationSlug && input.projectId && input.targetLocale),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "qa-reports"
-      ]["latest-findings"].$get({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-        },
-        query: {
-          locale: input.targetLocale,
-          sourcePath: input.sourcePath,
-        },
-      });
-      if (!response.ok) {
-        return { runId: null, findings: [] as CatScanFinding[] };
+      const pageSize = 2000;
+      const findings: CatScanFinding[] = [];
+      let runId: string | null = null;
+      for (let offset = 0; ; offset += pageSize) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+          "qa-reports"
+        ]["latest-findings"].$get({
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          query: {
+            locale: input.targetLocale,
+            sourcePath: input.sourcePath,
+            limit: pageSize,
+            offset,
+          },
+        });
+        if (!response.ok) {
+          return { runId: null, findings: [] as CatScanFinding[] };
+        }
+        const body = (await response.json()) as {
+          runId: string | null;
+          findings: Array<{
+            translationKeyId: string | null;
+            key: string;
+            sourcePath: string | null;
+            targetLocale: string;
+            checkType: string;
+            severity: TranslationQaSeverity;
+            category: string;
+            message: string;
+            relatedTokens: string[];
+            sourceText: string;
+            targetText: string;
+          }>;
+        };
+        runId = body.runId;
+        findings.push(...body.findings);
+        if (body.findings.length < pageSize) {
+          return { runId, findings };
+        }
       }
-      const body = (await response.json()) as {
-        runId: string | null;
-        findings: Array<{
-          translationKeyId: string | null;
-          key: string;
-          sourcePath: string | null;
-          targetLocale: string;
-          checkType: string;
-          severity: TranslationQaSeverity;
-          category: string;
-          message: string;
-          relatedTokens: string[];
-          targetText: string;
-        }>;
-      };
-      return body;
     },
     staleTime: 30_000,
   });

@@ -42,6 +42,7 @@ export const qaReportLatestFindingsQuerySchema = z.object({
   locale: z.string().trim().min(1).max(32),
   sourcePath: z.string().trim().min(1).max(1024).optional(),
   limit: z.coerce.number().int().min(1).max(2000).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
 });
 
 export const qaReportSettingsBodySchema = z.object({

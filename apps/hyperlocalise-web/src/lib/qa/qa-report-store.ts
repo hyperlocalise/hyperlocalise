@@ -107,7 +107,11 @@ export async function listTranslationQaFindings(input: {
       .select()
       .from(schema.translationQaFindings)
       .where(where)
-      .orderBy(schema.translationQaFindings.targetLocale, schema.translationQaFindings.key)
+      .orderBy(
+        schema.translationQaFindings.targetLocale,
+        schema.translationQaFindings.key,
+        schema.translationQaFindings.id,
+      )
       .limit(limit)
       .offset(offset),
     db
@@ -130,6 +134,7 @@ export async function listLatestSucceededQaFindingsForCat(input: {
   locale: string;
   sourcePath?: string;
   limit?: number;
+  offset?: number;
 }) {
   const [run] = await db
     .select({ id: schema.translationQaRuns.id })
@@ -175,12 +180,18 @@ export async function listLatestSucceededQaFindingsForCat(input: {
       category: schema.translationQaFindings.category,
       message: schema.translationQaFindings.message,
       relatedTokens: schema.translationQaFindings.relatedTokens,
+      sourceText: schema.translationQaFindings.sourceText,
       targetText: schema.translationQaFindings.targetText,
     })
     .from(schema.translationQaFindings)
     .where(and(...filters))
-    .orderBy(schema.translationQaFindings.key, schema.translationQaFindings.checkType)
-    .limit(input.limit ?? 2000);
+    .orderBy(
+      schema.translationQaFindings.key,
+      schema.translationQaFindings.checkType,
+      schema.translationQaFindings.id,
+    )
+    .limit(input.limit ?? 2000)
+    .offset(input.offset ?? 0);
 
   return { runId: run.id, findings };
 }
