@@ -12,9 +12,14 @@
  */
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppCapability } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { HyperlabAudiencesPage } from "../_components/hyperlab-audiences-page";
 import { OrgPageSuspense } from "../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "hyperlabAudiences");
+}
 
 export default function HyperlabAudiencesRoute({
   params,

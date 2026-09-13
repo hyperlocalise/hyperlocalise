@@ -11,9 +11,14 @@
  * Version 2.0 or later.
  */
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
 import { TmImportAttemptDetail } from "./_components/tm-import-attempt-detail";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "translationMemoryImport");
+}
 
 export default function TranslationMemoryImportAttemptPage({
   params,

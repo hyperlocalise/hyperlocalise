@@ -22,9 +22,14 @@ import {
   contentEditorAllFilesProviderKindFromTarget,
   resolveProjectResourceTarget,
 } from "@/api/routes/project/project.shared";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { JobContentEditorPageContent } from "./_components/job-content-editor-page-content";
 import { OrgPageSuspense } from "../../../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectJobStrings");
+}
 
 export default function ProjectJobStringsPage({
   params,

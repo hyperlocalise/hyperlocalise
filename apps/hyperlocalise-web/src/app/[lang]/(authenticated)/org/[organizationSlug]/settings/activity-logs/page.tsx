@@ -11,9 +11,14 @@
  * Version 2.0 or later.
  */
 import { requireAppCapability } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { ActivityLogsPageContent } from "../_components/activity-logs-page-content";
 import { OrgPageSuspense } from "../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "settingsActivityLogs");
+}
 
 export default function ActivityLogsSettingsPage({
   params,

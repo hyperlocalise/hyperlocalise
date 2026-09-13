@@ -13,9 +13,14 @@
 import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { evaluateWorkspaceFeatureFlags } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { DashboardPageContent } from "./_components/dashboard-page-content";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "dashboard");
+}
 
 export default function OrganizationDashboardPage({
   params,

@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { TypographyP } from "@/components/ui/typography";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
+import { getAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 type AccessDeniedReason =
   | "workos-membership-lookup-failed"
@@ -170,6 +171,12 @@ function getAccessDeniedCopy(reason: AccessDeniedReason | undefined, intl: IntlS
 type AccessDeniedPageProps = {
   searchParams: Promise<{ reason?: string }>;
 };
+
+export async function generateMetadata() {
+  return getAuthenticatedPageMetadata(await getAppLocale(), "accessDenied", {
+    includeBrandSuffix: true,
+  });
+}
 
 export default async function AccessDeniedPage({ searchParams }: AccessDeniedPageProps) {
   const { reason: rawReason } = await searchParams;

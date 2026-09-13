@@ -13,6 +13,11 @@
 import { redirect } from "next/navigation";
 
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "connectCanva");
+}
 
 export default async function ConnectCanvaPage({
   searchParams,

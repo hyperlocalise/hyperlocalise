@@ -10,8 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
 import { DomainOverviewView } from "../_components/domain-overview-view";
 import { DomainResearchShell } from "../_components/domain-research-shell";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "domainOverview");
+}
 
 export default async function DomainDetailPage({
   params,

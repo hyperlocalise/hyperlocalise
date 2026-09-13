@@ -14,8 +14,13 @@ import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-pa
 import { getWorkspaceFeatureFlagEnabled, workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { ReportsWorkspace } from "@/components/reports/reports-workspace";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { OrgPageSuspense } from "../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectReports");
+}
 
 export default function ReportsPage({
   params,

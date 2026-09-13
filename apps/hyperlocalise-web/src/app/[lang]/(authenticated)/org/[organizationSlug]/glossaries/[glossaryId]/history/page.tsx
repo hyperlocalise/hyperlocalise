@@ -13,6 +13,11 @@
 import { GlossaryHistoryPage } from "../_components/glossary-history-page";
 import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "glossaryHistory");
+}
 
 export default function GlossaryHistoryRoute({
   params,

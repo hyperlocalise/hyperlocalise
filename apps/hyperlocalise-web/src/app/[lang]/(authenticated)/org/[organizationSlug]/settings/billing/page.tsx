@@ -13,9 +13,14 @@
 import { hasCapability } from "@/api/auth/policy";
 import { isAutumnConfigured } from "@/lib/billing/autumn-config";
 import { requireAppAuthContext, requireAppCapability } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { BillingSettingsPageContent } from "./_components/billing-settings-content";
 import { OrgPageSuspense } from "../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "settingsBilling");
+}
 
 export default function BillingSettingsPage({
   params,
