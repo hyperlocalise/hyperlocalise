@@ -32,8 +32,7 @@ vi.mock("ai", () => ({
 }));
 
 vi.mock("@/lib/providers/organization-language-model", () => ({
-  resolveHyperlocaliseAgentLanguageModel: (...args: unknown[]) =>
-    resolveLanguageModelMock(...args),
+  resolveHyperlocaliseAgentLanguageModel: (...args: unknown[]) => resolveLanguageModelMock(...args),
 }));
 
 vi.mock("@/lib/agents/workspace-automation/notification-tools", () => ({
@@ -197,7 +196,11 @@ describe("visual workflow live third-party scenarios", () => {
     );
     expect(slackNotificationMock).not.toHaveBeenCalled();
     expect(emailNotificationMock).not.toHaveBeenCalled();
-    expect(result.nodeResults.cms).toMatchObject({ status: 201, ok: true, json: { id: "entry-1" } });
+    expect(result.nodeResults.cms).toMatchObject({
+      status: 201,
+      ok: true,
+      json: { id: "entry-1" },
+    });
   });
 
   it("does not call third-party providers when the same campaign graph runs in mock mode", async () => {
@@ -342,10 +345,18 @@ describe("visual workflow live third-party scenarios", () => {
           id: "loop",
           type: "logic.for_each",
           config: { kind: "logic.for_each", collection: "{{trigger.locales}}" },
-          bodyNodeIds: ["publish"],
+          bodyNodeIds: ["copy", "publish"],
           collect: {
-            locale: { kind: "reference", nodeId: "loop", path: ["item"] },
+            locale: { kind: "reference", nodeId: "copy", path: ["locale"] },
             entryId: { kind: "reference", nodeId: "publish", path: ["json", "id"] },
+          },
+        },
+        {
+          id: "copy",
+          type: "logic.set",
+          config: { kind: "logic.set", assignments: [] },
+          inputs: {
+            locale: { kind: "reference", nodeId: "loop", path: ["item"] },
           },
         },
         {
@@ -360,7 +371,7 @@ describe("visual workflow live third-party scenarios", () => {
             onError: "stop",
           },
           inputs: {
-            "body.locale": { kind: "reference", nodeId: "loop", path: ["item"] },
+            "body.locale": { kind: "reference", nodeId: "copy", path: ["locale"] },
             "body.pullRequest": {
               kind: "reference",
               nodeId: "$trigger",
@@ -384,7 +395,8 @@ describe("visual workflow live third-party scenarios", () => {
           inputs: {
             subject: {
               kind: "template",
-              template: "Published {{nodes.loop.count}} locales for PR {{trigger.pullRequestNumber}}",
+              template:
+                "Published {{nodes.loop.count}} locales for PR {{trigger.pullRequestNumber}}",
             },
             message: {
               kind: "template",
@@ -393,7 +405,12 @@ describe("visual workflow live third-party scenarios", () => {
           },
         },
       ],
-      [edge("github", "loop"), edge("loop", "publish", "each"), edge("loop", "email", "done")],
+      [
+        edge("github", "loop"),
+        edge("loop", "copy", "each"),
+        edge("copy", "publish"),
+        edge("loop", "email", "done"),
+      ],
     );
 
     const { result, updates } = await runLive(definition, githubPullRequestPayload());
@@ -473,11 +490,7 @@ describe("visual workflow live third-party scenarios", () => {
           },
         },
       ],
-      [
-        edge("trigger", "http"),
-        edge("http", "email"),
-        edge("http", "slack", "error"),
-      ],
+      [edge("trigger", "http"), edge("http", "email"), edge("http", "slack", "error")],
     );
 
     const { result, updates } = await runLive(definition, { triggeredAt: TRIGGERED_AT });
