@@ -53,4 +53,5 @@ CREATE INDEX "idx_translation_qa_findings_run_locale" ON "translation_qa_finding
 CREATE INDEX "idx_translation_qa_findings_run_check" ON "translation_qa_findings" USING btree ("run_id","check_type");--> statement-breakpoint
 CREATE INDEX "idx_translation_qa_runs_org_project_created" ON "translation_qa_runs" USING btree ("organization_id","project_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_translation_qa_runs_project_status" ON "translation_qa_runs" USING btree ("project_id","status");--> statement-breakpoint
+CREATE UNIQUE INDEX "translation_qa_runs_one_running_per_project" ON "translation_qa_runs" USING btree ("organization_id","project_id") WHERE "translation_qa_runs"."status" = 'running';--> statement-breakpoint
 ALTER TABLE "projects" ADD CONSTRAINT "projects_qa_scan_cadence_check" CHECK ("projects"."qa_scan_cadence" in ('off', 'daily'));

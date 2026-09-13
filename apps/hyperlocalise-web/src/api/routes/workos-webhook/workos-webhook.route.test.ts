@@ -26,6 +26,7 @@ import {
   syncWorkosUser,
 } from "@/api/auth/workos-sync";
 import { env } from "@/lib/env";
+import { sendOnboardingWelcomeEmail } from "@/lib/onboarding/onboarding-welcome-email-service";
 
 const secret = env.WORKOS_WEBHOOK_SECRET ?? "test-workos-webhook-secret";
 
@@ -38,11 +39,23 @@ function sign(body: string, timestamp?: number) {
 
 vi.mock("@/api/auth/workos-sync", () => ({
   promoteInvitedPlaceholderUser: vi.fn().mockResolvedValue(false),
-  syncWorkosUser: vi.fn().mockResolvedValue(undefined),
+  syncWorkosUser: vi.fn().mockResolvedValue({
+    id: "local-user-123",
+    workosUserId: "user_123",
+    email: "dev@example.com",
+  }),
   syncWorkosOrganization: vi.fn().mockResolvedValue(undefined),
   syncWorkosIdentity: vi.fn().mockResolvedValue(undefined),
   removePendingOrganizationMembershipForInvite: vi.fn().mockResolvedValue(1),
   revokeOrganizationMembershipAccess: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/onboarding/onboarding-welcome-email-service", () => ({
+  sendOnboardingWelcomeEmail: vi.fn().mockResolvedValue({
+    ok: true,
+    skipped: false,
+    resendId: "email_1",
+  }),
 }));
 
 vi.mock("@/lib/database/client", async (importOriginal) => {
@@ -62,6 +75,7 @@ describe("workosWebhookRoutes", () => {
   afterEach(() => {
     vi.resetModules();
     vi.doUnmock("@/api/auth/workos-sync");
+    vi.doUnmock("@/lib/onboarding/onboarding-welcome-email-service");
     vi.doUnmock("@/lib/database/client");
   });
 
@@ -117,6 +131,40 @@ describe("workosWebhookRoutes", () => {
       workosUserId: "user_123",
     });
     expect(syncWorkosUser).toHaveBeenCalled();
+    expect(sendOnboardingWelcomeEmail).toHaveBeenCalledWith({
+      userId: "local-user-123",
+      email: "dev@example.com",
+      firstName: "Dev",
+      database: expect.anything(),
+    });
+  });
+
+  it("does not send a welcome email on user.updated", async () => {
+    const client = testClient<AppType>(app);
+
+    const payload = JSON.stringify({
+      event: "user.updated",
+      data: {
+        id: "user_123",
+        email: "dev@example.com",
+        first_name: "Dev",
+      },
+    });
+
+    const response = await client.api.webhooks.workos.$post(
+      {
+        json: JSON.parse(payload) as unknown as never,
+      },
+      {
+        headers: {
+          "workos-signature": sign(payload),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(syncWorkosUser).toHaveBeenCalled();
+    expect(sendOnboardingWelcomeEmail).not.toHaveBeenCalled();
   });
 
   it("removes pending local membership when an invitation is revoked", async () => {

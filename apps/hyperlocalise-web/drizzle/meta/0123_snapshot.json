@@ -1,6 +1,6 @@
 {
-  "id": "51f69730-2223-4bdb-bc99-348f8d164df3",
-  "prevId": "ed8bf8c3-f176-486d-aa92-38d55626676e",
+  "id": "18f64367-c574-4256-b363-a80ba5b53e35",
+  "prevId": "7944c71e-e13d-446a-af2f-b7a65063c6be",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -525,6 +525,12 @@
         },
         "workos_memberships_reconciled_at": {
           "name": "workos_memberships_reconciled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "onboarding_email_sent_at": {
+          "name": "onboarding_email_sent_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
