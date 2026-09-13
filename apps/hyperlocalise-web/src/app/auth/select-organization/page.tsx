@@ -17,6 +17,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { getAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
+export async function generateMetadata() {
+  return getAuthenticatedPageMetadata(await getAppLocale(), "selectOrganization", {
+    includeBrandSuffix: true,
+  });
+}
 
 export default async function SelectOrganizationPage() {
   const auth = await requireAppAuthContext({ ignoreStoredActiveOrganization: true });

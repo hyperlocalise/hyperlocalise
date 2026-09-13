@@ -22,7 +22,12 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { db, schema } from "@/lib/database/client";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 import { OrgPageSuspense } from "../../../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "githubAutomation");
+}
 
 export default function GithubRepositoryAutomationPage({
   params,

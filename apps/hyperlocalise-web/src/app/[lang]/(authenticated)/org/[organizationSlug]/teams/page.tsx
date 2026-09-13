@@ -12,9 +12,14 @@
  */
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { TeamsPageContent } from "./_components/teams-page-content";
 import { OrgPageSuspense } from "../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "teams");
+}
 
 export default function TeamsPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
   return (

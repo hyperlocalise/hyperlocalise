@@ -11,9 +11,14 @@
  * Version 2.0 or later.
  */
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { ProjectFilesPageContent } from "./_components/project-files-page-content";
 import { OrgPageSuspense } from "../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectFiles");
+}
 
 export default function ProjectFilesPage({
   params,

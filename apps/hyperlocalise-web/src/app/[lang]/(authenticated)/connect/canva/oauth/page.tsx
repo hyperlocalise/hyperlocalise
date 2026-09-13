@@ -18,8 +18,13 @@ import {
   parseCanvaOauthAuthorizationRequest,
 } from "@/lib/canva/oauth";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { CanvaOauthConsentContent } from "./canva-oauth-consent-content";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "connectCanvaOauth");
+}
 
 export default async function CanvaOauthConsentPage() {
   const auth = await requireAppAuthContext();

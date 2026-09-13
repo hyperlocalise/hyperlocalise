@@ -12,9 +12,14 @@
  */
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { AiEnginePageContent } from "./_components/ai-engine-page-content";
 import { OrgPageSuspense } from "../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "aiEngine");
+}
 
 export default function AiEnginePage({
   params,

@@ -10,8 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
 import { HyperlabOverview } from "./_components/hyperlab-overview";
 import { OrgPageSuspense } from "../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "hyperlab");
+}
 
 export default function HyperlabPage({
   params,

@@ -18,9 +18,14 @@ import {
   workspaceVisualWorkflowsFlag,
 } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { AutomationsPageContent } from "./_components/automations-page-content";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "automations");
+}
 
 export default function AutomationsPage({
   params,

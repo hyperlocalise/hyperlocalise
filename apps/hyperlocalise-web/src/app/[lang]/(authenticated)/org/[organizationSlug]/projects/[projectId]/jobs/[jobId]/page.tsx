@@ -14,9 +14,14 @@ import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { getWorkspaceFeatureFlagEnabled, workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { JobDetailPageContent } from "./_components/job-detail-page-content";
 import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectJobDetail");
+}
 
 export default function ProjectJobDetailPage({
   params,

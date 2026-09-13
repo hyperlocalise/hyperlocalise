@@ -11,7 +11,12 @@
  * Version 2.0 or later.
  */
 import { redirect } from "next/navigation";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 import { OrgPageSuspense } from "../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "settingsMembers");
+}
 
 export default function MembersSettingsRedirectPage({
   params,

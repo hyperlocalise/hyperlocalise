@@ -12,6 +12,12 @@
  */
 import { redirect } from "next/navigation";
 import { buildDomainPath } from "@/components/app-shell/navigation-config";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "domainOverview");
+}
+
 export default async function DomainOverviewPage({
   params,
 }: {

@@ -22,9 +22,14 @@ import {
 } from "@/lib/flags/workspace-flags";
 import { getVisualWorkflowById } from "@/lib/visual-workflows/visual-workflows";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { VisualWorkflowEditorPageContent } from "../../_components/visual-workflow-editor-page-content";
 import { OrgPageSuspense } from "../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "visualWorkflowDetail");
+}
 
 export default function VisualWorkflowEditorPage({
   params,

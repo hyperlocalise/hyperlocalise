@@ -23,9 +23,14 @@ import {
   contentEditorAllFilesProviderKindFromTarget,
   resolveProjectResourceTarget,
 } from "@/api/routes/project/project.shared";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { ProjectFileContentEditorPageContent } from "../files/_components/project-file-content-editor-page-content";
 import { OrgPageSuspense } from "../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectStrings");
+}
 
 export default function ProjectStringsPage({
   params,

@@ -12,8 +12,13 @@
  */
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 import { GlossaryDetailPage as GlossaryDetailPageView } from "./_components/glossary-detail-page";
 import { OrgPageSuspense } from "../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "glossaryDetail");
+}
 
 export default function GlossaryDetailPage({
   params,

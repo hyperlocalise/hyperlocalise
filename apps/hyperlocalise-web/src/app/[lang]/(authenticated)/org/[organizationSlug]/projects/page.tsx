@@ -10,8 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
 import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { ProjectsPageContent } from "./_components/projects-page-content";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projects");
+}
 
 export default function ProjectsPage({
   params,
