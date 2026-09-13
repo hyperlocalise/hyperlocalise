@@ -25,9 +25,9 @@ import {
 import { getLinkedDomain } from "@/lib/linked-domains/claims";
 import { workspaceDomainsFlag } from "@/lib/flags/workspace-flags";
 import { GSC_DEFAULT_DATE_RANGE, isGscDateRange } from "@/lib/gsc/constants";
-import { mintGscAccessToken } from "@/lib/gsc/connections";
 import { matchSearchConsoleSite } from "@/lib/gsc/match-site";
 import { loadSearchConsolePerformance } from "@/lib/gsc/performance-loader";
+import { loadGscPipesAccessToken } from "@/lib/gsc/pipes";
 import { getGscProvider } from "@/lib/gsc/provider";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -59,15 +59,16 @@ function mapGscError(
   error: { code: string; message: string },
 ) {
   switch (error.code) {
-    case "gsc_not_configured":
+    case "gsc_pipes_unavailable":
     case "provider_unavailable":
     case "gsc_upstream_unavailable":
       return serviceUnavailableResponse(c, error.code, error.message);
-    case "gsc_connection_not_found":
+    case "gsc_not_connected":
     case "gsc_not_found":
       return notFoundResponse(c, error.code, error.message);
     case "gsc_rate_limited":
       return c.json({ error: error.code, message: error.message }, 429);
+    case "gsc_pipes_needs_reauthorization":
     case "gsc_auth_failed":
       return c.json({ error: error.code, message: error.message }, 401);
     default:
@@ -106,6 +107,7 @@ export function createDomainSearchConsoleRoutes() {
         const query = c.req.valid("query");
         const result = await loadSearchConsolePerformance({
           organizationId: c.var.auth.organization.localOrganizationId,
+          workosUserId: c.var.auth.user.workosUserId,
           domainKey: linkedDomain.domainKey,
           dateRange:
             query.dateRange && isGscDateRange(query.dateRange)
@@ -150,15 +152,16 @@ export function createDomainSearchConsoleRoutes() {
           return notFoundResponse(c, "linked_domain_not_found");
         }
 
-        const minted = await mintGscAccessToken({
-          organizationId: c.var.auth.organization.localOrganizationId,
+        const minted = await loadGscPipesAccessToken({
+          localOrganizationId: c.var.auth.organization.localOrganizationId,
+          workosUserId: c.var.auth.user.workosUserId,
         });
         if (isErr(minted)) {
           return mapGscError(c, minted.error);
         }
 
         const sites = await getGscProvider().listSites({
-          accessToken: minted.value.accessToken,
+          accessToken: minted.value,
           cookie: c.req.header("cookie") ?? undefined,
         });
         if (isErr(sites)) {
@@ -175,7 +178,7 @@ export function createDomainSearchConsoleRoutes() {
         }
 
         const inspection = await getGscProvider().inspectUrl({
-          accessToken: minted.value.accessToken,
+          accessToken: minted.value,
           siteUrl: site.siteUrl,
           inspectionUrl: c.req.valid("json").url,
           cookie: c.req.header("cookie") ?? undefined,

@@ -24,7 +24,6 @@ export * from "./schema/integrations";
 export * from "./schema/contentful";
 export * from "./schema/mcp-server-connections";
 export * from "./schema/semrush";
-export * from "./schema/gsc";
 export * from "./schema/zernio";
 export * from "./schema/ahrefs";
 export * from "./schema/intercom";

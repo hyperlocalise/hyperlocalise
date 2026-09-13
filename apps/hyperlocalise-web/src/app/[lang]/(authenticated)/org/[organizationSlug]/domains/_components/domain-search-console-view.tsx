@@ -12,13 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useId, useState, type FormEvent } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useId, useState, type FormEvent } from "react";
 import { observer } from "mobx-react-lite";
-import { useSearchParams } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -52,7 +51,7 @@ import { useDomainResearchShellStore } from "../store/domains-store-context";
 import { DomainMetricCard } from "./domain-metric-card";
 import { DomainResearchEmpty } from "./domain-research-empty";
 import { domainSearchConsoleViewMessages as messages } from "./domain-search-console-view.messages";
-import { domainSearchConsoleQueryKey, useDomainSearchConsole } from "./use-domain-search-console";
+import { useDomainSearchConsole } from "./use-domain-search-console";
 
 const QUERY_GRID =
   "grid grid-cols-[minmax(12rem,1.6fr)_repeat(4,minmax(4.5rem,0.5fr))] items-center gap-3 px-3 py-2.5";
@@ -72,18 +71,8 @@ function dateRangeMessage(range: GscDateRange) {
   }
 }
 
-function authorizeHref(organizationSlug: string, returnTo: string) {
-  const params = new URLSearchParams({ returnTo });
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/gsc-connections/authorize?${params}`;
-}
-
-function returnToPath(organizationSlug: string, linkedDomainId: string, localeId: string | null) {
-  const params = new URLSearchParams();
-  if (localeId) {
-    params.set("locale", localeId);
-  }
-  const query = params.toString();
-  return `/org/${organizationSlug}/domains/${encodeURIComponent(linkedDomainId)}/search-console${query ? `?${query}` : ""}`;
+function integrationsHref(organizationSlug: string) {
+  return `/org/${organizationSlug}/integrations`;
 }
 
 export const DomainSearchConsoleView = observer(function DomainSearchConsoleView({
@@ -95,24 +84,13 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
 }) {
   const intl = useIntl();
   const store = useDomainResearchShellStore();
-  const queryClient = useQueryClient();
-  const searchParams = useSearchParams();
-  const oauthError = searchParams.get("gscError");
   const dateRangeId = useId();
   const inspectId = useId();
   const [dateRange, setDateRange] = useState<GscDateRange>(GSC_DEFAULT_DATE_RANGE);
   const [tab, setTab] = useState<"queries" | "pages">("queries");
   const [inspectUrl, setInspectUrl] = useState("");
   const [inspecting, setInspecting] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
   const [inspection, setInspection] = useState<GscInspection | null>(null);
-
-  useEffect(() => {
-    if (!oauthError) {
-      return;
-    }
-    toast.error(intl.formatMessage(messages.connectError));
-  }, [intl, oauthError]);
 
   const domain = store.domain;
   const localeId = store.localeId;
@@ -130,32 +108,6 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
 
   const snapshot = searchConsole.data;
   const canMutate = searchConsole.live && snapshot?.status !== "sample";
-
-  async function disconnect() {
-    setDisconnecting(true);
-    try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/gsc-connections`,
-        { method: "DELETE" },
-      );
-      if (!response.ok && response.status !== 404) {
-        toast.error(intl.formatMessage(messages.disconnectError));
-        return;
-      }
-      await queryClient.invalidateQueries({
-        queryKey: domainSearchConsoleQueryKey(
-          organizationSlug,
-          linkedDomainId,
-          localeId,
-          dateRange,
-        ),
-      });
-      setInspection(null);
-      toast.success(intl.formatMessage(messages.disconnectSuccess));
-    } finally {
-      setDisconnecting(false);
-    }
-  }
 
   async function inspect(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -216,21 +168,17 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
       <DomainResearchEmpty
         title={<FormattedMessage {...messages.connectTitle} />}
         description={<FormattedMessage {...messages.connectDescription} />}
-        action={
-          <Button
-            size="sm"
-            render={
-              <a
-                href={authorizeHref(
-                  organizationSlug,
-                  returnToPath(organizationSlug, linkedDomainId, localeId),
-                )}
-              />
-            }
-          >
-            <FormattedMessage {...messages.connectCta} />
-          </Button>
-        }
+        action={<IntegrationsCta organizationSlug={organizationSlug} />}
+      />
+    );
+  }
+
+  if (snapshot.status === "needs_reauthorization") {
+    return (
+      <DomainResearchEmpty
+        title={<FormattedMessage {...messages.needsReauthTitle} />}
+        description={<FormattedMessage {...messages.needsReauthDescription} />}
+        action={<IntegrationsCta organizationSlug={organizationSlug} />}
       />
     );
   }
@@ -238,22 +186,13 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
   if (snapshot.status === "no_property") {
     return (
       <div className="grid gap-4">
-        <ConnectionBar
-          email={snapshot.connection?.accountEmail}
-          disconnecting={disconnecting}
-          onDisconnect={() => {
-            void disconnect();
-          }}
-        />
+        <ConnectionBar organizationSlug={organizationSlug} />
         <DomainResearchEmpty
           title={<FormattedMessage {...messages.noPropertyTitle} />}
           description={
             <FormattedMessage
               {...messages.noPropertyDescription}
-              values={{
-                email: snapshot.connection?.accountEmail ?? "Google",
-                domain: domain.domainKey,
-              }}
+              values={{ domain: domain.domainKey }}
             />
           }
         />
@@ -296,17 +235,7 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
             </SelectContent>
           </Select>
         </Field>
-        <ConnectionBar
-          email={snapshot.connection?.accountEmail}
-          disconnecting={disconnecting}
-          onDisconnect={
-            canMutate
-              ? () => {
-                  void disconnect();
-                }
-              : undefined
-          }
-        />
+        {canMutate ? <ConnectionBar organizationSlug={organizationSlug} /> : null}
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -391,32 +320,27 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
   );
 });
 
-function ConnectionBar({
-  email,
-  disconnecting,
-  onDisconnect,
-}: {
-  email?: string;
-  disconnecting: boolean;
-  onDisconnect?: () => void;
-}) {
-  if (!email && !onDisconnect) {
-    return null;
-  }
+function IntegrationsCta({ organizationSlug }: { organizationSlug: string }) {
+  return (
+    <Button size="sm" render={<OrgNavLink href={integrationsHref(organizationSlug)} />}>
+      <FormattedMessage {...messages.connectCta} />
+    </Button>
+  );
+}
 
+function ConnectionBar({ organizationSlug }: { organizationSlug: string }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {email ? (
-        <TypographyP size="small" tone="subtle">
-          <FormattedMessage {...messages.connectedAs} values={{ email }} />
-        </TypographyP>
-      ) : null}
-      {onDisconnect ? (
-        <Button size="sm" variant="outline" disabled={disconnecting} onClick={onDisconnect}>
-          {disconnecting ? <Spinner className="size-3.5" /> : null}
-          <FormattedMessage {...messages.disconnectCta} />
-        </Button>
-      ) : null}
+      <TypographyP size="small" tone="subtle">
+        <FormattedMessage {...messages.connectedThroughIntegrations} />
+      </TypographyP>
+      <Button
+        size="sm"
+        variant="outline"
+        render={<OrgNavLink href={integrationsHref(organizationSlug)} />}
+      >
+        <FormattedMessage {...messages.manageCta} />
+      </Button>
     </div>
   );
 }

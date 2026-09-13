@@ -10,19 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { PipesProviderSlug } from "@/lib/pipes/providers";
 
-export const GSC_OAUTH_PROVIDER_ID = "google-search-console";
-
-export const GSC_OAUTH_SCOPES = [
-  "openid",
-  "email",
-  "profile",
-  "https://www.googleapis.com/auth/webmasters.readonly",
-] as const;
-
-export const GSC_GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
-export const GSC_GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-export const GSC_GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
+/** WorkOS Pipes slug for the Google Search Console OAuth provider. */
+export const GSC_PIPES_SLUG = "google-search-console" satisfies PipesProviderSlug;
 
 export const GSC_DATE_RANGES = [
   "last_7_days",

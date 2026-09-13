@@ -67,6 +67,7 @@ export const workspacePipesCmsSlugs = [
 ] as const satisfies readonly PipesProviderSlug[];
 
 export const workspacePipesSeoToolSlugs = [
+  "google-search-console",
   "similarweb",
 ] as const satisfies readonly PipesProviderSlug[];
 

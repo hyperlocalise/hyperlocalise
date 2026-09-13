@@ -129,11 +129,8 @@ export function domainResearchMswHandlers() {
           searchConsole: {
             status: "sample",
             connection: {
-              id: "prototype-gsc",
-              organizationId: "prototype",
-              accountEmail: "seo@example.com",
-              createdAt: NOW,
-              updatedAt: NOW,
+              connected: true,
+              needsReauthorization: false,
             },
             siteUrl: `sc-domain:${domain.domainKey}`,
             startDate: "2026-08-17",

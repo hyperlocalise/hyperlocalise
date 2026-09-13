@@ -22,7 +22,11 @@ describe("pipes providers", () => {
   });
 
   it("groups providers by integrations category", () => {
-    expect(pipesProvidersForCategory("seo-tools")).toEqual(["ahrefs", "similarweb"]);
+    expect(pipesProvidersForCategory("seo-tools")).toEqual([
+      "ahrefs",
+      "google-search-console",
+      "similarweb",
+    ]);
     expect(pipesProvidersForCategory("customer-engagement")).toEqual(
       expect.arrayContaining(["hubspot", "intercom", "mailchimp", "resend", "sendgrid"]),
     );
@@ -35,6 +39,7 @@ describe("pipes providers", () => {
   it("keeps the exposed slug list stable", () => {
     expect(PIPES_PROVIDER_SLUGS).toContain("atlassian");
     expect(PIPES_PROVIDER_SLUGS).toContain("gitlab");
+    expect(PIPES_PROVIDER_SLUGS).toContain("google-search-console");
     expect(PIPES_PROVIDER_SLUGS).toContain("sanity");
     expect(PIPES_PROVIDER_SLUGS).toContain("webflow");
   });

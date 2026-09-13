@@ -10,44 +10,38 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db } from "@/lib/database/client";
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 
-import { upsertGscConnection } from "./connections";
+const mocks = vi.hoisted(() => ({
+  loadGscPipesAccessToken: vi.fn(),
+}));
+
+vi.mock("./pipes", () => ({
+  loadGscPipesAccessToken: (...args: unknown[]) => mocks.loadGscPipesAccessToken(...args),
+}));
+
 import { loadSearchConsolePerformance } from "./performance-loader";
 import { resetGscProviderForTests, setGscProviderForTests } from "./provider";
 
-const fixture = createAuthTestFixture();
-
-function testOrgIds() {
-  const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId;
-  const userId = globalThis.__testApiAuthContext?.user.localUserId;
-  if (!organizationId || !userId) {
-    throw new Error("expected synced test organization");
-  }
-  return { organizationId, userId };
-}
-
 describe("loadSearchConsolePerformance", () => {
-  beforeAll(async () => {
-    await db.$client.query("select 1");
-  });
-
-  afterEach(async () => {
+  afterEach(() => {
     resetGscProviderForTests();
-    await fixture.cleanup();
+    vi.clearAllMocks();
   });
 
-  it("returns disconnected when the org has no Search Console grant", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    await fixture.authHeadersFor(identity);
+  it("returns disconnected when Search Console is not connected through Pipes", async () => {
+    mocks.loadGscPipesAccessToken.mockResolvedValue(
+      err({
+        code: "gsc_not_connected",
+        message: "Connect Google Search Console in Integrations before using it.",
+      }),
+    );
 
-    const { organizationId } = testOrgIds();
     const result = await loadSearchConsolePerformance({
-      organizationId,
+      organizationId: "org_local",
+      workosUserId: "user_workos",
       domainKey: "hyperlocalise.com",
     });
 
@@ -57,20 +51,28 @@ describe("loadSearchConsolePerformance", () => {
     }
   });
 
-  it("loads matched property performance", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    await fixture.authHeadersFor(identity);
-    const { organizationId, userId } = testOrgIds();
-    await upsertGscConnection({
-      organizationId,
-      userId,
-      googleSubject: "subject-1",
-      accountEmail: "seo@acme.test",
-      refreshToken: "refresh-token",
-      accessToken: "access-token",
-      accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      scopes: "openid email",
+  it("returns unconfigured when WorkOS Pipes is unavailable", async () => {
+    mocks.loadGscPipesAccessToken.mockResolvedValue(
+      err({
+        code: "gsc_pipes_unavailable",
+        message: "WorkOS is not configured, so Search Console cannot connect through Pipes.",
+      }),
+    );
+
+    const result = await loadSearchConsolePerformance({
+      organizationId: "org_local",
+      workosUserId: "user_workos",
+      domainKey: "hyperlocalise.com",
     });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.status).toBe("unconfigured");
+    }
+  });
+
+  it("loads matched property performance", async () => {
+    mocks.loadGscPipesAccessToken.mockResolvedValue(ok("ya29.gsc-token"));
 
     setGscProviderForTests({
       async listSites() {
@@ -111,7 +113,8 @@ describe("loadSearchConsolePerformance", () => {
     });
 
     const result = await loadSearchConsolePerformance({
-      organizationId,
+      organizationId: "org_local",
+      workosUserId: "user_workos",
       domainKey: "hyperlocalise.com",
       marketId: "france-fr",
     });
@@ -124,5 +127,9 @@ describe("loadSearchConsolePerformance", () => {
       expect(result.value.queries[0]?.query).toBe("traduction");
       expect(result.value.pages[0]?.page).toBe("https://hyperlocalise.com/fr");
     }
+    expect(mocks.loadGscPipesAccessToken).toHaveBeenCalledWith({
+      localOrganizationId: "org_local",
+      workosUserId: "user_workos",
+    });
   });
 });

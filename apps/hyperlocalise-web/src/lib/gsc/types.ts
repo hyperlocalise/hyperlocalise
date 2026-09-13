@@ -14,11 +14,8 @@
 import type { GscDateRange } from "./constants";
 
 export type GscConnectionSummary = {
-  id: string;
-  organizationId: string;
-  accountEmail: string;
-  createdAt: string;
-  updatedAt: string;
+  connected: boolean;
+  needsReauthorization: boolean;
 };
 
 export type GscSite = {
@@ -78,7 +75,13 @@ export type GscInspection = {
 };
 
 export type GscPerformanceSnapshot = {
-  status: "ready" | "disconnected" | "unconfigured" | "no_property" | "sample";
+  status:
+    | "ready"
+    | "disconnected"
+    | "unconfigured"
+    | "needs_reauthorization"
+    | "no_property"
+    | "sample";
   connection: GscConnectionSummary | null;
   siteUrl: string | null;
   startDate: string | null;
@@ -95,18 +98,16 @@ export type GscPerformanceSnapshot = {
   pages: GscPageRow[];
 };
 
-export type GscConnectionError =
-  | { code: "gsc_not_configured"; message: string }
-  | { code: "gsc_connection_not_found"; message: string }
-  | { code: "gsc_connection_decrypt_failed"; message: string }
-  | { code: "gsc_oauth_exchange_failed"; message: string }
-  | { code: "gsc_oauth_invalid"; message: string }
-  | { code: "gsc_refresh_failed"; message: string };
+export type GscPipesError =
+  | { code: "gsc_pipes_unavailable"; message: string }
+  | { code: "gsc_not_connected"; message: string }
+  | { code: "gsc_pipes_needs_reauthorization"; message: string };
 
 export type GscProviderError = {
   code:
-    | "gsc_not_configured"
-    | "gsc_connection_not_found"
+    | "gsc_pipes_unavailable"
+    | "gsc_not_connected"
+    | "gsc_pipes_needs_reauthorization"
     | "gsc_auth_failed"
     | "gsc_rate_limited"
     | "gsc_not_found"

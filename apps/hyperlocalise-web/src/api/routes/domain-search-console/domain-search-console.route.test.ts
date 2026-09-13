@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
       null,
   ),
   workspaceDomainsFlagRunMock: vi.fn(async () => true),
+  loadGscPipesAccessToken: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -32,6 +33,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: mocks.resolveApiAuthContextFromSessionMock,
   };
 });
+
+vi.mock("@/lib/gsc/pipes", () => ({
+  loadGscPipesAccessToken: (...args: unknown[]) => mocks.loadGscPipesAccessToken(...args),
+}));
 
 vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
@@ -45,10 +50,9 @@ import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
-import { upsertGscConnection } from "@/lib/gsc/connections";
 import { resetGscProviderForTests, setGscProviderForTests } from "@/lib/gsc/provider";
 import { hostnameToDomainSlug } from "@/lib/localisation-audit/domain-slug";
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 
 const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
@@ -115,6 +119,13 @@ describe("domainSearchConsoleRoutes", () => {
 
   beforeEach(() => {
     mocks.workspaceDomainsFlagRunMock.mockResolvedValue(true);
+    mocks.loadGscPipesAccessToken.mockReset();
+    mocks.loadGscPipesAccessToken.mockResolvedValue(
+      err({
+        code: "gsc_not_connected",
+        message: "Connect Google Search Console in Integrations before using it.",
+      }),
+    );
   });
 
   afterEach(async () => {
@@ -157,16 +168,7 @@ describe("domainSearchConsoleRoutes", () => {
     const userId = globalThis.__testApiAuthContext?.user.localUserId;
     const { linkedDomain, domainKey } = await insertVerifiedDomain(organizationId!, userId!);
 
-    await upsertGscConnection({
-      organizationId: organizationId!,
-      userId: userId!,
-      googleSubject: "subject-1",
-      accountEmail: "seo@acme.test",
-      refreshToken: "refresh-token",
-      accessToken: "access-token",
-      accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      scopes: "openid email",
-    });
+    mocks.loadGscPipesAccessToken.mockResolvedValue(ok("ya29.gsc-token"));
 
     setGscProviderForTests({
       async listSites() {

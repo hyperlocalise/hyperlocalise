@@ -42,6 +42,7 @@ export type IntegrationIconKey =
   | "googledrive"
   | "atlassian"
   | "similarweb"
+  | "googlesearchconsole"
   | "webflow"
   | "sanity";
 

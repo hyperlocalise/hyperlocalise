@@ -25,11 +25,8 @@ export function getPrototypeSearchConsoleSnapshot(domainKey: string): GscPerform
   return {
     status: "sample",
     connection: {
-      id: "prototype-gsc",
-      organizationId: "prototype",
-      accountEmail: "seo@example.com",
-      createdAt: "2026-08-01T00:00:00.000Z",
-      updatedAt: "2026-09-01T00:00:00.000Z",
+      connected: true,
+      needsReauthorization: false,
     },
     siteUrl: `sc-domain:${domainKey}`,
     startDate: "2026-08-17",

@@ -50,14 +50,7 @@ Do **not** set separate `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` env vars. Pas
 
 ### Google Search Console
 
-Used by `internal/gsc` for search performance and URL inspection. GSC is OAuth-based — there is no API key env var for go-svc. Users connect Search Console in the web app; go-svc receives a minted access token (or `oauth2.TokenSource`) per request.
-
-The web app needs these OAuth variables to enable the connection flow:
-
-| Variable | Description |
-|----------|-------------|
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID for the Search Console connection. |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret. |
+Used by `internal/gsc` for search performance and URL inspection. GSC is OAuth-based — there is no API key env var for go-svc. Users connect Search Console through the WorkOS `google-search-console` pipe on the Integrations page; go-svc receives a minted access token (or `oauth2.TokenSource`) per request.
 
 Example Go usage once a token is available:
 

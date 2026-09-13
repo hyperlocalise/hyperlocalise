@@ -32,7 +32,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/org/acme/domains/hyperlocalise-com/search-console",
 }));
 
 vi.mock("./use-domain-search-console", () => ({
@@ -90,10 +90,10 @@ describe("DomainSearchConsoleView", () => {
       screen.getByText("Sample Search Console data for this preview domain."),
     ).toBeInTheDocument();
     expect(screen.getByText("traduction automatique")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Connect Google" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Open Integrations" })).not.toBeInTheDocument();
   });
 
-  it("prompts to connect when Search Console is disconnected", () => {
+  it("prompts to connect Search Console in Integrations when disconnected", () => {
     mocks.live = true;
     mocks.snapshot = {
       ...getPrototypeSearchConsoleSnapshot("hyperlocalise.com"),
@@ -103,9 +103,9 @@ describe("DomainSearchConsoleView", () => {
     };
     renderView();
     expect(screen.getByText("Connect Search Console")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Connect Google" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open Integrations" })).toHaveAttribute(
       "href",
-      "/api/orgs/acme/gsc-connections/authorize?returnTo=%2Forg%2Facme%2Fdomains%2Fhyperlocalise-com%2Fsearch-console%3Flocale%3Dfrance-fr",
+      "/org/acme/integrations",
     );
   });
 

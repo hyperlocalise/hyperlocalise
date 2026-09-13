@@ -82,6 +82,7 @@ export const Default: Story = {
     await expect(canvas.getByText("Zernio")).toBeInTheDocument();
     await expect(canvas.getByText("Semrush")).toBeInTheDocument();
     await expect(canvas.getByText("Ahrefs")).toBeInTheDocument();
+    await expect(canvas.getByText("Google Search Console")).toBeInTheDocument();
     await expect(canvas.getByText("Similarweb")).toBeInTheDocument();
     await expect(canvas.getByText("Slack")).toBeInTheDocument();
     await expect(canvas.getByText("Email")).toBeInTheDocument();

@@ -10,10 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { GSC_DEFAULT_DATE_RANGE, type GscDateRange, gscCountryForMarket } from "./constants";
-import { getGscConnection, isGscOAuthConfigured, mintGscAccessToken } from "./connections";
 import { matchSearchConsoleSite } from "./match-site";
 import {
   pageRowsFromGsc,
@@ -21,21 +20,26 @@ import {
   seriesFromDateRows,
   summarizeGscRows,
 } from "./performance";
+import { loadGscPipesAccessToken } from "./pipes";
 import { getGscProvider } from "./provider";
-import type { GscPerformanceSnapshot, GscProviderError } from "./types";
+import type { GscConnectionSummary, GscPerformanceSnapshot, GscProviderError } from "./types";
 
 export type LoadSearchConsolePerformanceError = GscProviderError;
 
-export async function loadSearchConsolePerformance(input: {
-  organizationId: string;
-  domainKey: string;
-  dateRange?: GscDateRange;
-  marketId?: string | null;
-  cookie?: string;
-  signal?: AbortSignal;
-}): Promise<Result<GscPerformanceSnapshot, LoadSearchConsolePerformanceError>> {
-  const dateRange = input.dateRange ?? GSC_DEFAULT_DATE_RANGE;
-  const empty: Omit<GscPerformanceSnapshot, "status" | "connection" | "siteUrl"> = {
+const CONNECTED: GscConnectionSummary = {
+  connected: true,
+  needsReauthorization: false,
+};
+
+function emptySnapshot(
+  dateRange: GscDateRange,
+  status: GscPerformanceSnapshot["status"],
+  connection: GscConnectionSummary | null,
+): GscPerformanceSnapshot {
+  return {
+    status,
+    connection,
+    siteUrl: null,
     startDate: null,
     endDate: null,
     dateRange,
@@ -44,40 +48,41 @@ export async function loadSearchConsolePerformance(input: {
     queries: [],
     pages: [],
   };
+}
 
-  if (!isGscOAuthConfigured()) {
-    return ok({
-      ...empty,
-      status: "unconfigured",
-      connection: null,
-      siteUrl: null,
-    });
-  }
+export async function loadSearchConsolePerformance(input: {
+  organizationId: string;
+  workosUserId: string;
+  domainKey: string;
+  dateRange?: GscDateRange;
+  marketId?: string | null;
+  cookie?: string;
+  signal?: AbortSignal;
+}): Promise<Result<GscPerformanceSnapshot, LoadSearchConsolePerformanceError>> {
+  const dateRange = input.dateRange ?? GSC_DEFAULT_DATE_RANGE;
 
-  const connection = await getGscConnection({ organizationId: input.organizationId });
-  if (!connection) {
-    return ok({
-      ...empty,
-      status: "disconnected",
-      connection: null,
-      siteUrl: null,
-    });
-  }
-
-  const minted = await mintGscAccessToken({
-    organizationId: input.organizationId,
-    signal: input.signal,
+  const minted = await loadGscPipesAccessToken({
+    localOrganizationId: input.organizationId,
+    workosUserId: input.workosUserId,
   });
   if (isErr(minted)) {
-    return err({
-      code: minted.error.code === "gsc_refresh_failed" ? "gsc_auth_failed" : "gsc_auth_failed",
-      message: minted.error.message,
-    });
+    if (minted.error.code === "gsc_pipes_unavailable") {
+      return ok(emptySnapshot(dateRange, "unconfigured", null));
+    }
+    if (minted.error.code === "gsc_pipes_needs_reauthorization") {
+      return ok(
+        emptySnapshot(dateRange, "needs_reauthorization", {
+          connected: false,
+          needsReauthorization: true,
+        }),
+      );
+    }
+    return ok(emptySnapshot(dateRange, "disconnected", null));
   }
 
   const provider = getGscProvider();
   const sites = await provider.listSites({
-    accessToken: minted.value.accessToken,
+    accessToken: minted.value,
     cookie: input.cookie,
     signal: input.signal,
   });
@@ -88,17 +93,14 @@ export async function loadSearchConsolePerformance(input: {
   const site = matchSearchConsoleSite(sites.value, input.domainKey);
   if (!site) {
     return ok({
-      ...empty,
-      status: "no_property",
-      connection,
-      siteUrl: null,
+      ...emptySnapshot(dateRange, "no_property", CONNECTED),
     });
   }
 
   const country = gscCountryForMarket(input.marketId);
   const [seriesResult, queryResult, pageResult] = await Promise.all([
     provider.queryPerformance({
-      accessToken: minted.value.accessToken,
+      accessToken: minted.value,
       siteUrl: site.siteUrl,
       dateRange,
       dimensions: ["date"],
@@ -107,7 +109,7 @@ export async function loadSearchConsolePerformance(input: {
       signal: input.signal,
     }),
     provider.queryPerformance({
-      accessToken: minted.value.accessToken,
+      accessToken: minted.value,
       siteUrl: site.siteUrl,
       dateRange,
       dimensions: ["query"],
@@ -117,7 +119,7 @@ export async function loadSearchConsolePerformance(input: {
       signal: input.signal,
     }),
     provider.queryPerformance({
-      accessToken: minted.value.accessToken,
+      accessToken: minted.value,
       siteUrl: site.siteUrl,
       dateRange,
       dimensions: ["page"],
@@ -140,7 +142,7 @@ export async function loadSearchConsolePerformance(input: {
 
   return ok({
     status: "ready",
-    connection,
+    connection: CONNECTED,
     siteUrl: site.siteUrl,
     startDate: seriesResult.value.startDate || null,
     endDate: seriesResult.value.endDate || null,

@@ -102,30 +102,35 @@ export const domainSearchConsoleViewMessages = defineMessages({
   },
   connectDescription: {
     defaultMessage:
-      "Import the clicks, impressions, and queries Google already recorded for this domain.",
+      "Connect Google Search Console in Integrations to import the clicks, impressions, and queries Google already recorded for this domain.",
     id: "Y7pE1DS8A+",
     description: "Empty state description when Search Console is disconnected",
   },
   connectCta: {
-    defaultMessage: "Connect Google",
+    defaultMessage: "Open Integrations",
     id: "emwNqgsrxp",
-    description: "Connect Search Console OAuth button",
-  },
-  connectError: {
-    defaultMessage:
-      "Could not connect Search Console. Try again or use a different Google account.",
-    id: "HBNA2PlsBO",
-    description: "Toast when Search Console OAuth fails",
+    description: "Link to Integrations to connect Search Console through Pipes",
   },
   unconfiguredTitle: {
-    defaultMessage: "Search Console is not configured",
+    defaultMessage: "Search Console is not available",
     id: "r6x6n3Kpsk",
-    description: "Empty state title when Google OAuth env is missing",
+    description: "Empty state title when WorkOS Pipes is unavailable",
   },
   unconfiguredDescription: {
-    defaultMessage: "Add Google OAuth credentials to connect Search Console for this workspace.",
+    defaultMessage: "WorkOS is not configured, so Search Console cannot connect through Pipes.",
     id: "CWDuO/ecCv",
-    description: "Empty state description when Google OAuth env is missing",
+    description: "Empty state description when WorkOS Pipes is unavailable",
+  },
+  needsReauthTitle: {
+    defaultMessage: "Reconnect Search Console",
+    id: "gscNeedsReauthTitle",
+    description: "Empty state title when the Search Console pipe needs reauthorization",
+  },
+  needsReauthDescription: {
+    defaultMessage:
+      "The Search Console connection needs to be authorized again. Reconnect it in Integrations, then return here.",
+    id: "gscNeedsReauthDescription",
+    description: "Empty state description when the Search Console pipe needs reauthorization",
   },
   noPropertyTitle: {
     defaultMessage: "This domain is not in Search Console",
@@ -134,7 +139,7 @@ export const domainSearchConsoleViewMessages = defineMessages({
   },
   noPropertyDescription: {
     defaultMessage:
-      "{email} does not have a verified property for {domain}. Add it in Search Console, or connect a different Google account.",
+      "The connected Search Console account does not have a verified property for {domain}. Add it in Search Console, or reconnect a different Google account in Integrations.",
     id: "n5dCTiZmYU",
     description: "Empty state description when the connected account lacks this property",
   },
@@ -148,25 +153,15 @@ export const domainSearchConsoleViewMessages = defineMessages({
     id: "jVMQIY999S",
     description: "Disclosure for live Search Console metrics",
   },
-  connectedAs: {
-    defaultMessage: "Connected as {email}",
+  connectedThroughIntegrations: {
+    defaultMessage: "Connected through Integrations",
     id: "gxrYjxdSYv",
-    description: "Connected Google account email",
+    description: "Label when Search Console is connected through WorkOS Pipes",
   },
-  disconnectCta: {
-    defaultMessage: "Disconnect",
+  manageCta: {
+    defaultMessage: "Manage in Integrations",
     id: "FNDmIsrrnS",
-    description: "Disconnect Search Console button",
-  },
-  disconnectSuccess: {
-    defaultMessage: "Search Console disconnected.",
-    id: "G4lng/7x4V",
-    description: "Toast after disconnecting Search Console",
-  },
-  disconnectError: {
-    defaultMessage: "Could not disconnect Search Console.",
-    id: "17mnC+jiXG",
-    description: "Toast when Search Console disconnect fails",
+    description: "Link to manage the Search Console pipe on the Integrations page",
   },
   loadError: {
     defaultMessage: "Could not load Search Console data.",
