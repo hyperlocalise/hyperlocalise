@@ -8408,6 +8408,9 @@
   "JemgHUamHh": {
     "defaultMessage": "Begriffe konnten nicht geladen werden"
   },
+  "Jf8jVutxI7": {
+    "defaultMessage": "Force translate untranslated strings"
+  },
   "JfG/xfnGBv": {
     "defaultMessage": "Oder folgen Sie {link}, um einen Agenten bei AuthKit zu registrieren."
   },
@@ -16363,6 +16366,9 @@
   },
   "ejzfGTXY46": {
     "defaultMessage": "Automatisierung aktiviert"
+  },
+  "ekPpWZOtVl": {
+    "defaultMessage": "Skip translation memory matches. The agent translates empty and rejected strings. Existing translations stay."
   },
   "ekU8Q0suHQ": {
     "defaultMessage": "Benutzerdefinierte Header"

@@ -45,15 +45,17 @@ import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/gi
 import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
 import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
 import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
+import { createTranslationQaScanRoutes } from "./routes/cron/translation-qa-scan.route";
 import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import {
   createLocalisationAuditQueue,
+  createTranslationQaScanQueue,
   createProviderAgentCommentQueue,
   createProviderAgentQaQueue,
   createProviderAgentTranslationQueue,
   createProviderAgentWritebackQueue,
 } from "@/workflows/adapters";
-import type { LocalisationAuditQueue } from "@/lib/workflow/types";
+import type { LocalisationAuditQueue, TranslationQaScanQueue } from "@/lib/workflow/types";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
 
 export type CreateAppOptions = {
@@ -67,6 +69,7 @@ export type CreateAppOptions = {
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
   localisationAuditQueue?: LocalisationAuditQueue;
+  translationQaScanQueue?: TranslationQaScanQueue;
 };
 
 export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> {
@@ -85,7 +88,7 @@ export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> 
     .basePath("/api")
     .onError(handleUnexpectedError)
     .notFound(notFoundHandler)
-    .route("/", createInternalRoutes())
+    .route("/", createInternalRoutes(options))
     .route("/auth", createAuthRoutes())
     .route("/autumn", createAutumnRoutes())
     .route("/blog", createBlogOgImageRoutes())
@@ -124,7 +127,7 @@ export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> 
 
 export const app = createApp();
 
-function createInternalRoutes() {
+function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
     .route(
@@ -133,7 +136,13 @@ function createInternalRoutes() {
     )
     .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
     .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
-    .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes());
+    .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes())
+    .route(
+      "/cron/translation-qa-scan",
+      createTranslationQaScanRoutes({
+        translationQaScanQueue: options.translationQaScanQueue ?? createTranslationQaScanQueue(),
+      }),
+    );
 }
 
 function createWebhookRoutes(options: CreateAppOptions) {

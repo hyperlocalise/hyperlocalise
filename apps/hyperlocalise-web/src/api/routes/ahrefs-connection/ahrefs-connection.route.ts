@@ -26,6 +26,8 @@ import {
   forbiddenResponse,
   notFoundResponse,
 } from "@/api/response.schema";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import {
   createAhrefsConnection,
   deleteAhrefsConnection,
@@ -131,6 +133,11 @@ export function createAhrefsConnectionRoutes() {
       if (isErr(result)) {
         return mapAhrefsConnectionError(c, result.error);
       }
+
+      serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+        status: "created",
+        source: "ahrefs",
+      });
 
       return c.json({ ahrefsConnection: result.value }, 201);
     })

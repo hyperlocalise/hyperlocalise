@@ -98,7 +98,7 @@ export async function ensureDefaultNativeProjectMemory(input: {
 
     serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.memoryCreated, {
       status: "created",
-      source: "project",
+      source: "bootstrap",
     });
 
     return [memory.id];

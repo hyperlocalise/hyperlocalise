@@ -36,6 +36,7 @@ export * from "./schema/visual-workflow-runs";
 export * from "./schema/visual-workflow-infrastructure";
 export * from "./schema/files";
 export * from "./schema/project-strings";
+export * from "./schema/translation-qa";
 export * from "./schema/project-image-variants";
 export * from "./schema/project-video-variants";
 export * from "./schema/issue-sheet";

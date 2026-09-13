@@ -630,6 +630,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           sourceLocale: string;
           targetLocales: string[];
           metadata?: Record<string, string>;
+          ignoreTranslationMemory?: boolean;
         })
       : null;
 
@@ -901,24 +902,33 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
                   sourceEntries,
                 });
               }
-              const tmReuse = await reuseFileTranslationMemoryEntriesStep({
-                projectId: claim.job.projectId,
-                sourceLocale: parsedInput.sourceLocale,
-                targetLocale,
-                sourceEntries,
-              });
-              tmPrefilled = tmReuse.prefilled;
-              if (Object.keys(tmPrefilled).length > 0) {
-                console.info(
-                  "[file-translation-workflow] matched reusable translation memory entries",
-                  {
-                    jobId: claim.job.id,
-                    projectId: claim.job.projectId,
-                    targetLocale,
-                    reusedEntryCount: Object.keys(tmPrefilled).length,
-                    sourceEntryCount: Object.keys(sourceEntries).length,
-                  },
-                );
+              if (!parsedInput.ignoreTranslationMemory) {
+                const tmReuse = await reuseFileTranslationMemoryEntriesStep({
+                  projectId: claim.job.projectId,
+                  sourceLocale: parsedInput.sourceLocale,
+                  targetLocale,
+                  sourceEntries,
+                });
+                tmPrefilled = tmReuse.prefilled;
+                if (Object.keys(tmPrefilled).length > 0) {
+                  console.info(
+                    "[file-translation-workflow] matched reusable translation memory entries",
+                    {
+                      jobId: claim.job.id,
+                      projectId: claim.job.projectId,
+                      targetLocale,
+                      reusedEntryCount: Object.keys(tmPrefilled).length,
+                      sourceEntryCount: Object.keys(sourceEntries).length,
+                    },
+                  );
+                }
+              } else {
+                console.info("[file-translation-workflow] skipping translation memory reuse", {
+                  jobId: claim.job.id,
+                  projectId: claim.job.projectId,
+                  targetLocale,
+                  sourceEntryCount: Object.keys(sourceEntries).length,
+                });
               }
             }
 

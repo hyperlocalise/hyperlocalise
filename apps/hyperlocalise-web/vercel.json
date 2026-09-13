@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/issue-notification-digest",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/translation-qa-scan",
+      "schedule": "0 5 * * *"
     }
   ]
 }

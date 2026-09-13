@@ -56,6 +56,12 @@ It runs:
 2. After admin member role updates and removals (`member.route`)
 3. Via WorkOS webhooks for incremental updates (with live membership verification on create events)
 
+`user.created` also sends a one-time getting-started email after the local user
+row is synced. `users.onboarding_email_sent_at` is written only after Resend
+accepts the send. A Resend idempotency key keyed by user id covers retries
+that race the timestamp write. The webhook skips the send when Resend is not
+configured. Replies go to `minh@hyperlocalise.com`.
+
 `users.workos_memberships_reconciled_at` records the last successful reconcile. If WorkOS lookup fails and the timestamp is older than five minutes, access is denied instead of trusting stale local membership rows.
 
 ## Agent registration

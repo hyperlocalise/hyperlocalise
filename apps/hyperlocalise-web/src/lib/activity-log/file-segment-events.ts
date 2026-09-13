@@ -12,6 +12,11 @@
  */
 import "server-only";
 
+import {
+  PRODUCT_USAGE_ANALYTICS_EVENTS,
+  productUsageSourceForActorKind,
+} from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 
 import type { ActivityActorKind } from "./activity-log-contract";
@@ -87,6 +92,10 @@ type FileActivityInput = ActivityActor & {
 };
 
 export async function enqueueFileUploadedActivity(input: FileActivityInput) {
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.fileUploaded, {
+    status: "created",
+    source: productUsageSourceForActorKind(input.actorKind),
+  });
   const payload = filePayload(input);
   return enqueueActivityLogEvent({
     ...activityActor(input),

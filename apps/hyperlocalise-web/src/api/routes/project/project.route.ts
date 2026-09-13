@@ -29,6 +29,7 @@ import {
 } from "@/api/response.schema";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
 import { createProjectDictionaryRoutes } from "@/api/routes/dictionary/project-dictionary.route";
+import { createProjectQaReportRoutes } from "@/api/routes/project/qa-report.route";
 import {
   deleteProjectWithTeamGlossaryGuard,
   glossaryTeamProjectRequiredResponse,
@@ -173,10 +174,12 @@ import type {
   JobQueue,
   TranslationFileImportQueue,
   TranslationJobEventData,
+  TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 import {
   createTranslationFileImportQueue,
   createTranslationJobEventQueue,
+  createTranslationQaScanQueue,
 } from "@/workflows/adapters";
 
 import {
@@ -944,6 +947,7 @@ type CreateProjectRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
+  translationQaScanQueue?: TranslationQaScanQueue;
 };
 
 async function withCatTeamGlossaryContext(
@@ -1120,6 +1124,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
   const translationFileImportQueue =
     options.translationFileImportQueue ?? createTranslationFileImportQueue();
+  const translationQaScanQueue = options.translationQaScanQueue ?? createTranslationQaScanQueue();
 
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -1188,6 +1193,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
     .route("/:projectId/knowledge-memory", createProjectKnowledgeMemoryRoutes())
     .route("/:projectId/dictionaries", createProjectDictionaryRoutes())
+    .route("/:projectId/qa-reports", createProjectQaReportRoutes({ translationQaScanQueue }))
     .route(
       "/:projectId/assets",
       createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),

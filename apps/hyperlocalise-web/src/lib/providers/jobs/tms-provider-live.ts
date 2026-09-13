@@ -668,6 +668,8 @@ function buildLiveProviderProject(input: {
     issueTemplateConfig: {},
     automaticallyGroupIdenticalStrings: false,
     contentEditorGroupingRevision: 0,
+    qaScanCadence: "off",
+    qaScanLastRunAt: null,
     createdAt: now,
     updatedAt: now,
   };

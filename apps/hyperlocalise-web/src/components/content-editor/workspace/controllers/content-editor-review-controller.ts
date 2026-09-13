@@ -31,6 +31,7 @@ import type {
   ContentEditorSegmentCommentInput,
   ContentEditorSegmentStatus,
 } from "@/components/content-editor/shared/types";
+import { mergeLiveAndScanFormatChecks } from "@/lib/qa/merge-format-checks";
 
 import type { ContentEditorWorkspaceOrchestrator } from "../content-editor-workspace-orchestrator";
 import { glossaryTermsForSegment } from "../store/content-editor-workspace-store-utils";
@@ -202,12 +203,22 @@ export class ContentEditorReviewController {
     try {
       const glossaryTerms =
         glossaryTermsOverride ?? glossaryTermsForSegment(this.workspace.shellState, segment.id);
-      const [formatChecks, qaChecks] = await Promise.all([
-        validateFormat
-          ? validateFormat(segment, value, glossaryTerms, { signal: abortController.signal })
-          : Promise.resolve([]),
-        runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
-      ]);
+      const scanChecks = runQaChecks ? await runQaChecks(segment, value) : [];
+      if (
+        scanChecks.length > 0 &&
+        !this.disposed &&
+        !abortController.signal.aborted &&
+        this.isCurrentFileScope(fileScopeGeneration)
+      ) {
+        this.workspace.setFormatChecks(
+          segment.id,
+          scanChecks,
+          this.workspace.selectedSegmentId === segment.id,
+        );
+      }
+      const formatChecks = validateFormat
+        ? await validateFormat(segment, value, glossaryTerms, { signal: abortController.signal })
+        : [];
       if (
         this.disposed ||
         abortController.signal.aborted ||
@@ -218,7 +229,7 @@ export class ContentEditorReviewController {
       }
       this.workspace.setFormatChecks(
         segment.id,
-        [...formatChecks, ...qaChecks],
+        mergeLiveAndScanFormatChecks(formatChecks, scanChecks),
         this.workspace.selectedSegmentId === segment.id,
       );
     } catch (error) {
@@ -322,19 +333,19 @@ export class ContentEditorReviewController {
         }
       }
 
-      const [formatChecks, qaChecks] = await Promise.all([
+      const scanChecks =
+        includeFormatChecks && runQaChecks
+          ? await runQaChecks(segmentForReview, segmentForReview.targetText)
+          : [];
+      const formatChecks =
         includeFormatChecks && validateFormat
-          ? validateFormat(
+          ? await validateFormat(
               segmentForReview,
               segmentForReview.targetText,
               intelligence.glossaryTerms,
               { signal: abortController.signal },
             )
-          : Promise.resolve([]),
-        includeFormatChecks && runQaChecks
-          ? runQaChecks(segmentForReview, segmentForReview.targetText)
-          : Promise.resolve([]),
-      ]);
+          : [];
       if (
         this.disposed ||
         abortController.signal.aborted ||
@@ -346,7 +357,7 @@ export class ContentEditorReviewController {
       const withoutAiFailure = (checks: ContentEditorFormatCheck[]) =>
         checks.filter((check) => check.id !== `ai-recommendation-failed-${segmentId}`);
       const baseChecks = withoutAiFailure(
-        recommendation?.formatChecks ?? [...formatChecks, ...qaChecks],
+        recommendation?.formatChecks ?? mergeLiveAndScanFormatChecks(formatChecks, scanChecks),
       );
       const checks = aiFailureCheck
         ? [aiFailureCheck, ...baseChecks.filter((check) => check.id !== aiFailureCheck.id)]

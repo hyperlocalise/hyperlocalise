@@ -663,6 +663,51 @@ describe("project job create", () => {
     });
   });
 
+  it("stores ignoreTranslationMemory on native file create", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const response = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            ignoreTranslationMemory: true,
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string } };
+    const [job] = await db
+      .select({ inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, body.job.id))
+      .limit(1);
+
+    expect(job?.inputPayload).toMatchObject({
+      ignoreTranslationMemory: true,
+    });
+  });
+
   it("stores description and proofread kind on native create", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);

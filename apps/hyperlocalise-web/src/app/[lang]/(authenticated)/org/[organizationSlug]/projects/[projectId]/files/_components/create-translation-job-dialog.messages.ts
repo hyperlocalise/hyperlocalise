@@ -65,6 +65,17 @@ export const createTranslationJobDialogMessages = defineMessages({
     id: "8kFDR1/eiv",
     description: "Validation error when creating a translation job without target locales",
   },
+  forceUntranslated: {
+    defaultMessage: "Force translate untranslated strings",
+    id: "Jf8jVutxI7",
+    description: "Checkbox to ignore translation memory and send untranslated strings to the agent",
+  },
+  forceUntranslatedDescription: {
+    defaultMessage:
+      "Skip translation memory matches. The agent translates empty and rejected strings. Existing translations stay.",
+    id: "ekPpWZOtVl",
+    description: "Explains the force-translate untranslated strings option",
+  },
   createFailed: {
     defaultMessage: "Failed to create translation job",
     id: "c5EgJTB1mI",
