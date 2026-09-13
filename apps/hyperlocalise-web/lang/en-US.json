@@ -9759,6 +9759,10 @@
     "defaultMessage": "Unable to load terms",
     "description": "Fallback error when glossary terms fail to load"
   },
+  "Jf8jVutxI7": {
+    "defaultMessage": "Force translate untranslated strings",
+    "description": "Checkbox to ignore translation memory and send untranslated strings to the agent"
+  },
   "JfG/xfnGBv": {
     "defaultMessage": "Or follow {link} to register an agent with AuthKit.",
     "description": "Overview card link to the WorkOS agent registration skill document"
@@ -19034,6 +19038,10 @@
   "ejzfGTXY46": {
     "defaultMessage": "Automation Enabled",
     "description": "Activity log event type label for enabling automations"
+  },
+  "ekPpWZOtVl": {
+    "defaultMessage": "Skip translation memory matches. The agent translates empty and rejected strings. Existing translations stay.",
+    "description": "Explains the force-translate untranslated strings option"
   },
   "ekU8Q0suHQ": {
     "defaultMessage": "Custom headers",

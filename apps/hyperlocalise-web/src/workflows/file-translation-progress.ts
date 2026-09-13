@@ -25,6 +25,28 @@ const lockSchema = z.object({
 
 /** Read the grouped completion format written by the pinned CLI. File contents alone
  * cannot identify completed keys: template-based outputs include source fallbacks. */
+export function collectCompletedTranslationPageEntries(input: {
+  keys: string[];
+  extracted: Record<string, string>;
+  prefills: Record<string, string>;
+}): Record<string, string> {
+  const collected: Record<string, string> = {};
+  for (const key of input.keys) {
+    const value = input.extracted[key];
+    if (value?.trim()) {
+      collected[key] = value;
+      continue;
+    }
+    // TM/project prefills are unioned into the key set even when hl run
+    // never wrote them. Missing prefill-only keys must not fail the page.
+    if (key in input.prefills) {
+      continue;
+    }
+    throw new Error("completed translation is missing from output");
+  }
+  return collected;
+}
+
 export function completedFileTranslationKeys(lock: unknown, outputFilename: string): string[] {
   const parsed = lockSchema.parse(lock);
   const entries = Object.entries(parsed.run_completed ?? {}).find(
@@ -62,14 +84,14 @@ export async function collectFileTranslationPageStep(input: {
       sourcePath: input.inputFilename,
     });
     if (!extracted.ok) throw new Error("failed to extract completed translations");
-    const entries = hlEntriesPayloadToStringMap(extracted.entries);
-    delta[locale] = Object.fromEntries(
-      keys.map((key) => {
-        const value = entries[key];
-        if (!value?.trim()) throw new Error("completed translation is missing from output");
-        return [key, value];
-      }),
-    );
+    const collected = collectCompletedTranslationPageEntries({
+      keys,
+      extracted: hlEntriesPayloadToStringMap(extracted.entries),
+      prefills: input.prefills[locale] ?? {},
+    });
+    if (Object.keys(collected).length > 0) {
+      delta[locale] = collected;
+    }
   }
   return delta;
 }

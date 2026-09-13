@@ -58,10 +58,12 @@ export function CreateTranslationJobDialog({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const [selectedLocales, setSelectedLocales] = useState<string[]>(targetLocales);
+  const [ignoreTranslationMemory, setIgnoreTranslationMemory] = useState(true);
 
   useEffect(() => {
     if (open) {
       setSelectedLocales(targetLocales);
+      setIgnoreTranslationMemory(true);
     }
   }, [open, targetLocales]);
 
@@ -91,6 +93,7 @@ export function CreateTranslationJobDialog({
             fileFormat,
             sourceLocale,
             targetLocales: selectedLocales,
+            ignoreTranslationMemory,
           },
         },
       });
@@ -178,6 +181,22 @@ export function CreateTranslationJobDialog({
                 </label>
               ))}
             </div>
+            <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border px-3 py-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 rounded border border-input accent-primary"
+                checked={ignoreTranslationMemory}
+                onChange={() => setIgnoreTranslationMemory((current) => !current)}
+              />
+              <span className="space-y-1">
+                <span className="block font-medium text-foreground">
+                  <FormattedMessage {...messages.forceUntranslated} />
+                </span>
+                <span className="block text-muted-foreground">
+                  <FormattedMessage {...messages.forceUntranslatedDescription} />
+                </span>
+              </span>
+            </label>
           </div>
         )}
 

@@ -52,6 +52,7 @@ export type CreateFileTranslationJobInput = {
   targetLocales: string[];
   fileFormat?: SupportedTranslationFileFormat;
   metadata?: Record<string, string>;
+  ignoreTranslationMemory?: boolean;
 };
 
 export type CreateFileTranslationJobResult =
@@ -284,6 +285,7 @@ export async function createFileTranslationJob(
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
     metadata: mergeNativeFileTranslationJobMetadata(sourceFile.filename, input.metadata),
+    ...(input.ignoreTranslationMemory ? { ignoreTranslationMemory: true } : {}),
   };
 
   const jobId = `job_${randomUUID()}`;

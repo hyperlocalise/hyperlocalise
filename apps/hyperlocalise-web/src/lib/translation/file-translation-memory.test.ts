@@ -463,4 +463,62 @@ describe("reuseFileTranslationMemoryEntries", () => {
       }),
     ]);
   });
+
+  it("does not reuse multi-word source copies from translation memory", async () => {
+    whereMock.mockResolvedValueOnce([
+      {
+        id: "entry_1",
+        memoryId: "memory_1",
+        sourceText: "Enable workspace knowledge",
+        sourceLocale: "en",
+        provenance: "file_job",
+        matchScore: 100,
+        externalKey: "job:fr:workspace",
+        memoryName: "Project TM",
+        externalProviderKind: null,
+        externalMemoryId: null,
+        metadata: {
+          segmentKey: "workspace",
+          sourceTextHash: createHash("sha256")
+            .update("Enable workspace knowledge", "utf8")
+            .digest("hex"),
+        },
+        normalizedSourceText: "enable workspace knowledge",
+        targetLocale: "fr",
+        targetText: "Enable workspace knowledge",
+      },
+      {
+        id: "entry_2",
+        memoryId: "memory_1",
+        sourceText: "Hyperlocalise",
+        sourceLocale: "en",
+        provenance: "file_job",
+        matchScore: 100,
+        externalKey: "job:fr:brand",
+        memoryName: "Project TM",
+        externalProviderKind: null,
+        externalMemoryId: null,
+        metadata: {
+          segmentKey: "brand",
+          sourceTextHash: createHash("sha256").update("Hyperlocalise", "utf8").digest("hex"),
+        },
+        normalizedSourceText: "hyperlocalise",
+        targetLocale: "fr",
+        targetText: "Hyperlocalise",
+      },
+    ]);
+
+    const result = await reuseFileTranslationMemoryEntries({
+      projectId: "project_1",
+      sourceEntries: {
+        workspace: "Enable workspace knowledge",
+        brand: "Hyperlocalise",
+      },
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+
+    expect(result.prefilled).toEqual({ brand: "Hyperlocalise" });
+    expect(result.matchesByKey.workspace).toBeUndefined();
+  });
 });

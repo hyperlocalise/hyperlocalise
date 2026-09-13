@@ -77,6 +77,20 @@ describe("createJobBodySchema kind and description", () => {
     ).toBe(false);
   });
 
+  it("accepts ignoreTranslationMemory on file jobs", () => {
+    const parsed = createJobBodySchema.safeParse({
+      ...fileBase,
+      fileInput: {
+        ...fileBase.fileInput,
+        ignoreTranslationMemory: true,
+      },
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success && parsed.data.type === "file") {
+      expect(parsed.data.fileInput.ignoreTranslationMemory).toBe(true);
+    }
+  });
+
   it("counts waiting_for_review as an open job status", () => {
     expect(openJobStatusValues).toContain("waiting_for_review");
   });

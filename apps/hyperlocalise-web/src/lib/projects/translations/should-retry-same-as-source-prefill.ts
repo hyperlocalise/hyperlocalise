@@ -23,6 +23,24 @@ function countSourceWords(sourceText: string): number {
 }
 
 /**
+ * Multi-word source copies are not useful translations. Failed file jobs often
+ * persist the source text into TM as an "approved" match, which then skips AI.
+ * Single-word copies often stay untranslated on purpose (brands, codes).
+ */
+export function isSameAsSourceMemoryPrefill(input: {
+  sourceText: string;
+  targetText: string;
+}): boolean {
+  const sourceText = input.sourceText.trim();
+  const targetText = input.targetText.trim();
+  if (!sourceText || sourceText !== targetText) {
+    return false;
+  }
+
+  return countSourceWords(sourceText) >= MIN_SOURCE_WORDS_FOR_SAME_AS_SOURCE_RETRY;
+}
+
+/**
  * Prefill skips these rows so translate-with-agent can try again.
  * Single-word copies often stay untranslated on purpose (brands, codes).
  */
@@ -35,13 +53,7 @@ export function shouldRetrySameAsSourcePrefill(input: {
     return false;
   }
 
-  const sourceText = input.sourceText.trim();
-  const targetText = input.targetText.trim();
-  if (!sourceText || sourceText !== targetText) {
-    return false;
-  }
-
-  return countSourceWords(sourceText) >= MIN_SOURCE_WORDS_FOR_SAME_AS_SOURCE_RETRY;
+  return isSameAsSourceMemoryPrefill(input);
 }
 
 /** Project translations win; TM fills untranslated keys when a reusable match exists. */
