@@ -383,7 +383,7 @@ export function localisationAuditLeaderboardEntries(): LocalisationAuditLeaderbo
       score: 91,
       completedAt,
       companyName: "Northstar",
-      logoUrl: "/images/logo.png",
+      logoUrl: "/images/logo/logomark-dark-mode.png",
     },
     {
       rank: 2,
@@ -392,7 +392,7 @@ export function localisationAuditLeaderboardEntries(): LocalisationAuditLeaderbo
       score: 86,
       completedAt,
       companyName: "Acme",
-      logoUrl: "/images/logo.png",
+      logoUrl: "/images/logo/logomark-dark-mode.png",
     },
     {
       rank: 3,
@@ -401,7 +401,7 @@ export function localisationAuditLeaderboardEntries(): LocalisationAuditLeaderbo
       score: 72,
       completedAt,
       companyName: "Atlas",
-      logoUrl: "/images/logo.png",
+      logoUrl: "/images/logo/logomark-dark-mode.png",
     },
     {
       rank: 4,

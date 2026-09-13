@@ -19,7 +19,7 @@ export const onboardingWelcomeEmailFixture: OnboardingWelcomeEmailProps = {
   mcpDocsUrl: "https://hyperlocalise.dev/platform/mcp",
   cliDocsUrl: "https://hyperlocalise.dev/cli/workflows/ci-automation",
   mcpUrl: "https://hyperlocalise.com/mcp",
-  brandLogoUrl: "/images/logo.png",
+  brandLogoUrl: "/images/logo/logomark-dark-mode.png",
   claudeSnippet: "claude mcp add -t http hyperlocalise https://hyperlocalise.com/mcp",
   codexSnippet: "codex mcp add hyperlocalise --url https://hyperlocalise.com/mcp",
 };

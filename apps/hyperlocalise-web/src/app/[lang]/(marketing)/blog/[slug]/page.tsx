@@ -16,6 +16,7 @@ import { notFound } from "next/navigation";
 
 import { BlogPostPage } from "@/components/marketing/blog/blog-post-page";
 import { JsonLd } from "@/components/seo/json-ld";
+import { brandLogomarkAbsoluteUrl } from "@/lib/brand/brand-assets";
 import { jsonLdInLanguage } from "@/lib/seo/json-ld-in-language";
 import {
   DEFAULT_APP_LOCALE,
@@ -117,7 +118,7 @@ function buildArticleJsonLd(
       name: "Hyperlocalise",
       logo: {
         "@type": "ImageObject",
-        url: `${SITE_URL}/images/logo.png`,
+        url: brandLogomarkAbsoluteUrl,
       },
     },
   };

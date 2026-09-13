@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 // Integration catalog: add or edit integrations in integration-catalog.ts and integration-catalog.copy.ts.
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import type { IntegrationCatalogEntry } from "@/lib/integrations/integration-catalog.types";
 import type { IntegrationCatalogSlug } from "@/lib/integrations/integration-catalog.copy";
 
@@ -103,7 +104,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     type: "native",
     marketing: false,
     workspace: true,
-    logoSrc: "/images/logo.png",
+    logoSrc: brandLogomarkSrc,
     tmsProviderKind: "native",
   },
   {
@@ -211,7 +212,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     type: "native",
     marketing: false,
     workspace: true,
-    logoSrc: "/images/logo.png",
+    logoSrc: brandLogomarkSrc,
   },
   {
     slug: "google-drive",
@@ -358,7 +359,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     type: "native",
     marketing: true,
     workspace: true,
-    logoSrc: "/images/logo.png",
+    logoSrc: brandLogomarkSrc,
     relatedSlugs: ["statsig", "github", "contentful"],
     keywords: ["localization experiments", "Hyperlab", "feature testing localization"],
   },
@@ -381,7 +382,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     type: "native",
     marketing: false,
     workspace: true,
-    logoSrc: "/images/logo.png",
+    logoSrc: brandLogomarkSrc,
   },
   {
     slug: "ahrefs",

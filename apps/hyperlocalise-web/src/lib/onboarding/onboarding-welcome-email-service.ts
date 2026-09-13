@@ -19,6 +19,7 @@ import {
   OnboardingWelcomeEmail,
   onboardingWelcomeEmailText,
 } from "@/emails/onboarding-welcome-email";
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
@@ -96,7 +97,7 @@ export async function sendOnboardingWelcomeEmail(input: {
     mcpDocsUrl: MCP_DOCS_URL,
     cliDocsUrl: CLI_DOCS_URL,
     mcpUrl,
-    brandLogoUrl: `${origin}/images/logo.png`,
+    brandLogoUrl: `${origin}${brandLogomarkSrc}`,
     claudeSnippet: `claude mcp add -t http hyperlocalise ${mcpUrl}`,
     codexSnippet: `codex mcp add hyperlocalise --url ${mcpUrl}`,
   };

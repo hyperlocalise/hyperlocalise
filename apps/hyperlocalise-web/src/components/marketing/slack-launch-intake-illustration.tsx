@@ -32,6 +32,7 @@ import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { TypographyMuted, TypographyP, TypographySmall } from "@/components/ui/typography";
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { cn } from "@/lib/primitives/cn";
 
 import { LAVENDER_MESH_GRADIENT_SRC } from "./hero-frame-mesh-stage";
@@ -40,7 +41,7 @@ import { slackLaunchIntakeIllustrationMessages } from "./slack-launch-intake-ill
 
 const EASE_OUT = [0.19, 1, 0.22, 1] as const;
 const TYPING_DELAY_MS = 1500;
-const AGENT_AVATAR = "/images/logo.png";
+const AGENT_AVATAR = brandLogomarkSrc;
 const USER_AVATAR = "/images/profile/bella.png";
 
 const SLACK = {

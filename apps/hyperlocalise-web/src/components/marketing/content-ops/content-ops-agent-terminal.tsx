@@ -20,6 +20,7 @@ import Image from "next/image";
 import { FormattedMessage } from "react-intl";
 
 import { automationEditorIllustrationMessages } from "@/components/marketing/automation-editor-illustration.messages";
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { cn } from "@/lib/primitives/cn";
 
 import { CONTENT_OPS_MOCK_INNER_CLASSNAME } from "./content-ops-mock-stage.constants";
@@ -178,7 +179,7 @@ function AgentRunPanel({
     <div className="flex min-h-0 min-h-[14rem] flex-col lg:min-h-0">
       <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
         <Image
-          src="/images/logo.png"
+          src={brandLogomarkSrc}
           alt="Hyperlocalise"
           width={14}
           height={14}

@@ -13,6 +13,11 @@
 import type { Metadata } from "next";
 
 import { RootHtml } from "@/components/root-layout/root-html";
+import {
+  brandLogomarkDarkModePngSrc,
+  brandLogomarkDarkModeSvgSrc,
+  brandLogomarkLightModeSvgSrc,
+} from "@/lib/brand/brand-assets";
 import { PRIVATE_ROBOTS } from "@/lib/seo/robots-metadata";
 import { SITE_URL } from "@/lib/seo/site-url";
 
@@ -24,6 +29,17 @@ export const metadata: Metadata = {
   description:
     "Hyperlocalise is an AI workforce that helps teams launch globally in days — with market nuance, translation, and first-class human review.",
   robots: PRIVATE_ROBOTS,
+  icons: {
+    icon: [
+      { url: brandLogomarkLightModeSvgSrc, type: "image/svg+xml" },
+      {
+        url: brandLogomarkDarkModeSvgSrc,
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+    apple: brandLogomarkDarkModePngSrc,
+  },
 };
 
 export default function RootLayout({

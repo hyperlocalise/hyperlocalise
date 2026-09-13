@@ -13,6 +13,8 @@
 import type { SimpleIcon } from "simple-icons";
 import { siCrowdin } from "simple-icons";
 
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
+
 export type TmsProviderBranding = {
   logo: string;
   name: string;
@@ -38,7 +40,7 @@ const TMS_PROVIDER_BRANDING: Record<string, TmsProviderBranding> = {
     name: "Smartling",
   },
   native: {
-    logo: "/images/logo.png",
+    logo: brandLogomarkSrc,
     name: "Hyperlocalise",
   },
 };

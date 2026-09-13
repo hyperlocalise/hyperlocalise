@@ -44,12 +44,12 @@ import { useCaseFooterLinks } from "@/components/marketing/use-case/use-case-pag
 import { useCasePageMessages } from "@/components/marketing/use-case/use-case-page-content.messages";
 import type { UseCaseMessageKey } from "@/components/marketing/use-case/use-case-page-content.messages";
 import { cn } from "@/lib/primitives/cn";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { BrandLockup } from "@/components/brand/brand-lockup";
 import LocaleToggle from "@/components/locale-toggle/locale-toggle";
 import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 import { themeToggleMessages } from "@/components/theme-toggle/theme-toggle.messages";
@@ -228,22 +228,14 @@ function Logo({ locale, onHero = false }: { locale: AppLocale; onHero?: boolean 
   const intl = useIntl();
 
   return (
-    <Link href={rewriteAppLocalePath("/", locale)} className="flex items-center gap-2.5">
-      <Image
-        src="/images/logo.png"
-        className="size-8"
-        width={32}
-        height={32}
-        alt={intl.formatMessage(navbarMessages.logoAlt)}
+    <Link href={rewriteAppLocalePath("/", locale)} className="inline-flex min-w-0 items-center">
+      <BrandLockup
+        logoAlt={intl.formatMessage(navbarMessages.logoAlt)}
+        markSize={32}
+        markClassName="size-8"
+        surface={onHero ? "dark" : undefined}
+        typClassName="hidden max-w-[10rem] md:block"
       />
-      <span
-        className={cn(
-          "hidden font-sans text-base font-semibold tracking-tight md:inline",
-          onHero && "text-white",
-        )}
-      >
-        <FormattedMessage {...navbarMessages.brandName} />
-      </span>
     </Link>
   );
 }

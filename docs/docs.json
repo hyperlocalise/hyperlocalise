@@ -9,8 +9,8 @@
     "dark": "#0d9488"
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg",
+    "light": "/logo/logotypo-light-mode.png",
+    "dark": "/logo/logotypo-dark-mode.png",
     "href": "https://www.hyperlocalise.com"
   },
   "favicon": "/favicon.svg",
@@ -89,7 +89,7 @@
       "name": "Hyperlocalise",
       "legalName": "Hyperlocalise Pty Ltd",
       "url": "https://www.hyperlocalise.com",
-      "logo": "https://www.hyperlocalise.com/images/logo.png",
+      "logo": "https://www.hyperlocalise.com/images/logo/logomark-dark-mode.svg",
       "sameAs": [
         "https://www.linkedin.com/company/hyperlocalise/",
         "https://github.com/hyperlocalise/hyperlocalise"

@@ -19,6 +19,8 @@ import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
+
 import { reviewPrIllustrationMessages } from "./review-pr-illustration.messages";
 
 const beforeLines = [
@@ -319,7 +321,7 @@ export function ReviewPrIllustration() {
                         <div className="flex items-center gap-3">
                           <div className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-muted">
                             <Image
-                              src="/images/logo.png"
+                              src={brandLogomarkSrc}
                               alt={logoAlt}
                               width={32}
                               height={32}
@@ -390,7 +392,7 @@ export function ReviewPrIllustration() {
                           <div className="flex items-center gap-3">
                             <div className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-(--color-info)">
                               <Image
-                                src="/images/logo.png"
+                                src={brandLogomarkSrc}
                                 alt={logoAlt}
                                 width={32}
                                 height={32}

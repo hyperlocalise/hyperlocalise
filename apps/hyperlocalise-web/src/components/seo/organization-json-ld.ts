@@ -13,6 +13,7 @@
 import type { Organization, WithContext } from "schema-dts";
 
 import type { AppLocale } from "@/lib/app-i18n/locales";
+import { brandLogomarkAbsoluteUrl } from "@/lib/brand/brand-assets";
 import { jsonLdInLanguage } from "@/lib/seo/json-ld-in-language";
 
 export function buildOrganizationJsonLd(locale: AppLocale): WithContext<Organization> & {
@@ -26,7 +27,7 @@ export function buildOrganizationJsonLd(locale: AppLocale): WithContext<Organiza
     url: "https://www.hyperlocalise.com",
     logo: {
       "@type": "ImageObject",
-      url: "https://www.hyperlocalise.com/images/logo.png",
+      url: brandLogomarkAbsoluteUrl,
     },
     description:
       "Agentic localisation platform that connects product change signals, AI translation, human review, and release workflows.",

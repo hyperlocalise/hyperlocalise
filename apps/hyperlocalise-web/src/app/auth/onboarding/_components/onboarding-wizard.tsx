@@ -15,8 +15,9 @@
 import type { ComponentProps, ReactNode } from "react";
 import { useActionState, useId, useState } from "react";
 import { useFormStatus } from "react-dom";
-import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
+
+import { BrandLogomark } from "@/components/brand/brand-logomark";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -58,8 +59,8 @@ export function OnboardingWizard() {
       <Card className="w-full max-w-sm border-border bg-card">
         <CardContent className="space-y-7 p-6 sm:p-8">
           <div className="space-y-4 text-center">
-            <Image
-              src="/images/logo.png"
+            <BrandLogomark
+              surface="dark"
               width={40}
               height={40}
               sizes="40px"

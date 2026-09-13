@@ -21,6 +21,7 @@ import {
   formatDimensionScore,
   scoreTone,
 } from "@/lib/localisation-audit/score-tone";
+import { brandLogomarkDarkModePngSrc } from "@/lib/brand/brand-assets";
 import type { LocalisationAuditDimensionScores } from "@/lib/localisation-audit/types";
 
 import { marketingOgImageContentType, marketingOgImageSize } from "./create-marketing-og-image";
@@ -31,7 +32,7 @@ export { marketingOgImageContentType, marketingOgImageSize };
 /** Sage mesh used on the localisation audit landing form. */
 const AUDIT_RESULT_OG_MESH_SRC = "images/mesh/mesh-gradient-1784864073608.jpg";
 
-const logoPromise = readFile(join(process.cwd(), "public/images/logo.png"));
+const logoPromise = readFile(join(process.cwd(), "public", brandLogomarkDarkModePngSrc.slice(1)));
 const meshPromise = readFile(join(process.cwd(), "public", AUDIT_RESULT_OG_MESH_SRC));
 
 const DIMENSIONS = [

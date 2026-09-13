@@ -24,7 +24,7 @@ describe("buildOrganizationJsonLd", () => {
       url: "https://www.hyperlocalise.com",
       logo: {
         "@type": "ImageObject",
-        url: "https://www.hyperlocalise.com/images/logo.png",
+        url: "https://www.hyperlocalise.com/images/logo/logomark-dark-mode.svg",
       },
       description:
         "Agentic localisation platform that connects product change signals, AI translation, human review, and release workflows.",
