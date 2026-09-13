@@ -10,11 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, eq, gt, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, lt } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
+import type { TranslationQaScanQueue } from "@/lib/workflow/types";
 
 import { emptyTranslationQaSummary } from "./qa-report-store";
 import type {
@@ -25,10 +26,11 @@ import type {
 import { validateTranslationSegment } from "./validate-segment";
 
 const logger = createLogger("translation-qa-scan");
-const KEY_PAGE_SIZE = 250;
+export const KEY_PAGE_SIZE = 250;
 const FINDING_INSERT_CHUNK = 100;
-/** Longer than the 300s API timeout so a live scan is not reaped mid-run. */
-export const STALE_RUNNING_SCAN_MS = 10 * 60 * 1000;
+const MAX_SCAN_PAGES = 50_000;
+/** No page progress for this long means the workflow died and the row can be reclaimed. */
+export const STALE_RUNNING_SCAN_MS = 30 * 60 * 1000;
 
 type QaScanKeyRow = {
   translationKeyId: string;
@@ -38,37 +40,28 @@ type QaScanKeyRow = {
   sourcePath: string | null;
 };
 
+type NativeQaProject = {
+  id: string;
+  sourceLocale: string;
+  targetLocales: string[];
+};
+
 export type TranslationQaScanResult =
   | { ok: true; runId: string }
   | { ok: false; code: "project_not_native" | "scan_in_progress" | "project_not_found" };
 
-export async function runProjectTranslationQaScan(input: {
+export type TranslationQaScanPageResult = { done: true } | { done: false; afterKeyId: string };
+
+export async function startTranslationQaScan(input: {
   organizationId: string;
   projectId: string;
   trigger: TranslationQaRunTrigger;
   createdByUserId?: string | null;
+  queue: TranslationQaScanQueue;
 }): Promise<TranslationQaScanResult> {
-  const [project] = await db
-    .select({
-      id: schema.projects.id,
-      source: schema.projects.source,
-      sourceLocale: schema.projects.sourceLocale,
-      targetLocales: schema.projects.targetLocales,
-    })
-    .from(schema.projects)
-    .where(
-      and(
-        eq(schema.projects.organizationId, input.organizationId),
-        eq(schema.projects.id, input.projectId),
-      ),
-    )
-    .limit(1);
-
-  if (!project) {
-    return { ok: false, code: "project_not_found" };
-  }
-  if (project.source !== "native") {
-    return { ok: false, code: "project_not_native" };
+  const project = await loadNativeQaProject(input);
+  if (!project.ok) {
+    return project;
   }
 
   const run = await claimTranslationQaRun(input);
@@ -77,197 +70,341 @@ export async function runProjectTranslationQaScan(input: {
   }
 
   try {
-    const glossaryTerms = await loadProjectGlossaryTerms({
+    await input.queue.enqueue({
+      runId: run.runId,
       organizationId: input.organizationId,
       projectId: input.projectId,
-      sourceLocale: project.sourceLocale,
-      targetLocales: project.targetLocales,
     });
-
-    let segmentCount = 0;
-    let findingCount = 0;
-    let errorCount = 0;
-    let warningCount = 0;
-    const byCheckType: Partial<Record<TranslationQaCheckType, number>> = {};
-    const bySeverity: Partial<Record<TranslationQaSeverity, number>> = {};
-    const byLocale: Record<string, number> = {};
-    let pendingFindings: Array<typeof schema.translationQaFindings.$inferInsert> = [];
-    const locales = uniqueSortedLocales(project.targetLocales);
-
-    async function flushFindings() {
-      if (pendingFindings.length === 0) {
-        return;
-      }
-      await db.insert(schema.translationQaFindings).values(pendingFindings);
-      pendingFindings = [];
-    }
-
-    let afterKeyId: string | null = null;
-
-    for (;;) {
-      const keys: QaScanKeyRow[] = await db
-        .select({
-          translationKeyId: schema.projectTranslationKeys.id,
-          key: schema.projectTranslationKeys.key,
-          sourceText: schema.projectTranslationKeys.sourceText,
-          maxLength: schema.projectTranslationKeys.maxLength,
-          sourcePath: schema.repositorySourceFiles.sourcePath,
-        })
-        .from(schema.projectTranslationKeys)
-        .leftJoin(
-          schema.repositorySourceFiles,
-          eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
-        )
-        .where(
-          and(
-            eq(schema.projectTranslationKeys.organizationId, input.organizationId),
-            eq(schema.projectTranslationKeys.projectId, input.projectId),
-            eq(schema.projectTranslationKeys.isHidden, false),
-            afterKeyId ? gt(schema.projectTranslationKeys.id, afterKeyId) : undefined,
-          ),
-        )
-        .orderBy(asc(schema.projectTranslationKeys.id))
-        .limit(KEY_PAGE_SIZE);
-
-      if (keys.length === 0) {
-        break;
-      }
-
-      const translations =
-        locales.length === 0
-          ? []
-          : await db
-              .select({
-                id: schema.projectTranslations.id,
-                translationKeyId: schema.projectTranslations.translationKeyId,
-                targetLocale: schema.projectTranslations.targetLocale,
-                text: schema.projectTranslations.text,
-              })
-              .from(schema.projectTranslations)
-              .where(
-                and(
-                  eq(schema.projectTranslations.organizationId, input.organizationId),
-                  eq(schema.projectTranslations.projectId, input.projectId),
-                  inArray(
-                    schema.projectTranslations.translationKeyId,
-                    keys.map((row) => row.translationKeyId),
-                  ),
-                  inArray(schema.projectTranslations.targetLocale, locales),
-                ),
-              );
-
-      const translationByKeyLocale = new Map(
-        translations.map((row) => [`${row.translationKeyId}\0${row.targetLocale}`, row]),
-      );
-
-      for (const key of keys) {
-        for (const targetLocale of locales) {
-          segmentCount += 1;
-          const translation = translationByKeyLocale.get(
-            `${key.translationKeyId}\0${targetLocale}`,
-          );
-          const targetText = translation?.text ?? "";
-          const checks = validateTranslationSegment({
-            sourceText: key.sourceText,
-            targetText,
-            sourcePath: key.sourcePath,
-            maxLength: key.maxLength,
-            targetLocale,
-            glossaryTerms,
-          });
-
-          for (const check of checks) {
-            findingCount += 1;
-            if (check.severity === "error") {
-              errorCount += 1;
-            } else {
-              warningCount += 1;
-            }
-            byCheckType[check.checkType] = (byCheckType[check.checkType] ?? 0) + 1;
-            bySeverity[check.severity] = (bySeverity[check.severity] ?? 0) + 1;
-            byLocale[targetLocale] = (byLocale[targetLocale] ?? 0) + 1;
-            pendingFindings.push({
-              runId: run.runId,
-              organizationId: input.organizationId,
-              projectId: input.projectId,
-              translationKeyId: key.translationKeyId,
-              translationId: translation?.id ?? null,
-              sourcePath: key.sourcePath,
-              key: key.key,
-              targetLocale,
-              checkType: check.checkType,
-              severity: check.severity,
-              category: check.category,
-              message: check.message,
-              relatedTokens: check.relatedTokens,
-              sourceText: key.sourceText,
-              targetText,
-            });
-            if (pendingFindings.length >= FINDING_INSERT_CHUNK) {
-              await flushFindings();
-            }
-          }
-        }
-      }
-
-      afterKeyId = keys[keys.length - 1]?.translationKeyId ?? null;
-      if (keys.length < KEY_PAGE_SIZE) {
-        break;
-      }
-    }
-
-    await flushFindings();
-
-    const completedAt = new Date();
-    await db
-      .update(schema.translationQaRuns)
-      .set({
-        status: "succeeded",
-        segmentCount,
-        findingCount,
-        errorCount,
-        warningCount,
-        summary: { byCheckType, bySeverity, byLocale },
-        completedAt,
-      })
-      .where(eq(schema.translationQaRuns.id, run.runId));
-
-    await db
-      .update(schema.projects)
-      .set({ qaScanLastRunAt: completedAt })
-      .where(
-        and(
-          eq(schema.projects.organizationId, input.organizationId),
-          eq(schema.projects.id, input.projectId),
-        ),
-      );
-
-    logger.info(
-      {
-        runId: run.runId,
-        projectId: input.projectId,
-        segmentCount,
-        findingCount,
-        trigger: input.trigger,
-      },
-      "translation qa scan completed",
-    );
-
-    return { ok: true, runId: run.runId };
+    return run;
   } catch (error) {
-    await db
-      .update(schema.translationQaRuns)
-      .set({
-        status: "failed",
-        errorCode: "qa_scan_failed",
-        errorMessage: error instanceof Error ? error.message : "qa scan failed",
-        completedAt: new Date(),
-      })
-      .where(eq(schema.translationQaRuns.id, run.runId));
-
-    logger.info({ runId: run.runId, projectId: input.projectId }, "translation qa scan failed");
+    await failTranslationQaRun({
+      runId: run.runId,
+      errorCode: "qa_scan_enqueue_failed",
+      errorMessage: error instanceof Error ? error.message : "qa scan could not be queued",
+    });
     throw error;
   }
+}
+
+export async function runProjectTranslationQaScan(input: {
+  organizationId: string;
+  projectId: string;
+  trigger: TranslationQaRunTrigger;
+  createdByUserId?: string | null;
+}): Promise<TranslationQaScanResult> {
+  const project = await loadNativeQaProject(input);
+  if (!project.ok) {
+    return project;
+  }
+
+  const run = await claimTranslationQaRun(input);
+  if (!run.ok) {
+    return run;
+  }
+
+  await executeTranslationQaScan({
+    runId: run.runId,
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+  });
+  return run;
+}
+
+export async function executeTranslationQaScan(input: {
+  runId: string;
+  organizationId: string;
+  projectId: string;
+}) {
+  try {
+    let afterKeyId: string | null = null;
+    for (let page = 0; page < MAX_SCAN_PAGES; page += 1) {
+      const result = await scanTranslationQaPage({
+        ...input,
+        afterKeyId,
+      });
+      if (result.done) {
+        break;
+      }
+      afterKeyId = result.afterKeyId;
+    }
+
+    await completeTranslationQaScan(input);
+  } catch (error) {
+    await failTranslationQaRun({
+      runId: input.runId,
+      errorCode: "qa_scan_failed",
+      errorMessage: error instanceof Error ? error.message : "qa scan failed",
+    });
+    logger.info({ runId: input.runId, projectId: input.projectId }, "translation qa scan failed");
+    throw error;
+  }
+}
+
+export async function scanTranslationQaPage(input: {
+  runId: string;
+  organizationId: string;
+  projectId: string;
+  afterKeyId: string | null;
+}): Promise<TranslationQaScanPageResult> {
+  const run = await loadRunningQaScan(input.runId);
+  if (!run) {
+    return { done: true };
+  }
+
+  const project = await loadNativeQaProject(input);
+  if (!project.ok) {
+    throw new Error(project.code);
+  }
+
+  const locales = uniqueSortedLocales(project.targetLocales);
+  const glossaryTerms = await loadProjectGlossaryTerms({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourceLocale: project.sourceLocale,
+    targetLocales: project.targetLocales,
+  });
+
+  const keys: QaScanKeyRow[] = await db
+    .select({
+      translationKeyId: schema.projectTranslationKeys.id,
+      key: schema.projectTranslationKeys.key,
+      sourceText: schema.projectTranslationKeys.sourceText,
+      maxLength: schema.projectTranslationKeys.maxLength,
+      sourcePath: schema.repositorySourceFiles.sourcePath,
+    })
+    .from(schema.projectTranslationKeys)
+    .leftJoin(
+      schema.repositorySourceFiles,
+      eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+    )
+    .where(
+      and(
+        eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+        eq(schema.projectTranslationKeys.projectId, input.projectId),
+        eq(schema.projectTranslationKeys.isHidden, false),
+        input.afterKeyId ? gt(schema.projectTranslationKeys.id, input.afterKeyId) : undefined,
+      ),
+    )
+    .orderBy(asc(schema.projectTranslationKeys.id))
+    .limit(KEY_PAGE_SIZE);
+
+  if (keys.length === 0) {
+    return { done: true };
+  }
+
+  const keyIds = keys.map((row) => row.translationKeyId);
+  await db
+    .delete(schema.translationQaFindings)
+    .where(
+      and(
+        eq(schema.translationQaFindings.runId, input.runId),
+        inArray(schema.translationQaFindings.translationKeyId, keyIds),
+      ),
+    );
+
+  const translations =
+    locales.length === 0
+      ? []
+      : await db
+          .select({
+            id: schema.projectTranslations.id,
+            translationKeyId: schema.projectTranslations.translationKeyId,
+            targetLocale: schema.projectTranslations.targetLocale,
+            text: schema.projectTranslations.text,
+          })
+          .from(schema.projectTranslations)
+          .where(
+            and(
+              eq(schema.projectTranslations.organizationId, input.organizationId),
+              eq(schema.projectTranslations.projectId, input.projectId),
+              inArray(schema.projectTranslations.translationKeyId, keyIds),
+              inArray(schema.projectTranslations.targetLocale, locales),
+            ),
+          );
+
+  const translationByKeyLocale = new Map(
+    translations.map((row) => [`${row.translationKeyId}\0${row.targetLocale}`, row]),
+  );
+
+  let pendingFindings: Array<typeof schema.translationQaFindings.$inferInsert> = [];
+
+  async function flushFindings() {
+    if (pendingFindings.length === 0) {
+      return;
+    }
+    await db.insert(schema.translationQaFindings).values(pendingFindings);
+    pendingFindings = [];
+  }
+
+  for (const key of keys) {
+    for (const targetLocale of locales) {
+      const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
+      const targetText = translation?.text ?? "";
+      const checks = validateTranslationSegment({
+        sourceText: key.sourceText,
+        targetText,
+        sourcePath: key.sourcePath,
+        maxLength: key.maxLength,
+        targetLocale,
+        glossaryTerms,
+      });
+
+      for (const check of checks) {
+        pendingFindings.push({
+          runId: input.runId,
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          translationKeyId: key.translationKeyId,
+          translationId: translation?.id ?? null,
+          sourcePath: key.sourcePath,
+          key: key.key,
+          targetLocale,
+          checkType: check.checkType,
+          severity: check.severity,
+          category: check.category,
+          message: check.message,
+          relatedTokens: check.relatedTokens,
+          sourceText: key.sourceText,
+          targetText,
+        });
+        if (pendingFindings.length >= FINDING_INSERT_CHUNK) {
+          await flushFindings();
+        }
+      }
+    }
+  }
+
+  await flushFindings();
+  await touchTranslationQaRun(input.runId);
+
+  const afterKeyId = keys[keys.length - 1]?.translationKeyId;
+  if (!afterKeyId || keys.length < KEY_PAGE_SIZE) {
+    return { done: true };
+  }
+  return { done: false, afterKeyId };
+}
+
+export async function completeTranslationQaScan(input: {
+  runId: string;
+  organizationId: string;
+  projectId: string;
+}) {
+  const run = await loadRunningQaScan(input.runId);
+  if (!run) {
+    return { ok: true as const, alreadyCompleted: true as const };
+  }
+
+  const project = await loadNativeQaProject(input);
+  if (!project.ok) {
+    throw new Error(project.code);
+  }
+
+  const locales = uniqueSortedLocales(project.targetLocales);
+  const [keyCountRow] = await db
+    .select({ value: count() })
+    .from(schema.projectTranslationKeys)
+    .where(
+      and(
+        eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+        eq(schema.projectTranslationKeys.projectId, input.projectId),
+        eq(schema.projectTranslationKeys.isHidden, false),
+      ),
+    );
+
+  const findingRows = await db
+    .select({
+      checkType: schema.translationQaFindings.checkType,
+      severity: schema.translationQaFindings.severity,
+      targetLocale: schema.translationQaFindings.targetLocale,
+    })
+    .from(schema.translationQaFindings)
+    .where(eq(schema.translationQaFindings.runId, input.runId));
+
+  const byCheckType: Partial<Record<TranslationQaCheckType, number>> = {};
+  const bySeverity: Partial<Record<TranslationQaSeverity, number>> = {};
+  const byLocale: Record<string, number> = {};
+  let errorCount = 0;
+  let warningCount = 0;
+
+  for (const row of findingRows) {
+    const checkType = row.checkType as TranslationQaCheckType;
+    const severity = row.severity as TranslationQaSeverity;
+    byCheckType[checkType] = (byCheckType[checkType] ?? 0) + 1;
+    bySeverity[severity] = (bySeverity[severity] ?? 0) + 1;
+    byLocale[row.targetLocale] = (byLocale[row.targetLocale] ?? 0) + 1;
+    if (severity === "error") {
+      errorCount += 1;
+    } else {
+      warningCount += 1;
+    }
+  }
+
+  const completedAt = new Date();
+  const updated = await db
+    .update(schema.translationQaRuns)
+    .set({
+      status: "succeeded",
+      segmentCount: (keyCountRow?.value ?? 0) * locales.length,
+      findingCount: findingRows.length,
+      errorCount,
+      warningCount,
+      summary: { byCheckType, bySeverity, byLocale },
+      completedAt,
+    })
+    .where(
+      and(
+        eq(schema.translationQaRuns.id, input.runId),
+        eq(schema.translationQaRuns.status, "running"),
+      ),
+    )
+    .returning({ id: schema.translationQaRuns.id });
+
+  if (updated.length === 0) {
+    return { ok: true as const, alreadyCompleted: true as const };
+  }
+
+  await db
+    .update(schema.projects)
+    .set({ qaScanLastRunAt: completedAt })
+    .where(
+      and(
+        eq(schema.projects.organizationId, input.organizationId),
+        eq(schema.projects.id, input.projectId),
+      ),
+    );
+
+  logger.info(
+    {
+      runId: input.runId,
+      projectId: input.projectId,
+      segmentCount: (keyCountRow?.value ?? 0) * locales.length,
+      findingCount: findingRows.length,
+    },
+    "translation qa scan completed",
+  );
+
+  return { ok: true as const, alreadyCompleted: false as const };
+}
+
+export async function failTranslationQaRun(input: {
+  runId: string;
+  errorCode: string;
+  errorMessage: string;
+}) {
+  await db
+    .update(schema.translationQaRuns)
+    .set({
+      status: "failed",
+      errorCode: input.errorCode,
+      errorMessage: input.errorMessage,
+      completedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.translationQaRuns.id, input.runId),
+        eq(schema.translationQaRuns.status, "running"),
+      ),
+    );
 }
 
 export async function reclaimStaleTranslationQaRuns(input?: {
@@ -277,10 +414,7 @@ export async function reclaimStaleTranslationQaRuns(input?: {
   const cutoff = new Date(Date.now() - STALE_RUNNING_SCAN_MS);
   const filters = [
     eq(schema.translationQaRuns.status, "running"),
-    lt(
-      sql`coalesce(${schema.translationQaRuns.startedAt}, ${schema.translationQaRuns.createdAt})`,
-      cutoff,
-    ),
+    lt(schema.translationQaRuns.updatedAt, cutoff),
   ];
   if (input?.organizationId) {
     filters.push(eq(schema.translationQaRuns.organizationId, input.organizationId));
@@ -300,7 +434,7 @@ export async function reclaimStaleTranslationQaRuns(input?: {
     .where(and(...filters));
 }
 
-async function claimTranslationQaRun(input: {
+export async function claimTranslationQaRun(input: {
   organizationId: string;
   projectId: string;
   trigger: TranslationQaRunTrigger;
@@ -335,6 +469,62 @@ async function claimTranslationQaRun(input: {
     }
     throw error;
   }
+}
+
+async function loadNativeQaProject(input: {
+  organizationId: string;
+  projectId: string;
+}): Promise<
+  ({ ok: true } & NativeQaProject) | { ok: false; code: "project_not_native" | "project_not_found" }
+> {
+  const [project] = await db
+    .select({
+      id: schema.projects.id,
+      source: schema.projects.source,
+      sourceLocale: schema.projects.sourceLocale,
+      targetLocales: schema.projects.targetLocales,
+    })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.organizationId, input.organizationId),
+        eq(schema.projects.id, input.projectId),
+      ),
+    )
+    .limit(1);
+
+  if (!project) {
+    return { ok: false, code: "project_not_found" };
+  }
+  if (project.source !== "native") {
+    return { ok: false, code: "project_not_native" };
+  }
+  return {
+    ok: true,
+    id: project.id,
+    sourceLocale: project.sourceLocale,
+    targetLocales: project.targetLocales,
+  };
+}
+
+async function loadRunningQaScan(runId: string) {
+  const [run] = await db
+    .select({ id: schema.translationQaRuns.id })
+    .from(schema.translationQaRuns)
+    .where(
+      and(eq(schema.translationQaRuns.id, runId), eq(schema.translationQaRuns.status, "running")),
+    )
+    .limit(1);
+  return run ?? null;
+}
+
+async function touchTranslationQaRun(runId: string) {
+  await db
+    .update(schema.translationQaRuns)
+    .set({ updatedAt: new Date() })
+    .where(
+      and(eq(schema.translationQaRuns.id, runId), eq(schema.translationQaRuns.status, "running")),
+    );
 }
 
 function uniqueSortedLocales(locales: readonly string[]) {

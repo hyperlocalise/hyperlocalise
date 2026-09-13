@@ -189,6 +189,14 @@ export type LocalisationAuditQueue = JobQueue<{
   attemptNumber: number;
 }>;
 
+export type TranslationQaScanEventData = {
+  runId: string;
+  organizationId: string;
+  projectId: string;
+};
+
+export type TranslationQaScanQueue = JobQueue<TranslationQaScanEventData>;
+
 export type LocalisationAuditReportEmailQueue = JobQueue<{
   leadId: string;
   token?: string;

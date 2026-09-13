@@ -132,9 +132,14 @@ export const qaProjectMessages = defineMessages({
     description: "Project QA run error",
   },
   runStarted: {
-    defaultMessage: "QA scan finished.",
+    defaultMessage: "QA scan started.",
     id: "fP2RXO/6QV",
     description: "Project QA run success toast",
+  },
+  scanInProgress: {
+    defaultMessage: "Scan in progress. Findings appear when it finishes.",
+    id: "qaPrInProg01",
+    description: "Project QA in-progress empty findings",
   },
   scheduleSaved: {
     defaultMessage: "Schedule updated.",

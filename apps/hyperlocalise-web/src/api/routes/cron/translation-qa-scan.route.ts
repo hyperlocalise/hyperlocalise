@@ -16,10 +16,16 @@ import { verifyCronRequest } from "@/api/routes/cron/cron-auth";
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
 import { runDueTranslationQaScans } from "@/lib/qa/schedule-due-qa-scans";
+import type { TranslationQaScanQueue } from "@/lib/workflow/types";
+import { createTranslationQaScanQueue } from "@/workflows/adapters";
 
 const logger = createLogger("cron-translation-qa-scan");
 
-export function createTranslationQaScanRoutes() {
+export function createTranslationQaScanRoutes(options: {
+  translationQaScanQueue?: TranslationQaScanQueue;
+} = {}) {
+  const translationQaScanQueue = options.translationQaScanQueue ?? createTranslationQaScanQueue();
+
   return new Hono().get("/", async (c) => {
     logger.info("cron tick received");
 
@@ -43,6 +49,7 @@ export function createTranslationQaScanRoutes() {
 
     const results = await runDueTranslationQaScans({
       limit: env.TRANSLATION_QA_SCAN_MAX_PROJECTS_PER_TICK,
+      queue: translationQaScanQueue,
     });
 
     logger.info(results, "cron tick completed");

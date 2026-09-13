@@ -30,8 +30,10 @@ import {
   listTranslationQaRuns,
   updateProjectQaScanCadence,
 } from "@/lib/qa/qa-report-store";
-import { runProjectTranslationQaScan } from "@/lib/qa/run-project-qa-scan";
+import { startTranslationQaScan } from "@/lib/qa/run-project-qa-scan";
 import type { TranslationQaScanCadence } from "@/lib/qa/types";
+import type { TranslationQaScanQueue } from "@/lib/workflow/types";
+import { createTranslationQaScanQueue } from "@/workflows/adapters";
 
 import {
   qaReportFindingsQuerySchema,
@@ -155,7 +157,11 @@ async function requireNativeProject(auth: AuthVariables["auth"], projectId: stri
   return { kind: "ok" as const, project };
 }
 
-export function createProjectQaReportRoutes() {
+export function createProjectQaReportRoutes(options: {
+  translationQaScanQueue?: TranslationQaScanQueue;
+} = {}) {
+  const translationQaScanQueue = options.translationQaScanQueue ?? createTranslationQaScanQueue();
+
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", validateProjectParams, async (c) => {
@@ -208,11 +214,12 @@ export function createProjectQaReportRoutes() {
         );
       }
 
-      const result = await runProjectTranslationQaScan({
+      const result = await startTranslationQaScan({
         organizationId: resolved.project.organizationId,
         projectId: resolved.project.id,
         trigger: "manual",
         createdByUserId: c.var.auth.user.localUserId,
+        queue: translationQaScanQueue,
       });
       if (!result.ok) {
         if (result.code === "scan_in_progress") {

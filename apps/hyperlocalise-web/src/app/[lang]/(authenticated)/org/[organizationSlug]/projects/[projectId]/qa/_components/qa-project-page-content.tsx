@@ -114,6 +114,12 @@ export function QaProjectPageContent({
       }
       return (await response.json()) as QaListResponse;
     },
+    refetchInterval: (query) =>
+      query.state.data?.reports.some(
+        (report) => report.status === "running" || report.status === "queued",
+      )
+        ? 2000
+        : false,
   });
 
   const latestId = listQuery.data?.reports[0]?.id;
@@ -193,6 +199,9 @@ export function QaProjectPageContent({
   );
   const settings = listQuery.data?.settings;
   const unsupported = isUnsupportedQaError(listQuery.error);
+  const scanInProgress = reports.some(
+    (report) => report.status === "running" || report.status === "queued",
+  );
 
   return (
     <ProjectPageShell>
@@ -205,10 +214,12 @@ export function QaProjectPageContent({
             <Button
               size="sm"
               className="rounded-full"
-              disabled={runMutation.isPending}
+              disabled={runMutation.isPending || scanInProgress}
               onClick={() => runMutation.mutate()}
             >
-              <FormattedMessage {...(runMutation.isPending ? messages.running : messages.run)} />
+              <FormattedMessage
+                {...(runMutation.isPending || scanInProgress ? messages.running : messages.run)}
+              />
             </Button>
           ) : null
         }
@@ -348,7 +359,13 @@ export function QaProjectPageContent({
       ) : null}
 
       {detailQuery.isSuccess && findings.length === 0 ? (
-        <TypographyP tone="subtle">{intl.formatMessage(messages.noFindings)}</TypographyP>
+        <TypographyP tone="subtle">
+          {intl.formatMessage(
+            selectedReport?.status === "running" || selectedReport?.status === "queued"
+              ? messages.scanInProgress
+              : messages.noFindings,
+          )}
+        </TypographyP>
       ) : null}
 
       {findings.length > 0 ? (

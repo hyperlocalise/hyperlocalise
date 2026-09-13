@@ -476,7 +476,7 @@ describe("project QA reports", () => {
   it("reclaims a stale running scan so a new scan can start", async () => {
     const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
-    const startedAt = new Date(Date.now() - 11 * 60 * 1000);
+    const startedAt = new Date(Date.now() - 31 * 60 * 1000);
 
     await db.insert(schema.translationQaRuns).values({
       organizationId: organization.id,
@@ -486,6 +486,7 @@ describe("project QA reports", () => {
       summary: { byCheckType: {}, bySeverity: {}, byLocale: {} },
       startedAt,
       createdAt: startedAt,
+      updatedAt: startedAt,
     });
 
     const response = await client.api.orgs[":organizationSlug"].projects[":projectId"][
@@ -530,5 +531,41 @@ describe("project QA reports", () => {
 
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toMatchObject({ error: "qa_scan_in_progress" });
+  });
+
+  it("returns a running report when the workflow is only enqueued", async () => {
+    const enqueue = vi.fn(async () => ({ ids: ["wf_qa_1"] }));
+    const { createTypedApp } = await import("@/api/typed-app");
+    const queuedClient = testClient<AppType>(
+      createTypedApp({
+        translationQaScanQueue: { enqueue },
+      }),
+    );
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    const response = await queuedClient.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      report: { id: string; status: string; findingCount: number };
+    };
+    expect(body.report.status).toBe("running");
+    expect(body.report.findingCount).toBe(0);
+    expect(enqueue).toHaveBeenCalledWith({
+      runId: body.report.id,
+      organizationId: organization.id,
+      projectId: project.id,
+    });
   });
 });

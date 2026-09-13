@@ -42,10 +42,13 @@ Scans start from visible keys crossed with the project's target locales and
 left-join stored translations. A missing translation row is an empty target, so
 untouched locales still produce `not_localized` findings.
 
-Scans run in the API request (or cron tick). Native QA checks are cheap string
-comparisons. Concurrent scans on the same project return `409`. A partial unique
-index allows only one `running` scan per project. Running rows older than
-ten minutes are marked failed so a crashed request cannot block later scans.
+Scans run as a Vercel Workflow. The API or cron tick claims a `running` row,
+starts the workflow, and returns. Each workflow step scans one page of keys so
+a large project can outlive a single serverless request. Concurrent scans on
+the same project return `409`. A partial unique index allows only one `running`
+scan per project. Running rows with no page progress for thirty minutes are
+marked failed so a dead workflow cannot block later scans. Local development
+runs the scan inline when Workflow World is unavailable.
 
 ## Non-goals
 
@@ -59,5 +62,6 @@ ten minutes are marked failed so a crashed request cannot block later scans.
 - Unit tests for each check
 - Route tests for start, list, findings, settings, CAT latest-findings, and native-only rejection
 - Cron tests for auth and due-project selection
+- Route test that enqueueing the workflow returns a running report without waiting
 - Navigation tests for the QA item
 - Unit tests for mapping scan findings onto CAT checks and merging live + scan results

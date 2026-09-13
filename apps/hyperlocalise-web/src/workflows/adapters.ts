@@ -28,6 +28,7 @@ import type {
   IssueNotificationEmailQueue,
   LocalisationAuditQueue,
   LocalisationAuditReportEmailQueue,
+  TranslationQaScanQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
@@ -221,6 +222,22 @@ export function createLocalisationAuditReportEmailQueue(): LocalisationAuditRepo
       const { localisationAuditReportEmailWorkflow } =
         await import("@/workflows/localisation-audit-report-email");
       const run = await start(localisationAuditReportEmailWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createTranslationQaScanQueue(): TranslationQaScanQueue {
+  return {
+    async enqueue(event) {
+      if (shouldRunWorkflowInlineLocally()) {
+        const { executeTranslationQaScan } = await import("@/lib/qa/run-project-qa-scan");
+        await executeTranslationQaScan(event);
+        return { ids: ["local_inline_translation_qa_scan"] };
+      }
+
+      const { translationQaScanWorkflow } = await import("@/workflows/translation-qa-scan");
+      const run = await start(translationQaScanWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

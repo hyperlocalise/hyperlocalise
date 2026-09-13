@@ -21,6 +21,7 @@ import type {
   ProviderAgentWritebackQueue,
   TranslationFileImportQueue,
   TranslationJobEventData,
+  TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
@@ -83,6 +84,7 @@ export type OrgScopedRouteOptions = {
   providerAgentWritebackQueue: ProviderAgentWritebackQueue;
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
+  translationQaScanQueue?: TranslationQaScanQueue;
 };
 
 export type PublicApiRouteOptions = {

@@ -53,6 +53,12 @@ export function QaWorkspacePageContent({ organizationSlug }: { organizationSlug:
       }
       return (await response.json()) as { reports: WorkspaceQaRow[] };
     },
+    refetchInterval: (queryState) =>
+      queryState.state.data?.reports.some(
+        (row) => row.report?.status === "running" || row.report?.status === "queued",
+      )
+        ? 2000
+        : false,
   });
 
   return (

@@ -79,6 +79,9 @@ describe("translation QA scan cron route", () => {
         skipped: 0,
       },
     });
-    expect(runDueTranslationQaScansMock).toHaveBeenCalledWith({ limit: 10 });
+    expect(runDueTranslationQaScansMock).toHaveBeenCalledWith({
+      limit: 10,
+      queue: expect.any(Object),
+    });
   });
 });
