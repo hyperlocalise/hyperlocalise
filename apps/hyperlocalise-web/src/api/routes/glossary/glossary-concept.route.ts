@@ -15,6 +15,7 @@ import { validator } from "hono/validator";
 import { and, eq } from "drizzle-orm";
 
 import { conflictResponse, badRequestResponse } from "@/api/response.schema";
+import { hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
@@ -487,6 +488,26 @@ export function createGlossaryConceptRoutes(
         const query = c.req.valid("query");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) {
+          // getOwnedGlossary is null for both ACL denials and deleted glossaries.
+          // A still-present glossary must not fall through to the org-scoped
+          // history existence check — that leaked team-private term diffs.
+          const [existingGlossary] = await db
+            .select({ id: schema.glossaries.id })
+            .from(schema.glossaries)
+            .where(
+              and(
+                eq(schema.glossaries.id, glossaryId),
+                eq(schema.glossaries.organizationId, c.var.auth.organization.localOrganizationId),
+              ),
+            )
+            .limit(1);
+          if (existingGlossary) {
+            return glossaryNotFoundResponse(c);
+          }
+          // Retained history after glossary deletion is operator-only.
+          if (!hasOrganizationWideProjectAccess(c.var.auth)) {
+            return glossaryNotFoundResponse(c);
+          }
           const [deletedGlossaryHistory] = await db
             .select({ id: schema.glossaryHistoryEvents.id })
             .from(schema.glossaryHistoryEvents)
