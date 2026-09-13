@@ -13,8 +13,9 @@
  * Version 2.0 or later.
  */
 import type { CSSProperties, ReactNode } from "react";
-import Image from "next/image";
 import { useIntl } from "react-intl";
+
+import { BrandLockup } from "@/components/brand/brand-lockup";
 
 import {
   Sidebar,
@@ -27,8 +28,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyP } from "@/components/ui/typography";
-
 import { appShellClientMessages } from "./app-shell-client.messages";
 
 type AppShellSkeletonProps = {
@@ -55,25 +54,13 @@ export function AppShellSkeleton({ children }: AppShellSkeletonProps) {
     >
       <Sidebar variant="sidebar" collapsible="icon">
         <SidebarHeader className="gap-3 border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
-          <div className="flex items-center gap-2.5 rounded-xl px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-            <Image
-              src="/images/logo.png"
-              width={28}
-              height={28}
-              sizes="28px"
-              alt={intl.formatMessage(appShellClientMessages.logoAlt)}
-              className="size-7 shrink-0 rounded-lg"
+          <div className="rounded-xl px-1 py-1 group-data-[collapsible=icon]:px-0">
+            <BrandLockup
+              logoAlt={intl.formatMessage(appShellClientMessages.logoAlt)}
+              markClassName="size-7"
+              typClassName="group-data-[collapsible=icon]:hidden"
+              className="group-data-[collapsible=icon]:justify-center"
             />
-            <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-              <TypographyP
-                className="text-sidebar-foreground"
-                lineClamp={1}
-                size="small"
-                weight="medium"
-              >
-                {intl.formatMessage(appShellClientMessages.brandName)}
-              </TypographyP>
-            </div>
           </div>
         </SidebarHeader>
 

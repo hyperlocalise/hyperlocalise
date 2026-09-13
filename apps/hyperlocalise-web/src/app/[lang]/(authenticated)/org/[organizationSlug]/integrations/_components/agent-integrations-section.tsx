@@ -15,6 +15,8 @@
 import { useMemo } from "react";
 import { useIntl } from "react-intl";
 
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
+
 import { IntegrationLogo } from "./integration-logo";
 import { IntegrationRow } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
@@ -222,7 +224,7 @@ export function ExperimentationIntegrationsSection({
       <IntegrationRow
         name={intl.formatMessage(integrationsPageContentMessages.hyperlabName)}
         description={intl.formatMessage(integrationsPageContentMessages.hyperlabDetail)}
-        icon={<IntegrationLogo src="/images/logo.png" />}
+        icon={<IntegrationLogo src={brandLogomarkSrc} />}
         iconMuted
         action="open"
         href={`/org/${organizationSlug}/hyperlab`}

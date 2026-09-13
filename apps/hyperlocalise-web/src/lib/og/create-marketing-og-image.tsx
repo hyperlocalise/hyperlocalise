@@ -16,13 +16,14 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
 import { DEFAULT_APP_LOCALE, normalizeAppLocale, type AppLocale } from "@/lib/app-i18n/locales";
+import { brandLogomarkDarkModePngSrc } from "@/lib/brand/brand-assets";
 
 import { loadMarketingOgFonts } from "./load-marketing-og-fonts";
 
 export const marketingOgImageSize = { width: 1200, height: 630 } as const;
 export const marketingOgImageContentType = "image/png";
 
-const logoPromise = readFile(join(process.cwd(), "public/images/logo.png"));
+const logoPromise = readFile(join(process.cwd(), "public", brandLogomarkDarkModePngSrc.slice(1)));
 
 type CreateMarketingOgImageOptions = {
   heading: string;

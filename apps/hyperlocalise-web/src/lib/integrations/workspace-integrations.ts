@@ -13,6 +13,7 @@
 import type { IntlShape } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
 
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { getIntegrationCopyDescriptors } from "@/lib/integrations/integration-catalog.copy";
 import {
   getIntegrationCatalogEntry,
@@ -142,7 +143,7 @@ export function resolveTmsIntegrationConfigs(intl: IntlShape): readonly TmsInteg
     const descriptors = getIntegrationCopyDescriptors(entry.slug);
     const name = descriptors ? intl.formatMessage(descriptors.name) : entry.slug;
     const detail = descriptors ? intl.formatMessage(descriptors.tagline) : "";
-    const logo = entry.logoSrc ?? "/images/logo.png";
+    const logo = entry.logoSrc ?? brandLogomarkSrc;
     const icon = getIntegrationIconForSlug(entry.slug);
 
     if (entry.tmsProviderKind === "native") {

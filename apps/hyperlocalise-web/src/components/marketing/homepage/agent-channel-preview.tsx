@@ -16,6 +16,7 @@ import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { cn } from "@/lib/primitives/cn";
 import { homepageMessages as m } from "./homepage.messages";
 
@@ -54,7 +55,7 @@ function Conversation({ channel }: { channel: ChannelId }) {
           aria-hidden
           className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-[#123c3b]"
         >
-          <Image src="/images/logo.png" alt="" fill sizes="36px" className="object-cover" />
+          <Image src={brandLogomarkSrc} alt="" fill sizes="36px" className="object-cover" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="mb-1.5 text-xs font-semibold">Hyperlocalise</p>

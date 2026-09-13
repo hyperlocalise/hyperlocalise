@@ -13,6 +13,7 @@
 import type { IntlShape } from "@formatjs/intl";
 
 import type { GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -81,7 +82,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 const PROVIDER_LOGO_SOURCES: Record<string, string> = {
-  native: "/images/logo.png",
+  native: brandLogomarkSrc,
   crowdin: "/images/tms/crowdin.png",
   smartling: "/images/tms/smartling.png",
   phrase: "/images/tms/phrase.png",

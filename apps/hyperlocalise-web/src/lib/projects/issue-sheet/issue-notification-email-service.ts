@@ -14,6 +14,7 @@ import { and, asc, eq, inArray, isNull, lte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { render } from "@react-email/render";
 
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { IssueNotificationType } from "@/lib/database/schema/issue-sheet";
 import { env } from "@/lib/env";
@@ -76,7 +77,7 @@ function publicAppOrigin(): string {
 }
 
 function brandLogoUrl(): string {
-  return `${publicAppOrigin()}/images/logo.png`;
+  return `${publicAppOrigin()}${brandLogomarkSrc}`;
 }
 
 function inboxUrl(organizationSlug: string): string {

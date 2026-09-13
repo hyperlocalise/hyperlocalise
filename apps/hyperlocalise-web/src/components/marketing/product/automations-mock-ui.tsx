@@ -19,6 +19,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
+
 import { LAVENDER_MESH_GRADIENT_SRC } from "@/components/marketing/hero-frame-mesh-stage";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
@@ -76,7 +78,7 @@ function TerminalPanel({ useCase, visibleSteps }: { useCase: UseCase; visibleSte
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
         <Image
-          src="/images/logo.png"
+          src={brandLogomarkSrc}
           alt="Hyperlocalise"
           width={14}
           height={14}

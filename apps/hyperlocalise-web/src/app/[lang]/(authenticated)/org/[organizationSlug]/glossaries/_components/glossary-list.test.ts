@@ -104,7 +104,7 @@ describe("glossary-list", () => {
     expect(native.termCountLabel).toBe("120");
     expect(native.projectCount).toBe(0);
     expect(native.isLiveApi).toBe(false);
-    expect(native.providerLogoSrc).toBe("/images/logo.png");
+    expect(native.providerLogoSrc).toBe("/images/logo/logomark-dark-mode.svg");
     expect(provider.resourceTypeLabel).toBe("Term base");
     expect(provider.localeSummary).toBe("English, French, German +1");
     expect(provider.sourceLocaleLabel).toBe("English");

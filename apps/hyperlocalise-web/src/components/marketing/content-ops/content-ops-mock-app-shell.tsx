@@ -15,6 +15,8 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import Image from "next/image";
+
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import {
   BookOpenTextIcon,
   Bookmark01Icon,
@@ -455,7 +457,7 @@ export function ContentOpsMockAppShell({
         >
           <div className="flex items-center justify-center border-b border-sidebar-border px-0 py-3">
             <Image
-              src="/images/logo.png"
+              src={brandLogomarkSrc}
               width={28}
               height={28}
               sizes="28px"

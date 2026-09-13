@@ -22,6 +22,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
+
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { siAnthropic, siGooglegemini } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
@@ -257,7 +259,7 @@ export function AiEnginePageContent({
       id: hyperlocaliseGoProviderId,
       label: intl.formatMessage(aiEnginePageContentMessages.hyperlocaliseGoLabel),
       description: intl.formatMessage(aiEnginePageContentMessages.hyperlocaliseGoDescription),
-      logo: "/images/logo.png",
+      logo: brandLogomarkSrc,
     }),
     [intl],
   );

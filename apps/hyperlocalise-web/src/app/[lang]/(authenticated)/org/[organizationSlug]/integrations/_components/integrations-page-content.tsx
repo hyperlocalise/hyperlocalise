@@ -23,6 +23,7 @@ import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
 import { hasCapability } from "@/api/auth/policy";
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createApiClient } from "@/lib/api-client";
@@ -1011,7 +1012,7 @@ export function IntegrationsPageContent({
                 description={intl.formatMessage(
                   integrationsPageContentMessages.contentPublishingFilesDetail,
                 )}
-                icon={<IntegrationLogo src="/images/logo.png" />}
+                icon={<IntegrationLogo src={brandLogomarkSrc} />}
                 iconMuted
                 action="coming-soon"
               />
@@ -1107,7 +1108,7 @@ export function IntegrationsPageContent({
               <IntegrationRow
                 name={intl.formatMessage(integrationsPageContentMessages.hyperSeoName)}
                 description={intl.formatMessage(integrationsPageContentMessages.hyperSeoDetail)}
-                icon={<IntegrationLogo src="/images/logo.png" />}
+                icon={<IntegrationLogo src={brandLogomarkSrc} />}
                 iconMuted
                 action="coming-soon"
               />
