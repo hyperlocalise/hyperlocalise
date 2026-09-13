@@ -166,11 +166,14 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		endRunSpan(mtSpan, nil, "")
 	}
 
+	// Context memory applies only to the LLM execution path.
+	llmTasks, mtTasks := partitionMTTasks(executable)
+
 	contextPlan := contextMemoryPlan{}
-	if in.ExperimentalContextMemory && len(executable) > 0 {
+	if in.ExperimentalContextMemory && len(llmTasks) > 0 {
 		_, cmSpan := startRunSpan(ctx, "run.context_memory")
 		emitter.emit(Event{Kind: EventPhase, Phase: PhaseContextMemory})
-		contextPlan = buildContextMemoryPlan(executable, in.ContextMemoryScope, in.ContextMemoryMaxChars)
+		contextPlan = buildContextMemoryPlan(llmTasks, in.ContextMemoryScope, in.ContextMemoryMaxChars)
 		endRunSpan(cmSpan, nil, "")
 	}
 
@@ -190,7 +193,7 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	}
 	execCtx, execSpan := startRunSpan(ctx, "run.execute_pool")
 	execSpan.SetAttributes(attribute.Int("run.workers", in.Workers))
-	staged, flushedTargets, execReport, err := s.executePool(execCtx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, emitter, summaryReportMode, parityRetry)
+	staged, flushedTargets, execReport, err := s.executePool(execCtx, llmTasks, mtTasks, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, mtEngines, emitter, summaryReportMode, parityRetry)
 	endRunSpan(execSpan, err, "execute_pool")
 	report.Succeeded = execReport.Succeeded
 	report.Failed = execReport.Failed
