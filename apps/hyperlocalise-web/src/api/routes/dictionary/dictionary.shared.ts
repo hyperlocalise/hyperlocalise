@@ -43,6 +43,19 @@ export function isDictionaryMutationAllowed(role: ApiAuthContext["membership"]["
   return hasCapability(role, "dictionaries:write");
 }
 
+export function isUniqueViolation(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if ("code" in error && error.code === "23505") {
+    return true;
+  }
+
+  const cause = "cause" in error ? error.cause : undefined;
+  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23505";
+}
+
 export function toDictionaryRecord(
   dictionary: SpellcheckDictionary,
   extras?: { wordCount?: number },

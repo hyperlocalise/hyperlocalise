@@ -87,6 +87,20 @@ describe("dictionaryRoutes", () => {
     );
     expect(createWord.status).toBe(201);
 
+    const duplicateWord = await client.api.orgs[":organizationSlug"].dictionaries[
+      ":dictionaryId"
+    ].words.$post(
+      {
+        param: { organizationSlug, dictionaryId: dictionary.id },
+        json: { locale: "en-US", word: "hyperlocalise" },
+      },
+      { headers },
+    );
+    expect(duplicateWord.status).toBe(409);
+    await expect(duplicateWord.json()).resolves.toMatchObject({
+      error: "dictionary_word_exists",
+    });
+
     const secondLibrary = await client.api.orgs[":organizationSlug"].dictionaries.$post(
       {
         param: { organizationSlug },

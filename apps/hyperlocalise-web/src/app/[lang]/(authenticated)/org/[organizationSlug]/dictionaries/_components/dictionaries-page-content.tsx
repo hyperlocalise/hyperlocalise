@@ -16,6 +16,7 @@ import { useMemo, useState } from "react";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
@@ -42,7 +43,7 @@ export function DictionariesPageContent({
   const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createForm, setCreateForm] = useState<DictionaryCreateForm>(createEmptyForm);
-  const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
+  const [createErrors, setCreateErrors] = useState<{ name?: string; submit?: string }>({});
 
   const dictionariesQuery = useInfiniteQuery({
     queryKey: ["spellcheck-dictionaries", organizationSlug],
@@ -103,7 +104,16 @@ export function DictionariesPageContent({
     onSuccess: (body) => {
       setCreateDialogOpen(false);
       setCreateForm(createEmptyForm());
+      setCreateErrors({});
       router.push(`/org/${organizationSlug}/dictionaries/${body.dictionary.id}`);
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(dictionariesPageContentMessages.createFailed);
+      setCreateErrors((current) => ({ ...current, submit: message }));
+      toast.error(message);
     },
   });
 

@@ -14,7 +14,7 @@
 
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -23,6 +23,8 @@ import { DictionariesPageContent } from "./dictionaries-page-content";
 
 const apiMocks = vi.hoisted(() => ({
   listDictionaries: vi.fn(),
+  createDictionary: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -42,6 +44,12 @@ vi.mock("@/lib/navigation/use-org-router", () => ({
   }),
 }));
 
+vi.mock("sonner", () => ({
+  toast: {
+    error: (...args: unknown[]) => apiMocks.toastError(...args),
+  },
+}));
+
 vi.mock("@/lib/api-client-instance", () => ({
   apiClient: {
     api: {
@@ -49,6 +57,7 @@ vi.mock("@/lib/api-client-instance", () => ({
         ":organizationSlug": {
           dictionaries: {
             $get: apiMocks.listDictionaries,
+            $post: apiMocks.createDictionary,
           },
         },
       },
@@ -76,7 +85,11 @@ function dictionaryRecord(input: { id: string; name: string }) {
   };
 }
 
-function renderDictionariesPage() {
+function renderDictionariesPage({
+  canWriteDictionaries = false,
+}: {
+  canWriteDictionaries?: boolean;
+} = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -84,7 +97,10 @@ function renderDictionariesPage() {
   return render(
     <IntlProvider locale="en" messages={{}}>
       <QueryClientProvider client={queryClient}>
-        <DictionariesPageContent organizationSlug="acme" canWriteDictionaries={false} />
+        <DictionariesPageContent
+          organizationSlug="acme"
+          canWriteDictionaries={canWriteDictionaries}
+        />
       </QueryClientProvider>
     </IntlProvider>,
   );
@@ -93,6 +109,9 @@ function renderDictionariesPage() {
 describe("DictionariesPageContent", () => {
   beforeEach(() => {
     apiMocks.listDictionaries.mockReset();
+    apiMocks.createDictionary.mockReset();
+    apiMocks.toastError.mockReset();
+    apiMocks.listDictionaries.mockResolvedValue(jsonResponse({ dictionaries: [], total: 0 }));
   });
 
   it("loads later dictionaries when Load more is clicked", async () => {
@@ -128,5 +147,24 @@ describe("DictionariesPageContent", () => {
         query: expect.objectContaining({ offset: "1" }),
       }),
     );
+  });
+
+  it("shows a toast and dialog error when creating a dictionary fails", async () => {
+    const user = userEvent.setup();
+    apiMocks.createDictionary.mockResolvedValue(
+      jsonResponse({ error: "forbidden", message: "Insufficient permissions" }, 403),
+    );
+
+    renderDictionariesPage({ canWriteDictionaries: true });
+
+    await user.click(screen.getByRole("button", { name: "Create dictionary" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByPlaceholderText("Brand names"), "Product terms");
+    await user.click(within(dialog).getByRole("button", { name: "Create dictionary" }));
+
+    await waitFor(() => {
+      expect(apiMocks.toastError).toHaveBeenCalledWith("Insufficient permissions");
+    });
+    expect(within(dialog).getByText("Insufficient permissions")).toBeInTheDocument();
   });
 });

@@ -78,7 +78,7 @@ export function DictionariesPageView({
   onCreateDialogOpenChange: (open: boolean) => void;
   createForm: DictionaryCreateForm;
   onCreateFormChange: (form: DictionaryCreateForm) => void;
-  createErrors: { name?: string };
+  createErrors: { name?: string; submit?: string };
   isCreating: boolean;
   onSubmitCreateDictionary: () => void;
   hasNextPage?: boolean;
@@ -188,6 +188,7 @@ export function DictionariesPageView({
                 )}
               />
             </Field>
+            {createErrors.submit ? <FieldError>{createErrors.submit}</FieldError> : null}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => onCreateDialogOpenChange(false)}>

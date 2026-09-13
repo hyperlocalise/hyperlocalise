@@ -49,6 +49,7 @@ import {
   getOwnedDictionary,
   invalidDictionaryPayloadResponse,
   isDictionaryMutationAllowed,
+  isUniqueViolation,
   lockSpellcheckDictionaryWords,
   resolveAttachmentPriority,
   toDictionaryRecord,
@@ -378,12 +379,15 @@ export function createDictionaryRoutes() {
             },
             201,
           );
-        } catch {
-          return conflictResponse(
-            c,
-            "dictionary_word_exists",
-            "That word is already in this locale",
-          );
+        } catch (error) {
+          if (isUniqueViolation(error)) {
+            return conflictResponse(
+              c,
+              "dictionary_word_exists",
+              "That word is already in this locale",
+            );
+          }
+          throw error;
         }
       },
     )
