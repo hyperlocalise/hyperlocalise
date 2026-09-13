@@ -216,7 +216,7 @@ func TestResearchRegisteredRouteRequiresServiceToken(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
 	mux.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
-	require.Contains(t, rec.Body.String(), "missing research service token")
+	require.Contains(t, rec.Body.String(), "missing server call token")
 }
 
 func TestResearchRegisteredRouteAcceptsServiceToken(t *testing.T) {
@@ -234,7 +234,7 @@ func TestResearchRegisteredRouteAcceptsServiceToken(t *testing.T) {
 		"keyword":"seo","locationCode":2840,"languageCode":"en"
 	}`))
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
-	req.Header.Set(researchServiceTokenHeader, researchServiceToken())
+	req.Header.Set(serverCallTokenHeader, serverCallToken())
 	mux.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 }

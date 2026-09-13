@@ -89,6 +89,22 @@ func main() {
 		h.ofrep = experiment.NewOFREPHandler(store)
 	}
 
+	storageCtx, cancelStorage := context.WithTimeout(context.Background(), 15*time.Second)
+	h.objects, err = configureObjectStorage(storageCtx)
+	cancelStorage()
+	if err != nil {
+		log.Fatalf("configure object storage: %v", err)
+	}
+
+	guidelinesCtx, cancelGuidelines := context.WithTimeout(context.Background(), 15*time.Second)
+	guidelineSearch, closeGuidelines, err := configureGuidelineSearch(guidelinesCtx)
+	cancelGuidelines()
+	if err != nil {
+		log.Fatalf("configure guideline search: %v", err)
+	}
+	defer closeGuidelines()
+	h.guidelines = guidelineSearch
+
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, verifier)
 

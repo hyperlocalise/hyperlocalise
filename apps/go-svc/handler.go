@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
+	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/spellcheck"
+	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"golang.org/x/text/language"
 )
 
@@ -35,6 +37,8 @@ type handler struct {
 	spellChecker SpellChecker
 	ofrep        *experiment.OFREPHandler
 	research     researchService
+	objects      *objectstore.Registry
+	guidelines   *guidelines.Service
 }
 
 func newHandler() *handler {
@@ -50,11 +54,26 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	mux.HandleFunc("GET /health", h.health)
 	mux.Handle("POST /v1/validate/segment", validate)
-	research := researchAuthMiddleware(verifier)
+	research := serverCallAuthMiddleware(verifier)
 	mux.Handle("POST /v1/domains/research/keywords", research(http.HandlerFunc(h.expandKeywords)))
 	mux.Handle("POST /v1/domains/research/serp", research(http.HandlerFunc(h.liveSerp)))
 	mux.Handle("POST /v1/domains/research/rank-check", research(http.HandlerFunc(h.rankCheck)))
 	mux.Handle("POST /v1/domains/research/rank-check/batch", research(http.HandlerFunc(h.rankCheckBatch)))
+	for pattern, route := range map[string]http.HandlerFunc{
+		"PUT /v1/storage/object":         h.putObject,
+		"POST /v1/storage/read":          h.getObject,
+		"POST /v1/storage/stat":          h.statObject,
+		"POST /v1/storage/delete":        h.deleteObject,
+		"POST /v1/storage/sign-upload":   h.signUpload,
+		"POST /v1/storage/sign-download": h.signDownload,
+		"POST /v1/guidelines/sync":       h.syncGuidelines,
+		"POST /v1/guidelines/search":     h.searchGuidelines,
+	} {
+		mux.Handle(pattern, serverCallAuthMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "no-store")
+			route.ServeHTTP(w, r)
+		})))
+	}
 	if h.ofrep != nil {
 		h.ofrep.Register(mux)
 	}

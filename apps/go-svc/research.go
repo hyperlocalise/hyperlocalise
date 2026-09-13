@@ -2,13 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"crypto/subtle"
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
@@ -16,14 +11,12 @@ import (
 )
 
 const (
-	maxResearchBodyBytes        = 64 << 10
-	defaultKeywordIdeaLimit     = 50
-	maxKeywordIdeaLimit         = 200
-	maxRankCheckBatchSize       = 20
-	defaultResearchSerpDepth    = 20
-	rankCheckConcurrency        = 4
-	researchServiceTokenHeader  = "X-Go-Svc-Research-Token"
-	researchServiceTokenMessage = "go-svc-research"
+	maxResearchBodyBytes     = 64 << 10
+	defaultKeywordIdeaLimit  = 50
+	maxKeywordIdeaLimit      = 200
+	maxRankCheckBatchSize    = 20
+	defaultResearchSerpDepth = 20
+	rankCheckConcurrency     = 4
 )
 
 type researchService interface {
@@ -301,33 +294,6 @@ func (h *handler) rankCheckBatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, researchRankCheckBatchResponse{Results: results})
-}
-
-func researchAuthMiddleware(verifier SessionVerifier) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !requireResearchServiceToken(w, r) {
-				return
-			}
-			next.ServeHTTP(w, r)
-		}))
-	}
-}
-
-func researchServiceToken() string {
-	mac := hmac.New(sha256.New, []byte(os.Getenv("WORKOS_COOKIE_PASSWORD")))
-	_, _ = mac.Write([]byte(researchServiceTokenMessage))
-	return hex.EncodeToString(mac.Sum(nil))
-}
-
-func requireResearchServiceToken(w http.ResponseWriter, r *http.Request) bool {
-	provided := strings.TrimSpace(r.Header.Get(researchServiceTokenHeader))
-	expected := researchServiceToken()
-	if provided == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
-		writeUnauthorized(w, "missing research service token")
-		return false
-	}
-	return true
 }
 
 func (h *handler) requireResearch(w http.ResponseWriter) bool {

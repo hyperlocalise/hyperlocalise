@@ -7,7 +7,7 @@ Status: approved for implementation.
 Use Go interfaces and composition. ObjectStore handles bytes and object metadata;
 guideline indexing handles searchable passages. Neither exposes provider SDK types.
 S3 and R2 share an AWS SDK v2 implementation with distinct configuration.
-The existing go-svc hosts authenticated internal endpoints; no additional service
+The existing go-svc hosts authenticated storage and guideline endpoints; no additional service
 is necessary. PostgreSQL remains the authority for guideline content and permissions.
 Turbopuffer is an optional, rebuildable index, separate from file storage.
 
@@ -40,7 +40,7 @@ revision. Use a separate index interface and a turbopuffer adapter.
 
 ## Rollout
 
-Implement the Go foundations and internal APIs first, with provider features
+Implement the Go foundations and storage and guideline APIs first, with provider features
 opt-in through configuration. Existing web file storage and lexical guideline
 selection continue operating until their application migrations are enabled.
 The future application integration should enqueue index updates transactionally
