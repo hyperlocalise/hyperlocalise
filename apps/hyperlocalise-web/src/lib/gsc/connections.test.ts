@@ -24,6 +24,15 @@ import {
 
 const fixture = createAuthTestFixture();
 
+function testOrgIds() {
+  const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId;
+  const userId = globalThis.__testApiAuthContext?.user.localUserId;
+  if (!organizationId || !userId) {
+    throw new Error("expected synced test organization");
+  }
+  return { organizationId, userId };
+}
+
 describe("gsc connections", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
@@ -38,9 +47,10 @@ describe("gsc connections", () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     await fixture.authHeadersFor(identity);
 
+    const { organizationId, userId } = testOrgIds();
     const created = await upsertGscConnection({
-      organizationId: identity.organization.localOrganizationId,
-      userId: identity.user.localUserId,
+      organizationId,
+      userId,
       googleSubject: "subject-1",
       accountEmail: "seo@acme.test",
       refreshToken: "refresh-token",
@@ -50,12 +60,12 @@ describe("gsc connections", () => {
     });
 
     expect(created.accountEmail).toBe("seo@acme.test");
-    expect(await getGscConnection({ organizationId: identity.organization.localOrganizationId })).toMatchObject({
+    expect(await getGscConnection({ organizationId })).toMatchObject({
       accountEmail: "seo@acme.test",
     });
 
     const minted = await mintGscAccessToken({
-      organizationId: identity.organization.localOrganizationId,
+      organizationId,
     });
     expect(minted.ok).toBe(true);
     if (minted.ok) {
@@ -67,9 +77,10 @@ describe("gsc connections", () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     await fixture.authHeadersFor(identity);
 
+    const { organizationId, userId } = testOrgIds();
     await upsertGscConnection({
-      organizationId: identity.organization.localOrganizationId,
-      userId: identity.user.localUserId,
+      organizationId,
+      userId,
       googleSubject: "subject-2",
       accountEmail: "seo@acme.test",
       refreshToken: "refresh-token",
@@ -89,7 +100,7 @@ describe("gsc connections", () => {
     );
 
     const minted = await mintGscAccessToken({
-      organizationId: identity.organization.localOrganizationId,
+      organizationId,
     });
     expect(minted.ok).toBe(true);
     if (minted.ok) {
@@ -101,9 +112,10 @@ describe("gsc connections", () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     await fixture.authHeadersFor(identity);
 
+    const { organizationId, userId } = testOrgIds();
     await upsertGscConnection({
-      organizationId: identity.organization.localOrganizationId,
-      userId: identity.user.localUserId,
+      organizationId,
+      userId,
       googleSubject: "subject-3",
       accountEmail: "seo@acme.test",
       refreshToken: "refresh-token",
@@ -113,10 +125,10 @@ describe("gsc connections", () => {
     });
 
     await expect(
-      deleteGscConnection({ organizationId: identity.organization.localOrganizationId }),
+      deleteGscConnection({ organizationId }),
     ).resolves.toBe(true);
     await expect(
-      getGscConnection({ organizationId: identity.organization.localOrganizationId }),
+      getGscConnection({ organizationId }),
     ).resolves.toBeNull();
   });
 });

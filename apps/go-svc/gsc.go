@@ -82,16 +82,16 @@ type gscSitesResponse struct {
 }
 
 type gscPerformanceRequest struct {
-	AccessToken  string   `json:"accessToken"`
-	SiteURL      string   `json:"siteUrl"`
-	DateRange    string   `json:"dateRange"`
-	StartDate    string   `json:"startDate"`
-	EndDate      string   `json:"endDate"`
-	Dimensions   []string `json:"dimensions"`
-	Country      string   `json:"country"`
-	RowLimit     int      `json:"rowLimit"`
-	Type         string   `json:"type"`
-	DataState    string   `json:"dataState"`
+	AccessToken string   `json:"accessToken"`
+	SiteURL     string   `json:"siteUrl"`
+	DateRange   string   `json:"dateRange"`
+	StartDate   string   `json:"startDate"`
+	EndDate     string   `json:"endDate"`
+	Dimensions  []string `json:"dimensions"`
+	Country     string   `json:"country"`
+	RowLimit    int      `json:"rowLimit"`
+	Type        string   `json:"type"`
+	DataState   string   `json:"dataState"`
 }
 
 type gscPerformanceResponse struct {

@@ -88,9 +88,11 @@ describe("gscConnectionRoutes", () => {
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
+    const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext?.user.localUserId;
     await upsertGscConnection({
-      organizationId: identity.organization.localOrganizationId,
-      userId: identity.user.localUserId,
+      organizationId: organizationId!,
+      userId: userId!,
       googleSubject: "subject-1",
       accountEmail: "seo@acme.test",
       refreshToken: "refresh-token",

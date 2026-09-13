@@ -22,6 +22,15 @@ import { resetGscProviderForTests, setGscProviderForTests } from "./provider";
 
 const fixture = createAuthTestFixture();
 
+function testOrgIds() {
+  const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId;
+  const userId = globalThis.__testApiAuthContext?.user.localUserId;
+  if (!organizationId || !userId) {
+    throw new Error("expected synced test organization");
+  }
+  return { organizationId, userId };
+}
+
 describe("loadSearchConsolePerformance", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
@@ -36,8 +45,9 @@ describe("loadSearchConsolePerformance", () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     await fixture.authHeadersFor(identity);
 
+    const { organizationId } = testOrgIds();
     const result = await loadSearchConsolePerformance({
-      organizationId: identity.organization.localOrganizationId,
+      organizationId,
       domainKey: "hyperlocalise.com",
     });
 
@@ -50,9 +60,10 @@ describe("loadSearchConsolePerformance", () => {
   it("loads matched property performance", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     await fixture.authHeadersFor(identity);
+    const { organizationId, userId } = testOrgIds();
     await upsertGscConnection({
-      organizationId: identity.organization.localOrganizationId,
-      userId: identity.user.localUserId,
+      organizationId,
+      userId,
       googleSubject: "subject-1",
       accountEmail: "seo@acme.test",
       refreshToken: "refresh-token",
@@ -100,7 +111,7 @@ describe("loadSearchConsolePerformance", () => {
     });
 
     const result = await loadSearchConsolePerformance({
-      organizationId: identity.organization.localOrganizationId,
+      organizationId,
       domainKey: "hyperlocalise.com",
       marketId: "france-fr",
     });
