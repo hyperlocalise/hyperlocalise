@@ -23,6 +23,11 @@ type BlockSignature struct {
 }
 
 func ParseInvariant(s string) (Invariant, error) {
+	// BOLT OPTIMIZATION: Fast path for plain text containing no ICU AST signal characters.
+	if !strings.ContainsAny(s, "{#<}'}") {
+		return Invariant{}, nil
+	}
+
 	elems, err := Parse(s, nil)
 	if err != nil {
 		normalized := normalizeMustachePlaceholders(s)
