@@ -16,12 +16,13 @@ import (
 const maxValidateSegmentBodyBytes = 512 << 10 // 512 KiB
 
 type validateSegmentRequest struct {
-	SourceText   string   `json:"sourceText"`
-	TargetText   string   `json:"targetText"`
-	SourcePath   string   `json:"sourcePath"`
-	MaxLength    int      `json:"maxLength"`
-	Modes        []string `json:"modes,omitempty"`
-	TargetLocale string   `json:"targetLocale,omitempty"`
+	SourceText    string   `json:"sourceText"`
+	TargetText    string   `json:"targetText"`
+	SourcePath    string   `json:"sourcePath"`
+	MaxLength     int      `json:"maxLength"`
+	Modes         []string `json:"modes,omitempty"`
+	TargetLocale  string   `json:"targetLocale,omitempty"`
+	AcceptedWords []string `json:"acceptedWords,omitempty"`
 }
 
 type validateSegmentResponse struct {
@@ -74,8 +75,13 @@ func withOptionalPrefix(prefix string, next http.Handler) http.Handler {
 	})
 }
 
-func (h *handler) checkSpelling(ctx context.Context, locale, text string) ([]SpellingIssue, error) {
-	return h.spellChecker.Check(ctx, locale, uniqueWords(spellcheck.Tokenize(text)))
+func (h *handler) checkSpelling(ctx context.Context, locale, text string, acceptedWords []string) ([]SpellingIssue, error) {
+	accepted := spellcheck.NewAcceptedWords(acceptedWords)
+	words := spellcheck.RejectedWords(uniqueWords(spellcheck.Tokenize(text)), accepted)
+	if len(words) == 0 {
+		return nil, nil
+	}
+	return h.spellChecker.Check(ctx, locale, words)
 }
 
 func (h *handler) health(w http.ResponseWriter, _ *http.Request) {

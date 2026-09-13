@@ -67,7 +67,41 @@ export class ContentEditorReviewController {
   }
 
   configure(ports: ContentEditorReviewControllerPorts) {
+    const previousValidateFormat = this.ports.services?.validateFormat;
+    const wasStarted = Boolean(this.selectedSegmentDisposer);
     this.ports = ports;
+    if (wasStarted && previousValidateFormat !== ports.services?.validateFormat) {
+      this.revalidateOpenChecks();
+    }
+  }
+
+  revalidateOpenChecks() {
+    if (!this.canRunChecks) {
+      return;
+    }
+
+    this.lastVisibleCheckFingerprint.clear();
+    const selectedId = this.workspace.selectedSegmentId;
+    if (selectedId) {
+      const selected = this.workspace.getSegmentView(selectedId);
+      if (selected) {
+        void this.runChecks(selected, selected.targetText);
+      }
+    }
+
+    if (!this.workspace.ui.isSideBySideView) {
+      return;
+    }
+
+    for (const segmentId of this.workspace.ui.visibleSideBySideSegmentIds) {
+      if (segmentId === selectedId) {
+        continue;
+      }
+      const segment = this.workspace.getSegmentView(segmentId);
+      if (segment) {
+        void this.runChecks(segment, segment.targetText, undefined, { quiet: true });
+      }
+    }
   }
 
   start() {

@@ -28,6 +28,7 @@ import {
   serviceUnavailableResponse,
 } from "@/api/response.schema";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
+import { createProjectDictionaryRoutes } from "@/api/routes/dictionary/project-dictionary.route";
 import { createProjectQaReportRoutes } from "@/api/routes/project/qa-report.route";
 import {
   deleteProjectWithTeamGlossaryGuard,
@@ -1191,6 +1192,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
     .route("/:projectId/knowledge-memory", createProjectKnowledgeMemoryRoutes())
+    .route("/:projectId/dictionaries", createProjectDictionaryRoutes())
     .route("/:projectId/qa-reports", createProjectQaReportRoutes({ translationQaScanQueue }))
     .route(
       "/:projectId/assets",

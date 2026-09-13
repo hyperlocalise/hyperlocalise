@@ -19,6 +19,7 @@ import type {
 } from "@/components/content-editor/shared/types";
 import { readApiError } from "@/lib/api-error";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
 
 import { projectFileCatValidationMessages } from "./project-file-content-editor-validation.messages";
 
@@ -86,6 +87,7 @@ export async function fetchCatSegmentValidation(
     sourcePath: string;
     targetLocale: string;
     maxLength?: number;
+    acceptedWords?: readonly string[];
     signal?: AbortSignal;
     intl: ContentEditorFormatMessageIntl;
   },
@@ -118,6 +120,9 @@ export async function fetchCatSegmentValidation(
         sourcePath: input.sourcePath,
         ...(input.maxLength != null && input.maxLength > 0 ? { maxLength: input.maxLength } : {}),
         ...(targetLocale ? { targetLocale } : {}),
+        ...(input.acceptedWords && input.acceptedWords.length > 0
+          ? { acceptedWords: capResolvedSpellcheckWords(input.acceptedWords) }
+          : {}),
         modes,
       }),
       signal: input.signal,

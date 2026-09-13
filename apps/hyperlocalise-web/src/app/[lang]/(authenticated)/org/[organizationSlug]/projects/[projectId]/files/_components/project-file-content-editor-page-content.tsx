@@ -94,6 +94,7 @@ export function ProjectFileContentEditorPageContent({
   resourceType = null,
   branch = null,
   sourcePaths = null,
+  canWriteDictionaries = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -109,6 +110,7 @@ export function ProjectFileContentEditorPageContent({
   resourceType?: "file" | "key" | null;
   branch?: string | null;
   sourcePaths?: string | null;
+  canWriteDictionaries?: boolean;
 }) {
   const intl = useIntl();
   const router = useRouter();
@@ -662,6 +664,7 @@ export function ProjectFileContentEditorPageContent({
         layout="fullscreen"
         className="min-h-0 flex-1"
         pageNavigationGuardRef={pageNavigationGuardRef}
+        canWriteDictionaries={canWriteDictionaries}
       />
     </ContentEditorPageRoot>
   );
