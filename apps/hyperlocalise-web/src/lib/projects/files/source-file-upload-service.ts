@@ -150,7 +150,7 @@ async function uploadNativeSourceFile(
       throw error;
     });
 
-  void enqueueSourceFileIngestAfterUpload({
+  await enqueueSourceFileIngestAfterUpload({
     organizationId: input.organizationId,
     projectId: input.project.id,
     storedFileId: storedFile.id,

@@ -118,6 +118,8 @@ export const translationQaFindings = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    index("idx_translation_qa_findings_key").on(table.translationKeyId),
+    index("idx_translation_qa_findings_translation").on(table.translationId),
     index("idx_translation_qa_findings_run").on(table.runId),
     index("idx_translation_qa_findings_run_locale").on(table.runId, table.targetLocale),
     index("idx_translation_qa_findings_run_check").on(table.runId, table.checkType),

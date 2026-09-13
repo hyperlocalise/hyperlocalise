@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 
 import {
   dispatchWorkspaceAutomationForSourceUpload,
@@ -28,34 +28,6 @@ export type SourceFileIngestState =
   (typeof schema.repositorySourceFileVersions.$inferSelect)["ingestState"];
 
 export { entriesFromHlOutput } from "./hl-entries";
-
-export async function hasIngestedSourceHashForPath(input: {
-  organizationId: string;
-  projectId: string;
-  sourcePath: string;
-  sourceHash: string | null;
-}) {
-  if (!input.sourceHash) {
-    return false;
-  }
-
-  const [row] = await db
-    .select({ id: schema.repositorySourceFileVersions.id })
-    .from(schema.repositorySourceFileVersions)
-    .where(
-      and(
-        eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
-        eq(schema.repositorySourceFileVersions.projectId, input.projectId),
-        eq(schema.repositorySourceFileVersions.sourcePath, input.sourcePath),
-        eq(schema.repositorySourceFileVersions.sourceHash, input.sourceHash),
-        inArray(schema.repositorySourceFileVersions.ingestState, ["ingested", "skipped"]),
-      ),
-    )
-    .orderBy(desc(schema.repositorySourceFileVersions.createdAt))
-    .limit(1);
-
-  return Boolean(row);
-}
 
 export async function markSourceFileIngestState(input: {
   sourceFileVersionId: string;
@@ -182,54 +154,8 @@ export async function enqueueSourceFileIngestAfterUpload(
     queue?: SourceFileIngestQueue;
   },
 ) {
-  const alreadyIngested = await hasIngestedSourceHashForPath({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    sourcePath: input.sourcePath,
-    sourceHash: input.sourceHash ?? null,
-  });
-
-  if (alreadyIngested) {
-    await markSourceFileIngestState({
-      sourceFileVersionId: input.sourceFileVersionId,
-      organizationId: input.organizationId,
-      ingestState: "skipped",
-      ingestedAt: new Date(),
-    });
-
-    logger.info(
-      {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        sourceFileVersionId: input.sourceFileVersionId,
-        sourcePath: input.sourcePath,
-      },
-      "source file ingest skipped; hash already ingested",
-    );
-
-    void dispatchSourceUploadAutomations({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      sourceFileId: input.storedFileId,
-      sourceFileVersionId: input.sourceFileVersionId,
-      sourcePath: input.sourcePath,
-      sourceHash: input.sourceHash,
-      targetAutomationId: input.targetAutomationId,
-    }).catch((error) => {
-      logger.warn(
-        {
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          sourceFileVersionId: input.sourceFileVersionId,
-          error: error instanceof Error ? error.message : String(error),
-        },
-        "source file ingest skipped automation dispatch failed",
-      );
-    });
-
-    return { enqueued: false as const, reason: "hash_already_ingested" as const };
-  }
-
+  // Every upload must reconcile the current snapshot, including historical hashes.
+  // A previously ingested hash does not prove that these keys are still current.
   const { createSourceFileIngestQueue } = await import("@/workflows/adapters");
   const queue = input.queue ?? createSourceFileIngestQueue();
   const { ids } = await queue.enqueue({

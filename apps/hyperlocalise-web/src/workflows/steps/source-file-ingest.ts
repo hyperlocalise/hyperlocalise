@@ -83,7 +83,7 @@ export async function parseHlEntriesStep(
 ): Promise<ProjectSourceStringEntry[]> {
   "use step";
   const { entriesFromHlOutput } = await import("@/lib/projects/files/source-file-ingest");
-  return entriesFromHlOutput(extractedEntries);
+  return entriesFromHlOutput(extractedEntries, true);
 }
 
 export async function stopSourceIngestSandboxStep(sandboxId: string) {
@@ -92,23 +92,18 @@ export async function stopSourceIngestSandboxStep(sandboxId: string) {
   return stopTranslationSandbox(sandboxId);
 }
 
-export async function upsertSourceFileTranslationKeysStep(input: {
+export async function reconcileSourceFileTranslationKeysStep(input: {
   organizationId: string;
   projectId: string;
   repositorySourceFileId: string;
   sourceFileVersionId: string;
+  workflowRunId: string;
   entries: ProjectSourceStringEntry[];
 }) {
   "use step";
-  const { upsertProjectTranslationKeysFromEntries } =
-    await import("@/lib/projects/translations/project-translation-service");
-  return upsertProjectTranslationKeysFromEntries({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    repositorySourceFileId: input.repositorySourceFileId,
-    sourceFileVersionId: input.sourceFileVersionId,
-    entries: input.entries,
-  });
+  const { reconcileSourceFileTranslationKeys } =
+    await import("@/lib/projects/files/reconcile-source-file-translation-keys");
+  return reconcileSourceFileTranslationKeys(input);
 }
 
 export async function markSourceFileIngestStateStep(input: {

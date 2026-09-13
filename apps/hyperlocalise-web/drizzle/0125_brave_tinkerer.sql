@@ -1,0 +1,5 @@
+ALTER TABLE "repository_source_files" ADD COLUMN "reconciled_source_file_version_id" uuid;--> statement-breakpoint
+ALTER TABLE "repository_source_files" ADD CONSTRAINT "repository_source_files_reconciled_source_file_version_id_repository_source_file_versions_id_fk" FOREIGN KEY ("reconciled_source_file_version_id") REFERENCES "public"."repository_source_file_versions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_repository_source_files_reconciled_version" ON "repository_source_files" USING btree ("reconciled_source_file_version_id");--> statement-breakpoint
+CREATE INDEX "idx_translation_qa_findings_key" ON "translation_qa_findings" USING btree ("translation_key_id");--> statement-breakpoint
+CREATE INDEX "idx_translation_qa_findings_translation" ON "translation_qa_findings" USING btree ("translation_id");
