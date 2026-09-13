@@ -126,3 +126,96 @@ Set the required WorkOS variables in the Vercel `go_svc` service environment. Us
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 
 Authenticated CAT requests must include the `wos-session` cookie from a signed-in Hyperlocalise user. Research routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
+
+## Object storage and guideline search
+
+The optional storage and guideline routes reuse `serverCallAuthMiddleware` in
+`auth.go`: the existing `wos-session` cookie plus the existing Hono-to-Go server-call
+proof. The `X-Go-Svc-Research-Token` header and its `go-svc-research` HMAC message
+remain unchanged for compatibility with deployed clients. No new authentication
+secret is required. Hono must authorize each file, project, and organization before
+forwarding a request. These routes are not browser-facing resource APIs. Worker
+authentication is not added by this change.
+
+Storage uses explicit environment variables for each named location. This example
+enables S3 and R2 together:
+
+```dotenv
+# Comma-separated location IDs. This is a list, not JSON.
+OBJECT_STORAGE_LOCATIONS=s3-files,r2-bundles
+OBJECT_STORAGE_DEFAULT_LOCATION=s3-files
+
+OBJECT_STORAGE_S3_FILES_PROVIDER=s3
+OBJECT_STORAGE_S3_FILES_BUCKET=hyperlocalise-files
+OBJECT_STORAGE_S3_FILES_REGION=ap-southeast-2
+# Optional: omit both to use the AWS SDK credential chain (for example IAM roles).
+# OBJECT_STORAGE_S3_FILES_ACCESS_KEY_ID=...
+# OBJECT_STORAGE_S3_FILES_SECRET_ACCESS_KEY=...
+# OBJECT_STORAGE_S3_FILES_SESSION_TOKEN=...
+
+OBJECT_STORAGE_R2_BUNDLES_PROVIDER=r2
+OBJECT_STORAGE_R2_BUNDLES_BUCKET=hyperlocalise-bundles
+OBJECT_STORAGE_R2_BUNDLES_ENDPOINT=https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com
+OBJECT_STORAGE_R2_BUNDLES_ACCESS_KEY_ID=YOUR_R2_ACCESS_KEY_ID
+OBJECT_STORAGE_R2_BUNDLES_SECRET_ACCESS_KEY=YOUR_R2_SECRET_ACCESS_KEY
+```
+
+Set these variables in the Go service's deployment settings or export them in your
+shell before starting `go-svc`. The Go executable does not load a `.env` file itself.
+Store credential values as deployment secrets.
+
+Each location ID maps to `OBJECT_STORAGE_<ID>_`: uppercase the ID and replace
+hyphens with underscores. For example, `r2-bundles` maps to
+`OBJECT_STORAGE_R2_BUNDLES_`. IDs start with a lowercase letter and use lowercase
+letters, digits and single separating hyphens (up to 64 characters). Duplicate IDs
+and incomplete configurations fail at startup.
+
+| Variable suffix | Meaning |
+| --- | --- |
+| `PROVIDER` | Required: `s3` or `r2` |
+| `BUCKET` | Required bucket name |
+| `REGION` | S3 region; may also come from the AWS SDK configuration. R2 always uses `auto` |
+| `ENDPOINT` | Required HTTPS S3 endpoint for R2, including jurisdiction-specific endpoints when applicable. Optional override for S3 |
+| `ACCESS_KEY_ID` / `SECRET_ACCESS_KEY` | Required together for R2; optional together for S3 when using its SDK credential chain |
+| `SESSION_TOKEN` | Optional session token with location-specific access keys |
+| `USE_PATH_STYLE` | Optional `true` or `false`; defaults to `false` |
+
+Add more locations by listing their IDs and adding their corresponding variables;
+multiple locations can use the same provider. Leave both `OBJECT_STORAGE_LOCATIONS`
+and `OBJECT_STORAGE_DEFAULT_LOCATION` unset to disable object storage.
+
+The default controls new uploads through `PUT /v1/storage/object`. Reads, deletes,
+and signed requests use the recorded `locationId`. Bundle publishers select their
+location explicitly. Do not repoint an existing location ID at another bucket;
+create a new location instead. The TypeScript Vercel adapter remains unchanged in
+this rollout. The previous JSON value for `OBJECT_STORAGE_LOCATIONS` is replaced
+by the comma-separated list and individual variables above.
+
+| Route | Input | Result |
+| --- | --- | --- |
+| `PUT /v1/storage/object` | Bytes, Content-Length, Content-Type, X-Object-Key | `{ref, info}` from the default location; conditional creation; 32 MiB limit |
+| `POST /v1/storage/read` | `{locationId, key}` | Streamed bytes |
+| `POST /v1/storage/stat` | `{locationId, key}` | Object metadata |
+| `POST /v1/storage/delete` | `{locationId, key}` | Idempotent deletion |
+| `POST /v1/storage/sign-upload` | `{ref, contentType, expiresInSeconds}` | Signed conditional PUT request |
+| `POST /v1/storage/sign-download` | `{ref, expiresInSeconds}` | Signed GET request |
+
+Sign requests expire in 1–3600 seconds. Persist references rather than signed
+URLs. Verify direct uploads before creating their final file records. The
+`internal/distribution` package can publish verified immutable bundles with a
+manifest written last; release-channel APIs and CDN setup are future work.
+
+To enable guideline search, set `DATABASE_URL`, `TURBOPUFFER_API_KEY`,
+`TURBOPUFFER_REGION`, and a deployment-specific `TURBOPUFFER_GUIDELINES_PREFIX`.
+The prefix keeps development/staging/production indexes separate. The PostgreSQL
+source reads the existing workspace/project guideline tables without a migration.
+
+- `POST /v1/guidelines/sync`: `{organizationId, projectId?, locale?}`.
+  Reindexes current canonical revisions. Call explicitly during adoption/rebuilds.
+- `POST /v1/guidelines/search`: `{scope: {organizationId, projectId?, locale?}, query, limit}`.
+  Limit is 1–32. Returns mandatory canonical documents, verified passages, and
+  `searchAvailable`. Search is BM25 initially; indexing and retrieval are separate.
+
+The app's existing lexical guideline selection is unchanged. Transactional outbox
+integration and deletion-event delivery remain application adoption work. An index
+must never be the only retained copy of guideline content.

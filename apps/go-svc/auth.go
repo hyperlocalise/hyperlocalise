@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -393,4 +397,40 @@ func writeUnauthorized(w http.ResponseWriter, message string) {
 		"error":   "unauthorized",
 		"message": message,
 	})
+}
+
+// Keep the existing research wire format so deployed web clients continue to work.
+// These credentials are derived from the existing WorkOS cookie password; there
+// is no separately configured service secret. The caller must authorize each
+// resource before forwarding the user's session to a privileged Go route.
+const (
+	serverCallTokenHeader  = "X-Go-Svc-Research-Token"
+	serverCallTokenMessage = "go-svc-research"
+)
+
+func serverCallAuthMiddleware(verifier SessionVerifier) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !requireServerCallToken(w, r) {
+				return
+			}
+			next.ServeHTTP(w, r)
+		}))
+	}
+}
+
+func serverCallToken() string {
+	mac := hmac.New(sha256.New, []byte(os.Getenv("WORKOS_COOKIE_PASSWORD")))
+	_, _ = mac.Write([]byte(serverCallTokenMessage))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func requireServerCallToken(w http.ResponseWriter, r *http.Request) bool {
+	provided := strings.TrimSpace(r.Header.Get(serverCallTokenHeader))
+	expected := serverCallToken()
+	if provided == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+		writeUnauthorized(w, "missing server call token")
+		return false
+	}
+	return true
 }
