@@ -52,7 +52,7 @@ func requestLogMiddleware(next http.Handler) http.Handler {
 		}
 		attrs := []any{
 			"method", r.Method,
-			"path", r.URL.Path,
+			"path", requestLogPath(r.URL.Path),
 			"status", status,
 			"duration_ms", time.Since(started).Milliseconds(),
 		}
@@ -61,4 +61,26 @@ func requestLogMiddleware(next http.Handler) http.Handler {
 		}
 		slog.Info("request", attrs...)
 	})
+}
+
+// Dictionary paths include organization slugs and external project identifiers.
+// Log route shapes instead of customer-provided path segments.
+func requestLogPath(path string) string {
+	prefix := ""
+	native := path
+	if strings.HasPrefix(path, publicPathPrefix+"/") {
+		prefix = publicPathPrefix
+		native = strings.TrimPrefix(path, publicPathPrefix)
+	}
+	parts := strings.Split(native, "/")
+	if len(parts) < 5 || parts[1] != "v1" || parts[2] != "orgs" {
+		return path
+	}
+	if parts[4] == "dictionaries" {
+		return prefix + "/v1/orgs/{organizationSlug}/dictionaries/{resource}"
+	}
+	if len(parts) >= 7 && parts[4] == "projects" && parts[6] == "dictionaries" {
+		return prefix + "/v1/orgs/{organizationSlug}/projects/{projectId}/dictionaries/{resource}"
+	}
+	return path
 }

@@ -18,7 +18,7 @@ import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { readApiError, readApiResponseError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
+import { dictionaryClient } from "@/lib/spellcheck-dictionary/client";
 
 import { spellcheckDictionaryContextMessages } from "./spellcheck-dictionary-context.messages";
 
@@ -63,9 +63,7 @@ export function useProjectSpellcheckDictionary(input: {
     queryKey: ["project-spellcheck-words", input.organizationSlug, input.projectId, trimmedLocale],
     enabled: Boolean(input.organizationSlug && input.projectId && trimmedLocale),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].dictionaries["resolved"].$get({
+      const response = await dictionaryClient.resolvedWords({
         param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
         query: { locale: trimmedLocale },
       });
@@ -83,9 +81,7 @@ export function useProjectSpellcheckDictionary(input: {
     queryKey: ["project-spellcheck-dictionaries", input.organizationSlug, input.projectId],
     enabled: Boolean(input.organizationSlug && input.projectId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].dictionaries.$get({
+      const response = await dictionaryClient.projectDictionaries({
         param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
       });
       if (!response.ok) {
@@ -112,9 +108,7 @@ export function useProjectSpellcheckDictionary(input: {
         throw new Error(intl.formatMessage(spellcheckDictionaryContextMessages.noDictionary));
       }
 
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries[
-        ":dictionaryId"
-      ].words.$post({
+      const response = await dictionaryClient.addWord({
         param: { organizationSlug: input.organizationSlug, dictionaryId: defaultDictionary.id },
         json: { locale: trimmedLocale, word },
       });
