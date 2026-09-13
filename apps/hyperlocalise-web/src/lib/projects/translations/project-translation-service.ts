@@ -18,7 +18,7 @@ import type {
   ProjectFileContentEditorQueueSort,
   ProjectSourceStringEntry,
 } from "@/api/routes/project/project.schema";
-import { db, schema } from "@/lib/database/client";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project-translation-queue-order";
@@ -217,13 +217,34 @@ export class ProjectTranslationService extends ProjectServiceBase {
     return row ?? null;
   }
 
-  async upsertKeysFromEntries(input: {
-    organizationId: string;
-    projectId: string;
-    repositorySourceFileId: string;
-    sourceFileVersionId?: string | null;
-    entries: ProjectSourceStringEntry[];
-  }) {
+  async upsertKeysFromEntries(
+    input: {
+      organizationId: string;
+      projectId: string;
+      repositorySourceFileId: string;
+      sourceFileVersionId?: string | null;
+      entries: ProjectSourceStringEntry[];
+      preserveEmptySourceText?: boolean;
+    },
+    database: DatabaseClient = this.database,
+  ) {
+    const BATCH_SIZE = 500;
+    if (input.entries.length > BATCH_SIZE) {
+      let imported = 0;
+      let updated = 0;
+      for (let offset = 0; offset < input.entries.length; offset += BATCH_SIZE) {
+        const result = await this.upsertKeysFromEntries(
+          {
+            ...input,
+            entries: input.entries.slice(offset, offset + BATCH_SIZE),
+          },
+          database,
+        );
+        imported += result.imported;
+        updated += result.updated;
+      }
+      return { imported, updated };
+    }
     const entries = input.entries
       .map((entry) => ({
         key: entry.key.trim(),
@@ -234,14 +255,17 @@ export class ProjectTranslationService extends ProjectServiceBase {
           entry.maxLength != null && entry.maxLength > 0 ? Math.trunc(entry.maxLength) : null,
         normalizedSourceText: normalizeTranslationMemorySourceText(entry.text),
       }))
-      .filter((entry) => entry.key.length > 0 && entry.sourceText.trim().length > 0)
-      .slice(0, maxKeysPerImport);
+      .filter(
+        (entry) =>
+          entry.key.length > 0 &&
+          (input.preserveEmptySourceText || entry.sourceText.trim().length > 0),
+      );
 
     if (entries.length === 0) {
       return { imported: 0, updated: 0 };
     }
 
-    const existing = await this.database
+    const existing = await database
       .select({
         key: schema.projectTranslationKeys.key,
       })
@@ -266,7 +290,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     }
     const imported = entries.length - updated;
 
-    await this.database
+    await database
       .insert(schema.projectTranslationKeys)
       .values(
         entries.map((entry) => ({

@@ -36,11 +36,12 @@ import { db, schema } from "@/lib/database/client";
 import { createRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import type { SourceFileIngestQueue } from "@/lib/workflow/types";
 
+import { reconcileSourceFileTranslationKeys } from "./reconcile-source-file-translation-keys";
+
 import {
   claimSourceFileIngest,
   enqueueSourceFileIngestAfterUpload,
   entriesFromHlOutput,
-  hasIngestedSourceHashForPath,
   markSourceFileIngestState,
 } from "./source-file-ingest";
 
@@ -154,163 +155,38 @@ describe("entriesFromHlOutput", () => {
   });
 });
 
-describe("hasIngestedSourceHashForPath", () => {
-  it("returns false when sourceHash is null", async () => {
-    const { organization, project } = await createStoredProjectFixture();
-    await createSourceVersion({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourceHash: null,
-      ingestState: "ingested",
-    });
-
-    await expect(
-      hasIngestedSourceHashForPath({
-        organizationId: organization.id,
-        projectId: project.id,
-        sourcePath: SOURCE_PATH,
-        sourceHash: null,
-      }),
-    ).resolves.toBe(false);
-  });
-
-  it("returns true for matching ingested and skipped hashes on the same path", async () => {
-    const { organization, project } = await createStoredProjectFixture();
-    await createSourceVersion({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourcePath: "locales/ingested.json",
-      ingestState: "ingested",
-      filename: "ingested.json",
-    });
-    await createSourceVersion({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourcePath: "locales/skipped.json",
-      ingestState: "skipped",
-      filename: "skipped.json",
-    });
-
-    await expect(
-      hasIngestedSourceHashForPath({
-        organizationId: organization.id,
-        projectId: project.id,
-        sourcePath: "locales/ingested.json",
-        sourceHash: SOURCE_HASH,
-      }),
-    ).resolves.toBe(true);
-
-    await expect(
-      hasIngestedSourceHashForPath({
-        organizationId: organization.id,
-        projectId: project.id,
-        sourcePath: "locales/skipped.json",
-        sourceHash: SOURCE_HASH,
-      }),
-    ).resolves.toBe(true);
-  });
-
-  it("ignores pending, failed, and ingesting rows plus hash/path mismatches", async () => {
-    const { organization, project } = await createStoredProjectFixture();
-
-    await createSourceVersion({
-      organizationId: organization.id,
-      projectId: project.id,
-      ingestState: "pending",
-      filename: "pending.json",
-    });
-    await createSourceVersion({
-      organizationId: organization.id,
-      projectId: project.id,
-      ingestState: "failed",
-      filename: "failed.json",
-    });
-    await createSourceVersion({
-      organizationId: organization.id,
-      projectId: project.id,
-      ingestState: "ingesting",
-      ingestWorkflowRunId: "run_other",
-      filename: "ingesting.json",
-    });
-    await createSourceVersion({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourcePath: "locales/other.json",
-      ingestState: "ingested",
-      filename: "other-path.json",
-    });
-    await createSourceVersion({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourceHash: "sha256:different",
-      ingestState: "ingested",
-      filename: "other-hash.json",
-    });
-
-    await expect(
-      hasIngestedSourceHashForPath({
-        organizationId: organization.id,
-        projectId: project.id,
-        sourcePath: SOURCE_PATH,
-        sourceHash: SOURCE_HASH,
-      }),
-    ).resolves.toBe(false);
-  });
-});
-
 describe("enqueueSourceFileIngestAfterUpload", () => {
-  it("skips enqueue when the hash was already ingested and still dispatches automations", async () => {
+  it("enqueues historical hashes so reverted uploads are reconciled", async () => {
     const { organization, project } = await createStoredProjectFixture();
     await createSourceVersion({
       organizationId: organization.id,
       projectId: project.id,
       ingestState: "ingested",
-      filename: "prior.json",
+    });
+    await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceHash: "changed",
+      ingestState: "ingested",
     });
     const pending = await createSourceVersion({
       organizationId: organization.id,
       projectId: project.id,
-      ingestState: "pending",
-      filename: "duplicate.json",
     });
-
-    const enqueue = vi.fn(async () => ({ ids: ["run_should_not_enqueue"] }));
-    const queue: SourceFileIngestQueue = { enqueue };
-
-    const result = await enqueueSourceFileIngestAfterUpload({
-      organizationId: organization.id,
-      projectId: project.id,
-      storedFileId: pending.storedFileId,
-      sourceFileVersionId: pending.id,
-      sourcePath: SOURCE_PATH,
-      sourceHash: SOURCE_HASH,
-      queue,
-    });
-
-    expect(result).toEqual({ enqueued: false, reason: "hash_already_ingested" });
-    expect(enqueue).not.toHaveBeenCalled();
-
-    const [updated] = await db
-      .select({
-        ingestState: schema.repositorySourceFileVersions.ingestState,
-        ingestedAt: schema.repositorySourceFileVersions.ingestedAt,
-      })
-      .from(schema.repositorySourceFileVersions)
-      .where(eq(schema.repositorySourceFileVersions.id, pending.id));
-
-    expect(updated?.ingestState).toBe("skipped");
-    expect(updated?.ingestedAt).toBeInstanceOf(Date);
-
-    await vi.waitFor(() => {
-      expect(dispatchWorkspaceAutomationsForSourceUploadMock).toHaveBeenCalledWith({
+    const enqueue = vi.fn(async () => ({ ids: ["run_revert"] }));
+    await expect(
+      enqueueSourceFileIngestAfterUpload({
         organizationId: organization.id,
         projectId: project.id,
-        sourceFileId: pending.storedFileId,
+        storedFileId: pending.storedFileId,
         sourceFileVersionId: pending.id,
         sourcePath: SOURCE_PATH,
         sourceHash: SOURCE_HASH,
-      });
-    });
+        queue: { enqueue },
+      }),
+    ).resolves.toEqual({ enqueued: true, workflowRunIds: ["run_revert"] });
+    expect(enqueue).toHaveBeenCalledOnce();
+    expect(dispatchWorkspaceAutomationsForSourceUploadMock).not.toHaveBeenCalled();
   });
 
   it("enqueues ingest when the hash has not been ingested for the path", async () => {
@@ -353,46 +229,6 @@ describe("enqueueSourceFileIngestAfterUpload", () => {
       .from(schema.repositorySourceFileVersions)
       .where(eq(schema.repositorySourceFileVersions.id, pending.id));
     expect(unchanged?.ingestState).toBe("pending");
-  });
-
-  it("targets one automation when a duplicate upload skips ingestion", async () => {
-    const { organization, project } = await createStoredProjectFixture();
-    await createSourceVersion({
-      organizationId: organization.id,
-      projectId: project.id,
-      ingestState: "ingested",
-      filename: "prior-targeted.json",
-    });
-    const pending = await createSourceVersion({
-      organizationId: organization.id,
-      projectId: project.id,
-      ingestState: "pending",
-      filename: "duplicate-targeted.json",
-    });
-
-    await enqueueSourceFileIngestAfterUpload({
-      organizationId: organization.id,
-      projectId: project.id,
-      storedFileId: pending.storedFileId,
-      sourceFileVersionId: pending.id,
-      sourcePath: SOURCE_PATH,
-      sourceHash: SOURCE_HASH,
-      targetAutomationId: "automation-1",
-      queue: { enqueue: vi.fn() },
-    });
-
-    await vi.waitFor(() => {
-      expect(dispatchWorkspaceAutomationForSourceUploadMock).toHaveBeenCalledWith({
-        organizationId: organization.id,
-        automationId: "automation-1",
-        projectId: project.id,
-        sourceFileId: pending.storedFileId,
-        sourceFileVersionId: pending.id,
-        sourcePath: SOURCE_PATH,
-        sourceHash: SOURCE_HASH,
-      });
-    });
-    expect(dispatchWorkspaceAutomationsForSourceUploadMock).not.toHaveBeenCalled();
   });
 
   it("carries the target automation through a fresh ingest event", async () => {
@@ -553,5 +389,168 @@ describe("markSourceFileIngestState", () => {
         fromIngestingWorkflowRunId: "run_wrong",
       }),
     ).rejects.toThrow(/not owned by workflow run_wrong/);
+  });
+});
+
+describe("reconcileSourceFileTranslationKeys", () => {
+  async function snapshot(
+    organizationId: string,
+    projectId: string,
+    entries: { key: string; text: string }[],
+    sourcePath = SOURCE_PATH,
+  ) {
+    const version = await createSourceVersion({
+      organizationId,
+      projectId,
+      sourcePath,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_reconcile",
+    });
+    const input = {
+      organizationId,
+      projectId,
+      repositorySourceFileId: version.repositorySourceFileId,
+      sourceFileVersionId: version.id,
+      workflowRunId: "run_reconcile",
+      entries: entries.map((entry) => ({ ...entry, context: null })),
+    };
+    await reconcileSourceFileTranslationKeys(input);
+    return input;
+  }
+
+  it("removes missing keys and their translations/comments while preserving retained IDs and other files", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const first = await snapshot(organization.id, project.id, [
+      { key: "keep", text: "Keep" },
+      { key: "remove", text: "Remove" },
+    ]);
+    await snapshot(organization.id, project.id, [{ key: "remove", text: "Other" }], "other.json");
+    const original = await db
+      .select()
+      .from(schema.projectTranslationKeys)
+      .where(
+        eq(schema.projectTranslationKeys.repositorySourceFileId, first.repositorySourceFileId),
+      );
+    for (const key of original) {
+      await db.insert(schema.projectTranslations).values({
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: key.id,
+        targetLocale: "fr",
+        text: "Traduit",
+      });
+      await db.insert(schema.projectTranslationComments).values({
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: key.id,
+        targetLocale: "fr",
+        text: "Comment",
+      });
+    }
+    const next = await snapshot(organization.id, project.id, [
+      { key: "keep", text: "" },
+      { key: "new", text: "New" },
+    ]);
+    await expect(reconcileSourceFileTranslationKeys(next)).resolves.toEqual({ status: "ingested" });
+    const remaining = await db
+      .select()
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.projectId, project.id));
+    expect(remaining).toHaveLength(3);
+    expect(remaining.find((key) => key.key === "keep")).toMatchObject({
+      id: original.find((key) => key.key === "keep")!.id,
+      sourceText: "",
+    });
+    expect(
+      await db
+        .select()
+        .from(schema.projectTranslations)
+        .where(eq(schema.projectTranslations.projectId, project.id)),
+    ).toHaveLength(1);
+    expect(
+      await db
+        .select()
+        .from(schema.projectTranslationComments)
+        .where(eq(schema.projectTranslationComments.projectId, project.id)),
+    ).toHaveLength(1);
+  });
+
+  it("reconciles empty files and does not let an older workflow restore deleted keys", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const old = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_old",
+    });
+    await snapshot(organization.id, project.id, [{ key: "key", text: "Value" }]);
+    await snapshot(organization.id, project.id, []);
+    await expect(
+      reconcileSourceFileTranslationKeys({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: old.repositorySourceFileId,
+        sourceFileVersionId: old.id,
+        workflowRunId: "run_old",
+        entries: [{ key: "old", text: "Old", context: null }],
+      }),
+    ).resolves.toEqual({ status: "superseded" });
+    expect(
+      await db
+        .select()
+        .from(schema.projectTranslationKeys)
+        .where(eq(schema.projectTranslationKeys.projectId, project.id)),
+    ).toHaveLength(0);
+  });
+
+  it("imports and retains keys beyond 5000", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const entries = Array.from({ length: 5001 }, (_, index) => ({
+      key: `key-${index}`,
+      text: `Value ${index}`,
+    }));
+    await snapshot(organization.id, project.id, entries);
+    await snapshot(organization.id, project.id, entries.slice(1));
+    const keys = await db
+      .select()
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.projectId, project.id));
+    expect(keys).toHaveLength(5000);
+    expect(keys.some((key) => key.key === "key-5000")).toBe(true);
+  });
+
+  it("rolls back all batches and cleanup when a database write fails", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const first = await snapshot(organization.id, project.id, [
+      { key: "original", text: "Original" },
+    ]);
+    const version = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_failure",
+    });
+    const entries = Array.from({ length: 501 }, (_, index) => ({
+      key: `key-${index}`,
+      text: index === 500 ? "invalid\u0000text" : "Valid",
+    }));
+    await expect(
+      reconcileSourceFileTranslationKeys({
+        ...first,
+        sourceFileVersionId: version.id,
+        workflowRunId: "run_failure",
+        entries: entries.map((entry) => ({ ...entry, context: null })),
+      }),
+    ).rejects.toThrow();
+    const keys = await db
+      .select()
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.projectId, project.id));
+    expect(keys.map((key) => key.key)).toEqual(["original"]);
+    const [file] = await db
+      .select()
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.id, first.repositorySourceFileId));
+    expect(file.reconciledSourceFileVersionId).toBe(first.sourceFileVersionId);
   });
 });

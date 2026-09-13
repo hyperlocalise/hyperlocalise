@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   index,
   integer,
   jsonb,
@@ -120,6 +121,10 @@ export const repositorySourceFiles = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     sourcePath: text("source_path").notNull(),
+    reconciledSourceFileVersionId: uuid("reconciled_source_file_version_id").references(
+      (): AnyPgColumn => repositorySourceFileVersions.id,
+      { onDelete: "set null" },
+    ),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

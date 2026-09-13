@@ -33,7 +33,7 @@ import {
   parseHlEntriesStep,
   prepareSourceIngestSandboxStep,
   stopSourceIngestSandboxStep,
-  upsertSourceFileTranslationKeysStep,
+  reconcileSourceFileTranslationKeysStep,
   writeSourceIngestFileStep,
 } from "./steps/source-file-ingest";
 import { getStoredFileContentStep } from "./steps/translation-job";
@@ -77,6 +77,7 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
   }
 
   let sandboxId: string | null = null;
+  let ingestCompleted = false;
 
   try {
     const storedFile = await getStoredFileMetadataStep(event.storedFileId, event.organizationId);
@@ -134,6 +135,7 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
         fromIngestingWorkflowRunId: workflowRunId,
       });
 
+      ingestCompleted = true;
       await dispatchSourceUploadAutomationsStep({
         organizationId: event.organizationId,
         projectId: event.projectId,
@@ -163,24 +165,19 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     const extractedEntries = await extractSourceIngestEntriesStep(sandboxId, inputFilename);
     const entries = await parseHlEntriesStep(extractedEntries);
 
-    if (entries.length > 0) {
-      await upsertSourceFileTranslationKeysStep({
-        organizationId: event.organizationId,
-        projectId: event.projectId,
-        repositorySourceFileId,
-        sourceFileVersionId: event.sourceFileVersionId,
-        entries,
-      });
-    }
-
-    await markSourceFileIngestStateStep({
-      sourceFileVersionId: event.sourceFileVersionId,
+    const reconciliation = await reconcileSourceFileTranslationKeysStep({
       organizationId: event.organizationId,
-      ingestState: "ingested",
-      ingestWorkflowRunId: workflowRunId,
-      ingestedAt: new Date(),
-      fromIngestingWorkflowRunId: workflowRunId,
+      projectId: event.projectId,
+      repositorySourceFileId,
+      sourceFileVersionId: event.sourceFileVersionId,
+      workflowRunId,
+      entries,
     });
+
+    ingestCompleted = true;
+    if (reconciliation.status === "superseded") {
+      return { status: "skipped" as const, reason: "superseded" };
+    }
 
     await dispatchSourceUploadAutomationsStep({
       organizationId: event.organizationId,
@@ -199,14 +196,15 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
   } catch (error) {
     const reason = userFacingIngestFailureReason(error);
 
-    await markSourceFileIngestStateStep({
-      sourceFileVersionId: event.sourceFileVersionId,
-      organizationId: event.organizationId,
-      ingestState: "failed",
-      ingestError: reason,
-      ingestWorkflowRunId: workflowRunId,
-      fromIngestingWorkflowRunId: workflowRunId,
-    });
+    if (!ingestCompleted)
+      await markSourceFileIngestStateStep({
+        sourceFileVersionId: event.sourceFileVersionId,
+        organizationId: event.organizationId,
+        ingestState: "failed",
+        ingestError: reason,
+        ingestWorkflowRunId: workflowRunId,
+        fromIngestingWorkflowRunId: workflowRunId,
+      });
 
     throw error;
   } finally {

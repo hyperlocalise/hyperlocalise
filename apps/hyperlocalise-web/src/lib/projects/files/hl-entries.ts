@@ -45,7 +45,10 @@ export function hlEntriesPayloadToStringMap(payload: HlEntriesPayload): Record<s
   return out;
 }
 
-export function entriesFromHlOutput(payload: HlEntriesPayload): ProjectSourceStringEntry[] {
+export function entriesFromHlOutput(
+  payload: HlEntriesPayload,
+  preserveEmptySourceText = false,
+): ProjectSourceStringEntry[] {
   return Object.entries(payload)
     .filter(([key]) => !isReservedHlEntriesKey(key))
     .map(([key, value]) => {
@@ -65,7 +68,9 @@ export function entriesFromHlOutput(payload: HlEntriesPayload): ProjectSourceStr
         ...(maxLength !== undefined ? { maxLength } : {}),
       };
     })
-    .filter((entry) => entry.key.length > 0 && entry.text.trim().length > 0);
+    .filter(
+      (entry) => entry.key.length > 0 && (preserveEmptySourceText || entry.text.trim().length > 0),
+    );
 }
 
 export function parseHlEntriesJson(raw: unknown): HlEntriesPayload {
