@@ -107,7 +107,10 @@ export function createDomainSearchConsoleRoutes() {
         const result = await loadSearchConsolePerformance({
           organizationId: c.var.auth.organization.localOrganizationId,
           domainKey: linkedDomain.domainKey,
-          dateRange: query.dateRange && isGscDateRange(query.dateRange) ? query.dateRange : GSC_DEFAULT_DATE_RANGE,
+          dateRange:
+            query.dateRange && isGscDateRange(query.dateRange)
+              ? query.dateRange
+              : GSC_DEFAULT_DATE_RANGE,
           marketId: query.locale,
           cookie: c.req.header("cookie") ?? undefined,
         });

@@ -46,12 +46,7 @@ export function useDomainSearchConsole({
   return {
     live,
     ...useQuery({
-      queryKey: domainSearchConsoleQueryKey(
-        organizationSlug,
-        linkedDomainId,
-        localeId,
-        dateRange,
-      ),
+      queryKey: domainSearchConsoleQueryKey(organizationSlug, linkedDomainId, localeId, dateRange),
       enabled: Boolean(organizationSlug && domainKey),
       queryFn: async (): Promise<GscPerformanceSnapshot> => {
         if (!live) {

@@ -40,17 +40,19 @@ import {
   isGscDateRange,
   type GscDateRange,
 } from "@/lib/gsc/constants";
-import type { GscInspection, GscPageRow, GscPerformanceSnapshot, GscQueryRow } from "@/lib/gsc/types";
+import type {
+  GscInspection,
+  GscPageRow,
+  GscPerformanceSnapshot,
+  GscQueryRow,
+} from "@/lib/gsc/types";
 import { cn } from "@/lib/primitives/cn";
 
 import { useDomainResearchShellStore } from "../store/domains-store-context";
 import { DomainMetricCard } from "./domain-metric-card";
 import { DomainResearchEmpty } from "./domain-research-empty";
 import { domainSearchConsoleViewMessages as messages } from "./domain-search-console-view.messages";
-import {
-  domainSearchConsoleQueryKey,
-  useDomainSearchConsole,
-} from "./use-domain-search-console";
+import { domainSearchConsoleQueryKey, useDomainSearchConsole } from "./use-domain-search-console";
 
 const QUERY_GRID =
   "grid grid-cols-[minmax(12rem,1.6fr)_repeat(4,minmax(4.5rem,0.5fr))] items-center gap-3 px-3 py-2.5";
@@ -218,7 +220,12 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
           <Button
             size="sm"
             render={
-              <a href={authorizeHref(organizationSlug, returnToPath(organizationSlug, linkedDomainId, localeId))} />
+              <a
+                href={authorizeHref(
+                  organizationSlug,
+                  returnToPath(organizationSlug, linkedDomainId, localeId),
+                )}
+              />
             }
           >
             <FormattedMessage {...messages.connectCta} />
@@ -355,7 +362,10 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
           <TypographyP size="small" tone="subtle">
             <FormattedMessage {...messages.inspectDescription} />
           </TypographyP>
-          <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void inspect(event)}>
+          <form
+            className="flex flex-wrap items-end gap-3"
+            onSubmit={(event) => void inspect(event)}
+          >
             <Field className="min-w-[16rem] flex-1">
               <FieldLabel htmlFor={inspectId}>
                 <FormattedMessage {...messages.inspectLabel} />
@@ -482,12 +492,8 @@ function SearchConsoleTables({
           </div>
           <div className="divide-y divide-border">
             {tab === "queries"
-              ? snapshot.queries.map((row) => (
-                  <SearchConsoleQueryRow key={row.query} row={row} />
-                ))
-              : snapshot.pages.map((row) => (
-                  <SearchConsolePageRow key={row.page} row={row} />
-                ))}
+              ? snapshot.queries.map((row) => <SearchConsoleQueryRow key={row.query} row={row} />)
+              : snapshot.pages.map((row) => <SearchConsolePageRow key={row.page} row={row} />)}
           </div>
         </div>
       )}

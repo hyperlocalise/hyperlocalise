@@ -29,7 +29,11 @@ import {
   listGscConnections,
 } from "@/lib/gsc/connections";
 import { GSC_GOOGLE_AUTH_URL, GSC_OAUTH_SCOPES } from "@/lib/gsc/constants";
-import { createGscOAuthState, getGscOAuthStateSecret, getGscRedirectUri } from "@/lib/gsc/oauth-state";
+import {
+  createGscOAuthState,
+  getGscOAuthStateSecret,
+  getGscRedirectUri,
+} from "@/lib/gsc/oauth-state";
 
 import { authorizeGscConnectionQuerySchema } from "./gsc-connection.schema";
 
@@ -83,7 +87,8 @@ export function createGscConnectionRoutes() {
           );
         }
 
-        const organizationSlug = c.var.auth.organization.slug;
+        const organizationSlug =
+          c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
         const returnTo = normalizeUserOAuthReturnTo(
           c.req.valid("query").returnTo,
           organizationSlug,

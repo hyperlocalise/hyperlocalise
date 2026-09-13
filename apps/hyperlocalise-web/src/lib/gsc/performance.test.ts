@@ -31,10 +31,14 @@ describe("gsc performance helpers", () => {
 
   it("maps dimension keys onto query and date rows", () => {
     expect(
-      queryRowsFromGsc([{ keys: ["traduction ia"], clicks: 8, impressions: 80, ctr: 0.1, position: 6 }]),
+      queryRowsFromGsc([
+        { keys: ["traduction ia"], clicks: 8, impressions: 80, ctr: 0.1, position: 6 },
+      ]),
     ).toEqual([{ query: "traduction ia", clicks: 8, impressions: 80, ctr: 0.1, position: 6 }]);
     expect(
-      seriesFromDateRows([{ keys: ["2026-09-01"], clicks: 3, impressions: 40, ctr: 0.075, position: 9 }]),
+      seriesFromDateRows([
+        { keys: ["2026-09-01"], clicks: 3, impressions: 40, ctr: 0.075, position: 9 },
+      ]),
     ).toEqual([{ date: "2026-09-01", clicks: 3, impressions: 40, ctr: 0.075, position: 9 }]);
   });
 });

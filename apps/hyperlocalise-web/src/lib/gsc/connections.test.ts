@@ -91,11 +91,11 @@ describe("gsc connections", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({ access_token: "fresh-token", expires_in: 3600 }),
-          { status: 200 },
-        ),
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ access_token: "fresh-token", expires_in: 3600 }), {
+            status: 200,
+          }),
       ),
     );
 
@@ -124,11 +124,7 @@ describe("gsc connections", () => {
       scopes: "openid email",
     });
 
-    await expect(
-      deleteGscConnection({ organizationId }),
-    ).resolves.toBe(true);
-    await expect(
-      getGscConnection({ organizationId }),
-    ).resolves.toBeNull();
+    await expect(deleteGscConnection({ organizationId })).resolves.toBe(true);
+    await expect(getGscConnection({ organizationId })).resolves.toBeNull();
   });
 });

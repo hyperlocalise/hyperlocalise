@@ -21,11 +21,7 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 
-import {
-  GSC_GOOGLE_TOKEN_URL,
-  GSC_GOOGLE_USERINFO_URL,
-  GSC_OAUTH_SCOPES,
-} from "./constants";
+import { GSC_GOOGLE_TOKEN_URL, GSC_GOOGLE_USERINFO_URL, GSC_OAUTH_SCOPES } from "./constants";
 import type { GscConnectionError, GscConnectionSummary } from "./types";
 
 type GscConnectionRow = typeof schema.gscConnections.$inferSelect;
@@ -109,9 +105,7 @@ export async function getGscConnection(input: {
   return row ? serializeConnection(row) : null;
 }
 
-export async function deleteGscConnection(input: {
-  organizationId: string;
-}): Promise<boolean> {
+export async function deleteGscConnection(input: { organizationId: string }): Promise<boolean> {
   const deleted = await db
     .delete(schema.gscConnections)
     .where(eq(schema.gscConnections.organizationId, input.organizationId))
@@ -123,7 +117,12 @@ export async function exchangeGscAuthorizationCode(input: {
   code: string;
   redirectUri: string;
   signal?: AbortSignal;
-}): Promise<Result<{ accessToken: string; refreshToken: string; expiresAt: Date; scopes: string }, GscConnectionError>> {
+}): Promise<
+  Result<
+    { accessToken: string; refreshToken: string; expiresAt: Date; scopes: string },
+    GscConnectionError
+  >
+> {
   if (!isGscOAuthConfigured()) {
     return err({
       code: "gsc_not_configured",
@@ -153,7 +152,8 @@ export async function exchangeGscAuthorizationCode(input: {
   if (!body.refresh_token) {
     return err({
       code: "gsc_oauth_exchange_failed",
-      message: "Google did not return a refresh token. Reconnect Search Console and grant offline access.",
+      message:
+        "Google did not return a refresh token. Reconnect Search Console and grant offline access.",
     });
   }
 
@@ -250,7 +250,9 @@ export async function upsertGscConnection(input: {
 async function refreshGscAccessToken(input: {
   refreshToken: string;
   signal?: AbortSignal;
-}): Promise<Result<{ accessToken: string; expiresAt: Date; refreshToken?: string }, GscConnectionError>> {
+}): Promise<
+  Result<{ accessToken: string; expiresAt: Date; refreshToken?: string }, GscConnectionError>
+> {
   if (!isGscOAuthConfigured()) {
     return err({
       code: "gsc_not_configured",

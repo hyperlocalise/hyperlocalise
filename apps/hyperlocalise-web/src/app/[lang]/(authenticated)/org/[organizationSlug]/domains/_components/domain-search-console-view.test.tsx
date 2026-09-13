@@ -66,10 +66,7 @@ function renderView() {
   return render(
     <IntlProvider locale="en">
       <QueryClientProvider client={queryClient}>
-        <DomainSearchConsoleView
-          organizationSlug="acme"
-          linkedDomainId="hyperlocalise-com"
-        />
+        <DomainSearchConsoleView organizationSlug="acme" linkedDomainId="hyperlocalise-com" />
       </QueryClientProvider>
     </IntlProvider>,
   );
@@ -89,7 +86,9 @@ describe("DomainSearchConsoleView", () => {
 
   it("renders sample Search Console queries for preview domains", () => {
     renderView();
-    expect(screen.getByText("Sample Search Console data for this preview domain.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Sample Search Console data for this preview domain."),
+    ).toBeInTheDocument();
     expect(screen.getByText("traduction automatique")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Connect Google" })).not.toBeInTheDocument();
   });

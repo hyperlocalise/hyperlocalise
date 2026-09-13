@@ -133,7 +133,13 @@ describe("domainSearchConsoleRoutes", () => {
 
     const response = await client.api.orgs[":organizationSlug"]["linked-domains"][
       ":linkedDomainId"
-    ]["search-console"].$get({ param: { organizationSlug, linkedDomainId: linkedDomain.id } }, { headers });
+    ]["search-console"].$get(
+      {
+        param: { organizationSlug, linkedDomainId: linkedDomain.id },
+        query: {},
+      },
+      { headers },
+    );
 
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -220,9 +226,9 @@ describe("domainSearchConsoleRoutes", () => {
     expect(body.searchConsole.totals.clicks).toBe(9);
     expect(body.searchConsole.queries[0]?.query).toBe("localisation");
 
-    const inspect = await client.api.orgs[":organizationSlug"]["linked-domains"][
-      ":linkedDomainId"
-    ]["search-console"].inspect.$post(
+    const inspect = await client.api.orgs[":organizationSlug"]["linked-domains"][":linkedDomainId"][
+      "search-console"
+    ].inspect.$post(
       {
         param: { organizationSlug, linkedDomainId: linkedDomain.id },
         json: { url: `https://${domainKey}/fr` },

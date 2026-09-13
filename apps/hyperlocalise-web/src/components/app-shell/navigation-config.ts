@@ -558,7 +558,7 @@ export function buildDomainNavigationItems(
     {
       label: intl.formatMessage({
         defaultMessage: "Search Console",
-        id: "sC8nSoLeU1",
+        id: "HOp+NlewtC",
         description: "Domain sidebar navigation item for Google Search Console",
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "search-console"),

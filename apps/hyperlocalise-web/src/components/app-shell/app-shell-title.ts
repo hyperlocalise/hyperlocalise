@@ -357,7 +357,7 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
     case "search-console":
       return intl.formatMessage({
         defaultMessage: "Search Console",
-        id: "sC9bReadCr",
+        id: "cb/1dHJtyC",
         description: "App shell breadcrumb title for domain Search Console",
       });
     case "automations":

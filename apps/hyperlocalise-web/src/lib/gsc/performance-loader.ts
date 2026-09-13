@@ -15,7 +15,12 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { GSC_DEFAULT_DATE_RANGE, type GscDateRange, gscCountryForMarket } from "./constants";
 import { getGscConnection, isGscOAuthConfigured, mintGscAccessToken } from "./connections";
 import { matchSearchConsoleSite } from "./match-site";
-import { pageRowsFromGsc, queryRowsFromGsc, seriesFromDateRows, summarizeGscRows } from "./performance";
+import {
+  pageRowsFromGsc,
+  queryRowsFromGsc,
+  seriesFromDateRows,
+  summarizeGscRows,
+} from "./performance";
 import { getGscProvider } from "./provider";
 import type { GscPerformanceSnapshot, GscProviderError } from "./types";
 

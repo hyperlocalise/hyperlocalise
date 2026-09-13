@@ -15,7 +15,10 @@ import { GSC_PERMISSION_UNVERIFIED } from "./constants";
 import type { GscSite } from "./types";
 
 function normalizeDomainKey(domainKey: string) {
-  return domainKey.trim().toLowerCase().replace(/^www\./, "");
+  return domainKey
+    .trim()
+    .toLowerCase()
+    .replace(/^www\./, "");
 }
 
 function isQueryable(site: GscSite) {
@@ -48,7 +51,11 @@ export function matchSearchConsoleSite(sites: GscSite[], domainKey: string): Gsc
   return (
     queryable.find((site) => {
       const url = site.siteUrl.toLowerCase();
-      return url.includes(`sc-domain:${key}`) || url.includes(`://${key}`) || url.includes(`://www.${key}`);
+      return (
+        url.includes(`sc-domain:${key}`) ||
+        url.includes(`://${key}`) ||
+        url.includes(`://www.${key}`)
+      );
     }) ?? null
   );
 }

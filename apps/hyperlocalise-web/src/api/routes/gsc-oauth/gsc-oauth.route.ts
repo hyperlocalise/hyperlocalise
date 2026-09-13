@@ -23,7 +23,11 @@ import {
   fetchGscAccount,
   upsertGscConnection,
 } from "@/lib/gsc/connections";
-import { getGscOAuthStateSecret, getGscRedirectUri, verifyGscOAuthState } from "@/lib/gsc/oauth-state";
+import {
+  getGscOAuthStateSecret,
+  getGscRedirectUri,
+  verifyGscOAuthState,
+} from "@/lib/gsc/oauth-state";
 import { isErr } from "@/lib/primitives/result/results";
 
 function gscCallbackError(returnTo: string, error: string) {

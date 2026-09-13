@@ -85,10 +85,7 @@ export async function verifyGscOAuthState(
 
 export function getGscOAuthStateSecret(): string {
   return (
-    env.GSC_OAUTH_STATE_SECRET ??
-    env.GITHUB_OAUTH_STATE_SECRET ??
-    env.WORKOS_COOKIE_PASSWORD ??
-    ""
+    env.GSC_OAUTH_STATE_SECRET ?? env.GITHUB_OAUTH_STATE_SECRET ?? env.WORKOS_COOKIE_PASSWORD ?? ""
   );
 }
 

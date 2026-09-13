@@ -108,7 +108,9 @@ export type GscProvider = {
     rowLimit?: number;
     cookie?: string;
     signal?: AbortSignal;
-  }): Promise<Result<{ rows: GscSearchAnalyticsRow[]; startDate: string; endDate: string }, GscProviderError>>;
+  }): Promise<
+    Result<{ rows: GscSearchAnalyticsRow[]; startDate: string; endDate: string }, GscProviderError>
+  >;
   inspectUrl(input: {
     accessToken: string;
     siteUrl: string;
