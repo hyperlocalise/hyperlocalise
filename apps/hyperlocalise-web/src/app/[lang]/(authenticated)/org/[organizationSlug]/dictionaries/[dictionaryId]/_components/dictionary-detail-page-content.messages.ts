@@ -67,7 +67,7 @@ export const dictionaryDetailMessages = defineMessages({
   },
   loadMore: {
     defaultMessage: "Load more",
-    id: "nR4kQ2wP8L",
+    id: "aONT/Ovdyv",
     description: "Button to load the next page of dictionary words",
   },
   projectsTitle: {

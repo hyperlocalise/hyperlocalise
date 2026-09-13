@@ -170,9 +170,9 @@ describe("dictionaryRoutes", () => {
     );
     expect(createWord.status).toBe(201);
 
-    const imported = await client.api.orgs[":organizationSlug"].dictionaries[
-      ":dictionaryId"
-    ].words["import"].$post(
+    const imported = await client.api.orgs[":organizationSlug"].dictionaries[":dictionaryId"].words[
+      "import"
+    ].$post(
       {
         param: { organizationSlug, dictionaryId: dictionary.id },
         json: {

@@ -107,9 +107,7 @@ describe("DictionaryDetailPageContent", () => {
         });
       }
       return jsonResponse({
-        words: [
-          { id: "word-2", locale: "en-US", word: "Hyperlocalise", createdAt: "2026-01-01" },
-        ],
+        words: [{ id: "word-2", locale: "en-US", word: "Hyperlocalise", createdAt: "2026-01-01" }],
         total: 2,
       });
     });
