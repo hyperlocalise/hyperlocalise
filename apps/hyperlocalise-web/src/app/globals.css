@@ -258,8 +258,8 @@
 
 /*
  * Inter is the only UI face. `font-heading` aliases --font-sans so marketing
- * and product stay on one family. Marketing headings are Bold; subheadings
- * (h2) are Semibold. Product headings keep the Title defaults (Semibold).
+ * and product stay on one family. Marketing headings (h1, h2) are Semibold.
+ * Product headings keep the Title defaults (Semibold).
  */
 html,
 [data-brand-theme="marketing"],
@@ -267,10 +267,7 @@ html,
   --font-heading: var(--font-sans);
 }
 
-[data-brand-theme="marketing"] h1 {
-  font-weight: 700;
-}
-
+[data-brand-theme="marketing"] h1,
 [data-brand-theme="marketing"] h2 {
   font-weight: 600;
 }
