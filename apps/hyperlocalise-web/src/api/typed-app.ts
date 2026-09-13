@@ -27,6 +27,7 @@ import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.ro
 import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import {
   createLocalisationAuditQueue,
+  createTranslationQaScanQueue,
   createProviderAgentCommentQueue,
   createProviderAgentQaQueue,
   createProviderAgentTranslationQueue,
@@ -44,6 +45,7 @@ import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/gi
 import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
 import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
 import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
+import { createTranslationQaScanRoutes } from "./routes/cron/translation-qa-scan.route";
 
 /**
  * Chained Hono schema for `testClient`. Keep this out of Next's typecheck
@@ -66,7 +68,7 @@ export function createTypedApp(options: CreateAppOptions = {}) {
     .basePath("/api")
     .onError(handleUnexpectedError)
     .notFound(notFoundHandler)
-    .route("/", createInternalRoutes())
+    .route("/", createInternalRoutes(options))
     .route("/auth", createAuthRoutes())
     .route("/autumn", createAutumnRoutes())
     .route("/blog", createBlogOgImageRoutes())
@@ -105,7 +107,7 @@ export function createTypedApp(options: CreateAppOptions = {}) {
 
 export type AppType = ReturnType<typeof createTypedApp>;
 
-function createInternalRoutes() {
+function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
     .route(
@@ -114,7 +116,13 @@ function createInternalRoutes() {
     )
     .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
     .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
-    .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes());
+    .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes())
+    .route(
+      "/cron/translation-qa-scan",
+      createTranslationQaScanRoutes({
+        translationQaScanQueue: options.translationQaScanQueue ?? createTranslationQaScanQueue(),
+      }),
+    );
 }
 
 function createWebhookRoutes(options: CreateAppOptions) {

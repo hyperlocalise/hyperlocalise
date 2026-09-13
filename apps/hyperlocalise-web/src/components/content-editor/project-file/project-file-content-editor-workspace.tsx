@@ -78,6 +78,7 @@ import {
 } from "./project-file-content-editor-mapper";
 import { projectFileCatWorkspaceMessages } from "./project-file-content-editor-workspace.messages";
 import { fetchCatSegmentValidation } from "./project-file-content-editor-validation";
+import { useCatScanFindings } from "./use-cat-scan-findings";
 import { useContentEditorMutations } from "./use-content-editor-mutations";
 import { useContentEditorSegmentQuery } from "./use-content-editor-segment-query";
 import { useContentEditorWorkspaceQuerySync } from "./use-content-editor-workspace-query-sync";
@@ -368,6 +369,13 @@ export function ProjectFileContentEditorWorkspace({
   );
 
   const isNativeProject = !contentEditorFile?.provider;
+  const { runQaChecks } = useCatScanFindings({
+    organizationSlug,
+    projectId,
+    sourcePath,
+    targetLocale,
+    enabled: isNativeProject,
+  });
   const canHideNativeStrings =
     isNativeProject &&
     Boolean(
@@ -899,6 +907,7 @@ export function ProjectFileContentEditorWorkspace({
           }}
           services={{
             validateFormat,
+            runQaChecks,
             lookupSegmentConcordance,
             lookupSegmentContext,
             lookupSegmentVisualContext:
