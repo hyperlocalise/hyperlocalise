@@ -231,6 +231,10 @@
     "defaultMessage": "repository required",
     "description": "Placeholder in GitHub push summary when no repository is selected"
   },
+  "+UUE3IbCPl": {
+    "defaultMessage": "Description",
+    "description": "Label for the dictionary description field"
+  },
   "+VZ90aAk+9": {
     "defaultMessage": "Row {row}: {message}",
     "description": "Import warning or error line with a CSV row number"
@@ -278,6 +282,10 @@
   "+auDy+Mwce": {
     "defaultMessage": "—",
     "description": "Placeholder when a usage feature has no reset date"
+  },
+  "+cStTc5glb": {
+    "defaultMessage": "Load more",
+    "description": "Button to load the next page of dictionaries"
   },
   "+cqoUEt5BX": {
     "defaultMessage": "This glossary is managed by its provider and is read-only here.",
@@ -379,6 +387,10 @@
     "defaultMessage": "Open in {providerKind}",
     "description": "Link label to open the job in the external TMS provider"
   },
+  "+sdjaNzt1g": {
+    "defaultMessage": "Export",
+    "description": "Button to export dictionary words for a locale"
+  },
   "+sh3FsSzlz": {
     "defaultMessage": "Keep job",
     "description": "Dismiss button in the cancel job confirmation dialog"
@@ -386,6 +398,10 @@
   "+t9Xh+JbAF": {
     "defaultMessage": "{passed}/{total} tests passed",
     "description": "Progress summary showing passed tests out of total"
+  },
+  "+teevJ7asc": {
+    "defaultMessage": "Target",
+    "description": "Project QA target column"
   },
   "+tsNE73Ud/": {
     "defaultMessage": "Set the maximum number of characters allowed in the translation.",
@@ -959,6 +975,10 @@
     "defaultMessage": "Assignees",
     "description": "Label for multi-assignee selection on Crowdin jobs"
   },
+  "0A0B8c6FRK": {
+    "defaultMessage": "Warnings",
+    "description": "Project QA warning count label"
+  },
   "0AIuIWXaN7": {
     "defaultMessage": "Open link",
     "description": "Button to open a custom issue link"
@@ -1282,6 +1302,10 @@
   "0su3rYbABy": {
     "defaultMessage": "Latest job · {status}",
     "description": "Badge showing the latest translation job status for a native file"
+  },
+  "0tbfPe4rk/": {
+    "defaultMessage": "Segments scanned",
+    "description": "Project QA segment count label"
   },
   "0tcV3U/r5g": {
     "defaultMessage": "Failed to download filtered view",
@@ -1943,6 +1967,10 @@
     "defaultMessage": "Significant localisation gaps are affecting the experience.",
     "description": "Score interpretation for a poor localisation audit"
   },
+  "2Eln7MuWtc": {
+    "defaultMessage": "Remove",
+    "description": "Button to remove a word from a dictionary"
+  },
   "2F2dNLV6FZ": {
     "defaultMessage": "Show exact source-text duplicates as a shared group when the Content Editor refreshes.",
     "description": "Identical string grouping setting description"
@@ -2567,6 +2595,10 @@
     "defaultMessage": "Actions",
     "description": "Screen-reader label for the teams table actions column"
   },
+  "3rnrMtcabi": {
+    "defaultMessage": "Workspace",
+    "description": "Eyebrow label above the dictionaries page title"
+  },
   "3rvYG+2rma": {
     "defaultMessage": "Page not found",
     "description": "Heading on the application 404 page"
@@ -2758,6 +2790,10 @@
   "477uPaXfz1": {
     "defaultMessage": "Block on failure",
     "description": "Label for blocking automation when localization check fails"
+  },
+  "47f6OyGEXm": {
+    "defaultMessage": "Active",
+    "description": "Active status badge on a dictionary list row"
   },
   "47mnWgc1PT": {
     "defaultMessage": "Workspace",
@@ -3055,6 +3091,10 @@
     "defaultMessage": "Saving...",
     "description": "Save button label while the automation update request is pending"
   },
+  "4nClT7nOrr": {
+    "defaultMessage": "Attach a dictionary to this project first.",
+    "description": "Error when adding a spelling word with no attached dictionary"
+  },
   "4nr1WS9kIp": {
     "defaultMessage": "Notion",
     "description": "Guidelines source tab for Notion"
@@ -3090,6 +3130,10 @@
   "4rrhdZuDqB": {
     "defaultMessage": "Sign in again to manage the Ahrefs connection.",
     "description": "Error when a WorkOS access token is missing for the Pipes widget"
+  },
+  "4u1PmCjhti": {
+    "defaultMessage": "Check",
+    "description": "Project QA check type column"
   },
   "4vXdOuz0pQ": {
     "defaultMessage": "Copied!",
@@ -3339,6 +3383,10 @@
     "defaultMessage": "Cache",
     "description": "Label for cached input token usage in the context hover card"
   },
+  "5SC8fmjKp8": {
+    "defaultMessage": "Added {word} to {dictionary}.",
+    "description": "Toast after a spelling token is added to a dictionary"
+  },
   "5SlpWPp/9C": {
     "defaultMessage": "Localised · {locale}",
     "description": "Image viewer: translated"
@@ -3522,6 +3570,10 @@
   "5orwY/wNVx": {
     "defaultMessage": "Workspace",
     "description": "Badge for a native workspace glossary"
+  },
+  "5pj50ZtP7a": {
+    "defaultMessage": "No scan yet. Run a QA check to list translation issues.",
+    "description": "Project QA empty state"
   },
   "5qbTrwpH1i": {
     "defaultMessage": "Source words",
@@ -3758,6 +3810,10 @@
   "6PTSot2cji": {
     "defaultMessage": "Group terms by meaning, then add locale-specific terms inside each concept.",
     "description": "Description for the native glossary concept table"
+  },
+  "6PydP1CR24": {
+    "defaultMessage": "Translation QA",
+    "description": "Workspace QA page title"
   },
   "6QF9Hq+l1/": {
     "defaultMessage": "Provider glossaries and term bases appear here after sync. Connect or resync a TMS provider from Integrations if you expected to see one.",
@@ -4162,6 +4218,10 @@
   "7F+nlF4WOX": {
     "defaultMessage": "e.g. Keep speaker notes concise and preserve slide layout.",
     "description": "Placeholder for AI prompt when generating a translated presentation in CAT file view"
+  },
+  "7GK/dF2FBE": {
+    "defaultMessage": "Dictionaries",
+    "description": "Accessible label for the dictionaries list section"
   },
   "7GXNJdLyH7": {
     "defaultMessage": "No issues found",
@@ -4570,6 +4630,10 @@
   "8ACcRRFoOD": {
     "defaultMessage": "New markets are not copy-paste",
     "description": "Story beat title: scaling requires market-specific fit"
+  },
+  "8AjMtlrawH": {
+    "defaultMessage": "Daily",
+    "description": "Workspace QA daily cadence label"
   },
   "8Aop7svU4q": {
     "defaultMessage": "Loading file…",
@@ -5315,6 +5379,10 @@
     "defaultMessage": "Failed to download {sourcePath}",
     "description": "Fallback API error when a specific translation file fails to download"
   },
+  "9hOQ1Cn/qy": {
+    "defaultMessage": "Could not load QA reports.",
+    "description": "Workspace QA load error"
+  },
   "9hS+AK0NkX": {
     "defaultMessage": "Connected",
     "description": "Badge on a BYOK model provider card when credentials are saved"
@@ -5611,6 +5679,10 @@
     "defaultMessage": "Can add or remove people and update team membership roles.",
     "description": "Tooltip describing the team manager role"
   },
+  "AHkrOWSoWW": {
+    "defaultMessage": "Dictionaries",
+    "description": "Sidebar navigation item for spellcheck dictionaries"
+  },
   "AHsrowfXdB": {
     "defaultMessage": "Change language",
     "description": "Accessible label and tooltip for the app language toggle button"
@@ -5795,6 +5867,10 @@
     "defaultMessage": "Source",
     "description": "Label for the workspace files source origin filter"
   },
+  "AgRRIfivV1": {
+    "defaultMessage": "Schedule updated.",
+    "description": "Project QA schedule save toast"
+  },
   "Aicm++b5Ie": {
     "defaultMessage": "Inbox",
     "description": "Sidebar nav label in marketing app shell mock"
@@ -5818,6 +5894,10 @@
   "AlWYFrRq+B": {
     "defaultMessage": "Search people…",
     "description": "Search placeholder in the assignee picker"
+  },
+  "AmrdIWCCiJ": {
+    "defaultMessage": "Adding…",
+    "description": "Busy label while a spelling token is added to a dictionary"
   },
   "AnTkr06Fzd": {
     "defaultMessage": "Preserve ICU syntax exactly.",
@@ -6495,6 +6575,10 @@
     "defaultMessage": "Retrying…",
     "description": "Button label while retrying a localisation audit"
   },
+  "CCFKG/rZtI": {
+    "defaultMessage": "No dictionaries match your search.",
+    "description": "Empty search state for dictionaries"
+  },
   "CCHRUS19n3": {
     "defaultMessage": "No categories found.",
     "description": "Empty search result in the part of speech picker"
@@ -6846,6 +6930,10 @@
   "Cx/AirNdqn": {
     "defaultMessage": "Prompts",
     "description": "App shell breadcrumb title for domain prompt explorer"
+  },
+  "CxIXwEUku/": {
+    "defaultMessage": "Recent scans",
+    "description": "Project QA run history heading"
   },
   "CyLUFnbRQ7": {
     "defaultMessage": "Assignees",
@@ -7603,9 +7691,17 @@
     "defaultMessage": "Generating localized landing page drafts...",
     "description": "Campaign mock step 2"
   },
+  "EWqf+wk5hx": {
+    "defaultMessage": "Accepted words",
+    "description": "Heading for the dictionary word list"
+  },
   "EXLDt167uQ": {
     "defaultMessage": "Competition",
     "description": "Keyword research screen: competition"
+  },
+  "EXWlp7uxHf": {
+    "defaultMessage": "Brand names",
+    "description": "Placeholder for the dictionary name field"
   },
   "EY7508Falv": {
     "defaultMessage": "Saving…",
@@ -8347,6 +8443,10 @@
     "defaultMessage": "Scheduled",
     "description": "Scheduled trigger title in the marketing automation editor mock"
   },
+  "GDYRoIeaNO": {
+    "defaultMessage": "Could not create the dictionary.",
+    "description": "Error when creating a spellcheck dictionary fails"
+  },
   "GDx1gijvA4": {
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the help-center-localisation use case"
@@ -8398,6 +8498,10 @@
   "GOImV2QS+V": {
     "defaultMessage": "Unable to delete project",
     "description": "Fallback error when deleting a project fails"
+  },
+  "GPiuIeFZ32": {
+    "defaultMessage": "Select a project",
+    "description": "Placeholder for the attach-project selector"
   },
   "GQCiwmNekJ": {
     "defaultMessage": "Creating...",
@@ -8970,6 +9074,10 @@
   "HnLFJWChXa": {
     "defaultMessage": "Play workflow preview",
     "description": "Accessible label for playing the workflow preview animation"
+  },
+  "HnQHQaB8I0": {
+    "defaultMessage": "Enter a single word with no spaces.",
+    "description": "Validation error for an empty or invalid dictionary word"
   },
   "Ho5CjjaEBq": {
     "defaultMessage": "Add target locales in project settings before creating jobs.",
@@ -10083,6 +10191,10 @@
     "defaultMessage": "revoked a personal access token",
     "description": "Action for a personal access token revocation activity"
   },
+  "KWq7zvli4J": {
+    "defaultMessage": "Add a workspace allow-list. You can import words and attach projects next.",
+    "description": "Description of the create dictionary dialog"
+  },
   "KX9N4t2DlB": {
     "defaultMessage": "{created, number} created · {updated, number} updated · {failed, number} failed",
     "description": "Compact import result counts"
@@ -10246,6 +10358,10 @@
   "Kx/HoZ+1yJ": {
     "defaultMessage": "Enter a job title.",
     "description": "Validation error when creating a job without a title"
+  },
+  "KxDSgHEwlN": {
+    "defaultMessage": "Could not start the QA scan.",
+    "description": "Project QA run error"
   },
   "KxUwuBv/S/": {
     "defaultMessage": "HubSpot",
@@ -10435,6 +10551,10 @@
     "defaultMessage": "Inbox",
     "description": "Eyebrow label above the marketing chat dock mock section"
   },
+  "LLpCWroQtR": {
+    "defaultMessage": "Open QA",
+    "description": "Workspace QA link to a project"
+  },
   "LMGo1sN8VQ": {
     "defaultMessage": "This glossary is used only by the projects listed here.",
     "description": "Section description for projects assigned to a glossary"
@@ -10506,6 +10626,10 @@
   "LX+MrzNv6y": {
     "defaultMessage": "Restore subscription",
     "description": "Button to restore a subscription scheduled for cancellation"
+  },
+  "LYdhfNsW7N": {
+    "defaultMessage": "This dictionary is not attached to any projects.",
+    "description": "Empty state when a dictionary has no attached projects"
   },
   "LZCFkSSHP6": {
     "defaultMessage": "Source ({locale})",
@@ -10799,9 +10923,17 @@
     "defaultMessage": "Research locale",
     "description": "Shared locale selector label"
   },
+  "M8XELItknC": {
+    "defaultMessage": "Open in editor",
+    "description": "Project QA finding editor link"
+  },
   "MB3Jte6am8": {
     "defaultMessage": "{count}/{maxLength} characters",
     "description": "Live character count for the CAT target translation against a max length limit"
+  },
+  "MBAnxHf7Pt": {
+    "defaultMessage": "Search",
+    "description": "Label for the dictionaries search field"
   },
   "MBLJMvPrmC": {
     "defaultMessage": "Edit glossaries",
@@ -11158,6 +11290,10 @@
   "MvleTlgom0": {
     "defaultMessage": "Related integrations",
     "description": "Heading for related integrations on the detail page"
+  },
+  "MwgUCiCSez": {
+    "defaultMessage": "Last scan {date}",
+    "description": "Workspace QA last scan timestamp"
   },
   "MwxM6cb/1r": {
     "defaultMessage": "Priority",
@@ -12207,6 +12343,10 @@
     "defaultMessage": "Compare original",
     "description": "Show original document alongside translation"
   },
+  "PDmh4fb8z6": {
+    "defaultMessage": "{count, plural, one {# word} other {# words}}",
+    "description": "Word count shown on a dictionary list row"
+  },
   "PDu1wBKWkk": {
     "defaultMessage": "Titles, descriptions, and indexability are checked per market, not only in English.",
     "description": "Proof point 2 body for the Domains product page"
@@ -13127,6 +13267,10 @@
     "defaultMessage": "Sample research data. Search explores the available sample keywords; live discovery is not connected.",
     "description": "Keyword research screen: preview"
   },
+  "RO+J5AxicZ": {
+    "defaultMessage": "Create dictionary",
+    "description": "Button to open the create dictionary dialog"
+  },
   "RO0Hv9SR8x": {
     "defaultMessage": "Failed to load Content Editor queue",
     "description": "Fallback error when the project file Content Editor queue request fails"
@@ -13134,6 +13278,10 @@
   "RQHyujQ0I4": {
     "defaultMessage": "Sampled {count} pages across technical, linguistic, contextual, and visual localisation credits.",
     "description": "Summary of how many pages a localisation audit sampled"
+  },
+  "RRjkhCG4Cs": {
+    "defaultMessage": "Could not load QA reports.",
+    "description": "Project QA load error"
   },
   "RS4pbTA1Mq": {
     "defaultMessage": "Character limit",
@@ -13226,6 +13374,10 @@
   "Ra7PJXU8aK": {
     "defaultMessage": "Access denied",
     "description": "Default access denied page title"
+  },
+  "RcSX5Vc4DS": {
+    "defaultMessage": "Load more",
+    "description": "Project QA load more findings"
   },
   "RcUVixjzZV": {
     "defaultMessage": "Contact us",
@@ -13390,6 +13542,10 @@
   "Rw5WXF50Q2": {
     "defaultMessage": "Copy",
     "description": "Button to copy an approved glossary target term to the clipboard"
+  },
+  "RwdjBGDnCb": {
+    "defaultMessage": "{errors} errors · {warnings} warnings",
+    "description": "Workspace QA error and warning counts"
   },
   "Rx1gsFSIpF": {
     "defaultMessage": "This Crowdin session could not be verified. Reopen the Hyperlocalise tab.",
@@ -13603,6 +13759,10 @@
     "defaultMessage": "All sync states",
     "description": "Sync filter option for all sync states"
   },
+  "SULea/W/vK": {
+    "defaultMessage": "Add to dictionary",
+    "description": "Button to add a spelling warning token to the project spellcheck dictionary"
+  },
   "SUOtzGbVxd": {
     "defaultMessage": "review translation updates",
     "description": "Subtitle under the file path in the review PR illustration"
@@ -13622,6 +13782,10 @@
   "SWDbxCkEGV": {
     "defaultMessage": "See what is hurting search and AI answers in every locale",
     "description": "Feature teaser early access title for domains"
+  },
+  "SWRB7SO8Wa": {
+    "defaultMessage": "Allow-lists of brand names and product terms that Hunspell should skip. Attach a library to the projects that should use it.",
+    "description": "Dictionaries page description under the heading"
   },
   "SWV7AxBTg5": {
     "defaultMessage": "Slack",
@@ -14087,6 +14251,10 @@
     "defaultMessage": "Tracked keywords",
     "description": "Metric label for tracked keywords"
   },
+  "TaVUffauIB": {
+    "defaultMessage": "Translation QA",
+    "description": "Project QA page title"
+  },
   "Tb7h0w/7fY": {
     "defaultMessage": "No options available",
     "description": "Empty state when a breadcrumb selector has no items"
@@ -14206,6 +14374,10 @@
   "TqKPfOkj7i": {
     "defaultMessage": "Automation updated",
     "description": "Toast when a workspace automation is saved successfully"
+  },
+  "TqMzymk92f": {
+    "defaultMessage": "Loading…",
+    "description": "Project QA loading more findings"
   },
   "TqRYXSejeY": {
     "defaultMessage": "Loading Slack channel invite",
@@ -14754,6 +14926,10 @@
   "V1lR4mPTs5": {
     "defaultMessage": "1 seat",
     "description": "Free plan feature: seat limit"
+  },
+  "V21lzZzbHn": {
+    "defaultMessage": "Could not export words for this locale.",
+    "description": "Error when exporting dictionary words fails"
   },
   "V3N8wNW3/m": {
     "defaultMessage": "But we also saw the reality behind every successful global launch. Localisation teams worked tirelessly to keep pace with product development. Product context lived in dozens of places. Questions were repeated across projects. Reviews stretched across time zones. As products shipped faster, the operational burden only grew.",
@@ -15567,6 +15743,10 @@
     "defaultMessage": "Copied",
     "description": "Copied confirmation for Canva connection token"
   },
+  "X+udgIpkfB": {
+    "defaultMessage": "Source",
+    "description": "Project QA source column"
+  },
   "X/5lAUS4wm": {
     "defaultMessage": "/100",
     "description": "Suffix after the overall localisation audit score"
@@ -15799,6 +15979,10 @@
     "defaultMessage": "Agent Automation",
     "description": "Feature card title for agent automation workflows"
   },
+  "XYM25HOnOc": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in the create dictionary dialog"
+  },
   "XYc39kK48R": {
     "defaultMessage": "Who is in this group",
     "description": "Heading for the audience rule builder"
@@ -15850,6 +16034,10 @@
   "XdMf1WMmy8": {
     "defaultMessage": "Request Body",
     "description": "Section title for API request body schema"
+  },
+  "Xe3fwkVyh6": {
+    "defaultMessage": "Running…",
+    "description": "Project QA run in progress"
   },
   "XeOh0cpTI1": {
     "defaultMessage": "Status",
@@ -15906,6 +16094,10 @@
   "XqfvXT5zJ1": {
     "defaultMessage": "Target locale",
     "description": "Label for the target locale radio list in the download dialog"
+  },
+  "XqqfNoZo8g": {
+    "defaultMessage": "Locale",
+    "description": "Label for the dictionary word locale field"
   },
   "XrHgNqTVDc": {
     "defaultMessage": "Translations",
@@ -15986,6 +16178,10 @@
   "Y/Ta4tMAG1": {
     "defaultMessage": "Approve write-back",
     "description": "Permission row for approving write-back"
+  },
+  "Y01+ehgMD/": {
+    "defaultMessage": "en-US",
+    "description": "Placeholder for the dictionary word locale field"
   },
   "Y19LAzxjpx": {
     "defaultMessage": "Weekly",
@@ -16143,6 +16339,10 @@
     "defaultMessage": "Unable to save. Check the values and try again.",
     "description": "Translation reporting label"
   },
+  "YNnCNeuDLL": {
+    "defaultMessage": "Last scan failed",
+    "description": "Workspace QA when the latest scan failed"
+  },
   "YOVFvt60oU": {
     "defaultMessage": "Remove Web Search tool",
     "description": "Accessible label to remove the Web Search tool"
@@ -16222,6 +16422,10 @@
   "YaKRAqJTYd": {
     "defaultMessage": "Stop reviewing strings in the dark.",
     "description": "Bottom CTA headline for the next-gen CAT tool product page"
+  },
+  "YbMmg9p0CC": {
+    "defaultMessage": "Enter a name.",
+    "description": "Validation error for an empty dictionary name"
   },
   "YcomzE3n8l": {
     "defaultMessage": "branches required",
@@ -16426,6 +16630,10 @@
   "Z1pfbdxKYT": {
     "defaultMessage": "Review pull requests for localisation issues and post one sticky comment when a pull request opens, updates, or is marked ready.",
     "description": "Description of GitHub Auto-review on the Automations page"
+  },
+  "Z2biIz/+mo": {
+    "defaultMessage": "{count, plural, one {# issue} other {# issues}}",
+    "description": "Workspace QA finding count"
   },
   "Z2cMYJ6nRy": {
     "defaultMessage": "Failed to regenerate the Canva connection token.",
@@ -16875,6 +17083,10 @@
     "defaultMessage": "Send invitation",
     "description": "Submit button to send a workspace invitation"
   },
+  "a0im8YZ/LN": {
+    "defaultMessage": "Edit dictionaries",
+    "description": "Permission row for editing spellcheck dictionaries"
+  },
   "a0ooXAWwaq": {
     "defaultMessage": "EN · FR · DE · JA demand compared",
     "description": "SEO blog mock step 2"
@@ -17079,6 +17291,10 @@
     "defaultMessage": "No image yet",
     "description": "Fallback empty state when a CAT image preview has no source URL"
   },
+  "aONT/Ovdyv": {
+    "defaultMessage": "Load more",
+    "description": "Button to load the next page of dictionary words"
+  },
   "aOX2RX5VUD": {
     "defaultMessage": "No diagnostics were recorded for this import.",
     "description": "Message when an import has no diagnostics"
@@ -17166,6 +17382,10 @@
   "adEnn5Hnc9": {
     "defaultMessage": "GitHub rejected the app credentials in this environment. Set GITHUB_APP_ID to the App ID from GitHub App settings and GITHUB_APP_PRIVATE_KEY to the matching PEM (use literal \\n line breaks or base64-encode the whole file).",
     "description": "GitHub connect error when GitHub App private key is invalid"
+  },
+  "adTqYP7Vjb": {
+    "defaultMessage": "All locales",
+    "description": "Project QA all locales filter"
   },
   "advxgHaDz+": {
     "defaultMessage": "Edit the source locale and target locales for this native project.",
@@ -17631,6 +17851,10 @@
     "defaultMessage": "Player volume changes your preview only. Use Sound to direct the generated audio.",
     "description": "Video refinement workspace: listenHint"
   },
+  "bnIBIPeVFP": {
+    "defaultMessage": "Key",
+    "description": "Project QA key column"
+  },
   "bnlEPVXJKa": {
     "defaultMessage": "Write in Content Studio. Test what works in Hyperlab. Publish here.",
     "description": "Body for the Domains connected-products section"
@@ -17666,6 +17890,10 @@
   "bs3S9PKHtj": {
     "defaultMessage": "Keep this text unchanged",
     "description": "Video refinement workspace: keep"
+  },
+  "bsA+uhksQg": {
+    "defaultMessage": "No words for this locale yet.",
+    "description": "Empty state for a dictionary locale with no words"
   },
   "bsU0qqr6A2": {
     "defaultMessage": "Overview",
@@ -17779,6 +18007,10 @@
     "defaultMessage": "Translation memory",
     "description": "Activity log event type group for translation memory"
   },
+  "c9KWRTrOE6": {
+    "defaultMessage": "Create dictionary",
+    "description": "Title of the create dictionary dialog"
+  },
   "cAGL69hzyh": {
     "defaultMessage": "Edit team",
     "description": "Button to open the edit team dialog on the detail page"
@@ -17882,6 +18114,10 @@
   "cQdPGrDG2x": {
     "defaultMessage": "No flags on this version yet.",
     "description": "Empty state when a variant has no flag assignments"
+  },
+  "cQvwtUnUUI": {
+    "defaultMessage": "Where this allow-list should be used",
+    "description": "Placeholder for the dictionary description field"
   },
   "cQwXYuUd6c": {
     "defaultMessage": "Translation intent",
@@ -18074,6 +18310,10 @@
   "cndt0P/SRd": {
     "defaultMessage": "{percent}% approved",
     "description": "Crowdin readiness when only approval progress is available"
+  },
+  "coLjATj12b": {
+    "defaultMessage": "Not scanned",
+    "description": "Workspace QA when a project has no scan"
   },
   "cp1XJQA8yT": {
     "defaultMessage": "Ascending",
@@ -18719,6 +18959,10 @@
     "defaultMessage": "Australia and New Zealand's leading startup accelerator.",
     "description": "Short description under the Startmate name"
   },
+  "e3gMYEHqTG": {
+    "defaultMessage": "{count, plural, one {# dictionary} other {# dictionaries}}",
+    "description": "Status label showing how many dictionaries exist"
+  },
   "e3o5ny2S7S": {
     "defaultMessage": "Voyez le monde sous un autre jour.",
     "description": "French sample article title in the Domains live preview"
@@ -18910,6 +19154,10 @@
   "eQIxzTUwry": {
     "defaultMessage": "Ahrefs",
     "description": "Ahrefs tool chip in content ops terminal mock"
+  },
+  "eRLGmAlreB": {
+    "defaultMessage": "Projects",
+    "description": "Heading for dictionary project attachments"
   },
   "eSkuCuohea": {
     "defaultMessage": "Memory",
@@ -19314,6 +19562,10 @@
   "fKmUmenDYW": {
     "defaultMessage": "File Translations Imported",
     "description": "Activity log event type label for file translation imports"
+  },
+  "fLQRsd7VZi": {
+    "defaultMessage": "Loading dictionaries…",
+    "description": "Loading state for the dictionaries list"
   },
   "fM2wynVWWB": {
     "defaultMessage": "Search members…",
@@ -20187,6 +20439,10 @@
     "defaultMessage": "Import issues from CSV",
     "description": "Title of the Issue Sheet CSV import dialog"
   },
+  "h6siz+8bqw": {
+    "defaultMessage": "No native projects yet.",
+    "description": "Workspace QA empty state"
+  },
   "h6wm+58u19": {
     "defaultMessage": "Matched concepts from the project glossary.",
     "description": "Description for the glossary guidance dialog"
@@ -20291,6 +20547,10 @@
     "defaultMessage": "Coordinate localization reviews from Microsoft Teams workspaces.",
     "description": "Microsoft Teams integration description on the integrations page"
   },
+  "hN4fiihgrQ": {
+    "defaultMessage": "Manual",
+    "description": "Workspace QA manual cadence label"
+  },
   "hN8qhW4nL5": {
     "defaultMessage": "Search by path, name, or provider ID",
     "description": "Placeholder for the workspace files search input"
@@ -20330,6 +20590,10 @@
   "hSuFqgtras": {
     "defaultMessage": "Domains",
     "description": "Feature teaser page title for domains"
+  },
+  "hT8TORYOoH": {
+    "defaultMessage": "Add word",
+    "description": "Button to add a word to a dictionary"
   },
   "hTbl8aKMIU": {
     "defaultMessage": "{operation} {assetType}",
@@ -20555,6 +20819,10 @@
     "defaultMessage": "This domain blocked the crawler, so we did not score the site.",
     "description": "Body explaining that a blocked crawl did not produce a localisation score"
   },
+  "i/EBft9uxG": {
+    "defaultMessage": "Run QA check",
+    "description": "Project QA run button"
+  },
   "i/I7Lluh9S": {
     "defaultMessage": "That each language has a page, and that the links between those pages are correct, so French visitors do not land on English.",
     "description": "Domains FAQ answer about localisation audits"
@@ -20711,6 +20979,10 @@
     "defaultMessage": "All intents",
     "description": "Keyword research screen: allIntents"
   },
+  "iM7becse+M": {
+    "defaultMessage": "Dictionaries",
+    "description": "Dictionaries page heading"
+  },
   "iMQKhwz7gh": {
     "defaultMessage": "Pricing basis",
     "description": "Translation reporting label"
@@ -20754,6 +21026,10 @@
   "iPC/1o5vbg": {
     "defaultMessage": "Comments",
     "description": "Tab label for the job comments panel"
+  },
+  "iQ+Qd5bwId": {
+    "defaultMessage": "Showing {shown} of {total}",
+    "description": "Project QA findings pagination count"
   },
   "iQ4wHchbQM": {
     "defaultMessage": "Translated articles fall behind after every product release without anyone noticing.",
@@ -21111,6 +21387,10 @@
     "defaultMessage": "Unallocated",
     "description": "Cost that cannot be attributed to a single target language"
   },
+  "jCG2fHTnxO": {
+    "defaultMessage": "Word",
+    "description": "Label for the dictionary word field"
+  },
   "jCORO6tbhT": {
     "defaultMessage": "Translation Delivery",
     "description": "Template category filter tab for translation delivery templates"
@@ -21126,6 +21406,10 @@
   "jDQFCCUjVA": {
     "defaultMessage": "Rules",
     "description": "Label for audience targeting rules"
+  },
+  "jDgpB2Pv9x": {
+    "defaultMessage": "QA",
+    "description": "Project sidebar navigation item for translation QA reports"
   },
   "jEVZfFEPYx": {
     "defaultMessage": "Audiences",
@@ -21462,6 +21746,10 @@
   "jztUpXyotb": {
     "defaultMessage": "Message failed to render",
     "description": "Error boundary title when a chat message response crashes"
+  },
+  "k+eA3j0O+p": {
+    "defaultMessage": "Daily scan",
+    "description": "Project QA daily schedule toggle"
   },
   "k+z441n7pT": {
     "defaultMessage": "CI check",
@@ -21910,6 +22198,10 @@
   "kqDNTw/sEr": {
     "defaultMessage": "Compare plans",
     "description": "Heading above the pricing comparison matrix"
+  },
+  "krFfWnDVQ0": {
+    "defaultMessage": "Create a library of accepted words, then attach it to projects so CAT and hl check skip those tokens.",
+    "description": "Empty state description for dictionaries"
   },
   "kscww+zSt8": {
     "defaultMessage": "Scroll to start",
@@ -22415,9 +22707,21 @@
     "defaultMessage": "Contribute to assigned jobs, run AI actions, and push draft translations. No approvals or org administration.",
     "description": "Description of the translator role"
   },
+  "m5SCEn+8Ys": {
+    "defaultMessage": "Latest native project scans. Run a check from a project to populate this list.",
+    "description": "Workspace QA page description"
+  },
+  "m645TvmZkL": {
+    "defaultMessage": "Last run",
+    "description": "Project QA last run label"
+  },
   "m6sWTuk4o8": {
     "defaultMessage": "Keywords",
     "description": "App shell breadcrumb title for domain keyword research"
+  },
+  "m8NpAC200k": {
+    "defaultMessage": "QA reports run on native projects. Provider jobs are not scanned here.",
+    "description": "Project QA unsupported provider message"
   },
   "m8UlToMOXC": {
     "defaultMessage": "Finding files",
@@ -22611,6 +22915,10 @@
     "defaultMessage": "Zoom out",
     "description": "Accessible label for zooming out within the image lightbox"
   },
+  "mUSeeXuwsP": {
+    "defaultMessage": "Failed to load dictionaries.",
+    "description": "Error when the dictionaries list cannot be loaded"
+  },
   "mV0v+ofKFK": {
     "defaultMessage": "New request",
     "description": "Button to open a new chat dock tab"
@@ -22682,6 +22990,10 @@
   "mf6hFW145B": {
     "defaultMessage": "Keep task",
     "description": "Dismiss button in the delete Crowdin task confirmation dialog"
+  },
+  "mfdI/BnSCm": {
+    "defaultMessage": "No issues in this scan.",
+    "description": "Project QA zero findings"
   },
   "mg4r+1o1Aq": {
     "defaultMessage": "Web chat",
@@ -22758,6 +23070,10 @@
   "mnlYeyj08E": {
     "defaultMessage": "Tourmatic",
     "description": "Alt text for the Tourmatic logo on the startups page"
+  },
+  "moK8z7fM5R": {
+    "defaultMessage": "Archived",
+    "description": "Archived status badge on a dictionary list row"
   },
   "moPVcf3ylY": {
     "defaultMessage": "Unable to load domains",
@@ -22926,6 +23242,10 @@
   "nBYmE0FBb3": {
     "defaultMessage": "The Content Editor is not available for this file yet.",
     "description": "Helper text when the selected file cannot open in the Content Editor"
+  },
+  "nBr337kZJ1": {
+    "defaultMessage": "Locale",
+    "description": "Project QA locale filter"
   },
   "nCW7Lueszj": {
     "defaultMessage": "Delete",
@@ -23143,6 +23463,10 @@
     "defaultMessage": "If your site uses a firewall, CDN, bot check, or login wall, allow this user agent to access public pages so we can complete the audit.",
     "description": "Guidance for site owners to allow the localisation audit crawler"
   },
+  "ne00IJ9KEp": {
+    "defaultMessage": "Could not add that word to the dictionary.",
+    "description": "Error when adding a CAT spelling token to a dictionary fails"
+  },
   "ne4Ygl2/V7": {
     "defaultMessage": "No comments yet.",
     "description": "Empty state when a task has no comments"
@@ -23186,6 +23510,10 @@
   "niVQ/efJm6": {
     "defaultMessage": "Glossary Created",
     "description": "Activity log event type label for glossary creation"
+  },
+  "njHQVnCm4E": {
+    "defaultMessage": "Dictionaries",
+    "description": "App shell breadcrumb title for the spellcheck dictionaries page"
   },
   "njR/Tp8zi7": {
     "defaultMessage": "Save a shared provider key for this workspace. Saving validates the key and encrypts it at rest.",
@@ -23534,6 +23862,18 @@
   "oVK9Szp59h": {
     "defaultMessage": "Usage",
     "description": "Metadata label for glossary workspace usage"
+  },
+  "oVeMCbk8kZ": {
+    "defaultMessage": "Attach",
+    "description": "Button to attach a dictionary to a selected project"
+  },
+  "oVyi1aG9vy": {
+    "defaultMessage": "No dictionaries yet",
+    "description": "Empty state title when the workspace has no dictionaries"
+  },
+  "oVzysPDtoF": {
+    "defaultMessage": "Name or description…",
+    "description": "Placeholder for the dictionaries search field"
   },
   "oWD/trTqPz": {
     "defaultMessage": "Export CSV",
@@ -23898,6 +24238,10 @@
   "pHD22l59Uc": {
     "defaultMessage": "Product name should stay untranslated",
     "description": "Issue row detail in content ops mock"
+  },
+  "pHj5D5hJU+": {
+    "defaultMessage": "Import",
+    "description": "Button to import dictionary words from a text file"
   },
   "pJSZRmHIFC": {
     "defaultMessage": "That file type is not supported. Use a supported format.",
@@ -24415,6 +24759,10 @@
     "defaultMessage": "Brand QA",
     "description": "Flow node label"
   },
+  "qFVbPH/1i/": {
+    "defaultMessage": "Failed to load spellcheck dictionaries.",
+    "description": "Error when CAT cannot load the project spellcheck allow-list"
+  },
   "qFvm5jLVh9": {
     "defaultMessage": "Turn it on. Keep the version that works.",
     "description": "Hyperlab home how-it-works step 4"
@@ -24579,6 +24927,10 @@
     "defaultMessage": "Human review first-class",
     "description": "Feature label next to the chat dock mock"
   },
+  "qg9c/jOJZY": {
+    "defaultMessage": "Scan in progress. Findings appear when it finishes.",
+    "description": "Project QA in-progress empty findings"
+  },
   "qgNLOHiYyJ": {
     "defaultMessage": "Company",
     "description": "Marketing footer resource link label for the company page"
@@ -24638,6 +24990,10 @@
   "qoKQfRLzE9": {
     "defaultMessage": "Sampling public pages and locale roots.",
     "description": "Detail text when a localisation audit is crawling"
+  },
+  "qpxWkOMxRR": {
+    "defaultMessage": "Name",
+    "description": "Label for the dictionary name field"
   },
   "qqo0mtljp2": {
     "defaultMessage": "From intake to orchestrated delivery",
@@ -24702,6 +25058,10 @@
   "qySc0NPK9C": {
     "defaultMessage": "Connect",
     "description": "Primary button to submit the Crowdin personal access token"
+  },
+  "qz4n/WYI/r": {
+    "defaultMessage": "Errors",
+    "description": "Project QA error count label"
   },
   "qz4qD1ttxo": {
     "defaultMessage": "Deny",
@@ -25387,6 +25747,10 @@
     "defaultMessage": "2,000 agent runs per month",
     "description": "Growth plan feature: agent run quota"
   },
+  "saH2j0ya2P": {
+    "defaultMessage": "Background checks for empty targets, same-as-source copy, placeholders, length, and glossary terms.",
+    "description": "Project QA page description"
+  },
   "sbLhquVO94": {
     "defaultMessage": "Try again",
     "description": "Button to retry loading a translation memory entry"
@@ -25506,6 +25870,10 @@
   "ssMiRZyu1M": {
     "defaultMessage": "Block releases when quality gates fail",
     "description": "Capability 6 title for the github-release-localisation use case"
+  },
+  "ssxhSeQ+xO": {
+    "defaultMessage": "Could not import those words.",
+    "description": "Error when importing dictionary words fails"
   },
   "stUnm5XNi2": {
     "defaultMessage": "Imported by",
@@ -26055,6 +26423,10 @@
     "defaultMessage": "Saving…",
     "description": "Save button label while a Contentful connection is saving"
   },
+  "uFYNRK7fNC": {
+    "defaultMessage": "Could not attach that project.",
+    "description": "Error when attaching a dictionary to a project fails"
+  },
   "uG/a2iMgAc": {
     "defaultMessage": "Track words, time, and cost by project and locale",
     "description": "Feature teaser benefit for reports"
@@ -26118,6 +26490,10 @@
   "uK/UF8qzfF": {
     "defaultMessage": "Budget exceeded",
     "description": "Translation reporting label"
+  },
+  "uKarjEkmmM": {
+    "defaultMessage": "Failed to load this dictionary.",
+    "description": "Error when a dictionary detail page cannot load"
   },
   "uNsh7K2ojK": {
     "defaultMessage": "Japan checkout headline · A/B · On",
@@ -26211,6 +26587,10 @@
     "defaultMessage": "Tone: friendly, direct, no jargon",
     "description": "Guideline mock UI style rule"
   },
+  "uXvES3jNQD": {
+    "defaultMessage": "Scheduled",
+    "description": "Project QA scheduled trigger label"
+  },
   "uYFDr/Lkl1": {
     "defaultMessage": "UTF-8 CSV up to 2 MB and 2,000 rows",
     "description": "Helper text describing CSV size and row limits for import"
@@ -26234,6 +26614,10 @@
   "uZYZ3PYM7b": {
     "defaultMessage": "Canva · Spring campaign board (6 frames)",
     "description": "Intake summary line for the Canva design source"
+  },
+  "uZalLkwS55": {
+    "defaultMessage": "Scan this project once a day when translations change overnight.",
+    "description": "Project QA schedule help"
   },
   "uZhoOxPmIG": {
     "defaultMessage": "Connect Zernio with an API key in Integrations before using this tool.",
@@ -26386,6 +26770,10 @@
   "usZU30knmw": {
     "defaultMessage": "Cadence",
     "description": "Label for scheduled automation cadence select"
+  },
+  "usgRKcSksP": {
+    "defaultMessage": "Dictionaries failed to load.",
+    "description": "Error state title for the dictionaries list"
   },
   "usgyWI2m6M": {
     "defaultMessage": "Preview",
@@ -26895,6 +27283,10 @@
     "defaultMessage": "Trigger",
     "description": "Accessible label for the lightning badge on trigger nodes"
   },
+  "vxm9RJy+2w": {
+    "defaultMessage": "QA scan started.",
+    "description": "Project QA run success toast"
+  },
   "vy+5ISEhNS": {
     "defaultMessage": "Monday",
     "description": "Monday option for weekly schedule"
@@ -26914,6 +27306,10 @@
   "vz2IGDAZp1": {
     "defaultMessage": "Canva connection saved.",
     "description": "Toast when Canva connection is saved"
+  },
+  "w+Jj5ecAvo": {
+    "defaultMessage": "Draft",
+    "description": "Draft status badge on a dictionary list row"
   },
   "w+rjynq1UP": {
     "defaultMessage": "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync translation memories into this workspace.",
@@ -27447,6 +27843,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel button that closes the CAT source file picker dialog"
   },
+  "x3iRklyWjn": {
+    "defaultMessage": "Detach",
+    "description": "Button to detach a dictionary from a project"
+  },
   "x3xLP2YerQ": {
     "defaultMessage": "Daily",
     "description": "Schedule cadence pill in the marketing automation editor mock"
@@ -27610,6 +28010,14 @@
   "xQCn9y4Cu3": {
     "defaultMessage": "Format & QA failed ({count, plural, one {# issue} other {# issues}})",
     "description": "Accessible label for side-by-side format check failure icon"
+  },
+  "xQDNaOICNp": {
+    "defaultMessage": "All checks",
+    "description": "Project QA all checks filter"
+  },
+  "xQT8yHFRak": {
+    "defaultMessage": "Scan in progress",
+    "description": "Workspace QA when a scan is still running"
   },
   "xQjhAYVKZT": {
     "defaultMessage": "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents check the files you already have.",
@@ -27931,6 +28339,10 @@
     "defaultMessage": "Enabled",
     "description": "Badge shown when a Canva connection is enabled"
   },
+  "y430vZKHp5": {
+    "defaultMessage": "Manual",
+    "description": "Project QA manual trigger label"
+  },
   "y4P+Jle8Ha": {
     "defaultMessage": "Flags on this version",
     "description": "Heading for flags attached to a variant"
@@ -28110,6 +28522,10 @@
   "yM+uipqq4j": {
     "defaultMessage": "Built around your team",
     "description": "Eyebrow for the homepage trust and control section"
+  },
+  "yMNDubivS/": {
+    "defaultMessage": "Could not add that word.",
+    "description": "Error when adding a dictionary word fails"
   },
   "yN3IaRAmIM": {
     "defaultMessage": "Saturday",
@@ -28626,6 +29042,10 @@
   "zaVQwg8luK": {
     "defaultMessage": "Select a glossary file",
     "description": "Prompt inside the glossary file upload area"
+  },
+  "zb6LNN3XG2": {
+    "defaultMessage": "QA",
+    "description": "Sidebar navigation item for workspace translation QA reports"
   },
   "zdN3ToHnj1": {
     "defaultMessage": "Unable to load glossary",
