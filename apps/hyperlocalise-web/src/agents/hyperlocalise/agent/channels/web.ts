@@ -240,21 +240,37 @@ export function createWebChatAgentUIStreamResponse(input: {
           const parts = persistableParts(responseMessage.parts);
           const text = textFromParts(parts).trim();
           if (text || parts.length > 0) {
-            await addInteractionMessage({
-              interactionId: input.conversationId,
-              senderType: "agent",
-              text: text || "(no response)",
-              parts: parts.length > 0 ? parts : [{ type: "text", text: text || "(no response)" }],
-            });
+            try {
+              await addInteractionMessage({
+                interactionId: input.conversationId,
+                senderType: "agent",
+                text: text || "(no response)",
+                parts: parts.length > 0 ? parts : [{ type: "text", text: text || "(no response)" }],
+              });
+            } catch (error) {
+              console.error("[web-agent] Failed to persist assistant message", {
+                conversationId: input.conversationId,
+                organizationId: input.toolContext.organizationId,
+                err: error instanceof Error ? error.message : "unknown",
+              });
+            }
           }
         }
 
         if (shouldTrackUsage && !isAborted) {
-          await trackSucceededAgentRuntimeUsage({
-            organizationId: input.toolContext.organizationId,
-            operationKey: usageOperationKey,
-            dimensions: usageDimensions,
-          });
+          try {
+            await trackSucceededAgentRuntimeUsage({
+              organizationId: input.toolContext.organizationId,
+              operationKey: usageOperationKey,
+              dimensions: usageDimensions,
+            });
+          } catch (error) {
+            console.error("[web-agent] Failed to track agent runtime usage", {
+              organizationId: input.toolContext.organizationId,
+              operationKey: usageOperationKey,
+              err: error instanceof Error ? error.message : "unknown",
+            });
+          }
         }
       } finally {
         try {
