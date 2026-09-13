@@ -165,6 +165,15 @@ describe("getAppShellBreadcrumbs", () => {
       { label: "hyperlocalise.com", href: "/org/acme/domains/hyperlocalise-com" },
       { label: "Keywords" },
     ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/domains/hyperlocalise-com/search-console", intl, {
+        domainName: "hyperlocalise.com",
+      }),
+    ).toEqual([
+      { label: "Domains", href: "/org/acme/domains" },
+      { label: "hyperlocalise.com", href: "/org/acme/domains/hyperlocalise-com" },
+      { label: "Search Console" },
+    ]);
   });
 
   it("returns members breadcrumbs", () => {

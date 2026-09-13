@@ -37,6 +37,8 @@ import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/
 import { createLinkedDomainRoutes } from "./routes/linked-domain/linked-domain.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
+import { createGscConnectionRoutes } from "./routes/gsc-connection/gsc-connection.route";
+import { createGscOAuthRoutes } from "./routes/gsc-oauth/gsc-oauth.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
 import { createZernioConnectionRoutes } from "./routes/zernio-connection/zernio-connection.route";
 import { createIntercomConnectionRoutes } from "./routes/intercom-connection/intercom-connection.route";
@@ -96,7 +98,8 @@ export function createAuthRoutes() {
   return new Hono()
     .route("/native", createNativeAuthRoutes())
     .route("/", authRoutes)
-    .route("/slack", createSlackOAuthRoutes());
+    .route("/slack", createSlackOAuthRoutes())
+    .route("/gsc", createGscOAuthRoutes());
 }
 
 export function createPublicApiRoutes(options: PublicApiRouteOptions) {
@@ -174,6 +177,7 @@ export function createOrgIntegrationsRoutes() {
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
     .route("/linked-domains", createLinkedDomainRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
+    .route("/gsc-connections", createGscConnectionRoutes())
     .route("/zernio-connections", createZernioConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())
     .route("/pipes", createPipesRoutes())

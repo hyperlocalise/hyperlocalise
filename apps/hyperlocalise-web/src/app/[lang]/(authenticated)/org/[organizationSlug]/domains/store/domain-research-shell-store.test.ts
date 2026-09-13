@@ -33,6 +33,23 @@ describe("DomainResearchShellStore", () => {
     expect(store.locale?.id).toBe(catalog.domain.locales[0]?.id);
     expect(store.isPending).toBe(false);
     expect(store.showResearchContent).toBe(true);
+    expect(store.showSearchConsoleSurface).toBe(false);
+  });
+
+  it("shows Search Console without keyword or rank catalog data", () => {
+    const catalog = getResearchPrototypeCatalog("hyperlocalise-com")!;
+    const store = new DomainResearchShellStore({
+      organizationSlug: "acme",
+      linkedDomainId: catalog.domain.id,
+      surface: "search-console",
+      requestedLocaleId: "germany-de",
+    });
+    store.setResearchData({ catalog });
+    store.setLoadStatus("success");
+
+    expect(store.activeCatalog).toBeNull();
+    expect(store.showResearchContent).toBe(false);
+    expect(store.showSearchConsoleSurface).toBe(true);
   });
 
   it("builds locale-aware research hrefs", () => {

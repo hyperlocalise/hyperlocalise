@@ -286,6 +286,18 @@ export const env = createEnv({
      * `http://127.0.0.1:8080`.
      */
     GO_SVC_URL: z.url().optional(),
+
+    /** Google OAuth client ID for Search Console connections. */
+    GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+
+    /** Google OAuth client secret for Search Console connections. */
+    GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+
+    /** Optional override for the Search Console OAuth callback URL. */
+    GOOGLE_OAUTH_REDIRECT_URI: z.url().optional(),
+
+    /** Optional secret for signing Search Console OAuth state. Falls back to GitHub or WorkOS secrets. */
+    GSC_OAUTH_STATE_SECRET: z.string().min(1).optional(),
   },
   client: {
     /** Public runtime environment exposed to the browser. Mirrors NODE_ENV. */
@@ -406,6 +418,13 @@ export const env = createEnv({
     CROWDIN_APP_FRAME_ANCESTORS: process.env.CROWDIN_APP_FRAME_ANCESTORS,
     E2E_BASE_URL: process.env.E2E_BASE_URL,
     GO_SVC_URL: process.env.GO_SVC_URL ?? (isTestEnv ? "http://127.0.0.1:8080" : undefined),
+    GOOGLE_CLIENT_ID:
+      process.env.GOOGLE_CLIENT_ID ?? (isTestEnv ? "test-google-client-id" : undefined),
+    GOOGLE_CLIENT_SECRET:
+      process.env.GOOGLE_CLIENT_SECRET ?? (isTestEnv ? "test-google-client-secret" : undefined),
+    GOOGLE_OAUTH_REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI,
+    GSC_OAUTH_STATE_SECRET:
+      process.env.GSC_OAUTH_STATE_SECRET ?? (isTestEnv ? "test-gsc-oauth-state-secret" : undefined),
     NEXT_PUBLIC_WORKOS_REDIRECT_URI:
       process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI ??
       process.env.WORKOS_REDIRECT_URI ??

@@ -29,6 +29,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "domainOverview",
   "domainPrompts",
   "domainRanks",
+  "domainSearchConsole",
   "domains",
   "githubAutomation",
   "glossaries",
@@ -291,6 +292,18 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Search rank tracking for this domain.",
       id: "FV4RX7GO1Z",
       description: "Document description for the domain rank tracking page",
+    },
+  },
+  domainSearchConsole: {
+    title: {
+      defaultMessage: "Search Console",
+      id: "gS1cMetaT1",
+      description: "Document title for the domain Search Console page",
+    },
+    description: {
+      defaultMessage: "Google Search Console performance for this domain.",
+      id: "gS2cMetaD1",
+      description: "Document description for the domain Search Console page",
     },
   },
   domains: {

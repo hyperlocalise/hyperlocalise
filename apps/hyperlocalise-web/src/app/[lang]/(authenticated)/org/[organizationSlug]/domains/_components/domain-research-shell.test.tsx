@@ -114,4 +114,21 @@ describe("domain research locale URL", () => {
     expect(screen.queryByText("hyperlocalise.com")).not.toBeInTheDocument();
     expect(screen.getByText("Domain not found")).toBeInTheDocument();
   });
+
+  it("renders Search Console when the locale has no keyword catalog", () => {
+    mocks.search = "locale=germany-de";
+    render(
+      <IntlProvider locale="en">
+        <DomainResearchShell
+          organizationSlug="acme"
+          linkedDomainId="hyperlocalise-com"
+          surface="search-console"
+        >
+          search console body
+        </DomainResearchShell>
+      </IntlProvider>,
+    );
+    expect(screen.getByText("search console body")).toBeInTheDocument();
+    expect(screen.queryByText("No research for this locale yet")).not.toBeInTheDocument();
+  });
 });

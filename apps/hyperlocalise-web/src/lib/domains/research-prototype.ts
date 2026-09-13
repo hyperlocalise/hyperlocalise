@@ -17,6 +17,7 @@ export const DOMAIN_RESEARCH_SURFACES = [
   "ranks",
   "brand",
   "prompts",
+  "search-console",
 ] as const;
 
 export type DomainResearchSurface = (typeof DOMAIN_RESEARCH_SURFACES)[number];
