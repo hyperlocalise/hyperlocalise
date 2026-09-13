@@ -200,4 +200,25 @@ describe("workspace resource limits", () => {
       source: workspaceResourceFeatureIds.projects,
     });
   });
+
+  it("uses an explicit analytics source for integrations", async () => {
+    const { organization } = await createOrganization();
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
+
+    const result = await withWorkspaceResourceLimit(
+      {
+        organizationId: organization.id,
+        featureId: workspaceResourceFeatureIds.integrations,
+        autumnApiKey: "",
+        analyticsSource: "github",
+      },
+      async () => ({ id: "integration-1" }),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+      status: "created",
+      source: "github",
+    });
+  });
 });

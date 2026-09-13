@@ -15,9 +15,9 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database/client";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
+import { db, schema } from "@/lib/database/client";
 
 import { createProjectTestFixture } from "../../../api/routes/project/project.fixture";
 import {
@@ -273,6 +273,7 @@ describe("agent runs", () => {
 
   it("cancels a running run", async () => {
     const { project } = await createTestProject();
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const created = await createAgentRun({
       organizationId: project.organizationId,
@@ -293,6 +294,10 @@ describe("agent runs", () => {
 
     expect(cancelled.status).toBe("cancelled");
     expect(cancelled.completedAt).toBeTruthy();
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.agentRunCancelled, {
+      status: "cancelled",
+      source: "translate",
+    });
   });
 
   it("cancels a queued run", async () => {

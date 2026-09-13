@@ -17,7 +17,10 @@ import {
   LOCALISATION_AUDIT_ANALYTICS_EVENTS,
   PRODUCT_USAGE_ANALYTICS_EVENTS,
   productUsageEventForAutumnEventName,
+  productUsageJobFeature,
+  productUsageSourceForActorKind,
   productUsageSourceForAutumnEventName,
+  productUsageSourceForConversation,
   productUsageSourceForMeterSource,
   sanitizeAnalyticsProperties,
   scoreBand,
@@ -105,6 +108,23 @@ describe("analytics sanitization", () => {
     expect(productUsageSourceForMeterSource("translation_job_complete")).toBe("translation_job");
     expect(productUsageSourceForMeterSource("agent_runtime_complete")).toBe("agent_run");
     expect(productUsageSourceForMeterSource("seat_added")).toBe("other");
+  });
+
+  it("maps actor, conversation, and job kinds onto product usage properties", () => {
+    expect(productUsageSourceForActorKind("user")).toBe("web");
+    expect(productUsageSourceForActorKind("api_key")).toBe("api");
+    expect(productUsageSourceForActorKind("agent")).toBe("agent");
+    expect(productUsageSourceForActorKind("system")).toBe("system");
+    expect(productUsageSourceForConversation("chat_ui")).toBe("web");
+    expect(productUsageSourceForConversation("web_chat")).toBe("web_chat");
+    expect(productUsageSourceForConversation("email_agent")).toBe("email");
+    expect(productUsageSourceForConversation("github_agent")).toBe("github");
+    expect(productUsageSourceForConversation("slack_agent")).toBe("slack");
+    expect(productUsageSourceForConversation("unknown")).toBe("other");
+    expect(productUsageJobFeature("translation")).toBe("translation");
+    expect(productUsageJobFeature("proofread")).toBe("proofread");
+    expect(productUsageJobFeature("research")).toBe("research");
+    expect(productUsageJobFeature("mystery")).toBe("other");
   });
 
   it("fans out to every adapter and isolates provider failures", () => {

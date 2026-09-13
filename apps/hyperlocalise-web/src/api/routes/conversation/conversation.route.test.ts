@@ -20,6 +20,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getWebConversationRepositorySession } from "@/lib/agent-runtime/loops/conversation-repository-session";
@@ -168,6 +170,7 @@ describe("conversation creation", () => {
   });
 
   it("creates a chat UI conversation with the initial user message", async () => {
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string } };
@@ -195,6 +198,15 @@ describe("conversation creation", () => {
       text: "Translate this to fr-FR",
       senderType: "user",
     });
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.conversationCreated, {
+      status: "created",
+      source: "web",
+    });
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.conversationMessageSent, {
+      status: "sent",
+      source: "web",
+    });
+    trackSpy.mockRestore();
   });
 
   it("rejects chat streams when AI features are not allowed", async () => {

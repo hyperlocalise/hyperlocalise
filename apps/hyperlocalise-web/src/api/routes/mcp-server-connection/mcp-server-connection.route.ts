@@ -21,6 +21,8 @@ import {
   forbiddenResponse,
   notFoundResponse,
 } from "@/api/response.schema";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import {
   createMcpServerConnection,
   deleteMcpServerConnection,
@@ -128,6 +130,11 @@ export function createMcpServerConnectionRoutes() {
       if (isErr(result)) {
         return mapMcpServerConnectionError(c, result.error);
       }
+
+      serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+        status: "created",
+        source: "mcp",
+      });
 
       return c.json({ mcpServerConnection: result.value }, 201);
     })

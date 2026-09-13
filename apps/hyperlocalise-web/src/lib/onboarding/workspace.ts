@@ -15,6 +15,8 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 
 import { syncWorkosUser } from "@/api/auth/workos-sync";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import { slugifyOrganizationName } from "@/lib/onboarding/slugify-organization-name";
 import { ensureDefaultWorkspaceTeamMembership } from "@/lib/teams/default-workspace-team";
@@ -121,6 +123,11 @@ export async function createWorkspaceForSessionUser(input: {
           userId: user.id,
           role: "manager",
           database: tx,
+        });
+
+        serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.workspaceCreated, {
+          status: "created",
+          source: "onboarding",
         });
 
         return {

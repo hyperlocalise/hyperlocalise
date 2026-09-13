@@ -19,6 +19,8 @@ import { validator } from "hono/validator";
 import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { forbiddenResponse } from "@/api/response.schema";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import { assertProviderCredentialAdmin } from "@/lib/providers/credentials/organization-provider-credentials";
 
@@ -183,6 +185,7 @@ export function createAgentEmailRoutes() {
           return c.json({ error: "organization_not_found" as const }, 404);
         }
 
+        const wasEnabled = connectorWithAlias.enabled;
         const [connector] = await db
           .update(schema.connectors)
           .set({ enabled: true, updatedAt: new Date() })
@@ -196,6 +199,13 @@ export function createAgentEmailRoutes() {
 
         if (!connector) {
           return c.json({ error: "organization_not_found" as const }, 404);
+        }
+
+        if (!wasEnabled) {
+          serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+            status: "created",
+            source: "email",
+          });
         }
 
         const config = (connector.config ?? {}) as { inboundEmailAlias?: string };

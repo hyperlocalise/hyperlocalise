@@ -13,13 +13,13 @@
 import { Autumn } from "autumn-js";
 import { and, count, eq, ne, sql } from "drizzle-orm";
 
-import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { getAutumnSecretKey } from "@/lib/billing/autumn-config";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import type { DatabaseClient, DatabaseTransaction } from "@/lib/database/client";
 import { db, schema } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
-import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { serverAnalytics } from "@/lib/analytics/server";
 
 export const workspaceResourceFeatureIds = {
   seats: autumnFeatureIds.seats,
@@ -307,6 +307,7 @@ export async function withWorkspaceResourceLimit<T>(
     additionalUsage?: number;
     autumnApiKey?: string;
     db?: DatabaseTransaction;
+    analyticsSource?: string;
   },
   fn: (tx: DatabaseTransaction) => Promise<T>,
 ): Promise<Result<T, WorkspaceResourceLimitError>> {
@@ -326,7 +327,7 @@ export async function withWorkspaceResourceLimit<T>(
     const eventName = WORKSPACE_RESOURCE_ANALYTICS_EVENTS[input.featureId];
     serverAnalytics.track(eventName, {
       status: "created",
-      source: input.featureId,
+      source: input.analyticsSource ?? input.featureId,
     });
     return ok(value);
   };

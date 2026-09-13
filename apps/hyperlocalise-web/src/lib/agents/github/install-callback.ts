@@ -355,6 +355,7 @@ export async function handleGitHubInstallCallback(
         {
           organizationId: org.id,
           featureId: workspaceResourceFeatureIds.integrations,
+          analyticsSource: "github",
         },
         async (tx) => {
           const [inserted] = await tx

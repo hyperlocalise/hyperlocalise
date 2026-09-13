@@ -21,6 +21,8 @@ import {
   forbiddenResponse,
   notFoundResponse,
 } from "@/api/response.schema";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import {
   createZernioConnection,
   deleteZernioConnection,
@@ -125,6 +127,11 @@ export function createZernioConnectionRoutes() {
       if (isErr(result)) {
         return mapZernioConnectionError(c, result.error);
       }
+
+      serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+        status: "created",
+        source: "zernio",
+      });
 
       return c.json({ zernioConnection: result.value }, 201);
     })

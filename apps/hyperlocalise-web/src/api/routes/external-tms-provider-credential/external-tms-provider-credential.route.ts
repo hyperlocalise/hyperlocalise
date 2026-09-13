@@ -146,6 +146,7 @@ async function withNewIntegrationLimit<T>(
     {
       organizationId: input.organizationId,
       featureId: workspaceResourceFeatureIds.integrations,
+      analyticsSource: input.providerKind,
     },
     run,
   );

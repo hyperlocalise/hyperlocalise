@@ -37,6 +37,7 @@ export const PRODUCT_USAGE_ANALYTICS_EVENTS = {
   translationJobCreated: "translation_job_created",
   agentRunCompleted: "agent_run_completed",
   agentRunFailed: "agent_run_failed",
+  agentRunCancelled: "agent_run_cancelled",
   aiTokensConsumed: "ai_tokens_consumed",
   projectCreated: "project_created",
   automationCreated: "automation_created",
@@ -51,6 +52,16 @@ export const PRODUCT_USAGE_ANALYTICS_EVENTS = {
   glossaryCreated: "glossary_created",
   glossaryTermCreated: "glossary_term_created",
   memoryCreated: "memory_created",
+  workspaceCreated: "workspace_created",
+  checkoutStarted: "checkout_started",
+  planAttached: "plan_attached",
+  marketingCtaClick: "marketing_cta_click",
+  conversationCreated: "conversation_created",
+  conversationMessageSent: "conversation_message_sent",
+  fileUploaded: "file_uploaded",
+  jobCreated: "job_created",
+  jobCancelled: "job_cancelled",
+  jobRetried: "job_retried",
 } as const;
 
 export type ProductUsageAnalyticsEvent =
@@ -128,5 +139,35 @@ export function productUsageSourceForAutumnEventName(autumnEventName: string): s
 export function productUsageSourceForMeterSource(source: string): string {
   if (source.includes("translation")) return "translation_job";
   if (source.includes("agent")) return "agent_run";
+  return "other";
+}
+
+export function productUsageSourceForActorKind(actorKind: string): string {
+  if (actorKind === "api_key") return "api";
+  if (actorKind === "agent") return "agent";
+  if (actorKind === "system") return "system";
+  return "web";
+}
+
+export function productUsageSourceForConversation(source: string): string {
+  if (source === "chat_ui") return "web";
+  if (source === "web_chat") return "web_chat";
+  if (source === "email_agent") return "email";
+  if (source === "github_agent") return "github";
+  if (source === "slack_agent") return "slack";
+  return "other";
+}
+
+export function productUsageJobFeature(kind: string): string {
+  if (
+    kind === "translation" ||
+    kind === "proofread" ||
+    kind === "research" ||
+    kind === "review" ||
+    kind === "sync" ||
+    kind === "asset_management"
+  ) {
+    return kind;
+  }
   return "other";
 }

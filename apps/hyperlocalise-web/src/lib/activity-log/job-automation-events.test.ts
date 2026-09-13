@@ -20,6 +20,15 @@ vi.mock("./activity-log-writer", () => ({
   enqueueActivityLogEvent: enqueueActivityLogEventMock,
 }));
 
+const { trackMock } = vi.hoisted(() => ({
+  trackMock: vi.fn(),
+}));
+
+vi.mock("@/lib/analytics/server", () => ({
+  serverAnalytics: { track: trackMock },
+}));
+
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import {
   enqueueAutomationRunStartedActivity,
   enqueueAutomationStatusActivity,
@@ -83,6 +92,14 @@ describe("job and automation activity events", () => {
       },
       targetId: "job_1",
       targetKind: "job",
+    });
+    expect(trackMock).toHaveBeenNthCalledWith(1, PRODUCT_USAGE_ANALYTICS_EVENTS.jobCreated, {
+      feature: "translation",
+      source: "web",
+    });
+    expect(trackMock).toHaveBeenNthCalledWith(2, PRODUCT_USAGE_ANALYTICS_EVENTS.jobCancelled, {
+      feature: "translation",
+      source: "web",
     });
   });
 
