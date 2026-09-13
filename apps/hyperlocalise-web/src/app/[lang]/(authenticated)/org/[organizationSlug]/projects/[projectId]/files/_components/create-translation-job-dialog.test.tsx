@@ -84,7 +84,9 @@ describe("CreateTranslationJobDialog", () => {
 
     renderDialog();
 
-    expect(screen.getByRole("checkbox", { name: /Force translate untranslated strings/i })).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: /Force translate untranslated strings/i }),
+    ).toBeChecked();
 
     await userEvent.click(screen.getByRole("button", { name: "Translate with agent" }));
 

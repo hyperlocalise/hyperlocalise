@@ -67,13 +67,13 @@ export const createTranslationJobDialogMessages = defineMessages({
   },
   forceUntranslated: {
     defaultMessage: "Force translate untranslated strings",
-    id: "fTmUntr8k1",
+    id: "Jf8jVutxI7",
     description: "Checkbox to ignore translation memory and send untranslated strings to the agent",
   },
   forceUntranslatedDescription: {
     defaultMessage:
       "Skip translation memory matches. The agent translates empty and rejected strings. Existing translations stay.",
-    id: "fTmUntr8k2",
+    id: "ekPpWZOtVl",
     description: "Explains the force-translate untranslated strings option",
   },
   createFailed: {

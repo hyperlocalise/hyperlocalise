@@ -8408,6 +8408,9 @@
   "JemgHUamHh": {
     "defaultMessage": "无法加载术语"
   },
+  "Jf8jVutxI7": {
+    "defaultMessage": "Force translate untranslated strings"
+  },
   "JfG/xfnGBv": {
     "defaultMessage": "或者按照 {link} 使用 AuthKit 注册代理。"
   },
@@ -16364,6 +16367,9 @@
   "ejzfGTXY46": {
     "defaultMessage": "自动化已启用"
   },
+  "ekPpWZOtVl": {
+    "defaultMessage": "Skip translation memory matches. The agent translates empty and rejected strings. Existing translations stay."
+  },
   "ekU8Q0suHQ": {
     "defaultMessage": "自定义标头"
   },
@@ -16651,12 +16657,6 @@
   },
   "fT5jl51yo3": {
     "defaultMessage": "{percent}%"
-  },
-  "fTmUntr8k1": {
-    "defaultMessage": "Force translate untranslated strings"
-  },
-  "fTmUntr8k2": {
-    "defaultMessage": "Skip translation memory matches. The agent translates empty and rejected strings. Existing translations stay."
   },
   "fU9GF3etrw": {
     "defaultMessage": "审计已被阻止"

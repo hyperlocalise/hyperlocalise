@@ -8408,6 +8408,9 @@
   "JemgHUamHh": {
     "defaultMessage": "Impossible de charger les termes"
   },
+  "Jf8jVutxI7": {
+    "defaultMessage": "Force translate untranslated strings"
+  },
   "JfG/xfnGBv": {
     "defaultMessage": "Ou suivez {link} pour enregistrer un agent avec AuthKit."
   },
@@ -16364,6 +16367,9 @@
   "ejzfGTXY46": {
     "defaultMessage": "Automatisation activée"
   },
+  "ekPpWZOtVl": {
+    "defaultMessage": "Skip translation memory matches. The agent translates empty and rejected strings. Existing translations stay."
+  },
   "ekU8Q0suHQ": {
     "defaultMessage": "En-têtes personnalisés"
   },
@@ -16651,12 +16657,6 @@
   },
   "fT5jl51yo3": {
     "defaultMessage": "{percent} %"
-  },
-  "fTmUntr8k1": {
-    "defaultMessage": "Force translate untranslated strings"
-  },
-  "fTmUntr8k2": {
-    "defaultMessage": "Skip translation memory matches. The agent translates empty and rejected strings. Existing translations stay."
   },
   "fU9GF3etrw": {
     "defaultMessage": "Audit bloqué"
