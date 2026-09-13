@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -29,6 +29,8 @@ import {
   getOwnedDictionary,
   invalidDictionaryPayloadResponse,
   isDictionaryMutationAllowed,
+  projectSpellcheckDictionaryOrderBy,
+  resolveAttachmentPriority,
   toDictionaryRecord,
 } from "./dictionary.shared";
 
@@ -106,7 +108,7 @@ export function createProjectDictionaryRoutes() {
             ),
           ),
         )
-        .orderBy(asc(schema.projectSpellcheckDictionaries.priority));
+        .orderBy(...projectSpellcheckDictionaryOrderBy);
 
       return c.json({
         dictionaries: attachments.map((row) => ({
@@ -142,7 +144,7 @@ export function createProjectDictionaryRoutes() {
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: project.id,
           dictionaryId: dictionary.id,
-          priority: payload.priority ?? 0,
+          priority: await resolveAttachmentPriority(project.id, payload.priority),
         })
         .onConflictDoNothing();
 

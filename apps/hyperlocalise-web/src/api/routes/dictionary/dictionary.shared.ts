@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import { validationErrorResponse } from "@/api/errors";
 import {
@@ -59,6 +59,39 @@ export function toDictionaryRecord(
     createdAt: dictionary.createdAt.toISOString(),
     updatedAt: dictionary.updatedAt.toISOString(),
   };
+}
+
+export const projectSpellcheckDictionaryOrderBy = [
+  asc(schema.projectSpellcheckDictionaries.priority),
+  asc(schema.projectSpellcheckDictionaries.createdAt),
+  asc(schema.projectSpellcheckDictionaries.dictionaryId),
+];
+
+export const dictionaryProjectAttachmentOrderBy = [
+  asc(schema.projectSpellcheckDictionaries.priority),
+  asc(schema.projectSpellcheckDictionaries.createdAt),
+  asc(schema.projectSpellcheckDictionaries.projectId),
+];
+
+export async function nextProjectSpellcheckDictionaryPriority(projectId: string) {
+  const [row] = await db
+    .select({
+      maxPriority: sql<number>`coalesce(max(${schema.projectSpellcheckDictionaries.priority}), -1)`,
+    })
+    .from(schema.projectSpellcheckDictionaries)
+    .where(eq(schema.projectSpellcheckDictionaries.projectId, projectId));
+
+  return Number(row?.maxPriority ?? -1) + 1;
+}
+
+export async function resolveAttachmentPriority(
+  projectId: string,
+  requestedPriority: number | undefined,
+) {
+  if (requestedPriority !== undefined) {
+    return requestedPriority;
+  }
+  return nextProjectSpellcheckDictionaryPriority(projectId);
 }
 
 export async function getOwnedDictionary(auth: ApiAuthContext, dictionaryId: string) {

@@ -14,7 +14,7 @@
  */
 import { useMemo, useRef, useState } from "react";
 import { TextFontIcon } from "@hugeicons/core-free-icons";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -35,6 +35,8 @@ import { normalizeSpellcheckWord } from "@/lib/spellcheck-dictionary/normalize-w
 import { PageHeader, WorkspacePageShell } from "../../../_components/workspace-resource-shared";
 import type { ApiDictionary } from "../../_components/dictionary-list";
 import { dictionaryDetailMessages } from "./dictionary-detail-page-content.messages";
+
+const DICTIONARY_WORDS_PAGE_SIZE = 200;
 
 type DictionaryWord = {
   id: string;
@@ -89,14 +91,19 @@ export function DictionaryDetailPageContent({
     },
   });
 
-  const wordsQuery = useQuery({
+  const wordsQuery = useInfiniteQuery({
     queryKey: ["dictionary-words", organizationSlug, dictionaryId, locale],
-    queryFn: async () => {
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
       const response = await apiClient.api.orgs[":organizationSlug"].dictionaries[
         ":dictionaryId"
       ].words.$get({
         param: { organizationSlug, dictionaryId },
-        query: { locale, limit: "200", offset: "0" },
+        query: {
+          locale,
+          limit: String(DICTIONARY_WORDS_PAGE_SIZE),
+          offset: String(pageParam),
+        },
       });
       if (!response.ok) {
         throw await readApiResponseError(
@@ -105,9 +112,21 @@ export function DictionaryDetailPageContent({
         );
       }
       const body = await response.json();
-      return (body.words ?? []) as DictionaryWord[];
+      return {
+        words: (body.words ?? []) as DictionaryWord[],
+        total: Number(body.total ?? 0),
+        offset: pageParam,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.words.length;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
     },
   });
+  const dictionaryWords = useMemo(
+    () => wordsQuery.data?.pages.flatMap((page) => page.words) ?? [],
+    [wordsQuery.data?.pages],
+  );
 
   const projectsQuery = useQuery({
     queryKey: ["dictionary-projects", organizationSlug, dictionaryId],
@@ -246,7 +265,7 @@ export function DictionaryDetailPageContent({
         ":dictionaryId"
       ].projects.$post({
         param: { organizationSlug, dictionaryId },
-        json: { projectId, priority: 0 },
+        json: { projectId },
       });
       if (!response.ok) {
         throw new Error(
@@ -397,13 +416,13 @@ export function DictionaryDetailPageContent({
           </Button>
         </div>
 
-        {wordsQuery.isSuccess && (wordsQuery.data?.length ?? 0) === 0 ? (
+        {wordsQuery.isSuccess && dictionaryWords.length === 0 ? (
           <TypographyP size="small" tone="subtle">
             <FormattedMessage {...dictionaryDetailMessages.emptyWords} />
           </TypographyP>
         ) : null}
 
-        {(wordsQuery.data ?? []).map((entry) => (
+        {dictionaryWords.map((entry) => (
           <div
             key={entry.id}
             className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-2"
@@ -421,6 +440,17 @@ export function DictionaryDetailPageContent({
             ) : null}
           </div>
         ))}
+        {wordsQuery.hasNextPage ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={wordsQuery.isFetchingNextPage}
+            onClick={() => void wordsQuery.fetchNextPage()}
+          >
+            <FormattedMessage {...dictionaryDetailMessages.loadMore} />
+          </Button>
+        ) : null}
       </section>
 
       <section className="grid gap-3">

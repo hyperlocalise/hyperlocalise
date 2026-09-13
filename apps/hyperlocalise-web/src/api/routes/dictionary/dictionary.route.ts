@@ -21,6 +21,7 @@ import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-wi
 import {
   normalizeSpellcheckWord,
   parseSpellcheckWordFile,
+  selectSpellcheckWordsToImport,
   serializeSpellcheckWordFile,
   SPELLCHECK_MAX_LIBRARY_WORDS,
 } from "@/lib/spellcheck-dictionary/normalize-word";
@@ -41,10 +42,12 @@ import {
 } from "./dictionary.schema";
 import {
   dictionaryNotFoundResponse,
+  dictionaryProjectAttachmentOrderBy,
   forbiddenResponse,
   getOwnedDictionary,
   invalidDictionaryPayloadResponse,
   isDictionaryMutationAllowed,
+  resolveAttachmentPriority,
   toDictionaryRecord,
 } from "./dictionary.shared";
 
@@ -117,9 +120,12 @@ const validateListDictionaryQuery = validator("query", (value) => {
   return parsed.success ? parsed.data : undefined;
 });
 
-const validateListDictionaryWordsQuery = validator("query", (value) => {
+const validateListDictionaryWordsQuery = validator("query", (value, c) => {
   const parsed = listDictionaryWordsQuerySchema.safeParse(value);
-  return parsed.success ? parsed.data : undefined;
+  if (!parsed.success) {
+    return invalidDictionaryPayloadResponse(c);
+  }
+  return parsed.data;
 });
 
 const validateExportDictionaryWordsQuery = validator("query", (value, c) => {
@@ -414,11 +420,26 @@ export function createDictionaryRoutes() {
         const payload = c.req.valid("json");
         const parsedWords = parseSpellcheckWordFile(payload.content);
         const existingCount = await dictionaryWordCount(dictionary.id);
-        const remaining = SPELLCHECK_MAX_LIBRARY_WORDS - existingCount;
-        const toInsert = parsedWords.slice(0, Math.max(remaining, 0));
+        const existingRows = await db
+          .select({
+            wordNormalized: schema.spellcheckDictionaryWords.wordNormalized,
+          })
+          .from(schema.spellcheckDictionaryWords)
+          .where(
+            and(
+              eq(schema.spellcheckDictionaryWords.dictionaryId, dictionary.id),
+              eq(schema.spellcheckDictionaryWords.locale, payload.locale),
+            ),
+          );
+        const toInsert = selectSpellcheckWordsToImport({
+          parsedWords,
+          existingNormalized: new Set(existingRows.map((row) => row.wordNormalized)),
+          remainingCapacity: SPELLCHECK_MAX_LIBRARY_WORDS - existingCount,
+        });
 
+        let imported = 0;
         if (toInsert.length > 0) {
-          await db
+          const inserted = await db
             .insert(schema.spellcheckDictionaryWords)
             .values(
               toInsert.map((word) => ({
@@ -429,13 +450,19 @@ export function createDictionaryRoutes() {
                 createdByUserId: c.var.auth.user.localUserId,
               })),
             )
-            .onConflictDoNothing();
-          await bumpDictionaryWordsVersion(dictionary.id);
+            .onConflictDoNothing()
+            .returning({ id: schema.spellcheckDictionaryWords.id });
+          imported = inserted.length;
+          if (imported > 0) {
+            await bumpDictionaryWordsVersion(dictionary.id);
+          }
         }
 
         return c.json({
-          imported: toInsert.length,
-          skipped: parsedWords.length - toInsert.length,
+          import: {
+            imported,
+            skipped: parsedWords.length - imported,
+          },
         });
       },
     )
@@ -489,7 +516,7 @@ export function createDictionaryRoutes() {
           eq(schema.projects.id, schema.projectSpellcheckDictionaries.projectId),
         )
         .where(eq(schema.projectSpellcheckDictionaries.dictionaryId, dictionary.id))
-        .orderBy(asc(schema.projectSpellcheckDictionaries.priority));
+        .orderBy(...dictionaryProjectAttachmentOrderBy);
 
       return c.json({ projects });
     })
@@ -519,7 +546,7 @@ export function createDictionaryRoutes() {
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: project.id,
             dictionaryId: dictionary.id,
-            priority: payload.priority ?? 0,
+            priority: await resolveAttachmentPriority(project.id, payload.priority),
           })
           .onConflictDoNothing();
 
@@ -535,7 +562,7 @@ export function createDictionaryRoutes() {
             eq(schema.projects.id, schema.projectSpellcheckDictionaries.projectId),
           )
           .where(eq(schema.projectSpellcheckDictionaries.dictionaryId, dictionary.id))
-          .orderBy(asc(schema.projectSpellcheckDictionaries.priority));
+          .orderBy(...dictionaryProjectAttachmentOrderBy);
 
         return c.json({ projects });
       },

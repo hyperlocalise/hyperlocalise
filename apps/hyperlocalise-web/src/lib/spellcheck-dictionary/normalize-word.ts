@@ -13,6 +13,10 @@
 export const SPELLCHECK_MAX_WORD_LENGTH = 64;
 export const SPELLCHECK_MAX_LIBRARY_WORDS = 20_000;
 export const SPELLCHECK_MAX_RESOLVED_WORDS = 5_000;
+/** UTF-8 JSON-array budget so CAT validate requests stay under go-svc's 512 KiB body limit. */
+export const SPELLCHECK_MAX_ACCEPTED_WORDS_BYTES = 256 * 1024;
+
+const utf8Encoder = new TextEncoder();
 
 const WORD_CHAR_PATTERN = /^[\p{L}\p{M}\p{Nd}'’ʼʻ\-\u2010\u2011]+$/u;
 
@@ -67,12 +71,56 @@ export function serializeSpellcheckWordFile(words: readonly string[]): string {
   return `${words.join("\n")}\n`;
 }
 
+export function utf8ByteLength(value: string): number {
+  return utf8Encoder.encode(value).length;
+}
+
+export function selectSpellcheckWordsToImport(input: {
+  parsedWords: readonly NormalizedSpellcheckWord[];
+  existingNormalized: ReadonlySet<string>;
+  remainingCapacity: number;
+}): NormalizedSpellcheckWord[] {
+  const novel = input.parsedWords.filter(
+    (word) => !input.existingNormalized.has(word.wordNormalized),
+  );
+  return novel.slice(0, Math.max(input.remainingCapacity, 0));
+}
+
+function encodedAcceptedWordsBytes(words: readonly string[]): number {
+  let bytes = 2;
+  for (const [index, word] of words.entries()) {
+    bytes += utf8ByteLength(JSON.stringify(word));
+    if (index > 0) {
+      bytes += 1;
+    }
+  }
+  return bytes;
+}
+
 export function capResolvedSpellcheckWords(words: readonly string[]): string[] {
-  if (words.length <= SPELLCHECK_MAX_RESOLVED_WORDS) {
+  const withinCount = words.length <= SPELLCHECK_MAX_RESOLVED_WORDS;
+  if (withinCount && encodedAcceptedWordsBytes(words) <= SPELLCHECK_MAX_ACCEPTED_WORDS_BYTES) {
     return [...words];
   }
 
-  return [...words]
-    .toSorted((left, right) => left.localeCompare(right, "en"))
-    .slice(0, SPELLCHECK_MAX_RESOLVED_WORDS);
+  const capped: string[] = [];
+  let bytes = 2;
+  const candidates = [...words].toSorted((left, right) => left.localeCompare(right, "en"));
+  const limit = Math.min(candidates.length, SPELLCHECK_MAX_RESOLVED_WORDS);
+
+  for (let index = 0; index < limit; index += 1) {
+    const word = candidates[index];
+    if (word === undefined) {
+      break;
+    }
+    const wordBytes = utf8ByteLength(JSON.stringify(word));
+    const extra = capped.length === 0 ? wordBytes : wordBytes + 1;
+    if (bytes + extra > SPELLCHECK_MAX_ACCEPTED_WORDS_BYTES) {
+      break;
+    }
+    capped.push(word);
+    bytes += extra;
+  }
+
+  return capped;
 }

@@ -153,4 +153,128 @@ describe("dictionaryRoutes", () => {
       words: ["Hyperlocalise"],
     });
   });
+
+  it("imports only novel words and wraps the result in an import envelope", async () => {
+    const { identity, dictionary } = await fixture.createStoredDictionaryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createWord = await client.api.orgs[":organizationSlug"].dictionaries[
+      ":dictionaryId"
+    ].words.$post(
+      {
+        param: { organizationSlug, dictionaryId: dictionary.id },
+        json: { locale: "en-US", word: "Hyperlocalise" },
+      },
+      { headers },
+    );
+    expect(createWord.status).toBe(201);
+
+    const imported = await client.api.orgs[":organizationSlug"].dictionaries[
+      ":dictionaryId"
+    ].words["import"].$post(
+      {
+        param: { organizationSlug, dictionaryId: dictionary.id },
+        json: {
+          locale: "en-us",
+          content: "Hyperlocalise\nAuthKit\nZernio\n",
+        },
+      },
+      { headers },
+    );
+    expect(imported.status).toBe(200);
+    await expect(imported.json()).resolves.toEqual({
+      import: { imported: 2, skipped: 1 },
+    });
+
+    const listed = await client.api.orgs[":organizationSlug"].dictionaries[
+      ":dictionaryId"
+    ].words.$get(
+      {
+        param: { organizationSlug, dictionaryId: dictionary.id },
+        query: { locale: "en-US", limit: "1", offset: "0" },
+      },
+      { headers },
+    );
+    expect(listed.status).toBe(200);
+    await expect(listed.json()).resolves.toMatchObject({
+      words: [{ word: "AuthKit" }],
+      total: 3,
+    });
+  });
+
+  it("canonicalizes locale tags and assigns sequential attach priorities", async () => {
+    const { identity, organization, user, dictionary } =
+      await fixture.createStoredDictionaryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const project = await fixture.createNativeProject(organization.id, user.id);
+
+    const createWord = await client.api.orgs[":organizationSlug"].dictionaries[
+      ":dictionaryId"
+    ].words.$post(
+      {
+        param: { organizationSlug, dictionaryId: dictionary.id },
+        json: { locale: "en_US", word: "Hyperlocalise" },
+      },
+      { headers },
+    );
+    expect(createWord.status).toBe(201);
+    await expect(createWord.json()).resolves.toMatchObject({
+      word: { locale: "en-US", word: "Hyperlocalise" },
+    });
+
+    const secondLibrary = await client.api.orgs[":organizationSlug"].dictionaries.$post(
+      {
+        param: { organizationSlug },
+        json: { name: "Secondary brands" },
+      },
+      { headers },
+    );
+    expect(secondLibrary.status).toBe(201);
+    const secondary = (await secondLibrary.json()) as { dictionary: { id: string } };
+
+    const attachPrimary = await client.api.orgs[":organizationSlug"].dictionaries[
+      ":dictionaryId"
+    ].projects.$post(
+      {
+        param: { organizationSlug, dictionaryId: dictionary.id },
+        json: { projectId: project.id },
+      },
+      { headers },
+    );
+    expect(attachPrimary.status).toBe(200);
+    await expect(attachPrimary.json()).resolves.toMatchObject({
+      projects: [{ projectId: project.id, priority: 0 }],
+    });
+
+    const attachSecondary = await client.api.orgs[":organizationSlug"].dictionaries[
+      ":dictionaryId"
+    ].projects.$post(
+      {
+        param: { organizationSlug, dictionaryId: secondary.dictionary.id },
+        json: { projectId: project.id },
+      },
+      { headers },
+    );
+    expect(attachSecondary.status).toBe(200);
+    await expect(attachSecondary.json()).resolves.toMatchObject({
+      projects: [{ projectId: project.id, priority: 1 }],
+    });
+
+    const resolved = await client.api.orgs[":organizationSlug"].projects[":projectId"].dictionaries[
+      "resolved"
+    ].$get(
+      {
+        param: { organizationSlug, projectId: project.id },
+        query: { locale: "en-us" },
+      },
+      { headers },
+    );
+    expect(resolved.status).toBe(200);
+    await expect(resolved.json()).resolves.toMatchObject({
+      locale: "en-US",
+      words: ["Hyperlocalise"],
+    });
+  });
 });

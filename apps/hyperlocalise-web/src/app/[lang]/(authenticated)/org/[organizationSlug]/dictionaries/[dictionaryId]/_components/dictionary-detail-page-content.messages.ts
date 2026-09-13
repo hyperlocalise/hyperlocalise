@@ -65,6 +65,11 @@ export const dictionaryDetailMessages = defineMessages({
     id: "bsA+uhksQg",
     description: "Empty state for a dictionary locale with no words",
   },
+  loadMore: {
+    defaultMessage: "Load more",
+    id: "nR4kQ2wP8L",
+    description: "Button to load the next page of dictionary words",
+  },
   projectsTitle: {
     defaultMessage: "Projects",
     id: "eRLGmAlreB",

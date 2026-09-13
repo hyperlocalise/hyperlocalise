@@ -22,6 +22,7 @@ describe("unionResolvedSpellcheckWords", () => {
           dictionaryId: "b",
           wordsVersion: 1,
           priority: 10,
+          createdAtMs: 20,
           word: "authkit",
           wordNormalized: "authkit",
         },
@@ -29,6 +30,7 @@ describe("unionResolvedSpellcheckWords", () => {
           dictionaryId: "a",
           wordsVersion: 2,
           priority: 0,
+          createdAtMs: 10,
           word: "AuthKit",
           wordNormalized: "authkit",
         },
@@ -36,11 +38,35 @@ describe("unionResolvedSpellcheckWords", () => {
           dictionaryId: "a",
           wordsVersion: 2,
           priority: 0,
+          createdAtMs: 10,
           word: "Hyperlocalise",
           wordNormalized: "hyperlocalise",
         },
       ]),
     ).toEqual(["AuthKit", "Hyperlocalise"]);
+  });
+
+  it("breaks equal-priority ties by earlier attachment then dictionary id", () => {
+    expect(
+      unionResolvedSpellcheckWords([
+        {
+          dictionaryId: "b",
+          wordsVersion: 1,
+          priority: 0,
+          createdAtMs: 20,
+          word: "authkit",
+          wordNormalized: "authkit",
+        },
+        {
+          dictionaryId: "a",
+          wordsVersion: 1,
+          priority: 0,
+          createdAtMs: 10,
+          word: "AuthKit",
+          wordNormalized: "authkit",
+        },
+      ]),
+    ).toEqual(["AuthKit"]);
   });
 });
 

@@ -26,17 +26,39 @@ type AttachedWordRow = {
   dictionaryId: string;
   wordsVersion: number;
   priority: number;
+  createdAtMs: number;
   word: string;
   wordNormalized: string;
 };
 
+function attachmentWinsOver(
+  candidate: Pick<AttachedWordRow, "priority" | "createdAtMs" | "dictionaryId">,
+  existing: Pick<AttachedWordRow, "priority" | "createdAtMs" | "dictionaryId">,
+) {
+  if (candidate.priority !== existing.priority) {
+    return candidate.priority < existing.priority;
+  }
+  if (candidate.createdAtMs !== existing.createdAtMs) {
+    return candidate.createdAtMs < existing.createdAtMs;
+  }
+  return candidate.dictionaryId.localeCompare(existing.dictionaryId) < 0;
+}
+
 export function unionResolvedSpellcheckWords(rows: readonly AttachedWordRow[]): string[] {
-  const firstWins = new Map<string, { word: string; priority: number }>();
+  const firstWins = new Map<
+    string,
+    { word: string; priority: number; createdAtMs: number; dictionaryId: string }
+  >();
 
   for (const row of rows) {
     const existing = firstWins.get(row.wordNormalized);
-    if (!existing || row.priority < existing.priority) {
-      firstWins.set(row.wordNormalized, { word: row.word, priority: row.priority });
+    if (!existing || attachmentWinsOver(row, existing)) {
+      firstWins.set(row.wordNormalized, {
+        word: row.word,
+        priority: row.priority,
+        createdAtMs: row.createdAtMs,
+        dictionaryId: row.dictionaryId,
+      });
     }
   }
 
@@ -68,6 +90,7 @@ export async function resolveProjectSpellcheckWords(input: {
       dictionaryId: schema.projectSpellcheckDictionaries.dictionaryId,
       wordsVersion: schema.spellcheckDictionaries.wordsVersion,
       priority: schema.projectSpellcheckDictionaries.priority,
+      createdAt: schema.projectSpellcheckDictionaries.createdAt,
     })
     .from(schema.projectSpellcheckDictionaries)
     .innerJoin(
@@ -81,7 +104,11 @@ export async function resolveProjectSpellcheckWords(input: {
         eq(schema.spellcheckDictionaries.status, "active"),
       ),
     )
-    .orderBy(asc(schema.projectSpellcheckDictionaries.priority));
+    .orderBy(
+      asc(schema.projectSpellcheckDictionaries.priority),
+      asc(schema.projectSpellcheckDictionaries.createdAt),
+      asc(schema.projectSpellcheckDictionaries.dictionaryId),
+    );
 
   if (attachments.length === 0) {
     return { words: [], wordsVersion: input.locale, dictionaryIds: [] };
@@ -105,6 +132,9 @@ export async function resolveProjectSpellcheckWords(input: {
   const priorityByDictionary = new Map(
     attachments.map((attachment) => [attachment.dictionaryId, attachment.priority]),
   );
+  const createdAtByDictionary = new Map(
+    attachments.map((attachment) => [attachment.dictionaryId, attachment.createdAt.getTime()]),
+  );
   const versionByDictionary = new Map(
     attachments.map((attachment) => [attachment.dictionaryId, attachment.wordsVersion]),
   );
@@ -114,6 +144,7 @@ export async function resolveProjectSpellcheckWords(input: {
       dictionaryId: row.dictionaryId,
       wordsVersion: versionByDictionary.get(row.dictionaryId) ?? 1,
       priority: priorityByDictionary.get(row.dictionaryId) ?? 0,
+      createdAtMs: createdAtByDictionary.get(row.dictionaryId) ?? 0,
       word: row.word,
       wordNormalized: row.wordNormalized,
     })),

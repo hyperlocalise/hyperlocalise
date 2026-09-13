@@ -17,8 +17,11 @@ import {
   foldSpellcheckWord,
   normalizeSpellcheckWord,
   parseSpellcheckWordFile,
+  selectSpellcheckWordsToImport,
+  SPELLCHECK_MAX_ACCEPTED_WORDS_BYTES,
   SPELLCHECK_MAX_RESOLVED_WORDS,
   SPELLCHECK_MAX_WORD_LENGTH,
+  utf8ByteLength,
 } from "./normalize-word";
 
 describe("normalizeSpellcheckWord", () => {
@@ -46,6 +49,25 @@ describe("parseSpellcheckWordFile", () => {
   });
 });
 
+describe("selectSpellcheckWordsToImport", () => {
+  it("skips existing normalized words before applying the remaining cap", () => {
+    const parsedWords = [
+      { word: "Hyperlocalise", wordNormalized: "hyperlocalise" },
+      { word: "AuthKit", wordNormalized: "authkit" },
+      { word: "Zernio", wordNormalized: "zernio" },
+      { word: "Crowdin", wordNormalized: "crowdin" },
+    ];
+
+    expect(
+      selectSpellcheckWordsToImport({
+        parsedWords,
+        existingNormalized: new Set(["hyperlocalise", "authkit"]),
+        remainingCapacity: 1,
+      }),
+    ).toEqual([{ word: "Zernio", wordNormalized: "zernio" }]);
+  });
+});
+
 describe("capResolvedSpellcheckWords", () => {
   it("sorts before truncating so the cap is stable", () => {
     const words = Array.from({ length: SPELLCHECK_MAX_RESOLVED_WORDS + 5 }, (_, index) => {
@@ -57,5 +79,17 @@ describe("capResolvedSpellcheckWords", () => {
 
     expect(first).toHaveLength(SPELLCHECK_MAX_RESOLVED_WORDS);
     expect(first).toEqual(second);
+  });
+
+  it("also caps by encoded UTF-8 JSON payload size", () => {
+    const token = "测".repeat(SPELLCHECK_MAX_WORD_LENGTH);
+    const words = Array.from({ length: 2_000 }, (_, index) => `${token}${index}`);
+    const capped = capResolvedSpellcheckWords(words);
+
+    expect(capped.length).toBeLessThan(words.length);
+    expect(capped.length).toBeGreaterThan(0);
+    expect(utf8ByteLength(JSON.stringify(capped))).toBeLessThanOrEqual(
+      SPELLCHECK_MAX_ACCEPTED_WORDS_BYTES,
+    );
   });
 });

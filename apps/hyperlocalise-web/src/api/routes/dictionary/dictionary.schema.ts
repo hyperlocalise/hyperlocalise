@@ -12,8 +12,15 @@
  */
 import { z } from "zod";
 
+import { localeInputSchema } from "@/lib/i18n/locales";
 import { SPELLCHECK_MAX_WORD_LENGTH } from "@/lib/spellcheck-dictionary/normalize-word";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
+
+export const dictionaryLocaleSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replaceAll("_", "-"))
+  .pipe(localeInputSchema);
 
 export const dictionaryIdParamsSchema = z.object({
   dictionaryId: z.string().uuid(),
@@ -54,36 +61,36 @@ export const updateDictionaryBodySchema = z
 
 export const listDictionaryWordsQuerySchema = z
   .object({
-    locale: z.string().trim().min(1).max(50).optional(),
+    locale: dictionaryLocaleSchema.optional(),
     limit: z.coerce.number().int().min(1).max(500).default(100),
     offset: z.coerce.number().int().min(0).default(0),
   })
   .optional();
 
 export const createDictionaryWordBodySchema = z.object({
-  locale: z.string().trim().min(1).max(50),
+  locale: dictionaryLocaleSchema,
   word: z.string().trim().min(1).max(SPELLCHECK_MAX_WORD_LENGTH),
 });
 
 export const importDictionaryWordsBodySchema = z.object({
-  locale: z.string().trim().min(1).max(50),
+  locale: dictionaryLocaleSchema,
   content: z.string().min(1).max(1_000_000),
 });
 
 export const exportDictionaryWordsQuerySchema = z.object({
-  locale: z.string().trim().min(1).max(50),
+  locale: dictionaryLocaleSchema,
 });
 
 export const attachDictionaryProjectBodySchema = z.object({
   projectId: projectIdSchema,
-  priority: z.number().int().min(0).max(10_000).optional().default(0),
+  priority: z.number().int().min(0).max(10_000).optional(),
 });
 
 export const attachProjectDictionaryBodySchema = z.object({
   dictionaryId: z.string().uuid(),
-  priority: z.number().int().min(0).max(10_000).optional().default(0),
+  priority: z.number().int().min(0).max(10_000).optional(),
 });
 
 export const resolvedDictionaryQuerySchema = z.object({
-  locale: z.string().trim().min(1).max(50),
+  locale: dictionaryLocaleSchema,
 });
