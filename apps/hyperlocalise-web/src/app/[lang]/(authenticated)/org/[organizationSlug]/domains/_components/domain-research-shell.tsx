@@ -185,6 +185,8 @@ const DomainResearchShellView = observer(function DomainResearchShellView({
             ) : undefined
           }
         />
+      ) : store.showSearchConsoleSurface ? (
+        children
       ) : store.showResearchContent && store.activeCatalog ? (
         <DomainResearchContext
           value={store.activeCatalog}

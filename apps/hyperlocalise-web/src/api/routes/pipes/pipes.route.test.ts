@@ -93,6 +93,36 @@ describe("pipesRoutes", () => {
     });
   });
 
+  it("returns the current user's Pipes connection status for Search Console", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "",
+          provider: "google-search-console",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      pipe: {
+        provider: "google-search-console",
+        connected: true,
+        needsReauthorization: false,
+        apiKeyLast4: "wxyz",
+      },
+    });
+    expect(mocks.getPipesConnectionStatus).toHaveBeenCalledWith({
+      provider: "google-search-console",
+      localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      workosUserId: identity.user.workosUserId,
+    });
+  });
+
   it("returns the current user's Pipes connection status for catalog API-key providers", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

@@ -105,6 +105,10 @@ export class DomainResearchShellStore {
     return !this.isPending && this.activeCatalog !== null;
   }
 
+  get showSearchConsoleSurface() {
+    return this.surface === "search-console" && !this.isPending && this.domain !== null;
+  }
+
   setRequestedLocaleId(localeId: string | null) {
     this.requestedLocaleId = localeId;
   }

@@ -274,6 +274,7 @@ describe("path builders", () => {
       ["Rank tracking", "/org/acme/domains/ld_1/ranks"],
       ["AI visibility", "/org/acme/domains/ld_1/brand"],
       ["Prompt explorer", "/org/acme/domains/ld_1/prompts"],
+      ["Search Console", "/org/acme/domains/ld_1/search-console"],
     ]);
   });
 
@@ -433,6 +434,9 @@ describe("buildDomainPath", () => {
     expect(buildDomainPath("acme", "ld_1")).toBe("/org/acme/domains/ld_1");
     expect(buildDomainPath("acme", "ld_1", "overview")).toBe("/org/acme/domains/ld_1");
     expect(buildDomainPath("acme", "ld_1", "prompts")).toBe("/org/acme/domains/ld_1/prompts");
+    expect(buildDomainPath("acme", "ld_1", "search-console")).toBe(
+      "/org/acme/domains/ld_1/search-console",
+    );
   });
 });
 

@@ -419,6 +419,17 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     websiteUrl: "https://www.similarweb.com",
     relatedSlugs: ["ahrefs", "semrush"],
   },
+  {
+    slug: "google-search-console",
+    category: "seo-tools",
+    status: "available",
+    type: "partner",
+    marketing: false,
+    workspace: true,
+    iconKey: "googlesearchconsole",
+    websiteUrl: "https://search.google.com/search-console",
+    relatedSlugs: ["ahrefs", "semrush", "similarweb"],
+  },
 ];
 
 export const integrationCatalogSlugs = integrationCatalogEntries.map((entry) => entry.slug);

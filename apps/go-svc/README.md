@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console will call `internal/gsc`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`.
 
 Public routes are served at `/api/go-svc/...` in production (Vercel rewrite) and at `/v1/...` or `/ofrep/...` when called directly via the `GO_SVC_URL` binding.
 
@@ -48,16 +48,9 @@ client, err := dataforseo.NewClient(dataforseo.Config{
 
 Do **not** set separate `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` env vars. Pass the single base64 API key.
 
-### Google Search Console (upcoming SEO features)
+### Google Search Console
 
-Used by `internal/gsc` for search performance and URL inspection. GSC is OAuth-based — there is no API key env var for go-svc. Users connect Search Console in the web app; go-svc receives a minted access token (or `oauth2.TokenSource`) per request.
-
-The web app needs these OAuth variables to enable the connection flow:
-
-| Variable | Description |
-|----------|-------------|
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID for the Search Console connection. |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret. |
+Used by `internal/gsc` for search performance and URL inspection. GSC is OAuth-based — there is no API key env var for go-svc. Users connect Search Console through the WorkOS `google-search-console` pipe on the Integrations page; go-svc receives a minted access token (or `oauth2.TokenSource`) per request.
 
 Example Go usage once a token is available:
 
@@ -122,6 +115,9 @@ Set the required WorkOS variables in the Vercel `go_svc` service environment. Us
 | `POST` | `/v1/domains/research/serp` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Fetch a live organic SERP snapshot |
 | `POST` | `/v1/domains/research/rank-check` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Live rank check for one keyword against a hostname |
 | `POST` | `/v1/domains/research/rank-check/batch` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Live rank check for up to 20 keywords |
+| `POST` | `/v1/domains/gsc/sites` | WorkOS session cookie + `X-Go-Svc-Research-Token` | List verified Search Console properties for a minted access token |
+| `POST` | `/v1/domains/gsc/performance` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Query Search Analytics clicks, impressions, CTR, and position |
+| `POST` | `/v1/domains/gsc/inspect` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Inspect one URL against a Search Console property |
 | `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 

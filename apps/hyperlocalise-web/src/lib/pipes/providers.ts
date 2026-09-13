@@ -18,6 +18,7 @@ export const PIPES_PROVIDER_SLUGS = [
   "ahrefs",
   "atlassian",
   "gitlab",
+  "google-search-console",
   "hubspot",
   "intercom",
   "mailchimp",
@@ -33,6 +34,7 @@ export type PipesProviderSlug = (typeof PIPES_PROVIDER_SLUGS)[number];
 
 export const PIPES_PROVIDER_CATEGORIES = {
   ahrefs: "seo-tools",
+  "google-search-console": "seo-tools",
   similarweb: "seo-tools",
   gitlab: "source-control",
   intercom: "customer-engagement",

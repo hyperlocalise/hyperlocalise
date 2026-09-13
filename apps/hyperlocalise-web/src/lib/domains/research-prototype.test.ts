@@ -58,7 +58,9 @@ describe("research prototype catalog", () => {
 
   it("recognises research surfaces", () => {
     expect(DOMAIN_RESEARCH_SURFACES).toContain("prompts");
+    expect(DOMAIN_RESEARCH_SURFACES).toContain("search-console");
     expect(isDomainResearchSurface("keywords")).toBe(true);
+    expect(isDomainResearchSurface("search-console")).toBe(true);
     expect(isDomainResearchSurface("audit")).toBe(false);
   });
 

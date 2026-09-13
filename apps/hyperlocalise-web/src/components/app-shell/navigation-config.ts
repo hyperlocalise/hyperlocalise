@@ -49,6 +49,7 @@ import {
   Message01Icon,
   PuzzleIcon,
   SearchIcon,
+  SearchList01Icon,
   SentIcon,
   Settings01Icon,
   SparklesIcon,
@@ -553,6 +554,15 @@ export function buildDomainNavigationItems(
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "prompts"),
       icon: Message01Icon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Search Console",
+        id: "HOp+NlewtC",
+        description: "Domain sidebar navigation item for Google Search Console",
+      }),
+      href: buildDomainPath(organizationSlug, linkedDomainId, "search-console"),
+      icon: SearchList01Icon,
     },
   ];
 }

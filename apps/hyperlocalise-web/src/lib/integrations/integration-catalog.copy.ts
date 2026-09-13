@@ -1094,6 +1094,19 @@ export const integrationCatalogCopy = {
       description: "Similarweb integration description on the integrations page",
     },
   },
+  "google-search-console": {
+    name: {
+      defaultMessage: "Google Search Console",
+      id: "intGoogleSearchConsoleName",
+      description: "Google Search Console integration name on the integrations page",
+    },
+    tagline: {
+      defaultMessage:
+        "Connect Search Console through Pipes to import clicks, impressions, and queries for claimed domains.",
+      id: "intGoogleSearchConsoleTagline",
+      description: "Google Search Console integration description on the integrations page",
+    },
+  },
   pages: {
     name: {
       defaultMessage: "Pages",
