@@ -50,19 +50,8 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/lib/api-client-instance", () => ({
-  apiClient: {
-    api: {
-      orgs: {
-        ":organizationSlug": {
-          dictionaries: {
-            $get: apiMocks.listDictionaries,
-            $post: apiMocks.createDictionary,
-          },
-        },
-      },
-    },
-  },
+vi.mock("@/lib/spellcheck-dictionary/client", () => ({
+  dictionaryClient: { list: apiMocks.listDictionaries, create: apiMocks.createDictionary },
 }));
 
 function jsonResponse(body: unknown, status = 200) {

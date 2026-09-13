@@ -1,6 +1,6 @@
 # go-svc
 
-Go container service for CPU-heavy work that runs beside the Next.js app on Vercel. Today it powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console will call `internal/gsc`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console will call `internal/gsc`.
 
 Public routes are served at `/api/go-svc/...` in production (Vercel rewrite) and at `/v1/...` or `/ofrep/...` when called directly via the `GO_SVC_URL` binding.
 
@@ -28,7 +28,7 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `PORT` | `8080` | HTTP listen port. |
 | `HUNSPELL_DICT_DIR` | `/usr/share/hunspell` | Directory containing Hunspell `.aff` / `.dic` files. The container image bundles dictionaries at the default path. |
 | `WORKOS_COOKIE_DOMAIN` | _(unset)_ | Cookie `Domain` attribute when setting a refreshed session cookie. Leave unset for host-only cookies. |
-| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required to serve Hyperlab OFREP evaluate routes. |
+| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary routes and Hyperlab OFREP evaluate routes. |
 
 ### DataForSEO (Domains research)
 
@@ -219,3 +219,60 @@ source reads the existing workspace/project guideline tables without a migration
 The app's existing lexical guideline selection is unchanged. Transactional outbox
 integration and deletion-event delivery remain application adoption work. An index
 must never be the only retained copy of guideline content.
+
+## Spellcheck dictionaries
+
+The browser calls `/api/go-svc/v1/orgs/{organizationSlug}/dictionaries`
+and project dictionary routes directly. The former web dictionary handlers are
+removed. Go owns reads, mutations, word imports/exports, attachment ordering,
+and resolved accepted words. Drizzle remains the schema and migration owner;
+this migration does not change the schema.
+
+Dictionary routes use the existing `wos-session` cookie. Configure
+`WORKOS_COOKIE_PASSWORD`, `WORKOS_API_KEY`, and `DATABASE_URL` in go-svc.
+Go resolves the local user and active organization, excludes pending/replacing
+memberships, and verifies the membership and current role with WorkOS on every
+request. Failed membership lookups fail closed with a 503. Admins and localization
+managers may write; the other known member roles may read. Project routes enforce
+local organization and team visibility. Responses disable caching, and browser
+mutations reject cross-origin requests.
+
+All paths below are relative to `/v1/orgs/{organizationSlug}`:
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET, POST | `/dictionaries` | List or create libraries |
+| GET, PATCH, DELETE | `/dictionaries/{dictionaryId}` | Read, update, or delete a library |
+| GET, POST | `/dictionaries/{dictionaryId}/words` | List or add words |
+| DELETE | `/dictionaries/{dictionaryId}/words/{wordId}` | Delete a word |
+| POST | `/dictionaries/{dictionaryId}/words/import` | Import newline-delimited words |
+| GET | `/dictionaries/{dictionaryId}/words/export` | Export words for a locale |
+| GET, POST | `/dictionaries/{dictionaryId}/projects` | List or attach projects |
+| DELETE | `/dictionaries/{dictionaryId}/projects/{projectId}` | Detach a project |
+| GET, POST | `/projects/{projectId}/dictionaries` | List or attach dictionaries |
+| DELETE | `/projects/{projectId}/dictionaries/{dictionaryId}` | Detach a dictionary |
+| GET | `/projects/{projectId}/dictionaries/resolved` | Resolve active dictionaries for a locale |
+
+Word mutations serialize with PostgreSQL advisory locks and commit the word change
+and version increment together. Imports deduplicate normalized words, insert only
+novel words within the 20,000-word library limit, and retain the existing import
+response envelope. Resolved lists preserve priority, creation-time and dictionary-ID
+tie breaking, with 5,000-word and 256 KiB JSON limits.
+
+### Dictionary tests and benchmarks
+
+These commands do not require Docker or PostgreSQL:
+
+```bash
+go test -race ./apps/go-svc -run '^TestDictionary'
+go test ./apps/go-svc -run '^$' -bench '^BenchmarkDictionary' -benchmem
+```
+
+Benchmarks measure normalization, duplicate-heavy import parsing, and resolved-word
+merging at 100, 5,000, and 20,000 unique words. They exclude database/network latency.
+
+To additionally exercise real SQL, foreign-key cascades, and concurrent capacity
+limits, set `DICTIONARY_TEST_DATABASE_URL` to an explicit test PostgreSQL database
+and run `go test -race ./apps/go-svc -run '^TestDictionaryPostgres'`. The suite creates
+and removes a unique schema per test. Without that variable, these integration
+tests are skipped; it never starts a database or reads `DATABASE_URL` implicitly.

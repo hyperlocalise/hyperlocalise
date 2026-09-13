@@ -26,25 +26,11 @@ const apiMocks = vi.hoisted(() => ({
   getProjects: vi.fn(),
 }));
 
-vi.mock("@/lib/api-client-instance", () => ({
-  apiClient: {
-    api: {
-      orgs: {
-        ":organizationSlug": {
-          dictionaries: {
-            ":dictionaryId": {
-              $get: apiMocks.getDictionary,
-              words: {
-                $get: apiMocks.getWords,
-              },
-              projects: {
-                $get: apiMocks.getProjects,
-              },
-            },
-          },
-        },
-      },
-    },
+vi.mock("@/lib/spellcheck-dictionary/client", () => ({
+  dictionaryClient: {
+    get: apiMocks.getDictionary,
+    words: apiMocks.getWords,
+    projects: apiMocks.getProjects,
   },
 }));
 

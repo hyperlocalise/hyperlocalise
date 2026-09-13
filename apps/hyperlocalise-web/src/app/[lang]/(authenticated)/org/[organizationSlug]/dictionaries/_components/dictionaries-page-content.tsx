@@ -19,7 +19,7 @@ import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { readApiResponseError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
+import { dictionaryClient } from "@/lib/spellcheck-dictionary/client";
 
 import { filterDictionaryListRows, type ApiDictionary } from "./dictionary-list";
 import { DictionariesPageView, type DictionaryCreateForm } from "./dictionaries-page-view";
@@ -49,7 +49,7 @@ export function DictionariesPageContent({
     queryKey: ["spellcheck-dictionaries", organizationSlug],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries.$get({
+      const response = await dictionaryClient.list({
         param: { organizationSlug },
         query: {
           limit: String(DICTIONARIES_PAGE_SIZE),
@@ -86,7 +86,7 @@ export function DictionariesPageContent({
 
   const createDictionary = useMutation({
     mutationFn: async (form: DictionaryCreateForm) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries.$post({
+      const response = await dictionaryClient.create({
         param: { organizationSlug },
         json: {
           name: form.name.trim(),

@@ -1,0 +1,285 @@
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+	"strings"
+	"time"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+	"golang.org/x/text/unicode/norm"
+)
+
+const (
+	dictionaryMaxWordLength    = 64
+	dictionaryMaxWords         = 20000
+	dictionaryMaxResolvedWords = 5000
+	dictionaryMaxResolvedBytes = 256 * 1024
+)
+
+type normalizedDictionaryWord struct{ word, folded string }
+
+func normalizeDictionaryWord(raw string) (normalizedDictionaryWord, bool) {
+	word := norm.NFC.String(trimDictionaryInput(raw))
+	if word == "" || utf8.RuneCountInString(word) > dictionaryMaxWordLength {
+		return normalizedDictionaryWord{}, false
+	}
+	for _, char := range word {
+		if !unicode.IsLetter(char) && !unicode.IsMark(char) && !unicode.Is(unicode.Nd, char) && !strings.ContainsRune("'’ʼʻ-‐‑", char) {
+			return normalizedDictionaryWord{}, false
+		}
+	}
+	return normalizedDictionaryWord{word, cases.Lower(language.English).String(word)}, true
+}
+
+func parseDictionaryWords(content string) []normalizedDictionaryWord {
+	result := []normalizedDictionaryWord{}
+	seen := map[string]bool{}
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(trimDictionaryInput(line), "#") {
+			continue
+		}
+		word, ok := normalizeDictionaryWord(line)
+		if !ok || seen[word.folded] {
+			continue
+		}
+		seen[word.folded] = true
+		result = append(result, word)
+	}
+	return result
+}
+
+func dictionaryLocale(raw string) (string, error) {
+	locale := strings.ReplaceAll(trimDictionaryInput(raw), "_", "-")
+	if locale == "" || utf16Length(locale) > 50 {
+		return "", invalidDictionary()
+	}
+	tag, err := language.Parse(locale)
+	if err != nil {
+		return "", invalidDictionary()
+	}
+	return tag.String(), nil
+}
+
+type dictionaryWordRecord struct {
+	ID        string `json:"id"`
+	Locale    string `json:"locale"`
+	Word      string `json:"word"`
+	CreatedAt string `json:"createdAt"`
+}
+
+func scanDictionaryWord(row pgx.Row) (dictionaryWordRecord, error) {
+	var word dictionaryWordRecord
+	var created time.Time
+	err := row.Scan(&word.ID, &word.Locale, &word.Word, &created)
+	word.CreatedAt = created.UTC().Format("2006-01-02T15:04:05.000Z")
+	return word, err
+}
+
+type dictionaryWordPayload struct {
+	Locale  string `json:"locale"`
+	Word    string `json:"word"`
+	Content string `json:"content"`
+}
+
+func (api *dictionaryAPI) wordRequest(r *http.Request, actor dictionaryActor, d dictionaryRecord, rest []string) (any, int, error) {
+	if len(rest) > 1 {
+		return nil, 0, missingDictionary()
+	}
+	ctx := r.Context()
+	if len(rest) == 1 && rest[0] == "export" && r.Method == http.MethodGet {
+		locale, err := dictionaryLocale(r.URL.Query().Get("locale"))
+		if err != nil {
+			return nil, 0, err
+		}
+		rows, err := api.pool.Query(ctx, `select word from spellcheck_dictionary_words where dictionary_id=$1 and locale=$2 order by word`, d.ID, locale)
+		if err != nil {
+			return nil, 0, err
+		}
+		defer rows.Close()
+		words := []string{}
+		for rows.Next() {
+			var word string
+			if err := rows.Scan(&word); err != nil {
+				return nil, 0, err
+			}
+			words = append(words, word)
+		}
+		return dictionaryExport{locale, strings.Join(words, "\n") + "\n"}, 200, rows.Err()
+	}
+	if len(rest) == 0 && r.Method == http.MethodGet {
+		limit, offset, err := dictionaryPage(r, 100, 500)
+		if err != nil {
+			return nil, 0, err
+		}
+		locale := ""
+		if r.URL.Query().Has("locale") {
+			locale, err = dictionaryLocale(r.URL.Query().Get("locale"))
+			if err != nil {
+				return nil, 0, err
+			}
+		}
+		rows, err := api.pool.Query(ctx, `select id,locale,word,created_at from spellcheck_dictionary_words where dictionary_id=$1 and ($2='' or locale=$2) order by locale,word limit $3 offset $4`, d.ID, locale, limit, offset)
+		if err != nil {
+			return nil, 0, err
+		}
+		words := []dictionaryWordRecord{}
+		for rows.Next() {
+			word, err := scanDictionaryWord(rows)
+			if err != nil {
+				rows.Close()
+				return nil, 0, err
+			}
+			words = append(words, word)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return nil, 0, err
+		}
+		var total int
+		err = api.pool.QueryRow(ctx, `select count(*) from spellcheck_dictionary_words where dictionary_id=$1 and ($2='' or locale=$2)`, d.ID, locale).Scan(&total)
+		return map[string]any{"words": words, "total": total}, 200, err
+	}
+	if len(rest) == 1 && r.Method == http.MethodDelete {
+		if !validDictionaryID(rest[0]) {
+			return nil, 0, missingDictionary()
+		}
+		err := api.withDictionaryWords(ctx, actor, d.ID, func(tx pgx.Tx) error {
+			deleted, err := tx.Exec(ctx, `delete from spellcheck_dictionary_words where id=$1 and dictionary_id=$2`, rest[0], d.ID)
+			if err != nil {
+				return err
+			}
+			if deleted.RowsAffected() == 0 {
+				return missingDictionary()
+			}
+			return bumpDictionary(ctx, tx, d.ID)
+		})
+		return nil, 204, err
+	}
+	importing := len(rest) == 1 && rest[0] == "import"
+	if r.Method != http.MethodPost || (len(rest) > 0 && !importing) {
+		return dictionaryMethodNotAllowed()
+	}
+	var payload dictionaryWordPayload
+	if err := readDictionaryBody(r, &payload); err != nil {
+		return nil, 0, err
+	}
+	locale, err := dictionaryLocale(payload.Locale)
+	if err != nil {
+		return nil, 0, err
+	}
+	var words []normalizedDictionaryWord
+	if importing {
+		if payload.Content == "" || utf16Length(payload.Content) > 1000000 {
+			return nil, 0, invalidDictionary()
+		}
+		words = parseDictionaryWords(payload.Content)
+	} else {
+		word, ok := normalizeDictionaryWord(payload.Word)
+		if !ok || utf16Length(trimDictionaryInput(payload.Word)) > dictionaryMaxWordLength {
+			return nil, 0, invalidDictionary()
+		}
+		words = []normalizedDictionaryWord{word}
+	}
+	inserted := 0
+	var created dictionaryWordRecord
+	err = api.withDictionaryWords(ctx, actor, d.ID, func(tx pgx.Tx) error {
+		count, err := dictionaryCount(ctx, tx, d.ID)
+		if err != nil {
+			return err
+		}
+		if !importing {
+			if count >= dictionaryMaxWords {
+				return invalidDictionary()
+			}
+			created, err = scanDictionaryWord(tx.QueryRow(ctx, `insert into spellcheck_dictionary_words (dictionary_id,locale,word,word_normalized,created_by_user_id) values ($1,$2,$3,$4,$5) returning id,locale,word,created_at`, d.ID, locale, words[0].word, words[0].folded, actor.userID))
+			if err != nil {
+				var pgErr *pgconn.PgError
+				if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+					return dictionaryFailure(409, "dictionary_word_exists", "That word is already in this locale")
+				}
+				return err
+			}
+			inserted = 1
+		} else {
+			existing := map[string]bool{}
+			rows, err := tx.Query(ctx, `select word_normalized from spellcheck_dictionary_words where dictionary_id=$1 and locale=$2`, d.ID, locale)
+			if err != nil {
+				return err
+			}
+			for rows.Next() {
+				var folded string
+				if err := rows.Scan(&folded); err != nil {
+					rows.Close()
+					return err
+				}
+				existing[folded] = true
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			novel := []string{}
+			folded := []string{}
+			for _, word := range words {
+				if len(novel) >= dictionaryMaxWords-count {
+					break
+				}
+				if existing[word.folded] {
+					continue
+				}
+				novel = append(novel, word.word)
+				folded = append(folded, word.folded)
+			}
+			if len(novel) > 0 {
+				tag, err := tx.Exec(ctx, `insert into spellcheck_dictionary_words (dictionary_id,locale,word,word_normalized,created_by_user_id) select $1,$2,w.word,w.folded,$3 from unnest($4::text[],$5::text[]) as w(word,folded) on conflict do nothing`, d.ID, locale, actor.userID, novel, folded)
+				if err != nil {
+					return err
+				}
+				inserted = int(tag.RowsAffected())
+			}
+		}
+		if inserted > 0 {
+			return bumpDictionary(ctx, tx, d.ID)
+		}
+		return nil
+	})
+	if importing {
+		return map[string]any{"import": map[string]int{"imported": inserted, "skipped": len(words) - inserted}}, 200, err
+	}
+	return map[string]any{"word": created}, 201, err
+}
+
+func capDictionaryWords(words []string) []string {
+	result := []string{}
+	bytes := 2
+	for _, word := range words {
+		encoded, err := json.Marshal(word)
+		if err != nil {
+			break
+		} // Strings always marshal successfully.
+		extra := len(encoded)
+		if len(result) > 0 {
+			extra++
+		}
+		if len(result) >= dictionaryMaxResolvedWords || bytes+extra > dictionaryMaxResolvedBytes {
+			break
+		}
+		result = append(result, word)
+		bytes += extra
+	}
+	return result
+}
+
+// Match JavaScript String.trim, including the BOM commonly found in word files.
+func trimDictionaryInput(value string) string {
+	return strings.TrimFunc(value, func(r rune) bool {
+		return strings.ContainsRune("\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff", r)
+	})
+}

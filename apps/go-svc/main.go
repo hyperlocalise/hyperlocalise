@@ -14,6 +14,8 @@ import (
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/workos/workos-go/v10"
 )
 
 const (
@@ -70,6 +72,13 @@ func main() {
 
 	h := newHandler()
 	h.spellChecker = spellChecker
+	h.dictionaries = &dictionaryAPI{}
+	if key := strings.TrimSpace(os.Getenv("WORKOS_API_KEY")); key != "" {
+		client := workos.NewClient(key)
+		h.dictionaries.membership = func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
+			return client.OrganizationMembership().Get(ctx, id)
+		}
+	}
 
 	if apiKey := strings.TrimSpace(os.Getenv("DATAFORSEO_API_KEY")); apiKey != "" {
 		client, err := dataforseo.NewClient(dataforseo.Config{APIKey: apiKey})
@@ -81,6 +90,12 @@ func main() {
 	}
 
 	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+		pool, err := pgxpool.New(context.Background(), databaseURL)
+		if err != nil {
+			log.Fatalf("configure dictionary store: %v", err)
+		}
+		defer pool.Close()
+		h.dictionaries.pool = pool
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure experiment store: %v", err)

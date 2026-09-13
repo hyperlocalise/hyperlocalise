@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError, readApiResponseError } from "@/lib/api-error";
+import { dictionaryClient } from "@/lib/spellcheck-dictionary/client";
 import { apiClient } from "@/lib/api-client-instance";
 import { normalizeSpellcheckWord } from "@/lib/spellcheck-dictionary/normalize-word";
 
@@ -75,9 +76,7 @@ export function DictionaryDetailPageContent({
   const dictionaryQuery = useQuery({
     queryKey: ["spellcheck-dictionary", organizationSlug, dictionaryId],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries[
-        ":dictionaryId"
-      ].$get({
+      const response = await dictionaryClient.get({
         param: { organizationSlug, dictionaryId },
       });
       if (!response.ok) {
@@ -95,9 +94,7 @@ export function DictionaryDetailPageContent({
     queryKey: ["dictionary-words", organizationSlug, dictionaryId, locale],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries[
-        ":dictionaryId"
-      ].words.$get({
+      const response = await dictionaryClient.words({
         param: { organizationSlug, dictionaryId },
         query: {
           locale,
@@ -131,9 +128,7 @@ export function DictionaryDetailPageContent({
   const projectsQuery = useQuery({
     queryKey: ["dictionary-projects", organizationSlug, dictionaryId],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries[
-        ":dictionaryId"
-      ].projects.$get({
+      const response = await dictionaryClient.projects({
         param: { organizationSlug, dictionaryId },
       });
       if (!response.ok) {
@@ -194,9 +189,7 @@ export function DictionaryDetailPageContent({
       if (!parsed) {
         throw new Error(intl.formatMessage(dictionaryDetailMessages.wordRequired));
       }
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries[
-        ":dictionaryId"
-      ].words.$post({
+      const response = await dictionaryClient.addWord({
         param: { organizationSlug, dictionaryId },
         json: { locale: locale.trim(), word: parsed.word },
       });
@@ -221,9 +214,7 @@ export function DictionaryDetailPageContent({
 
   const deleteWord = useMutation({
     mutationFn: async (wordId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries[
-        ":dictionaryId"
-      ].words[":wordId"].$delete({
+      const response = await dictionaryClient.removeWord({
         param: { organizationSlug, dictionaryId, wordId },
       });
       if (!response.ok) {
@@ -237,9 +228,7 @@ export function DictionaryDetailPageContent({
 
   const importWords = useMutation({
     mutationFn: async (content: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries[
-        ":dictionaryId"
-      ].words["import"].$post({
+      const response = await dictionaryClient.importWords({
         param: { organizationSlug, dictionaryId },
         json: { locale: locale.trim(), content },
       });
@@ -261,9 +250,7 @@ export function DictionaryDetailPageContent({
 
   const attachProject = useMutation({
     mutationFn: async (projectId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries[
-        ":dictionaryId"
-      ].projects.$post({
+      const response = await dictionaryClient.attachProject({
         param: { organizationSlug, dictionaryId },
         json: { projectId },
       });
@@ -288,9 +275,7 @@ export function DictionaryDetailPageContent({
 
   const detachProject = useMutation({
     mutationFn: async (projectId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries[
-        ":dictionaryId"
-      ].projects[":projectId"].$delete({
+      const response = await dictionaryClient.detachProject({
         param: { organizationSlug, dictionaryId, projectId },
       });
       if (!response.ok) {
@@ -304,9 +289,7 @@ export function DictionaryDetailPageContent({
 
   async function exportWords() {
     try {
-      const response = await apiClient.api.orgs[":organizationSlug"].dictionaries[
-        ":dictionaryId"
-      ].words["export"].$get({
+      const response = await dictionaryClient.exportWords({
         param: { organizationSlug, dictionaryId },
         query: { locale: locale.trim() },
       });

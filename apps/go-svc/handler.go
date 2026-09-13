@@ -39,6 +39,7 @@ type handler struct {
 	research     researchService
 	objects      *objectstore.Registry
 	guidelines   *guidelines.Service
+	dictionaries *dictionaryAPI
 }
 
 func newHandler() *handler {
@@ -51,6 +52,9 @@ func newHandler() *handler {
 const publicPathPrefix = "/api/go-svc"
 
 func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
+	if h.dictionaries != nil {
+		h.dictionaries.register(mux, verifier)
+	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	mux.HandleFunc("GET /health", h.health)
 	mux.Handle("POST /v1/validate/segment", validate)
