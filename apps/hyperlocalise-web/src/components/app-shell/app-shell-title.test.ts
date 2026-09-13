@@ -54,6 +54,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/hyperlab/flags", "Flags"],
     ["/org/acme/hyperlab/keys", "API keys"],
     ["/org/acme/translation-memories", "Translation Memories"],
+    ["/org/acme/dictionaries", "Dictionaries"],
     ["/org/acme/integrations", "Integrations"],
     ["/org/acme/teams", "Teams"],
     ["/org/acme/teams/team_1", "team_1"],

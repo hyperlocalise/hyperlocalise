@@ -356,6 +356,16 @@ export const contentEditorFormatChecksMessages = defineMessages({
     id: "deD7TAf/DJ",
     description: "Label for a CAT format check that failed",
   },
+  addToDictionary: {
+    defaultMessage: "Add to dictionary",
+    id: "SULea/W/vK",
+    description: "Button to add a spelling warning token to the project spellcheck dictionary",
+  },
+  addingToDictionary: {
+    defaultMessage: "Adding…",
+    id: "AmrdIWCCiJ",
+    description: "Busy label while a spelling token is added to a dictionary",
+  },
 });
 
 export const contentEditorWorkspaceContainerMessages = defineMessages({

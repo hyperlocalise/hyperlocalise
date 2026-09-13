@@ -131,6 +131,11 @@ export const rolePermissionsPageViewMessages = defineMessages({
     id: "1gdAJhh6Lk",
     description: "Permission row for editing translation memories",
   },
+  rowEditDictionaries: {
+    defaultMessage: "Edit dictionaries",
+    id: "a0im8YZ/LN",
+    description: "Permission row for editing spellcheck dictionaries",
+  },
   rowViewIntegrations: {
     defaultMessage: "View integrations",
     id: "BCsSQdOvtG",

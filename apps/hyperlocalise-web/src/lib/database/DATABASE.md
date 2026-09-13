@@ -141,6 +141,38 @@ erDiagram
         timestamptz updated_at
     }
 
+    SPELLCHECK_DICTIONARIES {
+        uuid id PK
+        uuid organization_id FK
+        uuid created_by_user_id FK
+        text name
+        text description
+        text status "enum: draft, active, archived"
+        integer words_version
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    SPELLCHECK_DICTIONARY_WORDS {
+        uuid id PK
+        uuid dictionary_id FK
+        text locale
+        text word
+        text word_normalized
+        uuid created_by_user_id FK
+        timestamptz created_at
+    }
+
+    PROJECT_SPELLCHECK_DICTIONARIES {
+        uuid id PK
+        uuid organization_id FK
+        text project_id FK
+        uuid dictionary_id FK
+        integer priority
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
     ORGANIZATION_LLM_PROVIDER_CREDENTIALS {
         uuid id PK
         uuid organization_id FK
@@ -324,6 +356,13 @@ erDiagram
 
     PROJECTS ||--o{ PROJECT_MEMORIES : uses
     MEMORIES ||--o{ PROJECT_MEMORIES : attached_to
+
+    ORGANIZATIONS ||--o{ SPELLCHECK_DICTIONARIES : owns
+    USERS ||--o{ SPELLCHECK_DICTIONARIES : created_by
+    SPELLCHECK_DICTIONARIES ||--o{ SPELLCHECK_DICTIONARY_WORDS : contains
+
+    PROJECTS ||--o{ PROJECT_SPELLCHECK_DICTIONARIES : uses
+    SPELLCHECK_DICTIONARIES ||--o{ PROJECT_SPELLCHECK_DICTIONARIES : attached_to
 
     ORGANIZATIONS ||--o{ ORGANIZATION_LLM_PROVIDER_CREDENTIALS : configures
     USERS ||--o{ ORGANIZATION_LLM_PROVIDER_CREDENTIALS : created_by

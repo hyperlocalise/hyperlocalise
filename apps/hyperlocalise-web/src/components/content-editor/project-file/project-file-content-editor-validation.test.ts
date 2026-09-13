@@ -422,4 +422,31 @@ describe("fetchCatSegmentValidation", () => {
       error: { code: "aborted" },
     });
   });
+
+  it("posts acceptedWords when the project dictionary overlay has tokens", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ checks: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await fetchCatSegmentValidation(
+      {
+        sourceText: "Hello",
+        targetText: "Please recieve Hyperlocalise",
+        sourcePath: "/messages/en.json",
+        targetLocale: "en-US",
+        acceptedWords: ["Hyperlocalise", "AuthKit"],
+        intl: testIntl,
+      },
+      fetcher,
+    );
+
+    const request = fetcher.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(request.body as string)).toMatchObject({
+      acceptedWords: ["Hyperlocalise", "AuthKit"],
+      modes: expect.arrayContaining(["spelling"]),
+    });
+  });
 });

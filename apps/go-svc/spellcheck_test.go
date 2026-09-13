@@ -31,7 +31,7 @@ func TestCheckSpellingInjectsConfiguredProvider(t *testing.T) {
 	h := &handler{spellChecker: fake}
 
 	text := "Please recieve the {name} update"
-	issues, err := h.checkSpelling(context.Background(), "fr-FR", text)
+	issues, err := h.checkSpelling(context.Background(), "fr-FR", text, nil)
 
 	require.NoError(t, err)
 	require.Equal(t, fake.issues, issues)
@@ -46,7 +46,7 @@ func TestCheckSpellingPropagatesContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, _ = h.checkSpelling(ctx, "", "Hello there")
+	_, _ = h.checkSpelling(ctx, "", "Hello there", nil)
 
 	require.NotNil(t, fake.receivedCtx)
 	require.ErrorIs(t, fake.receivedCtx.Err(), context.Canceled)
@@ -55,7 +55,7 @@ func TestCheckSpellingPropagatesContextCancellation(t *testing.T) {
 func TestCheckSpellingNoopWhenUnconfigured(t *testing.T) {
 	h := newHandler()
 
-	issues, err := h.checkSpelling(context.Background(), "", "Hello there")
+	issues, err := h.checkSpelling(context.Background(), "", "Hello there", nil)
 
 	require.ErrorIs(t, err, ErrSpellCheckUnavailable)
 	require.Nil(t, issues)
@@ -65,10 +65,28 @@ func TestCheckSpellingDeduplicatesTokens(t *testing.T) {
 	fake := &fakeSpellChecker{}
 	h := &handler{spellChecker: fake}
 
-	_, err := h.checkSpelling(context.Background(), "en-US", "helo helo hello helo")
+	_, err := h.checkSpelling(context.Background(), "en-US", "helo helo hello helo", nil)
 
 	require.NoError(t, err)
 	require.Equal(t, []string{"helo", "hello"}, fake.receivedWords)
+}
+
+func TestCheckSpellingSkipsAcceptedWordsBeforeProvider(t *testing.T) {
+	fake := &fakeSpellChecker{
+		issues: []SpellingIssue{{Word: "recieve", Suggestions: []string{"receive"}}},
+	}
+	h := &handler{spellChecker: fake}
+
+	issues, err := h.checkSpelling(
+		context.Background(),
+		"en-US",
+		"Please recieve Hyperlocalise",
+		[]string{"Hyperlocalise", "recieve"},
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, fake.issues, issues)
+	require.Equal(t, []string{"Please"}, fake.receivedWords)
 }
 
 func TestUniqueWords(t *testing.T) {

@@ -78,6 +78,10 @@ import {
 } from "./project-file-content-editor-mapper";
 import { projectFileCatWorkspaceMessages } from "./project-file-content-editor-workspace.messages";
 import { fetchCatSegmentValidation } from "./project-file-content-editor-validation";
+import {
+  SpellcheckDictionaryProvider,
+  useProjectSpellcheckDictionary,
+} from "./spellcheck-dictionary-context";
 import { useCatScanFindings } from "./use-cat-scan-findings";
 import { useContentEditorMutations } from "./use-content-editor-mutations";
 import { useContentEditorSegmentQuery } from "./use-content-editor-segment-query";
@@ -117,6 +121,7 @@ export function ProjectFileContentEditorWorkspace({
   layout = "default",
   className,
   pageNavigationGuardRef,
+  canWriteDictionaries = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -137,6 +142,7 @@ export function ProjectFileContentEditorWorkspace({
   layout?: "default" | "fullscreen";
   className?: string;
   pageNavigationGuardRef?: ContentEditorPageNavigationGuardRef;
+  canWriteDictionaries?: boolean;
 }) {
   const intl = useIntl();
   const aiFeaturesAccess = useAiFeaturesAccess();
@@ -174,6 +180,12 @@ export function ProjectFileContentEditorWorkspace({
   }, [highlightLocale, targetLocaleProp, targetLocales]);
 
   const targetLocale = targetLocaleProp ?? targetLocaleState;
+  const spellcheckDictionary = useProjectSpellcheckDictionary({
+    organizationSlug,
+    projectId,
+    locale: targetLocale,
+    canWriteDictionaries,
+  });
   const showLocaleSelector = !targetLocaleProp && (targetLocales?.length ?? 0) > 0;
 
   const {
@@ -337,6 +349,7 @@ export function ProjectFileContentEditorWorkspace({
         sourcePath,
         targetLocale: segment.targetLocale,
         maxLength: segment.maxLength,
+        acceptedWords: spellcheckDictionary.acceptedWords,
         signal: options?.signal,
         intl,
       });
@@ -365,7 +378,7 @@ export function ProjectFileContentEditorWorkspace({
         ...glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
       ];
     },
-    [intl, sourcePath],
+    [intl, sourcePath, spellcheckDictionary.acceptedWords],
   );
 
   const isNativeProject = !contentEditorFile?.provider;
@@ -794,180 +807,183 @@ export function ProjectFileContentEditorWorkspace({
   }
 
   return (
-    <div
-      className={cn(
-        isFullscreen ? "flex h-full min-h-0 flex-1 flex-col gap-3" : "space-y-3",
-        className,
-      )}
-    >
-      {showLocaleSelector ? (
-        <div className="flex w-full flex-col gap-1.5 sm:max-w-44">
-          <TypographyP
-            className="text-[10px]"
-            weight="medium"
-            tone="subtle"
-            capitalization="uppercase"
-          >
-            <FormattedMessage {...projectFileCatWorkspaceMessages.targetLocaleLabel} />
-          </TypographyP>
-          <Select
-            value={targetLocale}
-            onValueChange={(value) => {
-              if (!value || value === targetLocale) {
-                return;
-              }
-
-              attemptCatPageNavigation(resolvedPageNavigationGuardRef, () => {
-                setTargetLocaleState(value);
-              });
-            }}
-          >
-            <SelectTrigger className="h-9 w-full text-xs">
-              <SelectValue
-                placeholder={intl.formatMessage(
-                  projectFileCatWorkspaceMessages.selectLocalePlaceholder,
-                )}
-              />
-            </SelectTrigger>
-            <SelectContent
-              align="start"
-              alignItemWithTrigger={false}
-              className="w-max min-w-[17rem] max-w-[min(22rem,calc(100vw-2rem))]"
+    <SpellcheckDictionaryProvider value={spellcheckDictionary}>
+      <div
+        className={cn(
+          isFullscreen ? "flex h-full min-h-0 flex-1 flex-col gap-3" : "space-y-3",
+          className,
+        )}
+      >
+        {showLocaleSelector ? (
+          <div className="flex w-full flex-col gap-1.5 sm:max-w-44">
+            <TypographyP
+              className="text-[10px]"
+              weight="medium"
+              tone="subtle"
+              capitalization="uppercase"
             >
-              {(targetLocales ?? []).map((locale) => (
-                <SelectItem
-                  key={locale}
-                  value={locale}
-                  label={formatLocaleOptionLabel(intl, locale)}
-                >
-                  <span className="truncate">{formatLocaleDisplayName(intl, locale)}</span>
-                  <span className="font-mono text-muted-foreground">
-                    <FormattedMessage
-                      {...projectFileCatWorkspaceMessages.localeCodeInParens}
-                      values={{ locale }}
-                    />
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ) : null}
+              <FormattedMessage {...projectFileCatWorkspaceMessages.targetLocaleLabel} />
+            </TypographyP>
+            <Select
+              value={targetLocale}
+              onValueChange={(value) => {
+                if (!value || value === targetLocale) {
+                  return;
+                }
 
-      <AiFeaturesUpgradeHrefProvider value={upgradePlanHref}>
-        <ContentEditorWorkspaceContainer
-          initialState={workspaceForRender}
-          queueSnapshot={workspaceState}
-          fileScopeKey={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
-          pageNavigationGuardRef={resolvedPageNavigationGuardRef}
-          lazySegment={{
-            organizationSlug,
-            projectId,
-            sourcePath,
-            targetLocale,
-            externalResourceId,
-            resourceType,
-            contentEditorFile,
-            enabled: Boolean(contentEditorFile),
-          }}
-          className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
-          navigation={{}}
-          editing={{
-            onTreatAsImage: async (segmentId, nextTreatAsImage) => {
-              await treatAsImage({
-                externalStringId: segmentId,
-                treatAsImage: nextTreatAsImage,
-              });
-            },
-            ...(isNativeProject
-              ? {
-                  onTreatAsVideo: async (segmentId: string, nextTreatAsVideo: boolean) => {
-                    await treatAsVideo({
-                      externalStringId: segmentId,
-                      treatAsVideo: nextTreatAsVideo,
-                    });
-                  },
-                  ...(aiFeaturesAllowed
-                    ? {
-                        onRegenerateImage: async (segmentId, options) => {
-                          await regenerateImage({
-                            externalStringId: segmentId,
-                            instructions: options?.instructions,
-                            force: options?.force,
-                          });
-                        },
-                      }
-                    : {}),
-                  onSetMaxLength: handleSetMaxLength,
-                }
-              : {}),
-            onUploadImage: async (segmentId, file) => {
-              await uploadImage({ externalStringId: segmentId, file });
-            },
-          }}
-          services={{
-            validateFormat,
-            runQaChecks,
-            lookupSegmentConcordance,
-            lookupSegmentContext,
-            lookupSegmentVisualContext:
-              contentEditorFile?.provider?.kind && contentEditorFile.provider.kind !== "native"
-                ? lookupSegmentVisualContext
-                : undefined,
-            generateAiRecommendation:
-              aiFeaturesAccess.status === "allowed" ? generateAiRecommendation : undefined,
-          }}
-          review={{
-            onApprove: handleApprove,
-            onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
-            onAddComment: handleAddComment,
-            onAddToIssueSheet: handleAddToIssueSheet,
-            onResolveComment:
-              contentEditorFile?.provider?.kind === "crowdin" ? handleResolveComment : undefined,
-            ...(canHideNativeStrings || contentEditorFile?.provider?.kind === "crowdin"
-              ? {
-                  onBulkHide: (segmentIds: string[]) => handleSetStringsHidden(segmentIds, true),
-                  onBulkUnhide: (segmentIds: string[]) => handleSetStringsHidden(segmentIds, false),
-                }
-              : {}),
-            onSetLocked: handleSetStringsLocked,
-            onBulkLock: (segmentIds: string[]) => handleSetStringsLocked(segmentIds, true),
-            onBulkUnlock: (segmentIds: string[]) => handleSetStringsLocked(segmentIds, false),
-          }}
-          initialSegmentKeyOrId={initialSegmentKey}
-          buildSegmentShareUrl={buildSegmentShareUrl}
-          queueSearch={search}
-          onQueueSearchChange={setSearch}
-          queueFilter={queueFilter}
-          onQueueFilterChange={setQueueFilter}
-          availableQueueFilters={availableQueueFilters}
-          queueSort={queueSort}
-          onQueueSortChange={setQueueSort}
-          availableQueueSorts={availableQueueSorts}
-          isQueueSearchPending={isSearchPending}
-          isQueueFetchingPage={isFetchingNextPage}
-          isQueueListLoading={isQueueListLoading}
-          isQueueDataPending={isQueueDataPending}
-          isTranslationViewLoading={isTranslationViewLoading}
-          isImageBusy={isImageBusy}
-          isMaxLengthSaving={isSavingMaxLength}
-          queuePagination={pagination}
-          onLoadMoreQueue={loadNextPage}
-          hasMoreQueue={pagination?.hasMore ?? false}
-          canLookupFreshContext={aiFeaturesAllowed && canLookupFreshContext}
-          onPageLimitChange={setPageLimit}
-          nativeIssuesEnabled={isNativeProject}
-          onDownloadFilteredView={handleDownloadFilteredView}
-          isDownloadingFilteredView={isExporting}
+                attemptCatPageNavigation(resolvedPageNavigationGuardRef, () => {
+                  setTargetLocaleState(value);
+                });
+              }}
+            >
+              <SelectTrigger className="h-9 w-full text-xs">
+                <SelectValue
+                  placeholder={intl.formatMessage(
+                    projectFileCatWorkspaceMessages.selectLocalePlaceholder,
+                  )}
+                />
+              </SelectTrigger>
+              <SelectContent
+                align="start"
+                alignItemWithTrigger={false}
+                className="w-max min-w-[17rem] max-w-[min(22rem,calc(100vw-2rem))]"
+              >
+                {(targetLocales ?? []).map((locale) => (
+                  <SelectItem
+                    key={locale}
+                    value={locale}
+                    label={formatLocaleOptionLabel(intl, locale)}
+                  >
+                    <span className="truncate">{formatLocaleDisplayName(intl, locale)}</span>
+                    <span className="font-mono text-muted-foreground">
+                      <FormattedMessage
+                        {...projectFileCatWorkspaceMessages.localeCodeInParens}
+                        values={{ locale }}
+                      />
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
+        <AiFeaturesUpgradeHrefProvider value={upgradePlanHref}>
+          <ContentEditorWorkspaceContainer
+            initialState={workspaceForRender}
+            queueSnapshot={workspaceState}
+            fileScopeKey={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
+            pageNavigationGuardRef={resolvedPageNavigationGuardRef}
+            lazySegment={{
+              organizationSlug,
+              projectId,
+              sourcePath,
+              targetLocale,
+              externalResourceId,
+              resourceType,
+              contentEditorFile,
+              enabled: Boolean(contentEditorFile),
+            }}
+            className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
+            navigation={{}}
+            editing={{
+              onTreatAsImage: async (segmentId, nextTreatAsImage) => {
+                await treatAsImage({
+                  externalStringId: segmentId,
+                  treatAsImage: nextTreatAsImage,
+                });
+              },
+              ...(isNativeProject
+                ? {
+                    onTreatAsVideo: async (segmentId: string, nextTreatAsVideo: boolean) => {
+                      await treatAsVideo({
+                        externalStringId: segmentId,
+                        treatAsVideo: nextTreatAsVideo,
+                      });
+                    },
+                    ...(aiFeaturesAllowed
+                      ? {
+                          onRegenerateImage: async (segmentId, options) => {
+                            await regenerateImage({
+                              externalStringId: segmentId,
+                              instructions: options?.instructions,
+                              force: options?.force,
+                            });
+                          },
+                        }
+                      : {}),
+                    onSetMaxLength: handleSetMaxLength,
+                  }
+                : {}),
+              onUploadImage: async (segmentId, file) => {
+                await uploadImage({ externalStringId: segmentId, file });
+              },
+            }}
+            services={{
+              validateFormat,
+              runQaChecks,
+              lookupSegmentConcordance,
+              lookupSegmentContext,
+              lookupSegmentVisualContext:
+                contentEditorFile?.provider?.kind && contentEditorFile.provider.kind !== "native"
+                  ? lookupSegmentVisualContext
+                  : undefined,
+              generateAiRecommendation:
+                aiFeaturesAccess.status === "allowed" ? generateAiRecommendation : undefined,
+            }}
+            review={{
+              onApprove: handleApprove,
+              onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
+              onAddComment: handleAddComment,
+              onAddToIssueSheet: handleAddToIssueSheet,
+              onResolveComment:
+                contentEditorFile?.provider?.kind === "crowdin" ? handleResolveComment : undefined,
+              ...(canHideNativeStrings || contentEditorFile?.provider?.kind === "crowdin"
+                ? {
+                    onBulkHide: (segmentIds: string[]) => handleSetStringsHidden(segmentIds, true),
+                    onBulkUnhide: (segmentIds: string[]) =>
+                      handleSetStringsHidden(segmentIds, false),
+                  }
+                : {}),
+              onSetLocked: handleSetStringsLocked,
+              onBulkLock: (segmentIds: string[]) => handleSetStringsLocked(segmentIds, true),
+              onBulkUnlock: (segmentIds: string[]) => handleSetStringsLocked(segmentIds, false),
+            }}
+            initialSegmentKeyOrId={initialSegmentKey}
+            buildSegmentShareUrl={buildSegmentShareUrl}
+            queueSearch={search}
+            onQueueSearchChange={setSearch}
+            queueFilter={queueFilter}
+            onQueueFilterChange={setQueueFilter}
+            availableQueueFilters={availableQueueFilters}
+            queueSort={queueSort}
+            onQueueSortChange={setQueueSort}
+            availableQueueSorts={availableQueueSorts}
+            isQueueSearchPending={isSearchPending}
+            isQueueFetchingPage={isFetchingNextPage}
+            isQueueListLoading={isQueueListLoading}
+            isQueueDataPending={isQueueDataPending}
+            isTranslationViewLoading={isTranslationViewLoading}
+            isImageBusy={isImageBusy}
+            isMaxLengthSaving={isSavingMaxLength}
+            queuePagination={pagination}
+            onLoadMoreQueue={loadNextPage}
+            hasMoreQueue={pagination?.hasMore ?? false}
+            canLookupFreshContext={aiFeaturesAllowed && canLookupFreshContext}
+            onPageLimitChange={setPageLimit}
+            nativeIssuesEnabled={isNativeProject}
+            onDownloadFilteredView={handleDownloadFilteredView}
+            isDownloadingFilteredView={isExporting}
+          />
+        </AiFeaturesUpgradeHrefProvider>
+        <ContentEditorLinkedIssuesDialog
+          open={linkedIssuesOpen}
+          onOpenChange={setLinkedIssuesOpen}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          segment={linkedIssuesSegment}
         />
-      </AiFeaturesUpgradeHrefProvider>
-      <ContentEditorLinkedIssuesDialog
-        open={linkedIssuesOpen}
-        onOpenChange={setLinkedIssuesOpen}
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        segment={linkedIssuesSegment}
-      />
-    </div>
+      </div>
+    </SpellcheckDictionaryProvider>
   );
 }

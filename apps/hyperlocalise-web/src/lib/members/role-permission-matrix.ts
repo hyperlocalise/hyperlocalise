@@ -40,6 +40,7 @@ export type RolePermissionRowId =
   | "manage-teams"
   | "edit-glossaries"
   | "edit-memories"
+  | "edit-dictionaries"
   | "view-integrations"
   | "manage-integrations"
   | "manage-credentials"
@@ -67,6 +68,7 @@ export const ROLE_PERMISSION_ROWS: readonly RolePermissionRow[] = [
   { id: "manage-teams", group: "people", capability: "teams:write" },
   { id: "edit-glossaries", group: "workspace", capability: "glossaries:write" },
   { id: "edit-memories", group: "workspace", capability: "memories:write" },
+  { id: "edit-dictionaries", group: "workspace", capability: "dictionaries:write" },
   { id: "view-integrations", group: "workspace", capability: "integrations:read" },
   { id: "manage-integrations", group: "workspace", capability: "integrations:write" },
   { id: "manage-credentials", group: "workspace", capability: "provider_credentials:write" },

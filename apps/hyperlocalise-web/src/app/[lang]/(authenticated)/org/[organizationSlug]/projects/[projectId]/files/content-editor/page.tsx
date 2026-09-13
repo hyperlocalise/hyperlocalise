@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { isReleaseContentEditorAllFilesEnabled } from "@/lib/flags/release-flags";
 import {
@@ -94,6 +95,7 @@ async function ProjectFileContentEditorPageLoader({
       resourceType={parsedSearchParams.resourceType}
       branch={parsedSearchParams.branch}
       sourcePaths={parsedSearchParams.sourcePaths}
+      canWriteDictionaries={hasCapability(auth.membership.role, "dictionaries:write")}
     />
   );
 }

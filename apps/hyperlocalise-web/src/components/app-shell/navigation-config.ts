@@ -52,6 +52,7 @@ import {
   SentIcon,
   Settings01Icon,
   SparklesIcon,
+  TextFontIcon,
   UserMultiple02Icon,
 } from "@hugeicons/core-free-icons";
 import type { HugeiconsIcon } from "@hugeicons/react";
@@ -331,6 +332,15 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("translation-memories"),
           icon: Database01Icon,
+        },
+        {
+          label: intl.formatMessage({
+            defaultMessage: "Dictionaries",
+            id: "AHkrOWSoWW",
+            description: "Sidebar navigation item for spellcheck dictionaries",
+          }),
+          href: org("dictionaries"),
+          icon: TextFontIcon,
         },
         {
           label: intl.formatMessage({

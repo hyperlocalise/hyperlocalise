@@ -36,6 +36,7 @@ type RouteTitleKey =
   | "audiences"
   | "billing"
   | "dashboard"
+  | "dictionaries"
   | "domains"
   | "experiments"
   | "files"
@@ -106,6 +107,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "audiences" ||
     value === "billing" ||
     value === "dashboard" ||
+    value === "dictionaries" ||
     value === "domains" ||
     value === "experiments" ||
     value === "files" ||
@@ -241,6 +243,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Overview",
         id: "cQIBb8VVUr",
         description: "App shell breadcrumb title for the workspace overview page",
+      });
+    case "dictionaries":
+      return intl.formatMessage({
+        defaultMessage: "Dictionaries",
+        id: "njHQVnCm4E",
+        description: "App shell breadcrumb title for the spellcheck dictionaries page",
       });
     case "domains":
       return intl.formatMessage({

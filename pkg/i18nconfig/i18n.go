@@ -50,6 +50,12 @@ type I18NConfig struct {
 	Hyperlocalise *HyperlocaliseConfig    `json:"hyperlocalise,omitempty"`
 	Storage       *StorageConfig          `json:"storage,omitempty"`
 	Cache         CacheConfig             `json:"cache,omitempty"`
+	Spellcheck    *SpellcheckConfig       `json:"spellcheck,omitempty"`
+}
+
+// SpellcheckConfig points at resolved per-locale allow-list files.
+type SpellcheckConfig struct {
+	DictionaryDir string `json:"dictionary_dir,omitempty"`
 }
 
 // LocaleConfig configures source/target locales and fallback hierarchy.
@@ -295,6 +301,9 @@ func (c I18NConfig) Validate() error {
 	if err := c.validateCache(); err != nil {
 		return err
 	}
+	if err := c.validateSpellcheck(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -447,10 +456,56 @@ func (c I18NConfig) validateFallbacks(targetSet map[string]struct{}) error {
 	return nil
 }
 
+func (c I18NConfig) spellcheckDictionaryDir() string {
+	if c.Spellcheck == nil {
+		return ""
+	}
+	return strings.TrimSpace(c.Spellcheck.DictionaryDir)
+}
+
+func (c I18NConfig) validateSpellcheck() error {
+	dir := c.spellcheckDictionaryDir()
+	if dir == "" {
+		return nil
+	}
+	normalized := filepath.ToSlash(dir)
+	for _, segment := range strings.Split(normalized, "/") {
+		if segment == ".." {
+			return fmt.Errorf("spellcheck.dictionary_dir must not contain parent directory traversal")
+		}
+	}
+	return nil
+}
+
+// ResolveSpellcheckDictionaryDir returns the overlay directory from --dictionary-dir,
+// then spellcheck.dictionary_dir. Relative paths join configDir.
+func ResolveSpellcheckDictionaryDir(cfg *I18NConfig, flagDir, configDir string) string {
+	dir := strings.TrimSpace(flagDir)
+	if dir == "" && cfg != nil {
+		dir = cfg.spellcheckDictionaryDir()
+	}
+	if dir == "" {
+		return ""
+	}
+	if filepath.IsAbs(dir) {
+		return dir
+	}
+	if strings.TrimSpace(configDir) == "" {
+		return dir
+	}
+	return filepath.Join(configDir, dir)
+}
+
 func (c I18NConfig) validateProjectPaths(configDir string) error {
 	root, err := canonicalPathForContainment(configDir)
 	if err != nil {
 		return fmt.Errorf("resolve config directory: %w", err)
+	}
+
+	if dir := c.spellcheckDictionaryDir(); dir != "" {
+		if err := validateProjectPath(root, dir); err != nil {
+			return fmt.Errorf("spellcheck.dictionary_dir: %w", err)
+		}
 	}
 
 	for bucketName, bucket := range c.Buckets {

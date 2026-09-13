@@ -61,7 +61,12 @@ function createOrgSlugClient(origin: string) {
       "mentions",
       "conversations",
     ]),
-    ...pickClientPaths(knowledge, ["glossaries", "knowledge-memory", "translation-memories"]),
+    ...pickClientPaths(knowledge, [
+      "glossaries",
+      "dictionaries",
+      "knowledge-memory",
+      "translation-memories",
+    ]),
     ...pickClientPaths(projects, ["projects", "jobs", "files", "workspace-files", "automations"]),
     ...pickClientPaths(tms, [
       "external-tms-provider-credential",

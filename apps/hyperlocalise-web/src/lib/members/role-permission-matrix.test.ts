@@ -42,6 +42,7 @@ describe("role-permission-matrix", () => {
     expect(groups[2]?.rows.map((row) => row.id)).toEqual([
       "edit-glossaries",
       "edit-memories",
+      "edit-dictionaries",
       "view-integrations",
       "manage-integrations",
       "manage-credentials",
@@ -66,6 +67,7 @@ describe("role-permission-matrix", () => {
       "teams:write",
       "glossaries:write",
       "memories:write",
+      "dictionaries:write",
       "integrations:read",
       "integrations:write",
       "provider_credentials:write",

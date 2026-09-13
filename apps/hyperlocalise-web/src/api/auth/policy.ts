@@ -26,6 +26,7 @@ const MEMBER_READ_CAPABILITIES = [
   "teams:read",
   "glossaries:read",
   "memories:read",
+  "dictionaries:read",
   "jobs:read",
   "experiments:read",
 ] as const;
@@ -67,6 +68,7 @@ const LOCALIZATION_MANAGER_CAPABILITIES = [
   "projects:write",
   "glossaries:write",
   "memories:write",
+  "dictionaries:write",
   "provider_credentials:read",
   "provider_credentials:write",
   "api_keys:read",

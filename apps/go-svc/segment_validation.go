@@ -31,7 +31,7 @@ func (h *handler) composeSegmentValidation(
 	}
 
 	startedAt := time.Now()
-	issues, err := h.checkSpelling(ctx, targetLocale, req.TargetText)
+	issues, err := h.checkSpelling(ctx, targetLocale, req.TargetText, req.AcceptedWords)
 	duration := time.Since(startedAt)
 
 	switch {

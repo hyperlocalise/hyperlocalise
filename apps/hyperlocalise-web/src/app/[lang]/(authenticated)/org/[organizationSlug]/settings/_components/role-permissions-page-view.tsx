@@ -64,6 +64,7 @@ const rowMessages = {
   "manage-teams": messages.rowManageTeams,
   "edit-glossaries": messages.rowEditGlossaries,
   "edit-memories": messages.rowEditMemories,
+  "edit-dictionaries": messages.rowEditDictionaries,
   "view-integrations": messages.rowViewIntegrations,
   "manage-integrations": messages.rowManageIntegrations,
   "manage-credentials": messages.rowManageCredentials,

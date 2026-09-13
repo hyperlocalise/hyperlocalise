@@ -3,6 +3,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "spellcheck",
     srcs = [
+        "accepted.go",
         "entities.go",
         "icu.go",
         "markup.go",
@@ -15,12 +16,14 @@ go_library(
     deps = [
         "//internal/i18n/icuparser",
         "//internal/i18n/segmentvalidate",
+        "@org_golang_x_text//unicode/norm",
     ],
 )
 
 go_test(
     name = "spellcheck_test",
     srcs = [
+        "accepted_test.go",
         "entities_test.go",
         "icu_test.go",
         "markup_test.go",
@@ -31,4 +34,7 @@ go_test(
     ],
     data = ["DICTIONARIES.md"],
     embed = [":spellcheck"],
+    deps = [
+        "@com_github_stretchr_testify//require",
+    ],
 )

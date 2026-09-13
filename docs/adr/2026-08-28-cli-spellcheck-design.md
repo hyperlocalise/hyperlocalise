@@ -175,7 +175,8 @@ translations.
 
 - Implementing the check; this ADR settles the approach.
 - A custom or per-project word list. Needed before this is pleasant on real
-  repositories, but it is a separate design.
+  repositories. Settled in
+  [2026-09-12](./2026-09-12-spellcheck-custom-dictionaries-design.md).
 - Grammar checking, and the locales `DICTIONARIES.md` lists as unsupported
   (`ja-JP`, `zh-CN`, `zh-TW`, `th-TH`, `en-SG`, `fr-CA`, `tl-PH`).
 - Installing Hunspell during sandbox bootstrap for the managed image.

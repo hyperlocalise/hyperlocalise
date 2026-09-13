@@ -423,3 +423,23 @@ func TestValidateSegmentSpellingCapsIssuesAndSuggestions(t *testing.T) {
 	}
 	require.Equal(t, []string{"word1", "word2", "word3", "word4", "word5"}, gotWords, "must preserve first-seen order")
 }
+
+func TestValidateSegmentSpellingDropsAcceptedWords(t *testing.T) {
+	fake := &fakeSpellChecker{
+		issues: []SpellingIssue{{Word: "recieve", Suggestions: []string{"receive"}}},
+	}
+	h := &handler{validate: segmentvalidate.ValidateSegment, spellChecker: fake}
+	mux := newAuthedValidateSegmentMux(h)
+
+	payload := `{"sourceText":"Hello","targetText":"Please recieve Hyperlocalise","sourcePath":"/messages/en.json","modes":["spelling"],"targetLocale":"en-US","acceptedWords":["Please","Hyperlocalise","recieve"]}`
+	rec := postValidateSegment(mux, payload)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp validateSegmentResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Checks, 1)
+	require.Equal(t, "format-parity", resp.Checks[0].ID)
+	require.Empty(t, resp.SkippedModes)
+	require.Nil(t, fake.receivedWords, "accepted words must not reach Hunspell or generate suggestions")
+}

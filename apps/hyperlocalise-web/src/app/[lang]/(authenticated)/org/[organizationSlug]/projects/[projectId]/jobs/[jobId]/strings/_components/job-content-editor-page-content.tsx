@@ -191,6 +191,7 @@ export function JobContentEditorPageContent({
   initialQueueSort = "file_order",
   initialSearch = "",
   contentEditorAllFilesEnabled = false,
+  canWriteDictionaries = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -204,6 +205,7 @@ export function JobContentEditorPageContent({
   initialQueueSort?: ContentEditorQueueSort;
   initialSearch?: string;
   contentEditorAllFilesEnabled?: boolean;
+  canWriteDictionaries?: boolean;
 }) {
   const intl = useIntl();
   const router = useRouter();
@@ -685,6 +687,7 @@ export function JobContentEditorPageContent({
           layout="fullscreen"
           className="min-h-0 flex-1"
           pageNavigationGuardRef={pageNavigationGuardRef}
+          canWriteDictionaries={canWriteDictionaries}
         />
       </ContentEditorPageRoot>
     );
@@ -855,6 +858,7 @@ export function JobContentEditorPageContent({
           layout="fullscreen"
           className="min-h-0 flex-1"
           pageNavigationGuardRef={pageNavigationGuardRef}
+          canWriteDictionaries={canWriteDictionaries}
         />
       </ContentEditorPageRoot>
     );
@@ -979,6 +983,7 @@ export function JobContentEditorPageContent({
         layout="fullscreen"
         className="min-h-0 flex-1"
         pageNavigationGuardRef={pageNavigationGuardRef}
+        canWriteDictionaries={canWriteDictionaries}
       />
     </ContentEditorPageRoot>
   );
