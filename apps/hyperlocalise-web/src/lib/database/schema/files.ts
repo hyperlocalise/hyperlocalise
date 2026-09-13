@@ -37,6 +37,20 @@ import { interactions, workspaceAutomations } from "./agents";
 import { jobs } from "./jobs";
 import { organizationApiKeys } from "./integrations";
 
+/** Per-file SRX 2.0 segmentation for native repository source files. */
+export type RepositorySourceFileSegmentationSettings = {
+  enabled: boolean;
+  template: "default" | "html" | "markdown" | "custom";
+  customSrxXml?: string | null;
+};
+
+export const defaultRepositorySourceFileSegmentationSettings =
+  (): RepositorySourceFileSegmentationSettings => ({
+    enabled: false,
+    template: "default",
+    customSrxXml: null,
+  });
+
 /**
  * Stores metadata for files kept in object storage, including tenant/project scope, source provenance, role, storage location, content metadata, hashes, and audit timestamps.
  */
@@ -121,6 +135,10 @@ export const repositorySourceFiles = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     sourcePath: text("source_path").notNull(),
+    segmentationSettings: jsonb("segmentation_settings")
+      .$type<RepositorySourceFileSegmentationSettings>()
+      .notNull()
+      .default(sql`'{"enabled":false,"template":"default"}'::jsonb`),
     reconciledSourceFileVersionId: uuid("reconciled_source_file_version_id").references(
       (): AnyPgColumn => repositorySourceFileVersions.id,
       { onDelete: "set null" },

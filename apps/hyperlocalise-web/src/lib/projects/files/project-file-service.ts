@@ -34,6 +34,8 @@ import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-wi
 import { bufferFromStream } from "@/lib/primitives/streams";
 import { listTmsProviderLiveFilesForProject } from "@/lib/providers/jobs/tms-provider-live";
 import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/jobs/tms-provider-types";
+import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
+import { normalizeSegmentationSettings } from "@/lib/projects/files/source-file-segmentation";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 export type ProjectFileListContext = {
@@ -659,6 +661,28 @@ export class ProjectFileService extends ProjectServiceBase {
   }): Promise<ProjectFileDetailResponse["file"] | null> {
     const sourcePath = normalizeSourcePath(input.sourcePath);
 
+    const [repositoryFile] = await this.database
+      .select({
+        segmentationSettings: schema.repositorySourceFiles.segmentationSettings,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(
+        and(
+          eq(schema.repositorySourceFiles.projectId, input.projectId),
+          eq(schema.repositorySourceFiles.organizationId, input.organizationId),
+          eq(schema.repositorySourceFiles.sourcePath, sourcePath),
+        ),
+      )
+      .limit(1);
+
+    const segmentationSettings = normalizeSegmentationSettings(
+      repositoryFile?.segmentationSettings,
+    );
+    const segmentation = {
+      ...segmentationSettings,
+      supportsSegmentation: sourcePathSupportsSrxSegmentation(sourcePath),
+    };
+
     const repositoryVersions = await this.database
       .select({
         id: schema.repositorySourceFileVersions.id,
@@ -829,6 +853,7 @@ export class ProjectFileService extends ProjectServiceBase {
       sourcePath,
       filename: repositoryVersionRecords[0]?.filename ?? sourcePath.split("/").at(-1) ?? sourcePath,
       provider: null,
+      segmentation,
       versions,
       jobsByLocale,
       providerJobsByLocale: [],

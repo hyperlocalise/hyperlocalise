@@ -861,12 +861,14 @@ export class HyperlocaliseCliRunner {
   async extractEntries(
     sandboxId: string,
     path: string,
-    options?: { locale?: string; sourcePath?: string },
+    options?: { locale?: string; sourcePath?: string; srx?: string },
   ): Promise<ExtractSandboxEntriesResult> {
     const locale = options?.locale?.trim();
     const localeFlag = locale ? ` --locale ${shellQuote(locale)}` : "";
     const sourcePath = options?.sourcePath?.trim();
     const sourceFlag = sourcePath ? ` --source ${shellQuote(sourcePath)}` : "";
+    const srx = options?.srx?.trim();
+    const srxFlag = srx ? ` --srx ${shellQuote(srx)}` : "";
     // Sandbox command.output() concatenates NDJSON log chunks as JS strings. When a
     // UTF-8 multi-byte character (e.g. Vietnamese ề = E1 BB 81) is split across
     // chunks, each orphaned byte becomes U+FFFD (�). Write entries to a file and
@@ -878,7 +880,7 @@ export class HyperlocaliseCliRunner {
         "bash",
         [
           "-lc",
-          `hl entries ${shellQuote(path)}${localeFlag}${sourceFlag} > ${shellQuote(outputPath)}`,
+          `hl entries ${shellQuote(path)}${localeFlag}${sourceFlag}${srxFlag} > ${shellQuote(outputPath)}`,
         ],
         { env: getSandboxTranslationEnv() },
       );
@@ -1124,7 +1126,7 @@ export async function writeCrowdinFileSandboxConfig(input: {
 export async function extractSandboxEntries(
   sandboxId: string,
   path: string,
-  options?: { locale?: string; sourcePath?: string },
+  options?: { locale?: string; sourcePath?: string; srx?: string },
 ): Promise<ExtractSandboxEntriesResult> {
   return defaultRunner.extractEntries(sandboxId, path, options);
 }

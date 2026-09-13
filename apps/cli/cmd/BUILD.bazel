@@ -22,6 +22,7 @@ go_library(
         "//apps/cli/internal/i18n/syncsvc",
         "//apps/cli/internal/progressui",
         "//internal/csvsafe",
+        "//internal/i18n/entrysplit",
         "//internal/i18n/htmltagparity",
         "//internal/i18n/icuparser",
         "//internal/i18n/locales",

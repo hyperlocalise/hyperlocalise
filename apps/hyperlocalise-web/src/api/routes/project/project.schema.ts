@@ -564,11 +564,45 @@ export const projectFileProviderJobRecordSchema = z.object({
   updatedAt: z.string(),
 });
 
+export const repositorySourceFileSegmentationSettingsSchema = z.object({
+  enabled: z.boolean(),
+  template: z.enum(["default", "html", "markdown", "custom"]),
+  customSrxXml: z.string().nullable().optional(),
+});
+
+export const projectFileSegmentationQuerySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+});
+
+export const updateProjectFileSegmentationBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  segmentation: repositorySourceFileSegmentationSettingsSchema,
+});
+
+export const projectFileSegmentationResponseSchema = z.object({
+  segmentation: repositorySourceFileSegmentationSettingsSchema.extend({
+    supportsSegmentation: z.boolean(),
+  }),
+  reingest: z
+    .object({
+      queued: z.boolean(),
+      reason: z.string().optional(),
+      sourceFileVersionId: z.string().uuid().optional(),
+    })
+    .optional(),
+});
+
 export const projectFileDetailResponseSchema = z.object({
   file: z.object({
     sourcePath: z.string(),
     filename: z.string(),
     provider: projectFileRecordSchema.shape.provider,
+    segmentation: repositorySourceFileSegmentationSettingsSchema
+      .extend({
+        supportsSegmentation: z.boolean(),
+      })
+      .nullable()
+      .optional(),
     versions: z.array(projectFileVersionRecordSchema),
     jobsByLocale: z.array(
       z.object({

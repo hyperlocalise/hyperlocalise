@@ -135,6 +135,10 @@ import {
   listFilteredProjectFiles,
 } from "@/lib/projects/files/project-file-service";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
+import {
+  getRepositorySourceFileSegmentation,
+  updateRepositorySourceFileSegmentation,
+} from "@/lib/projects/files/source-file-segmentation";
 import { localizeAndStoreDocumentVariant } from "@/lib/projects/files/document-variant-service";
 import {
   localizeAndStoreImageVariant,
@@ -204,6 +208,8 @@ import {
   projectFileCatTranslationBodySchema,
   projectFileCatVisualContextBodySchema,
   projectFileDetailQuerySchema,
+  projectFileSegmentationQuerySchema,
+  updateProjectFileSegmentationBodySchema,
   projectFileStringContextBodySchema,
   projectFileUploadBodySchema,
   projectFileTranslationImportBodySchema,
@@ -628,6 +634,26 @@ const validateProjectFileContentEditorCommentIdParams = validator("param", (valu
 
 const validateProjectFileDetailQuery = validator("query", (value, c) => {
   const parsed = projectFileDetailQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileSegmentationQuery = validator("query", (value, c) => {
+  const parsed = projectFileSegmentationQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateUpdateProjectFileSegmentationBody = validator("json", (value, c) => {
+  const parsed = updateProjectFileSegmentationBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -3271,6 +3297,99 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         return c.json({ file }, 200);
+      },
+    )
+    .get(
+      "/:projectId/files/segmentation",
+      validateProjectParams,
+      validateProjectFileSegmentationQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "segmentation_not_supported",
+            "Segmentation settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const record = await getRepositorySourceFileSegmentation({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+        });
+        if (!record) {
+          return notFoundResponse(c, "source_file_not_found");
+        }
+
+        return c.json(
+          {
+            segmentation: {
+              enabled: record.segmentation.enabled,
+              template: record.segmentation.template,
+              customSrxXml: record.segmentation.customSrxXml ?? null,
+              supportsSegmentation: record.supportsSegmentation,
+            },
+          },
+          200,
+        );
+      },
+    )
+    .patch(
+      "/:projectId/files/segmentation",
+      validateProjectParams,
+      validateUpdateProjectFileSegmentationBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "segmentation_not_supported",
+            "Segmentation settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const result = await updateRepositorySourceFileSegmentation({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+          settings: body.segmentation,
+        });
+
+        if (!result.ok) {
+          return notFoundResponse(c, result.error);
+        }
+
+        return c.json(
+          {
+            segmentation: {
+              enabled: result.segmentation.enabled,
+              template: result.segmentation.template,
+              customSrxXml: result.segmentation.customSrxXml ?? null,
+              supportsSegmentation: result.supportsSegmentation,
+            },
+            reingest: result.reingest,
+          },
+          200,
+        );
       },
     )
     .post(

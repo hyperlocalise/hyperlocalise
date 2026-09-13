@@ -52,6 +52,31 @@ func TestEntriesCommandExtractsMaxLengthFromAppleStrings(t *testing.T) {
 	}
 }
 
+func TestEntriesCommandSplitsWithSRXFlag(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(path, []byte(`{"hello":"Hello. World."}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", path, "--srx", "default"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+
+	payload, err := decodeEntriesCommandStrings(out.Bytes())
+	if err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	if payload["hello#srx.0"] != "Hello." || payload["hello#srx.1"] != " World." {
+		t.Fatalf("unexpected payload: %#v", payload)
+	}
+}
+
 func TestEntriesCommandOutputsParsedEntries(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "en.json")

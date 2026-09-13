@@ -8,13 +8,41 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/entrysplit"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/spf13/cobra"
 )
 
+func parserModeForEntries(path string, content []byte) string {
+	normalized := strings.ToLower(filepath.ToSlash(strings.TrimSpace(path)))
+	switch {
+	case strings.HasSuffix(normalized, ".arb"):
+		return "arb"
+	case strings.HasSuffix(normalized, ".json"):
+		if bytes.Contains(content, []byte("defaultMessage")) {
+			var payload map[string]any
+			if json.Unmarshal(content, &payload) == nil && len(payload) > 0 {
+				for _, value := range payload {
+					message, ok := value.(map[string]any)
+					if !ok {
+						break
+					}
+					if _, hasDefault := message["defaultMessage"]; hasDefault {
+						return "formatjs"
+					}
+				}
+			}
+		}
+		return "json"
+	default:
+		return "other"
+	}
+}
+
 func newEntriesCmd() *cobra.Command {
 	var locale string
 	var sourcePath string
+	var srxSpec string
 
 	cmd := &cobra.Command{
 		Use:          "entries <translation-file>",
@@ -31,7 +59,13 @@ func newEntriesCmd() *cobra.Command {
 				return fmt.Errorf("read entries input %q: %w", path, err)
 			}
 
-			entries, err := readEntriesCommandOutput(path, content, strings.TrimSpace(sourcePath), strings.TrimSpace(locale))
+			entries, err := readEntriesCommandOutput(
+				path,
+				content,
+				strings.TrimSpace(sourcePath),
+				strings.TrimSpace(locale),
+				strings.TrimSpace(srxSpec),
+			)
 			if err != nil {
 				return err
 			}
@@ -59,10 +93,16 @@ func newEntriesCmd() *cobra.Command {
 		"",
 		"source file used to align markdown/MDX target documents onto source slot ids",
 	)
+	cmd.Flags().StringVar(
+		&srxSpec,
+		"srx",
+		"",
+		"split string values with SRX 2.0 (default, html, markdown, or path to an SRX file)",
+	)
 	return cmd
 }
 
-func readEntriesCommandOutput(path string, content []byte, sourcePath, locale string) (map[string]translationfileparser.EntriesCommandOutputValue, error) {
+func readEntriesCommandOutput(path string, content []byte, sourcePath, locale, srxSpec string) (map[string]translationfileparser.EntriesCommandOutputValue, error) {
 	if sourcePath != "" {
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext == ".md" || ext == ".mdx" {
@@ -91,5 +131,18 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, locale st
 	if err != nil {
 		return nil, err
 	}
+
+	if strings.TrimSpace(srxSpec) != "" {
+		doc, err := entrysplit.CompileSpec(srxSpec)
+		if err != nil {
+			return nil, err
+		}
+		parserMode := parserModeForEntries(path, content)
+		entries, _, err = entrysplit.ApplyToIngestEntries(doc, path, parserMode, locale, entries)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return translationfileparser.EncodeEntriesCommandOutput(entries), nil
 }

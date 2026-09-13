@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   prepareSourceIngestSandboxStep: vi.fn(),
   writeSourceIngestFileStep: vi.fn(),
   extractSourceIngestEntriesStep: vi.fn(),
+  loadSourceFileSegmentationStep: vi.fn(),
+  writeSourceFileSegmentationSrxStep: vi.fn(),
   parseHlEntriesStep: vi.fn(),
   reconcileSourceFileTranslationKeysStep: vi.fn(),
   markSourceFileIngestStateStep: vi.fn(),
@@ -50,6 +52,8 @@ beforeEach(() => {
   });
   mocks.getStoredFileMetadataStep.mockResolvedValue({ filename: "en.json" });
   mocks.createSourceIngestSandboxStep.mockResolvedValue({ sandboxId: "sandbox" });
+  mocks.loadSourceFileSegmentationStep.mockResolvedValue({ enabled: false, template: "default" });
+  mocks.writeSourceFileSegmentationSrxStep.mockResolvedValue({});
   mocks.extractSourceIngestEntriesStep.mockResolvedValue({});
   mocks.parseHlEntriesStep.mockResolvedValue([]);
   mocks.reconcileSourceFileTranslationKeysStep.mockResolvedValue({ status: "ingested" });

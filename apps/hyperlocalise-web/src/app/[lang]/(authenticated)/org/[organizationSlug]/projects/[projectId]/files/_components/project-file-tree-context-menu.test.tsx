@@ -51,6 +51,7 @@ describe("ProjectFileTreeContextMenu", () => {
           capabilities={{
             canOpenCat: true,
             canTranslateWithAgent: true,
+            canConfigureSegmentation: true,
             contentEditorHref: "/cat",
             isNativeFile: true,
             translateDisabledTitle: undefined,
@@ -99,6 +100,7 @@ describe("ProjectFileTreeContextMenu", () => {
             capabilities={{
               canOpenCat: true,
               canTranslateWithAgent: true,
+              canConfigureSegmentation: true,
               contentEditorHref: "/cat",
               isNativeFile: true,
               translateDisabledTitle: undefined,
@@ -134,6 +136,7 @@ describe("ProjectFileTreeContextMenu", () => {
             capabilities={{
               canOpenCat: true,
               canTranslateWithAgent: true,
+              canConfigureSegmentation: true,
               contentEditorHref: "/cat",
               isNativeFile: true,
               translateDisabledTitle: undefined,

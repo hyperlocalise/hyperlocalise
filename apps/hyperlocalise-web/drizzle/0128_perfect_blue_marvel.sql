@@ -1,0 +1,1 @@
+ALTER TABLE "repository_source_files" ADD COLUMN "segmentation_settings" jsonb DEFAULT '{"enabled":false,"template":"default"}'::jsonb NOT NULL;

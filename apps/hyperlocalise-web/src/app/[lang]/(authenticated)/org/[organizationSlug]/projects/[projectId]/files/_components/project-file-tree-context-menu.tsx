@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import {
   Download01Icon,
   LeftToRightListBulletIcon,
+  Settings02Icon,
   TranslateIcon,
   Upload01Icon,
 } from "@hugeicons/core-free-icons";
@@ -44,6 +45,7 @@ export type ProjectFileTreeActionsConfig = {
   onTranslateFile?: (file: ProjectFileRecord) => void;
   onImportFile?: (file: ProjectFileRecord) => void;
   onDownloadFile?: (file: ProjectFileRecord) => void;
+  onSegmentationSettings?: (file: ProjectFileRecord) => void;
 };
 
 const MENU_MIN_WIDTH_PX = 208;
@@ -205,6 +207,22 @@ export function ProjectFileTreeContextMenu({
           >
             <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
             <FormattedMessage {...messages.download} />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full justify-start"
+            disabled={!capabilities.canConfigureSegmentation}
+            onClick={() => {
+              closeMenu();
+              runAfterMenuClose(() => {
+                fileActions.onSegmentationSettings?.(file);
+              });
+            }}
+          >
+            <HugeiconsIcon icon={Settings02Icon} strokeWidth={1.8} />
+            <FormattedMessage {...messages.segmentationSettings} />
           </Button>
         </>
       ) : null}

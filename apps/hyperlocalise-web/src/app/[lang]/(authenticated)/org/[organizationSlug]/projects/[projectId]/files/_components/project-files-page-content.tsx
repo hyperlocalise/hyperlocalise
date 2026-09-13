@@ -58,7 +58,7 @@ import { useProjectFileActions } from "./use-project-file-actions";
 const FILE_ACCEPT = getSupportedSourceUploadAccept();
 const MAX_UPLOAD_FILES = 10;
 
-type PendingFileDialogAction = "translate" | "import" | "download";
+type PendingFileDialogAction = "translate" | "import" | "download" | "segmentation";
 
 function ProjectFileDialogHost({
   file,
@@ -103,6 +103,7 @@ function ProjectFileDialogHost({
       translate: () => actions.setTranslateDialogOpen(true),
       import: () => actions.setImportDialogOpen(true),
       download: () => actions.setDownloadDialogOpen(true),
+      segmentation: () => actions.setSegmentationDialogOpen(true),
     }[initialAction];
     openDialog();
     setHasOpened(true);
@@ -114,13 +115,17 @@ function ProjectFileDialogHost({
     }
 
     const anyOpen =
-      actions.translateDialogOpen || actions.importDialogOpen || actions.downloadDialogOpen;
+      actions.translateDialogOpen ||
+      actions.importDialogOpen ||
+      actions.downloadDialogOpen ||
+      actions.segmentationDialogOpen;
     if (!anyOpen) {
       onClose();
     }
   }, [
     actions.downloadDialogOpen,
     actions.importDialogOpen,
+    actions.segmentationDialogOpen,
     actions.translateDialogOpen,
     hasOpened,
     onClose,
@@ -428,6 +433,7 @@ export function ProjectFilesPageContent({
       onTranslateFile: (file) => openFileDialog(file, "translate"),
       onImportFile: (file) => openFileDialog(file, "import"),
       onDownloadFile: (file) => openFileDialog(file, "download"),
+      onSegmentationSettings: (file) => openFileDialog(file, "segmentation"),
     }),
     [
       highlightLocale,
