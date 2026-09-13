@@ -157,9 +157,11 @@ async function requireNativeProject(auth: AuthVariables["auth"], projectId: stri
   return { kind: "ok" as const, project };
 }
 
-export function createProjectQaReportRoutes(options: {
-  translationQaScanQueue?: TranslationQaScanQueue;
-} = {}) {
+export function createProjectQaReportRoutes(
+  options: {
+    translationQaScanQueue?: TranslationQaScanQueue;
+  } = {},
+) {
   const translationQaScanQueue = options.translationQaScanQueue ?? createTranslationQaScanQueue();
 
   return new Hono<{ Variables: AuthVariables }>()

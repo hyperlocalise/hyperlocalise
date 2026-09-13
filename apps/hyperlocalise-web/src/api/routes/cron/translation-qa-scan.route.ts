@@ -21,9 +21,11 @@ import { createTranslationQaScanQueue } from "@/workflows/adapters";
 
 const logger = createLogger("cron-translation-qa-scan");
 
-export function createTranslationQaScanRoutes(options: {
-  translationQaScanQueue?: TranslationQaScanQueue;
-} = {}) {
+export function createTranslationQaScanRoutes(
+  options: {
+    translationQaScanQueue?: TranslationQaScanQueue;
+  } = {},
+) {
   const translationQaScanQueue = options.translationQaScanQueue ?? createTranslationQaScanQueue();
 
   return new Hono().get("/", async (c) => {

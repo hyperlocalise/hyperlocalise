@@ -502,7 +502,7 @@ async function loadNativeQaProject(input: {
   return {
     ok: true,
     id: project.id,
-    sourceLocale: project.sourceLocale,
+    sourceLocale: project.sourceLocale ?? "",
     targetLocales: project.targetLocales,
   };
 }
