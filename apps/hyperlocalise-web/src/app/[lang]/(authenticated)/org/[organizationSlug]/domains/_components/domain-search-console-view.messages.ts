@@ -102,14 +102,9 @@ export const domainSearchConsoleViewMessages = defineMessages({
   },
   connectDescription: {
     defaultMessage:
-      "Connect Google Search Console in Integrations to import the clicks, impressions, and queries Google already recorded for this domain.",
-    id: "U99Hvv0Ste",
+      "Connect Google Search Console here to import the clicks, impressions, and queries Google already recorded for this domain.",
+    id: "K3SOs70qdV",
     description: "Empty state description when Search Console is disconnected",
-  },
-  connectCta: {
-    defaultMessage: "Open Integrations",
-    id: "1Ztae4/nmo",
-    description: "Link to Integrations to connect Search Console through Pipes",
   },
   unconfiguredTitle: {
     defaultMessage: "Search Console is not available",
@@ -128,8 +123,8 @@ export const domainSearchConsoleViewMessages = defineMessages({
   },
   needsReauthDescription: {
     defaultMessage:
-      "The Search Console connection needs to be authorized again. Reconnect it in Integrations, then return here.",
-    id: "txV38L4Ccw",
+      "The Search Console connection needs to be authorized again. Reconnect it here.",
+    id: "qNbrHndGz/",
     description: "Empty state description when the Search Console pipe needs reauthorization",
   },
   noPropertyTitle: {
@@ -139,8 +134,8 @@ export const domainSearchConsoleViewMessages = defineMessages({
   },
   noPropertyDescription: {
     defaultMessage:
-      "The connected Search Console account does not have a verified property for {domain}. Add it in Search Console, or reconnect a different Google account in Integrations.",
-    id: "WT7ncP2dF4",
+      "The connected Search Console account does not have a verified property for {domain}. Add it in Search Console, or reconnect a different Google account here.",
+    id: "x+XNghZCJp",
     description: "Empty state description when the connected account lacks this property",
   },
   sampleData: {

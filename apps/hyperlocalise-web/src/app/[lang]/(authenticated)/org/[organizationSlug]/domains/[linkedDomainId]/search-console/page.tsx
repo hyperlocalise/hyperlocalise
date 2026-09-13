@@ -10,7 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability } from "@/api/auth/policy";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { DomainSearchConsoleView } from "../../_components/domain-search-console-view";
 import { DomainResearchShell } from "../../_components/domain-research-shell";
@@ -25,6 +27,7 @@ export default async function DomainSearchConsolePage({
   params: Promise<{ organizationSlug: string; linkedDomainId: string }>;
 }) {
   const { organizationSlug, linkedDomainId } = await params;
+  const auth = await requireAppCapability("projects:read", { organizationSlug });
 
   return (
     <DomainResearchShell
@@ -35,6 +38,7 @@ export default async function DomainSearchConsolePage({
       <DomainSearchConsoleView
         linkedDomainId={linkedDomainId}
         organizationSlug={organizationSlug}
+        canManageConnection={hasCapability(auth.membership.role, "integrations:write")}
       />
     </DomainResearchShell>
   );

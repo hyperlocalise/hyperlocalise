@@ -43,6 +43,7 @@ function DomainResearchPage({
       <DomainSearchConsoleView
         linkedDomainId={linkedDomainId}
         organizationSlug={organizationSlug}
+        canManageConnection
       />
     ),
   };

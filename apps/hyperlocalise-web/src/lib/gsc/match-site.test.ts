@@ -42,4 +42,34 @@ describe("matchSearchConsoleSite", () => {
     );
     expect(match?.siteUrl).toBe("https://docs.acme.com/");
   });
+
+  it("does not match a sibling or longer hostname", () => {
+    expect(
+      matchSearchConsoleSite(
+        [
+          { siteUrl: "https://example.com.au/", permissionLevel: "siteOwner" },
+          { siteUrl: "sc-domain:notexample.com", permissionLevel: "siteOwner" },
+          { siteUrl: "sc-domain:myexample.com", permissionLevel: "siteOwner" },
+        ],
+        "example.com",
+      ),
+    ).toBeNull();
+  });
+
+  it("matches a parent domain property for a subdomain", () => {
+    const match = matchSearchConsoleSite(
+      [{ siteUrl: "sc-domain:acme.com", permissionLevel: "siteOwner" }],
+      "docs.acme.com",
+    );
+    expect(match?.siteUrl).toBe("sc-domain:acme.com");
+  });
+
+  it("does not treat a subdomain URL-prefix as the apex domain", () => {
+    expect(
+      matchSearchConsoleSite(
+        [{ siteUrl: "https://docs.acme.com/", permissionLevel: "siteOwner" }],
+        "acme.com",
+      ),
+    ).toBeNull();
+  });
 });

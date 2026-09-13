@@ -59,14 +59,33 @@ vi.mock("../store/domains-store-context", () => ({
   }),
 }));
 
-function renderView() {
+vi.mock("./domain-search-console-connect", () => ({
+  DomainSearchConsoleConnect: ({
+    canManageConnection,
+  }: {
+    organizationSlug: string;
+    linkedDomainId: string;
+    canManageConnection: boolean;
+  }) =>
+    canManageConnection ? (
+      <div>Connect Google Search Console here</div>
+    ) : (
+      <div>Admins can connect</div>
+    ),
+}));
+
+function renderView(canManageConnection = true) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <IntlProvider locale="en">
       <QueryClientProvider client={queryClient}>
-        <DomainSearchConsoleView organizationSlug="acme" linkedDomainId="hyperlocalise-com" />
+        <DomainSearchConsoleView
+          organizationSlug="acme"
+          linkedDomainId="hyperlocalise-com"
+          canManageConnection={canManageConnection}
+        />
       </QueryClientProvider>
     </IntlProvider>,
   );
@@ -90,10 +109,10 @@ describe("DomainSearchConsoleView", () => {
       screen.getByText("Sample Search Console data for this preview domain."),
     ).toBeInTheDocument();
     expect(screen.getByText("traduction automatique")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Open Integrations" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Connect Google Search Console here")).not.toBeInTheDocument();
   });
 
-  it("prompts to connect Search Console in Integrations when disconnected", () => {
+  it("lets admins connect Search Console from the empty state", () => {
     mocks.live = true;
     mocks.snapshot = {
       ...getPrototypeSearchConsoleSnapshot("hyperlocalise.com"),
@@ -103,10 +122,47 @@ describe("DomainSearchConsoleView", () => {
     };
     renderView();
     expect(screen.getByText("Connect Search Console")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open Integrations" })).toHaveAttribute(
-      "href",
-      "/org/acme/integrations",
-    );
+    expect(screen.getByText("Connect Google Search Console here")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Open Integrations" })).not.toBeInTheDocument();
+  });
+
+  it("lets admins reconnect Search Console from the empty state", () => {
+    mocks.live = true;
+    mocks.snapshot = {
+      ...getPrototypeSearchConsoleSnapshot("hyperlocalise.com"),
+      status: "needs_reauthorization",
+      connection: { connected: false, needsReauthorization: true },
+      siteUrl: null,
+    };
+    renderView();
+    expect(screen.getByText("Reconnect Search Console")).toBeInTheDocument();
+    expect(screen.getByText("Connect Google Search Console here")).toBeInTheDocument();
+  });
+
+  it("lets admins switch accounts when the domain is missing from Search Console", () => {
+    mocks.live = true;
+    mocks.snapshot = {
+      ...getPrototypeSearchConsoleSnapshot("hyperlocalise.com"),
+      status: "no_property",
+      connection: { connected: true, needsReauthorization: false },
+      siteUrl: null,
+    };
+    renderView();
+    expect(screen.getByText("This domain is not in Search Console")).toBeInTheDocument();
+    expect(screen.getByText("Connect Google Search Console here")).toBeInTheDocument();
+  });
+
+  it("tells members that only admins can connect Search Console", () => {
+    mocks.live = true;
+    mocks.snapshot = {
+      ...getPrototypeSearchConsoleSnapshot("hyperlocalise.com"),
+      status: "disconnected",
+      connection: null,
+      siteUrl: null,
+    };
+    renderView(false);
+    expect(screen.getByText("Admins can connect")).toBeInTheDocument();
+    expect(screen.queryByText("Connect Google Search Console here")).not.toBeInTheDocument();
   });
 
   it("inspects a URL on a live connected property", async () => {

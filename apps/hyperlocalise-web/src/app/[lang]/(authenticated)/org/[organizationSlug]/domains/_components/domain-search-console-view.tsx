@@ -50,6 +50,7 @@ import { cn } from "@/lib/primitives/cn";
 import { useDomainResearchShellStore } from "../store/domains-store-context";
 import { DomainMetricCard } from "./domain-metric-card";
 import { DomainResearchEmpty } from "./domain-research-empty";
+import { DomainSearchConsoleConnect } from "./domain-search-console-connect";
 import { domainSearchConsoleViewMessages as messages } from "./domain-search-console-view.messages";
 import { useDomainSearchConsole } from "./use-domain-search-console";
 
@@ -78,9 +79,11 @@ function integrationsHref(organizationSlug: string) {
 export const DomainSearchConsoleView = observer(function DomainSearchConsoleView({
   linkedDomainId,
   organizationSlug,
+  canManageConnection,
 }: {
   linkedDomainId: string;
   organizationSlug: string;
+  canManageConnection: boolean;
 }) {
   const intl = useIntl();
   const store = useDomainResearchShellStore();
@@ -163,12 +166,20 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
     );
   }
 
+  const connectAction = (
+    <DomainSearchConsoleConnect
+      organizationSlug={organizationSlug}
+      linkedDomainId={linkedDomainId}
+      canManageConnection={canManageConnection}
+    />
+  );
+
   if (snapshot.status === "disconnected") {
     return (
       <DomainResearchEmpty
         title={<FormattedMessage {...messages.connectTitle} />}
         description={<FormattedMessage {...messages.connectDescription} />}
-        action={<IntegrationsCta organizationSlug={organizationSlug} />}
+        action={connectAction}
       />
     );
   }
@@ -178,25 +189,23 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
       <DomainResearchEmpty
         title={<FormattedMessage {...messages.needsReauthTitle} />}
         description={<FormattedMessage {...messages.needsReauthDescription} />}
-        action={<IntegrationsCta organizationSlug={organizationSlug} />}
+        action={connectAction}
       />
     );
   }
 
   if (snapshot.status === "no_property") {
     return (
-      <div className="grid gap-4">
-        <ConnectionBar organizationSlug={organizationSlug} />
-        <DomainResearchEmpty
-          title={<FormattedMessage {...messages.noPropertyTitle} />}
-          description={
-            <FormattedMessage
-              {...messages.noPropertyDescription}
-              values={{ domain: domain.domainKey }}
-            />
-          }
-        />
-      </div>
+      <DomainResearchEmpty
+        title={<FormattedMessage {...messages.noPropertyTitle} />}
+        description={
+          <FormattedMessage
+            {...messages.noPropertyDescription}
+            values={{ domain: domain.domainKey }}
+          />
+        }
+        action={connectAction}
+      />
     );
   }
 
@@ -319,14 +328,6 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
     </div>
   );
 });
-
-function IntegrationsCta({ organizationSlug }: { organizationSlug: string }) {
-  return (
-    <Button size="sm" render={<OrgNavLink href={integrationsHref(organizationSlug)} />}>
-      <FormattedMessage {...messages.connectCta} />
-    </Button>
-  );
-}
 
 function ConnectionBar({ organizationSlug }: { organizationSlug: string }) {
   return (
