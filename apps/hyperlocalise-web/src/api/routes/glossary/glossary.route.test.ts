@@ -145,6 +145,71 @@ describe("glossaryRoutes", () => {
     );
   });
 
+  it("keeps durable glossary history after the glossary row is deleted", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(
+      identity,
+      { name: "History survival glossary" },
+      headers,
+    );
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+
+    await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$patch(
+      {
+        param: { organizationSlug, glossaryId },
+        json: { description: "Updated before delete" },
+      },
+      { headers },
+    );
+
+    const historyBeforeDelete = await db
+      .select({
+        id: schema.glossaryHistoryEvents.id,
+        eventType: schema.glossaryHistoryEvents.eventType,
+      })
+      .from(schema.glossaryHistoryEvents)
+      .where(eq(schema.glossaryHistoryEvents.glossaryId, glossaryId));
+    expect(historyBeforeDelete.some((event) => event.eventType === "updated")).toBe(true);
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$delete(
+      { param: { organizationSlug, glossaryId } },
+      { headers },
+    );
+    expect(response.status).toBe(204);
+
+    const [glossary] = await db
+      .select({ id: schema.glossaries.id })
+      .from(schema.glossaries)
+      .where(eq(schema.glossaries.id, glossaryId));
+    expect(glossary).toBeUndefined();
+
+    const historyAfterDelete = await db
+      .select({
+        id: schema.glossaryHistoryEvents.id,
+        eventType: schema.glossaryHistoryEvents.eventType,
+        attributes: schema.glossaryHistoryEvents.attributes,
+      })
+      .from(schema.glossaryHistoryEvents)
+      .where(eq(schema.glossaryHistoryEvents.glossaryId, glossaryId));
+
+    expect(historyAfterDelete.map((event) => event.id).sort()).toEqual(
+      expect.arrayContaining(historyBeforeDelete.map((event) => event.id)),
+    );
+    expect(historyAfterDelete.some((event) => event.eventType === "updated")).toBe(true);
+    expect(historyAfterDelete.some((event) => event.eventType === "deleted")).toBe(true);
+    expect(
+      historyAfterDelete.find((event) => event.eventType === "deleted")?.attributes,
+    ).toMatchObject({
+      glossarySnapshot: expect.objectContaining({
+        id: glossaryId,
+        name: "History survival glossary",
+      }),
+    });
+  });
+
   it("creates a concept with additional terms atomically", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
