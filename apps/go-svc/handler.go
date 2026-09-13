@@ -37,6 +37,7 @@ type handler struct {
 	spellChecker SpellChecker
 	ofrep        *experiment.OFREPHandler
 	research     researchService
+	gsc          gscService
 	objects      *objectstore.Registry
 	guidelines   *guidelines.Service
 	dictionaries *dictionaryAPI
@@ -46,6 +47,7 @@ func newHandler() *handler {
 	return &handler{
 		validate:     segmentvalidate.ValidateSegment,
 		spellChecker: NoopSpellChecker{},
+		gsc:          liveGscService{},
 	}
 }
 
@@ -63,6 +65,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	mux.Handle("POST /v1/domains/research/serp", research(http.HandlerFunc(h.liveSerp)))
 	mux.Handle("POST /v1/domains/research/rank-check", research(http.HandlerFunc(h.rankCheck)))
 	mux.Handle("POST /v1/domains/research/rank-check/batch", research(http.HandlerFunc(h.rankCheckBatch)))
+	mux.Handle("POST /v1/domains/gsc/sites", research(http.HandlerFunc(h.listGscSites)))
+	mux.Handle("POST /v1/domains/gsc/performance", research(http.HandlerFunc(h.queryGscPerformance)))
+	mux.Handle("POST /v1/domains/gsc/inspect", research(http.HandlerFunc(h.inspectGscURL)))
 	for pattern, route := range map[string]http.HandlerFunc{
 		"PUT /v1/storage/object":         h.putObject,
 		"POST /v1/storage/read":          h.getObject,
