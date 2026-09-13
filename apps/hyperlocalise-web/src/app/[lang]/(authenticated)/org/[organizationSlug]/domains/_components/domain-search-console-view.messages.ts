@@ -103,33 +103,33 @@ export const domainSearchConsoleViewMessages = defineMessages({
   connectDescription: {
     defaultMessage:
       "Connect Google Search Console in Integrations to import the clicks, impressions, and queries Google already recorded for this domain.",
-    id: "Y7pE1DS8A+",
+    id: "U99Hvv0Ste",
     description: "Empty state description when Search Console is disconnected",
   },
   connectCta: {
     defaultMessage: "Open Integrations",
-    id: "emwNqgsrxp",
+    id: "1Ztae4/nmo",
     description: "Link to Integrations to connect Search Console through Pipes",
   },
   unconfiguredTitle: {
     defaultMessage: "Search Console is not available",
-    id: "r6x6n3Kpsk",
+    id: "UR7H63F0D1",
     description: "Empty state title when WorkOS Pipes is unavailable",
   },
   unconfiguredDescription: {
     defaultMessage: "WorkOS is not configured, so Search Console cannot connect through Pipes.",
-    id: "CWDuO/ecCv",
+    id: "IATCAL7GZ3",
     description: "Empty state description when WorkOS Pipes is unavailable",
   },
   needsReauthTitle: {
     defaultMessage: "Reconnect Search Console",
-    id: "gscNeedsReauthTitle",
+    id: "uhGKdYNfmf",
     description: "Empty state title when the Search Console pipe needs reauthorization",
   },
   needsReauthDescription: {
     defaultMessage:
       "The Search Console connection needs to be authorized again. Reconnect it in Integrations, then return here.",
-    id: "gscNeedsReauthDescription",
+    id: "txV38L4Ccw",
     description: "Empty state description when the Search Console pipe needs reauthorization",
   },
   noPropertyTitle: {
@@ -140,7 +140,7 @@ export const domainSearchConsoleViewMessages = defineMessages({
   noPropertyDescription: {
     defaultMessage:
       "The connected Search Console account does not have a verified property for {domain}. Add it in Search Console, or reconnect a different Google account in Integrations.",
-    id: "n5dCTiZmYU",
+    id: "WT7ncP2dF4",
     description: "Empty state description when the connected account lacks this property",
   },
   sampleData: {
@@ -155,12 +155,12 @@ export const domainSearchConsoleViewMessages = defineMessages({
   },
   connectedThroughIntegrations: {
     defaultMessage: "Connected through Integrations",
-    id: "gxrYjxdSYv",
+    id: "CPVePRU7tR",
     description: "Label when Search Console is connected through WorkOS Pipes",
   },
   manageCta: {
     defaultMessage: "Manage in Integrations",
-    id: "FNDmIsrrnS",
+    id: "wx5NVEjoyn",
     description: "Link to manage the Search Console pipe on the Integrations page",
   },
   loadError: {
