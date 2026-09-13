@@ -31,7 +31,10 @@ import { executeProviderAgentTranslation } from "./provider-agent-translate";
 const projectFixture = createProjectTestFixture();
 const pullExternalTmsTaskContentMock = vi.fn();
 const loadOrganizationTranslationGeneratorMock = vi.fn();
-const reserveAgentRunAiCreditMock = vi.hoisted(() => vi.fn());
+const { reserveAgentRunAiCreditMock, ensureAiFeaturesAllowedMock } = vi.hoisted(() => ({
+  reserveAgentRunAiCreditMock: vi.fn(),
+  ensureAiFeaturesAllowedMock: vi.fn(),
+}));
 
 const providerContentPullerMocks = vi.hoisted(() => {
   type GetProviderContentPuller = (
@@ -84,6 +87,14 @@ vi.mock("@/lib/billing/agent-runtime-usage", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/ai-features")>();
+  return {
+    ...actual,
+    ensureAiFeaturesAllowed: (...args: unknown[]) => ensureAiFeaturesAllowedMock(...args),
+  };
+});
+
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
@@ -94,6 +105,7 @@ beforeEach(() => {
     vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch,
   );
   reserveAgentRunAiCreditMock.mockResolvedValue({ ok: true, value: null });
+  ensureAiFeaturesAllowedMock.mockResolvedValue({ ok: true, value: undefined });
 });
 
 afterEach(async () => {
@@ -102,6 +114,7 @@ afterEach(async () => {
   pullExternalTmsTaskContentMock.mockReset();
   loadOrganizationTranslationGeneratorMock.mockReset();
   reserveAgentRunAiCreditMock.mockReset();
+  ensureAiFeaturesAllowedMock.mockReset();
   providerContentPullerMocks.getProviderContentPullerMock.mockImplementation(
     providerContentPullerMocks.state.actual,
   );
@@ -628,6 +641,76 @@ describe("executeProviderAgentTranslation", () => {
     expect(failed?.outputSummary).toMatchObject({
       code: "ai_credit_insufficient",
       pullRunId: "pull-run-credit",
+    });
+  });
+
+  it("stops managed translation when the organization lacks AI features", async () => {
+    const project = await createExternalTmsProject();
+    const translateStringJob = vi.fn(async () => ({
+      translations: [{ locale: "fr", text: "Bonjour" }],
+    }));
+
+    pullExternalTmsTaskContentMock.mockResolvedValue({
+      runId: "pull-run-ai-features",
+      counts: { unitsDiscovered: 1, translationsDiscovered: 0, approvedTranslations: 0 },
+      content: {
+        externalJobId: "task-ai-features",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            translations: [],
+          },
+        ],
+      },
+    });
+    loadOrganizationTranslationGeneratorMock.mockResolvedValue({
+      ok: true,
+      project: { name: project.name, translationContext: project.translationContext },
+      translateStringJob,
+    });
+    ensureAiFeaturesAllowedMock.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "ai_features_required",
+        message: "AI features are not included in your current plan.",
+      },
+    });
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-ai-features",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    const result = await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "ai_features_required",
+    });
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
+      organizationId: project.organizationId,
+    });
+    expect(reserveAgentRunAiCreditMock).not.toHaveBeenCalled();
+    expect(translateStringJob).not.toHaveBeenCalled();
+
+    const failed = await getAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+    expect(failed?.status).toBe("failed");
+    expect(failed?.outputSummary).toMatchObject({
+      code: "ai_features_required",
+      pullRunId: "pull-run-ai-features",
     });
   });
 });

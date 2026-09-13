@@ -15,6 +15,7 @@ import {
   type ManagedAiCreditError,
 } from "@/lib/billing/managed-ai-credit";
 import { addAiTokenUsage, reserveAgentRunAiCredit } from "@/lib/billing/agent-runtime-usage";
+import { ensureAiFeaturesAllowed, type AiFeaturesError } from "@/lib/billing/ai-features";
 import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import { sandboxTranslationBillingMetadata } from "@/lib/translation/cli-token-usage";
 import { loadSandboxByokCredential } from "@/lib/translation/sandbox-byok";
@@ -94,10 +95,25 @@ function accumulateProviderAgentStringTokenUsage(
   };
 }
 
+type ProviderAgentCreditGateError = AiFeaturesError | ManagedAiCreditError;
+
+function formatProviderAgentCreditGateError(error: ProviderAgentCreditGateError): string {
+  if (error.code === "ai_features_required" || error.code === "ai_features_check_failed") {
+    return error.message;
+  }
+
+  return formatManagedAiCreditError(error);
+}
+
 async function reserveProviderAgentTranslationCredit(input: {
   organizationId: string;
   agentRunId: string;
-}): Promise<{ ok: true } | { ok: false; error: ManagedAiCreditError }> {
+}): Promise<{ ok: true } | { ok: false; error: ProviderAgentCreditGateError }> {
+  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
+  if (!aiFeatures.ok) {
+    return { ok: false, error: aiFeatures.error };
+  }
+
   const byok = await loadSandboxByokCredential(input.organizationId);
   const billing = sandboxTranslationBillingMetadata(byok);
   const reserved = await reserveAgentRunAiCredit({
@@ -682,13 +698,13 @@ export async function executeProviderAgentTranslation(input: {
           pullRunId: pullResult.runId,
           unitsDiscovered: pullResult.counts.unitsDiscovered,
         },
-        warnings: [formatManagedAiCreditError(creditReservation.error)],
+        warnings: [formatProviderAgentCreditGateError(creditReservation.error)],
       });
       return {
         ok: false,
         agentRunId: input.agentRunId,
         code: creditReservation.error.code,
-        message: formatManagedAiCreditError(creditReservation.error),
+        message: formatProviderAgentCreditGateError(creditReservation.error),
       };
     }
 
@@ -851,13 +867,13 @@ export async function executeProviderAgentTranslation(input: {
         pullRunId: pullResult.runId,
         unitsDiscovered: pullResult.counts.unitsDiscovered,
       },
-      warnings: [formatManagedAiCreditError(creditReservation.error)],
+      warnings: [formatProviderAgentCreditGateError(creditReservation.error)],
     });
     return {
       ok: false,
       agentRunId: input.agentRunId,
       code: creditReservation.error.code,
-      message: formatManagedAiCreditError(creditReservation.error),
+      message: formatProviderAgentCreditGateError(creditReservation.error),
     };
   }
 

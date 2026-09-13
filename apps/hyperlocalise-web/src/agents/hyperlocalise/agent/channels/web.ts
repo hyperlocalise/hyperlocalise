@@ -256,35 +256,37 @@ export function createWebChatAgentUIStreamResponse(input: {
             dimensions: usageDimensions,
           });
         }
-
-        if (input.aiCreditReservation) {
-          const agentTokenUsage = agentTokenUsagePromise
-            ? await agentTokenUsagePromise.catch(() => null)
-            : null;
-          const tokenUsage = addAiTokenUsage(classificationTokenUsage, agentTokenUsage);
-          if (tokenUsage) {
-            const settlement = await settleManagedAiCredit({
-              reservation: input.aiCreditReservation,
-              modelId: input.languageModel?.modelId ?? "unknown",
-              tokenUsage,
-            });
-            if (!settlement.ok) {
-              console.error("[web-agent] AI credit settlement failed", {
-                organizationId: input.toolContext.organizationId,
-                operationKey: input.aiCreditReservation.operationKey,
-                error: formatManagedAiCreditError(settlement.error),
+      } finally {
+        try {
+          if (input.aiCreditReservation) {
+            const agentTokenUsage = agentTokenUsagePromise
+              ? await agentTokenUsagePromise.catch(() => null)
+              : null;
+            const tokenUsage = addAiTokenUsage(classificationTokenUsage, agentTokenUsage);
+            if (tokenUsage) {
+              const settlement = await settleManagedAiCredit({
+                reservation: input.aiCreditReservation,
+                modelId: input.languageModel?.modelId ?? "unknown",
+                tokenUsage,
+              });
+              if (!settlement.ok) {
+                console.error("[web-agent] AI credit settlement failed", {
+                  organizationId: input.toolContext.organizationId,
+                  operationKey: input.aiCreditReservation.operationKey,
+                  error: formatManagedAiCreditError(settlement.error),
+                });
+              }
+            } else {
+              await releaseManagedAiCredit({
+                reservation: input.aiCreditReservation,
+                reason: isAborted ? "chat_aborted_without_usage" : "chat_completed_without_usage",
               });
             }
-          } else {
-            await releaseManagedAiCredit({
-              reservation: input.aiCreditReservation,
-              reason: isAborted ? "chat_aborted_without_usage" : "chat_completed_without_usage",
-            });
           }
+        } finally {
+          releaseSandboxLease?.();
+          releaseSandboxLease = null;
         }
-      } finally {
-        releaseSandboxLease?.();
-        releaseSandboxLease = null;
       }
     },
     onError: () => "Sorry, I encountered an error while generating a response.",

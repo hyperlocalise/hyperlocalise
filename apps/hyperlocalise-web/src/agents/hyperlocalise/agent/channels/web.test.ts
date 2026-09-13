@@ -531,4 +531,77 @@ describe("createWebChatAgentUIStreamResponse", () => {
     });
     expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
   });
+
+  it("settles reserved credit even when assistant persistence fails", async () => {
+    const toUIMessageStream = vi.fn(
+      () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
+            controller.enqueue({ type: "text-end", id: "text_1" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      classificationTokenUsage: {
+        inputTokens: 10,
+        outputTokens: 2,
+        totalTokens: 12,
+      },
+      agent: {
+        stream: vi.fn(async () => ({
+          usage: Promise.resolve({
+            inputTokens: 40,
+            outputTokens: 8,
+            totalTokens: 48,
+          }),
+          toUIMessageStream,
+        })),
+      },
+      chatMessages: [],
+      clarificationFollowUp: null,
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+    addInteractionMessageMock.mockRejectedValueOnce(new Error("database unavailable"));
+    const reservation = {
+      operationKey: "chat-agent-turn:msg_persist_fail:agent_runs:ai_tokens",
+      mode: "shadow" as const,
+      credentialSource: "gateway" as const,
+      estimatedAmountUsd: 0.5,
+    };
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+      usageOperationKey: "chat-agent-turn:msg_persist_fail:agent_runs",
+      languageModel: {
+        model: "openai/gpt-5.6-luna",
+        source: "gateway",
+        modelId: "openai/gpt-5.6-luna",
+      },
+      aiCreditReservation: reservation,
+    });
+
+    await readSseText(response);
+
+    expect(settleManagedAiCreditMock).toHaveBeenCalledWith({
+      reservation,
+      modelId: "openai/gpt-5.6-luna",
+      tokenUsage: {
+        inputTokens: 50,
+        outputTokens: 10,
+        totalTokens: 60,
+      },
+    });
+    expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
+  });
 });
