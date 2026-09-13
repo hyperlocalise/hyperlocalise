@@ -29,9 +29,9 @@ describe("trackMarketingCtaClick", () => {
   it("emits the marketing CTA event with cta and source", () => {
     trackMarketingCtaClick("sign_in", "navbar");
 
-    expect(trackMock).toHaveBeenCalledWith(
-      PRODUCT_USAGE_ANALYTICS_EVENTS.marketingCtaClick,
-      { cta: "sign_in", source: "navbar" },
-    );
+    expect(trackMock).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.marketingCtaClick, {
+      cta: "sign_in",
+      source: "navbar",
+    });
   });
 });
