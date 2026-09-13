@@ -271,6 +271,14 @@ export async function cancelAgentRun(input: { runId: string; organizationId: str
     throw new Error("Agent run not found or not in cancellable state");
   }
 
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.agentRunCancelled, {
+    status: "cancelled",
+    source: run.kind,
+  });
+  await releaseAgentRunAiCredit({
+    runId: input.runId,
+    reason: "agent_run_cancelled",
+  });
   return run;
 }
 
