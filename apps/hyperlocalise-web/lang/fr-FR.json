@@ -16652,6 +16652,12 @@
   "fT5jl51yo3": {
     "defaultMessage": "{percent} %"
   },
+  "fTmUntr8k1": {
+    "defaultMessage": "Force translate untranslated strings"
+  },
+  "fTmUntr8k2": {
+    "defaultMessage": "Skip translation memory matches. The agent translates empty and rejected strings. Existing translations stay."
+  },
   "fU9GF3etrw": {
     "defaultMessage": "Audit bloqué"
   },

@@ -29,6 +29,7 @@ import {
   toAgentRunTranslationMemoryMatchUsage,
 } from "@/lib/providers/contracts/translation-memory-match";
 import { listHiddenProjectTranslationKeysForSourcePath } from "@/lib/projects/translations/project-translation-service";
+import { isSameAsSourceMemoryPrefill } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 export type FileTranslationMemoryReuseResult = {
@@ -160,6 +161,14 @@ export class FileTranslationMemoryStore {
       for (const memoryId of memoryIds) {
         const row = reusableByUnit.get([memoryId, unit.sourceText, input.targetLocale].join("\0"));
         if (!row) {
+          continue;
+        }
+        if (
+          isSameAsSourceMemoryPrefill({
+            sourceText: unit.sourceText,
+            targetText: row.targetText,
+          })
+        ) {
           continue;
         }
 

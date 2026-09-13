@@ -279,6 +279,35 @@ describe("enqueueFileTranslationJob", () => {
     }
   });
 
+  it("stores ignoreTranslationMemory on the job payload when requested", async () => {
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_json",
+      filename: "messages.json",
+    });
+
+    const result = await createFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_json",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fileFormat: "json",
+      ignoreTranslationMemory: true,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      jobId: "job_test",
+      projectId: "project_1",
+      sourceFileVersionId: "version_1",
+    });
+    expect(capturedJobValues?.inputPayload).toEqual(
+      expect.objectContaining({
+        ignoreTranslationMemory: true,
+      }),
+    );
+  });
+
   it("keeps a caller-supplied metadata title", async () => {
     getStoredFileForJobScopeMock.mockResolvedValue({
       id: "file_json",

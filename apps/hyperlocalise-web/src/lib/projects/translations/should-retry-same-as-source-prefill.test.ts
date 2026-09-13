@@ -13,9 +13,39 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  isSameAsSourceMemoryPrefill,
   mergeTranslationPrefills,
   shouldRetrySameAsSourcePrefill,
 } from "./should-retry-same-as-source-prefill";
+
+describe("isSameAsSourceMemoryPrefill", () => {
+  it("skips multi-word source copies left in translation memory", () => {
+    expect(
+      isSameAsSourceMemoryPrefill({
+        sourceText: "Enable workspace knowledge",
+        targetText: "Enable workspace knowledge",
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps single-word copies that are often intentional", () => {
+    expect(
+      isSameAsSourceMemoryPrefill({
+        sourceText: "Hyperlocalise",
+        targetText: "Hyperlocalise",
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps real translations", () => {
+    expect(
+      isSameAsSourceMemoryPrefill({
+        sourceText: "Enable workspace knowledge",
+        targetText: "Activer les connaissances",
+      }),
+    ).toBe(false);
+  });
+});
 
 describe("shouldRetrySameAsSourcePrefill", () => {
   it("retries needs-review copies of multi-word source text", () => {

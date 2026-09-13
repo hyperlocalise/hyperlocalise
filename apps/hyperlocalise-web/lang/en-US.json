@@ -19355,6 +19355,14 @@
     "defaultMessage": "{percent}%",
     "description": "Percentage of tests passed in the test results summary"
   },
+  "fTmUntr8k1": {
+    "defaultMessage": "Force translate untranslated strings",
+    "description": "Checkbox to ignore translation memory and send untranslated strings to the agent"
+  },
+  "fTmUntr8k2": {
+    "defaultMessage": "Skip translation memory matches. The agent translates empty and rejected strings. Existing translations stay.",
+    "description": "Explains the force-translate untranslated strings option"
+  },
   "fU9GF3etrw": {
     "defaultMessage": "Audit blocked",
     "description": "Title when a domain blocks the public localisation audit crawler"

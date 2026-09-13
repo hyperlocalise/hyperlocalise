@@ -55,6 +55,8 @@ export const fileTranslationJobInputSchema = z.object({
   sourceLocale: z.string().trim().min(1).max(32),
   targetLocales: z.array(z.string().trim().min(1).max(32)).min(1).max(maxTranslationTargetLocales),
   metadata: metadataSchema,
+  /** Skip TM reuse so the agent translates untranslated strings. */
+  ignoreTranslationMemory: z.boolean().optional(),
 });
 
 const createJobSharedFields = {
