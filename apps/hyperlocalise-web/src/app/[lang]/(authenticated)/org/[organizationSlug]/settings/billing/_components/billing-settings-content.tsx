@@ -24,6 +24,9 @@ import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
 import { TypographyP } from "@/components/ui/typography";
 import { PlanUsageHashScroll } from "@/components/billing/plan-usage-hash-scroll";
+import { clientAnalytics } from "@/lib/analytics/client";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { apiClient } from "@/lib/api-client-instance";
 import {
   getActiveSubscription,
   availablePlansSectionId,
@@ -34,7 +37,6 @@ import {
 } from "@/lib/billing/plan-usage";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { billingBalanceFeatureIds } from "@/lib/billing/usage-feature-labels";
-import { apiClient } from "@/lib/api-client-instance";
 
 import { billingSettingsContentMessages } from "./billing-settings-content.messages";
 import { SettingsPageBody, SettingsPageHeader } from "../../_components/settings-page-chrome";
@@ -310,7 +312,17 @@ function ConfiguredBillingSettingsPanel({
   }
 
   async function handleAttachPlan(planId: string) {
-    await runBillingAction(`attach-${planId}`, () => attach({ planId }));
+    clientAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.checkoutStarted, {
+      status: "started",
+      source: "billing",
+    });
+    await runBillingAction(`attach-${planId}`, async () => {
+      await attach({ planId });
+      clientAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.planAttached, {
+        status: "succeeded",
+        source: "billing",
+      });
+    });
   }
 
   async function handleCancelSubscription() {

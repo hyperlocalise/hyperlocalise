@@ -213,6 +213,7 @@ export function createContentfulConnectionRoutes() {
           {
             organizationId,
             featureId: workspaceResourceFeatureIds.integrations,
+            analyticsSource: "contentful",
           },
           (tx) => createContentfulConnection({ ...connectionInput, db: tx }),
         );
@@ -289,6 +290,7 @@ export function createContentfulConnectionRoutes() {
           {
             organizationId,
             featureId: workspaceResourceFeatureIds.integrations,
+            analyticsSource: "contentful",
           },
           (tx) => updateContentfulConnection({ ...updateInput, db: tx }),
         );

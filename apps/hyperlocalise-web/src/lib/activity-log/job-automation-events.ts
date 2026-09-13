@@ -12,6 +12,13 @@
  */
 import "server-only";
 
+import {
+  PRODUCT_USAGE_ANALYTICS_EVENTS,
+  productUsageJobFeature,
+  productUsageSourceForActorKind,
+} from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
+
 import type { ActivityActorKind } from "./activity-log-contract";
 import { enqueueActivityLogEvent } from "./activity-log-writer";
 
@@ -54,6 +61,10 @@ export function stableJobFailureCode(value: unknown): string {
 }
 
 export async function enqueueJobCreatedActivity(input: JobActivityInput) {
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.jobCreated, {
+    feature: productUsageJobFeature(input.kind),
+    source: productUsageSourceForActorKind(input.actorKind),
+  });
   return enqueueActivityLogEvent({
     ...activityActor(input),
     eventType: "job_created",
@@ -67,6 +78,10 @@ export async function enqueueJobCreatedActivity(input: JobActivityInput) {
 export async function enqueueJobCancelledActivity(
   input: Omit<JobActivityInput, "status"> & { status: "cancelled" },
 ) {
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.jobCancelled, {
+    feature: productUsageJobFeature(input.kind),
+    source: productUsageSourceForActorKind(input.actorKind),
+  });
   return enqueueActivityLogEvent({
     ...activityActor(input),
     eventType: "job_cancelled",

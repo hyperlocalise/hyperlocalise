@@ -34,6 +34,8 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
@@ -1413,6 +1415,11 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         )
         .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
         .limit(1);
+
+      serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.jobRetried, {
+        feature: "translation",
+        source: "web",
+      });
 
       return c.json({ job: updatedJob }, 200);
     })

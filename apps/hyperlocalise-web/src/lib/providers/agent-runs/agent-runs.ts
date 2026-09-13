@@ -12,14 +12,14 @@
  */
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
-import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import type { AgentRunKind, AgentRunStatus } from "@/lib/database/types";
 import { isErr } from "@/lib/primitives/result/results";
@@ -262,6 +262,10 @@ export async function cancelAgentRun(input: { runId: string; organizationId: str
     throw new Error("Agent run not found or not in cancellable state");
   }
 
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.agentRunCancelled, {
+    status: "cancelled",
+    source: run.kind,
+  });
   return run;
 }
 

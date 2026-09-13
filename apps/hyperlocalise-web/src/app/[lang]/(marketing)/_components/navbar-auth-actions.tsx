@@ -19,6 +19,7 @@ import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
+import { trackMarketingCtaClick } from "@/lib/analytics/marketing-cta";
 import type { AppLocale } from "@/lib/app-i18n/locales";
 import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 
@@ -65,12 +66,14 @@ export function NavbarDesktopAuthActions({
         variant="ghost"
         nativeButton={false}
         render={<Link href={signInHref} prefetch={false} />}
+        onClick={() => trackMarketingCtaClick("sign_in", "navbar")}
       >
         <FormattedMessage {...navbarMessages.signIn} />
       </Button>
       <Button
         nativeButton={false}
         render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+        onClick={() => trackMarketingCtaClick("request_demo", "navbar")}
       >
         <FormattedMessage {...navbarMessages.joinWaitlist} />
       </Button>
@@ -106,6 +109,7 @@ export function NavbarMobileAuthCta({
       className="px-3.5"
       nativeButton={false}
       render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+      onClick={() => trackMarketingCtaClick("request_demo", "navbar")}
     >
       <FormattedMessage {...navbarMessages.joinWaitlist} />
     </Button>
@@ -143,7 +147,11 @@ export function NavbarMobileAuthFooter({
 
   return (
     <>
-      <SheetClose render={<Link href={signInHref} prefetch={false} />} className="w-full">
+      <SheetClose
+        render={<Link href={signInHref} prefetch={false} />}
+        className="w-full"
+        onClick={() => trackMarketingCtaClick("sign_in", "navbar")}
+      >
         <Button variant="ghost" size="lg" className="w-full" nativeButton={false} render={<span />}>
           <FormattedMessage {...navbarMessages.signIn} />
         </Button>
@@ -151,6 +159,7 @@ export function NavbarMobileAuthFooter({
       <SheetClose
         render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
         className="w-full"
+        onClick={() => trackMarketingCtaClick("request_demo", "navbar")}
       >
         <Button size="lg" className="w-full" nativeButton={false} render={<span />}>
           <FormattedMessage {...navbarMessages.joinWaitlist} />

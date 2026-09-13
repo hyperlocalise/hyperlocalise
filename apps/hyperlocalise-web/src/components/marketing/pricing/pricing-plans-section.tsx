@@ -19,6 +19,7 @@ import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
+import { trackMarketingCtaClick } from "@/lib/analytics/marketing-cta";
 import { cn } from "@/lib/primitives/cn";
 
 import type { PricingPlan } from "./pricing-page-content";
@@ -36,6 +37,7 @@ function PlanCta({ plan }: { plan: PricingPlan }) {
         variant="outline"
         nativeButton={false}
         render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+        onClick={() => trackMarketingCtaClick("request_demo", "pricing")}
       >
         {plan.cta.label}
       </Button>

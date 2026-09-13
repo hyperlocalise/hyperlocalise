@@ -161,6 +161,7 @@ export function createSlackOAuthRoutes() {
           {
             organizationId: org.id,
             featureId: workspaceResourceFeatureIds.integrations,
+            analyticsSource: "slack",
           },
           upsertSlackConnector,
         );

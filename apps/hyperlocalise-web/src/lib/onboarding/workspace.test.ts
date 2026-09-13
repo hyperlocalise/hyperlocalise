@@ -25,6 +25,15 @@ vi.mock("@/lib/workos/provision-workspace-in-workos", () => ({
   deleteProvisionedWorkosOrganization: deleteProvisionedWorkosOrganizationMock,
 }));
 
+const { trackMock } = vi.hoisted(() => ({
+  trackMock: vi.fn(),
+}));
+
+vi.mock("@/lib/analytics/server", () => ({
+  serverAnalytics: { track: trackMock },
+}));
+
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { db, schema } from "@/lib/database/client";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team";
 
@@ -94,5 +103,9 @@ describe("createWorkspaceForSessionUser", () => {
       .limit(1);
 
     expect(membership?.role).toBe("manager");
+    expect(trackMock).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.workspaceCreated, {
+      status: "created",
+      source: "onboarding",
+    });
   });
 });

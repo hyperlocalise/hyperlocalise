@@ -27,6 +27,13 @@ vi.mock("./activity-log-writer", () => ({
   enqueueActivityLogEvent: vi.fn(),
 }));
 
+vi.mock("@/lib/analytics/server", () => ({
+  serverAnalytics: { track: vi.fn() },
+}));
+
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
+
 const enqueueMock = vi.mocked(enqueueActivityLogEvent);
 
 const actor = {
@@ -74,6 +81,10 @@ describe("file and segment activity helpers", () => {
     });
     expect(JSON.stringify(enqueueMock.mock.calls)).not.toContain("sourceText");
     expect(JSON.stringify(enqueueMock.mock.calls)).not.toContain("targetText");
+    expect(serverAnalytics.track).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.fileUploaded, {
+      status: "created",
+      source: "web",
+    });
   });
 
   it("records a translation import against the file", async () => {
