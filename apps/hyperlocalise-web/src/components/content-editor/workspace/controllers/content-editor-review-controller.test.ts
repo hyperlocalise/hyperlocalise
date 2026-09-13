@@ -113,6 +113,59 @@ describe("ContentEditorReviewController", () => {
     expect(validateFormat).toHaveBeenCalledTimes(1);
   });
 
+  it("revalidates open checks when validateFormat identity changes after start", async () => {
+    const firstValidate = vi.fn().mockResolvedValue([]);
+    const secondValidate = vi.fn().mockResolvedValue([]);
+    const workspace = createTestWorkspace();
+    const controller = new ContentEditorReviewController(workspace, {
+      intl,
+      services: { validateFormat: firstValidate },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+    controller.start();
+    await vi.waitFor(() => expect(firstValidate).toHaveBeenCalledTimes(1));
+
+    controller.configure({
+      intl,
+      services: { validateFormat: secondValidate },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+
+    await vi.waitFor(() => expect(secondValidate).toHaveBeenCalledTimes(1));
+    expect(firstValidate).toHaveBeenCalledTimes(1);
+    expect(secondValidate).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "seg-02" }),
+      "",
+      expect.any(Array),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  it("does not revalidate when only the services object identity changes", async () => {
+    const validateFormat = vi.fn().mockResolvedValue([]);
+    const workspace = createTestWorkspace();
+    const controller = new ContentEditorReviewController(workspace, {
+      intl,
+      services: { validateFormat },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+    controller.start();
+    await vi.waitFor(() => expect(validateFormat).toHaveBeenCalledTimes(1));
+
+    controller.configure({
+      intl,
+      services: { validateFormat },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+
+    await Promise.resolve();
+    expect(validateFormat).toHaveBeenCalledTimes(1);
+  });
+
   describe("runChecks and scheduleChecks", () => {
     it("merges QA checks from runQaChecks", async () => {
       const qaCheck: ContentEditorFormatCheck = {

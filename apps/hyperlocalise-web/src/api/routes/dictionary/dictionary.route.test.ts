@@ -277,4 +277,47 @@ describe("dictionaryRoutes", () => {
       words: ["Hyperlocalise"],
     });
   });
+
+  it("returns a dictionary envelope when attaching from the project route", async () => {
+    const { identity, organization, user, dictionary } =
+      await fixture.createStoredDictionaryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const project = await fixture.createNativeProject(organization.id, user.id);
+
+    const attach = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].dictionaries.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: { dictionaryId: dictionary.id },
+      },
+      { headers },
+    );
+    expect(attach.status).toBe(201);
+    await expect(attach.json()).resolves.toMatchObject({
+      dictionary: {
+        id: dictionary.id,
+        name: dictionary.name,
+        priority: 0,
+      },
+    });
+
+    const attachAgain = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].dictionaries.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: { dictionaryId: dictionary.id, priority: 9 },
+      },
+      { headers },
+    );
+    expect(attachAgain.status).toBe(200);
+    await expect(attachAgain.json()).resolves.toMatchObject({
+      dictionary: {
+        id: dictionary.id,
+        priority: 0,
+      },
+    });
+  });
 });

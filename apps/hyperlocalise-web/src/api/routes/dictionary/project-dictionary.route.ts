@@ -138,17 +138,46 @@ export function createProjectDictionaryRoutes() {
         return dictionaryNotFoundResponse(c);
       }
 
-      await db
+      const priority = await resolveAttachmentPriority(project.id, payload.priority);
+      const inserted = await db
         .insert(schema.projectSpellcheckDictionaries)
         .values({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: project.id,
           dictionaryId: dictionary.id,
-          priority: await resolveAttachmentPriority(project.id, payload.priority),
+          priority,
         })
-        .onConflictDoNothing();
+        .onConflictDoNothing()
+        .returning({
+          priority: schema.projectSpellcheckDictionaries.priority,
+        });
 
-      return c.json({ attached: true }, 200);
+      const attachment =
+        inserted[0] ??
+        (
+          await db
+            .select({
+              priority: schema.projectSpellcheckDictionaries.priority,
+            })
+            .from(schema.projectSpellcheckDictionaries)
+            .where(
+              and(
+                eq(schema.projectSpellcheckDictionaries.projectId, project.id),
+                eq(schema.projectSpellcheckDictionaries.dictionaryId, dictionary.id),
+              ),
+            )
+            .limit(1)
+        )[0];
+
+      return c.json(
+        {
+          dictionary: {
+            ...toDictionaryRecord(dictionary),
+            priority: attachment?.priority ?? priority,
+          },
+        },
+        inserted.length > 0 ? 201 : 200,
+      );
     })
     .delete("/:dictionaryId", async (c) => {
       if (!isDictionaryMutationAllowed(c.var.auth.membership.role)) {

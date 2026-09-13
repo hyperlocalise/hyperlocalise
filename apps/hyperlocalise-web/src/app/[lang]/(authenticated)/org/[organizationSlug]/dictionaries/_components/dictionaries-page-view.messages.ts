@@ -102,4 +102,9 @@ export const dictionariesPageViewMessages = defineMessages({
     id: "XYM25HOnOc",
     description: "Cancel button in the create dictionary dialog",
   },
+  loadMore: {
+    defaultMessage: "Load more",
+    id: "+cStTc5glb",
+    description: "Button to load the next page of dictionaries",
+  },
 });

@@ -14,7 +14,7 @@
  */
 import { useMemo, useState } from "react";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
 import { readApiResponseError } from "@/lib/api-error";
@@ -23,6 +23,8 @@ import { apiClient } from "@/lib/api-client-instance";
 import { filterDictionaryListRows, type ApiDictionary } from "./dictionary-list";
 import { DictionariesPageView, type DictionaryCreateForm } from "./dictionaries-page-view";
 import { dictionariesPageContentMessages } from "./dictionaries-page-content.messages";
+
+const DICTIONARIES_PAGE_SIZE = 100;
 
 function createEmptyForm(): DictionaryCreateForm {
   return { name: "", description: "" };
@@ -42,12 +44,16 @@ export function DictionariesPageContent({
   const [createForm, setCreateForm] = useState<DictionaryCreateForm>(createEmptyForm);
   const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
 
-  const dictionariesQuery = useQuery({
+  const dictionariesQuery = useInfiniteQuery({
     queryKey: ["spellcheck-dictionaries", organizationSlug],
-    queryFn: async () => {
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
       const response = await apiClient.api.orgs[":organizationSlug"].dictionaries.$get({
         param: { organizationSlug },
-        query: { limit: "100", offset: "0" },
+        query: {
+          limit: String(DICTIONARIES_PAGE_SIZE),
+          offset: String(pageParam),
+        },
       });
       if (!response.ok) {
         throw await readApiResponseError(
@@ -56,13 +62,25 @@ export function DictionariesPageContent({
         );
       }
       const body = await response.json();
-      return (body.dictionaries ?? []) as ApiDictionary[];
+      return {
+        dictionaries: (body.dictionaries ?? []) as ApiDictionary[],
+        total: Number(body.total ?? 0),
+        offset: pageParam,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.dictionaries.length;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
     },
   });
+  const dictionaries = useMemo(
+    () => dictionariesQuery.data?.pages.flatMap((page) => page.dictionaries) ?? [],
+    [dictionariesQuery.data?.pages],
+  );
 
   const filteredDictionaries = useMemo(
-    () => filterDictionaryListRows(dictionariesQuery.data ?? [], searchQuery),
-    [dictionariesQuery.data, searchQuery],
+    () => filterDictionaryListRows(dictionaries, searchQuery),
+    [dictionaries, searchQuery],
   );
 
   const createDictionary = useMutation({
@@ -123,6 +141,10 @@ export function DictionariesPageContent({
       createErrors={createErrors}
       isCreating={createDictionary.isPending}
       onSubmitCreateDictionary={onSubmitCreateDictionary}
+      totalCount={dictionariesQuery.data?.pages[0]?.total}
+      hasNextPage={dictionariesQuery.hasNextPage}
+      isFetchingNextPage={dictionariesQuery.isFetchingNextPage}
+      onLoadMore={() => void dictionariesQuery.fetchNextPage()}
     />
   );
 }

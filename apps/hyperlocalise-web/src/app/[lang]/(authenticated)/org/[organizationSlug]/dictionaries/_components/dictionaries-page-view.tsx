@@ -60,6 +60,10 @@ export function DictionariesPageView({
   createErrors,
   isCreating,
   onSubmitCreateDictionary,
+  hasNextPage = false,
+  isFetchingNextPage = false,
+  onLoadMore,
+  totalCount,
 }: {
   organizationSlug: string;
   dictionaries: DictionaryListRow[];
@@ -77,6 +81,10 @@ export function DictionariesPageView({
   createErrors: { name?: string };
   isCreating: boolean;
   onSubmitCreateDictionary: () => void;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  onLoadMore?: () => void;
+  totalCount?: number;
 }) {
   const intl = useIntl();
 
@@ -88,7 +96,7 @@ export function DictionariesPageView({
         title={intl.formatMessage(dictionariesPageViewMessages.pageTitle)}
         description={intl.formatMessage(dictionariesPageViewMessages.pageDescription)}
         statusLabel={intl.formatMessage(dictionariesPageViewMessages.dictionaryCount, {
-          count: dictionaries.length,
+          count: searchQuery.trim() ? dictionaries.length : (totalCount ?? dictionaries.length),
         })}
         actions={
           canWriteDictionaries ? (
@@ -130,6 +138,17 @@ export function DictionariesPageView({
             : intl.formatMessage(dictionariesPageViewMessages.emptyDescription)
         }
       />
+      {hasNextPage ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={isFetchingNextPage}
+          onClick={() => onLoadMore?.()}
+        >
+          <FormattedMessage {...dictionariesPageViewMessages.loadMore} />
+        </Button>
+      ) : null}
 
       <Dialog open={createDialogOpen} onOpenChange={onCreateDialogOpenChange}>
         <DialogContent className="sm:max-w-lg">

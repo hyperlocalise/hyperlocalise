@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   capResolvedSpellcheckWords,
+  chunkItems,
   foldSpellcheckWord,
   normalizeSpellcheckWord,
   parseSpellcheckWordFile,
@@ -46,6 +47,20 @@ describe("parseSpellcheckWordFile", () => {
       { word: "Hyperlocalise", wordNormalized: "hyperlocalise" },
       { word: "AuthKit", wordNormalized: "authkit" },
     ]);
+  });
+});
+
+describe("chunkItems", () => {
+  it("splits items into batches of the requested size", () => {
+    expect(chunkItems([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it("treats a non-positive size as one item per chunk", () => {
+    expect(chunkItems(["a", "b"], 0)).toEqual([["a"], ["b"]]);
+  });
+
+  it("returns no chunks for an empty list", () => {
+    expect(chunkItems([], 1_000)).toEqual([]);
   });
 });
 

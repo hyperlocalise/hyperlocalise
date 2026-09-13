@@ -16,14 +16,16 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { conflictResponse } from "@/api/response.schema";
-import { db, schema } from "@/lib/database/client";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
+  chunkItems,
   normalizeSpellcheckWord,
   parseSpellcheckWordFile,
   selectSpellcheckWordsToImport,
   serializeSpellcheckWordFile,
   SPELLCHECK_MAX_LIBRARY_WORDS,
+  SPELLCHECK_WORD_INSERT_CHUNK_SIZE,
 } from "@/lib/spellcheck-dictionary/normalize-word";
 
 import { getOwnedProject, projectNotFoundResponse } from "../project/project.shared";
@@ -47,6 +49,7 @@ import {
   getOwnedDictionary,
   invalidDictionaryPayloadResponse,
   isDictionaryMutationAllowed,
+  lockSpellcheckDictionaryWords,
   resolveAttachmentPriority,
   toDictionaryRecord,
 } from "./dictionary.shared";
@@ -136,16 +139,16 @@ const validateExportDictionaryWordsQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
-async function dictionaryWordCount(dictionaryId: string) {
-  const [row] = await db
+async function dictionaryWordCount(client: DatabaseClient, dictionaryId: string) {
+  const [row] = await client
     .select({ total: count() })
     .from(schema.spellcheckDictionaryWords)
     .where(eq(schema.spellcheckDictionaryWords.dictionaryId, dictionaryId));
   return Number(row?.total ?? 0);
 }
 
-async function bumpDictionaryWordsVersion(dictionaryId: string) {
-  await db
+async function bumpDictionaryWordsVersion(client: DatabaseClient, dictionaryId: string) {
+  await client
     .update(schema.spellcheckDictionaries)
     .set({
       wordsVersion: sql`${schema.spellcheckDictionaries.wordsVersion} + 1`,
@@ -194,7 +197,7 @@ export function createDictionaryRoutes() {
       ]);
 
       const records = await mapWithConcurrency(dictionaries, 10, async (dictionary) =>
-        toDictionaryRecord(dictionary, { wordCount: await dictionaryWordCount(dictionary.id) }),
+        toDictionaryRecord(dictionary, { wordCount: await dictionaryWordCount(db, dictionary.id) }),
       );
 
       return c.json({ dictionaries: records, total: Number(totalRow[0]?.total ?? 0) }, 200);
@@ -225,7 +228,7 @@ export function createDictionaryRoutes() {
 
       return c.json({
         dictionary: toDictionaryRecord(dictionary, {
-          wordCount: await dictionaryWordCount(dictionary.id),
+          wordCount: await dictionaryWordCount(db, dictionary.id),
         }),
       });
     })
@@ -253,7 +256,7 @@ export function createDictionaryRoutes() {
 
       return c.json({
         dictionary: toDictionaryRecord(updated, {
-          wordCount: await dictionaryWordCount(updated.id),
+          wordCount: await dictionaryWordCount(db, updated.id),
         }),
       });
     })
@@ -338,23 +341,32 @@ export function createDictionaryRoutes() {
           return invalidDictionaryPayloadResponse(c);
         }
 
-        const existingCount = await dictionaryWordCount(dictionary.id);
-        if (existingCount >= SPELLCHECK_MAX_LIBRARY_WORDS) {
-          return invalidDictionaryPayloadResponse(c);
-        }
-
         try {
-          const [word] = await db
-            .insert(schema.spellcheckDictionaryWords)
-            .values({
-              dictionaryId: dictionary.id,
-              locale: payload.locale,
-              word: parsed.word,
-              wordNormalized: parsed.wordNormalized,
-              createdByUserId: c.var.auth.user.localUserId,
-            })
-            .returning();
-          await bumpDictionaryWordsVersion(dictionary.id);
+          const word = await db.transaction(async (tx) => {
+            await lockSpellcheckDictionaryWords(tx, dictionary.id);
+            const existingCount = await dictionaryWordCount(tx, dictionary.id);
+            if (existingCount >= SPELLCHECK_MAX_LIBRARY_WORDS) {
+              return null;
+            }
+
+            const [created] = await tx
+              .insert(schema.spellcheckDictionaryWords)
+              .values({
+                dictionaryId: dictionary.id,
+                locale: payload.locale,
+                word: parsed.word,
+                wordNormalized: parsed.wordNormalized,
+                createdByUserId: c.var.auth.user.localUserId,
+              })
+              .returning();
+            await bumpDictionaryWordsVersion(tx, dictionary.id);
+            return created;
+          });
+
+          if (!word) {
+            return invalidDictionaryPayloadResponse(c);
+          }
+
           return c.json(
             {
               word: {
@@ -400,7 +412,7 @@ export function createDictionaryRoutes() {
         return dictionaryNotFoundResponse(c);
       }
 
-      await bumpDictionaryWordsVersion(dictionary.id);
+      await bumpDictionaryWordsVersion(db, dictionary.id);
       return c.body(null, 204);
     })
     .post(
@@ -419,44 +431,52 @@ export function createDictionaryRoutes() {
 
         const payload = c.req.valid("json");
         const parsedWords = parseSpellcheckWordFile(payload.content);
-        const existingCount = await dictionaryWordCount(dictionary.id);
-        const existingRows = await db
-          .select({
-            wordNormalized: schema.spellcheckDictionaryWords.wordNormalized,
-          })
-          .from(schema.spellcheckDictionaryWords)
-          .where(
-            and(
-              eq(schema.spellcheckDictionaryWords.dictionaryId, dictionary.id),
-              eq(schema.spellcheckDictionaryWords.locale, payload.locale),
-            ),
-          );
-        const toInsert = selectSpellcheckWordsToImport({
-          parsedWords,
-          existingNormalized: new Set(existingRows.map((row) => row.wordNormalized)),
-          remainingCapacity: SPELLCHECK_MAX_LIBRARY_WORDS - existingCount,
-        });
+        const imported = await db.transaction(async (tx) => {
+          await lockSpellcheckDictionaryWords(tx, dictionary.id);
+          const existingCount = await dictionaryWordCount(tx, dictionary.id);
+          const existingRows = await tx
+            .select({
+              wordNormalized: schema.spellcheckDictionaryWords.wordNormalized,
+            })
+            .from(schema.spellcheckDictionaryWords)
+            .where(
+              and(
+                eq(schema.spellcheckDictionaryWords.dictionaryId, dictionary.id),
+                eq(schema.spellcheckDictionaryWords.locale, payload.locale),
+              ),
+            );
+          const toInsert = selectSpellcheckWordsToImport({
+            parsedWords,
+            existingNormalized: new Set(existingRows.map((row) => row.wordNormalized)),
+            remainingCapacity: SPELLCHECK_MAX_LIBRARY_WORDS - existingCount,
+          });
 
-        let imported = 0;
-        if (toInsert.length > 0) {
-          const inserted = await db
-            .insert(schema.spellcheckDictionaryWords)
-            .values(
-              toInsert.map((word) => ({
-                dictionaryId: dictionary.id,
-                locale: payload.locale,
-                word: word.word,
-                wordNormalized: word.wordNormalized,
-                createdByUserId: c.var.auth.user.localUserId,
-              })),
-            )
-            .onConflictDoNothing()
-            .returning({ id: schema.spellcheckDictionaryWords.id });
-          imported = inserted.length;
-          if (imported > 0) {
-            await bumpDictionaryWordsVersion(dictionary.id);
+          let insertedCount = 0;
+          for (const batch of chunkItems(toInsert, SPELLCHECK_WORD_INSERT_CHUNK_SIZE)) {
+            if (batch.length === 0) {
+              continue;
+            }
+            const inserted = await tx
+              .insert(schema.spellcheckDictionaryWords)
+              .values(
+                batch.map((word) => ({
+                  dictionaryId: dictionary.id,
+                  locale: payload.locale,
+                  word: word.word,
+                  wordNormalized: word.wordNormalized,
+                  createdByUserId: c.var.auth.user.localUserId,
+                })),
+              )
+              .onConflictDoNothing()
+              .returning({ id: schema.spellcheckDictionaryWords.id });
+            insertedCount += inserted.length;
           }
-        }
+
+          if (insertedCount > 0) {
+            await bumpDictionaryWordsVersion(tx, dictionary.id);
+          }
+          return insertedCount;
+        });
 
         return c.json({
           import: {

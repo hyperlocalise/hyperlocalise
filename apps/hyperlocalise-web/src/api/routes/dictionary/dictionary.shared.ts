@@ -20,7 +20,7 @@ import {
 } from "@/api/response.schema";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
-import { db, schema } from "@/lib/database/client";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { SpellcheckDictionary } from "@/lib/database/types";
 
 export function invalidDictionaryPayloadResponse(c: { json: JsonContext["json"] }) {
@@ -82,6 +82,15 @@ export async function nextProjectSpellcheckDictionaryPriority(projectId: string)
     .where(eq(schema.projectSpellcheckDictionaries.projectId, projectId));
 
   return Number(row?.maxPriority ?? -1) + 1;
+}
+
+export async function lockSpellcheckDictionaryWords(tx: DatabaseClient, dictionaryId: string) {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${[
+      "spellcheck_dictionary_words",
+      dictionaryId,
+    ].join(":")}, 0))`,
+  );
 }
 
 export async function resolveAttachmentPriority(

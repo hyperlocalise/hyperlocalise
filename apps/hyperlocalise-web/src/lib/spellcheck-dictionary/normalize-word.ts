@@ -15,6 +15,8 @@ export const SPELLCHECK_MAX_LIBRARY_WORDS = 20_000;
 export const SPELLCHECK_MAX_RESOLVED_WORDS = 5_000;
 /** UTF-8 JSON-array budget so CAT validate requests stay under go-svc's 512 KiB body limit. */
 export const SPELLCHECK_MAX_ACCEPTED_WORDS_BYTES = 256 * 1024;
+/** Five bind values per row; stay well under PostgreSQL's 65,535-parameter limit. */
+export const SPELLCHECK_WORD_INSERT_CHUNK_SIZE = 1_000;
 
 const utf8Encoder = new TextEncoder();
 
@@ -73,6 +75,15 @@ export function serializeSpellcheckWordFile(words: readonly string[]): string {
 
 export function utf8ByteLength(value: string): number {
   return utf8Encoder.encode(value).length;
+}
+
+export function chunkItems<T>(items: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  const chunkSize = Math.max(size, 1);
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+  return chunks;
 }
 
 export function selectSpellcheckWordsToImport(input: {
