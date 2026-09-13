@@ -16,12 +16,9 @@ RUN apt-get update \
 
 COPY go.mod go.sum ./
 COPY third_party ./third_party
-# Shared packages imported by apps/go-svc. Add a COPY for each new
-# internal/... import, or `go build ./apps/go-svc` fails in this image.
-COPY internal/i18n ./internal/i18n
-COPY internal/dataforseo ./internal/dataforseo
-COPY internal/guidelines ./internal/guidelines
-COPY internal/objectstore ./internal/objectstore
+# Minimal source context for go-svc (see root .dockerignore). Copy all of
+# internal/ so new shared packages compile without Dockerfile edits.
+COPY internal ./internal
 COPY apps/go-svc ./apps/go-svc
 
 RUN go mod download
