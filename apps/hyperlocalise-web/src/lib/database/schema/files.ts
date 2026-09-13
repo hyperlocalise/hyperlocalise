@@ -134,6 +134,7 @@ export const repositorySourceFiles = pgTable(
   (table) => [
     uniqueIndex("repository_source_files_project_path_key").on(table.projectId, table.sourcePath),
     index("idx_repository_source_files_org_project").on(table.organizationId, table.projectId),
+    index("idx_repository_source_files_reconciled_version").on(table.reconciledSourceFileVersionId),
   ],
 );
 

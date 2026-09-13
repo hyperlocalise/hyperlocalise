@@ -1,5 +1,5 @@
 {
-  "id": "fd7f19c4-4721-493c-8a7f-c9f872a80b3c",
+  "id": "948afac4-fbdd-47c3-894a-cdabf701f293",
   "prevId": "e8423022-05de-4578-ad83-615e7e676c9e",
   "version": "7",
   "dialect": "postgresql",
@@ -18081,6 +18081,21 @@
             },
             {
               "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_repository_source_files_reconciled_version": {
+          "name": "idx_repository_source_files_reconciled_version",
+          "columns": [
+            {
+              "expression": "reconciled_source_file_version_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
