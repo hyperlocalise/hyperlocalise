@@ -418,6 +418,84 @@ describe("reconcileSourceFileTranslationKeys", () => {
     return input;
   }
 
+  it("rejects blank or duplicate keys before mutating the database", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const version = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_invalid",
+    });
+    const base = {
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: version.repositorySourceFileId,
+      sourceFileVersionId: version.id,
+      workflowRunId: "run_invalid",
+    };
+
+    await expect(
+      reconcileSourceFileTranslationKeys({
+        ...base,
+        entries: [
+          { key: "ok", text: "Ok", context: null },
+          { key: "  ", text: "Blank", context: null },
+        ],
+      }),
+    ).rejects.toThrow(/blank or duplicate keys/);
+    await expect(
+      reconcileSourceFileTranslationKeys({
+        ...base,
+        entries: [
+          { key: "dup", text: "One", context: null },
+          { key: "dup", text: "Two", context: null },
+        ],
+      }),
+    ).rejects.toThrow(/blank or duplicate keys/);
+
+    expect(
+      await db
+        .select()
+        .from(schema.projectTranslationKeys)
+        .where(eq(schema.projectTranslationKeys.projectId, project.id)),
+    ).toHaveLength(0);
+  });
+
+  it("rejects reconciles owned by a different workflow run", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const version = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_owner",
+    });
+
+    await expect(
+      reconcileSourceFileTranslationKeys({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: version.repositorySourceFileId,
+        sourceFileVersionId: version.id,
+        workflowRunId: "run_intruder",
+        entries: [{ key: "k", text: "v", context: null }],
+      }),
+    ).rejects.toThrow(/not owned by this workflow/);
+  });
+
+  it("is idempotent when the version is already reconciled", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const input = await snapshot(organization.id, project.id, [{ key: "keep", text: "Keep" }]);
+    await expect(reconcileSourceFileTranslationKeys(input)).resolves.toEqual({
+      status: "ingested",
+    });
+    expect(
+      await db
+        .select()
+        .from(schema.projectTranslationKeys)
+        .where(eq(schema.projectTranslationKeys.projectId, project.id)),
+    ).toHaveLength(1);
+  });
+
   it("removes missing keys and their translations/comments while preserving retained IDs and other files", async () => {
     const { organization, project } = await createStoredProjectFixture();
     const first = await snapshot(organization.id, project.id, [

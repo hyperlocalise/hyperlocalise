@@ -18,6 +18,7 @@ import type { ContentSyncConfig } from "./content-sync-types";
 
 const mocks = vi.hoisted(() => ({
   selectLimit: vi.fn(),
+  selectWhere: vi.fn(),
   resolveDefaultBranchHeadSha: vi.fn(),
   createGithubRepositoryAutomationSandbox: vi.fn(),
   stopGithubRepositoryAutomationSandbox: vi.fn(),
@@ -33,9 +34,12 @@ vi.mock("@/lib/database/client", () => ({
   db: {
     select: vi.fn(() => ({
       from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          limit: mocks.selectLimit,
-        })),
+        where: (...args: unknown[]) => {
+          const rowsPromise = Promise.resolve(mocks.selectWhere(...args));
+          return Object.assign(rowsPromise, {
+            limit: mocks.selectLimit,
+          });
+        },
       })),
     })),
   },
@@ -142,6 +146,39 @@ async function runSync(config: ContentSyncConfig = syncConfig) {
   });
 }
 
+async function pullThenPush(options?: {
+  targetLocales?: string[];
+  sourceFiles?: { sourcePath: string }[];
+  canPush?: boolean;
+  prefilled?: { translatedKeyCount: number; prefilled: Record<string, string> };
+  hasDiff?: boolean;
+  pullRequestUrl?: string;
+}) {
+  mocks.selectLimit
+    .mockResolvedValueOnce([repository()])
+    .mockResolvedValueOnce([{ targetLocales: options?.targetLocales ?? ["fr"] }]);
+  mocks.selectWhere.mockResolvedValue(
+    options?.sourceFiles ?? [{ sourcePath: "github/acme/web/en.json" }],
+  );
+  mocks.runSandboxCommand.mockResolvedValue({
+    exitCode: 0,
+    output: "locales/en.json\0",
+  });
+  mocks.uploadRepositorySourceFilesFromSandbox.mockResolvedValue([{ outcome: "uploaded" }]);
+  mocks.canPushToGitHubRepository.mockResolvedValue({ canPush: options?.canPush ?? true });
+  mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue(
+    options?.prefilled ?? {
+      translatedKeyCount: 1,
+      prefilled: { greeting: "Bonjour" },
+    },
+  );
+  mocks.hasDiffAgainstBase.mockResolvedValue(options?.hasDiff ?? true);
+  mocks.commitPushAndCreatePullTranslationsPullRequest.mockResolvedValue({
+    pullRequestUrl: options?.pullRequestUrl ?? "https://github.com/acme/web/pull/9",
+  });
+  return runSync();
+}
+
 describe("executeGithubContentSync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -149,6 +186,7 @@ describe("executeGithubContentSync", () => {
     mocks.createGithubRepositoryAutomationSandbox.mockResolvedValue("sbx-1");
     mocks.stopGithubRepositoryAutomationSandbox.mockResolvedValue(undefined);
     mocks.canPushToGitHubRepository.mockResolvedValue({ canPush: false });
+    mocks.selectWhere.mockResolvedValue([]);
   });
 
   it("returns content_sync_connection_required when the repository is missing", async () => {
@@ -294,6 +332,64 @@ describe("executeGithubContentSync", () => {
       });
     }
     expect(mocks.canPushToGitHubRepository).toHaveBeenCalled();
+    expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
+  });
+
+  it("soft-no-ops push when the project has no target locales", async () => {
+    const result = await pullThenPush({ targetLocales: [] });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.pushed).toEqual({ written: 0 });
+    }
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).not.toHaveBeenCalled();
+    expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
+  });
+
+  it("soft-no-ops push when no translation candidates are ready", async () => {
+    const result = await pullThenPush({
+      prefilled: { translatedKeyCount: 0, prefilled: {} },
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.pushed).toEqual({ written: 0 });
+    }
+    expect(mocks.hasDiffAgainstBase).not.toHaveBeenCalled();
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).not.toHaveBeenCalled();
+  });
+
+  it("soft-no-ops push when the sandbox has no diff against the base", async () => {
+    const result = await pullThenPush({ hasDiff: false });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.pushed).toEqual({ written: 0 });
+    }
+    expect(mocks.hasDiffAgainstBase).toHaveBeenCalled();
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).not.toHaveBeenCalled();
+  });
+
+  it("creates a translations pull request when push candidates differ from base", async () => {
+    const result = await pullThenPush({
+      pullRequestUrl: "https://github.com/acme/web/pull/42",
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.pushed).toEqual({
+        written: 1,
+        pullRequestUrl: "https://github.com/acme/web/pull/42",
+      });
+    }
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sandboxId: "sbx-1",
+        repositoryFullName: "acme/web",
+        branchName: "content-sync/run-1",
+      }),
+    );
     expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
   });
 });
