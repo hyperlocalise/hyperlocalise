@@ -48,19 +48,19 @@ func dictionaryPostgresAPI(t *testing.T) *dictionaryAPI {
         create table teams(id uuid primary key,organization_id uuid,slug text);
         create table team_memberships(team_id uuid,user_id uuid);
         create table projects(id text primary key,organization_id uuid,name text,team_id uuid);
-        create table spellcheck_dictionaries(
+        create table spellcheck_word_libraries(
             id uuid primary key default gen_random_uuid(),organization_id uuid not null references organizations(id),
             created_by_user_id uuid references users(id),name text not null,description text not null default '',
             status asset_status not null default 'active',words_version integer not null default 1,
             created_at timestamptz not null default now(),updated_at timestamptz not null default now());
-        create table spellcheck_dictionary_words(
-            id uuid primary key default gen_random_uuid(),dictionary_id uuid not null references spellcheck_dictionaries(id) on delete cascade,
+        create table spellcheck_word_library_words(
+            id uuid primary key default gen_random_uuid(),library_id uuid not null references spellcheck_word_libraries(id) on delete cascade,
             locale text not null,word text not null,word_normalized text not null,created_by_user_id uuid references users(id),
-            created_at timestamptz not null default now(),unique(dictionary_id,locale,word_normalized));
-        create table project_spellcheck_dictionaries(
+            created_at timestamptz not null default now(),unique(library_id,locale,word_normalized));
+        create table project_spellcheck_word_libraries(
             id uuid primary key default gen_random_uuid(),organization_id uuid not null references organizations(id),
-            project_id text not null references projects(id) on delete cascade,dictionary_id uuid not null references spellcheck_dictionaries(id) on delete cascade,
-            priority integer not null default 0,created_at timestamptz not null default now(),updated_at timestamptz not null default now(),unique(project_id,dictionary_id));
+            project_id text not null references projects(id) on delete cascade,library_id uuid not null references spellcheck_word_libraries(id) on delete cascade,
+            priority integer not null default 0,created_at timestamptz not null default now(),updated_at timestamptz not null default now(),unique(project_id,library_id));
     `)
 	require.NoError(t, err)
 	_, err = pool.Exec(ctx, `insert into users values($1,'user_live')`, testDictionaryUserID)
@@ -113,17 +113,17 @@ func TestDictionaryPostgresLifecycle(t *testing.T) {
 	deleted := dictionaryRequestForTest(api, "DELETE", path, "")
 	require.Equal(t, 204, deleted.Code)
 	var words, attachments int
-	require.NoError(t, api.pool.QueryRow(t.Context(), `select count(*) from spellcheck_dictionary_words`).Scan(&words))
-	require.NoError(t, api.pool.QueryRow(t.Context(), `select count(*) from project_spellcheck_dictionaries`).Scan(&attachments))
+	require.NoError(t, api.pool.QueryRow(t.Context(), `select count(*) from spellcheck_word_library_words`).Scan(&words))
+	require.NoError(t, api.pool.QueryRow(t.Context(), `select count(*) from project_spellcheck_word_libraries`).Scan(&attachments))
 	require.Zero(t, words)
 	require.Zero(t, attachments)
 }
 
 func TestDictionaryPostgresConcurrentCapacity(t *testing.T) {
 	api := dictionaryPostgresAPI(t)
-	_, err := api.pool.Exec(t.Context(), `insert into spellcheck_dictionaries(id,organization_id,name) values($1,$2,'Capacity')`, testDictionaryID, testDictionaryOrgID)
+	_, err := api.pool.Exec(t.Context(), `insert into spellcheck_word_libraries(id,organization_id,name) values($1,$2,'Capacity')`, testDictionaryID, testDictionaryOrgID)
 	require.NoError(t, err)
-	_, err = api.pool.Exec(t.Context(), `insert into spellcheck_dictionary_words(dictionary_id,locale,word,word_normalized) select $1,'en-US','Word'||n,'word'||n from generate_series(1,19999) n`, testDictionaryID)
+	_, err = api.pool.Exec(t.Context(), `insert into spellcheck_word_library_words(library_id,locale,word,word_normalized) select $1,'en-US','Word'||n,'word'||n from generate_series(1,19999) n`, testDictionaryID)
 	require.NoError(t, err)
 	var wg sync.WaitGroup
 	codes := make(chan int, 2)
@@ -144,6 +144,6 @@ func TestDictionaryPostgresConcurrentCapacity(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, dictionaryMaxWords, count)
 	var version int
-	require.NoError(t, api.pool.QueryRow(t.Context(), `select words_version from spellcheck_dictionaries where id=$1`, testDictionaryID).Scan(&version))
+	require.NoError(t, api.pool.QueryRow(t.Context(), `select words_version from spellcheck_word_libraries where id=$1`, testDictionaryID).Scan(&version))
 	require.Equal(t, 2, version)
 }

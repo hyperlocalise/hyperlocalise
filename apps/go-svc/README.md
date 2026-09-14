@@ -221,8 +221,10 @@ must never be the only retained copy of guideline content.
 The browser calls `/api/go-svc/v1/orgs/{organizationSlug}/dictionaries`
 and project dictionary routes directly. The former web dictionary handlers are
 removed. Go owns reads, mutations, word imports/exports, attachment ordering,
-and resolved accepted words. Drizzle remains the schema and migration owner;
-this migration does not change the schema.
+and resolved accepted words. Drizzle remains the schema and migration owner.
+PostgreSQL tables are `spellcheck_word_libraries`, `spellcheck_word_library_words`,
+and `project_spellcheck_word_libraries` (not the legacy `spellcheck_dictionaries`
+names from migration `0124_premium_cerise`, which production often never applied).
 
 Dictionary routes use the existing `wos-session` cookie. Configure
 `WORKOS_COOKIE_PASSWORD`, `WORKOS_API_KEY`, and `DATABASE_URL` in go-svc.

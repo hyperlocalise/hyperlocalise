@@ -98,7 +98,7 @@ func (api *dictionaryAPI) wordRequest(r *http.Request, actor dictionaryActor, d 
 		if err != nil {
 			return nil, 0, err
 		}
-		rows, err := api.pool.Query(ctx, `select word from spellcheck_dictionary_words where dictionary_id=$1 and locale=$2 order by word`, d.ID, locale)
+		rows, err := api.pool.Query(ctx, `select word from spellcheck_word_library_words where library_id=$1 and locale=$2 order by word`, d.ID, locale)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -125,7 +125,7 @@ func (api *dictionaryAPI) wordRequest(r *http.Request, actor dictionaryActor, d 
 				return nil, 0, err
 			}
 		}
-		rows, err := api.pool.Query(ctx, `select id,locale,word,created_at from spellcheck_dictionary_words where dictionary_id=$1 and ($2='' or locale=$2) order by locale,word limit $3 offset $4`, d.ID, locale, limit, offset)
+		rows, err := api.pool.Query(ctx, `select id,locale,word,created_at from spellcheck_word_library_words where library_id=$1 and ($2='' or locale=$2) order by locale,word limit $3 offset $4`, d.ID, locale, limit, offset)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -143,7 +143,7 @@ func (api *dictionaryAPI) wordRequest(r *http.Request, actor dictionaryActor, d 
 			return nil, 0, err
 		}
 		var total int
-		err = api.pool.QueryRow(ctx, `select count(*) from spellcheck_dictionary_words where dictionary_id=$1 and ($2='' or locale=$2)`, d.ID, locale).Scan(&total)
+		err = api.pool.QueryRow(ctx, `select count(*) from spellcheck_word_library_words where library_id=$1 and ($2='' or locale=$2)`, d.ID, locale).Scan(&total)
 		return map[string]any{"words": words, "total": total}, 200, err
 	}
 	if len(rest) == 1 && r.Method == http.MethodDelete {
@@ -151,7 +151,7 @@ func (api *dictionaryAPI) wordRequest(r *http.Request, actor dictionaryActor, d 
 			return nil, 0, missingDictionary()
 		}
 		err := api.withDictionaryWords(ctx, actor, d.ID, func(tx pgx.Tx) error {
-			deleted, err := tx.Exec(ctx, `delete from spellcheck_dictionary_words where id=$1 and dictionary_id=$2`, rest[0], d.ID)
+			deleted, err := tx.Exec(ctx, `delete from spellcheck_word_library_words where id=$1 and library_id=$2`, rest[0], d.ID)
 			if err != nil {
 				return err
 			}
@@ -198,7 +198,7 @@ func (api *dictionaryAPI) wordRequest(r *http.Request, actor dictionaryActor, d 
 			if count >= dictionaryMaxWords {
 				return invalidDictionary()
 			}
-			created, err = scanDictionaryWord(tx.QueryRow(ctx, `insert into spellcheck_dictionary_words (dictionary_id,locale,word,word_normalized,created_by_user_id) values ($1,$2,$3,$4,$5) returning id,locale,word,created_at`, d.ID, locale, words[0].word, words[0].folded, actor.userID))
+			created, err = scanDictionaryWord(tx.QueryRow(ctx, `insert into spellcheck_word_library_words (library_id,locale,word,word_normalized,created_by_user_id) values ($1,$2,$3,$4,$5) returning id,locale,word,created_at`, d.ID, locale, words[0].word, words[0].folded, actor.userID))
 			if err != nil {
 				var pgErr *pgconn.PgError
 				if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -209,7 +209,7 @@ func (api *dictionaryAPI) wordRequest(r *http.Request, actor dictionaryActor, d 
 			inserted = 1
 		} else {
 			existing := map[string]bool{}
-			rows, err := tx.Query(ctx, `select word_normalized from spellcheck_dictionary_words where dictionary_id=$1 and locale=$2`, d.ID, locale)
+			rows, err := tx.Query(ctx, `select word_normalized from spellcheck_word_library_words where library_id=$1 and locale=$2`, d.ID, locale)
 			if err != nil {
 				return err
 			}
@@ -238,7 +238,7 @@ func (api *dictionaryAPI) wordRequest(r *http.Request, actor dictionaryActor, d 
 				folded = append(folded, word.folded)
 			}
 			if len(novel) > 0 {
-				tag, err := tx.Exec(ctx, `insert into spellcheck_dictionary_words (dictionary_id,locale,word,word_normalized,created_by_user_id) select $1,$2,w.word,w.folded,$3 from unnest($4::text[],$5::text[]) as w(word,folded) on conflict do nothing`, d.ID, locale, actor.userID, novel, folded)
+				tag, err := tx.Exec(ctx, `insert into spellcheck_word_library_words (library_id,locale,word,word_normalized,created_by_user_id) select $1,$2,w.word,w.folded,$3 from unnest($4::text[],$5::text[]) as w(word,folded) on conflict do nothing`, d.ID, locale, actor.userID, novel, folded)
 				if err != nil {
 					return err
 				}

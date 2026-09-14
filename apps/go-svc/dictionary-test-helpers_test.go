@@ -181,7 +181,7 @@ func dictionaryRequestForTest(api *dictionaryAPI, method, path, body string) *ht
 func dictionaryWordTransactionSteps() []dictionaryDBStep {
 	return []dictionaryDBStep{
 		{kind: "begin"},
-		{kind: "exec", sql: "pg_advisory_xact_lock", args: []any{"spellcheck_dictionary_words:" + testDictionaryID}},
+		{kind: "exec", sql: "pg_advisory_xact_lock", args: []any{"spellcheck_word_library_words:" + testDictionaryID}},
 		{kind: "row", sql: "organization_id=$2 for update", args: []any{testDictionaryID, testDictionaryOrgID}, values: [][]any{{testDictionaryID}}},
 	}
 }

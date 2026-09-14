@@ -241,6 +241,7 @@ Use these Go-inspired patterns when they make the code safer without adding heav
 - Commit the generated `drizzle/<NNNN>_*.sql` and matching `drizzle/meta/<NNNN>_snapshot.json` (and updated `_journal.json`) together with the schema change.
 - Apply migrations locally with `vp run db:migrate`. CI runs `vp run db:generate` and fails if it produces uncommitted changes, so any drift between the schema and the migration history will block the build.
 - Drizzle assigns sequential numeric prefixes (`0004_`, `0005_`, ...). Two branches that both generate against the same base will collide on the same number. After rebasing/merging, delete your migration files and snapshot, then rerun `vp run db:generate` so your migration is renumbered on top of whatever landed on `main`. CI also fails fast on duplicate indices in `_journal.json` or duplicate filename prefixes in `drizzle/`.
+- Journal `when` timestamps must strictly increase by `idx`. `db:check-migrations` enforces this because `drizzle-kit migrate` skips entries whose `when` is not greater than the latest applied `created_at`, even when a later migration already ran.
 
 <!--VITE PLUS START-->
 

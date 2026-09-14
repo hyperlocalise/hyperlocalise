@@ -59,7 +59,7 @@ type dictionaryProjectRecord struct {
 }
 
 func (api *dictionaryAPI) dictionaryProjects(ctx context.Context, actor dictionaryActor, dictionaryID string) ([]dictionaryProjectRecord, error) {
-	rows, err := api.pool.Query(ctx, `select a.project_id,p.name,a.priority from project_spellcheck_dictionaries a join projects p on p.id=a.project_id where a.dictionary_id=$1 and a.organization_id=$2 and p.organization_id=$2 order by a.priority,a.created_at,a.project_id`, dictionaryID, actor.organizationID)
+	rows, err := api.pool.Query(ctx, `select a.project_id,p.name,a.priority from project_spellcheck_word_libraries a join projects p on p.id=a.project_id where a.library_id=$1 and a.organization_id=$2 and p.organization_id=$2 order by a.priority,a.created_at,a.project_id`, dictionaryID, actor.organizationID)
 	if err != nil {
 		return nil, err
 	}
@@ -82,20 +82,20 @@ func (api *dictionaryAPI) attachDictionary(ctx context.Context, actor dictionary
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	// Serialize default priority assignment within a project.
-	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1,0))`, "project_spellcheck_dictionaries:"+projectID); err != nil {
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1,0))`, "project_spellcheck_word_libraries:"+projectID); err != nil {
 		return 0, false, err
 	}
 	value := 0
 	if priority != nil {
 		value = *priority
-	} else if err := tx.QueryRow(ctx, `select coalesce(max(priority),-1)+1 from project_spellcheck_dictionaries where project_id=$1`, projectID).Scan(&value); err != nil {
+	} else if err := tx.QueryRow(ctx, `select coalesce(max(priority),-1)+1 from project_spellcheck_word_libraries where project_id=$1`, projectID).Scan(&value); err != nil {
 		return 0, false, err
 	}
-	tag, err := tx.Exec(ctx, `insert into project_spellcheck_dictionaries (organization_id,project_id,dictionary_id,priority) select $1,p.id,d.id,$4 from projects p,spellcheck_dictionaries d where p.id=$2 and p.organization_id=$1 and d.id=$3 and d.organization_id=$1 on conflict do nothing`, actor.organizationID, projectID, dictionaryID, value)
+	tag, err := tx.Exec(ctx, `insert into project_spellcheck_word_libraries (organization_id,project_id,library_id,priority) select $1,p.id,d.id,$4 from projects p,spellcheck_word_libraries d where p.id=$2 and p.organization_id=$1 and d.id=$3 and d.organization_id=$1 on conflict do nothing`, actor.organizationID, projectID, dictionaryID, value)
 	if err != nil {
 		return 0, false, err
 	}
-	if err := tx.QueryRow(ctx, `select priority from project_spellcheck_dictionaries where project_id=$1 and dictionary_id=$2 and organization_id=$3`, projectID, dictionaryID, actor.organizationID).Scan(&value); err != nil {
+	if err := tx.QueryRow(ctx, `select priority from project_spellcheck_word_libraries where project_id=$1 and library_id=$2 and organization_id=$3`, projectID, dictionaryID, actor.organizationID).Scan(&value); err != nil {
 		if err == pgx.ErrNoRows {
 			return 0, false, missingDictionary()
 		}
@@ -114,7 +114,7 @@ func (api *dictionaryAPI) dictionaryProjectRequest(r *http.Request, actor dictio
 		if projectID == "" || utf16Length(projectID) > 128 {
 			return nil, 0, missingDictionary()
 		}
-		_, err := api.pool.Exec(ctx, `delete from project_spellcheck_dictionaries where dictionary_id=$1 and project_id=$2 and organization_id=$3`, d.ID, projectID, actor.organizationID)
+		_, err := api.pool.Exec(ctx, `delete from project_spellcheck_word_libraries where library_id=$1 and project_id=$2 and organization_id=$3`, d.ID, projectID, actor.organizationID)
 		return nil, 204, err
 	}
 	if len(rest) != 0 {
@@ -143,7 +143,7 @@ func (api *dictionaryAPI) dictionaryProjectRequest(r *http.Request, actor dictio
 }
 
 func (api *dictionaryAPI) projectDictionaries(ctx context.Context, actor dictionaryActor, projectID string, activeOnly bool) ([]dictionaryRecord, error) {
-	rows, err := api.pool.Query(ctx, `select `+dictionaryColumns+`,a.priority from project_spellcheck_dictionaries a join spellcheck_dictionaries d on d.id=a.dictionary_id where a.project_id=$1 and a.organization_id=$2 and d.organization_id=$2 and (not $3 or d.status='active') order by a.priority,a.created_at,a.dictionary_id`, projectID, actor.organizationID, activeOnly)
+	rows, err := api.pool.Query(ctx, `select `+dictionaryColumns+`,a.priority from project_spellcheck_word_libraries a join spellcheck_word_libraries d on d.id=a.library_id where a.project_id=$1 and a.organization_id=$2 and d.organization_id=$2 and (not $3 or d.status='active') order by a.priority,a.created_at,a.library_id`, projectID, actor.organizationID, activeOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (api *dictionaryAPI) projectRequest(r *http.Request, actor dictionaryActor)
 		if !validDictionaryID(rest) {
 			return nil, 0, missingDictionary()
 		}
-		_, err := api.pool.Exec(ctx, `delete from project_spellcheck_dictionaries where project_id=$1 and dictionary_id=$2 and organization_id=$3`, projectID, rest, actor.organizationID)
+		_, err := api.pool.Exec(ctx, `delete from project_spellcheck_word_libraries where project_id=$1 and library_id=$2 and organization_id=$3`, projectID, rest, actor.organizationID)
 		return nil, 204, err
 	}
 	if rest != "" {
@@ -227,7 +227,7 @@ func (api *dictionaryAPI) resolvedWords(ctx context.Context, actor dictionaryAct
 	}
 	sort.Strings(versions)
 	versions = append(versions, locale)
-	rows, err := api.pool.Query(ctx, `select w.word,w.word_normalized,a.priority,a.created_at,a.dictionary_id from project_spellcheck_dictionaries a join spellcheck_dictionaries d on d.id=a.dictionary_id join spellcheck_dictionary_words w on w.dictionary_id=d.id where a.project_id=$1 and a.organization_id=$2 and d.organization_id=$2 and d.status='active' and w.locale=$3 order by a.priority,a.created_at,a.dictionary_id`, projectID, actor.organizationID, locale)
+	rows, err := api.pool.Query(ctx, `select w.word,w.word_normalized,a.priority,a.created_at,a.library_id from project_spellcheck_word_libraries a join spellcheck_word_libraries d on d.id=a.library_id join spellcheck_word_library_words w on w.library_id=d.id where a.project_id=$1 and a.organization_id=$2 and d.organization_id=$2 and d.status='active' and w.locale=$3 order by a.priority,a.created_at,a.library_id`, projectID, actor.organizationID, locale)
 	if err != nil {
 		return nil, 0, err
 	}

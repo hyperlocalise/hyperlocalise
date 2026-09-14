@@ -81,7 +81,7 @@ func (api *dictionaryAPI) dictionaryRequest(r *http.Request, actor dictionaryAct
 			if payload.Description != nil {
 				description = *payload.Description
 			}
-			d, err := scanDictionary(api.pool.QueryRow(ctx, `insert into spellcheck_dictionaries as d (organization_id, created_by_user_id, name, description) values ($1,$2,$3,$4) returning `+dictionaryColumns, actor.organizationID, actor.userID, *payload.Name, description))
+			d, err := scanDictionary(api.pool.QueryRow(ctx, `insert into spellcheck_word_libraries as d (organization_id, created_by_user_id, name, description) values ($1,$2,$3,$4) returning `+dictionaryColumns, actor.organizationID, actor.userID, *payload.Name, description))
 			return map[string]any{"dictionary": d}, 201, err
 		default:
 			return dictionaryMethodNotAllowed()
@@ -113,12 +113,12 @@ func (api *dictionaryAPI) dictionaryRequest(r *http.Request, actor dictionaryAct
 		if err := payload.validate(false); err != nil {
 			return nil, 0, err
 		}
-		d, err = scanDictionary(api.pool.QueryRow(ctx, `update spellcheck_dictionaries as d set name=coalesce($3,name), description=coalesce($4,description), status=coalesce($5::asset_status,status), updated_at=now() where id=$1 and organization_id=$2 returning `+dictionaryColumns, d.ID, actor.organizationID, payload.Name, payload.Description, payload.Status))
+		d, err = scanDictionary(api.pool.QueryRow(ctx, `update spellcheck_word_libraries as d set name=coalesce($3,name), description=coalesce($4,description), status=coalesce($5::asset_status,status), updated_at=now() where id=$1 and organization_id=$2 returning `+dictionaryColumns, d.ID, actor.organizationID, payload.Name, payload.Description, payload.Status))
 		if err == nil {
 			d.WordCount, err = dictionaryCount(ctx, api.pool, d.ID)
 		}
 	case http.MethodDelete:
-		_, err = api.pool.Exec(ctx, `delete from spellcheck_dictionaries where id=$1 and organization_id=$2`, d.ID, actor.organizationID)
+		_, err = api.pool.Exec(ctx, `delete from spellcheck_word_libraries where id=$1 and organization_id=$2`, d.ID, actor.organizationID)
 		return nil, 204, err
 	default:
 		return dictionaryMethodNotAllowed()
@@ -136,8 +136,8 @@ func (api *dictionaryAPI) listDictionaries(r *http.Request, actor dictionaryActo
 	if err != nil || (r.URL.Query().Has("projectId") && (projectID == "" || utf16Length(projectID) > 128)) {
 		limit, offset, projectID = 50, 0, ""
 	}
-	where := `d.organization_id=$1 and ($2='' or exists(select 1 from project_spellcheck_dictionaries a where a.dictionary_id=d.id and a.organization_id=$1 and a.project_id=$2))`
-	rows, err := api.pool.Query(r.Context(), `select `+dictionaryColumns+` from spellcheck_dictionaries d where `+where+` order by d.created_at desc limit $3 offset $4`, actor.organizationID, projectID, limit, offset)
+	where := `d.organization_id=$1 and ($2='' or exists(select 1 from project_spellcheck_word_libraries a where a.library_id=d.id and a.organization_id=$1 and a.project_id=$2))`
+	rows, err := api.pool.Query(r.Context(), `select `+dictionaryColumns+` from spellcheck_word_libraries d where `+where+` order by d.created_at desc limit $3 offset $4`, actor.organizationID, projectID, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -159,7 +159,7 @@ func (api *dictionaryAPI) listDictionaries(r *http.Request, actor dictionaryActo
 	for i, d := range records {
 		ids[i] = d.ID
 	}
-	counts, err := api.pool.Query(r.Context(), `select dictionary_id, count(*) from spellcheck_dictionary_words where dictionary_id=any($1::uuid[]) group by dictionary_id`, ids)
+	counts, err := api.pool.Query(r.Context(), `select library_id, count(*) from spellcheck_word_library_words where library_id=any($1::uuid[]) group by library_id`, ids)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -181,7 +181,7 @@ func (api *dictionaryAPI) listDictionaries(r *http.Request, actor dictionaryActo
 		records[i].WordCount = countByID[records[i].ID]
 	}
 	var total int
-	err = api.pool.QueryRow(r.Context(), `select count(*) from spellcheck_dictionaries d where `+where, actor.organizationID, projectID).Scan(&total)
+	err = api.pool.QueryRow(r.Context(), `select count(*) from spellcheck_word_libraries d where `+where, actor.organizationID, projectID).Scan(&total)
 	return map[string]any{"dictionaries": records, "total": total}, 200, err
 }
 
@@ -191,12 +191,12 @@ func (api *dictionaryAPI) withDictionaryWords(ctx context.Context, actor diction
 		return err
 	}
 	defer func() { _ = tx.Rollback(ctx) }() // Rollback after commit is harmless.
-	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1,0))`, "spellcheck_dictionary_words:"+id); err != nil {
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1,0))`, "spellcheck_word_library_words:"+id); err != nil {
 		return err
 	}
 	// Lock the owner row as well so deleting a library cannot race a word mutation.
 	var owned string
-	if err := tx.QueryRow(ctx, `select id from spellcheck_dictionaries where id=$1 and organization_id=$2 for update`, id, actor.organizationID).Scan(&owned); err != nil {
+	if err := tx.QueryRow(ctx, `select id from spellcheck_word_libraries where id=$1 and organization_id=$2 for update`, id, actor.organizationID).Scan(&owned); err != nil {
 		if err == pgx.ErrNoRows {
 			return missingDictionary()
 		}

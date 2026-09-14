@@ -25,7 +25,7 @@ func TestDictionaryWordMutations(t *testing.T) {
 			steps := append([]dictionaryDBStep{dictionaryOwnedStep()}, dictionaryWordTransactionSteps()...)
 			steps = append(steps, dictionaryRowStep("count(*)", tc.count))
 			if tc.count < dictionaryMaxWords {
-				step := dictionaryRowStep("insert into spellcheck_dictionary_words", testDictionaryWordID, "en-US", "AuthKit", testDictionaryTime)
+				step := dictionaryRowStep("insert into spellcheck_word_library_words", testDictionaryWordID, "en-US", "AuthKit", testDictionaryTime)
 				step.args = []any{testDictionaryID, "en-US", "AuthKit", "authkit", testDictionaryUserID}
 				step.err = tc.insertErr
 				steps = append(steps, step)
@@ -90,7 +90,7 @@ func TestDictionaryWordDelete(t *testing.T) {
 			if found {
 				affected = 1
 			}
-			steps = append(steps, dictionaryDBStep{kind: "exec", sql: "id=$1 and dictionary_id=$2", args: []any{testDictionaryWordID, testDictionaryID}, affected: affected})
+			steps = append(steps, dictionaryDBStep{kind: "exec", sql: "id=$1 and library_id=$2", args: []any{testDictionaryWordID, testDictionaryID}, affected: affected})
 			if found {
 				steps = append(steps, dictionaryDBStep{kind: "exec", sql: "words_version=words_version+1"}, dictionaryDBStep{kind: "commit"})
 			}
