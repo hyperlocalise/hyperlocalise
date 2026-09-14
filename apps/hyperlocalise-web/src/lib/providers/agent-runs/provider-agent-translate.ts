@@ -10,7 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import {
+  formatManagedAiCreditError,
+  type ManagedAiCreditError,
+} from "@/lib/billing/managed-ai-credit";
+import { addAiTokenUsage, reserveAgentRunAiCredit } from "@/lib/billing/agent-runtime-usage";
+import { ensureAiFeaturesAllowed, type AiFeaturesError } from "@/lib/billing/ai-features";
+import type { AiTokenUsage } from "@/lib/billing/usage-control";
+import { sandboxTranslationBillingMetadata } from "@/lib/translation/cli-token-usage";
+import { loadSandboxByokCredential } from "@/lib/translation/sandbox-byok";
 import { createLogger } from "@/lib/log";
 import {
   detectAgentRunProposalWarnings,
@@ -40,7 +48,6 @@ import {
   summarizeProviderUnitFileIds,
   translateProviderJobFiles,
 } from "@/lib/providers/agent-runs/provider-agent-file-translate";
-import { isUntranslatedTranslation } from "@/lib/projects/translations/translation-prefill";
 import {
   assembleStringTranslationContextSnapshot,
   loadTranslationContextProject,
@@ -53,9 +60,74 @@ import type { AgentRunGlossaryMatchUsage } from "@/lib/providers/contracts/gloss
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/providers/contracts/translation-memory-match";
 import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
-import type { StringTranslationGenerator } from "@/lib/translation/domain";
+import type {
+  StringTranslationGenerator,
+  StringTranslationJobResult,
+} from "@/lib/translation/domain";
 
 const logger = createLogger("provider-agent-translate");
+
+type ProviderAgentStringTokenUsage = AiTokenUsage & {
+  modelId?: string;
+  credentialSource?: "gateway" | "byok";
+};
+
+function accumulateProviderAgentStringTokenUsage(
+  current: ProviderAgentStringTokenUsage | null,
+  next: NonNullable<StringTranslationJobResult["tokenUsage"]>,
+): ProviderAgentStringTokenUsage | null {
+  const aggregated = addAiTokenUsage(current, {
+    inputTokens: next.inputTokens,
+    outputTokens: next.outputTokens,
+    totalTokens: next.totalTokens,
+    cacheReadTokens: next.cacheReadTokens,
+    cacheWriteTokens: next.cacheWriteTokens,
+    reasoningTokens: next.reasoningTokens,
+  });
+  if (!aggregated) {
+    return null;
+  }
+
+  return {
+    ...aggregated,
+    modelId: current?.modelId ?? next.modelId,
+    credentialSource: current?.credentialSource ?? next.credentialSource,
+  };
+}
+
+type ProviderAgentCreditGateError = AiFeaturesError | ManagedAiCreditError;
+
+function formatProviderAgentCreditGateError(error: ProviderAgentCreditGateError): string {
+  if (error.code === "ai_features_required" || error.code === "ai_features_check_failed") {
+    return error.message;
+  }
+
+  return formatManagedAiCreditError(error);
+}
+
+async function reserveProviderAgentTranslationCredit(input: {
+  organizationId: string;
+  agentRunId: string;
+}): Promise<{ ok: true } | { ok: false; error: ProviderAgentCreditGateError }> {
+  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
+  if (!aiFeatures.ok) {
+    return { ok: false, error: aiFeatures.error };
+  }
+
+  const byok = await loadSandboxByokCredential(input.organizationId);
+  const billing = sandboxTranslationBillingMetadata(byok);
+  const reserved = await reserveAgentRunAiCredit({
+    organizationId: input.organizationId,
+    runId: input.agentRunId,
+    source: "agent_run_complete",
+    modelId: billing.modelId,
+    credentialSource: billing.credentialSource,
+  });
+  if (!reserved.ok) {
+    return { ok: false, error: reserved.error };
+  }
+  return { ok: true };
+}
 
 export type ProviderAgentTranslationChangedItem = AgentRunProposalItem;
 
@@ -133,7 +205,7 @@ function existingTranslationForLocale(unit: ExternalTmsTranslationUnit, locale: 
 function shouldSkipExistingTranslation(
   translation: ExternalTmsTranslationUnit["translations"][number] | null,
 ) {
-  return !isUntranslatedTranslation({ targetText: translation?.text });
+  return Boolean(translation?.text?.trim());
 }
 
 function buildJobInputForUnit(input: {
@@ -181,11 +253,7 @@ async function translateProviderUnits(input: {
   }> = [];
   let unitsProcessed = 0;
   let skippedExistingLocales = 0;
-  let tokenUsage = {
-    inputTokens: 0,
-    outputTokens: 0,
-    totalTokens: 0,
-  };
+  let tokenUsage: ProviderAgentStringTokenUsage | null = null;
 
   const project = await loadTranslationContextProject(input.projectId);
   if (!project) {
@@ -293,11 +361,7 @@ async function translateProviderUnits(input: {
       });
 
       if (result.tokenUsage) {
-        tokenUsage = {
-          inputTokens: tokenUsage.inputTokens + (result.tokenUsage.inputTokens ?? 0),
-          outputTokens: tokenUsage.outputTokens + (result.tokenUsage.outputTokens ?? 0),
-          totalTokens: tokenUsage.totalTokens + (result.tokenUsage.totalTokens ?? 0),
-        };
+        tokenUsage = accumulateProviderAgentStringTokenUsage(tokenUsage, result.tokenUsage);
       }
 
       for (const translation of result.translations) {
@@ -392,7 +456,7 @@ async function translateProviderUnits(input: {
     skippedExistingLocales,
     translationMemoryUsageByUnit,
     glossaryUsageByUnit,
-    tokenUsage: tokenUsage.totalTokens > 0 ? tokenUsage : null,
+    tokenUsage,
   };
 }
 
@@ -448,23 +512,6 @@ export async function executeProviderAgentTranslation(input: {
       agentRunId: input.agentRunId,
       code: run.status === "failed" ? "agent_run_already_failed" : "agent_run_already_cancelled",
       message: `Agent run is ${run.status}, expected queued or running`,
-    };
-  }
-
-  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
-  if (!aiFeatures.ok) {
-    await failAgentRun({
-      runId: run.id,
-      organizationId: input.organizationId,
-      outputSummary: { code: aiFeatures.error.code },
-      warnings: [aiFeatures.error.message],
-    });
-
-    return {
-      ok: false,
-      agentRunId: input.agentRunId,
-      code: aiFeatures.error.code,
-      message: aiFeatures.error.message,
     };
   }
 
@@ -638,6 +685,29 @@ export async function executeProviderAgentTranslation(input: {
       "provider agent translation selected file mode",
     );
 
+    const creditReservation = await reserveProviderAgentTranslationCredit({
+      organizationId: input.organizationId,
+      agentRunId: input.agentRunId,
+    });
+    if (!creditReservation.ok) {
+      await failAgentRun({
+        runId: run.id,
+        organizationId: input.organizationId,
+        outputSummary: {
+          code: creditReservation.error.code,
+          pullRunId: pullResult.runId,
+          unitsDiscovered: pullResult.counts.unitsDiscovered,
+        },
+        warnings: [formatProviderAgentCreditGateError(creditReservation.error)],
+      });
+      return {
+        ok: false,
+        agentRunId: input.agentRunId,
+        code: creditReservation.error.code,
+        message: formatProviderAgentCreditGateError(creditReservation.error),
+      };
+    }
+
     const fileTranslationResult = await translateProviderJobFiles({
       agentRunId: input.agentRunId,
       organizationId: input.organizationId,
@@ -661,6 +731,9 @@ export async function executeProviderAgentTranslation(input: {
         translationMode: "file",
         targetLocales: filteredContent.targetLocales,
         sourceLocale: filteredContent.sourceLocale ?? defaultSourceLocale,
+        ...(fileTranslationResult.tokenUsage
+          ? { tokenUsage: fileTranslationResult.tokenUsage }
+          : {}),
         ...pullDiagnosticsSummary,
       },
       changedItems: fileTranslationResult.changedItems,
@@ -780,6 +853,29 @@ export async function executeProviderAgentTranslation(input: {
     },
     "provider agent translation selected string mode",
   );
+
+  const creditReservation = await reserveProviderAgentTranslationCredit({
+    organizationId: input.organizationId,
+    agentRunId: input.agentRunId,
+  });
+  if (!creditReservation.ok) {
+    await failAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: {
+        code: creditReservation.error.code,
+        pullRunId: pullResult.runId,
+        unitsDiscovered: pullResult.counts.unitsDiscovered,
+      },
+      warnings: [formatProviderAgentCreditGateError(creditReservation.error)],
+    });
+    return {
+      ok: false,
+      agentRunId: input.agentRunId,
+      code: creditReservation.error.code,
+      message: formatProviderAgentCreditGateError(creditReservation.error),
+    };
+  }
 
   const translationResult = await translateProviderUnits({
     organizationId: input.organizationId,

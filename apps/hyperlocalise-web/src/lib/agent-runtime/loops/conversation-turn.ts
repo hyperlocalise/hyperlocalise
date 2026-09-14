@@ -65,6 +65,9 @@ import {
 } from "./conversation-repository-session";
 import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
 import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
+import type { ResolvedAgentLanguageModel } from "@/lib/providers/language-model";
+import { extractAiSdkTokenUsage } from "@/lib/billing/agent-runtime-usage";
+import type { AiTokenUsage } from "@/lib/billing/usage-control";
 
 const logger = createLogger("conversation-turn");
 
@@ -550,6 +553,7 @@ export type PrepareConversationAgentTurnInput = {
   reportToolProgress?: ToolContext["reportToolProgress"];
   db: ToolContext["db"];
   reuseCommittedRepositorySandboxOnly?: boolean;
+  languageModel?: ResolvedAgentLanguageModel;
 };
 
 export type PrepareConversationAgentTurnResult = {
@@ -560,6 +564,8 @@ export type PrepareConversationAgentTurnResult = {
   updatedRepositorySession: ConversationRepositorySession | null;
   staleSandboxId: string | null;
   repositorySandboxId: string | null;
+  languageModel: ResolvedAgentLanguageModel;
+  classificationTokenUsage: AiTokenUsage | null;
 };
 
 function resolveConversationActor(input: PrepareConversationAgentTurnInput): ToolContext["actor"] {
@@ -579,9 +585,12 @@ export async function prepareConversationAgentTurn(
   const conversationText = getRecentUserConversationText(chatMessages, input.messageText);
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
   const storedGitLabContext = input.repositorySession?.repositoryGitLabContext ?? null;
-  const languageModel = await resolveHyperlocaliseAgentLanguageModel({
-    organizationId: input.organizationId,
-  });
+  const languageModel =
+    input.languageModel ??
+    (await resolveHyperlocaliseAgentLanguageModel({
+      organizationId: input.organizationId,
+    }));
+  let classificationTokenUsage: AiTokenUsage | null = null;
 
   const classification = await classifyConversation({
     currentMessage: input.messageText,
@@ -591,6 +600,9 @@ export async function prepareConversationAgentTurn(
     knowledgeMemoryEnabled: input.knowledgeMemoryEnabled === true,
     surface: input.surface,
     model: languageModel.model,
+    onUsage: (usage) => {
+      classificationTokenUsage = extractAiSdkTokenUsage(usage);
+    },
   });
 
   const repositoryResolution = await resolveConversationRepositoryContext({
@@ -724,5 +736,7 @@ export async function prepareConversationAgentTurn(
     updatedRepositorySession,
     staleSandboxId,
     repositorySandboxId: sandboxId,
+    languageModel,
+    classificationTokenUsage,
   };
 }

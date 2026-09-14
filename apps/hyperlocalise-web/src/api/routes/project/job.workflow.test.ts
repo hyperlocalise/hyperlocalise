@@ -15,7 +15,37 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const {
+  getManagedAiPricingConfigMock,
+  getManagedAiCreditReservationMock,
+  reserveManagedAiCreditMock,
+  releaseManagedAiCreditMock,
+} = vi.hoisted(() => ({
+  getManagedAiPricingConfigMock: vi.fn(),
+  getManagedAiCreditReservationMock: vi.fn(),
+  reserveManagedAiCreditMock: vi.fn(),
+  releaseManagedAiCreditMock: vi.fn(),
+}));
+
+vi.mock("@/lib/billing/managed-ai-pricing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-pricing")>();
+  return {
+    ...actual,
+    getManagedAiPricingConfig: getManagedAiPricingConfigMock,
+  };
+});
+
+vi.mock("@/lib/billing/managed-ai-credit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-credit")>();
+  return {
+    ...actual,
+    getManagedAiCreditReservation: getManagedAiCreditReservationMock,
+    reserveManagedAiCredit: reserveManagedAiCreditMock,
+    releaseManagedAiCredit: releaseManagedAiCreditMock,
+  };
+});
 
 import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
@@ -76,7 +106,20 @@ beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
+beforeEach(() => {
+  getManagedAiPricingConfigMock.mockReturnValue({
+    mode: "legacy",
+    pricingVersion: "test",
+    chatReservationUsd: 0.5,
+    imageModelId: "custom/image",
+    videoModelId: "custom/video",
+  });
+  getManagedAiCreditReservationMock.mockResolvedValue(null);
+  releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
+});
+
 afterEach(async () => {
+  vi.clearAllMocks();
   await projectFixture.cleanup();
 });
 
@@ -573,5 +616,153 @@ describe("translation job workflow helpers", () => {
       }),
     );
     expect(translateStringJob).not.toHaveBeenCalled();
+  });
+
+  it("fails managed translation jobs before generation when AI credit is insufficient", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "enforced",
+      pricingVersion: "test",
+      chatReservationUsd: 0.5,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    reserveManagedAiCreditMock.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "ai_credit_insufficient",
+        requiredAmountUsd: 0.5,
+        remainingAmountUsd: 0.1,
+      },
+    });
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const job = await insertJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+
+    const result = await executeTranslationJob({
+      runId: `run_${randomUUID()}`,
+      event: {
+        kind: "translation",
+        jobId: job.id,
+        projectId: project.id,
+        type: "string",
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: job.id,
+        status: "failed",
+        outcomePayload: {
+          code: "ai_credit_insufficient",
+          message: "Insufficient AI credit for this request",
+        },
+      }),
+    );
+    expect(reserveManagedAiCreditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: organization.id,
+        operationKey: `job:${job.id}:translation_jobs:ai_tokens`,
+        credentialSource: "gateway",
+      }),
+    );
+  });
+
+  it("releases unused AI credit when a string job succeeds without token usage", async () => {
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    const reservation = {
+      operationKey: `job:${job.id}:translation_jobs:ai_tokens`,
+      mode: "enforced",
+      credentialSource: "gateway",
+      estimatedAmountUsd: 0.5,
+    };
+    getManagedAiCreditReservationMock.mockResolvedValue(reservation);
+
+    await executeTranslationJob({
+      runId: `run_${randomUUID()}`,
+      event: {
+        kind: "translation",
+        jobId: job.id,
+        projectId: project.id,
+        type: "string",
+      },
+      async translateStringJob() {
+        return {
+          translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
+        };
+      },
+    });
+
+    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith({
+      reservation,
+      reason: "no_token_usage",
+    });
+  });
+
+  it("does not release AI credit when a string job reports billable token usage", async () => {
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    getManagedAiCreditReservationMock.mockResolvedValue({
+      operationKey: `job:${job.id}:translation_jobs:ai_tokens`,
+      mode: "enforced",
+      credentialSource: "gateway",
+      estimatedAmountUsd: 0.5,
+    });
+
+    await executeTranslationJob({
+      runId: `run_${randomUUID()}`,
+      event: {
+        kind: "translation",
+        jobId: job.id,
+        projectId: project.id,
+        type: "string",
+      },
+      async translateStringJob() {
+        return {
+          translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
+          tokenUsage: {
+            inputTokens: 12,
+            outputTokens: 8,
+            totalTokens: 20,
+            modelId: "openai/gpt-5.6-luna",
+            credentialSource: "gateway",
+          },
+        };
+      },
+    });
+
+    expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
   });
 });

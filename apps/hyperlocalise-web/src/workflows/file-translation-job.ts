@@ -25,6 +25,7 @@ import {
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
+import { addCliTokenUsage } from "@/lib/translation/cli-token-usage";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   captureFileAnalysisStep,
@@ -43,6 +44,8 @@ import {
   persistFileProjectTranslationsStep,
   persistFileTranslationMemoryEntriesStep,
   persistDocumentVariantBytesStep,
+  releaseSandboxTranslationCreditStep,
+  reserveSandboxTranslationCreditStep,
   resolveWorkspaceReportsFlagStep,
   reuseFileTranslationMemoryEntriesStep,
   storeOutputFileStep,
@@ -366,6 +369,7 @@ async function runTranslationStep(
     buildMultiLocaleTempConfig,
     getSandboxTranslationEnv,
     isSandboxDisconnectError,
+    readSandboxCliTokenUsage,
     recoverTranslationSandboxSession,
     runSandboxCommand,
     sandboxI18nConfigPath,
@@ -373,6 +377,7 @@ async function runTranslationStep(
     writeFileToSandbox,
     writeTempConfig,
   } = await import("@/lib/translation/sandbox");
+  const { appendHlRunReportOutput } = await import("@/lib/translation/cli-token-usage");
   const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
   const byok = options?.organizationId
     ? await loadSandboxByokCredential(options.organizationId)
@@ -426,7 +431,10 @@ async function runTranslationStep(
       "bash",
       [
         "-lc",
-        `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag}${maxTranslationsFlag} --workers 4 --progress off --output '${reportPath}'${prefilledFlags}`,
+        appendHlRunReportOutput(
+          `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag}${maxTranslationsFlag} --workers 4 --progress off${prefilledFlags}`,
+          reportPath,
+        ),
       ],
       {
         env: getSandboxTranslationEnv(byok),
@@ -456,7 +464,8 @@ async function runTranslationStep(
         });
       }
     }
-    return { ...result, progress };
+    const tokenUsage = await readSandboxCliTokenUsage(sandboxId, reportPath);
+    return { ...result, progress, tokenUsage };
   } catch (error) {
     // Surface a stable marker so the workflow can recreate the sandbox when
     // session recovery inside runSandboxCommand is not enough.
@@ -835,6 +844,23 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     throw error;
   }
 
+  const creditReservation = await reserveSandboxTranslationCreditStep({
+    organizationId,
+    jobId: claim.job.id,
+    source: "translation_job_complete",
+    surface: "file_translation",
+  });
+  if (creditReservation && !creditReservation.ok) {
+    await failTranslationJobStep({
+      jobId: claim.job.id,
+      projectId: claim.job.projectId,
+      workflowRunId: claim.job.workflowRunId,
+      code: creditReservation.error.code,
+      message: creditReservation.error.code,
+    });
+    throw new Error(creditReservation.error.code);
+  }
+
   let sandboxId = "";
   const inputFilename = getSandboxInputFilename(sourceFile.filename);
   const instructions = parsedInput.metadata?.instructions ?? null;
@@ -1143,6 +1169,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           cliFailureKind,
           exitCode: translation.exitCode,
           deferredByLimit,
+          tokenUsage: translation.tokenUsage,
         };
       }
 
@@ -1157,8 +1184,15 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         deferredByLimit,
         exitCode: translation.exitCode,
       });
-      return { ok: true as const, deferredByLimit, succeeded: translation.progress.succeeded };
+      return {
+        ok: true as const,
+        deferredByLimit,
+        succeeded: translation.progress.succeeded,
+        tokenUsage: translation.tokenUsage,
+      };
     };
+
+    let cliTokenUsage: Awaited<ReturnType<typeof runTranslationStep>>["tokenUsage"] = null;
 
     const runPages = async (locales: string[], attempt: 1 | 2) => {
       for (let page = 0; page < translationMaxPages; page += 1) {
@@ -1166,6 +1200,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           force: page === 0,
           retryFeedback: locales.length === 1 ? retryFeedbackByLocale[locales[0]!] : undefined,
         });
+        cliTokenUsage = addCliTokenUsage(cliTokenUsage, result.tokenUsage);
         const delta = await collectFileTranslationPageStep({
           sandboxId,
           inputFilename,
@@ -1279,6 +1314,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       );
       if (successfulLocales.length > 0) {
         const assembled = await runHlForLocales(successfulLocales, 2, { force: true });
+        cliTokenUsage = addCliTokenUsage(cliTokenUsage, assembled.tokenUsage);
         if (!assembled.ok || assembled.deferredByLimit !== 0)
           throw new Error("translation output assembly failed");
       }
@@ -1328,6 +1364,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       projectId: claim.job.projectId,
       workflowRunId: claim.job.workflowRunId,
       outputFiles,
+      tokenUsage: cliTokenUsage,
     });
 
     return outputFiles;
@@ -1349,6 +1386,10 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       targetLocales: parsedInput.targetLocales,
       sandboxId,
       error: reason,
+    });
+    await releaseSandboxTranslationCreditStep({
+      jobId: claim.job.id,
+      reason: "file_translation_failed",
     });
     await failTranslationJobStep({
       jobId: claim.job.id,

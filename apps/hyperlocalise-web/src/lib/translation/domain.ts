@@ -115,6 +115,11 @@ export type StringTranslationJobResult = {
     inputTokens: number;
     outputTokens: number;
     totalTokens: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+    reasoningTokens?: number;
+    modelId?: string;
+    credentialSource?: "gateway" | "byok";
   };
 };
 

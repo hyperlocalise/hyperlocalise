@@ -17,6 +17,8 @@ import {
   localizedImageOutputFilename,
 } from "@/lib/agents/image-localization";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
+import { mediaLocalizationOperationKey } from "@/lib/billing/media-localization-operation-key";
+import { ManagedAiCreditAccessError } from "@/lib/billing/managed-ai-credit";
 import { db, schema } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { fetchImageBytesFromUrl } from "@/lib/projects/files/image-variant-service";
@@ -29,6 +31,12 @@ export type ImageUrlContentKindError =
   | { code: "key_not_found" }
   | { code: "fetch_failed"; message: string }
   | { code: "unsupported_image_response" }
+  | {
+      code: "ai_credit_insufficient";
+      requiredAmountUsd: number;
+      remainingAmountUsd: number;
+    }
+  | { code: "ai_credit_unavailable"; message: string }
   | { code: "localization_failed"; message: string }
   | { code: "approved_locked" };
 
@@ -163,7 +171,9 @@ export async function localizeImageUrlTranslation(input: {
       prompt,
       {
         organizationId: input.organizationId,
-        operationKey: `image-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
+        operationKey: mediaLocalizationOperationKey(
+          `image-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
+        ),
         source: "project_image_url_translation",
         dimensions: {
           channel: "project",
@@ -174,6 +184,15 @@ export async function localizeImageUrlTranslation(input: {
     );
     localized = { image: result.image, mimeType: result.mimeType || "image/png" };
   } catch (error) {
+    if (error instanceof ManagedAiCreditAccessError) {
+      return error.billingError.code === "ai_credit_insufficient"
+        ? err({
+            code: "ai_credit_insufficient",
+            requiredAmountUsd: error.billingError.requiredAmountUsd,
+            remainingAmountUsd: error.billingError.remainingAmountUsd,
+          })
+        : err({ code: "ai_credit_unavailable", message: error.message });
+    }
     return err({
       code: "localization_failed",
       message: error instanceof Error ? error.message : "image localization failed",

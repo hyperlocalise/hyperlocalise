@@ -21,6 +21,7 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import {
+  apiErrorResponse,
   badRequestResponse,
   conflictResponse,
   forbiddenResponse as sharedForbiddenResponse,
@@ -2380,6 +2381,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
 
           if (!result.ok) {
+            if (result.error.code === "ai_credit_insufficient") {
+              return apiErrorResponse(
+                c,
+                402,
+                result.error.code,
+                "Insufficient AI credit for video regeneration",
+                {
+                  requiredAmountUsd: result.error.requiredAmountUsd,
+                  remainingAmountUsd: result.error.remainingAmountUsd,
+                  billingSection: "available-plans",
+                },
+              );
+            }
+            if (result.error.code === "ai_credit_unavailable") {
+              return apiErrorResponse(c, 503, result.error.code, result.error.message);
+            }
             return badRequestResponse(c, result.error.code, "Video regeneration failed");
           }
 
@@ -2500,6 +2517,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
 
           if (!result.ok) {
+            if (result.error.code === "ai_credit_insufficient") {
+              return apiErrorResponse(
+                c,
+                402,
+                result.error.code,
+                "Insufficient AI credit for image regeneration",
+                {
+                  requiredAmountUsd: result.error.requiredAmountUsd,
+                  remainingAmountUsd: result.error.remainingAmountUsd,
+                  billingSection: "available-plans",
+                },
+              );
+            }
+            if (result.error.code === "ai_credit_unavailable") {
+              return apiErrorResponse(c, 503, result.error.code, result.error.message);
+            }
             return badRequestResponse(c, result.error.code, "Image regeneration failed");
           }
 
@@ -2550,6 +2583,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
 
           if (!videoResult.ok) {
+            if (videoResult.error.code === "ai_credit_insufficient") {
+              return apiErrorResponse(
+                c,
+                402,
+                videoResult.error.code,
+                "Insufficient AI credit for video regeneration",
+                {
+                  requiredAmountUsd: videoResult.error.requiredAmountUsd,
+                  remainingAmountUsd: videoResult.error.remainingAmountUsd,
+                  billingSection: "available-plans",
+                },
+              );
+            }
+            if (videoResult.error.code === "ai_credit_unavailable") {
+              return apiErrorResponse(c, 503, videoResult.error.code, videoResult.error.message);
+            }
             return badRequestResponse(c, videoResult.error.code, "Video URL regeneration failed");
           }
 
@@ -2580,6 +2629,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         });
 
         if (!result.ok) {
+          if (result.error.code === "ai_credit_insufficient") {
+            return apiErrorResponse(
+              c,
+              402,
+              result.error.code,
+              "Insufficient AI credit for image regeneration",
+              {
+                requiredAmountUsd: result.error.requiredAmountUsd,
+                remainingAmountUsd: result.error.remainingAmountUsd,
+                billingSection: "available-plans",
+              },
+            );
+          }
+          if (result.error.code === "ai_credit_unavailable") {
+            return apiErrorResponse(c, 503, result.error.code, result.error.message);
+          }
           return badRequestResponse(c, result.error.code, "Image URL regeneration failed");
         }
 
