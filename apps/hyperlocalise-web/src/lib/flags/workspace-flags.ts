@@ -14,6 +14,8 @@ import { redirect } from "next/navigation";
 import { flag, type Flag } from "flags/next";
 import { and, eq } from "drizzle-orm";
 
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { isAutumnBooleanFeatureEnabled } from "@/lib/billing/autumn-boolean-feature-access";
 import { db, schema } from "@/lib/database/client";
 import type { AppAuthContext } from "@/lib/workos/app-auth";
 
@@ -28,7 +30,6 @@ import {
   WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_REPORTS_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
-  WORKSPACE_VISUAL_WORKFLOWS_FLAG,
   type WorkosFlagEntities,
   type WorkspaceFeatureFlagState,
 } from "./workos-flag-entities";
@@ -59,13 +60,6 @@ export const workspaceVisualMockFlag = flag<boolean, WorkosFlagEntities>({
   key: WORKSPACE_VISUAL_MOCK_FLAG,
   defaultValue: false,
   description: "Visual mock skill for repository-backed Hyperlocalise agent previews.",
-  adapter: workosAdapter(),
-});
-
-export const workspaceVisualWorkflowsFlag = flag<boolean, WorkosFlagEntities>({
-  key: WORKSPACE_VISUAL_WORKFLOWS_FLAG,
-  defaultValue: false,
-  description: "Advanced visual workflow editor for deterministic automation graphs.",
   adapter: workosAdapter(),
 });
 
@@ -102,25 +96,34 @@ export async function evaluateWorkspaceFeatureFlags(
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
 ): Promise<WorkspaceFeatureFlagState> {
   const identify = () => createWorkosIdentify(auth);
+  const organizationId = auth.activeOrganization.localOrganizationId;
 
   const [
     automations,
     knowledge,
     visualMock,
-    visualWorkflows,
     domains,
     glossarySearch,
     hyperlab,
     reports,
+    visualWorkflows,
+    queriesBoard,
   ] = await Promise.all([
     workspaceAutomationsFlag.run({ identify }),
     workspaceKnowledgeFlag.run({ identify }),
     workspaceVisualMockFlag.run({ identify }),
-    workspaceVisualWorkflowsFlag.run({ identify }),
     workspaceDomainsFlag.run({ identify }),
     workspaceGlossarySearchFlag.run({ identify }),
     workspaceHyperlabFlag.run({ identify }),
     workspaceReportsFlag.run({ identify }),
+    isAutumnBooleanFeatureEnabled({
+      organizationId,
+      featureId: autumnFeatureIds.automationWorkflow,
+    }),
+    isAutumnBooleanFeatureEnabled({
+      organizationId,
+      featureId: autumnFeatureIds.queriesBoard,
+    }),
   ]);
 
   return {
@@ -128,11 +131,40 @@ export async function evaluateWorkspaceFeatureFlags(
     knowledge,
     visualMock,
     visualWorkflows,
+    queriesBoard,
     domains,
     glossarySearch,
     hyperlab,
     reports,
   };
+}
+
+export async function getAutumnWorkspaceBooleanFeatureEnabled(
+  featureId: typeof autumnFeatureIds.automationWorkflow | typeof autumnFeatureIds.queriesBoard,
+  auth: Pick<AppAuthContext, "activeOrganization" | "user">,
+): Promise<boolean> {
+  return isAutumnBooleanFeatureEnabled({
+    organizationId: auth.activeOrganization.localOrganizationId,
+    featureId,
+  });
+}
+
+export async function requireAutumnWorkspaceBooleanFeature(
+  featureId: typeof autumnFeatureIds.automationWorkflow | typeof autumnFeatureIds.queriesBoard,
+  auth: Pick<AppAuthContext, "activeOrganization" | "user">,
+) {
+  const enabled = await getAutumnWorkspaceBooleanFeatureEnabled(featureId, auth);
+
+  if (enabled) {
+    return;
+  }
+
+  const organizationSlug = auth.activeOrganization.slug;
+  if (organizationSlug) {
+    redirect(`/org/${organizationSlug}/dashboard?reason=${WORKSPACE_FEATURE_UNAVAILABLE_REASON}`);
+  }
+
+  redirect("/auth/select-organization");
 }
 
 export async function resolveWorkspaceVisualMockFlag(input: {

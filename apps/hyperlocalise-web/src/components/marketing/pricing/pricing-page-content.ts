@@ -39,6 +39,8 @@ export type PricingMatrixCell =
 export type PricingMatrixRow = {
   id: string;
   label: string;
+  /** Optional supporting copy shown under the row label in the comparison matrix. */
+  detail?: string;
   cells: Record<PricingPlanId, PricingMatrixCell>;
 };
 
@@ -92,11 +94,6 @@ export function getPricingPlans(locale: string): PricingPlan[] {
       includesFrom: null,
       features: [
         intl.formatMessage({
-          defaultMessage: "2 integrations",
-          id: "9LcPjakBL/",
-          description: "Free plan feature: integration limit",
-        }),
-        intl.formatMessage({
           defaultMessage: "1 project",
           id: "73DwGFhZM/",
           description: "Free plan feature: project limit",
@@ -135,6 +132,11 @@ export function getPricingPlans(locale: string): PricingPlan[] {
       }),
       features: [
         intl.formatMessage({
+          defaultMessage: "2 integrations",
+          id: "v0pahqQ3yE",
+          description: "Starter plan feature: integration limit",
+        }),
+        intl.formatMessage({
           defaultMessage: "Unlimited projects",
           id: "iRIRASFRNC",
           description: "Starter plan feature: unlimited projects",
@@ -143,6 +145,26 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           defaultMessage: "5 seats",
           id: "uc3WQiSxaw",
           description: "Starter plan feature: seat limit",
+        }),
+        intl.formatMessage({
+          defaultMessage: "AI features",
+          id: "YtKo2CQ5hL",
+          description: "Growth plan feature: AI feature access",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Queries Board",
+          id: "+zBo713DAu",
+          description: "Starter plan feature: Queries Board access",
+        }),
+        intl.formatMessage({
+          defaultMessage: "2,000,000 AI tokens per month",
+          id: "hlRvDSySq1",
+          description: "Growth plan feature: AI token quota",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Then $8 per 1,000,000 AI tokens",
+          id: "I5Rr6Z+zyR",
+          description: "Starter plan feature: AI token overage rate",
         }),
       ],
       cta: { label: comingSoon, kind: "coming_soon" },
@@ -173,18 +195,8 @@ export function getPricingPlans(locale: string): PricingPlan[] {
       }),
       features: [
         intl.formatMessage({
-          defaultMessage: "2,000 agent runs per month",
-          id: "saGDzW8Kz5",
-          description: "Growth plan feature: agent run quota",
-        }),
-        intl.formatMessage({
-          defaultMessage: "2,000 AI tokens per month",
-          id: "LzbIVm9zfG",
-          description: "Growth plan feature: AI token quota",
-        }),
-        intl.formatMessage({
-          defaultMessage: "20 agent automations",
-          id: "D92aikcKtb",
+          defaultMessage: "20 automations",
+          id: "9J3EZADGbx",
           description: "Growth plan feature: automation limit",
         }),
         intl.formatMessage({
@@ -193,9 +205,19 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Growth plan feature: integration limit",
         }),
         intl.formatMessage({
+          defaultMessage: "Unlimited projects",
+          id: "iRIRASFRNC",
+          description: "Starter plan feature: unlimited projects",
+        }),
+        intl.formatMessage({
           defaultMessage: "Unlimited seats",
           id: "7X4JZ1+tNc",
           description: "Growth plan feature: unlimited seats",
+        }),
+        intl.formatMessage({
+          defaultMessage: "2,000 agent runs per month",
+          id: "saGDzW8Kz5",
+          description: "Growth plan feature: agent run quota",
         }),
         intl.formatMessage({
           defaultMessage: "Unlimited translation jobs",
@@ -206,6 +228,26 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           defaultMessage: "AI features",
           id: "YtKo2CQ5hL",
           description: "Growth plan feature: AI feature access",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Automation Workflow",
+          id: "bfWw2Q3euR",
+          description: "Growth plan feature: Automation Workflow access",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Queries Board",
+          id: "+zBo713DAu",
+          description: "Starter plan feature: Queries Board access",
+        }),
+        intl.formatMessage({
+          defaultMessage: "2,000,000 AI tokens per month",
+          id: "hv3wNQ+tWl",
+          description: "Growth plan feature: AI token quota on Growth",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Then $4 per 1,000,000 AI tokens",
+          id: "1DnH47f5VQ",
+          description: "Growth plan feature: AI token overage rate",
         }),
       ],
       cta: { label: comingSoon, kind: "coming_soon" },
@@ -336,7 +378,7 @@ export function getPricingMatrixSections(locale: string): PricingMatrixSection[]
             description: "Pricing matrix row label for integrations",
           }),
           cells: {
-            free: { kind: "text", value: "2" },
+            free: { kind: "dash" },
             starter: { kind: "text", value: "2" },
             growth: { kind: "text", value: "5" },
             enterprise: { kind: "text", value: custom },
@@ -345,9 +387,15 @@ export function getPricingMatrixSections(locale: string): PricingMatrixSection[]
         {
           id: "automations",
           label: intl.formatMessage({
-            defaultMessage: "Agent Automations",
-            id: "kwCQeTqeyE",
+            defaultMessage: "Automations",
+            id: "llbzw/iXGP",
             description: "Pricing matrix row label for automations",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Scheduled and GitHub-triggered agent playbooks (not the visual workflow editor).",
+            id: "P+MaWGCLAB",
+            description: "Pricing matrix detail for agent automation quota row",
           }),
           cells: {
             free: { kind: "dash" },
@@ -394,8 +442,22 @@ export function getPricingMatrixSections(locale: string): PricingMatrixSection[]
           }),
           cells: {
             free: { kind: "dash" },
-            starter: { kind: "dash" },
-            growth: { kind: "text", value: "2,000" },
+            starter: { kind: "text", value: "2,000,000" },
+            growth: { kind: "text", value: "2,000,000" },
+            enterprise: { kind: "text", value: custom },
+          },
+        },
+        {
+          id: "ai-token-overage",
+          label: intl.formatMessage({
+            defaultMessage: "AI token overage",
+            id: "w71NtqKp6F",
+            description: "Pricing matrix row label for AI token overage rate",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "text", value: "$8 / 1M" },
+            growth: { kind: "text", value: "$4 / 1M" },
             enterprise: { kind: "text", value: custom },
           },
         },
@@ -419,6 +481,167 @@ export function getPricingMatrixSections(locale: string): PricingMatrixSection[]
             defaultMessage: "AI features",
             id: "bUBd4XGtBI",
             description: "Pricing matrix row label for AI features",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+      ],
+    },
+    {
+      id: "queries-automation",
+      title: intl.formatMessage({
+        defaultMessage: "Queries & automation",
+        id: "cBjVvDkrw1",
+        description: "Pricing matrix section title for Queries and Automation Workflow",
+      }),
+      description: intl.formatMessage({
+        defaultMessage:
+          "Collaboration for copy and context issues, plus repeatable workflow tooling for production teams.",
+        id: "7uZBXW8hcA",
+        description: "Pricing matrix section description for Queries and Automation Workflow",
+      }),
+      rows: [
+        {
+          id: "queries-board",
+          label: intl.formatMessage({
+            defaultMessage: "Queries Board",
+            id: "28A/J2yeKB",
+            description: "Pricing matrix row label for Queries Board",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Central place to log localization questions, triage copy issues, and keep reviewers aligned.",
+            id: "F+TDVIQeN4",
+            description: "Pricing matrix detail for Queries Board overview row",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "queries-workspace-project",
+          label: intl.formatMessage({
+            defaultMessage: "Workspace & project views",
+            id: "x5xGik3YFl",
+            description: "Pricing matrix row for Queries workspace and project surfaces",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage: "Org-wide Queries list and per-project boards tied to your content.",
+            id: "7611x1JIeq",
+            description: "Pricing matrix detail for Queries workspace and project views",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "queries-collaboration",
+          label: intl.formatMessage({
+            defaultMessage: "Comments, assignees & links",
+            id: "2emviDP0f7",
+            description: "Pricing matrix row for Queries collaboration features",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage: "Thread on issues, assign owners, and relate work across projects.",
+            id: "8P9Vlj8jx9",
+            description: "Pricing matrix detail for Queries collaboration features",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "queries-import-bulk",
+          label: intl.formatMessage({
+            defaultMessage: "CSV import & bulk updates",
+            id: "/GQj3K56LL",
+            description: "Pricing matrix row for Queries import and bulk actions",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "automation-workflow",
+          label: intl.formatMessage({
+            defaultMessage: "Automation Workflow",
+            id: "oQ4ei78nry",
+            description: "Pricing matrix row label for Automation Workflow",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Visual, deterministic workflows—fixed steps and approvals instead of one-off agent chat.",
+            id: "g/rzrQHbSt",
+            description: "Pricing matrix detail for Automation Workflow overview row",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "dash" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "automation-visual-editor",
+          label: intl.formatMessage({
+            defaultMessage: "Visual workflow editor",
+            id: "IVt01o++9g",
+            description: "Pricing matrix row for Automation Workflow visual editor",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Compose triggers, branches, and actions on a canvas with typed bindings.",
+            id: "8mV6lAbiyf",
+            description: "Pricing matrix detail for Automation Workflow visual editor",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "dash" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "automation-integrations",
+          label: intl.formatMessage({
+            defaultMessage: "HTTP, webhooks & AI steps",
+            id: "TrBjo12/3b",
+            description: "Pricing matrix row for Automation Workflow step types",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "dash" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "automation-runs",
+          label: intl.formatMessage({
+            defaultMessage: "Manual test & scheduled runs",
+            id: "1Bz70bU/oj",
+            description: "Pricing matrix row for Automation Workflow execution",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage: "Dry-run drafts, publish versions, and run on a schedule or on demand.",
+            id: "Yzbs+0FanB",
+            description: "Pricing matrix detail for Automation Workflow execution",
           }),
           cells: {
             free: { kind: "dash" },
@@ -667,8 +890,8 @@ export function getPricingPageCopy(locale: string) {
     }),
     aiFeaturesSubcopy: intl.formatMessage({
       defaultMessage:
-        "Included on Growth and Enterprise. Clear answers on your copy, UI context, and localisation workflow.",
-      id: "KHXRS/XkKV",
+        "Included on Starter, Growth, and Enterprise. Clear answers on your copy, UI context, and localisation workflow.",
+      id: "ULysfP8wxM",
       description: "Supporting copy under the AI features heading on the pricing page",
     }),
     undecidedHeading: intl.formatMessage({

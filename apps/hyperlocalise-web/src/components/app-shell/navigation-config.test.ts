@@ -20,6 +20,7 @@ import {
   WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_HYPERLAB_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
+  WORKSPACE_QUERIES_BOARD_FLAG,
   WORKSPACE_REPORTS_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
@@ -214,7 +215,7 @@ describe("path builders", () => {
     expect(byLabel.get("AI Engine")?.href).toBe("/org/acme/ai-engine");
     expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
     expect(byLabel.get("Guideline")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
-    expect(byLabel.get("Queries")?.featureFlagKey).toBeUndefined();
+    expect(byLabel.get("Queries")?.featureFlagKey).toBe(WORKSPACE_QUERIES_BOARD_FLAG);
     expect(byLabel.get("Domains")?.featureFlagKey).toBe(WORKSPACE_DOMAINS_FLAG);
     expect(byLabel.get("Hyperlab")?.href).toBe("/org/acme/hyperlab");
     expect(byLabel.get("Hyperlab")?.featureFlagKey).toBe(WORKSPACE_HYPERLAB_FLAG);
@@ -253,7 +254,9 @@ describe("path builders", () => {
       ["Guideline", "/org/acme/projects/proj_1/knowledge"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
     ]);
-    expect(items.find((item) => item.label === "Queries")?.featureFlagKey).toBeUndefined();
+    expect(items.find((item) => item.label === "Queries")?.featureFlagKey).toBe(
+      WORKSPACE_QUERIES_BOARD_FLAG,
+    );
     expect(items.find((item) => item.label === "Automations")?.featureFlagKey).toBe(
       WORKSPACE_AUTOMATIONS_FLAG,
     );

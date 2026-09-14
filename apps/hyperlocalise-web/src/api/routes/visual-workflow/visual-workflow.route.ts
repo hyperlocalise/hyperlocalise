@@ -27,7 +27,8 @@ import { validator } from "hono/validator";
 import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
-import { workspaceVisualWorkflowsFlag } from "@/lib/flags/workspace-flags";
+import { createAutumnBooleanFeatureMiddleware } from "@/api/middleware/autumn-boolean-feature";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   publishVisualWorkflow,
@@ -141,21 +142,6 @@ const validateCreateRunBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-async function isVisualWorkflowsFeatureEnabled(auth: AuthVariables["auth"]) {
-  try {
-    return (
-      (await workspaceVisualWorkflowsFlag.run({
-        identify: () => ({
-          organization: { id: auth.organization.workosOrganizationId },
-          user: { id: auth.user.workosUserId },
-        }),
-      })) === true
-    );
-  } catch {
-    return false;
-  }
-}
-
 function mapVisualWorkflowValidationError(
   c: Parameters<typeof badRequestResponse>[0],
   error: VisualWorkflowValidationError,
@@ -176,17 +162,20 @@ function mapVisualWorkflowValidationError(
 }
 
 export function createVisualWorkflowRoutes() {
+  const requireAutomationWorkflow = createAutumnBooleanFeatureMiddleware(
+    autumnFeatureIds.automationWorkflow,
+    "Automation Workflow is not included in your current plan.",
+  );
+
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .use("*", async (c, next) => {
       if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
-      if (!(await isVisualWorkflowsFeatureEnabled(c.var.auth))) {
-        return forbiddenResponse(c, "visual_workflows_feature_disabled");
-      }
       return next();
     })
+    .use("*", requireAutomationWorkflow)
     .get("/", validateListQuery, async (c) => {
       const query = c.req.valid("query");
       const visualWorkflows = await listVisualWorkflows({

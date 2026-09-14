@@ -14,13 +14,14 @@ import type { NavigationGroup, NavigationItem } from "@/components/app-shell/nav
 
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
+  WORKSPACE_AUTOMATION_WORKFLOW_FLAG,
   WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_GLOSSARY_SEARCH_FLAG,
   WORKSPACE_HYPERLAB_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
+  WORKSPACE_QUERIES_BOARD_FLAG,
   WORKSPACE_REPORTS_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
-  WORKSPACE_VISUAL_WORKFLOWS_FLAG,
   type WorkspaceFeatureFlagState,
 } from "./workos-flag-entities";
 
@@ -29,7 +30,8 @@ function workspaceFlagEnabledByKey(flags: WorkspaceFeatureFlagState): Record<str
     [WORKSPACE_AUTOMATIONS_FLAG]: flags.automations,
     [WORKSPACE_KNOWLEDGE_FLAG]: flags.knowledge,
     [WORKSPACE_VISUAL_MOCK_FLAG]: flags.visualMock,
-    [WORKSPACE_VISUAL_WORKFLOWS_FLAG]: flags.visualWorkflows,
+    [WORKSPACE_AUTOMATION_WORKFLOW_FLAG]: flags.visualWorkflows,
+    [WORKSPACE_QUERIES_BOARD_FLAG]: flags.queriesBoard,
     [WORKSPACE_DOMAINS_FLAG]: flags.domains,
     [WORKSPACE_GLOSSARY_SEARCH_FLAG]: flags.glossarySearch,
     [WORKSPACE_HYPERLAB_FLAG]: flags.hyperlab,

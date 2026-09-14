@@ -41,6 +41,10 @@ export const autumnFeatureIds = {
   automations: "automations",
   integrations: "integrations",
   aiFeatures: "ai_features",
+  /** Automation Workflow canvas and visual workflow APIs. */
+  automationWorkflow: "automation_workflow",
+  /** Workspace and project Queries / issue sheet surfaces. */
+  queriesBoard: "queries-board",
 } as const;
 
 export type AutumnFeatureId = (typeof autumnFeatureIds)[keyof typeof autumnFeatureIds];

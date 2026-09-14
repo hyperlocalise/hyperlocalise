@@ -19,7 +19,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 const {
   resolveApiAuthContextFromSessionMock,
   visualWorkflowExecutionEnqueueMock,
-  workspaceVisualWorkflowsFlagRunMock,
+  isAutumnBooleanFeatureEnabledMock,
 } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
@@ -28,7 +28,7 @@ const {
       null,
   ),
   visualWorkflowExecutionEnqueueMock: vi.fn(async () => ({ ids: ["visual-workflow-run-1"] })),
-  workspaceVisualWorkflowsFlagRunMock: vi.fn(async () => true),
+  isAutumnBooleanFeatureEnabledMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -39,15 +39,9 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return {
-    ...actual,
-    workspaceVisualWorkflowsFlag: {
-      run: workspaceVisualWorkflowsFlagRunMock,
-    },
-  };
-});
+vi.mock("@/lib/billing/autumn-boolean-feature-access", () => ({
+  isAutumnBooleanFeatureEnabled: isAutumnBooleanFeatureEnabledMock,
+}));
 
 vi.mock("@/workflows/adapters", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/workflows/adapters")>();
@@ -74,7 +68,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
-  workspaceVisualWorkflowsFlagRunMock.mockResolvedValue(true);
+  isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
   await fixture.cleanup();
 });
 
@@ -317,8 +311,8 @@ describe("visual workflow routes", () => {
     expect(row?.nextRunAt).toBeNull();
   });
 
-  it("returns forbidden when the visual workflows feature flag is disabled", async () => {
-    workspaceVisualWorkflowsFlagRunMock.mockResolvedValue(false);
+  it("returns forbidden when the Automation Workflow entitlement is disabled", async () => {
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";

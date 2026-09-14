@@ -162,6 +162,7 @@ describe("annotateNavigationByWorkspaceFlags", () => {
       knowledge: false,
       visualMock: false,
       visualWorkflows: false,
+      queriesBoard: false,
       domains: false,
       glossarySearch: false,
       hyperlab: false,
@@ -194,6 +195,7 @@ describe("annotateNavigationByWorkspaceFlags", () => {
       knowledge: true,
       visualMock: true,
       visualWorkflows: true,
+      queriesBoard: true,
       domains: true,
       glossarySearch: true,
       hyperlab: true,
@@ -216,6 +218,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
       knowledge: false,
       visualMock: false,
       visualWorkflows: false,
+      queriesBoard: false,
       domains: false,
       glossarySearch: false,
       hyperlab: false,
@@ -226,7 +229,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
 
     expect(itemLabels).not.toContain("Automations");
     expect(itemLabels).not.toContain("Guideline");
-    expect(itemLabels).toContain("Queries");
+    expect(itemLabels).not.toContain("Queries");
     expect(itemLabels).toContain("New Request");
     expect(itemLabels).toContain("AI Engine");
     expect(itemLabels).not.toContain("Domains");
@@ -241,6 +244,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
       knowledge: true,
       visualMock: true,
       visualWorkflows: true,
+      queriesBoard: true,
       domains: true,
       glossarySearch: true,
       hyperlab: true,
@@ -265,6 +269,7 @@ describe("groupPreviewNavigationGroups", () => {
       knowledge: false,
       visualMock: false,
       visualWorkflows: false,
+      queriesBoard: false,
       domains: false,
       glossarySearch: false,
       hyperlab: false,
@@ -278,6 +283,7 @@ describe("groupPreviewNavigationGroups", () => {
     const promotedLabels = grouped[0]?.items.map((item) => item.label) ?? [];
 
     expect(tryGroup?.items.map((item) => item.label)).toEqual([
+      "Queries",
       "Reports",
       "Automations",
       "Domains",
@@ -286,6 +292,7 @@ describe("groupPreviewNavigationGroups", () => {
     ]);
     expect(agentsGroup?.items.map((item) => item.label)).toEqual(["New Request", "AI Engine"]);
     expect(workspaceGroup?.items.map((item) => item.label)).not.toContain("Domains");
+    expect(workspaceGroup?.items.map((item) => item.label)).not.toContain("Queries");
     expect(workspaceGroup?.items.map((item) => item.label)).toContain("Projects");
     expect(promotedLabels).toContain("Inbox");
     expect(promotedLabels).not.toContain("Reports");
@@ -297,6 +304,7 @@ describe("groupPreviewNavigationGroups", () => {
       knowledge: true,
       visualMock: true,
       visualWorkflows: true,
+      queriesBoard: true,
       domains: true,
       glossarySearch: true,
       hyperlab: true,

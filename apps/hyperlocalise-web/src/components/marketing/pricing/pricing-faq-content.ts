@@ -43,8 +43,8 @@ export function getPricingFaqItems(locale: string): PricingFaqItem[] {
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Free includes 1 project, 1 seat, and 2 integrations so you can evaluate the workspace. Paid usage quotas start on Starter and Growth.",
-        id: "boIAKxOC7q",
+          "Free includes 1 project and 1 seat so you can evaluate the workspace. Starter and Growth add integrations, AI credit, and higher workspace limits.",
+        id: "EBejRBqSw6",
         description: "Pricing FAQ answer about Free plan limits",
       }),
     },
@@ -56,8 +56,8 @@ export function getPricingFaqItems(locale: string): PricingFaqItem[] {
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Starter suits small teams that need more seats and unlimited projects. Growth adds higher agent, token, and automation limits plus unlimited translation jobs for production localisation workflows.",
-        id: "IbjMoz30p/",
+          "Starter suits small teams that need more seats, integrations, and 2,000,000 AI tokens per month. Growth adds agent runs, automations, Automation Workflow, unlimited translation jobs, and a lower AI token overage rate for production localisation.",
+        id: "UcQMMtZFaJ",
         description: "Pricing FAQ answer comparing Starter and Growth",
       }),
     },

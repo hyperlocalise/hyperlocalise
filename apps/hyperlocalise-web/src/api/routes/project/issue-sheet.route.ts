@@ -12,6 +12,7 @@
  */
 import { Hono } from "hono";
 
+import { createAutumnBooleanFeatureMiddleware } from "@/api/middleware/autumn-boolean-feature";
 import { createZodValidator } from "@/api/errors";
 import type { AuthVariables } from "@/api/auth/workos";
 import {
@@ -19,6 +20,7 @@ import {
   isWriteBackTranslationAllowed,
 } from "@/api/auth/capability-guards";
 import { badRequestResponse, conflictResponse, notFoundResponse } from "@/api/response.schema";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
 import { createIssueRelationshipRoutes } from "./issue-relationships.route";
@@ -120,9 +122,15 @@ async function requireProject(c: { var: { auth: AuthVariables["auth"] } }, proje
   return project;
 }
 
+const requireQueriesBoard = createAutumnBooleanFeatureMiddleware(
+  autumnFeatureIds.queriesBoard,
+  "Queries is not included in your current plan.",
+);
+
 export function createIssueSheetRoutes() {
   return (
     new Hono<{ Variables: AuthVariables }>()
+      .use("*", requireQueriesBoard)
       .route("/:issueId/comments", createIssueSheetCommentRoutes())
       .route("/:issueId/relationships", createIssueRelationshipRoutes())
       .get("/", validateIssueSheetParams, validateIssueSheetQuery, async (c) => {
