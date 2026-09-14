@@ -48,7 +48,10 @@ export const spellcheckDictionaries = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("spellcheck_word_libraries_id_organization_id_key").on(table.id, table.organizationId),
+    uniqueIndex("spellcheck_word_libraries_id_organization_id_key").on(
+      table.id,
+      table.organizationId,
+    ),
     index("idx_spellcheck_word_libraries_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_spellcheck_word_libraries_created_by_user_id").on(table.createdByUserId),
   ],

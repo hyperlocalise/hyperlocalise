@@ -35,7 +35,9 @@ export type DrizzleJournalMonotonicViolation = {
   previousWhen: number;
 };
 
-export function checkDrizzleJournalMonotonic(drizzleDir = DRIZZLE_DIR): DrizzleJournalMonotonicViolation[] {
+export function checkDrizzleJournalMonotonic(
+  drizzleDir = DRIZZLE_DIR,
+): DrizzleJournalMonotonicViolation[] {
   const journalPath = join(drizzleDir, "meta", "_journal.json");
   const journal = JSON.parse(readFileSync(journalPath, "utf8")) as Journal;
   const entries = [...journal.entries].toSorted((a, b) => a.idx - b.idx);

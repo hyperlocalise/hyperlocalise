@@ -31,10 +31,7 @@ async function createJournalFixture(
 
   const drizzleDir = join(root, "drizzle");
   await mkdir(join(drizzleDir, "meta"), { recursive: true });
-  await writeFile(
-    join(drizzleDir, "meta", "_journal.json"),
-    JSON.stringify({ entries }, null, 2),
-  );
+  await writeFile(join(drizzleDir, "meta", "_journal.json"), JSON.stringify({ entries }, null, 2));
 
   return drizzleDir;
 }
