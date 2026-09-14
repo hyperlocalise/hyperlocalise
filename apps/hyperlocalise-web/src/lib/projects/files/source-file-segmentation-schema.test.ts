@@ -51,7 +51,7 @@ describe("repositorySourceFileSegmentationSettingsSchema", () => {
     const parsed = repositorySourceFileSegmentationSettingsSchema.parse({
       enabled: true,
       template: "custom",
-      customSrxXml: "  <srx version=\"2.0\"/>  ",
+      customSrxXml: '  <srx version="2.0"/>  ',
     });
     expect(parsed.customSrxXml).toBe('  <srx version="2.0"/>  ');
   });
@@ -136,7 +136,7 @@ describe("resolveSandboxSrxCliSpec", () => {
   });
 
   it("stages custom SRX XML under the sandbox filename", () => {
-    const xml = "<srx version=\"2.0\"/>";
+    const xml = '<srx version="2.0"/>';
     expect(
       resolveSandboxSrxCliSpec({
         enabled: true,

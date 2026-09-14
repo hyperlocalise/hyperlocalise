@@ -183,6 +183,8 @@ async function pullThenPush(options?: {
 describe("executeGithubContentSync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.selectLimit.mockReset();
+    mocks.selectWhere.mockReset();
     mocks.resolveDefaultBranchHeadSha.mockResolvedValue({ sha: "abc123", branch: "main" });
     mocks.createGithubRepositoryAutomationSandbox.mockResolvedValue("sbx-1");
     mocks.stopGithubRepositoryAutomationSandbox.mockResolvedValue(undefined);

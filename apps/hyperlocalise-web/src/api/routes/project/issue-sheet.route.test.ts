@@ -114,8 +114,8 @@ describe("Issue Sheet routes", () => {
     const response = await issueSheet().$get(
       {
         param: { organizationSlug, projectId: project.id },
-        query: {},
-      },
+        query: { view: "all_open" },
+      } as never,
       { headers },
     );
 
