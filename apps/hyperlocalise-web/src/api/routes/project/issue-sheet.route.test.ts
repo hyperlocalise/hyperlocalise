@@ -25,14 +25,17 @@ import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/tes
 
 import { createProjectTestFixture } from "./project.fixture";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
-  resolveApiAuthContextFromSessionMock: vi.fn(
-    (options) =>
-      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
-      globalThis.__testApiAuthContext ??
-      null,
-  ),
-}));
+const { resolveApiAuthContextFromSessionMock, isAutumnBooleanFeatureEnabledMock } = vi.hoisted(
+  () => ({
+    resolveApiAuthContextFromSessionMock: vi.fn(
+      (options) =>
+        globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+        globalThis.__testApiAuthContext ??
+        null,
+    ),
+    isAutumnBooleanFeatureEnabledMock: vi.fn(async () => true),
+  }),
+);
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
@@ -41,6 +44,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
   };
 });
+
+vi.mock("@/lib/billing/autumn-boolean-feature-access", () => ({
+  isAutumnBooleanFeatureEnabled: isAutumnBooleanFeatureEnabledMock,
+}));
 
 const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
@@ -93,10 +100,29 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
+  isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
   await projectFixture.cleanup();
 });
 
 describe("Issue Sheet routes", () => {
+  it("returns forbidden when the Queries Board entitlement is disabled", async () => {
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await issueSheet().$get(
+      {
+        param: { organizationSlug, projectId: project.id },
+        query: { view: "all_open" },
+      } as never,
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: "feature_unavailable" });
+  });
+
   it("creates, lists, updates, and enriches generic issue rows", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);

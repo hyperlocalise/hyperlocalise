@@ -19,14 +19,17 @@ import { db } from "@/lib/database/client";
 
 import { createProjectTestFixture } from "../project/project.fixture";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
-  resolveApiAuthContextFromSessionMock: vi.fn(
-    (options) =>
-      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
-      globalThis.__testApiAuthContext ??
-      null,
-  ),
-}));
+const { resolveApiAuthContextFromSessionMock, isAutumnBooleanFeatureEnabledMock } = vi.hoisted(
+  () => ({
+    resolveApiAuthContextFromSessionMock: vi.fn(
+      (options) =>
+        globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+        globalThis.__testApiAuthContext ??
+        null,
+    ),
+    isAutumnBooleanFeatureEnabledMock: vi.fn(async () => true),
+  }),
+);
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
@@ -36,6 +39,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/billing/autumn-boolean-feature-access", () => ({
+  isAutumnBooleanFeatureEnabled: isAutumnBooleanFeatureEnabledMock,
+}));
+
 const projectFixture = createProjectTestFixture();
 
 beforeAll(async () => {
@@ -44,6 +51,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
+  isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
   await projectFixture.cleanup();
 });
 
@@ -90,6 +98,21 @@ type ListBody = {
 };
 
 describe("Organization issues routes", () => {
+  it("returns forbidden when the Queries Board entitlement is disabled", async () => {
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
+    const { identity } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await requestJson(organizationIssuesUrl(organizationSlug), {
+      headers,
+      query: { limit: "50", offset: "0" },
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: "feature_unavailable" });
+  });
+
   it("lists issues across accessible projects", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);

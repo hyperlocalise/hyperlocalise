@@ -153,9 +153,10 @@ async function pullThenPush(options?: {
   prefilled?: { translatedKeyCount: number; prefilled: Record<string, string> };
   hasDiff?: boolean;
   pullRequestUrl?: string;
+  repositoryOverrides?: Record<string, unknown>;
 }) {
   mocks.selectLimit
-    .mockResolvedValueOnce([repository()])
+    .mockResolvedValueOnce([repository(options?.repositoryOverrides)])
     .mockResolvedValueOnce([{ targetLocales: options?.targetLocales ?? ["fr"] }]);
   mocks.selectWhere.mockResolvedValue(
     options?.sourceFiles ?? [{ sourcePath: "github/acme/web/en.json" }],
@@ -182,6 +183,8 @@ async function pullThenPush(options?: {
 describe("executeGithubContentSync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.selectLimit.mockReset();
+    mocks.selectWhere.mockReset();
     mocks.resolveDefaultBranchHeadSha.mockResolvedValue({ sha: "abc123", branch: "main" });
     mocks.createGithubRepositoryAutomationSandbox.mockResolvedValue("sbx-1");
     mocks.stopGithubRepositoryAutomationSandbox.mockResolvedValue(undefined);
@@ -332,6 +335,21 @@ describe("executeGithubContentSync", () => {
       });
     }
     expect(mocks.canPushToGitHubRepository).toHaveBeenCalled();
+    expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
+  });
+
+  it("soft-no-ops push when githubInstallationId is not a finite number", async () => {
+    const result = await pullThenPush({
+      repositoryOverrides: { githubInstallationId: "not-a-number" },
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.pushed).toEqual({ written: 0 });
+    }
+    expect(mocks.canPushToGitHubRepository).not.toHaveBeenCalled();
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).not.toHaveBeenCalled();
     expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
   });
 
