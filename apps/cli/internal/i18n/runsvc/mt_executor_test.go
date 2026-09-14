@@ -525,7 +525,7 @@ func TestTranslateMTBatchWithRetryRetrySucceeds(t *testing.T) {
 	svc := newTestService()
 	req := mt.Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hello"}}
 
-	resp, err := svc.translateMTBatchWithRetry(context.Background(), engine, req)
+	resp, stats, err := svc.translateMTBatchWithRetry(context.Background(), engine, req)
 	if err != nil {
 		t.Fatalf("translateMTBatchWithRetry: %v", err)
 	}
@@ -537,6 +537,9 @@ func TestTranslateMTBatchWithRetryRetrySucceeds(t *testing.T) {
 	}
 	if len(resp.Translations) != 1 || resp.Translations[0] != "hello" {
 		t.Fatalf("resp=%+v, want the echoed source from the second (successful) call", resp)
+	}
+	if stats.Attempts != 2 {
+		t.Fatalf("stats.Attempts=%d, want 2 (one failed attempt plus the successful retry)", stats.Attempts)
 	}
 }
 
@@ -558,7 +561,7 @@ func TestTranslateMTBatchWithRetryExhaustsRetries(t *testing.T) {
 	svc := newTestService()
 	req := mt.Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hello"}}
 
-	_, err := svc.translateMTBatchWithRetry(context.Background(), engine, req)
+	_, stats, err := svc.translateMTBatchWithRetry(context.Background(), engine, req)
 	if err == nil {
 		t.Fatal("expected error after exhausting retries")
 	}
@@ -574,6 +577,9 @@ func TestTranslateMTBatchWithRetryExhaustsRetries(t *testing.T) {
 	}
 	if mtErr.Code != mt.ErrorCodeUpstreamUnavailable {
 		t.Fatalf("mtErr.Code=%q, want %q", mtErr.Code, mt.ErrorCodeUpstreamUnavailable)
+	}
+	if stats.Attempts != mtBatchMaxAttempts {
+		t.Fatalf("stats.Attempts=%d, want %d (a batch that exhausts retries must still report every attempt)", stats.Attempts, mtBatchMaxAttempts)
 	}
 }
 
@@ -591,7 +597,7 @@ func TestTranslateMTBatchWithRetryNonRetryableErrorReturnsImmediately(t *testing
 	svc := newTestService()
 	req := mt.Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hello"}}
 
-	_, err := svc.translateMTBatchWithRetry(context.Background(), engine, req)
+	_, stats, err := svc.translateMTBatchWithRetry(context.Background(), engine, req)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -601,6 +607,9 @@ func TestTranslateMTBatchWithRetryNonRetryableErrorReturnsImmediately(t *testing
 	var mtErr *mt.Error
 	if !errors.As(err, &mtErr) || mtErr.Code != mt.ErrorCodeAuthFailed {
 		t.Fatalf("err=%v, want it to unwrap to *mt.Error{Code: ErrorCodeAuthFailed}", err)
+	}
+	if stats.Attempts != 1 {
+		t.Fatalf("stats.Attempts=%d, want 1", stats.Attempts)
 	}
 }
 
@@ -640,6 +649,15 @@ func TestProcessMTBatchNonRetryableErrorFailsImmediatelyPreservingErrorCode(t *t
 	if !strings.Contains(state.report.Failures[0].Reason, string(mt.ErrorCodeAuthFailed)) {
 		t.Fatalf("failure reason=%q, want it to preserve the mt error code %q", state.report.Failures[0].Reason, mt.ErrorCodeAuthFailed)
 	}
+	if got := state.report.Failures[0].Code; got != string(mt.ErrorCodeAuthFailed) {
+		t.Fatalf("failure.Code=%q, want %q", got, mt.ErrorCodeAuthFailed)
+	}
+	if state.report.MTUsage.RequestCount != 1 {
+		t.Fatalf("MTUsage.RequestCount=%d, want 1 (the single non-retryable attempt)", state.report.MTUsage.RequestCount)
+	}
+	if state.report.MTUsage.SourceChars == 0 {
+		t.Fatal("MTUsage.SourceChars=0, want attempted source chars recorded even on immediate failure")
+	}
 }
 
 // blockingMTEngine blocks Translate until cancelled or explicitly unblocked.
@@ -668,7 +686,7 @@ func TestTranslateMTBatchWithRetryCancellationDuringInFlightRequest(t *testing.T
 	done := make(chan struct{})
 	var err error
 	go func() {
-		_, err = svc.translateMTBatchWithRetry(ctx, engine, req)
+		_, _, err = svc.translateMTBatchWithRetry(ctx, engine, req)
 		close(done)
 	}()
 
@@ -703,7 +721,7 @@ func TestTranslateMTBatchWithRetryCancellationDuringBackoffSleep(t *testing.T) {
 	svc := newTestService()
 	req := mt.Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hello"}}
 
-	_, err := svc.translateMTBatchWithRetry(ctx, engine, req)
+	_, _, err := svc.translateMTBatchWithRetry(ctx, engine, req)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err=%v, want context.Canceled", err)
 	}
@@ -717,7 +735,7 @@ func TestExecutePoolMixedLLMAndMTExecution(t *testing.T) {
 		{EntryKey: "greet", TargetPath: "llm-out.json", SourcePath: "llm-in.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeLLM, ProfileName: "default", SourceText: "hello"},
 	}
 	mtTasks := []Task{
-		{EntryKey: "greet", TargetPath: "mt-out.json", SourcePath: "mt-in.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeMT, ProfileName: "p1", SourceText: "hello"},
+		{EntryKey: "greet", TargetPath: "mt-out.json", SourcePath: "mt-in.json", SourceLocale: "en", TargetLocale: "fr", TranslationType: config.TranslationTypeMT, ProfileName: "p1", Provider: "fake-p1", SourceText: "hello"},
 	}
 
 	svc := newTestServiceForExecutePool(map[string]string{
@@ -750,6 +768,36 @@ func TestExecutePoolMixedLLMAndMTExecution(t *testing.T) {
 	}
 	if _, ok := staged["llm-out.json"]; ok {
 		t.Fatalf("llm-out.json should already be flushed and removed from staged, got %v", staged)
+	}
+
+	if execReport.MTUsage.RequestCount != 1 {
+		t.Fatalf("execReport.MTUsage.RequestCount=%d, want 1", execReport.MTUsage.RequestCount)
+	}
+	if execReport.MTUsage.SourceChars == 0 || execReport.MTUsage.TranslatedChars == 0 {
+		t.Fatalf("execReport.MTUsage=%+v, want non-zero source/translated chars", execReport.MTUsage)
+	}
+	profileUsage := execReport.MTUsageByProfile["p1"]
+	if profileUsage.Provider != "fake-p1" {
+		t.Fatalf("execReport.MTUsageByProfile[p1].Provider=%q, want %q", profileUsage.Provider, "fake-p1")
+	}
+
+	var sawLLMBatch, sawMTBatch bool
+	for _, batch := range execReport.Batches {
+		switch batch.TranslationType {
+		case config.TranslationTypeLLM:
+			sawLLMBatch = true
+			if batch.SourceChars != 0 || batch.TranslatedChars != 0 {
+				t.Fatalf("LLM batch row carries MT usage: %+v", batch)
+			}
+		case config.TranslationTypeMT:
+			sawMTBatch = true
+			if batch.TokenUsage.InputTokens != 0 || batch.TokenUsage.OutputTokens != 0 || batch.TokenUsage.TotalTokens != 0 {
+				t.Fatalf("MT batch row carries LLM token usage: %+v", batch.TokenUsage)
+			}
+		}
+	}
+	if !sawLLMBatch || !sawMTBatch {
+		t.Fatalf("expected one llm and one mt batch row, got %+v", execReport.Batches)
 	}
 }
 
@@ -1039,5 +1087,185 @@ func TestExecutePoolSharedConcurrencyBudgetLargerWorkerCount(t *testing.T) {
 	}
 	if got := gate.maxObserved(); got != 2 {
 		t.Fatalf("observed max concurrency=%d, want 2 with --workers=2 (a third translation must not enter while two are blocked)", got)
+	}
+}
+
+func TestProcessMTBatchRecordsCharsAndRequestCountOnSuccess(t *testing.T) {
+	tasks := []Task{
+		{EntryKey: "k0", TargetPath: "out.json", SourcePath: "in.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", Provider: "google", TranslationType: config.TranslationTypeMT, SourceText: "café"},
+	}
+	key := mtGroupKey{profileName: "p1", sourceLocale: "en", targetLocale: "fr"}
+
+	svc := newTestService()
+	state := newMTBatchTestState(t, tasks)
+	emitter := newEventEmitter(func(Event) {})
+	completions := make(chan taskCompletion, 1)
+	targetFailures := make(chan string, 1)
+	engine := &scriptedMTEngine{results: []scriptedMTResult{
+		{resp: mt.Response{Translations: []string{"café-fr"}}},
+	}}
+
+	svc.processMTBatch(context.Background(), engine, key, tasks, completions, targetFailures, state, emitter)
+	emitter.close()
+	close(completions)
+
+	if state.report.MTUsage.SourceChars != 4 {
+		t.Fatalf("MTUsage.SourceChars=%d, want 4 (rune count of %q)", state.report.MTUsage.SourceChars, "café")
+	}
+	if state.report.MTUsage.TranslatedChars != 7 {
+		t.Fatalf("MTUsage.TranslatedChars=%d, want 7 (rune count of %q)", state.report.MTUsage.TranslatedChars, "café-fr")
+	}
+	if state.report.MTUsage.RequestCount != 1 {
+		t.Fatalf("MTUsage.RequestCount=%d, want 1", state.report.MTUsage.RequestCount)
+	}
+	if state.report.MTUsage.DurationMillis < 0 {
+		t.Fatalf("MTUsage.DurationMillis=%d, want >= 0", state.report.MTUsage.DurationMillis)
+	}
+
+	localeUsage := state.report.LocaleMTUsage["fr"]
+	if localeUsage.SourceChars != 4 || localeUsage.TranslatedChars != 7 || localeUsage.RequestCount != 1 {
+		t.Fatalf("LocaleMTUsage[fr]=%+v, want SourceChars=4 TranslatedChars=7 RequestCount=1", localeUsage)
+	}
+
+	profileUsage := state.report.MTUsageByProfile["p1"]
+	if profileUsage.Provider != "google" || profileUsage.SourceChars != 4 || profileUsage.TranslatedChars != 7 {
+		t.Fatalf("MTUsageByProfile[p1]=%+v, want Provider=google SourceChars=4 TranslatedChars=7", profileUsage)
+	}
+
+	// MT must never touch the LLM aggregates, not even with zero values.
+	if u := state.report.TokenUsage; u.InputTokens != 0 || u.OutputTokens != 0 || u.TotalTokens != 0 {
+		t.Fatalf("TokenUsage=%+v, want untouched zero value", u)
+	}
+	if _, ok := state.report.LocaleUsage["fr"]; ok {
+		t.Fatal("LocaleUsage must not gain an entry for an MT-only locale")
+	}
+
+	if len(state.report.Batches) != 1 {
+		t.Fatalf("Batches=%d, want 1", len(state.report.Batches))
+	}
+	batch := state.report.Batches[0]
+	if batch.TranslationType != config.TranslationTypeMT {
+		t.Fatalf("batch.TranslationType=%q, want %q", batch.TranslationType, config.TranslationTypeMT)
+	}
+	if batch.SourceChars != 4 || batch.TranslatedChars != 7 {
+		t.Fatalf("batch MTUsage: SourceChars=%d TranslatedChars=%d, want 4/7", batch.SourceChars, batch.TranslatedChars)
+	}
+	if batch.TokenUsage.InputTokens != 0 || batch.TokenUsage.OutputTokens != 0 || batch.TokenUsage.TotalTokens != 0 {
+		t.Fatalf("batch.TokenUsage=%+v, want zero value for an MT row", batch.TokenUsage)
+	}
+}
+
+func TestProcessMTBatchRetryThenSuccessCountsSourceCharsOnceButRequestsPerAttempt(t *testing.T) {
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	sleepWithContext = func(_ context.Context, _ time.Duration) error { return nil }
+
+	tasks := []Task{
+		{EntryKey: "k0", TargetPath: "out.json", SourcePath: "in.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", Provider: "google", TranslationType: config.TranslationTypeMT, SourceText: "hello"},
+	}
+	key := mtGroupKey{profileName: "p1", sourceLocale: "en", targetLocale: "fr"}
+
+	svc := newTestService()
+	state := newMTBatchTestState(t, tasks)
+	emitter := newEventEmitter(func(Event) {})
+	completions := make(chan taskCompletion, 1)
+	targetFailures := make(chan string, 1)
+	engine := &scriptedMTEngine{results: []scriptedMTResult{
+		{err: &mt.Error{Code: mt.ErrorCodeRateLimited}},
+	}}
+
+	svc.processMTBatch(context.Background(), engine, key, tasks, completions, targetFailures, state, emitter)
+	emitter.close()
+	close(completions)
+
+	if got := engine.callCount(); got != 2 {
+		t.Fatalf("engine.Translate call count=%d, want 2", got)
+	}
+	if state.report.MTUsage.RequestCount != 2 {
+		t.Fatalf("MTUsage.RequestCount=%d, want 2 (one failed attempt plus the successful retry)", state.report.MTUsage.RequestCount)
+	}
+	if state.report.MTUsage.SourceChars != 5 {
+		t.Fatalf("MTUsage.SourceChars=%d, want 5 (counted once per batch call, not multiplied by retries)", state.report.MTUsage.SourceChars)
+	}
+	if state.report.Succeeded != 1 {
+		t.Fatalf("report.Succeeded=%d, want 1", state.report.Succeeded)
+	}
+}
+
+func TestProcessMTBatchFailedBatchStillRecordsRequestsAndDuration(t *testing.T) {
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	sleepWithContext = func(_ context.Context, _ time.Duration) error { return nil }
+
+	tasks := []Task{
+		{EntryKey: "k0", TargetPath: "out.json", SourcePath: "in.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", Provider: "google", TranslationType: config.TranslationTypeMT, SourceText: "hello"},
+	}
+	key := mtGroupKey{profileName: "p1", sourceLocale: "en", targetLocale: "fr"}
+
+	svc := newTestService()
+	state := newMTBatchTestState(t, tasks)
+	emitter := newEventEmitter(func(Event) {})
+	completions := make(chan taskCompletion, 1)
+	targetFailures := make(chan string, 1)
+	persistentErr := &mt.Error{Code: mt.ErrorCodeUpstreamUnavailable, Message: "down"}
+	engine := &scriptedMTEngine{results: []scriptedMTResult{
+		{err: persistentErr},
+		{err: persistentErr},
+		{err: persistentErr},
+	}}
+
+	svc.processMTBatch(context.Background(), engine, key, tasks, completions, targetFailures, state, emitter)
+	emitter.close()
+	close(completions)
+
+	if state.report.MTUsage.RequestCount != mtBatchMaxAttempts {
+		t.Fatalf("MTUsage.RequestCount=%d, want %d (a failed batch must still report every attempt)", state.report.MTUsage.RequestCount, mtBatchMaxAttempts)
+	}
+	if state.report.MTUsage.SourceChars != 5 {
+		t.Fatalf("MTUsage.SourceChars=%d, want 5 (attempted chars recorded even though the batch failed)", state.report.MTUsage.SourceChars)
+	}
+	if state.report.MTUsage.TranslatedChars != 0 {
+		t.Fatalf("MTUsage.TranslatedChars=%d, want 0 (no successful output)", state.report.MTUsage.TranslatedChars)
+	}
+	if state.report.MTUsage.DurationMillis < 0 {
+		t.Fatalf("MTUsage.DurationMillis=%d, want >= 0", state.report.MTUsage.DurationMillis)
+	}
+	if state.report.Succeeded != 0 || state.report.Failed != 1 {
+		t.Fatalf("report succeeded/failed=%d/%d, want 0/1", state.report.Succeeded, state.report.Failed)
+	}
+	if len(state.report.Failures) != 1 {
+		t.Fatalf("Failures=%d, want 1", len(state.report.Failures))
+	}
+	failure := state.report.Failures[0]
+	if failure.TranslationType != config.TranslationTypeMT {
+		t.Fatalf("failure.TranslationType=%q, want %q", failure.TranslationType, config.TranslationTypeMT)
+	}
+	if failure.Code != string(mt.ErrorCodeUpstreamUnavailable) {
+		t.Fatalf("failure.Code=%q, want %q", failure.Code, mt.ErrorCodeUpstreamUnavailable)
+	}
+}
+
+func TestRunMTTasksEngineResolutionFailureRecordsNoRequests(t *testing.T) {
+	tasks := []Task{
+		{EntryKey: "k0", TargetPath: "out.json", SourcePath: "in.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", TranslationType: config.TranslationTypeMT, SourceText: "hello"},
+	}
+	svc := newTestService()
+	state := newMTBatchTestState(t, tasks)
+	emitter := newEventEmitter(func(Event) {})
+	completions := make(chan taskCompletion, 1)
+	targetFailures := make(chan string, 1)
+
+	svc.runMTTasks(context.Background(), tasks, mtBatchSize, nil, completions, targetFailures, state, emitter)
+	emitter.close()
+	close(completions)
+
+	if state.report.Failed != 1 {
+		t.Fatalf("report.Failed=%d, want 1", state.report.Failed)
+	}
+	if state.report.MTUsage.RequestCount != 0 {
+		t.Fatalf("MTUsage.RequestCount=%d, want 0 (no provider call was ever attempted)", state.report.MTUsage.RequestCount)
+	}
+	if state.report.MTUsage.SourceChars != 0 {
+		t.Fatalf("MTUsage.SourceChars=%d, want 0", state.report.MTUsage.SourceChars)
 	}
 }

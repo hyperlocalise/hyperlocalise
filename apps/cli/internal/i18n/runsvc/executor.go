@@ -9,6 +9,7 @@ import (
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
+	"github.com/hyperlocalise/hyperlocalise/internal/mt"
 )
 
 const (
@@ -21,7 +22,10 @@ type executionReport struct {
 	Failed          int
 	PersistedToLock int
 	TokenUsage
-	LocaleUsage                 map[string]TokenUsage
+	LocaleUsage map[string]TokenUsage
+	MTUsage
+	LocaleMTUsage               map[string]MTUsage
+	MTUsageByProfile            map[string]MTProfileUsage
 	Batches                     []BatchUsage
 	Failures                    []Failure
 	ContextMemoryGenerated      int
@@ -135,8 +139,12 @@ func newExecutorState(tasks []Task, projectRoot string, initialStaged map[string
 		pruneTargets:         pruneTargets,
 		contextPlan:          contextPlan,
 		contextSlots:         map[string]*contextMemorySlot{},
-		report:               executionReport{LocaleUsage: map[string]TokenUsage{}},
-		omitPerEntryBatches:  omitPerEntryBatches,
+		report: executionReport{
+			LocaleUsage:      map[string]TokenUsage{},
+			LocaleMTUsage:    map[string]MTUsage{},
+			MTUsageByProfile: map[string]MTProfileUsage{},
+		},
+		omitPerEntryBatches: omitPerEntryBatches,
 	}
 	for _, task := range tasks {
 		state.pendingByTarget[task.TargetPath]++
@@ -544,6 +552,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 		Kind:            EventTaskStart,
 		TargetPath:      task.TargetPath,
 		EntryKey:        task.EntryKey,
+		TranslationType: task.TranslationType,
 		Succeeded:       startedSucceeded,
 		Failed:          startedFailed,
 		ExecutableTotal: state.total,
@@ -611,10 +620,11 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 		state.report.LocaleUsage[task.TargetLocale] = addTokenUsage(localeUsage, toRunTokenUsage(usage))
 		if !state.omitPerEntryBatches {
 			state.report.Batches = append(state.report.Batches, BatchUsage{
-				TargetLocale: task.TargetLocale,
-				TargetPath:   task.TargetPath,
-				EntryKey:     task.EntryKey,
-				TokenUsage:   toRunTokenUsage(usage),
+				TargetLocale:    task.TargetLocale,
+				TargetPath:      task.TargetPath,
+				EntryKey:        task.EntryKey,
+				TranslationType: task.TranslationType,
+				TokenUsage:      toRunTokenUsage(usage),
 			})
 		}
 		succeeded := state.report.Succeeded
@@ -626,6 +636,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 			TaskSucceeded:   true,
 			TargetPath:      task.TargetPath,
 			EntryKey:        task.EntryKey,
+			TranslationType: task.TranslationType,
 			Succeeded:       succeeded,
 			Failed:          failed,
 			ExecutableTotal: state.total,
@@ -695,10 +706,23 @@ func (s *Service) feedJobs(ctx context.Context, jobs chan<- Task, tasks []Task) 
 	}
 }
 
+func mtFailureCode(err error) string {
+	if mtErr, ok := mt.AsError(err); ok {
+		return string(mtErr.Code)
+	}
+	return ""
+}
+
 func recordTaskFailure(report *executionReport, reportMu *sync.Mutex, total int, task Task, err error, emitter *eventEmitter) {
 	reportMu.Lock()
 	report.Failed++
-	report.Failures = append(report.Failures, Failure{TargetPath: task.TargetPath, EntryKey: task.EntryKey, Reason: err.Error()})
+	report.Failures = append(report.Failures, Failure{
+		TargetPath:      task.TargetPath,
+		EntryKey:        task.EntryKey,
+		Reason:          err.Error(),
+		TranslationType: task.TranslationType,
+		Code:            mtFailureCode(err),
+	})
 	succeeded := report.Succeeded
 	failed := report.Failed
 	tokenUsage := report.TokenUsage

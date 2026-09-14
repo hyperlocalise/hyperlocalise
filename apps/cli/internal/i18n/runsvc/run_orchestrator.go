@@ -201,6 +201,9 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	report.PersistedToLock = execReport.PersistedToLock
 	report.TokenUsage = addTokenUsage(report.TokenUsage, execReport.TokenUsage)
 	report.LocaleUsage = mergeLocaleUsage(report.LocaleUsage, execReport.LocaleUsage)
+	report.MTUsage = addMTUsage(report.MTUsage, execReport.MTUsage)
+	report.LocaleMTUsage = mergeLocaleMTUsage(report.LocaleMTUsage, execReport.LocaleMTUsage)
+	report.MTUsageByProfile = mergeMTUsageByProfile(report.MTUsageByProfile, execReport.MTUsageByProfile)
 	report.Batches = execReport.Batches
 	report.Failures = append(report.Failures, execReport.Failures...)
 	report.ContextMemoryGenerated = execReport.ContextMemoryGenerated
@@ -646,5 +649,13 @@ func eventWithTokenUsage(event Event, usage TokenUsage) Event {
 	event.ToolInputTokens = usage.ToolInputTokens
 	event.AcceptedPredictionTokens = usage.AcceptedPredictionTokens
 	event.RejectedPredictionTokens = usage.RejectedPredictionTokens
+	return event
+}
+
+func eventWithMTUsage(event Event, usage MTUsage) Event {
+	event.SourceChars = usage.SourceChars
+	event.TranslatedChars = usage.TranslatedChars
+	event.RequestCount = usage.RequestCount
+	event.DurationMillis = usage.DurationMillis
 	return event
 }

@@ -97,6 +97,63 @@ func TestSummaryJSONReportFromIsAggregateOnly(t *testing.T) {
 	}
 }
 
+func TestSummaryJSONReportIncludesMTAggregatesWithoutPerBatchDetail(t *testing.T) {
+	r := Report{
+		PlannedTotal:    2,
+		ExecutableTotal: 2,
+		TokenUsage: TokenUsage{
+			InputTokens: 10, OutputTokens: 4, TotalTokens: 14,
+		},
+		LocaleUsage: map[string]TokenUsage{
+			"fr": {InputTokens: 10, OutputTokens: 4, TotalTokens: 14},
+		},
+		MTUsage: MTUsage{
+			SourceChars: 40, TranslatedChars: 44, RequestCount: 3, DurationMillis: 120,
+		},
+		LocaleMTUsage: map[string]MTUsage{
+			"de": {SourceChars: 40, TranslatedChars: 44, RequestCount: 3, DurationMillis: 120},
+		},
+		MTUsageByProfile: map[string]MTProfileUsage{
+			"google-default": {Provider: "google", MTUsage: MTUsage{SourceChars: 40, TranslatedChars: 44, RequestCount: 3, DurationMillis: 120}},
+		},
+		Batches: []BatchUsage{
+			{TargetLocale: "de", TargetPath: "/out.json", EntryKey: "k", TranslationType: "mt", MTUsage: MTUsage{SourceChars: 40, TranslatedChars: 44}},
+		},
+	}
+
+	s := SummaryJSONReportFrom(r)
+	if s.SourceChars != 40 || s.TranslatedChars != 44 || s.RequestCount != 3 || s.DurationMillis != 120 {
+		t.Fatalf("summary MTUsage aggregate = %+v, want SourceChars=40 TranslatedChars=44 RequestCount=3 DurationMillis=120", s.MTUsage)
+	}
+	if got := s.LocaleMTUsage["de"]; got.SourceChars != 40 {
+		t.Fatalf("summary LocaleMTUsage[de] = %+v, want SourceChars=40", got)
+	}
+	if got := s.MTUsageByProfile["google-default"]; got.Provider != "google" || got.SourceChars != 40 {
+		t.Fatalf("summary MTUsageByProfile[google-default] = %+v, want Provider=google SourceChars=40", got)
+	}
+	if s.TokenUsage.InputTokens != 10 {
+		t.Fatalf("summary TokenUsage unaffected by MT aggregates, got %+v", s.TokenUsage)
+	}
+
+	raw, err := json.Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(raw)
+	if strings.Contains(js, "batches") {
+		t.Fatalf("summary json must not leak per-batch MT detail: %s", js)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []string{"sourceChars", "translatedChars", "requestCount", "durationMs", "localeMTUsage", "mtUsageByProfile"} {
+		if _, ok := m[k]; !ok {
+			t.Fatalf("summary json must include MT aggregate key %q in %s", k, js)
+		}
+	}
+}
+
 func TestRunSummaryReportDetailSkipsBatchesAndPromptMaterialize(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
