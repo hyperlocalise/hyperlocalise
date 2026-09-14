@@ -65,7 +65,7 @@ Utilisez un environnement GitHub tel que `localisation` pour les identifiants de
 Créez `i18n.yml` à la racine du dépôt :
 
 ```yaml
-version: hyperlocalise@1.11.0
+version: hyperlocalise@1.12.0
 
 locales:
   source: en-US
