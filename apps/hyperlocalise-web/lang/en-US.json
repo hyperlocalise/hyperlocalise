@@ -7032,7 +7032,7 @@
     "description": "Fallback error when CAT add-to-glossary fails"
   },
   "D92aikcKtb": {
-    "defaultMessage": "20 agent automations",
+    "defaultMessage": "20 automations",
     "description": "Growth plan feature: automation limit"
   },
   "D9igbLAS2O": {
@@ -9392,7 +9392,7 @@
     "description": "Placeholder for AI prompt when generating a translated Word file in CAT file view"
   },
   "IbjMoz30p/": {
-    "defaultMessage": "Starter suits small teams that need more seats and unlimited projects. Growth adds higher agent, token, and automation limits plus unlimited translation jobs for production localisation workflows.",
+    "defaultMessage": "Starter suits small teams that need more seats, integrations, and 2,000,000 AI tokens per month. Growth adds agent runs, automations, Automation Workflow, unlimited translation jobs, and a lower AI token overage rate for production localisation.",
     "description": "Pricing FAQ answer comparing Starter and Growth"
   },
   "Ic0GDPpTRm": {
@@ -10108,7 +10108,7 @@
     "description": "Overview section title for developer documentation links"
   },
   "KHXRS/XkKV": {
-    "defaultMessage": "Included on Growth and Enterprise. Clear answers on your copy, UI context, and localisation workflow.",
+    "defaultMessage": "Included on Starter, Growth, and Enterprise. Clear answers on your copy, UI context, and localisation workflow.",
     "description": "Supporting copy under the AI features heading on the pricing page"
   },
   "KHhslFYk0s": {
@@ -10812,7 +10812,7 @@
     "description": "Empty state on the visual workflows list page"
   },
   "LzbIVm9zfG": {
-    "defaultMessage": "2,000 AI tokens per month",
+    "defaultMessage": "2,000,000 AI tokens per month",
     "description": "Growth plan feature: AI token quota"
   },
   "Lzjyu+8nDt": {
@@ -17872,8 +17872,44 @@
     "description": "Tab to create a flag while attaching"
   },
   "boIAKxOC7q": {
-    "defaultMessage": "Free includes 1 project, 1 seat, and 2 integrations so you can evaluate the workspace. Paid usage quotas start on Starter and Growth.",
+    "defaultMessage": "Free includes 1 project and 1 seat so you can evaluate the workspace. Starter and Growth add integrations, AI credit, and higher workspace limits.",
     "description": "Pricing FAQ answer about Free plan limits"
+  },
+  "pQ8nK2mR4xW": {
+    "defaultMessage": "2 integrations",
+    "description": "Starter plan feature: integration limit"
+  },
+  "qR9oL3nS5yX": {
+    "defaultMessage": "Queries Board",
+    "description": "Starter plan feature: Queries Board access"
+  },
+  "rS0pM4oT6zY": {
+    "defaultMessage": "2,000,000 AI tokens per month",
+    "description": "Growth plan feature: AI token quota on Growth"
+  },
+  "sT1qN5pU7aZ": {
+    "defaultMessage": "Then $8 per 1,000,000 AI tokens",
+    "description": "Starter plan feature: AI token overage rate"
+  },
+  "tU2rO6qV8bA": {
+    "defaultMessage": "Automation Workflow",
+    "description": "Growth plan feature: Automation Workflow access"
+  },
+  "uV3sP7rW9cB": {
+    "defaultMessage": "Then $4 per 1,000,000 AI tokens",
+    "description": "Growth plan feature: AI token overage rate"
+  },
+  "vW4tQ8sX0dC": {
+    "defaultMessage": "Queries Board",
+    "description": "Pricing matrix row label for Queries Board"
+  },
+  "wX5uR9tY1eD": {
+    "defaultMessage": "Automation Workflow",
+    "description": "Pricing matrix row label for Automation Workflow"
+  },
+  "xY6vS0uZ2fE": {
+    "defaultMessage": "AI token overage",
+    "description": "Pricing matrix row label for AI token overage rate"
   },
   "bpqqgx/kva": {
     "defaultMessage": "Your role",
@@ -22248,7 +22284,7 @@
     "description": "Label for the Contentful environment ID field"
   },
   "kwCQeTqeyE": {
-    "defaultMessage": "Agent Automations",
+    "defaultMessage": "Automations",
     "description": "Pricing matrix row label for automations"
   },
   "kwrN4tVZmS": {

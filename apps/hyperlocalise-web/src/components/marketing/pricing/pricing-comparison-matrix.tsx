@@ -11,7 +11,13 @@
  * Version 2.0 or later.
  */
 
-import { GaugeIcon, LayerIcon, Shield01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import {
+  FlashIcon,
+  GaugeIcon,
+  LayerIcon,
+  Shield01Icon,
+  Tick02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
@@ -41,6 +47,10 @@ const sectionIcons: Record<string, { icon: IconSvgElement; className: string }> 
   usage: {
     icon: GaugeIcon,
     className: "bg-amber-100 text-amber-900",
+  },
+  "queries-automation": {
+    icon: FlashIcon,
+    className: "bg-emerald-100 text-emerald-900",
   },
   enterprise: {
     icon: Shield01Icon,
@@ -158,7 +168,14 @@ export function PricingComparisonMatrix({
                         key={row.id}
                         className="grid grid-cols-[minmax(12rem,1.4fr)_repeat(4,minmax(6.5rem,1fr))] items-center gap-3 py-4"
                       >
-                        <p className="text-sm text-foreground">{row.label}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm text-foreground">{row.label}</p>
+                          {row.detail ? (
+                            <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                              {row.detail}
+                            </p>
+                          ) : null}
+                        </div>
                         {pricingPlanOrder.map((planId) => (
                           <div key={planId} className="flex justify-center text-center">
                             <MatrixCellValue

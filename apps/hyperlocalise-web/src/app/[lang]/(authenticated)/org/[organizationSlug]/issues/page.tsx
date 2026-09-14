@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 import { hasCapability } from "@/api/auth/policy";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { requireAutumnWorkspaceBooleanFeature } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
@@ -32,6 +34,7 @@ export default function IssuesPage({ params }: { params: Promise<{ organizationS
 async function IssuesPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
+  await requireAutumnWorkspaceBooleanFeature(autumnFeatureIds.queriesBoard, auth);
   const canEditIssues = hasCapability(auth.membership.role, "write_back:translation");
 
   return <IssuesPageContent organizationSlug={organizationSlug} canEditIssues={canEditIssues} />;

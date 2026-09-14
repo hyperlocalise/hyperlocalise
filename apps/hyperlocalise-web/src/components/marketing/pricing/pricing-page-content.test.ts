@@ -25,22 +25,31 @@ describe("pricing page content", () => {
     const plans = getPricingPlans("en");
 
     expect(plans.map((plan) => plan.id)).toEqual([...pricingPlanOrder]);
-    expect(plans.find((plan) => plan.id === "free")?.features).toEqual([
-      "2 integrations",
-      "1 project",
-      "1 seat",
-    ]);
+    expect(plans.find((plan) => plan.id === "free")?.features).toEqual(["1 project", "1 seat"]);
     expect(plans.find((plan) => plan.id === "starter")?.price).toBe("$20");
     expect(plans.find((plan) => plan.id === "growth")?.price).toBe("$2,000");
     expect(plans.find((plan) => plan.id === "growth")?.popular).toBe(true);
+    expect(plans.find((plan) => plan.id === "starter")?.features).toEqual([
+      "2 integrations",
+      "Unlimited projects",
+      "5 seats",
+      "AI features",
+      "Queries Board",
+      "2,000,000 AI tokens per month",
+      "Then $8 per 1,000,000 AI tokens",
+    ]);
     expect(plans.find((plan) => plan.id === "growth")?.features).toEqual([
-      "2,000 agent runs per month",
-      "2,000 AI tokens per month",
-      "20 agent automations",
+      "20 automations",
       "5 integrations",
+      "Unlimited projects",
       "Unlimited seats",
+      "2,000 agent runs per month",
       "Unlimited translation jobs",
       "AI features",
+      "Automation Workflow",
+      "Queries Board",
+      "2,000,000 AI tokens per month",
+      "Then $4 per 1,000,000 AI tokens",
     ]);
     expect(plans.filter((plan) => plan.cta.kind === "coming_soon")).toHaveLength(3);
     expect(plans.find((plan) => plan.id === "enterprise")?.cta).toEqual({
@@ -54,7 +63,20 @@ describe("pricing page content", () => {
     const rows = sections.flatMap((section) => section.rows);
 
     expect(sections.length).toBeGreaterThan(0);
-    expect(rows.find((row) => row.id === "automations")?.label).toBe("Agent Automations");
+    expect(rows.find((row) => row.id === "automations")?.label).toBe("Automations");
+    expect(rows.find((row) => row.id === "ai-tokens")?.cells.starter).toEqual({
+      kind: "text",
+      value: "2,000,000",
+    });
+    expect(rows.find((row) => row.id === "ai-features")?.cells.starter).toEqual({ kind: "check" });
+    const queriesSection = sections.find((section) => section.id === "queries-automation");
+    expect(queriesSection?.title).toBe("Queries & automation");
+    expect(queriesSection?.rows.find((row) => row.id === "queries-board")?.detail).toContain(
+      "localization questions",
+    );
+    expect(queriesSection?.rows.find((row) => row.id === "automation-workflow")?.detail).toContain(
+      "deterministic",
+    );
     for (const row of rows) {
       for (const planId of pricingPlanOrder) {
         expect(row.cells[planId]).toBeTruthy();

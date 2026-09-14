@@ -17,7 +17,9 @@ import { hasCapability } from "@/api/auth/policy";
 import { createZodValidator } from "@/api/errors";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import { createAutumnBooleanFeatureMiddleware } from "@/api/middleware/autumn-boolean-feature";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { db, schema } from "@/lib/database/client";
 import { organizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
 
@@ -38,10 +40,16 @@ const validateIssueSearchQuery = createZodValidator(
   "invalid_issue_search_query",
 );
 
+const requireQueriesBoard = createAutumnBooleanFeatureMiddleware(
+  autumnFeatureIds.queriesBoard,
+  "Queries is not included in your current plan.",
+);
+
 export function createOrganizationIssueSheetRoutes() {
   return (
     new Hono<{ Variables: AuthVariables }>()
       .use("*", workosAuthMiddleware)
+      .use("*", requireQueriesBoard)
       // Registered before "/:issueId" — a later registration here would be
       // swallowed as issueId="search", since Hono matches in registration order.
       .get("/search", validateIssueSearchQuery, async (c) => {

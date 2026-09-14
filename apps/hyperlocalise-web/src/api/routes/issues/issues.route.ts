@@ -16,7 +16,9 @@ import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 import { hasCapability } from "@/api/auth/policy";
 import { createZodValidator } from "@/api/errors";
 import { forbiddenResponse } from "@/api/response.schema";
+import { createAutumnBooleanFeatureMiddleware } from "@/api/middleware/autumn-boolean-feature";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { organizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
 import { issueBulkUpdateService } from "@/lib/projects/issue-sheet/issue-bulk-update-service";
 
@@ -35,9 +37,15 @@ const validateIssueBulkActionBody = createZodValidator(
   "invalid_issue_bulk_action",
 );
 
+const requireQueriesBoard = createAutumnBooleanFeatureMiddleware(
+  autumnFeatureIds.queriesBoard,
+  "Queries is not included in your current plan.",
+);
+
 export function createOrganizationIssuesRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
+    .use("*", requireQueriesBoard)
     .get("/", validateOrganizationIssuesQuery, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
         return forbiddenResponse(c, "forbidden");

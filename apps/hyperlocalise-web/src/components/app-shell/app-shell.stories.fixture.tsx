@@ -77,6 +77,7 @@ export const ALL_WORKSPACE_FEATURE_FLAGS: WorkspaceFeatureFlagState = {
   knowledge: true,
   visualMock: true,
   visualWorkflows: true,
+  queriesBoard: true,
   domains: true,
   glossarySearch: true,
   hyperlab: true,

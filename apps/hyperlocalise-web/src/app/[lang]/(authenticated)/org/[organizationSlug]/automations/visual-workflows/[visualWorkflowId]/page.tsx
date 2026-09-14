@@ -15,10 +15,11 @@ import { notFound } from "next/navigation";
 import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { visualWorkflowIdParamSchema } from "@/api/routes/visual-workflow/visual-workflow.schema";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import {
+  getAutumnWorkspaceBooleanFeatureEnabled,
   getWorkspaceFeatureFlagEnabled,
   workspaceAutomationsFlag,
-  workspaceVisualWorkflowsFlag,
 } from "@/lib/flags/workspace-flags";
 import { getVisualWorkflowById } from "@/lib/visual-workflows/visual-workflows";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
@@ -52,7 +53,7 @@ async function VisualWorkflowEditorPageLoader({
   const auth = await requireAppAuthContext({ organizationSlug });
   const [automationsEnabled, visualWorkflowsEnabled] = await Promise.all([
     getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth),
-    getWorkspaceFeatureFlagEnabled(workspaceVisualWorkflowsFlag, auth),
+    getAutumnWorkspaceBooleanFeatureEnabled(autumnFeatureIds.automationWorkflow, auth),
   ]);
 
   if (!automationsEnabled) {

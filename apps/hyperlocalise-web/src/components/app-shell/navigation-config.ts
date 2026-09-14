@@ -24,6 +24,7 @@ import {
   WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_HYPERLAB_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
+  WORKSPACE_QUERIES_BOARD_FLAG,
   WORKSPACE_REPORTS_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
@@ -74,6 +75,7 @@ export type NavigationItem = {
     | typeof WORKSPACE_DOMAINS_FLAG
     | typeof WORKSPACE_HYPERLAB_FLAG
     | typeof WORKSPACE_REPORTS_FLAG
+    | typeof WORKSPACE_QUERIES_BOARD_FLAG
     | typeof RELEASE_CAT_ALL_FILES_FLAG;
   /** When true, the feature flag is off and the nav item links to a teaser page. */
   preview?: boolean;
@@ -166,6 +168,7 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("issues"),
           icon: Copy01Icon,
+          featureFlagKey: WORKSPACE_QUERIES_BOARD_FLAG,
         },
         {
           label: intl.formatMessage({
@@ -464,6 +467,7 @@ export function buildProjectNavigationItems(
       }),
       href: project("issue-sheet"),
       icon: Copy01Icon,
+      featureFlagKey: WORKSPACE_QUERIES_BOARD_FLAG,
     },
     {
       label: intl.formatMessage({
