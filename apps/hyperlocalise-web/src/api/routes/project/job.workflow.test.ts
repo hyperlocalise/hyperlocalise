@@ -22,11 +22,13 @@ const {
   getManagedAiCreditReservationMock,
   reserveManagedAiCreditMock,
   releaseManagedAiCreditMock,
+  retainManagedAiCreditForUnmeteredSuccessMock,
 } = vi.hoisted(() => ({
   getManagedAiPricingConfigMock: vi.fn(),
   getManagedAiCreditReservationMock: vi.fn(),
   reserveManagedAiCreditMock: vi.fn(),
   releaseManagedAiCreditMock: vi.fn(),
+  retainManagedAiCreditForUnmeteredSuccessMock: vi.fn(),
 }));
 
 vi.mock("@/lib/billing/managed-ai-pricing", async (importOriginal) => {
@@ -44,6 +46,7 @@ vi.mock("@/lib/billing/managed-ai-credit", async (importOriginal) => {
     getManagedAiCreditReservation: getManagedAiCreditReservationMock,
     reserveManagedAiCredit: reserveManagedAiCreditMock,
     releaseManagedAiCredit: releaseManagedAiCreditMock,
+    retainManagedAiCreditForUnmeteredSuccess: retainManagedAiCreditForUnmeteredSuccessMock,
   };
 });
 
@@ -116,6 +119,7 @@ beforeEach(() => {
   });
   getManagedAiCreditReservationMock.mockResolvedValue(null);
   releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
+  retainManagedAiCreditForUnmeteredSuccessMock.mockResolvedValue({ ok: true, value: undefined });
 });
 
 afterEach(async () => {
@@ -714,10 +718,11 @@ describe("translation job workflow helpers", () => {
       },
     });
 
-    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith({
+    expect(retainManagedAiCreditForUnmeteredSuccessMock).toHaveBeenCalledWith({
       reservation,
       reason: "no_token_usage",
     });
+    expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
   });
 
   it("does not release AI credit when a string job reports billable token usage", async () => {
@@ -763,6 +768,7 @@ describe("translation job workflow helpers", () => {
       },
     });
 
+    expect(retainManagedAiCreditForUnmeteredSuccessMock).not.toHaveBeenCalled();
     expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
   });
 });

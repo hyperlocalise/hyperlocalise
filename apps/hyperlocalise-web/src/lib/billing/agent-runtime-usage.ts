@@ -21,9 +21,11 @@ import {
 import {
   formatManagedAiCreditError,
   getManagedAiCreditReservation,
+  isReusableManagedAiCreditReservation,
   ManagedAiCreditAccessError,
   releaseManagedAiCredit,
   reserveManagedAiCredit,
+  retainManagedAiCreditForUnmeteredSuccess,
   type AiCreditCredentialSource,
   type ManagedAiCreditError,
   type ManagedAiCreditReservation,
@@ -148,7 +150,14 @@ export async function reserveAgentRunAiCredit(input: {
   const operationKey = agentRunAiCreditOperationKey(input.runId);
   const existing = await getManagedAiCreditReservation({ operationKey });
   if (existing) {
-    return ok(existing);
+    if (isReusableManagedAiCreditReservation(existing)) {
+      return ok(existing);
+    }
+    return err({
+      code: "ai_credit_operation_already_exists",
+      operationKey: existing.operationKey,
+      status: existing.status ?? "rejected",
+    });
   }
 
   const estimatedAmountUsd =
@@ -192,6 +201,29 @@ export async function releaseAgentRunAiCredit(input: { runId: string; reason: st
     logAgentRuntimeUsageError("AI credit release failed", {
       runId: input.runId,
       error: formatManagedAiCreditError(released.error),
+    });
+  }
+}
+
+export async function retainAgentRunAiCreditForUnmeteredSuccess(input: {
+  runId: string;
+  reason: string;
+}) {
+  const reservation = await getManagedAiCreditReservation({
+    operationKey: agentRunAiCreditOperationKey(input.runId),
+  });
+  if (!reservation) {
+    return;
+  }
+
+  const retained = await retainManagedAiCreditForUnmeteredSuccess({
+    reservation,
+    reason: input.reason,
+  });
+  if (!retained.ok) {
+    logAgentRuntimeUsageError("AI credit retain-for-missing-usage failed", {
+      runId: input.runId,
+      error: formatManagedAiCreditError(retained.error),
     });
   }
 }
@@ -365,7 +397,7 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
   const tokenUsage = input.extractTokenUsage?.(result) ?? null;
   const billableTokenUsage = tokenUsage && tokenUsage.totalTokens > 0 ? tokenUsage : null;
   if (!billableTokenUsage && aiCreditReservation) {
-    await releaseManagedAiCredit({
+    await retainManagedAiCreditForUnmeteredSuccess({
       reservation: aiCreditReservation,
       reason: "no_token_usage",
     });

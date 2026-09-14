@@ -16,6 +16,7 @@ import { usageFeatureIds, type UsageFeatureId } from "@/lib/billing/autumn-ids";
 import {
   formatManagedAiCreditError,
   getManagedAiCreditReservation,
+  isSettleableManagedAiCreditReservation,
   reserveManagedAiCredit,
   settleManagedAiCredit,
   type AiCreditCredentialSource,
@@ -303,6 +304,13 @@ export async function trackAiCreditUsageInAutumn(input: {
 
     const existingReservation = await getManagedAiCreditReservation({ operationKey });
     let reservation = existingReservation;
+    if (reservation && !isSettleableManagedAiCreditReservation(reservation)) {
+      return err({
+        code: "ai_credit_operation_already_exists",
+        operationKey: reservation.operationKey,
+        status: reservation.status ?? "rejected",
+      });
+    }
     if (!reservation) {
       const reservationResult = await reserveManagedAiCredit({
         organizationId: input.organizationId,

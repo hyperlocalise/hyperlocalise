@@ -30,6 +30,7 @@ import {
 import {
   formatManagedAiCreditError,
   releaseManagedAiCredit,
+  retainManagedAiCreditForUnmeteredSuccess,
   settleManagedAiCredit,
   type ManagedAiCreditReservation,
 } from "@/lib/billing/managed-ai-credit";
@@ -292,10 +293,15 @@ export function createWebChatAgentUIStreamResponse(input: {
                   error: formatManagedAiCreditError(settlement.error),
                 });
               }
-            } else {
+            } else if (isAborted) {
               await releaseManagedAiCredit({
                 reservation: input.aiCreditReservation,
-                reason: isAborted ? "chat_aborted_without_usage" : "chat_completed_without_usage",
+                reason: "chat_aborted_without_usage",
+              });
+            } else {
+              await retainManagedAiCreditForUnmeteredSuccess({
+                reservation: input.aiCreditReservation,
+                reason: "chat_completed_without_usage",
               });
             }
           }

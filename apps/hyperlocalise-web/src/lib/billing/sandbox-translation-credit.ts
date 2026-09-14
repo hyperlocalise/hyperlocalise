@@ -15,8 +15,10 @@ import "server-only";
 import {
   formatManagedAiCreditError,
   getManagedAiCreditReservation,
+  isReusableManagedAiCreditReservation,
   releaseManagedAiCredit,
   reserveManagedAiCredit,
+  retainManagedAiCreditForUnmeteredSuccess,
   type AiCreditCredentialSource,
   type ManagedAiCreditError,
   type ManagedAiCreditReservation,
@@ -47,7 +49,14 @@ export async function reserveSandboxTranslationAiCredit(input: {
   const operationKey = sandboxTranslationAiCreditOperationKey(input.jobId);
   const existing = await getManagedAiCreditReservation({ operationKey });
   if (existing) {
-    return ok(existing);
+    if (isReusableManagedAiCreditReservation(existing)) {
+      return ok(existing);
+    }
+    return err({
+      code: "ai_credit_operation_already_exists",
+      operationKey: existing.operationKey,
+      status: existing.status ?? "rejected",
+    });
   }
 
   const estimatedAmountUsd =
@@ -95,6 +104,33 @@ export async function releaseSandboxTranslationAiCredit(input: {
     console.warn("[sandbox-translation-credit] failed to release reservation", {
       jobId: input.jobId,
       error: formatManagedAiCreditError(released.error),
+    });
+  }
+}
+
+/**
+ * After a successful sandbox job with no CLI token report, keep the estimated
+ * hold so managed spend cannot be retried for free.
+ */
+export async function retainSandboxTranslationAiCreditForUnmeteredSuccess(input: {
+  jobId: string;
+  reason: string;
+}): Promise<void> {
+  const reservation = await getManagedAiCreditReservation({
+    operationKey: sandboxTranslationAiCreditOperationKey(input.jobId),
+  });
+  if (!reservation) {
+    return;
+  }
+
+  const retained = await retainManagedAiCreditForUnmeteredSuccess({
+    reservation,
+    reason: input.reason,
+  });
+  if (!retained.ok) {
+    console.warn("[sandbox-translation-credit] failed to retain reservation", {
+      jobId: input.jobId,
+      error: formatManagedAiCreditError(retained.error),
     });
   }
 }

@@ -22,6 +22,7 @@ import { db, schema } from "@/lib/database/client";
 import {
   releaseManagedAiCredit,
   reserveManagedAiCredit,
+  retainManagedAiCreditForUnmeteredSuccess,
   settleManagedAiCredit,
 } from "@/lib/billing/managed-ai-credit";
 
@@ -374,6 +375,34 @@ describe("managed AI credit", () => {
       amountUsd: "0.000000000",
       status: "rejected",
       autumnTrackError: "video_generation_failed",
+    });
+  });
+
+  it("keeps estimated hold when managed work succeeds without token usage", async () => {
+    const organization = await createOrganization();
+    const operationKey = `ai-credit:${randomUUID()}`;
+    const reservation = await reserveManagedAiCredit({
+      organizationId: organization.id,
+      operationKey,
+      source: "file_translation",
+      modelId: "openai/gpt-5.6-luna",
+      credentialSource: "gateway",
+      estimatedAmountUsd: 0.75,
+      mode: "enforced",
+      dependencies: { check: allowedCheck(10) },
+    });
+    if (!reservation.ok) throw new Error(reservation.error.code);
+
+    const retained = await retainManagedAiCreditForUnmeteredSuccess({
+      reservation: reservation.value,
+      reason: "no_cli_token_usage",
+    });
+
+    expect(retained).toEqual({ ok: true, value: undefined });
+    await expect(getUsageEvent(operationKey)).resolves.toMatchObject({
+      status: "tracking_failed",
+      autumnTrackError: "no_cli_token_usage",
+      estimatedAmountUsd: "0.750000000",
     });
   });
 });

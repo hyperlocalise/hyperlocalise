@@ -12,6 +12,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import "dotenv/config";
+
 const {
   completeAndTrackBillableUsageMock,
   reserveUsageEventMock,
@@ -19,6 +21,7 @@ const {
   getManagedAiCreditReservationMock,
   reserveManagedAiCreditMock,
   releaseManagedAiCreditMock,
+  retainManagedAiCreditForUnmeteredSuccessMock,
 } = vi.hoisted(() => ({
   completeAndTrackBillableUsageMock: vi.fn(),
   reserveUsageEventMock: vi.fn(),
@@ -26,6 +29,7 @@ const {
   getManagedAiCreditReservationMock: vi.fn(),
   reserveManagedAiCreditMock: vi.fn(),
   releaseManagedAiCreditMock: vi.fn(),
+  retainManagedAiCreditForUnmeteredSuccessMock: vi.fn(),
 }));
 
 vi.mock("@/lib/billing/usage-control", () => ({
@@ -52,6 +56,7 @@ vi.mock("@/lib/billing/managed-ai-credit", async (importOriginal) => {
     getManagedAiCreditReservation: getManagedAiCreditReservationMock,
     reserveManagedAiCredit: reserveManagedAiCreditMock,
     releaseManagedAiCredit: releaseManagedAiCreditMock,
+    retainManagedAiCreditForUnmeteredSuccess: retainManagedAiCreditForUnmeteredSuccessMock,
   };
 });
 
@@ -87,6 +92,7 @@ describe("agent-runtime-usage", () => {
       },
     });
     releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
+    retainManagedAiCreditForUnmeteredSuccessMock.mockResolvedValue({ ok: true, value: undefined });
   });
 
   afterEach(() => {
@@ -294,7 +300,7 @@ describe("agent-runtime-usage", () => {
     );
   });
 
-  it("releases reserved AI credit when a successful run reports no token usage", async () => {
+  it("retains reserved AI credit when a successful run reports no token usage", async () => {
     getManagedAiPricingConfigMock.mockReturnValue({
       mode: "enforced",
       pricingVersion: "test",
@@ -315,12 +321,13 @@ describe("agent-runtime-usage", () => {
       }),
     ).resolves.toEqual({ text: "done" });
 
-    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith({
+    expect(retainManagedAiCreditForUnmeteredSuccessMock).toHaveBeenCalledWith({
       reservation: expect.objectContaining({
         operationKey: "workspace-automation:run_1:agent_runs:ai_tokens",
       }),
       reason: "no_token_usage",
     });
+    expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
     expect(completeAndTrackBillableUsageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         tokenUsage: null,
@@ -388,7 +395,10 @@ describe("agent-runtime-usage", () => {
     });
     const existing = {
       operationKey: agentRunAiCreditOperationKey("run_1"),
-      status: "reserved",
+      status: "reserved" as const,
+      mode: "enforced" as const,
+      credentialSource: "gateway" as const,
+      estimatedAmountUsd: 0.5,
     };
     getManagedAiCreditReservationMock.mockResolvedValue(existing);
 
@@ -401,6 +411,41 @@ describe("agent-runtime-usage", () => {
         credentialSource: "gateway",
       }),
     ).resolves.toEqual(ok(existing));
+    expect(reserveManagedAiCreditMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when a rejected provider-agent reservation still occupies the key", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "enforced",
+      pricingVersion: "test",
+      chatReservationUsd: 0.5,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    getManagedAiCreditReservationMock.mockResolvedValue({
+      operationKey: agentRunAiCreditOperationKey("run_1"),
+      status: "rejected",
+      mode: "enforced",
+      credentialSource: "gateway",
+      estimatedAmountUsd: 0.5,
+    });
+
+    await expect(
+      reserveAgentRunAiCredit({
+        organizationId: "org_123",
+        runId: "run_1",
+        source: "agent_run_complete",
+        modelId: "openai/gpt-5.6-luna",
+        credentialSource: "gateway",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: {
+        code: "ai_credit_operation_already_exists",
+        operationKey: "agent-run:run_1:agent_runs:ai_tokens",
+        status: "rejected",
+      },
+    });
     expect(reserveManagedAiCreditMock).not.toHaveBeenCalled();
   });
 

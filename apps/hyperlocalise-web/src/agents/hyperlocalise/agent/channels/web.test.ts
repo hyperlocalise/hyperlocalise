@@ -20,6 +20,7 @@ const {
   trackSucceededAgentRuntimeUsageMock,
   settleManagedAiCreditMock,
   releaseManagedAiCreditMock,
+  retainManagedAiCreditForUnmeteredSuccessMock,
   addInteractionMessageMock,
 } = vi.hoisted(() => ({
   prepareConversationAgentTurnMock: vi.fn(),
@@ -29,6 +30,7 @@ const {
   trackSucceededAgentRuntimeUsageMock: vi.fn(),
   settleManagedAiCreditMock: vi.fn(),
   releaseManagedAiCreditMock: vi.fn(),
+  retainManagedAiCreditForUnmeteredSuccessMock: vi.fn(),
   addInteractionMessageMock: vi.fn(),
 }));
 
@@ -63,8 +65,10 @@ vi.mock("@/lib/billing/agent-runtime-usage", () => ({
 }));
 
 vi.mock("@/lib/billing/managed-ai-credit", () => ({
+  formatManagedAiCreditError: (error: { code: string }) => error.code,
   settleManagedAiCredit: settleManagedAiCreditMock,
   releaseManagedAiCredit: releaseManagedAiCreditMock,
+  retainManagedAiCreditForUnmeteredSuccess: retainManagedAiCreditForUnmeteredSuccessMock,
 }));
 
 vi.mock("@/lib/conversations/interactions", () => ({
@@ -142,6 +146,7 @@ describe("runWebChatAgentTurn", () => {
       value: { amountUsd: 0.01, status: "settled" },
     });
     releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
+    retainManagedAiCreditForUnmeteredSuccessMock.mockResolvedValue({ ok: true, value: undefined });
     addInteractionMessageMock.mockResolvedValue({ id: "msg_agent" });
     prepareConversationAgentTurnMock.mockResolvedValue({
       classification: baseClassification,
@@ -310,6 +315,7 @@ describe("createWebChatAgentUIStreamResponse", () => {
       value: { amountUsd: 0.01, status: "settled" },
     });
     releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
+    retainManagedAiCreditForUnmeteredSuccessMock.mockResolvedValue({ ok: true, value: undefined });
     addInteractionMessageMock.mockResolvedValue({ id: "msg_agent" });
   });
 

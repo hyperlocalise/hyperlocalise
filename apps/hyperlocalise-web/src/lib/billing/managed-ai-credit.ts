@@ -53,7 +53,21 @@ export type ManagedAiCreditReservation = {
   mode: AiCreditMeteringMode;
   credentialSource: AiCreditCredentialSource;
   estimatedAmountUsd: number;
+  status?: (typeof schema.usageEvents.$inferSelect)["status"];
 };
+
+const REUSABLE_AI_CREDIT_RESERVATION_STATUSES = [
+  "reserved",
+  "succeeded",
+  "tracking_pending",
+  "tracking_failed",
+  "settlement_unknown",
+] as const;
+
+const SETTLEABLE_AI_CREDIT_RESERVATION_STATUSES = [
+  ...REUSABLE_AI_CREDIT_RESERVATION_STATUSES,
+  "tracking_succeeded",
+] as const;
 
 export type ManagedAiCreditError =
   | {
@@ -213,7 +227,31 @@ export async function getManagedAiCreditReservation(input: {
     mode,
     credentialSource: event.credentialSource === "byok" ? "byok" : "gateway",
     estimatedAmountUsd: positiveNumber(Number(event.estimatedAmountUsd ?? 0)),
+    status: event.status,
   };
+}
+
+/**
+ * Reservations that can continue into settlement. Rejected rows must not
+ * short-circuit a fresh balance check before new managed work.
+ */
+export function isReusableManagedAiCreditReservation(
+  reservation: ManagedAiCreditReservation,
+): boolean {
+  if (!reservation.status) return true;
+  return (REUSABLE_AI_CREDIT_RESERVATION_STATUSES as readonly string[]).includes(
+    reservation.status,
+  );
+}
+
+/** Includes already-settled rows so completion can return idempotent success. */
+export function isSettleableManagedAiCreditReservation(
+  reservation: ManagedAiCreditReservation,
+): boolean {
+  if (!reservation.status) return true;
+  return (SETTLEABLE_AI_CREDIT_RESERVATION_STATUSES as readonly string[]).includes(
+    reservation.status,
+  );
 }
 
 export function formatManagedAiCreditError(error: ManagedAiCreditError): string {
@@ -586,6 +624,53 @@ export async function releaseManagedAiCredit(input: {
       status: "rejected",
       amountUsd: normalizeUsdAmount(0),
       autumnTrackError: input.reason?.slice(0, 500) ?? null,
+    })
+    .where(
+      and(
+        eq(schema.usageEvents.operationKey, input.reservation.operationKey),
+        eq(schema.usageEvents.status, "reserved"),
+      ),
+    )
+    .returning({ id: schema.usageEvents.id });
+
+  if (!event) {
+    return ok(undefined);
+  }
+
+  return ok(undefined);
+}
+
+/**
+ * Successful managed work with no token report must not free the reservation.
+ * Keep the estimated hold as `tracking_failed` so the org cannot retry forever
+ * for free; BYOK / $0 estimates may still release.
+ */
+export async function retainManagedAiCreditForUnmeteredSuccess(input: {
+  db?: DatabaseClient;
+  reservation: ManagedAiCreditReservation;
+  reason: string;
+}): Promise<Result<void, ManagedAiCreditError>> {
+  if (input.reservation.credentialSource === "byok" || input.reservation.estimatedAmountUsd <= 0) {
+    return releaseManagedAiCredit(input);
+  }
+
+  const database = input.db ?? db;
+  const current = await findUsageEvent(database, input.reservation.operationKey);
+  if (!current) {
+    return err({
+      code: "ai_credit_usage_not_found",
+      operationKey: input.reservation.operationKey,
+    });
+  }
+  if (current.status !== "reserved") {
+    return ok(undefined);
+  }
+
+  const [event] = await database
+    .update(schema.usageEvents)
+    .set({
+      status: "tracking_failed",
+      autumnTrackError: input.reason.slice(0, 500),
     })
     .where(
       and(
