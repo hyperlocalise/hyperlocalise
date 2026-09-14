@@ -174,13 +174,21 @@ func precomputeStableTaskCacheFields(task *Task) {
 	}
 
 	if isImageTask(*task) {
-		task.sourceTextHash = strings.TrimSpace(task.sourceFingerprint)
-		task.sourceContextFingerprint = sourceContextFingerprint(Task{})
+		if task.sourceTextHash == "" {
+			task.sourceTextHash = strings.TrimSpace(task.sourceFingerprint)
+		}
+		if task.sourceContextFingerprint == "" {
+			task.sourceContextFingerprint = sourceContextFingerprint(Task{})
+		}
 		return
 	}
 
-	task.sourceTextHash = hashSourceText(normalizeSourceForCache(task.SourceText))
-	task.sourceContextFingerprint = sourceContextFingerprint(*task)
+	if task.sourceTextHash == "" {
+		task.sourceTextHash = hashSourceText(normalizeSourceForCache(task.SourceText))
+	}
+	if task.sourceContextFingerprint == "" {
+		task.sourceContextFingerprint = sourceContextFingerprint(*task)
+	}
 }
 
 func lockTaskHash(task Task) string {
