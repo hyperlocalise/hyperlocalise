@@ -68,13 +68,14 @@ import {
 import { NativeGlossary } from "@/lib/glossary/native-glossary";
 import { err, ok } from "@/lib/primitives/result/results";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock, workspaceKnowledgeFlagRunMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+  workspaceKnowledgeFlagRunMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -82,6 +83,15 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   return {
     ...actual,
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
+
+vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
+
+  return {
+    ...actual,
+    workspaceKnowledgeFlag: { run: workspaceKnowledgeFlagRunMock },
   };
 });
 
@@ -293,6 +303,8 @@ describe("mcpRoutes", () => {
     translationJobEnqueueMock.mockClear();
     ensureAiFeaturesAllowedMock.mockReset();
     ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
+    workspaceKnowledgeFlagRunMock.mockReset();
+    workspaceKnowledgeFlagRunMock.mockResolvedValue(true);
   });
 
   afterEach(async () => {
@@ -9770,6 +9782,55 @@ describe("mcpRoutes", () => {
     });
 
     expect(result.output).not.toHaveProperty("projectId");
+  });
+
+  it("does not read knowledge memory when Workspace Knowledge is disabled", async () => {
+    const headers = await authenticatedMcpHeaders();
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const committed = await commitKnowledgeMemoryForOrganization({
+      organizationId: auth.organization.localOrganizationId,
+      content: "Retained private guidance",
+      summary: "Add retained guidance",
+      updatedByUserId: auth.user.localUserId,
+      expectedRevisionId: null,
+    });
+
+    expect(committed.ok).toBe(true);
+    workspaceKnowledgeFlagRunMock.mockResolvedValue(false);
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "get_knowledge_memory", {
+        scope: "organization",
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "knowledge_memory_unavailable",
+    });
+    expect(result.output).not.toHaveProperty("content");
+  });
+
+  it("fails closed when the Workspace Knowledge flag cannot be evaluated", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    workspaceKnowledgeFlagRunMock.mockRejectedValue(new Error("flag unavailable"));
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "get_knowledge_memory", {
+        scope: "organization",
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "knowledge_memory_unavailable",
+    });
   });
 
   it("returns project knowledge memory", async () => {

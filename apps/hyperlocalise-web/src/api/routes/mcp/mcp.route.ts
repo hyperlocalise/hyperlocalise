@@ -148,6 +148,7 @@ import {
   getKnowledgeMemoryForOrganization,
   getKnowledgeMemoryForProject,
 } from "@/lib/knowledge-memory/knowledge-memory";
+import { workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -389,6 +390,21 @@ function compactMcpKnowledgeMemoryContent(content: string) {
     content: `${characters.slice(0, MAX_MCP_KNOWLEDGE_MEMORY_CONTENT_LENGTH - 1).join("")}…`,
     truncated: true,
   };
+}
+
+async function isMcpKnowledgeMemoryFeatureEnabled(apiAuth: ApiAuthContext) {
+  try {
+    return (
+      (await workspaceKnowledgeFlag.run({
+        identify: () => ({
+          organization: { id: apiAuth.organization.workosOrganizationId },
+          user: { id: apiAuth.user.workosUserId },
+        }),
+      })) === true
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function readTokenRequestBody(request: Request) {
@@ -2645,6 +2661,13 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       inputSchema: mcpGetKnowledgeMemoryInputSchema,
     },
     async ({ scope, projectId }) => {
+      if (!(await isMcpKnowledgeMemoryFeatureEnabled(apiAuth))) {
+        return mcpToolError(
+          "knowledge_memory_unavailable",
+          "Workspace Knowledge is not enabled for this organization",
+        );
+      }
+
       if (scope === "organization") {
         const knowledgeMemory = await getKnowledgeMemoryForOrganization(
           apiAuth.organization.localOrganizationId,
