@@ -13,7 +13,7 @@
 import { and, desc, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
-import type { RepositorySourceFileSegmentationSettings } from "@/lib/database/schema/files";
+import type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
 

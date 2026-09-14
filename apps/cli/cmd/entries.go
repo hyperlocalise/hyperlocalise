@@ -92,13 +92,13 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, locale, s
 			mdx := ext == ".mdx"
 			sourceDoc := translationfileparser.ParseMarkdownDocumentIR(sourceContent, mdx)
 			aligned := translationfileparser.AlignMarkdownTargetToSource(sourceContent, content, mdx)
-			return translationfileparser.EncodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned)), nil
+			return encodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned), path, content, locale, srxSpec)
 		}
 	}
 
 	if translationfileparser.IsMarkdownDocumentExtension(path) {
 		doc := translationfileparser.ParseMarkdownDocumentIR(content, translationfileparser.IsMarkdownDocumentMDX(path))
-		return translationfileparser.EncodeDocumentEntriesCommandOutput(doc), nil
+		return encodeDocumentEntriesCommandOutput(doc, path, content, locale, srxSpec)
 	}
 
 	strategy := translationfileparser.NewDefaultStrategy()
@@ -120,4 +120,29 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, locale, s
 	}
 
 	return translationfileparser.EncodeEntriesCommandOutput(entries), nil
+}
+
+func encodeDocumentEntriesCommandOutput(
+	doc translationfileparser.ParsedDocument,
+	path string,
+	content []byte,
+	locale string,
+	srxSpec string,
+) (map[string]translationfileparser.EntriesCommandOutputValue, error) {
+	entries := doc.IngestEntries()
+	if entries == nil {
+		entries = map[string]translationfileparser.IngestEntry{}
+	}
+	if strings.TrimSpace(srxSpec) != "" {
+		srxDoc, err := entrysplit.CompileSpec(srxSpec)
+		if err != nil {
+			return nil, err
+		}
+		parserMode := runsvc.ParserModeForSource(path, content)
+		entries, _, err = entrysplit.ApplyToIngestEntries(srxDoc, path, parserMode, locale, entries)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return translationfileparser.EncodeDocumentEntriesCommandOutputFromEntries(doc, entries), nil
 }

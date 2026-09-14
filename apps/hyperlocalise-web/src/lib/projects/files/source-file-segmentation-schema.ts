@@ -13,8 +13,20 @@
 
 import { z } from "zod";
 
-import type { RepositorySourceFileSegmentationSettings } from "@/lib/database/schema/files";
-import { defaultRepositorySourceFileSegmentationSettings } from "@/lib/database/schema/files";
+/** Per-file SRX 2.0 segmentation (shared by API schema and Drizzle JSON column). */
+export type RepositorySourceFileSegmentationSettings = {
+  enabled: boolean;
+  template: "default" | "html" | "markdown" | "custom";
+  customSrxXml?: string | null;
+};
+
+export function defaultRepositorySourceFileSegmentationSettings(): RepositorySourceFileSegmentationSettings {
+  return {
+    enabled: false,
+    template: "default",
+    customSrxXml: null,
+  };
+}
 import {
   SRX_BUILTIN_TEMPLATES,
   SRX_CUSTOM_SANDBOX_FILENAME,

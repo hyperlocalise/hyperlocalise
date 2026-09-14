@@ -86,6 +86,38 @@ func TestEntriesCommandSRXUsesStrictFormatJSDetection(t *testing.T) {
 	}
 }
 
+func TestEntriesCommandSplitsMarkdownWithSRXFlag(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "guide.md")
+	if err := os.WriteFile(path, []byte("Intro sentence. Second sentence.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", path, "--srx", "default"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+
+	payload, err := decodeEntriesCommandStrings(out.Bytes())
+	if err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	foundSplit := false
+	for key := range payload {
+		if strings.Contains(key, "#srx.") {
+			foundSplit = true
+			break
+		}
+	}
+	if !foundSplit {
+		t.Fatalf("expected markdown entries to include srx span keys, got %#v", payload)
+	}
+}
+
 func TestEntriesCommandSplitsWithSRXFlag(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "en.json")

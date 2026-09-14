@@ -108,6 +108,11 @@ func parsedDocumentFromMarkdown(doc markdownDocument, mdx bool) ParsedDocument {
 	return out
 }
 
+// IngestEntries returns translatable document slots for ingest and SRX splitting.
+func (d ParsedDocument) IngestEntries() map[string]IngestEntry {
+	return d.ingestEntries()
+}
+
 func (d ParsedDocument) ingestEntries() map[string]IngestEntry {
 	if len(d.Blocks) == 0 {
 		return nil
@@ -143,7 +148,20 @@ func (d ParsedDocument) WithBlockText(values map[string]string) ParsedDocument {
 // EncodeDocumentEntriesCommandOutput emits `hl entries` JSON for a document:
 // block records plus the reserved document envelope.
 func EncodeDocumentEntriesCommandOutput(doc ParsedDocument) map[string]EntriesCommandOutputValue {
-	out := EncodeEntriesCommandOutput(doc.ingestEntries())
+	entries := doc.ingestEntries()
+	if entries == nil {
+		entries = map[string]IngestEntry{}
+	}
+	return EncodeDocumentEntriesCommandOutputFromEntries(doc, entries)
+}
+
+// EncodeDocumentEntriesCommandOutputFromEntries emits document `hl entries` JSON from
+// pre-split ingest entries (for example after SRX segmentation).
+func EncodeDocumentEntriesCommandOutputFromEntries(
+	doc ParsedDocument,
+	entries map[string]IngestEntry,
+) map[string]EntriesCommandOutputValue {
+	out := EncodeEntriesCommandOutput(entries)
 	if out == nil {
 		out = map[string]EntriesCommandOutputValue{}
 	}

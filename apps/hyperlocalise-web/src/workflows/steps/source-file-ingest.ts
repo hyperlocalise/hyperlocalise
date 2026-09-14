@@ -95,7 +95,7 @@ export async function loadSourceFileSegmentationStep(input: {
 
 export async function writeSourceFileSegmentationSrxStep(
   sandboxId: string,
-  settings: import("@/lib/database/schema/files").RepositorySourceFileSegmentationSettings,
+  settings: import("@/lib/projects/files/source-file-segmentation-schema").RepositorySourceFileSegmentationSettings,
 ) {
   "use step";
   const { resolveSandboxSrxCliSpec } =
