@@ -476,7 +476,7 @@ func findCompletionForTask(
 	taskHashes []string,
 ) (lockfile.RunCompletion, string, bool) {
 	for _, identity := range taskIdentityCandidates(task, projectRoot) {
-		if completion, ok := completed[identity]; ok && completionMatchesTask(completion, sourceHash, taskHashes) {
+		if completion, ok := completed[identity]; ok && completionMatchesTask(completion, sourceHash, taskHashes, task) {
 			return completion, identity, true
 		}
 	}
@@ -494,7 +494,7 @@ func findCheckpointForTask(
 	for _, identity := range taskIdentityCandidates(task, projectRoot) {
 		if checkpoint, ok := checkpoints[identity]; ok &&
 			checkpointMatchesActiveRun(checkpoint, activeRunID) &&
-			checkpointMatchesTask(checkpoint, sourceHash, taskHashes) {
+			checkpointMatchesTask(checkpoint, sourceHash, taskHashes, task) {
 			return checkpoint, identity, true
 		}
 	}
@@ -537,16 +537,24 @@ func checkpointMatchesActiveRun(cp lockfile.RunCheckpoint, activeRunID string) b
 	return activeRunID != "" && cp.RunID == activeRunID
 }
 
-func completionMatchesTask(completion lockfile.RunCompletion, sourceHash string, taskHashes []string) bool {
+func completionMatchesTask(completion lockfile.RunCompletion, sourceHash string, taskHashes []string, task Task) bool {
 	if strings.TrimSpace(completion.TaskHash) != "" {
 		return lockFingerprintEqualAny(completion.TaskHash, taskHashes)
+	}
+	if task.TranslationType == config.TranslationTypeMT {
+		// Source-only legacy rows are LLM-era state. MT must match an
+		// explicit task hash so switching type cannot reuse stale output.
+		return false
 	}
 	return lockFingerprintEqual(completion.SourceHash, sourceHash)
 }
 
-func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash string, taskHashes []string) bool {
+func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash string, taskHashes []string, task Task) bool {
 	if strings.TrimSpace(checkpoint.TaskHash) != "" {
 		return lockFingerprintEqualAny(checkpoint.TaskHash, taskHashes)
+	}
+	if task.TranslationType == config.TranslationTypeMT {
+		return false
 	}
 	return lockFingerprintEqual(checkpoint.SourceHash, sourceHash)
 }
@@ -633,7 +641,7 @@ func applyMaxTranslationsLimit(executable []Task, max int) (limited []Task, defe
 
 func completedEvent(report Report) Event {
 	usage := NormalizeTokenUsage(report.TokenUsage)
-	return eventWithTokenUsage(Event{
+	return eventWithMTUsage(eventWithTokenUsage(Event{
 		Kind:            EventCompleted,
 		PlannedTotal:    report.PlannedTotal,
 		SkippedByLock:   report.SkippedByLock,
@@ -644,7 +652,7 @@ func completedEvent(report Report) Event {
 		PersistedToLock: report.PersistedToLock,
 		PruneCandidates: len(report.PruneCandidates),
 		PruneApplied:    report.PruneApplied,
-	}, usage)
+	}, usage), report.MTUsage)
 }
 
 func eventWithTokenUsage(event Event, usage TokenUsage) Event {

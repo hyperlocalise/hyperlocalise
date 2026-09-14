@@ -1269,3 +1269,120 @@ func TestRunMTTasksEngineResolutionFailureRecordsNoRequests(t *testing.T) {
 		t.Fatalf("MTUsage.SourceChars=%d, want 0", state.report.SourceChars)
 	}
 }
+
+func TestProcessMTBatchUsesEngineReportedRequestCount(t *testing.T) {
+	tasks := []Task{
+		{EntryKey: "k0", TargetPath: "out.json", SourcePath: "in.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", Provider: "amazon", TranslationType: config.TranslationTypeMT, SourceText: "one"},
+		{EntryKey: "k1", TargetPath: "out.json", SourcePath: "in.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", Provider: "amazon", TranslationType: config.TranslationTypeMT, SourceText: "two"},
+		{EntryKey: "k2", TargetPath: "out.json", SourcePath: "in.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", Provider: "amazon", TranslationType: config.TranslationTypeMT, SourceText: "three"},
+	}
+	key := mtGroupKey{profileName: "p1", sourceLocale: "en", targetLocale: "fr"}
+
+	svc := newTestService()
+	state := newMTBatchTestState(t, tasks)
+	emitter := newEventEmitter(func(Event) {})
+	completions := make(chan taskCompletion, len(tasks))
+	targetFailures := make(chan string, 1)
+	engine := &scriptedMTEngine{results: []scriptedMTResult{
+		{resp: mt.Response{Translations: []string{"un", "deux", "trois"}, RequestCount: 3}},
+	}}
+
+	svc.processMTBatch(context.Background(), engine, key, tasks, completions, targetFailures, state, emitter)
+	emitter.close()
+	close(completions)
+
+	if got := engine.callCount(); got != 1 {
+		t.Fatalf("engine.Translate call count=%d, want 1", got)
+	}
+	if state.report.RequestCount != 3 {
+		t.Fatalf("MTUsage.RequestCount=%d, want 3 (engine-reported provider requests, not Translate attempts)", state.report.RequestCount)
+	}
+	if state.report.Succeeded != 3 {
+		t.Fatalf("report.Succeeded=%d, want 3", state.report.Succeeded)
+	}
+}
+
+func TestProcessMTBatchFailureEventIncludesTranslationTypeAndMTUsage(t *testing.T) {
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	sleepWithContext = func(_ context.Context, _ time.Duration) error { return nil }
+
+	tasks := []Task{
+		{EntryKey: "k0", TargetPath: "out.json", SourcePath: "in.json", SourceLocale: "en", TargetLocale: "fr", ProfileName: "p1", Provider: "google", TranslationType: config.TranslationTypeMT, SourceText: "hello"},
+	}
+	key := mtGroupKey{profileName: "p1", sourceLocale: "en", targetLocale: "fr"}
+
+	svc := newTestService()
+	state := newMTBatchTestState(t, tasks)
+	var mu sync.Mutex
+	var events []Event
+	emitter := newEventEmitter(func(ev Event) {
+		mu.Lock()
+		defer mu.Unlock()
+		events = append(events, ev)
+	})
+	completions := make(chan taskCompletion, 1)
+	targetFailures := make(chan string, 1)
+	persistentErr := &mt.Error{Code: mt.ErrorCodeUpstreamUnavailable, Message: "down"}
+	engine := &scriptedMTEngine{results: []scriptedMTResult{
+		{err: persistentErr},
+		{err: persistentErr},
+		{err: persistentErr},
+	}}
+
+	svc.processMTBatch(context.Background(), engine, key, tasks, completions, targetFailures, state, emitter)
+	emitter.close()
+	close(completions)
+
+	mu.Lock()
+	defer mu.Unlock()
+	var failed Event
+	for _, ev := range events {
+		if ev.Kind == EventTaskDone && !ev.TaskSucceeded {
+			failed = ev
+			break
+		}
+	}
+	if failed.Kind == "" {
+		t.Fatal("expected a failed EventTaskDone")
+	}
+	if failed.TranslationType != config.TranslationTypeMT {
+		t.Fatalf("failed event TranslationType=%q, want %q", failed.TranslationType, config.TranslationTypeMT)
+	}
+	if failed.SourceChars != 5 {
+		t.Fatalf("failed event SourceChars=%d, want 5", failed.SourceChars)
+	}
+	if failed.RequestCount != mtBatchMaxAttempts {
+		t.Fatalf("failed event RequestCount=%d, want %d", failed.RequestCount, mtBatchMaxAttempts)
+	}
+	if failed.DurationMillis < 0 {
+		t.Fatalf("failed event DurationMillis=%d, want >= 0", failed.DurationMillis)
+	}
+}
+
+func TestCompletedEventIncludesMTUsage(t *testing.T) {
+	event := completedEvent(Report{
+		Succeeded: 2,
+		Failed:    1,
+		TokenUsage: TokenUsage{
+			InputTokens:  5,
+			OutputTokens: 7,
+			TotalTokens:  12,
+		},
+		MTUsage: MTUsage{
+			SourceChars:     10,
+			TranslatedChars: 12,
+			RequestCount:    3,
+			DurationMillis:  40,
+		},
+	})
+	if event.Kind != EventCompleted {
+		t.Fatalf("kind=%q, want %q", event.Kind, EventCompleted)
+	}
+	if event.SourceChars != 10 || event.TranslatedChars != 12 || event.RequestCount != 3 || event.DurationMillis != 40 {
+		t.Fatalf("completed event MT usage = %+v, want SourceChars=10 TranslatedChars=12 RequestCount=3 DurationMillis=40", event)
+	}
+	if event.InputTokens != 5 || event.OutputTokens != 7 || event.TotalTokens != 12 {
+		t.Fatalf("completed event token usage = %+v, want InputTokens=5 OutputTokens=7 TotalTokens=12", event)
+	}
+}

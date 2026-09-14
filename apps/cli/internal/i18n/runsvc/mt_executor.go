@@ -32,8 +32,18 @@ type mtTaskGroup struct {
 }
 
 type mtBatchAttemptStats struct {
-	Attempts int
-	Duration time.Duration
+	Attempts     int
+	RequestCount int
+	Duration     time.Duration
+}
+
+// mtProviderRequestCount prefers the engine-reported HTTP count. Engines that
+// omit RequestCount are treated as one provider request per Translate call.
+func mtProviderRequestCount(resp mt.Response) int {
+	if resp.RequestCount > 0 {
+		return resp.RequestCount
+	}
+	return 1
 }
 
 func sumRuneCounts(values []string) int64 {
@@ -173,7 +183,7 @@ func (s *Service) processMTBatch(ctx context.Context, engine mt.Engine, key mtGr
 }
 
 func (s *Service) recordMTBatchAttempt(state *executorState, key mtGroupKey, provider string, sourceChars int64, stats mtBatchAttemptStats) {
-	delta := MTUsage{SourceChars: sourceChars, RequestCount: stats.Attempts, DurationMillis: stats.Duration.Milliseconds()}
+	delta := MTUsage{SourceChars: sourceChars, RequestCount: stats.RequestCount, DurationMillis: stats.Duration.Milliseconds()}
 
 	state.reportMu.Lock()
 	defer state.reportMu.Unlock()
@@ -258,9 +268,11 @@ func (s *Service) failMTBatch(ctx context.Context, batch []Task, err error, targ
 // Returns attempt stats on both success and failure for MT usage accounting.
 func (s *Service) translateMTBatchWithRetry(ctx context.Context, engine mt.Engine, req mt.Request) (mt.Response, mtBatchAttemptStats, error) {
 	start := time.Now()
+	requestCount := 0
 	for attempt := 0; attempt < mtBatchMaxAttempts; attempt++ {
 		resp, err := engine.Translate(ctx, req)
-		stats := mtBatchAttemptStats{Attempts: attempt + 1, Duration: time.Since(start)}
+		requestCount += mtProviderRequestCount(resp)
+		stats := mtBatchAttemptStats{Attempts: attempt + 1, RequestCount: requestCount, Duration: time.Since(start)}
 		if err == nil {
 			return resp, stats, nil
 		}
@@ -268,7 +280,7 @@ func (s *Service) translateMTBatchWithRetry(ctx context.Context, engine mt.Engin
 			return mt.Response{}, stats, err
 		}
 		if waitErr := sleepWithContext(ctx, translationRetryDelay(attempt)); waitErr != nil {
-			return mt.Response{}, mtBatchAttemptStats{Attempts: attempt + 1, Duration: time.Since(start)}, waitErr
+			return mt.Response{}, mtBatchAttemptStats{Attempts: attempt + 1, RequestCount: requestCount, Duration: time.Since(start)}, waitErr
 		}
 	}
 	panic("unreachable")

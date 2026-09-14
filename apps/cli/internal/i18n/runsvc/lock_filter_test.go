@@ -399,6 +399,80 @@ func TestApplyLockFilterFallsBackToLegacySourceHash(t *testing.T) {
 	}
 }
 
+func TestApplyLockFilterDoesNotReuseSourceOnlyLegacyLockForMTTask(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.json"
+	task.SourcePath = "/tmp/source.json"
+	task.EntryKey = "hello"
+	task.SourceLocale = "en"
+	task.TargetLocale = "fr"
+	task.TranslationType = config.TranslationTypeMT
+	task.Provider = "google"
+	task.Model = ""
+	task.PromptVersion = ""
+	task.ProfileName = "google-default"
+
+	completed := map[string]lockfile.RunCompletion{
+		taskIdentity(task.TargetPath, task.EntryKey): {
+			SourceHash: hashSourceText(task.SourceText),
+		},
+	}
+
+	report, executable, _, migrated, err := applyLockFilter([]Task{task}, completed, nil, "", false)
+	if err != nil {
+		t.Fatalf("applyLockFilter: %v", err)
+	}
+	if report.SkippedByLock != 0 {
+		t.Fatalf("expected MT task to ignore a source-only legacy lock entry, got report %+v", report)
+	}
+	if len(executable) != 1 {
+		t.Fatalf("expected MT task to remain executable, got %d", len(executable))
+	}
+	if migrated {
+		t.Fatal("expected source-only MT mismatch not to migrate the lock entry")
+	}
+}
+
+func TestApplyLockFilterDoesNotReuseSourceOnlyCheckpointForMTTask(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.json"
+	task.SourcePath = "/tmp/source.json"
+	task.EntryKey = "hello"
+	task.SourceLocale = "en"
+	task.TargetLocale = "fr"
+	task.TranslationType = config.TranslationTypeMT
+	task.Provider = "google"
+	task.Model = ""
+	task.PromptVersion = ""
+	task.ProfileName = "google-default"
+
+	checkpoints := map[string]lockfile.RunCheckpoint{
+		taskIdentity(task.TargetPath, task.EntryKey): {
+			RunID:        "run_1",
+			TargetPath:   task.TargetPath,
+			SourcePath:   task.SourcePath,
+			TargetLocale: task.TargetLocale,
+			EntryKey:     task.EntryKey,
+			Value:        "Bonjour",
+			SourceHash:   hashSourceText(task.SourceText),
+		},
+	}
+
+	report, executable, checkpointStaged, _, err := applyLockFilter([]Task{task}, nil, checkpoints, "run_1", false)
+	if err != nil {
+		t.Fatalf("applyLockFilter: %v", err)
+	}
+	if report.SkippedByLock != 0 {
+		t.Fatalf("expected no skip from a source-only MT checkpoint, got report %+v", report)
+	}
+	if len(executable) != 1 {
+		t.Fatalf("expected MT task to remain executable, got %d", len(executable))
+	}
+	if len(checkpointStaged) != 0 {
+		t.Fatalf("expected source-only MT checkpoint not to be staged, got %+v", checkpointStaged)
+	}
+}
+
 func TestApplyLockFilterDoesNotStageCheckpointWhenTaskHashChanges(t *testing.T) {
 	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"

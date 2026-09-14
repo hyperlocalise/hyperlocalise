@@ -734,17 +734,23 @@ func recordTaskFailure(report *executionReport, reportMu *sync.Mutex, total int,
 	succeeded := report.Succeeded
 	failed := report.Failed
 	tokenUsage := report.TokenUsage
+	mtUsage := report.MTUsage
 	reportMu.Unlock()
-	emitter.emit(eventWithTokenUsage(Event{
+	event := eventWithTokenUsage(Event{
 		Kind:            EventTaskDone,
 		TaskSucceeded:   false,
 		TargetPath:      task.TargetPath,
 		EntryKey:        task.EntryKey,
+		TranslationType: task.TranslationType,
 		FailureReason:   err.Error(),
 		Succeeded:       succeeded,
 		Failed:          failed,
 		ExecutableTotal: total,
-	}, tokenUsage))
+	}, tokenUsage)
+	if task.TranslationType == config.TranslationTypeMT {
+		event = eventWithMTUsage(event, mtUsage)
+	}
+	emitter.emit(event)
 }
 
 func stageTaskOutput(staged map[string]stagedOutput, task Task, value string, stageMu *sync.Mutex) error {
