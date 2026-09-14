@@ -43,7 +43,7 @@ func TestDictionaryProjectAttachmentIdempotency(t *testing.T) {
 			steps := []dictionaryDBStep{
 				dictionaryRowStep("from projects p", "project_1"), dictionaryOwnedStep(),
 				{kind: "begin"},
-				{kind: "exec", sql: "pg_advisory_xact_lock", args: []any{"project_spellcheck_dictionaries:project_1"}},
+				{kind: "exec", sql: "pg_advisory_xact_lock", args: []any{"project_spellcheck_word_libraries:project_1"}},
 				dictionaryRowStep("coalesce(max(priority),-1)+1", 3),
 				{kind: "exec", sql: "p.organization_id=$1 and d.id=$3 and d.organization_id=$1", args: []any{testDictionaryOrgID, "project_1", testDictionaryID, 3}, affected: affected},
 				dictionaryRowStep("select priority", 1),
@@ -77,20 +77,20 @@ func TestDictionaryProjectAttachmentIdempotency(t *testing.T) {
 func TestDictionaryProjectListAndDetach(t *testing.T) {
 	t.Run("list project dictionaries", func(t *testing.T) {
 		api, _ := dictionaryTestAPI(t, "member", dictionaryRowStep("from projects p", "project_1"),
-			dictionaryDBStep{kind: "query", sql: "order by a.priority,a.created_at,a.dictionary_id", values: [][]any{append(dictionaryRecordValues(), 7)}},
+			dictionaryDBStep{kind: "query", sql: "order by a.priority,a.created_at,a.library_id", values: [][]any{append(dictionaryRecordValues(), 7)}},
 		)
 		rec := dictionaryRequestForTest(api, "GET", "/v1/orgs/acme/projects/project_1/dictionaries", "")
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"priority":7`)
 	})
 	t.Run("detach via project", func(t *testing.T) {
-		api, _ := dictionaryTestAPI(t, "admin", dictionaryRowStep("from projects p", "project_1"), dictionaryDBStep{kind: "exec", sql: "project_id=$1 and dictionary_id=$2 and organization_id=$3", args: []any{"project_1", testDictionaryID, testDictionaryOrgID}})
+		api, _ := dictionaryTestAPI(t, "admin", dictionaryRowStep("from projects p", "project_1"), dictionaryDBStep{kind: "exec", sql: "project_id=$1 and library_id=$2 and organization_id=$3", args: []any{"project_1", testDictionaryID, testDictionaryOrgID}})
 		rec := dictionaryRequestForTest(api, "DELETE", "/v1/orgs/acme/projects/project_1/dictionaries/"+testDictionaryID, "")
 		require.Equal(t, 204, rec.Code)
 		require.Empty(t, rec.Body.String())
 	})
 	t.Run("detach via dictionary", func(t *testing.T) {
-		api, _ := dictionaryTestAPI(t, "admin", dictionaryOwnedStep(), dictionaryDBStep{kind: "exec", sql: "dictionary_id=$1 and project_id=$2 and organization_id=$3", args: []any{testDictionaryID, "project_1", testDictionaryOrgID}})
+		api, _ := dictionaryTestAPI(t, "admin", dictionaryOwnedStep(), dictionaryDBStep{kind: "exec", sql: "library_id=$1 and project_id=$2 and organization_id=$3", args: []any{testDictionaryID, "project_1", testDictionaryOrgID}})
 		rec := dictionaryRequestForTest(api, "DELETE", testDictionaryBase+"/"+testDictionaryID+"/projects/project_1", "")
 		require.Equal(t, 204, rec.Code)
 	})

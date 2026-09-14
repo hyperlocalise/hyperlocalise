@@ -22,6 +22,17 @@ const (
 	dictionaryRequestTimeout = 30 * time.Second
 )
 
+// Spellcheck custom dictionaries use spellcheck_word_libraries,
+// spellcheck_word_library_words, and project_spellcheck_word_libraries.
+//
+// Migration 0124_premium_cerise introduced spellcheck_dictionaries,
+// spellcheck_dictionary_words, and project_spellcheck_dictionaries, but those
+// relations were often never created in production. drizzle-kit migrate only
+// runs a journal entry when its `when` timestamp exceeds the latest
+// drizzle.__drizzle_migrations.created_at; 0124's `when` was lower than 0123's
+// while 0125 still applied afterward. See spellcheck-dictionaries.ts and
+// scripts/check-drizzle-journal-monotonic.ts.
+
 type dictionaryDB interface {
 	Query(context.Context, string, ...any) (pgx.Rows, error)
 	QueryRow(context.Context, string, ...any) pgx.Row
@@ -270,7 +281,7 @@ func ownedDictionary(ctx context.Context, db dictionaryDB, actor dictionaryActor
 	if !validDictionaryID(id) {
 		return dictionaryRecord{}, missingDictionary()
 	}
-	d, err := scanDictionary(db.QueryRow(ctx, `select `+dictionaryColumns+` from spellcheck_dictionaries d where d.id=$1 and d.organization_id=$2`, id, actor.organizationID))
+	d, err := scanDictionary(db.QueryRow(ctx, `select `+dictionaryColumns+` from spellcheck_word_libraries d where d.id=$1 and d.organization_id=$2`, id, actor.organizationID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return d, missingDictionary()
 	}
@@ -279,12 +290,12 @@ func ownedDictionary(ctx context.Context, db dictionaryDB, actor dictionaryActor
 
 func dictionaryCount(ctx context.Context, db dictionaryDB, id string) (int, error) {
 	var count int
-	err := db.QueryRow(ctx, `select count(*) from spellcheck_dictionary_words where dictionary_id=$1`, id).Scan(&count)
+	err := db.QueryRow(ctx, `select count(*) from spellcheck_word_library_words where library_id=$1`, id).Scan(&count)
 	return count, err
 }
 
 func bumpDictionary(ctx context.Context, db dictionaryDB, id string) error {
-	_, err := db.Exec(ctx, `update spellcheck_dictionaries set words_version=words_version+1, updated_at=now() where id=$1`, id)
+	_, err := db.Exec(ctx, `update spellcheck_word_libraries set words_version=words_version+1, updated_at=now() where id=$1`, id)
 	return err
 }
 

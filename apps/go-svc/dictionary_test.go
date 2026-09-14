@@ -99,7 +99,7 @@ func TestDictionaryWriteRoles(t *testing.T) {
 	}
 	for _, role := range []string{"admin", "localization_manager"} {
 		t.Run(role, func(t *testing.T) {
-			step := dictionaryRowStep("insert into spellcheck_dictionaries", dictionaryRecordValues()...)
+			step := dictionaryRowStep("insert into spellcheck_word_libraries", dictionaryRecordValues()...)
 			step.args = []any{testDictionaryOrgID, testDictionaryUserID, "Brand", ""}
 			api, _ := dictionaryTestAPI(t, role, step)
 			rec := dictionaryRequestForTest(api, "POST", testDictionaryBase, `{"name":"  Brand  "}`)
@@ -127,7 +127,7 @@ func TestDictionaryReadUpdateDelete(t *testing.T) {
 		require.Contains(t, rec.Body.String(), `"name":"Renamed"`)
 	})
 	t.Run("delete returns no body", func(t *testing.T) {
-		api, _ := dictionaryTestAPI(t, "admin", dictionaryOwnedStep(), dictionaryDBStep{kind: "exec", sql: "delete from spellcheck_dictionaries where id=$1 and organization_id=$2", args: []any{testDictionaryID, testDictionaryOrgID}, affected: 1})
+		api, _ := dictionaryTestAPI(t, "admin", dictionaryOwnedStep(), dictionaryDBStep{kind: "exec", sql: "delete from spellcheck_word_libraries where id=$1 and organization_id=$2", args: []any{testDictionaryID, testDictionaryOrgID}, affected: 1})
 		rec := dictionaryRequestForTest(api, "DELETE", testDictionaryBase+"/"+testDictionaryID, "")
 		require.Equal(t, 204, rec.Code)
 		require.Empty(t, rec.Body.String())
@@ -168,7 +168,7 @@ func TestDictionaryListPagination(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			api, _ := dictionaryTestAPI(t, "member",
 				dictionaryDBStep{kind: "query", sql: "order by d.created_at desc limit $3 offset $4", args: []any{testDictionaryOrgID, tc.projectID, tc.limit, tc.offset}, values: [][]any{dictionaryRecordValues()}},
-				dictionaryDBStep{kind: "query", sql: "group by dictionary_id", values: [][]any{{testDictionaryID, 7}}},
+				dictionaryDBStep{kind: "query", sql: "group by library_id", values: [][]any{{testDictionaryID, 7}}},
 				dictionaryRowStep("select count(*)", 23),
 			)
 			rec := dictionaryRequestForTest(api, "GET", testDictionaryBase+tc.query, "")

@@ -23,7 +23,7 @@ func TestRecordDictionaryFailureLogsInternalError(t *testing.T) {
 	req.Header.Set("X-Vercel-Id", "syd1::req-1")
 	req = req.WithContext(context.WithValue(req.Context(), authContextKey{}, AuthClaims{UserID: "user_01"}))
 
-	recordDictionaryFailure(req, "handle", &pgconn.PgError{Code: "42P01", Message: `relation "spellcheck_dictionaries" does not exist`})
+	recordDictionaryFailure(req, "handle", &pgconn.PgError{Code: "42P01", Message: `relation "spellcheck_word_libraries" does not exist`})
 
 	var entry map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
@@ -32,7 +32,7 @@ func TestRecordDictionaryFailureLogsInternalError(t *testing.T) {
 	require.Equal(t, "syd1::req-1", entry["request_id"])
 	require.Equal(t, "user_01", entry["user_id"])
 	require.Equal(t, "42P01", entry["pg_code"])
-	require.Contains(t, entry["error"], "spellcheck_dictionaries")
+	require.Contains(t, entry["error"], "spellcheck_word_libraries")
 }
 
 func TestRecordDictionaryFailureSkipsClientErrors(t *testing.T) {
