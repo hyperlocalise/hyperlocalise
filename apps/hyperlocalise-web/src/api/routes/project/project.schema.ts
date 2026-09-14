@@ -567,7 +567,7 @@ export const projectFileProviderJobRecordSchema = z.object({
 import {
   repositorySourceFileSegmentationSettingsSchema,
   type RepositorySourceFileSegmentationSettingsInput,
-} from "@/lib/projects/files/source-file-segmentation";
+} from "@/lib/projects/files/source-file-segmentation-schema";
 
 export {
   repositorySourceFileSegmentationSettingsSchema,

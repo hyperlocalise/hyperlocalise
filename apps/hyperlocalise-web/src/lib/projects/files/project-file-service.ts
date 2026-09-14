@@ -35,7 +35,7 @@ import { bufferFromStream } from "@/lib/primitives/streams";
 import { listTmsProviderLiveFilesForProject } from "@/lib/providers/jobs/tms-provider-live";
 import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/jobs/tms-provider-types";
 import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
-import { normalizeSegmentationSettings } from "@/lib/projects/files/source-file-segmentation";
+import { normalizeSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 export type ProjectFileListContext = {

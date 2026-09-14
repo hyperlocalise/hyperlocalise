@@ -99,7 +99,7 @@ export async function writeSourceFileSegmentationSrxStep(
 ) {
   "use step";
   const { resolveSandboxSrxCliSpec } =
-    await import("@/lib/projects/files/source-file-segmentation");
+    await import("@/lib/projects/files/source-file-segmentation-schema");
   const { writeFileToSandbox } = await import("@/lib/translation/sandbox");
   const resolved = resolveSandboxSrxCliSpec(settings);
   if (resolved.customSandboxPath && resolved.customSandboxContent) {

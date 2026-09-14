@@ -11,84 +11,23 @@
  * Version 2.0 or later.
  */
 import { and, desc, eq } from "drizzle-orm";
-import { z } from "zod";
 
 import { db, schema } from "@/lib/database/client";
 import type { RepositorySourceFileSegmentationSettings } from "@/lib/database/schema/files";
-import { defaultRepositorySourceFileSegmentationSettings } from "@/lib/database/schema/files";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
-import {
-  SRX_BUILTIN_TEMPLATES,
-  SRX_CUSTOM_SANDBOX_FILENAME,
-  type SrxBuiltinTemplate,
-} from "@/lib/i18n/srx/srx-template-samples";
 import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
 
-export const repositorySourceFileSegmentationSettingsSchema = z
-  .object({
-    enabled: z.boolean(),
-    template: z.enum(["default", "html", "markdown", "custom"]),
-    customSrxXml: z.string().max(500_000).nullable().optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (!value.enabled) {
-      return;
-    }
-    if (value.template === "custom") {
-      const xml = value.customSrxXml?.trim() ?? "";
-      if (!xml.startsWith("<")) {
-        ctx.addIssue({
-          code: "custom",
-          message: "Custom SRX rules must be XML",
-          path: ["customSrxXml"],
-        });
-      }
-    }
-  });
-
-export type RepositorySourceFileSegmentationSettingsInput = z.infer<
-  typeof repositorySourceFileSegmentationSettingsSchema
->;
-
-export function normalizeSegmentationSettings(
-  raw: RepositorySourceFileSegmentationSettings | null | undefined,
-): RepositorySourceFileSegmentationSettings {
-  if (!raw) {
-    return defaultRepositorySourceFileSegmentationSettings();
-  }
-  const template = SRX_BUILTIN_TEMPLATES.includes(raw.template as SrxBuiltinTemplate)
-    ? raw.template
-    : raw.template === "custom"
-      ? "custom"
-      : "default";
-  return {
-    enabled: Boolean(raw.enabled),
-    template,
-    customSrxXml: raw.customSrxXml ?? null,
-  };
-}
-
-export function resolveSandboxSrxCliSpec(settings: RepositorySourceFileSegmentationSettings): {
-  srxFlag?: string;
-  customSandboxPath?: string;
-  customSandboxContent?: string;
-} {
-  if (!settings.enabled) {
-    return {};
-  }
-  if (settings.template === "custom") {
-    const xml = settings.customSrxXml?.trim() ?? "";
-    if (!xml) {
-      return {};
-    }
-    return {
-      srxFlag: SRX_CUSTOM_SANDBOX_FILENAME,
-      customSandboxPath: SRX_CUSTOM_SANDBOX_FILENAME,
-      customSandboxContent: xml,
-    };
-  }
-  return { srxFlag: settings.template };
-}
+export {
+  normalizeSegmentationSettings,
+  repositorySourceFileSegmentationSettingsSchema,
+  resolveSandboxSrxCliSpec,
+  type RepositorySourceFileSegmentationSettingsInput,
+} from "@/lib/projects/files/source-file-segmentation-schema";
+import {
+  normalizeSegmentationSettings,
+  repositorySourceFileSegmentationSettingsSchema,
+  type RepositorySourceFileSegmentationSettingsInput,
+} from "@/lib/projects/files/source-file-segmentation-schema";
 
 export async function getRepositorySourceFileSegmentation(input: {
   organizationId: string;
