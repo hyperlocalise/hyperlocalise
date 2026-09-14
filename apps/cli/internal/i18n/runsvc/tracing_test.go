@@ -10,11 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
-
-	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
 func withTestSpanRecorder(t *testing.T) *tracetest.SpanRecorder {
@@ -240,8 +239,8 @@ func TestRunTracingMixedLLMAndMTSetsTranslationTypeAndProviderAttributes(t *test
 	// Secret safety: the resolved API key must never reach any span attribute.
 	for _, span := range rec.Ended() {
 		for _, kv := range span.Attributes() {
-			if strings.Contains(kv.Value.Emit(), fakeAPIKey) {
-				t.Fatalf("span %q attribute %q leaked the API key: %s", span.Name(), kv.Key, kv.Value.Emit())
+			if strings.Contains(kv.Value.String(), fakeAPIKey) {
+				t.Fatalf("span %q attribute %q leaked the API key: %s", span.Name(), kv.Key, kv.Value.String())
 			}
 		}
 	}

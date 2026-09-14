@@ -207,7 +207,7 @@ func (s *Service) recordMTTaskSuccess(ctx context.Context, task Task, value stri
 
 	state.reportMu.Lock()
 	state.report.Succeeded++
-	state.report.MTUsage.TranslatedChars += translatedChars
+	state.report.TranslatedChars += translatedChars
 	localeMT := state.report.LocaleMTUsage[task.TargetLocale]
 	localeMT.TranslatedChars += translatedChars
 	state.report.LocaleMTUsage[task.TargetLocale] = localeMT

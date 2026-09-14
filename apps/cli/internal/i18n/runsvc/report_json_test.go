@@ -131,7 +131,7 @@ func TestSummaryJSONReportIncludesMTAggregatesWithoutPerBatchDetail(t *testing.T
 	if got := s.MTUsageByProfile["google-default"]; got.Provider != "google" || got.SourceChars != 40 {
 		t.Fatalf("summary MTUsageByProfile[google-default] = %+v, want Provider=google SourceChars=40", got)
 	}
-	if s.TokenUsage.InputTokens != 10 {
+	if s.InputTokens != 10 {
 		t.Fatalf("summary TokenUsage unaffected by MT aggregates, got %+v", s.TokenUsage)
 	}
 

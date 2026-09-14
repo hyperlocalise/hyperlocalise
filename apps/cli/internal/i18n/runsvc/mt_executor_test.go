@@ -652,10 +652,10 @@ func TestProcessMTBatchNonRetryableErrorFailsImmediatelyPreservingErrorCode(t *t
 	if got := state.report.Failures[0].Code; got != string(mt.ErrorCodeAuthFailed) {
 		t.Fatalf("failure.Code=%q, want %q", got, mt.ErrorCodeAuthFailed)
 	}
-	if state.report.MTUsage.RequestCount != 1 {
-		t.Fatalf("MTUsage.RequestCount=%d, want 1 (the single non-retryable attempt)", state.report.MTUsage.RequestCount)
+	if state.report.RequestCount != 1 {
+		t.Fatalf("MTUsage.RequestCount=%d, want 1 (the single non-retryable attempt)", state.report.RequestCount)
 	}
-	if state.report.MTUsage.SourceChars == 0 {
+	if state.report.SourceChars == 0 {
 		t.Fatal("MTUsage.SourceChars=0, want attempted source chars recorded even on immediate failure")
 	}
 }
@@ -770,10 +770,10 @@ func TestExecutePoolMixedLLMAndMTExecution(t *testing.T) {
 		t.Fatalf("llm-out.json should already be flushed and removed from staged, got %v", staged)
 	}
 
-	if execReport.MTUsage.RequestCount != 1 {
-		t.Fatalf("execReport.MTUsage.RequestCount=%d, want 1", execReport.MTUsage.RequestCount)
+	if execReport.RequestCount != 1 {
+		t.Fatalf("execReport.MTUsage.RequestCount=%d, want 1", execReport.RequestCount)
 	}
-	if execReport.MTUsage.SourceChars == 0 || execReport.MTUsage.TranslatedChars == 0 {
+	if execReport.SourceChars == 0 || execReport.TranslatedChars == 0 {
 		t.Fatalf("execReport.MTUsage=%+v, want non-zero source/translated chars", execReport.MTUsage)
 	}
 	profileUsage := execReport.MTUsageByProfile["p1"]
@@ -791,7 +791,7 @@ func TestExecutePoolMixedLLMAndMTExecution(t *testing.T) {
 			}
 		case config.TranslationTypeMT:
 			sawMTBatch = true
-			if batch.TokenUsage.InputTokens != 0 || batch.TokenUsage.OutputTokens != 0 || batch.TokenUsage.TotalTokens != 0 {
+			if batch.InputTokens != 0 || batch.OutputTokens != 0 || batch.TotalTokens != 0 {
 				t.Fatalf("MT batch row carries LLM token usage: %+v", batch.TokenUsage)
 			}
 		}
@@ -1109,17 +1109,17 @@ func TestProcessMTBatchRecordsCharsAndRequestCountOnSuccess(t *testing.T) {
 	emitter.close()
 	close(completions)
 
-	if state.report.MTUsage.SourceChars != 4 {
-		t.Fatalf("MTUsage.SourceChars=%d, want 4 (rune count of %q)", state.report.MTUsage.SourceChars, "café")
+	if state.report.SourceChars != 4 {
+		t.Fatalf("MTUsage.SourceChars=%d, want 4 (rune count of %q)", state.report.SourceChars, "café")
 	}
-	if state.report.MTUsage.TranslatedChars != 7 {
-		t.Fatalf("MTUsage.TranslatedChars=%d, want 7 (rune count of %q)", state.report.MTUsage.TranslatedChars, "café-fr")
+	if state.report.TranslatedChars != 7 {
+		t.Fatalf("MTUsage.TranslatedChars=%d, want 7 (rune count of %q)", state.report.TranslatedChars, "café-fr")
 	}
-	if state.report.MTUsage.RequestCount != 1 {
-		t.Fatalf("MTUsage.RequestCount=%d, want 1", state.report.MTUsage.RequestCount)
+	if state.report.RequestCount != 1 {
+		t.Fatalf("MTUsage.RequestCount=%d, want 1", state.report.RequestCount)
 	}
-	if state.report.MTUsage.DurationMillis < 0 {
-		t.Fatalf("MTUsage.DurationMillis=%d, want >= 0", state.report.MTUsage.DurationMillis)
+	if state.report.DurationMillis < 0 {
+		t.Fatalf("MTUsage.DurationMillis=%d, want >= 0", state.report.DurationMillis)
 	}
 
 	localeUsage := state.report.LocaleMTUsage["fr"]
@@ -1150,7 +1150,7 @@ func TestProcessMTBatchRecordsCharsAndRequestCountOnSuccess(t *testing.T) {
 	if batch.SourceChars != 4 || batch.TranslatedChars != 7 {
 		t.Fatalf("batch MTUsage: SourceChars=%d TranslatedChars=%d, want 4/7", batch.SourceChars, batch.TranslatedChars)
 	}
-	if batch.TokenUsage.InputTokens != 0 || batch.TokenUsage.OutputTokens != 0 || batch.TokenUsage.TotalTokens != 0 {
+	if batch.InputTokens != 0 || batch.OutputTokens != 0 || batch.TotalTokens != 0 {
 		t.Fatalf("batch.TokenUsage=%+v, want zero value for an MT row", batch.TokenUsage)
 	}
 }
@@ -1181,11 +1181,11 @@ func TestProcessMTBatchRetryThenSuccessCountsSourceCharsOnceButRequestsPerAttemp
 	if got := engine.callCount(); got != 2 {
 		t.Fatalf("engine.Translate call count=%d, want 2", got)
 	}
-	if state.report.MTUsage.RequestCount != 2 {
-		t.Fatalf("MTUsage.RequestCount=%d, want 2 (one failed attempt plus the successful retry)", state.report.MTUsage.RequestCount)
+	if state.report.RequestCount != 2 {
+		t.Fatalf("MTUsage.RequestCount=%d, want 2 (one failed attempt plus the successful retry)", state.report.RequestCount)
 	}
-	if state.report.MTUsage.SourceChars != 5 {
-		t.Fatalf("MTUsage.SourceChars=%d, want 5 (counted once per batch call, not multiplied by retries)", state.report.MTUsage.SourceChars)
+	if state.report.SourceChars != 5 {
+		t.Fatalf("MTUsage.SourceChars=%d, want 5 (counted once per batch call, not multiplied by retries)", state.report.SourceChars)
 	}
 	if state.report.Succeeded != 1 {
 		t.Fatalf("report.Succeeded=%d, want 1", state.report.Succeeded)
@@ -1218,17 +1218,17 @@ func TestProcessMTBatchFailedBatchStillRecordsRequestsAndDuration(t *testing.T) 
 	emitter.close()
 	close(completions)
 
-	if state.report.MTUsage.RequestCount != mtBatchMaxAttempts {
-		t.Fatalf("MTUsage.RequestCount=%d, want %d (a failed batch must still report every attempt)", state.report.MTUsage.RequestCount, mtBatchMaxAttempts)
+	if state.report.RequestCount != mtBatchMaxAttempts {
+		t.Fatalf("MTUsage.RequestCount=%d, want %d (a failed batch must still report every attempt)", state.report.RequestCount, mtBatchMaxAttempts)
 	}
-	if state.report.MTUsage.SourceChars != 5 {
-		t.Fatalf("MTUsage.SourceChars=%d, want 5 (attempted chars recorded even though the batch failed)", state.report.MTUsage.SourceChars)
+	if state.report.SourceChars != 5 {
+		t.Fatalf("MTUsage.SourceChars=%d, want 5 (attempted chars recorded even though the batch failed)", state.report.SourceChars)
 	}
-	if state.report.MTUsage.TranslatedChars != 0 {
-		t.Fatalf("MTUsage.TranslatedChars=%d, want 0 (no successful output)", state.report.MTUsage.TranslatedChars)
+	if state.report.TranslatedChars != 0 {
+		t.Fatalf("MTUsage.TranslatedChars=%d, want 0 (no successful output)", state.report.TranslatedChars)
 	}
-	if state.report.MTUsage.DurationMillis < 0 {
-		t.Fatalf("MTUsage.DurationMillis=%d, want >= 0", state.report.MTUsage.DurationMillis)
+	if state.report.DurationMillis < 0 {
+		t.Fatalf("MTUsage.DurationMillis=%d, want >= 0", state.report.DurationMillis)
 	}
 	if state.report.Succeeded != 0 || state.report.Failed != 1 {
 		t.Fatalf("report succeeded/failed=%d/%d, want 0/1", state.report.Succeeded, state.report.Failed)
@@ -1262,10 +1262,10 @@ func TestRunMTTasksEngineResolutionFailureRecordsNoRequests(t *testing.T) {
 	if state.report.Failed != 1 {
 		t.Fatalf("report.Failed=%d, want 1", state.report.Failed)
 	}
-	if state.report.MTUsage.RequestCount != 0 {
-		t.Fatalf("MTUsage.RequestCount=%d, want 0 (no provider call was ever attempted)", state.report.MTUsage.RequestCount)
+	if state.report.RequestCount != 0 {
+		t.Fatalf("MTUsage.RequestCount=%d, want 0 (no provider call was ever attempted)", state.report.RequestCount)
 	}
-	if state.report.MTUsage.SourceChars != 0 {
-		t.Fatalf("MTUsage.SourceChars=%d, want 0", state.report.MTUsage.SourceChars)
+	if state.report.SourceChars != 0 {
+		t.Fatalf("MTUsage.SourceChars=%d, want 0", state.report.SourceChars)
 	}
 }
