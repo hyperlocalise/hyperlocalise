@@ -224,7 +224,7 @@ type Failure struct {
 	EntryKey        string `json:"entryKey"`
 	Reason          string `json:"reason"`
 	TranslationType string `json:"translationType,omitempty"`
-	Code string `json:"code,omitempty"`
+	Code            string `json:"code,omitempty"`
 }
 
 type TokenUsage struct {

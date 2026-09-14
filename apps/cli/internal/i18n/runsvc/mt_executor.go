@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -40,6 +42,18 @@ func sumRuneCounts(values []string) int64 {
 		total += int64(utf8.RuneCountInString(v))
 	}
 	return total
+}
+
+func distinctMTTaskProviders(tasks []Task) []string {
+	var providers []string
+	for _, task := range tasks {
+		if provider := strings.TrimSpace(task.Provider); provider != "" {
+			providers = append(providers, provider)
+		}
+	}
+	providers = dedupeStrings(providers)
+	slices.Sort(providers)
+	return providers
 }
 
 func partitionMTTasks(tasks []Task) (llmTasks []Task, mtTasks []Task) {

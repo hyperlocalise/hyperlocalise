@@ -10,6 +10,8 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 	"github.com/hyperlocalise/hyperlocalise/internal/mt"
+	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -221,7 +223,13 @@ func (s *Service) executePool(ctx context.Context, llmTasks []Task, mtTasks []Ta
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.runMTTasks(ctx, mtTasks, mtBatchSize, mtEngines, completions, targetFailures, state, emitter)
+			mtCtx, mtSpan := startRunSpan(ctx, "run.execute_pool.mt")
+			mtSpan.SetAttributes(
+				attribute.String("translation.type", config.TranslationTypeMT),
+				attribute.StringSlice("mt.provider", distinctMTTaskProviders(mtTasks)),
+			)
+			s.runMTTasks(mtCtx, mtTasks, mtBatchSize, mtEngines, completions, targetFailures, state, emitter)
+			endRunSpan(mtSpan, nil, "")
 		}()
 	}
 

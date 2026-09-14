@@ -185,3 +185,17 @@ func mtProfilesFromConfig(cfg *config.I18NConfig) map[string]config.MTProfile {
 	}
 	return cfg.MT.Profiles
 }
+
+func distinctConfiguredProviders(profiles map[string]config.MTProfile, names []string) []string {
+	var providers []string
+	for _, name := range names {
+		if profile, ok := profiles[name]; ok {
+			if provider := strings.TrimSpace(profile.Provider); provider != "" {
+				providers = append(providers, provider)
+			}
+		}
+	}
+	providers = dedupeStrings(providers)
+	slices.Sort(providers)
+	return providers
+}

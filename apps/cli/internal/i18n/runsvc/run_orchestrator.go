@@ -157,8 +157,13 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	// invalid runtime configuration fails the run before any work begins.
 	var mtEngines *mtEngineFactory
 	if mtProfileNames := selectedMTProfileNames(executable); len(mtProfileNames) > 0 {
-		mtEngines = newMTEngineFactory(mtProfilesFromConfig(cfg))
+		mtProfiles := mtProfilesFromConfig(cfg)
+		mtEngines = newMTEngineFactory(mtProfiles)
 		_, mtSpan := startRunSpan(ctx, "run.mt_engines")
+		mtSpan.SetAttributes(
+			attribute.StringSlice("run.mt_profiles", mtProfileNames),
+			attribute.StringSlice("mt.provider", distinctConfiguredProviders(mtProfiles, mtProfileNames)),
+		)
 		if err := mtEngines.BuildSelected(mtProfileNames); err != nil {
 			endRunSpan(mtSpan, err, "mt_engines")
 			emitter.emit(completedEvent(report))
@@ -193,7 +198,19 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		sourcePaths:   in.SourcePaths,
 	}
 	execCtx, execSpan := startRunSpan(ctx, "run.execute_pool")
-	execSpan.SetAttributes(attribute.Int("run.workers", in.Workers))
+	var translationTypes []string
+	if len(llmTasks) > 0 {
+		translationTypes = append(translationTypes, config.TranslationTypeLLM)
+	}
+	if len(mtTasks) > 0 {
+		translationTypes = append(translationTypes, config.TranslationTypeMT)
+	}
+	execSpan.SetAttributes(
+		attribute.Int("run.workers", in.Workers),
+		attribute.StringSlice("translation.type", translationTypes),
+		attribute.Int("run.llm_task_count", len(llmTasks)),
+		attribute.Int("run.mt_task_count", len(mtTasks)),
+	)
 	staged, flushedTargets, execReport, err := s.executePool(execCtx, llmTasks, mtTasks, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, mtEngines, emitter, summaryReportMode, parityRetry)
 	endRunSpan(execSpan, err, "execute_pool")
 	report.Succeeded = execReport.Succeeded
