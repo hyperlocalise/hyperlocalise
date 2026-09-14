@@ -23,7 +23,6 @@ import {
   type SrxBuiltinTemplate,
 } from "@/lib/i18n/srx/srx-template-samples";
 import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
-import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
 
 export const repositorySourceFileSegmentationSettingsSchema = z
   .object({
@@ -257,6 +256,8 @@ async function requestSourceFileReingest(input: {
     })
     .where(eq(schema.repositorySourceFileVersions.id, version.id));
 
+  const { enqueueSourceFileIngestAfterUpload } =
+    await import("@/lib/projects/files/source-file-ingest");
   await enqueueSourceFileIngestAfterUpload({
     organizationId: input.organizationId,
     projectId: input.projectId,
