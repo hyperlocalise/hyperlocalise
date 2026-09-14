@@ -74,11 +74,54 @@ func dictionaryJSON(w http.ResponseWriter, status int, value any) {
 	}
 }
 
-func writeDictionaryError(w http.ResponseWriter, err error) {
+func dictionaryLogAttrs(r *http.Request, phase string) []any {
+	attrs := []any{
+		"phase", phase,
+		"path", requestLogPath(r.URL.Path),
+	}
+	if id := requestID(r); id != "" {
+		attrs = append(attrs, "request_id", id)
+	}
+	if claims, ok := r.Context().Value(authContextKey{}).(AuthClaims); ok && claims.UserID != "" {
+		attrs = append(attrs, "user_id", claims.UserID)
+	}
+	return attrs
+}
+
+func appendDictionaryErrorDetail(attrs []any, err error) []any {
+	if err == nil {
+		return attrs
+	}
+	attrs = append(attrs, "error", err.Error())
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		attrs = append(attrs, "pg_code", pgErr.Code)
+	}
+	return attrs
+}
+
+// recordDictionaryFailure logs enough context to debug 5xx responses in production.
+func recordDictionaryFailure(r *http.Request, phase string, err error) {
+	var failure *dictionaryError
+	if errors.As(err, &failure) {
+		attrs := dictionaryLogAttrs(r, phase)
+		attrs = append(attrs, "status", failure.status, "code", failure.code)
+		if failure.status >= 500 {
+			slog.Error("dictionary_request_failed", attrs...)
+		}
+		return
+	}
+	attrs := appendDictionaryErrorDetail(dictionaryLogAttrs(r, phase), err)
+	slog.Error("dictionary_request_failed", attrs...)
+}
+
+func writeDictionaryError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *dictionaryError
 	if !errors.As(err, &failure) {
-		slog.Error("dictionary_request_failed")
+		recordDictionaryFailure(r, phase, err)
 		failure = &dictionaryError{500, "internal_error", "Internal server error"}
+	} else if failure.status >= 500 {
+		recordDictionaryFailure(r, phase, failure)
 	}
 	dictionaryJSON(w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
 }
@@ -136,17 +179,17 @@ func (api *dictionaryAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		if origin != "" {
 			parsed, err := url.Parse(origin)
 			if err != nil || parsed.Host != r.Host || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-				writeDictionaryError(w, dictionaryFailure(403, "forbidden", "Cross-origin request denied"))
+				writeDictionaryError(w, r, "origin_guard", dictionaryFailure(403, "forbidden", "Cross-origin request denied"))
 				return
 			}
 		}
 		if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
-			writeDictionaryError(w, dictionaryFailure(403, "forbidden", "Cross-origin request denied"))
+			writeDictionaryError(w, r, "origin_guard", dictionaryFailure(403, "forbidden", "Cross-origin request denied"))
 			return
 		}
 	}
 	if api.pool == nil {
-		writeDictionaryError(w, dictionaryFailure(503, "dictionary_unavailable", "Dictionary service unavailable"))
+		writeDictionaryError(w, r, "availability", dictionaryFailure(503, "dictionary_unavailable", "Dictionary service unavailable"))
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), dictionaryRequestTimeout)
@@ -154,16 +197,16 @@ func (api *dictionaryAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	r = r.WithContext(ctx)
 	claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
 	if !ok {
-		writeDictionaryError(w, dictionaryFailure(401, "unauthorized", "Authentication required"))
+		writeDictionaryError(w, r, "auth", dictionaryFailure(401, "unauthorized", "Authentication required"))
 		return
 	}
 	actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
 	if err != nil {
-		writeDictionaryError(w, err)
+		writeDictionaryError(w, r, "resolve_actor", err)
 		return
 	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead && !actor.canWrite() {
-		writeDictionaryError(w, dictionaryFailure(403, "forbidden", "Insufficient permissions"))
+		writeDictionaryError(w, r, "authorize", dictionaryFailure(403, "forbidden", "Insufficient permissions"))
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, dictionaryBodyLimit)
@@ -175,7 +218,7 @@ func (api *dictionaryAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		value, status, err = api.dictionaryRequest(r, actor)
 	}
 	if err != nil {
-		writeDictionaryError(w, err)
+		writeDictionaryError(w, r, "handle", err)
 		return
 	}
 	if status == 204 {
