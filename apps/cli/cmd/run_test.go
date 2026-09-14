@@ -1896,6 +1896,71 @@ func TestRunWritesMachineReadableArtifact(t *testing.T) {
 	}
 }
 
+func TestRunWritesMachineReadableArtifactIncludesMTUsage(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	dir := t.TempDir()
+	reportPath := filepath.Join(dir, "reports", "run-report.json")
+	runFunc = func(_ context.Context, _ runsvc.Input) (runsvc.Report, error) {
+		return runsvc.Report{
+			PlannedTotal:    2,
+			ExecutableTotal: 2,
+			Succeeded:       2,
+			TokenUsage:      runsvc.TokenUsage{PromptTokens: 100, CompletionTokens: 30, TotalTokens: 130},
+			LocaleUsage:     map[string]runsvc.TokenUsage{"fr": {PromptTokens: 100, CompletionTokens: 30, TotalTokens: 130}},
+			MTUsage:         runsvc.MTUsage{SourceChars: 40, TranslatedChars: 44, RequestCount: 2, DurationMillis: 150},
+			LocaleMTUsage:   map[string]runsvc.MTUsage{"de": {SourceChars: 40, TranslatedChars: 44, RequestCount: 2, DurationMillis: 150}},
+			MTUsageByProfile: map[string]runsvc.MTProfileUsage{
+				"google-default": {Provider: "google", MTUsage: runsvc.MTUsage{SourceChars: 40, TranslatedChars: 44, RequestCount: 2, DurationMillis: 150}},
+			},
+			Batches: []runsvc.BatchUsage{
+				{TargetLocale: "fr", TargetPath: "dist/fr/strings.json", EntryKey: "hello", TranslationType: "llm", TokenUsage: runsvc.TokenUsage{PromptTokens: 100, CompletionTokens: 30, TotalTokens: 130}},
+				{TargetLocale: "de", TargetPath: "dist/de/strings.json", EntryKey: "hello", TranslationType: "mt", MTUsage: runsvc.MTUsage{SourceChars: 40, TranslatedChars: 44}},
+			},
+		}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--output", reportPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with output artifact: %v", err)
+	}
+
+	content, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read report artifact: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode report artifact: %v", err)
+	}
+	if payload["sourceChars"] != float64(40) || payload["translatedChars"] != float64(44) || payload["requestCount"] != float64(2) || payload["durationMs"] != float64(150) {
+		t.Fatalf("expected MT usage aggregate fields in summary report artifact, got %+v", payload)
+	}
+	localeMTUsage, ok := payload["localeMTUsage"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected localeMTUsage object, got %+v", payload["localeMTUsage"])
+	}
+	if _, ok := localeMTUsage["de"]; !ok {
+		t.Fatalf("expected de locale MT usage in report artifact, got %+v", localeMTUsage)
+	}
+	byProfile, ok := payload["mtUsageByProfile"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected mtUsageByProfile object, got %+v", payload["mtUsageByProfile"])
+	}
+	if _, ok := byProfile["google-default"]; !ok {
+		t.Fatalf("expected google-default profile usage in report artifact, got %+v", byProfile)
+	}
+	if _, ok := payload["batches"]; ok {
+		t.Fatalf("default --output-detail is summary; artifact must not include batches, got %+v", payload["batches"])
+	}
+}
+
 func TestWriteRunReportIncludesRichTokenLineOnlyWhenRelevant(t *testing.T) {
 	t.Parallel()
 
@@ -1942,9 +2007,12 @@ func TestRunWritesFullArtifactIncludesBatches(t *testing.T) {
 	reportPath := filepath.Join(dir, "full-report.json")
 	runFunc = func(_ context.Context, _ runsvc.Input) (runsvc.Report, error) {
 		return runsvc.Report{
-			PlannedTotal:    1,
-			ExecutableTotal: 1,
-			Batches:         []runsvc.BatchUsage{{TargetLocale: "fr", TargetPath: "/t.json", EntryKey: "k", TokenUsage: runsvc.TokenUsage{PromptTokens: 1, CompletionTokens: 2, TotalTokens: 3}}},
+			PlannedTotal:    2,
+			ExecutableTotal: 2,
+			Batches: []runsvc.BatchUsage{
+				{TargetLocale: "fr", TargetPath: "/t.json", EntryKey: "k", TranslationType: "llm", TokenUsage: runsvc.TokenUsage{PromptTokens: 1, CompletionTokens: 2, TotalTokens: 3}},
+				{TargetLocale: "de", TargetPath: "/u.json", EntryKey: "k2", TranslationType: "mt", MTUsage: runsvc.MTUsage{SourceChars: 5, TranslatedChars: 6}},
+			},
 		}, nil
 	}
 
@@ -1964,8 +2032,28 @@ func TestRunWritesFullArtifactIncludesBatches(t *testing.T) {
 	if err := json.Unmarshal(content, &payload); err != nil {
 		t.Fatalf("decode report artifact: %v", err)
 	}
-	if _, ok := payload["batches"]; !ok {
-		t.Fatalf("full artifact should include batches")
+	batches, ok := payload["batches"].([]any)
+	if !ok || len(batches) != 2 {
+		t.Fatalf("full artifact should include both batch rows, got %+v", payload["batches"])
+	}
+	var sawLLM, sawMT bool
+	for _, b := range batches {
+		row, ok := b.(map[string]any)
+		if !ok {
+			t.Fatalf("unexpected batch row shape: %+v", b)
+		}
+		switch row["translationType"] {
+		case "llm":
+			sawLLM = true
+		case "mt":
+			sawMT = true
+			if row["sourceChars"] != float64(5) || row["translatedChars"] != float64(6) {
+				t.Fatalf("mt batch row missing MT usage fields: %+v", row)
+			}
+		}
+	}
+	if !sawLLM || !sawMT {
+		t.Fatalf("expected one llm and one mt batch row, got %+v", batches)
 	}
 }
 

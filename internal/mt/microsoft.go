@@ -111,15 +111,17 @@ func (c *MicrosoftClient) Translate(ctx context.Context, req Request) (Response,
 	to := microsoftLanguageCode(req.TargetLocale)
 
 	translations := make([]string, 0, len(req.Sources))
+	requestCount := 0
 	for _, chunk := range microsoftChunkRanges(req.Sources) {
 		chunkTranslations, err := c.translateChunk(ctx, from, to, req.Sources[chunk.start:chunk.end])
+		requestCount++
 		if err != nil {
-			return Response{}, err
+			return Response{RequestCount: requestCount}, err
 		}
 		translations = append(translations, chunkTranslations...)
 	}
 
-	return Response{Translations: translations}, nil
+	return Response{Translations: translations, RequestCount: requestCount}, nil
 }
 
 type microsoftChunkRange struct {

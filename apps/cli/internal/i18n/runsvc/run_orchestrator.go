@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
+	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -156,8 +157,13 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	// invalid runtime configuration fails the run before any work begins.
 	var mtEngines *mtEngineFactory
 	if mtProfileNames := selectedMTProfileNames(executable); len(mtProfileNames) > 0 {
-		mtEngines = newMTEngineFactory(mtProfilesFromConfig(cfg))
+		mtProfiles := mtProfilesFromConfig(cfg)
+		mtEngines = newMTEngineFactory(mtProfiles)
 		_, mtSpan := startRunSpan(ctx, "run.mt_engines")
+		mtSpan.SetAttributes(
+			attribute.StringSlice("run.mt_profiles", mtProfileNames),
+			attribute.StringSlice("mt.provider", distinctConfiguredProviders(mtProfiles, mtProfileNames)),
+		)
 		if err := mtEngines.BuildSelected(mtProfileNames); err != nil {
 			endRunSpan(mtSpan, err, "mt_engines")
 			emitter.emit(completedEvent(report))
@@ -192,7 +198,19 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		sourcePaths:   in.SourcePaths,
 	}
 	execCtx, execSpan := startRunSpan(ctx, "run.execute_pool")
-	execSpan.SetAttributes(attribute.Int("run.workers", in.Workers))
+	var translationTypes []string
+	if len(llmTasks) > 0 {
+		translationTypes = append(translationTypes, config.TranslationTypeLLM)
+	}
+	if len(mtTasks) > 0 {
+		translationTypes = append(translationTypes, config.TranslationTypeMT)
+	}
+	execSpan.SetAttributes(
+		attribute.Int("run.workers", in.Workers),
+		attribute.StringSlice("translation.type", translationTypes),
+		attribute.Int("run.llm_task_count", len(llmTasks)),
+		attribute.Int("run.mt_task_count", len(mtTasks)),
+	)
 	staged, flushedTargets, execReport, err := s.executePool(execCtx, llmTasks, mtTasks, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, mtEngines, emitter, summaryReportMode, parityRetry)
 	endRunSpan(execSpan, err, "execute_pool")
 	report.Succeeded = execReport.Succeeded
@@ -200,6 +218,9 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	report.PersistedToLock = execReport.PersistedToLock
 	report.TokenUsage = addTokenUsage(report.TokenUsage, execReport.TokenUsage)
 	report.LocaleUsage = mergeLocaleUsage(report.LocaleUsage, execReport.LocaleUsage)
+	report.MTUsage = addMTUsage(report.MTUsage, execReport.MTUsage)
+	report.LocaleMTUsage = mergeLocaleMTUsage(report.LocaleMTUsage, execReport.LocaleMTUsage)
+	report.MTUsageByProfile = mergeMTUsageByProfile(report.MTUsageByProfile, execReport.MTUsageByProfile)
 	report.Batches = execReport.Batches
 	report.Failures = append(report.Failures, execReport.Failures...)
 	report.ContextMemoryGenerated = execReport.ContextMemoryGenerated
@@ -455,7 +476,7 @@ func findCompletionForTask(
 	taskHashes []string,
 ) (lockfile.RunCompletion, string, bool) {
 	for _, identity := range taskIdentityCandidates(task, projectRoot) {
-		if completion, ok := completed[identity]; ok && completionMatchesTask(completion, sourceHash, taskHashes) {
+		if completion, ok := completed[identity]; ok && completionMatchesTask(completion, sourceHash, taskHashes, task) {
 			return completion, identity, true
 		}
 	}
@@ -473,7 +494,7 @@ func findCheckpointForTask(
 	for _, identity := range taskIdentityCandidates(task, projectRoot) {
 		if checkpoint, ok := checkpoints[identity]; ok &&
 			checkpointMatchesActiveRun(checkpoint, activeRunID) &&
-			checkpointMatchesTask(checkpoint, sourceHash, taskHashes) {
+			checkpointMatchesTask(checkpoint, sourceHash, taskHashes, task) {
 			return checkpoint, identity, true
 		}
 	}
@@ -482,10 +503,15 @@ func findCheckpointForTask(
 
 func lockTaskHashCandidates(task Task) []string {
 	candidates := []string{lockTaskHash(task)}
-	if isMarkdownEntryKey(task.EntryKey) {
-		candidates = append(candidates, legacyMarkdownContextSensitiveLockTaskHashCandidates(task)...)
-	} else {
-		candidates = append(candidates, legacyDefaultLockTaskHash(task))
+	if task.TranslationType != config.TranslationTypeMT {
+		// Type-less legacy hashes represent LLM state; MT tasks must match
+		// a hash that explicitly includes translation_type=mt.
+		candidates = append(candidates, legacyPreTranslationTypeLockTaskHash(task))
+		if isMarkdownEntryKey(task.EntryKey) {
+			candidates = append(candidates, legacyMarkdownContextSensitiveLockTaskHashCandidates(task)...)
+		} else {
+			candidates = append(candidates, legacyDefaultLockTaskHash(task))
+		}
 	}
 
 	seen := map[string]struct{}{}
@@ -511,16 +537,24 @@ func checkpointMatchesActiveRun(cp lockfile.RunCheckpoint, activeRunID string) b
 	return activeRunID != "" && cp.RunID == activeRunID
 }
 
-func completionMatchesTask(completion lockfile.RunCompletion, sourceHash string, taskHashes []string) bool {
+func completionMatchesTask(completion lockfile.RunCompletion, sourceHash string, taskHashes []string, task Task) bool {
 	if strings.TrimSpace(completion.TaskHash) != "" {
 		return lockFingerprintEqualAny(completion.TaskHash, taskHashes)
+	}
+	if task.TranslationType == config.TranslationTypeMT {
+		// Source-only legacy rows are LLM-era state. MT must match an
+		// explicit task hash so switching type cannot reuse stale output.
+		return false
 	}
 	return lockFingerprintEqual(completion.SourceHash, sourceHash)
 }
 
-func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash string, taskHashes []string) bool {
+func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash string, taskHashes []string, task Task) bool {
 	if strings.TrimSpace(checkpoint.TaskHash) != "" {
 		return lockFingerprintEqualAny(checkpoint.TaskHash, taskHashes)
+	}
+	if task.TranslationType == config.TranslationTypeMT {
+		return false
 	}
 	return lockFingerprintEqual(checkpoint.SourceHash, sourceHash)
 }
@@ -607,7 +641,7 @@ func applyMaxTranslationsLimit(executable []Task, max int) (limited []Task, defe
 
 func completedEvent(report Report) Event {
 	usage := NormalizeTokenUsage(report.TokenUsage)
-	return eventWithTokenUsage(Event{
+	return eventWithMTUsage(eventWithTokenUsage(Event{
 		Kind:            EventCompleted,
 		PlannedTotal:    report.PlannedTotal,
 		SkippedByLock:   report.SkippedByLock,
@@ -618,7 +652,7 @@ func completedEvent(report Report) Event {
 		PersistedToLock: report.PersistedToLock,
 		PruneCandidates: len(report.PruneCandidates),
 		PruneApplied:    report.PruneApplied,
-	}, usage)
+	}, usage), report.MTUsage)
 }
 
 func eventWithTokenUsage(event Event, usage TokenUsage) Event {
@@ -640,5 +674,13 @@ func eventWithTokenUsage(event Event, usage TokenUsage) Event {
 	event.ToolInputTokens = usage.ToolInputTokens
 	event.AcceptedPredictionTokens = usage.AcceptedPredictionTokens
 	event.RejectedPredictionTokens = usage.RejectedPredictionTokens
+	return event
+}
+
+func eventWithMTUsage(event Event, usage MTUsage) Event {
+	event.SourceChars = usage.SourceChars
+	event.TranslatedChars = usage.TranslatedChars
+	event.RequestCount = usage.RequestCount
+	event.DurationMillis = usage.DurationMillis
 	return event
 }

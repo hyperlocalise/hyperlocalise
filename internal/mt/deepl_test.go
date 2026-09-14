@@ -246,6 +246,7 @@ func TestDeepLClientTranslate51SourcesSplitsIntoTwoRequests(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, 2, calls)
+	require.Equal(t, 2, resp.RequestCount)
 	require.Equal(t, sources[:50], formsSeen[0])
 	require.Equal(t, sources[50:], formsSeen[1])
 
@@ -275,6 +276,7 @@ func TestDeepLClientTranslate50SourcesSingleRequest(t *testing.T) {
 	resp, err := client.Translate(t.Context(), Request{SourceLocale: "en", TargetLocale: "fr", Sources: sources})
 	require.NoError(t, err)
 	require.Equal(t, 1, calls)
+	require.Equal(t, 1, resp.RequestCount)
 	require.Len(t, resp.Translations, 50)
 }
 
@@ -304,6 +306,7 @@ func TestDeepLClientTranslateLaterChunkFailureReturnsNoPartialResponse(t *testin
 
 	resp, err := client.Translate(t.Context(), Request{SourceLocale: "en", TargetLocale: "fr", Sources: sources})
 	require.Equal(t, 2, calls)
+	require.Equal(t, 2, resp.RequestCount)
 	require.Empty(t, resp.Translations)
 
 	typed, ok := AsError(err)
@@ -349,12 +352,13 @@ func TestDeepLClientTranslateContextCanceledBetweenChunks(t *testing.T) {
 		return resp, nil
 	})
 
-	_, err := client.Translate(ctx, Request{SourceLocale: "en", TargetLocale: "fr", Sources: sources})
+	resp, err := client.Translate(ctx, Request{SourceLocale: "en", TargetLocale: "fr", Sources: sources})
 	require.Error(t, err)
 	require.True(t, errors.Is(err, context.Canceled))
 	_, ok := AsError(err)
 	require.False(t, ok)
 	require.Equal(t, 1, calls)
+	require.Equal(t, 1, resp.RequestCount)
 }
 
 func TestDeepLClientTranslateContextCanceled(t *testing.T) {

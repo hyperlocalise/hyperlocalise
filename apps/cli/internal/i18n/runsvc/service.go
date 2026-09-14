@@ -172,6 +172,11 @@ type Event struct {
 	ContextMemoryProcessed   int       `json:"contextMemoryProcessed,omitempty"`
 	ContextMemoryFallbacks   int       `json:"contextMemoryFallbacks,omitempty"`
 	ContextMemoryState       string    `json:"contextMemoryState,omitempty"`
+	TranslationType          string    `json:"translationType,omitempty"`
+	SourceChars              int64     `json:"sourceChars,omitempty"`
+	TranslatedChars          int64     `json:"translatedChars,omitempty"`
+	RequestCount             int       `json:"requestCount,omitempty"`
+	DurationMillis           int64     `json:"durationMs,omitempty"`
 }
 
 type Task struct {
@@ -215,9 +220,11 @@ type Task struct {
 }
 
 type Failure struct {
-	TargetPath string `json:"targetPath"`
-	EntryKey   string `json:"entryKey"`
-	Reason     string `json:"reason"`
+	TargetPath      string `json:"targetPath"`
+	EntryKey        string `json:"entryKey"`
+	Reason          string `json:"reason"`
+	TranslationType string `json:"translationType,omitempty"`
+	Code            string `json:"code,omitempty"`
 }
 
 type TokenUsage struct {
@@ -270,11 +277,35 @@ func tokenUsageWithoutRaw(u TokenUsage) TokenUsage {
 	return u
 }
 
+// RequestCount and DurationMillis are aggregate-only because MT requests
+// may contain multiple tasks.
+type MTUsage struct {
+	SourceChars     int64 `json:"sourceChars,omitempty"`
+	TranslatedChars int64 `json:"translatedChars,omitempty"`
+	RequestCount    int   `json:"requestCount,omitempty"`
+	DurationMillis  int64 `json:"durationMs,omitempty"`
+}
+
+type MTProfileUsage struct {
+	Provider string `json:"provider,omitempty"`
+	MTUsage
+}
+
+func addMTUsage(current MTUsage, delta MTUsage) MTUsage {
+	current.SourceChars += delta.SourceChars
+	current.TranslatedChars += delta.TranslatedChars
+	current.RequestCount += delta.RequestCount
+	current.DurationMillis += delta.DurationMillis
+	return current
+}
+
 type BatchUsage struct {
-	TargetLocale string `json:"targetLocale"`
-	TargetPath   string `json:"targetPath"`
-	EntryKey     string `json:"entryKey"`
+	TargetLocale    string `json:"targetLocale"`
+	TargetPath      string `json:"targetPath"`
+	EntryKey        string `json:"entryKey"`
+	TranslationType string `json:"translationType,omitempty"`
 	TokenUsage
+	MTUsage
 }
 
 type Report struct {
@@ -290,18 +321,21 @@ type Report struct {
 	Failed          int `json:"failed"`
 	PersistedToLock int `json:"persistedToLock"`
 	TokenUsage
-	LocaleUsage                 map[string]TokenUsage `json:"localeUsage,omitempty"`
-	Batches                     []BatchUsage          `json:"batches,omitempty"`
-	Failures                    []Failure             `json:"failures,omitempty"`
-	Executable                  []Task                `json:"executable,omitempty"`
-	Skipped                     []Task                `json:"skipped,omitempty"`
-	PruneCandidates             []PruneCandidate      `json:"pruneCandidates,omitempty"`
-	PruneApplied                int                   `json:"pruneApplied"`
-	ContextMemoryEnabled        bool                  `json:"contextMemoryEnabled,omitempty"`
-	ContextMemoryScope          string                `json:"contextMemoryScope,omitempty"`
-	ContextMemoryGenerated      int                   `json:"contextMemoryGenerated,omitempty"`
-	ContextMemoryFallbackGroups int                   `json:"contextMemoryFallbackGroups,omitempty"`
-	Warnings                    []string              `json:"warnings,omitempty"`
+	LocaleUsage map[string]TokenUsage `json:"localeUsage,omitempty"`
+	MTUsage
+	LocaleMTUsage               map[string]MTUsage        `json:"localeMTUsage,omitempty"`
+	MTUsageByProfile            map[string]MTProfileUsage `json:"mtUsageByProfile,omitempty"`
+	Batches                     []BatchUsage              `json:"batches,omitempty"`
+	Failures                    []Failure                 `json:"failures,omitempty"`
+	Executable                  []Task                    `json:"executable,omitempty"`
+	Skipped                     []Task                    `json:"skipped,omitempty"`
+	PruneCandidates             []PruneCandidate          `json:"pruneCandidates,omitempty"`
+	PruneApplied                int                       `json:"pruneApplied"`
+	ContextMemoryEnabled        bool                      `json:"contextMemoryEnabled,omitempty"`
+	ContextMemoryScope          string                    `json:"contextMemoryScope,omitempty"`
+	ContextMemoryGenerated      int                       `json:"contextMemoryGenerated,omitempty"`
+	ContextMemoryFallbackGroups int                       `json:"contextMemoryFallbackGroups,omitempty"`
+	Warnings                    []string                  `json:"warnings,omitempty"`
 }
 
 type PruneCandidate struct {

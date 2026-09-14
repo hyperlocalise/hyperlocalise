@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
+	"time"
+	"unicode/utf8"
 
-	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 	"github.com/hyperlocalise/hyperlocalise/internal/mt"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
@@ -26,6 +29,41 @@ type mtGroupKey struct {
 type mtTaskGroup struct {
 	key   mtGroupKey
 	tasks []Task
+}
+
+type mtBatchAttemptStats struct {
+	Attempts     int
+	RequestCount int
+	Duration     time.Duration
+}
+
+// mtProviderRequestCount prefers the engine-reported HTTP count. Engines that
+// omit RequestCount are treated as one provider request per Translate call.
+func mtProviderRequestCount(resp mt.Response) int {
+	if resp.RequestCount > 0 {
+		return resp.RequestCount
+	}
+	return 1
+}
+
+func sumRuneCounts(values []string) int64 {
+	var total int64
+	for _, v := range values {
+		total += int64(utf8.RuneCountInString(v))
+	}
+	return total
+}
+
+func distinctMTTaskProviders(tasks []Task) []string {
+	var providers []string
+	for _, task := range tasks {
+		if provider := strings.TrimSpace(task.Provider); provider != "" {
+			providers = append(providers, provider)
+		}
+	}
+	providers = dedupeStrings(providers)
+	slices.Sort(providers)
+	return providers
 }
 
 func partitionMTTasks(tasks []Task) (llmTasks []Task, mtTasks []Task) {
@@ -93,6 +131,7 @@ func (s *Service) processMTBatch(ctx context.Context, engine mt.Engine, key mtGr
 			Kind:            EventTaskStart,
 			TargetPath:      task.TargetPath,
 			EntryKey:        task.EntryKey,
+			TranslationType: task.TranslationType,
 			Succeeded:       startedSucceeded,
 			Failed:          startedFailed,
 			ExecutableTotal: state.total,
@@ -107,14 +146,17 @@ func (s *Service) processMTBatch(ctx context.Context, engine mt.Engine, key mtGr
 	for i, task := range batch {
 		req.Sources[i] = task.SourceText
 	}
+	sourceChars := sumRuneCounts(req.Sources)
 
 	// Hold the worker permit across retries and backoff to preserve worker-slot semantics.
 	if err := acquireTranslateSem(ctx, state.translateSem); err != nil {
 		s.failMTBatch(ctx, batch, err, targetFailures, state, emitter)
 		return
 	}
-	resp, err := s.translateMTBatchWithRetry(ctx, engine, req)
+	resp, stats, err := s.translateMTBatchWithRetry(ctx, engine, req)
 	releaseTranslateSem(state.translateSem)
+	// Record provider attempts even when the batch ultimately fails.
+	s.recordMTBatchAttempt(state, key, batch[0].Provider, sourceChars, stats)
 	if err != nil {
 		s.failMTBatch(ctx, batch, fmt.Errorf("mt batch translation failed for profile %q (%s -> %s): %w", key.profileName, key.sourceLocale, key.targetLocale, err), targetFailures, state, emitter)
 		return
@@ -140,6 +182,19 @@ func (s *Service) processMTBatch(ctx context.Context, engine mt.Engine, key mtGr
 	}
 }
 
+func (s *Service) recordMTBatchAttempt(state *executorState, key mtGroupKey, provider string, sourceChars int64, stats mtBatchAttemptStats) {
+	delta := MTUsage{SourceChars: sourceChars, RequestCount: stats.RequestCount, DurationMillis: stats.Duration.Milliseconds()}
+
+	state.reportMu.Lock()
+	defer state.reportMu.Unlock()
+	state.report.MTUsage = addMTUsage(state.report.MTUsage, delta)
+	state.report.LocaleMTUsage[key.targetLocale] = addMTUsage(state.report.LocaleMTUsage[key.targetLocale], delta)
+	profileUsage := state.report.MTUsageByProfile[key.profileName]
+	profileUsage.Provider = provider
+	profileUsage.MTUsage = addMTUsage(profileUsage.MTUsage, delta)
+	state.report.MTUsageByProfile[key.profileName] = profileUsage
+}
+
 func (s *Service) recordMTTaskSuccess(ctx context.Context, task Task, value string, state *executorState, emitter *eventEmitter, completions chan<- taskCompletion) {
 	completion := taskCompletion{
 		identity:     preferredTaskIdentity(s.projectRoot, task.TargetPath, task.EntryKey),
@@ -157,34 +212,43 @@ func (s *Service) recordMTTaskSuccess(ctx context.Context, task Task, value stri
 		return
 	}
 
-	usage := toRunTokenUsage(translator.Usage{})
+	translatedChars := int64(utf8.RuneCountInString(value))
+	sourceChars := int64(utf8.RuneCountInString(task.SourceText))
+
 	state.reportMu.Lock()
 	state.report.Succeeded++
-	state.report.TokenUsage = addTokenUsage(state.report.TokenUsage, usage)
-	localeUsage := state.report.LocaleUsage[task.TargetLocale]
-	state.report.LocaleUsage[task.TargetLocale] = addTokenUsage(localeUsage, usage)
+	state.report.TranslatedChars += translatedChars
+	localeMT := state.report.LocaleMTUsage[task.TargetLocale]
+	localeMT.TranslatedChars += translatedChars
+	state.report.LocaleMTUsage[task.TargetLocale] = localeMT
+	profileMT := state.report.MTUsageByProfile[task.ProfileName]
+	profileMT.Provider = task.Provider
+	profileMT.TranslatedChars += translatedChars
+	state.report.MTUsageByProfile[task.ProfileName] = profileMT
 	if !state.omitPerEntryBatches {
 		state.report.Batches = append(state.report.Batches, BatchUsage{
-			TargetLocale: task.TargetLocale,
-			TargetPath:   task.TargetPath,
-			EntryKey:     task.EntryKey,
-			TokenUsage:   usage,
+			TargetLocale:    task.TargetLocale,
+			TargetPath:      task.TargetPath,
+			EntryKey:        task.EntryKey,
+			TranslationType: task.TranslationType,
+			MTUsage:         MTUsage{SourceChars: sourceChars, TranslatedChars: translatedChars},
 		})
 	}
 	succeeded := state.report.Succeeded
 	failed := state.report.Failed
-	tokenUsage := state.report.TokenUsage
+	mtUsage := state.report.MTUsage
 	state.reportMu.Unlock()
 
-	emitter.emit(eventWithTokenUsage(Event{
+	emitter.emit(eventWithMTUsage(Event{
 		Kind:            EventTaskDone,
 		TaskSucceeded:   true,
 		TargetPath:      task.TargetPath,
 		EntryKey:        task.EntryKey,
+		TranslationType: task.TranslationType,
 		Succeeded:       succeeded,
 		Failed:          failed,
 		ExecutableTotal: state.total,
-	}, tokenUsage))
+	}, mtUsage))
 }
 
 func (s *Service) failMTTask(ctx context.Context, task Task, err error, targetFailures chan<- string, state *executorState, emitter *eventEmitter) {
@@ -201,18 +265,22 @@ func (s *Service) failMTBatch(ctx context.Context, batch []Task, err error, targ
 	}
 }
 
-func (s *Service) translateMTBatchWithRetry(ctx context.Context, engine mt.Engine, req mt.Request) (mt.Response, error) {
+// Returns attempt stats on both success and failure for MT usage accounting.
+func (s *Service) translateMTBatchWithRetry(ctx context.Context, engine mt.Engine, req mt.Request) (mt.Response, mtBatchAttemptStats, error) {
+	start := time.Now()
+	requestCount := 0
 	for attempt := 0; attempt < mtBatchMaxAttempts; attempt++ {
 		resp, err := engine.Translate(ctx, req)
+		requestCount += mtProviderRequestCount(resp)
+		stats := mtBatchAttemptStats{Attempts: attempt + 1, RequestCount: requestCount, Duration: time.Since(start)}
 		if err == nil {
-			return resp, nil
+			return resp, stats, nil
 		}
 		if !isRetryableMTError(err) || attempt+1 >= mtBatchMaxAttempts {
-			return mt.Response{}, err
+			return mt.Response{}, stats, err
 		}
-		delay := translationRetryDelay(attempt)
-		if waitErr := sleepWithContext(ctx, delay); waitErr != nil {
-			return mt.Response{}, waitErr
+		if waitErr := sleepWithContext(ctx, translationRetryDelay(attempt)); waitErr != nil {
+			return mt.Response{}, mtBatchAttemptStats{Attempts: attempt + 1, RequestCount: requestCount, Duration: time.Since(start)}, waitErr
 		}
 	}
 	panic("unreachable")
