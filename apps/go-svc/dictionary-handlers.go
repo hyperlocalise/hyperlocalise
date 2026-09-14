@@ -136,6 +136,13 @@ func (api *dictionaryAPI) listDictionaries(r *http.Request, actor dictionaryActo
 	if err != nil || (r.URL.Query().Has("projectId") && (projectID == "" || utf16Length(projectID) > 128)) {
 		limit, offset, projectID = 50, 0, ""
 	}
+	// Require team access before filtering by projectId; otherwise any member could
+	// probe dictionaries attached to private team projects.
+	if projectID != "" {
+		if _, projectErr := api.ownedProject(r.Context(), actor, projectID); projectErr != nil {
+			return map[string]any{"dictionaries": []dictionaryRecord{}}, 200, nil
+		}
+	}
 	where := `d.organization_id=$1 and ($2='' or exists(select 1 from project_spellcheck_word_libraries a where a.library_id=d.id and a.organization_id=$1 and a.project_id=$2))`
 	rows, err := api.pool.Query(r.Context(), `select `+dictionaryColumns+` from spellcheck_word_libraries d where `+where+` order by d.created_at desc limit $3 offset $4`, actor.organizationID, projectID, limit, offset)
 	if err != nil {

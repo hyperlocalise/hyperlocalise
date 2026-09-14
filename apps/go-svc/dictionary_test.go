@@ -166,11 +166,16 @@ func TestDictionaryListPagination(t *testing.T) {
 		{"invalid resets entire query", "?limit=999&offset=20&projectId=project_1", 50, 0, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			api, _ := dictionaryTestAPI(t, "member",
+			steps := []dictionaryDBStep{}
+			if tc.projectID != "" {
+				steps = append(steps, dictionaryRowStep("from projects p", "project_1"))
+			}
+			steps = append(steps,
 				dictionaryDBStep{kind: "query", sql: "order by d.created_at desc limit $3 offset $4", args: []any{testDictionaryOrgID, tc.projectID, tc.limit, tc.offset}, values: [][]any{dictionaryRecordValues()}},
 				dictionaryDBStep{kind: "query", sql: "group by library_id", values: [][]any{{testDictionaryID, 7}}},
 				dictionaryRowStep("select count(*)", 23),
 			)
+			api, _ := dictionaryTestAPI(t, "member", steps...)
 			rec := dictionaryRequestForTest(api, "GET", testDictionaryBase+tc.query, "")
 			require.Equal(t, 200, rec.Code, rec.Body.String())
 			require.Contains(t, rec.Body.String(), `"total":23`)

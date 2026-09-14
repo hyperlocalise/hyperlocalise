@@ -90,9 +90,25 @@ func TestDictionaryProjectListAndDetach(t *testing.T) {
 		require.Empty(t, rec.Body.String())
 	})
 	t.Run("detach via dictionary", func(t *testing.T) {
-		api, _ := dictionaryTestAPI(t, "admin", dictionaryOwnedStep(), dictionaryDBStep{kind: "exec", sql: "library_id=$1 and project_id=$2 and organization_id=$3", args: []any{testDictionaryID, "project_1", testDictionaryOrgID}})
+		api, _ := dictionaryTestAPI(t, "admin", dictionaryOwnedStep(), dictionaryRowStep("from projects p", "project_1"), dictionaryDBStep{kind: "exec", sql: "library_id=$1 and project_id=$2 and organization_id=$3", args: []any{testDictionaryID, "project_1", testDictionaryOrgID}})
 		rec := dictionaryRequestForTest(api, "DELETE", testDictionaryBase+"/"+testDictionaryID+"/projects/project_1", "")
 		require.Equal(t, 204, rec.Code)
+	})
+	t.Run("list dictionary projects filters by team for members", func(t *testing.T) {
+		api, _ := dictionaryTestAPI(t, "member", dictionaryOwnedStep(),
+			dictionaryDBStep{kind: "query", sql: "team_memberships", args: []any{testDictionaryID, testDictionaryOrgID, false, testDictionaryUserID}, values: [][]any{{"project_1", "Visible", 1}}},
+		)
+		rec := dictionaryRequestForTest(api, "GET", testDictionaryBase+"/"+testDictionaryID+"/projects", "")
+		require.Equal(t, 200, rec.Code, rec.Body.String())
+		require.JSONEq(t, `{"projects":[{"projectId":"project_1","projectName":"Visible","priority":1}]}`, rec.Body.String())
+	})
+	t.Run("list dictionaries by inaccessible projectId returns empty", func(t *testing.T) {
+		step := dictionaryRowStep("from projects p")
+		step.err = pgx.ErrNoRows
+		api, _ := dictionaryTestAPI(t, "member", step)
+		rec := dictionaryRequestForTest(api, "GET", testDictionaryBase+"?projectId=project_secret", "")
+		require.Equal(t, 200, rec.Code, rec.Body.String())
+		require.JSONEq(t, `{"dictionaries":[]}`, rec.Body.String())
 	})
 }
 
