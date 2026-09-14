@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "entrysplit",
+    srcs = ["srx.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/entrysplit",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/i18n/srx",
+        "//internal/i18n/translationfileparser",
+    ],
+)

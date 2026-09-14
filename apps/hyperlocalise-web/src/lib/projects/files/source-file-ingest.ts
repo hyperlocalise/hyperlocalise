@@ -12,10 +12,6 @@
  */
 import { and, eq, inArray, or } from "drizzle-orm";
 
-import {
-  dispatchWorkspaceAutomationForSourceUpload,
-  dispatchWorkspaceAutomationsForSourceUpload,
-} from "@/lib/agents/workspace-automation-dispatcher";
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import type { SourceFileIngestEventData, SourceFileIngestQueue } from "@/lib/workflow/types";
@@ -117,6 +113,11 @@ export async function dispatchSourceUploadAutomations(input: {
   sourceHash?: string | null;
   targetAutomationId?: string;
 }) {
+  const {
+    dispatchWorkspaceAutomationForSourceUpload,
+    dispatchWorkspaceAutomationsForSourceUpload,
+  } = await import("@/lib/agents/workspace-automation-dispatcher");
+
   if (input.targetAutomationId) {
     await dispatchWorkspaceAutomationForSourceUpload({
       organizationId: input.organizationId,

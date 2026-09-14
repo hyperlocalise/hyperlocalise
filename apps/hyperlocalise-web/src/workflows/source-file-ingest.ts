@@ -35,6 +35,8 @@ import {
   stopSourceIngestSandboxStep,
   reconcileSourceFileTranslationKeysStep,
   writeSourceIngestFileStep,
+  loadSourceFileSegmentationStep,
+  writeSourceFileSegmentationSrxStep,
 } from "./steps/source-file-ingest";
 import { getStoredFileContentStep } from "./steps/translation-job";
 
@@ -162,7 +164,16 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     await prepareSourceIngestSandboxStep(sandboxId);
     await writeSourceIngestFileStep(sandboxId, inputFilename, content);
 
-    const extractedEntries = await extractSourceIngestEntriesStep(sandboxId, inputFilename);
+    const segmentation = await loadSourceFileSegmentationStep({
+      organizationId: event.organizationId,
+      projectId: event.projectId,
+      repositorySourceFileId,
+    });
+    const srxSandbox = await writeSourceFileSegmentationSrxStep(sandboxId, segmentation);
+
+    const extractedEntries = await extractSourceIngestEntriesStep(sandboxId, inputFilename, {
+      srx: srxSandbox.srxFlag,
+    });
     const entries = await parseHlEntriesStep(extractedEntries);
 
     const reconciliation = await reconcileSourceFileTranslationKeysStep({

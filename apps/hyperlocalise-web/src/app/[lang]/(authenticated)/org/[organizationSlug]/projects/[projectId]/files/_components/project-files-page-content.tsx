@@ -58,7 +58,7 @@ import { useProjectFileActions } from "./use-project-file-actions";
 const FILE_ACCEPT = getSupportedSourceUploadAccept();
 const MAX_UPLOAD_FILES = 10;
 
-type PendingFileDialogAction = "translate" | "import" | "download";
+type PendingFileDialogAction = "translate" | "import" | "download" | "segmentation";
 
 function ProjectFileDialogHost({
   file,
@@ -93,6 +93,16 @@ function ProjectFileDialogHost({
     nativeSourcePaths,
     branch,
   });
+  const {
+    downloadDialogOpen,
+    importDialogOpen,
+    segmentationDialogOpen,
+    setDownloadDialogOpen,
+    setImportDialogOpen,
+    setSegmentationDialogOpen,
+    setTranslateDialogOpen,
+    translateDialogOpen,
+  } = actions;
   const [hasOpened, setHasOpened] = useState(false);
 
   useEffect(() => {
@@ -100,13 +110,21 @@ function ProjectFileDialogHost({
       return;
     }
     const openDialog = {
-      translate: () => actions.setTranslateDialogOpen(true),
-      import: () => actions.setImportDialogOpen(true),
-      download: () => actions.setDownloadDialogOpen(true),
+      translate: () => setTranslateDialogOpen(true),
+      import: () => setImportDialogOpen(true),
+      download: () => setDownloadDialogOpen(true),
+      segmentation: () => setSegmentationDialogOpen(true),
     }[initialAction];
     openDialog();
     setHasOpened(true);
-  }, [actions, hasOpened, initialAction]);
+  }, [
+    hasOpened,
+    initialAction,
+    setDownloadDialogOpen,
+    setImportDialogOpen,
+    setSegmentationDialogOpen,
+    setTranslateDialogOpen,
+  ]);
 
   useEffect(() => {
     if (!hasOpened) {
@@ -114,16 +132,17 @@ function ProjectFileDialogHost({
     }
 
     const anyOpen =
-      actions.translateDialogOpen || actions.importDialogOpen || actions.downloadDialogOpen;
+      translateDialogOpen || importDialogOpen || downloadDialogOpen || segmentationDialogOpen;
     if (!anyOpen) {
       onClose();
     }
   }, [
-    actions.downloadDialogOpen,
-    actions.importDialogOpen,
-    actions.translateDialogOpen,
+    downloadDialogOpen,
     hasOpened,
+    importDialogOpen,
     onClose,
+    segmentationDialogOpen,
+    translateDialogOpen,
   ]);
 
   return <ProjectFileActionDialogs file={file} actions={actions} />;
@@ -428,6 +447,7 @@ export function ProjectFilesPageContent({
       onTranslateFile: (file) => openFileDialog(file, "translate"),
       onImportFile: (file) => openFileDialog(file, "import"),
       onDownloadFile: (file) => openFileDialog(file, "download"),
+      onSegmentationSettings: (file) => openFileDialog(file, "segmentation"),
     }),
     [
       highlightLocale,

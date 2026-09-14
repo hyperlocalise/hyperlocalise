@@ -35,4 +35,9 @@ export const projectFileTreeContextMenuMessages = defineMessages({
     id: "VWlnmvdHxp",
     description: "Context menu action to download translations for a project file",
   },
+  segmentationSettings: {
+    defaultMessage: "Segmentation settings",
+    id: "e8kT8ygAwT",
+    description: "Context menu action to configure SRX segmentation for a native file",
+  },
 });

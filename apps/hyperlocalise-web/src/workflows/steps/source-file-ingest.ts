@@ -68,14 +68,48 @@ export async function writeSourceIngestFileStep(
   return writeFileToSandbox(sandboxId, filename, content);
 }
 
-export async function extractSourceIngestEntriesStep(sandboxId: string, filePath: string) {
+export async function extractSourceIngestEntriesStep(
+  sandboxId: string,
+  filePath: string,
+  options?: { srx?: string },
+) {
   "use step";
   const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
-  const result = await extractSandboxEntries(sandboxId, filePath);
+  const result = await extractSandboxEntries(sandboxId, filePath, { srx: options?.srx });
   if (!result.ok) {
     throw new Error(`failed to extract entries for ${filePath}: exitCode=${result.exitCode}`);
   }
   return result.entries;
+}
+
+export async function loadSourceFileSegmentationStep(input: {
+  organizationId: string;
+  projectId: string;
+  repositorySourceFileId: string;
+}) {
+  "use step";
+  const { loadSegmentationForIngest } =
+    await import("@/lib/projects/files/source-file-segmentation");
+  return loadSegmentationForIngest(input);
+}
+
+export async function writeSourceFileSegmentationSrxStep(
+  sandboxId: string,
+  settings: import("@/lib/projects/files/source-file-segmentation-schema").RepositorySourceFileSegmentationSettings,
+) {
+  "use step";
+  const { resolveSandboxSrxCliSpec } =
+    await import("@/lib/projects/files/source-file-segmentation-schema");
+  const { writeFileToSandbox } = await import("@/lib/translation/sandbox");
+  const resolved = resolveSandboxSrxCliSpec(settings);
+  if (resolved.customSandboxPath && resolved.customSandboxContent) {
+    await writeFileToSandbox(
+      sandboxId,
+      resolved.customSandboxPath,
+      Buffer.from(resolved.customSandboxContent, "utf8"),
+    );
+  }
+  return { srxFlag: resolved.srxFlag };
 }
 
 export async function parseHlEntriesStep(

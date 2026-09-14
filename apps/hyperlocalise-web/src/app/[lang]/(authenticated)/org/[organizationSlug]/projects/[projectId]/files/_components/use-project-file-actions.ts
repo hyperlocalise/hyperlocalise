@@ -20,6 +20,7 @@ import {
   buildProjectFileContentEditorHref,
   canOpenProjectFileContentEditor,
 } from "@/lib/projects/project-file-content-editor-routing";
+import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
 import {
   inferSupportedFileTranslationFileFormat,
   isSupportedSourceUploadFormat,
@@ -34,6 +35,7 @@ export type ProjectFileActionCapabilities = {
   canTranslateWithAgent: boolean;
   contentEditorHref: ReturnType<typeof buildProjectFileContentEditorHref>;
   isNativeFile: boolean;
+  canConfigureSegmentation: boolean;
   translateDisabledTitle: string | undefined;
 };
 
@@ -78,6 +80,7 @@ export function buildProjectFileActionCapabilities({
   return {
     canOpenCat,
     canTranslateWithAgent,
+    canConfigureSegmentation: isNativeFile && sourcePathSupportsSrxSegmentation(file.sourcePath),
     contentEditorHref,
     isNativeFile,
     translateDisabledTitle,
@@ -107,10 +110,12 @@ export function useProjectFileActions({
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
+  const [segmentationDialogOpen, setSegmentationDialogOpen] = useState(false);
 
   const {
     canOpenCat,
     canTranslateWithAgent,
+    canConfigureSegmentation,
     contentEditorHref,
     isNativeFile,
     translateDisabledTitle,
@@ -129,6 +134,7 @@ export function useProjectFileActions({
   return {
     branch,
     canOpenCat,
+    canConfigureSegmentation,
     canTranslateWithAgent,
     contentEditorHref,
     downloadDialogOpen,
@@ -138,8 +144,10 @@ export function useProjectFileActions({
     nativeSourcePaths,
     organizationSlug,
     projectId,
+    segmentationDialogOpen,
     setDownloadDialogOpen,
     setImportDialogOpen,
+    setSegmentationDialogOpen,
     setTranslateDialogOpen,
     sourceLocale,
     stableTargetLocales,

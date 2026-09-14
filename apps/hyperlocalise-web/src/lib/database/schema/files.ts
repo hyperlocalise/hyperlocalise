@@ -36,6 +36,10 @@ import { projects } from "./projects";
 import { interactions, workspaceAutomations } from "./agents";
 import { jobs } from "./jobs";
 import { organizationApiKeys } from "./integrations";
+import type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
+
+export type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
+export { defaultRepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
 
 /**
  * Stores metadata for files kept in object storage, including tenant/project scope, source provenance, role, storage location, content metadata, hashes, and audit timestamps.
@@ -121,6 +125,10 @@ export const repositorySourceFiles = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     sourcePath: text("source_path").notNull(),
+    segmentationSettings: jsonb("segmentation_settings")
+      .$type<RepositorySourceFileSegmentationSettings>()
+      .notNull()
+      .default(sql`'{"enabled":false,"template":"default"}'::jsonb`),
     reconciledSourceFileVersionId: uuid("reconciled_source_file_version_id").references(
       (): AnyPgColumn => repositorySourceFileVersions.id,
       { onDelete: "set null" },
