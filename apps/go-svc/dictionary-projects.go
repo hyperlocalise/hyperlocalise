@@ -59,7 +59,9 @@ type dictionaryProjectRecord struct {
 }
 
 func (api *dictionaryAPI) dictionaryProjects(ctx context.Context, actor dictionaryActor, dictionaryID string) ([]dictionaryProjectRecord, error) {
-	rows, err := api.pool.Query(ctx, `select a.project_id,p.name,a.priority from project_spellcheck_word_libraries a join projects p on p.id=a.project_id where a.library_id=$1 and a.organization_id=$2 and p.organization_id=$2 order by a.priority,a.created_at,a.project_id`, dictionaryID, actor.organizationID)
+	// Mirror ownedProject team ACL so non-managers cannot enumerate private team
+	// projects attached to an org-scoped dictionary (same pattern as glossary listProjects).
+	rows, err := api.pool.Query(ctx, `select a.project_id,p.name,a.priority from project_spellcheck_word_libraries a join projects p on p.id=a.project_id where a.library_id=$1 and a.organization_id=$2 and p.organization_id=$2 and ($3 or exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$4 and t.organization_id=$2 and (t.id=p.team_id or (p.team_id is null and t.slug='default')))) order by a.priority,a.created_at,a.project_id`, dictionaryID, actor.organizationID, actor.canWrite(), actor.userID)
 	if err != nil {
 		return nil, err
 	}
@@ -110,11 +112,11 @@ func (api *dictionaryAPI) dictionaryProjectRequest(r *http.Request, actor dictio
 	}
 	ctx := r.Context()
 	if r.Method == http.MethodDelete && len(rest) == 1 {
-		projectID := normalizeDictionaryProjectID(rest[0])
-		if projectID == "" || utf16Length(projectID) > 128 {
-			return nil, 0, missingDictionary()
+		projectID, err := api.ownedProject(ctx, actor, rest[0])
+		if err != nil {
+			return nil, 0, err
 		}
-		_, err := api.pool.Exec(ctx, `delete from project_spellcheck_word_libraries where library_id=$1 and project_id=$2 and organization_id=$3`, d.ID, projectID, actor.organizationID)
+		_, err = api.pool.Exec(ctx, `delete from project_spellcheck_word_libraries where library_id=$1 and project_id=$2 and organization_id=$3`, d.ID, projectID, actor.organizationID)
 		return nil, 204, err
 	}
 	if len(rest) != 0 {
