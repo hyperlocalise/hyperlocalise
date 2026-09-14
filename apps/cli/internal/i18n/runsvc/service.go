@@ -1155,6 +1155,11 @@ func lockFingerprintEqual(stored, computed string) bool {
 	return hex.EncodeToString(decoded[:16]) == computed
 }
 
+// ParserModeForSource classifies a source file the same way hl run does (including strict FormatJS JSON).
+func ParserModeForSource(path string, content []byte) string {
+	return parserModeForSource(path, content)
+}
+
 func parserModeForSource(path string, content []byte) string {
 	normalized := strings.ToLower(filepath.ToSlash(strings.TrimSpace(path)))
 	switch {

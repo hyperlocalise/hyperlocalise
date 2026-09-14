@@ -59,13 +59,15 @@ export function ProjectFileActionDialogs({
         initialSourcePath={file.sourcePath}
         targetLocales={actions.targetLocales}
       />
-      <ProjectFileSegmentationDialog
-        open={actions.segmentationDialogOpen}
-        onOpenChange={actions.setSegmentationDialogOpen}
-        organizationSlug={actions.organizationSlug}
-        projectId={actions.projectId}
-        sourcePath={file.sourcePath}
-      />
+      {actions.segmentationDialogOpen ? (
+        <ProjectFileSegmentationDialog
+          open={actions.segmentationDialogOpen}
+          onOpenChange={actions.setSegmentationDialogOpen}
+          organizationSlug={actions.organizationSlug}
+          projectId={actions.projectId}
+          sourcePath={file.sourcePath}
+        />
+      ) : null}
     </>
   );
 }

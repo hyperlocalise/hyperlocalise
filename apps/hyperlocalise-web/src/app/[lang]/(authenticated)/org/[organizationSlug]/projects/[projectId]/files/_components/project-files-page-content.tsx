@@ -93,6 +93,16 @@ function ProjectFileDialogHost({
     nativeSourcePaths,
     branch,
   });
+  const {
+    downloadDialogOpen,
+    importDialogOpen,
+    segmentationDialogOpen,
+    setDownloadDialogOpen,
+    setImportDialogOpen,
+    setSegmentationDialogOpen,
+    setTranslateDialogOpen,
+    translateDialogOpen,
+  } = actions;
   const [hasOpened, setHasOpened] = useState(false);
 
   useEffect(() => {
@@ -100,14 +110,21 @@ function ProjectFileDialogHost({
       return;
     }
     const openDialog = {
-      translate: () => actions.setTranslateDialogOpen(true),
-      import: () => actions.setImportDialogOpen(true),
-      download: () => actions.setDownloadDialogOpen(true),
-      segmentation: () => actions.setSegmentationDialogOpen(true),
+      translate: () => setTranslateDialogOpen(true),
+      import: () => setImportDialogOpen(true),
+      download: () => setDownloadDialogOpen(true),
+      segmentation: () => setSegmentationDialogOpen(true),
     }[initialAction];
     openDialog();
     setHasOpened(true);
-  }, [actions, hasOpened, initialAction]);
+  }, [
+    hasOpened,
+    initialAction,
+    setDownloadDialogOpen,
+    setImportDialogOpen,
+    setSegmentationDialogOpen,
+    setTranslateDialogOpen,
+  ]);
 
   useEffect(() => {
     if (!hasOpened) {
@@ -115,20 +132,17 @@ function ProjectFileDialogHost({
     }
 
     const anyOpen =
-      actions.translateDialogOpen ||
-      actions.importDialogOpen ||
-      actions.downloadDialogOpen ||
-      actions.segmentationDialogOpen;
+      translateDialogOpen || importDialogOpen || downloadDialogOpen || segmentationDialogOpen;
     if (!anyOpen) {
       onClose();
     }
   }, [
-    actions.downloadDialogOpen,
-    actions.importDialogOpen,
-    actions.segmentationDialogOpen,
-    actions.translateDialogOpen,
+    downloadDialogOpen,
     hasOpened,
+    importDialogOpen,
     onClose,
+    segmentationDialogOpen,
+    translateDialogOpen,
   ]);
 
   return <ProjectFileActionDialogs file={file} actions={actions} />;

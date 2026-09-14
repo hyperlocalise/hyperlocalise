@@ -140,6 +140,11 @@ vi.mock("./download-translations-dialog", () => ({
     ) : null,
 }));
 
+vi.mock("./project-file-segmentation-dialog", () => ({
+  ProjectFileSegmentationDialog: ({ open }: { open: boolean }) =>
+    open ? <div role="dialog" aria-label="Segmentation settings" /> : null,
+}));
+
 vi.mock("./project-files-branch-filter", () => ({
   ProjectFilesBranchFilter: () => null,
 }));

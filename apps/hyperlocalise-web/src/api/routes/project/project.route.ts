@@ -3375,6 +3375,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         });
 
         if (!result.ok) {
+          if (result.error === "unsupported_format") {
+            return badRequestResponse(
+              c,
+              "segmentation_unsupported_format",
+              "This file format cannot use SRX segmentation.",
+            );
+          }
           return notFoundResponse(c, result.error);
         }
 

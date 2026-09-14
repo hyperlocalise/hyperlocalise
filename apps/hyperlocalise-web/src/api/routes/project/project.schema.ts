@@ -564,11 +564,15 @@ export const projectFileProviderJobRecordSchema = z.object({
   updatedAt: z.string(),
 });
 
-export const repositorySourceFileSegmentationSettingsSchema = z.object({
-  enabled: z.boolean(),
-  template: z.enum(["default", "html", "markdown", "custom"]),
-  customSrxXml: z.string().nullable().optional(),
-});
+import {
+  repositorySourceFileSegmentationSettingsSchema,
+  type RepositorySourceFileSegmentationSettingsInput,
+} from "@/lib/projects/files/source-file-segmentation";
+
+export {
+  repositorySourceFileSegmentationSettingsSchema,
+  type RepositorySourceFileSegmentationSettingsInput,
+};
 
 export const projectFileSegmentationQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),

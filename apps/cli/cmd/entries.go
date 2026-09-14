@@ -8,36 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/entrysplit"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/spf13/cobra"
 )
-
-func parserModeForEntries(path string, content []byte) string {
-	normalized := strings.ToLower(filepath.ToSlash(strings.TrimSpace(path)))
-	switch {
-	case strings.HasSuffix(normalized, ".arb"):
-		return "arb"
-	case strings.HasSuffix(normalized, ".json"):
-		if bytes.Contains(content, []byte("defaultMessage")) {
-			var payload map[string]any
-			if json.Unmarshal(content, &payload) == nil && len(payload) > 0 {
-				for _, value := range payload {
-					message, ok := value.(map[string]any)
-					if !ok {
-						break
-					}
-					if _, hasDefault := message["defaultMessage"]; hasDefault {
-						return "formatjs"
-					}
-				}
-			}
-		}
-		return "json"
-	default:
-		return "other"
-	}
-}
 
 func newEntriesCmd() *cobra.Command {
 	var locale string
@@ -137,7 +112,7 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, locale, s
 		if err != nil {
 			return nil, err
 		}
-		parserMode := parserModeForEntries(path, content)
+		parserMode := runsvc.ParserModeForSource(path, content)
 		entries, _, err = entrysplit.ApplyToIngestEntries(doc, path, parserMode, locale, entries)
 		if err != nil {
 			return nil, err

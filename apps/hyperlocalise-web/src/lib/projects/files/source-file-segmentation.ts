@@ -133,6 +133,10 @@ export async function updateRepositorySourceFileSegmentation(input: {
   const parsed = repositorySourceFileSegmentationSettingsSchema.parse(input.settings);
   const sourcePath = normalizeSourcePath(input.sourcePath);
 
+  if (parsed.enabled && !sourcePathSupportsSrxSegmentation(sourcePath)) {
+    return { ok: false as const, error: "unsupported_format" as const };
+  }
+
   const normalized: RepositorySourceFileSegmentationSettings = {
     enabled: parsed.enabled,
     template: parsed.template,
@@ -163,7 +167,6 @@ export async function updateRepositorySourceFileSegmentation(input: {
     .update(schema.repositorySourceFiles)
     .set({
       segmentationSettings: normalized,
-      reconciledSourceFileVersionId: null,
     })
     .where(eq(schema.repositorySourceFiles.id, file.id));
 
@@ -188,7 +191,28 @@ async function requestSourceFileReingest(input: {
   repositorySourceFileId: string;
   reconciledSourceFileVersionId: string | null;
 }) {
-  const versionId = input.reconciledSourceFileVersionId;
+  let versionId = input.reconciledSourceFileVersionId;
+  if (!versionId) {
+    const [latest] = await db
+      .select({ id: schema.repositorySourceFileVersions.id })
+      .from(schema.repositorySourceFileVersions)
+      .where(
+        and(
+          eq(
+            schema.repositorySourceFileVersions.repositorySourceFileId,
+            input.repositorySourceFileId,
+          ),
+          eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
+          eq(schema.repositorySourceFileVersions.projectId, input.projectId),
+        ),
+      )
+      .orderBy(
+        desc(schema.repositorySourceFileVersions.createdAt),
+        desc(schema.repositorySourceFileVersions.id),
+      )
+      .limit(1);
+    versionId = latest?.id ?? null;
+  }
   if (!versionId) {
     return { queued: false as const, reason: "no_reconciled_version" as const };
   }

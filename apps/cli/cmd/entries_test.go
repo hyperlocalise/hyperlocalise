@@ -52,6 +52,40 @@ func TestEntriesCommandExtractsMaxLengthFromAppleStrings(t *testing.T) {
 	}
 }
 
+func TestEntriesCommandSRXUsesStrictFormatJSDetection(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "en.json")
+	content := []byte(`{
+  "plain": "One. Two.",
+  "formatjs": {"defaultMessage": "Hello. World."}
+}`)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", path, "--srx", "default"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+
+	payload, err := decodeEntriesCommandStrings(out.Bytes())
+	if err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	if payload["plain#srx.0"] != "One." || payload["plain#srx.1"] != " Two." {
+		t.Fatalf("expected plain json value to split, got %#v", payload)
+	}
+	for key := range payload {
+		if strings.HasPrefix(key, "formatjs#srx.") {
+			t.Fatalf("expected formatjs entry to stay unsplit, got key %q in %#v", key, payload)
+		}
+	}
+}
+
 func TestEntriesCommandSplitsWithSRXFlag(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "en.json")
