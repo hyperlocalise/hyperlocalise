@@ -143,6 +143,11 @@ import { GlossaryValidationError } from "@/lib/glossary/glossary";
 import { toolCanAccessMemory, toolCanAccessProject } from "@/lib/tools/tool-access";
 import { mcpCreateGlossaryConceptInputSchema } from "./mcp-create-glossary-concept.schema";
 import { mcpQueryTranslationMemoryInputSchema } from "./mcp-query-translation-memory.schema";
+import { mcpGetKnowledgeMemoryInputSchema } from "@/api/routes/mcp/mcp-get-knowledge-memory.schema";
+import {
+  getKnowledgeMemoryForOrganization,
+  getKnowledgeMemoryForProject,
+} from "@/lib/knowledge-memory/knowledge-memory";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -365,6 +370,24 @@ export function getMcpProtectedResourceMetadata(origin: string, apiBasePath = "/
     authorization_servers: [origin],
     scopes_supported: ["mcp"],
     bearer_methods_supported: ["header"],
+  };
+}
+
+const MAX_MCP_KNOWLEDGE_MEMORY_CONTENT_LENGTH = 32_000;
+
+function compactMcpKnowledgeMemoryContent(content: string) {
+  const characters = Array.from(content);
+
+  if (characters.length <= MAX_MCP_KNOWLEDGE_MEMORY_CONTENT_LENGTH) {
+    return {
+      content,
+      truncated: false,
+    };
+  }
+
+  return {
+    content: `${characters.slice(0, MAX_MCP_KNOWLEDGE_MEMORY_CONTENT_LENGTH - 1).join("")}…`,
+    truncated: true,
   };
 }
 
@@ -2607,6 +2630,67 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
             type: "text",
             text: JSON.stringify({
               matches: result.matches.map(compactMcpTranslationMemoryMatch),
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "get_knowledge_memory",
+    {
+      description:
+        "Read organization or project knowledge memory guidelines before translating or filing issues.",
+      inputSchema: mcpGetKnowledgeMemoryInputSchema,
+    },
+    async ({ scope, projectId }) => {
+      if (scope === "organization") {
+        const knowledgeMemory = await getKnowledgeMemoryForOrganization(
+          apiAuth.organization.localOrganizationId,
+        );
+
+        const compactMemory = compactMcpKnowledgeMemoryContent(knowledgeMemory.content);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                scope: "organization",
+                ...compactMemory,
+                updatedAt: knowledgeMemory.updatedAt,
+              }),
+            },
+          ],
+        };
+      }
+
+      if (!projectId) {
+        return mcpToolError(
+          "invalid_knowledge_memory_request",
+          "projectId is required when scope is project",
+        );
+      }
+
+      const ctx = mcpToolContext(apiAuth);
+
+      if (!(await toolCanAccessProject(ctx, projectId))) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const knowledgeMemory = await getKnowledgeMemoryForProject(projectId);
+      const compactMemory = compactMcpKnowledgeMemoryContent(knowledgeMemory.content);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              scope: "project",
+              projectId,
+              ...compactMemory,
+              updatedAt: knowledgeMemory.updatedAt,
             }),
           },
         ],

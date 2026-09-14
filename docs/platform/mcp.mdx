@@ -44,22 +44,23 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 
 ### Projects and glossaries
 
-| Tool                   | Description                                                                                                                                                             |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_projects`        | List accessible projects (`limit`, default 20, max 50)                                                                                                                  |
-| `get_project`          | Project details by `projectId`                                                                                                                                          |
-| `list_files`           | List source files in a project (`projectId`, `limit` default 20 max 50, `offset`, optional `search`)                                                                    |
-| `list_translations`    | Paginated CAT queue of translation keys (`projectId`, optional `sourcePath`, `targetLocale`, `search`, `queueFilter`, `queueSort`, `limit` default 20 max 50, `offset`) |
-| `get_translation`      | Full CAT detail for one translation key (`projectId`, `translationKeyId`, `targetLocale`)                                                                               |
-| `update_translation`   | Save a target translation and optionally approve it (`projectId`, `translationKeyId`, `targetLocale`, `targetText`, optional `approve`)                                 |
-| `get_project_status`   | Locale coverage counts by `projectId`, with optional `sourcePath`                                                                                                       |
-| `list_glossaries`      | List glossaries linked to accessible projects                                                                                                                           |
-| `get_glossary_entries` | Concept-linked terms for a `glossaryId` (`limit`, default 50, max 100)                                                                                                  |
-| `query_glossary`       | Ranked concept-linked hits for a source string and locale pair                                                                                                          |
-| `create_glossary_concept` | Create concept-linked source and target terms in a native glossary                                                                                                   |
-| `upload_sources`       | Upload a source file to a project using UTF-8 `content` or binary `contentBase64`                                                                                       |
-| `download_translations` | Download a reconstructed UTF-8 target file (`projectId`, `sourcePath`, `locale`)                                                                                         |
-| `query_translation_memory` | Search approved translation-memory entries for exact and lexical matches, optionally scoped by project or memory |
+| Tool                       | Description                                                                                                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_projects`            | List accessible projects (`limit`, default 20, max 50)                                                                                                                  |
+| `get_project`              | Project details by `projectId`                                                                                                                                          |
+| `list_files`               | List source files in a project (`projectId`, `limit` default 20 max 50, `offset`, optional `search`)                                                                    |
+| `list_translations`        | Paginated CAT queue of translation keys (`projectId`, optional `sourcePath`, `targetLocale`, `search`, `queueFilter`, `queueSort`, `limit` default 20 max 50, `offset`) |
+| `get_translation`          | Full CAT detail for one translation key (`projectId`, `translationKeyId`, `targetLocale`)                                                                               |
+| `update_translation`       | Save a target translation and optionally approve it (`projectId`, `translationKeyId`, `targetLocale`, `targetText`, optional `approve`)                                 |
+| `get_project_status`       | Locale coverage counts by `projectId`, with optional `sourcePath`                                                                                                       |
+| `list_glossaries`          | List glossaries linked to accessible projects                                                                                                                           |
+| `get_glossary_entries`     | Concept-linked terms for a `glossaryId` (`limit`, default 50, max 100)                                                                                                  |
+| `query_glossary`           | Ranked concept-linked hits for a source string and locale pair                                                                                                          |
+| `create_glossary_concept`  | Create concept-linked source and target terms in a native glossary                                                                                                      |
+| `upload_sources`           | Upload a source file to a project using UTF-8 `content` or binary `contentBase64`                                                                                       |
+| `download_translations`    | Download a reconstructed UTF-8 target file (`projectId`, `sourcePath`, `locale`)                                                                                        |
+| `query_translation_memory` | Search approved translation-memory entries for exact and lexical matches, optionally scoped by project or memory                                                        |
+| `get_knowledge_memory`     | Read organization-wide or project-specific `Memory.md` guidelines                                                                                                       |
 
 `list_files` returns metadata only: `id` (stored file or source-file id), `sourcePath`, `filename`, `contentType`, `byteSize`, `updatedAt`, and `sourceLocale` when known. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`. The tool does not return file contents. Inaccessible projects return `project_not_found`. Use the listed `sourcePath` values for later upload, download, or `run_workflow` calls.
 
@@ -127,6 +128,31 @@ Only approved memory entries are returned. When `projectId` is provided, unlinke
 
 Provider-backed translation memories use entries already stored or synchronized in Hyperlocalise. This tool does not initiate a live provider search.
 
+### Knowledge memory
+
+`get_knowledge_memory` reads the guidance that an agent should follow before translating content or filing issues. It is read-only; hosted MCP does not expose knowledge-memory writes.
+
+Organization scope is the default:
+
+```json
+{
+  "scope": "organization"
+}
+```
+
+To read project-specific guidance, provide an accessible project ID:
+
+```json
+{
+  "scope": "project",
+  "projectId": "project-id"
+}
+```
+
+The response includes `scope`, `content`, `updatedAt`, `truncated`, and `projectId` for project-scoped reads. A knowledge memory that has not been created returns an empty `content` string and is not an error. Content longer than the MCP-safe response limit is truncated and returns `truncated: true`.
+
+Project reads use the authenticated member's normal project access. Missing or inaccessible projects return `project_not_found` without exposing whether the project exists.
+
 ### Board (issues)
 
 | Tool                  | Description                                                       |
@@ -147,11 +173,11 @@ Provider-backed translation memories use entries already stored or synchronized 
 
 ### Jobs
 
-| Tool           | Description                                                                                                           |
-| -------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `run_workflow` | Create and enqueue a string or file translation job                                                                   |
-| `list_jobs`    | Recent translation jobs (`projectId`, `sourcePath`, `status`, `limit` default 20 max 50, `offset`)                    |
-| `get_job`      | Job status by `jobId`. Poll after `run_workflow` until the job is terminal.                                           |
+| Tool           | Description                                                                                        |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| `run_workflow` | Create and enqueue a string or file translation job                                                |
+| `list_jobs`    | Recent translation jobs (`projectId`, `sourcePath`, `status`, `limit` default 20 max 50, `offset`) |
+| `get_job`      | Job status by `jobId`. Poll after `run_workflow` until the job is terminal.                        |
 
 `run_workflow` starts durable Cloud translation work and returns without waiting for translation to finish. Use `type: "string"` with `sourceText`, or `type: "file"` with exactly one of `sourceFileId` and `sourcePath` plus `fileFormat`. Both variants require `projectId`, the project's `sourceLocale`, and one or more configured `targetLocales`. String jobs also accept optional `context` and `maxLength`; both variants accept optional `metadata`.
 
@@ -179,14 +205,14 @@ Missing or inaccessible jobs, including jobs from another organization, return `
 
 These tools use a Zernio API key saved under **Integrations**. They never return the secret. If the organization has one enabled, valid connection, the ads tools use it. If it has more than one, pass `connectionId` from `zernio_list_connections`.
 
-| Tool | Description |
-| --- | --- |
-| `zernio_list_connections` | List Zernio connections for this organization (id, display name, enabled, validation status, masked suffix) |
-| `zernio_list_accounts` | List social and ads accounts for a connected key (`connectionId` optional) |
-| `zernio_list_ads` | Read the campaign → ad set → ad tree (`connectionId` optional, optional `accountId`) |
-| `zernio_get_ad` | Get one ad by `adId` (`connectionId` optional) |
-| `zernio_create_ad` | Create a campaign, ad set, and ad via `POST /v1/ads/create`. Send `idempotencyKey` on retries. Default new ads to `PAUSED` unless you set `status: "ACTIVE"`. |
-| `zernio_create_campaign` | Create a campaign shell without its first ad set. Later ads join with `existingCampaignId` on `zernio_create_ad`. |
+| Tool                      | Description                                                                                                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `zernio_list_connections` | List Zernio connections for this organization (id, display name, enabled, validation status, masked suffix)                                                   |
+| `zernio_list_accounts`    | List social and ads accounts for a connected key (`connectionId` optional)                                                                                    |
+| `zernio_list_ads`         | Read the campaign → ad set → ad tree (`connectionId` optional, optional `accountId`)                                                                          |
+| `zernio_get_ad`           | Get one ad by `adId` (`connectionId` optional)                                                                                                                |
+| `zernio_create_ad`        | Create a campaign, ad set, and ad via `POST /v1/ads/create`. Send `idempotencyKey` on retries. Default new ads to `PAUSED` unless you set `status: "ACTIVE"`. |
+| `zernio_create_campaign`  | Create a campaign shell without its first ad set. Later ads join with `existingCampaignId` on `zernio_create_ad`.                                             |
 
 `zernio_create_ad` requires `accountId`, `adAccountId`, and `name`. Optional fields include `goal`, `budgetAmount`, `budgetType`, `headline`, `body`, `linkUrl`, `imageUrl`, `callToAction`, `status`, `existingCampaignId`, `adSetId`, `targeting`, `extra`, `idempotencyKey`, and `validateOnly`. Omitted `status` is sent as `PAUSED`. Reuse `idempotencyKey` only when retrying the same create. If omitted, Hyperlocalise generates a unique key per call and retries a timeout once with that key. Create tools require `ai_actions:run` (not the read-only `member` role).
 
@@ -212,37 +238,37 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 
 ## Troubleshooting
 
-| Symptom                                        | Likely cause                                                                                                           |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Consent page loops or `invalid_request`        | Stale OAuth cookies; sign out and retry, or use a private window                                                       |
-| `registration_disabled` on `/api/mcp/register` | Dynamic registration is off in production; use a client that supports metadata-based client IDs                        |
-| `forbidden` on issue tools                     | Your role is read-only for write-back operations                                                                       |
-| `issue_not_found`                              | Wrong `projectId`, issue id, or missing project access                                                                 |
-| `invalid_comment_cursor`                       | Stale or malformed `cursor` on `list_issue_comments`                                                                   |
-| `job_not_found`                                | Wrong `jobId`, missing project access, or a job from another organization                                              |
-| `invalid_job_payload`                          | Source or target locales do not match the project, or the translation job input is invalid                            |
-| `file_not_found`                               | The requested source file does not exist in the accessible project                                                     |
-| `job_queue_unavailable`                        | The translation job was created but could not be submitted to the workflow queue                                       |
-| `idempotency_conflict`                         | The supplied idempotency key is already associated with a different workflow payload                                  |
-| `ai_features_required`                         | AI translation features are not available for the organization                                                        |
-| `ai_features_check_failed`                     | Hyperlocalise could not verify AI feature availability                                                                |
-| `project_not_found`                            | Wrong `projectId` or missing project access on project-scoped tools, including `query_translation_memory`            |
-| `glossary_not_found`                           | Wrong `glossaryId`, missing glossary access, or a provider glossary on `query_glossary`                                |
-| `glossary_read_only`                           | `create_glossary_concept` targeted a provider-synced glossary                                                        |
-| `duplicate_glossary_concept_term`              | A source or target term already exists for the same locale in the native glossary                                    |
-| `translation_not_found`                        | Wrong or inaccessible project, translation key, target locale, or a hidden key                                         |
-| `translation_locked`                           | The requested translation segment is locked in the Content Editor                                                      |
-| `invalid_translation`                          | Target text has a blocking placeholder or ICU validation error                                                         |
-| `provider_cat_unsupported`                     | The requested operation targets a provider-only live CAT string without a supported native overlay                     |
-| Agent cannot reach local Cloud                 | Use `http://localhost:3000/mcp` and ensure the dev server is running                                                   |
-| `invalid_file_payload`                         | Upload content is missing, malformed, oversized, or contains conflicting input fields                                  |
-| `unsupported_file`                             | The uploaded source path uses an unsupported translation file format                                                   |
-| `source_upload_failed`                         | The native or external TMS source upload failed                                                                        |
-| `source_file_not_found`                        | The requested source path does not exist in the accessible project                                                     |
-| `translations_not_found`                       | The source file has no translation keys available to reconstruct                                                       |
-| `source_file_too_large`                        | The translation reconstruction exceeds the public API key limit                                                        |
-| `unsupported_binary_download`                  | The reconstructed file cannot be returned as UTF-8 text                                                                |
-| `memory_not_found`                             | `query_translation_memory` targeted a missing, inaccessible, malformed, or project-unlinked translation memory         |
+| Symptom                                        | Likely cause                                                                                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Consent page loops or `invalid_request`        | Stale OAuth cookies; sign out and retry, or use a private window                                                                     |
+| `registration_disabled` on `/api/mcp/register` | Dynamic registration is off in production; use a client that supports metadata-based client IDs                                      |
+| `forbidden` on issue tools                     | Your role is read-only for write-back operations                                                                                     |
+| `issue_not_found`                              | Wrong `projectId`, issue id, or missing project access                                                                               |
+| `invalid_comment_cursor`                       | Stale or malformed `cursor` on `list_issue_comments`                                                                                 |
+| `job_not_found`                                | Wrong `jobId`, missing project access, or a job from another organization                                                            |
+| `invalid_job_payload`                          | Source or target locales do not match the project, or the translation job input is invalid                                           |
+| `file_not_found`                               | The requested source file does not exist in the accessible project                                                                   |
+| `job_queue_unavailable`                        | The translation job was created but could not be submitted to the workflow queue                                                     |
+| `idempotency_conflict`                         | The supplied idempotency key is already associated with a different workflow payload                                                 |
+| `ai_features_required`                         | AI translation features are not available for the organization                                                                       |
+| `ai_features_check_failed`                     | Hyperlocalise could not verify AI feature availability                                                                               |
+| `project_not_found`                            | Wrong `projectId` or missing project access on project-scoped tools, including `query_translation_memory` and `get_knowledge_memory` |
+| `glossary_not_found`                           | Wrong `glossaryId`, missing glossary access, or a provider glossary on `query_glossary`                                              |
+| `glossary_read_only`                           | `create_glossary_concept` targeted a provider-synced glossary                                                                        |
+| `duplicate_glossary_concept_term`              | A source or target term already exists for the same locale in the native glossary                                                    |
+| `translation_not_found`                        | Wrong or inaccessible project, translation key, target locale, or a hidden key                                                       |
+| `translation_locked`                           | The requested translation segment is locked in the Content Editor                                                                    |
+| `invalid_translation`                          | Target text has a blocking placeholder or ICU validation error                                                                       |
+| `provider_cat_unsupported`                     | The requested operation targets a provider-only live CAT string without a supported native overlay                                   |
+| Agent cannot reach local Cloud                 | Use `http://localhost:3000/mcp` and ensure the dev server is running                                                                 |
+| `invalid_file_payload`                         | Upload content is missing, malformed, oversized, or contains conflicting input fields                                                |
+| `unsupported_file`                             | The uploaded source path uses an unsupported translation file format                                                                 |
+| `source_upload_failed`                         | The native or external TMS source upload failed                                                                                      |
+| `source_file_not_found`                        | The requested source path does not exist in the accessible project                                                                   |
+| `translations_not_found`                       | The source file has no translation keys available to reconstruct                                                                     |
+| `source_file_too_large`                        | The translation reconstruction exceeds the public API key limit                                                                      |
+| `unsupported_binary_download`                  | The reconstructed file cannot be returned as UTF-8 text                                                                              |
+| `memory_not_found`                             | `query_translation_memory` targeted a missing, inaccessible, malformed, or project-unlinked translation memory                       |
 
 ## Next
 

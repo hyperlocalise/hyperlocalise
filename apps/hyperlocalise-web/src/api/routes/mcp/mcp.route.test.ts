@@ -61,6 +61,10 @@ import { setCatSegmentLocks } from "@/lib/projects/content-editor/content-editor
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { maxPublicUploadBytes } from "@/api/routes/public-files/public-files.schema";
+import {
+  commitKnowledgeMemoryForOrganization,
+  commitKnowledgeMemoryForProject,
+} from "@/lib/knowledge-memory/knowledge-memory";
 import { NativeGlossary } from "@/lib/glossary/native-glossary";
 import { err, ok } from "@/lib/primitives/result/results";
 
@@ -9672,6 +9676,235 @@ describe("mcpRoutes", () => {
     expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
       error: "unsupported_binary_download",
     });
+  });
+
+  it("advertises get_knowledge_memory with bounded organization and project scopes", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/list",
+            params: {},
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "get_knowledge_memory");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("knowledge memory");
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      scope: {
+        type: "string",
+        enum: ["organization", "project"],
+        default: "organization",
+      },
+      projectId: {
+        type: "string",
+      },
+    });
+  });
+
+  it("returns organization knowledge memory", async () => {
+    const headers = await authenticatedMcpHeaders();
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const content = [
+      "# Organization guidelines",
+      "",
+      "- Do not translate Hyperlocalise.",
+      "- Use sentence case for headings.",
+    ].join("\n");
+
+    const committed = await commitKnowledgeMemoryForOrganization({
+      organizationId: auth.organization.localOrganizationId,
+      content,
+      summary: "Add organization translation guidelines",
+      updatedByUserId: auth.user.localUserId,
+      expectedRevisionId: null,
+    });
+
+    expect(committed.ok).toBe(true);
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "get_knowledge_memory", {
+        scope: "organization",
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toMatchObject({
+      scope: "organization",
+      content,
+      updatedAt: expect.any(String),
+      truncated: false,
+    });
+
+    expect(result.output).not.toHaveProperty("projectId");
+  });
+
+  it("returns project knowledge memory", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const content = [
+      "# Project guidelines",
+      "",
+      "- Preserve ICU placeholders.",
+      "- Use formal Vietnamese.",
+    ].join("\n");
+
+    const committed = await commitKnowledgeMemoryForProject({
+      projectId: stored.project.id,
+      content,
+      summary: "Add project translation guidelines",
+      updatedByUserId: auth.user.localUserId,
+      expectedRevisionId: null,
+    });
+
+    expect(committed.ok).toBe(true);
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "get_knowledge_memory", {
+        scope: "project",
+        projectId: stored.project.id,
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toMatchObject({
+      scope: "project",
+      projectId: stored.project.id,
+      content,
+      updatedAt: expect.any(String),
+      truncated: false,
+    });
+  });
+
+  it("returns project_not_found for an inaccessible project knowledge memory", async () => {
+    const accessible = await fixture.createStoredProjectFixture();
+    const inaccessible = await fixture.createStoredProjectFixture();
+
+    const headers = await authenticatedMcpHeaders(accessible.identity);
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "get_knowledge_memory", {
+        scope: "project",
+        projectId: inaccessible.project.id,
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "project_not_found",
+    });
+  });
+
+  it("returns an empty organization knowledge memory without an error", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const result = await readMcpToolResult(await callMcpTool(headers, "get_knowledge_memory", {}));
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toEqual({
+      scope: "organization",
+      content: "",
+      updatedAt: null,
+      truncated: false,
+    });
+  });
+
+  it("truncates organization knowledge memory for the MCP response", async () => {
+    const headers = await authenticatedMcpHeaders();
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const content = "a".repeat(40_000);
+
+    const committed = await commitKnowledgeMemoryForOrganization({
+      organizationId: auth.organization.localOrganizationId,
+      content,
+      summary: "Add long organization guidelines",
+      updatedByUserId: auth.user.localUserId,
+      expectedRevisionId: null,
+    });
+
+    expect(committed.ok).toBe(true);
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "get_knowledge_memory", {
+        scope: "organization",
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toMatchObject({
+      scope: "organization",
+      updatedAt: expect.any(String),
+      truncated: true,
+    });
+
+    const returnedContent = String(result.output.content);
+
+    expect(returnedContent).toHaveLength(32_000);
+    expect(returnedContent.endsWith("…")).toBe(true);
+  });
+
+  it("rejects project knowledge memory requests without a project ID", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await callMcpTool(headers, "get_knowledge_memory", {
+      scope: "project",
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(body.result?.content?.[0]?.text).toContain("projectId");
   });
 
   it("advertises create_glossary_concept with bounded inputs", async () => {
