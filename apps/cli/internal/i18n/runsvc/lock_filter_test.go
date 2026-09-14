@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
+	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
 func baseLockTask() Task {
@@ -231,11 +232,11 @@ func TestLockTaskHashReusesCachedNonMarkdownContextFingerprint(t *testing.T) {
 	precomputeStableTaskCacheFields(&task)
 
 	got := lockTaskHash(task)
-	want := lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, false)
+	want := lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, false, true)
 	if got != want {
 		t.Fatalf("expected non-markdown lock hash to reuse cached context fingerprint")
 	}
-	if got != lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), false) {
+	if got != lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), false, true) {
 		t.Fatalf("expected lockSourceContextFingerprint to match cached non-markdown fingerprint")
 	}
 }
@@ -254,10 +255,10 @@ func TestLockTaskHashKeepsMarkdownLockContextOverCachedFingerprint(t *testing.T)
 	precomputeStableTaskCacheFields(&task)
 
 	got := lockTaskHash(task)
-	if got == lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, false) {
+	if got == lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, false, true) {
 		t.Fatalf("expected markdown lock hash to ignore cached prompt context fingerprint")
 	}
-	want := lockTaskHashWithContextFingerprint(task, sourceContextFingerprintForLock(task), false)
+	want := lockTaskHashWithContextFingerprint(task, sourceContextFingerprintForLock(task), false, true)
 	if got != want {
 		t.Fatalf("expected markdown lock hash to use lock-specific context fingerprint")
 	}
@@ -434,5 +435,125 @@ func TestApplyLockFilterDoesNotStageCheckpointWhenTaskHashChanges(t *testing.T) 
 	}
 	if len(checkpointStaged) != 0 {
 		t.Fatalf("expected stale checkpoint not to be staged, got %+v", checkpointStaged)
+	}
+}
+
+func TestLockTaskHashChangesWhenTranslationTypeChanges(t *testing.T) {
+	llm := baseLockTask()
+	llm.TranslationType = config.TranslationTypeLLM
+
+	mt := llm
+	mt.TranslationType = config.TranslationTypeMT
+
+	if lockTaskHash(llm) == lockTaskHash(mt) {
+		t.Fatal("expected translation type to change the lock task hash")
+	}
+}
+
+func TestLockTaskHashCandidatesIncludesLegacyPreTranslationTypeHashForLLM(t *testing.T) {
+	task := baseLockTask()
+	task.TranslationType = config.TranslationTypeLLM
+
+	legacy := legacyPreTranslationTypeLockTaskHash(task)
+	found := false
+	for _, candidate := range lockTaskHashCandidates(task) {
+		if candidate == legacy {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected legacy pre-translation-type hash to be a candidate for an LLM task")
+	}
+}
+
+func TestLockTaskHashCandidatesOmitsLegacyPreTranslationTypeHashForMT(t *testing.T) {
+	task := baseLockTask()
+	task.TranslationType = config.TranslationTypeMT
+	task.Model = ""
+
+	legacy := legacyPreTranslationTypeLockTaskHash(task)
+	for _, candidate := range lockTaskHashCandidates(task) {
+		if candidate == legacy {
+			t.Fatal("expected MT task candidates to exclude the type-less legacy hash")
+		}
+	}
+}
+
+func TestApplyLockFilterMigratesLegacyTypelessHashForLLMTask(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.json"
+	task.SourcePath = "/tmp/source.json"
+	task.EntryKey = "hello"
+	task.SourceLocale = "en"
+	task.TargetLocale = "fr"
+	task.TranslationType = config.TranslationTypeLLM
+
+	completed := map[string]lockfile.RunCompletion{
+		taskIdentity(task.TargetPath, task.EntryKey): {
+			SourceHash: hashSourceText(task.SourceText),
+			TaskHash:   legacyPreTranslationTypeLockTaskHash(task),
+		},
+	}
+
+	report, executable, _, migrated, err := applyLockFilter([]Task{task}, completed, nil, "", false)
+	if err != nil {
+		t.Fatalf("applyLockFilter: %v", err)
+	}
+	if report.SkippedByLock != 1 || len(executable) != 0 {
+		t.Fatalf("expected legacy type-less LLM lock entry to skip, report=%+v executable=%d", report, len(executable))
+	}
+	if !migrated {
+		t.Fatal("expected legacy type-less hash to migrate to the translation_type-inclusive hash")
+	}
+	if got, want := completed[taskIdentity(task.TargetPath, task.EntryKey)].TaskHash, lockTaskHash(task); got != want {
+		t.Fatalf("expected migrated task hash %q, got %q", want, got)
+	}
+}
+
+func TestApplyLockFilterDoesNotReuseLegacyTypelessHashForMTTask(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.json"
+	task.SourcePath = "/tmp/source.json"
+	task.EntryKey = "hello"
+	task.SourceLocale = "en"
+	task.TargetLocale = "fr"
+	task.TranslationType = config.TranslationTypeMT
+	task.Provider = "google"
+	task.Model = ""
+	task.PromptVersion = ""
+	task.ProfileName = "google-default"
+
+	completed := map[string]lockfile.RunCompletion{
+		taskIdentity(task.TargetPath, task.EntryKey): {
+			SourceHash: hashSourceText(task.SourceText),
+			TaskHash:   legacyPreTranslationTypeLockTaskHash(task),
+		},
+	}
+
+	report, executable, _, _, err := applyLockFilter([]Task{task}, completed, nil, "", false)
+	if err != nil {
+		t.Fatalf("applyLockFilter: %v", err)
+	}
+	if report.SkippedByLock != 0 {
+		t.Fatalf("expected MT task to force re-translation instead of reusing a type-less lock entry, got report %+v", report)
+	}
+	if len(executable) != 1 {
+		t.Fatalf("expected MT task to remain executable, got %d", len(executable))
+	}
+}
+
+func TestLockTaskHashChangesWhenMTProfileChanges(t *testing.T) {
+	task := baseLockTask()
+	task.TranslationType = config.TranslationTypeMT
+	task.Provider = "google"
+	task.Model = ""
+	task.ProfileName = "google-default"
+
+	other := task
+	other.ProfileName = "google-eu"
+
+	if lockTaskHash(task) == lockTaskHash(other) {
+		t.Fatal("expected switching MT profile to change the lock task hash")
 	}
 }

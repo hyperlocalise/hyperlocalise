@@ -185,15 +185,22 @@ func precomputeStableTaskCacheFields(task *Task) {
 
 func lockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), false)
+	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), false, true)
+}
+
+// legacyPreTranslationTypeLockTaskHash reproduces the pre-translation-type
+// hash for backward-compatible LLM lock matching.
+func legacyPreTranslationTypeLockTaskHash(task Task) string {
+	precomputeStableTaskCacheFields(&task)
+	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), false, false)
 }
 
 func legacyContextSensitiveLockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	return lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, false)
+	return lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, false, false)
 }
 
-func lockTaskHashWithContextFingerprint(task Task, sourceContextFingerprint string, includeLegacyDefaults bool) string {
+func lockTaskHashWithContextFingerprint(task Task, sourceContextFingerprint string, includeLegacyDefaults bool, includeTranslationType bool) string {
 	parts := []string{
 		"source_norm_hash=" + task.sourceTextHash,
 		"source_locale=" + strings.TrimSpace(task.SourceLocale),
@@ -201,8 +208,11 @@ func lockTaskHashWithContextFingerprint(task Task, sourceContextFingerprint stri
 		"provider=" + strings.TrimSpace(task.Provider),
 		"model=" + strings.TrimSpace(task.Model),
 		"profile=" + strings.TrimSpace(task.ProfileName),
-		"prompt_version_hash=" + strings.TrimSpace(task.PromptVersion),
 	}
+	if includeTranslationType {
+		parts = append(parts, "translation_type="+strings.TrimSpace(task.TranslationType))
+	}
+	parts = append(parts, "prompt_version_hash="+strings.TrimSpace(task.PromptVersion))
 	if includeLegacyDefaults {
 		parts = append(parts, "glossary_termbase_version_hash=none")
 	}
@@ -243,10 +253,10 @@ func legacyDefaultRetrievalSnapshot() string {
 
 func legacyDefaultLockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), true)
+	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), true, false)
 }
 
 func legacyDefaultContextSensitiveLockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	return lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, true)
+	return lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, true, false)
 }

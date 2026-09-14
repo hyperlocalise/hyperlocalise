@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
+	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -482,10 +483,15 @@ func findCheckpointForTask(
 
 func lockTaskHashCandidates(task Task) []string {
 	candidates := []string{lockTaskHash(task)}
-	if isMarkdownEntryKey(task.EntryKey) {
-		candidates = append(candidates, legacyMarkdownContextSensitiveLockTaskHashCandidates(task)...)
-	} else {
-		candidates = append(candidates, legacyDefaultLockTaskHash(task))
+	if task.TranslationType != config.TranslationTypeMT {
+		// Type-less legacy hashes represent LLM state; MT tasks must match
+		// a hash that explicitly includes translation_type=mt.
+		candidates = append(candidates, legacyPreTranslationTypeLockTaskHash(task))
+		if isMarkdownEntryKey(task.EntryKey) {
+			candidates = append(candidates, legacyMarkdownContextSensitiveLockTaskHashCandidates(task)...)
+		} else {
+			candidates = append(candidates, legacyDefaultLockTaskHash(task))
+		}
 	}
 
 	seen := map[string]struct{}{}
