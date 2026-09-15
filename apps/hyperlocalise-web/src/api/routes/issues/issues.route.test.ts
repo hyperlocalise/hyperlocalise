@@ -657,6 +657,44 @@ describe("Organization issue-sheet GET", () => {
     return `/api/orgs/${encodeURIComponent(organizationSlug)}/issue-sheet/${encodeURIComponent(issueId)}`;
   }
 
+  function organizationIssueSheetSearchUrl(organizationSlug: string) {
+    return `/api/orgs/${encodeURIComponent(organizationSlug)}/issue-sheet/search`;
+  }
+
+  it("returns forbidden when the Queries Board entitlement is disabled", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    // Seed while entitlement is allowed (project issue-sheet is also gated).
+    const seeded = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Gated issue",
+        issueType: "general_question",
+      },
+    });
+    expect(seeded.status).toBe(201);
+    const created = (await seeded.json()) as { issue: { identifier: string } };
+
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
+
+    const detailResponse = await requestJson(
+      organizationIssueSheetUrl(organizationSlug, created.issue.identifier),
+      { headers },
+    );
+    expect(detailResponse.status).toBe(403);
+    await expect(detailResponse.json()).resolves.toMatchObject({ error: "feature_unavailable" });
+
+    const searchResponse = await requestJson(organizationIssueSheetSearchUrl(organizationSlug), {
+      headers,
+      query: { q: "Gated", limit: "10" },
+    });
+    expect(searchResponse.status).toBe(403);
+    await expect(searchResponse.json()).resolves.toMatchObject({ error: "feature_unavailable" });
+  });
+
   it("returns one authorized issue by id", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
