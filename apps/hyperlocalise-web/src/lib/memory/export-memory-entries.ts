@@ -107,6 +107,7 @@ async function loadExportPage(
       targetLocale: schema.memoryEntries.targetLocale,
       sourceText: schema.memoryEntries.sourceText,
       targetText: schema.memoryEntries.targetText,
+      matchScore: schema.memoryEntries.matchScore,
       externalKey: schema.memoryEntries.externalKey,
       metadata: schema.memoryEntries.metadata,
     })
@@ -116,16 +117,106 @@ async function loadExportPage(
     .limit(TMX_EXPORT_PAGE_SIZE);
 }
 
-export function buildMemoryTmxFilename(memoryName: string, filters: MemoryExportFilters) {
-  const slug =
+function buildMemoryExportSlug(memoryName: string) {
+  return (
     memoryName
       .trim()
       .replace(/[^\w.-]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "translation-memory";
+      .replace(/^-+|-+$/g, "") || "translation-memory"
+  );
+}
+
+export function buildMemoryTmxFilename(memoryName: string, filters: MemoryExportFilters) {
+  const slug = buildMemoryExportSlug(memoryName);
   if (filters.sourceLocale && filters.targetLocale) {
     return `${slug}-${filters.sourceLocale}-${filters.targetLocale}.tmx`;
   }
   return `${slug}.tmx`;
+}
+
+export function buildMemoryCsvFilename(memoryName: string, filters: MemoryExportFilters) {
+  const slug = buildMemoryExportSlug(memoryName);
+  if (filters.sourceLocale && filters.targetLocale) {
+    return `${slug}-${filters.sourceLocale}-${filters.targetLocale}.csv`;
+  }
+  return `${slug}.csv`;
+}
+
+const MEMORY_CSV_HEADER = [
+  "source_locale",
+  "target_locale",
+  "source_text",
+  "target_text",
+  "match_score",
+] as const;
+
+function escapeMemoryCsvCell(value: string) {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function serializeMemoryCsvRow(row: {
+  sourceLocale: string;
+  targetLocale: string;
+  sourceText: string;
+  targetText: string;
+  matchScore: number;
+}) {
+  return [
+    row.sourceLocale,
+    row.targetLocale,
+    row.sourceText,
+    row.targetText,
+    String(row.matchScore),
+  ]
+    .map(escapeMemoryCsvCell)
+    .join(",");
+}
+
+export function createMemoryCsvExportStream(input: {
+  memoryId: string;
+  filters?: MemoryExportFilters;
+}) {
+  const filters = input.filters ?? {};
+  const encoder = new TextEncoder();
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let cursor: { createdAt: Date; id: string } | undefined;
+
+      try {
+        controller.enqueue(encoder.encode(`\uFEFF${MEMORY_CSV_HEADER.join(",")}\r\n`));
+
+        for (;;) {
+          const rows = await loadExportPage(input.memoryId, filters, cursor);
+          if (rows.length === 0) {
+            break;
+          }
+          for (const row of rows) {
+            const line = `${serializeMemoryCsvRow({
+              sourceLocale: row.sourceLocale,
+              targetLocale: row.targetLocale,
+              sourceText: row.sourceText,
+              targetText: row.targetText,
+              matchScore: row.matchScore,
+            })}\r\n`;
+            controller.enqueue(encoder.encode(line));
+          }
+          const last = rows.at(-1);
+          if (!last || rows.length < TMX_EXPORT_PAGE_SIZE) {
+            break;
+          }
+          cursor = { createdAt: last.createdAt, id: last.id };
+        }
+
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
 }
 
 export function createMemoryTmxExportStream(input: {
@@ -204,5 +295,20 @@ export async function exportMemoryEntriesTmx(input: {
       filters,
     }),
     filename: buildMemoryTmxFilename(input.memoryName, filters),
+  };
+}
+
+export async function exportMemoryEntriesCsv(input: {
+  memoryId: string;
+  memoryName: string;
+  filters?: MemoryExportFilters;
+}) {
+  const filters = input.filters ?? {};
+  return {
+    body: createMemoryCsvExportStream({
+      memoryId: input.memoryId,
+      filters,
+    }),
+    filename: buildMemoryCsvFilename(input.memoryName, filters),
   };
 }

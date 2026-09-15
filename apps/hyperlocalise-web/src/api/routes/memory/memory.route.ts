@@ -36,7 +36,7 @@ import {
   parseMemoryImportContent,
   type AppliedMemoryImport,
 } from "@/lib/memory/import-memory-entries";
-import { exportMemoryEntriesTmx } from "@/lib/memory/export-memory-entries";
+import { exportMemoryEntriesCsv, exportMemoryEntriesTmx } from "@/lib/memory/export-memory-entries";
 import {
   createMemoryImportAttempt,
   finalizeMemoryImportAttempt,
@@ -772,14 +772,22 @@ export function createMemoryRoutes() {
           return memoryCapabilityDeniedResponse(c, "export", "unsupported");
         }
 
-        const exported = await exportMemoryEntriesTmx({
-          memoryId: memory.id,
-          memoryName: memory.name,
-          filters: {
-            sourceLocale: query.sourceLocale,
-            targetLocale: query.targetLocale,
-          },
-        });
+        const filters = {
+          sourceLocale: query.sourceLocale,
+          targetLocale: query.targetLocale,
+        };
+        const exported =
+          query.format === "csv"
+            ? await exportMemoryEntriesCsv({
+                memoryId: memory.id,
+                memoryName: memory.name,
+                filters,
+              })
+            : await exportMemoryEntriesTmx({
+                memoryId: memory.id,
+                memoryName: memory.name,
+                filters,
+              });
 
         await enqueueActivityLogEvent({
           actorCredentialId: null,
@@ -791,6 +799,13 @@ export function createMemoryRoutes() {
           targetId: memory.id,
           targetKind: "translation_memory",
         });
+
+        if (query.format === "csv") {
+          return c.body(exported.body, 200, {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(exported.filename)}`,
+          });
+        }
 
         return c.body(exported.body, 200, {
           "Content-Type": "application/x-tmx+xml; charset=utf-8",

@@ -165,7 +165,7 @@ export const listMemoryImportAttemptsQuerySchema = z.object({
 });
 
 export const exportMemoryEntriesQuerySchema = z.object({
-  format: z.enum(["tmx"]).optional().default("tmx"),
+  format: z.enum(["csv", "tmx"]).optional().default("tmx"),
   sourceLocale: z.string().trim().min(1).max(50).optional(),
   targetLocale: z.string().trim().min(1).max(50).optional(),
 });

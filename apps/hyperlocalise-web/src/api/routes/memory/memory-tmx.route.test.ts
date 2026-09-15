@@ -345,6 +345,63 @@ describe("memory TMX import and export", () => {
     expect(((await listed.json()) as { total: number }).total).toBe(3);
   });
 
+  it("exports CSV that re-imports with the same segment text", async () => {
+    const { identity, organization, user, memory } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    await fixture.insertMemoryEntry(memory.id, {
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceText: "Hello, world",
+      targetText: "Bonjour le monde",
+    });
+
+    const exported = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.export.$get(
+      { param: { organizationSlug, memoryId: memory.id }, query: { format: "csv" } },
+      { headers },
+    );
+    expect(exported.status).toBe(200);
+    expect(exported.headers.get("content-type")).toContain("csv");
+    const csv = await exported.text();
+    expect(csv).toContain("source_locale");
+    expect(csv).toContain("Hello, world");
+
+    const [secondMemory] = await db
+      .insert(schema.memories)
+      .values({
+        organizationId: organization.id,
+        createdByUserId: user.id,
+        name: "CSV import target TM",
+      })
+      .returning();
+    const imported = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.import.$post(
+      {
+        param: {
+          organizationSlug,
+          memoryId: secondMemory.id,
+        },
+        json: { format: "csv", content: csv },
+      },
+      { headers },
+    );
+    expect(imported.status).toBe(201);
+    const body = (await imported.json()) as {
+      memoryEntries: Array<{ sourceText: string; targetText: string; matchScore: number }>;
+      report: { created: number };
+    };
+    expect(body.report.created).toBe(1);
+    expect(body.memoryEntries[0]).toMatchObject({
+      sourceText: "Hello, world",
+      targetText: "Bonjour le monde",
+      matchScore: 100,
+    });
+  });
+
   it("exports TMX that re-imports with the same segment text", async () => {
     const { identity, organization, user, memory } = await fixture.createStoredMemoryFixture();
     const headers = await fixture.authHeadersFor(identity);

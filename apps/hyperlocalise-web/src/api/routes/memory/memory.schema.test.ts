@@ -14,7 +14,11 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { TMX_DEFAULT_MAX_UNITS } from "@/lib/memory/tmx/tmx-constants";
 
-import { importMemoryEntriesBodySchema, listMemoryEntriesQuerySchema } from "./memory.schema";
+import {
+  exportMemoryEntriesQuerySchema,
+  importMemoryEntriesBodySchema,
+  listMemoryEntriesQuerySchema,
+} from "./memory.schema";
 
 describe("listMemoryEntriesQuerySchema", () => {
   it("defaults to a bounded created_at desc page", () => {
@@ -33,6 +37,14 @@ describe("listMemoryEntriesQuerySchema", () => {
 
   it("rejects an oversized page", () => {
     expect(listMemoryEntriesQuerySchema.safeParse({ limit: "101" }).success).toBe(false);
+  });
+});
+
+describe("exportMemoryEntriesQuerySchema", () => {
+  it("defaults to tmx and accepts csv", () => {
+    expect(exportMemoryEntriesQuerySchema.parse({}).format).toBe("tmx");
+    expect(exportMemoryEntriesQuerySchema.parse({ format: "csv" }).format).toBe("csv");
+    expect(exportMemoryEntriesQuerySchema.safeParse({ format: "xlsx" }).success).toBe(false);
   });
 });
 

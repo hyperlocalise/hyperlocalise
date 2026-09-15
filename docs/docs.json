@@ -137,7 +137,9 @@
                   "platform/domains",
                   "platform/automations",
                   "platform/visual-workflows",
-                  "platform/knowledge"
+                  "platform/knowledge",
+                  "platform/glossary-import-export",
+                  "platform/translation-memory-import-export"
                 ]
               },
               {
