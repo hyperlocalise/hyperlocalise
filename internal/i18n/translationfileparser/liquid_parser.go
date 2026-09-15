@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 const unknownLiquidFilePath = "<unknown>"
@@ -249,27 +250,29 @@ func appendLiquidBoundaryPlaceholder(literal string, placeholders map[string]str
 }
 
 func liquidPlaceholderToken(index int, literal string) string {
-	// BOLT OPTIMIZATION: Reduce allocations by using a stack buffer for hashing
-	// (avoids heap for short literals) and manually encoding hex in uppercase
-	// to avoid extra string operations.
+	// BOLT OPTIMIZATION: Format placeholder token directly into a stack buffer
+	// to avoid strings.Builder heap allocations.
 	var buf [64]byte
 	hInput := strconv.AppendInt(buf[:0], int64(index), 10)
 	hInput = append(hInput, ':')
 	hInput = append(hInput, literal...)
 	sum := sha256.Sum256(hInput)
 
-	var res strings.Builder
-	res.Grow(32)
-	res.WriteString("\x1eHLLQPH_")
+	var tokBuf [48]byte
+	n := copy(tokBuf[:], "\x1eHLLQPH_")
 	for i := 0; i < 6; i++ {
 		b := sum[i]
-		res.WriteByte(hexDigits[b>>4])
-		res.WriteByte(hexDigits[b&0x0f])
+		tokBuf[n] = hexDigits[b>>4]
+		tokBuf[n+1] = hexDigits[b&0x0f]
+		n += 2
 	}
-	res.WriteByte('_')
-	res.WriteString(strconv.Itoa(index))
-	res.WriteByte('\x1f')
-	return res.String()
+	tokBuf[n] = '_'
+	n++
+	idxBytes := strconv.AppendInt(tokBuf[n:n], int64(index), 10)
+	n += len(idxBytes)
+	tokBuf[n] = '\x1f'
+	n++
+	return string(tokBuf[:n])
 }
 
 func updateLiquidHTMLTagState(input []byte, index int, ch byte, inHTMLTag *bool, htmlQuote *byte) {
@@ -404,22 +407,37 @@ func findLiquidSkippedBlockEnd(input []byte, from int, tagName string) (int, boo
 }
 
 func liquidPartHasTranslatableText(part htmlPart) bool {
-	// Optimization: instead of removing each placeholder via strings.ReplaceAll in a loop
-	// (which causes O(N*M) allocations), we skip any text between sentinel delimiters.
+	// BOLT OPTIMIZATION: Fast ASCII byte loop to skip sentinel delimiters and check for
+	// translatable alphanumerics without UTF-8 rune decoding.
 	inPlaceholder := false
-	for _, r := range part.source {
-		if r == '\x1e' {
+	s := part.source
+	for i := 0; i < len(s); {
+		b := s[i]
+		if b == '\x1e' {
 			inPlaceholder = true
+			i++
 			continue
 		}
-		if r == '\x1f' {
+		if b == '\x1f' {
 			inPlaceholder = false
+			i++
 			continue
 		}
 		if !inPlaceholder {
+			if b < 0x80 {
+				if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') {
+					return true
+				}
+				i++
+				continue
+			}
+			r, size := utf8.DecodeRuneInString(s[i:])
 			if unicode.IsLetter(r) || unicode.IsDigit(r) {
 				return true
 			}
+			i += size
+		} else {
+			i++
 		}
 	}
 	return false
@@ -550,6 +568,10 @@ var liquidInternalPlaceholderPattern = regexp.MustCompile(`\x1eHL(?:LQ|HT)PH_[A-
 // LiquidInternalPlaceholderTokens returns sorted internal Liquid/HTML sentinel
 // tokens found in s.
 func LiquidInternalPlaceholderTokens(s string) []string {
+	// BOLT OPTIMIZATION: Fast path to bypass regex matching when no sentinel control bytes exist.
+	if !strings.Contains(s, "\x1e") {
+		return nil
+	}
 	matches := liquidInternalPlaceholderPattern.FindAllString(s, -1)
 	slices.Sort(matches)
 	return matches
