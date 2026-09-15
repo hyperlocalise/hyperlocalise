@@ -30,6 +30,7 @@ import {
 import {
   formatManagedAiCreditError,
   releaseManagedAiCredit,
+  retainManagedAiCreditForUnmeteredSuccess,
   settleManagedAiCredit,
   type ManagedAiCreditReservation,
 } from "@/lib/billing/managed-ai-credit";
@@ -278,25 +279,38 @@ export function createWebChatAgentUIStreamResponse(input: {
             const agentTokenUsage = agentTokenUsagePromise
               ? await agentTokenUsagePromise.catch(() => null)
               : null;
-            const tokenUsage = addAiTokenUsage(classificationTokenUsage, agentTokenUsage);
-            if (tokenUsage) {
-              const settlement = await settleManagedAiCredit({
+            const hasBillableAgentUsage = Boolean(
+              agentTokenUsage && agentTokenUsage.totalTokens > 0,
+            );
+            // Classifier tokens alone must not settle the hold: a successful
+            // main generation with missing streamed usage would otherwise
+            // underbill and free the reservation.
+            if (!hasBillableAgentUsage && !isAborted) {
+              await retainManagedAiCreditForUnmeteredSuccess({
                 reservation: input.aiCreditReservation,
-                modelId: input.languageModel?.modelId ?? "unknown",
-                tokenUsage,
+                reason: "chat_completed_without_usage",
               });
-              if (!settlement.ok) {
-                console.error("[web-agent] AI credit settlement failed", {
-                  organizationId: input.toolContext.organizationId,
-                  operationKey: input.aiCreditReservation.operationKey,
-                  error: formatManagedAiCreditError(settlement.error),
+            } else {
+              const tokenUsage = addAiTokenUsage(classificationTokenUsage, agentTokenUsage);
+              if (tokenUsage) {
+                const settlement = await settleManagedAiCredit({
+                  reservation: input.aiCreditReservation,
+                  modelId: input.languageModel?.modelId ?? "unknown",
+                  tokenUsage,
+                });
+                if (!settlement.ok) {
+                  console.error("[web-agent] AI credit settlement failed", {
+                    organizationId: input.toolContext.organizationId,
+                    operationKey: input.aiCreditReservation.operationKey,
+                    error: formatManagedAiCreditError(settlement.error),
+                  });
+                }
+              } else if (isAborted) {
+                await releaseManagedAiCredit({
+                  reservation: input.aiCreditReservation,
+                  reason: "chat_aborted_without_usage",
                 });
               }
-            } else {
-              await releaseManagedAiCredit({
-                reservation: input.aiCreditReservation,
-                reason: isAborted ? "chat_aborted_without_usage" : "chat_completed_without_usage",
-              });
             }
           }
         } finally {

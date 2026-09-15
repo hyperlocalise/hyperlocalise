@@ -25,7 +25,10 @@ import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
 } from "@/lib/billing/usage-control";
-import { releaseSandboxTranslationAiCredit } from "@/lib/billing/sandbox-translation-credit";
+import {
+  releaseSandboxTranslationAiCredit,
+  retainSandboxTranslationAiCreditForUnmeteredSuccess,
+} from "@/lib/billing/sandbox-translation-credit";
 import {
   formatManagedAiCreditError,
   releaseManagedAiCredit,
@@ -468,7 +471,7 @@ class TranslationJobCompletionService {
         ? input.result.tokenUsage
         : null;
     if (!tokenUsage) {
-      await releaseSandboxTranslationAiCredit({
+      await retainSandboxTranslationAiCreditForUnmeteredSuccess({
         jobId: input.jobId,
         reason: "no_token_usage",
       });

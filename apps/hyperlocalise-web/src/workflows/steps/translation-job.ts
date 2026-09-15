@@ -210,7 +210,7 @@ export async function markEmailTranslationJobSucceeded(input: {
     await import("@/lib/billing/usage-control");
   const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
   const { withCliBillingMetadata } = await import("@/lib/translation/cli-token-usage");
-  const { releaseSandboxTranslationAiCredit } =
+  const { retainSandboxTranslationAiCreditForUnmeteredSuccess } =
     await import("@/lib/billing/sandbox-translation-credit");
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
@@ -228,7 +228,7 @@ export async function markEmailTranslationJobSucceeded(input: {
     aiCreditSource: "email_translation_job_complete",
   });
   if (!billedTokenUsage) {
-    await releaseSandboxTranslationAiCredit({
+    await retainSandboxTranslationAiCreditForUnmeteredSuccess({
       jobId: input.jobId,
       reason: "no_cli_token_usage",
     });
@@ -619,7 +619,7 @@ export async function completeFileTranslationJobStep(input: {
     await import("@/lib/billing/usage-control");
   const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
   const { withCliBillingMetadata } = await import("@/lib/translation/cli-token-usage");
-  const { releaseSandboxTranslationAiCredit } =
+  const { retainSandboxTranslationAiCreditForUnmeteredSuccess } =
     await import("@/lib/billing/sandbox-translation-credit");
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
@@ -646,7 +646,7 @@ export async function completeFileTranslationJobStep(input: {
     aiCreditSource: "translation_job_complete",
   });
   if (!billedTokenUsage) {
-    await releaseSandboxTranslationAiCredit({
+    await retainSandboxTranslationAiCreditForUnmeteredSuccess({
       jobId: input.jobId,
       reason: "no_cli_token_usage",
     });

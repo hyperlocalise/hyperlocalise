@@ -20,6 +20,7 @@ const {
   trackSucceededAgentRuntimeUsageMock,
   settleManagedAiCreditMock,
   releaseManagedAiCreditMock,
+  retainManagedAiCreditForUnmeteredSuccessMock,
   addInteractionMessageMock,
 } = vi.hoisted(() => ({
   prepareConversationAgentTurnMock: vi.fn(),
@@ -29,6 +30,7 @@ const {
   trackSucceededAgentRuntimeUsageMock: vi.fn(),
   settleManagedAiCreditMock: vi.fn(),
   releaseManagedAiCreditMock: vi.fn(),
+  retainManagedAiCreditForUnmeteredSuccessMock: vi.fn(),
   addInteractionMessageMock: vi.fn(),
 }));
 
@@ -63,8 +65,10 @@ vi.mock("@/lib/billing/agent-runtime-usage", () => ({
 }));
 
 vi.mock("@/lib/billing/managed-ai-credit", () => ({
+  formatManagedAiCreditError: (error: { code: string }) => error.code,
   settleManagedAiCredit: settleManagedAiCreditMock,
   releaseManagedAiCredit: releaseManagedAiCreditMock,
+  retainManagedAiCreditForUnmeteredSuccess: retainManagedAiCreditForUnmeteredSuccessMock,
 }));
 
 vi.mock("@/lib/conversations/interactions", () => ({
@@ -142,6 +146,7 @@ describe("runWebChatAgentTurn", () => {
       value: { amountUsd: 0.01, status: "settled" },
     });
     releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
+    retainManagedAiCreditForUnmeteredSuccessMock.mockResolvedValue({ ok: true, value: undefined });
     addInteractionMessageMock.mockResolvedValue({ id: "msg_agent" });
     prepareConversationAgentTurnMock.mockResolvedValue({
       classification: baseClassification,
@@ -310,6 +315,7 @@ describe("createWebChatAgentUIStreamResponse", () => {
       value: { amountUsd: 0.01, status: "settled" },
     });
     releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
+    retainManagedAiCreditForUnmeteredSuccessMock.mockResolvedValue({ ok: true, value: undefined });
     addInteractionMessageMock.mockResolvedValue({ id: "msg_agent" });
   });
 
@@ -530,6 +536,7 @@ describe("createWebChatAgentUIStreamResponse", () => {
       },
     });
     expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
+    expect(retainManagedAiCreditForUnmeteredSuccessMock).not.toHaveBeenCalled();
   });
 
   it("settles reserved credit even when assistant persistence fails", async () => {
@@ -602,6 +609,152 @@ describe("createWebChatAgentUIStreamResponse", () => {
         totalTokens: 60,
       },
     });
+    expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
+    expect(retainManagedAiCreditForUnmeteredSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: "rejects",
+      createUsage: () => Promise.reject(new Error("usage unavailable")),
+    },
+    {
+      name: "resolves empty",
+      createUsage: () =>
+        Promise.resolve({
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+        }),
+    },
+    {
+      name: "resolves null",
+      createUsage: () => Promise.resolve(null),
+    },
+  ])(
+    "retains reserved credit when classification reports tokens but streamed agent usage $name",
+    async ({ createUsage }) => {
+      const toUIMessageStream = vi.fn(
+        () =>
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue({ type: "start", messageId: "assistant_1" });
+              controller.enqueue({ type: "text-start", id: "text_1" });
+              controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
+              controller.enqueue({ type: "text-end", id: "text_1" });
+              controller.enqueue({ type: "finish" });
+              controller.close();
+            },
+          }),
+      );
+      prepareConversationAgentTurnMock.mockResolvedValueOnce({
+        classification: baseClassification,
+        classificationTokenUsage: {
+          inputTokens: 10,
+          outputTokens: 2,
+          totalTokens: 12,
+        },
+        agent: {
+          stream: vi.fn(async () => ({
+            usage: createUsage(),
+            toUIMessageStream,
+          })),
+        },
+        chatMessages: [],
+        clarificationFollowUp: null,
+        updatedRepositorySession: null,
+        staleSandboxId: null,
+        repositorySandboxId: null,
+      });
+      const reservation = {
+        operationKey: "chat-agent-turn:msg_missing_agent_usage:agent_runs:ai_tokens",
+        mode: "shadow" as const,
+        credentialSource: "gateway" as const,
+        estimatedAmountUsd: 0.5,
+      };
+
+      const response = createWebChatAgentUIStreamResponse({
+        conversationId: "conv_123",
+        messageText: "Help me",
+        toolContext: createToolContext(),
+        hasTranslationAttachments: false,
+        usageOperationKey: "chat-agent-turn:msg_missing_agent_usage:agent_runs",
+        languageModel: {
+          model: "openai/gpt-5.6-luna",
+          source: "gateway",
+          modelId: "openai/gpt-5.6-luna",
+        },
+        aiCreditReservation: reservation,
+      });
+
+      await readSseText(response);
+
+      expect(retainManagedAiCreditForUnmeteredSuccessMock).toHaveBeenCalledWith({
+        reservation,
+        reason: "chat_completed_without_usage",
+      });
+      expect(settleManagedAiCreditMock).not.toHaveBeenCalled();
+      expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("retains reserved credit when a completed chat reports no token usage", async () => {
+    const toUIMessageStream = vi.fn(
+      () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
+            controller.enqueue({ type: "text-end", id: "text_1" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      classificationTokenUsage: null,
+      agent: {
+        stream: vi.fn(async () => ({
+          usage: Promise.resolve(null),
+          toUIMessageStream,
+        })),
+      },
+      chatMessages: [],
+      clarificationFollowUp: null,
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+    const reservation = {
+      operationKey: "chat-agent-turn:msg_no_usage:agent_runs:ai_tokens",
+      mode: "shadow" as const,
+      credentialSource: "gateway" as const,
+      estimatedAmountUsd: 0.5,
+    };
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+      usageOperationKey: "chat-agent-turn:msg_no_usage:agent_runs",
+      languageModel: {
+        model: "openai/gpt-5.6-luna",
+        source: "gateway",
+        modelId: "openai/gpt-5.6-luna",
+      },
+      aiCreditReservation: reservation,
+    });
+
+    await readSseText(response);
+
+    expect(retainManagedAiCreditForUnmeteredSuccessMock).toHaveBeenCalledWith({
+      reservation,
+      reason: "chat_completed_without_usage",
+    });
+    expect(settleManagedAiCreditMock).not.toHaveBeenCalled();
     expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
   });
 });

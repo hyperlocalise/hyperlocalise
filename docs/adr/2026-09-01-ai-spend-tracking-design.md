@@ -83,7 +83,9 @@ Managed cloud sandbox translation bills the same `ai_tokens` credit as web chat:
 1. File, email, and provider-agent file workflows append `--output` / `--output-detail summary`
    to `hl run` and parse the report after the process exits.
 2. Shadow and enforced modes reserve `job:{id}:translation_jobs:ai_tokens` before the sandbox
-   starts. Failure or a missing report releases the reservation.
+   starts. Failure still releases the reservation. Successful work with a missing or empty
+   token report must **retain** the estimated hold as `tracking_failed` (still outstanding)
+   instead of releasing — otherwise gateway spend can repeat without settling Autumn.
 3. Completion still meters `translation_jobs` (one job). When the CLI report has tokens,
    `completeAndTrackBillableUsage` also settles `ai_tokens` through `trackTokens`.
 4. Organization-provided sandbox credentials (BYOK) record `$0` and skip the Autumn debit.
