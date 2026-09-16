@@ -31,6 +31,7 @@ import {
   Download01Icon,
   FilterIcon,
   Upload01Icon,
+  WorkHistoryIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -798,8 +799,16 @@ export function NativeGlossaryDetail({
         <TypographyP className="max-w-3xl leading-6" size="small" tone="subtle">
           {glossary.description || intl.formatMessage(messages.descriptionFallback)}
         </TypographyP>
-        {canManage ? (
-          <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            render={<Link href={`${glossaryHref}/history`} />}
+          >
+            <HugeiconsIcon icon={WorkHistoryIcon} strokeWidth={1.8} data-icon="inline-start" />
+            <FormattedMessage {...messages.glossaryHistory} />
+          </Button>
+          {canManage ? (
             <Button
               type="button"
               variant="outline"
@@ -809,8 +818,8 @@ export function NativeGlossaryDetail({
               <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
               <FormattedMessage {...messages.deleteGlossary} />
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </section>
 
       <>
@@ -826,12 +835,6 @@ export function NativeGlossaryDetail({
                 </TypographyP>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  href={`${glossaryHref}/history`}
-                  className="mr-1 text-sm text-primary hover:underline"
-                >
-                  <FormattedMessage {...messages.glossaryHistory} />
-                </Link>
                 {canManage && glossary?.source === "native" ? (
                   <Button
                     type="button"
