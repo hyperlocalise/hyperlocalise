@@ -462,6 +462,54 @@ func TestValidateLiquidInternalPlaceholders(t *testing.T) {
 	}
 }
 
+func TestLiquidPartHasTranslatableText(t *testing.T) {
+	cases := []struct {
+		name   string
+		source string
+		want   bool
+	}{
+		{name: "ascii letter", source: "Hello", want: true},
+		{name: "digit", source: "42", want: true},
+		{name: "punctuation only", source: " — · ", want: false},
+		{name: "placeholder only", source: "\x1eHLLQPH_ABCDEF123456_0\x1f", want: false},
+		{name: "text around placeholder", source: "Hi \x1eHLLQPH_ABCDEF123456_0\x1f!", want: true},
+		{name: "utf8 letter", source: "日本語", want: true},
+		{name: "empty", source: "", want: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := liquidPartHasTranslatableText(htmlPart{source: tc.source})
+			if got != tc.want {
+				t.Fatalf("liquidPartHasTranslatableText(%q) = %v, want %v", tc.source, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestLiquidInternalPlaceholderTokensFastPathAndFormat(t *testing.T) {
+	if tokens := LiquidInternalPlaceholderTokens("plain text without sentinels"); tokens != nil {
+		t.Fatalf("expected nil fast-path result, got %#v", tokens)
+	}
+
+	first := liquidPlaceholderToken(0, "{{ product.title }}")
+	second := liquidPlaceholderToken(0, "{{ product.title }}")
+	if first != second {
+		t.Fatalf("expected stable placeholder token, got %q vs %q", first, second)
+	}
+	if !strings.HasPrefix(first, "\x1eHLLQPH_") || !strings.HasSuffix(first, "\x1f") {
+		t.Fatalf("unexpected placeholder token format: %q", first)
+	}
+	if other := liquidPlaceholderToken(1, "{{ product.title }}"); other == first {
+		t.Fatal("expected distinct tokens for different indexes")
+	}
+
+	tokens := LiquidInternalPlaceholderTokens("A " + first + " B")
+	if len(tokens) != 1 || tokens[0] != first {
+		t.Fatalf("expected extracted token %q, got %#v", first, tokens)
+	}
+}
+
 func requireLiquidParser(_ Parser) {}
 
 func requireLiquidContextParser(_ ContextParser) {}

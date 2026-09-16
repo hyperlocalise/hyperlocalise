@@ -76,6 +76,51 @@ func TestMarketVisibilityNormalizesOrganicMetrics(t *testing.T) {
 	require.True(t, body.HasOrganicVisibility)
 }
 
+func TestMarketVisibilityRequiresFields(t *testing.T) {
+	h := newHandler()
+	h.research = fakeResearch{}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/market-visibility", bytes.NewBufferString(`{
+		"targetDomain":"example.com","marketId":"france-fr","locationCode":0,"languageCode":"fr"
+	}`))
+	h.marketVisibility(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "dataforseo_validation_error")
+}
+
+func TestMarketOrganicMetricsEmptyAndMissing(t *testing.T) {
+	count, etv, top10 := marketOrganicMetrics(nil)
+	require.Equal(t, 0, count)
+	require.Equal(t, 0.0, etv)
+	require.Equal(t, 0, top10)
+
+	count, etv, top10 = marketOrganicMetrics([]dataforseo.DomainRankOverviewItem{{}})
+	require.Equal(t, 0, count)
+	require.Equal(t, 0.0, etv)
+	require.Equal(t, 0, top10)
+
+	h := newHandler()
+	h.research = fakeResearch{
+		overview: dataforseo.TaskResponse[[]dataforseo.DomainRankOverviewItem]{
+			Data: nil,
+		},
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/market-visibility", bytes.NewBufferString(`{
+		"targetDomain":"example.com","marketId":"france-fr","locationCode":2250,"languageCode":"fr"
+	}`))
+	h.marketVisibility(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var body researchMarketVisibilityResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, 0, body.OrganicCount)
+	require.Equal(t, 0.0, body.OrganicETV)
+	require.Equal(t, 0, body.Top10Count)
+	require.False(t, body.HasOrganicVisibility)
+}
+
 func (f fakeResearch) LiveAdvanced(
 	_ context.Context,
 	_ dataforseo.LiveSerpInput,
