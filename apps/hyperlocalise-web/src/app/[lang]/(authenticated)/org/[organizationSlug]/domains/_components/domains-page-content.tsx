@@ -212,6 +212,12 @@ const DomainsPageView = observer(function DomainsPageView({
             });
             router.push(`/org/${store.organizationSlug}/domains`);
           }}
+          onVerified={(domain) => {
+            void queryClient.invalidateQueries({
+              queryKey: linkedDomainsQueryKey(store.organizationSlug),
+            });
+            router.push(buildDomainPath(store.organizationSlug, domain.id, "overview"));
+          }}
         />
       ) : null}
     </WorkspacePageShell>

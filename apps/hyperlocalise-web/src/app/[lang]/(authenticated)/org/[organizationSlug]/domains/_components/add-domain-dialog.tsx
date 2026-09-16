@@ -89,6 +89,7 @@ export function AddDomainDialog({
   projects = [],
   projectsLoading = false,
   onComplete,
+  onVerified,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -102,11 +103,13 @@ export function AddDomainDialog({
   projects?: Project[];
   projectsLoading?: boolean;
   onComplete?: (domain: LinkedDomainPublic) => void;
+  onVerified?: (domain: LinkedDomainPublic) => void;
 }) {
   const intl = useIntl();
   const domainId = useId();
   const [step, setStep] = useState<Step>(initialStep);
   const [domain, setDomain] = useState(initialLinkedDomain?.domainKey ?? "");
+  const [claimDomainSlug, setClaimDomainSlug] = useState(initialDomainSlug ?? null);
   const [linkedDomain, setLinkedDomain] = useState<LinkedDomainPublic | null>(
     initialLinkedDomain ?? null,
   );
@@ -125,6 +128,7 @@ export function AddDomainDialog({
     if (!open) return;
     setStep(initialStep);
     setDomain(initialLinkedDomain?.domainKey ?? "");
+    setClaimDomainSlug(initialDomainSlug ?? null);
     setLinkedDomain(initialLinkedDomain ?? null);
     setMethod("dns_txt");
     setProjectMode("create");
@@ -186,6 +190,11 @@ export function AddDomainDialog({
         throw new Error(getApiErrorMessage(body, intl.formatMessage(messages.startError)));
       setDomain(body.linkedDomain.domainKey);
       setLinkedDomain(body.linkedDomain);
+      if (body.linkedDomain.status === "verified") {
+        onVerified?.(body.linkedDomain);
+        onOpenChange(false);
+        return;
+      }
       setStep("connect");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : intl.formatMessage(messages.startError));
@@ -196,7 +205,7 @@ export function AddDomainDialog({
 
   async function startClaim(event: FormEvent) {
     event.preventDefault();
-    await startClaimRequest({ domain });
+    await startClaimRequest(claimDomainSlug ? { domainSlug: claimDomainSlug } : { domain });
   }
 
   async function copyRecord() {
