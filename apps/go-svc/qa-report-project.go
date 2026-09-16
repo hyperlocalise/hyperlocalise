@@ -15,26 +15,26 @@ import (
 )
 
 type nativeQaProject struct {
-	ID               string
-	QaScanCadence    string
-	QaScanLastRunAt  *time.Time
+	ID              string
+	QaScanCadence   string
+	QaScanLastRunAt *time.Time
 }
 
 type qaRunRow struct {
-	ID            uuid.UUID
-	ProjectID     string
-	Trigger       string
-	Status        string
-	SegmentCount  int
-	FindingCount  int
-	ErrorCount    int
-	WarningCount  int
-	SummaryRaw    []byte
-	ErrorCode     *string
-	ErrorMessage  *string
-	StartedAt     *time.Time
-	CompletedAt   *time.Time
-	CreatedAt     time.Time
+	ID           uuid.UUID
+	ProjectID    string
+	Trigger      string
+	Status       string
+	SegmentCount int
+	FindingCount int
+	ErrorCount   int
+	WarningCount int
+	SummaryRaw   []byte
+	ErrorCode    *string
+	ErrorMessage *string
+	StartedAt    *time.Time
+	CompletedAt  *time.Time
+	CreatedAt    time.Time
 }
 
 func missingQaProject() error {
@@ -138,20 +138,20 @@ func serializeQaRunRow(row qaRunRow) map[string]any {
 		_ = json.Unmarshal(row.SummaryRaw, &summary)
 	}
 	return map[string]any{
-		"id":            row.ID.String(),
-		"projectId":     row.ProjectID,
-		"trigger":       row.Trigger,
-		"status":        row.Status,
-		"segmentCount":  row.SegmentCount,
-		"findingCount":  row.FindingCount,
-		"errorCount":    row.ErrorCount,
-		"warningCount":  row.WarningCount,
-		"summary":       summary,
-		"errorCode":     row.ErrorCode,
-		"errorMessage":  row.ErrorMessage,
-		"startedAt":     formatQaReportTime(row.StartedAt),
-		"completedAt":   formatQaReportTime(row.CompletedAt),
-		"createdAt":     row.CreatedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
+		"id":           row.ID.String(),
+		"projectId":    row.ProjectID,
+		"trigger":      row.Trigger,
+		"status":       row.Status,
+		"segmentCount": row.SegmentCount,
+		"findingCount": row.FindingCount,
+		"errorCount":   row.ErrorCount,
+		"warningCount": row.WarningCount,
+		"summary":      summary,
+		"errorCode":    row.ErrorCode,
+		"errorMessage": row.ErrorMessage,
+		"startedAt":    formatQaReportTime(row.StartedAt),
+		"completedAt":  formatQaReportTime(row.CompletedAt),
+		"createdAt":    row.CreatedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
 	}
 }
 
@@ -360,9 +360,9 @@ func (api *qaReportAPI) getProjectQaRunDetail(ctx context.Context, actor qaRepor
 	for rows.Next() {
 		var (
 			id, runIDStr, key, targetLocale, checkTypeVal, severityVal, category, message string
-			sourceText, targetText                                                         string
-			sourcePath                                                                     *string
-			relatedTokensRaw                                                               []byte
+			sourceText, targetText                                                        string
+			sourcePath                                                                    *string
+			relatedTokensRaw                                                              []byte
 		)
 		if err := rows.Scan(
 			&id, &runIDStr, &key, &sourcePath, &targetLocale, &checkTypeVal, &severityVal, &category, &message,
@@ -388,7 +388,7 @@ func (api *qaReportAPI) getProjectQaRunDetail(ctx context.Context, actor qaRepor
 			"relatedTokens": relatedTokens,
 			"sourceText":    sourceText,
 			"targetText":    targetText,
-			"editorHref": buildTranslationQaFindingHref(actor.organizationSlug, projectID, sourcePath, targetLocale, key),
+			"editorHref":    buildTranslationQaFindingHref(actor.organizationSlug, projectID, sourcePath, targetLocale, key),
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -447,10 +447,10 @@ func (api *qaReportAPI) listProjectLatestFindings(ctx context.Context, actor qaR
 	for rows.Next() {
 		var (
 			key, targetLocale, checkTypeVal, severityVal, category, message string
-			sourceText, targetText                                            string
-			translationKeyID                                                  *string
-			sourcePathVal                                                     *string
-			relatedTokensRaw                                                  []byte
+			sourceText, targetText                                          string
+			translationKeyID                                                *string
+			sourcePathVal                                                   *string
+			relatedTokensRaw                                                []byte
 		)
 		if err := rows.Scan(
 			&translationKeyID, &key, &sourcePathVal, &targetLocale, &checkTypeVal, &severityVal, &category, &message,
