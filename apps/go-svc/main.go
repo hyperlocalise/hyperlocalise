@@ -73,11 +73,14 @@ func main() {
 	h := newHandler()
 	h.spellChecker = spellChecker
 	h.dictionaries = &dictionaryAPI{}
+	h.qaReports = &qaReportAPI{}
 	if key := strings.TrimSpace(os.Getenv("WORKOS_API_KEY")); key != "" {
 		client := workos.NewClient(key)
-		h.dictionaries.membership = func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
+		membershipLookup := func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
 			return client.OrganizationMembership().Get(ctx, id)
 		}
+		h.dictionaries.membership = membershipLookup
+		h.qaReports.membership = membershipLookup
 	}
 
 	if apiKey := strings.TrimSpace(os.Getenv("DATAFORSEO_API_KEY")); apiKey != "" {
@@ -96,6 +99,7 @@ func main() {
 		}
 		defer pool.Close()
 		h.dictionaries.pool = pool
+		h.qaReports.pool = pool
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure experiment store: %v", err)

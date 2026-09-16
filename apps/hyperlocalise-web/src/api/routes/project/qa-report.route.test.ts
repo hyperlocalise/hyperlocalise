@@ -214,20 +214,6 @@ describe("project QA reports", () => {
     };
     expect(againBody.results[0]?.created).toBe(false);
     expect(againBody.results[0]?.identifier).toBe(promoted.results[0]?.identifier);
-
-    const orgFindings = await client.api.orgs[":organizationSlug"]["qa-reports"].findings.$get(
-      {
-        param: { organizationSlug: identity.organization.slug! },
-        query: { projectId: project.id },
-      },
-      { headers },
-    );
-    expect(orgFindings.status).toBe(200);
-    const orgBody = (await orgFindings.json()) as {
-      findings: Array<{ id: string; projectName: string }>;
-    };
-    expect(orgBody.findings.some((row) => row.id === findingId)).toBe(true);
-    expect(orgBody.findings[0]?.projectName).toBeTruthy();
   });
 
   it("rejects provider projects", async () => {
@@ -276,72 +262,6 @@ describe("project QA reports", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as { settings: { cadence: string } };
     expect(body.settings.cadence).toBe("daily");
-  });
-
-  it("lists native projects only on the workspace QA page", async () => {
-    const { identity, organization, project, user } =
-      await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-
-    const [providerProject] = await db
-      .insert(schema.projects)
-      .values({
-        id: `project_${randomUUID()}`,
-        identifier: uniqueTestProjectIdentifier(),
-        organizationId: organization.id,
-        teamId: project.teamId,
-        createdByUserId: user.id,
-        name: "Crowdin Catalog",
-        description: "",
-        translationContext: "",
-        source: "external_tms",
-        externalProviderKind: "crowdin",
-        externalProjectId: "902807",
-        sourceLocale: "en-US",
-        targetLocales: ["fr-FR"],
-      })
-      .returning();
-
-    const response = await client.api.orgs[":organizationSlug"]["qa-reports"].$get(
-      { param: { organizationSlug: identity.organization.slug! } },
-      { headers },
-    );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { reports: Array<{ projectId: string }> };
-    expect(body.reports.some((row) => row.projectId === project.id)).toBe(true);
-    expect(body.reports.some((row) => row.projectId === providerProject?.id)).toBe(false);
-  });
-
-  it("exposes failed latest scans on the workspace QA page", async () => {
-    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-
-    await db.insert(schema.translationQaRuns).values({
-      organizationId: organization.id,
-      projectId: project.id,
-      trigger: "scheduled",
-      status: "failed",
-      summary: { byCheckType: {}, bySeverity: {}, byLocale: {} },
-      errorCode: "qa_scan_failed",
-      completedAt: new Date(),
-    });
-
-    const response = await client.api.orgs[":organizationSlug"]["qa-reports"].$get(
-      { param: { organizationSlug: identity.organization.slug! } },
-      { headers },
-    );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      reports: Array<{
-        projectId: string;
-        report: { status: string; findingCount: number } | null;
-      }>;
-    };
-    const row = body.reports.find((entry) => entry.projectId === project.id);
-    expect(row?.report?.status).toBe("failed");
-    expect(row?.report?.findingCount).toBe(0);
   });
 
   it("schedules daily scans for native projects and ignores provider projects", async () => {

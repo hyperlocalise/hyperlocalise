@@ -95,7 +95,6 @@ function createOrgSlugClient(origin: string) {
       "billing",
       "api-keys",
       "activity-logs",
-      "qa-reports",
       "hyperlab",
       "overview",
     ]),

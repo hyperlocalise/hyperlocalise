@@ -31,8 +31,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
 import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
+import { workspaceQaReportClient } from "@/lib/qa/qa-report-client";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { qaWorkspaceMessages as messages } from "../qa-workspace.messages";
@@ -88,7 +88,7 @@ export function QaWorkspacePageContent({
   const reportsQuery = useQuery({
     queryKey: ["workspace-qa-reports", organizationSlug],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["qa-reports"].$get({
+      const response = await workspaceQaReportClient.listReports({
         param: { organizationSlug },
       });
       if (!response.ok) {
@@ -107,14 +107,14 @@ export function QaWorkspacePageContent({
   const findingsQuery = useInfiniteQuery({
     queryKey: ["workspace-qa-findings", organizationSlug, locale, checkType, projectId],
     queryFn: async ({ pageParam }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["qa-reports"].findings.$get({
+      const response = await workspaceQaReportClient.listFindings({
         param: { organizationSlug },
         query: {
           locale: locale === "all" ? undefined : locale,
           checkType: isQaCheckType(checkType) ? checkType : undefined,
           projectId: projectId === "all" ? undefined : projectId,
-          limit: FINDINGS_PAGE_SIZE,
-          offset: pageParam,
+          limit: String(FINDINGS_PAGE_SIZE),
+          offset: String(pageParam),
         },
       });
       if (!response.ok) {

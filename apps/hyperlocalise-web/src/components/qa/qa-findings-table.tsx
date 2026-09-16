@@ -25,6 +25,7 @@ import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { QA_FINDING_PROMOTE_BATCH_SIZE } from "@/lib/qa/qa-finding-issue-bridge";
+import { workspaceQaReportClient } from "@/lib/qa/qa-report-client";
 
 import { qaFindingsTableMessages as messages } from "./qa-findings-table.messages";
 
@@ -92,9 +93,7 @@ export function QaFindingsTable({
             json: { findingIds: chunk },
           });
         } else {
-          response = await apiClient.api.orgs[":organizationSlug"][
-            "qa-reports"
-          ].findings.promote.$post({
+          response = await workspaceQaReportClient.promoteFindings({
             param: { organizationSlug },
             json: { findingIds: chunk },
           });
