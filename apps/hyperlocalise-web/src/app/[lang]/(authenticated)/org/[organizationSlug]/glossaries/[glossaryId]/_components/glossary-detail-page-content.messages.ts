@@ -677,6 +677,11 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "xag/YAbxm/",
     description: "Result count for the concept table",
   },
+  refreshingConcepts: {
+    defaultMessage: "Refreshing concepts…",
+    id: "1g8M6J7skz",
+    description: "Loading signal shown while the concept list refetches",
+  },
   filterLocaleLabel: {
     defaultMessage: "Locale",
     id: "BRAwhI1ueW",
@@ -844,7 +849,7 @@ export const glossaryDetailPageContentMessages = defineMessages({
   },
   filtersDescription: {
     defaultMessage: "Narrow the concept list, then apply to see results.",
-    id: "q8V5mZ2fFk6",
+    id: "EYex2zyCPr",
     description: "Description of the concept filters dialog",
   },
   filtersDone: {

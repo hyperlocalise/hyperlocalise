@@ -403,6 +403,9 @@ export function NativeGlossaryDetail({
     [membersQuery.data],
   );
   const concepts = conceptsQuery.data?.concepts ?? [];
+  // Initial load renders the full skeleton; subsequent filter/search/sort
+  // fetches keep previous data, so surface an explicit refreshing signal.
+  const conceptsRefreshing = conceptsQuery.isFetching && !conceptsQuery.isLoading;
   const attachedProjectIds = useMemo(
     () => new Set((attachedProjectsQuery.data ?? []).map((project) => project.projectId)),
     [attachedProjectsQuery.data],
@@ -935,7 +938,17 @@ export function NativeGlossaryDetail({
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
-              {conceptsQuery.data ? (
+              {conceptsRefreshing ? (
+                <span
+                  role="status"
+                  aria-label={intl.formatMessage(messages.refreshingConcepts)}
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+                >
+                  <Spinner className="size-3.5" />
+                  <FormattedMessage {...messages.refreshingConcepts} />
+                </span>
+              ) : null}
+              {conceptsQuery.data && !conceptsRefreshing ? (
                 <TypographyP size="xsmall" tone="subtle" aria-live="polite">
                   {intl.formatMessage(messages.resultsCount, {
                     count: conceptsQuery.data.total,
@@ -1145,7 +1158,13 @@ export function NativeGlossaryDetail({
               {conceptsQuery.error.message}
             </TypographyP>
           ) : null}
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div
+            className={cn(
+              "overflow-x-auto rounded-lg border border-border transition-opacity",
+              conceptsRefreshing && "pointer-events-none opacity-60",
+            )}
+            aria-busy={conceptsRefreshing || undefined}
+          >
             <table className="min-w-[760px] w-full text-left text-sm">
               <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
                 <tr>
