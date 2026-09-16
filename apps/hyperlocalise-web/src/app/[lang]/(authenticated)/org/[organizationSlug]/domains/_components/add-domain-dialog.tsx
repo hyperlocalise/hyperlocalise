@@ -162,9 +162,7 @@ export function AddDomainDialog({
     }
     if (
       normalized &&
-      existingDomains.some(
-        (item) => item.domainKey === normalized && item.status !== "pending_verification",
-      )
+      existingDomains.some((item) => item.domainKey === normalized && item.status === "verified")
     ) {
       setError(intl.formatMessage(messages.duplicateDomain));
       return;
@@ -344,23 +342,21 @@ export function AddDomainDialog({
       }
 
       let completedDomain = projectBody.linkedDomain;
-      if (selectedMarketIds.length > 0) {
-        const response = await fetch(
-          `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/markets`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ marketIds: selectedMarketIds }),
-          },
-        );
-        const body = (await response.json().catch(() => ({}))) as {
-          linkedDomain?: LinkedDomainPublic;
-          message?: string;
-        };
-        if (!response.ok || !body.linkedDomain)
-          throw new Error(body.message || intl.formatMessage(messages.saveMarketsError));
-        completedDomain = body.linkedDomain;
-      }
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/markets`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ marketIds: selectedMarketIds }),
+        },
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        linkedDomain?: LinkedDomainPublic;
+        message?: string;
+      };
+      if (!response.ok || !body.linkedDomain)
+        throw new Error(body.message || intl.formatMessage(messages.saveMarketsError));
+      completedDomain = body.linkedDomain;
       if (!completedDomain) throw new Error(intl.formatMessage(messages.finishError));
       onComplete?.(completedDomain);
       onOpenChange(false);
