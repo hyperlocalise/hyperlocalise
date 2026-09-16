@@ -18,6 +18,7 @@ import type {
   CanonicalVisualWorkflowNode,
 } from "../schema/types";
 import { isTriggerType } from "../catalog/node-catalog";
+import { getAllowedExecutionSourceHandles } from "./execution-handles";
 import {
   NODE_CONTRACTS,
   matchesWorkflowType,
@@ -57,20 +58,7 @@ export function compileWorkflowIssues(
       target = nodes.get(edge.target);
     if (!source || !target) continue;
     incoming.set(target.id, incoming.get(target.id)! + 1);
-    const allowed: (string | null)[] =
-      source.type === "logic.if"
-        ? ["true", "false"]
-        : source.config.kind === "logic.switch"
-          ? ["default", ...source.config.cases.map((_, index) => String(index))]
-          : source.type === "logic.for_each"
-            ? ["each", "done"]
-            : [
-                null,
-                "success",
-                ...("onError" in source.config && source.config.onError === "branch"
-                  ? ["error"]
-                  : []),
-              ];
+    const allowed = getAllowedExecutionSourceHandles(source);
     if (
       !allowed.includes(edge.sourceHandle) ||
       ![null, "input"].includes(edge.targetHandle) ||

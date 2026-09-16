@@ -305,6 +305,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "H541+RZh2a",
     description: "Accessible label for the plus control that opens the node picker",
   },
+  addNodeFromHandle: {
+    defaultMessage: "Add node from {handle}",
+    id: "8UCB2eKoiL",
+    description: "Accessible label for a per-output quick-add control on a node handle",
+  },
   backToPicker: {
     defaultMessage: "Back",
     id: "OJJq7qIvtH",
@@ -439,6 +444,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "error",
     id: "nYOxYYV5jF",
     description: "Label on error output handle",
+  },
+  eachHandle: {
+    defaultMessage: "Each item",
+    id: "7eZfUxSh+m",
+    description: "Workflow loop body connection",
+  },
+  doneHandle: {
+    defaultMessage: "Done",
+    id: "zZIbqHg71N",
+    description: "Workflow loop completion connection",
   },
   switchExpression: {
     defaultMessage: "Expression",

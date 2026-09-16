@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { addEdge, type Connection } from "@xyflow/react";
+
 import {
   createDefaultConfig,
   getVisualNodeDimensions,
@@ -20,6 +22,7 @@ import type {
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
 } from "../schema/types";
+import { normalizeExecutionSourceHandle } from "../validation/execution-handles";
 
 export const VISUAL_TRIGGER_TYPES = VISUAL_NODE_CATALOG.filter(
   (item) => item.enabled && item.category === "trigger",
@@ -53,11 +56,120 @@ export function removeVisualWorkflowNode(
   nodeId: string,
 ): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
   return {
-    nodes: nodes.filter((node) => node.id !== nodeId),
+    nodes: nodes
+      .filter((node) => node.id !== nodeId)
+      .map((node) =>
+        node.data.bodyNodeIds
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                bodyNodeIds: node.data.bodyNodeIds.filter((id) => id !== nodeId),
+              },
+            }
+          : node,
+      ),
     edges: edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
   };
 }
 
 export function isVisualTriggerCatalogType(type: string): type is VisualCatalogType {
   return (VISUAL_TRIGGER_TYPES as readonly string[]).includes(type);
+}
+
+function asMutableGraph(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
+  return {
+    nodes: nodes as VisualWorkflowRfNode[],
+    edges: edges as VisualWorkflowRfEdge[],
+  };
+}
+
+export function syncForEachBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  connection: Pick<Connection, "source" | "target" | "sourceHandle">,
+): VisualWorkflowRfNode[] {
+  const sourceId = connection.source;
+  const targetId = connection.target;
+  if (!sourceId || !targetId || sourceId === targetId) {
+    return nodes as VisualWorkflowRfNode[];
+  }
+
+  const sourceHandle = connection.sourceHandle ?? null;
+  const sourceNode = nodes.find((node) => node.id === sourceId);
+  let ownerId: string | null = null;
+
+  if (sourceNode?.data.catalogType === "logic.for_each" && sourceHandle === "each") {
+    ownerId = sourceId;
+  } else {
+    const bodyOwners = nodes.filter(
+      (node) =>
+        node.data.catalogType === "logic.for_each" && node.data.bodyNodeIds?.includes(sourceId),
+    );
+    if (bodyOwners.length === 1) {
+      ownerId = bodyOwners[0]?.id ?? null;
+    }
+  }
+
+  if (!ownerId || targetId === ownerId) {
+    return nodes as VisualWorkflowRfNode[];
+  }
+
+  return nodes.map((node) => {
+    if (node.id !== ownerId) {
+      return node;
+    }
+    const current = node.data.bodyNodeIds ?? [];
+    if (current.includes(targetId)) {
+      return node;
+    }
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        bodyNodeIds: [...current, targetId],
+      },
+    };
+  });
+}
+
+export function applyVisualWorkflowGraphConnection(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+  connection: Connection,
+): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
+  if (!connection.source || !connection.target) {
+    return asMutableGraph(nodes, edges);
+  }
+
+  const source = nodes.find((node) => node.id === connection.source);
+  if (!source) {
+    return asMutableGraph(nodes, edges);
+  }
+
+  const normalized = normalizeExecutionSourceHandle(
+    { type: source.data.catalogType, config: source.data.config },
+    connection.sourceHandle,
+  );
+  if (!normalized.ok) {
+    return asMutableGraph(nodes, edges);
+  }
+
+  const nextConnection: Connection = {
+    ...connection,
+    sourceHandle: normalized.handle,
+    targetHandle: connection.targetHandle ?? null,
+  };
+  return {
+    nodes: syncForEachBodyMembership(nodes, nextConnection),
+    edges: addEdge(
+      {
+        ...nextConnection,
+        label: normalized.handle ?? undefined,
+      },
+      [...edges],
+    ),
+  };
 }
