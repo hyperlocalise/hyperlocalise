@@ -27,13 +27,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
 import type { DomainResearchNavId } from "@/lib/domains/research-prototype";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
-import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import {
   DomainResearchShellStoreProvider,
   useDomainResearchShellStore,
@@ -113,8 +111,6 @@ const DomainResearchShellView = observer(function DomainResearchShellView({
     );
   }
 
-  const verifyHref = store.verifyHref;
-
   function changeLocale(nextLocaleId: string) {
     router.replace(store.hrefForLocale(nextLocaleId), { scroll: false });
   }
@@ -132,11 +128,6 @@ const DomainResearchShellView = observer(function DomainResearchShellView({
           actions={
             <>
               <DomainStatusBadge status={domain.status} />
-              {store.isPending && verifyHref ? (
-                <Button size="sm" render={<OrgNavLink href={verifyHref} />}>
-                  <FormattedMessage {...sharedMessages.verifyCta} />
-                </Button>
-              ) : null}
             </>
           }
         />
@@ -177,13 +168,6 @@ const DomainResearchShellView = observer(function DomainResearchShellView({
         <DomainResearchEmpty
           title={<FormattedMessage {...sharedMessages.pendingTitle} />}
           description={<FormattedMessage {...sharedMessages.pendingDescription} />}
-          action={
-            verifyHref ? (
-              <Button size="sm" render={<OrgNavLink href={verifyHref} />}>
-                <FormattedMessage {...sharedMessages.verifyCta} />
-              </Button>
-            ) : undefined
-          }
         />
       ) : store.showSearchConsoleSurface ? (
         children

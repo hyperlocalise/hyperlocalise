@@ -61,5 +61,8 @@ export async function clearClaimDomainIntent() {
 
 /** Resolve post-auth destination for a claim intent, or null. */
 export function claimDomainPathForOrg(organizationSlug: string, domainSlug: string) {
-  return sanitizeReturnTo(`/org/${organizationSlug}/link-domain/${domainSlug}`, "/dashboard");
+  return sanitizeReturnTo(
+    `/org/${organizationSlug}/domains?claimDomainSlug=${encodeURIComponent(domainSlug)}`,
+    "/dashboard",
+  );
 }

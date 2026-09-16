@@ -68,13 +68,6 @@ export class DomainResearchShellStore {
     return this.domain?.status !== "verified";
   }
 
-  get verifyHref() {
-    if (!this.domain?.domainSlug) {
-      return null;
-    }
-    return `/org/${this.organizationSlug}/link-domain/${this.domain.domainSlug}`;
-  }
-
   get filteredCatalog() {
     if (!this.catalog || !this.locale) {
       return null;

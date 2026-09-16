@@ -75,11 +75,6 @@ export const domainResearchSharedMessages = defineMessages({
     id: "23RDpfUwz6",
     description: "Brand missing from an AI answer",
   },
-  verifyCta: {
-    defaultMessage: "Verify DNS",
-    id: "jLf4FX4frG",
-    description: "Open the DNS verification dialog",
-  },
   pendingTitle: {
     defaultMessage: "Verify this domain to unlock research",
     id: "pWbRWFseNX",

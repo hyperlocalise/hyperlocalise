@@ -23,16 +23,29 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
   return generateAuthenticatedPageMetadata(params, "domains");
 }
 
-export default function DomainsPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
+export default function DomainsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+  searchParams: Promise<{ claimDomainSlug?: string }>;
+}) {
   return (
     <OrgPageSuspense>
-      <DomainsPageLoader params={params} />
+      <DomainsPageLoader params={params} searchParams={searchParams} />
     </OrgPageSuspense>
   );
 }
 
-async function DomainsPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
+async function DomainsPageLoader({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+  searchParams: Promise<{ claimDomainSlug?: string }>;
+}) {
   const { organizationSlug } = await params;
+  const { claimDomainSlug } = await searchParams;
   const auth = await requireAppCapability("projects:read", { organizationSlug });
   const domainsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceDomainsFlag, auth);
 
@@ -44,6 +57,7 @@ async function DomainsPageLoader({ params }: { params: Promise<{ organizationSlu
     <DomainsPageContent
       organizationSlug={organizationSlug}
       allowLinkDomains={hasCapability(auth.membership.role, "projects:create")}
+      initialDomainSlug={claimDomainSlug}
     />
   );
 }
