@@ -35,4 +35,9 @@ export const projectFileCatApiMessages = defineMessages({
     id: "0tcV3U/r5g",
     description: "Fallback error when downloading the filtered CAT queue export fails",
   },
+  filteredExportEmpty: {
+    defaultMessage: "No segments match the current filters.",
+    id: "Vj/gZDKJUv",
+    description: "Error when a filtered Content Editor export has no matching segments",
+  },
 });

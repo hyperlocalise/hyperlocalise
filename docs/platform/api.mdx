@@ -208,6 +208,8 @@ Permission: `files:read`
 
 Returns the translated file bytes for that source path and target locale.
 
+To export only the segments that match Content Editor filters (CSV, TMX, XLIFF, XLSX), use **Download** in the [Content Editor](/platform/cat) queue—not this endpoint.
+
 ### Download an image variant
 
 `GET /v1/projects/{projectId}/images/download?sourcePath={sourcePath}&locale={locale}`

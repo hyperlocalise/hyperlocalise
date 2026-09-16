@@ -58,8 +58,13 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		h.dictionaries.register(mux, verifier)
 	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
+	editorExport := authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		h.serializeEditorFilteredExport(w, r)
+	}))
 	mux.HandleFunc("GET /health", h.health)
 	mux.Handle("POST /v1/validate/segment", validate)
+	mux.Handle("POST /v1/editor-export/filtered/serialize", editorExport)
 	research := serverCallAuthMiddleware(verifier)
 	mux.Handle("POST /v1/domains/research/keywords", research(http.HandlerFunc(h.expandKeywords)))
 	mux.Handle("POST /v1/domains/research/serp", research(http.HandlerFunc(h.liveSerp)))

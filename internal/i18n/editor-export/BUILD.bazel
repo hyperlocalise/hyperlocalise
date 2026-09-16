@@ -1,0 +1,46 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "editor-export",
+    srcs = [
+        "csv.go",
+        "filename.go",
+        "format.go",
+        "row.go",
+        "serialize.go",
+        "tmx.go",
+        "xliff.go",
+        "xml.go",
+        "xlsx.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_xuri_excelize_v2//:excelize"],
+)
+
+go_test(
+    name = "editor-export_test",
+    srcs = [
+        "csv_test.go",
+        "export_test_helpers_test.go",
+        "filename_test.go",
+        "format_test.go",
+        "tmx_test.go",
+        "xliff_test.go",
+        "xlsx_test.go",
+    ],
+    embed = [":editor-export"],
+    deps = [
+        "@com_github_stretchr_testify//require",
+        "@com_github_xuri_excelize_v2//:excelize",
+    ],
+)
+
+go_test(
+    name = "editor-export_benchmark_test",
+    srcs = [
+        "export_test_helpers_test.go",
+        "serialize_benchmark_test.go",
+    ],
+    embed = [":editor-export"],
+)
