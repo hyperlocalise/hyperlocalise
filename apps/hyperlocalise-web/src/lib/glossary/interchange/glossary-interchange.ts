@@ -14,6 +14,7 @@ import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import type { Glossary } from "@/lib/database/types";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 
 export type InterchangeSeverity = "warning" | "error";
 
@@ -182,12 +183,21 @@ export async function loadGlossaryInterchangeDocument(input: {
     .where(eq(schema.glossaryTerms.glossaryId, input.glossary.id));
 
   const locales = input.locale
-    ? new Set(typeof input.locale === "string" ? [input.locale] : input.locale)
+    ? new Set(
+        (typeof input.locale === "string" ? [input.locale] : input.locale).map(
+          (locale) => canonicalizeLocale(locale) ?? locale,
+        ),
+      )
     : null;
-  const termsByConcept = new Map<string, GlossaryInterchangeTerm[]>();
+
+  function termMatchesLocaleFilter(termLocale: string) {
+    if (!locales) return true;
+    const canonical = canonicalizeLocale(termLocale) ?? termLocale;
+    return locales.has(canonical) || locales.has(termLocale);
+  }
+  const allTermsByConcept = new Map<string, GlossaryInterchangeTerm[]>();
   for (const term of termRows) {
     if (!term.conceptId || !term.locale || !term.term) continue;
-    if (locales && !locales.has(term.locale)) continue;
     const mapped: GlossaryInterchangeTerm = {
       id: term.id,
       conceptId: term.conceptId,
@@ -209,53 +219,67 @@ export async function loadGlossaryInterchangeDocument(input: {
       createdAt: term.createdAt.toISOString(),
       updatedAt: term.updatedAt.toISOString(),
     };
-    termsByConcept.set(term.conceptId, [...(termsByConcept.get(term.conceptId) ?? []), mapped]);
+    allTermsByConcept.set(term.conceptId, [
+      ...(allTermsByConcept.get(term.conceptId) ?? []),
+      mapped,
+    ]);
+  }
+
+  function conceptMatchesSearch(concept: (typeof conceptRows)[number]) {
+    if (!search) return true;
+    const conceptTerms = allTermsByConcept.get(concept.id) ?? [];
+    const needle = search.toLocaleLowerCase();
+    return [
+      concept.primaryTerm,
+      concept.subject,
+      concept.definition,
+      concept.note,
+      ...conceptTerms.flatMap((term) => [
+        term.term,
+        term.description,
+        term.note,
+        term.partOfSpeech,
+        term.lemma ?? "",
+      ]),
+    ].some((value) => value.toLocaleLowerCase().includes(needle));
   }
 
   return {
     glossary: input.glossary,
     concepts: conceptRows
       .filter((concept) => {
-        const conceptTerms = termsByConcept.get(concept.id) ?? [];
-        if (locales && conceptTerms.length === 0) return false;
-        if (!search) return true;
-        const needle = search.toLocaleLowerCase();
-        return [
-          concept.primaryTerm,
-          concept.subject,
-          concept.definition,
-          concept.note,
-          ...conceptTerms.flatMap((term) => [
-            term.term,
-            term.description,
-            term.note,
-            term.partOfSpeech,
-            term.lemma ?? "",
-          ]),
-        ].some((value) => value.toLocaleLowerCase().includes(needle));
+        const conceptTerms = allTermsByConcept.get(concept.id) ?? [];
+        if (locales && !conceptTerms.some((term) => termMatchesLocaleFilter(term.locale)))
+          return false;
+        return conceptMatchesSearch(concept);
       })
-      .map((concept) => ({
-        id: concept.id,
-        primaryTerm: concept.primaryTerm,
-        subject: concept.subject,
-        definition: concept.definition,
-        translatable: concept.translatable,
-        note: concept.note,
-        url: concept.url,
-        figure: concept.figure,
-        languageDetails: concept.languageDetails.map((detail) => ({
-          locale: detail.locale,
-          definition: detail.definition,
-          note: detail.note,
-          userId: detail.userId,
-          createdAt: detail.createdAt,
-          updatedAt: detail.updatedAt,
-        })),
-        metadata: concept.metadata,
-        createdAt: concept.createdAt.toISOString(),
-        updatedAt: concept.updatedAt.toISOString(),
-        terms: termsByConcept.get(concept.id) ?? [],
-      })),
+      .map((concept) => {
+        const exportedTerms = (allTermsByConcept.get(concept.id) ?? []).filter((term) =>
+          termMatchesLocaleFilter(term.locale),
+        );
+        return {
+          id: concept.id,
+          primaryTerm: concept.primaryTerm,
+          subject: concept.subject,
+          definition: concept.definition,
+          translatable: concept.translatable,
+          note: concept.note,
+          url: concept.url,
+          figure: concept.figure,
+          languageDetails: concept.languageDetails.map((detail) => ({
+            locale: detail.locale,
+            definition: detail.definition,
+            note: detail.note,
+            userId: detail.userId,
+            createdAt: detail.createdAt,
+            updatedAt: detail.updatedAt,
+          })),
+          metadata: concept.metadata,
+          createdAt: concept.createdAt.toISOString(),
+          updatedAt: concept.updatedAt.toISOString(),
+          terms: exportedTerms,
+        };
+      }),
   };
 }
 

@@ -939,6 +939,193 @@ describe("glossaryRoutes", () => {
     expect(csv).toContain("Caisse");
   });
 
+  it("exports mirrored external_tms glossaries stored in Hyperlocalise", async () => {
+    const { identity, glossary } = await fixture.createStoredGlossaryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    await db
+      .update(schema.glossaries)
+      .set({
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProjectId: "902807",
+        externalResourceType: "glossary",
+        externalGlossaryId: "synced-glossary-1",
+      })
+      .where(eq(schema.glossaries.id, glossary.id));
+
+    const [concept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "Synced term",
+        translatable: true,
+      })
+      .returning();
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      conceptId: concept.id,
+      locale: "en",
+      term: "Synced term",
+      sourceTerm: "Synced term",
+      targetTerm: "Synced term",
+      description: "",
+      provenance: "sync",
+      reviewStatus: "approved",
+      caseSensitive: false,
+      forbidden: false,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].export.$get(
+      {
+        param: { organizationSlug, glossaryId: glossary.id },
+        query: { format: "csv", scope: "complete" },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const csv = await response.text();
+    expect(csv).toContain("Synced term");
+  });
+
+  it("lists concepts for mirrored external_tms glossaries via the persisted index", async () => {
+    const { identity, glossary } = await fixture.createStoredGlossaryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    await db
+      .update(schema.glossaries)
+      .set({
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProjectId: "902807",
+        externalResourceType: "glossary",
+        externalGlossaryId: "synced-glossary-page",
+      })
+      .where(eq(schema.glossaries.id, glossary.id));
+
+    const [concept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "Paged term",
+        translatable: true,
+      })
+      .returning();
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      conceptId: concept.id,
+      locale: "en",
+      term: "Paged term",
+      sourceTerm: "Paged term",
+      targetTerm: "Paged term",
+      description: "",
+      provenance: "sync",
+      reviewStatus: "approved",
+      caseSensitive: false,
+      forbidden: false,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.page.$get(
+      {
+        param: { organizationSlug, glossaryId: glossary.id },
+        query: { limit: "20", sort: "updated_at", sortDir: "desc", includeArchived: "false" },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      concepts: { primaryTerm: string }[];
+    };
+    expect(body.concepts).toHaveLength(1);
+    expect(body.concepts[0]?.primaryTerm).toBe("Paged term");
+  });
+
+  it("exports filtered concepts when search matches a term outside the locale projection", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Boutique",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "Checkout",
+              description: "needle-en-only",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
+              locale: "fr",
+              term: "Boutique",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    expect(conceptResponse.status).toBe(201);
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].export.$get(
+      {
+        param: { organizationSlug, glossaryId },
+        query: {
+          format: "csv",
+          scope: "filtered",
+          locale: "fr",
+          search: "needle-en-only",
+        },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const csv = await response.text();
+    expect(csv).toContain("Boutique");
+    expect(csv).not.toContain("needle-en-only");
+    expect(csv).not.toMatch(/,"en",/);
+  });
+
+  it("rejects export for live provider glossary ids", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const liveGlossaryId = "crowdin:glossary:42";
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].export.$get(
+      {
+        param: { organizationSlug, glossaryId: liveGlossaryId },
+        query: { format: "csv", scope: "complete" },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "glossary_export_unsupported",
+    });
+  });
+
   it("rejects term creation for a concept owned by another organization", async () => {
     const firstIdentity = fixture.createWorkosIdentityWithRole("admin");
     const secondIdentity = fixture.createWorkosIdentityWithRole("admin");

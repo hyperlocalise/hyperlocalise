@@ -21,7 +21,7 @@ import { buildGlossaryTsQuery } from "@/lib/glossary/glossary";
 import { concordanceSourceContainsTerm } from "@/lib/glossary/native-glossary";
 import { groupConceptTerms } from "@/lib/glossary/query-glossary-terms";
 import { isMemorySearchableForExecution } from "@/lib/memory/memory-capabilities";
-import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { isQueryableNativeGlossaryId } from "@/lib/glossary/glossary-persisted-id";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import {
@@ -51,13 +51,7 @@ function buildTsQuery(input: string, operator: " & " | " | " = " & "): string {
 
 const QUERY_GLOSSARY_CANDIDATE_PAGE_SIZE = 200;
 
-function isNativeGlossaryId(value: string) {
-  return z.uuid().safeParse(value).success;
-}
-
-export function isQueryableNativeGlossaryId(value: string) {
-  return isNativeGlossaryId(value) && parseLiveProviderGlossaryId(value) === null;
-}
+export { isQueryableNativeGlossaryId } from "@/lib/glossary/glossary-persisted-id";
 
 export const queryGlossaryInputSchema = z.object({
   sourceText: z.string().describe("The source text to look up in glossaries."),

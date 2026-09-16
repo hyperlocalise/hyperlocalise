@@ -32,6 +32,7 @@ import { NativeGlossary as NativeGlossaryProduct } from "@/lib/glossary/native-g
 import { loadGlossaryInterchangeDocument } from "@/lib/glossary/interchange/glossary-interchange";
 import { GlossaryFormatFactory } from "@/lib/glossary/interchange/glossary-format-factory";
 import { getGlossaryImportReport } from "@/lib/glossary/interchange/glossary-import-reports";
+import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { getStoredFileContent } from "@/lib/file-storage/records";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
@@ -432,16 +433,17 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
     .get("/:glossaryId/export", validateGlossaryParams, validateGlossaryExportQuery, async (c) => {
       const { glossaryId } = c.req.valid("param");
       const query = c.req.valid("query");
-      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-      if (!glossary) return glossaryNotFoundResponse(c);
 
-      if (glossary.source !== "native") {
+      if (parseLiveProviderGlossaryId(glossaryId)) {
         return badRequestResponse(
           c,
           "glossary_export_unsupported",
-          "This provider-backed glossary does not expose a supported export capability.",
+          "Live provider glossaries cannot be exported from Cloud. Export mirrored terminology stored in Hyperlocalise instead.",
         );
       }
+
+      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+      if (!glossary) return glossaryNotFoundResponse(c);
 
       const document = await loadGlossaryInterchangeDocument({
         glossary,

@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { glossaryConceptPageQuerySchema } from "./glossary.schema";
+import { glossaryConceptPageQuerySchema, glossaryExportQuerySchema } from "./glossary.schema";
 
 describe("glossary concept page query schema", () => {
   it("parses explicit false boolean query values as false", () => {
@@ -41,5 +41,15 @@ describe("glossary concept page query schema", () => {
 
     expect(result.sort).toBe("primary_term");
     expect(result.sortDir).toBe("asc");
+  });
+});
+
+describe("glossaryExportQuerySchema", () => {
+  it("coerces a single locales query value into an array", () => {
+    expect(glossaryExportQuerySchema.parse({ locales: "fr" }).locales).toEqual(["fr"]);
+    expect(glossaryExportQuerySchema.parse({ locales: ["en", "fr"] }).locales).toEqual([
+      "en",
+      "fr",
+    ]);
   });
 });

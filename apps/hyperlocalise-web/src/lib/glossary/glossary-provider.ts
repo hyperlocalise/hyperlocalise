@@ -19,6 +19,7 @@ import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { CrowdinGlossary as CrowdinGlossaryProduct } from "./crowdin-glossary";
 import { Glossary, type GlossaryConceptInput, type NativeGlossaryTermInput } from "./glossary";
+import { isQueryableNativeGlossaryId } from "./glossary-persisted-id";
 import { NativeGlossary as NativeGlossaryProduct } from "./native-glossary";
 
 export type GlossaryProviderContext = {
@@ -69,6 +70,18 @@ export function getGlossaryProduct(input: GlossaryProviderContext): Glossary | n
     }
     throw error;
   }
+}
+
+/** Read mirrored sync rows from the database; live provider glossaries still use the TMS adapter. */
+export function getGlossaryPersistedReadProduct(input: GlossaryProviderContext): Glossary | null {
+  const { glossary } = input;
+  if (
+    glossary.source === "native" ||
+    (glossary.source === "external_tms" && isQueryableNativeGlossaryId(glossary.id))
+  ) {
+    return new NativeGlossaryProduct(input);
+  }
+  return getGlossaryProduct(input);
 }
 
 type CrowdinContext = {

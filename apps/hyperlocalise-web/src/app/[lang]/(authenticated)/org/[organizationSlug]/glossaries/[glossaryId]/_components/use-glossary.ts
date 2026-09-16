@@ -20,6 +20,8 @@ import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 
+import { glossaryUsesNativeDetailPage } from "@/lib/glossary/glossary-detail-id";
+
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 
 export function useGlossary({
@@ -58,9 +60,10 @@ export function useGlossary({
       (glossary?.source === "external_tms" && glossary.externalProviderKind === "crowdin")) &&
     (canManage || (glossaryQuery.data?.canContribute ?? false));
   const isNative = glossary?.source === "native";
+  const usesNativeDetail = glossaryUsesNativeDetailPage(glossaryId, glossary?.source);
   const isLiveCrowdin =
     glossary?.source === "external_tms" && glossary.externalProviderKind === "crowdin";
-  const isConceptGlossary = Boolean(isNative || isLiveCrowdin);
+  const isConceptGlossary = Boolean(usesNativeDetail || isLiveCrowdin);
   const sourceLanguage = glossary?.languages.find((language) => language.isSource) ?? {
     locale: glossary?.sourceLocale ?? "",
     name: getLocaleLabel(glossary?.sourceLocale ?? ""),
@@ -72,6 +75,7 @@ export function useGlossary({
     canManage,
     canContribute,
     isNative,
+    usesNativeDetail,
     isLiveCrowdin,
     isConceptGlossary,
     sourceLanguage,
