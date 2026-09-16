@@ -36,6 +36,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  contentEditorFilteredExportFormats,
+  type ContentEditorFilteredExportFormat,
+} from "@/lib/projects/content-editor/content-editor-filtered-export";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -127,7 +131,7 @@ export function ContentEditorQueueToolbar({
    * previous page. Bulk select/mutate must wait until both are ready.
    */
   isQueueLoading?: boolean;
-  onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
+  onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
   isDownloadingFilteredView?: boolean;
 }) {
   const intl = useIntl();
@@ -280,7 +284,7 @@ export function ContentEditorQueueToolbar({
                     {...contentEditorQueuePanelMessages.downloadFilteredFormatLabel}
                   />
                 </DropdownMenuLabel>
-                {(["csv", "tmx", "xlf", "xliff"] as const).map((format) => (
+                {contentEditorFilteredExportFormats.map((format) => (
                   <DropdownMenuItem key={format} onClick={() => onDownloadFilteredView(format)}>
                     {format.toUpperCase()}
                   </DropdownMenuItem>

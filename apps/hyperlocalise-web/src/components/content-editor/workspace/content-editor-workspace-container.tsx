@@ -17,6 +17,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
+import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -107,7 +108,7 @@ export interface ContentEditorWorkspaceContainerProps {
   onPageLimitChange?: (pageLimit: number) => void;
   pageNavigationGuardRef?: ContentEditorPageNavigationGuardRef;
   nativeIssuesEnabled?: boolean;
-  onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
+  onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
   isDownloadingFilteredView?: boolean;
   /** Stable identity for the open file/locale. Changing this resets workspace data only. */
   fileScopeKey?: string;

@@ -18,12 +18,13 @@
 ### Download filtered view
 
 - Add a **Download** button (dropdown) on the queue toolbar.
-- Add `GET .../files/detail/cat/export?format=csv|tmx|xlf|xliff` with the same filter/search/sourcePath/locale query as the queue.
-- Server pages through the filtered queue, loads targets (native batch; provider concurrent), and returns a file attachment.
+- Browser collects filtered queue rows via `GET .../files/detail/cat/queue` and per-segment targets, then `POST /api/go-svc/v1/editor-export/filtered/serialize` (`csv|tmx|xlf|xliff|xlsx`).
+- No dedicated Hono export route; serialization runs in go-svc with the user session cookie via `/api/go-svc/...`.
 - Cap export size (5_000 segments) consistent with other project translation exports.
 - `xlf` and `xliff` share XLIFF 1.2 content; only the filename extension differs.
 
 ## Verification
 
-- Unit tests for URL helpers, serializers, and export route behavior.
+- Unit tests for URL helpers, client row collection, Go serializers, and go-svc handler.
+- User-facing behavior documented in `docs/platform/cat.mdx` (Download filtered view).
 - `vp test` and `vp check --fix` in `apps/hyperlocalise-web`.

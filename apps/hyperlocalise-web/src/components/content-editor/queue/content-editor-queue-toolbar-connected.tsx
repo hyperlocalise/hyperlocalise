@@ -16,6 +16,8 @@ import { observer } from "mobx-react-lite";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
+
 import {
   contentEditorQueueFilterValues,
   type ContentEditorQueueFilter,
@@ -62,7 +64,7 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkUnhide?: () => void;
     onBulkLock?: () => void;
     onBulkUnlock?: () => void;
-    onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
+    onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
     isDownloadingFilteredView?: boolean;
   }) {
     const store = useContentEditorWorkspace();

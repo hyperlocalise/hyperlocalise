@@ -54,7 +54,29 @@ Common filters:
 
 Provider-specific filters such as **QA issues** and **Machine translations** appear when the connected TMS supports them.
 
-**Download** exports the filtered view. **Load more** continues the infinite-scroll list.
+**Load more** continues the infinite-scroll list.
+
+### Download filtered view
+
+Use **Download** on the queue toolbar (download icon next to **Filter queue**) to export the segments you see after filters and search—not the whole project file.
+
+1. Set **Filter queue** and **Search key, source, or translation…** the way you want the export scoped.
+2. Open **Download** and pick a format:
+
+| Format | Typical use |
+| --- | --- |
+| **CSV** | Spreadsheets, scripts, quick review |
+| **TMX** | Translation memory tools |
+| **XLF** / **XLIFF** | XLIFF 1.2 workflows (same content; filename extension differs) |
+| **XLSX** | Excel review or handoff |
+
+Each row includes the segment key, source text, target text (empty when untranslated), locales, and source file path when the queue spans multiple files.
+
+Exports include up to **5,000** matching segments. If more segments match your filters, the download contains the first 5,000 in queue order; narrow filters or search to export a smaller slice.
+
+If nothing matches the current filters, download fails with a message that no segments match.
+
+This export is separate from [API](/platform/api) or [MCP](/platform/mcp) **download translations**, which reconstruct a full target file for one `sourcePath` and locale. Use **Download filtered view** when you need only the filtered queue (for example untranslated strings in one locale).
 
 ## Board
 
