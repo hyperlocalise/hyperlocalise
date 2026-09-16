@@ -91,7 +91,8 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
         from projects p
         left join latest_qa_run r on r.project_id = p.id
         where p.organization_id = $1 and p.source = 'native'
-        order by p.name`, actor.organizationID)
+        and `+formatQaProjectTeamAccessSQL(2, 3, 1)+`
+        order by p.name`, actor.organizationID, actor.canWriteProjectTeam(), actor.userID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -218,6 +219,8 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
 		localeFilter,
 		checkTypeFilter,
 		severityFilter,
+		actor.canWriteProjectTeam(),
+		actor.userID,
 	}
 
 	latestRunSQL := `
@@ -235,12 +238,14 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
         and ($3::text is null or f.target_locale = $3::text)
         and ($4::text is null or f.check_type = $4::text)
         and ($5::text is null or f.severity = $5::text)
-        and f.run_id = lr.id`
+        and f.run_id = lr.id
+        and ` + formatQaProjectTeamAccessSQL(6, 7, 1)
 
 	countSQL := `with ` + latestRunSQL + `
         select count(*)::int
         from translation_qa_findings f
         inner join latest_succeeded_qa_run lr on lr.id = f.run_id
+        inner join projects p on p.id = f.project_id
         where ` + filterSQL
 
 	listSQL := `with ` + latestRunSQL + `
@@ -253,7 +258,7 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
         inner join projects p on p.id = f.project_id
         where ` + filterSQL + `
         order by p.name, f.target_locale, f.key, f.id
-        limit $6 offset $7`
+        limit $8 offset $9`
 
 	var total int
 	if err := api.pool.QueryRow(ctx, countSQL, queryArgs...).Scan(&total); err != nil {
