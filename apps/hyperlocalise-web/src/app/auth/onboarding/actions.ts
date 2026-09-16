@@ -13,12 +13,15 @@
  * Version 2.0 or later.
  */
 import { redirect } from "next/navigation";
-import { z } from "zod";
 
 import { updateProviderCredentialBodySchema } from "@/api/routes/provider-credential/provider-credential.schema";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { createWorkspaceForSessionUser } from "@/lib/onboarding/workspace";
+import {
+  createWorkspaceSchema,
+  WORKSPACE_IDENTITY_BLOCKED_MESSAGE,
+} from "@/lib/onboarding/workspace-schema";
 import { loadOnboardingContext } from "@/lib/onboarding/context";
 import {
   assertProviderCredentialAdmin,
@@ -52,10 +55,6 @@ export type SaveProviderActionState = {
   };
 };
 
-const createWorkspaceSchema = z.object({
-  organizationName: z.string().trim().min(2),
-});
-
 function getOrganizationDashboardPath(slug: string | null | undefined) {
   if (!slug) {
     return "/auth/access-denied?reason=missing-org-slug";
@@ -83,18 +82,27 @@ export async function createWorkspaceAction(
   });
 
   if (!parsed.success) {
-    const hasOrganizationNameError =
-      parsed.error.flatten().fieldErrors.organizationName !== undefined;
+    const organizationNameIssue = parsed.error.issues.find(
+      (issue) => issue.path[0] === "organizationName",
+    );
 
     return {
       fieldErrors: {
-        organizationName: hasOrganizationNameError
-          ? intl.formatMessage({
-              defaultMessage: "Workspace name must be at least 2 characters.",
-              id: "9aWpVkf/JD",
-              description: "Validation error when the workspace name is too short",
-            })
-          : undefined,
+        organizationName:
+          organizationNameIssue?.message === WORKSPACE_IDENTITY_BLOCKED_MESSAGE
+            ? intl.formatMessage({
+                defaultMessage: "Choose a workspace name without profanity or reserved words.",
+                id: "mncm3Mm6yI",
+                description:
+                  "Validation error when a workspace name contains profanity or a reserved word",
+              })
+            : organizationNameIssue
+              ? intl.formatMessage({
+                  defaultMessage: "Workspace name must be at least 2 characters.",
+                  id: "9aWpVkf/JD",
+                  description: "Validation error when the workspace name is too short",
+                })
+              : undefined,
       },
     };
   }

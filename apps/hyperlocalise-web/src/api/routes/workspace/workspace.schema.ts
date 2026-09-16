@@ -12,9 +12,19 @@
  */
 import { z } from "zod";
 
+import { isAllowedWorkspaceIdentity } from "@/lib/workspace/workspace-identity-policy";
+
 export const updateWorkspaceBodySchema = z
   .object({
-    name: z.string().trim().min(1).max(120).optional(),
+    name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .refine(isAllowedWorkspaceIdentity, {
+        message: "Choose a workspace name without profanity or reserved words",
+      })
+      .optional(),
     slug: z
       .string()
       .trim()
@@ -24,6 +34,9 @@ export const updateWorkspaceBodySchema = z
       })
       .min(2)
       .max(80)
+      .refine(isAllowedWorkspaceIdentity, {
+        message: "Choose a workspace slug without profanity or reserved words",
+      })
       .optional(),
   })
   .refine((value) => value.name !== undefined || value.slug !== undefined, {
