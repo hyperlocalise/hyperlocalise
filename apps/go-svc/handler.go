@@ -41,6 +41,7 @@ type handler struct {
 	objects      *objectstore.Registry
 	guidelines   *guidelines.Service
 	dictionaries *dictionaryAPI
+	qaReports    *qaReportAPI
 }
 
 func newHandler() *handler {
@@ -56,6 +57,9 @@ const publicPathPrefix = "/api/go-svc"
 func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	if h.dictionaries != nil {
 		h.dictionaries.register(mux, verifier)
+	}
+	if h.qaReports != nil {
+		h.qaReports.register(mux, verifier)
 	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	editorExport := authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

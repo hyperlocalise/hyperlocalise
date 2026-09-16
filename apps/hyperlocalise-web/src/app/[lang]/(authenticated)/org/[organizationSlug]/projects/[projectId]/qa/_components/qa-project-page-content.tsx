@@ -30,8 +30,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import { projectQaReportClient } from "@/lib/qa/qa-report-client";
 import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
 
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
@@ -105,9 +105,9 @@ export function QaProjectPageContent({
   const listQuery = useQuery({
     queryKey: listKey,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "qa-reports"
-      ].$get({ param: { organizationSlug, projectId } });
+      const response = await projectQaReportClient.listReports({
+        param: { organizationSlug, projectId },
+      });
       if (response.status === 400) {
         throw Object.assign(new Error("unsupported"), { code: "unsupported" });
       }
@@ -131,15 +131,13 @@ export function QaProjectPageContent({
     enabled: Boolean(activeRunId),
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "qa-reports"
-      ][":runId"].$get({
+      const response = await projectQaReportClient.getRun({
         param: { organizationSlug, projectId, runId: activeRunId! },
         query: {
           locale: locale === "all" ? undefined : locale,
           checkType: isQaCheckType(checkType) ? checkType : undefined,
-          limit: FINDINGS_PAGE_SIZE,
-          offset: pageParam,
+          limit: String(FINDINGS_PAGE_SIZE),
+          offset: String(pageParam),
         },
       });
       if (!response.ok) {
@@ -157,9 +155,9 @@ export function QaProjectPageContent({
 
   const runMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "qa-reports"
-      ].$post({ param: { organizationSlug, projectId } });
+      const response = await projectQaReportClient.startScan({
+        param: { organizationSlug, projectId },
+      });
       if (!response.ok) {
         throw await readApiResponseError(response, intl.formatMessage(messages.runError));
       }
@@ -176,9 +174,7 @@ export function QaProjectPageContent({
 
   const scheduleMutation = useMutation({
     mutationFn: async (cadence: "off" | "daily") => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "qa-reports"
-      ].settings.$patch({
+      const response = await projectQaReportClient.updateSettings({
         param: { organizationSlug, projectId },
         json: { cadence },
       });
