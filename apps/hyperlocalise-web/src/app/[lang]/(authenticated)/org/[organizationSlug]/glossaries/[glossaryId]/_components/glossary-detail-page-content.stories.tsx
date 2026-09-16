@@ -184,7 +184,13 @@ export const ConceptList: Story = {
     await userEvent.click(within(filtersDialog).getByLabelText("Author"));
     await expect(await canvas.findByText("Ada Lovelace")).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
-    await userEvent.click(within(filtersDialog).getByRole("button", { name: "Done" }));
+    await userEvent.click(within(filtersDialog).getByLabelText("Gender"));
+    await userEvent.click(await canvas.findByRole("option", { name: "Feminine" }));
+    await expect(within(filtersDialog).getByLabelText("Gender")).toHaveTextContent(
+      "Gender: Feminine",
+    );
+    await userEvent.click(within(filtersDialog).getByRole("button", { name: "Apply" }));
+    await expect(await canvas.findByRole("button", { name: /^Filters \(1\)/ })).toBeInTheDocument();
   },
 };
 

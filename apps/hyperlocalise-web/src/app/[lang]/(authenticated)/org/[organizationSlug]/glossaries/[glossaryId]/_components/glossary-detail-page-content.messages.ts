@@ -843,14 +843,24 @@ export const glossaryDetailPageContentMessages = defineMessages({
     description: "Title of the concept filters dialog",
   },
   filtersDescription: {
-    defaultMessage: "Narrow the concept list. Filters apply immediately.",
-    id: "6BQs4RaSTY",
+    defaultMessage: "Narrow the concept list, then apply to see results.",
+    id: "q8V5mZ2fFk6",
     description: "Description of the concept filters dialog",
   },
   filtersDone: {
     defaultMessage: "Done",
     id: "hptWpEO9CJ",
     description: "Confirm button closing the concept filters dialog",
+  },
+  filtersApply: {
+    defaultMessage: "Apply",
+    id: "wEBG0EIifq",
+    description: "Button applying the staged concept filters",
+  },
+  filtersCancel: {
+    defaultMessage: "Cancel",
+    id: "jeLQxAhZsR",
+    description: "Button discarding staged concept filters",
   },
   filterLanguagesLabel: {
     defaultMessage: "Languages",
