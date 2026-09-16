@@ -43,7 +43,6 @@ use_repo(
     "land_charm_bubbletea_v2",
     "land_charm_lipgloss_v2",
     "land_charm_log_v2",
-    "org_golang_google_protobuf",
     "org_golang_x_net",
     "org_golang_x_text",
     "org_golang_x_tools",
