@@ -252,6 +252,9 @@ export function NativeGlossaryDetail({
     "",
   );
   const [conceptAuthor, setConceptAuthor] = useState("");
+  // Snapshot the applied last-modified cutoff so pagination cursors stay
+  // signed against the same filter hash across pages.
+  const [conceptModifiedFrom, setConceptModifiedFrom] = useState<string | undefined>();
   const [conceptCursor, setConceptCursor] = useState<string | undefined>();
   const [, setConceptCursorStack] = useState<string[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -289,7 +292,6 @@ export function NativeGlossaryDetail({
     if (glossary) setNameDraft(glossary.name);
   }, [glossary?.name]);
 
-  const conceptModifiedFrom = modifiedFromIso(conceptModified);
   const conceptsQuery = useQuery({
     queryKey: [
       "glossary-concepts-page",
@@ -511,6 +513,7 @@ export function NativeGlossaryDetail({
   const clearAllConceptFilters = () => {
     setConceptCursorStack([]);
     setConceptCursor(undefined);
+    setConceptModifiedFrom(undefined);
     setConceptSearch("");
     setConceptLocale("");
     setConceptModified("");
@@ -718,6 +721,7 @@ export function NativeGlossaryDetail({
   const applyConceptFilters = () => {
     setConceptCursorStack([]);
     setConceptCursor(undefined);
+    setConceptModifiedFrom(modifiedFromIso(filterDraft.modified as "" | "24h" | "7d" | "30d"));
     setConceptLocale(filterDraft.locale);
     setConceptModified(filterDraft.modified as "" | "24h" | "7d" | "30d");
     setConceptLinguisticStatus(

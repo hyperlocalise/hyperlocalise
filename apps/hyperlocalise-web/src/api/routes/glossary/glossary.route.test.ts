@@ -47,6 +47,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import { GlossaryValidationError } from "@/lib/glossary/glossary";
+import { loadGlossaryInterchangeDocument } from "@/lib/glossary/interchange/glossary-interchange";
 import { NativeGlossary } from "@/lib/glossary/native-glossary";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -1234,6 +1235,80 @@ describe("glossaryRoutes", () => {
     const csv = await exportResponse.text();
     expect(csv).toContain("Actrice");
     expect(csv).not.toContain("Actor");
+  });
+
+  it("exports filtered concepts by concept review status, not term status", async () => {
+    const { identity, glossary } = await fixture.createStoredGlossaryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const [rejectedConcept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "Rejected concept term",
+        reviewStatus: "rejected",
+      })
+      .returning();
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      conceptId: rejectedConcept.id,
+      locale: "en",
+      term: "Rejected concept approved term",
+      sourceTerm: "Rejected concept approved term",
+      targetTerm: "Rejected concept approved term",
+      reviewStatus: "approved",
+      caseSensitive: false,
+      forbidden: false,
+    });
+    const [approvedConcept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "Approved concept term",
+        reviewStatus: "approved",
+      })
+      .returning();
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      conceptId: approvedConcept.id,
+      locale: "en",
+      term: "Approved concept rejected term",
+      sourceTerm: "Approved concept rejected term",
+      targetTerm: "Approved concept rejected term",
+      reviewStatus: "rejected",
+      caseSensitive: false,
+      forbidden: false,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].export.$get(
+      {
+        param: { organizationSlug, glossaryId: glossary.id },
+        query: { format: "csv", scope: "filtered", reviewStatus: "approved" },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const csv = await response.text();
+    expect(csv).toContain("Approved concept rejected term");
+    expect(csv).not.toContain("Rejected concept approved term");
+  });
+
+  it("omits termless concepts from term-filtered interchange documents only", async () => {
+    const { glossary } = await fixture.createStoredGlossaryFixture();
+
+    await db.insert(schema.glossaryConcepts).values({
+      glossaryId: glossary.id,
+      primaryTerm: "Lonely concept",
+    });
+
+    const filtered = await loadGlossaryInterchangeDocument({ glossary, locale: ["en"] });
+    expect(filtered.concepts.map((concept) => concept.primaryTerm)).not.toContain("Lonely concept");
+
+    const complete = await loadGlossaryInterchangeDocument({ glossary });
+    expect(complete.concepts.map((concept) => concept.primaryTerm)).toContain("Lonely concept");
   });
 
   it("rejects export for live provider glossary ids", async () => {

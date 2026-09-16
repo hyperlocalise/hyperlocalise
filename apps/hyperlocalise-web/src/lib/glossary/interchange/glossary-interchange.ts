@@ -47,6 +47,7 @@ export type GlossaryInterchangeTerm = {
   forbidden: boolean;
   provenance: string;
   reviewStatus: string;
+  createdByUserId?: string | null;
   metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -214,9 +215,21 @@ export async function loadGlossaryInterchangeDocument(input: {
     if (input.gender && (term.gender ?? "") !== input.gender) return false;
     if (input.provenance && term.provenance !== input.provenance) return false;
     if (input.forbidden !== undefined && term.forbidden !== input.forbidden) return false;
-    if (input.reviewStatus && term.reviewStatus !== input.reviewStatus) return false;
+    if (input.createdByUserId && term.createdByUserId !== input.createdByUserId) return false;
     return true;
   }
+
+  // reviewStatus is concept-level; every other input predicate above is term-level.
+  const hasTermLevelFilter =
+    locales !== null ||
+    input.termReviewStatus !== undefined ||
+    input.linguisticStatus !== undefined ||
+    input.partOfSpeech !== undefined ||
+    input.termType !== undefined ||
+    input.gender !== undefined ||
+    input.provenance !== undefined ||
+    input.forbidden !== undefined ||
+    input.createdByUserId !== undefined;
 
   function termMatchesExportFilters(term: GlossaryInterchangeTerm) {
     return termMatchesLocaleFilter(term.locale) && termMatchesAttributeFilters(term);
@@ -241,6 +254,7 @@ export async function loadGlossaryInterchangeDocument(input: {
       forbidden: term.forbidden,
       provenance: term.provenance,
       reviewStatus: term.reviewStatus,
+      createdByUserId: term.createdByUserId,
       metadata: term.metadata,
       createdAt: term.createdAt.toISOString(),
       updatedAt: term.updatedAt.toISOString(),
@@ -275,10 +289,13 @@ export async function loadGlossaryInterchangeDocument(input: {
     concepts: conceptRows
       .filter((concept) => {
         const conceptTerms = allTermsByConcept.get(concept.id) ?? [];
-        if (conceptTerms.length > 0 && !conceptTerms.some((term) => termMatchesExportFilters(term)))
-          return false;
-        if (input.createdByUserId && concept.createdByUserId !== input.createdByUserId)
-          return false;
+        if (!conceptTerms.some((term) => termMatchesExportFilters(term))) {
+          // Termless concepts are only exportable when no term-level filter
+          // could exclude them; otherwise they'd be absent from the filtered
+          // concept page as well.
+          if (conceptTerms.length > 0 || hasTermLevelFilter) return false;
+        }
+        if (input.reviewStatus && concept.reviewStatus !== input.reviewStatus) return false;
         if (input.modifiedFrom && concept.updatedAt < new Date(input.modifiedFrom)) return false;
         return conceptMatchesSearch(concept);
       })
