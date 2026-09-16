@@ -96,7 +96,7 @@ describe("agentEmailRoutes", () => {
 
     expect(enableBody.emailAgent.enabled).toBe(true);
     expect(enableBody.emailAgent.inboundEmailAddress).toMatch(
-      /^example-org-[a-f0-9-]+-[a-f0-9]{32}@inbox\.hyperlocalise\.com$/,
+      /^acme-org-[a-f0-9-]+-[a-f0-9]{32}@inbox\.hyperlocalise\.com$/,
     );
 
     const authContext = globalThis.__testApiAuthContext;
@@ -116,7 +116,7 @@ describe("agentEmailRoutes", () => {
 
     expect(connector?.enabled).toBe(true);
     expect((connector?.config as { inboundEmailAlias?: string })?.inboundEmailAlias).toMatch(
-      /^example-org-[a-f0-9-]+-[a-f0-9]{32}$/,
+      /^acme-org-[a-f0-9-]+-[a-f0-9]{32}$/,
     );
 
     const disableResponse = await client.api.orgs[":organizationSlug"]["agent-email"].$patch(
@@ -177,7 +177,7 @@ describe("agentEmailRoutes", () => {
     }
     expect(body.emailAgent.enabled).toBe(true);
     expect(body.emailAgent.inboundEmailAddress).toMatch(
-      /^example-org-[a-f0-9-]+-[a-f0-9]{32}@inbox\.hyperlocalise\.com$/,
+      /^acme-org-[a-f0-9-]+-[a-f0-9]{32}@inbox\.hyperlocalise\.com$/,
     );
     expect(body.emailAgent.inboundEmailAddress).not.toBe(
       "example-org-abcdef@inbox.hyperlocalise.com",
@@ -196,7 +196,7 @@ describe("agentEmailRoutes", () => {
 
     expect(connector?.enabled).toBe(true);
     expect((connector?.config as { inboundEmailAlias?: string })?.inboundEmailAlias).toMatch(
-      /^example-org-[a-f0-9-]+-[a-f0-9]{32}$/,
+      /^acme-org-[a-f0-9-]+-[a-f0-9]{32}$/,
     );
   });
 
@@ -221,7 +221,7 @@ describe("agentEmailRoutes", () => {
 
     expect(resolved?.id).toBe(organizationId);
     expect(resolved?.inboundEmailAddress).toMatch(
-      /^example-org-[a-f0-9-]+-[a-f0-9]{32}@inbox\.hyperlocalise\.com$/,
+      /^acme-org-[a-f0-9-]+-[a-f0-9]{32}@inbox\.hyperlocalise\.com$/,
     );
     expect(resolved?.inboundEmailAddress).not.toBe("example-org-abcdef@inbox.hyperlocalise.com");
 
@@ -237,7 +237,7 @@ describe("agentEmailRoutes", () => {
       .limit(1);
 
     expect((connector?.config as { inboundEmailAlias?: string })?.inboundEmailAlias).toMatch(
-      /^example-org-[a-f0-9-]+-[a-f0-9]{32}$/,
+      /^acme-org-[a-f0-9-]+-[a-f0-9]{32}$/,
     );
   });
 
