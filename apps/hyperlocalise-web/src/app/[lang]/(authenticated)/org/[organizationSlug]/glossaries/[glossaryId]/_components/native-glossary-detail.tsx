@@ -835,6 +835,15 @@ export function NativeGlossaryDetail({
                 </TypographyP>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant={activeDropdownFilterCount > 0 ? "default" : "outline"}
+                  onClick={() => setFilterDialogOpen(true)}
+                >
+                  <HugeiconsIcon icon={FilterIcon} strokeWidth={1.8} data-icon="inline-start" />
+                  <FormattedMessage {...messages.filtersButton} />
+                  {activeDropdownFilterCount > 0 ? ` (${activeDropdownFilterCount})` : ""}
+                </Button>
                 {canManage && glossary?.source === "native" ? (
                   <Button
                     type="button"
@@ -905,16 +914,6 @@ export function NativeGlossaryDetail({
                   })}
                 </TypographyP>
               ) : null}
-              <Button
-                type="button"
-                variant={activeDropdownFilterCount > 0 ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilterDialogOpen(true)}
-              >
-                <HugeiconsIcon icon={FilterIcon} strokeWidth={1.8} data-icon="inline-start" />
-                <FormattedMessage {...messages.filtersButton} />
-                {activeDropdownFilterCount > 0 ? ` (${activeDropdownFilterCount})` : ""}
-              </Button>
               {activeFilterCount > 0 ? (
                 <Button type="button" variant="ghost" size="sm" onClick={clearAllConceptFilters}>
                   <FormattedMessage {...messages.clearFilters} />
