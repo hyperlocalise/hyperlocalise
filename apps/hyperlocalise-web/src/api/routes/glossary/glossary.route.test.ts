@@ -1105,6 +1105,65 @@ describe("glossaryRoutes", () => {
     expect(csv).not.toMatch(/,"en",/);
   });
 
+  it("exports filtered concepts honoring term attribute filters", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Running",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "Running",
+              partOfSpeech: "verb",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
+              locale: "en",
+              term: "Run forbidden noun",
+              partOfSpeech: "noun",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: true,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    expect(conceptResponse.status).toBe(201);
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].export.$get(
+      {
+        param: { organizationSlug, glossaryId },
+        query: {
+          format: "csv",
+          scope: "filtered",
+          partOfSpeech: "verb",
+          forbidden: false,
+        },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const csv = await response.text();
+    expect(csv).toContain("Running");
+    expect(csv).not.toContain("Run forbidden noun");
+  });
+
   it("rejects export for live provider glossary ids", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

@@ -75,7 +75,7 @@ export function createGlossaryDetailMswHandlers({
         })),
         nextCursor: null,
         total: currentConcepts.length,
-        pagination: { limit: 50, returned: currentConcepts.length, hasMore: false },
+        pagination: { limit: 10, returned: currentConcepts.length, hasMore: false },
       }),
     ),
     http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts", async () => {

@@ -193,6 +193,13 @@ export const glossaryExportQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
   locale: localeInputSchema.optional(),
   locales: glossaryExportLocalesSchema,
+  reviewStatus: glossaryReviewStatusSchema.optional(),
+  termReviewStatus: z.string().trim().min(1).max(50).optional(),
+  linguisticStatus: glossaryTermStatusSchema.optional(),
+  partOfSpeech: glossaryPartOfSpeechSchema.optional(),
+  termType: glossaryTermTypeSchema.optional(),
+  provenance: z.enum(["manual", "sync"]).optional(),
+  forbidden: queryBooleanSchema.optional(),
 });
 
 export const createGlossaryConceptTermBodySchema = z.object({
