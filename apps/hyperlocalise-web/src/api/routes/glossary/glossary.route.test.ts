@@ -1059,12 +1059,13 @@ describe("glossaryRoutes", () => {
       {
         param: { organizationSlug, glossaryId },
         json: {
-          primaryTerm: "unique-search-token",
+          primaryTerm: "Boutique",
           translatable: true,
           terms: [
             {
               locale: "en",
-              term: "unique-search-token",
+              term: "Checkout",
+              description: "needle-en-only",
               status: "preferred",
               caseSensitive: false,
               forbidden: false,
@@ -1092,7 +1093,7 @@ describe("glossaryRoutes", () => {
           format: "csv",
           scope: "filtered",
           locale: "fr",
-          search: "unique-search-token",
+          search: "needle-en-only",
         },
       },
       { headers },
@@ -1100,7 +1101,8 @@ describe("glossaryRoutes", () => {
     expect(response.status).toBe(200);
     const csv = await response.text();
     expect(csv).toContain("Boutique");
-    expect(csv).not.toContain("unique-search-token");
+    expect(csv).not.toContain("needle-en-only");
+    expect(csv).not.toMatch(/,"en",/);
   });
 
   it("rejects export for live provider glossary ids", async () => {
