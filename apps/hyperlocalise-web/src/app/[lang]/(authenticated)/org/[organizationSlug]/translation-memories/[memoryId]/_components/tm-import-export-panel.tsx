@@ -82,6 +82,7 @@ export function TmImportExportPanel({
   const [preview, setPreview] = useState<MemoryImportResponse | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"csv" | "tmx">("tmx");
   const [exportSourceLocale, setExportSourceLocale] = useState(localeCoverage[0] ?? "en-US");
   const [exportTargetLocale, setExportTargetLocale] = useState(localeCoverage[1] ?? "fr-FR");
 
@@ -162,25 +163,31 @@ export function TmImportExportPanel({
     onError: (error) => toast.error(error.message),
   });
 
-  const exportTmx = useMutation({
-    mutationFn: async (filters?: { sourceLocale?: string; targetLocale?: string }) => {
+  const exportMemory = useMutation({
+    mutationFn: async (input?: {
+      sourceLocale?: string;
+      targetLocale?: string;
+      format?: "csv" | "tmx";
+    }) => {
+      const format = input?.format ?? exportFormat;
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
         ":memoryId"
       ].entries.export.$get({
         param: { organizationSlug, memoryId },
         query: {
-          format: "tmx",
-          ...(filters?.sourceLocale ? { sourceLocale: filters.sourceLocale } : {}),
-          ...(filters?.targetLocale ? { targetLocale: filters.targetLocale } : {}),
+          format,
+          ...(input?.sourceLocale ? { sourceLocale: input.sourceLocale } : {}),
+          ...(input?.targetLocale ? { targetLocale: input.targetLocale } : {}),
         },
       });
       if (!response.ok) {
         throw new Error(await readApiError(response, intl.formatMessage(messages.exportFailed)));
       }
       const blob = await response.blob();
+      const defaultName = format === "csv" ? "translation-memory.csv" : "translation-memory.tmx";
       const filename =
         response.headers.get("content-disposition")?.match(/filename\*=UTF-8''([^;]+)/)?.[1] ??
-        "translation-memory.tmx";
+        defaultName;
       return { blob, filename: decodeURIComponent(filename) };
     },
     onSuccess: ({ blob, filename }) => {
@@ -322,6 +329,31 @@ export function TmImportExportPanel({
               <FormattedMessage {...messages.exportDescription} />
             </DialogDescription>
           </DialogHeader>
+          <div className="grid gap-2">
+            <span className="text-sm font-medium text-foreground">
+              <FormattedMessage {...messages.exportFormatLabel} />
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={exportFormat === "tmx" ? "default" : "outline"}
+                disabled={exportMemory.isPending}
+                onClick={() => setExportFormat("tmx")}
+              >
+                <FormattedMessage {...messages.exportFormatTmx} />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={exportFormat === "csv" ? "default" : "outline"}
+                disabled={exportMemory.isPending}
+                onClick={() => setExportFormat("csv")}
+              >
+                <FormattedMessage {...messages.exportFormatCsv} />
+              </Button>
+            </div>
+          </div>
           <div className="grid gap-3 md:grid-cols-2">
             <TmEntryLocaleField
               label={intl.formatMessage(messages.sourceLocaleLabel)}
@@ -346,18 +378,19 @@ export function TmImportExportPanel({
             <Button
               type="button"
               variant="outline"
-              disabled={exportTmx.isPending}
-              onClick={() => exportTmx.mutate(undefined)}
+              disabled={exportMemory.isPending}
+              onClick={() => exportMemory.mutate({ format: exportFormat })}
             >
               <FormattedMessage {...messages.exportAll} />
             </Button>
             <Button
               type="button"
               disabled={
-                !exportSourceLocale.trim() || !exportTargetLocale.trim() || exportTmx.isPending
+                !exportSourceLocale.trim() || !exportTargetLocale.trim() || exportMemory.isPending
               }
               onClick={() =>
-                exportTmx.mutate({
+                exportMemory.mutate({
+                  format: exportFormat,
                   sourceLocale: exportSourceLocale.trim(),
                   targetLocale: exportTargetLocale.trim(),
                 })

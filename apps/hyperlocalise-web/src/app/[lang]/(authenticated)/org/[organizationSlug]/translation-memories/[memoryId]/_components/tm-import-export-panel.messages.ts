@@ -78,19 +78,34 @@ export const tmImportExportPanelMessages = defineMessages({
   },
   exportDescription: {
     defaultMessage:
-      "Download the full memory, or limit the file to one source and target locale pair.",
-    id: "68oR+M/HhK",
-    description: "Description for the translation memory TMX export dialog",
+      "Download the full memory, or limit the file to one source and target locale pair. Choose CSV or TMX.",
+    id: "M9z6IP66I+",
+    description: "Description for the translation memory export dialog",
+  },
+  exportFormatLabel: {
+    defaultMessage: "File format",
+    id: "YKjwh2TMfB",
+    description: "Label for translation memory export format selection",
+  },
+  exportFormatTmx: {
+    defaultMessage: "TMX",
+    id: "4KanasHCcU",
+    description: "Translation memory export format option for TMX",
+  },
+  exportFormatCsv: {
+    defaultMessage: "CSV",
+    id: "W8ahbI8++r",
+    description: "Translation memory export format option for CSV",
   },
   exportAll: {
     defaultMessage: "Download all locales",
-    id: "jUCQWPQBsD",
-    description: "Button to export the full translation memory as TMX",
+    id: "G1vKHQVWch",
+    description: "Button to export the full translation memory",
   },
   exportPair: {
     defaultMessage: "Download locale pair",
-    id: "USK9hbsD4S",
-    description: "Button to export a filtered locale pair as TMX",
+    id: "TCrC82tmQg",
+    description: "Button to export a filtered locale pair",
   },
   sourceLocaleLabel: {
     defaultMessage: "Source locale",
@@ -159,8 +174,8 @@ export const tmImportExportPanelMessages = defineMessages({
     description: "Fallback error when translation memory import fails",
   },
   exportFailed: {
-    defaultMessage: "Unable to export TMX",
-    id: "AzlAJgQRne",
-    description: "Fallback error when translation memory TMX export fails",
+    defaultMessage: "Unable to export translation memory",
+    id: "wqZ58St0W3",
+    description: "Fallback error when translation memory export fails",
   },
 });
