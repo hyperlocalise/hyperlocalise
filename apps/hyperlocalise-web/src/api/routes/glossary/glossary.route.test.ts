@@ -1311,6 +1311,65 @@ describe("glossaryRoutes", () => {
     expect(complete.concepts.map((concept) => concept.primaryTerm)).toContain("Lonely concept");
   });
 
+  it("lists recorded glossary authors including removed members", async () => {
+    const { identity, glossary, user, organization } = await fixture.createStoredGlossaryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const formerIdentity = fixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    await fixture.authHeadersFor(formerIdentity);
+    const formerUserId = await fixture.getLocalUserId(formerIdentity.user.workosUserId);
+    const [concept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "Authored concept",
+        createdByUserId: user.id,
+      })
+      .returning();
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      conceptId: concept.id,
+      locale: "en",
+      term: "Former member term",
+      sourceTerm: "Former member term",
+      targetTerm: "Former member term",
+      createdByUserId: formerUserId,
+      caseSensitive: false,
+      forbidden: false,
+    });
+    await db
+      .delete(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.organizationId, organization.id),
+          eq(schema.organizationMemberships.userId, formerUserId),
+        ),
+      );
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.authors.$get(
+      {
+        param: { organizationSlug, glossaryId: glossary.id },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      authors: Array<{ userId: string; displayName: string }>;
+    };
+    const ids = body.authors.map((author) => author.userId);
+    expect(ids).toContain(user.id);
+    expect(ids).toContain(formerUserId);
+    expect(
+      body.authors.find((author) => author.userId === formerUserId)?.displayName.length,
+    ).toBeGreaterThan(0);
+  });
+
   it("rejects export for live provider glossary ids", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

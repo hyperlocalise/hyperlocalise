@@ -397,13 +397,42 @@ export function NativeGlossaryDetail({
     retry: false,
   });
 
-  const authorOptions = useMemo(
-    () =>
-      (membersQuery.data?.members ?? [])
-        .filter((member) => member.status === "active")
-        .sort((a, b) => a.displayName.localeCompare(b.displayName)),
-    [membersQuery.data],
-  );
+  const recordedAuthorsQuery = useQuery({
+    queryKey: ["glossary-concepts-authors", organizationSlug, glossaryId],
+    enabled: true,
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].concepts.authors.$get({
+        param: { organizationSlug, glossaryId },
+      });
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.loadAuthorsFailed)),
+        );
+      return (await response.json()) as {
+        authors: Array<{ userId: string; displayName: string }>;
+      };
+    },
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  // Recorded authors first so former contributors remain selectable even
+  // after losing their membership; active members without recorded
+  // concepts are appended so they can still be picked.
+  const authorOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const author of recordedAuthorsQuery.data?.authors ?? [])
+      byId.set(author.userId, author.displayName);
+    for (const member of membersQuery.data?.members ?? []) {
+      if (member.status === "active" && !byId.has(member.userId))
+        byId.set(member.userId, member.displayName);
+    }
+    return [...byId]
+      .map(([userId, displayName]) => ({ userId, displayName }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [recordedAuthorsQuery.data, membersQuery.data]);
   const concepts = conceptsQuery.data?.concepts ?? [];
   // Initial load renders the full skeleton; subsequent filter/search/sort
   // fetches keep previous data, so surface an explicit refreshing signal.

@@ -150,5 +150,13 @@ export function createGlossaryDetailMswHandlers({
         ],
       }),
     ),
+    http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts/authors", () =>
+      HttpResponse.json({
+        authors: [
+          { userId: "user-1", displayName: "Ada Lovelace" },
+          { userId: "former-user-1", displayName: "Grace Hopper" },
+        ],
+      }),
+    ),
   ];
 }

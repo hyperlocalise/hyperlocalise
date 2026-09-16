@@ -441,6 +441,15 @@ export const glossaryConceptPageResponseSchema = z.object({
   }),
 });
 
+export const glossaryConceptAuthorsResponseSchema = z.object({
+  authors: z.array(
+    z.object({
+      userId: z.string(),
+      displayName: z.string(),
+    }),
+  ),
+});
+
 export const glossaryTermPageResponseSchema = z.object({
   terms: z.array(glossaryConceptTermRecordSchema),
   nextCursor: z.string().nullable(),
