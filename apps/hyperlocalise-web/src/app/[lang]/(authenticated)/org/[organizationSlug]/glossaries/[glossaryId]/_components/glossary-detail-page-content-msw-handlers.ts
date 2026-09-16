@@ -75,7 +75,7 @@ export function createGlossaryDetailMswHandlers({
         })),
         nextCursor: null,
         total: currentConcepts.length,
-        pagination: { limit: 50, returned: currentConcepts.length, hasMore: false },
+        pagination: { limit: 10, returned: currentConcepts.length, hasMore: false },
       }),
     ),
     http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts", async () => {
@@ -135,5 +135,28 @@ export function createGlossaryDetailMswHandlers({
       HttpResponse.json({ projects: attachedProjects }),
     ),
     http.get("/api/orgs/:organizationSlug/projects", () => HttpResponse.json({ projects })),
+    http.get("/api/orgs/:organizationSlug/members", () =>
+      HttpResponse.json({
+        members: [
+          {
+            userId: "user-1",
+            workosUserId: "workos-user-1",
+            email: "ada@example.com",
+            firstName: "Ada",
+            lastName: "Lovelace",
+            displayName: "Ada Lovelace",
+            status: "active",
+          },
+        ],
+      }),
+    ),
+    http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts/authors", () =>
+      HttpResponse.json({
+        authors: [
+          { userId: "user-1", displayName: "Ada Lovelace" },
+          { userId: "former-user-1", displayName: "Grace Hopper" },
+        ],
+      }),
+    ),
   ];
 }

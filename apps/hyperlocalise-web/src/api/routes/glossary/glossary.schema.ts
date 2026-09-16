@@ -85,6 +85,7 @@ export const glossaryConceptPageQuerySchema = z.object({
   importBatchId: z.string().uuid().optional(),
   partOfSpeech: glossaryPartOfSpeechSchema.optional(),
   termType: glossaryTermTypeSchema.optional(),
+  gender: glossaryGenderSchema.optional(),
   modifiedFrom: z.string().datetime().optional(),
   modifiedTo: z.string().datetime().optional(),
   includeArchived: queryBooleanSchema.default(false),
@@ -193,6 +194,16 @@ export const glossaryExportQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
   locale: localeInputSchema.optional(),
   locales: glossaryExportLocalesSchema,
+  reviewStatus: glossaryReviewStatusSchema.optional(),
+  termReviewStatus: z.string().trim().min(1).max(50).optional(),
+  linguisticStatus: glossaryTermStatusSchema.optional(),
+  partOfSpeech: glossaryPartOfSpeechSchema.optional(),
+  termType: glossaryTermTypeSchema.optional(),
+  gender: glossaryGenderSchema.optional(),
+  provenance: z.enum(["manual", "sync"]).optional(),
+  forbidden: queryBooleanSchema.optional(),
+  createdByUserId: z.string().uuid().optional(),
+  modifiedFrom: z.string().datetime().optional(),
 });
 
 export const createGlossaryConceptTermBodySchema = z.object({
@@ -428,6 +439,15 @@ export const glossaryConceptPageResponseSchema = z.object({
     returned: z.number().int().nonnegative(),
     hasMore: z.boolean(),
   }),
+});
+
+export const glossaryConceptAuthorsResponseSchema = z.object({
+  authors: z.array(
+    z.object({
+      userId: z.string(),
+      displayName: z.string(),
+    }),
+  ),
 });
 
 export const glossaryTermPageResponseSchema = z.object({

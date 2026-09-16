@@ -47,6 +47,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import { GlossaryValidationError } from "@/lib/glossary/glossary";
+import { loadGlossaryInterchangeDocument } from "@/lib/glossary/interchange/glossary-interchange";
 import { NativeGlossary } from "@/lib/glossary/native-glossary";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -1103,6 +1104,270 @@ describe("glossaryRoutes", () => {
     expect(csv).toContain("Boutique");
     expect(csv).not.toContain("needle-en-only");
     expect(csv).not.toMatch(/,"en",/);
+  });
+
+  it("exports filtered concepts honoring term attribute filters", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Running",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "Running",
+              partOfSpeech: "verb",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
+              locale: "en",
+              term: "Run forbidden noun",
+              partOfSpeech: "noun",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: true,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    expect(conceptResponse.status).toBe(201);
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].export.$get(
+      {
+        param: { organizationSlug, glossaryId },
+        query: {
+          format: "csv",
+          scope: "filtered",
+          partOfSpeech: "verb",
+          forbidden: false,
+        },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const csv = await response.text();
+    expect(csv).toContain("Running");
+    expect(csv).not.toContain("Run forbidden noun");
+  });
+
+  it("filters concept pages and exports by term gender", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Performer",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "Actor",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
+              locale: "fr",
+              term: "Actrice",
+              gender: "feminine",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    expect(conceptResponse.status).toBe(201);
+
+    const pageResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.page.$get(
+      {
+        param: { organizationSlug, glossaryId },
+        query: {
+          limit: "10",
+          gender: "feminine",
+          sort: "updated_at",
+          sortDir: "desc",
+          includeArchived: "false",
+        },
+      },
+      { headers },
+    );
+    expect(pageResponse.status).toBe(200);
+    const page = (await pageResponse.json()) as { total: number };
+    expect(page.total).toBe(1);
+
+    const exportResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].export.$get(
+      {
+        param: { organizationSlug, glossaryId },
+        query: { format: "csv", scope: "filtered", gender: "feminine" },
+      },
+      { headers },
+    );
+    expect(exportResponse.status).toBe(200);
+    const csv = await exportResponse.text();
+    expect(csv).toContain("Actrice");
+    expect(csv).not.toContain("Actor");
+  });
+
+  it("exports filtered concepts by concept review status, not term status", async () => {
+    const { identity, glossary } = await fixture.createStoredGlossaryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const [rejectedConcept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "Rejected concept term",
+        reviewStatus: "rejected",
+      })
+      .returning();
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      conceptId: rejectedConcept.id,
+      locale: "en",
+      term: "Rejected concept approved term",
+      sourceTerm: "Rejected concept approved term",
+      targetTerm: "Rejected concept approved term",
+      reviewStatus: "approved",
+      caseSensitive: false,
+      forbidden: false,
+    });
+    const [approvedConcept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "Approved concept term",
+        reviewStatus: "approved",
+      })
+      .returning();
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      conceptId: approvedConcept.id,
+      locale: "en",
+      term: "Approved concept rejected term",
+      sourceTerm: "Approved concept rejected term",
+      targetTerm: "Approved concept rejected term",
+      reviewStatus: "rejected",
+      caseSensitive: false,
+      forbidden: false,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].export.$get(
+      {
+        param: { organizationSlug, glossaryId: glossary.id },
+        query: { format: "csv", scope: "filtered", reviewStatus: "approved" },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const csv = await response.text();
+    expect(csv).toContain("Approved concept rejected term");
+    expect(csv).not.toContain("Rejected concept approved term");
+  });
+
+  it("omits termless concepts from term-filtered interchange documents only", async () => {
+    const { glossary } = await fixture.createStoredGlossaryFixture();
+
+    await db.insert(schema.glossaryConcepts).values({
+      glossaryId: glossary.id,
+      primaryTerm: "Lonely concept",
+    });
+
+    const filtered = await loadGlossaryInterchangeDocument({ glossary, locale: ["en"] });
+    expect(filtered.concepts.map((concept) => concept.primaryTerm)).not.toContain("Lonely concept");
+
+    const complete = await loadGlossaryInterchangeDocument({ glossary });
+    expect(complete.concepts.map((concept) => concept.primaryTerm)).toContain("Lonely concept");
+  });
+
+  it("lists recorded glossary authors including removed members", async () => {
+    const { identity, glossary, user, organization } = await fixture.createStoredGlossaryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const formerIdentity = fixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    await fixture.authHeadersFor(formerIdentity);
+    const formerUserId = await fixture.getLocalUserId(formerIdentity.user.workosUserId);
+    const [concept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "Authored concept",
+        createdByUserId: user.id,
+      })
+      .returning();
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      conceptId: concept.id,
+      locale: "en",
+      term: "Former member term",
+      sourceTerm: "Former member term",
+      targetTerm: "Former member term",
+      createdByUserId: formerUserId,
+      caseSensitive: false,
+      forbidden: false,
+    });
+    await db
+      .delete(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.organizationId, organization.id),
+          eq(schema.organizationMemberships.userId, formerUserId),
+        ),
+      );
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.authors.$get(
+      {
+        param: { organizationSlug, glossaryId: glossary.id },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      authors: Array<{ userId: string; displayName: string }>;
+    };
+    const ids = body.authors.map((author) => author.userId);
+    expect(ids).toContain(user.id);
+    expect(ids).toContain(formerUserId);
+    expect(
+      body.authors.find((author) => author.userId === formerUserId)?.displayName.length,
+    ).toBeGreaterThan(0);
   });
 
   it("rejects export for live provider glossary ids", async () => {

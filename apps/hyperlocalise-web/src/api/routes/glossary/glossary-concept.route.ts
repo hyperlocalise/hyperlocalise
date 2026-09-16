@@ -45,7 +45,7 @@ import {
 import { glossaryUsesPersistedConceptStore } from "@/lib/glossary/glossary-persisted-id";
 import { db, schema } from "@/lib/database/client";
 import { NativeGlossary as NativeGlossaryProduct } from "@/lib/glossary/native-glossary";
-import { listGlossaryConceptsPage } from "./glossary-concept-page";
+import { listGlossaryConceptAuthors, listGlossaryConceptsPage } from "./glossary-concept-page";
 import { listGlossaryTermsPage } from "./glossary-term-page";
 import { listGlossaryHistoryPage } from "./glossary-history-page";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
@@ -479,6 +479,20 @@ export function createGlossaryConceptRoutes(
         return c.json(page, 200);
       },
     )
+    .get("/authors", validator("param", validateGlossaryParams), async (c) => {
+      const { glossaryId } = c.req.valid("param");
+      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+      if (!glossary) return glossaryNotFoundResponse(c);
+      if (glossary && !glossaryUsesPersistedConceptStore(glossary)) {
+        return badRequestResponse(
+          c,
+          "external_glossary_page_unsupported",
+          "Provider-backed glossaries do not expose the native management index",
+        );
+      }
+      const authors = await listGlossaryConceptAuthors(glossaryId);
+      return c.json({ authors }, 200);
+    })
     .get(
       "/history",
       validator("param", validateGlossaryParams),

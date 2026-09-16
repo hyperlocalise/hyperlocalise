@@ -31,6 +31,7 @@ import {
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { buildTranslationMemoryTsQuery } from "@/lib/translation/translation-memory-ts-query";
+import { formatMemberDisplayName } from "../member/member.shared";
 
 import type { GlossaryConceptPageQuery } from "./glossary.schema";
 
@@ -158,6 +159,7 @@ function termExistsWhere(
   if (filters.partOfSpeech)
     conditions.push(eq(schema.glossaryTerms.partOfSpeech, filters.partOfSpeech));
   if (filters.termType) conditions.push(eq(schema.glossaryTerms.termType, filters.termType));
+  if (filters.gender) conditions.push(eq(schema.glossaryTerms.gender, filters.gender));
   if (filters.createdByUserId)
     conditions.push(eq(schema.glossaryTerms.createdByUserId, filters.createdByUserId));
   if (filters.reviewedByUserId)
@@ -188,6 +190,7 @@ function buildWhere(glossaryId: string, filters: FilterFields): SQL {
       filters.forbidden !== undefined ||
       filters.partOfSpeech ||
       filters.termType ||
+      filters.gender ||
       filters.createdByUserId ||
       filters.reviewedByUserId ||
       filters.importBatchId)
@@ -329,4 +332,60 @@ export async function listGlossaryConceptsPage(
     total: totalRows[0]?.value ?? 0,
     pagination: { limit, returned: concepts.length, hasMore },
   };
+}
+
+export type GlossaryConceptAuthor = {
+  userId: string;
+  displayName: string;
+};
+
+/**
+ * Distinct authors recorded on a glossary's concepts and terms, with display
+ * names resolved from the users table. Unlike the members endpoint this also
+ * surfaces former contributors whose membership was removed but whose
+ * createdByUserId rows remain filterable.
+ */
+export async function listGlossaryConceptAuthors(
+  glossaryId: string,
+): Promise<GlossaryConceptAuthor[]> {
+  const [conceptAuthorRows, termAuthorRows] = await Promise.all([
+    db
+      .selectDistinct({ userId: schema.glossaryConcepts.createdByUserId })
+      .from(schema.glossaryConcepts)
+      .where(eq(schema.glossaryConcepts.glossaryId, glossaryId)),
+    db
+      .selectDistinct({ userId: schema.glossaryTerms.createdByUserId })
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, glossaryId)),
+  ]);
+  const ids = [
+    ...new Set(
+      [...conceptAuthorRows, ...termAuthorRows]
+        .map((row) => row.userId)
+        .filter((userId): userId is string => Boolean(userId)),
+    ),
+  ];
+  if (ids.length === 0) return [];
+  const userRows = await db
+    .select({
+      id: schema.users.id,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      email: schema.users.email,
+    })
+    .from(schema.users)
+    .where(inArray(schema.users.id, ids));
+  const displayNames = new Map(
+    userRows.map((row) => [
+      row.id,
+      formatMemberDisplayName({
+        firstName: row.firstName,
+        lastName: row.lastName,
+        email: row.email,
+      }),
+    ]),
+  );
+  return ids
+    .map((userId) => ({ userId, displayName: displayNames.get(userId) ?? userId }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
 }

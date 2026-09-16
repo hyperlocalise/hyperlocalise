@@ -657,4 +657,269 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "TmON06MWzq",
     description: "Toast after a concept term is saved",
   },
+  searchConceptsPlaceholder: {
+    defaultMessage: "Search concepts",
+    id: "xv78aoTwI/",
+    description: "Placeholder for the concept search input",
+  },
+  searchConceptsLabel: {
+    defaultMessage: "Search concepts",
+    id: "iDUmWNeRZ7",
+    description: "Accessible label for the concept search input",
+  },
+  clearFilters: {
+    defaultMessage: "Clear all",
+    id: "tzNTVPZse0",
+    description: "Button to clear all concept filters and search",
+  },
+  resultsCount: {
+    defaultMessage: "{count, plural, one {# concept} other {# concepts}}",
+    id: "xag/YAbxm/",
+    description: "Result count for the concept table",
+  },
+  refreshingConcepts: {
+    defaultMessage: "Refreshing concepts…",
+    id: "1g8M6J7skz",
+    description: "Loading signal shown while the concept list refetches",
+  },
+  filterLocaleLabel: {
+    defaultMessage: "Locale",
+    id: "BRAwhI1ueW",
+    description: "Label for the locale filter",
+  },
+  filterConceptReviewLabel: {
+    defaultMessage: "Concept review",
+    id: "YNbv7wyp6O",
+    description: "Label for the concept review status filter",
+  },
+  filterTermReviewLabel: {
+    defaultMessage: "Term review",
+    id: "TGWVOa2rBx",
+    description: "Label for the term review status filter",
+  },
+  filterTermStatusLabel: {
+    defaultMessage: "Term status",
+    id: "HpiB8HnD5r",
+    description: "Label for the term status filter",
+  },
+  filterPartOfSpeechLabel: {
+    defaultMessage: "Part of speech",
+    id: "wobLh+Wm0f",
+    description: "Label for the part of speech filter",
+  },
+  filterTermTypeLabel: {
+    defaultMessage: "Term type",
+    id: "ZCdwMAWljQ",
+    description: "Label for the term type filter",
+  },
+  filterProvenanceLabel: {
+    defaultMessage: "Provenance",
+    id: "dXVK0wGV6z",
+    description: "Label for the provenance filter",
+  },
+  filterForbiddenLabel: {
+    defaultMessage: "Permission",
+    id: "8PVN0y9Mu9",
+    description: "Label for the forbidden/allowed filter",
+  },
+  allLocales: {
+    defaultMessage: "All locales",
+    id: "8csWRJDI6p",
+    description: "All option for the locale filter",
+  },
+  allConceptReview: {
+    defaultMessage: "All reviews",
+    id: "MT4PmDgA+M",
+    description: "All option for the concept review filter",
+  },
+  allTermReview: {
+    defaultMessage: "All reviews",
+    id: "hSMtpPxb+x",
+    description: "All option for the term review filter",
+  },
+  allTermStatus: {
+    defaultMessage: "All statuses",
+    id: "mhUvADobO8",
+    description: "All option for the term status filter",
+  },
+  allPartsOfSpeech: {
+    defaultMessage: "All parts",
+    id: "0biOJP7WPf",
+    description: "All option for the part of speech filter",
+  },
+  allTermTypes: {
+    defaultMessage: "All types",
+    id: "fI2gx5zrSK",
+    description: "All option for the term type filter",
+  },
+  allProvenance: {
+    defaultMessage: "All sources",
+    id: "wAMANV4AVN",
+    description: "All option for the provenance filter",
+  },
+  allTermsPermission: {
+    defaultMessage: "All terms",
+    id: "weAVB6AXQJ",
+    description: "All option for the forbidden filter",
+  },
+  forbiddenOnly: {
+    defaultMessage: "Forbidden only",
+    id: "hbLlLGpUB5",
+    description: "Forbidden-only option",
+  },
+  allowedOnly: {
+    defaultMessage: "Allowed only",
+    id: "a47BwElJHx",
+    description: "Allowed-only option",
+  },
+  previousPage: {
+    defaultMessage: "Previous",
+    id: "hwSDOPvp/l",
+    description: "Previous page button",
+  },
+  nextPage: {
+    defaultMessage: "Next",
+    id: "wDyvFZ3QEZ",
+    description: "Next page button",
+  },
+  exportGlossary: {
+    defaultMessage: "Export",
+    id: "ozZX+gMokY",
+    description: "Button to open the glossary export dialog",
+  },
+  exportGlossaryTitle: {
+    defaultMessage: "Export glossary",
+    id: "IdZ/OCkOGH",
+    description: "Title of the glossary export dialog",
+  },
+  exportGlossaryDescription: {
+    defaultMessage: "Choose a format and whether to export everything or just the current filters.",
+    id: "A/akVJbrwZ",
+    description: "Description of the glossary export dialog",
+  },
+  exportFormatLabel: {
+    defaultMessage: "Format",
+    id: "MOiNP4mQEn",
+    description: "Label for the export format picker",
+  },
+  exportScopeLabel: {
+    defaultMessage: "Content",
+    id: "sT0h9owCog",
+    description: "Label for the export scope picker",
+  },
+  exportScopeComplete: {
+    defaultMessage: "Complete glossary",
+    id: "GQ4/nfQnyH",
+    description: "Option to export the complete glossary",
+  },
+  exportScopeFiltered: {
+    defaultMessage: "Current filters",
+    id: "9ks0sE9gB3",
+    description: "Option to export the filtered glossary",
+  },
+  exportFilteredHint: {
+    defaultMessage: "Apply a search or filter above to enable filtered export.",
+    id: "d8sLFKKZce",
+    description: "Hint when filtered export is unavailable",
+  },
+  exportFilteredSummary: {
+    defaultMessage: "Exports concepts matching the current search and filters.",
+    id: "JwEz/zOZWk",
+    description: "Summary for the filtered export scope",
+  },
+  exportStart: {
+    defaultMessage: "Export",
+    id: "aLgr7cq8Pf",
+    description: "Confirm button in the export dialog",
+  },
+  importGlossaryTitle: {
+    defaultMessage: "Import glossary",
+    id: "SxxEV+oz+y",
+    description: "Title of the glossary import dialog",
+  },
+  filtersButton: {
+    defaultMessage: "Filters",
+    id: "NsRFCasvcn",
+    description: "Button to open the concept filters dialog",
+  },
+  filtersTitle: {
+    defaultMessage: "Filter concepts",
+    id: "f3VeQ5EI+p",
+    description: "Title of the concept filters dialog",
+  },
+  filtersDescription: {
+    defaultMessage: "Narrow the concept list, then apply to see results.",
+    id: "EYex2zyCPr",
+    description: "Description of the concept filters dialog",
+  },
+  filtersDone: {
+    defaultMessage: "Done",
+    id: "hptWpEO9CJ",
+    description: "Confirm button closing the concept filters dialog",
+  },
+  filtersApply: {
+    defaultMessage: "Apply",
+    id: "wEBG0EIifq",
+    description: "Button applying the staged concept filters",
+  },
+  filtersCancel: {
+    defaultMessage: "Cancel",
+    id: "jeLQxAhZsR",
+    description: "Button discarding staged concept filters",
+  },
+  filterLanguagesLabel: {
+    defaultMessage: "Languages",
+    id: "3YLVJ7RPgz",
+    description: "Label for the languages filter",
+  },
+  filterLastModifiedLabel: {
+    defaultMessage: "Last modified",
+    id: "cQSqlKCiLK",
+    description: "Label for the last modified filter",
+  },
+  lastModified24h: {
+    defaultMessage: "Last 24 hours",
+    id: "FTQusXXeii",
+    description: "Last modified preset for the past 24 hours",
+  },
+  lastModified7d: {
+    defaultMessage: "Last 7 days",
+    id: "T+wNPndB+u",
+    description: "Last modified preset for the past 7 days",
+  },
+  lastModified30d: {
+    defaultMessage: "Last 30 days",
+    id: "zPBtoUzMcl",
+    description: "Last modified preset for the past 30 days",
+  },
+  filterStatusLabel: {
+    defaultMessage: "Status",
+    id: "bWmtHKaMZX",
+    description: "Label for the term status filter",
+  },
+  filterTypeLabel: {
+    defaultMessage: "Type",
+    id: "q7SdbOvVNG",
+    description: "Label for the term type filter",
+  },
+  filterGenderLabel: {
+    defaultMessage: "Gender",
+    id: "Ou1XbnhiV6",
+    description: "Label for the term gender filter",
+  },
+  filterAuthorLabel: {
+    defaultMessage: "Author",
+    id: "0bOKrrr5rc",
+    description: "Label for the concept author filter",
+  },
+  filterAllValue: {
+    defaultMessage: "All",
+    id: "Tmjrhfm5Cv",
+    description: "All value shown in concept filter triggers",
+  },
+  loadAuthorsFailed: {
+    defaultMessage: "Unable to load authors",
+    id: "SzSxRxTFus",
+    description: "Fallback error when workspace members fail to load for the author filter",
+  },
 });
