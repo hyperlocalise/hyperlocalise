@@ -38,6 +38,7 @@ export const linkedDomains = pgTable(
     domainKey: text("domain_key").notNull(),
     domainSlug: text("domain_slug").notNull(),
     sourceUrl: text("source_url").notNull(),
+    marketIds: text("market_ids").array().notNull().default([]),
     status: text("status").$type<LinkedDomainStatus>().notNull().default("pending_verification"),
     verificationToken: text("verification_token").notNull(),
     preferredMethod: text("preferred_method").$type<LinkedDomainVerificationMethod>(),

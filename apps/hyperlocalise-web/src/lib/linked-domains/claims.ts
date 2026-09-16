@@ -19,7 +19,8 @@ import type {
   LinkedDomainStatus,
   LinkedDomainVerificationMethod,
 } from "@/lib/database/schema/linked-domains";
-import { isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
+import { isValidDomainSlug, resolveDomainIdentity } from "@/lib/localisation-audit/domain-slug";
+import { DOMAIN_RESEARCH_MARKETS } from "@/lib/domains/research-prototype";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultNativeProjectMemory } from "@/lib/memory/ensure-default-native-project-memory";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
@@ -37,6 +38,7 @@ function toPublic(row: LinkedDomainRow, auditScore: number | null = null): Linke
     domainKey: row.domainKey,
     domainSlug: row.domainSlug,
     sourceUrl: row.sourceUrl,
+    marketIds: row.marketIds,
     status: row.status,
     preferredMethod: row.preferredMethod,
     verifiedMethod: row.verifiedMethod,
@@ -182,6 +184,73 @@ export async function getLinkedDomainAudit(input: {
   });
 }
 
+export async function updateLinkedDomainProject(input: {
+  organizationId: string;
+  linkedDomainId: string;
+  projectId: string | null;
+  database?: DatabaseClient;
+}): Promise<Result<LinkedDomainPublic, LinkedDomainError>> {
+  const database = input.database ?? db;
+  const [row] = await database
+    .select()
+    .from(schema.linkedDomains)
+    .where(
+      and(
+        eq(schema.linkedDomains.id, input.linkedDomainId),
+        eq(schema.linkedDomains.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!row) {
+    return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
+
+  if (row.status !== "verified") {
+    return err({
+      code: "linked_domain_not_verified",
+      message: "Only verified domains can update their project assignment.",
+    });
+  }
+
+  if (input.projectId) {
+    const [project] = await database
+      .select({ id: schema.projects.id })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.id, input.projectId),
+          eq(schema.projects.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1);
+    if (!project) {
+      return err({
+        code: "project_not_found",
+        message: "Selected project was not found in this workspace.",
+      });
+    }
+  }
+
+  const [updated] = await database
+    .update(schema.linkedDomains)
+    .set({ projectId: input.projectId })
+    .where(eq(schema.linkedDomains.id, row.id))
+    .returning();
+
+  if (!updated) {
+    return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
+
+  let auditScore: number | null = null;
+  if (updated.localisationAuditId) {
+    const scores = await auditScoreByIds([updated.localisationAuditId], database);
+    auditScore = scores.get(updated.localisationAuditId) ?? null;
+  }
+
+  return ok(toPublic(updated, auditScore));
+}
+
 export async function findVerifiedLinkedDomainByDomainKey(
   domainKey: string,
   database: DatabaseClient = db,
@@ -316,6 +385,115 @@ export async function startLinkedDomainClaim(input: {
   }
 }
 
+export async function startDirectLinkedDomainClaim(input: {
+  organizationId: string;
+  userId: string;
+  domain: string;
+  marketIds: string[];
+  database?: DatabaseClient;
+}): Promise<Result<LinkedDomainPublic, LinkedDomainError>> {
+  const database = input.database ?? db;
+  const identity = resolveDomainIdentity(input.domain);
+  if (isErr(identity)) {
+    return err({ code: "invalid_domain_url", message: "Enter a public domain or URL." });
+  }
+
+  const marketIds = [...new Set(input.marketIds)];
+  const supportedMarketIds = new Set(DOMAIN_RESEARCH_MARKETS.map((market) => market.id));
+  if (marketIds.some((marketId) => !supportedMarketIds.has(marketId))) {
+    return err({
+      code: "invalid_market_selection",
+      message: "Select supported markets.",
+    });
+  }
+
+  const existingVerified = await findVerifiedLinkedDomainByDomainKey(
+    identity.value.domainKey,
+    database,
+  );
+  if (existingVerified && existingVerified.organizationId !== input.organizationId) {
+    return err({
+      code: "domain_already_claimed",
+      message: "This domain is already linked to another workspace.",
+    });
+  }
+
+  const [existingOrgClaim] = await database
+    .select()
+    .from(schema.linkedDomains)
+    .where(
+      and(
+        eq(schema.linkedDomains.organizationId, input.organizationId),
+        eq(schema.linkedDomains.domainKey, identity.value.domainKey),
+      ),
+    )
+    .limit(1);
+
+  if (
+    existingOrgClaim?.status === "pending_verification" ||
+    existingOrgClaim?.status === "verified"
+  ) {
+    return ok(toPublic(existingOrgClaim));
+  }
+
+  const token = mintLinkedDomainVerificationToken();
+  if (existingOrgClaim) {
+    const [revived] = await database
+      .update(schema.linkedDomains)
+      .set({
+        status: "pending_verification",
+        verificationToken: token,
+        preferredMethod: null,
+        verifiedMethod: null,
+        verifiedAt: null,
+        localisationAuditId: null,
+        sourceUrl: identity.value.sourceUrl,
+        domainSlug: identity.value.domainSlug,
+        marketIds,
+        createdByUserId: input.userId,
+        projectId: null,
+      })
+      .where(eq(schema.linkedDomains.id, existingOrgClaim.id))
+      .returning();
+    return ok(toPublic(revived));
+  }
+
+  try {
+    const [created] = await database
+      .insert(schema.linkedDomains)
+      .values({
+        organizationId: input.organizationId,
+        createdByUserId: input.userId,
+        domainKey: identity.value.domainKey,
+        domainSlug: identity.value.domainSlug,
+        sourceUrl: identity.value.sourceUrl,
+        marketIds,
+        status: "pending_verification",
+        verificationToken: token,
+      })
+      .returning();
+    return ok(toPublic(created));
+  } catch {
+    const [raced] = await database
+      .select()
+      .from(schema.linkedDomains)
+      .where(
+        and(
+          eq(schema.linkedDomains.organizationId, input.organizationId),
+          eq(schema.linkedDomains.domainKey, identity.value.domainKey),
+        ),
+      )
+      .limit(1);
+    if (raced) {
+      return ok(toPublic(raced));
+    }
+    return err({
+      code: "claim_pending_exists",
+      message: "A claim for this domain already exists.",
+    });
+  }
+}
+
 export async function cancelPendingLinkedDomainClaim(input: {
   organizationId: string;
   linkedDomainId: string;
@@ -355,21 +533,15 @@ export async function verifyAndClaimLinkedDomain(input: {
   method: LinkedDomainVerificationMethod;
   /** When set, attach the verified domain to this existing org project. */
   projectId?: string;
-  /** When true (or when projectId is omitted), create a new native project. */
+  /** When true (or when omitted with no projectId), create a new native project. */
   createProject?: boolean;
   resolveTxt?: ResolveTxtFn;
   fetchPublic?: PublicFetchFn;
   database?: DatabaseClient;
 }): Promise<Result<LinkedDomainPublic, LinkedDomainError>> {
   const database = input.database ?? db;
-  const shouldCreateProject = input.createProject === true || !input.projectId;
-
-  if (!shouldCreateProject && !input.projectId) {
-    return err({
-      code: "project_not_found",
-      message: "Select an existing project or create a new one.",
-    });
-  }
+  const shouldCreateProject =
+    input.createProject === true || (!input.projectId && input.createProject === undefined);
 
   const [row] = await database
     .select()
@@ -497,10 +669,6 @@ export async function verifyAndClaimLinkedDomain(input: {
         if (!existingProject) {
           throw new Error("project_not_found");
         }
-      }
-
-      if (!projectId) {
-        throw new Error("project_create_failed");
       }
 
       const [updated] = await tx

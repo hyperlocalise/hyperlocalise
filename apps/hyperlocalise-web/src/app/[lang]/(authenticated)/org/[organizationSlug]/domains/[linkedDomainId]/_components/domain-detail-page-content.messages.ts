@@ -45,6 +45,46 @@ export const domainDetailPageContentMessages = defineMessages({
     id: "g+hqtBNXIJ",
     description: "Button to open the project linked to this domain",
   },
+  projectHeading: {
+    defaultMessage: "Project assignment",
+    id: "N5l60V4waX",
+    description: "Heading for managing the project linked to a domain",
+  },
+  projectDescription: {
+    defaultMessage: "Attach this verified domain to a project or leave it unassigned.",
+    id: "s4VZkMnyhB",
+    description: "Description for domain project assignment",
+  },
+  noProject: {
+    defaultMessage: "No project",
+    id: "B90Z7UPFjc",
+    description: "Option to remove a domain project assignment",
+  },
+  selectProject: {
+    defaultMessage: "Select a project",
+    id: "BG9pW4nUm7",
+    description: "Placeholder for selecting a domain project",
+  },
+  saveProject: {
+    defaultMessage: "Save project assignment",
+    id: "plpqSFRajq",
+    description: "Button to save a domain project assignment",
+  },
+  projectSaved: {
+    defaultMessage: "Project assignment updated.",
+    id: "aGF9GYZOTY",
+    description: "Toast after updating a domain project assignment",
+  },
+  projectUpdateError: {
+    defaultMessage: "Could not update the project assignment.",
+    id: "8CGr1e/rbK",
+    description: "Error when updating a domain project assignment fails",
+  },
+  projectsLoadError: {
+    defaultMessage: "Could not load workspace projects.",
+    id: "gExq27B2VB",
+    description: "Error when projects cannot be loaded for domain assignment",
+  },
   continueVerification: {
     defaultMessage: "Continue verification",
     id: "Y1DzYaPZ4D",

@@ -21,6 +21,7 @@ import {
   conflictResponse,
   forbiddenResponse,
   notFoundResponse,
+  serviceUnavailableResponse,
 } from "@/api/response.schema";
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
@@ -30,9 +31,12 @@ import {
   getLinkedDomain,
   getLinkedDomainAudit,
   listLinkedDomains,
+  startDirectLinkedDomainClaim,
   startLinkedDomainClaim,
+  updateLinkedDomainProject,
   verifyAndClaimLinkedDomain,
 } from "@/lib/linked-domains/claims";
+import { analyzeDomainMarkets } from "@/lib/domains/domain-market-analysis";
 import type { LinkedDomainError } from "@/lib/linked-domains/types";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -40,7 +44,9 @@ import { createDomainResearchRoutes } from "../domain-research/domain-research.r
 import { createDomainSearchConsoleRoutes } from "../domain-search-console/domain-search-console.route";
 import {
   createLinkedDomainBodySchema,
+  analyzeDomainBodySchema,
   linkedDomainIdParamSchema,
+  updateLinkedDomainProjectBodySchema,
   verifyLinkedDomainBodySchema,
 } from "./linked-domain.schema";
 
@@ -72,6 +78,32 @@ const validateVerifyBody = validator("json", (value, c) => {
       c,
       "invalid_linked_domain_verify_payload",
       "Verification method is required.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateProjectUpdateBody = validator("json", (value, c) => {
+  const parsed = updateLinkedDomainProjectBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_linked_domain_project_payload",
+      "Project assignment is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateAnalyzeBody = validator("json", (value, c) => {
+  const parsed = analyzeDomainBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_domain_analysis_payload",
+      "Domain is required.",
       parsed.error.flatten(),
     );
   }
@@ -123,17 +155,40 @@ export function createLinkedDomainRoutes() {
 
       return c.json({ linkedDomains }, 200);
     })
+    .post("/analyze", validateAnalyzeBody, async (c) => {
+      if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const body = c.req.valid("json");
+      const result = await analyzeDomainMarkets(body);
+      if (isErr(result)) {
+        if (result.error.code === "invalid_domain") {
+          return badRequestResponse(c, result.error.code, result.error.message);
+        }
+        return serviceUnavailableResponse(c, result.error.code, result.error.message);
+      }
+
+      return c.json({ domainAnalysis: result.value }, 200);
+    })
     .post("/", validateCreateBody, async (c) => {
       if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
       const body = c.req.valid("json");
-      const result = await startLinkedDomainClaim({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        userId: c.var.auth.user.localUserId,
-        domainSlug: body.domainSlug,
-      });
+      const result = body.domain
+        ? await startDirectLinkedDomainClaim({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            domain: body.domain,
+            marketIds: body.marketIds,
+          })
+        : await startLinkedDomainClaim({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            domainSlug: body.domainSlug!,
+          });
 
       if (isErr(result)) {
         serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.ctaClick, {
@@ -215,6 +270,30 @@ export function createLinkedDomainRoutes() {
 
       return c.json({ linkedDomain: result.value }, 200);
     })
+    .patch(
+      "/:linkedDomainId/project",
+      validateLinkedDomainParams,
+      validateProjectUpdateBody,
+      async (c) => {
+        if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const { linkedDomainId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await updateLinkedDomainProject({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          linkedDomainId,
+          projectId: body.projectId,
+        });
+
+        if (isErr(result)) {
+          return mapLinkedDomainError(c, result.error);
+        }
+
+        return c.json({ linkedDomain: result.value }, 200);
+      },
+    )
     .delete("/:linkedDomainId", validateLinkedDomainParams, async (c) => {
       if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
         return forbiddenResponse(c);

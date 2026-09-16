@@ -24,6 +24,10 @@ import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 type LinkDomainPageContentProps = {
   organizationSlug: string;
   domainSlug: string;
+  directDomain?: string;
+  directMarketIds?: string[];
+  directProjectId?: string;
+  directCreateProject?: boolean;
 };
 
 type ApiErrorBody = {
@@ -36,11 +40,15 @@ type ProjectOption = {
   name: string;
 };
 
-type ProjectLinkMode = "create" | "existing";
+type ProjectLinkMode = "create" | "existing" | "unassigned";
 
 export function LinkDomainPageContent({
   organizationSlug,
   domainSlug,
+  directDomain,
+  directMarketIds,
+  directProjectId,
+  directCreateProject,
 }: LinkDomainPageContentProps) {
   const [linkedDomain, setLinkedDomain] = useState<LinkedDomainPublic | null>(null);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
@@ -52,6 +60,10 @@ export function LinkDomainPageContent({
 
   useEffect(() => {
     let cancelled = false;
+    setProjectMode(
+      directCreateProject === false ? "unassigned" : directProjectId ? "existing" : "create",
+    );
+    setSelectedProjectId(directProjectId ?? "");
     startTransition(async () => {
       setError(null);
       try {
@@ -59,7 +71,11 @@ export function LinkDomainPageContent({
           fetch(`/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ domainSlug }),
+            body: JSON.stringify(
+              directDomain
+                ? { domain: directDomain, marketIds: directMarketIds ?? [] }
+                : { domainSlug },
+            ),
           }),
           fetch(`/api/orgs/${encodeURIComponent(organizationSlug)}/projects`),
         ]);
@@ -91,9 +107,11 @@ export function LinkDomainPageContent({
           }));
           if (!cancelled) {
             setProjects(options);
-            if (options.length > 0) {
+            if (directProjectId) {
+              setSelectedProjectId(directProjectId);
+            } else if (options.length > 0) {
               setSelectedProjectId(options[0].id);
-            } else {
+            } else if (directCreateProject !== false) {
               setProjectMode("create");
             }
           }
@@ -107,7 +125,14 @@ export function LinkDomainPageContent({
     return () => {
       cancelled = true;
     };
-  }, [organizationSlug, domainSlug]);
+  }, [
+    organizationSlug,
+    domainSlug,
+    directDomain,
+    directMarketIds,
+    directProjectId,
+    directCreateProject,
+  ]);
 
   function verify() {
     if (!linkedDomain) return;
@@ -127,7 +152,7 @@ export function LinkDomainPageContent({
             body: JSON.stringify(
               projectMode === "existing"
                 ? { method, projectId: selectedProjectId }
-                : { method, createProject: true },
+                : { method, createProject: projectMode === "create" },
             ),
           },
         );
@@ -231,13 +256,20 @@ export function LinkDomainPageContent({
               >
                 Use existing project
               </Button>
+              <Button
+                type="button"
+                variant={projectMode === "unassigned" ? "default" : "outline"}
+                onClick={() => setProjectMode("unassigned")}
+              >
+                Leave unassigned
+              </Button>
             </div>
             {projectMode === "create" ? (
               <p className="text-sm text-muted-foreground">
                 Creates a native project named{" "}
                 <span className="font-medium">{linkedDomain.domainKey}</span>.
               </p>
-            ) : (
+            ) : projectMode === "existing" ? (
               <div className="space-y-2">
                 <Label htmlFor="linked-domain-project">Project</Label>
                 <select
@@ -253,10 +285,15 @@ export function LinkDomainPageContent({
                   ))}
                 </select>
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                The domain will be verified without attaching it to a project.
+              </p>
             )}
             {projects.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No projects in this workspace yet — a new project will be created.
+                No projects in this workspace yet — you can create one or leave the domain
+                unassigned.
               </p>
             ) : null}
           </section>

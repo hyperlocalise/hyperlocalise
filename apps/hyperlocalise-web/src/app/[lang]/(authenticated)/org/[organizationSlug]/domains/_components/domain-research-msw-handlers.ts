@@ -32,6 +32,7 @@ function linkedDomainPublic(domain: DomainResearchDomain): LinkedDomainPublic {
     domainKey: domain.domainKey,
     domainSlug,
     sourceUrl: domain.sourceUrl,
+    marketIds: domain.locales.map((locale) => locale.id),
     status: domain.status,
     preferredMethod: null,
     verifiedMethod: domain.status === "verified" ? "dns_txt" : null,

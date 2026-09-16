@@ -16,7 +16,8 @@ import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { LocalisationAuditResult } from "@/components/marketing/localisation-audit/localisation-audit-result";
@@ -40,6 +41,7 @@ export function DomainDetailPageContent({
   const intl = useIntl();
   const pathname = usePathname();
   const locale = getAppLocaleFromPathname(pathname ?? "/");
+  const queryClient = useQueryClient();
 
   const domainQuery = useQuery({
     queryKey: ["linked-domain", organizationSlug, linkedDomainId],
@@ -86,6 +88,51 @@ export function DomainDetailPageContent({
   });
 
   const linkedDomain = domainQuery.data;
+  const [selectedProjectId, setSelectedProjectId] = useState(linkedDomain?.projectId ?? "");
+
+  useEffect(() => {
+    setSelectedProjectId(linkedDomain?.projectId ?? "");
+  }, [linkedDomain?.projectId]);
+
+  const projectsQuery = useQuery({
+    queryKey: ["translation-projects", organizationSlug, "domain-assignment"],
+    enabled: linkedDomain?.status === "verified",
+    queryFn: async () => {
+      const response = await fetch(`/api/orgs/${encodeURIComponent(organizationSlug)}/projects`);
+      if (!response.ok) {
+        throw new Error(intl.formatMessage(messages.projectsLoadError));
+      }
+      const body = (await response.json().catch(() => ({}))) as {
+        projects?: Array<{ id: string; name: string }>;
+      };
+      return body.projects ?? [];
+    },
+  });
+
+  const projectMutation = useMutation({
+    mutationFn: async (projectId: string | null) => {
+      if (!linkedDomain) throw new Error("linked_domain_not_found");
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomain.id)}/project`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId }),
+        },
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        linkedDomain?: LinkedDomainPublic;
+        message?: string;
+      };
+      if (!response.ok || !body.linkedDomain) {
+        throw new Error(body.message || intl.formatMessage(messages.projectUpdateError));
+      }
+      return body.linkedDomain;
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["linked-domain", organizationSlug, linkedDomainId], updated);
+    },
+  });
 
   return (
     <WorkspacePageShell className="max-w-5xl">
@@ -165,6 +212,71 @@ export function DomainDetailPageContent({
               <span className="tabular-nums">Score {linkedDomain.auditScore}</span>
             ) : null}
           </div>
+
+          {linkedDomain.status === "verified" ? (
+            <section className="space-y-3">
+              <div>
+                <TypographyH2 className="pb-0" size="xlarge">
+                  <FormattedMessage {...messages.projectHeading} />
+                </TypographyH2>
+                <TypographyP size="small" tone="subtle">
+                  <FormattedMessage {...messages.projectDescription} />
+                </TypographyP>
+              </div>
+              <div className="flex max-w-xl flex-wrap items-end gap-3">
+                <div className="min-w-64 flex-1 space-y-2">
+                  <label htmlFor="linked-domain-project" className="text-sm font-medium">
+                    <FormattedMessage {...messages.projectHeading} />
+                  </label>
+                  <select
+                    id="linked-domain-project"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    value={selectedProjectId}
+                    disabled={projectsQuery.isPending || projectsQuery.isError}
+                    onChange={(event) => {
+                      setSelectedProjectId(event.currentTarget.value);
+                      projectMutation.reset();
+                    }}
+                  >
+                    <option value="">{intl.formatMessage(messages.noProject)}</option>
+                    {(projectsQuery.data ?? []).map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => projectMutation.mutate(selectedProjectId || null)}
+                  disabled={
+                    projectMutation.isPending ||
+                    selectedProjectId === (linkedDomain.projectId ?? "") ||
+                    (projectsQuery.isError && Boolean(selectedProjectId))
+                  }
+                >
+                  <FormattedMessage {...messages.saveProject} />
+                </Button>
+              </div>
+              {projectsQuery.isError ? (
+                <TypographyP size="small" tone="critical">
+                  <FormattedMessage {...messages.projectsLoadError} />
+                </TypographyP>
+              ) : null}
+              {projectMutation.isError ? (
+                <TypographyP size="small" tone="critical">
+                  {projectMutation.error instanceof Error
+                    ? projectMutation.error.message
+                    : intl.formatMessage(messages.projectUpdateError)}
+                </TypographyP>
+              ) : null}
+              {projectMutation.isSuccess ? (
+                <TypographyP size="small" tone="subtle">
+                  <FormattedMessage {...messages.projectSaved} />
+                </TypographyP>
+              ) : null}
+            </section>
+          ) : null}
 
           <section className="space-y-4">
             <TypographyH2 className="pb-0" size="xlarge">

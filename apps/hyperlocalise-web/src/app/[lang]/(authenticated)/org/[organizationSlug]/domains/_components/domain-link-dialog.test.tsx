@@ -12,7 +12,7 @@
  */
 
 // @vitest-environment happy-dom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { getResearchPrototypeDomain } from "@/lib/domains/research-prototype";
@@ -29,10 +29,11 @@ describe("domain locale editing", () => {
       </IntlProvider>,
     );
     fireEvent.change(screen.getByLabelText("Hostname"), { target: { value: "EXAMPLE.COM" } });
-    fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add markets" }));
     expect(screen.getByText("Select at least one locale.")).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("checkbox", { name: "French (France)" }));
+    fireEvent.click(screen.getByRole("button", { name: "French (France)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add markets" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "German (Germany)" }));
     fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
     expect(onSave).toHaveBeenCalledWith(
@@ -70,10 +71,120 @@ describe("domain locale editing", () => {
       </IntlProvider>,
     );
     fireEvent.change(screen.getByLabelText("Hostname"), { target: { value: "shop.example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "French (France)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add markets" }));
     fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
-    expect(onContinue).toHaveBeenCalledWith("shop.example.com");
+    expect(onContinue).toHaveBeenCalledWith("shop.example.com", ["france-fr"], {
+      mode: "create",
+    });
     expect(screen.queryByText("Select at least one locale.")).not.toBeInTheDocument();
     expect(screen.queryByText(/Preview only/i)).not.toBeInTheDocument();
+  });
+
+  it("analyzes a new live domain and keeps suggestions opt-in", async () => {
+    const onAnalyze = vi.fn().mockResolvedValue({
+      domainKey: "shop.example.com",
+      classification: {
+        category: "E-commerce",
+        audience: "Online shoppers",
+        businessModel: "Retail",
+        summary: "A commerce storefront.",
+        confidence: 88,
+      },
+      primaryMarkets: [
+        { marketId: "france-fr", confidence: 90, reason: "French storefront signals." },
+      ],
+      potentialMarkets: [
+        { marketId: "germany-de", confidence: 64, reason: "Nearby expansion opportunity." },
+      ],
+      analyzedAt: "2026-09-15T00:00:00.000Z",
+      expiresAt: "2026-09-22T00:00:00.000Z",
+      cached: false,
+    });
+    render(
+      <IntlProvider locale="en">
+        <DomainLinkDialog open variant="live" onOpenChange={() => {}} onAnalyze={onAnalyze} />
+      </IntlProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Hostname"), {
+      target: { value: "shop.example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Analyze website" }));
+    await waitFor(() => expect(screen.getByText("Website snapshot")).toBeInTheDocument());
+    expect(screen.getByText("Primary markets")).toBeInTheDocument();
+    expect(screen.getByText("Potential markets")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Add" })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "French (France)" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("allows live onboarding to continue without markets", () => {
+    const onContinue = vi.fn();
+    render(
+      <IntlProvider locale="en">
+        <DomainLinkDialog open variant="live" onOpenChange={() => {}} onContinue={onContinue} />
+      </IntlProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Hostname"), { target: { value: "shop.example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add markets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue without markets" }));
+    expect(onContinue).toHaveBeenCalledWith("shop.example.com", [], { mode: "create" });
+  });
+
+  it("passes an existing project selection through live onboarding", () => {
+    const onContinue = vi.fn();
+    render(
+      <IntlProvider locale="en">
+        <DomainLinkDialog
+          open
+          variant="live"
+          projects={[{ id: "project_1", name: "Marketing site" }]}
+          onOpenChange={() => {}}
+          onContinue={onContinue}
+        />
+      </IntlProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Hostname"), {
+      target: { value: "shop.example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Use existing project" }));
+    fireEvent.change(screen.getByLabelText("Project"), { target: { value: "project_1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add markets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue without markets" }));
+    expect(onContinue).toHaveBeenCalledWith("shop.example.com", [], {
+      mode: "existing",
+      projectId: "project_1",
+    });
+  });
+
+  it("passes an unassigned selection through live onboarding", () => {
+    const onContinue = vi.fn();
+    render(
+      <IntlProvider locale="en">
+        <DomainLinkDialog open variant="live" onOpenChange={() => {}} onContinue={onContinue} />
+      </IntlProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Hostname"), {
+      target: { value: "shop.example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Leave unassigned" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add markets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue without markets" }));
+    expect(onContinue).toHaveBeenCalledWith("shop.example.com", [], { mode: "unassigned" });
+  });
+
+  it("filters the primary market picker by country or language", () => {
+    render(
+      <IntlProvider locale="en">
+        <DomainLinkDialog open onOpenChange={() => {}} />
+      </IntlProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Search markets"), { target: { value: "korea" } });
+    expect(screen.getByRole("button", { name: "Korean (South Korea)" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "French (France)" })).not.toBeInTheDocument();
   });
 
   it("rejects duplicate hostnames instead of adding another domain row", () => {
@@ -85,7 +196,7 @@ describe("domain locale editing", () => {
       </IntlProvider>,
     );
     fireEvent.change(screen.getByLabelText("Hostname"), { target: { value: domain.domainKey } });
-    fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add markets" }));
     expect(
       screen.getByText("This domain is already linked. Edit its locales instead."),
     ).toBeInTheDocument();
