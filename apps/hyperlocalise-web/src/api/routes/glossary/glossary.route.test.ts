@@ -1164,6 +1164,78 @@ describe("glossaryRoutes", () => {
     expect(csv).not.toContain("Run forbidden noun");
   });
 
+  it("filters concept pages and exports by term gender", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Performer",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "Actor",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
+              locale: "fr",
+              term: "Actrice",
+              gender: "feminine",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    expect(conceptResponse.status).toBe(201);
+
+    const pageResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.page.$get(
+      {
+        param: { organizationSlug, glossaryId },
+        query: {
+          limit: "10",
+          gender: "feminine",
+          sort: "updated_at",
+          sortDir: "desc",
+          includeArchived: "false",
+        },
+      },
+      { headers },
+    );
+    expect(pageResponse.status).toBe(200);
+    const page = (await pageResponse.json()) as { total: number };
+    expect(page.total).toBe(1);
+
+    const exportResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].export.$get(
+      {
+        param: { organizationSlug, glossaryId },
+        query: { format: "csv", scope: "filtered", gender: "feminine" },
+      },
+      { headers },
+    );
+    expect(exportResponse.status).toBe(200);
+    const csv = await exportResponse.text();
+    expect(csv).toContain("Actrice");
+    expect(csv).not.toContain("Actor");
+  });
+
   it("rejects export for live provider glossary ids", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

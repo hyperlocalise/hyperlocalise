@@ -168,10 +168,22 @@ export const ConceptList: Story = {
     await expect(canvas.getByRole("button", { name: "Add concept" })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: /^Filters/ }));
     const filtersDialog = await canvas.findByRole("dialog", { name: "Filter concepts" });
-    await expect(within(filtersDialog).getByLabelText("Locale")).toHaveTextContent("All locales");
-    await expect(within(filtersDialog).getByLabelText("Part of speech")).toHaveTextContent(
-      "All parts",
+    await expect(within(filtersDialog).getByLabelText("Languages")).toHaveTextContent(
+      "Languages: All",
     );
+    await expect(within(filtersDialog).getByLabelText("Last modified")).toHaveTextContent(
+      "Last modified: All",
+    );
+    await expect(within(filtersDialog).getByLabelText("Part of speech")).toHaveTextContent(
+      "Part of speech: All",
+    );
+    await expect(within(filtersDialog).getByLabelText("Type")).toHaveTextContent("Type: All");
+    await expect(within(filtersDialog).getByLabelText("Status")).toHaveTextContent("Status: All");
+    await expect(within(filtersDialog).getByLabelText("Gender")).toHaveTextContent("Gender: All");
+    await expect(within(filtersDialog).getByLabelText("Author")).toHaveTextContent("Author: All");
+    await userEvent.click(within(filtersDialog).getByLabelText("Author"));
+    await expect(await canvas.findByText("Ada Lovelace")).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
     await userEvent.click(within(filtersDialog).getByRole("button", { name: "Done" }));
   },
 };

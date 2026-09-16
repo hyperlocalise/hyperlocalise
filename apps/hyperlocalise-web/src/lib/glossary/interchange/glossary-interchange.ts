@@ -174,8 +174,11 @@ export async function loadGlossaryInterchangeDocument(input: {
   linguisticStatus?: string;
   partOfSpeech?: string;
   termType?: string | null;
+  gender?: string | null;
   provenance?: string;
   forbidden?: boolean;
+  createdByUserId?: string;
+  modifiedFrom?: string;
   db?: Pick<typeof db, "select">;
 }): Promise<GlossaryInterchangeDocument> {
   const search = input.search?.trim();
@@ -208,6 +211,7 @@ export async function loadGlossaryInterchangeDocument(input: {
     if (input.linguisticStatus && term.status !== input.linguisticStatus) return false;
     if (input.partOfSpeech && term.partOfSpeech !== input.partOfSpeech) return false;
     if (input.termType && (term.termType ?? "") !== input.termType) return false;
+    if (input.gender && (term.gender ?? "") !== input.gender) return false;
     if (input.provenance && term.provenance !== input.provenance) return false;
     if (input.forbidden !== undefined && term.forbidden !== input.forbidden) return false;
     if (input.reviewStatus && term.reviewStatus !== input.reviewStatus) return false;
@@ -273,6 +277,9 @@ export async function loadGlossaryInterchangeDocument(input: {
         const conceptTerms = allTermsByConcept.get(concept.id) ?? [];
         if (conceptTerms.length > 0 && !conceptTerms.some((term) => termMatchesExportFilters(term)))
           return false;
+        if (input.createdByUserId && concept.createdByUserId !== input.createdByUserId)
+          return false;
+        if (input.modifiedFrom && concept.updatedAt < new Date(input.modifiedFrom)) return false;
         return conceptMatchesSearch(concept);
       })
       .map((concept) => {

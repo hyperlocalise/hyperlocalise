@@ -135,5 +135,20 @@ export function createGlossaryDetailMswHandlers({
       HttpResponse.json({ projects: attachedProjects }),
     ),
     http.get("/api/orgs/:organizationSlug/projects", () => HttpResponse.json({ projects })),
+    http.get("/api/orgs/:organizationSlug/members", () =>
+      HttpResponse.json({
+        members: [
+          {
+            userId: "user-1",
+            workosUserId: "workos-user-1",
+            email: "ada@example.com",
+            firstName: "Ada",
+            lastName: "Lovelace",
+            displayName: "Ada Lovelace",
+            status: "active",
+          },
+        ],
+      }),
+    ),
   ];
 }

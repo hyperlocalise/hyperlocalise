@@ -85,6 +85,7 @@ export const glossaryConceptPageQuerySchema = z.object({
   importBatchId: z.string().uuid().optional(),
   partOfSpeech: glossaryPartOfSpeechSchema.optional(),
   termType: glossaryTermTypeSchema.optional(),
+  gender: glossaryGenderSchema.optional(),
   modifiedFrom: z.string().datetime().optional(),
   modifiedTo: z.string().datetime().optional(),
   includeArchived: queryBooleanSchema.default(false),
@@ -198,8 +199,11 @@ export const glossaryExportQuerySchema = z.object({
   linguisticStatus: glossaryTermStatusSchema.optional(),
   partOfSpeech: glossaryPartOfSpeechSchema.optional(),
   termType: glossaryTermTypeSchema.optional(),
+  gender: glossaryGenderSchema.optional(),
   provenance: z.enum(["manual", "sync"]).optional(),
   forbidden: queryBooleanSchema.optional(),
+  createdByUserId: z.string().uuid().optional(),
+  modifiedFrom: z.string().datetime().optional(),
 });
 
 export const createGlossaryConceptTermBodySchema = z.object({

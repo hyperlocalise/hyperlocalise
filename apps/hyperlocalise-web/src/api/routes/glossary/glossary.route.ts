@@ -454,8 +454,11 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
         linguisticStatus: query.scope === "filtered" ? query.linguisticStatus : undefined,
         partOfSpeech: query.scope === "filtered" ? query.partOfSpeech : undefined,
         termType: query.scope === "filtered" ? query.termType : undefined,
+        gender: query.scope === "filtered" ? query.gender : undefined,
         provenance: query.scope === "filtered" ? query.provenance : undefined,
         forbidden: query.scope === "filtered" ? query.forbidden : undefined,
+        createdByUserId: query.scope === "filtered" ? query.createdByUserId : undefined,
+        modifiedFrom: query.scope === "filtered" ? query.modifiedFrom : undefined,
       });
       const serialized = GlossaryFormatFactory.create(query.format).serialize(document);
       if (serialized.errors.length > 0) {

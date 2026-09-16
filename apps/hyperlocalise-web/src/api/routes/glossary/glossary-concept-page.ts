@@ -158,6 +158,7 @@ function termExistsWhere(
   if (filters.partOfSpeech)
     conditions.push(eq(schema.glossaryTerms.partOfSpeech, filters.partOfSpeech));
   if (filters.termType) conditions.push(eq(schema.glossaryTerms.termType, filters.termType));
+  if (filters.gender) conditions.push(eq(schema.glossaryTerms.gender, filters.gender));
   if (filters.createdByUserId)
     conditions.push(eq(schema.glossaryTerms.createdByUserId, filters.createdByUserId));
   if (filters.reviewedByUserId)
@@ -188,6 +189,7 @@ function buildWhere(glossaryId: string, filters: FilterFields): SQL {
       filters.forbidden !== undefined ||
       filters.partOfSpeech ||
       filters.termType ||
+      filters.gender ||
       filters.createdByUserId ||
       filters.reviewedByUserId ||
       filters.importBatchId)

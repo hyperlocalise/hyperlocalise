@@ -852,4 +852,59 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "hptWpEO9CJ",
     description: "Confirm button closing the concept filters dialog",
   },
+  filterLanguagesLabel: {
+    defaultMessage: "Languages",
+    id: "3YLVJ7RPgz",
+    description: "Label for the languages filter",
+  },
+  filterLastModifiedLabel: {
+    defaultMessage: "Last modified",
+    id: "cQSqlKCiLK",
+    description: "Label for the last modified filter",
+  },
+  lastModified24h: {
+    defaultMessage: "Last 24 hours",
+    id: "FTQusXXeii",
+    description: "Last modified preset for the past 24 hours",
+  },
+  lastModified7d: {
+    defaultMessage: "Last 7 days",
+    id: "T+wNPndB+u",
+    description: "Last modified preset for the past 7 days",
+  },
+  lastModified30d: {
+    defaultMessage: "Last 30 days",
+    id: "zPBtoUzMcl",
+    description: "Last modified preset for the past 30 days",
+  },
+  filterStatusLabel: {
+    defaultMessage: "Status",
+    id: "bWmtHKaMZX",
+    description: "Label for the term status filter",
+  },
+  filterTypeLabel: {
+    defaultMessage: "Type",
+    id: "q7SdbOvVNG",
+    description: "Label for the term type filter",
+  },
+  filterGenderLabel: {
+    defaultMessage: "Gender",
+    id: "Ou1XbnhiV6",
+    description: "Label for the term gender filter",
+  },
+  filterAuthorLabel: {
+    defaultMessage: "Author",
+    id: "0bOKrrr5rc",
+    description: "Label for the concept author filter",
+  },
+  filterAllValue: {
+    defaultMessage: "All",
+    id: "Tmjrhfm5Cv",
+    description: "All value shown in concept filter triggers",
+  },
+  loadAuthorsFailed: {
+    defaultMessage: "Unable to load authors",
+    id: "SzSxRxTFus",
+    description: "Fallback error when workspace members fail to load for the author filter",
+  },
 });
