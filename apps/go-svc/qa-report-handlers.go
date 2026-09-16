@@ -245,7 +245,7 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
 
 	listSQL := `with ` + latestRunSQL + `
         select
-            f.id, f.run_id, f.project_id, p.name, f.key, f.source_path,
+            f.id, f.run_id, f.project_id, p.name, f.translation_key_id, f.key, f.source_path,
             f.target_locale, f.check_type, f.severity, f.category, f.message, f.related_tokens,
             f.source_text, f.target_text
         from translation_qa_findings f
@@ -289,21 +289,22 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
 		}
 		editorHref := buildTranslationQaFindingHref(actor.organizationSlug, projectID, sourcePath, targetLocale, key)
 		findings = append(findings, map[string]any{
-			"id":            id,
-			"runId":         runID,
-			"projectId":     projectID,
-			"projectName":   projectName,
-			"key":           key,
-			"sourcePath":    sourcePath,
-			"targetLocale":  targetLocale,
-			"checkType":     checkType,
-			"severity":      severity,
-			"category":      category,
-			"message":       message,
-			"relatedTokens": relatedTokens,
-			"sourceText":    sourceText,
-			"targetText":    targetText,
-			"editorHref":    editorHref,
+			"id":               id,
+			"runId":            runID,
+			"projectId":        projectID,
+			"projectName":      projectName,
+			"translationKeyId": translationKeyID,
+			"key":              key,
+			"sourcePath":       sourcePath,
+			"targetLocale":     targetLocale,
+			"checkType":        checkType,
+			"severity":         severity,
+			"category":         category,
+			"message":          message,
+			"relatedTokens":    relatedTokens,
+			"sourceText":       sourceText,
+			"targetText":       targetText,
+			"editorHref":       editorHref,
 		})
 	}
 	if err := rows.Err(); err != nil {

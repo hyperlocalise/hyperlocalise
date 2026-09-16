@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -51,8 +53,28 @@ func TestBuildQaFindingIssueMetadata(t *testing.T) {
 
 func TestBuildQaFindingIssueTitleTruncates(t *testing.T) {
 	title := buildQaFindingIssueTitle("not_localized", strings.Repeat("segment-key", 40), "de-DE")
-	require.LessOrEqual(t, len(title), 300)
+	require.LessOrEqual(t, utf16Length(title), 300)
 	require.True(t, strings.HasSuffix(title, "..."))
+}
+
+func TestBuildQaFindingIssueTitleValidUTF8(t *testing.T) {
+	// Each rune is 3 bytes in UTF-8; byte slicing at 297 would split a code point.
+	key := strings.Repeat("é", 120)
+	title := buildQaFindingIssueTitle("not_localized", key, "de-DE")
+	require.True(t, utf8.ValidString(title))
+	require.LessOrEqual(t, utf16Length(title), 300)
+}
+
+func TestBuildQaFindingExternalRefUTF16Threshold(t *testing.T) {
+	runID := "11111111-1111-4111-8111-111111111111"
+	// Multi-byte UTF-8 expands byte length faster than UTF-16 code unit count (matches TS `.length`).
+	key := strings.Repeat("é", 225)
+	raw := fmt.Sprintf("proj_1:%s:%s:length:en-US", runID, key)
+	require.Greater(t, len(raw), 505)
+	require.LessOrEqual(t, utf16Length(raw), 505)
+
+	ref := buildQaFindingExternalRef("proj_1", runID, key, "length", "en-US")
+	require.Equal(t, "qa:"+raw, ref)
 }
 
 func TestParseFindingIDs(t *testing.T) {

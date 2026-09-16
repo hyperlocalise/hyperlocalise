@@ -28,9 +28,27 @@ func buildTranslationQaFindingHref(organizationSlug, projectID string, sourcePat
 	)
 }
 
+func truncateUTF16Prefix(value string, maxUnits int) string {
+	if maxUnits <= 0 {
+		return ""
+	}
+	units := 0
+	for i, r := range value {
+		n := 1
+		if r > 0xFFFF {
+			n = 2
+		}
+		if units+n > maxUnits {
+			return value[:i]
+		}
+		units += n
+	}
+	return value
+}
+
 func buildQaFindingExternalRef(projectID, runID, findingKey, checkType, targetLocale string) string {
 	raw := fmt.Sprintf("%s:%s:%s:%s:%s", projectID, runID, findingKey, checkType, targetLocale)
-	if len(raw) <= 505 {
+	if utf16Length(raw) <= 505 {
 		return "qa:" + raw
 	}
 	sum := sha256.Sum256([]byte(raw))
@@ -39,10 +57,10 @@ func buildQaFindingExternalRef(projectID, runID, findingKey, checkType, targetLo
 
 func buildQaFindingIssueTitle(checkType, findingKey, targetLocale string) string {
 	base := fmt.Sprintf("[QA] %s · %s (%s)", checkType, findingKey, targetLocale)
-	if len(base) <= 300 {
+	if utf16Length(base) <= 300 {
 		return base
 	}
-	return base[:297] + "..."
+	return truncateUTF16Prefix(base, 297) + "..."
 }
 
 func buildQaFindingIssueDescription(checkType, message, sourceText, targetText, editorHref string) string {
