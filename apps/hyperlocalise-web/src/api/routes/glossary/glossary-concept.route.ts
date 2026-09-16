@@ -38,7 +38,11 @@ import { createStoredFile, sha256Hex } from "@/lib/file-storage/records";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
-import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
+import {
+  getGlossaryPersistedReadProduct,
+  getGlossaryProduct,
+} from "@/lib/glossary/glossary-provider";
+import { glossaryUsesPersistedConceptStore } from "@/lib/glossary/glossary-persisted-id";
 import { db, schema } from "@/lib/database/client";
 import { NativeGlossary as NativeGlossaryProduct } from "@/lib/glossary/native-glossary";
 import { listGlossaryConceptsPage } from "./glossary-concept-page";
@@ -463,7 +467,7 @@ export function createGlossaryConceptRoutes(
         const query = c.req.valid("query");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
-        if (glossary && glossary.source !== "native") {
+        if (glossary && !glossaryUsesPersistedConceptStore(glossary)) {
           return badRequestResponse(
             c,
             "external_glossary_page_unsupported",
@@ -526,7 +530,7 @@ export function createGlossaryConceptRoutes(
         const query = c.req.valid("query");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
-        if (glossary.source !== "native") {
+        if (!glossaryUsesPersistedConceptStore(glossary)) {
           return badRequestResponse(
             c,
             "external_glossary_terms_page_unsupported",
@@ -1001,7 +1005,7 @@ export function createGlossaryConceptRoutes(
         const query = c.req.valid("query");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
-        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        const product = getGlossaryPersistedReadProduct({ auth: c.var.auth, glossary });
         if (!product) return nativeGlossaryConceptsOnlyResponse(c);
         const concept =
           product instanceof NativeGlossaryProduct
@@ -1093,7 +1097,7 @@ export function createGlossaryConceptRoutes(
       const { glossaryId, conceptId } = c.req.valid("param");
       const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
       if (!glossary) return glossaryNotFoundResponse(c);
-      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+      const product = getGlossaryPersistedReadProduct({ auth: c.var.auth, glossary });
       if (!product) return nativeGlossaryConceptsOnlyResponse(c);
       const concept = await product.getConcept(conceptId);
       if (!concept) return glossaryNotFoundResponse(c);

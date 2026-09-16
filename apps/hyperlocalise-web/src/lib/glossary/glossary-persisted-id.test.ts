@@ -12,12 +12,29 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isQueryableNativeGlossaryId } from "./glossary-persisted-id";
+import {
+  glossaryUsesPersistedConceptStore,
+  isQueryableNativeGlossaryId,
+} from "./glossary-persisted-id";
 
 describe("isQueryableNativeGlossaryId", () => {
   it("accepts persisted uuid glossaries and rejects live provider ids", () => {
     expect(isQueryableNativeGlossaryId("22222222-2222-4222-8222-222222222222")).toBe(true);
     expect(isQueryableNativeGlossaryId("crowdin:glossary:718785")).toBe(false);
     expect(isQueryableNativeGlossaryId("not-a-uuid")).toBe(false);
+  });
+});
+
+describe("glossaryUsesPersistedConceptStore", () => {
+  it("includes native and mirrored uuid glossaries", () => {
+    const id = "22222222-2222-4222-8222-222222222222";
+    expect(glossaryUsesPersistedConceptStore({ id, source: "native" })).toBe(true);
+    expect(glossaryUsesPersistedConceptStore({ id, source: "external_tms" })).toBe(true);
+    expect(
+      glossaryUsesPersistedConceptStore({
+        id: "crowdin:glossary:1",
+        source: "external_tms",
+      }),
+    ).toBe(false);
   });
 });

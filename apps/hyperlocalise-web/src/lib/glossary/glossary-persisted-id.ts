@@ -18,3 +18,14 @@ import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-r
 export function isQueryableNativeGlossaryId(value: string) {
   return z.uuid().safeParse(value).success && parseLiveProviderGlossaryId(value) === null;
 }
+
+/** Glossaries whose concepts and terms are stored in Hyperlocalise (native or mirrored sync). */
+export function glossaryUsesPersistedConceptStore(glossary: {
+  id: string;
+  source: "native" | "external_tms";
+}) {
+  return (
+    glossary.source === "native" ||
+    (glossary.source === "external_tms" && isQueryableNativeGlossaryId(glossary.id))
+  );
+}
