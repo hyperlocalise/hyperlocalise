@@ -832,4 +832,24 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "SxxEV+oz+y",
     description: "Title of the glossary import dialog",
   },
+  filtersButton: {
+    defaultMessage: "Filters",
+    id: "NsRFCasvcn",
+    description: "Button to open the concept filters dialog",
+  },
+  filtersTitle: {
+    defaultMessage: "Filter concepts",
+    id: "f3VeQ5EI+p",
+    description: "Title of the concept filters dialog",
+  },
+  filtersDescription: {
+    defaultMessage: "Narrow the concept list. Filters apply immediately.",
+    id: "6BQs4RaSTY",
+    description: "Description of the concept filters dialog",
+  },
+  filtersDone: {
+    defaultMessage: "Done",
+    id: "hptWpEO9CJ",
+    description: "Confirm button closing the concept filters dialog",
+  },
 });
