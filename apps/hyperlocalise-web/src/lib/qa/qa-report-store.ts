@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
@@ -263,6 +263,135 @@ export async function updateProjectQaScanCadence(input: {
     });
 
   return project ?? null;
+}
+
+const latestSucceededRunPerProject = (organizationId: string, projectId?: string) => {
+  const filters = [
+    eq(schema.translationQaRuns.organizationId, organizationId),
+    eq(schema.translationQaRuns.status, "succeeded"),
+  ];
+  if (projectId) {
+    filters.push(eq(schema.translationQaRuns.projectId, projectId));
+  }
+
+  return db
+    .selectDistinctOn([schema.translationQaRuns.projectId], {
+      id: schema.translationQaRuns.id,
+      projectId: schema.translationQaRuns.projectId,
+    })
+    .from(schema.translationQaRuns)
+    .where(and(...filters))
+    .orderBy(
+      schema.translationQaRuns.projectId,
+      desc(schema.translationQaRuns.completedAt),
+      desc(schema.translationQaRuns.createdAt),
+    )
+    .as("latest_succeeded_qa_run");
+};
+
+export async function listOrganizationLatestSucceededFindings(input: {
+  organizationId: string;
+  projectId?: string;
+  locale?: string;
+  checkType?: TranslationQaCheckType;
+  severity?: TranslationQaSeverity;
+  limit?: number;
+  offset?: number;
+}) {
+  const latestRun = latestSucceededRunPerProject(input.organizationId, input.projectId);
+
+  const findingFilters = [eq(schema.translationQaFindings.organizationId, input.organizationId)];
+  if (input.projectId) {
+    findingFilters.push(eq(schema.translationQaFindings.projectId, input.projectId));
+  }
+  if (input.locale) {
+    findingFilters.push(eq(schema.translationQaFindings.targetLocale, input.locale));
+  }
+  if (input.checkType) {
+    findingFilters.push(eq(schema.translationQaFindings.checkType, input.checkType));
+  }
+  if (input.severity) {
+    findingFilters.push(eq(schema.translationQaFindings.severity, input.severity));
+  }
+
+  const where = and(...findingFilters, eq(schema.translationQaFindings.runId, latestRun.id));
+
+  const limit = input.limit ?? 50;
+  const offset = input.offset ?? 0;
+
+  const [findings, [countRow]] = await Promise.all([
+    db
+      .select({
+        id: schema.translationQaFindings.id,
+        runId: schema.translationQaFindings.runId,
+        projectId: schema.translationQaFindings.projectId,
+        projectName: schema.projects.name,
+        translationKeyId: schema.translationQaFindings.translationKeyId,
+        key: schema.translationQaFindings.key,
+        sourcePath: schema.translationQaFindings.sourcePath,
+        targetLocale: schema.translationQaFindings.targetLocale,
+        checkType: schema.translationQaFindings.checkType,
+        severity: schema.translationQaFindings.severity,
+        category: schema.translationQaFindings.category,
+        message: schema.translationQaFindings.message,
+        relatedTokens: schema.translationQaFindings.relatedTokens,
+        sourceText: schema.translationQaFindings.sourceText,
+        targetText: schema.translationQaFindings.targetText,
+      })
+      .from(schema.translationQaFindings)
+      .innerJoin(latestRun, eq(schema.translationQaFindings.runId, latestRun.id))
+      .innerJoin(schema.projects, eq(schema.projects.id, schema.translationQaFindings.projectId))
+      .where(where)
+      .orderBy(
+        asc(schema.projects.name),
+        asc(schema.translationQaFindings.targetLocale),
+        asc(schema.translationQaFindings.key),
+        asc(schema.translationQaFindings.id),
+      )
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.translationQaFindings)
+      .innerJoin(latestRun, eq(schema.translationQaFindings.runId, latestRun.id))
+      .where(where),
+  ]);
+
+  return {
+    findings,
+    total: countRow?.count ?? 0,
+    limit,
+    offset,
+  };
+}
+
+export async function assertFindingsOnLatestSucceededRuns(input: {
+  organizationId: string;
+  findings: { id: string; projectId: string; runId: string }[];
+}) {
+  if (input.findings.length === 0) {
+    return;
+  }
+
+  const projectIds = [...new Set(input.findings.map((row) => row.projectId))];
+  const latestRun = latestSucceededRunPerProject(input.organizationId);
+
+  const latestRuns = await db
+    .select({
+      projectId: latestRun.projectId,
+      runId: latestRun.id,
+    })
+    .from(latestRun)
+    .where(inArray(latestRun.projectId, projectIds));
+
+  const latestRunIdByProject = new Map(latestRuns.map((row) => [row.projectId, row.runId]));
+
+  for (const finding of input.findings) {
+    const latestRunId = latestRunIdByProject.get(finding.projectId);
+    if (!latestRunId || latestRunId !== finding.runId) {
+      throw new Error("qa_finding_stale");
+    }
+  }
 }
 
 export async function findActiveTranslationQaRun(input: {

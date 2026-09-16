@@ -123,3 +123,39 @@ export const workspaceQaReportListResponseSchema = successEnvelopeSchema(
   "reports",
   z.array(workspaceQaReportSchema),
 );
+
+export const workspaceQaFindingsQuerySchema = z.object({
+  projectId: projectIdSchema.optional(),
+  locale: z.string().trim().min(1).max(32).optional(),
+  checkType: z.enum(translationQaCheckTypes).optional(),
+  severity: z.enum(translationQaSeverities).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
+export const workspaceQaFindingSchema = qaReportFindingSchema.extend({
+  projectId: z.string(),
+  projectName: z.string(),
+});
+
+export const workspaceQaFindingsResponseSchema = z.object({
+  findings: z.array(workspaceQaFindingSchema),
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().nonnegative(),
+  offset: z.number().int().nonnegative(),
+});
+
+export const promoteQaFindingsBodySchema = z.object({
+  findingIds: z.array(z.string().uuid()).min(1).max(100),
+});
+
+export const promoteQaFindingsResponseSchema = z.object({
+  results: z.array(
+    z.object({
+      findingId: z.string().uuid(),
+      issueId: z.string().uuid(),
+      identifier: z.string(),
+      created: z.boolean(),
+    }),
+  ),
+});

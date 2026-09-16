@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
@@ -38,6 +39,14 @@ async function ProjectQaLoader({
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
   const { organizationSlug, projectId } = await params;
-  await requireAppAuthContext({ organizationSlug });
-  return <QaProjectPageContent organizationSlug={organizationSlug} projectId={projectId} />;
+  const auth = await requireAppAuthContext({ organizationSlug });
+  const canPromoteFindings = hasCapability(auth.membership.role, "write_back:translation");
+
+  return (
+    <QaProjectPageContent
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      canPromoteFindings={canPromoteFindings}
+    />
+  );
 }

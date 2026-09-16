@@ -12,14 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
+import { QaFindingsTable } from "@/components/qa/qa-findings-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -57,6 +56,7 @@ type QaReport = {
 
 type QaFinding = {
   id: string;
+  runId: string;
   key: string;
   sourcePath: string | null;
   targetLocale: string;
@@ -89,9 +89,11 @@ const FINDINGS_PAGE_SIZE = 100;
 export function QaProjectPageContent({
   organizationSlug,
   projectId,
+  canPromoteFindings,
 }: {
   organizationSlug: string;
   projectId: string;
+  canPromoteFindings: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -193,6 +195,12 @@ export function QaProjectPageContent({
 
   const reports = listQuery.data?.reports ?? [];
   const selectedReport = reports.find((report) => report.id === activeRunId) ?? reports[0];
+  const latestSucceededRunId = reports.find((report) => report.status === "succeeded")?.id;
+  const canPromoteActiveReport =
+    canPromoteFindings &&
+    selectedReport?.status === "succeeded" &&
+    Boolean(latestSucceededRunId) &&
+    activeRunId === latestSucceededRunId;
   const locales = useMemo(
     () => Object.keys(selectedReport?.summary.byLocale ?? {}),
     [selectedReport],
@@ -369,78 +377,20 @@ export function QaProjectPageContent({
       ) : null}
 
       {findings.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="bg-muted text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.key)}</th>
-                  <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.locale)}</th>
-                  <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.check)}</th>
-                  <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.source)}</th>
-                  <th className="px-3 py-2 font-medium">{intl.formatMessage(messages.target)}</th>
-                  <th className="px-3 py-2 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
-                {findings.map((finding) => (
-                  <tr key={finding.id} className="border-t border-border">
-                    <td className="px-3 py-2 align-top font-medium">{finding.key}</td>
-                    <td className="px-3 py-2 align-top">{finding.targetLocale}</td>
-                    <td className="px-3 py-2 align-top">
-                      <Badge variant={finding.severity === "error" ? "destructive" : "warning"}>
-                        {finding.checkType}
-                      </Badge>
-                      <TypographyP size="xsmall" tone="subtle">
-                        {finding.message}
-                      </TypographyP>
-                    </td>
-                    <td className="max-w-56 px-3 py-2 align-top break-words">
-                      {finding.sourceText}
-                    </td>
-                    <td className="max-w-56 px-3 py-2 align-top break-words">
-                      {finding.targetText}
-                    </td>
-                    <td className="px-3 py-2 align-top">
-                      <Button
-                        nativeButton={false}
-                        render={<Link href={finding.editorHref} />}
-                        variant="ghost"
-                        size="sm"
-                      >
-                        <FormattedMessage {...messages.openEditor} />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <TypographyP size="xsmall" tone="subtle">
-              {intl.formatMessage(messages.findingsShown, {
-                shown: findings.length,
-                total: findingsTotal,
-              })}
-            </TypographyP>
-            {detailQuery.hasNextPage ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="rounded-full"
-                disabled={detailQuery.isFetchingNextPage}
-                onClick={() => {
-                  void detailQuery.fetchNextPage();
-                }}
-              >
-                <FormattedMessage
-                  {...(detailQuery.isFetchingNextPage ? messages.loadingMore : messages.loadMore)}
-                />
-              </Button>
-            ) : null}
-          </div>
-        </div>
+        <QaFindingsTable
+          organizationSlug={organizationSlug}
+          findings={findings.map((finding) => ({ ...finding, projectId }))}
+          total={findingsTotal}
+          shownCount={findings.length}
+          canPromote={canPromoteActiveReport}
+          promoteScope="project"
+          projectId={projectId}
+          hasMore={detailQuery.hasNextPage}
+          isLoadingMore={detailQuery.isFetchingNextPage}
+          onLoadMore={() => {
+            void detailQuery.fetchNextPage();
+          }}
+        />
       ) : null}
     </ProjectPageShell>
   );
