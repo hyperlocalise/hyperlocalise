@@ -17,10 +17,8 @@ import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { useProjectPageQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-page-shell";
-import {
-  getKnowledgeMemory,
-  knowledgeMemoryQueryKey,
-} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-api";
+import { getKnowledgeMemory } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-api";
+import { knowledgeMemoryPreviewQueryKey } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-query";
 import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
@@ -97,7 +95,7 @@ export function ContentEditorGuidelineSheet({
   const workspaceKnowledgeHref = buildOrganizationPath(organizationSlug, "knowledge");
 
   const projectMemoryQuery = useQuery({
-    queryKey: knowledgeMemoryQueryKey(organizationSlug, projectId),
+    queryKey: knowledgeMemoryPreviewQueryKey(organizationSlug, projectId),
     enabled: open,
     queryFn: async () => {
       const response = await getKnowledgeMemory({ organizationSlug, projectId });
@@ -110,7 +108,7 @@ export function ContentEditorGuidelineSheet({
   });
 
   const workspaceMemoryQuery = useQuery({
-    queryKey: knowledgeMemoryQueryKey(organizationSlug),
+    queryKey: knowledgeMemoryPreviewQueryKey(organizationSlug),
     enabled: open,
     queryFn: async () => {
       const response = await getKnowledgeMemory({ organizationSlug });

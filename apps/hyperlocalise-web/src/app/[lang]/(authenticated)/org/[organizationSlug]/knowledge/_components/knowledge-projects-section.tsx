@@ -16,6 +16,8 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 
+import { fetchActiveTmsProviderConnection } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-active-tms-provider";
+import { fetchTmsLiveProjects } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-live-projects";
 import {
   mapProjectToListRow,
   type ApiProject,
@@ -24,9 +26,10 @@ import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
-import { readApiResponseError } from "@/lib/api-error";
+import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { excerptGuidelineText } from "@/lib/knowledge-memory/knowledge-guideline-excerpt";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 import { getKnowledgeMemory } from "./knowledge-memory-api";
 import { knowledgeProjectsSectionMessages as messages } from "./knowledge-projects-section.messages";
@@ -42,6 +45,8 @@ type ProjectGuidelineRow = {
   knowledgeHref: string;
 };
 
+const PROJECT_GUIDELINE_MEMORY_CONCURRENCY = 5;
+
 async function loadProjectGuidelineRows(organizationSlug: string): Promise<ProjectGuidelineRow[]> {
   const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
     param: { organizationSlug },
@@ -51,16 +56,30 @@ async function loadProjectGuidelineRows(organizationSlug: string): Promise<Proje
   }
 
   const body = await response.json();
-  const projects = (body.projects as ApiProject[]).map((project) => mapProjectToListRow(project));
+  const nativeProjects = (body.projects as ApiProject[]).map((project) =>
+    mapProjectToListRow(project),
+  );
 
-  const guidelineByProjectId = await Promise.all(
-    projects.map(async (project) => {
+  const tmsConnection = await fetchActiveTmsProviderConnection(organizationSlug);
+  const tmsProjects = tmsConnection
+    ? (await fetchTmsLiveProjects(organizationSlug)).map((project) => mapProjectToListRow(project))
+    : [];
+
+  const projects = [...tmsProjects, ...nativeProjects];
+
+  const guidelineByProjectId = await mapWithConcurrency(
+    projects,
+    PROJECT_GUIDELINE_MEMORY_CONCURRENCY,
+    async (project) => {
       const memoryResponse = await getKnowledgeMemory({
         organizationSlug,
         projectId: project.id,
       });
-      if (!memoryResponse.ok) {
+      if (memoryResponse.status === 404) {
         return { projectId: project.id, content: "" };
+      }
+      if (!memoryResponse.ok) {
+        throw new Error(await readApiError(memoryResponse, "Failed to load project guideline"));
       }
       const memoryBody = await memoryResponse.json();
       const content =
@@ -68,7 +87,7 @@ async function loadProjectGuidelineRows(organizationSlug: string): Promise<Proje
           ? memoryBody.knowledgeMemory.content
           : "";
       return { projectId: project.id, content };
-    }),
+    },
   );
 
   const memoryContentById = new Map(

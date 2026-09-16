@@ -16,6 +16,13 @@ import { knowledgeMemoryQueryKey } from "./knowledge-memory-api";
 
 export { knowledgeMemoryQueryKey };
 
+/** Read-only preview caches (e.g. CAT guideline sheet) must not share keys with the editor query. */
+export function knowledgeMemoryPreviewQueryKey(organizationSlug: string, projectId?: string) {
+  return projectId
+    ? (["knowledge-memory-preview", organizationSlug, projectId] as const)
+    : (["knowledge-memory-preview", organizationSlug] as const);
+}
+
 export type LoadedKnowledgeMemory = {
   knowledgeMemory: KnowledgeMemoryRecord;
   etag: string;
