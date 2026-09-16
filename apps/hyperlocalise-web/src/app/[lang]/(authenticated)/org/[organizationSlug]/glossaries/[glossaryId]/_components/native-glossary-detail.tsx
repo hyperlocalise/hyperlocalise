@@ -299,7 +299,7 @@ export function NativeGlossaryDetail({
       glossaryId,
       conceptSearch,
       conceptLocale,
-      conceptModified,
+      conceptModifiedFrom,
       conceptLinguisticStatus,
       conceptPartOfSpeech,
       conceptTermType,
