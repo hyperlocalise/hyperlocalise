@@ -1,5 +1,5 @@
 {
-  "id": "06e8201e-a860-45e3-87a8-2680346dd323",
+  "id": "c8177df3-f131-4a1e-9fe9-58f2e8de2857",
   "prevId": "a64fdbe5-b92f-4b1b-ab87-4c8f0ac0b7be",
   "version": "7",
   "dialect": "postgresql",
@@ -24526,57 +24526,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.domain_market_analysis_cache": {
-      "name": "domain_market_analysis_cache",
-      "schema": "",
-      "columns": {
-        "domain_key": {
-          "name": "domain_key",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "analysis": {
-          "name": "analysis",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "analyzed_at": {
-          "name": "analyzed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

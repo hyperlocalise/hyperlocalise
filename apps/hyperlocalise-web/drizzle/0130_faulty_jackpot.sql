@@ -1,0 +1,1 @@
+ALTER TABLE "linked_domains" ADD COLUMN "market_ids" text[] DEFAULT '{}' NOT NULL;
