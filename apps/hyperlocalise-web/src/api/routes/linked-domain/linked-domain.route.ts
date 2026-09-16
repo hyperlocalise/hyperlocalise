@@ -33,10 +33,11 @@ import {
   listLinkedDomains,
   startDirectLinkedDomainClaim,
   startLinkedDomainClaim,
+  updateLinkedDomainMarkets,
   updateLinkedDomainProject,
   verifyAndClaimLinkedDomain,
 } from "@/lib/linked-domains/claims";
-import { analyzeDomainMarkets } from "@/lib/domains/domain-market-analysis";
+import { recommendDomainMarkets } from "@/lib/domains/market-recommendations";
 import type { LinkedDomainError } from "@/lib/linked-domains/types";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -44,8 +45,9 @@ import { createDomainResearchRoutes } from "../domain-research/domain-research.r
 import { createDomainSearchConsoleRoutes } from "../domain-search-console/domain-search-console.route";
 import {
   createLinkedDomainBodySchema,
-  analyzeDomainBodySchema,
+  marketRecommendationsBodySchema,
   linkedDomainIdParamSchema,
+  updateLinkedDomainMarketsBodySchema,
   updateLinkedDomainProjectBodySchema,
   verifyLinkedDomainBodySchema,
 } from "./linked-domain.schema";
@@ -97,13 +99,26 @@ const validateProjectUpdateBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateAnalyzeBody = validator("json", (value, c) => {
-  const parsed = analyzeDomainBodySchema.safeParse(value);
+const validateMarketRecommendationsBody = validator("json", (value, c) => {
+  const parsed = marketRecommendationsBodySchema.safeParse(value);
   if (!parsed.success) {
     return badRequestResponse(
       c,
-      "invalid_domain_analysis_payload",
-      "Domain is required.",
+      "invalid_market_recommendations_payload",
+      "Market recommendation payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateMarketUpdateBody = validator("json", (value, c) => {
+  const parsed = updateLinkedDomainMarketsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_market_selection",
+      "Select supported markets.",
       parsed.error.flatten(),
     );
   }
@@ -155,22 +170,46 @@ export function createLinkedDomainRoutes() {
 
       return c.json({ linkedDomains }, 200);
     })
-    .post("/analyze", validateAnalyzeBody, async (c) => {
-      if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
-      const body = c.req.valid("json");
-      const result = await analyzeDomainMarkets(body);
-      if (isErr(result)) {
-        if (result.error.code === "invalid_domain") {
-          return badRequestResponse(c, result.error.code, result.error.message);
+    .post(
+      "/:linkedDomainId/market-recommendations",
+      validateLinkedDomainParams,
+      validateMarketRecommendationsBody,
+      async (c) => {
+        if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
         }
-        return serviceUnavailableResponse(c, result.error.code, result.error.message);
-      }
 
-      return c.json({ domainAnalysis: result.value }, 200);
-    })
+        const { linkedDomainId } = c.req.valid("param");
+        const linkedDomain = await getLinkedDomain({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          linkedDomainId,
+        });
+        if (!linkedDomain) return notFoundResponse(c, "linked_domain_not_found");
+        if (linkedDomain.status !== "verified") {
+          return badRequestResponse(c, "linked_domain_not_verified", "Verify the domain first.");
+        }
+
+        const result = await recommendDomainMarkets({
+          domain: linkedDomain.domainKey,
+          cookie: c.req.header("cookie"),
+          signal: c.req.raw.signal,
+        });
+        if (isErr(result)) {
+          if (
+            result.error.code === "invalid_domain" ||
+            result.error.code === "provider_validation_failed"
+          ) {
+            return badRequestResponse(c, result.error.code, result.error.message);
+          }
+          if (result.error.code === "provider_rate_limited") {
+            return c.json({ error: result.error.code, message: result.error.message }, 429);
+          }
+          return serviceUnavailableResponse(c, result.error.code, result.error.message);
+        }
+
+        return c.json({ marketRecommendations: result.value }, 200);
+      },
+    )
     .post("/", validateCreateBody, async (c) => {
       if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
@@ -270,6 +309,25 @@ export function createLinkedDomainRoutes() {
 
       return c.json({ linkedDomain: result.value }, 200);
     })
+    .patch(
+      "/:linkedDomainId/markets",
+      validateLinkedDomainParams,
+      validateMarketUpdateBody,
+      async (c) => {
+        if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+        const { linkedDomainId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await updateLinkedDomainMarkets({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          linkedDomainId,
+          marketIds: body.marketIds,
+        });
+        if (isErr(result)) return mapLinkedDomainError(c, result.error);
+        return c.json({ linkedDomain: result.value }, 200);
+      },
+    )
     .patch(
       "/:linkedDomainId/project",
       validateLinkedDomainParams,

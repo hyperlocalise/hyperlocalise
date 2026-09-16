@@ -52,7 +52,7 @@ Live domains currently expose four fixed research markets:
 
 Every verified domain can use all four markets. Research rows are stored per market in Postgres (`marketId`, DataForSEO `locationCode`, and `languageCode`).
 
-Custom per-domain locale lists and link-dialog locale editing are planned but not persisted yet. Linking sends only the hostname today.
+When linking a domain, the user provides only the hostname. After ownership verification succeeds, Hyperlocalise reads locale metadata and checks those markets plus the four defaults through DataForSEO Labs. Each market is requested separately; users review and save the resulting market selection.
 
 ## Keyword research workflow
 
@@ -116,6 +116,8 @@ Authenticated org routes live under `/api/orgs/{organizationSlug}/linked-domains
 | `GET` | `/linked-domains/{id}` | `projects:read` | Fetch one domain |
 | `GET` | `/linked-domains/{id}/audit` | `projects:read` | Localization audit snapshot |
 | `POST` | `/linked-domains/{id}/verify` | `projects:create` | Run verification |
+| `POST` | `/linked-domains/{id}/market-recommendations` | `projects:write` | Recommend markets after verification; one DataForSEO request per market |
+| `PATCH` | `/linked-domains/{id}/markets` | `projects:write` | Save the user’s selected market IDs after verification |
 | `DELETE` | `/linked-domains/{id}` | `projects:create` | Cancel a pending claim |
 
 ### Research

@@ -48,7 +48,6 @@ export * from "./schema/project-content-editor-segment-locks";
 export * from "./schema/billing";
 export * from "./schema/localisation-audits";
 export * from "./schema/linked-domains";
-export * from "./schema/domain-market-analysis";
 export * from "./schema/domain-research";
 export * from "./schema/experiments";
 export * from "./schema/activity-log";

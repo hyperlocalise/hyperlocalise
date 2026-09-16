@@ -28,9 +28,10 @@ export const createLinkedDomainBodySchema = z
     }
   });
 
-export const analyzeDomainBodySchema = z.object({
-  domain: z.string().trim().min(1).max(2048),
-  refresh: z.boolean().optional(),
+export const marketRecommendationsBodySchema = z.object({});
+
+export const updateLinkedDomainMarketsBodySchema = z.object({
+  marketIds: z.array(z.string().trim().min(1).max(64)).max(16),
 });
 
 export const linkedDomainIdParamSchema = z.object({

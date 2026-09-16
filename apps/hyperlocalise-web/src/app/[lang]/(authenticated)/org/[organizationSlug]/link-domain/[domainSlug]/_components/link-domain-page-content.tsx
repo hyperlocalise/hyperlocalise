@@ -18,6 +18,8 @@ import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DOMAIN_RESEARCH_MARKETS } from "@/lib/domains/research-prototype";
 import type { LinkedDomainVerificationMethod } from "@/lib/database/schema/linked-domains";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 
@@ -42,6 +44,14 @@ type ProjectOption = {
 
 type ProjectLinkMode = "create" | "existing" | "unassigned";
 
+type MarketVisibility = {
+  marketId: string;
+  organicCount: number;
+  organicEtv: number;
+  top10Count: number;
+  hasOrganicVisibility: boolean;
+};
+
 export function LinkDomainPageContent({
   organizationSlug,
   domainSlug,
@@ -56,6 +66,9 @@ export function LinkDomainPageContent({
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [method, setMethod] = useState<LinkedDomainVerificationMethod>("dns_txt");
+  const [marketRecommendations, setMarketRecommendations] = useState<MarketVisibility[]>([]);
+  const [selectedMarketIds, setSelectedMarketIds] = useState<string[]>([]);
+  const [marketRecommendationsLoading, setMarketRecommendationsLoading] = useState(false);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -134,6 +147,78 @@ export function LinkDomainPageContent({
     directCreateProject,
   ]);
 
+  useEffect(() => {
+    if (linkedDomain?.status !== "verified") return;
+    if (linkedDomain.marketIds.length > 0) {
+      setSelectedMarketIds(linkedDomain.marketIds);
+      return;
+    }
+    let cancelled = false;
+    setMarketRecommendationsLoading(true);
+    fetch(
+      `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/market-recommendations`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+    )
+      .then(async (response) => {
+        const body = (await response.json().catch(() => ({}))) as {
+          marketRecommendations?: {
+            candidates?: MarketVisibility[];
+            recommended?: MarketVisibility[];
+          };
+          message?: string;
+        };
+        if (!response.ok || !body.marketRecommendations) {
+          throw new Error(body.message || "Could not analyze markets.");
+        }
+        if (!cancelled) {
+          const recommendations = body.marketRecommendations;
+          setMarketRecommendations(recommendations.candidates ?? []);
+          setSelectedMarketIds(
+            (recommendations.recommended ?? []).map((market) => market.marketId),
+          );
+        }
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setError(reason instanceof Error ? reason.message : "Could not analyze markets.");
+          setMarketRecommendations([]);
+          setSelectedMarketIds(linkedDomain.marketIds);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMarketRecommendationsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedDomain?.id, linkedDomain?.status, organizationSlug]);
+
+  function saveMarkets() {
+    if (!linkedDomain) return;
+    startTransition(async () => {
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/markets`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ marketIds: selectedMarketIds }),
+          },
+        );
+        const body = (await response.json().catch(() => ({}))) as
+          | { linkedDomain?: LinkedDomainPublic }
+          | ApiErrorBody;
+        if (!response.ok || !("linkedDomain" in body) || !body.linkedDomain) {
+          throw new Error(("message" in body && body.message) || "Could not save markets.");
+        }
+        setLinkedDomain(body.linkedDomain);
+      } catch (reason: unknown) {
+        setError(reason instanceof Error ? reason.message : "Could not save markets.");
+      }
+    });
+  }
+
   function verify() {
     if (!linkedDomain) return;
     if (projectMode === "existing" && !selectedProjectId) {
@@ -183,6 +268,82 @@ export function LinkDomainPageContent({
         <TypographyP tone="subtle">
           {linkedDomain.domainKey} is verified for this workspace.
         </TypographyP>
+        <section className="space-y-4">
+          <div>
+            <TypographyH2 className="pb-0">Recommended markets</TypographyH2>
+            <TypographyP tone="subtle">
+              We check the site’s locale signals and Google organic visibility after verification.
+            </TypographyP>
+          </div>
+          {marketRecommendationsLoading ? (
+            <TypographyP tone="subtle">Checking organic visibility…</TypographyP>
+          ) : marketRecommendations.length ? (
+            <div className="space-y-3">
+              {marketRecommendations.map((recommendation) => {
+                const market = DOMAIN_RESEARCH_MARKETS.find(
+                  (candidate) => candidate.id === recommendation.marketId,
+                );
+                if (!market) return null;
+                return (
+                  <label key={market.id} className="flex items-start gap-3 rounded-lg border p-3">
+                    <Checkbox
+                      checked={selectedMarketIds.includes(market.id)}
+                      onCheckedChange={(checked) =>
+                        setSelectedMarketIds((current) =>
+                          checked
+                            ? [...current, market.id]
+                            : current.filter((id) => id !== market.id),
+                        )
+                      }
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium">{market.label}</span>
+                      <span className="block text-sm text-muted-foreground">
+                        {recommendation.organicCount.toLocaleString()} ranking keywords ·{" "}
+                        {recommendation.organicEtv.toLocaleString(undefined, {
+                          maximumFractionDigits: 0,
+                        })}{" "}
+                        monthly estimated organic visits · {recommendation.top10Count} top-10
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <TypographyP tone="subtle">
+              No organic visibility was found in the initial markets. You can choose markets
+              manually below.
+            </TypographyP>
+          )}
+          <div className="grid gap-2">
+            <Label htmlFor="verified-domain-markets">Markets</Label>
+            <select
+              id="verified-domain-markets"
+              multiple
+              className="min-h-40 w-full rounded-md border border-input bg-transparent p-2 text-sm"
+              value={selectedMarketIds}
+              onChange={(event) =>
+                setSelectedMarketIds(
+                  [...event.currentTarget.selectedOptions].map((option) => option.value),
+                )
+              }
+            >
+              {DOMAIN_RESEARCH_MARKETS.map((market) => (
+                <option key={market.id} value={market.id}>
+                  {market.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            type="button"
+            onClick={saveMarkets}
+            disabled={pending || marketRecommendationsLoading}
+          >
+            {pending ? "Saving markets…" : "Save markets"}
+          </Button>
+        </section>
         <div className="flex flex-wrap gap-3">
           {linkedDomain.projectId ? (
             <Button

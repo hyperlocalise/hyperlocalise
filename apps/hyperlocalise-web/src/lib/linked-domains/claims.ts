@@ -251,6 +251,51 @@ export async function updateLinkedDomainProject(input: {
   return ok(toPublic(updated, auditScore));
 }
 
+export async function updateLinkedDomainMarkets(input: {
+  organizationId: string;
+  linkedDomainId: string;
+  marketIds: string[];
+  database?: DatabaseClient;
+}): Promise<Result<LinkedDomainPublic, LinkedDomainError>> {
+  const database = input.database ?? db;
+  const [row] = await database
+    .select()
+    .from(schema.linkedDomains)
+    .where(
+      and(
+        eq(schema.linkedDomains.id, input.linkedDomainId),
+        eq(schema.linkedDomains.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!row) {
+    return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
+  if (row.status !== "verified") {
+    return err({
+      code: "linked_domain_not_verified",
+      message: "Only verified domains can update markets.",
+    });
+  }
+
+  const marketIds = [...new Set(input.marketIds)];
+  const supportedMarketIds = new Set(DOMAIN_RESEARCH_MARKETS.map((market) => market.id));
+  if (marketIds.some((marketId) => !supportedMarketIds.has(marketId))) {
+    return err({ code: "invalid_market_selection", message: "Select supported markets." });
+  }
+
+  const [updated] = await database
+    .update(schema.linkedDomains)
+    .set({ marketIds })
+    .where(eq(schema.linkedDomains.id, row.id))
+    .returning();
+  if (!updated) {
+    return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
+  return ok(toPublic(updated));
+}
+
 export async function findVerifiedLinkedDomainByDomainKey(
   domainKey: string,
   database: DatabaseClient = db,

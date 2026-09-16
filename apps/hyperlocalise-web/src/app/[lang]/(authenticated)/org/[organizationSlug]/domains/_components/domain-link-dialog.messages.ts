@@ -147,61 +147,6 @@ export const domainLinkDialogMessages = defineMessages({
     id: "UF5RFmfnwB",
     description: "Toast after linking a domain in the prototype",
   },
-  analyzeWebsite: {
-    defaultMessage: "Analyze website",
-    id: "dIFrzYiccb",
-    description: "Analyze homepage for market suggestions",
-  },
-  analyzingWebsite: {
-    defaultMessage: "Analyzing…",
-    id: "48OOssSgDz",
-    description: "Loading website market analysis",
-  },
-  refreshAnalysis: {
-    defaultMessage: "Refresh analysis",
-    id: "vyLgfxoR0o",
-    description: "Refresh cached website market analysis",
-  },
-  analysisTitle: {
-    defaultMessage: "Website snapshot",
-    id: "9D2YcF7fSG",
-    description: "Inline website analysis result heading",
-  },
-  analysisCached: {
-    defaultMessage: "Recent analysis",
-    id: "Xlgy9ede/k",
-    description: "Cached website analysis indicator",
-  },
-  analysisSummary: {
-    defaultMessage: "{category} · {confidence}% confidence",
-    id: "WwYaNmorcw",
-    description: "Website classification summary",
-  },
-  primarySuggestions: {
-    defaultMessage: "Primary markets",
-    id: "ouuudkrEgM",
-    description: "Primary market suggestions heading",
-  },
-  potentialSuggestions: {
-    defaultMessage: "Potential markets",
-    id: "AoMNExCG66",
-    description: "Potential market suggestions heading",
-  },
-  addSuggestion: {
-    defaultMessage: "Add",
-    id: "ThHxrIi0qv",
-    description: "Add an AI market suggestion",
-  },
-  suggestionAdded: {
-    defaultMessage: "Added",
-    id: "TzJ78gxg1r",
-    description: "Already-added AI market suggestion",
-  },
-  analysisUnavailable: {
-    defaultMessage: "We couldn’t analyze this website. You can choose markets manually.",
-    id: "yHlFa8uDIu",
-    description: "Non-blocking website analysis error",
-  },
   noMarketsContinue: {
     defaultMessage: "Continue without markets",
     id: "7Q6qJvxxKK",

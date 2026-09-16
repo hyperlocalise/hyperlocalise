@@ -42,6 +42,16 @@ export type DomainResearchRankCheck = {
   url: string;
 };
 
+export type DomainMarketVisibility = {
+  marketId: string;
+  locationCode: number;
+  languageCode: string;
+  organicCount: number;
+  organicEtv: number;
+  top10Count: number;
+  hasOrganicVisibility: boolean;
+};
+
 export type DomainResearchProvider = {
   expandKeywordIdeas(input: {
     keyword: string;
@@ -51,6 +61,14 @@ export type DomainResearchProvider = {
     cookie?: string;
     signal?: AbortSignal;
   }): Promise<Result<DomainResearchIdea[], DomainResearchProviderError>>;
+  marketVisibility(input: {
+    targetDomain: string;
+    marketId: string;
+    locationCode: number;
+    languageCode: string;
+    cookie?: string;
+    signal?: AbortSignal;
+  }): Promise<Result<DomainMarketVisibility, DomainResearchProviderError>>;
   liveSerp(input: {
     keyword: string;
     locationCode: number;
@@ -196,6 +214,19 @@ export function createGoSvcDomainResearchProvider(): DomainResearchProvider {
           }))
           .filter((row) => row.keyword.length > 0),
       );
+    },
+    async marketVisibility(input) {
+      const result = await postGoSvc<DomainMarketVisibility>(
+        "/v1/domains/research/market-visibility",
+        {
+          targetDomain: input.targetDomain,
+          marketId: input.marketId,
+          locationCode: input.locationCode,
+          languageCode: input.languageCode,
+        },
+        input,
+      );
+      return result;
     },
     async liveSerp(input) {
       const result = await postGoSvc<{

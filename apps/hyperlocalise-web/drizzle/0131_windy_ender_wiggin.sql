@@ -1,0 +1,1 @@
+DROP TABLE "domain_market_analysis_cache" CASCADE;

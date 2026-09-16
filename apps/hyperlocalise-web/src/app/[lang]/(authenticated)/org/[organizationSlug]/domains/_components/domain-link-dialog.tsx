@@ -35,12 +35,10 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
 import {
   DOMAIN_RESEARCH_MARKETS,
   type DomainResearchDomain,
 } from "@/lib/domains/research-prototype";
-import type { DomainMarketAnalysis } from "@/lib/domains/domain-market-analysis";
 
 import { domainLinkDialogMessages as messages } from "./domain-link-dialog.messages";
 import { domainResearchSharedMessages as sharedMessages } from "./domain-research-shared.messages";
@@ -98,7 +96,6 @@ export function DomainLinkDialog({
   projectsLoading = false,
   onSave,
   onContinue,
-  onAnalyze,
   variant = "prototype",
 }: {
   domain?: DomainResearchDomain;
@@ -112,8 +109,6 @@ export function DomainLinkDialog({
     marketIds: string[],
     projectSelection: DomainLinkProjectSelection,
   ) => void;
-  /** Live new-domain flow: analyze a homepage for market suggestions. */
-  onAnalyze?: (domain: string, refresh?: boolean) => Promise<DomainMarketAnalysis>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   variant?: "prototype" | "live";
@@ -130,9 +125,6 @@ export function DomainLinkDialog({
   const [localeError, setLocaleError] = useState<string | null>(null);
   const [projectError, setProjectError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<DomainMarketAnalysis | null>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisError, setAnalysisError] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -145,9 +137,6 @@ export function DomainLinkDialog({
       setLocaleError(null);
       setProjectError(null);
       setError(null);
-      setAnalysis(null);
-      setAnalysisLoading(false);
-      setAnalysisError(false);
     }
   }, [open, domain]);
 
@@ -178,26 +167,6 @@ export function DomainLinkDialog({
     setLocaleError(null);
   }
 
-  async function handleAnalyze(refresh = false) {
-    const nextHostname = hostname.trim();
-    if (!onAnalyze || !nextHostname) return;
-    setAnalysisLoading(true);
-    setAnalysisError(false);
-    try {
-      setAnalysis(await onAnalyze(nextHostname, refresh));
-    } catch {
-      setAnalysis(null);
-      setAnalysisError(true);
-    } finally {
-      setAnalysisLoading(false);
-    }
-  }
-
-  function addSuggestedMarket(marketId: string) {
-    setLocaleIds((current) => (current.includes(marketId) ? current : [...current, marketId]));
-    setLocaleError(null);
-  }
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextHostname = hostname.trim().toLowerCase();
@@ -218,8 +187,8 @@ export function DomainLinkDialog({
       return;
     }
 
-    if (step === "primary") {
-      if (!primaryLocaleId && !(variant === "live" && !domain)) {
+    if (step === "primary" && variant !== "live") {
+      if (!primaryLocaleId) {
         setLocaleError(intl.formatMessage(messages.localesRequired));
         return;
       }
@@ -301,8 +270,6 @@ export function DomainLinkDialog({
                 onChange={(event) => {
                   setHostname(event.target.value);
                   setError(null);
-                  setAnalysis(null);
-                  setAnalysisError(false);
                 }}
                 placeholder={intl.formatMessage(messages.hostnamePlaceholder)}
                 aria-invalid={Boolean(error)}
@@ -310,117 +277,6 @@ export function DomainLinkDialog({
               />
               <FieldError errors={error ? [{ message: error }] : undefined} />
             </Field>
-
-            {variant === "live" && !domain && onAnalyze ? (
-              <div className="grid gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-fit"
-                  disabled={analysisLoading || !hostname.trim()}
-                  onClick={() => void handleAnalyze()}
-                >
-                  {analysisLoading
-                    ? intl.formatMessage(messages.analyzingWebsite)
-                    : intl.formatMessage(messages.analyzeWebsite)}
-                </Button>
-                {analysisError ? (
-                  <p className="text-sm text-muted-foreground">
-                    <FormattedMessage {...messages.analysisUnavailable} />
-                  </p>
-                ) : null}
-                {analysis ? (
-                  <div className="grid gap-3 rounded-md border border-border bg-muted/30 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium">
-                          <FormattedMessage {...messages.analysisTitle} />
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {intl.formatMessage(messages.analysisSummary, {
-                            category: analysis.classification.category ?? "Website",
-                            confidence: analysis.classification.confidence,
-                          })}
-                        </p>
-                      </div>
-                      {analysis.cached ? (
-                        <Badge variant="secondary">
-                          {intl.formatMessage(messages.analysisCached)}
-                        </Badge>
-                      ) : null}
-                    </div>
-                    {analysis.classification.summary ? (
-                      <p className="text-sm text-muted-foreground">
-                        {analysis.classification.summary}
-                      </p>
-                    ) : null}
-                    {[
-                      {
-                        heading: messages.primarySuggestions,
-                        suggestions: analysis.primaryMarkets,
-                      },
-                      {
-                        heading: messages.potentialSuggestions,
-                        suggestions: analysis.potentialMarkets,
-                      },
-                    ].map(({ heading, suggestions }) => (
-                      <div key={heading.id} className="grid gap-2">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          <FormattedMessage {...heading} />
-                        </p>
-                        {suggestions.length ? (
-                          <div className="grid gap-2">
-                            {suggestions.map((suggestion) => {
-                              const market = DOMAIN_RESEARCH_MARKETS.find(
-                                (item) => item.id === suggestion.marketId,
-                              );
-                              if (!market) return null;
-                              const selected = localeIds.includes(market.id);
-                              return (
-                                <div
-                                  key={market.id}
-                                  className="flex items-center justify-between gap-2"
-                                >
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm">{market.label}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {suggestion.reason}
-                                    </p>
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={selected ? "secondary" : "outline"}
-                                    disabled={selected}
-                                    onClick={() => addSuggestedMarket(market.id)}
-                                  >
-                                    {selected
-                                      ? intl.formatMessage(messages.suggestionAdded)
-                                      : intl.formatMessage(messages.addSuggestion)}
-                                  </Button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">—</p>
-                        )}
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="w-fit px-0"
-                      onClick={() => void handleAnalyze(true)}
-                      disabled={analysisLoading}
-                    >
-                      <FormattedMessage {...messages.refreshAnalysis} />
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
           </div>
 
           {variant === "prototype" || (variant === "live" && !domain) ? (
@@ -505,85 +361,91 @@ export function DomainLinkDialog({
                   ) : null}
                 </FieldSet>
               ) : null}
-              <FieldSet
-                className="grid gap-3"
-                aria-describedby={localeError ? `${marketId}-error` : undefined}
-              >
-                <FieldLegend variant="label">
-                  <FormattedMessage
-                    {...(step === "primary"
-                      ? messages.primaryMarketLabel
-                      : messages.additionalMarketLabel)}
+              {variant === "prototype" ? (
+                <FieldSet
+                  className="grid gap-3"
+                  aria-describedby={localeError ? `${marketId}-error` : undefined}
+                >
+                  <FieldLegend variant="label">
+                    <FormattedMessage
+                      {...(step === "primary"
+                        ? messages.primaryMarketLabel
+                        : messages.additionalMarketLabel)}
+                    />
+                  </FieldLegend>
+                  <p className="text-sm text-muted-foreground">
+                    <FormattedMessage
+                      {...(step === "primary"
+                        ? messages.primaryMarketDescription
+                        : messages.additionalMarketDescription)}
+                    />
+                  </p>
+                  <Input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder={intl.formatMessage(messages.marketSearchPlaceholder)}
+                    aria-label={intl.formatMessage(messages.marketSearchLabel)}
+                    autoComplete="off"
                   />
-                </FieldLegend>
-                <p className="text-sm text-muted-foreground">
-                  <FormattedMessage
-                    {...(step === "primary"
-                      ? messages.primaryMarketDescription
-                      : messages.additionalMarketDescription)}
-                  />
-                </p>
-                <Input
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder={intl.formatMessage(messages.marketSearchPlaceholder)}
-                  aria-label={intl.formatMessage(messages.marketSearchLabel)}
-                  autoComplete="off"
-                />
-                <FieldGroup className="max-h-64 gap-3 overflow-y-auto pe-1">
-                  {step === "primary"
-                    ? marketGroups.map((group) => (
-                        <div key={group.label} className="grid gap-2">
-                          <p className="text-xs font-medium text-muted-foreground">{group.label}</p>
-                          {group.markets.map((locale) => (
-                            <Button
-                              key={locale.id}
-                              type="button"
-                              variant={primaryLocaleId === locale.id ? "default" : "outline"}
-                              className="justify-start"
-                              aria-pressed={primaryLocaleId === locale.id}
-                              onClick={() => selectPrimaryMarket(locale.id)}
-                            >
-                              {locale.label}
-                            </Button>
-                          ))}
-                        </div>
-                      ))
-                    : marketGroups.map((group) => (
-                        <div key={group.label} className="grid gap-2">
-                          <p className="text-xs font-medium text-muted-foreground">{group.label}</p>
-                          {group.markets.map((locale) => (
-                            <Field
-                              key={locale.id}
-                              orientation="horizontal"
-                              data-invalid={Boolean(localeError)}
-                            >
-                              <Checkbox
-                                id={`${marketId}-${locale.id}`}
-                                checked={localeIds.includes(locale.id)}
-                                aria-invalid={Boolean(localeError)}
-                                onCheckedChange={(checked) => {
-                                  setLocaleIds((current) =>
-                                    checked
-                                      ? [...current, locale.id]
-                                      : current.filter((id) => id !== locale.id),
-                                  );
-                                  setLocaleError(null);
-                                }}
-                              />
-                              <FieldLabel htmlFor={`${marketId}-${locale.id}`}>
+                  <FieldGroup className="max-h-64 gap-3 overflow-y-auto pe-1">
+                    {step === "primary"
+                      ? marketGroups.map((group) => (
+                          <div key={group.label} className="grid gap-2">
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {group.label}
+                            </p>
+                            {group.markets.map((locale) => (
+                              <Button
+                                key={locale.id}
+                                type="button"
+                                variant={primaryLocaleId === locale.id ? "default" : "outline"}
+                                className="justify-start"
+                                aria-pressed={primaryLocaleId === locale.id}
+                                onClick={() => selectPrimaryMarket(locale.id)}
+                              >
                                 {locale.label}
-                              </FieldLabel>
-                            </Field>
-                          ))}
-                        </div>
-                      ))}
-                </FieldGroup>
-                <FieldError
-                  id={`${marketId}-error`}
-                  errors={localeError ? [{ message: localeError }] : undefined}
-                />
-              </FieldSet>
+                              </Button>
+                            ))}
+                          </div>
+                        ))
+                      : marketGroups.map((group) => (
+                          <div key={group.label} className="grid gap-2">
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {group.label}
+                            </p>
+                            {group.markets.map((locale) => (
+                              <Field
+                                key={locale.id}
+                                orientation="horizontal"
+                                data-invalid={Boolean(localeError)}
+                              >
+                                <Checkbox
+                                  id={`${marketId}-${locale.id}`}
+                                  checked={localeIds.includes(locale.id)}
+                                  aria-invalid={Boolean(localeError)}
+                                  onCheckedChange={(checked) => {
+                                    setLocaleIds((current) =>
+                                      checked
+                                        ? [...current, locale.id]
+                                        : current.filter((id) => id !== locale.id),
+                                    );
+                                    setLocaleError(null);
+                                  }}
+                                />
+                                <FieldLabel htmlFor={`${marketId}-${locale.id}`}>
+                                  {locale.label}
+                                </FieldLabel>
+                              </Field>
+                            ))}
+                          </div>
+                        ))}
+                  </FieldGroup>
+                  <FieldError
+                    id={`${marketId}-error`}
+                    errors={localeError ? [{ message: localeError }] : undefined}
+                  />
+                </FieldSet>
+              ) : null}
               {localeIds.length > 0 ? (
                 <p className="text-sm text-muted-foreground">
                   <FormattedMessage
@@ -613,11 +475,13 @@ export function DomainLinkDialog({
               <FormattedMessage
                 {...(domain
                   ? messages.save
-                  : step === "primary"
-                    ? messages.chooseAdditionalMarkets
-                    : localeIds.length
-                      ? messages.submit
-                      : messages.noMarketsContinue)}
+                  : variant === "live"
+                    ? messages.submit
+                    : step === "primary"
+                      ? messages.chooseAdditionalMarkets
+                      : localeIds.length
+                        ? messages.submit
+                        : messages.noMarketsContinue)}
               />
             </Button>
           </DialogFooter>

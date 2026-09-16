@@ -16,14 +16,16 @@ import (
 )
 
 type fakeResearch struct {
-	ideas     dataforseo.TaskResponse[[]dataforseo.KeywordDataItem]
-	ideasErr  error
-	serp      dataforseo.TaskResponse[[]dataforseo.SerpItem]
-	serpErr   error
-	rank      dataforseo.TaskResponse[dataforseo.RankCheckResult]
-	rankErr   error
-	rankDelay time.Duration
-	onRank    func()
+	ideas       dataforseo.TaskResponse[[]dataforseo.KeywordDataItem]
+	ideasErr    error
+	overview    dataforseo.TaskResponse[[]dataforseo.DomainRankOverviewItem]
+	overviewErr error
+	serp        dataforseo.TaskResponse[[]dataforseo.SerpItem]
+	serpErr     error
+	rank        dataforseo.TaskResponse[dataforseo.RankCheckResult]
+	rankErr     error
+	rankDelay   time.Duration
+	onRank      func()
 }
 
 func (f fakeResearch) KeywordIdeas(
@@ -31,6 +33,47 @@ func (f fakeResearch) KeywordIdeas(
 	_ dataforseo.KeywordIdeasInput,
 ) (dataforseo.TaskResponse[[]dataforseo.KeywordDataItem], error) {
 	return f.ideas, f.ideasErr
+}
+
+func (f fakeResearch) DomainRankOverview(
+	_ context.Context,
+	_ dataforseo.DomainRankOverviewInput,
+) (dataforseo.TaskResponse[[]dataforseo.DomainRankOverviewItem], error) {
+	return f.overview, f.overviewErr
+}
+
+func TestMarketVisibilityNormalizesOrganicMetrics(t *testing.T) {
+	h := newHandler()
+	h.research = fakeResearch{
+		overview: dataforseo.TaskResponse[[]dataforseo.DomainRankOverviewItem]{
+			Data: []dataforseo.DomainRankOverviewItem{{
+				"metrics": map[string]any{
+					"organic": map[string]any{
+						"count":    float64(42),
+						"etv":      float64(1380.5),
+						"pos_1":    float64(1),
+						"pos_2_3":  float64(2),
+						"pos_4_10": float64(4),
+					},
+				},
+			}},
+			Billing: dataforseo.APICallCost{CostUSD: 0.01},
+		},
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/market-visibility", bytes.NewBufferString(`{
+		"targetDomain":"example.com","marketId":"france-fr","locationCode":2250,"languageCode":"fr"
+	}`))
+	h.marketVisibility(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var body researchMarketVisibilityResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "france-fr", body.MarketID)
+	require.Equal(t, 42, body.OrganicCount)
+	require.Equal(t, 1380.5, body.OrganicETV)
+	require.Equal(t, 7, body.Top10Count)
+	require.True(t, body.HasOrganicVisibility)
 }
 
 func (f fakeResearch) LiveAdvanced(

@@ -12,7 +12,7 @@
  */
 
 // @vitest-environment happy-dom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { getResearchPrototypeDomain } from "@/lib/domains/research-prototype";
@@ -71,54 +71,12 @@ describe("domain locale editing", () => {
       </IntlProvider>,
     );
     fireEvent.change(screen.getByLabelText("Hostname"), { target: { value: "shop.example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: "French (France)" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add markets" }));
     fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
-    expect(onContinue).toHaveBeenCalledWith("shop.example.com", ["france-fr"], {
+    expect(onContinue).toHaveBeenCalledWith("shop.example.com", [], {
       mode: "create",
     });
     expect(screen.queryByText("Select at least one locale.")).not.toBeInTheDocument();
     expect(screen.queryByText(/Preview only/i)).not.toBeInTheDocument();
-  });
-
-  it("analyzes a new live domain and keeps suggestions opt-in", async () => {
-    const onAnalyze = vi.fn().mockResolvedValue({
-      domainKey: "shop.example.com",
-      classification: {
-        category: "E-commerce",
-        audience: "Online shoppers",
-        businessModel: "Retail",
-        summary: "A commerce storefront.",
-        confidence: 88,
-      },
-      primaryMarkets: [
-        { marketId: "france-fr", confidence: 90, reason: "French storefront signals." },
-      ],
-      potentialMarkets: [
-        { marketId: "germany-de", confidence: 64, reason: "Nearby expansion opportunity." },
-      ],
-      analyzedAt: "2026-09-15T00:00:00.000Z",
-      expiresAt: "2026-09-22T00:00:00.000Z",
-      cached: false,
-    });
-    render(
-      <IntlProvider locale="en">
-        <DomainLinkDialog open variant="live" onOpenChange={() => {}} onAnalyze={onAnalyze} />
-      </IntlProvider>,
-    );
-
-    fireEvent.change(screen.getByLabelText("Hostname"), {
-      target: { value: "shop.example.com" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Analyze website" }));
-    await waitFor(() => expect(screen.getByText("Website snapshot")).toBeInTheDocument());
-    expect(screen.getByText("Primary markets")).toBeInTheDocument();
-    expect(screen.getByText("Potential markets")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Add" })).toHaveLength(2);
-    expect(screen.getByRole("button", { name: "French (France)" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
   });
 
   it("allows live onboarding to continue without markets", () => {
@@ -129,8 +87,7 @@ describe("domain locale editing", () => {
       </IntlProvider>,
     );
     fireEvent.change(screen.getByLabelText("Hostname"), { target: { value: "shop.example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add markets" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue without markets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
     expect(onContinue).toHaveBeenCalledWith("shop.example.com", [], { mode: "create" });
   });
 
@@ -152,8 +109,7 @@ describe("domain locale editing", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Use existing project" }));
     fireEvent.change(screen.getByLabelText("Project"), { target: { value: "project_1" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add markets" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue without markets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
     expect(onContinue).toHaveBeenCalledWith("shop.example.com", [], {
       mode: "existing",
       projectId: "project_1",
@@ -171,8 +127,7 @@ describe("domain locale editing", () => {
       target: { value: "shop.example.com" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Leave unassigned" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add markets" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue without markets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
     expect(onContinue).toHaveBeenCalledWith("shop.example.com", [], { mode: "unassigned" });
   });
 

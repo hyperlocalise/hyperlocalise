@@ -25,7 +25,6 @@ import { Badge } from "@/components/ui/badge";
 import { TypographyP } from "@/components/ui/typography";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { cn } from "@/lib/primitives/cn";
-import type { DomainMarketAnalysis } from "@/lib/domains/domain-market-analysis";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { DomainsPageStoreProvider, useDomainsPageStore } from "../store/domains-store-context";
@@ -215,23 +214,6 @@ const DomainsPageView = observer(function DomainsPageView({
               params.set("createProject", projectSelection.mode === "create" ? "true" : "false");
             }
             router.push(`${store.linkDomainPath(domainKey)}?${params.toString()}`);
-          }}
-          onAnalyze={async (domain, refresh) => {
-            const response = await fetch(
-              `/api/orgs/${encodeURIComponent(store.organizationSlug)}/linked-domains/analyze`,
-              {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({ domain, refresh }),
-              },
-            );
-            const body = (await response.json()) as
-              | { domainAnalysis: DomainMarketAnalysis }
-              | { message?: string };
-            if (!response.ok || !("domainAnalysis" in body)) {
-              throw new Error("domain_analysis_unavailable");
-            }
-            return body.domainAnalysis;
           }}
         />
       ) : null}
