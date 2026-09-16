@@ -52,6 +52,7 @@ export type DomainResearchDomain = {
   domainKey: string;
   domainSlug?: string;
   sourceUrl: string;
+  localisationAuditId?: string | null;
   locales: DomainResearchMarket[];
   status: DomainResearchStatus;
   keywordCount: number;
@@ -1117,6 +1118,7 @@ export function linkedDomainToResearchDomain(input: {
   domainKey: string;
   domainSlug?: string;
   sourceUrl: string;
+  localisationAuditId?: string | null;
   status: string;
   auditScore: number | null;
   marketIds?: string[];
@@ -1129,6 +1131,7 @@ export function linkedDomainToResearchDomain(input: {
     domainKey: input.domainKey,
     domainSlug: input.domainSlug,
     sourceUrl: input.sourceUrl,
+    localisationAuditId: input.localisationAuditId,
     locales:
       locales.length > 0
         ? locales

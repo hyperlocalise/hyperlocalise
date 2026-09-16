@@ -180,10 +180,12 @@ const DomainsPageView = observer(function DomainsPageView({
                         size="sm"
                         render={
                           <OrgNavLink
-                            href={
-                              `/org/${store.organizationSlug}/link-domain/${domain.domainSlug}` +
-                              `?domain=${encodeURIComponent(domain.domainKey)}`
-                            }
+                            href={(() => {
+                              const path = `/org/${store.organizationSlug}/link-domain/${domain.domainSlug}`;
+                              return domain.localisationAuditId
+                                ? path
+                                : `${path}?domain=${encodeURIComponent(domain.domainKey)}`;
+                            })()}
                           />
                         }
                       >
