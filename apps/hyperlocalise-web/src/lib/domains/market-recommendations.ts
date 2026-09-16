@@ -34,37 +34,35 @@ export type DomainMarketRecommendations = {
   recommended: DomainMarketVisibility[];
 };
 
-async function fetchHomepage(url: string): Promise<string> {
+async function fetchHomepage(url: string, options: { signal?: AbortSignal } = {}): Promise<string> {
   let currentUrl = url;
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    try {
-      const result = await withPublicHttpFetch(
-        currentUrl,
-        { signal: controller.signal, redirect: "manual", headers: { accept: "text/html" } },
-        async (response) => {
-          if (response.status >= 300 && response.status < 400) {
-            return { kind: "redirect" as const, location: response.headers.get("location") };
-          }
-          if (!response.ok) throw new Error("homepage_status");
-          return {
-            kind: "body" as const,
-            bytes: await readBoundedResponseBody(response, MAX_HTML_BYTES),
-          };
-        },
-        { maxResponseSize: MAX_HTML_BYTES },
-      );
-      if (result.kind === "redirect") {
-        const location = result.location;
-        if (!location || redirectCount === MAX_REDIRECTS) throw new Error("redirect_limit");
-        currentUrl = new URL(location, currentUrl).toString();
-        continue;
-      }
-      return new TextDecoder().decode(result.bytes);
-    } finally {
-      clearTimeout(timeout);
+    const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+    const signal = options.signal
+      ? AbortSignal.any([options.signal, timeoutSignal])
+      : timeoutSignal;
+    const result = await withPublicHttpFetch(
+      currentUrl,
+      { signal, redirect: "manual", headers: { accept: "text/html" } },
+      async (response) => {
+        if (response.status >= 300 && response.status < 400) {
+          return { kind: "redirect" as const, location: response.headers.get("location") };
+        }
+        if (!response.ok) throw new Error("homepage_status");
+        return {
+          kind: "body" as const,
+          bytes: await readBoundedResponseBody(response, MAX_HTML_BYTES),
+        };
+      },
+      { maxResponseSize: MAX_HTML_BYTES },
+    );
+    if (result.kind === "redirect") {
+      const location = result.location;
+      if (!location || redirectCount === MAX_REDIRECTS) throw new Error("redirect_limit");
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
     }
+    return new TextDecoder().decode(result.bytes);
   }
   throw new Error("redirect_limit");
 }
@@ -93,7 +91,9 @@ export async function recommendDomainMarkets(input: {
 
   let signals = null;
   try {
-    signals = parsePageSignals(await fetchHomepage(identity.value.sourceUrl));
+    signals = parsePageSignals(
+      await fetchHomepage(identity.value.sourceUrl, { signal: input.signal }),
+    );
   } catch {
     // Metadata is only a candidate hint. The defaults are still analyzed.
   }
