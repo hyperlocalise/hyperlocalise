@@ -258,7 +258,7 @@ export const DOMAIN_RESEARCH_MARKETS: DomainResearchMarket[] = [
   {
     id: "norway-nb",
     location: "Norway",
-    language: "Norwegian (Bokmål)",
+    language: "nb",
     label: "Norwegian (Norway)",
     locationCode: 2578,
   },
@@ -380,7 +380,7 @@ export const DOMAIN_RESEARCH_MARKETS: DomainResearchMarket[] = [
     location: "China",
     language: "zh",
     label: "Chinese (China)",
-    locationCode: 156,
+    locationCode: 2156,
   },
   {
     id: "taiwan-zh",

@@ -85,6 +85,11 @@ describe("research prototype catalog", () => {
 
   it("maps markets to DataForSEO location codes", () => {
     expect(getResearchMarket("france-fr")?.locationCode).toBe(2250);
+    expect(getResearchMarket("norway-nb")).toMatchObject({
+      language: "nb",
+      locationCode: 2578,
+    });
+    expect(getResearchMarket("china-zh")?.locationCode).toBe(2156);
     expect(isLiveDomainResearchId("11111111-1111-4111-8111-111111111111")).toBe(true);
     expect(isLiveDomainResearchId("hyperlocalise-com")).toBe(false);
   });
