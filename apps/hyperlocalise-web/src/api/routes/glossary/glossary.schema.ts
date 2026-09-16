@@ -182,12 +182,17 @@ export const importGlossaryTermsBodySchema = z.object({
   previewReportId: z.string().uuid().optional(),
 });
 
+const glossaryExportLocalesSchema = z.preprocess((value) => {
+  if (value === undefined) return undefined;
+  return Array.isArray(value) ? value : [value];
+}, z.array(localeInputSchema).max(100).optional());
+
 export const glossaryExportQuerySchema = z.object({
   format: z.enum(["csv", "tbx", "xlsx"]).default("tbx"),
   scope: z.enum(["complete", "filtered"]).default("complete"),
   search: z.string().trim().max(200).optional(),
   locale: localeInputSchema.optional(),
-  locales: z.array(localeInputSchema).max(100).optional(),
+  locales: glossaryExportLocalesSchema,
 });
 
 export const createGlossaryConceptTermBodySchema = z.object({

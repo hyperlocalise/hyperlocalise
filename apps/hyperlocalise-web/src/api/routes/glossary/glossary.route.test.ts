@@ -1059,20 +1059,20 @@ describe("glossaryRoutes", () => {
       {
         param: { organizationSlug, glossaryId },
         json: {
-          primaryTerm: "Boutique",
+          primaryTerm: "unique-search-token",
           translatable: true,
           terms: [
             {
-              locale: "fr",
-              term: "Boutique",
+              locale: "en",
+              term: "unique-search-token",
               status: "preferred",
               caseSensitive: false,
               forbidden: false,
             },
             {
-              locale: "en",
-              term: "unique-search-token",
-              status: "admitted",
+              locale: "fr",
+              term: "Boutique",
+              status: "preferred",
               caseSensitive: false,
               forbidden: false,
             },
@@ -1091,7 +1091,7 @@ describe("glossaryRoutes", () => {
         query: {
           format: "csv",
           scope: "filtered",
-          locales: ["fr"],
+          locale: "fr",
           search: "unique-search-token",
         },
       },

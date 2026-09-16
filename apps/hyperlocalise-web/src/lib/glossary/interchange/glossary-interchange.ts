@@ -14,6 +14,7 @@ import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import type { Glossary } from "@/lib/database/types";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 
 export type InterchangeSeverity = "warning" | "error";
 
@@ -182,8 +183,18 @@ export async function loadGlossaryInterchangeDocument(input: {
     .where(eq(schema.glossaryTerms.glossaryId, input.glossary.id));
 
   const locales = input.locale
-    ? new Set(typeof input.locale === "string" ? [input.locale] : input.locale)
+    ? new Set(
+        (typeof input.locale === "string" ? [input.locale] : input.locale).map(
+          (locale) => canonicalizeLocale(locale) ?? locale,
+        ),
+      )
     : null;
+
+  function termMatchesLocaleFilter(termLocale: string) {
+    if (!locales) return true;
+    const canonical = canonicalizeLocale(termLocale) ?? termLocale;
+    return locales.has(canonical) || locales.has(termLocale);
+  }
   const allTermsByConcept = new Map<string, GlossaryInterchangeTerm[]>();
   for (const term of termRows) {
     if (!term.conceptId || !term.locale || !term.term) continue;
@@ -238,12 +249,13 @@ export async function loadGlossaryInterchangeDocument(input: {
     concepts: conceptRows
       .filter((concept) => {
         const conceptTerms = allTermsByConcept.get(concept.id) ?? [];
-        if (locales && !conceptTerms.some((term) => locales.has(term.locale))) return false;
+        if (locales && !conceptTerms.some((term) => termMatchesLocaleFilter(term.locale)))
+          return false;
         return conceptMatchesSearch(concept);
       })
       .map((concept) => {
-        const exportedTerms = (allTermsByConcept.get(concept.id) ?? []).filter(
-          (term) => !locales || locales.has(term.locale),
+        const exportedTerms = (allTermsByConcept.get(concept.id) ?? []).filter((term) =>
+          termMatchesLocaleFilter(term.locale),
         );
         return {
           id: concept.id,
