@@ -85,11 +85,6 @@ export const domainDetailPageContentMessages = defineMessages({
     id: "gExq27B2VB",
     description: "Error when projects cannot be loaded for domain assignment",
   },
-  continueVerification: {
-    defaultMessage: "Continue verification",
-    id: "Y1DzYaPZ4D",
-    description: "Button to continue verifying this domain",
-  },
   statusLabel: {
     defaultMessage: "Status",
     id: "NW5w/HG5/G",

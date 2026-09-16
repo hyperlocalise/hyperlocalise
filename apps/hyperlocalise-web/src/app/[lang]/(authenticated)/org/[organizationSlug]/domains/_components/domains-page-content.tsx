@@ -15,6 +15,7 @@
 import { Add01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -30,7 +31,7 @@ import { PageHeader, WorkspacePageShell } from "../../_components/workspace-reso
 import { DomainsPageStoreProvider, useDomainsPageStore } from "../store/domains-store-context";
 import { DomainsPageQueryBridge } from "../store/domains-page-query-bridge";
 
-import { DomainLinkDialog, type DomainLinkProjectSelection } from "./domain-link-dialog";
+import { AddDomainDialog } from "./add-domain-dialog";
 import { DomainResearchEmpty } from "./domain-research-empty";
 import { DomainStatusBadge } from "./domain-status-badge";
 import { domainsPageContentMessages as messages } from "./domains-page-content.messages";
@@ -43,29 +44,41 @@ const LIST_GRID_CLASS =
 export function DomainsPageContent({
   organizationSlug,
   allowLinkDomains,
+  initialDomainSlug,
 }: {
   organizationSlug: string;
   allowLinkDomains: boolean;
+  initialDomainSlug?: string;
 }) {
   return (
     <DomainsPageStoreProvider organizationSlug={organizationSlug}>
       <DomainsPageQueryBridge />
-      <DomainsPageView allowLinkDomains={allowLinkDomains} />
+      <DomainsPageView allowLinkDomains={allowLinkDomains} initialDomainSlug={initialDomainSlug} />
     </DomainsPageStoreProvider>
   );
 }
 
 const DomainsPageView = observer(function DomainsPageView({
   allowLinkDomains,
+  initialDomainSlug,
 }: {
   allowLinkDomains: boolean;
+  initialDomainSlug?: string;
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
   const store = useDomainsPageStore();
+  const openedClaimRef = useRef(false);
+
+  useEffect(() => {
+    if (!allowLinkDomains || !initialDomainSlug || openedClaimRef.current) return;
+    openedClaimRef.current = true;
+    store.openAddDomainDialog();
+    router.replace(`/org/${store.organizationSlug}/domains`, { scroll: false });
+  }, [allowLinkDomains, initialDomainSlug, router, store]);
   const projectsQuery = useQuery({
     queryKey: ["translation-projects", store.organizationSlug, "domain-link"],
-    enabled: allowLinkDomains && store.linkDialogOpen,
+    enabled: allowLinkDomains && store.addDomainDialogOpen,
     queryFn: async () => {
       const response = await fetch(
         `/api/orgs/${encodeURIComponent(store.organizationSlug)}/projects`,
@@ -78,10 +91,10 @@ const DomainsPageView = observer(function DomainsPageView({
     },
   });
 
-  const linkDomainAction = allowLinkDomains ? (
-    <Button type="button" size="sm" onClick={() => store.openLinkDialog()}>
+  const addDomainAction = allowLinkDomains ? (
+    <Button type="button" size="sm" onClick={() => store.openAddDomainDialog()}>
       <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-      <FormattedMessage {...messages.linkDomain} />
+      Add a domain
     </Button>
   ) : undefined;
 
@@ -93,7 +106,7 @@ const DomainsPageView = observer(function DomainsPageView({
           label="Workspace"
           title="Domains"
           description={intl.formatMessage(messages.pageDescription)}
-          actions={store.hasDomains ? linkDomainAction : undefined}
+          actions={store.hasDomains ? addDomainAction : undefined}
         />
       </div>
 
@@ -131,7 +144,7 @@ const DomainsPageView = observer(function DomainsPageView({
             <DomainResearchEmpty
               title={<FormattedMessage {...messages.emptyTitle} />}
               description={<FormattedMessage {...messages.emptyDescription} />}
-              action={linkDomainAction}
+              action={addDomainAction}
             />
           </div>
         ) : (
@@ -175,23 +188,6 @@ const DomainsPageView = observer(function DomainsPageView({
                     >
                       <FormattedMessage {...messages.openDomain} />
                     </Button>
-                    {domain.status !== "verified" && domain.domainSlug ? (
-                      <Button
-                        size="sm"
-                        render={
-                          <OrgNavLink
-                            href={(() => {
-                              const path = `/org/${store.organizationSlug}/link-domain/${domain.domainSlug}`;
-                              return domain.localisationAuditId
-                                ? path
-                                : `${path}?domain=${encodeURIComponent(domain.domainKey)}`;
-                            })()}
-                          />
-                        }
-                      >
-                        <FormattedMessage {...messages.continueVerification} />
-                      </Button>
-                    ) : null}
                   </div>
                 </div>
               </li>
@@ -201,25 +197,15 @@ const DomainsPageView = observer(function DomainsPageView({
       </div>
 
       {allowLinkDomains ? (
-        <DomainLinkDialog
-          variant="live"
-          open={store.linkDialogOpen}
-          onOpenChange={(open) => store.setLinkDialogOpen(open)}
+        <AddDomainDialog
+          open={store.addDomainDialogOpen}
+          onOpenChange={(open) => store.setAddDomainDialogOpen(open)}
+          organizationSlug={store.organizationSlug}
+          initialDomainSlug={initialDomainSlug}
           existingDomains={store.domains}
           projects={projectsQuery.data ?? []}
           projectsLoading={projectsQuery.isPending}
-          onContinue={(domainKey, marketIds, projectSelection: DomainLinkProjectSelection) => {
-            const params = new URLSearchParams({
-              domain: domainKey,
-              markets: marketIds.join(","),
-            });
-            if (projectSelection.mode === "existing") {
-              params.set("projectId", projectSelection.projectId);
-            } else {
-              params.set("createProject", projectSelection.mode === "create" ? "true" : "false");
-            }
-            router.push(`${store.linkDomainPath(domainKey)}?${params.toString()}`);
-          }}
+          onComplete={() => router.push(`/org/${store.organizationSlug}/domains`)}
         />
       ) : null}
     </WorkspacePageShell>

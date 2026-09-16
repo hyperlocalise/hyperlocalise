@@ -172,22 +172,6 @@ export function DomainDetailPageContent({
             description={linkedDomain.sourceUrl}
             actions={
               <div className="flex flex-wrap gap-2">
-                {linkedDomain.status !== "verified" ? (
-                  <Button
-                    size="sm"
-                    nativeButton={false}
-                    render={
-                      <OrgNavLink
-                        href={
-                          `/org/${organizationSlug}/link-domain/${linkedDomain.domainSlug}` +
-                          `?domain=${encodeURIComponent(linkedDomain.domainKey)}`
-                        }
-                      />
-                    }
-                  >
-                    <FormattedMessage {...messages.continueVerification} />
-                  </Button>
-                ) : null}
                 {linkedDomain.projectId ? (
                   <Button
                     size="sm"
