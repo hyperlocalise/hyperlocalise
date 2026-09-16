@@ -580,6 +580,8 @@ export async function verifyAndClaimLinkedDomain(input: {
   projectId?: string;
   /** When true (or when omitted with no projectId), create a new native project. */
   createProject?: boolean;
+  /** Markets to persist with the verified domain. Omit to preserve existing selections. */
+  marketIds?: string[];
   resolveTxt?: ResolveTxtFn;
   fetchPublic?: PublicFetchFn;
   database?: DatabaseClient;
@@ -587,6 +589,7 @@ export async function verifyAndClaimLinkedDomain(input: {
   const database = input.database ?? db;
   const shouldCreateProject =
     input.createProject === true || (!input.projectId && input.createProject === undefined);
+  const supportedMarketIds = new Set(DOMAIN_RESEARCH_MARKETS.map((market) => market.id));
 
   const [row] = await database
     .select()
@@ -601,6 +604,11 @@ export async function verifyAndClaimLinkedDomain(input: {
 
   if (!row) {
     return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
+
+  const marketIds = input.marketIds ? [...new Set(input.marketIds)] : row.marketIds;
+  if (marketIds.some((marketId) => !supportedMarketIds.has(marketId))) {
+    return err({ code: "invalid_market_selection", message: "Select supported markets." });
   }
 
   if (row.status === "verified") {
@@ -724,6 +732,7 @@ export async function verifyAndClaimLinkedDomain(input: {
           verifiedAt: new Date(),
           preferredMethod: input.method,
           projectId,
+          marketIds,
         })
         .where(eq(schema.linkedDomains.id, row.id))
         .returning();

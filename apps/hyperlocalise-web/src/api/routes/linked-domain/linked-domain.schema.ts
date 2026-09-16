@@ -44,6 +44,7 @@ export const verifyLinkedDomainBodySchema = z
     /** Attach to an existing workspace project. Set createProject false to leave it unassigned. */
     projectId: z.string().trim().min(1).max(128).optional(),
     createProject: z.boolean().optional(),
+    marketIds: z.array(z.string().trim().min(1).max(64)).max(16).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.projectId && value.createProject === true) {

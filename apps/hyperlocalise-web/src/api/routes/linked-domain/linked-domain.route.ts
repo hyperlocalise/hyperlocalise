@@ -185,7 +185,7 @@ export function createLinkedDomainRoutes() {
           linkedDomainId,
         });
         if (!linkedDomain) return notFoundResponse(c, "linked_domain_not_found");
-        if (linkedDomain.status !== "verified") {
+        if (linkedDomain.status !== "verified" && linkedDomain.status !== "pending_verification") {
           return badRequestResponse(c, "linked_domain_not_verified", "Verify the domain first.");
         }
 
@@ -292,6 +292,7 @@ export function createLinkedDomainRoutes() {
         method: body.method,
         projectId: body.projectId,
         createProject: body.createProject ?? (!body.projectId ? true : undefined),
+        marketIds: body.marketIds,
       });
 
       if (isErr(result)) {

@@ -469,7 +469,11 @@ describe("linkedDomainRoutes", () => {
     ].verify.$post(
       {
         param: { organizationSlug, linkedDomainId: created.linkedDomain.id },
-        json: { method: "meta_tag", projectId: existingProjectId },
+        json: {
+          method: "meta_tag",
+          projectId: existingProjectId,
+          marketIds: ["france-fr", "japan-ja"],
+        },
       },
       { headers },
     );
@@ -479,6 +483,7 @@ describe("linkedDomainRoutes", () => {
       throw new Error("expected linkedDomain in verify response");
     }
     expect(verified.linkedDomain.projectId).toBe(existingProjectId);
+    expect(verified.linkedDomain.marketIds).toEqual(["france-fr", "japan-ja"]);
 
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
   });

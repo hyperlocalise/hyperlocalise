@@ -115,7 +115,6 @@ export function AddDomainDialog({
   );
   const [projectMode, setProjectMode] = useState<"create" | "existing" | "unassigned">("create");
   const [projectId, setProjectId] = useState("");
-  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   const [method, setMethod] = useState<LinkedDomainVerificationMethod>("dns_txt");
   const [recommendations, setRecommendations] =
     useState<MarketRecommendation[]>(initialRecommendations);
@@ -133,7 +132,6 @@ export function AddDomainDialog({
     setMethod("dns_txt");
     setProjectMode("create");
     setProjectId("");
-    setCreatedProjectId(null);
     setRecommendations(initialRecommendations);
     setSelectedMarketIds(initialSelectedMarketIds);
     setPending(false);
@@ -223,47 +221,30 @@ export function AddDomainDialog({
     window.setTimeout(() => setCopied(false), 1600);
   }
 
-  async function verify() {
+  async function loadRecommendations() {
     if (!linkedDomain) return;
     setPending(true);
     setError(null);
     try {
       const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/verify`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ method, createProject: false }),
-        },
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-      };
-      if (!response.ok || !body.linkedDomain)
-        throw new Error(body.message || intl.formatMessage(messages.verifyError));
-      setLinkedDomain(body.linkedDomain);
-      setStep("markets");
-      const recommendationResponse = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${body.linkedDomain.id}/market-recommendations`,
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/market-recommendations`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: "{}",
         },
       );
-      const recommendationBody = (await recommendationResponse.json().catch(() => ({}))) as {
+      const body = (await response.json().catch(() => ({}))) as {
         marketRecommendations?: {
           candidates?: MarketRecommendation[];
           recommended?: MarketRecommendation[];
         };
         message?: string;
       };
-      if (!recommendationResponse.ok || !recommendationBody.marketRecommendations)
-        throw new Error(
-          recommendationBody.message || intl.formatMessage(messages.recommendationsError),
-        );
-      const candidates = recommendationBody.marketRecommendations.candidates ?? [];
+      if (!response.ok || !body.marketRecommendations)
+        throw new Error(body.message || intl.formatMessage(messages.recommendationsError));
+      setStep("markets");
+      const candidates = body.marketRecommendations.candidates ?? [];
       const candidatesById = new Map(candidates.map((market) => [market.marketId, market]));
       const supportedMarkets = DOMAIN_RESEARCH_MARKETS.map(
         (market): MarketRecommendation =>
@@ -277,12 +258,14 @@ export function AddDomainDialog({
       );
       setRecommendations(supportedMarkets);
       setSelectedMarketIds(
-        (recommendationBody.marketRecommendations.recommended ?? []).map(
-          (market) => market.marketId,
-        ),
+        (body.marketRecommendations.recommended ?? []).map((market) => market.marketId),
       );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : intl.formatMessage(messages.verifyError));
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : intl.formatMessage(messages.recommendationsError),
+      );
     } finally {
       setPending(false);
     }
@@ -293,61 +276,27 @@ export function AddDomainDialog({
     setPending(true);
     setError(null);
     try {
-      let selectedProjectId: string | null = null;
+      let selectedProjectId: string | undefined;
+      let createProject: boolean | undefined;
       if (projectMode === "existing") {
         if (!projectId) throw new Error(intl.formatMessage(messages.selectProjectError));
         selectedProjectId = projectId;
       } else if (projectMode === "create") {
-        if (createdProjectId) {
-          selectedProjectId = createdProjectId;
-        } else {
-          const projectResponse = await fetch(
-            `/api/orgs/${encodeURIComponent(organizationSlug)}/projects`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: linkedDomain.domainKey,
-                sourceLocale: "en-US",
-                targetLocales: [],
-              }),
-            },
-          );
-          const projectBody = (await projectResponse.json().catch(() => ({}))) as {
-            project?: { id: string };
-            message?: string;
-          };
-          if (!projectResponse.ok || !projectBody.project) {
-            throw new Error(projectBody.message || intl.formatMessage(messages.createProjectError));
-          }
-          selectedProjectId = projectBody.project.id;
-          setCreatedProjectId(projectBody.project.id);
-        }
+        createProject = true;
+      } else {
+        createProject = false;
       }
 
-      const projectResponse = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/project`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId: selectedProjectId }),
-        },
-      );
-      const projectBody = (await projectResponse.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-      };
-      if (!projectResponse.ok) {
-        throw new Error(projectBody.message || intl.formatMessage(messages.attachProjectError));
-      }
-
-      let completedDomain = projectBody.linkedDomain;
       const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/markets`,
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/verify`,
         {
-          method: "PATCH",
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ marketIds: selectedMarketIds }),
+          body: JSON.stringify({
+            method,
+            ...(selectedProjectId ? { projectId: selectedProjectId } : { createProject }),
+            marketIds: selectedMarketIds,
+          }),
         },
       );
       const body = (await response.json().catch(() => ({}))) as {
@@ -355,10 +304,8 @@ export function AddDomainDialog({
         message?: string;
       };
       if (!response.ok || !body.linkedDomain)
-        throw new Error(body.message || intl.formatMessage(messages.saveMarketsError));
-      completedDomain = body.linkedDomain;
-      if (!completedDomain) throw new Error(intl.formatMessage(messages.finishError));
-      onComplete?.(completedDomain);
+        throw new Error(body.message || intl.formatMessage(messages.verifyError));
+      onComplete?.(body.linkedDomain);
       onOpenChange(false);
     } catch (reason) {
       setError(
@@ -604,10 +551,10 @@ export function AddDomainDialog({
                 <Button type="button" variant="outline" onClick={() => setStep("details")}>
                   {intl.formatMessage(messages.back)}
                 </Button>
-                <Button type="button" disabled={pending} onClick={() => void verify()}>
+                <Button type="button" disabled={pending} onClick={() => void loadRecommendations()}>
                   {pending
-                    ? intl.formatMessage(messages.verifying)
-                    : intl.formatMessage(messages.verify)}
+                    ? intl.formatMessage(messages.findingMarkets)
+                    : intl.formatMessage(messages.continue)}
                 </Button>
               </DialogFooter>
             </>
