@@ -121,6 +121,115 @@ describe("project QA reports", () => {
     expect(detail.findings[0]?.editorHref).toContain("/files/content-editor");
   });
 
+  it("promotes findings to deduped qa_failure issues and lists them org-wide", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    const [hello] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "promote-me",
+        sourceText: "Hello",
+        normalizedSourceText: "hello",
+      })
+      .returning();
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: hello!.id,
+      targetLocale: "de-DE",
+      text: "",
+      status: "draft",
+    });
+
+    const createResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { report: { id: string } };
+
+    const detailResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ][":runId"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+          runId: created.report.id,
+        },
+        query: {},
+      },
+      { headers },
+    );
+    const detail = (await detailResponse.json()) as {
+      findings: Array<{ id: string; checkType: string }>;
+    };
+    const findingId = detail.findings[0]?.id;
+    expect(findingId).toBeTruthy();
+
+    const promoteResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ].findings.promote.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+        },
+        json: { findingIds: [findingId!] },
+      },
+      { headers },
+    );
+    expect(promoteResponse.status).toBe(200);
+    const promoted = (await promoteResponse.json()) as {
+      results: Array<{ created: boolean; identifier: string }>;
+    };
+    expect(promoted.results).toHaveLength(1);
+    expect(promoted.results[0]?.created).toBe(true);
+
+    const promoteAgain = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "qa-reports"
+    ].findings.promote.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug!,
+          projectId: project.id,
+        },
+        json: { findingIds: [findingId!] },
+      },
+      { headers },
+    );
+    const againBody = (await promoteAgain.json()) as {
+      results: Array<{ created: boolean; identifier: string }>;
+    };
+    expect(againBody.results[0]?.created).toBe(false);
+    expect(againBody.results[0]?.identifier).toBe(promoted.results[0]?.identifier);
+
+    const orgFindings = await client.api.orgs[":organizationSlug"]["qa-reports"].findings.$get(
+      {
+        param: { organizationSlug: identity.organization.slug! },
+        query: { projectId: project.id },
+      },
+      { headers },
+    );
+    expect(orgFindings.status).toBe(200);
+    const orgBody = (await orgFindings.json()) as {
+      findings: Array<{ id: string; projectName: string }>;
+    };
+    expect(orgBody.findings.some((row) => row.id === findingId)).toBe(true);
+    expect(orgBody.findings[0]?.projectName).toBeTruthy();
+  });
+
   it("rejects provider projects", async () => {
     const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);

@@ -20,6 +20,7 @@ import {
   type IssueListView,
   type IssuePriority,
 } from "@/lib/projects/issue-sheet/issue-list-constants";
+import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
 
 export const ISSUE_STATUS_FILTERS = ["open", "in_progress", "resolved", "wont_fix"] as const;
 
@@ -44,6 +45,7 @@ export type IssueListUrlState = {
   issueType?: IssueTypeFilter;
   priority?: IssuePriority;
   locale?: string;
+  qaCheckType?: TranslationQaCheckType;
   assignee?: IssueAssigneeFilter;
   projectId?: string;
   search: string;
@@ -84,6 +86,7 @@ export function parseIssueListSearchParams(
   const priority = readAllowedValue(searchParams, "priority", ISSUE_PRIORITIES);
   const assignee = readAllowedValue(searchParams, "assignee", ISSUE_ASSIGNEE_FILTERS);
   const locale = searchParams.get("locale")?.trim() || undefined;
+  const qaCheckType = readAllowedValue(searchParams, "qaCheckType", translationQaCheckTypes);
   const search = searchParams.get("search")?.trim() ?? "";
   const projectId = options?.includeProject
     ? searchParams.get("projectId")?.trim() || undefined
@@ -95,6 +98,7 @@ export function parseIssueListSearchParams(
     issueType,
     priority,
     locale,
+    qaCheckType,
     assignee,
     projectId,
     search,
@@ -122,6 +126,9 @@ export function buildIssueListSearchParams(
   }
   if (state.locale) {
     params.set("locale", state.locale);
+  }
+  if (state.qaCheckType) {
+    params.set("qaCheckType", state.qaCheckType);
   }
   if (state.assignee) {
     params.set("assignee", state.assignee);
@@ -228,6 +235,9 @@ export function issueListStateToApiQuery(
   }
   if (state.locale) {
     query.locale = state.locale;
+  }
+  if (state.qaCheckType) {
+    query.qaCheckType = state.qaCheckType;
   }
   if (state.assignee) {
     query.assignee = state.assignee;

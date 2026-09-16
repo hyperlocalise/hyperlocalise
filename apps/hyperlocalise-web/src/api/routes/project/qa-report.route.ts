@@ -13,7 +13,11 @@
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
-import { isJobCreateAllowed, isProjectWriteAllowed } from "@/api/auth/capability-guards";
+import {
+  isJobCreateAllowed,
+  isProjectWriteAllowed,
+  isWriteBackTranslationAllowed,
+} from "@/api/auth/capability-guards";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { validationErrorResponse } from "@/api/errors";
 import { badRequestResponse, conflictResponse } from "@/api/response.schema";
@@ -22,7 +26,7 @@ import {
   projectForbiddenResponse,
   projectNotFoundResponse,
 } from "@/api/routes/project/project.shared";
-import { buildTranslationQaFindingHref } from "@/lib/qa/finding-href";
+import { promoteQaFindingsToIssues } from "@/lib/qa/promote-qa-findings-to-issues";
 import {
   getTranslationQaRun,
   listLatestSucceededQaFindingsForCat,
@@ -31,11 +35,13 @@ import {
   updateProjectQaScanCadence,
 } from "@/lib/qa/qa-report-store";
 import { startTranslationQaScan } from "@/lib/qa/run-project-qa-scan";
+import { serializeTranslationQaFinding } from "@/lib/qa/serialize-qa-finding";
 import type { TranslationQaScanCadence } from "@/lib/qa/types";
 import type { TranslationQaScanQueue } from "@/lib/workflow/types";
 import { createTranslationQaScanQueue } from "@/workflows/adapters";
 
 import {
+  promoteQaFindingsBodySchema,
   qaReportFindingsQuerySchema,
   qaReportLatestFindingsQuerySchema,
   qaReportProjectParamsSchema,
@@ -89,6 +95,19 @@ const validateFindingsQuery = validator("query", (value, c) => {
       c,
       "invalid_qa_report_query",
       "Invalid QA report query",
+      parsed.error.issues,
+    );
+  }
+  return parsed.data;
+});
+
+const validatePromoteFindingsBody = validator("json", (value, c) => {
+  const parsed = promoteQaFindingsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return validationErrorResponse(
+      c,
+      "invalid_qa_findings_promote",
+      "Invalid QA findings promote payload",
       parsed.error.issues,
     );
   }
@@ -282,6 +301,60 @@ export function createProjectQaReportRoutes(
         200,
       );
     })
+    .route(
+      "/findings",
+      new Hono<{ Variables: AuthVariables }>().post(
+        "/promote",
+        validateProjectParams,
+        validatePromoteFindingsBody,
+        async (c) => {
+          if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+            return projectForbiddenResponse(c);
+          }
+
+          const { projectId } = c.req.valid("param");
+          const body = c.req.valid("json");
+          const resolved = await requireNativeProject(c.var.auth, projectId);
+          if (resolved.kind === "missing") {
+            return projectNotFoundResponse(c);
+          }
+          if (resolved.kind === "unsupported") {
+            return badRequestResponse(
+              c,
+              "qa_scan_not_supported",
+              "QA reports are available for native projects",
+            );
+          }
+
+          try {
+            const promoted = await promoteQaFindingsToIssues({
+              organizationId: resolved.project.organizationId,
+              organizationSlug: c.var.auth.organization.slug ?? "",
+              actorUserId: c.var.auth.user.localUserId,
+              findingIds: body.findingIds,
+              projectId: resolved.project.id,
+            });
+            return c.json(promoted, 200);
+          } catch (error) {
+            if (error instanceof Error && error.message === "qa_finding_not_found") {
+              return badRequestResponse(
+                c,
+                "qa_finding_not_found",
+                "One or more findings were not found",
+              );
+            }
+            if (error instanceof Error && error.message === "qa_finding_stale") {
+              return badRequestResponse(
+                c,
+                "qa_finding_stale",
+                "Findings must be from each project's latest successful scan",
+              );
+            }
+            throw error;
+          }
+        },
+      ),
+    )
     .get("/latest-findings", validateProjectParams, validateLatestFindingsQuery, async (c) => {
       const { projectId } = c.req.valid("param");
       const query = c.req.valid("query");
@@ -364,28 +437,14 @@ export function createProjectQaReportRoutes(
       return c.json(
         {
           report: serializeRun(report),
-          findings: findings.map((finding) => ({
-            id: finding.id,
-            runId: finding.runId,
-            key: finding.key,
-            sourcePath: finding.sourcePath,
-            targetLocale: finding.targetLocale,
-            checkType: finding.checkType,
-            severity: finding.severity,
-            category: finding.category,
-            message: finding.message,
-            relatedTokens: finding.relatedTokens,
-            sourceText: finding.sourceText,
-            targetText: finding.targetText,
-            editorHref: buildTranslationQaFindingHref({
+          findings: findings.map((finding) =>
+            serializeTranslationQaFinding({
               organizationSlug:
                 c.req.param("organizationSlug") ?? c.var.auth.organization.slug ?? "",
               projectId: resolved.project.id,
-              sourcePath: finding.sourcePath,
-              targetLocale: finding.targetLocale,
-              key: finding.key,
+              finding,
             }),
-          })),
+          ),
           total,
           limit,
           offset,

@@ -22,9 +22,45 @@ export const qaWorkspaceMessages = defineMessages({
   },
   description: {
     defaultMessage:
-      "Latest native project scans. Run a check from a project to populate this list.",
-    id: "m5SCEn+8Ys",
+      "Portfolio health from the latest scans, plus a cross-project queue to fix findings.",
+    id: "qWfE0C4hqC",
     description: "Workspace QA page description",
+  },
+  portfolioTitle: {
+    defaultMessage: "Portfolio",
+    id: "zJnpLjNSBd",
+    description: "Workspace QA portfolio section title",
+  },
+  findingsQueueTitle: {
+    defaultMessage: "Latest findings",
+    id: "Vd9EBpnVTy",
+    description: "Workspace QA org-wide findings section title",
+  },
+  findingsQueueDescription: {
+    defaultMessage:
+      "From each project's latest successful scan. Create issues to triage in the Issues board.",
+    id: "ekMwmzyaxe",
+    description: "Workspace QA org-wide findings section description",
+  },
+  allProjects: {
+    defaultMessage: "All projects",
+    id: "lR7pNsCeCh",
+    description: "Workspace QA project filter option",
+  },
+  allLocales: {
+    defaultMessage: "All locales",
+    id: "QBKNeR9yId",
+    description: "Workspace QA locale filter option",
+  },
+  allChecks: {
+    defaultMessage: "All checks",
+    id: "jogbp5WUAz",
+    description: "Workspace QA check type filter option",
+  },
+  noFindings: {
+    defaultMessage: "No findings match these filters.",
+    id: "fCRbJ9qc0i",
+    description: "Workspace QA empty findings queue",
   },
   empty: {
     defaultMessage: "No native projects yet.",

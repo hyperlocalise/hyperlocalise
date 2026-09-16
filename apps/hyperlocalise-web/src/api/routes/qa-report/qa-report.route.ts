@@ -11,9 +11,118 @@
  * Version 2.0 or later.
  */
 import { Hono } from "hono";
+import { validator } from "hono/validator";
 
+import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { listLatestTranslationQaRunsForOrganization } from "@/lib/qa/qa-report-store";
+import { validationErrorResponse } from "@/api/errors";
+import { badRequestResponse, forbiddenResponse } from "@/api/response.schema";
+import {
+  promoteQaFindingsBodySchema,
+  workspaceQaFindingsQuerySchema,
+} from "@/api/routes/project/qa-report.schema";
+import { promoteQaFindingsToIssues } from "@/lib/qa/promote-qa-findings-to-issues";
+import {
+  listLatestTranslationQaRunsForOrganization,
+  listOrganizationLatestSucceededFindings,
+} from "@/lib/qa/qa-report-store";
+import { serializeTranslationQaFinding } from "@/lib/qa/serialize-qa-finding";
+
+const validateWorkspaceFindingsQuery = validator("query", (value, c) => {
+  const parsed = workspaceQaFindingsQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return validationErrorResponse(
+      c,
+      "invalid_qa_report_query",
+      "Invalid QA findings query",
+      parsed.error.issues,
+    );
+  }
+  return parsed.data;
+});
+
+const validatePromoteFindingsBody = validator("json", (value, c) => {
+  const parsed = promoteQaFindingsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return validationErrorResponse(
+      c,
+      "invalid_qa_findings_promote",
+      "Invalid QA findings promote payload",
+      parsed.error.issues,
+    );
+  }
+  return parsed.data;
+});
+
+function createWorkspaceQaFindingsRoutes() {
+  return new Hono<{ Variables: AuthVariables }>()
+    .get("/", validateWorkspaceFindingsQuery, async (c) => {
+      const query = c.req.valid("query");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const organizationSlug = c.var.auth.organization.slug ?? "";
+
+      const { findings, total, limit, offset } = await listOrganizationLatestSucceededFindings({
+        organizationId,
+        projectId: query.projectId,
+        locale: query.locale,
+        checkType: query.checkType,
+        severity: query.severity,
+        limit: query.limit,
+        offset: query.offset,
+      });
+
+      return c.json(
+        {
+          findings: findings.map((finding) => ({
+            ...serializeTranslationQaFinding({
+              organizationSlug,
+              projectId: finding.projectId,
+              finding,
+            }),
+            projectName: finding.projectName,
+          })),
+          total,
+          limit,
+          offset,
+        },
+        200,
+      );
+    })
+    .post("/promote", validatePromoteFindingsBody, async (c) => {
+      if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden", "You do not have permission to create issues");
+      }
+
+      const body = c.req.valid("json");
+      const auth = c.var.auth;
+
+      try {
+        const promoted = await promoteQaFindingsToIssues({
+          organizationId: auth.organization.localOrganizationId,
+          organizationSlug: auth.organization.slug ?? "",
+          actorUserId: auth.user.localUserId,
+          findingIds: body.findingIds,
+        });
+        return c.json(promoted, 200);
+      } catch (error) {
+        if (error instanceof Error && error.message === "qa_finding_not_found") {
+          return badRequestResponse(
+            c,
+            "qa_finding_not_found",
+            "One or more findings were not found",
+          );
+        }
+        if (error instanceof Error && error.message === "qa_finding_stale") {
+          return badRequestResponse(
+            c,
+            "qa_finding_stale",
+            "Findings must be from each project's latest successful scan",
+          );
+        }
+        throw error;
+      }
+    });
+}
 
 export function createWorkspaceQaReportRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
@@ -52,5 +161,6 @@ export function createWorkspaceQaReportRoutes() {
         },
         200,
       );
-    });
+    })
+    .route("/findings", createWorkspaceQaFindingsRoutes());
 }

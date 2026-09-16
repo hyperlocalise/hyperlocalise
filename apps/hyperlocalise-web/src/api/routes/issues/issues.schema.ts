@@ -20,6 +20,7 @@ import {
   issueSheetSortSchema,
 } from "@/api/routes/project/issue-sheet.schema";
 import { issueIdSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
+import { translationQaCheckTypes } from "@/lib/qa/types";
 
 export const organizationIssueSheetIssueParamsSchema = z.object({
   issueId: issueIdSchema,
@@ -39,6 +40,7 @@ export const organizationIssuesQuerySchema = z.object({
   locale: z.string().trim().min(1).max(32).optional(),
   assignee: z.string().uuid().or(z.literal("me")).or(z.literal("unassigned")).optional(),
   projectId: z.string().trim().min(1).max(128).optional(),
+  qaCheckType: z.enum(translationQaCheckTypes).optional(),
   search: z.string().trim().max(200).optional(),
   sort: issueSheetSortSchema.default("status"),
   sortDir: issueSheetSortDirSchema.optional(),

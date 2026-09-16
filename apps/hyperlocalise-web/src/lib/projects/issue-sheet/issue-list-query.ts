@@ -15,6 +15,9 @@ import { alias } from "drizzle-orm/pg-core";
 
 import * as schema from "@/lib/database/schema";
 
+import { QA_FINDING_ISSUE_METADATA_KEY } from "@/lib/qa/qa-finding-issue-bridge";
+import type { TranslationQaCheckType } from "@/lib/qa/types";
+
 import {
   type IssueListSortDirection,
   type IssueListSortField,
@@ -51,6 +54,7 @@ export type IssueListFilterQuery = {
   assignee?: string;
   projectId?: string;
   translationKeyId?: string;
+  qaCheckType?: TranslationQaCheckType;
   search?: string;
   sort?: IssueListSortField;
   sortDir?: IssueListSortDirection;
@@ -154,6 +158,11 @@ export function buildIssueListFilterConditions(input: {
   }
   if (query.translationKeyId) {
     conditions.push(eq(schema.issueSheetIssues.translationKeyId, query.translationKeyId));
+  }
+  if (query.qaCheckType) {
+    conditions.push(
+      sql`${schema.issueSheetIssues.metadata} #>> ${`{${QA_FINDING_ISSUE_METADATA_KEY},checkType}`} = ${query.qaCheckType}`,
+    );
   }
   if (query.search) {
     const search = `%${query.search}%`;
