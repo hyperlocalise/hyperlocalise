@@ -89,7 +89,6 @@ function createOrgSlugClient(origin: string) {
       "gitlab",
     ]),
     ...pickClientPaths(workspace, [
-      "teams",
       "members",
       "workspace",
       "billing",

@@ -33,7 +33,7 @@ import {
 
 const membersQueryKey = (organizationSlug: string) => ["workspace-members", organizationSlug];
 const teamsQueryKey = (organizationSlug: string) => ["workspace-teams", organizationSlug];
-const teamsApi = createTeamsApi(apiClient);
+const teamsApi = createTeamsApi();
 
 function resolveDefaultTeamId(teams: { id: string; slug: string }[]) {
   return teams.find((team) => team.slug === DEFAULT_WORKSPACE_TEAM_SLUG)?.id ?? teams[0]?.id ?? "";

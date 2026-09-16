@@ -67,7 +67,6 @@ import { createTmsProviderRoutes } from "./routes/tms-provider/tms-provider.rout
 import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
 import { createMemberRoutes } from "./routes/member/member.route";
-import { createTeamRoutes } from "./routes/team/team.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createHyperlabRoutes } from "./routes/hyperlab/hyperlab.route";
@@ -191,7 +190,6 @@ export function createOrgAgentsRoutes() {
 
 export function createOrgWorkspaceRoutes() {
   return new Hono()
-    .route("/teams", createTeamRoutes())
     .route("/members", createMemberRoutes())
     .route("/workspace", createWorkspaceRoutes())
     .route("/billing", createBillingRoutes())

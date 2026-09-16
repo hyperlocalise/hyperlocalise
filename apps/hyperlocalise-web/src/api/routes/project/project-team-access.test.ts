@@ -26,9 +26,9 @@ import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { createProjectTestFixture } from "./project.fixture";
-import { createTeamTestFixture } from "../team/team.fixture";
+import { createTeamTestFixture } from "@/lib/teams/team.fixture";
 import type { ProjectsResponse, ProjectResponse } from "./project.schema";
-import type { TeamResponse } from "../team/team.schema";
+import type { TeamResponse } from "@/lib/teams/team.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -53,7 +53,7 @@ vi.mock("workflow/api", () => ({
 
 const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
-const teamFixture = createTeamTestFixture(client);
+const teamFixture = createTeamTestFixture();
 const {
   authHeadersFor,
   createWorkosIdentityWithRole,

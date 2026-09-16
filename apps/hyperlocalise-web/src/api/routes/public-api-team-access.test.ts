@@ -44,14 +44,14 @@ import {
 } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import type { ProjectResponse } from "@/api/routes/project/project.schema";
-import { createTeamTestFixture } from "@/api/routes/team/team.fixture";
-import type { TeamResponse } from "@/api/routes/team/team.schema";
+import { createTeamTestFixture } from "@/lib/teams/team.fixture";
+import type { TeamResponse } from "@/lib/teams/team.schema";
 import { db, schema } from "@/lib/database/client";
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const client = testClient<AppType>(createApp({ fileStorageAdapter }));
 const projectFixture = createProjectTestFixture(client);
-const teamFixture = createTeamTestFixture(client);
+const teamFixture = createTeamTestFixture();
 const {
   authHeadersFor,
   createWorkosIdentityWithRole,

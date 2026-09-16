@@ -31,8 +31,8 @@ import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
 import { DEFAULT_WORKSPACE_TEAM_NAME } from "@/lib/teams/default-workspace-team";
 
 import { createProjectTestFixture } from "./project.fixture";
-import { createTeamTestFixture } from "../team/team.fixture";
-import type { TeamResponse } from "../team/team.schema";
+import { createTeamTestFixture } from "@/lib/teams/team.fixture";
+import type { TeamResponse } from "@/lib/teams/team.schema";
 import { ok } from "@/lib/primitives/result/results";
 import type {
   ProjectFileContentEditorConcordanceResponse,
@@ -165,7 +165,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
-const teamFixture = createTeamTestFixture(client);
+const teamFixture = createTeamTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");

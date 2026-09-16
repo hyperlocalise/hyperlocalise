@@ -17,7 +17,7 @@ import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import type { TeamRole } from "@/api/routes/team/team.schema";
+import type { TeamRole } from "@/lib/teams/team.schema";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

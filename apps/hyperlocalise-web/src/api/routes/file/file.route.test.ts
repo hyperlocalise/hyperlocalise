@@ -23,8 +23,8 @@ import { db, schema } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { createProjectTestFixture } from "../project/project.fixture";
 import type { ProjectResponse } from "../project/project.schema";
-import { createTeamTestFixture } from "../team/team.fixture";
-import type { TeamResponse } from "../team/team.schema";
+import { createTeamTestFixture } from "@/lib/teams/team.fixture";
+import type { TeamResponse } from "@/lib/teams/team.schema";
 import { createMemoryFileStorageAdapter } from "./file.fixture";
 import { maxEditorImageUploadBytes, maxEditorImageUploadRequestBytes } from "./file.schema";
 
@@ -49,7 +49,7 @@ const fileStorageAdapter = createMemoryFileStorageAdapter();
 const app = createApp({ fileStorageAdapter });
 const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
-const teamFixture = createTeamTestFixture(client);
+const teamFixture = createTeamTestFixture();
 const {
   authHeadersFor,
   cleanup,
