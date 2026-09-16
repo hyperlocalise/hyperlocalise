@@ -75,5 +75,11 @@ func requestLogPath(path string) string {
 	if len(parts) >= 7 && parts[4] == "projects" && parts[6] == "dictionaries" {
 		return prefix + "/v1/orgs/{organizationSlug}/projects/{projectId}/dictionaries/{resource}"
 	}
+	if len(parts) >= 7 && parts[4] == "projects" && parts[6] == "qa-reports" {
+		return prefix + "/v1/orgs/{organizationSlug}/projects/{projectId}/qa-reports/{resource}"
+	}
+	if parts[4] == "qa-reports" {
+		return prefix + "/v1/orgs/{organizationSlug}/qa-reports/{resource}"
+	}
 	return path
 }

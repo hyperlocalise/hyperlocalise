@@ -98,20 +98,20 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
 	defer rows.Close()
 
 	type reportPayload struct {
-		ID            string    `json:"id"`
-		ProjectID     string    `json:"projectId"`
-		Trigger       string    `json:"trigger"`
-		Status        string    `json:"status"`
-		SegmentCount  int       `json:"segmentCount"`
-		FindingCount  int       `json:"findingCount"`
-		ErrorCount    int       `json:"errorCount"`
-		WarningCount  int       `json:"warningCount"`
-		Summary       qaSummary `json:"summary"`
-		ErrorCode     *string   `json:"errorCode"`
-		ErrorMessage  *string   `json:"errorMessage"`
-		StartedAt     *string   `json:"startedAt"`
-		CompletedAt   *string   `json:"completedAt"`
-		CreatedAt     string    `json:"createdAt"`
+		ID           string    `json:"id"`
+		ProjectID    string    `json:"projectId"`
+		Trigger      string    `json:"trigger"`
+		Status       string    `json:"status"`
+		SegmentCount int       `json:"segmentCount"`
+		FindingCount int       `json:"findingCount"`
+		ErrorCount   int       `json:"errorCount"`
+		WarningCount int       `json:"warningCount"`
+		Summary      qaSummary `json:"summary"`
+		ErrorCode    *string   `json:"errorCode"`
+		ErrorMessage *string   `json:"errorMessage"`
+		StartedAt    *string   `json:"startedAt"`
+		CompletedAt  *string   `json:"completedAt"`
+		CreatedAt    string    `json:"createdAt"`
 	}
 
 	reports := []map[string]any{}
@@ -271,10 +271,10 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
 	for rows.Next() {
 		var (
 			id, runID, projectID, projectName, key, targetLocale, checkType, severity, category, message string
-			sourceText, targetText                                                                           string
-			translationKeyID                                                                                 *string
-			sourcePath                                                                                       *string
-			relatedTokensRaw                                                                                 []byte
+			sourceText, targetText                                                                       string
+			translationKeyID                                                                             *string
+			sourcePath                                                                                   *string
+			relatedTokensRaw                                                                             []byte
 		)
 		if err := rows.Scan(
 			&id, &runID, &projectID, &projectName, &translationKeyID, &key, &sourcePath,

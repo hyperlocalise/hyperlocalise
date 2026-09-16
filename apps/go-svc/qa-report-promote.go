@@ -167,7 +167,7 @@ func (api *qaReportAPI) promoteSingleFinding(ctx context.Context, actor qaReport
 	if err != nil {
 		return promoteFindingResult{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	if err := ensureIssueStarterColumns(ctx, tx, actor.organizationID, finding.ProjectID, actor.userID); err != nil {
 		return promoteFindingResult{}, err

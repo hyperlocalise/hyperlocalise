@@ -38,6 +38,28 @@ func (a qaReportActor) canPromoteFindings() bool {
 	}
 }
 
+func (a qaReportActor) canJobCreate() bool {
+	return a.canPromoteFindings()
+}
+
+func (a qaReportActor) canProjectWrite() bool {
+	switch a.role {
+	case "admin", "localization_manager", "developer":
+		return true
+	default:
+		return false
+	}
+}
+
+func (a qaReportActor) canWriteProjectTeam() bool {
+	switch a.role {
+	case "admin", "localization_manager":
+		return true
+	default:
+		return false
+	}
+}
+
 type qaReportError struct {
 	status        int
 	code, message string
@@ -72,6 +94,8 @@ func (api *qaReportAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	for _, path := range []string{
 		"/v1/orgs/{organizationSlug}/qa-reports",
 		"/v1/orgs/{organizationSlug}/qa-reports/{rest...}",
+		"/v1/orgs/{organizationSlug}/projects/{projectId}/qa-reports",
+		"/v1/orgs/{organizationSlug}/projects/{projectId}/qa-reports/{rest...}",
 	} {
 		mux.Handle(path, authMiddleware(verifier)(http.HandlerFunc(api.serveHTTP)))
 	}
@@ -148,6 +172,11 @@ func (api *qaReportAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
 	if err != nil {
 		writeQaReportError(w, r, "resolve_actor", err)
+		return
+	}
+
+	if projectID := strings.TrimSpace(r.PathValue("projectId")); projectID != "" {
+		api.serveProjectQaReport(w, r, actor, projectID)
 		return
 	}
 

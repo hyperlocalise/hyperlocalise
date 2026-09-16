@@ -15,7 +15,7 @@ import (
 func TestQaReportSessionAndOrigin(t *testing.T) {
 	for _, tc := range []struct {
 		name, method, cookie, origin, site string
-		status                               int
+		status                             int
 	}{
 		{name: "missing cookie", method: http.MethodGet, status: 401},
 		{name: "cross origin post", method: http.MethodPost, cookie: "session", origin: "https://evil.example", status: 403},

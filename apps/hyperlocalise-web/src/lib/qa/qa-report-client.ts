@@ -10,7 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { apiClient } from "@/lib/api-client-instance";
+
 type OrgParams = { organizationSlug: string };
+type ProjectParams = OrgParams & { projectId: string };
+type RunParams = ProjectParams & { runId: string };
 type PageQuery = { limit?: string; offset?: string };
 type WorkspaceFindingsQuery = PageQuery & {
   projectId?: string;
@@ -96,6 +100,117 @@ export type WorkspaceQaFinding = {
   sourceText: string;
   targetText: string;
   editorHref: string;
+};
+
+export type ProjectQaReport = {
+  id: string;
+  projectId: string;
+  trigger: string;
+  status: string;
+  segmentCount: number;
+  findingCount: number;
+  errorCount: number;
+  warningCount: number;
+  summary: {
+    byCheckType: Record<string, number>;
+    bySeverity: Record<string, number>;
+    byLocale: Record<string, number>;
+  };
+  errorCode: string | null;
+  errorMessage: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+};
+
+export type ProjectQaFinding = {
+  id: string;
+  runId: string;
+  projectId: string;
+  key: string;
+  sourcePath: string | null;
+  targetLocale: string;
+  checkType: string;
+  severity: "error" | "warning";
+  category: string;
+  message: string;
+  relatedTokens: string[];
+  sourceText: string;
+  targetText: string;
+  editorHref: string;
+};
+
+export const projectQaReportClient = {
+  listReports: endpoint<
+    ProjectParams,
+    never,
+    never,
+    {
+      reports: ProjectQaReport[];
+      settings: {
+        cadence: "off" | "daily";
+        lastRunAt: string | null;
+        canRun: boolean;
+        canManageSchedule: boolean;
+      };
+    }
+  >("GET", "/projects/:projectId/qa-reports"),
+  startScan: async (input: RequestInput<ProjectParams, never, never>) =>
+    apiClient.api.orgs[":organizationSlug"].projects[":projectId"]["qa-reports"].$post({
+      param: input.param,
+    }) as Promise<QaReportResponse<{ report: ProjectQaReport }>>,
+  updateSettings: endpoint<
+    ProjectParams,
+    { cadence: "off" | "daily" },
+    never,
+    {
+      settings: {
+        cadence: "off" | "daily";
+        lastRunAt: string | null;
+        canRun: boolean;
+        canManageSchedule: boolean;
+      };
+    }
+  >("PATCH", "/projects/:projectId/qa-reports/settings"),
+  getRun: endpoint<
+    RunParams,
+    never,
+    PageQuery & { locale?: string; checkType?: string; severity?: string },
+    {
+      report: ProjectQaReport;
+      findings: ProjectQaFinding[];
+      total: number;
+      limit: number;
+      offset: number;
+    }
+  >("GET", "/projects/:projectId/qa-reports/:runId"),
+  latestFindings: endpoint<
+    ProjectParams,
+    never,
+    PageQuery & { locale: string; sourcePath?: string },
+    {
+      runId: string | null;
+      findings: Array<{
+        translationKeyId: string | null;
+        key: string;
+        sourcePath: string | null;
+        targetLocale: string;
+        checkType: string;
+        severity: "error" | "warning";
+        category: string;
+        message: string;
+        relatedTokens: string[];
+        sourceText: string;
+        targetText: string;
+      }>;
+    }
+  >("GET", "/projects/:projectId/qa-reports/latest-findings"),
+  promoteFindings: endpoint<
+    ProjectParams,
+    { findingIds: string[] },
+    never,
+    { results: Array<{ findingId: string; issueId: string; identifier: string; created: boolean }> }
+  >("POST", "/projects/:projectId/qa-reports/findings/promote"),
 };
 
 export const workspaceQaReportClient = {

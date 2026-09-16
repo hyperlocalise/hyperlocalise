@@ -22,10 +22,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { QA_FINDING_PROMOTE_BATCH_SIZE } from "@/lib/qa/qa-finding-issue-bridge";
-import { workspaceQaReportClient } from "@/lib/qa/qa-report-client";
+import { projectQaReportClient, workspaceQaReportClient } from "@/lib/qa/qa-report-client";
 
 import { qaFindingsTableMessages as messages } from "./qa-findings-table.messages";
 
@@ -86,9 +85,7 @@ export function QaFindingsTable({
         const chunk = findingIds.slice(offset, offset + QA_FINDING_PROMOTE_BATCH_SIZE);
         let response;
         if (promoteScope === "project" && projectId) {
-          response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-            "qa-reports"
-          ]["findings"].promote.$post({
+          response = await projectQaReportClient.promoteFindings({
             param: { organizationSlug, projectId },
             json: { findingIds: chunk },
           });

@@ -19,7 +19,7 @@ import (
 const (
 	testQaReportBase      = "/api/go-svc/v1/orgs/acme/qa-reports"
 	testQaNativeProjectID = "project_native_qa"
-	testQaProviderProject   = "project_provider_qa"
+	testQaProviderProject = "project_provider_qa"
 )
 
 func qaReportTestDatabaseURL() string {

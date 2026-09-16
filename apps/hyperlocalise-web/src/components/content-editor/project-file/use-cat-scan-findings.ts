@@ -17,7 +17,7 @@ import type {
   ContentEditorFormatCheck,
   ContentEditorSegment,
 } from "@/components/content-editor/shared/types";
-import { apiClient } from "@/lib/api-client-instance";
+import { projectQaReportClient } from "@/lib/qa/qa-report-client";
 import {
   formatChecksFromScanFindings,
   type TranslationQaFindingLike,
@@ -52,9 +52,7 @@ export function useCatScanFindings(input: {
       const findings: CatScanFinding[] = [];
       let runId: string | null = null;
       for (let offset = 0; ; offset += pageSize) {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-          "qa-reports"
-        ]["latest-findings"].$get({
+        const response = await projectQaReportClient.latestFindings({
           param: {
             organizationSlug: input.organizationSlug,
             projectId: input.projectId,
@@ -62,8 +60,8 @@ export function useCatScanFindings(input: {
           query: {
             locale: input.targetLocale,
             sourcePath: input.sourcePath,
-            limit: pageSize,
-            offset,
+            limit: String(pageSize),
+            offset: String(offset),
           },
         });
         if (!response.ok) {

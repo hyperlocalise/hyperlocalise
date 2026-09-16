@@ -29,7 +29,7 @@ import {
   serviceUnavailableResponse,
 } from "@/api/response.schema";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
-import { createProjectQaReportRoutes } from "@/api/routes/project/qa-report.route";
+import { createProjectQaReportScanRoutes } from "@/api/routes/project/qa-report-scan.route";
 import {
   deleteProjectWithTeamGlossaryGuard,
   glossaryTeamProjectRequiredResponse,
@@ -1135,7 +1135,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   const translationFileImportQueue =
     options.translationFileImportQueue ?? createTranslationFileImportQueue();
   const translationQaScanQueue = options.translationQaScanQueue ?? createTranslationQaScanQueue();
-
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
@@ -1202,7 +1201,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
     .route("/:projectId/knowledge-memory", createProjectKnowledgeMemoryRoutes())
-    .route("/:projectId/qa-reports", createProjectQaReportRoutes({ translationQaScanQueue }))
+    .route("/:projectId/qa-reports", createProjectQaReportScanRoutes({ translationQaScanQueue }))
     .route(
       "/:projectId/assets",
       createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),

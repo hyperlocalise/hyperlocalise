@@ -12,7 +12,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { workspaceQaReportClient } from "./qa-report-client";
+import { projectQaReportClient, workspaceQaReportClient } from "./qa-report-client";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -28,7 +28,9 @@ describe("workspaceQaReportClient", () => {
   });
 
   it("encodes findings query parameters", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response('{"findings":[],"total":0,"limit":50,"offset":0}'));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('{"findings":[],"total":0,"limit":50,"offset":0}'));
     vi.stubGlobal("fetch", fetchMock);
     await workspaceQaReportClient.listFindings({
       param: { organizationSlug: "acme" },
@@ -52,13 +54,27 @@ describe("workspaceQaReportClient", () => {
       param: { organizationSlug: "acme" },
       json: { findingIds: ["00000000-0000-4000-8000-000000000001"] },
     });
+    expect(fetchMock).toHaveBeenCalledWith("/api/go-svc/v1/orgs/acme/qa-reports/findings/promote", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: '{"findingIds":["00000000-0000-4000-8000-000000000001"]}',
+    });
+  });
+});
+
+describe("projectQaReportClient", () => {
+  it("loads project QA reports from go-svc", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"reports":[],"settings":{}}'));
+    vi.stubGlobal("fetch", fetchMock);
+    await projectQaReportClient.listReports({
+      param: { organizationSlug: "acme", projectId: "project/a" },
+    });
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/go-svc/v1/orgs/acme/qa-reports/findings/promote",
+      "/api/go-svc/v1/orgs/acme/projects/project%2Fa/qa-reports",
       {
-        method: "POST",
+        method: "GET",
         credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: '{"findingIds":["00000000-0000-4000-8000-000000000001"]}',
       },
     );
   });
