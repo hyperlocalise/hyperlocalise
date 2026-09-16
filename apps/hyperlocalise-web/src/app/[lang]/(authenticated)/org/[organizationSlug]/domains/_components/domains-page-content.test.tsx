@@ -105,4 +105,34 @@ describe("domains page content", () => {
     renderPage();
     expect(await screen.findByText("hyperlocalise.com")).toBeInTheDocument();
   });
+
+  it("resumes a pending direct claim by its domain", async () => {
+    const domain = listResearchPrototypeDomains()[0]!;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          linkedDomains: [
+            {
+              id: domain.id,
+              domainKey: "shop.example.com",
+              domainSlug: "shop-example-com",
+              sourceUrl: "https://shop.example.com/",
+              status: "pending_verification",
+              auditScore: null,
+              locales: [],
+            },
+          ],
+        }),
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: "Continue verification" })).toHaveAttribute(
+      "href",
+      "/org/acme/link-domain/shop-example-com?domain=shop.example.com",
+    );
+  });
 });

@@ -178,7 +178,10 @@ export function DomainDetailPageContent({
                     nativeButton={false}
                     render={
                       <OrgNavLink
-                        href={`/org/${organizationSlug}/link-domain/${linkedDomain.domainSlug}`}
+                        href={
+                          `/org/${organizationSlug}/link-domain/${linkedDomain.domainSlug}` +
+                          `?domain=${encodeURIComponent(linkedDomain.domainKey)}`
+                        }
                       />
                     }
                   >

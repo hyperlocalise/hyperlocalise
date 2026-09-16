@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { createLinkedDomainBodySchema, verifyLinkedDomainBodySchema } from "./linked-domain.schema";
+import {
+  createLinkedDomainBodySchema,
+  updateLinkedDomainMarketsBodySchema,
+  verifyLinkedDomainBodySchema,
+} from "./linked-domain.schema";
 
 describe("create linked domain body schema", () => {
   it("accepts an explicitly empty marketIds list", () => {
@@ -36,5 +40,17 @@ describe("create linked domain body schema", () => {
     expect(verifyLinkedDomainBodySchema.parse({ method: "dns_txt", createProject: false })).toEqual(
       { method: "dns_txt", createProject: false },
     );
+  });
+});
+
+describe("update linked domain markets body schema", () => {
+  it("rejects an empty market selection", () => {
+    expect(updateLinkedDomainMarketsBodySchema.safeParse({ marketIds: [] }).success).toBe(false);
+  });
+
+  it("accepts one or more selected markets", () => {
+    expect(
+      updateLinkedDomainMarketsBodySchema.safeParse({ marketIds: ["france-fr"] }).success,
+    ).toBe(true);
   });
 });

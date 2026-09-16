@@ -180,7 +180,10 @@ const DomainsPageView = observer(function DomainsPageView({
                         size="sm"
                         render={
                           <OrgNavLink
-                            href={`/org/${store.organizationSlug}/link-domain/${domain.domainSlug}`}
+                            href={
+                              `/org/${store.organizationSlug}/link-domain/${domain.domainSlug}` +
+                              `?domain=${encodeURIComponent(domain.domainKey)}`
+                            }
                           />
                         }
                       >

@@ -40,20 +40,28 @@ async function fetchHomepage(url: string): Promise<string> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const response = await withPublicHttpFetch(
+      const result = await withPublicHttpFetch(
         currentUrl,
         { signal: controller.signal, redirect: "manual", headers: { accept: "text/html" } },
-        async (result) => result,
+        async (response) => {
+          if (response.status >= 300 && response.status < 400) {
+            return { kind: "redirect" as const, location: response.headers.get("location") };
+          }
+          if (!response.ok) throw new Error("homepage_status");
+          return {
+            kind: "body" as const,
+            bytes: await readBoundedResponseBody(response, MAX_HTML_BYTES),
+          };
+        },
         { maxResponseSize: MAX_HTML_BYTES },
       );
-      if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get("location");
+      if (result.kind === "redirect") {
+        const location = result.location;
         if (!location || redirectCount === MAX_REDIRECTS) throw new Error("redirect_limit");
         currentUrl = new URL(location, currentUrl).toString();
         continue;
       }
-      if (!response.ok) throw new Error("homepage_status");
-      return new TextDecoder().decode(await readBoundedResponseBody(response, MAX_HTML_BYTES));
+      return new TextDecoder().decode(result.bytes);
     } finally {
       clearTimeout(timeout);
     }
