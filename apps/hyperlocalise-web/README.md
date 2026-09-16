@@ -82,6 +82,10 @@ vp test
 
 `vp check --fix` formats, lints, and type-checks. `vp test` runs the Vitest suite through Vite+.
 
+## Observability
+
+Server-side Datadog APM setup, sampling, verification, and rollback are documented in [`DATADOG.md`](./DATADOG.md). Local and test runs do not preload the tracer by default.
+
 ## Useful paths
 
 | Path                | Purpose                                        |
