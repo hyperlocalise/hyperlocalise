@@ -15,15 +15,28 @@ import { describe, expect, it } from "vite-plus/test";
 import { buildQaFindingExternalRef, buildQaFindingIssueMetadata } from "./qa-finding-issue-bridge";
 
 describe("qa finding issue bridge", () => {
-  it("builds a stable external ref from project, run, key, and check type", () => {
+  it("builds a stable external ref from project, run, key, check type, and locale", () => {
     expect(
       buildQaFindingExternalRef({
         projectId: "proj_1",
         runId: "11111111-1111-4111-8111-111111111111",
         findingKey: "hello",
         checkType: "placeholder_mismatch",
+        targetLocale: "de-DE",
       }),
-    ).toBe("qa:proj_1:11111111-1111-4111-8111-111111111111:hello:placeholder_mismatch");
+    ).toBe("qa:proj_1:11111111-1111-4111-8111-111111111111:hello:placeholder_mismatch:de-DE");
+  });
+
+  it("uses different external refs per target locale", () => {
+    const base = {
+      projectId: "proj_1",
+      runId: "11111111-1111-4111-8111-111111111111",
+      findingKey: "hello",
+      checkType: "not_localized",
+    };
+    expect(buildQaFindingExternalRef({ ...base, targetLocale: "de-DE" })).not.toBe(
+      buildQaFindingExternalRef({ ...base, targetLocale: "fr-FR" }),
+    );
   });
 
   it("hashes oversized external refs", () => {
@@ -32,6 +45,7 @@ describe("qa finding issue bridge", () => {
       runId: "11111111-1111-4111-8111-111111111111",
       findingKey: "k".repeat(600),
       checkType: "length",
+      targetLocale: "en-US",
     });
     expect(ref.startsWith("qa:proj_1:11111111-1111-4111-8111-111111111111:")).toBe(true);
     expect(ref.length).toBeLessThanOrEqual(512);

@@ -24,13 +24,17 @@ export type QaFindingIssueMetadata = {
   editorHref: string;
 };
 
+/** Matches `promoteQaFindingsBodySchema` max length on `findingIds`. */
+export const QA_FINDING_PROMOTE_BATCH_SIZE = 100;
+
 export function buildQaFindingExternalRef(input: {
   projectId: string;
   runId: string;
   findingKey: string;
   checkType: string;
+  targetLocale: string;
 }): string {
-  const raw = `${input.projectId}:${input.runId}:${input.findingKey}:${input.checkType}`;
+  const raw = `${input.projectId}:${input.runId}:${input.findingKey}:${input.checkType}:${input.targetLocale}`;
   if (raw.length <= 505) {
     return `qa:${raw}`;
   }

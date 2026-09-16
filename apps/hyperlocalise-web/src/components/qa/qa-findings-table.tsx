@@ -24,8 +24,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import { QA_FINDING_PROMOTE_BATCH_SIZE } from "@/lib/qa/qa-finding-issue-bridge";
 
 import { qaFindingsTableMessages as messages } from "./qa-findings-table.messages";
+
+type PromoteFindingsResponse = {
+  results: Array<{ findingId: string; issueId: string; identifier: string; created: boolean }>;
+};
 
 export type QaFindingRow = {
   id: string;
@@ -75,33 +80,34 @@ export function QaFindingsTable({
 
   const promoteMutation = useMutation({
     mutationFn: async (findingIds: string[]) => {
-      if (promoteScope === "project" && projectId) {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-          "qa-reports"
-        ]["findings"].promote.$post({
-          param: { organizationSlug, projectId },
-          json: { findingIds },
-        });
+      const results: PromoteFindingsResponse["results"] = [];
+      for (let offset = 0; offset < findingIds.length; offset += QA_FINDING_PROMOTE_BATCH_SIZE) {
+        const chunk = findingIds.slice(offset, offset + QA_FINDING_PROMOTE_BATCH_SIZE);
+        let response;
+        if (promoteScope === "project" && projectId) {
+          response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+            "qa-reports"
+          ]["findings"].promote.$post({
+            param: { organizationSlug, projectId },
+            json: { findingIds: chunk },
+          });
+        } else {
+          response = await apiClient.api.orgs[":organizationSlug"][
+            "qa-reports"
+          ].findings.promote.$post({
+            param: { organizationSlug },
+            json: { findingIds: chunk },
+          });
+        }
         if (!response.ok) {
           throw await readApiResponseError(response, intl.formatMessage(messages.promoteError));
         }
-        return response.json();
+        const body = (await response.json()) as PromoteFindingsResponse;
+        results.push(...body.results);
       }
-
-      const response = await apiClient.api.orgs[":organizationSlug"][
-        "qa-reports"
-      ].findings.promote.$post({
-        param: { organizationSlug },
-        json: { findingIds },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(response, intl.formatMessage(messages.promoteError));
-      }
-      return response.json();
+      return { results };
     },
-    onSuccess: (data: {
-      results: Array<{ findingId: string; issueId: string; identifier: string; created: boolean }>;
-    }) => {
+    onSuccess: (data: PromoteFindingsResponse) => {
       const created = data.results.filter((row) => row.created).length;
       const linked = data.results.length - created;
       toast.success(intl.formatMessage(messages.promoteSuccess, { created, linked }));

@@ -86,6 +86,7 @@ export async function promoteQaFindingsToIssues(input: {
       runId: finding.runId,
       findingKey: finding.key,
       checkType: finding.checkType,
+      targetLocale: finding.targetLocale,
     });
 
     const existing = await db

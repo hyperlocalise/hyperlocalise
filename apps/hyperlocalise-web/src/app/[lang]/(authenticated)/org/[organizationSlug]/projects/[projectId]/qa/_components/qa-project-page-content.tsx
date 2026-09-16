@@ -195,6 +195,12 @@ export function QaProjectPageContent({
 
   const reports = listQuery.data?.reports ?? [];
   const selectedReport = reports.find((report) => report.id === activeRunId) ?? reports[0];
+  const latestSucceededRunId = reports.find((report) => report.status === "succeeded")?.id;
+  const canPromoteActiveReport =
+    canPromoteFindings &&
+    selectedReport?.status === "succeeded" &&
+    Boolean(latestSucceededRunId) &&
+    activeRunId === latestSucceededRunId;
   const locales = useMemo(
     () => Object.keys(selectedReport?.summary.byLocale ?? {}),
     [selectedReport],
@@ -376,7 +382,7 @@ export function QaProjectPageContent({
           findings={findings.map((finding) => ({ ...finding, projectId }))}
           total={findingsTotal}
           shownCount={findings.length}
-          canPromote={canPromoteFindings}
+          canPromote={canPromoteActiveReport}
           promoteScope="project"
           projectId={projectId}
           hasMore={detailQuery.hasNextPage}
