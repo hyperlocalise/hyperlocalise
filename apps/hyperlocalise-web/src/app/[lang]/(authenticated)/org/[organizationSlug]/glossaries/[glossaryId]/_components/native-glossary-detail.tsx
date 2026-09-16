@@ -410,15 +410,21 @@ export function NativeGlossaryDetail({
     onError: (error) => toast.error(error.message),
   });
 
+  const canExportFiltered = conceptSearch.trim().length > 0 || conceptLocale.length > 0;
+  const filteredExportLocales = conceptLocale ? [conceptLocale] : [];
+
   const exportGlossary = useMutation({
     mutationFn: async (input: {
       format: "csv" | "tbx" | "xlsx";
       scope: "complete" | "filtered";
       locales?: string[];
+      search?: string;
     }) => {
       const params = new URLSearchParams({ format: input.format, scope: input.scope });
       if (input.scope === "filtered") {
         for (const locale of input.locales ?? []) params.append("locales", locale);
+        const search = input.search?.trim();
+        if (search) params.set("search", search);
       }
       const response = await fetch(
         `/api/orgs/${encodeURIComponent(organizationSlug)}/glossaries/${encodeURIComponent(glossaryId)}/export?${params.toString()}`,
@@ -899,7 +905,64 @@ export function NativeGlossaryDetail({
                           <FormattedMessage {...messages.exportAsXlsx} />
                         </DropdownMenuItem>
                       </DropdownMenuGroup>
-                      {canManage ? (
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>
+                          <FormattedMessage {...messages.exportFilteredLabel} />
+                        </DropdownMenuLabel>
+                        <DropdownMenuItem
+                          disabled={
+                            !canExportFiltered ||
+                            exportGlossary.isPending ||
+                            importConcepts.isPending
+                          }
+                          onClick={() =>
+                            exportGlossary.mutate({
+                              format: "tbx",
+                              scope: "filtered",
+                              locales: filteredExportLocales,
+                              search: conceptSearch.trim() || undefined,
+                            })
+                          }
+                        >
+                          <FormattedMessage {...messages.exportFilteredAsTbx} />
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={
+                            !canExportFiltered ||
+                            exportGlossary.isPending ||
+                            importConcepts.isPending
+                          }
+                          onClick={() =>
+                            exportGlossary.mutate({
+                              format: "csv",
+                              scope: "filtered",
+                              locales: filteredExportLocales,
+                              search: conceptSearch.trim() || undefined,
+                            })
+                          }
+                        >
+                          <FormattedMessage {...messages.exportFilteredAsCsv} />
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={
+                            !canExportFiltered ||
+                            exportGlossary.isPending ||
+                            importConcepts.isPending
+                          }
+                          onClick={() =>
+                            exportGlossary.mutate({
+                              format: "xlsx",
+                              scope: "filtered",
+                              locales: filteredExportLocales,
+                              search: conceptSearch.trim() || undefined,
+                            })
+                          }
+                        >
+                          <FormattedMessage {...messages.exportFilteredAsXlsx} />
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                      {canManage && glossary?.source === "native" ? (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuGroup>

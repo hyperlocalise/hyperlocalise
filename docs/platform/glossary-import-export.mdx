@@ -25,9 +25,11 @@ Provider-backed glossaries cannot be imported through this UI. Manage terms in t
 
 ## Export in Cloud
 
-1. Open a native glossary.
+1. Open a native glossary, or a **mirrored** provider glossary stored in Hyperlocalise (UUID glossary id with synced concepts).
 2. Open the actions menu (**⋯**) → **Export**.
-3. Pick **TBX**, **CSV**, or **XLSX** for the full glossary.
+3. Pick **TBX**, **CSV**, or **XLSX** for the full glossary, or use **Export filtered glossary** when the concept list is filtered by search or locale.
+
+Live Crowdin glossary ids (`crowdin:glossary:…`) are read-only in Cloud and cannot be exported from the UI.
 
 ## API
 
@@ -47,10 +49,10 @@ Import uses the glossary import endpoints documented in the API reference; paylo
 
 ## Provider glossaries
 
-| Capability | Cloud |
-| ---------- | ----- |
-| Export | Not available (read-only in Cloud) |
-| Import | Not available |
+| Glossary type | Export | Import |
+| ------------- | ------ | ------ |
+| Live provider id (`crowdin:glossary:…`) | Not available | Not available |
+| Mirrored in Hyperlocalise (UUID) | TBX, CSV, XLSX (from synced rows) | Not available |
 
 Use your TMS or the Hyperlocalise **CLI** for provider-native glossary downloads where supported. CLI glossary CSV is often a Hyperlocalise-shaped export and may not round-trip into every TMS upload endpoint.
 

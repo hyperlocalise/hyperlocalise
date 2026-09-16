@@ -21,13 +21,13 @@ export function GlossaryDetailPage({
   glossaryId: string;
   canManageGlossaries: boolean;
 }) {
-  const { isNative } = useGlossary({
+  const { usesNativeDetail } = useGlossary({
     organizationSlug,
     glossaryId,
     canManageGlossaries,
   });
 
-  return isNative ? (
+  return usesNativeDetail ? (
     <NativeGlossaryDetail
       organizationSlug={organizationSlug}
       glossaryId={glossaryId}
