@@ -191,7 +191,6 @@ Useful repo paths:
 - `apps/canva-app/`: Canva design editor app
 - `internal/`: shared internal packages
 - `pkg/platform/`: runtime, auth, transport, and observability helpers
-- `api/proto/`: protobuf contract workspace
 - `scripts/`: project scripts
 
 Common commands:
