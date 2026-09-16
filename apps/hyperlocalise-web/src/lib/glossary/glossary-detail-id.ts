@@ -11,8 +11,8 @@
  * Version 2.0 or later.
  */
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import { isQueryableNativeGlossaryId } from "@/lib/glossary/glossary-persisted-id";
 import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
-import { isQueryableNativeGlossaryId } from "@/lib/tools/asset-tools";
 
 export function glossaryUsesNativeDetailPage(
   glossaryId: string,
