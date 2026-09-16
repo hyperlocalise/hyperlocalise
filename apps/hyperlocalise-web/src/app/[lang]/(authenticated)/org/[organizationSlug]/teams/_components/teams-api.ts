@@ -18,8 +18,8 @@ import type {
   TeamWithMembersResponse,
   TeamsResponse,
   UpdateTeamBody,
-} from "@/api/routes/team/team.schema";
-import type { createApiClient } from "@/lib/api-client";
+} from "@/lib/teams/team.schema";
+import { teamClient } from "@/lib/teams/team-client";
 import { readApiResponseError } from "@/lib/api-error";
 
 export type TeamSummaryRow = TeamsResponse["teams"][number];
@@ -48,16 +48,10 @@ export type TeamsApi = {
   removeTeamMember(organizationSlug: string, teamId: string, workosUserId: string): Promise<void>;
 };
 
-type ApiClient = ReturnType<typeof createApiClient>;
-
-export function createTeamsApi(client: ApiClient): TeamsApi {
-  const teams = client.api.orgs[":organizationSlug"].teams;
-
+export function createTeamsApi(): TeamsApi {
   return {
     async listTeams(organizationSlug) {
-      const response = await teams.$get({
-        param: { organizationSlug },
-      });
+      const response = await teamClient.list({ param: { organizationSlug } });
       if (!response.ok) {
         throw await readApiResponseError(response, "Failed to load teams");
       }
@@ -66,9 +60,7 @@ export function createTeamsApi(client: ApiClient): TeamsApi {
     },
 
     async getTeam(organizationSlug, teamId) {
-      const response = await teams[":teamId"].$get({
-        param: { organizationSlug, teamId },
-      });
+      const response = await teamClient.get({ param: { organizationSlug, teamId } });
       if (!response.ok) {
         throw await readApiResponseError(response, "Failed to load team");
       }
@@ -77,9 +69,7 @@ export function createTeamsApi(client: ApiClient): TeamsApi {
     },
 
     async listMemberDirectory(organizationSlug) {
-      const response = await teams["member-directory"].$get({
-        param: { organizationSlug },
-      });
+      const response = await teamClient.memberDirectory({ param: { organizationSlug } });
       if (!response.ok) {
         throw await readApiResponseError(response, "Failed to load member directory");
       }
@@ -88,10 +78,7 @@ export function createTeamsApi(client: ApiClient): TeamsApi {
     },
 
     async createTeam(organizationSlug, body) {
-      const response = await teams.$post({
-        param: { organizationSlug },
-        json: body,
-      });
+      const response = await teamClient.create({ param: { organizationSlug }, json: body });
       if (!response.ok) {
         throw await readApiResponseError(response, "Failed to create team");
       }
@@ -100,10 +87,7 @@ export function createTeamsApi(client: ApiClient): TeamsApi {
     },
 
     async updateTeam(organizationSlug, teamId, body) {
-      const response = await teams[":teamId"].$patch({
-        param: { organizationSlug, teamId },
-        json: body,
-      });
+      const response = await teamClient.update({ param: { organizationSlug, teamId }, json: body });
       if (!response.ok) {
         throw await readApiResponseError(response, "Failed to update team");
       }
@@ -112,16 +96,14 @@ export function createTeamsApi(client: ApiClient): TeamsApi {
     },
 
     async deleteTeam(organizationSlug, teamId) {
-      const response = await teams[":teamId"].$delete({
-        param: { organizationSlug, teamId },
-      });
+      const response = await teamClient.delete({ param: { organizationSlug, teamId } });
       if (response.status !== 204 && !response.ok) {
         throw await readApiResponseError(response, "Failed to delete team");
       }
     },
 
     async addTeamMember(organizationSlug, teamId, body) {
-      const response = await teams[":teamId"].members.$post({
+      const response = await teamClient.addMember({
         param: { organizationSlug, teamId },
         json: body,
       });
@@ -133,7 +115,7 @@ export function createTeamsApi(client: ApiClient): TeamsApi {
     },
 
     async removeTeamMember(organizationSlug, teamId, workosUserId) {
-      const response = await teams[":teamId"].members[":workosUserId"].$delete({
+      const response = await teamClient.removeMember({
         param: { organizationSlug, teamId, workosUserId },
       });
       if (response.status !== 204 && !response.ok) {

@@ -14,7 +14,7 @@
  */
 import type { IntlShape } from "@formatjs/intl";
 
-import type { TeamRole } from "@/api/routes/team/team.schema";
+import type { TeamRole } from "@/lib/teams/team.schema";
 import { resolveMessage } from "@/lib/app-i18n/resolve-message";
 
 import type {

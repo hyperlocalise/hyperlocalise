@@ -17,15 +17,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import type { TeamRole } from "@/api/routes/team/team.schema";
-import { apiClient } from "@/lib/api-client-instance";
-
+import type { TeamRole } from "@/lib/teams/team.schema";
 import { createTeamsApi, type TeamMemberRow } from "./teams-api";
 import { toUpdateTeamPayload } from "./team-form";
 import { TeamDetailPageView } from "./team-detail-page-view";
 import { teamDetailPageContentMessages } from "./team-detail-page-content.messages";
 
-const teamsApi = createTeamsApi(apiClient);
+const teamsApi = createTeamsApi();
 
 function teamQueryKey(organizationSlug: string, teamId: string) {
   return ["workspace-team", organizationSlug, teamId] as const;

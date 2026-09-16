@@ -217,6 +217,23 @@ The app's existing lexical guideline selection is unchanged. Transactional outbo
 integration and deletion-event delivery remain application adoption work. An index
 must never be the only retained copy of guideline content.
 
+## Teams
+
+The browser calls `/api/go-svc/v1/orgs/{organizationSlug}/teams` for team
+CRUD, membership, and the org member directory. The former Hono team handlers are
+removed. Go uses the same session cookie, WorkOS membership verification, and
+`DATABASE_URL` as dictionary routes. Admins and localization managers may create,
+update, and delete teams; team managers may add or remove members without org
+admin rights.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET, POST | `/teams` | List or create teams |
+| GET | `/teams/member-directory` | List org members for team invites |
+| GET, PATCH, DELETE | `/teams/{teamId}` | Read, update, or delete a team |
+| POST | `/teams/{teamId}/members` | Add or update a team member |
+| DELETE | `/teams/{teamId}/members/{workosUserId}` | Remove a team member |
+
 ## Spellcheck dictionaries
 
 The browser calls `/api/go-svc/v1/orgs/{organizationSlug}/dictionaries`

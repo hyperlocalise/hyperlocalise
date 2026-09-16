@@ -15,8 +15,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
-import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import { teamClient } from "@/lib/teams/team-client";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { BreadcrumbCrumbSelector } from "./breadcrumb-crumb-selector";
@@ -44,9 +44,7 @@ export function TeamBreadcrumbSelector({
   const teamsQuery = useQuery({
     queryKey: organizationTeamsQueryKey(organizationSlug),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].teams.$get({
-        param: { organizationSlug },
-      });
+      const response = await teamClient.list({ param: { organizationSlug } });
 
       if (!response.ok) {
         throw await readApiResponseError(response, intl.formatMessage(messages.teamsLoadError));

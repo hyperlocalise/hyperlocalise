@@ -42,6 +42,7 @@ type handler struct {
 	guidelines   *guidelines.Service
 	dictionaries *dictionaryAPI
 	qaReports    *qaReportAPI
+	teams        *teamAPI
 }
 
 func newHandler() *handler {
@@ -60,6 +61,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.qaReports != nil {
 		h.qaReports.register(mux, verifier)
+	}
+	if h.teams != nil {
+		h.teams.register(mux, verifier)
 	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	editorExport := authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

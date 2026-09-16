@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
+import { teamClient } from "@/lib/teams/team-client";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
 import { cn } from "@/lib/primitives/cn";
@@ -282,7 +283,7 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
     queryKey: ["workspace-team", resolvedOrganizationSlug, teamRoute?.teamId],
     enabled: Boolean(teamRoute?.teamId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].teams[":teamId"].$get({
+      const response = await teamClient.get({
         param: {
           organizationSlug: resolvedOrganizationSlug,
           teamId: teamRoute!.teamId,

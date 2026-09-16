@@ -31,10 +31,10 @@ import { err, ok } from "@/lib/primitives/result/results";
 import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 
 import { createProjectTestFixture } from "./project.fixture";
-import { createTeamTestFixture } from "../team/team.fixture";
+import { createTeamTestFixture } from "@/lib/teams/team.fixture";
 import { insertStoredSourceFile } from "../public-jobs/public-jobs.fixture";
 import type { ProjectResponse } from "./project.schema";
-import type { TeamResponse } from "../team/team.schema";
+import type { TeamResponse } from "@/lib/teams/team.schema";
 import type { WorkspaceJobsResponse } from "./job.schema";
 
 const {
@@ -80,7 +80,7 @@ vi.mock("@/lib/activity-log/job-automation-events", () => ({
 
 const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
-const teamFixture = createTeamTestFixture(client);
+const teamFixture = createTeamTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");

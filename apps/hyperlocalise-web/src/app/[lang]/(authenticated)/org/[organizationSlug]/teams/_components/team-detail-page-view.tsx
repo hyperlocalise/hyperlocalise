@@ -23,7 +23,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import type { TeamRole } from "@/api/routes/team/team.schema";
+import type { TeamRole } from "@/lib/teams/team.schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

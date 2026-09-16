@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 import { updateProviderCredentialBodySchema } from "./provider-credential.schema";
-import { addTeamMemberBodySchema, teamMemberParamsSchema } from "../team/team.schema";
+import { addTeamMemberBodySchema, teamMemberParamsSchema } from "@/lib/teams/team.schema";
 
 describe("Schema length limits", () => {
   it("should enforce max length on provider credential apiKey", () => {
