@@ -16,6 +16,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import {
   BookOpenTextIcon,
+  Bookmark01Icon,
   CheckmarkCircle02Icon,
   Copy01Icon,
   CustomerSupportIcon,
@@ -64,6 +65,16 @@ const ContentEditorStyleGuideSheet = dynamic(
   { ssr: false },
 );
 
+const ContentEditorGuidelineSheet = dynamic(
+  () =>
+    import("@/components/content-editor/guideline/content-editor-guideline-sheet").then(
+      (module) => ({
+        default: module.ContentEditorGuidelineSheet,
+      }),
+    ),
+  { ssr: false },
+);
+
 export function AppShellFooter({
   organizationSlug,
   projectId = null,
@@ -71,6 +82,7 @@ export function AppShellFooter({
   showGlossaryGuidance = false,
   showIssueGuidance = false,
   showStyleGuide = false,
+  showGuideline = false,
   canWriteProjects = false,
   currentUser,
 }: {
@@ -80,6 +92,7 @@ export function AppShellFooter({
   showGlossaryGuidance?: boolean;
   showIssueGuidance?: boolean;
   showStyleGuide?: boolean;
+  showGuideline?: boolean;
   canWriteProjects?: boolean;
   currentUser?: InboxCurrentUser;
 }) {
@@ -87,7 +100,10 @@ export function AppShellFooter({
   const showChatDock = Boolean(organizationSlug && currentUser);
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
   const [styleGuideMounted, setStyleGuideMounted] = useState(false);
-  const canShowStyleGuide = showStyleGuide && Boolean(projectId);
+  const [guidelineOpen, setGuidelineOpen] = useState(false);
+  const [guidelineMounted, setGuidelineMounted] = useState(false);
+  const canShowGuideline = showGuideline && Boolean(projectId);
+  const canShowStyleGuide = showStyleGuide && Boolean(projectId) && !canShowGuideline;
 
   useEffect(() => {
     if (!canShowStyleGuide) {
@@ -95,6 +111,13 @@ export function AppShellFooter({
       setStyleGuideMounted(false);
     }
   }, [canShowStyleGuide]);
+
+  useEffect(() => {
+    if (!canShowGuideline) {
+      setGuidelineOpen(false);
+      setGuidelineMounted(false);
+    }
+  }, [canShowGuideline]);
 
   const glossaryGuidanceStatus = useSyncExternalStore(
     subscribeCatGlossaryGuidance,
@@ -129,6 +152,20 @@ export function AppShellFooter({
             ) : null}
             <Column width="content">
               <Row spacing="1u" alignY="center">
+                {canShowGuideline && projectId ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setGuidelineMounted(true);
+                      setGuidelineOpen(true);
+                    }}
+                    aria-label={intl.formatMessage(appShellFooterMessages.guidelineAriaLabel)}
+                  >
+                    <HugeiconsIcon icon={Bookmark01Icon} strokeWidth={2} data-icon="inline-start" />
+                    <FormattedMessage {...appShellFooterMessages.guidelineLabel} />
+                  </Button>
+                ) : null}
                 {canShowStyleGuide && projectId ? (
                   <Button
                     type="button"
@@ -233,6 +270,15 @@ export function AppShellFooter({
           </Columns>
         </Box>
       </div>
+      {canShowGuideline && projectId && guidelineMounted ? (
+        <ContentEditorGuidelineSheet
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          open={guidelineOpen}
+          onOpenChange={setGuidelineOpen}
+          canWriteProjects={canWriteProjects}
+        />
+      ) : null}
       {canShowStyleGuide && projectId && styleGuideMounted ? (
         <ContentEditorStyleGuideSheet
           organizationSlug={organizationSlug}

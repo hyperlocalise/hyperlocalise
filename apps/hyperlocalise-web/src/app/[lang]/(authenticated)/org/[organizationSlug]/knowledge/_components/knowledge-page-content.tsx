@@ -22,6 +22,7 @@ import { KnowledgeMemoryEditor } from "./knowledge-memory-editor";
 import type { LoadedKnowledgeMemory } from "./knowledge-memory-query";
 import { KnowledgePageHeader, type KnowledgePageMode } from "./knowledge-page-view";
 import { KnowledgePageSkeleton } from "./knowledge-page-skeleton";
+import { KnowledgeProjectsSection } from "./knowledge-projects-section";
 import { KnowledgeUploadSection } from "./knowledge-upload-section";
 
 export function KnowledgePageContent({
@@ -112,6 +113,10 @@ export function KnowledgePageContent({
             initialDraftContent={draftSeed}
           />
         </div>
+      ) : null}
+
+      {!projectId && resolvedMode !== "loading" ? (
+        <KnowledgeProjectsSection organizationSlug={organizationSlug} />
       ) : null}
     </div>
   );

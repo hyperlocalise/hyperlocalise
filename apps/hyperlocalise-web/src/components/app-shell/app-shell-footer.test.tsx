@@ -47,6 +47,15 @@ vi.mock("@/components/content-editor/style-guide/content-editor-style-guide-shee
     ) : null,
 }));
 
+vi.mock("@/components/content-editor/guideline/content-editor-guideline-sheet", () => ({
+  ContentEditorGuidelineSheet: ({ open, projectId }: { open: boolean; projectId: string }) =>
+    open ? (
+      <div role="dialog" aria-label="Guideline">
+        {projectId}
+      </div>
+    ) : null,
+}));
+
 afterEach(() => {
   autumnMocks.useCustomer.mockReset();
   autumnMocks.useListPlans.mockReset();
@@ -61,6 +70,7 @@ function renderFooter(
     withChat?: boolean;
     showIssueGuidance?: boolean;
     showStyleGuide?: boolean;
+    showGuideline?: boolean;
   } = {},
 ) {
   const {
@@ -70,6 +80,7 @@ function renderFooter(
     withChat = false,
     showIssueGuidance = false,
     showStyleGuide = false,
+    showGuideline = false,
   } = props;
 
   return render(
@@ -82,6 +93,7 @@ function renderFooter(
             showPlan={showPlan}
             showIssueGuidance={showIssueGuidance}
             showStyleGuide={showStyleGuide}
+            showGuideline={showGuideline}
             currentUser={
               withChat
                 ? {
@@ -196,6 +208,21 @@ describe("AppShellFooter", () => {
     } finally {
       window.removeEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, openListener);
     }
+  });
+
+  it("opens the guideline sheet when the knowledge flag is enabled", async () => {
+    const user = userEvent.setup();
+    renderFooter({
+      showPlan: false,
+      showGuideline: true,
+      projectId: "project_1",
+    });
+
+    expect(screen.queryByRole("dialog", { name: "Guideline" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Open guideline" }));
+
+    expect(await screen.findByRole("dialog", { name: "Guideline" })).toHaveTextContent("project_1");
   });
 
   it("opens the style guide sheet from the footer on content editor routes", async () => {

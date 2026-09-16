@@ -93,6 +93,7 @@ export function AppShellClient({
   const projectRoute = parseProjectRoute(pathname);
   const isContentEditorWorkspaceRoute =
     pathname.includes("/strings") || pathname.includes("/files/content-editor");
+  const knowledgeEnabled = workspaceFeatureFlags.knowledge;
   const isOrgSettingsRoute = isOrganizationSettingsPath(pathname);
   const tmsUserConnectQuery = useTmsUserConnectCta(organizationSlug, {
     enabled: Boolean(organizationSlug),
@@ -200,7 +201,8 @@ export function AppShellClient({
           showPlan={showBillingLink && autumnConfigured}
           showGlossaryGuidance={isContentEditorWorkspaceRoute}
           showIssueGuidance={isContentEditorWorkspaceRoute}
-          showStyleGuide={isContentEditorWorkspaceRoute}
+          showGuideline={knowledgeEnabled && isContentEditorWorkspaceRoute}
+          showStyleGuide={!knowledgeEnabled && isContentEditorWorkspaceRoute}
           canWriteProjects={canWriteProjects}
           currentUser={
             organizationSlug
