@@ -166,6 +166,13 @@ export const ConceptList: Story = {
     ).toBeInTheDocument();
     await expect(await canvas.findByText("Agency")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add concept" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: /^Filters/ }));
+    const filtersDialog = await canvas.findByRole("dialog", { name: "Filter concepts" });
+    await expect(within(filtersDialog).getByLabelText("Locale")).toHaveTextContent("All locales");
+    await expect(within(filtersDialog).getByLabelText("Part of speech")).toHaveTextContent(
+      "All parts",
+    );
+    await userEvent.click(within(filtersDialog).getByRole("button", { name: "Done" }));
   },
 };
 

@@ -29,6 +29,7 @@ import {
   BookOpenTextIcon,
   Delete02Icon,
   Download01Icon,
+  FilterIcon,
   Upload01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -187,12 +188,14 @@ function EnumFilterSelect({
   id,
   label,
   value,
+  displayValue,
   onValueChange,
   children,
 }: {
   id: string;
   label: string;
   value: string;
+  displayValue: ReactNode;
   onValueChange: (value: string) => void;
   children: ReactNode;
 }) {
@@ -204,7 +207,7 @@ function EnumFilterSelect({
       </label>
       <Select value={value} onValueChange={(next) => onValueChange(next ?? "all")}>
         <SelectTrigger id={id} className={cn("w-full", active && "border-primary/50 bg-primary/5")}>
-          <SelectValue />
+          <SelectValue>{displayValue}</SelectValue>
         </SelectTrigger>
         <SelectContent>{children}</SelectContent>
       </Select>
@@ -260,6 +263,7 @@ export function NativeGlossaryDetail({
   >([]);
   const [deleteGlossaryDialogOpen, setDeleteGlossaryDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "tbx" | "xlsx">("tbx");
   const [exportScope, setExportScope] = useState<"complete" | "filtered">("complete");
 
@@ -447,8 +451,7 @@ export function NativeGlossaryDetail({
     onError: (error) => toast.error(error.message),
   });
 
-  const activeFilterCount = [
-    conceptSearch.trim(),
+  const dropdownFilterValues = [
     conceptLocale,
     conceptReviewStatus,
     conceptTermReviewStatus,
@@ -457,9 +460,25 @@ export function NativeGlossaryDetail({
     conceptTermType,
     conceptProvenance,
     conceptForbidden,
-  ].filter(Boolean).length;
+  ];
+  const activeDropdownFilterCount = dropdownFilterValues.filter(Boolean).length;
+  const activeFilterCount = (conceptSearch.trim() ? 1 : 0) + activeDropdownFilterCount;
   const canExportFiltered = activeFilterCount > 0;
   const filteredExportLocales = conceptLocale ? [conceptLocale] : [];
+
+  const clearAllConceptFilters = () => {
+    setConceptCursorStack([]);
+    setConceptCursor(undefined);
+    setConceptSearch("");
+    setConceptLocale("");
+    setConceptReviewStatus("");
+    setConceptTermReviewStatus("");
+    setConceptLinguisticStatus("");
+    setConceptPartOfSpeech("");
+    setConceptTermType("");
+    setConceptProvenance("");
+    setConceptForbidden("");
+  };
 
   const exportGlossary = useMutation({
     mutationFn: async (input: {
@@ -847,159 +866,225 @@ export function NativeGlossaryDetail({
                   })}
                 </TypographyP>
               ) : null}
+              <Button
+                type="button"
+                variant={activeDropdownFilterCount > 0 ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterDialogOpen(true)}
+              >
+                <HugeiconsIcon icon={FilterIcon} strokeWidth={1.8} data-icon="inline-start" />
+                <FormattedMessage {...messages.filtersButton} />
+                {activeDropdownFilterCount > 0 ? ` (${activeDropdownFilterCount})` : ""}
+              </Button>
               {activeFilterCount > 0 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setConceptCursorStack([]);
-                    setConceptCursor(undefined);
-                    setConceptSearch("");
-                    setConceptLocale("");
-                    setConceptReviewStatus("");
-                    setConceptTermReviewStatus("");
-                    setConceptLinguisticStatus("");
-                    setConceptPartOfSpeech("");
-                    setConceptTermType("");
-                    setConceptProvenance("");
-                    setConceptForbidden("");
-                  }}
-                >
+                <Button type="button" variant="ghost" size="sm" onClick={clearAllConceptFilters}>
                   <FormattedMessage {...messages.clearFilters} />
                 </Button>
               ) : null}
             </div>
-            <div className="grid w-full grid-cols-2 gap-3 md:grid-cols-4">
-              <EnumFilterSelect
-                id="glossary-filter-locale"
-                label={intl.formatMessage(messages.filterLocaleLabel)}
-                value={conceptLocale || "all"}
-                onValueChange={(value) => resetForFilter(setConceptLocale, value ?? "all")}
-              >
-                <SelectItem value="all" label={intl.formatMessage(messages.allLocales)}>
-                  {intl.formatMessage(messages.allLocales)}
-                </SelectItem>
-                {[glossary.sourceLocale, ...glossary.localeCoverage]
-                  .filter((locale, index, locales) => locales.indexOf(locale) === index)
-                  .map((locale) => (
-                    <SelectItem key={locale} value={locale} label={locale}>
-                      {locale}
+            <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>
+                    <FormattedMessage {...messages.filtersTitle} />
+                  </DialogTitle>
+                  <DialogDescription>
+                    <FormattedMessage {...messages.filtersDescription} />
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+                  <EnumFilterSelect
+                    id="glossary-filter-locale"
+                    label={intl.formatMessage(messages.filterLocaleLabel)}
+                    value={conceptLocale || "all"}
+                    displayValue={conceptLocale || intl.formatMessage(messages.allLocales)}
+                    onValueChange={(value) => resetForFilter(setConceptLocale, value ?? "all")}
+                  >
+                    <SelectItem value="all" label={intl.formatMessage(messages.allLocales)}>
+                      {intl.formatMessage(messages.allLocales)}
                     </SelectItem>
-                  ))}
-              </EnumFilterSelect>
-              <EnumFilterSelect
-                id="glossary-filter-concept-review"
-                label={intl.formatMessage(messages.filterConceptReviewLabel)}
-                value={conceptReviewStatus || "all"}
-                onValueChange={(value) => resetForFilter(setConceptReviewStatus, value ?? "all")}
-              >
-                <SelectItem value="all" label={intl.formatMessage(messages.allConceptReview)}>
-                  {intl.formatMessage(messages.allConceptReview)}
-                </SelectItem>
-                {["proposed", "approved", "rejected", "superseded"].map((value) => (
-                  <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
-                    {readableEnumLabel(value)}
-                  </SelectItem>
-                ))}
-              </EnumFilterSelect>
-              <EnumFilterSelect
-                id="glossary-filter-term-review"
-                label={intl.formatMessage(messages.filterTermReviewLabel)}
-                value={conceptTermReviewStatus || "all"}
-                onValueChange={(value) =>
-                  resetForFilter(setConceptTermReviewStatus, value ?? "all")
-                }
-              >
-                <SelectItem value="all" label={intl.formatMessage(messages.allTermReview)}>
-                  {intl.formatMessage(messages.allTermReview)}
-                </SelectItem>
-                {["proposed", "approved", "rejected", "superseded"].map((value) => (
-                  <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
-                    {readableEnumLabel(value)}
-                  </SelectItem>
-                ))}
-              </EnumFilterSelect>
-              <EnumFilterSelect
-                id="glossary-filter-term-status"
-                label={intl.formatMessage(messages.filterTermStatusLabel)}
-                value={conceptLinguisticStatus || "all"}
-                onValueChange={(value) =>
-                  resetForFilter(setConceptLinguisticStatus, value ?? "all")
-                }
-              >
-                <SelectItem value="all" label={intl.formatMessage(messages.allTermStatus)}>
-                  {intl.formatMessage(messages.allTermStatus)}
-                </SelectItem>
-                {glossaryTermStatusValues.map((value) => (
-                  <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
-                    <StatusLabel status={value} />
-                  </SelectItem>
-                ))}
-              </EnumFilterSelect>
-              <EnumFilterSelect
-                id="glossary-filter-pos"
-                label={intl.formatMessage(messages.filterPartOfSpeechLabel)}
-                value={conceptPartOfSpeech || "all"}
-                onValueChange={(value) => resetForFilter(setConceptPartOfSpeech, value ?? "all")}
-              >
-                <SelectItem value="all" label={intl.formatMessage(messages.allPartsOfSpeech)}>
-                  {intl.formatMessage(messages.allPartsOfSpeech)}
-                </SelectItem>
-                {glossaryPartOfSpeechValues.map((value) => (
-                  <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
-                    <PartOfSpeechDisplay value={value} />
-                  </SelectItem>
-                ))}
-              </EnumFilterSelect>
-              <EnumFilterSelect
-                id="glossary-filter-term-type"
-                label={intl.formatMessage(messages.filterTermTypeLabel)}
-                value={conceptTermType || "all"}
-                onValueChange={(value) => resetForFilter(setConceptTermType, value ?? "all")}
-              >
-                <SelectItem value="all" label={intl.formatMessage(messages.allTermTypes)}>
-                  {intl.formatMessage(messages.allTermTypes)}
-                </SelectItem>
-                {glossaryTermTypeValues.map((value) => (
-                  <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
-                    <TermTypeDisplay value={value} />
-                  </SelectItem>
-                ))}
-              </EnumFilterSelect>
-              <EnumFilterSelect
-                id="glossary-filter-provenance"
-                label={intl.formatMessage(messages.filterProvenanceLabel)}
-                value={conceptProvenance || "all"}
-                onValueChange={(value) => resetForFilter(setConceptProvenance, value ?? "all")}
-              >
-                <SelectItem value="all" label={intl.formatMessage(messages.allProvenance)}>
-                  {intl.formatMessage(messages.allProvenance)}
-                </SelectItem>
-                <SelectItem value="manual" label="Manual">
-                  Manual
-                </SelectItem>
-                <SelectItem value="sync" label="Sync">
-                  Sync
-                </SelectItem>
-              </EnumFilterSelect>
-              <EnumFilterSelect
-                id="glossary-filter-forbidden"
-                label={intl.formatMessage(messages.filterForbiddenLabel)}
-                value={conceptForbidden || "all"}
-                onValueChange={(value) => resetForFilter(setConceptForbidden, value ?? "all")}
-              >
-                <SelectItem value="all" label={intl.formatMessage(messages.allTermsPermission)}>
-                  {intl.formatMessage(messages.allTermsPermission)}
-                </SelectItem>
-                <SelectItem value="true" label={intl.formatMessage(messages.forbiddenOnly)}>
-                  {intl.formatMessage(messages.forbiddenOnly)}
-                </SelectItem>
-                <SelectItem value="false" label={intl.formatMessage(messages.allowedOnly)}>
-                  {intl.formatMessage(messages.allowedOnly)}
-                </SelectItem>
-              </EnumFilterSelect>
-            </div>
+                    {[glossary.sourceLocale, ...glossary.localeCoverage]
+                      .filter((locale, index, locales) => locales.indexOf(locale) === index)
+                      .map((locale) => (
+                        <SelectItem key={locale} value={locale} label={locale}>
+                          {locale}
+                        </SelectItem>
+                      ))}
+                  </EnumFilterSelect>
+                  <EnumFilterSelect
+                    id="glossary-filter-concept-review"
+                    label={intl.formatMessage(messages.filterConceptReviewLabel)}
+                    value={conceptReviewStatus || "all"}
+                    displayValue={
+                      conceptReviewStatus
+                        ? readableEnumLabel(conceptReviewStatus)
+                        : intl.formatMessage(messages.allConceptReview)
+                    }
+                    onValueChange={(value) =>
+                      resetForFilter(setConceptReviewStatus, value ?? "all")
+                    }
+                  >
+                    <SelectItem value="all" label={intl.formatMessage(messages.allConceptReview)}>
+                      {intl.formatMessage(messages.allConceptReview)}
+                    </SelectItem>
+                    {["proposed", "approved", "rejected", "superseded"].map((value) => (
+                      <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
+                        {readableEnumLabel(value)}
+                      </SelectItem>
+                    ))}
+                  </EnumFilterSelect>
+                  <EnumFilterSelect
+                    id="glossary-filter-term-review"
+                    label={intl.formatMessage(messages.filterTermReviewLabel)}
+                    value={conceptTermReviewStatus || "all"}
+                    displayValue={
+                      conceptTermReviewStatus
+                        ? readableEnumLabel(conceptTermReviewStatus)
+                        : intl.formatMessage(messages.allTermReview)
+                    }
+                    onValueChange={(value) =>
+                      resetForFilter(setConceptTermReviewStatus, value ?? "all")
+                    }
+                  >
+                    <SelectItem value="all" label={intl.formatMessage(messages.allTermReview)}>
+                      {intl.formatMessage(messages.allTermReview)}
+                    </SelectItem>
+                    {["proposed", "approved", "rejected", "superseded"].map((value) => (
+                      <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
+                        {readableEnumLabel(value)}
+                      </SelectItem>
+                    ))}
+                  </EnumFilterSelect>
+                  <EnumFilterSelect
+                    id="glossary-filter-term-status"
+                    label={intl.formatMessage(messages.filterTermStatusLabel)}
+                    value={conceptLinguisticStatus || "all"}
+                    displayValue={
+                      conceptLinguisticStatus ? (
+                        <StatusLabel status={conceptLinguisticStatus} />
+                      ) : (
+                        intl.formatMessage(messages.allTermStatus)
+                      )
+                    }
+                    onValueChange={(value) =>
+                      resetForFilter(setConceptLinguisticStatus, value ?? "all")
+                    }
+                  >
+                    <SelectItem value="all" label={intl.formatMessage(messages.allTermStatus)}>
+                      {intl.formatMessage(messages.allTermStatus)}
+                    </SelectItem>
+                    {glossaryTermStatusValues.map((value) => (
+                      <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
+                        <StatusLabel status={value} />
+                      </SelectItem>
+                    ))}
+                  </EnumFilterSelect>
+                  <EnumFilterSelect
+                    id="glossary-filter-pos"
+                    label={intl.formatMessage(messages.filterPartOfSpeechLabel)}
+                    value={conceptPartOfSpeech || "all"}
+                    displayValue={
+                      conceptPartOfSpeech ? (
+                        <PartOfSpeechDisplay value={conceptPartOfSpeech} />
+                      ) : (
+                        intl.formatMessage(messages.allPartsOfSpeech)
+                      )
+                    }
+                    onValueChange={(value) =>
+                      resetForFilter(setConceptPartOfSpeech, value ?? "all")
+                    }
+                  >
+                    <SelectItem value="all" label={intl.formatMessage(messages.allPartsOfSpeech)}>
+                      {intl.formatMessage(messages.allPartsOfSpeech)}
+                    </SelectItem>
+                    {glossaryPartOfSpeechValues.map((value) => (
+                      <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
+                        <PartOfSpeechDisplay value={value} />
+                      </SelectItem>
+                    ))}
+                  </EnumFilterSelect>
+                  <EnumFilterSelect
+                    id="glossary-filter-term-type"
+                    label={intl.formatMessage(messages.filterTermTypeLabel)}
+                    value={conceptTermType || "all"}
+                    displayValue={
+                      conceptTermType ? (
+                        <TermTypeDisplay value={conceptTermType} />
+                      ) : (
+                        intl.formatMessage(messages.allTermTypes)
+                      )
+                    }
+                    onValueChange={(value) => resetForFilter(setConceptTermType, value ?? "all")}
+                  >
+                    <SelectItem value="all" label={intl.formatMessage(messages.allTermTypes)}>
+                      {intl.formatMessage(messages.allTermTypes)}
+                    </SelectItem>
+                    {glossaryTermTypeValues.map((value) => (
+                      <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
+                        <TermTypeDisplay value={value} />
+                      </SelectItem>
+                    ))}
+                  </EnumFilterSelect>
+                  <EnumFilterSelect
+                    id="glossary-filter-provenance"
+                    label={intl.formatMessage(messages.filterProvenanceLabel)}
+                    value={conceptProvenance || "all"}
+                    displayValue={
+                      conceptProvenance
+                        ? readableEnumLabel(conceptProvenance)
+                        : intl.formatMessage(messages.allProvenance)
+                    }
+                    onValueChange={(value) => resetForFilter(setConceptProvenance, value ?? "all")}
+                  >
+                    <SelectItem value="all" label={intl.formatMessage(messages.allProvenance)}>
+                      {intl.formatMessage(messages.allProvenance)}
+                    </SelectItem>
+                    <SelectItem value="manual" label="Manual">
+                      Manual
+                    </SelectItem>
+                    <SelectItem value="sync" label="Sync">
+                      Sync
+                    </SelectItem>
+                  </EnumFilterSelect>
+                  <EnumFilterSelect
+                    id="glossary-filter-forbidden"
+                    label={intl.formatMessage(messages.filterForbiddenLabel)}
+                    value={conceptForbidden || "all"}
+                    displayValue={
+                      conceptForbidden === "true"
+                        ? intl.formatMessage(messages.forbiddenOnly)
+                        : conceptForbidden === "false"
+                          ? intl.formatMessage(messages.allowedOnly)
+                          : intl.formatMessage(messages.allTermsPermission)
+                    }
+                    onValueChange={(value) => resetForFilter(setConceptForbidden, value ?? "all")}
+                  >
+                    <SelectItem value="all" label={intl.formatMessage(messages.allTermsPermission)}>
+                      {intl.formatMessage(messages.allTermsPermission)}
+                    </SelectItem>
+                    <SelectItem value="true" label={intl.formatMessage(messages.forbiddenOnly)}>
+                      {intl.formatMessage(messages.forbiddenOnly)}
+                    </SelectItem>
+                    <SelectItem value="false" label={intl.formatMessage(messages.allowedOnly)}>
+                      {intl.formatMessage(messages.allowedOnly)}
+                    </SelectItem>
+                  </EnumFilterSelect>
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={activeDropdownFilterCount === 0}
+                    onClick={clearAllConceptFilters}
+                  >
+                    <FormattedMessage {...messages.clearFilters} />
+                  </Button>
+                  <Button type="button" onClick={() => setFilterDialogOpen(false)}>
+                    <FormattedMessage {...messages.filtersDone} />
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
           {conceptsQuery.isError ? (
             <TypographyP size="small" tone="critical">
