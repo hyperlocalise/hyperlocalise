@@ -18,12 +18,18 @@ import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DOMAIN_RESEARCH_MARKETS } from "@/lib/domains/research-prototype";
 import type { LinkedDomainVerificationMethod } from "@/lib/database/schema/linked-domains";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 
 type LinkDomainPageContentProps = {
   organizationSlug: string;
   domainSlug: string;
+  directDomain?: string;
+  directMarketIds?: string[];
+  directProjectId?: string;
+  directCreateProject?: boolean;
 };
 
 type ApiErrorBody = {
@@ -36,11 +42,23 @@ type ProjectOption = {
   name: string;
 };
 
-type ProjectLinkMode = "create" | "existing";
+type ProjectLinkMode = "create" | "existing" | "unassigned";
+
+type MarketVisibility = {
+  marketId: string;
+  organicCount: number;
+  organicEtv: number;
+  top10Count: number;
+  hasOrganicVisibility: boolean;
+};
 
 export function LinkDomainPageContent({
   organizationSlug,
   domainSlug,
+  directDomain,
+  directMarketIds,
+  directProjectId,
+  directCreateProject,
 }: LinkDomainPageContentProps) {
   const [linkedDomain, setLinkedDomain] = useState<LinkedDomainPublic | null>(null);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
@@ -48,10 +66,17 @@ export function LinkDomainPageContent({
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [method, setMethod] = useState<LinkedDomainVerificationMethod>("dns_txt");
+  const [marketRecommendations, setMarketRecommendations] = useState<MarketVisibility[]>([]);
+  const [selectedMarketIds, setSelectedMarketIds] = useState<string[]>([]);
+  const [marketRecommendationsLoading, setMarketRecommendationsLoading] = useState(false);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     let cancelled = false;
+    setProjectMode(
+      directCreateProject === false ? "unassigned" : directProjectId ? "existing" : "create",
+    );
+    setSelectedProjectId(directProjectId ?? "");
     startTransition(async () => {
       setError(null);
       try {
@@ -59,7 +84,11 @@ export function LinkDomainPageContent({
           fetch(`/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ domainSlug }),
+            body: JSON.stringify(
+              directDomain
+                ? { domain: directDomain, marketIds: directMarketIds ?? [] }
+                : { domainSlug },
+            ),
           }),
           fetch(`/api/orgs/${encodeURIComponent(organizationSlug)}/projects`),
         ]);
@@ -91,9 +120,11 @@ export function LinkDomainPageContent({
           }));
           if (!cancelled) {
             setProjects(options);
-            if (options.length > 0) {
+            if (directProjectId) {
+              setSelectedProjectId(directProjectId);
+            } else if (options.length > 0) {
               setSelectedProjectId(options[0].id);
-            } else {
+            } else if (directCreateProject !== false) {
               setProjectMode("create");
             }
           }
@@ -107,7 +138,86 @@ export function LinkDomainPageContent({
     return () => {
       cancelled = true;
     };
-  }, [organizationSlug, domainSlug]);
+  }, [
+    organizationSlug,
+    domainSlug,
+    directDomain,
+    directMarketIds,
+    directProjectId,
+    directCreateProject,
+  ]);
+
+  useEffect(() => {
+    if (linkedDomain?.status !== "verified") return;
+    if (linkedDomain.marketIds.length > 0) {
+      setSelectedMarketIds(linkedDomain.marketIds);
+      return;
+    }
+    let cancelled = false;
+    setMarketRecommendationsLoading(true);
+    fetch(
+      `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/market-recommendations`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+    )
+      .then(async (response) => {
+        const body = (await response.json().catch(() => ({}))) as {
+          marketRecommendations?: {
+            candidates?: MarketVisibility[];
+            recommended?: MarketVisibility[];
+          };
+          message?: string;
+        };
+        if (!response.ok || !body.marketRecommendations) {
+          throw new Error(body.message || "Could not analyze markets.");
+        }
+        if (!cancelled) {
+          const recommendations = body.marketRecommendations;
+          setMarketRecommendations(recommendations.candidates ?? []);
+          setSelectedMarketIds(
+            (recommendations.recommended ?? []).map((market) => market.marketId),
+          );
+        }
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setError(reason instanceof Error ? reason.message : "Could not analyze markets.");
+          setMarketRecommendations([]);
+          setSelectedMarketIds(linkedDomain.marketIds);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMarketRecommendationsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedDomain?.id, linkedDomain?.status, organizationSlug]);
+
+  function saveMarkets() {
+    if (!linkedDomain) return;
+    startTransition(async () => {
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/markets`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ marketIds: selectedMarketIds }),
+          },
+        );
+        const body = (await response.json().catch(() => ({}))) as
+          | { linkedDomain?: LinkedDomainPublic }
+          | ApiErrorBody;
+        if (!response.ok || !("linkedDomain" in body) || !body.linkedDomain) {
+          throw new Error(("message" in body && body.message) || "Could not save markets.");
+        }
+        setLinkedDomain(body.linkedDomain);
+      } catch (reason: unknown) {
+        setError(reason instanceof Error ? reason.message : "Could not save markets.");
+      }
+    });
+  }
 
   function verify() {
     if (!linkedDomain) return;
@@ -127,7 +237,7 @@ export function LinkDomainPageContent({
             body: JSON.stringify(
               projectMode === "existing"
                 ? { method, projectId: selectedProjectId }
-                : { method, createProject: true },
+                : { method, createProject: projectMode === "create" },
             ),
           },
         );
@@ -158,6 +268,82 @@ export function LinkDomainPageContent({
         <TypographyP tone="subtle">
           {linkedDomain.domainKey} is verified for this workspace.
         </TypographyP>
+        <section className="space-y-4">
+          <div>
+            <TypographyH2 className="pb-0">Recommended markets</TypographyH2>
+            <TypographyP tone="subtle">
+              We check the site’s locale signals and Google organic visibility after verification.
+            </TypographyP>
+          </div>
+          {marketRecommendationsLoading ? (
+            <TypographyP tone="subtle">Checking organic visibility…</TypographyP>
+          ) : marketRecommendations.length ? (
+            <div className="space-y-3">
+              {marketRecommendations.map((recommendation) => {
+                const market = DOMAIN_RESEARCH_MARKETS.find(
+                  (candidate) => candidate.id === recommendation.marketId,
+                );
+                if (!market) return null;
+                return (
+                  <label key={market.id} className="flex items-start gap-3 rounded-lg border p-3">
+                    <Checkbox
+                      checked={selectedMarketIds.includes(market.id)}
+                      onCheckedChange={(checked) =>
+                        setSelectedMarketIds((current) =>
+                          checked
+                            ? [...current, market.id]
+                            : current.filter((id) => id !== market.id),
+                        )
+                      }
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium">{market.label}</span>
+                      <span className="block text-sm text-muted-foreground">
+                        {recommendation.organicCount.toLocaleString()} ranking keywords ·{" "}
+                        {recommendation.organicEtv.toLocaleString(undefined, {
+                          maximumFractionDigits: 0,
+                        })}{" "}
+                        monthly estimated organic visits · {recommendation.top10Count} top-10
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <TypographyP tone="subtle">
+              No organic visibility was found in the initial markets. You can choose markets
+              manually below.
+            </TypographyP>
+          )}
+          <div className="grid gap-2">
+            <Label htmlFor="verified-domain-markets">Markets</Label>
+            <select
+              id="verified-domain-markets"
+              multiple
+              className="min-h-40 w-full rounded-md border border-input bg-transparent p-2 text-sm"
+              value={selectedMarketIds}
+              onChange={(event) =>
+                setSelectedMarketIds(
+                  [...event.currentTarget.selectedOptions].map((option) => option.value),
+                )
+              }
+            >
+              {DOMAIN_RESEARCH_MARKETS.map((market) => (
+                <option key={market.id} value={market.id}>
+                  {market.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            type="button"
+            onClick={saveMarkets}
+            disabled={pending || marketRecommendationsLoading}
+          >
+            {pending ? "Saving markets…" : "Save markets"}
+          </Button>
+        </section>
         <div className="flex flex-wrap gap-3">
           {linkedDomain.projectId ? (
             <Button
@@ -231,13 +417,20 @@ export function LinkDomainPageContent({
               >
                 Use existing project
               </Button>
+              <Button
+                type="button"
+                variant={projectMode === "unassigned" ? "default" : "outline"}
+                onClick={() => setProjectMode("unassigned")}
+              >
+                Leave unassigned
+              </Button>
             </div>
             {projectMode === "create" ? (
               <p className="text-sm text-muted-foreground">
                 Creates a native project named{" "}
                 <span className="font-medium">{linkedDomain.domainKey}</span>.
               </p>
-            ) : (
+            ) : projectMode === "existing" ? (
               <div className="space-y-2">
                 <Label htmlFor="linked-domain-project">Project</Label>
                 <select
@@ -253,10 +446,15 @@ export function LinkDomainPageContent({
                   ))}
                 </select>
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                The domain will be verified without attaching it to a project.
+              </p>
             )}
             {projects.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No projects in this workspace yet — a new project will be created.
+                No projects in this workspace yet — you can create one or leave the domain
+                unassigned.
               </p>
             ) : null}
           </section>

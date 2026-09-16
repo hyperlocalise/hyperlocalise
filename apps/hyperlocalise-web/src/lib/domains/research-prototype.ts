@@ -40,11 +40,19 @@ export type DomainResearchMarket = {
   locationCode: number;
 };
 
+export const DEFAULT_DOMAIN_RESEARCH_MARKET_IDS = [
+  "france-fr",
+  "germany-de",
+  "japan-ja",
+  "vietnam-vi",
+] as const;
+
 export type DomainResearchDomain = {
   id: string;
   domainKey: string;
   domainSlug?: string;
   sourceUrl: string;
+  localisationAuditId?: string | null;
   locales: DomainResearchMarket[];
   status: DomainResearchStatus;
   keywordCount: number;
@@ -156,6 +164,245 @@ export const DOMAIN_RESEARCH_MARKETS: DomainResearchMarket[] = [
     language: "vi",
     label: "Vietnamese (Vietnam)",
     locationCode: 2704,
+  },
+  {
+    id: "united-states-en",
+    location: "United States",
+    language: "en",
+    label: "English (United States)",
+    locationCode: 2840,
+  },
+  {
+    id: "united-kingdom-en",
+    location: "United Kingdom",
+    language: "en",
+    label: "English (United Kingdom)",
+    locationCode: 2826,
+  },
+  {
+    id: "australia-en",
+    location: "Australia",
+    language: "en",
+    label: "English (Australia)",
+    locationCode: 2036,
+  },
+  {
+    id: "india-en",
+    location: "India",
+    language: "en",
+    label: "English (India)",
+    locationCode: 2356,
+  },
+  {
+    id: "spain-es",
+    location: "Spain",
+    language: "es",
+    label: "Spanish (Spain)",
+    locationCode: 2724,
+  },
+  {
+    id: "mexico-es",
+    location: "Mexico",
+    language: "es",
+    label: "Spanish (Mexico)",
+    locationCode: 2484,
+  },
+  {
+    id: "canada-fr",
+    location: "Canada",
+    language: "fr",
+    label: "French (Canada)",
+    locationCode: 2124,
+  },
+  {
+    id: "italy-it",
+    location: "Italy",
+    language: "it",
+    label: "Italian (Italy)",
+    locationCode: 2380,
+  },
+  {
+    id: "brazil-pt",
+    location: "Brazil",
+    language: "pt",
+    label: "Portuguese (Brazil)",
+    locationCode: 2076,
+  },
+  {
+    id: "portugal-pt",
+    location: "Portugal",
+    language: "pt",
+    label: "Portuguese (Portugal)",
+    locationCode: 2620,
+  },
+  {
+    id: "netherlands-nl",
+    location: "Netherlands",
+    language: "nl",
+    label: "Dutch (Netherlands)",
+    locationCode: 2528,
+  },
+  {
+    id: "sweden-sv",
+    location: "Sweden",
+    language: "sv",
+    label: "Swedish (Sweden)",
+    locationCode: 2752,
+  },
+  {
+    id: "denmark-da",
+    location: "Denmark",
+    language: "da",
+    label: "Danish (Denmark)",
+    locationCode: 2208,
+  },
+  {
+    id: "norway-nb",
+    location: "Norway",
+    language: "nb",
+    label: "Norwegian (Norway)",
+    locationCode: 2578,
+  },
+  {
+    id: "finland-fi",
+    location: "Finland",
+    language: "fi",
+    label: "Finnish (Finland)",
+    locationCode: 2246,
+  },
+  {
+    id: "poland-pl",
+    location: "Poland",
+    language: "pl",
+    label: "Polish (Poland)",
+    locationCode: 2616,
+  },
+  {
+    id: "czechia-cs",
+    location: "Czechia",
+    language: "cs",
+    label: "Czech (Czechia)",
+    locationCode: 2203,
+  },
+  {
+    id: "hungary-hu",
+    location: "Hungary",
+    language: "hu",
+    label: "Hungarian (Hungary)",
+    locationCode: 2348,
+  },
+  {
+    id: "romania-ro",
+    location: "Romania",
+    language: "ro",
+    label: "Romanian (Romania)",
+    locationCode: 2642,
+  },
+  {
+    id: "greece-el",
+    location: "Greece",
+    language: "el",
+    label: "Greek (Greece)",
+    locationCode: 2300,
+  },
+  {
+    id: "turkey-tr",
+    location: "Türkiye",
+    language: "tr",
+    label: "Turkish (Türkiye)",
+    locationCode: 2792,
+  },
+  {
+    id: "russia-ru",
+    location: "Russia",
+    language: "ru",
+    label: "Russian (Russia)",
+    locationCode: 2643,
+  },
+  {
+    id: "ukraine-uk",
+    location: "Ukraine",
+    language: "uk",
+    label: "Ukrainian (Ukraine)",
+    locationCode: 2804,
+  },
+  {
+    id: "saudi-arabia-ar",
+    location: "Saudi Arabia",
+    language: "ar",
+    label: "Arabic (Saudi Arabia)",
+    locationCode: 2682,
+  },
+  {
+    id: "israel-he",
+    location: "Israel",
+    language: "he",
+    label: "Hebrew (Israel)",
+    locationCode: 2376,
+  },
+  { id: "iran-fa", location: "Iran", language: "fa", label: "Persian (Iran)", locationCode: 2364 },
+  {
+    id: "bangladesh-bn",
+    location: "Bangladesh",
+    language: "bn",
+    label: "Bengali (Bangladesh)",
+    locationCode: 2050,
+  },
+  {
+    id: "indonesia-id",
+    location: "Indonesia",
+    language: "id",
+    label: "Indonesian (Indonesia)",
+    locationCode: 2360,
+  },
+  {
+    id: "malaysia-ms",
+    location: "Malaysia",
+    language: "ms",
+    label: "Malay (Malaysia)",
+    locationCode: 2458,
+  },
+  {
+    id: "thailand-th",
+    location: "Thailand",
+    language: "th",
+    label: "Thai (Thailand)",
+    locationCode: 2764,
+  },
+  {
+    id: "philippines-fil",
+    location: "Philippines",
+    language: "fil",
+    label: "Filipino (Philippines)",
+    locationCode: 2608,
+  },
+  {
+    id: "china-zh",
+    location: "China",
+    language: "zh",
+    label: "Chinese (China)",
+    locationCode: 2156,
+  },
+  {
+    id: "taiwan-zh",
+    location: "Taiwan",
+    language: "zh",
+    label: "Chinese (Taiwan)",
+    locationCode: 2158,
+  },
+  {
+    id: "hong-kong-zh",
+    location: "Hong Kong",
+    language: "zh",
+    label: "Chinese (Hong Kong)",
+    locationCode: 2344,
+  },
+  {
+    id: "south-korea-ko",
+    location: "South Korea",
+    language: "ko",
+    label: "Korean (South Korea)",
+    locationCode: 2410,
   },
 ];
 
@@ -871,15 +1118,26 @@ export function linkedDomainToResearchDomain(input: {
   domainKey: string;
   domainSlug?: string;
   sourceUrl: string;
+  localisationAuditId?: string | null;
   status: string;
   auditScore: number | null;
+  marketIds?: string[];
 }): DomainResearchDomain {
+  const locales = (input.marketIds ?? [])
+    .map((marketId) => getResearchMarket(marketId))
+    .filter((market): market is DomainResearchMarket => Boolean(market));
   return {
     id: input.id,
     domainKey: input.domainKey,
     domainSlug: input.domainSlug,
     sourceUrl: input.sourceUrl,
-    locales: DOMAIN_RESEARCH_MARKETS,
+    localisationAuditId: input.localisationAuditId,
+    locales:
+      locales.length > 0
+        ? locales
+        : DEFAULT_DOMAIN_RESEARCH_MARKET_IDS.map((marketId) => getResearchMarket(marketId)!).filter(
+            (market): market is DomainResearchMarket => Boolean(market),
+          ),
     status: input.status === "verified" ? "verified" : "pending_verification",
     keywordCount: 0,
     keywordCountLabel: "—",

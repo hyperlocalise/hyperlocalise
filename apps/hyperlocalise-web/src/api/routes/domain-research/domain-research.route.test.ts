@@ -135,6 +135,16 @@ describe("domainResearchRoutes", () => {
             intent: "commercial",
           },
         ]),
+      marketVisibility: async (input) =>
+        ok({
+          marketId: input.marketId,
+          locationCode: input.locationCode,
+          languageCode: input.languageCode,
+          organicCount: 0,
+          organicEtv: 0,
+          top10Count: 0,
+          hasOrganicVisibility: false,
+        }),
       liveSerp: async () =>
         ok([
           {
@@ -354,6 +364,16 @@ describe("domainResearchRoutes", () => {
 
     setDomainResearchProviderForTests({
       expandKeywordIdeas: async () => ok([]),
+      marketVisibility: async (input) =>
+        ok({
+          marketId: input.marketId,
+          locationCode: input.locationCode,
+          languageCode: input.languageCode,
+          organicCount: 0,
+          organicEtv: 0,
+          top10Count: 0,
+          hasOrganicVisibility: false,
+        }),
       liveSerp: async () => ok([]),
       rankCheck: async (input) =>
         ok({ keywordId: input.keywordId, keyword: input.keyword, position: null, url: "" }),
@@ -395,6 +415,16 @@ describe("domainResearchRoutes", () => {
 
     setDomainResearchProviderForTests({
       expandKeywordIdeas: async () => ok([]),
+      marketVisibility: async (input) =>
+        ok({
+          marketId: input.marketId,
+          locationCode: input.locationCode,
+          languageCode: input.languageCode,
+          organicCount: 0,
+          organicEtv: 0,
+          top10Count: 0,
+          hasOrganicVisibility: false,
+        }),
       liveSerp: async () => ok([]),
       rankCheck: async (input) =>
         ok({ keywordId: input.keywordId, keyword: input.keyword, position: 3, url: "" }),
@@ -480,6 +510,16 @@ describe("domainResearchRoutes", () => {
 
     setDomainResearchProviderForTests({
       expandKeywordIdeas: async () => ok([]),
+      marketVisibility: async (input) =>
+        ok({
+          marketId: input.marketId,
+          locationCode: input.locationCode,
+          languageCode: input.languageCode,
+          organicCount: 0,
+          organicEtv: 0,
+          top10Count: 0,
+          hasOrganicVisibility: false,
+        }),
       liveSerp: async () => ok([]),
       rankCheck: async (input) =>
         ok({ keywordId: input.keywordId, keyword: input.keyword, position: 3, url: "" }),

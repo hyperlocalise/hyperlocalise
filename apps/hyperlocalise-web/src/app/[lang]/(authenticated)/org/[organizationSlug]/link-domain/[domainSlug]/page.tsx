@@ -24,22 +24,37 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
 
 export default function LinkDomainPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ organizationSlug: string; domainSlug: string }>;
+  searchParams: Promise<{
+    domain?: string;
+    markets?: string;
+    projectId?: string;
+    createProject?: string;
+  }>;
 }) {
   return (
     <OrgPageSuspense>
-      <LinkDomainPageLoader params={params} />
+      <LinkDomainPageLoader params={params} searchParams={searchParams} />
     </OrgPageSuspense>
   );
 }
 
 async function LinkDomainPageLoader({
   params,
+  searchParams,
 }: {
   params: Promise<{ organizationSlug: string; domainSlug: string }>;
+  searchParams: Promise<{
+    domain?: string;
+    markets?: string;
+    projectId?: string;
+    createProject?: string;
+  }>;
 }) {
   const { organizationSlug, domainSlug } = await params;
+  const { domain, markets, projectId, createProject } = await searchParams;
   const auth = await requireAppCapability("projects:create", { organizationSlug });
   const domainsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceDomainsFlag, auth);
 
@@ -47,5 +62,16 @@ async function LinkDomainPageLoader({
     return <FeatureTeaserPage feature="domains" scope="workspace" />;
   }
 
-  return <LinkDomainPageContent organizationSlug={organizationSlug} domainSlug={domainSlug} />;
+  return (
+    <LinkDomainPageContent
+      organizationSlug={organizationSlug}
+      domainSlug={domainSlug}
+      directDomain={domain}
+      directMarketIds={markets?.split(",").filter(Boolean)}
+      directProjectId={projectId}
+      directCreateProject={
+        createProject === "true" ? true : createProject === "false" ? false : undefined
+      }
+    />
+  );
 }

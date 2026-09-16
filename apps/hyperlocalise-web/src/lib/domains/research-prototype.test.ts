@@ -13,6 +13,8 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  DEFAULT_DOMAIN_RESEARCH_MARKET_IDS,
+  DOMAIN_RESEARCH_MARKETS,
   DOMAIN_RESEARCH_SURFACES,
   filterCatalogForLocale,
   getResearchMarket,
@@ -27,6 +29,23 @@ import {
 } from "./research-prototype";
 
 describe("research prototype catalog", () => {
+  it("keeps the legacy markets and includes common research markets", () => {
+    expect(DOMAIN_RESEARCH_MARKETS.length).toBeGreaterThan(4);
+    expect(DEFAULT_DOMAIN_RESEARCH_MARKET_IDS).toEqual([
+      "france-fr",
+      "germany-de",
+      "japan-ja",
+      "vietnam-vi",
+    ]);
+    expect(getResearchMarket("united-states-en")).toMatchObject({
+      language: "en",
+      locationCode: 2840,
+    });
+    expect(new Set(DOMAIN_RESEARCH_MARKETS.map((market) => market.id)).size).toBe(
+      DOMAIN_RESEARCH_MARKETS.length,
+    );
+  });
+
   it("lists the Paper domain set", () => {
     expect(listResearchPrototypeDomains().map((domain) => domain.domainKey)).toEqual([
       "hyperlocalise.com",
@@ -66,6 +85,11 @@ describe("research prototype catalog", () => {
 
   it("maps markets to DataForSEO location codes", () => {
     expect(getResearchMarket("france-fr")?.locationCode).toBe(2250);
+    expect(getResearchMarket("norway-nb")).toMatchObject({
+      language: "nb",
+      locationCode: 2578,
+    });
+    expect(getResearchMarket("china-zh")?.locationCode).toBe(2156);
     expect(isLiveDomainResearchId("11111111-1111-4111-8111-111111111111")).toBe(true);
     expect(isLiveDomainResearchId("hyperlocalise-com")).toBe(false);
   });

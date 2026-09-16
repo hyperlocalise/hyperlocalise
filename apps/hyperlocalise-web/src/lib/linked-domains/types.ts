@@ -30,6 +30,9 @@ export type LinkedDomainErrorCode =
   | "verification_fetch_failed"
   | "verification_mismatch"
   | "invalid_domain_slug"
+  | "invalid_domain_url"
+  | "invalid_market_selection"
+  | "linked_domain_not_verified"
   | "project_not_found"
   | "project_create_failed";
 
@@ -44,6 +47,7 @@ export type LinkedDomainPublic = {
   domainKey: string;
   domainSlug: string;
   sourceUrl: string;
+  marketIds: string[];
   status: LinkedDomainStatus;
   preferredMethod: LinkedDomainVerificationMethod | null;
   verifiedMethod: LinkedDomainVerificationMethod | null;

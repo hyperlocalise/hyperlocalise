@@ -105,4 +105,64 @@ describe("domains page content", () => {
     renderPage();
     expect(await screen.findByText("hyperlocalise.com")).toBeInTheDocument();
   });
+
+  it("resumes a pending direct claim by its domain", async () => {
+    const domain = listResearchPrototypeDomains()[0]!;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          linkedDomains: [
+            {
+              id: domain.id,
+              domainKey: "shop.example.com",
+              domainSlug: "shop-example-com",
+              sourceUrl: "https://shop.example.com/",
+              status: "pending_verification",
+              auditScore: null,
+              locales: [],
+            },
+          ],
+        }),
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: "Verify" })).toHaveAttribute(
+      "href",
+      "/org/acme/link-domain/shop-example-com?domain=shop.example.com",
+    );
+  });
+
+  it("resumes an audit claim by slug so the audit association is preserved", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          linkedDomains: [
+            {
+              id: "audit-claim",
+              domainKey: "audit.example.com",
+              domainSlug: "audit-example-com",
+              sourceUrl: "https://audit.example.com/",
+              status: "pending_verification",
+              localisationAuditId: "audit-id",
+              auditScore: 80,
+              locales: [],
+            },
+          ],
+        }),
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: "Verify" })).toHaveAttribute(
+      "href",
+      "/org/acme/link-domain/audit-example-com",
+    );
+  });
 });

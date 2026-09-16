@@ -146,7 +146,7 @@ describe("linkedDomainRoutes", () => {
     const createResponse = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
       {
         param: { organizationSlug },
-        json: { domainSlug: audit.domainSlug },
+        json: { domainSlug: audit.domainSlug, marketIds: [] },
       },
       { headers },
     );
@@ -266,7 +266,7 @@ describe("linkedDomainRoutes", () => {
     const createResponse = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
       {
         param: { organizationSlug },
-        json: { domainSlug: audit.domainSlug },
+        json: { domainSlug: audit.domainSlug, marketIds: [] },
       },
       { headers },
     );
@@ -312,7 +312,7 @@ describe("linkedDomainRoutes", () => {
     const createFirst = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
       {
         param: { organizationSlug: firstSlug },
-        json: { domainSlug: audit.domainSlug },
+        json: { domainSlug: audit.domainSlug, marketIds: [] },
       },
       { headers: firstHeaders },
     );
@@ -336,7 +336,7 @@ describe("linkedDomainRoutes", () => {
     const createSecond = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
       {
         param: { organizationSlug: secondSlug },
-        json: { domainSlug: audit.domainSlug },
+        json: { domainSlug: audit.domainSlug, marketIds: [] },
       },
       { headers: secondHeaders },
     );
@@ -361,7 +361,7 @@ describe("linkedDomainRoutes", () => {
     const createChallenger = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
       {
         param: { organizationSlug: challengerSlug },
-        json: { domainSlug: audit.domainSlug },
+        json: { domainSlug: audit.domainSlug, marketIds: [] },
       },
       { headers: challengerHeaders },
     );
@@ -454,7 +454,7 @@ describe("linkedDomainRoutes", () => {
     const createResponse = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
       {
         param: { organizationSlug },
-        json: { domainSlug: audit.domainSlug },
+        json: { domainSlug: audit.domainSlug, marketIds: [] },
       },
       { headers },
     );
@@ -483,6 +483,47 @@ describe("linkedDomainRoutes", () => {
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
   });
 
+  it("verifies a domain without attaching it to a project", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const domainKey = `unassigned-${crypto.randomUUID().slice(0, 8)}.example`;
+    const audit = await insertSucceededAudit(domainKey);
+    mocks.verifyLinkedDomainChallengeMock.mockResolvedValue(ok({ method: "dns_txt" }));
+
+    const createResponse = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
+      {
+        param: { organizationSlug },
+        json: { domainSlug: audit.domainSlug, marketIds: [] },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = await createResponse.json();
+    if (!("linkedDomain" in created)) {
+      throw new Error("expected linkedDomain in create response");
+    }
+
+    const verifyResponse = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].verify.$post(
+      {
+        param: { organizationSlug, linkedDomainId: created.linkedDomain.id },
+        json: { method: "dns_txt", createProject: false },
+      },
+      { headers },
+    );
+    expect(verifyResponse.status).toBe(200);
+    const verified = await verifyResponse.json();
+    if (!("linkedDomain" in verified)) {
+      throw new Error("expected linkedDomain in verify response");
+    }
+    expect(verified.linkedDomain.status).toBe("verified");
+    expect(verified.linkedDomain.projectId).toBeNull();
+
+    await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
+  });
+
   it("cancels a pending claim", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
@@ -493,7 +534,7 @@ describe("linkedDomainRoutes", () => {
     const createResponse = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
       {
         param: { organizationSlug },
-        json: { domainSlug: audit.domainSlug },
+        json: { domainSlug: audit.domainSlug, marketIds: [] },
       },
       { headers },
     );
@@ -590,7 +631,7 @@ describe("linkedDomainRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
       {
         param: { organizationSlug },
-        json: { domainSlug: "Example.COM" },
+        json: { domainSlug: "Example.COM", marketIds: [] },
       },
       { headers },
     );
@@ -624,7 +665,7 @@ describe("linkedDomainRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
       {
         param: { organizationSlug },
-        json: { domainSlug },
+        json: { domainSlug, marketIds: [] },
       },
       { headers },
     );
@@ -667,7 +708,7 @@ describe("linkedDomainRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
       {
         param: { organizationSlug },
-        json: { domainSlug: audit.domainSlug },
+        json: { domainSlug: audit.domainSlug, marketIds: [] },
       },
       { headers },
     );

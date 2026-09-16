@@ -112,6 +112,7 @@ Set the required WorkOS variables in the Vercel `go_svc` service environment. Us
 | `GET` | `/health` | No | Liveness probe |
 | `POST` | `/v1/validate/segment` | WorkOS session cookie | Validate a CAT segment (format, length, spelling) |
 | `POST` | `/v1/domains/research/keywords` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Expand a seed keyword + market through DataForSEO Labs |
+| `POST` | `/v1/domains/research/market-visibility` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Check one domain market through DataForSEO Labs; one market per request |
 | `POST` | `/v1/domains/research/serp` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Fetch a live organic SERP snapshot |
 | `POST` | `/v1/domains/research/rank-check` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Live rank check for one keyword against a hostname |
 | `POST` | `/v1/domains/research/rank-check/batch` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Live rank check for up to 20 keywords |

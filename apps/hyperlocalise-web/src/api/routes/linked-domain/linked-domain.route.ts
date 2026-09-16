@@ -21,6 +21,7 @@ import {
   conflictResponse,
   forbiddenResponse,
   notFoundResponse,
+  serviceUnavailableResponse,
 } from "@/api/response.schema";
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
@@ -30,9 +31,13 @@ import {
   getLinkedDomain,
   getLinkedDomainAudit,
   listLinkedDomains,
+  startDirectLinkedDomainClaim,
   startLinkedDomainClaim,
+  updateLinkedDomainMarkets,
+  updateLinkedDomainProject,
   verifyAndClaimLinkedDomain,
 } from "@/lib/linked-domains/claims";
+import { recommendDomainMarkets } from "@/lib/domains/market-recommendations";
 import type { LinkedDomainError } from "@/lib/linked-domains/types";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -40,7 +45,10 @@ import { createDomainResearchRoutes } from "../domain-research/domain-research.r
 import { createDomainSearchConsoleRoutes } from "../domain-search-console/domain-search-console.route";
 import {
   createLinkedDomainBodySchema,
+  marketRecommendationsBodySchema,
   linkedDomainIdParamSchema,
+  updateLinkedDomainMarketsBodySchema,
+  updateLinkedDomainProjectBodySchema,
   verifyLinkedDomainBodySchema,
 } from "./linked-domain.schema";
 
@@ -72,6 +80,45 @@ const validateVerifyBody = validator("json", (value, c) => {
       c,
       "invalid_linked_domain_verify_payload",
       "Verification method is required.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateProjectUpdateBody = validator("json", (value, c) => {
+  const parsed = updateLinkedDomainProjectBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_linked_domain_project_payload",
+      "Project assignment is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateMarketRecommendationsBody = validator("json", (value, c) => {
+  const parsed = marketRecommendationsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_market_recommendations_payload",
+      "Market recommendation payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateMarketUpdateBody = validator("json", (value, c) => {
+  const parsed = updateLinkedDomainMarketsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_market_selection",
+      "Select supported markets.",
       parsed.error.flatten(),
     );
   }
@@ -123,17 +170,64 @@ export function createLinkedDomainRoutes() {
 
       return c.json({ linkedDomains }, 200);
     })
+    .post(
+      "/:linkedDomainId/market-recommendations",
+      validateLinkedDomainParams,
+      validateMarketRecommendationsBody,
+      async (c) => {
+        if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const { linkedDomainId } = c.req.valid("param");
+        const linkedDomain = await getLinkedDomain({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          linkedDomainId,
+        });
+        if (!linkedDomain) return notFoundResponse(c, "linked_domain_not_found");
+        if (linkedDomain.status !== "verified") {
+          return badRequestResponse(c, "linked_domain_not_verified", "Verify the domain first.");
+        }
+
+        const result = await recommendDomainMarkets({
+          domain: linkedDomain.domainKey,
+          cookie: c.req.header("cookie"),
+          signal: c.req.raw.signal,
+        });
+        if (isErr(result)) {
+          if (
+            result.error.code === "invalid_domain" ||
+            result.error.code === "provider_validation_failed"
+          ) {
+            return badRequestResponse(c, result.error.code, result.error.message);
+          }
+          if (result.error.code === "provider_rate_limited") {
+            return c.json({ error: result.error.code, message: result.error.message }, 429);
+          }
+          return serviceUnavailableResponse(c, result.error.code, result.error.message);
+        }
+
+        return c.json({ marketRecommendations: result.value }, 200);
+      },
+    )
     .post("/", validateCreateBody, async (c) => {
       if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
       const body = c.req.valid("json");
-      const result = await startLinkedDomainClaim({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        userId: c.var.auth.user.localUserId,
-        domainSlug: body.domainSlug,
-      });
+      const result = body.domain
+        ? await startDirectLinkedDomainClaim({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            domain: body.domain,
+            marketIds: body.marketIds,
+          })
+        : await startLinkedDomainClaim({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            domainSlug: body.domainSlug!,
+          });
 
       if (isErr(result)) {
         serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.ctaClick, {
@@ -215,6 +309,49 @@ export function createLinkedDomainRoutes() {
 
       return c.json({ linkedDomain: result.value }, 200);
     })
+    .patch(
+      "/:linkedDomainId/markets",
+      validateLinkedDomainParams,
+      validateMarketUpdateBody,
+      async (c) => {
+        if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+        const { linkedDomainId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await updateLinkedDomainMarkets({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          linkedDomainId,
+          marketIds: body.marketIds,
+        });
+        if (isErr(result)) return mapLinkedDomainError(c, result.error);
+        return c.json({ linkedDomain: result.value }, 200);
+      },
+    )
+    .patch(
+      "/:linkedDomainId/project",
+      validateLinkedDomainParams,
+      validateProjectUpdateBody,
+      async (c) => {
+        if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const { linkedDomainId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await updateLinkedDomainProject({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          linkedDomainId,
+          projectId: body.projectId,
+        });
+
+        if (isErr(result)) {
+          return mapLinkedDomainError(c, result.error);
+        }
+
+        return c.json({ linkedDomain: result.value }, 200);
+      },
+    )
     .delete("/:linkedDomainId", validateLinkedDomainParams, async (c) => {
       if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
         return forbiddenResponse(c);

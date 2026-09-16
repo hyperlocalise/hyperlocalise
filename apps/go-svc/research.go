@@ -21,6 +21,7 @@ const (
 
 type researchService interface {
 	KeywordIdeas(ctx context.Context, input dataforseo.KeywordIdeasInput) (dataforseo.TaskResponse[[]dataforseo.KeywordDataItem], error)
+	DomainRankOverview(ctx context.Context, input dataforseo.DomainRankOverviewInput) (dataforseo.TaskResponse[[]dataforseo.DomainRankOverviewItem], error)
 	LiveAdvanced(ctx context.Context, input dataforseo.LiveSerpInput) (dataforseo.TaskResponse[[]dataforseo.SerpItem], error)
 	RankCheck(ctx context.Context, input dataforseo.RankCheckSerpInput) (dataforseo.TaskResponse[dataforseo.RankCheckResult], error)
 }
@@ -38,6 +39,13 @@ func (d *dataForSEOResearch) KeywordIdeas(
 	input dataforseo.KeywordIdeasInput,
 ) (dataforseo.TaskResponse[[]dataforseo.KeywordDataItem], error) {
 	return d.client.Labs().KeywordIdeas(ctx, input)
+}
+
+func (d *dataForSEOResearch) DomainRankOverview(
+	ctx context.Context,
+	input dataforseo.DomainRankOverviewInput,
+) (dataforseo.TaskResponse[[]dataforseo.DomainRankOverviewItem], error) {
+	return d.client.Labs().DomainRankOverview(ctx, input)
 }
 
 func (d *dataForSEOResearch) LiveAdvanced(
@@ -59,6 +67,24 @@ type researchMarketRequest struct {
 	LocationCode int    `json:"locationCode"`
 	LanguageCode string `json:"languageCode"`
 	Limit        int    `json:"limit"`
+}
+
+type researchMarketVisibilityRequest struct {
+	TargetDomain string `json:"targetDomain"`
+	MarketID     string `json:"marketId"`
+	LocationCode int    `json:"locationCode"`
+	LanguageCode string `json:"languageCode"`
+}
+
+type researchMarketVisibilityResponse struct {
+	MarketID             string                 `json:"marketId"`
+	LocationCode         int                    `json:"locationCode"`
+	LanguageCode         string                 `json:"languageCode"`
+	OrganicCount         int                    `json:"organicCount"`
+	OrganicETV           float64                `json:"organicEtv"`
+	Top10Count           int                    `json:"top10Count"`
+	HasOrganicVisibility bool                   `json:"hasOrganicVisibility"`
+	Billing              dataforseo.APICallCost `json:"billing"`
 }
 
 type researchSerpRequest struct {
@@ -111,6 +137,97 @@ type researchRankCheckResponse struct {
 
 type researchRankCheckBatchResponse struct {
 	Results []dataforseo.RankCheckResult `json:"results"`
+}
+
+func (h *handler) marketVisibility(w http.ResponseWriter, r *http.Request) {
+	if !h.requireResearch(w) {
+		return
+	}
+
+	var req researchMarketVisibilityRequest
+	if !decodeResearchBody(w, r, &req) {
+		return
+	}
+	if strings.TrimSpace(req.TargetDomain) == "" || strings.TrimSpace(req.MarketID) == "" || req.LocationCode <= 0 || strings.TrimSpace(req.LanguageCode) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "dataforseo_validation_error",
+			"message": "targetDomain, marketId, locationCode, and languageCode are required",
+		})
+		return
+	}
+	if h.research == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error":   "dataforseo_not_configured",
+			"message": "DATAFORSEO_API_KEY is not configured",
+		})
+		return
+	}
+
+	response, err := h.research.DomainRankOverview(r.Context(), dataforseo.DomainRankOverviewInput{
+		Target: strings.TrimSpace(req.TargetDomain),
+		Market: dataforseo.MarketScope{
+			LocationCode: req.LocationCode,
+			LanguageCode: strings.TrimSpace(req.LanguageCode),
+		},
+	})
+	if err != nil {
+		writeResearchError(w, err)
+		return
+	}
+
+	organicCount, organicETV, top10Count := marketOrganicMetrics(response.Data)
+	writeJSON(w, http.StatusOK, researchMarketVisibilityResponse{
+		MarketID:             req.MarketID,
+		LocationCode:         req.LocationCode,
+		LanguageCode:         strings.TrimSpace(req.LanguageCode),
+		OrganicCount:         organicCount,
+		OrganicETV:           organicETV,
+		Top10Count:           top10Count,
+		HasOrganicVisibility: organicCount > 0 || organicETV > 0 || top10Count > 0,
+		Billing:              response.Billing,
+	})
+}
+
+func marketOrganicMetrics(items []dataforseo.DomainRankOverviewItem) (int, float64, int) {
+	if len(items) == 0 {
+		return 0, 0, 0
+	}
+	metrics, _ := items[0]["metrics"].(map[string]any)
+	organic, _ := metrics["organic"].(map[string]any)
+	count := anyInt(organic["count"])
+	etv := anyFloat(organic["etv"])
+	top10 := anyInt(organic["pos_1"]) + anyInt(organic["pos_2_3"]) + anyInt(organic["pos_4_10"])
+	return count, etv, top10
+}
+
+func anyInt(value any) int {
+	switch number := value.(type) {
+	case int:
+		return number
+	case float64:
+		return int(number)
+	case json.Number:
+		parsed, _ := number.Int64()
+		return int(parsed)
+	default:
+		return 0
+	}
+}
+
+func anyFloat(value any) float64 {
+	switch number := value.(type) {
+	case float64:
+		return number
+	case float32:
+		return float64(number)
+	case int:
+		return float64(number)
+	case json.Number:
+		parsed, _ := number.Float64()
+		return parsed
+	default:
+		return 0
+	}
 }
 
 func (h *handler) expandKeywords(w http.ResponseWriter, r *http.Request) {

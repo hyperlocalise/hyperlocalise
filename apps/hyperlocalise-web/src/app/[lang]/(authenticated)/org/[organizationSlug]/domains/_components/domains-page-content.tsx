@@ -14,6 +14,7 @@
  */
 import { Add01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQuery } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -29,7 +30,7 @@ import { PageHeader, WorkspacePageShell } from "../../_components/workspace-reso
 import { DomainsPageStoreProvider, useDomainsPageStore } from "../store/domains-store-context";
 import { DomainsPageQueryBridge } from "../store/domains-page-query-bridge";
 
-import { DomainLinkDialog } from "./domain-link-dialog";
+import { DomainLinkDialog, type DomainLinkProjectSelection } from "./domain-link-dialog";
 import { DomainResearchEmpty } from "./domain-research-empty";
 import { DomainStatusBadge } from "./domain-status-badge";
 import { domainsPageContentMessages as messages } from "./domains-page-content.messages";
@@ -62,6 +63,20 @@ const DomainsPageView = observer(function DomainsPageView({
   const intl = useIntl();
   const router = useOrgRouter();
   const store = useDomainsPageStore();
+  const projectsQuery = useQuery({
+    queryKey: ["translation-projects", store.organizationSlug, "domain-link"],
+    enabled: allowLinkDomains && store.linkDialogOpen,
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(store.organizationSlug)}/projects`,
+      );
+      if (!response.ok) return [];
+      const body = (await response.json().catch(() => ({}))) as {
+        projects?: Array<{ id: string; name: string }>;
+      };
+      return body.projects ?? [];
+    },
+  });
 
   const linkDomainAction = allowLinkDomains ? (
     <Button type="button" size="sm" onClick={() => store.openLinkDialog()}>
@@ -165,7 +180,12 @@ const DomainsPageView = observer(function DomainsPageView({
                         size="sm"
                         render={
                           <OrgNavLink
-                            href={`/org/${store.organizationSlug}/link-domain/${domain.domainSlug}`}
+                            href={(() => {
+                              const path = `/org/${store.organizationSlug}/link-domain/${domain.domainSlug}`;
+                              return domain.localisationAuditId
+                                ? path
+                                : `${path}?domain=${encodeURIComponent(domain.domainKey)}`;
+                            })()}
                           />
                         }
                       >
@@ -186,8 +206,19 @@ const DomainsPageView = observer(function DomainsPageView({
           open={store.linkDialogOpen}
           onOpenChange={(open) => store.setLinkDialogOpen(open)}
           existingDomains={store.domains}
-          onContinue={(domainKey) => {
-            router.push(store.linkDomainPath(domainKey));
+          projects={projectsQuery.data ?? []}
+          projectsLoading={projectsQuery.isPending}
+          onContinue={(domainKey, marketIds, projectSelection: DomainLinkProjectSelection) => {
+            const params = new URLSearchParams({
+              domain: domainKey,
+              markets: marketIds.join(","),
+            });
+            if (projectSelection.mode === "existing") {
+              params.set("projectId", projectSelection.projectId);
+            } else {
+              params.set("createProject", projectSelection.mode === "create" ? "true" : "false");
+            }
+            router.push(`${store.linkDomainPath(domainKey)}?${params.toString()}`);
           }}
         />
       ) : null}
