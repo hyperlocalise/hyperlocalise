@@ -14,7 +14,7 @@
  */
 import { Add01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -29,7 +29,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { DomainsPageStoreProvider, useDomainsPageStore } from "../store/domains-store-context";
-import { DomainsPageQueryBridge } from "../store/domains-page-query-bridge";
+import { DomainsPageQueryBridge, linkedDomainsQueryKey } from "../store/domains-page-query-bridge";
 
 import { AddDomainDialog } from "./add-domain-dialog";
 import { DomainResearchEmpty } from "./domain-research-empty";
@@ -67,6 +67,7 @@ const DomainsPageView = observer(function DomainsPageView({
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
+  const queryClient = useQueryClient();
   const store = useDomainsPageStore();
   const openedClaimRef = useRef(false);
 
@@ -205,7 +206,12 @@ const DomainsPageView = observer(function DomainsPageView({
           existingDomains={store.domains}
           projects={projectsQuery.data ?? []}
           projectsLoading={projectsQuery.isPending}
-          onComplete={() => router.push(`/org/${store.organizationSlug}/domains`)}
+          onComplete={() => {
+            void queryClient.invalidateQueries({
+              queryKey: linkedDomainsQueryKey(store.organizationSlug),
+            });
+            router.push(`/org/${store.organizationSlug}/domains`);
+          }}
         />
       ) : null}
     </WorkspacePageShell>
