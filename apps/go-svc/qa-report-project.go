@@ -41,6 +41,19 @@ func missingQaProject() error {
 	return qaReportFailure(404, "project_not_found", "Project not found")
 }
 
+// qaProjectTeamAccessSQL is the same team gate as ownedNativeProject: org-wide
+// for teams:write roles, otherwise membership on the project team (or default).
+const qaProjectTeamAccessSQL = `($%d or exists(
+            select 1 from team_memberships m
+            join teams t on t.id = m.team_id
+            where m.user_id = $%d and t.organization_id = $%d
+            and (t.id = p.team_id or (p.team_id is null and t.slug = 'default'))
+        ))`
+
+func formatQaProjectTeamAccessSQL(orgWideParam, userParam, orgParam int) string {
+	return fmt.Sprintf(qaProjectTeamAccessSQL, orgWideParam, userParam, orgParam)
+}
+
 func (api *qaReportAPI) ownedNativeProject(ctx context.Context, actor qaReportActor, rawProjectID string) (nativeQaProject, error) {
 	projectID := normalizeDictionaryProjectID(rawProjectID)
 	if projectID == "" {
@@ -52,12 +65,7 @@ func (api *qaReportAPI) ownedNativeProject(ctx context.Context, actor qaReportAc
         select p.id, p.source, p.qa_scan_cadence, p.qa_scan_last_run_at
         from projects p
         where p.id = $1 and p.organization_id = $2
-        and ($3 or exists(
-            select 1 from team_memberships m
-            join teams t on t.id = m.team_id
-            where m.user_id = $4 and t.organization_id = $2
-            and (t.id = p.team_id or (p.team_id is null and t.slug = 'default'))
-        ))`,
+        and `+formatQaProjectTeamAccessSQL(3, 4, 2),
 		projectID, actor.organizationID, actor.canWriteProjectTeam(), actor.userID,
 	).Scan(&project.ID, &source, &project.QaScanCadence, &project.QaScanLastRunAt)
 	if errors.Is(err, pgx.ErrNoRows) {
