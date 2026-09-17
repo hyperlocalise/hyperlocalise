@@ -136,6 +136,7 @@ overrides:
   brace-expansion@^5.0.0: 5.0.9
   mermaid: 11.17.2
   valibot: 1.4.2
+  '@unicode/unicode-17.0.0': 2.0.4
   prosemirror-model: 1.25.11
   prosemirror-view: 1.42.3
 
