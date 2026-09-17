@@ -297,6 +297,7 @@ export function createLinkedDomainRoutes() {
         createProject: body.createProject ?? (!body.projectId ? true : undefined),
         marketIds: body.marketIds,
         teamId: c.var.auth.activeTeam?.id,
+        ensureCreatorTeamMembership: !hasCapability(c.var.auth.membership.role, "teams:write"),
       });
 
       if (isErr(result)) {

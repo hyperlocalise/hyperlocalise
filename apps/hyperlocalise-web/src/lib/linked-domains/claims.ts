@@ -593,6 +593,8 @@ export async function verifyAndClaimLinkedDomain(input: {
   marketIds?: string[];
   /** Active team selected by the caller for a newly created project. */
   teamId?: string;
+  /** Whether the caller needs explicit membership to see projects on the team. */
+  ensureCreatorTeamMembership?: boolean;
   resolveTxt?: ResolveTxtFn;
   fetchPublic?: PublicFetchFn;
   database?: DatabaseClient;
@@ -732,11 +734,13 @@ export async function verifyAndClaimLinkedDomain(input: {
         if (!project) {
           throw new Error("project_create_failed");
         }
-        await ensureTeamMembership({
-          teamId: team.id,
-          userId: input.userId,
-          database: tx,
-        });
+        if (input.ensureCreatorTeamMembership !== false) {
+          await ensureTeamMembership({
+            teamId: team.id,
+            userId: input.userId,
+            database: tx,
+          });
+        }
         await ensureDefaultNativeProjectMemory({
           organizationId: input.organizationId,
           projectId: project.id,
