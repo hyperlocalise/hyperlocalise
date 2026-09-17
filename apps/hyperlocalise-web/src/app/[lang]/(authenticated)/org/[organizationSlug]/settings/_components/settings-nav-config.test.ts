@@ -20,29 +20,45 @@ import {
 } from "./settings-nav-config";
 
 describe("settings nav config", () => {
-  it("shows general and account without extra capabilities", () => {
+  it("shows open items without extra capabilities", () => {
     const visible = filterVisibleSettingsNavGroups(settingsNavGroups, []);
 
-    expect(visible.map((group) => group.id)).toEqual(["workspace", "you"]);
+    expect(visible.map((group) => group.id)).toEqual([
+      "workspace",
+      "members-teams",
+      "integrations-ai",
+      "apps",
+      "you",
+    ]);
     expect(visible.flatMap((group) => group.items.map((item) => item.id))).toEqual([
       "general",
+      "members",
+      "ai-engine",
+      "domains",
       "account",
     ]);
   });
 
-  it("keeps billing and API keys behind their read capabilities", () => {
+  it("keeps gated items behind their read capabilities", () => {
     const visible = filterVisibleSettingsNavGroups(settingsNavGroups, [
       "api_keys:read",
       "billing:read",
       "activity_logs:read",
+      "integrations:read",
+      "experiments:read",
     ]);
 
     expect(visible.flatMap((group) => group.items.map((item) => item.id))).toEqual([
       "general",
-      "billing",
       "activity-logs",
-      "account",
+      "members",
+      "integrations",
+      "ai-engine",
+      "domains",
+      "hyperlab",
+      "billing",
       "api-keys",
+      "account",
     ]);
   });
 
@@ -52,6 +68,12 @@ describe("settings nav config", () => {
     expect(resolveActiveSettingsNavItem("/org/acme/settings/activity-logs", "acme")).toBe(
       "activity-logs",
     );
+    expect(resolveActiveSettingsNavItem("/org/acme/members", "acme")).toBe("members");
+    expect(resolveActiveSettingsNavItem("/en/org/acme/teams", "acme")).toBe("members");
+    expect(resolveActiveSettingsNavItem("/org/acme/integrations", "acme")).toBe("integrations");
+    expect(resolveActiveSettingsNavItem("/org/acme/ai-engine", "acme")).toBe("ai-engine");
+    expect(resolveActiveSettingsNavItem("/org/acme/domains", "acme")).toBe("domains");
+    expect(resolveActiveSettingsNavItem("/org/acme/hyperlab", "acme")).toBe("hyperlab");
     expect(resolveActiveSettingsNavItem("/org/acme/settings/account", "acme")).toBe("account");
     expect(resolveActiveSettingsNavItem("/org/acme/settings/api-keys", "acme")).toBe("api-keys");
   });
