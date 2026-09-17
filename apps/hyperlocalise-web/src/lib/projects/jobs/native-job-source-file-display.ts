@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { sourceFilename } from "@/lib/file-storage/source-file-metadata";
 
 const STORED_FILE_ID_PATTERN = /^file_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VERCEL_BLOB_HOST_PATTERN = /\.blob\.vercel-storage\.com\//i;
@@ -33,6 +32,14 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
+function basenameFromPath(path: string): string {
+  const normalized = path
+    .replace(/\\/g, "/")
+    .replace(/^(?:\.\/)+/, "")
+    .replace(/\/+/g, "/");
+  return normalized.split("/").filter(Boolean).at(-1) ?? normalized;
 }
 
 export function isStoredFileId(value: string): boolean {
@@ -76,7 +83,7 @@ export function originalFilenameFromStoredName(filename: string): string {
   }
 
   const withoutStorageKey = candidate.replace(STORAGE_KEY_PREFIX_PATTERN, "");
-  return sourceFilename(withoutStorageKey) || "file";
+  return basenameFromPath(withoutStorageKey) || "file";
 }
 
 export function getJobInputPayloadString(inputPayload: unknown, key: string): string | null {
