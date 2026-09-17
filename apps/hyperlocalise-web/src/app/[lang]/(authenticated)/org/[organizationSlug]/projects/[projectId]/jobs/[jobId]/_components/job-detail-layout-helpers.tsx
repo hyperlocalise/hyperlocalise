@@ -22,6 +22,7 @@ import type { IntlShape } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
+import { nativeJobSourceFileDisplayLabel } from "@/lib/projects/jobs/native-job-source-file-display";
 import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
 
@@ -38,6 +39,7 @@ import {
   resolveProviderTaskTypeLabel,
 } from "../../../../../jobs/_components/provider-tms-job-display";
 
+import { JobAssigneeOverflowLabel } from "./job-assignee-overflow-label";
 import { jobDetailLayoutHelpersMessages as messages } from "./job-detail-layout-helpers.messages";
 import { formatJobDetailDate, isProviderBackedJob, type JobDetailRecord } from "./job-detail-types";
 import type { JobDetailViewMetric, JobDetailViewProperty } from "./job-detail-view";
@@ -98,15 +100,6 @@ function getProgressValue(readiness: Record<string, unknown> | null) {
   const translationProgress = getReadinessNumber(readiness, "translationProgress");
   const approvalProgress = getReadinessNumber(readiness, "approvalProgress");
   return Math.max(0, Math.min(100, Math.round(translationProgress ?? approvalProgress ?? 0)));
-}
-
-function getInputPayloadString(job: JobDetailRecord, key: string) {
-  if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
-    return null;
-  }
-
-  const value = (job.inputPayload as Record<string, unknown>)[key];
-  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function getInputPayloadStringArray(job: JobDetailRecord, key: string) {
@@ -263,9 +256,9 @@ export function jobDetailTaskProperties(
       id: "assignees",
       label: intl.formatMessage(messages.labelAssignees),
       value:
-        input.externalAssignedUsers && input.externalAssignedUsers.length > 0
-          ? input.externalAssignedUsers.join(", ")
-          : null,
+        input.externalAssignedUsers && input.externalAssignedUsers.length > 0 ? (
+          <JobAssigneeOverflowLabel labels={input.externalAssignedUsers} emptyLabel={emptyValue} />
+        ) : null,
     },
     {
       label: intl.formatMessage(messages.labelDueDate),
@@ -312,7 +305,11 @@ export function jobDetailTaskLayoutFromRecord(
   secondaryProperties: JobDetailViewProperty[];
   title: string;
 } {
-  const sourcePath = getInputPayloadString(job, "sourceFileId");
+  const sourcePath = nativeJobSourceFileDisplayLabel({
+    inputPayload: job.inputPayload,
+    sourceFilename: job.sourceFilename,
+    sourcePath: job.sourcePath,
+  });
   const metadataTitle = getInputPayloadMetadataTitle(job);
   const input: JobDetailTaskLayoutInput = {
     id: job.id,

@@ -45,5 +45,6 @@ export const inspectDomainResearchSerpBodySchema = z.object({
 
 export const trackDomainResearchKeywordsBodySchema = z.object({
   marketId: z.string().trim().min(1).max(64),
+  device: z.enum(["desktop", "mobile"]).default("desktop"),
   keywords: z.array(domainResearchKeywordSchema).min(1).max(20),
 });

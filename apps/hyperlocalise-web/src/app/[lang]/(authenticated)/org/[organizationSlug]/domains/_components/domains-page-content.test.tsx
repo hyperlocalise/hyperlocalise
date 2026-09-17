@@ -63,7 +63,7 @@ describe("domains page content", () => {
     await waitFor(() => {
       expect(screen.getByText("No linked domains yet")).toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: "Link domain" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add a domain" })).toBeInTheDocument();
     expect(screen.queryByText("hyperlocalise.com")).not.toBeInTheDocument();
   });
 
@@ -79,7 +79,7 @@ describe("domains page content", () => {
     await waitFor(() => {
       expect(screen.getByText("No linked domains yet")).toBeInTheDocument();
     });
-    expect(screen.queryByRole("button", { name: "Link domain" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add a domain" })).not.toBeInTheDocument();
   });
 
   it("renders linked domains returned by the API", async () => {
@@ -106,7 +106,7 @@ describe("domains page content", () => {
     expect(await screen.findByText("hyperlocalise.com")).toBeInTheDocument();
   });
 
-  it("resumes a pending direct claim by its domain", async () => {
+  it("shows pending direct claims without linking to a removed page", async () => {
     const domain = listResearchPrototypeDomains()[0]!;
     vi.stubGlobal(
       "fetch",
@@ -130,13 +130,11 @@ describe("domains page content", () => {
 
     renderPage();
 
-    expect(await screen.findByRole("link", { name: "Verify" })).toHaveAttribute(
-      "href",
-      "/org/acme/link-domain/shop-example-com?domain=shop.example.com",
-    );
+    expect(await screen.findByText("shop.example.com")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Verify" })).not.toBeInTheDocument();
   });
 
-  it("resumes an audit claim by slug so the audit association is preserved", async () => {
+  it("shows pending audit claims without linking to a removed page", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -160,9 +158,7 @@ describe("domains page content", () => {
 
     renderPage();
 
-    expect(await screen.findByRole("link", { name: "Verify" })).toHaveAttribute(
-      "href",
-      "/org/acme/link-domain/audit-example-com",
-    );
+    expect(await screen.findByText("audit.example.com")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Verify" })).not.toBeInTheDocument();
   });
 });

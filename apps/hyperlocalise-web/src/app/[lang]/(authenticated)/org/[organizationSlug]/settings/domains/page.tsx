@@ -10,52 +10,43 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability } from "@/api/auth/policy";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import { getWorkspaceFeatureFlagEnabled, workspaceDomainsFlag } from "@/lib/flags/workspace-flags";
 import { requireAppCapability } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { LinkDomainPageContent } from "./_components/link-domain-page-content";
+import { DomainsPageContent } from "../../domains/_components/domains-page-content";
 import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
-  return generateAuthenticatedPageMetadata(params, "linkDomain");
+  return generateAuthenticatedPageMetadata(params, "settingsLinkedDomains");
 }
 
-export default function LinkDomainPage({
+export default function DomainsSettingsPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ organizationSlug: string; domainSlug: string }>;
-  searchParams: Promise<{
-    domain?: string;
-    markets?: string;
-    projectId?: string;
-    createProject?: string;
-  }>;
+  params: Promise<{ organizationSlug: string }>;
+  searchParams: Promise<{ claimDomainSlug?: string }>;
 }) {
   return (
     <OrgPageSuspense>
-      <LinkDomainPageLoader params={params} searchParams={searchParams} />
+      <DomainsSettingsPageLoader params={params} searchParams={searchParams} />
     </OrgPageSuspense>
   );
 }
 
-async function LinkDomainPageLoader({
+async function DomainsSettingsPageLoader({
   params,
   searchParams,
 }: {
-  params: Promise<{ organizationSlug: string; domainSlug: string }>;
-  searchParams: Promise<{
-    domain?: string;
-    markets?: string;
-    projectId?: string;
-    createProject?: string;
-  }>;
+  params: Promise<{ organizationSlug: string }>;
+  searchParams: Promise<{ claimDomainSlug?: string }>;
 }) {
-  const { organizationSlug, domainSlug } = await params;
-  const { domain, markets, projectId, createProject } = await searchParams;
-  const auth = await requireAppCapability("projects:create", { organizationSlug });
+  const { organizationSlug } = await params;
+  const { claimDomainSlug } = await searchParams;
+  const auth = await requireAppCapability("projects:read", { organizationSlug });
   const domainsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceDomainsFlag, auth);
 
   if (!domainsEnabled) {
@@ -63,15 +54,10 @@ async function LinkDomainPageLoader({
   }
 
   return (
-    <LinkDomainPageContent
+    <DomainsPageContent
       organizationSlug={organizationSlug}
-      domainSlug={domainSlug}
-      directDomain={domain}
-      directMarketIds={markets?.split(",").filter(Boolean)}
-      directProjectId={projectId}
-      directCreateProject={
-        createProject === "true" ? true : createProject === "false" ? false : undefined
-      }
+      allowLinkDomains={hasCapability(auth.membership.role, "projects:create")}
+      initialDomainSlug={claimDomainSlug}
     />
   );
 }

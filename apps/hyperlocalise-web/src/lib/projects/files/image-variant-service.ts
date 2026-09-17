@@ -275,13 +275,7 @@ export async function fetchImageBytesFromUrl(
 
 function mapImageGenerationError(error: unknown): ImageVariantError {
   if (error instanceof ManagedAiCreditAccessError) {
-    return error.billingError.code === "ai_credit_insufficient"
-      ? {
-          code: "ai_credit_insufficient",
-          requiredAmountUsd: error.billingError.requiredAmountUsd,
-          remainingAmountUsd: error.billingError.remainingAmountUsd,
-        }
-      : { code: "ai_credit_unavailable", message: error.message };
+    return { code: "ai_credit_unavailable", message: error.message };
   }
 
   return {

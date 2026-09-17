@@ -42,6 +42,9 @@ func (api *qaReportAPI) promoteWorkspaceFindings(ctx context.Context, actor qaRe
 	if len(findings) != len(findingIDs) {
 		return nil, 0, qaReportFailure(400, "qa_finding_not_found", "One or more findings were not found")
 	}
+	if err := api.assertFindingsAccessible(ctx, actor, findings); err != nil {
+		return nil, 0, err
+	}
 	if err := api.assertFindingsOnLatestSucceededRuns(ctx, actor.organizationID, findings); err != nil {
 		return nil, 0, err
 	}
@@ -55,6 +58,26 @@ func (api *qaReportAPI) promoteWorkspaceFindings(ctx context.Context, actor qaRe
 		results = append(results, result)
 	}
 	return map[string]any{"results": results}, 200, nil
+}
+
+// assertFindingsAccessible enforces the same team ACL as project-scoped QA
+// routes so workspace promote cannot write issues into inaccessible projects.
+func (api *qaReportAPI) assertFindingsAccessible(ctx context.Context, actor qaReportActor, findings []qaFindingRow) error {
+	seen := map[string]struct{}{}
+	for _, finding := range findings {
+		if _, ok := seen[finding.ProjectID]; ok {
+			continue
+		}
+		seen[finding.ProjectID] = struct{}{}
+		if _, err := api.ownedNativeProject(ctx, actor, finding.ProjectID); err != nil {
+			var failure *qaReportError
+			if errors.As(err, &failure) {
+				return qaReportFailure(400, "qa_finding_not_found", "One or more findings were not found")
+			}
+			return err
+		}
+	}
+	return nil
 }
 
 type qaFindingRow struct {

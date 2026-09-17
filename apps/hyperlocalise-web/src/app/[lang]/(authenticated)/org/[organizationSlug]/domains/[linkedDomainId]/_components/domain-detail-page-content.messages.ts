@@ -85,15 +85,30 @@ export const domainDetailPageContentMessages = defineMessages({
     id: "gExq27B2VB",
     description: "Error when projects cannot be loaded for domain assignment",
   },
-  continueVerification: {
-    defaultMessage: "Continue verification",
-    id: "Y1DzYaPZ4D",
-    description: "Button to continue verifying this domain",
-  },
   statusLabel: {
     defaultMessage: "Status",
     id: "NW5w/HG5/G",
     description: "Label for linked domain status on the detail page",
+  },
+  marketsHeading: {
+    defaultMessage: "Research markets",
+    id: "Te5Z3Go8As",
+    description: "Heading for linked domain market selection",
+  },
+  marketsDescription: {
+    defaultMessage: "Choose the markets used for this domain’s research.",
+    id: "CLV3Q206dT",
+    description: "Help text for linked domain market selection",
+  },
+  editMarkets: {
+    defaultMessage: "Edit markets",
+    id: "L2itdwaRts",
+    description: "Button to edit linked domain research markets",
+  },
+  noMarkets: {
+    defaultMessage: "No research markets selected.",
+    id: "XHSMBIh/Jj",
+    description: "Empty state for linked domain research markets",
   },
   verifyPending: {
     defaultMessage: "Verify this domain to unlock the full localisation audit report.",

@@ -17,8 +17,6 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
-  WORKSPACE_DOMAINS_FLAG,
-  WORKSPACE_HYPERLAB_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_QUERIES_BOARD_FLAG,
   WORKSPACE_REPORTS_FLAG,
@@ -33,6 +31,7 @@ import {
   buildHyperlabNavigationItems,
   buildHyperlabPath,
   buildOrganizationPath,
+  buildProjectNavigationGroups,
   buildProjectNavigationItems,
   buildProjectPath,
   buildTeamPath,
@@ -206,37 +205,42 @@ describe("path builders", () => {
     const items = groups.flatMap((group) => group.items);
     const byLabel = new Map(items.map((item) => [item.label, item]));
 
-    expect(byLabel.get("Inbox")?.href).toBe("/org/acme/inbox");
+    expect(byLabel.get("Overview")?.href).toBe("/org/acme/dashboard");
     expect(byLabel.get("Projects")?.href).toBe("/org/acme/projects");
-    expect(byLabel.get("New Request")).toMatchObject({
-      href: "/org/acme/inbox/new",
-      exact: true,
-    });
-    expect(byLabel.get("AI Engine")?.href).toBe("/org/acme/ai-engine");
-    expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
-    expect(byLabel.get("Guideline")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
-    expect(byLabel.get("Queries")?.featureFlagKey).toBe(WORKSPACE_QUERIES_BOARD_FLAG);
-    expect(byLabel.get("Domains")?.featureFlagKey).toBe(WORKSPACE_DOMAINS_FLAG);
-    expect(byLabel.get("Hyperlab")?.href).toBe("/org/acme/hyperlab");
-    expect(byLabel.get("Hyperlab")?.featureFlagKey).toBe(WORKSPACE_HYPERLAB_FLAG);
+    expect(byLabel.get("Inbox")?.href).toBe("/org/acme/inbox");
+    expect(byLabel.get("My Jobs")?.href).toBe("/org/acme/my-work");
+    expect(byLabel.get("Queries")?.href).toBe("/org/acme/issues");
     expect(byLabel.get("Reports")?.href).toBe("/org/acme/reports");
     expect(byLabel.get("Reports")?.featureFlagKey).toBe(WORKSPACE_REPORTS_FLAG);
+    expect(byLabel.get("Glossaries")?.href).toBe("/org/acme/glossaries");
+    expect(byLabel.get("Translation Memories")?.href).toBe("/org/acme/translation-memories");
+    expect(byLabel.get("Dictionaries")?.href).toBe("/org/acme/dictionaries");
+    expect(byLabel.get("Guideline")?.href).toBe("/org/acme/knowledge");
+    expect(byLabel.get("Guideline")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
     expect(byLabel.get("QA")?.href).toBe("/org/acme/qa");
+    expect(byLabel.get("Settings")?.href).toBe("/org/acme/settings");
 
-    expect(groups.map((group) => group.label)).toEqual([undefined, "Agents", "Workspace"]);
-    expect(groups[1]?.items.map((item) => item.label)).toEqual([
-      "New Request",
-      "Automations",
-      "AI Engine",
+    expect(groups.map((group) => group.label)).toEqual([
+      undefined,
+      "Workspace",
+      "Content Intelligence",
+      undefined,
     ]);
-    expect(groups[0]?.items.map((item) => item.label)).toEqual([
+    expect(groups[0]?.items.map((item) => item.label)).toEqual(["Overview", "Projects"]);
+    expect(groups[1]?.items.map((item) => item.label)).toEqual([
       "Inbox",
       "My Jobs",
       "Queries",
-      "Overview",
       "Reports",
       "QA",
     ]);
+    expect(groups[2]?.items.map((item) => item.label)).toEqual([
+      "Glossaries",
+      "Translation Memories",
+      "Dictionaries",
+      "Guideline",
+    ]);
+    expect(groups[3]?.items.map((item) => item.label)).toEqual(["Settings"]);
   });
 
   it("builds project navigation items scoped to the project", () => {
@@ -244,14 +248,13 @@ describe("path builders", () => {
 
     expect(items.map((item) => [item.label, item.href])).toEqual([
       ["Overview", "/org/acme/projects/proj_1"],
-      ["Reports", "/org/acme/projects/proj_1/reports"],
-      ["QA", "/org/acme/projects/proj_1/qa"],
       ["Files", "/org/acme/projects/proj_1/files"],
       ["Content Editor", "/org/acme/projects/proj_1/strings"],
+      ["Video Editor", "/org/acme/projects/proj_1/videos"],
+      ["QA", "/org/acme/projects/proj_1/qa"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
       ["Queries", "/org/acme/projects/proj_1/issue-sheet"],
       ["Automations", "/org/acme/projects/proj_1/automations"],
-      ["Guideline", "/org/acme/projects/proj_1/knowledge"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
     ]);
     expect(items.find((item) => item.label === "Queries")?.featureFlagKey).toBe(
@@ -260,12 +263,32 @@ describe("path builders", () => {
     expect(items.find((item) => item.label === "Automations")?.featureFlagKey).toBe(
       WORKSPACE_AUTOMATIONS_FLAG,
     );
-    expect(items.find((item) => item.label === "Guideline")?.featureFlagKey).toBe(
-      WORKSPACE_KNOWLEDGE_FLAG,
-    );
-    expect(items.find((item) => item.label === "Reports")?.featureFlagKey).toBe(
-      WORKSPACE_REPORTS_FLAG,
-    );
+    expect(items.find((item) => item.label === "Video Editor")?.badge).toBe("Coming soon");
+    expect(items.find((item) => item.label === "Video Editor")?.disabled).toBe(true);
+  });
+
+  it("builds project navigation groups scoped to the project", () => {
+    const groups = buildProjectNavigationGroups("acme", "proj_1", intl);
+
+    expect(groups.map((group) => group.label)).toEqual([
+      undefined,
+      "Content Studio",
+      "Workspace",
+      undefined,
+    ]);
+    expect(groups[0]?.items.map((item) => item.label)).toEqual(["Overview"]);
+    expect(groups[1]?.items.map((item) => item.label)).toEqual([
+      "Files",
+      "Content Editor",
+      "Video Editor",
+    ]);
+    expect(groups[2]?.items.map((item) => item.label)).toEqual([
+      "QA",
+      "Jobs",
+      "Queries",
+      "Automations",
+    ]);
+    expect(groups[3]?.items.map((item) => item.label)).toEqual(["Settings"]);
   });
 
   it("builds domain navigation items scoped to the linked domain", () => {
@@ -485,6 +508,14 @@ describe("buildProjectNavigationItems", () => {
     const automationsItem = items.find((item) => item.label === "Automations");
     expect(automationsItem?.href).toBe("/org/acme/projects/proj_1/automations");
     expect(automationsItem?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
+  });
+
+  it("includes a disabled Video Editor item with Coming soon badge", () => {
+    const items = buildProjectNavigationItems("acme", "proj_1", intl);
+    const videoEditorItem = items.find((item) => item.label === "Video Editor");
+    expect(videoEditorItem?.href).toBe("/org/acme/projects/proj_1/videos");
+    expect(videoEditorItem?.badge).toBe("Coming soon");
+    expect(videoEditorItem?.disabled).toBe(true);
   });
 });
 

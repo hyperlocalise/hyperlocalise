@@ -30,22 +30,17 @@ describe("DomainsPageStore", () => {
     expect(store.hasDomains).toBe(true);
   });
 
-  it("opens the link dialog for new domains and edit mode for locales", () => {
+  it("opens the add-domain dialog for new domains and edit mode for locales", () => {
     const store = new DomainsPageStore("acme");
     const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
 
-    store.openLinkDialog();
-    expect(store.linkDialogOpen).toBe(true);
-    expect(store.linkDialogDomain).toBeUndefined();
+    store.openAddDomainDialog();
+    expect(store.addDomainDialogOpen).toBe(true);
+    expect(store.dialogDomain).toBeUndefined();
 
-    store.setLinkDialogOpen(false);
+    store.setAddDomainDialogOpen(false);
     store.openEditLocales(domain);
-    expect(store.linkDialogOpen).toBe(true);
-    expect(store.linkDialogDomain).toEqual(domain);
-  });
-
-  it("builds the org link-domain path from a hostname", () => {
-    const store = new DomainsPageStore("acme");
-    expect(store.linkDomainPath("shop.example.com")).toMatch(/^\/org\/acme\/link-domain\/[a-z-]+$/);
+    expect(store.addDomainDialogOpen).toBe(true);
+    expect(store.dialogDomain).toEqual(domain);
   });
 });

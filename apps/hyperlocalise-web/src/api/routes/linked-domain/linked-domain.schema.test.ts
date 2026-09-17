@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   createLinkedDomainBodySchema,
+  marketRecommendationsBodySchema,
   updateLinkedDomainMarketsBodySchema,
   verifyLinkedDomainBodySchema,
 } from "./linked-domain.schema";
@@ -41,16 +42,39 @@ describe("create linked domain body schema", () => {
       { method: "dns_txt", createProject: false },
     );
   });
+
+  it("accepts markets alongside project intent", () => {
+    expect(
+      verifyLinkedDomainBodySchema.parse({
+        method: "dns_txt",
+        createProject: true,
+        marketIds: ["france-fr", "japan-ja"],
+      }),
+    ).toEqual({
+      method: "dns_txt",
+      createProject: true,
+      marketIds: ["france-fr", "japan-ja"],
+    });
+  });
 });
 
 describe("update linked domain markets body schema", () => {
-  it("rejects an empty market selection", () => {
-    expect(updateLinkedDomainMarketsBodySchema.safeParse({ marketIds: [] }).success).toBe(false);
+  it("accepts an empty market selection for audit-backed domains", () => {
+    expect(updateLinkedDomainMarketsBodySchema.safeParse({ marketIds: [] }).success).toBe(true);
   });
 
   it("accepts one or more selected markets", () => {
     expect(
       updateLinkedDomainMarketsBodySchema.safeParse({ marketIds: ["france-fr"] }).success,
     ).toBe(true);
+  });
+});
+
+describe("market recommendations body schema", () => {
+  it("requires the verification method used by the onboarding flow", () => {
+    expect(marketRecommendationsBodySchema.safeParse({}).success).toBe(false);
+    expect(marketRecommendationsBodySchema.parse({ method: "dns_txt" })).toEqual({
+      method: "dns_txt",
+    });
   });
 });

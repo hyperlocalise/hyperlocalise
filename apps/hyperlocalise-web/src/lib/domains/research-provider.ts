@@ -15,7 +15,7 @@ import { createHmac } from "node:crypto";
 import { env } from "@/lib/env";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
-import type { KeywordIntent, SerpResult } from "./research-prototype";
+import type { DomainResearchDevice, KeywordIntent, SerpResult } from "./research-prototype";
 
 export type DomainResearchProviderError = {
   code:
@@ -74,6 +74,7 @@ export type DomainResearchProvider = {
     locationCode: number;
     languageCode: string;
     targetDomain?: string;
+    device?: DomainResearchDevice;
     cookie?: string;
     signal?: AbortSignal;
   }): Promise<Result<SerpResult[], DomainResearchProviderError>>;
@@ -83,6 +84,7 @@ export type DomainResearchProvider = {
     targetDomain: string;
     locationCode: number;
     languageCode: string;
+    device?: DomainResearchDevice;
     cookie?: string;
     signal?: AbortSignal;
   }): Promise<Result<DomainResearchRankCheck, DomainResearchProviderError>>;
@@ -90,6 +92,7 @@ export type DomainResearchProvider = {
     targetDomain: string;
     locationCode: number;
     languageCode: string;
+    device?: DomainResearchDevice;
     keywords: { keywordId: string; keyword: string }[];
     cookie?: string;
     signal?: AbortSignal;
@@ -243,6 +246,7 @@ export function createGoSvcDomainResearchProvider(): DomainResearchProvider {
           keyword: input.keyword,
           locationCode: input.locationCode,
           languageCode: input.languageCode,
+          device: input.device ?? "desktop",
           targetDomain: input.targetDomain,
         },
         input,
@@ -278,6 +282,7 @@ export function createGoSvcDomainResearchProvider(): DomainResearchProvider {
           targetDomain: input.targetDomain,
           locationCode: input.locationCode,
           languageCode: input.languageCode,
+          device: input.device ?? "desktop",
         },
         input,
       );
@@ -305,6 +310,7 @@ export function createGoSvcDomainResearchProvider(): DomainResearchProvider {
           targetDomain: input.targetDomain,
           locationCode: input.locationCode,
           languageCode: input.languageCode,
+          device: input.device ?? "desktop",
           keywords: input.keywords,
         },
         input,

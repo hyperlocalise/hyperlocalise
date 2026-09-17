@@ -28,10 +28,12 @@ export const createLinkedDomainBodySchema = z
     }
   });
 
-export const marketRecommendationsBodySchema = z.object({});
+export const marketRecommendationsBodySchema = z.object({
+  method: z.enum(["dns_txt", "html_file", "meta_tag"]),
+});
 
 export const updateLinkedDomainMarketsBodySchema = z.object({
-  marketIds: z.array(z.string().trim().min(1).max(64)).min(1).max(16),
+  marketIds: z.array(z.string().trim().min(1).max(64)).max(16),
 });
 
 export const linkedDomainIdParamSchema = z.object({
@@ -44,6 +46,7 @@ export const verifyLinkedDomainBodySchema = z
     /** Attach to an existing workspace project. Set createProject false to leave it unassigned. */
     projectId: z.string().trim().min(1).max(128).optional(),
     createProject: z.boolean().optional(),
+    marketIds: z.array(z.string().trim().min(1).max(64)).max(16).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.projectId && value.createProject === true) {

@@ -19,9 +19,9 @@ func KnownQAModes() []string {
 	}
 }
 
-func qaChecks(req Request) []Check {
+func qaChecks(checks []Check, req Request) []Check {
 	if len(req.Modes) == 0 {
-		return nil
+		return checks
 	}
 
 	// Parse active modes with local flags to avoid allocating a mode set.
@@ -40,26 +40,12 @@ func qaChecks(req Request) []Check {
 		}
 	}
 
-	enabled := 0
-	if hasNotLocalized {
-		enabled++
-	}
-	if hasWhitespaceOnly {
-		enabled++
-	}
-	if hasSameAsSource {
-		enabled++
-	}
-	if hasEscapedChar {
-		enabled++
-	}
-	if enabled == 0 {
-		return nil
+	if !hasNotLocalized && !hasWhitespaceOnly && !hasSameAsSource && !hasEscapedChar {
+		return checks
 	}
 
-	// Size capacity to the enabled mode count so single-mode requests do not
-	// over-allocate the result slice.
-	checks := make([]Check, 0, enabled)
+	// BOLT OPTIMIZATION: Append directly into destination slice to avoid secondary
+	// slice allocation and copying.
 	if hasNotLocalized {
 		if check, include := notLocalizedCheck(req.SourceText, req.TargetText); include {
 			checks = append(checks, check)

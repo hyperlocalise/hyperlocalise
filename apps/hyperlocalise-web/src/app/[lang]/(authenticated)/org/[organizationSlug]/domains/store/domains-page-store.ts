@@ -13,7 +13,6 @@
 import { makeAutoObservable } from "mobx";
 
 import type { DomainResearchDomain } from "@/lib/domains/research-prototype";
-import { hostnameToDomainSlug } from "@/lib/localisation-audit/domain-slug";
 
 export type DomainsPageLoadStatus = "idle" | "loading" | "error" | "success";
 
@@ -21,7 +20,7 @@ export class DomainsPageStore {
   readonly organizationSlug: string;
   domains: DomainResearchDomain[] = [];
   loadStatus: DomainsPageLoadStatus = "idle";
-  linkDialogOpen = false;
+  addDomainDialogOpen = false;
   editLocalesDomain: DomainResearchDomain | null = null;
 
   constructor(organizationSlug: string) {
@@ -45,7 +44,7 @@ export class DomainsPageStore {
     return this.loadStatus === "success" && this.domains.length > 0;
   }
 
-  get linkDialogDomain() {
+  get dialogDomain() {
     return this.editLocalesDomain ?? undefined;
   }
 
@@ -57,25 +56,20 @@ export class DomainsPageStore {
     this.domains = domains;
   }
 
-  openLinkDialog() {
+  openAddDomainDialog() {
     this.editLocalesDomain = null;
-    this.linkDialogOpen = true;
+    this.addDomainDialogOpen = true;
   }
 
   openEditLocales(domain: DomainResearchDomain) {
     this.editLocalesDomain = domain;
-    this.linkDialogOpen = true;
+    this.addDomainDialogOpen = true;
   }
 
-  setLinkDialogOpen(open: boolean) {
-    this.linkDialogOpen = open;
+  setAddDomainDialogOpen(open: boolean) {
+    this.addDomainDialogOpen = open;
     if (!open) {
       this.editLocalesDomain = null;
     }
-  }
-
-  linkDomainPath(domainKey: string) {
-    const domainSlug = hostnameToDomainSlug(domainKey);
-    return `/org/${this.organizationSlug}/link-domain/${domainSlug}`;
   }
 }

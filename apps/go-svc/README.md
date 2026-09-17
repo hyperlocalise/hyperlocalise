@@ -71,6 +71,37 @@ go-svc, including the `Engine` interface, request and response types,
 configuration, and typed errors. Vendor MT integrations use this package as
 library clients; it does not expose an HTTP route.
 
+### OpenTelemetry / Tracing
+
+go-svc instruments inbound HTTP requests with OpenTelemetry and exports spans over OTLP/HTTP, reusing the same SDK and exporter as the CLI's telemetry (`apps/cli/internal/cliotel`) rather than a separate Datadog-specific stack. Tracing is a no-op unless an OTLP endpoint is configured.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ | Base OTLP endpoint (traces are exported over HTTP via `otlptracehttp`). Tracing stays disabled if neither this nor `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set. |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | _(unset)_ | Traces-specific OTLP endpoint, if it differs from the base endpoint above. |
+| `OTEL_SDK_DISABLED` | _(unset)_ | Set to `true` to force tracing off even if an endpoint is configured. |
+
+Unlike the CLI, there is no separate app-specific opt-in flag: go-svc traces whenever an OTLP endpoint is present. `service.version` and `deployment.environment.name` are read from Vercel's own system environment variables:
+
+| Resource attribute | Source | Behavior when unset |
+|---|---|---|
+| `service.name` | Hardcoded to `go-svc` | n/a |
+| `service.version` | `VERCEL_GIT_COMMIT_SHA` | Attribute omitted (not sent as `"unknown"`) |
+| `deployment.environment.name` | `VERCEL_ENV` | Attribute omitted (not sent as `"unknown"`) |
+
+**Deployment prerequisite**: `VERCEL_GIT_COMMIT_SHA` and `VERCEL_ENV` only reach the container if the `go_svc` Vercel project has **"Automatically expose System Environment Variables"** enabled in its project settings. This is a Vercel dashboard setting outside this repository — verify it's on for `go_svc` specifically; it already is for the `web` service (see `apps/hyperlocalise-web/src/lib/workos/api-hostname.ts`), but the container runtime is configured separately.
+
+**Datadog Agent / Collector setup**: point `OTEL_EXPORTER_OTLP_ENDPOINT` at the Datadog Agent's native OTLP/HTTP receiver (default `http://<agent-host>:4318`) or at an OpenTelemetry Collector configured with a Datadog exporter. go-svc only speaks OTLP/HTTP, matching the CLI's exporter choice — there is no gRPC exporter in this repo.
+
+What's traced:
+
+- Every inbound request except `GET /health` (and its `/api/go-svc/health` alias), which is excluded entirely rather than sampled down.
+- Incoming `traceparent`/`tracestate` (W3C Trace Context) and `baggage` headers are continued, not replaced with a new trace.
+- Span name and the `http.route` attribute use the matched `net/http.ServeMux` route template (e.g. `/v1/orgs/{organizationSlug}/dictionaries`), never the concrete organization slug, project ID, or other request-supplied path segment. Requests that match no route are recorded as `unmatched` rather than the raw path.
+- `http.request.method`, `http.route`, and `http.response.status_code` are recorded; responses with a 5xx status mark the span as an error.
+
+What's never recorded: request/response bodies, the `Authorization` header, cookies, or any other customer-supplied content. The middleware only ever reads the method, matched route, and response status.
+
 ## Local development
 
 From the repository root:
@@ -104,6 +135,8 @@ Production builds use `Dockerfile.vercel` at the repository root. The image:
 - Listens on `PORT` (default `8080`)
 
 Set the required WorkOS variables in the Vercel `go_svc` service environment. Use the same `WORKOS_COOKIE_PASSWORD` as `hyperlocalise-web`.
+
+For tracing, set `OTEL_EXPORTER_OTLP_ENDPOINT` in the `go_svc` service environment and confirm "Automatically expose System Environment Variables" is enabled for that service so `service.version`/`deployment.environment.name` are populated (see [OpenTelemetry / Tracing](#opentelemetry--tracing) above).
 
 ## API
 

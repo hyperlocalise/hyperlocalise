@@ -38,6 +38,7 @@ import {
   verifyAndClaimLinkedDomain,
 } from "@/lib/linked-domains/claims";
 import { recommendDomainMarkets } from "@/lib/domains/market-recommendations";
+import { verifyLinkedDomainChallenge } from "@/lib/linked-domains/verify";
 import type { LinkedDomainError } from "@/lib/linked-domains/types";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -149,7 +150,10 @@ function mapLinkedDomainError(
       return notFoundResponse(c, error.code, error.message);
     case "domain_already_claimed":
     case "claim_pending_exists":
+    case "project_limit_reached":
       return conflictResponse(c, error.code, error.message);
+    case "project_limit_check_failed":
+      return serviceUnavailableResponse(c, error.code, error.message);
     default:
       return badRequestResponse(c, error.code, error.message);
   }
@@ -180,13 +184,24 @@ export function createLinkedDomainRoutes() {
         }
 
         const { linkedDomainId } = c.req.valid("param");
+        const { method } = c.req.valid("json");
         const linkedDomain = await getLinkedDomain({
           organizationId: c.var.auth.organization.localOrganizationId,
           linkedDomainId,
         });
         if (!linkedDomain) return notFoundResponse(c, "linked_domain_not_found");
-        if (linkedDomain.status !== "verified") {
+        if (linkedDomain.status !== "verified" && linkedDomain.status !== "pending_verification") {
           return badRequestResponse(c, "linked_domain_not_verified", "Verify the domain first.");
+        }
+
+        const verification = await verifyLinkedDomainChallenge({
+          method,
+          domainKey: linkedDomain.domainKey,
+          sourceUrl: linkedDomain.sourceUrl,
+          token: linkedDomain.challenges.token,
+        });
+        if (isErr(verification)) {
+          return mapLinkedDomainError(c, verification.error);
         }
 
         const result = await recommendDomainMarkets({
@@ -292,6 +307,9 @@ export function createLinkedDomainRoutes() {
         method: body.method,
         projectId: body.projectId,
         createProject: body.createProject ?? (!body.projectId ? true : undefined),
+        marketIds: body.marketIds,
+        teamId: c.var.auth.activeTeam?.id,
+        ensureCreatorTeamMembership: !hasCapability(c.var.auth.membership.role, "teams:write"),
       });
 
       if (isErr(result)) {

@@ -210,7 +210,7 @@ export function createDomainResearchRoutes() {
           return mapResearchError(c, result.error);
         }
 
-        return c.json({ results: result.value.results }, 200);
+        return c.json({ results: result.value.results, device: result.value.device }, 200);
       },
     )
     .post(
@@ -239,6 +239,7 @@ export function createDomainResearchRoutes() {
           organizationId: c.var.auth.organization.localOrganizationId,
           linkedDomainId,
           marketId: body.marketId,
+          device: body.device,
           keywords: body.keywords,
           cookie: c.req.header("cookie"),
           signal: c.req.raw.signal,

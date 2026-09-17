@@ -29,6 +29,7 @@ import {
   getResearchMarket,
   linkedDomainToResearchDomain,
   type DomainResearchCatalog,
+  type DomainResearchDevice,
   type KeywordIdea,
   type KeywordIntent,
   type RankRow,
@@ -155,6 +156,7 @@ export async function getLiveDomainResearchCatalog(input: {
     url: row.url,
     volume: row.volume,
     marketId: row.marketId,
+    device: row.device === "mobile" ? "mobile" : "desktop",
   }));
   const serpByKeywordId: Record<string, SerpResult[]> = {};
   const keywordIdByKey = new Map(
@@ -365,7 +367,9 @@ export async function inspectLiveDomainSerp(input: {
   signal?: AbortSignal;
   provider?: DomainResearchProvider;
   database?: DatabaseClient;
-}): Promise<Result<{ results: SerpResult[] }, DomainResearchStoreError>> {
+}): Promise<
+  Result<{ results: SerpResult[]; device: DomainResearchDevice }, DomainResearchStoreError>
+> {
   const database = input.database ?? db;
   const linkedDomainResult = await requireLinkedDomain({
     ...input,
@@ -381,12 +385,23 @@ export async function inspectLiveDomainSerp(input: {
   }
 
   const keyword = input.keyword.trim();
+  const [trackedKeyword] = await database
+    .select({ device: schema.domainResearchTrackedKeywords.device })
+    .from(schema.domainResearchTrackedKeywords)
+    .where(
+      sql`${schema.domainResearchTrackedKeywords.linkedDomainId} = ${input.linkedDomainId}
+        and ${schema.domainResearchTrackedKeywords.marketId} = ${input.marketId}
+        and lower(${schema.domainResearchTrackedKeywords.keyword}) = lower(${keyword})`,
+    )
+    .limit(1);
+  const device: DomainResearchDevice = trackedKeyword?.device === "mobile" ? "mobile" : "desktop";
   const provider = input.provider ?? getDomainResearchProvider();
   const result = await provider.liveSerp({
     keyword,
     locationCode: market.locationCode,
     languageCode: market.language,
     targetDomain: linkedDomainResult.value.domainKey,
+    device,
     cookie: input.cookie,
     signal: input.signal,
   });
@@ -418,13 +433,14 @@ export async function inspectLiveDomainSerp(input: {
       },
     });
 
-  return ok({ results: result.value });
+  return ok({ results: result.value, device });
 }
 
 export async function trackLiveDomainKeywords(input: {
   organizationId: string;
   linkedDomainId: string;
   marketId: string;
+  device?: DomainResearchDevice;
   keywords: DomainResearchIdea[];
   cookie?: string;
   signal?: AbortSignal;
@@ -444,6 +460,7 @@ export async function trackLiveDomainKeywords(input: {
   if (!market) {
     return err({ code: "market_not_found", message: "Unknown research market." });
   }
+  const device: DomainResearchDevice = input.device ?? "desktop";
 
   const unique = new Map<string, DomainResearchIdea>();
   for (const keyword of input.keywords) {
@@ -467,6 +484,7 @@ export async function trackLiveDomainKeywords(input: {
     targetDomain: linkedDomainResult.value.domainKey,
     locationCode: market.locationCode,
     languageCode: market.language,
+    device,
     keywords: rows.slice(0, 20).map((row) => ({
       keywordId: row.keyword,
       keyword: row.keyword,
@@ -494,6 +512,7 @@ export async function trackLiveDomainKeywords(input: {
           marketId: market.id,
           locationCode: market.locationCode,
           languageCode: market.language,
+          device,
           volume: keyword.volume,
           position: check?.position ?? null,
           url: check?.url ?? "",
@@ -580,7 +599,8 @@ export async function refreshLiveDomainRanks(input: {
 
   const groups = new Map<string, typeof tracked>();
   for (const row of tracked) {
-    const key = `${row.locationCode}:${row.languageCode}`;
+    const device: DomainResearchDevice = row.device === "mobile" ? "mobile" : "desktop";
+    const key = `${row.locationCode}:${row.languageCode}:${device}`;
     const group = groups.get(key) ?? [];
     group.push(row);
     groups.set(key, group);
@@ -591,12 +611,14 @@ export async function refreshLiveDomainRanks(input: {
   for (const group of groups.values()) {
     const locationCode = group[0]!.locationCode;
     const languageCode = group[0]!.languageCode;
+    const device: DomainResearchDevice = group[0]!.device === "mobile" ? "mobile" : "desktop";
     for (let offset = 0; offset < group.length; offset += 20) {
       const batch = group.slice(offset, offset + 20);
       const rankResult = await provider.rankCheckBatch({
         targetDomain: linkedDomainResult.value.domainKey,
         locationCode,
         languageCode,
+        device,
         keywords: batch.map((row) => ({
           keywordId: row.id,
           keyword: row.keyword,

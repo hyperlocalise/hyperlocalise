@@ -44,8 +44,6 @@ import {
   persistFileProjectTranslationsStep,
   persistFileTranslationMemoryEntriesStep,
   persistDocumentVariantBytesStep,
-  releaseSandboxTranslationCreditStep,
-  reserveSandboxTranslationCreditStep,
   resolveWorkspaceReportsFlagStep,
   reuseFileTranslationMemoryEntriesStep,
   storeOutputFileStep,
@@ -844,23 +842,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     throw error;
   }
 
-  const creditReservation = await reserveSandboxTranslationCreditStep({
-    organizationId,
-    jobId: claim.job.id,
-    source: "translation_job_complete",
-    surface: "file_translation",
-  });
-  if (creditReservation && !creditReservation.ok) {
-    await failTranslationJobStep({
-      jobId: claim.job.id,
-      projectId: claim.job.projectId,
-      workflowRunId: claim.job.workflowRunId,
-      code: creditReservation.error.code,
-      message: creditReservation.error.code,
-    });
-    throw new Error(creditReservation.error.code);
-  }
-
   let sandboxId = "";
   const inputFilename = getSandboxInputFilename(sourceFile.filename);
   const instructions = parsedInput.metadata?.instructions ?? null;
@@ -1386,10 +1367,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       targetLocales: parsedInput.targetLocales,
       sandboxId,
       error: reason,
-    });
-    await releaseSandboxTranslationCreditStep({
-      jobId: claim.job.id,
-      reason: "file_translation_failed",
     });
     await failTranslationJobStep({
       jobId: claim.job.id,

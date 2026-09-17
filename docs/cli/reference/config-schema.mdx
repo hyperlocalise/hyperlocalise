@@ -9,6 +9,8 @@ description: "Concise reference for the hyperlocalise i18n config schema."
 - `buckets`
 - `groups`
 - `llm`
+- `translation` (optional)
+- `mt` (optional)
 - `storage` (required for `sync`)
 - `cache` (optional)
 
@@ -35,6 +37,20 @@ description: "Concise reference for the hyperlocalise i18n config schema."
 - optional `context_memory` object with `provider` and `model` for context-building overrides
 - supported providers: `openai` | `azure_openai` | `anthropic` | `gemini` | `bedrock` | `lmstudio` | `groq` | `mistral` | `ollama` | `openrouter` | `ai_gateway`
 - `rules` array with `priority`, `group`, `profile`
+
+## `translation`
+
+- `default` (object, required): `{ type: llm | mt, profile: <name> }`
+- `rules` (array, optional): entries with `priority`, `group`, `type` (`llm` | `mt`), `profile`
+- mutually exclusive with `llm.rules`
+- `type: llm` profiles resolve against `llm.profiles`; `type: mt` profiles resolve against `mt.profiles`
+
+## `mt`
+
+- `profiles` map of profile name -> `{ provider, api_key_env, base_url }`
+- supported providers: `google` | `deepl`
+- `api_key_env` (required): name of the environment variable holding the API key
+- `base_url`: optional for `google`; required for `deepl` and must be `https://api.deepl.com` or `https://api-free.deepl.com`
 
 ## `storage`
 

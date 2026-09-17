@@ -53,7 +53,6 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "issues",
   "jobs",
   "layout",
-  "linkDomain",
   "members",
   "membersPermissions",
   "myJobs",
@@ -580,18 +579,6 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Workspace for localisation projects, jobs, and reviews.",
       id: "ZP0LR3AI7T",
       description: "Default document description for authenticated workspace pages",
-    },
-  },
-  linkDomain: {
-    title: {
-      defaultMessage: "Link domain",
-      id: "AQ1MS4BJ8U",
-      description: "Document title for the link-domain page",
-    },
-    description: {
-      defaultMessage: "Link a domain to this workspace.",
-      id: "BR2NT5CK9V",
-      description: "Document description for the link-domain page",
     },
   },
   members: {
