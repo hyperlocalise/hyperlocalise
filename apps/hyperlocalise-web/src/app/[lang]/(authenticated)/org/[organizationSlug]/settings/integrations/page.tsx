@@ -10,35 +10,48 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { MembersPageContent } from "../_components/members-page-content";
+import { IntegrationsPageContent } from "../../integrations/_components/integrations-page-content";
 import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
-  return generateAuthenticatedPageMetadata(params, "settingsMembers");
+  return generateAuthenticatedPageMetadata(params, "integrations");
 }
 
-export default function MembersSettingsPage({
+export default function IntegrationsSettingsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ organizationSlug: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   return (
     <OrgPageSuspense>
-      <MembersSettingsPageLoader params={params} />
+      <IntegrationsSettingsPageLoader params={params} searchParams={searchParams} />
     </OrgPageSuspense>
   );
 }
 
-async function MembersSettingsPageLoader({
+async function IntegrationsSettingsPageLoader({
   params,
+  searchParams,
 }: {
   params: Promise<{ organizationSlug: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { organizationSlug } = await params;
-  await requireAppAuthContext({ organizationSlug });
+  const { error } = await searchParams;
+  const auth = await requireAppAuthContext({ organizationSlug });
 
-  return <MembersPageContent organizationSlug={organizationSlug} />;
+  return (
+    <IntegrationsPageContent
+      organizationSlug={organizationSlug}
+      membershipRole={auth.membership.role}
+      canManageProviderIntegrations={hasCapability(auth.membership.role, "integrations:read")}
+      errorCode={error}
+    />
+  );
 }

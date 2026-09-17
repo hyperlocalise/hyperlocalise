@@ -66,20 +66,20 @@ export const settingsNavGroups: readonly SettingsNavGroupConfig[] = [
   },
   {
     id: "members-teams",
-    items: [{ id: "members", href: "/members" }],
+    items: [{ id: "members", href: "members" }],
   },
   {
     id: "integrations-ai",
     items: [
-      { id: "integrations", href: "/integrations", requiredCapability: "integrations:read" },
-      { id: "ai-engine", href: "/ai-engine" },
+      { id: "integrations", href: "integrations", requiredCapability: "integrations:read" },
+      { id: "ai-engine", href: "ai-engine" },
     ],
   },
   {
     id: "apps",
     items: [
-      { id: "domains", href: "/domains" },
-      { id: "hyperlab", href: "/hyperlab", requiredCapability: "experiments:read" },
+      { id: "domains", href: "domains" },
+      { id: "hyperlab", href: "hyperlab", requiredCapability: "experiments:read" },
     ],
   },
   {
@@ -132,25 +132,40 @@ export function resolveActiveSettingsNavItem(
   const orgRoot = `/org/${organizationSlug}`;
 
   if (
+    normalizedPath.startsWith(`${settingsRoot}/members`) ||
     normalizedPath.startsWith(`${orgRoot}/members`) ||
     normalizedPath.startsWith(`${orgRoot}/teams`)
   ) {
     return "members";
   }
 
-  if (normalizedPath.startsWith(`${orgRoot}/integrations`)) {
+  if (
+    normalizedPath.startsWith(`${settingsRoot}/integrations`) ||
+    normalizedPath.startsWith(`${orgRoot}/integrations`)
+  ) {
     return "integrations";
   }
 
-  if (normalizedPath.startsWith(`${orgRoot}/ai-engine`)) {
+  if (
+    normalizedPath.startsWith(`${settingsRoot}/ai-engine`) ||
+    normalizedPath.startsWith(`${orgRoot}/ai-engine`)
+  ) {
     return "ai-engine";
   }
 
-  if (normalizedPath.startsWith(`${orgRoot}/domains`)) {
+  if (
+    normalizedPath.startsWith(`${settingsRoot}/domains`) ||
+    normalizedPath.startsWith(`${settingsRoot}/linked-domains`) ||
+    normalizedPath === `${orgRoot}/domains` ||
+    normalizedPath.startsWith(`${orgRoot}/domains/`)
+  ) {
     return "domains";
   }
 
-  if (normalizedPath.startsWith(`${orgRoot}/hyperlab`)) {
+  if (
+    normalizedPath.startsWith(`${settingsRoot}/hyperlab`) ||
+    normalizedPath.startsWith(`${orgRoot}/hyperlab`)
+  ) {
     return "hyperlab";
   }
 

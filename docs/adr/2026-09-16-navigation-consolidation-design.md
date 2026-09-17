@@ -28,7 +28,7 @@ The workspace sidebar previously exposed 17+ flat and semi-grouped items (Inbox,
    - **Content Studio (Section)**: Dedicated to content authoring and editing:
      - **Files** (`/projects/[projectId]/files`)
      - **Content Editor** (`/projects/[projectId]/strings`, flag: `RELEASE_CAT_ALL_FILES_FLAG`)
-     - **Video Editor** (`/projects/[projectId]/videos`, badge: "Coming soon")
+     - **Video Editor** (disabled until `/projects/[projectId]/videos` exists, badge: "Coming soon")
    - **Workspace (Section)**: Mirrors the global workspace concept for project-scoped operations:
      - **Jobs** (`/projects/[projectId]/jobs`)
      - **Queries** (`/projects/[projectId]/issue-sheet`)
@@ -39,9 +39,9 @@ The workspace sidebar previously exposed 17+ flat and semi-grouped items (Inbox,
 3. **Settings Navigation**:
    - Inside Settings (`/org/[slug]/settings`):
      - **Workspace**: General (`/settings`), Activity Logs (`/settings/activity-logs`)
-     - **Members & Teams**: Moved out of Workspace as its own standalone item/group (`/members`)
-     - **Integrations & AI**: Integrations (`/integrations`), AI Engine (`/ai-engine`)
-     - **Apps & Features**: Domains (`/domains`), Hyperlab (`/hyperlab`)
+     - **Members & Teams**: Moved out of Workspace as its own standalone item/group (`/settings/members`)
+     - **Integrations & AI**: Integrations (`/settings/integrations`), AI Engine (`/settings/ai-engine`)
+     - **Apps & Features**: Domains (`/settings/domains`), Hyperlab (`/settings/hyperlab`)
      - **Billing**: Billing (`/settings/billing`)
      - **Developer**: API Keys (`/settings/api-keys`)
      - **You**: Account (`/settings/account`)
