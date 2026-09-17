@@ -214,9 +214,7 @@ function InboxListFiltersToolbar({
             }
           >
             <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3" />
-            <span className="max-w-24 truncate">
-              {inboxTypeFilterLabel(filters.type, intl)}
-            </span>
+            <span className="max-w-24 truncate">{inboxTypeFilterLabel(filters.type, intl)}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuRadioGroup
