@@ -11,12 +11,6 @@
  * Version 2.0 or later.
  */
 
-import { applyDatadogInitEnv } from "./datadog-init-env.mjs";
+export const COMPLETE_QUERY_STRING_REDACTION_REGEXP: ".*";
 
-// Vercel does not interpolate one environment variable inside another. Set
-// deployment-derived tags and query-string redaction before dd-trace
-// initializes, while still allowing an operator to override DD_ENV or
-// DD_VERSION explicitly.
-applyDatadogInitEnv(process.env);
-
-await import("dd-trace/initialize.mjs");
+export function applyDatadogInitEnv<T extends Record<string, string | undefined>>(env: T): T;

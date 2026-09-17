@@ -18,7 +18,7 @@ rg 'export const runtime' src/app
 
 Enable **Automatically expose System Environment Variables** on both the preview and production Vercel projects. This provides `VERCEL_ENV` and `VERCEL_GIT_COMMIT_SHA` at runtime.
 
-Configure these non-secret variables for both Preview and Production, then redeploy:
+Configure these non-secret variables on the **web** Vercel service only (`apps/hyperlocalise-web`) for Preview and Production, then redeploy:
 
 | Variable                     | Value                         |
 | ---------------------------- | ----------------------------- |
@@ -26,7 +26,11 @@ Configure these non-secret variables for both Preview and Production, then redep
 | `DD_SERVICE`                 | `hyperlocalise-web`           |
 | `DD_TRACE_PROPAGATION_STYLE` | `datadog,tracecontext`        |
 
-`datadog-init.mjs` derives `DD_ENV` from `VERCEL_ENV` and `DD_VERSION` from `VERCEL_GIT_COMMIT_SHA` before the tracer loads. Explicit `DD_ENV` or `DD_VERSION` values take precedence. This makes preview and production traces distinguishable and makes the service version immutable for each deployment.
+`NODE_OPTIONS=--import ./datadog-init.mjs` is the preload for this Next.js service. The path is relative to the web service root in `vercel.json`. Next.js file tracing includes `datadog-init.mjs` and `datadog-init-env.mjs`, so each Node.js serverless function can resolve the import. Vercel applies `NODE_OPTIONS` to that service's Node runtime (and to `next build`). Leave it unset locally so `vp test` and `vp run dev` stay inert.
+
+Do not set `NODE_OPTIONS` or `DD_SERVICE` on `go_svc`. That service is a Go container and does not load this preload.
+
+`datadog-init.mjs` derives `DD_ENV` from `VERCEL_ENV` and `DD_VERSION` from `VERCEL_GIT_COMMIT_SHA` before the tracer loads. Explicit `DD_ENV` or `DD_VERSION` values take precedence. This makes preview and production traces distinguishable and makes the service version immutable for each deployment. The same preload always sets `DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP` to `.*` so `http.url` never keeps a query string. Do not override that variable to a weaker pattern.
 
 Do not configure `DD_API_KEY` in the application. Install the Datadog integration from the Vercel Marketplace for the preview and production projects, authorize the correct Datadog site, and create a Trace Drain for each project.
 
@@ -38,7 +42,7 @@ Static assets under `/_next/static/*` are served outside the Node.js route runti
 
 Keep route and resource names at framework-generated templates such as `/auth/select-organization/[organizationSlug]` and `/api/[[...route]]`. Never replace them with concrete request paths.
 
-Do not enable header tagging or request/response body capture. In particular, do not add cookies, authorization headers, organization slugs, project IDs, source text, translated text, or query strings as tags. W3C `traceparent` and `tracestate` propagation is enabled by `DD_TRACE_PROPAGATION_STYLE`; `dd-trace` injects it into supported outbound Node.js HTTP and `undici` requests.
+Do not enable header tagging or request/response body capture. In particular, do not add cookies, authorization headers, organization slugs, project IDs, source text, translated text, or query strings as tags. Translation-memory search text travels in the `search` query parameter; complete query-string redaction in `datadog-init.mjs` is what keeps that text out of `http.url`. W3C `traceparent` and `tracestate` propagation is enabled by `DD_TRACE_PROPAGATION_STYLE`; `dd-trace` injects it into supported outbound Node.js HTTP and `undici` requests.
 
 ## Verification
 
