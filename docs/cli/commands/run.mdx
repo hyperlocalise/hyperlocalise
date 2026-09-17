@@ -204,6 +204,7 @@ Enable it per mapping with `buckets.*.files[].srx`, or override every mapping fo
 - `user_prompt` is used for payload content (text to translate, or source content to summarize for context memory).
 - Translation flow supports profile `user_prompt` override.
 - Context-memory summary flow always uses the built-in summary payload template and does not apply profile `user_prompt` override.
+- This entire prompt contract applies only to tasks routed to `type: llm`. Tasks routed to `type: mt` (see [Translation routing](/cli/configuration/i18n-config)) send raw source text directly to the configured MT provider and ignore `system_prompt`/`user_prompt`/`prompt` entirely — provider and behavior come from `mt.profiles.<name>` instead.
 
 <Note>
 Changing prompt structure (e.g. moving context from the user message to the system message) does not automatically invalidate remote cache entries. To force re-translation after a prompt restructure, bump the `prompt_version` in your profile.
@@ -217,6 +218,27 @@ To troubleshoot progress rendering, you can enable debug logs without changing C
 - `HYPERLOCALISE_PROGRESS_DEBUG_FILE=<path>` overrides log file location.
 
 Default log path when enabled: `.hyperlocalise/logs/run.log`.
+
+## Machine translation (MT) execution
+
+Tasks routed to `type: mt` (via `translation.default`/`translation.rules`) execute differently from LLM tasks:
+
+- **Batching**: `run` groups MT tasks by `(profile, source locale, target locale)` and sends up to 50 source strings per request. Larger groups are split into multiple sequential requests automatically.
+- **Retries**: each MT request batch is retried up to 3 attempts total, with exponential backoff between attempts. Only transient failures are retried — request timeouts, rate limiting, and upstream-unavailable responses. Authentication failures, validation errors, and unsupported-language-pair errors fail immediately without retrying.
+- **No automatic fallback to LLM**: if an MT batch fails after retries are exhausted, `run` records the affected tasks as failures (same as any other translation failure) — it does not reroute them to an LLM profile. If you need an LLM as a backstop for MT failures, re-run the failed tasks manually with a config that routes them to `type: llm`.
+- **Validation failures**: source text that the MT provider rejects outright (for example, an unsupported language pair) is not retried and is recorded as a task failure with the provider's error message.
+- **Missing credentials fail the whole run before any task executes**: `run` resolves and connects every MT profile that is actually selected by a planned task before translating anything, so a missing or empty credential environment variable fails the run immediately, rather than partway through. MT profiles defined in `mt.profiles` but never selected by a `translation` rule or default are not checked at all.
+
+### Character usage reporting
+
+MT tasks report character counts instead of LLM token counts. In the `--output` JSON report (see "Output fields" below), MT usage appears at three levels: run-level totals, per-locale (`localeMTUsage`), and per-MT-profile (`mtUsageByProfile`). Each usage entry includes `sourceChars`, `translatedChars`, `requestCount`, and `durationMs`. Unlike LLM token usage, MT character usage is not printed in the plain-text stdout summary — read it from the `--output` JSON artifact.
+
+<Note>
+Two features are restricted to LLM routing, with different failure behavior:
+
+- **Image localization** requires `type: llm` with `provider: openai`. Routing an image source to `type: mt`, or to an LLM profile using a different provider, fails with a planning error before any translation runs.
+- **`--experimental-context-memory`** only builds and applies context memory for `type: llm` tasks. Enabling it for a group that routes to `type: mt` does not error — MT tasks in that group simply run without context memory, silently.
+</Note>
 
 ## Experimental context memory flow
 
@@ -316,6 +338,8 @@ hyperlocalise run --group tests --force
 Per-locale token usage is printed as: `locale_usage locale=<locale> prompt_tokens=<...> completion_tokens=<...> total_tokens=<...>`.
 
 When you pass `--output`, the JSON report includes run metadata (`generatedAt`, `configPath`), aggregate token usage, per-locale usage, and per-entry batch usage.
+
+MT usage is JSON-only (not printed to stdout) and appears under `sourceChars`/`translatedChars`/`requestCount`/`durationMs` at the run level, `localeMTUsage` (per target locale), and `mtUsageByProfile` (per MT profile). See "Machine translation (MT) execution" above.
 
 ## Failure output
 
