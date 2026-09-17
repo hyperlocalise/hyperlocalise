@@ -20,8 +20,8 @@ export const COMPLETE_QUERY_STRING_REDACTION_REGEXP = ".*";
 /**
  * Assign deployment tags and data-safety defaults before dd-trace loads.
  *
- * @param {NodeJS.ProcessEnv} env
- * @returns {NodeJS.ProcessEnv}
+ * @param {Record<string, string | undefined>} env
+ * @returns {Record<string, string | undefined>}
  */
 export function applyDatadogInitEnv(env) {
   if (!env.DD_ENV && env.VERCEL_ENV) {
