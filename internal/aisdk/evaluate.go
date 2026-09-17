@@ -69,7 +69,8 @@ func (c *Client) ExperimentalEvaluate(ctx context.Context, req EvaluateRequest) 
 	attempts := retryAttempts(maxRetries)
 
 	var lastErr error
-	for attempt := 1; attempt <= attempts; attempt++ {
+	attempt := 0
+	for attempt = 1; attempt <= attempts; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -82,7 +83,7 @@ func (c *Client) ExperimentalEvaluate(ctx context.Context, req EvaluateRequest) 
 			break
 		}
 	}
-	return nil, formatRetryError(lastErr, attempts)
+	return nil, formatRetryError(lastErr, attempt)
 }
 
 func (c *Client) doEvaluate(ctx context.Context, modelID string, questions map[string]Question, payload []byte, extraHeaders map[string]string) (*EvaluateResult, error) {

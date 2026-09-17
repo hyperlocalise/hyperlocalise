@@ -307,6 +307,61 @@ func TestExperimentalEvaluateDoesNotRetryClientErrors(t *testing.T) {
 	if !strings.Contains(err.Error(), "400") {
 		t.Fatalf("error %q does not contain 400", err.Error())
 	}
+	if strings.Contains(err.Error(), "after") {
+		t.Fatalf("error %q should not report unused retries", err.Error())
+	}
+}
+
+func TestExperimentalEvaluateAcceptsStructStateAndInstructions(t *testing.T) {
+	type ticket struct {
+		Order  string `json:"order"`
+		Status string `json:"status"`
+	}
+	type prompt struct {
+		Question string `json:"question"`
+	}
+
+	var gotBody evaluateRequestBody
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"answers":{"refunded":{"type":"boolean","probability":0.8}}}`)
+	}))
+	defer srv.Close()
+
+	client, err := NewClient(WithBaseURL(srv.URL), WithAPIKey("vck_test_key"))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+
+	state := ticket{Order: "A-1", Status: "refunded"}
+	_, err = client.ExperimentalEvaluate(context.Background(), EvaluateRequest{
+		State: &state,
+		Questions: map[string]Question{
+			"refunded": BooleanQuestion(prompt{Question: "Was a refund issued?"}, nil),
+		},
+	})
+	if err != nil {
+		t.Fatalf("ExperimentalEvaluate: %v", err)
+	}
+
+	stateObject, ok := gotBody.State.(map[string]any)
+	if !ok {
+		t.Fatalf("state = %#v, want JSON object", gotBody.State)
+	}
+	if stateObject["order"] != "A-1" || stateObject["status"] != "refunded" {
+		t.Fatalf("state = %#v", stateObject)
+	}
+	question, ok := gotBody.Questions["refunded"].(map[string]any)
+	if !ok {
+		t.Fatalf("question = %#v, want object", gotBody.Questions["refunded"])
+	}
+	instructions, ok := question["instructions"].(map[string]any)
+	if !ok || instructions["question"] != "Was a refund issued?" {
+		t.Fatalf("instructions = %#v", question["instructions"])
+	}
 }
 
 func TestNewClientRequiresAPIKey(t *testing.T) {

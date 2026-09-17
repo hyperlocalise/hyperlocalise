@@ -213,8 +213,22 @@ func isInput(value any) bool {
 		if _, ok := asList(value); ok {
 			return isJSON(value)
 		}
+		return isJSONObject(value)
+	}
+}
+
+func isJSONObject(value any) bool {
+	rv := reflect.ValueOf(value)
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return false
+		}
+		rv = rv.Elem()
+	}
+	if rv.Kind() != reflect.Struct {
 		return false
 	}
+	return isJSON(value)
 }
 
 func isJSON(value any) bool {
