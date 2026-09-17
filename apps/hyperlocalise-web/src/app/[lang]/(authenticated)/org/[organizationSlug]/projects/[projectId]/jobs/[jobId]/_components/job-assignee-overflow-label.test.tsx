@@ -33,16 +33,16 @@ describe("JobAssigneeOverflowLabel", () => {
   });
 
   it("shows a single assignee name without a remainder", () => {
-    renderLabel(["Malena"]);
-    expect(screen.getByText("Malena")).toBeInTheDocument();
+    renderLabel(["Ada"]);
+    expect(screen.getByText("Ada")).toBeInTheDocument();
     expect(screen.queryByText("+1")).not.toBeInTheDocument();
   });
 
   it("keeps the first name and a remainder count for long assignee lists", () => {
-    renderLabel(["Malena", "Freya", "karina", "Giang", "Natalia"]);
-    expect(screen.getByText("Malena")).toBeInTheDocument();
+    renderLabel(["Ada", "Beau", "Cora", "Drew", "Eden"]);
+    expect(screen.getByText("Ada")).toBeInTheDocument();
     expect(screen.getByText("+4")).toBeInTheDocument();
-    expect(screen.queryByText("Natalia")).not.toBeInTheDocument();
-    expect(screen.getByTitle("Malena, Freya, karina, Giang, Natalia")).toBeInTheDocument();
+    expect(screen.queryByText("Eden")).not.toBeInTheDocument();
+    expect(screen.getByTitle("Ada, Beau, Cora, Drew, Eden")).toBeInTheDocument();
   });
 });

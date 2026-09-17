@@ -347,7 +347,7 @@ export const LiveCrowdinTask: Story = {
   },
 };
 
-const manyAssigneeNames = ["Malena", "Freya", "karina", "Giang", "Natalia"];
+const manyAssigneeNames = ["Ada", "Beau", "Cora", "Drew", "Eden"];
 const manyAssigneesJob = createLiveCrowdinJobDetail({
   externalAssignedUsers: manyAssigneeNames,
 });
@@ -355,9 +355,9 @@ const manyAssigneesJob = createLiveCrowdinJobDetail({
 export const ManyCrowdinAssignees: Story = {
   args: taskViewArgsFromLiveJob(manyAssigneesJob),
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Malena")).toBeInTheDocument();
+    await expect(canvas.getByText("Ada")).toBeInTheDocument();
     await expect(canvas.getByText("+4")).toBeInTheDocument();
-    await expect(canvas.queryByText("Natalia")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Eden")).not.toBeInTheDocument();
   },
 };
 
@@ -384,9 +384,9 @@ export const CrowdinAssigneesPicker: Story = {
   },
   play: async ({ canvas }) => {
     const trigger = canvas.getByRole("button", { name: /Assignees:/ });
-    await expect(trigger).toHaveTextContent("Malena");
+    await expect(trigger).toHaveTextContent("Ada");
     await expect(trigger).toHaveTextContent("+4");
-    await expect(canvas.queryByText("Natalia")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Eden")).not.toBeInTheDocument();
   },
 };
 

@@ -24,26 +24,26 @@ describe("getAssigneeOverflowParts", () => {
   });
 
   it("keeps a single name visible without an overflow count", () => {
-    expect(getAssigneeOverflowParts(["Malena"])).toEqual({
-      firstLabel: "Malena",
+    expect(getAssigneeOverflowParts(["Ada"])).toEqual({
+      firstLabel: "Ada",
       remainingCount: 0,
-      fullLabel: "Malena",
+      fullLabel: "Ada",
     });
   });
 
   it("shows the first name and how many assignees are hidden", () => {
-    expect(getAssigneeOverflowParts(["Malena", "Freya", "karina", "Giang", "Natalia"])).toEqual({
-      firstLabel: "Malena",
+    expect(getAssigneeOverflowParts(["Ada", "Beau", "Cora", "Drew", "Eden"])).toEqual({
+      firstLabel: "Ada",
       remainingCount: 4,
-      fullLabel: "Malena, Freya, karina, Giang, Natalia",
+      fullLabel: "Ada, Beau, Cora, Drew, Eden",
     });
   });
 
   it("ignores blank labels when counting overflow", () => {
-    expect(getAssigneeOverflowParts(["", "Freya", ""])).toEqual({
-      firstLabel: "Freya",
+    expect(getAssigneeOverflowParts(["", "Beau", ""])).toEqual({
+      firstLabel: "Beau",
       remainingCount: 0,
-      fullLabel: "Freya",
+      fullLabel: "Beau",
     });
   });
 });
