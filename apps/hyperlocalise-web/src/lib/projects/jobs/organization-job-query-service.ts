@@ -23,6 +23,7 @@ import { db, schema } from "@/lib/database/client";
 import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-candidates";
 import { providerAssignedUsersMatch } from "@/lib/providers/jobs/tms-provider-assignee-match";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
+import { enrichJobsWithSourceFileDisplay } from "./enrich-jobs-with-source-file-names";
 
 /** Review first, then failed, then other triage-eligible statuses. */
 const overviewTriageStatusOrder = sql`CASE ${schema.jobs.status}
@@ -207,7 +208,7 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
       "listed organization jobs",
     );
 
-    return jobs;
+    return enrichJobsWithSourceFileDisplay(jobs);
   }
 
   async listForProject(auth: ApiAuthContext, projectId: string, query: JobListQuery) {
@@ -271,7 +272,7 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
       "listed organization project jobs",
     );
 
-    return jobs;
+    return enrichJobsWithSourceFileDisplay(jobs);
   }
 
   async getById(auth: ApiAuthContext, jobId: string) {
@@ -307,7 +308,8 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
       return null;
     }
 
-    return job;
+    const [enriched] = await enrichJobsWithSourceFileDisplay([job]);
+    return enriched ?? job;
   }
 }
 
