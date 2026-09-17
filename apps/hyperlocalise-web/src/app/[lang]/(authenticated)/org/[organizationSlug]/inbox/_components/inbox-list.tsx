@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { memo, useMemo, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Chat01Icon, FilterIcon, SparklesIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
@@ -319,6 +319,27 @@ export const InboxList = memo(function InboxList({
   const isComposingNew = selection?.kind === "new";
   const showMarkAllRead = unreadNotificationCount > 0 && onMarkAllRead;
   const isFilteredEmpty = !isLoading && !isError && allItems.length > 0 && items.length === 0;
+  const canLoadMoreFilteredPage = isFilteredEmpty && hasMoreNotifications;
+  const autoLoadPageKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!canLoadMoreFilteredPage || isLoadingMoreNotifications) {
+      return;
+    }
+    const pageKey = `${filters.read}:${filters.type}:${notifications.length}`;
+    if (autoLoadPageKeyRef.current === pageKey) {
+      return;
+    }
+    autoLoadPageKeyRef.current = pageKey;
+    onLoadMoreNotifications();
+  }, [
+    canLoadMoreFilteredPage,
+    filters.read,
+    filters.type,
+    isLoadingMoreNotifications,
+    notifications.length,
+    onLoadMoreNotifications,
+  ]);
 
   return (
     <section className="flex max-h-[40svh] min-h-0 shrink-0 flex-col overflow-hidden border-border lg:h-full lg:max-h-none lg:shrink lg:border-r">
@@ -339,7 +360,9 @@ export const InboxList = memo(function InboxList({
             <TypographyMuted>
               <FormattedMessage
                 {...(filtersActive && isFilteredEmpty
-                  ? inboxListMessages.filterEmpty
+                  ? hasMoreNotifications
+                    ? inboxListMessages.filterEmptyHasMore
+                    : inboxListMessages.filterEmpty
                   : inboxNotificationsMessages.empty)}
               />
             </TypographyMuted>
@@ -352,6 +375,12 @@ export const InboxList = memo(function InboxList({
               >
                 <FormattedMessage {...inboxListMessages.clearFilters} />
               </Button>
+            ) : null}
+            {hasMoreNotifications ? (
+              <InboxLoadMoreNotifications
+                disabled={isLoadingMoreNotifications}
+                onLoadMore={onLoadMoreNotifications}
+              />
             ) : null}
           </div>
         ) : (
@@ -380,18 +409,10 @@ export const InboxList = memo(function InboxList({
               ),
             )}
             {hasMoreNotifications ? (
-              <div className="px-2 py-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="w-full"
-                  disabled={isLoadingMoreNotifications}
-                  onClick={onLoadMoreNotifications}
-                >
-                  <FormattedMessage {...inboxNotificationsMessages.loadMore} />
-                </Button>
-              </div>
+              <InboxLoadMoreNotifications
+                disabled={isLoadingMoreNotifications}
+                onLoadMore={onLoadMoreNotifications}
+              />
             ) : null}
           </div>
         )}
@@ -399,6 +420,29 @@ export const InboxList = memo(function InboxList({
     </section>
   );
 });
+
+function InboxLoadMoreNotifications({
+  disabled,
+  onLoadMore,
+}: {
+  disabled: boolean;
+  onLoadMore: () => void;
+}) {
+  return (
+    <div className="w-full px-2 py-1">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="w-full"
+        disabled={disabled}
+        onClick={onLoadMore}
+      >
+        <FormattedMessage {...inboxNotificationsMessages.loadMore} />
+      </Button>
+    </div>
+  );
+}
 
 function listItemClassName(isSelected: boolean, isUnread = false) {
   return cn(

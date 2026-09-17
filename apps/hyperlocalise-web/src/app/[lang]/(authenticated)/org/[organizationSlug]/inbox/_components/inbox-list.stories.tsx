@@ -226,8 +226,26 @@ export const FilterEmptyState: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Filter by type" }));
     await userEvent.click(await body.findByRole("menuitemradio", { name: "Email" }));
     await expect(canvas.getByText("No inbox items match these filters.")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Clear filters" }));
     await expect(canvas.getByText("Translate homepage hero copy")).toBeInTheDocument();
     await expect(canvas.getByText("Checkout CTA tone feels off")).toBeInTheDocument();
+  },
+};
+
+export const FilterEmptyWithMore: Story = {
+  args: {
+    conversations: [],
+    notifications: issueNotificationsFixture.filter((notification) => notification.readAt),
+    hasMoreNotifications: true,
+    unreadNotificationCount: 2,
+    selection: null,
+  },
+  play: async ({ canvas, args }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Unread" }));
+    await expect(canvas.getByText("No matching inbox items on this page.")).toBeInTheDocument();
+    const loadMore = await canvas.findByRole("button", { name: "Load more" });
+    await userEvent.click(loadMore);
+    await expect(args.onLoadMoreNotifications).toHaveBeenCalled();
   },
 };

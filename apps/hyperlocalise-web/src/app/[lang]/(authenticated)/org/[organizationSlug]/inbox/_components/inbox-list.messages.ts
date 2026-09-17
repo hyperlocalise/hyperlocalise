@@ -95,6 +95,12 @@ export const inboxListMessages = defineMessages({
     id: "7+t227O8ET",
     description: "Empty state when inbox filters hide every loaded item",
   },
+  filterEmptyHasMore: {
+    defaultMessage: "No matching inbox items on this page.",
+    id: "xuDh1i0+CJ",
+    description:
+      "Empty state when inbox filters hide the loaded page but older notifications can still be loaded",
+  },
   clearFilters: {
     defaultMessage: "Clear filters",
     id: "s5bizftpco",

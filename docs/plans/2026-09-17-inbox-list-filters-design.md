@@ -36,8 +36,10 @@ A compact toolbar sits above the list:
 2. Type dropdown, grouped like the content-editor queue filter
 3. Existing Mark all as read action
 
-A filtered empty list says no items match and offers Clear filters. URL
-selection still opens the detail pane if that item is hidden by the filter.
+A filtered empty list says no items match and offers Clear filters. If more
+notification pages exist, it keeps Load more visible and fetches the next page
+until a match appears or the last page is reached. URL selection still opens
+the detail pane if that item is hidden by the filter.
 
 ## Out of scope
 

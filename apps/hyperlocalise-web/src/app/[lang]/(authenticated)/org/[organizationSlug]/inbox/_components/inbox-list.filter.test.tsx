@@ -85,8 +85,44 @@ describe("InboxList filters", () => {
     await user.click(screen.getByRole("menuitemradio", { name: "Email" }));
 
     expect(screen.getByText("No inbox items match these filters.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(screen.getByText("Translate homepage hero copy")).toBeInTheDocument();
     expect(screen.getByText("Checkout CTA tone feels off")).toBeInTheDocument();
+  });
+
+  it("keeps load more available when filters hide the loaded page", async () => {
+    const user = userEvent.setup();
+    const onLoadMoreNotifications = vi.fn();
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <div className="h-[32rem] w-full max-w-sm">
+          <InboxList
+            conversations={[]}
+            currentUser={currentUserFixture}
+            hasMoreNotifications
+            isError={false}
+            isLoading={false}
+            isLoadingMoreNotifications={false}
+            notifications={issueNotificationsFixture.filter((notification) => notification.readAt)}
+            onLoadMoreNotifications={onLoadMoreNotifications}
+            onMarkAllRead={vi.fn()}
+            onSelectConversation={vi.fn()}
+            onSelectNotification={vi.fn()}
+            selection={null}
+            unreadNotificationCount={2}
+          />
+        </div>
+      </IntlProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Unread" }));
+
+    expect(screen.getByText("No matching inbox items on this page.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Load more" })).toBeInTheDocument();
+    expect(onLoadMoreNotifications).toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+    expect(onLoadMoreNotifications.mock.calls.length).toBeGreaterThan(1);
   });
 });
