@@ -505,7 +505,8 @@ async function trackAiTokensInAutumnByOperationKey(input: {
   }
 
   try {
-    const trackTokens = input.trackTokens ?? ((params) => trackAutumnAiTokens(autumnApiKey!, params));
+    const trackTokens =
+      input.trackTokens ?? ((params) => trackAutumnAiTokens(autumnApiKey!, params));
     const tracked = await trackTokens({
       customerId: input.organizationId,
       modelId: input.modelId,

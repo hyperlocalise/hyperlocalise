@@ -50,9 +50,29 @@ afterEach(async () => {
   await projectFixture.cleanup();
 });
 
+type CapturedAutumnRequest = {
+  url: string;
+  body: Record<string, unknown>;
+};
+
 function stubAutumnFetch(status = 200) {
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+  const requests: CapturedAutumnRequest[] = [];
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
+    const rawBody =
+      typeof init?.body === "string"
+        ? init.body
+        : init?.body instanceof Uint8Array
+          ? new TextDecoder().decode(init.body)
+          : init?.body instanceof ArrayBuffer
+            ? new TextDecoder().decode(init.body)
+            : input instanceof Request
+              ? await input.clone().text()
+              : "";
+    requests.push({
+      url,
+      body: rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : {},
+    });
     if (url.includes("/v1/balances.track_tokens")) {
       return new Response(
         JSON.stringify({
@@ -60,13 +80,16 @@ function stubAutumnFetch(status = 200) {
           value: 0.01,
           balance: null,
         }),
-        { status },
+        {
+          status,
+          headers: { "Content-Type": "application/json" },
+        },
       );
     }
     return new Response(status === 200 ? "{}" : "bad", { status });
   });
   vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
-  return fetchMock;
+  return Object.assign(fetchMock, { requests });
 }
 
 async function insertRunningTranslationJob(input: {
@@ -151,27 +174,8 @@ async function getUsageEvent(operationKey: string) {
   return event;
 }
 
-function autumnRequestUrl(input: RequestInfo | URL) {
-  return String(input instanceof Request ? input.url : input);
-}
-
 function autumnRequestBodies(fetchMock: ReturnType<typeof stubAutumnFetch>) {
-  const calls = fetchMock.mock.calls as unknown as Array<Parameters<typeof fetch>>;
-  return calls.map(([input, requestInit]) => {
-    const requestBody =
-      typeof requestInit?.body === "string"
-        ? requestInit.body
-        : input instanceof Request
-          ? undefined
-          : requestInit?.body;
-    if (typeof requestBody !== "string") {
-      throw new Error("Expected Autumn request body to be a JSON string");
-    }
-    return {
-      url: autumnRequestUrl(input),
-      body: JSON.parse(requestBody) as Record<string, unknown>,
-    };
-  });
+  return fetchMock.requests;
 }
 
 function autumnRequestBody(fetchMock: ReturnType<typeof stubAutumnFetch>) {
