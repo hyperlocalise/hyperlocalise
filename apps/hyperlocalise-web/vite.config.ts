@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 import { config as loadDotenv } from "dotenv";
 import { defineConfig } from "vite-plus";
+import type { DummyRuleMap } from "vite-plus/lint";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,7 +25,7 @@ loadDotenv({ path: path.join(rootDir, ".env") });
 // plugin here: Storybook loads this Vite config, and the plugin pulls
 // `@unicode/unicode-17.0.0` (tens of thousands of files) that CI installs often
 // omit. `jsPlugins` still loads it when `vp lint` runs.
-const formatjsStrictRules = {
+const formatjsStrictRules: DummyRuleMap = {
   "formatjs/no-offset": "error",
   "formatjs/enforce-default-message": ["error", "literal"],
   "formatjs/enforce-description": ["error", "literal"],
@@ -36,10 +37,7 @@ const formatjsStrictRules = {
   "formatjs/no-useless-message": "error",
   "formatjs/prefer-pound-in-plural": "error",
   "formatjs/no-missing-icu-plural-one-placeholders": "error",
-  "formatjs/enforce-id": [
-    "error",
-    { idInterpolationPattern: "[sha512:contenthash:base64:10]" },
-  ],
+  "formatjs/enforce-id": ["error", { idInterpolationPattern: "[sha512:contenthash:base64:10]" }],
   "formatjs/enforce-plural-rules": ["error", { one: true, other: true }],
   "formatjs/no-literal-string-in-jsx": [
     "error",
@@ -56,7 +54,7 @@ const formatjsStrictRules = {
     ],
   ],
   "formatjs/prefer-full-sentence": "error",
-} as const;
+};
 
 const formatjsRulesOff = Object.fromEntries(
   Object.keys(formatjsStrictRules).map((rule) => [rule, "off" as const]),
