@@ -56,7 +56,7 @@ import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { hostnameToDomainSlug } from "@/lib/localisation-audit/domain-slug";
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 
 const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
@@ -528,6 +528,89 @@ describe("linkedDomainRoutes", () => {
       .where(eq(schema.linkedDomains.id, challengerClaim.linkedDomain.id))
       .limit(1);
     expect(challengerRow?.status).not.toBe("verified");
+
+    await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
+  });
+
+  it("does not demote a verified domain when a concurrent verify fails", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const domainKey = `demote-${crypto.randomUUID().slice(0, 8)}.example`;
+    const audit = await insertSucceededAudit(domainKey);
+
+    const createResponse = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
+      {
+        param: { organizationSlug },
+        json: { domainSlug: audit.domainSlug, marketIds: [] },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = await createResponse.json();
+    if (!("linkedDomain" in created)) {
+      throw new Error("expected linkedDomain in create response");
+    }
+    const linkedDomainId = created.linkedDomain.id;
+
+    let releaseBothChallenges!: () => void;
+    const bothChallengesEntered = new Promise<void>((resolve) => {
+      releaseBothChallenges = resolve;
+    });
+    let releaseFailChallenge!: () => void;
+    const failChallengeGate = new Promise<void>((resolve) => {
+      releaseFailChallenge = resolve;
+    });
+    let challengeEntries = 0;
+
+    mocks.verifyLinkedDomainChallengeMock.mockImplementation(async (input) => {
+      challengeEntries += 1;
+      if (challengeEntries === 2) {
+        releaseBothChallenges();
+      }
+      await bothChallengesEntered;
+      if (input.method === "dns_txt") {
+        return ok({ method: "dns_txt" as const });
+      }
+      await failChallengeGate;
+      return err({
+        code: "verification_mismatch",
+        message: "Verification file contents did not match the token.",
+      });
+    });
+
+    const successVerifyPromise = client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].verify.$post(
+      {
+        param: { organizationSlug, linkedDomainId },
+        json: { method: "dns_txt", createProject: true },
+      },
+      { headers },
+    );
+    const failVerifyPromise = client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].verify.$post(
+      {
+        param: { organizationSlug, linkedDomainId },
+        json: { method: "html_file", createProject: true },
+      },
+      { headers },
+    );
+
+    const successResponse = await successVerifyPromise;
+    expect(successResponse.status).toBe(200);
+    releaseFailChallenge();
+    const failResponse = await failVerifyPromise;
+    expect(failResponse.status).toBe(400);
+
+    const [row] = await db
+      .select({ status: schema.linkedDomains.status, projectId: schema.linkedDomains.projectId })
+      .from(schema.linkedDomains)
+      .where(eq(schema.linkedDomains.id, linkedDomainId))
+      .limit(1);
+    expect(row?.status).toBe("verified");
+    expect(row?.projectId).toBeTruthy();
 
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
   });
