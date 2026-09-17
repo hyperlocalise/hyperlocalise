@@ -241,8 +241,11 @@ export function AddDomainDialog({
         };
         message?: string;
       };
-      if (!response.ok || !body.marketRecommendations)
+      if (!response.ok || !body.marketRecommendations) {
+        setStep("markets");
+        setRecommendations([]);
         throw new Error(body.message || intl.formatMessage(messages.recommendationsError));
+      }
       setStep("markets");
       const candidates = body.marketRecommendations.candidates ?? [];
       const candidatesById = new Map(candidates.map((market) => [market.marketId, market]));

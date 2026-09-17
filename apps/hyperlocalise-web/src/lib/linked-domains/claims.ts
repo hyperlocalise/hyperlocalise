@@ -14,7 +14,11 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
+import {
+  withWorkspaceResourceLimit,
+  workspaceResourceFeatureIds,
+} from "@/lib/billing/workspace-resource-limits";
 import type {
   LinkedDomainStatus,
   LinkedDomainVerificationMethod,
@@ -23,7 +27,10 @@ import { isValidDomainSlug, resolveDomainIdentity } from "@/lib/localisation-aud
 import { DOMAIN_RESEARCH_MARKETS } from "@/lib/domains/research-prototype";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultNativeProjectMemory } from "@/lib/memory/ensure-default-native-project-memory";
-import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import {
+  ensureDefaultWorkspaceTeam,
+  ensureTeamMembership,
+} from "@/lib/teams/default-workspace-team";
 
 import { buildLinkedDomainChallenges, mintLinkedDomainVerificationToken } from "./challenges";
 import type { LinkedDomainError, LinkedDomainAuditDetail, LinkedDomainPublic } from "./types";
@@ -672,7 +679,7 @@ export async function verifyAndClaimLinkedDomain(input: {
   }
 
   try {
-    const verified = await database.transaction(async (tx) => {
+    const verifyInTransaction = async (tx: DatabaseTransaction) => {
       const raced = await findVerifiedLinkedDomainByDomainKey(row.domainKey, tx);
       if (raced && raced.id !== row.id) {
         throw new Error("domain_already_claimed");
@@ -700,6 +707,11 @@ export async function verifyAndClaimLinkedDomain(input: {
         if (!project) {
           throw new Error("project_create_failed");
         }
+        await ensureTeamMembership({
+          teamId: team.id,
+          userId: input.userId,
+          database: tx,
+        });
         await ensureDefaultNativeProjectMemory({
           organizationId: input.organizationId,
           projectId: project.id,
@@ -748,7 +760,35 @@ export async function verifyAndClaimLinkedDomain(input: {
       }
 
       return updated;
-    });
+    };
+
+    let verified: LinkedDomainRow | undefined;
+    if (shouldCreateProject) {
+      const limitResult = await withWorkspaceResourceLimit(
+        {
+          organizationId: input.organizationId,
+          featureId: workspaceResourceFeatureIds.projects,
+          ...(database === db ? {} : { db: database as DatabaseTransaction }),
+          analyticsSource: "linked_domain_claim",
+        },
+        verifyInTransaction,
+      );
+      if (!limitResult.ok) {
+        if (limitResult.error.code === "workspace_resource_limit_reached") {
+          return err({
+            code: "project_limit_reached",
+            message: "Project limit reached for your current plan.",
+          });
+        }
+        return err({
+          code: "project_limit_check_failed",
+          message: "Unable to verify project limits. Try again later.",
+        });
+      }
+      verified = limitResult.value;
+    } else {
+      verified = await database.transaction(verifyInTransaction);
+    }
 
     return ok(toPublic(verified));
   } catch (error) {

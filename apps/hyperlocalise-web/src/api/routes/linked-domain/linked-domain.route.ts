@@ -149,7 +149,10 @@ function mapLinkedDomainError(
       return notFoundResponse(c, error.code, error.message);
     case "domain_already_claimed":
     case "claim_pending_exists":
+    case "project_limit_reached":
       return conflictResponse(c, error.code, error.message);
+    case "project_limit_check_failed":
+      return serviceUnavailableResponse(c, error.code, error.message);
     default:
       return badRequestResponse(c, error.code, error.message);
   }
