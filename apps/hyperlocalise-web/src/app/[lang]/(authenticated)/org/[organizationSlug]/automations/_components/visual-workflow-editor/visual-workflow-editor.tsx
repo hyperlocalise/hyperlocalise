@@ -32,6 +32,7 @@ import {
 } from "@/lib/visual-workflows/catalog/node-catalog";
 import {
   applyVisualWorkflowGraphConnection,
+  reconcileForEachBodyMembership,
   removeVisualWorkflowNode,
   replaceVisualWorkflowNodeType,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
@@ -73,21 +74,25 @@ import type { VisualWorkflowsApi } from "../visual-workflows-api";
 const NODE_GAP_X = 260;
 const NODE_GAP_Y = 36;
 
-function quickAddOffsetY(handleId?: string): number {
+function quickAddOffsetY(handleId: string | undefined, source: VisualWorkflowRfNode): number {
+  const sourceHeight = source.height ?? getVisualNodeDimensions(source.data.catalogType).height;
+  const branchStep = sourceHeight + NODE_GAP_Y;
+
   if (!handleId || handleId === "true" || handleId === "each" || handleId === "0") {
     return 0;
   }
-  if (
-    handleId === "false" ||
-    handleId === "done" ||
-    handleId === "default" ||
-    handleId === "error"
-  ) {
-    return NODE_GAP_Y + 80;
+  if (handleId === "false" || handleId === "done" || handleId === "error") {
+    return branchStep;
+  }
+  if (handleId === "default") {
+    if (source.data.catalogType === "logic.switch" && source.data.config.kind === "logic.switch") {
+      return source.data.config.cases.length * branchStep;
+    }
+    return branchStep;
   }
   const index = Number(handleId);
   if (Number.isInteger(index) && index > 0) {
-    return index * (NODE_GAP_Y + 40);
+    return index * branchStep;
   }
   return 0;
 }
@@ -162,7 +167,15 @@ export function VisualWorkflowEditor({
   }, []);
 
   const onEdgesChange = useCallback((changes: EdgeChange<VisualWorkflowRfEdge>[]) => {
-    setEdges((current) => applyEdgeChanges(changes, current));
+    const removesEdge = changes.some((change) => change.type === "remove");
+    if (!removesEdge) {
+      setEdges((current) => applyEdgeChanges(changes, current));
+      return;
+    }
+    const { nodes: currentNodes, edges: currentEdges } = graphRef.current;
+    const nextEdges = applyEdgeChanges(changes, currentEdges);
+    setEdges(nextEdges);
+    setNodes(reconcileForEachBodyMembership(currentNodes, nextEdges));
   }, []);
 
   const onConnect = useCallback((connection: Connection) => {
@@ -214,7 +227,7 @@ export function VisualWorkflowEditor({
       const position = source
         ? {
             x: source.position.x + NODE_GAP_X,
-            y: source.position.y + quickAddOffsetY(addFrom?.handleId),
+            y: source.position.y + quickAddOffsetY(addFrom?.handleId, source),
           }
         : { x: 120 + currentNodes.length * 24, y: 160 + currentNodes.length * 16 };
 

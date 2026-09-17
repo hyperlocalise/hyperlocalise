@@ -87,6 +87,74 @@ function asMutableGraph(
   };
 }
 
+export function computeForEachBodyNodeIds(
+  loopId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  const roots = edges
+    .filter((edge) => edge.source === loopId && edge.sourceHandle === "each")
+    .map((edge) => edge.target)
+    .filter((target): target is string => Boolean(target && target !== loopId));
+
+  const body = new Set<string>(roots);
+  const queue = [...roots];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const edge of edges) {
+      if (edge.source !== current) {
+        continue;
+      }
+      if (edge.source === loopId && edge.sourceHandle === "done") {
+        continue;
+      }
+      const target = edge.target;
+      if (!target || target === loopId || body.has(target)) {
+        continue;
+      }
+      body.add(target);
+      queue.push(target);
+    }
+  }
+
+  return [...body];
+}
+
+function forEachBodyIdsEqual(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  const sortedLeft = [...left].toSorted();
+  const sortedRight = [...right].toSorted();
+  return sortedLeft.every((id, index) => id === sortedRight[index]);
+}
+
+export function reconcileForEachBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  let changed = false;
+  const next = nodes.map((node) => {
+    if (node.data.catalogType !== "logic.for_each") {
+      return node;
+    }
+    const computed = computeForEachBodyNodeIds(node.id, edges);
+    const current = node.data.bodyNodeIds ?? [];
+    if (forEachBodyIdsEqual(current, computed)) {
+      return node;
+    }
+    changed = true;
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        bodyNodeIds: computed,
+      },
+    };
+  });
+  return changed ? next : (nodes as VisualWorkflowRfNode[]);
+}
+
 export function syncForEachBodyMembership(
   nodes: readonly VisualWorkflowRfNode[],
   connection: Pick<Connection, "source" | "target" | "sourceHandle">,

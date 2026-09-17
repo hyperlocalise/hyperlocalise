@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { createDefaultConfig } from "../catalog/node-catalog";
 import {
   applyVisualWorkflowGraphConnection,
+  reconcileForEachBodyMembership,
   removeVisualWorkflowNode,
 } from "./visual-workflow-editor-graph";
 import { fromVisualWorkflowDefinition, toVisualWorkflowDefinition } from "../schema/serializers";
@@ -212,6 +213,43 @@ describe("applyVisualWorkflowGraphConnection", () => {
     expect(codes(validateVisualWorkflowDefinition(definition(withFalse)))).not.toContain(
       "invalid_handle",
     );
+  });
+
+  it("reconciles bodyNodeIds when loop body edges are removed", () => {
+    const seeded = applyVisualWorkflowGraphConnection(
+      [
+        node("t", "trigger.manual"),
+        node("loop", "logic.for_each"),
+        node("iff", "logic.if", { config: { kind: "logic.if", condition: "true" } }),
+        node("no", "logic.set"),
+      ],
+      [{ id: "e0", source: "t", target: "loop" }],
+      { source: "loop", target: "iff", sourceHandle: "each", targetHandle: null },
+    );
+    const chained = applyVisualWorkflowGraphConnection(seeded.nodes, seeded.edges, {
+      source: "iff",
+      target: "no",
+      sourceHandle: "false",
+      targetHandle: null,
+    });
+    const edgesWithoutChain = chained.edges.filter(
+      (edge) => !(edge.source === "iff" && edge.target === "no"),
+    );
+    const reconciled = reconcileForEachBodyMembership(chained.nodes, edgesWithoutChain);
+    expect(reconciled.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual(["iff"]);
+    expect(
+      codes(
+        validateVisualWorkflowDefinition(
+          definition({ nodes: reconciled, edges: edgesWithoutChain }),
+        ),
+      ),
+    ).not.toContain("invalid_loop");
+
+    const edgesWithoutEach = edgesWithoutChain.filter(
+      (edge) => !(edge.source === "loop" && edge.sourceHandle === "each"),
+    );
+    const cleared = reconcileForEachBodyMembership(reconciled, edgesWithoutEach);
+    expect(cleared.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual([]);
   });
 
   it("round-trips handles and bodyNodeIds through save/load", () => {
