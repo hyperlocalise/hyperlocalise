@@ -58,6 +58,13 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 - Use Hono's `testClient` for route tests.
 - Test the real API app exported from [`src/api/app.ts`](src/api/app.ts) when possible, rather than rebuilding a parallel test-only app structure.
 
+## Browser API Client
+
+- In client components and hooks, prefer the shared typed Hono client from [`src/lib/api-client-instance.ts`](src/lib/api-client-instance.ts) for requests to routes served by the app.
+- Use the generated route path, params, and JSON body from the client instead of manually building `/api` URLs with `fetch`.
+- Check the typed response status before reading its success or error body, and preserve the existing localized fallback when presenting errors.
+- Use raw `fetch` only when the endpoint is not represented by the Hono client or when the request requires a specialized transport such as streaming, file upload/download, or an external URL. If an internal route is missing from the client, add it to the RPC route/client wiring instead of bypassing the shared client.
+
 ## Browser E2E (local only, workos-emulate)
 
 Browser flows live under [`src/e2e/`](src/e2e/) and talk to a local [WorkOS emulator](https://github.com/workos/emulate). They exercise the real AuthKit authorize → callback → sealed session → membership reconcile path. They are **not** part of `vp test` and are **not** wired into CI yet.
