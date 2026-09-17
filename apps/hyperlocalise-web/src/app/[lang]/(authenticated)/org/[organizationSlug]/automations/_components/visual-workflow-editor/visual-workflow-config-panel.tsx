@@ -632,7 +632,10 @@ export function VisualWorkflowConfigPanel({
         </Button>
       </div>
       {issues.length > 0 ? (
-        <div className="border-t border-border px-4 py-3 text-sm text-destructive">
+        <div
+          data-testid="visual-workflow-validation-issues"
+          className="border-t border-border px-4 py-3 text-sm text-destructive"
+        >
           {issues.map((issue) => (
             <p key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`}>
               {intl.formatMessage(issueMessage(issue.code))}

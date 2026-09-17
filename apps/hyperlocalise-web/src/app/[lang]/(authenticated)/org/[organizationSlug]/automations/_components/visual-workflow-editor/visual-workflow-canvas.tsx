@@ -13,7 +13,6 @@
  * Version 2.0 or later.
  */
 import {
-  addEdge,
   MarkerType,
   type Connection,
   type EdgeChange,
@@ -131,19 +130,5 @@ export function VisualWorkflowCanvas({
         </div>
       ) : null}
     </div>
-  );
-}
-
-export function applyVisualWorkflowConnection(
-  edges: VisualWorkflowRfEdge[],
-  connection: Connection,
-): VisualWorkflowRfEdge[] {
-  const sourceHandle = connection.sourceHandle ?? undefined;
-  return addEdge(
-    {
-      ...connection,
-      label: sourceHandle ?? undefined,
-    },
-    edges,
   );
 }

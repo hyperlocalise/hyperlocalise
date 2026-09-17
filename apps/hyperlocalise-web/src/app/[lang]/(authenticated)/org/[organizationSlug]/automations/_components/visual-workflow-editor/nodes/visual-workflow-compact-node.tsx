@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { defineMessages, FormattedMessage, useIntl } from "react-intl";
@@ -24,12 +23,14 @@ import {
   resolveNodeSubtitle,
   TRIGGER_BADGE_ICON,
 } from "@/lib/visual-workflows/catalog/node-catalog";
+import { getPrimaryExecutionSourceHandle } from "@/lib/visual-workflows/validation/execution-handles";
 import { nodeSupportsErrorBranch } from "@/lib/visual-workflows/runtime/node-options";
 import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
 import { cn } from "@/lib/primitives/cn";
 
 import { useVisualWorkflowCanvasActions } from "../visual-workflow-canvas-actions";
 import { visualWorkflowEditorMessages as messages } from "../visual-workflow-editor.messages";
+import { VisualWorkflowQuickAddButton } from "./visual-workflow-quick-add-button";
 
 const nodeStatusMessages = defineMessages({
   running: { defaultMessage: "Running", id: "ZWQ+8S8rpv", description: "Workflow node status" },
@@ -61,6 +62,26 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   const showErrorHandle = nodeSupportsErrorBranch(data.config);
   const title = intl.formatMessage(titleMessage(data.catalogType));
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
+  const primaryHandle = getPrimaryExecutionSourceHandle({
+    type: data.catalogType,
+    config: data.config,
+  });
+  const primaryHandleLabel = isIf
+    ? intl.formatMessage(messages.trueHandle)
+    : isSwitch && primaryHandle === "default"
+      ? intl.formatMessage(messages.switchDefaultHandle)
+      : isSwitch && primaryHandle === "0"
+        ? intl.formatMessage(messages.switchCaseHandle, { index: 1 })
+        : data.catalogType === "logic.for_each"
+          ? intl.formatMessage(messages.eachHandle)
+          : null;
+
+  const addFromHandle = (handleId?: string) => {
+    onAddFromNode({
+      nodeId: id,
+      handleId,
+    });
+  };
 
   const switchHandles =
     isSwitch && data.config.kind === "logic.switch"
@@ -161,31 +182,43 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       </div>
 
       {isIf ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-2.4rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute inset-y-0 right-[-4.25rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
           <span>
             <FormattedMessage {...messages.trueHandle} />
           </span>
-          <span>
+          <span className="flex items-center gap-1">
             <FormattedMessage {...messages.falseHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="false"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.falseHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
           </span>
         </div>
       ) : null}
 
       {data.catalogType === "logic.for_each" ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-3.5rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute inset-y-0 right-[-5.25rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
           <span>
-            <FormattedMessage
-              defaultMessage="Each item"
-              id="7eZfUxSh+m"
-              description="Workflow loop body connection"
-            />
+            <FormattedMessage {...messages.eachHandle} />
           </span>
-          <span>
-            <FormattedMessage
-              defaultMessage="Done"
-              id="zZIbqHg71N"
-              description="Workflow loop completion connection"
-            />
+          <span className="flex items-center gap-1">
+            <FormattedMessage {...messages.doneHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="done"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.doneHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
           </span>
         </div>
       ) : null}
@@ -195,16 +228,36 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </p>
       ) : null}
       {isSwitch ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-2.8rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute inset-y-0 right-[-4.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
           {switchHandles.map((handle) => (
-            <span key={handle.id}>{handle.label}</span>
+            <span key={handle.id} className="flex items-center gap-1">
+              {handle.label}
+              {data.hideAddAction || handle.id === primaryHandle ? null : (
+                <VisualWorkflowQuickAddButton
+                  className="pointer-events-auto size-5"
+                  handleId={handle.id}
+                  label={intl.formatMessage(messages.addNodeFromHandle, { handle: handle.label })}
+                  onAdd={addFromHandle}
+                />
+              )}
+            </span>
           ))}
         </div>
       ) : null}
 
       {showErrorHandle && !isIf && !isSwitch ? (
-        <div className="pointer-events-none absolute top-[72%] right-[-2.6rem] text-[10px] font-medium text-destructive">
+        <div className="pointer-events-none absolute top-[72%] right-[-4.5rem] flex items-center gap-1 text-[10px] font-medium text-destructive">
           <FormattedMessage {...messages.errorHandle} />
+          {data.hideAddAction ? null : (
+            <VisualWorkflowQuickAddButton
+              className="pointer-events-auto size-5"
+              handleId="error"
+              label={intl.formatMessage(messages.addNodeFromHandle, {
+                handle: intl.formatMessage(messages.errorHandle),
+              })}
+              onAdd={addFromHandle}
+            />
+          )}
         </div>
       ) : null}
 
@@ -215,27 +268,16 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : null}
 
       {data.hideAddAction ? null : (
-        <button
-          type="button"
-          data-visual-workflow-add=""
-          className="nodrag nopan absolute top-1/2 -right-3 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-muted"
-          aria-label={intl.formatMessage(messages.addNode)}
-          onClick={(event) => {
-            event.stopPropagation();
-            onAddFromNode({
-              nodeId: id,
-              handleId: isIf
-                ? "true"
-                : isSwitch
-                  ? "0"
-                  : data.catalogType === "logic.for_each"
-                    ? "each"
-                    : undefined,
-            });
-          }}
-        >
-          <HugeiconsIcon icon={Add01Icon} className="size-3.5" strokeWidth={2} />
-        </button>
+        <VisualWorkflowQuickAddButton
+          className="absolute top-1/2 -right-3 -translate-y-1/2"
+          handleId={primaryHandle ?? undefined}
+          label={
+            primaryHandleLabel
+              ? intl.formatMessage(messages.addNodeFromHandle, { handle: primaryHandleLabel })
+              : intl.formatMessage(messages.addNode)
+          }
+          onAdd={addFromHandle}
+        />
       )}
     </Card>
   );
