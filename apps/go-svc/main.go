@@ -24,6 +24,8 @@ const (
 	serverWriteTimeout      = 75 * time.Second
 	serverIdleTimeout       = 60 * time.Second
 	serverShutdownTimeout   = 10 * time.Second
+	// telemetryShutdownReserve reserves part of the shutdown budget for flushing spans.
+	telemetryShutdownReserve = 2 * time.Second
 
 	defaultHunspellDictDir = "/usr/share/hunspell"
 )
@@ -41,6 +43,11 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
+	shutdownTelemetry, err := initTelemetry(context.Background())
+	if err != nil {
+		log.Printf("configure telemetry: %v; continuing without tracing", err)
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -131,7 +138,7 @@ func main() {
 	registerRoutes(mux, h, verifier)
 
 	addr := ":" + port
-	server := newHTTPServer(addr, requestLogMiddleware(withOptionalPrefix(publicPathPrefix, mux)))
+	server := newHTTPServer(addr, requestLogMiddleware(withOptionalPrefix(publicPathPrefix, tracingMiddleware(mux))))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -156,11 +163,25 @@ func main() {
 
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
 		defer cancel()
-		if err := server.Shutdown(shutdownCtx); err != nil {
+
+		serverBudget := serverShutdownTimeout
+		if shutdownTelemetry != nil {
+			serverBudget -= telemetryShutdownReserve
+		}
+		serverShutdownCtx, serverCancel := context.WithTimeout(shutdownCtx, serverBudget)
+		defer serverCancel()
+		if err := server.Shutdown(serverShutdownCtx); err != nil {
 			log.Printf("graceful shutdown: %v", err)
 		}
 		if err := <-serveErrCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("serve after shutdown: %v", err)
+		}
+
+		if shutdownTelemetry != nil {
+			// Use the overall shutdown context so telemetry gets the reserved flush window.
+			if err := shutdownTelemetry(shutdownCtx); err != nil {
+				log.Printf("shutdown telemetry: %v", err)
+			}
 		}
 	}
 }
