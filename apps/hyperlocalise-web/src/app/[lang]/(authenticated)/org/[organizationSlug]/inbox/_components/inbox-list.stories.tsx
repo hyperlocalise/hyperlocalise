@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn, userEvent } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 
 import {
   conversationsFixture,
@@ -55,6 +55,10 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   play: async ({ canvas }) => {
+    await expect(canvas.getByRole("button", { name: "All" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Unread" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Read" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Filter by type" })).toBeInTheDocument();
     await expect(canvas.getByText("Translate homepage hero copy")).toBeInTheDocument();
     await expect(canvas.getByText("Email: Q3 release notes")).toBeInTheDocument();
   },
@@ -162,5 +166,68 @@ export const Error: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Unable to load inbox.")).toBeInTheDocument();
+  },
+};
+
+export const FilterUnread: Story = {
+  args: {
+    notifications: issueNotificationsFixture,
+    unreadNotificationCount: 2,
+    selection: { kind: "notification", id: issueNotificationsFixture[0].id },
+  },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Unread" }));
+    await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
+    await expect(canvas.getByText("Checkout CTA tone feels off")).toBeInTheDocument();
+    await expect(canvas.queryByText("Translate homepage hero copy")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Glossary term mismatch")).not.toBeInTheDocument();
+  },
+};
+
+export const FilterRead: Story = {
+  args: {
+    notifications: issueNotificationsFixture,
+    unreadNotificationCount: 2,
+    selection: { kind: "conversation", id: conversationsFixture[0].id },
+  },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Read" }));
+    await expect(canvas.getByText("Translate homepage hero copy")).toBeInTheDocument();
+    await expect(canvas.getByText("Glossary term mismatch")).toBeInTheDocument();
+    await expect(canvas.queryByText("Checkout CTA tone feels off")).not.toBeInTheDocument();
+  },
+};
+
+export const FilterTypeEmail: Story = {
+  args: {
+    notifications: issueNotificationsFixture,
+    unreadNotificationCount: 2,
+    selection: { kind: "conversation", id: conversationsFixture[1].id },
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Filter by type" }));
+    await userEvent.click(await body.findByRole("menuitemradio", { name: "Email" }));
+    await expect(canvas.getByText("Email: Q3 release notes")).toBeInTheDocument();
+    await expect(canvas.queryByText("Translate homepage hero copy")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Checkout CTA tone feels off")).not.toBeInTheDocument();
+  },
+};
+
+export const FilterEmptyState: Story = {
+  args: {
+    notifications: issueNotificationsFixture,
+    unreadNotificationCount: 2,
+    selection: { kind: "conversation", id: conversationsFixture[0].id },
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Unread" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Filter by type" }));
+    await userEvent.click(await body.findByRole("menuitemradio", { name: "Email" }));
+    await expect(canvas.getByText("No inbox items match these filters.")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Clear filters" }));
+    await expect(canvas.getByText("Translate homepage hero copy")).toBeInTheDocument();
+    await expect(canvas.getByText("Checkout CTA tone feels off")).toBeInTheDocument();
   },
 };
