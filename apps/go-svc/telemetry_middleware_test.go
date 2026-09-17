@@ -214,6 +214,36 @@ func TestTracingMiddlewareSkipsHealthCheck(t *testing.T) {
 	require.Empty(t, rec.Ended(), "health checks must not produce spans")
 }
 
+func TestTracingMiddlewareTracesNonGetHealth(t *testing.T) {
+	rec := withTestSpanRecorder(t)
+	handler := tracedTestMux(nil)
+
+	for _, path := range []string{"/health", publicPathPrefix + "/health"} {
+		req := httptest.NewRequest(http.MethodPost, path, nil)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		require.Equal(t, http.StatusMethodNotAllowed, w.Code, path)
+	}
+
+	spans := rec.Ended()
+	require.Len(t, spans, 2)
+	for _, span := range spans {
+		require.Equal(t, "POST unmatched", span.Name())
+		require.Equal(t, "unmatched", requireSpanStringAttr(t, span, "http.route"))
+		require.Equal(t, "POST", requireSpanStringAttr(t, span, "http.request.method"))
+		statusAttr, ok := func() (int64, bool) {
+			for _, kv := range span.Attributes() {
+				if string(kv.Key) == "http.response.status_code" {
+					return kv.Value.AsInt64(), true
+				}
+			}
+			return 0, false
+		}()
+		require.True(t, ok, "missing http.response.status_code attribute")
+		require.Equal(t, int64(http.StatusMethodNotAllowed), statusAttr)
+	}
+}
+
 func TestTracingMiddlewareOmitsSensitiveAttributes(t *testing.T) {
 	rec := withTestSpanRecorder(t)
 	handler := tracedTestMux(map[string]http.HandlerFunc{

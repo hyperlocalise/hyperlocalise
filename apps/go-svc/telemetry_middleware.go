@@ -37,7 +37,7 @@ func httpRequestMethodAttrs(method string) []attribute.KeyValue {
 func tracingMiddleware(next http.Handler) http.Handler {
 	tracer := otel.Tracer(otelInstrumentation)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isHealthPath(r.URL.Path) {
+		if r.Method == http.MethodGet && isHealthPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}
