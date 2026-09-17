@@ -35,10 +35,28 @@ describe("jobDetailTaskLayoutFromRecord", () => {
     expect(layout.title).toBe("messages.json · 2026-07-31 22:11");
   });
 
-  it("falls back to sourceFileId when metadata.title is missing", () => {
+  it("falls back to the original filename when metadata.title is missing", () => {
     const job = createNativeJobDetail({
       inputPayload: {
-        sourceFileId: "file_abc123",
+        sourceFileId: "file_3b017712-ec57-448f-8015-ca282a5a103a",
+        sourceLocale: "en",
+        targetLocales: ["fr-FR"],
+        fileFormat: "json",
+      },
+      sourceFilename: "messages.json",
+      sourcePath: "marketing/messages.json",
+    });
+
+    const layout = jobDetailTaskLayoutFromRecord(job, intl);
+
+    expect(layout.title).toBe("marketing/messages.json");
+    expect(layout.input.sourceFilesMetric).toBe("marketing/messages.json");
+  });
+
+  it("does not use a stored file id as the attached filename", () => {
+    const job = createNativeJobDetail({
+      inputPayload: {
+        sourceFileId: "file_3b017712-ec57-448f-8015-ca282a5a103a",
         sourceLocale: "en",
         targetLocales: ["fr-FR"],
         fileFormat: "json",
@@ -47,6 +65,7 @@ describe("jobDetailTaskLayoutFromRecord", () => {
 
     const layout = jobDetailTaskLayoutFromRecord(job, intl);
 
-    expect(layout.title).toBe("file_abc123");
+    expect(layout.title).toBe("file");
+    expect(layout.input.sourceFilesMetric).toBe("file");
   });
 });

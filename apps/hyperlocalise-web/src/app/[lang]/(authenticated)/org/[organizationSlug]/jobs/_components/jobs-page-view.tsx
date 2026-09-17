@@ -37,6 +37,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import { nativeJobSourceFileDisplayLabel } from "@/lib/projects/jobs/native-job-source-file-display";
 import { TmsProviderBrandMark } from "@/lib/providers/shared/tms-provider-brand-mark";
 import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 
@@ -98,6 +99,8 @@ export type ApiJob = {
   externalTargetLocales: string[] | null;
   externalAssignedUsers: string[] | null;
   externalSyncState: string | null;
+  sourceFilename?: string | null;
+  sourcePath?: string | null;
 };
 
 export type JobRow = ApiJob & {
@@ -309,8 +312,12 @@ export function getJobName(job: ApiJob, intl?: IntlShape) {
   }
   const sourceText = getInputPayloadString(job, "sourceText");
   if (sourceText) return formatJobName(sourceText);
-  const sourceFileId = getInputPayloadString(job, "sourceFileId");
-  if (sourceFileId) return formatJobName(sourceFileId);
+  const sourceFileLabel = nativeJobSourceFileDisplayLabel({
+    inputPayload: job.inputPayload,
+    sourceFilename: job.sourceFilename,
+    sourcePath: job.sourcePath,
+  });
+  if (sourceFileLabel) return formatJobName(sourceFileLabel);
   return job.id;
 }
 

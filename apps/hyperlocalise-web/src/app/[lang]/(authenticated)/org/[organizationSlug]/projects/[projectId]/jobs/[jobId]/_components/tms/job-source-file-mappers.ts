@@ -11,39 +11,33 @@
  * Version 2.0 or later.
  */
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import { resolveNativeJobSourceFileDisplay } from "@/lib/projects/jobs/native-job-source-file-display";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
 
 import type { JobDetailRecord } from "../job-detail-types";
 import type { ProviderSourceFile } from "../job-provider-detail-section";
 
-function getInputPayloadString(job: JobDetailRecord, key: string) {
-  if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
-    return null;
-  }
-
-  const value = (job.inputPayload as Record<string, unknown>)[key];
-  return typeof value === "string" && value.length > 0 ? value : null;
-}
-
 export function nativeJobToProjectFileRecord(job: JobDetailRecord): ProjectFileRecord | null {
-  const sourcePath = getInputPayloadString(job, "sourceFileId");
-  if (!sourcePath) {
+  const display = resolveNativeJobSourceFileDisplay({
+    inputPayload: job.inputPayload,
+    sourceFilename: job.sourceFilename,
+    sourcePath: job.sourcePath,
+  });
+  if (!display) {
     return null;
   }
-
-  const filename = sourcePath.split("/").filter(Boolean).at(-1) ?? sourcePath;
 
   return {
     origin: "repository",
-    sourcePath,
+    sourcePath: display.sourcePath,
     sourceHash: null,
     commitSha: null,
     workflowRunId: job.workflowRunId,
     uploadedAt: job.createdAt,
-    storedFileId: sourcePath,
+    storedFileId: display.storedFileId,
     metadata: {},
-    filename,
+    filename: display.filename,
     byteSize: null,
     provider: null,
     latestJob: {

@@ -177,6 +177,8 @@ export const jobRecordSchema = z
     createdAt: z.string(),
     updatedAt: z.string(),
     completedAt: z.string().nullable(),
+    sourceFilename: z.string().nullable().optional(),
+    sourcePath: z.string().nullable().optional(),
   })
   .passthrough();
 
