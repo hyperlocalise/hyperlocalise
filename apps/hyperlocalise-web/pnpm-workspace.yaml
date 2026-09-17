@@ -56,6 +56,8 @@ overrides:
   "brace-expansion@^5.0.0": "5.0.9"
   mermaid: "11.17.2"
   valibot: "1.4.2"
+  # eslint-plugin-formatjs imports Binary_Property/*/regex.js; @unicode 2.0.5+ ships .mjs only.
+  "@unicode/unicode-17.0.0": "2.0.4"
   # TipTap 3.28 pulls prosemirror-model ^1.25.9 while nested PM packages
   # still resolve 1.25.8; dual copies break editor Fragment identity.
   prosemirror-model: "1.25.11"

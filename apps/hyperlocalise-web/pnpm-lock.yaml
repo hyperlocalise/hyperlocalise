@@ -5195,8 +5195,8 @@ packages:
   '@ungap/structured-clone@1.4.0':
     resolution: {integrity: sha512-1mEZtMKPM09vDmQt5y7YvmN2+DFTP7Tg0EWXdic8/C6VRnpb33e4ghisCIE3WZjsE2N8mf+QV1Zqh7ZFYLWInQ==}
 
-  '@unicode/unicode-17.0.0@2.0.7':
-    resolution: {integrity: sha512-XdCUsw7exiSD8QICrzwb99xx9O/e7qMx/Oew1e8MBQGavCIIR0VO6vID7OSH/wQjUjogcfydqmsuRLkGM6LfLA==}
+  '@unicode/unicode-17.0.0@2.0.4':
+    resolution: {integrity: sha512-NUVRlL3Ig+2pt6jCbqYsZkcaU6xdLnBdquhoKvfKPqL2Q6IpQoLq9hrCwHXVM1PKrPOk9npns6LtQg6ooUnHpA==}
 
   '@univerjs-pro/collaboration-client-ui@0.25.1':
     resolution: {integrity: sha512-cpHvRNCWeYAPibzzy2s3FwWBiNiVP52/QZMO4BhYj+Ft2OYVrrpcu6EtKSTXUiuyqVtbFobOu71atJGYc+12xw==}
@@ -15837,7 +15837,7 @@ snapshots:
 
   '@ungap/structured-clone@1.4.0': {}
 
-  '@unicode/unicode-17.0.0@2.0.7': {}
+  '@unicode/unicode-17.0.0@2.0.4': {}
 
   '@univerjs-pro/collaboration-client-ui@0.25.1(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rxjs@7.8.2)':
     dependencies:
@@ -19296,7 +19296,7 @@ snapshots:
       '@formatjs/ts-transformer': 4.4.20
       '@types/estree-jsx': 1.0.5
       '@types/picomatch': 4.0.3
-      '@unicode/unicode-17.0.0': 2.0.7
+      '@unicode/unicode-17.0.0': 2.0.4
       eslint: 10.10.0(jiti@2.7.0)(supports-color@8.1.1)
       magic-string: 1.4.1
       picomatch: 4.0.7
