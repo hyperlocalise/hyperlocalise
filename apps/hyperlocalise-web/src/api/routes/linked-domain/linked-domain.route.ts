@@ -296,6 +296,7 @@ export function createLinkedDomainRoutes() {
         projectId: body.projectId,
         createProject: body.createProject ?? (!body.projectId ? true : undefined),
         marketIds: body.marketIds,
+        teamId: c.var.auth.activeTeam?.id,
       });
 
       if (isErr(result)) {

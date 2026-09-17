@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
+import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import {
   withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
@@ -31,6 +32,7 @@ import {
   ensureDefaultWorkspaceTeam,
   ensureTeamMembership,
 } from "@/lib/teams/default-workspace-team";
+import { insertWithAllocatedProjectIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 
 import { buildLinkedDomainChallenges, mintLinkedDomainVerificationToken } from "./challenges";
 import type { LinkedDomainError, LinkedDomainAuditDetail, LinkedDomainPublic } from "./types";
@@ -589,6 +591,8 @@ export async function verifyAndClaimLinkedDomain(input: {
   createProject?: boolean;
   /** Markets to persist with the verified domain. Omit to preserve existing selections. */
   marketIds?: string[];
+  /** Active team selected by the caller for a newly created project. */
+  teamId?: string;
   resolveTxt?: ResolveTxtFn;
   fetchPublic?: PublicFetchFn;
   database?: DatabaseClient;
@@ -687,22 +691,43 @@ export async function verifyAndClaimLinkedDomain(input: {
 
       let projectId = input.projectId ?? null;
       if (shouldCreateProject) {
-        const team = await ensureDefaultWorkspaceTeam(input.organizationId, tx);
-        const newProjectId = `project_${randomUUID()}`;
-        const [project] = await tx
-          .insert(schema.projects)
-          .values({
-            id: newProjectId,
-            organizationId: input.organizationId,
-            teamId: team.id,
-            createdByUserId: input.userId,
-            name: row.domainKey,
-            description: `Linked from localisation audit for ${row.domainKey}`,
-            source: "native",
-            sourceLocale: "en",
-            targetLocales: [],
-          })
-          .returning();
+        const team = input.teamId
+          ? (
+              await tx
+                .select()
+                .from(schema.teams)
+                .where(
+                  and(
+                    eq(schema.teams.id, input.teamId),
+                    eq(schema.teams.organizationId, input.organizationId),
+                  ),
+                )
+                .limit(1)
+            )[0]
+          : await ensureDefaultWorkspaceTeam(input.organizationId, tx);
+        if (!team) throw new Error("invalid_project_team");
+
+        const [project] = await insertWithAllocatedProjectIdentifier({
+          organizationId: input.organizationId,
+          name: row.domainKey,
+          database: tx,
+          insert: async (identifier, attemptDb) =>
+            attemptDb
+              .insert(schema.projects)
+              .values({
+                id: `project_${randomUUID()}`,
+                organizationId: input.organizationId,
+                teamId: team.id,
+                createdByUserId: input.userId,
+                name: row.domainKey,
+                identifier,
+                description: `Linked from localisation audit for ${row.domainKey}`,
+                source: "native",
+                sourceLocale: "en",
+                targetLocales: [],
+              })
+              .returning(),
+        });
 
         if (!project) {
           throw new Error("project_create_failed");
@@ -788,6 +813,35 @@ export async function verifyAndClaimLinkedDomain(input: {
       verified = limitResult.value;
     } else {
       verified = await database.transaction(verifyInTransaction);
+    }
+
+    if (shouldCreateProject && verified.projectId) {
+      const [createdProject] = await database
+        .select()
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.id, verified.projectId),
+            eq(schema.projects.organizationId, input.organizationId),
+          ),
+        )
+        .limit(1);
+      if (!createdProject) throw new Error("project_create_failed");
+      await enqueueActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: input.userId,
+        eventType: "project_created",
+        organizationId: input.organizationId,
+        payload: {
+          name: createdProject.name,
+          providerKind: createdProject.externalProviderKind ?? undefined,
+          resourceId: createdProject.id,
+          source: createdProject.source,
+        },
+        targetId: createdProject.id,
+        targetKind: "project",
+      });
     }
 
     return ok(toPublic(verified));
