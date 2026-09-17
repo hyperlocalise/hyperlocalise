@@ -31,7 +31,7 @@ import { domainRanksViewMessages as messages } from "./domain-ranks-view.message
 import { liveDomainResearchQueryKey, useLiveDomainResearch } from "./use-live-domain-research";
 
 const RANK_GRID =
-  "grid grid-cols-[minmax(12rem,1.2fr)_repeat(2,minmax(4rem,0.4fr))_minmax(10rem,1fr)_minmax(4.5rem,0.45fr)] items-center gap-3 px-3 py-2.5";
+  "grid grid-cols-[minmax(12rem,1.2fr)_repeat(2,minmax(4rem,0.4fr))_minmax(10rem,1fr)_minmax(4.5rem,0.45fr)_minmax(5rem,0.4fr)] items-center gap-3 px-3 py-2.5";
 
 function parseKeywordLines(value: string) {
   const unique = new Map<string, string>();
@@ -184,6 +184,9 @@ export function DomainRanksView({
             <span className="text-end">
               <FormattedMessage {...messages.columnVolume} />
             </span>
+            <span className="text-end">
+              <FormattedMessage {...messages.columnDevice} />
+            </span>
           </div>
           <div className="divide-y divide-border">
             {ranks.map((row) => {
@@ -212,6 +215,9 @@ export function DomainRanksView({
                   </span>
                   <span className="text-end tabular-nums text-sm text-muted-foreground">
                     {intl.formatNumber(row.volume)}
+                  </span>
+                  <span className="text-end text-sm capitalize text-muted-foreground">
+                    {row.device ?? "desktop"}
                   </span>
                 </div>
               );

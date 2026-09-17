@@ -38,6 +38,7 @@ import {
   verifyAndClaimLinkedDomain,
 } from "@/lib/linked-domains/claims";
 import { recommendDomainMarkets } from "@/lib/domains/market-recommendations";
+import { verifyLinkedDomainChallenge } from "@/lib/linked-domains/verify";
 import type { LinkedDomainError } from "@/lib/linked-domains/types";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -183,6 +184,7 @@ export function createLinkedDomainRoutes() {
         }
 
         const { linkedDomainId } = c.req.valid("param");
+        const { method } = c.req.valid("json");
         const linkedDomain = await getLinkedDomain({
           organizationId: c.var.auth.organization.localOrganizationId,
           linkedDomainId,
@@ -190,6 +192,16 @@ export function createLinkedDomainRoutes() {
         if (!linkedDomain) return notFoundResponse(c, "linked_domain_not_found");
         if (linkedDomain.status !== "verified" && linkedDomain.status !== "pending_verification") {
           return badRequestResponse(c, "linked_domain_not_verified", "Verify the domain first.");
+        }
+
+        const verification = await verifyLinkedDomainChallenge({
+          method,
+          domainKey: linkedDomain.domainKey,
+          sourceUrl: linkedDomain.sourceUrl,
+          token: linkedDomain.challenges.token,
+        });
+        if (isErr(verification)) {
+          return mapLinkedDomainError(c, verification.error);
         }
 
         const result = await recommendDomainMarkets({

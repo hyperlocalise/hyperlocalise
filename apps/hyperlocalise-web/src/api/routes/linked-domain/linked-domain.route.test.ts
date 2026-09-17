@@ -185,6 +185,20 @@ describe("linkedDomainRoutes", () => {
     expect(verified.linkedDomain.projectId).toMatch(/^project_/);
     expect(verified.linkedDomain.verifiedMethod).toBe("dns_txt");
 
+    const clearMarketsResponse = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].markets.$patch(
+      {
+        param: { organizationSlug, linkedDomainId },
+        json: { marketIds: [] },
+      },
+      { headers },
+    );
+    expect(clearMarketsResponse.status).toBe(200);
+    await expect(clearMarketsResponse.json()).resolves.toMatchObject({
+      linkedDomain: { marketIds: [] },
+    });
+
     const projectId = verified.linkedDomain.projectId;
     expect(projectId).toBeTruthy();
     const projectMemoryRows = await db
@@ -254,6 +268,100 @@ describe("linkedDomainRoutes", () => {
     expect(auditBody.audit.report).not.toBeNull();
 
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
+  });
+
+  it("rejects completing direct onboarding without a market", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
+      {
+        param: { organizationSlug },
+        json: { domain: `direct-${crypto.randomUUID().slice(0, 8)}.example`, marketIds: [] },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = await createResponse.json();
+    if (!("linkedDomain" in created)) {
+      throw new Error("expected linkedDomain in create response");
+    }
+
+    const verifyResponse = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].verify.$post(
+      {
+        param: { organizationSlug, linkedDomainId: created.linkedDomain.id },
+        json: { method: "dns_txt", createProject: false, marketIds: [] },
+      },
+      { headers },
+    );
+
+    expect(verifyResponse.status).toBe(400);
+    await expect(verifyResponse.json()).resolves.toMatchObject({
+      error: "invalid_market_selection",
+    });
+    expect(mocks.verifyLinkedDomainChallengeMock).not.toHaveBeenCalled();
+  });
+
+  it("updates markets for a verified direct domain and rejects clearing them", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    mocks.verifyLinkedDomainChallengeMock.mockResolvedValue(ok({ method: "dns_txt" }));
+
+    const createResponse = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          domain: `edit-${crypto.randomUUID().slice(0, 8)}.example`,
+          marketIds: ["france-fr"],
+        },
+      },
+      { headers },
+    );
+    const created = await createResponse.json();
+    if (!("linkedDomain" in created)) {
+      throw new Error("expected linkedDomain in create response");
+    }
+
+    const verifyResponse = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].verify.$post(
+      {
+        param: { organizationSlug, linkedDomainId: created.linkedDomain.id },
+        json: { method: "dns_txt", createProject: false, marketIds: ["france-fr"] },
+      },
+      { headers },
+    );
+    expect(verifyResponse.status).toBe(200);
+
+    const emptyUpdate = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].markets.$patch(
+      {
+        param: { organizationSlug, linkedDomainId: created.linkedDomain.id },
+        json: { marketIds: [] },
+      },
+      { headers },
+    );
+    expect(emptyUpdate.status).toBe(400);
+    await expect(emptyUpdate.json()).resolves.toMatchObject({ error: "invalid_market_selection" });
+
+    const update = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].markets.$patch(
+      {
+        param: { organizationSlug, linkedDomainId: created.linkedDomain.id },
+        json: { marketIds: ["japan-ja"] },
+      },
+      { headers },
+    );
+    expect(update.status).toBe(200);
+    await expect(update.json()).resolves.toMatchObject({
+      linkedDomain: { marketIds: ["japan-ja"] },
+    });
   });
 
   it("does not return the full audit report for a pending claim", async () => {

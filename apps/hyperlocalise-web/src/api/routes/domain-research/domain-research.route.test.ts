@@ -256,6 +256,7 @@ describe("domainResearchRoutes", () => {
         param,
         json: {
           marketId: "france-fr",
+          device: "desktop",
           keywords: savedBody.keywords,
         },
       },
@@ -384,7 +385,7 @@ describe("domainResearchRoutes", () => {
     const tracked = await client.api.orgs[":organizationSlug"]["linked-domains"][
       ":linkedDomainId"
     ].research.ranks.$post(
-      { param, json: { marketId: "france-fr", keywords: [keyword] } },
+      { param, json: { marketId: "france-fr", device: "desktop", keywords: [keyword] } },
       { headers },
     );
     expect(tracked.status).toBe(429);
@@ -454,14 +455,14 @@ describe("domainResearchRoutes", () => {
     const france = await client.api.orgs[":organizationSlug"]["linked-domains"][
       ":linkedDomainId"
     ].research.ranks.$post(
-      { param, json: { marketId: "france-fr", keywords: [keyword] } },
+      { param, json: { marketId: "france-fr", device: "desktop", keywords: [keyword] } },
       { headers },
     );
     expect(france.status).toBe(200);
     const germany = await client.api.orgs[":organizationSlug"]["linked-domains"][
       ":linkedDomainId"
     ].research.ranks.$post(
-      { param, json: { marketId: "germany-de", keywords: [keyword] } },
+      { param, json: { marketId: "germany-de", device: "desktop", keywords: [keyword] } },
       { headers },
     );
     expect(germany.status).toBe(200);
@@ -547,7 +548,7 @@ describe("domainResearchRoutes", () => {
         await client.api.orgs[":organizationSlug"]["linked-domains"][
           ":linkedDomainId"
         ].research.ranks.$post(
-          { param, json: { marketId: "france-fr", keywords: [keyword] } },
+          { param, json: { marketId: "france-fr", device: "desktop", keywords: [keyword] } },
           { headers },
         )
       ).status,
@@ -557,7 +558,7 @@ describe("domainResearchRoutes", () => {
         await client.api.orgs[":organizationSlug"]["linked-domains"][
           ":linkedDomainId"
         ].research.ranks.$post(
-          { param, json: { marketId: "germany-de", keywords: [keyword] } },
+          { param, json: { marketId: "germany-de", device: "desktop", keywords: [keyword] } },
           { headers },
         )
       ).status,

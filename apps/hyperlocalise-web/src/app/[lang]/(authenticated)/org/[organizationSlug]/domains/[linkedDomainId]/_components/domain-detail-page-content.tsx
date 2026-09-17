@@ -21,10 +21,12 @@ import { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { LocalisationAuditResult } from "@/components/marketing/localisation-audit/localisation-audit-result";
+import { AddDomainDialog } from "../../_components/add-domain-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 import { getAppLocaleFromPathname } from "@/lib/app-i18n/rewrite-app-locale-path";
+import { DOMAIN_RESEARCH_MARKETS } from "@/lib/domains/research-prototype";
 import type { LinkedDomainAuditDetail, LinkedDomainPublic } from "@/lib/linked-domains/types";
 
 import { PageHeader, WorkspacePageShell } from "../../../_components/workspace-resource-shared";
@@ -88,6 +90,7 @@ export function DomainDetailPageContent({
   });
 
   const linkedDomain = domainQuery.data;
+  const [marketDialogOpen, setMarketDialogOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(linkedDomain?.projectId ?? "");
 
   useEffect(() => {
@@ -199,6 +202,38 @@ export function DomainDetailPageContent({
               <span className="tabular-nums">Score {linkedDomain.auditScore}</span>
             ) : null}
           </div>
+
+          {linkedDomain.status === "verified" ? (
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <TypographyH2 className="pb-0" size="xlarge">
+                    <FormattedMessage {...messages.marketsHeading} />
+                  </TypographyH2>
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...messages.marketsDescription} />
+                  </TypographyP>
+                </div>
+                <Button type="button" variant="outline" onClick={() => setMarketDialogOpen(true)}>
+                  <FormattedMessage {...messages.editMarkets} />
+                </Button>
+              </div>
+              {linkedDomain.marketIds.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {linkedDomain.marketIds.map((marketId) => (
+                    <Badge key={marketId} variant="secondary">
+                      {DOMAIN_RESEARCH_MARKETS.find((market) => market.id === marketId)?.label ??
+                        marketId.replaceAll("-", " ")}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <TypographyP size="small" tone="critical">
+                  <FormattedMessage {...messages.noMarkets} />
+                </TypographyP>
+              )}
+            </section>
+          ) : null}
 
           {linkedDomain.status === "verified" ? (
             <section className="space-y-3">
@@ -320,6 +355,21 @@ export function DomainDetailPageContent({
             ) : null}
           </section>
         </>
+      ) : null}
+
+      {linkedDomain?.status === "verified" ? (
+        <AddDomainDialog
+          open={marketDialogOpen}
+          onOpenChange={setMarketDialogOpen}
+          organizationSlug={organizationSlug}
+          mode="edit"
+          initialStep="markets"
+          initialLinkedDomain={linkedDomain}
+          initialSelectedMarketIds={linkedDomain.marketIds}
+          onComplete={(updated) => {
+            queryClient.setQueryData(["linked-domain", organizationSlug, linkedDomainId], updated);
+          }}
+        />
       ) : null}
     </WorkspacePageShell>
   );
