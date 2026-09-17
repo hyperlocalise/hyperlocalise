@@ -63,6 +63,7 @@ import {
   listOrganizationProjectJobs,
 } from "@/lib/projects/jobs/organization-job-query-service";
 import { mergeNativeFileTranslationJobMetadata } from "@/lib/projects/jobs/enqueue-file-translation-job";
+import { enrichJobWithSourceFileDisplay } from "@/lib/projects/jobs/enrich-jobs-with-source-file-names";
 import type {
   JobQueue,
   ProviderAgentCommentQueue,
@@ -195,7 +196,7 @@ async function getOwnedJob(projectId: string, jobId: string) {
     .where(and(eq(schema.jobs.projectId, projectId), eq(schema.jobs.id, jobId)))
     .limit(1);
 
-  return job ?? null;
+  return job ? enrichJobWithSourceFileDisplay(job) : null;
 }
 
 async function retryableJobWhere(auth: ApiAuthContext, jobId: string) {
@@ -530,12 +531,20 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           );
         }
 
+        const sourcePathFromFile =
+          sourceFile.metadata &&
+          typeof sourceFile.metadata === "object" &&
+          !Array.isArray(sourceFile.metadata) &&
+          typeof sourceFile.metadata.sourcePath === "string"
+            ? sourceFile.metadata.sourcePath
+            : undefined;
+
         enrichedInputPayload = {
           ...enrichedInputPayload,
-          metadata: mergeNativeFileTranslationJobMetadata(
-            sourceFile.filename,
-            enrichedInputPayload.metadata,
-          ),
+          metadata: mergeNativeFileTranslationJobMetadata(sourceFile.filename, {
+            ...(sourcePathFromFile ? { sourcePath: sourcePathFromFile } : {}),
+            ...enrichedInputPayload.metadata,
+          }),
         };
       }
 
