@@ -68,6 +68,8 @@ export type JobDetailRecord = {
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
+  sourceFilename?: string | null;
+  sourcePath?: string | null;
 };
 
 export type ProviderSourceFile = {

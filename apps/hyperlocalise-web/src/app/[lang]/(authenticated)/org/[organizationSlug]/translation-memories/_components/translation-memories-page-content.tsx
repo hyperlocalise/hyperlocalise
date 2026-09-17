@@ -21,6 +21,12 @@ import { toast } from "sonner";
 
 import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import {
+  memoryImportFormatFromFilename,
+  readMemoryImportFile,
+  suggestedMemoryNameFromFilename,
+} from "@/lib/memory/decode-import-file";
+import { TMX_MAX_IMPORT_CONTENT_CHARS } from "@/lib/memory/tmx/tmx-constants";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
@@ -48,6 +54,16 @@ import {
 } from "./translation-memories-page-view";
 import { translationMemoriesPageContentMessages } from "./translation-memories-page-content.messages";
 
+class CreateMemoryImportError extends Error {
+  memoryId: string;
+
+  constructor(memoryId: string, message: string) {
+    super(message);
+    this.name = "CreateMemoryImportError";
+    this.memoryId = memoryId;
+  }
+}
+
 const memoriesQueryKey = (organizationSlug: string, page: number) => [
   "translation-memories",
   organizationSlug,
@@ -63,7 +79,7 @@ const credentialsQueryKey = (organizationSlug: string) => [
 ];
 
 function createEmptyMemoryForm(): MemoryCreateForm {
-  return { name: "", description: "" };
+  return { name: "", description: "", importFile: null };
 }
 
 function useMemoryFilters(
@@ -137,7 +153,7 @@ export function TranslationMemoriesPageContent({
   const [page, setPage] = useState(1);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createForm, setCreateForm] = useState<MemoryCreateForm>(() => createEmptyMemoryForm());
-  const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
+  const [createErrors, setCreateErrors] = useState<{ name?: string; importFile?: string }>({});
   const [selectedExternalProjectId, setSelectedExternalProjectId] = useState("");
   const [projectFilter, setProjectFilter] = useState("all");
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
@@ -255,10 +271,44 @@ export function TranslationMemoriesPageContent({
 
   const createMemory = useMutation({
     mutationFn: async (values: MemoryCreateForm) => {
+      const name =
+        values.name.trim() ||
+        (values.importFile ? suggestedMemoryNameFromFilename(values.importFile.name) : "");
+      let pendingImport:
+        | {
+            format: "csv" | "tmx";
+            content: string;
+            sourceFilename: string;
+            sourceByteSize: number;
+          }
+        | undefined;
+      if (values.importFile) {
+        const format = memoryImportFormatFromFilename(values.importFile.name);
+        if (!format) {
+          throw new Error(
+            intl.formatMessage(translationMemoriesPageContentMessages.importFileInvalid),
+          );
+        }
+        const decoded = await readMemoryImportFile(values.importFile);
+        if (!decoded.ok) {
+          throw new Error(
+            intl.formatMessage(translationMemoriesPageContentMessages.importFileTooLarge, {
+              maxMegabytes: Math.floor(TMX_MAX_IMPORT_CONTENT_CHARS / 1_000_000),
+            }),
+          );
+        }
+        pendingImport = {
+          format,
+          content: decoded.content,
+          sourceFilename: values.importFile.name,
+          sourceByteSize: values.importFile.size,
+        };
+      }
+
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$post({
         param: { organizationSlug },
         json: {
-          name: values.name.trim(),
+          name,
           description: values.description.trim(),
         },
       });
@@ -272,16 +322,68 @@ export function TranslationMemoriesPageContent({
         );
       }
 
-      return response.json();
+      const body = await response.json();
+      const memoryId = body.memory.id as string;
+      if (!pendingImport) {
+        return { memoryId, importAttemptId: null as string | null };
+      }
+
+      const importResponse = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
+        ":memoryId"
+      ].entries["import"].$post({
+        param: { organizationSlug, memoryId },
+        json: {
+          format: pendingImport.format,
+          content: pendingImport.content,
+          dryRun: false,
+          sourceFilename: pendingImport.sourceFilename,
+          sourceByteSize: pendingImport.sourceByteSize,
+        },
+      });
+
+      if (!importResponse.ok) {
+        throw new CreateMemoryImportError(
+          memoryId,
+          await readApiError(
+            importResponse,
+            intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+          ),
+        );
+      }
+
+      const imported = (await importResponse.json()) as { importAttemptId?: string };
+      return { memoryId, importAttemptId: imported.importAttemptId ?? null };
     },
-    onSuccess: async (body) => {
+    onSuccess: async ({ memoryId, importAttemptId }) => {
       await queryClient.invalidateQueries({ queryKey: ["translation-memories", organizationSlug] });
       setCreateDialogOpen(false);
       setCreateForm(createEmptyMemoryForm());
-      toast.success(intl.formatMessage(translationMemoriesPageContentMessages.memoryCreated));
-      router.push(`/org/${organizationSlug}/translation-memories/${body.memory.id}`);
+      toast.success(
+        intl.formatMessage(
+          importAttemptId
+            ? translationMemoriesPageContentMessages.memoryCreatedAndImported
+            : translationMemoriesPageContentMessages.memoryCreated,
+        ),
+      );
+      router.push(
+        importAttemptId
+          ? `/org/${organizationSlug}/translation-memories/${memoryId}/imports/${importAttemptId}`
+          : `/org/${organizationSlug}/translation-memories/${memoryId}`,
+      );
     },
     onError: (error) => {
+      if (error instanceof CreateMemoryImportError) {
+        toast.error(
+          intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+        );
+        void queryClient.invalidateQueries({
+          queryKey: ["translation-memories", organizationSlug],
+        });
+        setCreateDialogOpen(false);
+        setCreateForm(createEmptyMemoryForm());
+        router.push(`/org/${organizationSlug}/translation-memories/${error.memoryId}`);
+        return;
+      }
       toast.error(error.message);
     },
   });
@@ -378,15 +480,28 @@ export function TranslationMemoriesPageContent({
     : credentialsQuery.isSuccess && connectedCredentials.length > 0;
 
   function submitCreateMemory() {
-    const errors: { name?: string } = {};
-    if (!createForm.name.trim()) {
+    const errors: { name?: string; importFile?: string } = {};
+    const suggestedName = createForm.importFile
+      ? suggestedMemoryNameFromFilename(createForm.importFile.name)
+      : "";
+    if (!createForm.name.trim() && !suggestedName) {
       errors.name = intl.formatMessage(translationMemoriesPageContentMessages.nameRequired);
+    }
+    if (createForm.importFile && !memoryImportFormatFromFilename(createForm.importFile.name)) {
+      errors.importFile = intl.formatMessage(
+        translationMemoriesPageContentMessages.importFileInvalid,
+      );
     }
     setCreateErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
     }
     createMemory.mutate(createForm);
+  }
+
+  function openImportMemory() {
+    setCreateErrors({});
+    setCreateDialogOpen(true);
   }
 
   return (
@@ -439,6 +554,7 @@ export function TranslationMemoriesPageContent({
       createErrors={createErrors}
       isCreating={createMemory.isPending}
       onSubmitCreateMemory={submitCreateMemory}
+      onImportMemory={openImportMemory}
     />
   );
 }

@@ -41,6 +41,8 @@ import {
 } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
+import { nativeFileJobSourceDisplayFields } from "./native-job-source-file-display";
+
 export type CreateFileTranslationJobInput = {
   organizationId: string;
   projectId: string;
@@ -124,9 +126,16 @@ export function mergeNativeFileTranslationJobMetadata(
   metadata?: Record<string, string>,
   at: Date = new Date(),
 ): Record<string, string> {
+  const display = nativeFileJobSourceDisplayFields({
+    filename: metadata?.sourceFilename ?? filename,
+    sourcePath: metadata?.sourcePath,
+  });
+
   return {
-    title: buildNativeFileTranslationJobTitle(filename, at),
+    title: buildNativeFileTranslationJobTitle(display.sourceFilename, at),
     ...metadata,
+    sourceFilename: display.sourceFilename,
+    sourcePath: display.sourcePath,
   };
 }
 
@@ -279,12 +288,23 @@ export async function createFileTranslationJob(
     };
   }
 
+  const sourcePathFromFile =
+    sourceFile.metadata &&
+    typeof sourceFile.metadata === "object" &&
+    !Array.isArray(sourceFile.metadata) &&
+    typeof sourceFile.metadata.sourcePath === "string"
+      ? sourceFile.metadata.sourcePath
+      : null;
+
   const inputPayload = {
     sourceFileId: input.sourceFileId,
     fileFormat,
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
-    metadata: mergeNativeFileTranslationJobMetadata(sourceFile.filename, input.metadata),
+    metadata: mergeNativeFileTranslationJobMetadata(sourceFile.filename, {
+      ...(sourcePathFromFile ? { sourcePath: sourcePathFromFile } : {}),
+      ...input.metadata,
+    }),
     ...(input.ignoreTranslationMemory ? { ignoreTranslationMemory: true } : {}),
   };
 

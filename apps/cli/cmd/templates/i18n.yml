@@ -49,3 +49,34 @@ llm:
       #   Translate from {{source}} to {{target}}:
       #
       #   {{input}}
+
+# Machine translation (MT) is available as an alternative or complement to LLM
+# translation. Uncomment and adapt the two sections below to route some or all
+# groups through Google Cloud Translation or DeepL instead of an LLM profile.
+# mt:
+#   profiles:
+#     google_default:
+#       provider: google
+#       # You choose this environment variable name yourself; MT profiles do
+#       # not read a fixed variable name the way LLM providers do.
+#       api_key_env: GOOGLE_TRANSLATE_API_KEY
+#     deepl_default:
+#       provider: deepl
+#       api_key_env: DEEPL_API_KEY
+#       # Must be exactly https://api.deepl.com (Pro) or https://api-free.deepl.com (Free).
+#       base_url: https://api-free.deepl.com
+#
+# translation:
+#   default:
+#     type: llm
+#     profile: default
+#   rules:
+#     - priority: 100
+#       group: default
+#       type: mt
+#       profile: google_default
+#
+# translation.rules cannot be combined with llm.rules; migrate any llm.rules
+# entries into translation.rules before enabling this section.
+# MT profiles are only checked and connected to once a translation rule or
+# default actually selects them, so adding a profile you are not using yet is safe.
