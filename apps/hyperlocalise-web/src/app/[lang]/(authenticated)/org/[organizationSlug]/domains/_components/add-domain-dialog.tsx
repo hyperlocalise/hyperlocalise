@@ -195,22 +195,18 @@ export function AddDomainDialog({
     setPending(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...(input.domainSlug ? { domainSlug: input.domainSlug } : { domain: normalized }),
-            marketIds: [],
-          }),
+      const response = await apiClient.api.orgs[":organizationSlug"]["linked-domains"].$post({
+        param: { organizationSlug },
+        json: {
+          ...(input.domainSlug ? { domainSlug: input.domainSlug } : { domain: normalized }),
+          marketIds: [],
         },
-      );
-      const body = (await response.json().catch(() => ({}))) as ApiErrorBody & {
-        linkedDomain?: LinkedDomainPublic;
-      };
-      if (!response.ok || !body.linkedDomain)
+      });
+      if (response.status !== 201) {
+        const body = await response.json();
         throw new Error(getApiErrorMessage(body, intl.formatMessage(messages.startError)));
+      }
+      const body = await response.json();
       setDomain(body.linkedDomain.domainKey);
       setLinkedDomain(body.linkedDomain);
       if (body.linkedDomain.status === "verified") {
@@ -253,26 +249,21 @@ export function AddDomainDialog({
     setPending(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/market-recommendations`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ method }),
-        },
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        marketRecommendations?: {
-          candidates?: MarketRecommendation[];
-          recommended?: MarketRecommendation[];
-        };
-        message?: string;
-      };
-      if (!response.ok || !body.marketRecommendations) {
+      const response = await apiClient.api.orgs[":organizationSlug"]["linked-domains"][
+        ":linkedDomainId"
+      ]["market-recommendations"].$post({
+        param: { organizationSlug, linkedDomainId: linkedDomain.id },
+        json: { method },
+      });
+      if (response.status !== 200) {
+        const body = await response.json();
         setRecommendations(supportedMarketRecommendations);
         setStep("markets");
-        throw new Error(body.message || intl.formatMessage(messages.recommendationsError));
+        throw new Error(
+          getApiErrorMessage(body, intl.formatMessage(messages.recommendationsError)),
+        );
       }
+      const body = await response.json();
       setStep("markets");
       const candidates = body.marketRecommendations.candidates ?? [];
       const candidatesById = new Map(candidates.map((market) => [market.marketId, market]));
@@ -335,24 +326,21 @@ export function AddDomainDialog({
         createProject = false;
       }
 
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/verify`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            method,
-            ...(selectedProjectId ? { projectId: selectedProjectId } : { createProject }),
-            marketIds: selectedMarketIds,
-          }),
+      const response = await apiClient.api.orgs[":organizationSlug"]["linked-domains"][
+        ":linkedDomainId"
+      ].verify.$post({
+        param: { organizationSlug, linkedDomainId: linkedDomain.id },
+        json: {
+          method,
+          ...(selectedProjectId ? { projectId: selectedProjectId } : { createProject }),
+          marketIds: selectedMarketIds,
         },
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-      };
-      if (!response.ok || !body.linkedDomain)
-        throw new Error(body.message || intl.formatMessage(messages.verifyError));
+      });
+      if (response.status !== 200) {
+        const body = await response.json();
+        throw new Error(getApiErrorMessage(body, intl.formatMessage(messages.verifyError)));
+      }
+      const body = await response.json();
       onComplete?.(body.linkedDomain);
       onOpenChange(false);
     } catch (reason) {
