@@ -255,7 +255,7 @@ export function AddDomainDialog({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: "{}",
+          body: JSON.stringify({ method }),
         },
       );
       const body = (await response.json().catch(() => ({}))) as {

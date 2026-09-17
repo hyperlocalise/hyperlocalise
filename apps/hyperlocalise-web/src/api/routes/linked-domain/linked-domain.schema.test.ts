@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   createLinkedDomainBodySchema,
+  marketRecommendationsBodySchema,
   updateLinkedDomainMarketsBodySchema,
   verifyLinkedDomainBodySchema,
 } from "./linked-domain.schema";
@@ -66,5 +67,14 @@ describe("update linked domain markets body schema", () => {
     expect(
       updateLinkedDomainMarketsBodySchema.safeParse({ marketIds: ["france-fr"] }).success,
     ).toBe(true);
+  });
+});
+
+describe("market recommendations body schema", () => {
+  it("requires the verification method used by the onboarding flow", () => {
+    expect(marketRecommendationsBodySchema.safeParse({}).success).toBe(false);
+    expect(marketRecommendationsBodySchema.parse({ method: "dns_txt" })).toEqual({
+      method: "dns_txt",
+    });
   });
 });

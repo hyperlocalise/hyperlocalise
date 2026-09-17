@@ -28,7 +28,9 @@ export const createLinkedDomainBodySchema = z
     }
   });
 
-export const marketRecommendationsBodySchema = z.object({});
+export const marketRecommendationsBodySchema = z.object({
+  method: z.enum(["dns_txt", "html_file", "meta_tag"]),
+});
 
 export const updateLinkedDomainMarketsBodySchema = z.object({
   marketIds: z.array(z.string().trim().min(1).max(64)).min(1).max(16),
