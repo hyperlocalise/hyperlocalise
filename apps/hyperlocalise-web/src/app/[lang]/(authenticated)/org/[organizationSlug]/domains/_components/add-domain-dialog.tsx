@@ -46,6 +46,7 @@ import {
   DOMAIN_RESEARCH_MARKETS,
   type DomainResearchDomain,
 } from "@/lib/domains/research-prototype";
+import { apiClient } from "@/lib/api-client-instance";
 import type { LinkedDomainVerificationMethod } from "@/lib/database/schema/linked-domains";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import { cn } from "@/lib/primitives/cn";
@@ -307,21 +308,17 @@ export function AddDomainDialog({
     setError(null);
     try {
       if (mode === "edit") {
-        const response = await fetch(
-          `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/markets`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ marketIds: selectedMarketIds }),
-          },
-        );
-        const body = (await response.json().catch(() => ({}))) as {
-          linkedDomain?: LinkedDomainPublic;
-          message?: string;
-        };
-        if (!response.ok || !body.linkedDomain) {
-          throw new Error(body.message || intl.formatMessage(messages.saveMarketsError));
+        const response = await apiClient.api.orgs[":organizationSlug"]["linked-domains"][
+          ":linkedDomainId"
+        ].markets.$patch({
+          param: { organizationSlug, linkedDomainId: linkedDomain.id },
+          json: { marketIds: selectedMarketIds },
+        });
+        if (response.status !== 200) {
+          const body = await response.json();
+          throw new Error(getApiErrorMessage(body, intl.formatMessage(messages.saveMarketsError)));
         }
+        const body = await response.json();
         onComplete?.(body.linkedDomain);
         onOpenChange(false);
         return;
