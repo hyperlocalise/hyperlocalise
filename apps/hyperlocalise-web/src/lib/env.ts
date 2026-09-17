@@ -150,20 +150,8 @@ export const env = createEnv({
     /** Channel name prefix for Slack Connect client channels. Default `ext`. */
     SLACK_CONNECT_CHANNEL_PREFIX: z.string().min(1).max(20).optional(),
 
-    /** Autumn secret key for server-side usage checks and tracking. */
+    /** Autumn secret key for server-side usage tracking. */
     AUTUMN_API_KEY: z.string().min(1).optional(),
-
-    /** AI credit rollout mode. Legacy preserves raw-token tracking until Autumn is configured. */
-    AI_CREDIT_METERING_MODE: z.enum(["legacy", "shadow", "enforced"]).default("legacy"),
-
-    /** Conservative USD reservation for one managed main-chat turn. */
-    AI_CREDIT_CHAT_RESERVATION_USD: z.coerce.number().positive().optional(),
-
-    /** Customer USD price for one generated image, including configured markup. */
-    AI_CREDIT_IMAGE_PRICE_USD: z.coerce.number().positive().optional(),
-
-    /** Customer USD price per generated video second, including configured markup. */
-    AI_CREDIT_VIDEO_PRICE_USD_PER_SECOND: z.coerce.number().positive().optional(),
 
     /** Autumn custom model ID used to price one generated image as one synthetic token. */
     AI_CREDIT_IMAGE_MODEL_ID: z.string().min(1).default("custom/hyperlocalise-gpt-image-2"),
@@ -377,10 +365,6 @@ export const env = createEnv({
     SLACK_CONNECT_HOST_USER_IDS: process.env.SLACK_CONNECT_HOST_USER_IDS,
     SLACK_CONNECT_CHANNEL_PREFIX: process.env.SLACK_CONNECT_CHANNEL_PREFIX,
     AUTUMN_API_KEY: process.env.AUTUMN_API_KEY,
-    AI_CREDIT_METERING_MODE: process.env.AI_CREDIT_METERING_MODE ?? "legacy",
-    AI_CREDIT_CHAT_RESERVATION_USD: process.env.AI_CREDIT_CHAT_RESERVATION_USD,
-    AI_CREDIT_IMAGE_PRICE_USD: process.env.AI_CREDIT_IMAGE_PRICE_USD,
-    AI_CREDIT_VIDEO_PRICE_USD_PER_SECOND: process.env.AI_CREDIT_VIDEO_PRICE_USD_PER_SECOND,
     AI_CREDIT_IMAGE_MODEL_ID:
       process.env.AI_CREDIT_IMAGE_MODEL_ID ?? "custom/hyperlocalise-gpt-image-2",
     AI_CREDIT_VIDEO_MODEL_ID:

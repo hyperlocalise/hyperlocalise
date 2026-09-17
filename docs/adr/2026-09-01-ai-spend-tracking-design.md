@@ -10,11 +10,11 @@ Keep the existing Autumn feature ID `ai_tokens`, but configure it as a USD-denom
 `ai_credit_system`.
 
 Managed language, image, and video generation consume this balance through Autumn's
-`trackTokens` endpoint. Organization-provided model credentials are recorded locally with a
-zero-dollar charge and do not consume Hyperlocalise AI credit.
+`trackTokens` endpoint after the work completes. The app sends the model ID plus actual
+input and output tokens. Autumn prices the event. Organization-provided model credentials
+are recorded locally with a zero-dollar charge and do not consume Hyperlocalise AI credit.
 
-Free and Growth plans stop before managed generation when credit is insufficient. Enterprise
-may exceed its grant only when Autumn returns `overageAllowed`.
+Do not estimate USD locally and do not reserve or check Autumn credit before generation.
 
 ## Autumn configuration
 
@@ -38,40 +38,18 @@ model's unit semantics after usage has been recorded.
 
 ## Runtime configuration
 
-- `AI_CREDIT_METERING_MODE=legacy|shadow|enforced`
-- `AI_CREDIT_CHAT_RESERVATION_USD`
-- `AI_CREDIT_IMAGE_PRICE_USD`
-- `AI_CREDIT_VIDEO_PRICE_USD_PER_SECOND`
 - `AI_CREDIT_IMAGE_MODEL_ID`
 - `AI_CREDIT_VIDEO_MODEL_ID`
 - `AI_CREDIT_PRICING_VERSION`
 
-`legacy` preserves raw-token tracking while Autumn products are migrated. `shadow` records
-the new ledger without debiting Autumn. `enforced` checks the remote balance and settles
-usage through `trackTokens`.
-
-Switch the Autumn feature and application mode together. The legacy `balances.track` path
-must not write to `ai_tokens` after the feature becomes an AI credit system.
-
-## Preflight and concurrency
-
-Autumn does not document composing AI `trackTokens` with balance-lock finalization. The app
-therefore uses an organization-scoped Postgres advisory lock and local outstanding
-reservations:
-
-1. Read the Autumn balance.
-2. Add local unsettled reservations to the required amount.
-3. Reject when the combined amount exceeds available credit.
-4. Insert the local reservation before releasing the advisory lock.
-5. Settle actual billable units through `trackTokens`, or release the reservation if no
-   provider-billable work completed.
+Job-count meters (`translation_jobs`, `agent_runs`) still use `balances.track`. AI credit
+uses `trackTokens` only.
 
 ## Retry policy
 
-`trackTokens` has no documented idempotency key. The ledger enters `settlement_unknown`
-before dispatch. A timeout or process interruption must not be retried automatically.
-Reconcile the event using its operation key and provider generation reference before
-resubmission.
+`trackTokens` has no documented idempotency key. A timeout or process interruption must not
+be retried automatically. Reconcile the event using its operation key and provider generation
+reference before resubmission.
 
 ## CLI and sandbox translation
 
@@ -82,13 +60,9 @@ Managed cloud sandbox translation bills the same `ai_tokens` credit as web chat:
 
 1. File, email, and provider-agent file workflows append `--output` / `--output-detail summary`
    to `hl run` and parse the report after the process exits.
-2. Shadow and enforced modes reserve `job:{id}:translation_jobs:ai_tokens` before the sandbox
-   starts. Failure still releases the reservation. Successful work with a missing or empty
-   token report must **retain** the estimated hold as `tracking_failed` (still outstanding)
-   instead of releasing — otherwise gateway spend can repeat without settling Autumn.
-3. Completion still meters `translation_jobs` (one job). When the CLI report has tokens,
-   `completeAndTrackBillableUsage` also settles `ai_tokens` through `trackTokens`.
-4. Organization-provided sandbox credentials (BYOK) record `$0` and skip the Autumn debit.
+2. Completion still meters `translation_jobs` (one job). When the CLI report has tokens,
+   `completeAndTrackBillableUsage` also tracks `ai_tokens` through `trackTokens`.
+3. Organization-provided sandbox credentials (BYOK) record `$0` and skip the Autumn debit.
 
-Image and video file jobs do not use CLI token reports. They keep the existing media
-credit paths.
+Image and video file jobs do not use CLI token reports. They track actual or synthetic
+token units after generation.

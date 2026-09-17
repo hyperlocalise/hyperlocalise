@@ -10,15 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  formatManagedAiCreditError,
-  type ManagedAiCreditError,
-} from "@/lib/billing/managed-ai-credit";
-import { addAiTokenUsage, reserveAgentRunAiCredit } from "@/lib/billing/agent-runtime-usage";
+import { addAiTokenUsage } from "@/lib/billing/agent-runtime-usage";
 import { ensureAiFeaturesAllowed, type AiFeaturesError } from "@/lib/billing/ai-features";
 import type { AiTokenUsage } from "@/lib/billing/usage-control";
-import { sandboxTranslationBillingMetadata } from "@/lib/translation/cli-token-usage";
-import { loadSandboxByokCredential } from "@/lib/translation/sandbox-byok";
 import { createLogger } from "@/lib/log";
 import {
   detectAgentRunProposalWarnings,
@@ -95,36 +89,18 @@ function accumulateProviderAgentStringTokenUsage(
   };
 }
 
-type ProviderAgentCreditGateError = AiFeaturesError | ManagedAiCreditError;
+type ProviderAgentCreditGateError = AiFeaturesError;
 
 function formatProviderAgentCreditGateError(error: ProviderAgentCreditGateError): string {
-  if (error.code === "ai_features_required" || error.code === "ai_features_check_failed") {
-    return error.message;
-  }
-
-  return formatManagedAiCreditError(error);
+  return error.message;
 }
 
-async function reserveProviderAgentTranslationCredit(input: {
+async function ensureProviderAgentTranslationAllowed(input: {
   organizationId: string;
-  agentRunId: string;
 }): Promise<{ ok: true } | { ok: false; error: ProviderAgentCreditGateError }> {
   const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
   if (!aiFeatures.ok) {
     return { ok: false, error: aiFeatures.error };
-  }
-
-  const byok = await loadSandboxByokCredential(input.organizationId);
-  const billing = sandboxTranslationBillingMetadata(byok);
-  const reserved = await reserveAgentRunAiCredit({
-    organizationId: input.organizationId,
-    runId: input.agentRunId,
-    source: "agent_run_complete",
-    modelId: billing.modelId,
-    credentialSource: billing.credentialSource,
-  });
-  if (!reserved.ok) {
-    return { ok: false, error: reserved.error };
   }
   return { ok: true };
 }
@@ -685,9 +661,8 @@ export async function executeProviderAgentTranslation(input: {
       "provider agent translation selected file mode",
     );
 
-    const creditReservation = await reserveProviderAgentTranslationCredit({
+    const creditReservation = await ensureProviderAgentTranslationAllowed({
       organizationId: input.organizationId,
-      agentRunId: input.agentRunId,
     });
     if (!creditReservation.ok) {
       await failAgentRun({
@@ -854,9 +829,8 @@ export async function executeProviderAgentTranslation(input: {
     "provider agent translation selected string mode",
   );
 
-  const creditReservation = await reserveProviderAgentTranslationCredit({
+  const creditReservation = await ensureProviderAgentTranslationAllowed({
     organizationId: input.organizationId,
-    agentRunId: input.agentRunId,
   });
   if (!creditReservation.ok) {
     await failAgentRun({

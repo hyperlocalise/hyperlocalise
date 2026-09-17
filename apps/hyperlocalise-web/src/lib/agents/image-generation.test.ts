@@ -12,21 +12,14 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const {
-  generateImageMock,
-  getManagedImageModelMock,
-  getManagedAiPricingConfigMock,
-  reserveManagedAiCreditMock,
-  settleManagedAiCreditMock,
-  releaseManagedAiCreditMock,
-} = vi.hoisted(() => ({
-  generateImageMock: vi.fn(),
-  getManagedImageModelMock: vi.fn(() => "openai/gpt-image-2.5-flare"),
-  getManagedAiPricingConfigMock: vi.fn(),
-  reserveManagedAiCreditMock: vi.fn(),
-  settleManagedAiCreditMock: vi.fn(),
-  releaseManagedAiCreditMock: vi.fn(),
-}));
+const { generateImageMock, getManagedImageModelMock, withAgentRuntimeUsageMeteringMock } =
+  vi.hoisted(() => ({
+    generateImageMock: vi.fn(),
+    getManagedImageModelMock: vi.fn(() => "openai/gpt-image-2.5-flare"),
+    withAgentRuntimeUsageMeteringMock: vi.fn(
+      async ({ run }: { run: () => Promise<unknown> }) => run(),
+    ),
+  }));
 
 vi.mock("ai", async () => {
   const actual = await vi.importActual<typeof import("ai")>("ai");
@@ -42,54 +35,22 @@ vi.mock("@/lib/providers/language-model", () => ({
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
-  withAgentRuntimeUsageMetering: vi.fn(async ({ run }: { run: () => Promise<unknown> }) => run()),
+  withAgentRuntimeUsageMetering: withAgentRuntimeUsageMeteringMock,
 }));
 
 vi.mock("@/lib/billing/managed-ai-pricing", () => ({
-  getManagedAiPricingConfig: getManagedAiPricingConfigMock,
-  managedAiReservationAmountUsd: vi.fn(
-    (config: { imagePriceUsd?: number }) => config.imagePriceUsd ?? null,
-  ),
+  getManagedAiPricingConfig: () => ({
+    pricingVersion: "test",
+    imageModelId: "custom/image",
+    videoModelId: "custom/video",
+  }),
 }));
-
-vi.mock("@/lib/billing/managed-ai-credit", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/billing/managed-ai-credit")>(
-    "@/lib/billing/managed-ai-credit",
-  );
-  return {
-    ...actual,
-    reserveManagedAiCredit: reserveManagedAiCreditMock,
-    settleManagedAiCredit: settleManagedAiCreditMock,
-    releaseManagedAiCredit: releaseManagedAiCreditMock,
-  };
-});
 
 import { regenerateImageFromAttachment } from "./image-generation";
 
 describe("image generation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "legacy",
-      pricingVersion: "test",
-      imagePriceUsd: 0.25,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
-    reserveManagedAiCreditMock.mockResolvedValue({
-      ok: true,
-      value: {
-        operationKey: "image:test:ai_tokens",
-        mode: "shadow",
-        credentialSource: "gateway",
-        estimatedAmountUsd: 0.25,
-      },
-    });
-    settleManagedAiCreditMock.mockResolvedValue({
-      ok: true,
-      value: { amountUsd: 0.25, status: "settled" },
-    });
-    releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
     generateImageMock.mockResolvedValue({
       images: [{ uint8Array: new Uint8Array([1, 2, 3]), mediaType: "image/png" }],
       providerMetadata: { gateway: { generationId: "gen_image" } },
@@ -120,15 +81,7 @@ describe("image generation", () => {
     });
   });
 
-  it("reserves and settles one synthetic image unit", async () => {
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "shadow",
-      pricingVersion: "test",
-      imagePriceUsd: 0.25,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
-
+  it("tracks a synthetic image unit after generation when the provider reports no tokens", async () => {
     await regenerateImageFromAttachment(
       Buffer.from("source"),
       "image/png",
@@ -139,36 +92,31 @@ describe("image generation", () => {
       },
     );
 
-    expect(reserveManagedAiCreditMock).toHaveBeenCalledWith(
+    expect(withAgentRuntimeUsageMeteringMock).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: "org_123",
-        operationKey: "image:test:ai_tokens",
-        modelId: "openai/gpt-image-2",
-        estimatedAmountUsd: 0.25,
+        operationKey: "image:test",
+        aiCreditCredentialSource: "gateway",
       }),
     );
-    expect(settleManagedAiCreditMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        modelId: "custom/image",
-        providerGenerationId: "gen_image",
-        shadowAmountUsd: 0.25,
-        tokenUsage: {
-          inputTokens: 0,
-          outputTokens: 1,
-          totalTokens: 1,
-        },
-      }),
-    );
+    const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as {
+      extractTokenUsage: (result: {
+        billing: { tokenUsage: unknown; imageCount: number };
+      }) => unknown;
+      aiCreditModelId: (result: { billing: { tokenUsage: unknown } }) => string;
+    };
+    const generated = {
+      billing: { tokenUsage: null, imageCount: 1 },
+    };
+    expect(metering.extractTokenUsage(generated)).toEqual({
+      inputTokens: 0,
+      outputTokens: 1,
+      totalTokens: 1,
+    });
+    expect(metering.aiCreditModelId(generated)).toBe("custom/image");
   });
 
-  it("uses Models.dev-priced token usage when the image provider reports it", async () => {
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "shadow",
-      pricingVersion: "test",
-      imagePriceUsd: 0.25,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
+  it("tracks reported image token usage after generation", async () => {
     generateImageMock.mockResolvedValueOnce({
       images: [{ uint8Array: new Uint8Array([1, 2, 3]), mediaType: "image/png" }],
       usage: { inputTokens: 120, outputTokens: 80, totalTokens: 200 },
@@ -185,26 +133,21 @@ describe("image generation", () => {
       },
     );
 
-    expect(settleManagedAiCreditMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        modelId: "openai/gpt-image-2",
-        tokenUsage: {
-          inputTokens: 120,
-          outputTokens: 80,
-          totalTokens: 200,
-        },
-      }),
-    );
+    const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as {
+      run: () => Promise<{ billing: { tokenUsage: unknown } }>;
+      extractTokenUsage: (result: { billing: { tokenUsage: unknown } }) => unknown;
+      aiCreditModelId: (result: { billing: { tokenUsage: unknown } }) => string;
+    };
+    const generated = await metering.run();
+    expect(metering.extractTokenUsage(generated)).toEqual({
+      inputTokens: 120,
+      outputTokens: 80,
+      totalTokens: 200,
+    });
+    expect(metering.aiCreditModelId(generated)).toBe("openai/gpt-image-2");
   });
 
-  it("releases the image reservation when generation fails", async () => {
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "shadow",
-      pricingVersion: "test",
-      imagePriceUsd: 0.25,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
+  it("does not complete image tracking when generation fails", async () => {
     generateImageMock.mockRejectedValueOnce(new Error("provider unavailable"));
 
     await expect(
@@ -218,12 +161,5 @@ describe("image generation", () => {
         },
       ),
     ).rejects.toThrow("provider unavailable");
-
-    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        reason: "image_generation_failed",
-      }),
-    );
-    expect(settleManagedAiCreditMock).not.toHaveBeenCalled();
   });
 });

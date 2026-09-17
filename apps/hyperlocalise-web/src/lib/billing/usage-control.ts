@@ -16,17 +16,13 @@ import { usageFeatureIds, type UsageFeatureId } from "@/lib/billing/autumn-ids";
 import {
   billableAutumnTokenUsage,
   formatManagedAiCreditError,
-  getManagedAiCreditReservation,
-  isSettleableManagedAiCreditReservation,
-  reserveManagedAiCredit,
-  settleManagedAiCredit,
   trackAutumnAiTokens,
   type AiCreditCredentialSource,
   type AiCreditTokenUsage,
   type AutumnTrackTokensInput,
   type ManagedAiCreditError,
 } from "@/lib/billing/managed-ai-credit";
-import { getManagedAiPricingConfig, normalizeUsdAmount } from "@/lib/billing/managed-ai-pricing";
+import { normalizeUsdAmount } from "@/lib/billing/managed-ai-pricing";
 import type { DatabaseClient } from "@/lib/database/client";
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
@@ -98,14 +94,6 @@ export function formatUsageControlError(error: UsageControlError): string {
     case "autumn_usage_tracking_failed":
       return error.message;
     case "ai_credit_pricing_not_configured":
-    case "ai_credit_not_configured":
-    case "ai_credit_insufficient":
-    case "ai_credit_check_failed":
-    case "ai_credit_reservation_failed":
-    case "ai_credit_operation_already_exists":
-    case "ai_credit_usage_not_found":
-    case "ai_credit_settlement_in_progress":
-    case "ai_credit_tracking_failed":
       return formatManagedAiCreditError(error);
   }
 }
@@ -277,7 +265,6 @@ export async function trackAiCreditUsageInAutumn(input: {
   source: string;
   modelId?: string;
   credentialSource?: AiCreditCredentialSource;
-  estimatedAmountUsd?: number;
   jobId?: string;
   interactionId?: string;
   autumnApiKey?: string;
@@ -289,82 +276,6 @@ export async function trackAiCreditUsageInAutumn(input: {
   }
 
   const operationKey = `${input.parentOperationKey}:ai_tokens`;
-  const pricingConfig = getManagedAiPricingConfig();
-  if (pricingConfig.mode !== "legacy") {
-    if (!input.modelId || !input.credentialSource) {
-      return err({
-        code: "ai_credit_pricing_not_configured",
-        surface: input.source,
-      });
-    }
-
-    const estimatedAmountUsd =
-      input.credentialSource === "byok"
-        ? 0
-        : (input.estimatedAmountUsd ?? pricingConfig.chatReservationUsd);
-    if (
-      estimatedAmountUsd == null ||
-      (input.credentialSource === "gateway" && estimatedAmountUsd <= 0)
-    ) {
-      return err({
-        code: "ai_credit_pricing_not_configured",
-        surface: input.source,
-      });
-    }
-
-    const existingReservation = await getManagedAiCreditReservation({ operationKey });
-    let reservation = existingReservation;
-    if (reservation && !isSettleableManagedAiCreditReservation(reservation)) {
-      return err({
-        code: "ai_credit_operation_already_exists",
-        operationKey: reservation.operationKey,
-        status: reservation.status ?? "rejected",
-      });
-    }
-    if (!reservation) {
-      const reservationResult = await reserveManagedAiCredit({
-        organizationId: input.organizationId,
-        operationKey,
-        source: input.source,
-        modelId: input.modelId,
-        credentialSource: input.credentialSource,
-        estimatedAmountUsd,
-        jobId: input.jobId,
-        interactionId: input.interactionId,
-        mode: pricingConfig.mode,
-        autumnApiKey: input.autumnApiKey,
-        dimensions: {
-          autumn_event_name: "ai_tokens.consumed",
-          parent_operation_key: input.parentOperationKey,
-        },
-        dependencies: input.trackTokens ? { trackTokens: input.trackTokens } : undefined,
-      });
-      if (!reservationResult.ok) return reservationResult;
-      reservation = reservationResult.value;
-    }
-
-    const settlementResult = await settleManagedAiCredit({
-      reservation,
-      modelId: input.modelId,
-      tokenUsage: input.tokenUsage,
-      shadowAmountUsd: estimatedAmountUsd,
-      autumnApiKey: input.autumnApiKey,
-      dependencies: input.trackTokens ? { trackTokens: input.trackTokens } : undefined,
-    });
-    if (!settlementResult.ok) return settlementResult;
-
-    serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.aiTokensConsumed, {
-      source: productUsageSourceForMeterSource(input.source),
-      token_band: tokenBand(input.tokenUsage.totalTokens),
-    });
-    return ok({
-      status:
-        settlementResult.value.status === "already_settled"
-          ? "already_tracked"
-          : "tracking_succeeded",
-    });
-  }
-
   if (!input.modelId) {
     return err({
       code: "ai_credit_pricing_not_configured",
@@ -646,7 +557,6 @@ export async function completeAndTrackBillableUsage(input: {
   tokenUsage?: AiTokenUsage | null;
   aiCreditModelId?: string;
   aiCreditCredentialSource?: AiCreditCredentialSource;
-  aiCreditEstimatedAmountUsd?: number;
   jobId?: string;
   interactionId?: string;
   aiCreditSource?: string;
@@ -698,7 +608,6 @@ export async function completeAndTrackBillableUsage(input: {
       source: input.aiCreditSource ?? "ai_token_usage",
       modelId: input.aiCreditModelId,
       credentialSource: input.aiCreditCredentialSource,
-      estimatedAmountUsd: input.aiCreditEstimatedAmountUsd,
       jobId: input.jobId,
       interactionId: input.interactionId,
       autumnApiKey: input.autumnApiKey,
