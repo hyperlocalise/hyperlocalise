@@ -264,6 +264,7 @@ describe("path builders", () => {
       WORKSPACE_AUTOMATIONS_FLAG,
     );
     expect(items.find((item) => item.label === "Video Editor")?.badge).toBe("Coming soon");
+    expect(items.find((item) => item.label === "Video Editor")?.disabled).toBe(true);
   });
 
   it("builds project navigation groups scoped to the project", () => {
@@ -509,11 +510,12 @@ describe("buildProjectNavigationItems", () => {
     expect(automationsItem?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
   });
 
-  it("includes a Video Editor item with Coming soon badge", () => {
+  it("includes a disabled Video Editor item with Coming soon badge", () => {
     const items = buildProjectNavigationItems("acme", "proj_1", intl);
     const videoEditorItem = items.find((item) => item.label === "Video Editor");
     expect(videoEditorItem?.href).toBe("/org/acme/projects/proj_1/videos");
     expect(videoEditorItem?.badge).toBe("Coming soon");
+    expect(videoEditorItem?.disabled).toBe(true);
   });
 });
 

@@ -155,7 +155,7 @@ describe("workosAdapter", () => {
 const intl = getIntlShape("en") as IntlShape;
 
 describe("annotateNavigationByWorkspaceFlags", () => {
-  it("marks Automations, Guideline, and Domains as preview when workspace flags are disabled", () => {
+  it("marks Queries, Reports, and Guideline as preview when workspace flags are disabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const annotated = annotateNavigationByWorkspaceFlags(groups, {
       automations: false,
@@ -169,22 +169,18 @@ describe("annotateNavigationByWorkspaceFlags", () => {
       reports: false,
     });
 
-    const automationsItem = annotated
+    const queriesItem = annotated
       .flatMap((group) => group.items)
-      .find((item) => item.label === "Automations");
+      .find((item) => item.label === "Queries");
     const guidelineItem = annotated
       .flatMap((group) => group.items)
       .find((item) => item.label === "Guideline");
-    const domainsItem = annotated
-      .flatMap((group) => group.items)
-      .find((item) => item.label === "Domains");
     const reportsItem = annotated
       .flatMap((group) => group.items)
       .find((item) => item.label === "Reports");
 
-    expect(automationsItem?.preview).toBe(true);
+    expect(queriesItem?.preview).toBe(true);
     expect(guidelineItem?.preview).toBe(true);
-    expect(domainsItem?.preview).toBe(true);
     expect(reportsItem?.preview).toBe(true);
   });
 
@@ -211,7 +207,7 @@ describe("annotateNavigationByWorkspaceFlags", () => {
 });
 
 describe("filterNavigationByWorkspaceFlags", () => {
-  it("removes Automations, Guideline, and Domains when workspace flags are disabled", () => {
+  it("removes Queries, Reports, and Guideline when workspace flags are disabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const filtered = filterNavigationByWorkspaceFlags(groups, {
       automations: false,
@@ -227,17 +223,18 @@ describe("filterNavigationByWorkspaceFlags", () => {
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));
 
-    expect(itemLabels).not.toContain("Automations");
-    expect(itemLabels).not.toContain("Guideline");
     expect(itemLabels).not.toContain("Queries");
-    expect(itemLabels).toContain("New Request");
-    expect(itemLabels).toContain("AI Engine");
-    expect(itemLabels).not.toContain("Domains");
+    expect(itemLabels).not.toContain("Guideline");
     expect(itemLabels).not.toContain("Reports");
+    expect(itemLabels).not.toContain("Automations");
+    expect(itemLabels).not.toContain("New Request");
+    expect(itemLabels).not.toContain("AI Engine");
+    expect(itemLabels).not.toContain("Domains");
     expect(itemLabels).toContain("Projects");
+    expect(itemLabels).toContain("Settings");
   });
 
-  it("keeps Automations, Guideline, Issues, and Domains when workspace flags are enabled", () => {
+  it("keeps Queries, Reports, and Guideline when workspace flags are enabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const filtered = filterNavigationByWorkspaceFlags(groups, {
       automations: true,
@@ -253,12 +250,12 @@ describe("filterNavigationByWorkspaceFlags", () => {
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));
 
-    expect(itemLabels).toContain("Automations");
     expect(itemLabels).toContain("Guideline");
     expect(itemLabels).toContain("Queries");
-    expect(itemLabels).toContain("Domains");
     expect(itemLabels).toContain("Reports");
-    expect(itemLabels).toContain("AI Engine");
+    expect(itemLabels).not.toContain("Automations");
+    expect(itemLabels).not.toContain("Domains");
+    expect(itemLabels).not.toContain("AI Engine");
   });
 });
 
@@ -278,23 +275,15 @@ describe("groupPreviewNavigationGroups", () => {
     const grouped = groupPreviewNavigationGroups(groups, "Try");
 
     const tryGroup = grouped.find((group) => group.label === "Try");
-    const agentsGroup = grouped.find((group) => group.label === "Agents");
     const workspaceGroup = grouped.find((group) => group.label === "Workspace");
     const promotedLabels = grouped[0]?.items.map((item) => item.label) ?? [];
 
-    expect(tryGroup?.items.map((item) => item.label)).toEqual([
-      "Queries",
-      "Reports",
-      "Automations",
-      "Domains",
-      "Hyperlab",
-      "Guideline",
-    ]);
-    expect(agentsGroup?.items.map((item) => item.label)).toEqual(["New Request", "AI Engine"]);
-    expect(workspaceGroup?.items.map((item) => item.label)).not.toContain("Domains");
+    expect(tryGroup?.items.map((item) => item.label)).toEqual(["Queries", "Reports", "Guideline"]);
     expect(workspaceGroup?.items.map((item) => item.label)).not.toContain("Queries");
-    expect(workspaceGroup?.items.map((item) => item.label)).toContain("Projects");
-    expect(promotedLabels).toContain("Inbox");
+    expect(workspaceGroup?.items.map((item) => item.label)).toContain("Inbox");
+    expect(workspaceGroup?.items.map((item) => item.label)).toContain("QA");
+    expect(promotedLabels).toContain("Overview");
+    expect(promotedLabels).toContain("Projects");
     expect(promotedLabels).not.toContain("Reports");
   });
 
@@ -313,8 +302,9 @@ describe("groupPreviewNavigationGroups", () => {
     const grouped = groupPreviewNavigationGroups(groups, "Try");
 
     expect(grouped.some((group) => group.label === "Try")).toBe(false);
+    expect(grouped.flatMap((group) => group.items.map((item) => item.label))).toContain("Queries");
     expect(grouped.flatMap((group) => group.items.map((item) => item.label))).toContain(
-      "Automations",
+      "Guideline",
     );
   });
 });

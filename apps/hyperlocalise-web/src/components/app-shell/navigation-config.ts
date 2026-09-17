@@ -78,6 +78,8 @@ export type NavigationItem = {
     | typeof RELEASE_CAT_ALL_FILES_FLAG;
   /** When true, the feature flag is off and the nav item links to a teaser page. */
   preview?: boolean;
+  /** When true, the item is visible but not navigable. */
+  disabled?: boolean;
 };
 
 export type NavigationGroup = {
@@ -336,6 +338,7 @@ export function buildProjectNavigationGroups(
       id: "tYvhpR2krg",
       description: "Badge shown next to the Video Editor navigation item",
     }),
+    disabled: true,
   });
 
   const workspaceItems: NavigationItem[] = [];

@@ -581,10 +581,11 @@ function NavigationGroupItems({
           return (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
-                render={<OrgNavLink href={href} />}
-                isActive={isActive}
+                render={item.disabled ? undefined : <OrgNavLink href={href} />}
+                isActive={!item.disabled && isActive}
+                disabled={item.disabled}
                 tooltip={tooltip}
-                className={navigationButtonClass(isActive)}
+                className={navigationButtonClass(!item.disabled && isActive)}
               >
                 <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>

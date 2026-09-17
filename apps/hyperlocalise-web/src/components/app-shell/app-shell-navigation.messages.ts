@@ -85,19 +85,4 @@ export const appShellNavigationMessages = defineMessages({
     id: "x4rENGJxzk",
     description: "Sidebar group label for content intelligence navigation items",
   },
-  videoEditor: {
-    defaultMessage: "Video Editor",
-    id: "SHEAO5sth2",
-    description: "Project sidebar navigation item for the Video Editor",
-  },
-  videoEditorDescription: {
-    defaultMessage: "Localize on-screen video text and speech",
-    id: "hbEoUHCttQ",
-    description: "Sidebar description for the Video Editor navigation item",
-  },
-  comingSoonBadge: {
-    defaultMessage: "Coming soon",
-    id: "tYvhpR2krg",
-    description: "Badge shown next to the Video Editor navigation item",
-  },
 });
