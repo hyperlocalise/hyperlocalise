@@ -50,10 +50,46 @@ afterEach(async () => {
   await projectFixture.cleanup();
 });
 
+type CapturedAutumnRequest = {
+  url: string;
+  body: Record<string, unknown>;
+};
+
 function stubAutumnFetch(status = 200) {
-  const fetchMock = vi.fn(async () => new Response(status === 200 ? "{}" : "bad", { status }));
+  const requests: CapturedAutumnRequest[] = [];
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input instanceof Request ? input.url : input);
+    const rawBody =
+      typeof init?.body === "string"
+        ? init.body
+        : init?.body instanceof Uint8Array
+          ? new TextDecoder().decode(init.body)
+          : init?.body instanceof ArrayBuffer
+            ? new TextDecoder().decode(init.body)
+            : input instanceof Request
+              ? await input.clone().text()
+              : "";
+    requests.push({
+      url,
+      body: rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : {},
+    });
+    if (url.includes("/v1/balances.track_tokens")) {
+      return new Response(
+        JSON.stringify({
+          customer_id: "org_test",
+          value: 0.01,
+          balance: null,
+        }),
+        {
+          status,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+    return new Response(status === 200 ? "{}" : "bad", { status });
+  });
   vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
-  return fetchMock;
+  return Object.assign(fetchMock, { requests });
 }
 
 async function insertRunningTranslationJob(input: {
@@ -139,22 +175,15 @@ async function getUsageEvent(operationKey: string) {
 }
 
 function autumnRequestBodies(fetchMock: ReturnType<typeof stubAutumnFetch>) {
-  const calls = fetchMock.mock.calls as unknown as Array<Parameters<typeof fetch>>;
-  return calls.map(([, requestInit]) => {
-    const requestBody = requestInit?.body;
-    if (typeof requestBody !== "string") {
-      throw new Error("Expected Autumn request body to be a JSON string");
-    }
-    return JSON.parse(requestBody) as Record<string, unknown>;
-  });
+  return fetchMock.requests;
 }
 
 function autumnRequestBody(fetchMock: ReturnType<typeof stubAutumnFetch>) {
-  const [body] = autumnRequestBodies(fetchMock);
-  if (!body) {
+  const [request] = autumnRequestBodies(fetchMock);
+  if (!request) {
     throw new Error("Expected Autumn request body to be a JSON string");
   }
-  return body;
+  return request.body;
 }
 
 describe("translation job workflow billing", () => {
@@ -344,18 +373,24 @@ describe("translation job workflow billing", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const bodies = autumnRequestBodies(fetchMock);
-    expect(bodies).toEqual(
+    const requests = autumnRequestBodies(fetchMock);
+    expect(requests).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          feature_id: "translation_jobs",
-          value: 1,
-          idempotency_key: operationKey,
+          url: "https://api.useautumn.com/v1/balances.track",
+          body: expect.objectContaining({
+            feature_id: "translation_jobs",
+            value: 1,
+            idempotency_key: operationKey,
+          }),
         }),
         expect.objectContaining({
-          feature_id: "ai_tokens",
-          value: 55,
-          idempotency_key: `${operationKey}:ai_tokens`,
+          url: "https://api.useautumn.com/v1/balances.track_tokens",
+          body: expect.objectContaining({
+            model_id: "openai/gpt-5.6-luna",
+            input_tokens: 40,
+            output_tokens: 12,
+          }),
         }),
       ]),
     );

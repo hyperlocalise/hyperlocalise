@@ -12,21 +12,14 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const {
-  generateVideoMock,
-  getManagedVideoModelMock,
-  getManagedAiPricingConfigMock,
-  reserveManagedAiCreditMock,
-  settleManagedAiCreditMock,
-  releaseManagedAiCreditMock,
-} = vi.hoisted(() => ({
-  generateVideoMock: vi.fn(),
-  getManagedVideoModelMock: vi.fn(() => "bytedance/seedance-2.5"),
-  getManagedAiPricingConfigMock: vi.fn(),
-  reserveManagedAiCreditMock: vi.fn(),
-  settleManagedAiCreditMock: vi.fn(),
-  releaseManagedAiCreditMock: vi.fn(),
-}));
+const { generateVideoMock, getManagedVideoModelMock, withAgentRuntimeUsageMeteringMock } =
+  vi.hoisted(() => ({
+    generateVideoMock: vi.fn(),
+    getManagedVideoModelMock: vi.fn(() => "bytedance/seedance-2.5"),
+    withAgentRuntimeUsageMeteringMock: vi.fn(async ({ run }: { run: () => Promise<unknown> }) =>
+      run(),
+    ),
+  }));
 
 vi.mock("ai", async () => {
   const actual = await vi.importActual<typeof import("ai")>("ai");
@@ -42,57 +35,22 @@ vi.mock("@/lib/providers/language-model", () => ({
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
-  withAgentRuntimeUsageMetering: vi.fn(async ({ run }: { run: () => Promise<unknown> }) => run()),
+  withAgentRuntimeUsageMetering: withAgentRuntimeUsageMeteringMock,
 }));
 
 vi.mock("@/lib/billing/managed-ai-pricing", () => ({
-  getManagedAiPricingConfig: getManagedAiPricingConfigMock,
-  managedAiReservationAmountUsd: vi.fn(
-    (config: { videoPriceUsdPerSecond?: number }, input: { durationSeconds: number }) =>
-      config.videoPriceUsdPerSecond == null
-        ? null
-        : config.videoPriceUsdPerSecond * input.durationSeconds,
-  ),
+  getManagedAiPricingConfig: () => ({
+    pricingVersion: "test",
+    imageModelId: "custom/image",
+    videoModelId: "custom/video",
+  }),
 }));
-
-vi.mock("@/lib/billing/managed-ai-credit", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/billing/managed-ai-credit")>(
-    "@/lib/billing/managed-ai-credit",
-  );
-  return {
-    ...actual,
-    reserveManagedAiCredit: reserveManagedAiCreditMock,
-    settleManagedAiCredit: settleManagedAiCreditMock,
-    releaseManagedAiCredit: releaseManagedAiCreditMock,
-  };
-});
 
 import { regenerateVideoFromAttachment } from "./video-generation";
 
 describe("video generation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "legacy",
-      pricingVersion: "test",
-      videoPriceUsdPerSecond: 0.4,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
-    reserveManagedAiCreditMock.mockResolvedValue({
-      ok: true,
-      value: {
-        operationKey: "video:test:ai_tokens",
-        mode: "shadow",
-        credentialSource: "gateway",
-        estimatedAmountUsd: 2,
-      },
-    });
-    settleManagedAiCreditMock.mockResolvedValue({
-      ok: true,
-      value: { amountUsd: 2, status: "settled" },
-    });
-    releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
     generateVideoMock.mockResolvedValue({
       video: { uint8Array: new Uint8Array([9, 8, 7]), mediaType: "video/mp4" },
       providerMetadata: { gateway: { asyncJob: { jobId: "job_video" } } },
@@ -127,15 +85,7 @@ describe("video generation", () => {
     });
   });
 
-  it("reserves and settles synthetic video-second units", async () => {
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "shadow",
-      pricingVersion: "test",
-      videoPriceUsdPerSecond: 0.4,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
-
+  it("tracks synthetic video-second units after generation", async () => {
     await regenerateVideoFromAttachment(
       Buffer.from("source-video"),
       "video/mp4",
@@ -147,36 +97,25 @@ describe("video generation", () => {
       8,
     );
 
-    expect(reserveManagedAiCreditMock).toHaveBeenCalledWith(
+    expect(withAgentRuntimeUsageMeteringMock).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: "org_123",
-        operationKey: "video:test:ai_tokens",
-        modelId: "custom/video",
-        estimatedAmountUsd: 3.2,
+        operationKey: "video:test",
+        aiCreditModelId: "custom/video",
+        aiCreditCredentialSource: "gateway",
       }),
     );
-    expect(settleManagedAiCreditMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        modelId: "custom/video",
-        providerGenerationId: "job_video",
-        shadowAmountUsd: 3.2,
-        tokenUsage: {
-          inputTokens: 0,
-          outputTokens: 8,
-          totalTokens: 8,
-        },
-      }),
-    );
+    const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as unknown as {
+      extractTokenUsage: (result: { billing: { durationSeconds: number } }) => unknown;
+    };
+    expect(metering.extractTokenUsage({ billing: { durationSeconds: 8 } })).toEqual({
+      inputTokens: 0,
+      outputTokens: 8,
+      totalTokens: 8,
+    });
   });
 
-  it("releases the video reservation when generation fails", async () => {
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "shadow",
-      pricingVersion: "test",
-      videoPriceUsdPerSecond: 0.4,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
+  it("does not complete video tracking when generation fails", async () => {
     generateVideoMock.mockRejectedValueOnce(new Error("provider unavailable"));
 
     await expect(
@@ -191,12 +130,5 @@ describe("video generation", () => {
         8,
       ),
     ).rejects.toThrow("provider unavailable");
-
-    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        reason: "video_generation_failed",
-      }),
-    );
-    expect(settleManagedAiCreditMock).not.toHaveBeenCalled();
   });
 });

@@ -14,23 +14,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 
 import "dotenv/config";
 
-const {
-  completeAndTrackBillableUsageMock,
-  reserveUsageEventMock,
-  getManagedAiPricingConfigMock,
-  getManagedAiCreditReservationMock,
-  reserveManagedAiCreditMock,
-  releaseManagedAiCreditMock,
-  retainManagedAiCreditForUnmeteredSuccessMock,
-} = vi.hoisted(() => ({
-  completeAndTrackBillableUsageMock: vi.fn(),
-  reserveUsageEventMock: vi.fn(),
-  getManagedAiPricingConfigMock: vi.fn(),
-  getManagedAiCreditReservationMock: vi.fn(),
-  reserveManagedAiCreditMock: vi.fn(),
-  releaseManagedAiCreditMock: vi.fn(),
-  retainManagedAiCreditForUnmeteredSuccessMock: vi.fn(),
-}));
+const { completeAndTrackBillableUsageMock, reserveUsageEventMock, ensureAiFeaturesAllowedMock } =
+  vi.hoisted(() => ({
+    completeAndTrackBillableUsageMock: vi.fn(),
+    reserveUsageEventMock: vi.fn(),
+    ensureAiFeaturesAllowedMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/billing/usage-control", () => ({
   completeAndTrackBillableUsage: completeAndTrackBillableUsageMock,
@@ -41,31 +30,14 @@ vi.mock("@/lib/billing/usage-control", () => ({
   },
 }));
 
-vi.mock("@/lib/billing/managed-ai-pricing", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-pricing")>();
-  return {
-    ...actual,
-    getManagedAiPricingConfig: getManagedAiPricingConfigMock,
-  };
-});
-
-vi.mock("@/lib/billing/managed-ai-credit", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-credit")>();
-  return {
-    ...actual,
-    getManagedAiCreditReservation: getManagedAiCreditReservationMock,
-    reserveManagedAiCredit: reserveManagedAiCreditMock,
-    releaseManagedAiCredit: releaseManagedAiCreditMock,
-    retainManagedAiCreditForUnmeteredSuccess: retainManagedAiCreditForUnmeteredSuccessMock,
-  };
-});
+vi.mock("@/lib/billing/ai-features", () => ({
+  ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
+  AiFeaturesRequiredError: class AiFeaturesRequiredError extends Error {},
+}));
 
 import {
-  agentRunAiCreditOperationKey,
   extractAiSdkTokenUsage,
   extractGenerateResultTokenUsage,
-  releaseAgentRunAiCredit,
-  reserveAgentRunAiCredit,
   reserveAgentRuntimeUsage,
   trackSucceededAgentRuntimeUsage,
   withAgentRuntimeUsageMetering,
@@ -74,25 +46,7 @@ import { ok } from "@/lib/primitives/result/results";
 
 describe("agent-runtime-usage", () => {
   beforeEach(() => {
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "legacy",
-      pricingVersion: "test",
-      chatReservationUsd: 0.5,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
-    getManagedAiCreditReservationMock.mockResolvedValue(null);
-    reserveManagedAiCreditMock.mockResolvedValue({
-      ok: true,
-      value: {
-        operationKey: "workspace-automation:run_1:agent_runs:ai_tokens",
-        mode: "enforced",
-        credentialSource: "gateway",
-        estimatedAmountUsd: 0.5,
-      },
-    });
-    releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
-    retainManagedAiCreditForUnmeteredSuccessMock.mockResolvedValue({ ok: true, value: undefined });
+    ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
   });
 
   afterEach(() => {
@@ -217,6 +171,8 @@ describe("agent-runtime-usage", () => {
       operationKey: "agent-run:test",
       dimensions: { surface: "web" },
       tokenUsage: { inputTokens: 1, outputTokens: 2, totalTokens: 3 },
+      aiCreditModelId: "openai/gpt-5.6-luna",
+      aiCreditCredentialSource: "gateway",
     });
 
     expect(completeAndTrackBillableUsageMock).toHaveBeenCalledWith({
@@ -226,6 +182,8 @@ describe("agent-runtime-usage", () => {
       unit: "run",
       dimensions: { surface: "web" },
       tokenUsage: { inputTokens: 1, outputTokens: 2, totalTokens: 3 },
+      aiCreditModelId: "openai/gpt-5.6-luna",
+      aiCreditCredentialSource: "gateway",
       interactionId: undefined,
       aiCreditSource: "agent_runtime_complete",
     });
@@ -259,18 +217,13 @@ describe("agent-runtime-usage", () => {
       expect.objectContaining({
         operationKey: "workspace-automation:run_1:agent_runs",
         tokenUsage: { inputTokens: 4, outputTokens: 6, totalTokens: 10 },
+        aiCreditModelId: "openai/gpt-5.6-luna",
+        aiCreditCredentialSource: "gateway",
       }),
     );
   });
 
-  it("preflights token-producing managed agents and supplies default model metadata", async () => {
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "enforced",
-      pricingVersion: "test",
-      chatReservationUsd: 0.5,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
+  it("tracks reported tokens after a successful run without a preflight hold", async () => {
     reserveUsageEventMock.mockResolvedValue(ok({ id: "usage_1" }));
     completeAndTrackBillableUsageMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
 
@@ -284,30 +237,16 @@ describe("agent-runtime-usage", () => {
       }),
     });
 
-    expect(reserveManagedAiCreditMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        modelId: "openai/gpt-5.6-luna",
-        credentialSource: "gateway",
-        estimatedAmountUsd: 0.5,
-      }),
-    );
     expect(completeAndTrackBillableUsageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         aiCreditModelId: "openai/gpt-5.6-luna",
         aiCreditCredentialSource: "gateway",
-        aiCreditEstimatedAmountUsd: 0.5,
+        tokenUsage: { inputTokens: 4, outputTokens: 6, totalTokens: 10 },
       }),
     );
   });
 
-  it("retains reserved AI credit when a successful run reports no token usage", async () => {
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "enforced",
-      pricingVersion: "test",
-      chatReservationUsd: 0.5,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
+  it("still completes the agent_runs meter when a successful run reports no token usage", async () => {
     reserveUsageEventMock.mockResolvedValue(ok({ id: "usage_1" }));
     completeAndTrackBillableUsageMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
 
@@ -321,13 +260,6 @@ describe("agent-runtime-usage", () => {
       }),
     ).resolves.toEqual({ text: "done" });
 
-    expect(retainManagedAiCreditForUnmeteredSuccessMock).toHaveBeenCalledWith({
-      reservation: expect.objectContaining({
-        operationKey: "workspace-automation:run_1:agent_runs:ai_tokens",
-      }),
-      reason: "no_token_usage",
-    });
-    expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
     expect(completeAndTrackBillableUsageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         tokenUsage: null,
@@ -370,132 +302,5 @@ describe("agent-runtime-usage", () => {
     ).resolves.toEqual({ text: "done" });
 
     expect(consoleError).toHaveBeenCalled();
-  });
-
-  it("does not reserve provider-agent credit in legacy metering mode", async () => {
-    await expect(
-      reserveAgentRunAiCredit({
-        organizationId: "org_123",
-        runId: "run_1",
-        source: "agent_run_complete",
-        modelId: "openai/gpt-5.6-luna",
-        credentialSource: "gateway",
-      }),
-    ).resolves.toEqual(ok(null));
-    expect(reserveManagedAiCreditMock).not.toHaveBeenCalled();
-  });
-
-  it("reuses an outstanding provider-agent reservation instead of creating a second one", async () => {
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "enforced",
-      pricingVersion: "test",
-      chatReservationUsd: 0.5,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
-    const existing = {
-      operationKey: agentRunAiCreditOperationKey("run_1"),
-      status: "reserved" as const,
-      mode: "enforced" as const,
-      credentialSource: "gateway" as const,
-      estimatedAmountUsd: 0.5,
-    };
-    getManagedAiCreditReservationMock.mockResolvedValue(existing);
-
-    await expect(
-      reserveAgentRunAiCredit({
-        organizationId: "org_123",
-        runId: "run_1",
-        source: "agent_run_complete",
-        modelId: "openai/gpt-5.6-luna",
-        credentialSource: "gateway",
-      }),
-    ).resolves.toEqual(ok(existing));
-    expect(reserveManagedAiCreditMock).not.toHaveBeenCalled();
-  });
-
-  it("fails closed when a rejected provider-agent reservation still occupies the key", async () => {
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "enforced",
-      pricingVersion: "test",
-      chatReservationUsd: 0.5,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
-    getManagedAiCreditReservationMock.mockResolvedValue({
-      operationKey: agentRunAiCreditOperationKey("run_1"),
-      status: "rejected",
-      mode: "enforced",
-      credentialSource: "gateway",
-      estimatedAmountUsd: 0.5,
-    });
-
-    await expect(
-      reserveAgentRunAiCredit({
-        organizationId: "org_123",
-        runId: "run_1",
-        source: "agent_run_complete",
-        modelId: "openai/gpt-5.6-luna",
-        credentialSource: "gateway",
-      }),
-    ).resolves.toEqual({
-      ok: false,
-      error: {
-        code: "ai_credit_operation_already_exists",
-        operationKey: "agent-run:run_1:agent_runs:ai_tokens",
-        status: "rejected",
-      },
-    });
-    expect(reserveManagedAiCreditMock).not.toHaveBeenCalled();
-  });
-
-  it("reserves estimated chat credit before a managed provider-agent run", async () => {
-    getManagedAiPricingConfigMock.mockReturnValue({
-      mode: "enforced",
-      pricingVersion: "test",
-      chatReservationUsd: 0.5,
-      imageModelId: "custom/image",
-      videoModelId: "custom/video",
-    });
-
-    await reserveAgentRunAiCredit({
-      organizationId: "org_123",
-      runId: "run_1",
-      source: "agent_run_complete",
-      modelId: "openai/gpt-5.6-luna",
-      credentialSource: "gateway",
-    });
-
-    expect(reserveManagedAiCreditMock).toHaveBeenCalledWith({
-      organizationId: "org_123",
-      operationKey: "agent-run:run_1:agent_runs:ai_tokens",
-      source: "agent_run_complete",
-      modelId: "openai/gpt-5.6-luna",
-      credentialSource: "gateway",
-      estimatedAmountUsd: 0.5,
-      mode: "enforced",
-      dimensions: {
-        surface: "provider_agent",
-      },
-    });
-  });
-
-  it("releases provider-agent credit only when a reservation exists", async () => {
-    await releaseAgentRunAiCredit({
-      runId: "run_1",
-      reason: "agent_run_failed",
-    });
-    expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
-
-    const reservation = { operationKey: "agent-run:run_1:agent_runs:ai_tokens" };
-    getManagedAiCreditReservationMock.mockResolvedValueOnce(reservation);
-    await releaseAgentRunAiCredit({
-      runId: "run_1",
-      reason: "agent_run_failed",
-    });
-    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith({
-      reservation,
-      reason: "agent_run_failed",
-    });
   });
 });

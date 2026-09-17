@@ -243,11 +243,42 @@ describe("usage-control", () => {
     expect(parsedBody).not.toHaveProperty("event_name");
   });
 
-  it("tracks AI credit usage against ai_tokens with a derived operation key", async () => {
+  it("tracks AI credit usage with model id and input/output tokens", async () => {
     const { operationKey, organization } = await reservedUsageEvent();
-    const fetchFn = vi.fn(
-      async () => new Response("{}", { status: 200 }),
-    ) as unknown as typeof fetch;
+    const trackTokens = vi.fn(async () => ({ value: 0.012 }));
+
+    const trackResult = await trackAiCreditUsageInAutumn({
+      organizationId: organization.id,
+      parentOperationKey: operationKey,
+      tokenUsage: { inputTokens: 40, outputTokens: 60, totalTokens: 100 },
+      source: "translation_job_complete",
+      modelId: "openai/gpt-5.6-luna",
+      credentialSource: "gateway",
+      autumnApiKey: "am_sk_test",
+      trackTokens,
+    });
+
+    expect(trackResult).toMatchObject({
+      ok: true,
+      value: { status: "tracking_succeeded" },
+    });
+    expect(trackTokens).toHaveBeenCalledWith({
+      customerId: organization.id,
+      modelId: "openai/gpt-5.6-luna",
+      inputTokens: 40,
+      outputTokens: 60,
+    });
+    await expect(getUsageEvent(`${operationKey}:ai_tokens`)).resolves.toMatchObject({
+      featureId: "ai_tokens",
+      status: "tracking_succeeded",
+      modelId: "openai/gpt-5.6-luna",
+      quantity: 100,
+    });
+  });
+
+  it("refuses to track AI tokens without a model id", async () => {
+    const { operationKey, organization } = await reservedUsageEvent();
+    const trackTokens = vi.fn(async () => ({ value: 0.01 }));
 
     const trackResult = await trackAiCreditUsageInAutumn({
       organizationId: organization.id,
@@ -255,24 +286,41 @@ describe("usage-control", () => {
       tokenUsage: { inputTokens: 40, outputTokens: 60, totalTokens: 100 },
       source: "translation_job_complete",
       autumnApiKey: "am_sk_test",
-      fetchFn,
+      trackTokens,
+    });
+
+    expect(trackResult).toMatchObject({
+      ok: false,
+      error: { code: "ai_credit_pricing_not_configured" },
+    });
+    expect(trackTokens).not.toHaveBeenCalled();
+  });
+
+  it("records BYOK AI credit usage at zero tokens without calling Autumn", async () => {
+    const { operationKey, organization } = await reservedUsageEvent();
+    const trackTokens = vi.fn(async () => ({ value: 1 }));
+
+    const trackResult = await trackAiCreditUsageInAutumn({
+      organizationId: organization.id,
+      parentOperationKey: operationKey,
+      tokenUsage: { inputTokens: 40, outputTokens: 60, totalTokens: 100 },
+      source: "translation_job_complete",
+      modelId: "anthropic/claude-sonnet-4-6",
+      credentialSource: "byok",
+      autumnApiKey: "am_sk_test",
+      trackTokens,
     });
 
     expect(trackResult).toMatchObject({
       ok: true,
       value: { status: "tracking_succeeded" },
     });
-    expect(fetchFn).toHaveBeenCalledOnce();
-    const [, requestInit] = vi.mocked(fetchFn).mock.calls[0] ?? [];
-    const requestBody = requestInit?.body;
-    if (typeof requestBody !== "string") {
-      throw new Error("Expected JSON string request body");
-    }
-    expect(JSON.parse(requestBody)).toMatchObject({
-      customer_id: organization.id,
-      feature_id: "ai_tokens",
-      value: 100,
-      idempotency_key: `${operationKey}:ai_tokens`,
+    expect(trackTokens).not.toHaveBeenCalled();
+    await expect(getUsageEvent(`${operationKey}:ai_tokens`)).resolves.toMatchObject({
+      featureId: "ai_tokens",
+      status: "tracking_succeeded",
+      credentialSource: "byok",
+      amountUsd: "0.000000000",
     });
   });
 
@@ -289,9 +337,12 @@ describe("usage-control", () => {
       autumnEventName: "translation_job.completed",
       unit: "job",
       tokenUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      aiCreditModelId: "openai/gpt-5.6-luna",
+      aiCreditCredentialSource: "gateway",
       aiCreditSource: "translation_job_complete",
       autumnApiKey: "am_sk_test",
       fetchFn,
+      trackTokens: vi.fn(async () => ({ value: 0.01 })),
     });
 
     expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobCompleted, {
@@ -339,8 +390,8 @@ describe("usage-control", () => {
     const { operationKey, organization } = await reservedUsageEvent();
     const fetchFn = vi
       .fn()
-      .mockResolvedValueOnce(new Response("bad", { status: 500 }))
-      .mockResolvedValueOnce(new Response("{}", { status: 200 })) as unknown as typeof fetch;
+      .mockResolvedValueOnce(new Response("bad", { status: 500 })) as unknown as typeof fetch;
+    const trackTokens = vi.fn(async () => ({ value: 0.01 }));
 
     const trackResult = await completeAndTrackBillableUsage({
       organizationId: organization.id,
@@ -348,8 +399,11 @@ describe("usage-control", () => {
       autumnEventName: "translation_job.completed",
       unit: "job",
       tokenUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      aiCreditModelId: "openai/gpt-5.6-luna",
+      aiCreditCredentialSource: "gateway",
       autumnApiKey: "am_sk_test",
       fetchFn,
+      trackTokens,
     });
 
     expect(trackResult).toMatchObject({
@@ -371,8 +425,10 @@ describe("usage-control", () => {
     const { operationKey, organization } = await reservedUsageEvent();
     const fetchFn = vi
       .fn()
-      .mockResolvedValueOnce(new Response("{}", { status: 200 }))
-      .mockResolvedValueOnce(new Response("bad", { status: 500 })) as unknown as typeof fetch;
+      .mockResolvedValueOnce(new Response("{}", { status: 200 })) as unknown as typeof fetch;
+    const trackTokens = vi.fn(async () => {
+      throw new Error("Autumn usage tracking failed with HTTP 500");
+    });
 
     const trackResult = await completeAndTrackBillableUsage({
       organizationId: organization.id,
@@ -380,8 +436,11 @@ describe("usage-control", () => {
       autumnEventName: "translation_job.completed",
       unit: "job",
       tokenUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      aiCreditModelId: "openai/gpt-5.6-luna",
+      aiCreditCredentialSource: "gateway",
       autumnApiKey: "am_sk_test",
       fetchFn,
+      trackTokens,
     });
 
     expect(trackResult).toMatchObject({
