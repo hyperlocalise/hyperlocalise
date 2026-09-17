@@ -124,9 +124,9 @@ export const Empty: Story = {
         "Create a workspace memory, upload a TMX or CSV file, then assign it to the projects that should use it.",
       ),
     ).toBeInTheDocument();
-    await expect(canvas.getAllByRole("button", { name: "Import TMX or CSV" }).length).toBeGreaterThan(
-      0,
-    );
+    await expect(
+      canvas.getAllByRole("button", { name: "Import TMX or CSV" }).length,
+    ).toBeGreaterThan(0);
   },
 };
 

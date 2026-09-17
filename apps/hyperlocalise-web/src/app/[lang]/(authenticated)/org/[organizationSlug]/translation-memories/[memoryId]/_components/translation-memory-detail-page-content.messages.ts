@@ -117,7 +117,7 @@ export const translationMemoryDetailPageContentMessages = defineMessages({
   },
   importTmxAction: {
     defaultMessage: "Import TMX or CSV",
-    id: "g6Np2wKs8L",
+    id: "WlcETQs82X",
     description: "Empty-state button that opens translation memory TMX or CSV import",
   },
   exportAction: {

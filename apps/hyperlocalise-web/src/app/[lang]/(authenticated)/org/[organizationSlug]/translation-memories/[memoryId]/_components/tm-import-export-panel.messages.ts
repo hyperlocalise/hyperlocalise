@@ -170,7 +170,7 @@ export const tmImportExportPanelMessages = defineMessages({
   },
   unsupportedImportFormat: {
     defaultMessage: "Choose a TMX or CSV file.",
-    id: "q2TmX8nR4p",
+    id: "6Hh/TB07+q",
     description: "Error when a translation memory import file is not TMX or CSV",
   },
   importFailed: {
