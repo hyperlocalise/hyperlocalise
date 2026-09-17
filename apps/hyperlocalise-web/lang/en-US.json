@@ -135,10 +135,6 @@
     "defaultMessage": "Stay",
     "description": "Cancel button for unsaved changes navigation guard"
   },
-  "+EpQ6jzmQC": {
-    "defaultMessage": "Select a project",
-    "description": "Placeholder for the existing project selector"
-  },
   "+FX267AAXq": {
     "defaultMessage": "SERP · {keyword}",
     "description": "SERP sheet title"
@@ -262,10 +258,6 @@
   "+WsHQLSMmY": {
     "defaultMessage": "Remove {eventType}",
     "description": "Accessible label for removing an event type filter"
-  },
-  "+WwLLR9+vz": {
-    "defaultMessage": "Beta",
-    "description": "Badge shown next to the Automations navigation item"
   },
   "+YUbta511H": {
     "defaultMessage": "Open chat",
@@ -583,6 +575,10 @@
     "defaultMessage": "File editor",
     "description": "Highlight badge on the CAT file content editor panel"
   },
+  "/B9xo+vNOt": {
+    "defaultMessage": "Domains",
+    "description": "Settings nav item for linked domains and audits"
+  },
   "/BDbP6ag0g": {
     "defaultMessage": "Experiments",
     "description": "Hyperlab mock UI experiments panel title"
@@ -598,10 +594,6 @@
   "/E/r2gr9Yu": {
     "defaultMessage": "Approve",
     "description": "Primary action label in the marketing hero CAT workspace mock"
-  },
-  "/EOfWYVF9T": {
-    "defaultMessage": "Agents",
-    "description": "Sidebar group label for agent navigation items"
   },
   "/FnHAPAn3P": {
     "defaultMessage": "Choose a connection to authorize this Canva app install.",
@@ -891,6 +883,10 @@
     "defaultMessage": "Add terminology, market insights, compliance requirements, launch guidance, and things to avoid…",
     "description": "Placeholder for the global guidance TipTap editor"
   },
+  "/yLtzBRXLM": {
+    "defaultMessage": "Integrations & AI",
+    "description": "Settings nav group label for integrations and AI engine"
+  },
   "/yrnrzsaf9": {
     "defaultMessage": "Todo",
     "description": "Column heading for remaining work in the locale progress table"
@@ -1070,10 +1066,6 @@
   "0Kd+BaMKpW": {
     "defaultMessage": "Export CSV",
     "description": "Keyword research screen: export"
-  },
-  "0LWDKXES/c": {
-    "defaultMessage": "Add a first-party memory library. You can import and edit entries after creation.",
-    "description": "Description of the create translation memory dialog"
   },
   "0LbxmzSNhE": {
     "defaultMessage": "Location",
@@ -1419,10 +1411,6 @@
     "defaultMessage": "Terminal",
     "description": "Default title for the terminal panel header"
   },
-  "1/YUf106Rt": {
-    "defaultMessage": "Members",
-    "description": "Sidebar navigation item for workspace members"
-  },
   "1/q2vPpCOT": {
     "defaultMessage": "You have view-only access to this video.",
     "description": "Video refinement workspace: readOnly"
@@ -1711,6 +1699,10 @@
     "defaultMessage": "Live jobs fetched from your connected TMS provider.",
     "description": "Description under the TMS jobs section for workspace scope"
   },
+  "1e6LzoOCGq": {
+    "defaultMessage": "Something went wrong",
+    "description": "Error title"
+  },
   "1eCICarqN0": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in the create job dialog footer"
@@ -1786,6 +1778,10 @@
   "1qmea9tlQm": {
     "defaultMessage": "Delete experiment",
     "description": "Confirm button to delete an experiment"
+  },
+  "1rDYh6A91a": {
+    "defaultMessage": "Path",
+    "description": "Verification file field"
   },
   "1ruEGx9GQx": {
     "defaultMessage": "Product context lives across GitHub, Slack, Notion, Figma, and your TMS — never in one place when translation starts.",
@@ -1878,10 +1874,6 @@
   "2+iIGrGb+G": {
     "defaultMessage": "Switch language.\nSee what is broken.",
     "description": "Headline for the Domains live page section"
-  },
-  "2+oKbAvHmj": {
-    "defaultMessage": "Link domain",
-    "description": "Link domain dialog title"
   },
   "2/EGe6eITS": {
     "defaultMessage": "Actual result",
@@ -2515,6 +2507,10 @@
     "defaultMessage": "Yes. Hyperlocalise agents live in integrations such as Slack, Teams, and GitHub, so teams can ask for work where they already collaborate. Available actions depend on the integration and workspace configuration.",
     "description": "Homepage FAQ answer about platform topic 7"
   },
+  "3UtT5HKUXH": {
+    "defaultMessage": "Continue",
+    "description": "Continue button label"
+  },
   "3VQO3rGiUE": {
     "defaultMessage": "Copy terminal output",
     "description": "Tooltip and aria label for copying terminal output"
@@ -2791,10 +2787,6 @@
     "defaultMessage": "Edit",
     "description": "Link to edit the style guide in project settings"
   },
-  "4/gpJsFcCP": {
-    "defaultMessage": "Flags and experiments for your apps",
-    "description": "Sidebar description for the Hyperlab navigation item"
-  },
   "4/ptvuF8gA": {
     "defaultMessage": "Platform",
     "description": "Category heading above product links in the marketing navbar mega-menu"
@@ -2946,10 +2938,6 @@
   "4HHbrucYnH": {
     "defaultMessage": "Localisation quality monitoring",
     "description": "Hero eyebrow for the localisation-quality-monitoring use case"
-  },
-  "4HQ7im6sof": {
-    "defaultMessage": "Preview only. Changes last until you reload and are not saved to your workspace.",
-    "description": "Prototype domain persistence disclosure"
   },
   "4HbZHDcqLo": {
     "defaultMessage": "Starting…",
@@ -3475,6 +3463,10 @@
     "defaultMessage": "Project guideline",
     "description": "Table column header for project Memory.md guideline excerpt"
   },
+  "5RYXpxJmvr": {
+    "defaultMessage": "Workspace",
+    "description": "Sidebar group label for workspace navigation items"
+  },
   "5SC8fmjKp8": {
     "defaultMessage": "Added {word} to {dictionary}.",
     "description": "Toast after a spelling token is added to a dictionary"
@@ -3654,6 +3646,10 @@
   "5nl3kRCtNh": {
     "defaultMessage": "GitHub rejected the installation ID. Confirm the app is installed on the expected account.",
     "description": "GitHub connect error when installation ID is invalid"
+  },
+  "5nn7QilDF9": {
+    "defaultMessage": "This is the last step. You can change the assignment later from the domain page.",
+    "description": "Project help"
   },
   "5nqOLfQ5J8": {
     "defaultMessage": "Add a project to track localization work and shared translation guidance.",
@@ -3835,6 +3831,14 @@
     "defaultMessage": "Global guidance",
     "description": "Heading for the global guidance editor"
   },
+  "6F6TSGIXMs": {
+    "defaultMessage": "The file must be publicly reachable at the exact path.",
+    "description": "File verification help"
+  },
+  "6Hh/TB07+q": {
+    "defaultMessage": "Choose a TMX or CSV file.",
+    "description": "Error when a translation memory import file is not TMX or CSV"
+  },
   "6HzYk6HNlZ": {
     "defaultMessage": "scroll area",
     "description": "Accessible role description for the touch scroll area container"
@@ -3854,6 +3858,10 @@
   "6JT4j+EKwy": {
     "defaultMessage": "FR and DE routed for review",
     "description": "Campaign mock step 3"
+  },
+  "6L6wa37ZDx": {
+    "defaultMessage": "You can select up to 16 markets.",
+    "description": "Maximum market selection message"
   },
   "6Lm9EGksM9": {
     "defaultMessage": "Open concept",
@@ -3995,10 +4003,6 @@
     "defaultMessage": "N/A",
     "description": "Status badge for a not-applicable localisation audit criterion"
   },
-  "6dq9jGfioL": {
-    "defaultMessage": "Guideline",
-    "description": "Project sidebar navigation item for project guideline"
-  },
   "6du8XKbuUv": {
     "defaultMessage": "Connect one or more model providers and set the workspace default for Hyperlocalise Agent. Included models stay available even when BYOK providers are connected.",
     "description": "AI Engine page description"
@@ -4135,6 +4139,10 @@
     "defaultMessage": "Source strings are pushed into this project.",
     "description": "Description for the push source project select field"
   },
+  "6yaavRBz1O": {
+    "defaultMessage": "Type",
+    "description": "DNS record field"
+  },
   "6z9r7qs8fj": {
     "defaultMessage": "{count, plural, one {# tool} other {# tools}}",
     "description": "Summary of how many tools are configured on the automation"
@@ -4158,6 +4166,10 @@
   "7+phzkP936": {
     "defaultMessage": "Token …{suffix}",
     "description": "Badge showing the masked suffix of a stored Contentful token"
+  },
+  "7+t227O8ET": {
+    "defaultMessage": "No inbox items match these filters.",
+    "description": "Empty state when inbox filters hide every loaded item"
   },
   "70dqPfaXJS": {
     "defaultMessage": "Failed to delete job",
@@ -4394,10 +4406,6 @@
   "7PBZ6NZm7K": {
     "defaultMessage": "Bring your content and your team into one studio.",
     "description": "Bottom CTA body on the multilingual Content Studio product page"
-  },
-  "7Q6qJvxxKK": {
-    "defaultMessage": "Continue without markets",
-    "description": "Continue onboarding without selecting markets"
   },
   "7QPFtqQQDE": {
     "defaultMessage": "Free",
@@ -4707,10 +4715,6 @@
     "defaultMessage": "Loading issue…",
     "description": "Loading state while fetching a single issue"
   },
-  "87mk4HgY5S": {
-    "defaultMessage": "Automations",
-    "description": "Sidebar navigation item for workspace automations"
-  },
   "88AdkbjRBH": {
     "defaultMessage": "More options",
     "description": "Collapsible trigger for advanced create-flag settings"
@@ -4726,6 +4730,10 @@
   "88gAEWUFj7": {
     "defaultMessage": "Bullet list",
     "description": "Tooltip and accessible label for the bullet list toolbar button"
+  },
+  "88klhgXFog": {
+    "defaultMessage": "Import TMX or CSV",
+    "description": "Button to create a translation memory by uploading a TMX or CSV file"
   },
   "88mR250rV4": {
     "defaultMessage": "You can add up to {max} branch patterns.",
@@ -5231,6 +5239,14 @@
     "defaultMessage": "Failed to update workspace",
     "description": "Fallback error when updating workspace name or slug fails"
   },
+  "94jQfi10Cd": {
+    "defaultMessage": "Verification value copied.",
+    "description": "Copy status"
+  },
+  "95cBgTM22v": {
+    "defaultMessage": "This domain is already linked. Edit its research markets instead.",
+    "description": "Duplicate domain error"
+  },
   "96aLwrrFye": {
     "defaultMessage": "Try again",
     "description": "Retry button after a Hyperlab load error"
@@ -5298,10 +5314,6 @@
   "9FhGZjmVTF": {
     "defaultMessage": "Issue could not be linked.",
     "description": "Toast when linking an existing issue fails"
-  },
-  "9GJFHnphCc": {
-    "defaultMessage": "Loading projects…",
-    "description": "Loading state for existing projects"
   },
   "9GZfIBGhFw": {
     "defaultMessage": "Critical gaps showed up. Create a workspace to run a deeper registered audit, or book a review with our team.",
@@ -5374,6 +5386,10 @@
   "9MIwXNtVoL": {
     "defaultMessage": "Value",
     "description": "DNS record value label"
+  },
+  "9O5X8+eR3t": {
+    "defaultMessage": "Could not finish domain setup.",
+    "description": "Domain setup error"
   },
   "9PKFI8itjo": {
     "defaultMessage": "Could not localise the image. Your instructions are preserved; try again.",
@@ -5899,10 +5915,6 @@
     "defaultMessage": "Unable to run the automation for the selected files",
     "description": "Toast when the automation cannot run for selected source files"
   },
-  "ANFQka6p0Z": {
-    "defaultMessage": "Verify",
-    "description": "Link to continue verifying a pending linked domain"
-  },
   "ANXF+GhYTY": {
     "defaultMessage": "Generating video…",
     "description": "Video refinement workspace: generating"
@@ -6151,10 +6163,6 @@
     "defaultMessage": "sync push docs",
     "description": "Link to sync push documentation from the native project settings panel"
   },
-  "B3yFCBQLDF": {
-    "defaultMessage": "Claimed sites and localisation audit reports",
-    "description": "Sidebar description for the Domains navigation item"
-  },
   "B49vrN6vd7": {
     "defaultMessage": "Trigger",
     "description": "Run history column header for trigger source"
@@ -6186,6 +6194,10 @@
   "B6VzK5q3GO": {
     "defaultMessage": "Activity logs",
     "description": "App shell breadcrumb title for the activity logs settings page"
+  },
+  "B735KJgHcl": {
+    "defaultMessage": "Billing",
+    "description": "Settings nav group label for billing"
   },
   "B7F4I10QjV": {
     "defaultMessage": "Failed",
@@ -6278,10 +6290,6 @@
   "BGfQ06k8Pb": {
     "defaultMessage": "Failed to look up repository context.",
     "description": "Fallback error when repository context lookup fails"
-  },
-  "BGjPXD5fgV": {
-    "defaultMessage": "Locales updated for this preview.",
-    "description": "Prototype locale save toast"
   },
   "BH3cs7sGM9": {
     "defaultMessage": "What Domains checks",
@@ -6454,6 +6462,10 @@
   "Bbj2MTjXFz": {
     "defaultMessage": "Bad translations rarely start with bad language. They start with missing context.",
     "description": "Details section headline for the next-gen CAT tool product page"
+  },
+  "BdNQiw66N3": {
+    "defaultMessage": "Use existing project",
+    "description": "Project option"
   },
   "BdS7ZiKy6/": {
     "defaultMessage": "Expand {status}",
@@ -6819,6 +6831,10 @@
     "defaultMessage": "Capture goals, audience, and messaging",
     "description": "Workflow step 1 description for the marketing-localisation use case"
   },
+  "CIhbMSiEM0": {
+    "defaultMessage": "Add a workspace memory. Upload a TMX or CSV file now, or add entries after creation.",
+    "description": "Description of the create translation memory dialog"
+  },
   "CIjzfipJPL": {
     "defaultMessage": "Repository agent, GitHub automations, patches, and sandboxed code changes for localization fixes.",
     "description": "Hyperlocalise Agent Coding capability description"
@@ -6831,6 +6847,10 @@
     "defaultMessage": "Remove Ahrefs tool",
     "description": "Accessible label to remove the Ahrefs tool"
   },
+  "CLV3Q206dT": {
+    "defaultMessage": "Choose the markets used for this domain’s research.",
+    "description": "Help text for linked domain market selection"
+  },
   "CNDMCn/RSf": {
     "defaultMessage": "English",
     "description": "English language name in the Domains live preview"
@@ -6838,6 +6858,10 @@
   "CNPbYe/F7H": {
     "defaultMessage": "In review",
     "description": "In-review status in the language review mock"
+  },
+  "COekQctDK+": {
+    "defaultMessage": "Assign it later",
+    "description": "Project option help"
   },
   "CP+VovcJDY": {
     "defaultMessage": "Cancel",
@@ -7007,10 +7031,6 @@
     "defaultMessage": "Track keywords",
     "description": "Submit add keywords dialog"
   },
-  "Ck9MOHJiWV": {
-    "defaultMessage": "This domain is already linked. Edit its locales instead.",
-    "description": "Duplicate domain validation"
-  },
   "Ckfjf7HRih": {
     "defaultMessage": "Description must be 10,000 characters or fewer.",
     "description": "Validation error when the project description exceeds 10,000 characters"
@@ -7126,6 +7146,10 @@
   "CyLUFnbRQ7": {
     "defaultMessage": "Assignees",
     "description": "Row label for assigned users on a provider job"
+  },
+  "CyWbjUsJQp": {
+    "defaultMessage": "Choose the verification method that works best for your site.",
+    "description": "Verification help"
   },
   "CzEPtyNc5S": {
     "defaultMessage": "{count, plural, one {# pending action} other {# pending actions}}",
@@ -7563,6 +7587,10 @@
     "defaultMessage": "Review this German launch line",
     "description": "Suggestion button in the guidelines board chat"
   },
+  "Dr9mxEYa6s": {
+    "defaultMessage": "Emerging signal",
+    "description": "Market tier"
+  },
   "DsCAD1RMQU": {
     "defaultMessage": "Actor",
     "description": "Label for the activity log actor filter"
@@ -7650,6 +7678,10 @@
   "DzmZ+KrwIu": {
     "defaultMessage": "View history",
     "description": "Link to the glossary history page"
+  },
+  "DznPBLz/y6": {
+    "defaultMessage": "Select a project to continue.",
+    "description": "Project validation error"
   },
   "E+GVWuHtit": {
     "defaultMessage": "Page URL",
@@ -8131,6 +8163,10 @@
     "defaultMessage": "Connect Slack",
     "description": "Primary action label to start Slack OAuth"
   },
+  "F/MRja++5U": {
+    "defaultMessage": "Contents",
+    "description": "Verification file field"
+  },
   "F/lm8Q5OV6": {
     "defaultMessage": "Running",
     "description": "Running import status"
@@ -8439,6 +8475,10 @@
     "defaultMessage": "Review queue",
     "description": "Segment context label for the review queue in the CAT mock"
   },
+  "Fe3r00g1BD": {
+    "defaultMessage": "Leave unassigned",
+    "description": "Project option"
+  },
   "Fe6NxNaeWi": {
     "defaultMessage": "Role permission matrix",
     "description": "Accessible name for the role permission matrix"
@@ -8454,6 +8494,10 @@
   "FewX0sf1is": {
     "defaultMessage": "AI credit usage resets each billing cycle. Seats, projects, automations, and integrations are workspace limits.",
     "description": "Plan usage card description on billing settings"
+  },
+  "FgFTX9ttZW": {
+    "defaultMessage": "Save markets",
+    "description": "Submit button label when editing linked domain markets"
   },
   "FgWgulEUlJ": {
     "defaultMessage": "Team created",
@@ -8671,6 +8715,10 @@
     "defaultMessage": "Scheduled",
     "description": "Scheduled trigger title in the marketing automation editor mock"
   },
+  "GCOyt/P/VO": {
+    "defaultMessage": "Content Studio",
+    "description": "Sidebar group label for content studio navigation items"
+  },
   "GDYRoIeaNO": {
     "defaultMessage": "Could not create the dictionary.",
     "description": "Error when creating a spellcheck dictionary fails"
@@ -8686,6 +8734,10 @@
   "GERghL+Meu": {
     "defaultMessage": "Run History",
     "description": "Tab label for automation run history"
+  },
+  "GIB7hmrXGj": {
+    "defaultMessage": "Pending",
+    "description": "Verification status"
   },
   "GIDnN6ezS4": {
     "defaultMessage": "Additional image instructions",
@@ -8763,6 +8815,10 @@
     "defaultMessage": "New experiment",
     "description": "Primary action to create an experiment"
   },
+  "GSd2SW1wXQ": {
+    "defaultMessage": "Could not attach the project.",
+    "description": "Project attachment error"
+  },
   "GTfJg3wtyQ": {
     "defaultMessage": "Product localisation",
     "description": "Hero eyebrow for the product-localisation use case"
@@ -8802,6 +8858,10 @@
   "Ga2xU2YzE3": {
     "defaultMessage": "Keep product names such as AcmePay untranslated across all markets.",
     "description": "Brand guideline terms body in content ops mock"
+  },
+  "Gab1SK2EhW": {
+    "defaultMessage": "Could not save research markets.",
+    "description": "Market save error"
   },
   "GausSgRE+l": {
     "defaultMessage": "Combining credits into the four module scores.",
@@ -8938,6 +8998,10 @@
   "GuYiT4dWiy": {
     "defaultMessage": "{count} duplicates skipped",
     "description": "Badge showing how many duplicate rows will be skipped"
+  },
+  "GvUbPf6mr6": {
+    "defaultMessage": "Add a domain",
+    "description": "Dialog title"
   },
   "GvcjcKm7Sc": {
     "defaultMessage": "Due {due}",
@@ -9291,10 +9355,6 @@
     "defaultMessage": "Refresh the page to try again.",
     "description": "Fallback error when a team fails to load without a message"
   },
-  "HgrL50FsMJ": {
-    "defaultMessage": "Create new project",
-    "description": "Create a project after domain verification"
-  },
   "HizH8Sur70": {
     "defaultMessage": "From",
     "description": "Translation reporting label"
@@ -9506,6 +9566,10 @@
   "IChVk1VMPL": {
     "defaultMessage": "Built for brand-safe global campaigns",
     "description": "Capabilities section title for the marketing-localisation use case"
+  },
+  "ID8/Uh0hWv": {
+    "defaultMessage": "Verifying…",
+    "description": "Loading button label"
   },
   "IDmuYPzcIE": {
     "defaultMessage": "Sunday",
@@ -9823,10 +9887,6 @@
     "defaultMessage": "Do I need to replace my CMS?",
     "description": "Hyperlab FAQ question about CMS replacement"
   },
-  "ItiHaN5/Dd": {
-    "defaultMessage": "Project",
-    "description": "Project field on the link domain dialog"
-  },
   "ItrnRpF69X": {
     "defaultMessage": "Failed to load projects",
     "description": "Fallback error when native projects fail to load"
@@ -10042,6 +10102,10 @@
   "JNXXTToFFQ": {
     "defaultMessage": "Multilingual Content Studio",
     "description": "Navigation label for the multilingual Content Studio product page"
+  },
+  "JNdoGRjKr4": {
+    "defaultMessage": "Connect a domain, verify ownership, and choose the markets to research.",
+    "description": "Dialog description"
   },
   "JO5M8qgbCX": {
     "defaultMessage": "Upload a UTF-8 CSV file",
@@ -10322,10 +10386,6 @@
   "K5K8zG3viH": {
     "defaultMessage": "Sample entries",
     "description": "Heading for import preview sample rows"
-  },
-  "K6HKJyJvL1": {
-    "defaultMessage": "Edit locales",
-    "description": "Domain locale dialog title"
   },
   "K76rTMej1a": {
     "defaultMessage": "Linked issues",
@@ -10615,10 +10675,6 @@
     "defaultMessage": "Connect to browse Lokalise projects, tasks, glossaries, and translation memories with user OAuth.",
     "description": "Lokalise TMS integration description on the integrations page"
   },
-  "KtZqcEY+BH": {
-    "defaultMessage": "Search markets",
-    "description": "Accessible label for the domain market search field"
-  },
   "Kua+B+Kq3s": {
     "defaultMessage": "—",
     "description": "Placeholder shown when a source string has no context"
@@ -10699,13 +10755,13 @@
     "defaultMessage": "Context needed: {key}",
     "description": "Default title when creating an issue from a CAT string"
   },
-  "L1dn3JIeHU": {
-    "defaultMessage": "Save locales",
-    "description": "Save supported domain locales"
-  },
   "L2f4AH9U80": {
     "defaultMessage": "04 Get found",
     "description": "Domains workflow step 4"
+  },
+  "L2itdwaRts": {
+    "defaultMessage": "Edit markets",
+    "description": "Button to edit linked domain research markets"
   },
   "L3GKZlsWdz": {
     "defaultMessage": "{count, plural, one {Skipped # duplicate} other {Skipped # duplicates}}",
@@ -10818,6 +10874,10 @@
   "LICkSSM/jQ": {
     "defaultMessage": "Invite people",
     "description": "Permission row for inviting members"
+  },
+  "LIc/7+OiWx": {
+    "defaultMessage": "Add this meta tag inside your homepage header.",
+    "description": "Meta tag instruction"
   },
   "LJ6zecrDM9": {
     "defaultMessage": "Load more files",
@@ -11071,6 +11131,10 @@
     "defaultMessage": "No TMS projects found",
     "description": "Title when the TMS projects list is empty"
   },
+  "LuycP96soI": {
+    "defaultMessage": "Could not start domain setup.",
+    "description": "Domain setup error"
+  },
   "Lv2+QrpmOq": {
     "defaultMessage": "Always-on setting",
     "description": "Flag kind option for config flags"
@@ -11251,10 +11315,6 @@
     "defaultMessage": "Description saved",
     "description": "Toast after a job description is saved successfully"
   },
-  "MDRyeVzjZ2": {
-    "defaultMessage": "Reports",
-    "description": "Project translation reports"
-  },
   "MF241rY4nN": {
     "defaultMessage": "Missing meta description on /features (FR)",
     "description": "Domains mock UI sample audit issue"
@@ -11282,6 +11342,10 @@
   "MHiaxGXuxI": {
     "defaultMessage": "Button label · Must stay compact on mobile",
     "description": "Constraints for the CTA segment in the hero CAT mock"
+  },
+  "MHv6MtNx22": {
+    "defaultMessage": "Choose a TMX or CSV file.",
+    "description": "Validation error when the create-memory upload is not TMX or CSV"
   },
   "MIC7tMfqgJ": {
     "defaultMessage": "Account",
@@ -11322,6 +11386,10 @@
   "MNCmDu8OgB": {
     "defaultMessage": "GTM brief approved · Q2 launch",
     "description": "GTM trigger label in content ops campaign mock"
+  },
+  "MNN5hxxIee": {
+    "defaultMessage": "Add a tag to your homepage.",
+    "description": "Verification method help"
   },
   "MNV3NDchKr": {
     "defaultMessage": "Add photos or files",
@@ -11719,6 +11787,10 @@
     "defaultMessage": "Checking technical, linguistic, contextual, and visual signals.",
     "description": "Detail text when a localisation audit is analyzing"
   },
+  "N8oWpgtVSh": {
+    "defaultMessage": "All types",
+    "description": "Inbox type filter that shows conversations and notifications"
+  },
   "N93OTeCH/5": {
     "defaultMessage": "Import report unavailable",
     "description": "Title for a missing or unauthorized import report"
@@ -11811,6 +11883,10 @@
     "defaultMessage": "Welcome flow",
     "description": "Hyperlab mock UI sample flag name"
   },
+  "NKYD4XaBpI": {
+    "defaultMessage": "This file is larger than the {maxMegabytes, number} MB import limit. Split the memory into smaller TMX files.",
+    "description": "Error when a create-memory upload exceeds the documented size limit"
+  },
   "NMG/zBLWDQ": {
     "defaultMessage": "Leave blank to keep existing client secret",
     "description": "Placeholder when updating OAuth credentials without changing client secret"
@@ -11870,10 +11946,6 @@
   "NUXNiXqQOj": {
     "defaultMessage": "Input tokens",
     "description": "Translation reporting label"
-  },
-  "NVI4PGUZDH": {
-    "defaultMessage": "Choose the locales to research for this domain.",
-    "description": "Domain locale dialog description"
   },
   "NW1SDAit+W": {
     "defaultMessage": "Checks",
@@ -12271,10 +12343,6 @@
     "defaultMessage": "Search ID, title, description, or source path",
     "description": "Placeholder for the issue list search field"
   },
-  "OI2cdohCkE": {
-    "defaultMessage": "Leave unassigned",
-    "description": "Verify a domain without attaching a project"
-  },
   "OJJq7qIvtH": {
     "defaultMessage": "Back",
     "description": "Button to leave node config and return to the picker"
@@ -12302,6 +12370,10 @@
   "OMX/+8Bbcv": {
     "defaultMessage": "Indonesian (Indonesia)",
     "description": "Display name for BCP-47 locale id-ID"
+  },
+  "ONBegCBs6b": {
+    "defaultMessage": "No recommendations were found. Select at least one supported market to continue.",
+    "description": "Markets empty state"
   },
   "OPKv+HXoep": {
     "defaultMessage": "Product context",
@@ -12463,17 +12535,9 @@
     "defaultMessage": "Experiments",
     "description": "Home card title for experiments"
   },
-  "OibCQ9KDFv": {
-    "defaultMessage": "Choose where this domain should be attached after verification.",
-    "description": "Project selection guidance on the link domain dialog"
-  },
   "Oiey9nLAFp": {
     "defaultMessage": "Hyperlocalise updated the Contentful webhook configuration.",
     "description": "Toast description when an existing Contentful webhook is updated"
-  },
-  "Oile6DzTv1": {
-    "defaultMessage": "{count, plural, one {# market selected} other {# markets selected}}",
-    "description": "Summary of selected domain markets"
   },
   "OjbR5imOsw": {
     "defaultMessage": "Clear. Human. Confident.",
@@ -12482,6 +12546,10 @@
   "Ok15bFijfb": {
     "defaultMessage": "Updated product terminology",
     "description": "Placeholder for the optional knowledge memory version note field"
+  },
+  "OlLKnWDUCM": {
+    "defaultMessage": "Best for most domains.",
+    "description": "Verification method help"
   },
   "Om0BHjcSlW": {
     "defaultMessage": "Hours logged",
@@ -12518,6 +12586,10 @@
   "OpaDn2OQOK": {
     "defaultMessage": "Deleting…",
     "description": "Confirm button label while deleting a Crowdin task"
+  },
+  "OpuUJxk1lB": {
+    "defaultMessage": "No projects available",
+    "description": "Project option help"
   },
   "OqNPSsDdMR": {
     "defaultMessage": "Launch this release everywhere",
@@ -12787,6 +12859,10 @@
     "defaultMessage": "Phrase",
     "description": "Phrase TMS integration name on the integrations page"
   },
+  "PNbl++WTJZ": {
+    "defaultMessage": "Domain",
+    "description": "Domain field label"
+  },
   "PO+O1tp1vE": {
     "defaultMessage": "Note",
     "description": "Label for concept notes"
@@ -12838,10 +12914,6 @@
   "PYB6jMwARG": {
     "defaultMessage": "#{name} (private)",
     "description": "Slack channel option label for a private channel"
-  },
-  "PYIsQFA2Np": {
-    "defaultMessage": "Enter a hostname such as shop.example.com, without a URL path.",
-    "description": "Invalid domain hostname"
   },
   "PYVkjgnEZG": {
     "defaultMessage": "Check your inbox for a summary of this report.",
@@ -13115,10 +13187,6 @@
     "defaultMessage": "Coding",
     "description": "Hyperlocalise Agent Coding capability name"
   },
-  "Q8QL+zifeT": {
-    "defaultMessage": "AI Engine",
-    "description": "Sidebar navigation item for workspace AI model providers"
-  },
   "QAZYQBBFd9": {
     "defaultMessage": "Re-running…",
     "description": "Button label while re-running a localisation audit"
@@ -13134,6 +13202,10 @@
   "QCQEKXAzmZ": {
     "defaultMessage": "Issue not found or you do not have access.",
     "description": "Shown when the issue detail page cannot load the issue"
+  },
+  "QDnUDnYpNK": {
+    "defaultMessage": "Meta tag",
+    "description": "Verification method"
   },
   "QDxYX6HLaI": {
     "defaultMessage": "No files match the accepted types.",
@@ -13499,10 +13571,6 @@
     "defaultMessage": "Included",
     "description": "Integration status label for built-in Hyperlocalise capabilities"
   },
-  "QzCT9StKW7": {
-    "defaultMessage": "Hostname",
-    "description": "Hostname field on the link domain dialog"
-  },
   "QzVVoUN1T8": {
     "defaultMessage": "Open link",
     "description": "Link label to open an external or linked issue URL"
@@ -13799,6 +13867,10 @@
     "defaultMessage": "Launch campaign email",
     "description": "TM match context for a launch campaign string in the CAT mock"
   },
+  "Rhnh/znHl6": {
+    "defaultMessage": "Decide where {domain} should be attached after verification.",
+    "description": "Project help"
+  },
   "RiK2KmxM3l": {
     "defaultMessage": "Coming soon",
     "description": "Disabled CTA label for integrations that are not available yet"
@@ -13814,10 +13886,6 @@
   "RiqlM9/Nv4": {
     "defaultMessage": "Create first-party workspace memories or sync provider translation memories. Provider memories stay read-only.",
     "description": "Translation memories page description under the heading"
-  },
-  "RjCKAD/IFR": {
-    "defaultMessage": "Link domain",
-    "description": "Open the link domain dialog"
   },
   "RjFpl2Iinv": {
     "defaultMessage": "{count, plural, one {# file} other {# files}}",
@@ -13930,6 +13998,10 @@
   "Rxt6SwzGmb": {
     "defaultMessage": "From a live page to a page people can find.",
     "description": "Caption under the Domains preview"
+  },
+  "RyWMmOUI3f": {
+    "defaultMessage": "example.com",
+    "description": "Domain field placeholder"
   },
   "S+glJURN8d": {
     "defaultMessage": "Connect Canva",
@@ -14051,6 +14123,10 @@
     "defaultMessage": "Blog | Hyperlocalise",
     "description": "Meta title for the marketing blog index page"
   },
+  "SHEAO5sth2": {
+    "defaultMessage": "Video Editor",
+    "description": "Project sidebar navigation item for the Video Editor"
+  },
   "SI44gUPbhn": {
     "defaultMessage": "Dark",
     "description": "Dark color theme option in the theme toggle menu"
@@ -14086,10 +14162,6 @@
   "SLGNO7qFzS": {
     "defaultMessage": "Sync queued",
     "description": "Toast after Sync now"
-  },
-  "SLUHC5sgtE": {
-    "defaultMessage": "Add any other markets you want to track for this domain.",
-    "description": "Additional markets step description in the link domain dialog"
   },
   "SLg8IXCI6V": {
     "defaultMessage": "Small teams cannot afford a new process for every country. You need a way to scale market launches without drowning the product team.",
@@ -14258,6 +14330,10 @@
   "SkGjZiASLT": {
     "defaultMessage": "Copy this Canva connection token",
     "description": "Title for the one-time Canva token reveal dialog"
+  },
+  "Sl1sz696FJ": {
+    "defaultMessage": "Loading projects…",
+    "description": "Project option help"
   },
   "SlBx5n8apE": {
     "defaultMessage": "CMS publication preview",
@@ -14451,13 +14527,13 @@
     "defaultMessage": "Workspace connection",
     "description": "Label for the Canva connection picker on the OAuth consent page"
   },
+  "TBPUwXAr0t": {
+    "defaultMessage": "{count} estimated visits",
+    "description": "Market metric"
+  },
   "TBVtdvWNHo": {
     "defaultMessage": "Delete this experiment?",
     "description": "Confirm dialog title for deleting an experiment"
-  },
-  "TBagRGINiT": {
-    "defaultMessage": "Scheduled and GitHub-triggered deterministic workflows",
-    "description": "Sidebar description for the Automations navigation item"
   },
   "TC3oIavSPO": {
     "defaultMessage": "Growth should not create busywork",
@@ -14531,10 +14607,6 @@
     "defaultMessage": "Something went wrong in this panel. You can retry or keep working in the other panels.",
     "description": "Error boundary description when an inbox panel crashes"
   },
-  "TKAqLlsHeq": {
-    "defaultMessage": "Start with the market you want to research first.",
-    "description": "Primary market step description in the link domain dialog"
-  },
   "TKS/jcVkYV": {
     "defaultMessage": "Sync error",
     "description": "Sync filter option for translation memories with sync errors"
@@ -14570,6 +14642,10 @@
   "TOuqvBUuy6": {
     "defaultMessage": "OAuth app (recommended)",
     "description": "Crowdin authentication option for OAuth apps"
+  },
+  "TP5Mnh6pdF": {
+    "defaultMessage": "AI Engine",
+    "description": "Settings nav item for AI engine providers"
   },
   "TP90PKsFP9": {
     "defaultMessage": "Import started — translations will appear once processing completes.",
@@ -14622,6 +14698,10 @@
   "TUvTVcL3il": {
     "defaultMessage": "Open in Hyperlocalise",
     "description": "Deep link to the same conversation in the main app"
+  },
+  "TW8F48aPTu": {
+    "defaultMessage": "+{count}",
+    "description": "Hidden assignee count shown after the first name in the job detail picker"
   },
   "TWWOWkYG7q": {
     "defaultMessage": "Step {current} of {total}",
@@ -14690,6 +14770,10 @@
   "TdxzXMOinv": {
     "defaultMessage": "Choose the template preselected when someone creates an issue for this project, and who each template should default to assigning. The Content Editor always preselects Context request, regardless of this setting.",
     "description": "Description of the project issue templates settings section"
+  },
+  "Te5Z3Go8As": {
+    "defaultMessage": "Research markets",
+    "description": "Heading for linked domain market selection"
   },
   "Tertld8DQl": {
     "defaultMessage": "Hyperlocalise connects CMS change signals to translation, terminology checks, and ongoing freshness monitoring.",
@@ -14871,6 +14955,10 @@
     "defaultMessage": "French and English pages don't point to each other, so visitors can miss the other language entirely.",
     "description": "Sample finding body on the localisation audit landing page"
   },
+  "U13G20SmK+": {
+    "defaultMessage": "Device",
+    "description": "Rank tracking device column"
+  },
   "U1nd6V4lHp": {
     "defaultMessage": "Double-click a file or use Open Editor to edit {targetLocale}.",
     "description": "Hint explaining how to open the Content Editor for the selected file and locale"
@@ -14975,10 +15063,6 @@
     "defaultMessage": "Style guides",
     "description": "Guideline mock UI style guides use case title"
   },
-  "UF5RFmfnwB": {
-    "defaultMessage": "Domain queued. Add the DNS record to finish linking.",
-    "description": "Toast after linking a domain in the prototype"
-  },
   "UFGE6jBR7S": {
     "defaultMessage": "Estimated minutes",
     "description": "Translation reporting label"
@@ -15046,6 +15130,10 @@
   "ULysfP8wxM": {
     "defaultMessage": "Included on Starter, Growth, and Enterprise. Clear answers on your copy, UI context, and localisation workflow.",
     "description": "Supporting copy under the AI features heading on the pricing page"
+  },
+  "UMv47+iyoD": {
+    "defaultMessage": "{count} top-10",
+    "description": "Market metric"
   },
   "UN02t1d3TY": {
     "defaultMessage": "Upload file",
@@ -15206,6 +15294,10 @@
   "UhcD2CtYRf": {
     "defaultMessage": "How a test usually goes",
     "description": "Heading for the Hyperlab home how-it-works steps"
+  },
+  "UiokynE7a1": {
+    "defaultMessage": "Choose research markets",
+    "description": "Markets heading"
   },
   "UirP0XHash": {
     "defaultMessage": "Status",
@@ -15651,6 +15743,10 @@
     "defaultMessage": "Close panel",
     "description": "Accessible label for closing an editor mock footer panel"
   },
+  "VhXGN4Fsgz": {
+    "defaultMessage": "Could not load market recommendations.",
+    "description": "Market recommendation error"
+  },
   "Vj/gZDKJUv": {
     "defaultMessage": "No segments match the current filters.",
     "description": "Error when a filtered Content Editor export has no matching segments"
@@ -15711,6 +15807,10 @@
     "defaultMessage": "Failed to load project",
     "description": "Fallback API error when project settings fail to load for file details"
   },
+  "VqCMClnRVk": {
+    "defaultMessage": "Copy verification file contents",
+    "description": "Copy button label"
+  },
   "Vqng5hm3eU": {
     "defaultMessage": "View linked project",
     "description": "Link to open the Hyperlocalise project linked to a translation memory"
@@ -15722,10 +15822,6 @@
   "Vs00Rn62Ft": {
     "defaultMessage": "Next",
     "description": "Button to go to the next page of translation memories"
-  },
-  "VtO24sqmBM": {
-    "defaultMessage": "New Request",
-    "description": "Sidebar navigation item to start a new localisation request"
   },
   "VucfHYKoo9": {
     "defaultMessage": "MCP servers",
@@ -16091,6 +16187,10 @@
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the marketing-localisation use case"
   },
+  "WlcETQs82X": {
+    "defaultMessage": "Import TMX or CSV",
+    "description": "Empty-state button that opens translation memory TMX or CSV import"
+  },
   "Wlx+O8qTTn": {
     "defaultMessage": "Source: {value}",
     "description": "Chip label for the active source locale filter"
@@ -16142,6 +16242,10 @@
   "Wpmwsbk8TA": {
     "defaultMessage": "Knowledge files",
     "description": "Menu item and tool title for per-agent knowledge file uploads"
+  },
+  "WpmxmqAZMQ": {
+    "defaultMessage": "Could not create the project.",
+    "description": "Project creation error"
   },
   "Wq2O6lVhWX": {
     "defaultMessage": "Translate with agent",
@@ -16263,6 +16367,10 @@
     "defaultMessage": "GitHub",
     "description": "Catalog title for the GitHub trigger node"
   },
+  "X6zab6Xiik": {
+    "defaultMessage": "Domain details",
+    "description": "Stepper label"
+  },
   "X7qkN/IoEW": {
     "defaultMessage": "How can I help you today?",
     "description": "Empty-state heading inside the marketing chat dock mock"
@@ -16326,6 +16434,10 @@
   "XHI21GKve1": {
     "defaultMessage": "Entering a new market should feel like growth, not a second product launch that stalls the company.",
     "description": "Supporting copy under the why-startups heading"
+  },
+  "XHSMBIh/Jj": {
+    "defaultMessage": "No research markets selected.",
+    "description": "Empty state for linked domain research markets"
   },
   "XHTRGbNDAl": {
     "defaultMessage": "Personal access token",
@@ -16439,6 +16551,10 @@
     "defaultMessage": "In review",
     "description": "Marketing homepage review"
   },
+  "XXNo1BDzd9": {
+    "defaultMessage": "Conversations",
+    "description": "Inbox type filter that shows every conversation source"
+  },
   "XXixo4/l3k": {
     "defaultMessage": "Workspace",
     "description": "Source label for workspace-native glossaries in the list"
@@ -16515,10 +16631,6 @@
     "defaultMessage": "e.g. Keep product names in English and preserve MDX components.",
     "description": "Placeholder for AI prompt when generating a translated Markdown/MDX document in CAT file view"
   },
-  "Xh3DLGw+tI": {
-    "defaultMessage": "Search by country or language",
-    "description": "Placeholder for the domain market search field"
-  },
   "XhZzwexSlh": {
     "defaultMessage": "Hyperlocalise is working…",
     "description": "Status marker shown while the inbox assistant response is still streaming"
@@ -16555,6 +16667,10 @@
     "defaultMessage": "Newest first",
     "description": "Crowdin glossary ordering option for newest glossaries"
   },
+  "XosmLLsDOK": {
+    "defaultMessage": "Filter by type",
+    "description": "Accessible label for the inbox type filter menu"
+  },
   "XpdC3tQD4o": {
     "defaultMessage": "Other",
     "description": "Kanban column label for jobs with an unrecognized status"
@@ -16587,6 +16703,10 @@
     "defaultMessage": "Agent Actions",
     "description": "Heading for available provider agent action buttons"
   },
+  "Xs9oX3Pg8i": {
+    "defaultMessage": "Assignees: {names}",
+    "description": "Accessible label listing every selected Crowdin assignee"
+  },
   "XtzSAMs4em": {
     "defaultMessage": "Chat, Slack, and general workspace questions with project and glossary context.",
     "description": "Hyperlocalise Agent Ask capability description"
@@ -16610,6 +16730,10 @@
   "XwyHRK/RCH": {
     "defaultMessage": "Schedule an Automation to check live pages and product copy against the same Drive, Notion, or SharePoint files. Flags show up in the morning instead of after a launch.",
     "description": "Body for the Guidelines daily-audit section"
+  },
+  "XxZFsAWbq3": {
+    "defaultMessage": "Conversations",
+    "description": "Group label for conversation sources in the inbox type filter"
   },
   "XzH5GON6Rv": {
     "defaultMessage": "No teams yet",
@@ -16662,10 +16786,6 @@
   "Y19LAzxjpx": {
     "defaultMessage": "Weekly",
     "description": "Scheduled cadence option for weekly runs"
-  },
-  "Y1DzYaPZ4D": {
-    "defaultMessage": "Continue verification",
-    "description": "Button to continue verifying this domain"
   },
   "Y1cFr7sG1J": {
     "defaultMessage": "Queries",
@@ -16798,6 +16918,10 @@
   "YJKHKW9gUY": {
     "defaultMessage": "Workflow deleted",
     "description": "Toast when a visual workflow is deleted successfully"
+  },
+  "YJX0z4m/UU": {
+    "defaultMessage": "{count} available",
+    "description": "Project option help"
   },
   "YJhLdtyhdj": {
     "defaultMessage": "Dedicated support",
@@ -17359,6 +17483,10 @@
     "defaultMessage": "Assign values into the workflow context.",
     "description": "Catalog description for the set fields node"
   },
+  "ZYSBgdbiSM": {
+    "defaultMessage": "Research markets",
+    "description": "Stepper label"
+  },
   "ZZsyqRkYsB": {
     "defaultMessage": "Display name",
     "description": "Label for Intercom display name field"
@@ -17454,10 +17582,6 @@
   "ZnePSPl942": {
     "defaultMessage": "Localise this image or upload a localised version to compare it with the original.",
     "description": "Image viewer: noTarget"
-  },
-  "ZnnVLUSfjR": {
-    "defaultMessage": "Choose the model provider agents use",
-    "description": "Sidebar description for the AI Engine navigation item"
   },
   "ZnyV6xQJFB": {
     "defaultMessage": "Request a Demo",
@@ -17606,6 +17730,10 @@
   "a1ESTaNdyS": {
     "defaultMessage": "Connect tasks, agents, and human review into repeatable workflows for your content operations.",
     "description": "Marketing homepage automationBody"
+  },
+  "a1Rp/rylyq": {
+    "defaultMessage": "Create a workspace memory, upload a TMX or CSV file, then assign it to the projects that should use it.",
+    "description": "Empty state description when the user can create translation memories"
   },
   "a1tmRYQQWa": {
     "defaultMessage": "Connect Ahrefs in Integrations before using this tool.",
@@ -18243,6 +18371,10 @@
     "defaultMessage": "DE: avoid compound nouns longer than 3 parts",
     "description": "Knowledge mock UI memory feed item — DE market rule"
   },
+  "bSLGYWqIO6": {
+    "defaultMessage": "DNS TXT",
+    "description": "Verification method"
+  },
   "bSoPJAmJQC": {
     "defaultMessage": "This audit is queued and will start shortly.",
     "description": "Detail text when a localisation audit is queued"
@@ -18331,9 +18463,17 @@
     "defaultMessage": "Capture",
     "description": "Knowledge hero signal card title"
   },
+  "beO/JeLdTY": {
+    "defaultMessage": "Apps & Features",
+    "description": "Settings nav group label for apps and experiments"
+  },
   "bf/8sd/M64": {
     "defaultMessage": "Save",
     "description": "Save Canva connection button"
+  },
+  "bfD0UZF1jK": {
+    "defaultMessage": "Host",
+    "description": "DNS record field"
   },
   "bfKQmDUNTz": {
     "defaultMessage": "Close",
@@ -18378,10 +18518,6 @@
   "bl+DouTlcU": {
     "defaultMessage": "or",
     "description": "Separator between knowledge upload dropzone and source buttons"
-  },
-  "blLcFpSkB4": {
-    "defaultMessage": "Invite people and manage workspace roles",
-    "description": "Sidebar description for the Members navigation item"
   },
   "blaz/Tdo6f": {
     "defaultMessage": "Remove",
@@ -18591,6 +18727,10 @@
     "defaultMessage": "API key",
     "description": "Label for Zernio API key field"
   },
+  "cF5KFpXkuE": {
+    "defaultMessage": "Select a project",
+    "description": "Project select placeholder"
+  },
   "cFLoSPa62D": {
     "defaultMessage": "Visual workflows",
     "description": "Breadcrumb label for the visual workflows list page"
@@ -18751,6 +18891,10 @@
     "defaultMessage": "Yes — keep it direct and confident. The approved FR launch copy uses active verbs and avoids literal calques from English.",
     "description": "Assistant reply in editor mock chat footer panel"
   },
+  "caNZDGtpcW": {
+    "defaultMessage": "Remove file",
+    "description": "Button to clear the selected translation memory import file"
+  },
   "cb/1dHJtyC": {
     "defaultMessage": "Search Console",
     "description": "App shell breadcrumb title for domain Search Console"
@@ -18906,6 +19050,10 @@
   "csK4Zbn9gk": {
     "defaultMessage": "Audit product and the website.\nEvery day.",
     "description": "Headline for the Guidelines daily-audit section"
+  },
+  "csuMeaGNQo": {
+    "defaultMessage": "Create new project",
+    "description": "Project option"
   },
   "ct3IfkjjG0": {
     "defaultMessage": "Source locale",
@@ -19511,10 +19659,6 @@
     "defaultMessage": "For select: Backlog, Sprint 24, Blocked",
     "description": "Placeholder for optional select values when creating a custom column"
   },
-  "e1WibRfkfv": {
-    "defaultMessage": "Hyperlab",
-    "description": "Sidebar navigation item for Hyperlab experiments"
-  },
   "e1ZCr/FmBQ": {
     "defaultMessage": "Assignee",
     "description": "Label for issue assignee field"
@@ -19646,6 +19790,10 @@
   "eETDpPUyD4": {
     "defaultMessage": "{count, plural, one {# file selected (max {max}).} other {# files selected (max {max}).}}",
     "description": "Count of files staged for upload with the maximum allowed"
+  },
+  "eETzHxrXFR": {
+    "defaultMessage": "Connect",
+    "description": "Stepper label"
   },
   "eEy5UfpPzO": {
     "defaultMessage": "Delete project...",
@@ -19827,6 +19975,10 @@
     "defaultMessage": "Poor",
     "description": "Rating label for a poor localisation audit score"
   },
+  "ecyqxH2Yby": {
+    "defaultMessage": "Named after this domain",
+    "description": "Project option help"
+  },
   "ed/4UsnyQZ": {
     "defaultMessage": "Loading glossary history",
     "description": "Accessible label for the glossary history loading state"
@@ -19834,10 +19986,6 @@
   "ed4/NRs4Oy": {
     "defaultMessage": "Img",
     "description": "Visible abbreviation on the image toolbar button"
-  },
-  "ed78rqC5km": {
-    "defaultMessage": "Choose the locales for this hostname. Verify the domain once for all locales.",
-    "description": "Link domain dialog description"
   },
   "ee60kiAN7Z": {
     "defaultMessage": "Glossary guidance",
@@ -19971,6 +20119,10 @@
     "defaultMessage": "Source mistake",
     "description": "Issue Sheet issue type option for a source mistake"
   },
+  "ezTvHw7x6I": {
+    "defaultMessage": "Enter a valid domain, like example.com.",
+    "description": "Domain validation error"
+  },
   "ezhaX1jR0b": {
     "defaultMessage": "Connect GitLab so Hyperlocalise can inspect localized strings, review merge requests, and open localization fixes.",
     "description": "GitLab integration description on the integrations page"
@@ -20103,10 +20255,6 @@
     "defaultMessage": "Queue actions",
     "description": "Accessible label for the queue overflow actions button"
   },
-  "fDq4pExBJ3": {
-    "defaultMessage": "Use existing project",
-    "description": "Attach the domain to an existing project"
-  },
   "fEG/yqFpT9": {
     "defaultMessage": "Save settings",
     "description": "Save button label for project settings"
@@ -20230,6 +20378,10 @@
   "fUojJ4Vzcu": {
     "defaultMessage": "External task ID",
     "description": "Secondary job property row label for external task ID"
+  },
+  "fUsluXqG6t": {
+    "defaultMessage": "Verify {domain}",
+    "description": "Verification heading"
   },
   "fVkQmhbtrN": {
     "defaultMessage": "Minutes",
@@ -20387,6 +20539,10 @@
     "defaultMessage": "Files failed to load.",
     "description": "Error title when the project files list fails to load"
   },
+  "fsmYjMN/9O": {
+    "defaultMessage": "Filter by read state",
+    "description": "Accessible label for the inbox read-state filter group"
+  },
   "fu8eVhN1Ej": {
     "defaultMessage": "Show two or more versions and keep the one that works.",
     "description": "Hint for the A/B experiment type"
@@ -20530,6 +20686,10 @@
   "g6yC/xE58y": {
     "defaultMessage": "Cost (USD)",
     "description": "Translation reporting label"
+  },
+  "g75t7EocMr": {
+    "defaultMessage": "Notifications",
+    "description": "Inbox type filter that shows every issue notification"
   },
   "g7kCok/oT0": {
     "defaultMessage": "Edit project...",
@@ -20718,6 +20878,10 @@
   "gUb6PUVMK5": {
     "defaultMessage": "Workspace",
     "description": "Source filter option for workspace-native translation memories"
+  },
+  "gV0ro12ITy": {
+    "defaultMessage": "Select at least one market to continue.",
+    "description": "Required market selection validation message"
   },
   "gV2/zYwU9Y": {
     "defaultMessage": "Experimentation",
@@ -21079,6 +21243,10 @@
     "defaultMessage": "Workspace keys for jobs and resources. Rotate regularly and keep them out of source control.",
     "description": "API keys settings page description"
   },
+  "h7r8uM5Rio": {
+    "defaultMessage": "DNS changes can take a few minutes to propagate.",
+    "description": "DNS help"
+  },
   "h8EKkv2BNt": {
     "defaultMessage": "Save changes",
     "description": "Commit button label for knowledge memory"
@@ -21199,6 +21367,10 @@
     "defaultMessage": "Saving…",
     "description": "Document save in progress"
   },
+  "hQ6AUqX0CM": {
+    "defaultMessage": "Workspace",
+    "description": "Project sidebar group label for workspace-level navigation items"
+  },
   "hQ6Smvxtjf": {
     "defaultMessage": "Could not create issues from findings.",
     "description": "Error promoting QA findings to issues"
@@ -21206,10 +21378,6 @@
   "hQHAZFLEs7": {
     "defaultMessage": "Localisation Checks That Run With Every Pull Request | Hyperlocalise",
     "description": "Page title for the github-release-localisation use case"
-  },
-  "hRBR50v6LT": {
-    "defaultMessage": "Add markets",
-    "description": "Advance from primary market selection to additional markets"
   },
   "hRNM7K3gMN": {
     "defaultMessage": "Used {count} sources",
@@ -21303,6 +21471,10 @@
     "defaultMessage": "Share this report",
     "description": "Heading for sharing a public localisation audit report"
   },
+  "hbEoUHCttQ": {
+    "defaultMessage": "Localize on-screen video text and speech",
+    "description": "Sidebar description for the Video Editor navigation item"
+  },
   "hbLlLGpUB5": {
     "defaultMessage": "Forbidden only",
     "description": "Forbidden-only option"
@@ -21395,9 +21567,9 @@
     "defaultMessage": "{count} open",
     "description": "Badge showing how many open jobs a project has"
   },
-  "hoUlxWeu2t": {
-    "defaultMessage": "Create a workspace memory, import entries, then assign it to the projects that should use it.",
-    "description": "Empty state description when the user can create translation memories"
+  "hpEuLm7FAW": {
+    "defaultMessage": "We found these markets with the strongest signals for {domain}. You can change the selection.",
+    "description": "Markets help"
   },
   "hpOVndgWkJ": {
     "defaultMessage": "Read the repository and follow your instructions. GitHub skills apply automatically.",
@@ -21423,6 +21595,10 @@
     "defaultMessage": "80% off Growth to launch globally in days.",
     "description": "Offer line under the startups page headline"
   },
+  "ht4R+ZpGJt": {
+    "defaultMessage": "Translation memory created, but the file could not be imported.",
+    "description": "Toast when memory creation succeeds but the follow-up TMX or CSV import fails"
+  },
   "htyIICw1rr": {
     "defaultMessage": "Projects",
     "description": "Breadcrumb link above the project overview title"
@@ -21430,6 +21606,10 @@
   "hu3lSudbHb": {
     "defaultMessage": "Audit timeline",
     "description": "Heading for the translation memory entry audit timeline"
+  },
+  "huDI2cWszo": {
+    "defaultMessage": "Current step",
+    "description": "Screen-reader label"
   },
   "huDfeEPmkj": {
     "defaultMessage": "TMS agnostic",
@@ -22131,10 +22311,6 @@
     "defaultMessage": "Pricing",
     "description": "Segment context label for pricing strings in the CAT mock"
   },
-  "jLf4FX4frG": {
-    "defaultMessage": "Verify DNS",
-    "description": "Open the DNS verification dialog"
-  },
   "jLj2gSiaUS": {
     "defaultMessage": "Download translations",
     "description": "Title of the download translations dialog"
@@ -22434,6 +22610,10 @@
   "jzcCuqtaG/": {
     "defaultMessage": "Glossaries",
     "description": "Activity log event type group for glossaries"
+  },
+  "jzgZ33edcY": {
+    "defaultMessage": "Integrations",
+    "description": "Settings nav item for third-party integrations"
   },
   "jznR5bfb88": {
     "defaultMessage": "Before",
@@ -22807,6 +22987,10 @@
     "defaultMessage": "Guidelines",
     "description": "Integrations page section heading for guideline source connectors"
   },
+  "kgYTYlFKnV": {
+    "defaultMessage": "TMX or CSV file",
+    "description": "Label for the optional translation memory upload field"
+  },
   "kgZXe0zuly": {
     "defaultMessage": "Support Content That Stays Current in Every Language | Hyperlocalise",
     "description": "Page title for the help-center-localisation use case"
@@ -22887,6 +23071,10 @@
     "defaultMessage": "Target locales",
     "description": "Detail row label for target locales"
   },
+  "kpX0H8ITNs": {
+    "defaultMessage": "The homepage must be publicly reachable for verification.",
+    "description": "Meta verification help"
+  },
   "kpb8SkGVO8": {
     "defaultMessage": "What's the context of \"Save\"?",
     "description": "Prefilled prompt shown in the marketing chat dock mock composer and transcript"
@@ -22962,6 +23150,10 @@
   "kxi2ohyZnf": {
     "defaultMessage": "—",
     "description": "Placeholder when a glossary timestamp is unavailable"
+  },
+  "kzMTx+wIMg": {
+    "defaultMessage": "Powered by DataForSEO Labs’ Google Domain Rank Overview API.",
+    "description": "Market data attribution"
   },
   "l+wMmn4Krw": {
     "defaultMessage": "Failed to load Semrush connections.",
@@ -23235,6 +23427,10 @@
     "defaultMessage": "AI Engine",
     "description": "App shell breadcrumb title for the AI Engine page"
   },
+  "lg/OPVxZqL": {
+    "defaultMessage": "HTML file",
+    "description": "Verification method"
+  },
   "lgEi9eqa79": {
     "defaultMessage": "Coming soon",
     "description": "Integration status label for upcoming connectors"
@@ -23311,10 +23507,6 @@
     "defaultMessage": "Your site.\nReady for every market.",
     "description": "Bottom CTA headline on the Domains product page"
   },
-  "lq1y6qqiDK": {
-    "defaultMessage": "Integrations",
-    "description": "Sidebar navigation item for integrations"
-  },
   "lqlgwfZWDU": {
     "defaultMessage": "Shared with {teamName}.",
     "description": "Default team glossary name and helper copy when adding from CAT"
@@ -23343,9 +23535,9 @@
     "defaultMessage": "GitHub",
     "description": "Automations mock UI tool label"
   },
-  "lt5CygG2lb": {
-    "defaultMessage": "Continue to verification",
-    "description": "Submit the link domain dialog"
+  "luuUuOK83f": {
+    "defaultMessage": "Finding recommended markets…",
+    "description": "Markets loading status"
   },
   "lv1AQlJPi4": {
     "defaultMessage": "Set template",
@@ -23431,6 +23623,10 @@
     "defaultMessage": "Keywords",
     "description": "App shell breadcrumb title for domain keyword research"
   },
+  "m7sC7R0rtG": {
+    "defaultMessage": "Unread",
+    "description": "Inbox filter that shows unread notifications"
+  },
   "m8NpAC200k": {
     "defaultMessage": "QA reports run on native projects. Provider jobs are not scanned here.",
     "description": "Project QA unsupported provider message"
@@ -23442,6 +23638,10 @@
   "m9ESiA+Ppw": {
     "defaultMessage": "Import style guides and market notes from Notion.",
     "description": "Notion integration description on the integrations page"
+  },
+  "m9OT0Oi2mc": {
+    "defaultMessage": "All",
+    "description": "Inbox filter that shows read and unread items"
   },
   "m9qaahMbE0": {
     "defaultMessage": "Archived",
@@ -23787,6 +23987,10 @@
     "defaultMessage": "Name and schedule",
     "description": "Heading for experiment details card"
   },
+  "mncm3Mm6yI": {
+    "defaultMessage": "Choose a workspace name without profanity or reserved words.",
+    "description": "Validation error when a workspace name contains profanity or a reserved word"
+  },
   "mnlYeyj08E": {
     "defaultMessage": "Tourmatic",
     "description": "Alt text for the Tourmatic logo on the startups page"
@@ -24127,6 +24331,10 @@
     "defaultMessage": "One phrase needs a clearer tone. Two terms have preferred alternatives in your guidelines.",
     "description": "Marketing homepage agentFindingBody"
   },
+  "nUY9Xle8Ej": {
+    "defaultMessage": "Choose a project",
+    "description": "Project heading"
+  },
   "nUgKkvDPwN": {
     "defaultMessage": "Add an issue manually or from the Content Editor to start tracking team context.",
     "description": "Empty-state description when the filtered Issue Sheet has no rows"
@@ -24343,6 +24551,10 @@
     "defaultMessage": "Import batch ID",
     "description": "Placeholder for the import batch ID filter"
   },
+  "nxfY9E7T+0": {
+    "defaultMessage": "Optional. TMX is the interchange format for translation memories.",
+    "description": "Hint under the optional translation memory upload field"
+  },
   "nzwZ/Y5WaF": {
     "defaultMessage": "Copied",
     "description": "Button label after a value was copied to the clipboard"
@@ -24519,6 +24731,10 @@
     "defaultMessage": "Org",
     "description": "Resource type badge for an org-controlled Hyperlocalise glossary"
   },
+  "oMHhdgMQGQ": {
+    "defaultMessage": "Hyperlab",
+    "description": "Settings nav item for Hyperlab experiments"
+  },
   "oMMt65+GLA": {
     "defaultMessage": "Used in",
     "description": "Heading for flag-to-variant assignments on a flag"
@@ -24567,6 +24783,10 @@
     "defaultMessage": "Handled error",
     "description": "Workflow node status"
   },
+  "oU++pjNQ2m": {
+    "defaultMessage": "Finishing…",
+    "description": "Loading button label"
+  },
   "oU0PK0wDMT": {
     "defaultMessage": "Connect a TMS provider to browse live provider projects here.",
     "description": "Section description prompting the user to connect a TMS provider"
@@ -24574,10 +24794,6 @@
   "oUdwcZdkjG": {
     "defaultMessage": "Capabilities",
     "description": "Heading for the integration capabilities section"
-  },
-  "oV4/G//JgO": {
-    "defaultMessage": "shop.example.com",
-    "description": "Hostname placeholder on the link domain dialog"
   },
   "oV922EjrKR": {
     "defaultMessage": "Default assignee by template",
@@ -24638,6 +24854,10 @@
   "oc3EaT6uAq": {
     "defaultMessage": "Next open",
     "description": "Keyboard shortcut hint for jumping to the next unfinished string"
+  },
+  "ocGV6u6MPq": {
+    "defaultMessage": "Notifications",
+    "description": "Group label for notification types in the inbox type filter"
   },
   "od4AanOJNW": {
     "defaultMessage": "Built-in",
@@ -24743,6 +24963,10 @@
     "defaultMessage": "Open in {providerKind}",
     "description": "Button label to open the job in the external TMS provider"
   },
+  "oo/YC7RzA/": {
+    "defaultMessage": "Back",
+    "description": "Back button label"
+  },
   "oojEYpvA6e": {
     "defaultMessage": "Digests wait a few minutes and skip items you already read in Inbox. Immediate sends each notification right away.",
     "description": "Description for email digest vs immediate delivery format"
@@ -24839,6 +25063,10 @@
     "defaultMessage": "Set the Crowdin API base URL once for this workspace. After you save, members connect by pasting their own personal access token—nothing else to configure.",
     "description": "Intro text before enabling Crowdin personal access token mode"
   },
+  "p0UpnHGnqj": {
+    "defaultMessage": "I’ve added it — Verify",
+    "description": "Verify button label"
+  },
   "p15YTH6+4S": {
     "defaultMessage": "Agent Instructions",
     "description": "Agent instructions section heading in the marketing automation editor mock"
@@ -24862,6 +25090,10 @@
   "p46MXtZbsQ": {
     "defaultMessage": "Glossary Deleted",
     "description": "Activity log event type label for glossary deletion"
+  },
+  "p4xkAKJ/3y": {
+    "defaultMessage": "Project",
+    "description": "Stepper label"
   },
   "p5GCpw9x8C": {
     "defaultMessage": "Next branch",
@@ -25075,6 +25307,10 @@
     "defaultMessage": "Remove rule set",
     "description": "Remove a language rule set"
   },
+  "pSbrixngtF": {
+    "defaultMessage": "Use your root domain without a path.",
+    "description": "Domain field help"
+  },
   "pT3N2TGbMH": {
     "defaultMessage": "Remove version",
     "description": "Button to delete a variant"
@@ -25154,6 +25390,10 @@
   "pbA55RTgks": {
     "defaultMessage": "{position} / {total}",
     "description": "Current string index and total count in the visual editor detail panel"
+  },
+  "pbPMcXnHkC": {
+    "defaultMessage": "Add selected markets",
+    "description": "Submit button label"
   },
   "pcjLSSIwsF": {
     "defaultMessage": "Select microphone...",
@@ -25326,6 +25566,10 @@
   "puXgWXUT2y": {
     "defaultMessage": "Deleting…",
     "description": "Button label while deleting a live provider task"
+  },
+  "pub66zuKea": {
+    "defaultMessage": "Value",
+    "description": "DNS record field"
   },
   "pv3y8oySTJ": {
     "defaultMessage": "Glossary",
@@ -26211,6 +26455,10 @@
     "defaultMessage": "Image",
     "description": "Slash menu item for inserting an image"
   },
+  "roRELSt0Y8": {
+    "defaultMessage": "Copy meta tag",
+    "description": "Copy button label"
+  },
   "rponYzKMZ3": {
     "defaultMessage": "Create issues from translation blockers and keep launch tasks in sync.",
     "description": "Linear integration description on the integrations page"
@@ -26359,6 +26607,10 @@
     "defaultMessage": "Match",
     "description": "Label for the audience rule match operator"
   },
+  "s5bizftpco": {
+    "defaultMessage": "Clear filters",
+    "description": "Button that resets inbox read and type filters"
+  },
   "s7935wKE28": {
     "defaultMessage": "Remove Semrush tool",
     "description": "Accessible label to remove the Semrush tool"
@@ -26423,10 +26675,6 @@
     "defaultMessage": "Editor",
     "description": "Top chrome tab for the visual workflow canvas"
   },
-  "sHQ6RKFJ37": {
-    "defaultMessage": "Domains",
-    "description": "Sidebar navigation item for linked domains"
-  },
   "sHrPdefvvp": {
     "defaultMessage": "Search microphones...",
     "description": "Placeholder for the microphone search input"
@@ -26450,6 +26698,10 @@
   "sLEdMYz0jq": {
     "defaultMessage": "Minimum difficulty",
     "description": "Keyword research screen: minKd"
+  },
+  "sLmZG0yQ3C": {
+    "defaultMessage": "{count} ranking keywords",
+    "description": "Market metric"
   },
   "sMO5kn7k5p": {
     "defaultMessage": "Keep the docs you have.\nPut them to work.",
@@ -26695,6 +26947,10 @@
     "defaultMessage": "Export filtered glossary",
     "description": "Label for filtered glossary export choices"
   },
+  "svlHtA8AVW": {
+    "defaultMessage": "Translation memory created. Import started.",
+    "description": "Toast after a translation memory is created and a TMX or CSV import starts"
+  },
   "svxgBhLpnH": {
     "defaultMessage": "Queries · acme workspace",
     "description": "Queries panel title in content ops mock"
@@ -26706,6 +26962,10 @@
   "swCjOVTXG7": {
     "defaultMessage": "Stop guessing\nwhat each market wants.",
     "description": "Bottom CTA headline on the Hyperlab product page"
+  },
+  "sxd8EorFWf": {
+    "defaultMessage": "Add a domain",
+    "description": "Open the add-domain dialog"
   },
   "syMBsg2OBf": {
     "defaultMessage": "Source text",
@@ -26762,6 +27022,10 @@
   "t2I2Yj3t0M": {
     "defaultMessage": "Notify Slack",
     "description": "Catalog title for the notify Slack action node"
+  },
+  "t2Wtf62nXs": {
+    "defaultMessage": "Continue to project",
+    "description": "Continue button label"
   },
   "t2bWzwhvc/": {
     "defaultMessage": "Choose a plan for your workspace",
@@ -26879,6 +27143,10 @@
     "defaultMessage": "Write drafts",
     "description": "Toggle label for writing Contentful drafts"
   },
+  "tI6FJ9DXvD": {
+    "defaultMessage": "Read",
+    "description": "Inbox filter that shows read notifications and conversations"
+  },
   "tIIkL73dX1": {
     "defaultMessage": "12 high-intent gaps found in DE",
     "description": "SEO blog mock step 3"
@@ -26914,10 +27182,6 @@
   "tLb8BuElrp": {
     "defaultMessage": "Made for your content",
     "description": "Eyebrow for the Content Studio formats section"
-  },
-  "tMOiEvbyBd": {
-    "defaultMessage": "Project-specific guidance for agents and teams",
-    "description": "Sidebar description for the project Guideline navigation item"
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Account",
@@ -26963,10 +27227,6 @@
     "defaultMessage": "AEO",
     "description": "Domains mock UI audit dimension label"
   },
-  "tSPHzkEI0Y": {
-    "defaultMessage": "Select a project or choose another project option.",
-    "description": "Validation when existing project selection is incomplete"
-  },
   "tSRJft1T5O": {
     "defaultMessage": "Logic",
     "description": "Node picker category for branching nodes"
@@ -27010,6 +27270,10 @@
   "tX7cZ1uzA9": {
     "defaultMessage": "Choose file",
     "description": "Button to open the file picker for importing translations"
+  },
+  "tYvhpR2krg": {
+    "defaultMessage": "Coming soon",
+    "description": "Badge shown next to the Video Editor navigation item"
   },
   "tZ+plgRfNJ": {
     "defaultMessage": "You do not have permission to update provider credentials.",
@@ -27107,6 +27371,10 @@
     "defaultMessage": "Chat could not be displayed",
     "description": "Title shown when the chat dock panel fails to render"
   },
+  "truVoWHnsU": {
+    "defaultMessage": "Preparing…",
+    "description": "Loading button label"
+  },
   "tsDqk9P5Ui": {
     "defaultMessage": "Create a flag first, then add it here.",
     "description": "Empty state when attaching a flag but none exist"
@@ -27142,10 +27410,6 @@
   "tx+ZfdCJg6": {
     "defaultMessage": "Could not read the saved SRX XML. Showing a starter ruleset — review before saving.",
     "description": "Banner when stored custom SRX XML fails to parse"
-  },
-  "tyAE2cKpjv": {
-    "defaultMessage": "Enter a hostname.",
-    "description": "Validation when the hostname is missing"
   },
   "tzNTVPZse0": {
     "defaultMessage": "Clear all",
@@ -27619,6 +27883,10 @@
     "defaultMessage": "Preview",
     "description": "Title attribute for the web preview iframe"
   },
+  "usnDliUsLA": {
+    "defaultMessage": "Copy TXT value",
+    "description": "Copy button label"
+  },
   "uuW7ODYoaD": {
     "defaultMessage": "Escalate flagged items to reviewers",
     "description": "Workflow step 4 description for the localisation-quality-monitoring use case"
@@ -27739,6 +28007,10 @@
     "defaultMessage": "Request failed",
     "description": "Fallback error when an Issue Sheet API request fails"
   },
+  "v5v/H6tZaM": {
+    "defaultMessage": "Members & Teams",
+    "description": "Settings nav group label for members and teams"
+  },
   "v6QIe3eb5N": {
     "defaultMessage": "Failed to load segment comments",
     "description": "Fallback error when loading CAT segment comments fails"
@@ -27854,10 +28126,6 @@
   "vNt29KgOjZ": {
     "defaultMessage": "Project assigned",
     "description": "Toast after a project is assigned to a translation memory"
-  },
-  "vOplG6AhcP": {
-    "defaultMessage": "Locales",
-    "description": "Market field on the link domain dialog"
   },
   "vQWLTNVn0m": {
     "defaultMessage": "Connect Search Console",
@@ -27987,6 +28255,10 @@
     "defaultMessage": "This token is shown once. Paste it into the Canva app, or use Connect Hyperlocalise from Canva instead.",
     "description": "Description for the one-time Canva token reveal dialog"
   },
+  "vcIHG9+CIG": {
+    "defaultMessage": "Upload a verification file.",
+    "description": "Verification method help"
+  },
   "vcWkRHmX1+": {
     "defaultMessage": "Add column",
     "description": "Submit button in the add column dialog"
@@ -28094,6 +28366,10 @@
   "vsGtnGOHlx": {
     "defaultMessage": "Not recommended · use approved market phrase",
     "description": "Note for not recommended glossary term in editor mock footer panel"
+  },
+  "vt4od28KGt": {
+    "defaultMessage": "Recommended",
+    "description": "Recommended badge"
   },
   "vtUkybE5qg": {
     "defaultMessage": "is",
@@ -28291,10 +28567,6 @@
     "defaultMessage": "Select all",
     "description": "Action to select every activity log event type"
   },
-  "wDhuLOW+W9": {
-    "defaultMessage": "Choose a primary market",
-    "description": "Primary market step label in the link domain dialog"
-  },
   "wDyvFZ3QEZ": {
     "defaultMessage": "Next",
     "description": "Next page button"
@@ -28346,6 +28618,10 @@
   "wJpMrv20rr": {
     "defaultMessage": "Export",
     "description": "Button to open translation memory export options"
+  },
+  "wKc4U9j256": {
+    "defaultMessage": "{filename} · {format}",
+    "description": "Selected translation memory import filename and format"
   },
   "wLreqnuDf7": {
     "defaultMessage": "Unable to load source files",
@@ -28450,10 +28726,6 @@
   "wYt64Sa1lY": {
     "defaultMessage": "Orchestrate agents, reviewers, vendors, LLMs, and TMS platforms in a single workflow — without replacing the tools your team already depends on.",
     "description": "Hero subheadline for the localisation-operations use case"
-  },
-  "wYyC/XZMmS": {
-    "defaultMessage": "Select at least one locale.",
-    "description": "Domain locale validation"
   },
   "wZj9YtEHDA": {
     "defaultMessage": "Light",
@@ -28739,6 +29011,10 @@
     "defaultMessage": "No concepts yet.",
     "description": "Empty state for a glossary with no native concepts"
   },
+  "x3NCeF125H": {
+    "defaultMessage": "Completed",
+    "description": "Screen-reader label"
+  },
   "x3OopfTeHB": {
     "defaultMessage": "Cancel",
     "description": "Cancel button that closes the CAT source file picker dialog"
@@ -28750,6 +29026,10 @@
   "x3xLP2YerQ": {
     "defaultMessage": "Daily",
     "description": "Schedule cadence pill in the marketing automation editor mock"
+  },
+  "x4rENGJxzk": {
+    "defaultMessage": "Content Intelligence",
+    "description": "Sidebar group label for content intelligence navigation items"
   },
   "x5IFswpz2S": {
     "defaultMessage": "Open Editor",
@@ -28767,6 +29047,10 @@
     "defaultMessage": "Workspace & project views",
     "description": "Pricing matrix row for Queries workspace and project surfaces"
   },
+  "x6CTl1782r": {
+    "defaultMessage": "Project attachment",
+    "description": "Project field label"
+  },
   "x6H592pqcv": {
     "defaultMessage": "Select connection",
     "description": "Placeholder when no Contentful connection is selected"
@@ -28774,10 +29058,6 @@
   "x6PqOisw0g": {
     "defaultMessage": "Translation Memories",
     "description": "Sidebar navigation item for translation memories"
-  },
-  "x6yKWPVufv": {
-    "defaultMessage": "Add more markets",
-    "description": "Additional markets step label in the link domain dialog"
   },
   "x7NBkHXEme": {
     "defaultMessage": "Email me a summary",
@@ -28894,6 +29174,10 @@
   "xJ1r4T0Bx9": {
     "defaultMessage": "GDPR marketing claims reviewed",
     "description": "Guideline mock UI compliance checklist item"
+  },
+  "xJG0B6qHm8": {
+    "defaultMessage": "Choose a TMX or CSV file",
+    "description": "Prompt inside the create translation memory file upload area"
   },
   "xM1UVGq/9v": {
     "defaultMessage": "Weekly",
@@ -29187,6 +29471,10 @@
     "defaultMessage": "Your role cannot post comments to the provider.",
     "description": "Error when the user tries to post a comment without write permission"
   },
+  "xuDh1i0+CJ": {
+    "defaultMessage": "No matching inbox items on this page.",
+    "description": "Empty state when inbox filters hide the loaded page but older notifications can still be loaded"
+  },
   "xv78aoTwI/": {
     "defaultMessage": "Search concepts",
     "description": "Placeholder for the concept search input"
@@ -29299,6 +29587,10 @@
     "defaultMessage": "Slack",
     "description": "Tool badge when an automation uses Slack"
   },
+  "y63jFiOQdg": {
+    "defaultMessage": "Members & Teams",
+    "description": "Settings nav item for workspace members and teams"
+  },
   "y6fEOvlovF": {
     "defaultMessage": "Provider",
     "description": "Workspace files origin badge or filter for provider-sourced files"
@@ -29306,10 +29598,6 @@
   "y6su8h1cH4": {
     "defaultMessage": "Auto",
     "description": "Web Search provider option that lets the agent choose Perplexity or Exa"
-  },
-  "y7AjSFsGUH": {
-    "defaultMessage": "Enter the hostname from your localisation audit. You will verify ownership on the next step.",
-    "description": "Link domain dialog description for the live claim flow"
   },
   "y7TyDgtZHB": {
     "defaultMessage": "https://api.lokalise.com/api2",
@@ -29647,6 +29935,10 @@
     "defaultMessage": "Select projects",
     "description": "Placeholder for the project multi-select"
   },
+  "ytXJ9hE4wk": {
+    "defaultMessage": "Verification failed.",
+    "description": "Verification error"
+  },
   "yuuXlWLDOS": {
     "defaultMessage": "Could not inspect this URL.",
     "description": "Toast when URL inspection fails"
@@ -29703,9 +29995,9 @@
     "defaultMessage": "Product terms",
     "description": "Brand guideline terms section title in content ops mock"
   },
-  "z3FugdwJo6": {
-    "defaultMessage": "Back",
-    "description": "Return to primary market selection"
+  "z2bAu9ByVm": {
+    "defaultMessage": "Verification method",
+    "description": "Verification method label"
   },
   "z3hAWnzQKx": {
     "defaultMessage": "Failed to load Ahrefs connection.",
@@ -29714,10 +30006,6 @@
   "z3rfJZn/iw": {
     "defaultMessage": "All time",
     "description": "Activity log range option for all time"
-  },
-  "z45OPLD254": {
-    "defaultMessage": "Ask the localisation agent to prepare work",
-    "description": "Sidebar description for the New Request navigation item"
   },
   "z48kpV5sye": {
     "defaultMessage": "Not registered",
@@ -29931,6 +30219,10 @@
     "defaultMessage": "Build your multilingual workflow.",
     "description": "Supporting note under the Content Studio bottom CTA"
   },
+  "zRMNg+Lp1z": {
+    "defaultMessage": "New opportunity",
+    "description": "Market tier"
+  },
   "zSP+9VJuxd": {
     "defaultMessage": "You can upload 1 file at a time.",
     "description": "Toast when more than one knowledge upload file is selected"
@@ -30074,6 +30366,10 @@
   "zjsy1cdZoN": {
     "defaultMessage": "Headers must be a JSON object of string values.",
     "description": "Validation error for MCP headers JSON"
+  },
+  "zjudWIklTn": {
+    "defaultMessage": "Strong signal",
+    "description": "Market tier"
   },
   "zkYM+bbGh5": {
     "defaultMessage": "Syncing to your TMS",
