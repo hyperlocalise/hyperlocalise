@@ -302,7 +302,7 @@ export async function createFileTranslationJob(
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
     metadata: mergeNativeFileTranslationJobMetadata(sourceFile.filename, {
-      sourcePath: sourcePathFromFile ?? undefined,
+      ...(sourcePathFromFile ? { sourcePath: sourcePathFromFile } : {}),
       ...input.metadata,
     }),
     ...(input.ignoreTranslationMemory ? { ignoreTranslationMemory: true } : {}),

@@ -11,7 +11,8 @@
  * Version 2.0 or later.
  */
 
-const STORED_FILE_ID_PATTERN = /^file_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const STORED_FILE_ID_PATTERN =
+  /^file_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VERCEL_BLOB_HOST_PATTERN = /\.blob\.vercel-storage\.com\//i;
 const STORAGE_KEY_PREFIX_PATTERN =
   /(?:^|\/)organizations\/[^/]+\/(?:projects\/[^/]+|workspace)\/files\/[^/]+\//;
@@ -119,9 +120,7 @@ export function nativeFileJobSourceDisplayFields(input: {
   const sourceFilenameValue = originalFilenameFromStoredName(input.filename);
   const sourcePath = stringValue(input.sourcePath);
   const displayPath =
-    sourcePath && !isInternalStorageFilename(sourcePath)
-      ? sourcePath
-      : sourceFilenameValue;
+    sourcePath && !isInternalStorageFilename(sourcePath) ? sourcePath : sourceFilenameValue;
 
   return {
     sourceFilename: sourceFilenameValue,

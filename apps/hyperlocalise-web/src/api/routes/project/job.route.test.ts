@@ -637,7 +637,9 @@ describe("project job create", () => {
         id: string;
         sourceFilename?: string | null;
         sourcePath?: string | null;
-        inputPayload: { metadata?: { title?: string; sourceFilename?: string; sourcePath?: string } };
+        inputPayload: {
+          metadata?: { title?: string; sourceFilename?: string; sourcePath?: string };
+        };
       };
     };
     const [job] = await db
@@ -653,8 +655,11 @@ describe("project job create", () => {
       (job?.inputPayload as { metadata?: { title?: string } } | undefined)?.metadata?.title,
     ).toMatch(/^messages\.json · \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
     expect(
-      (job?.inputPayload as { metadata?: { sourceFilename?: string; sourcePath?: string } } | undefined)
-        ?.metadata,
+      (
+        job?.inputPayload as
+          | { metadata?: { sourceFilename?: string; sourcePath?: string } }
+          | undefined
+      )?.metadata,
     ).toMatchObject({
       sourceFilename: "messages.json",
       sourcePath: "messages.json",

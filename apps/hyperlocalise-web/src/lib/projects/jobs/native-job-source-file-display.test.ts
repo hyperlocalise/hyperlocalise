@@ -41,7 +41,9 @@ describe("originalFilenameFromStoredName", () => {
   });
 
   it("does not treat stored file ids as display names", () => {
-    expect(originalFilenameFromStoredName("file_3b017712-ec57-448f-8015-ca282a5a103a")).toBe("file");
+    expect(originalFilenameFromStoredName("file_3b017712-ec57-448f-8015-ca282a5a103a")).toBe(
+      "file",
+    );
   });
 });
 
