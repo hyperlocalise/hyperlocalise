@@ -687,10 +687,19 @@ export async function verifyAndClaimLinkedDomain(input: {
   });
 
   if (isErr(check)) {
+    // Only mark failed while still unverified. A concurrent verify may have
+    // already committed status=verified; demoting it would drop the partial
+    // unique index on verified domain_key and allow another workspace to steal
+    // the domain.
     await database
       .update(schema.linkedDomains)
       .set({ status: "failed" })
-      .where(eq(schema.linkedDomains.id, row.id));
+      .where(
+        and(
+          eq(schema.linkedDomains.id, row.id),
+          inArray(schema.linkedDomains.status, ["pending_verification", "failed"]),
+        ),
+      );
     return check;
   }
 
@@ -699,6 +708,10 @@ export async function verifyAndClaimLinkedDomain(input: {
       const raced = await findVerifiedLinkedDomainByDomainKey(row.domainKey, tx);
       if (raced && raced.id !== row.id) {
         throw new Error("domain_already_claimed");
+      }
+      // Concurrent request already verified this claim — do not create another project.
+      if (raced && raced.id === row.id) {
+        return raced;
       }
 
       let projectId = input.projectId ?? null;
@@ -785,8 +798,19 @@ export async function verifyAndClaimLinkedDomain(input: {
           projectId,
           marketIds,
         })
-        .where(eq(schema.linkedDomains.id, row.id))
+        .where(
+          and(
+            eq(schema.linkedDomains.id, row.id),
+            inArray(schema.linkedDomains.status, ["pending_verification", "failed"]),
+          ),
+        )
         .returning();
+
+      if (!updated) {
+        // Lost the status transition (cancelled or verified mid-flight). Roll back
+        // any project created above by aborting the transaction.
+        throw new Error("linked_domain_not_pending");
+      }
 
       if (row.localisationAuditId) {
         await tx
@@ -871,6 +895,12 @@ export async function verifyAndClaimLinkedDomain(input: {
       return err({
         code: "project_not_found",
         message: "Selected project was not found in this workspace.",
+      });
+    }
+    if (message === "linked_domain_not_pending") {
+      return err({
+        code: "linked_domain_not_pending",
+        message: "This linked domain cannot be verified in its current state.",
       });
     }
     if (message.includes("uq_linked_domains_verified_domain_key")) {
