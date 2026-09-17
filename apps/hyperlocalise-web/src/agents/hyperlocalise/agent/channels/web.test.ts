@@ -598,70 +598,67 @@ describe("createWebChatAgentUIStreamResponse", () => {
       name: "resolves null",
       createUsage: () => Promise.resolve(null),
     },
-  ])(
-    "tracks classification tokens when streamed agent usage $name",
-    async ({ createUsage }) => {
-      const toUIMessageStream = vi.fn(
-        () =>
-          new ReadableStream({
-            start(controller) {
-              controller.enqueue({ type: "start", messageId: "assistant_1" });
-              controller.enqueue({ type: "text-start", id: "text_1" });
-              controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
-              controller.enqueue({ type: "text-end", id: "text_1" });
-              controller.enqueue({ type: "finish" });
-              controller.close();
-            },
-          }),
-      );
-      prepareConversationAgentTurnMock.mockResolvedValueOnce({
-        classification: baseClassification,
-        classificationTokenUsage: {
+  ])("tracks classification tokens when streamed agent usage $name", async ({ createUsage }) => {
+    const toUIMessageStream = vi.fn(
+      () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
+            controller.enqueue({ type: "text-end", id: "text_1" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      classificationTokenUsage: {
+        inputTokens: 10,
+        outputTokens: 2,
+        totalTokens: 12,
+      },
+      agent: {
+        stream: vi.fn(async () => ({
+          usage: createUsage(),
+          toUIMessageStream,
+        })),
+      },
+      chatMessages: [],
+      clarificationFollowUp: null,
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+      usageOperationKey: "chat-agent-turn:msg_missing_agent_usage:agent_runs",
+      languageModel: {
+        model: "openai/gpt-5.6-luna",
+        source: "gateway",
+        modelId: "openai/gpt-5.6-luna",
+      },
+    });
+
+    await readSseText(response);
+
+    expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationKey: "chat-agent-turn:msg_missing_agent_usage:agent_runs",
+        tokenUsage: {
           inputTokens: 10,
           outputTokens: 2,
           totalTokens: 12,
         },
-        agent: {
-          stream: vi.fn(async () => ({
-            usage: createUsage(),
-            toUIMessageStream,
-          })),
-        },
-        chatMessages: [],
-        clarificationFollowUp: null,
-        updatedRepositorySession: null,
-        staleSandboxId: null,
-        repositorySandboxId: null,
-      });
-      const response = createWebChatAgentUIStreamResponse({
-        conversationId: "conv_123",
-        messageText: "Help me",
-        toolContext: createToolContext(),
-        hasTranslationAttachments: false,
-        usageOperationKey: "chat-agent-turn:msg_missing_agent_usage:agent_runs",
-        languageModel: {
-          model: "openai/gpt-5.6-luna",
-          source: "gateway",
-          modelId: "openai/gpt-5.6-luna",
-        },
-      });
-
-      await readSseText(response);
-
-      expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          operationKey: "chat-agent-turn:msg_missing_agent_usage:agent_runs",
-          tokenUsage: {
-            inputTokens: 10,
-            outputTokens: 2,
-            totalTokens: 12,
-          },
-          aiCreditModelId: "openai/gpt-5.6-luna",
-          aiCreditCredentialSource: "gateway",
-        }),
-      );
-    },
-  );
+        aiCreditModelId: "openai/gpt-5.6-luna",
+        aiCreditCredentialSource: "gateway",
+      }),
+    );
+  });
 
   it("tracks the agent_runs meter without tokens when a completed chat reports no usage", async () => {
     const toUIMessageStream = vi.fn(

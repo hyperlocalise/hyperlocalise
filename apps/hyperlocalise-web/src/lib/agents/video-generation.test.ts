@@ -16,8 +16,8 @@ const { generateVideoMock, getManagedVideoModelMock, withAgentRuntimeUsageMeteri
   vi.hoisted(() => ({
     generateVideoMock: vi.fn(),
     getManagedVideoModelMock: vi.fn(() => "bytedance/seedance-2.5"),
-    withAgentRuntimeUsageMeteringMock: vi.fn(
-      async ({ run }: { run: () => Promise<unknown> }) => run(),
+    withAgentRuntimeUsageMeteringMock: vi.fn(async ({ run }: { run: () => Promise<unknown> }) =>
+      run(),
     ),
   }));
 
@@ -105,7 +105,7 @@ describe("video generation", () => {
         aiCreditCredentialSource: "gateway",
       }),
     );
-    const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as {
+    const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as unknown as {
       extractTokenUsage: (result: { billing: { durationSeconds: number } }) => unknown;
     };
     expect(metering.extractTokenUsage({ billing: { durationSeconds: 8 } })).toEqual({

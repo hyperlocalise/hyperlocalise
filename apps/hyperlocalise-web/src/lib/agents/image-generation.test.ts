@@ -16,8 +16,8 @@ const { generateImageMock, getManagedImageModelMock, withAgentRuntimeUsageMeteri
   vi.hoisted(() => ({
     generateImageMock: vi.fn(),
     getManagedImageModelMock: vi.fn(() => "openai/gpt-image-2.5-flare"),
-    withAgentRuntimeUsageMeteringMock: vi.fn(
-      async ({ run }: { run: () => Promise<unknown> }) => run(),
+    withAgentRuntimeUsageMeteringMock: vi.fn(async ({ run }: { run: () => Promise<unknown> }) =>
+      run(),
     ),
   }));
 
@@ -99,7 +99,7 @@ describe("image generation", () => {
         aiCreditCredentialSource: "gateway",
       }),
     );
-    const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as {
+    const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as unknown as {
       extractTokenUsage: (result: {
         billing: { tokenUsage: unknown; imageCount: number };
       }) => unknown;
@@ -133,7 +133,7 @@ describe("image generation", () => {
       },
     );
 
-    const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as {
+    const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as unknown as {
       extractTokenUsage: (result: { billing: { tokenUsage: unknown } }) => unknown;
       aiCreditModelId: (result: { billing: { tokenUsage: unknown } }) => string;
     };
