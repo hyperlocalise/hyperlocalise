@@ -274,6 +274,155 @@ Prompt variables:
 
 `llm.rules` is optional. When no rule matches a group, Hyperlocalise falls back to `llm.profiles.default`.
 
+## Translation routing
+
+`translation` chooses, per group, whether tasks route to an LLM profile or a machine translation (MT) profile. It configures routing only; `llm.profiles` still defines provider/model/prompt behavior for every `type: llm` selection, and `mt.profiles` defines MT engines (see below).
+
+- `translation.default` (required): fallback selection used when no rule matches a group.
+  - `type`: `llm` or `mt`
+  - `profile`: profile name, resolved against `llm.profiles` when `type: llm`, or `mt.profiles` when `type: mt`
+- `translation.rules` (optional): ordered list of per-group overrides.
+  - `priority`: higher priority wins. Priorities must be unique within the same group.
+  - `group`: group name (must exist in `groups`, or be the implicit `default` group when `groups` is omitted)
+  - `type`: `llm` or `mt`
+  - `profile`: profile name, resolved the same way as `translation.default.profile`
+
+For each group, Hyperlocalise uses the highest-priority `translation.rules` entry whose `group` matches. If no rule matches, it falls back to `translation.default`.
+
+When `translation` is omitted entirely, Hyperlocalise uses the legacy `llm.rules`/`llm.profiles.default` routing described above, unchanged.
+
+### Migrating from llm.rules
+
+`translation.rules` and `llm.rules` cannot both be set. Setting both fails config validation with:
+
+```text
+translation.rules: must not be combined with llm.rules; migrate llm.rules entries to translation.rules
+```
+
+To migrate, move each `llm.rules` entry into `translation.rules` and add `type: llm`. `llm.profiles` itself does not change:
+
+```yaml
+# Before
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-5.2
+    docs_review:
+      provider: openai
+      model: gpt-5.2
+  rules:
+    - priority: 100
+      group: docs
+      profile: docs_review
+```
+
+```yaml
+# After
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-5.2
+    docs_review:
+      provider: openai
+      model: gpt-5.2
+
+translation:
+  default:
+    type: llm
+    profile: default
+  rules:
+    - priority: 100
+      group: docs
+      type: llm
+      profile: docs_review
+```
+
+## Machine translation (MT) profiles
+
+`mt.profiles.<name>` defines an MT engine that `translation.default`/`translation.rules` can select with `type: mt`.
+
+- `provider`: `google` or `deepl`. These are the only supported providers today.
+- `api_key_env` (required): name of the environment variable that holds the API key. You choose this name yourself — unlike LLM providers, which read a fixed variable per provider (for example `OPENAI_API_KEY`), Hyperlocalise reads whatever variable name you put here. See [Provider credentials](/cli/configuration/provider-credentials) for exported examples.
+- `base_url`:
+  - Optional for `google`. Defaults to the real Google Cloud Translation endpoint when omitted.
+  - Required for `deepl`, and must be exactly one of DeepL's two API hosts: `https://api.deepl.com` (Pro accounts) or `https://api-free.deepl.com` (Free accounts). Any other value is rejected when the profile is selected.
+
+```yaml
+mt:
+  profiles:
+    google_default:
+      provider: google
+      api_key_env: GOOGLE_TRANSLATE_API_KEY
+    deepl_default:
+      provider: deepl
+      api_key_env: DEEPL_API_KEY
+      base_url: https://api-free.deepl.com # use https://api.deepl.com for a DeepL Pro account
+```
+
+A profile defined in `mt.profiles` is only checked and connected to when a `translation` rule or default actually selects it. Defining extra MT profiles you aren't using yet does not require their environment variables to be set.
+
+### Mixed MT/LLM example
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - es-ES
+
+buckets:
+  ui:
+    files:
+      - from: packages/ui/lang/{{source}}.json
+        to: apps/web/lang/{{target}}.json
+  marketing:
+    files:
+      - from: content/marketing/{{source}}.md
+        to: content/marketing/{{target}}.md
+
+groups:
+  ui:
+    targets:
+      - fr-FR
+      - es-ES
+    buckets:
+      - ui
+  marketing:
+    targets:
+      - fr-FR
+      - es-ES
+    buckets:
+      - marketing
+
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-5.2
+
+mt:
+  profiles:
+    google_default:
+      provider: google
+      api_key_env: GOOGLE_TRANSLATE_API_KEY
+
+translation:
+  default:
+    type: mt
+    profile: google_default
+  rules:
+    - priority: 100
+      group: marketing
+      type: llm
+      profile: default
+```
+
+Here, the `ui` group has no matching rule and falls back to `translation.default`, so it routes to MT. The `marketing` group matches a rule and routes to the LLM profile instead — useful when some content (like marketing copy) needs LLM-quality nuance while the bulk of UI strings are translated more cheaply via MT.
+
+MT execution has no automatic fallback to an LLM profile on failure, batches requests, retries transient failures a bounded number of times, and reports character usage separately from LLM token usage. See [run](/cli/commands/run) for the full execution behavior.
+
 ## Hyperlocalise
 
 `hyperlocalise` configures the public Hyperlocalise web API for `sync push` and `sync pull` when that block is present.
@@ -385,5 +534,7 @@ Then edit the generated `i18n.yml` for your project.
 - Keep group targets inside `locales.targets`.
 - Keep group buckets aligned with `buckets` keys.
 - Keep profile names consistent between `profiles` and `rules`.
+- Keep MT profile names consistent between `mt.profiles` and `translation.rules`/`translation.default`.
+- Do not set both `llm.rules` and `translation` — migrate `llm.rules` entries to `translation.rules` instead.
 - Use `hyperlocalise` when `sync push` and `sync pull` should talk to the Hyperlocalise API. That block wins if `storage.adapter` is also set.
 - Use `storage.adapter` without `hyperlocalise` when `sync push` and `sync pull` should run TMS entry sync. Keep `storage` for provider-specific file commands as well.
