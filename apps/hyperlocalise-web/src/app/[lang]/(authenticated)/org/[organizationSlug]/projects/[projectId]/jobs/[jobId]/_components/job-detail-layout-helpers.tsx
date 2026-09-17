@@ -39,6 +39,7 @@ import {
   resolveProviderTaskTypeLabel,
 } from "../../../../../jobs/_components/provider-tms-job-display";
 
+import { JobAssigneeOverflowLabel } from "./job-assignee-overflow-label";
 import { jobDetailLayoutHelpersMessages as messages } from "./job-detail-layout-helpers.messages";
 import { formatJobDetailDate, isProviderBackedJob, type JobDetailRecord } from "./job-detail-types";
 import type { JobDetailViewMetric, JobDetailViewProperty } from "./job-detail-view";
@@ -255,9 +256,9 @@ export function jobDetailTaskProperties(
       id: "assignees",
       label: intl.formatMessage(messages.labelAssignees),
       value:
-        input.externalAssignedUsers && input.externalAssignedUsers.length > 0
-          ? input.externalAssignedUsers.join(", ")
-          : null,
+        input.externalAssignedUsers && input.externalAssignedUsers.length > 0 ? (
+          <JobAssigneeOverflowLabel labels={input.externalAssignedUsers} emptyLabel={emptyValue} />
+        ) : null,
     },
     {
       label: intl.formatMessage(messages.labelDueDate),

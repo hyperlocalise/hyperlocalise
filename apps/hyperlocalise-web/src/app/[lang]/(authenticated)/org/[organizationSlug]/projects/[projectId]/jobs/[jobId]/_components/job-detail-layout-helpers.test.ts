@@ -68,4 +68,17 @@ describe("jobDetailTaskLayoutFromRecord", () => {
     expect(layout.title).toBe("file");
     expect(layout.input.sourceFilesMetric).toBe("file");
   });
+
+  it("keeps a React assignee summary instead of joining every name", () => {
+    const job = createNativeJobDetail({
+      externalAssignedUsers: ["Ada", "Beau", "Cora", "Drew", "Eden"],
+    });
+
+    const layout = jobDetailTaskLayoutFromRecord(job, intl);
+    const assignees = layout.properties.find((property) => property.id === "assignees");
+
+    expect(assignees?.value).not.toBe("Ada, Beau, Cora, Drew, Eden");
+    expect(assignees?.value).not.toBeNull();
+    expect(typeof assignees?.value).toBe("object");
+  });
 });
