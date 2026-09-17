@@ -723,7 +723,7 @@ export async function verifyAndClaimLinkedDomain(input: {
                 identifier,
                 description: `Linked from localisation audit for ${row.domainKey}`,
                 source: "native",
-                sourceLocale: "en",
+                sourceLocale: "en-US",
                 targetLocales: [],
               })
               .returning(),

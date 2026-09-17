@@ -243,7 +243,6 @@ export function AddDomainDialog({
       };
       if (!response.ok || !body.marketRecommendations) {
         setStep("markets");
-        setRecommendations([]);
         throw new Error(body.message || intl.formatMessage(messages.recommendationsError));
       }
       setStep("markets");
