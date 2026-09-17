@@ -133,27 +133,57 @@ type AutumnTrackTokensResult = {
   value: number;
 };
 
+export type AutumnTrackTokensInput = {
+  customerId: string;
+  modelId: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  reasoningTokens?: number;
+  audioInputTokens?: number;
+  audioOutputTokens?: number;
+};
+
 type ManagedAiCreditDependencies = {
   check?: (input: {
     customerId: string;
     featureId: string;
     requiredBalance: number;
   }) => Promise<AutumnCheckResult>;
-  trackTokens?: (input: {
-    customerId: string;
-    featureId: string;
-    modelId: string;
-    inputTokens: number;
-    outputTokens: number;
-    cacheReadTokens?: number;
-    cacheWriteTokens?: number;
-    reasoningTokens?: number;
-    audioInputTokens?: number;
-    audioOutputTokens?: number;
-    overageBehavior: "cap" | "overflow";
-    properties: Record<string, unknown>;
-  }) => Promise<AutumnTrackTokensResult>;
+  trackTokens?: (input: AutumnTrackTokensInput) => Promise<AutumnTrackTokensResult>;
 };
+
+export function billableAutumnTokenUsage(
+  credentialSource: AiCreditCredentialSource,
+  tokenUsage: AiCreditTokenUsage,
+): Pick<
+  AutumnTrackTokensInput,
+  | "inputTokens"
+  | "outputTokens"
+  | "cacheReadTokens"
+  | "cacheWriteTokens"
+  | "reasoningTokens"
+  | "audioInputTokens"
+  | "audioOutputTokens"
+> {
+  if (credentialSource === "byok") {
+    return {
+      inputTokens: 0,
+      outputTokens: 0,
+    };
+  }
+
+  return {
+    inputTokens: tokenUsage.inputTokens,
+    outputTokens: tokenUsage.outputTokens,
+    ...(tokenUsage.cacheReadTokens ? { cacheReadTokens: tokenUsage.cacheReadTokens } : {}),
+    ...(tokenUsage.cacheWriteTokens ? { cacheWriteTokens: tokenUsage.cacheWriteTokens } : {}),
+    ...(tokenUsage.reasoningTokens ? { reasoningTokens: tokenUsage.reasoningTokens } : {}),
+    ...(tokenUsage.audioInputTokens ? { audioInputTokens: tokenUsage.audioInputTokens } : {}),
+    ...(tokenUsage.audioOutputTokens ? { audioOutputTokens: tokenUsage.audioOutputTokens } : {}),
+  };
+}
 
 type ManagedAiUsageDimensions = Record<string, string | number | boolean | null>;
 
@@ -171,6 +201,14 @@ function createAutumnClient(apiKey: string) {
     xApiVersion: AUTUMN_API_VERSION,
     failOpen: false,
   });
+}
+
+export async function trackAutumnAiTokens(
+  apiKey: string,
+  input: AutumnTrackTokensInput,
+): Promise<AutumnTrackTokensResult> {
+  const autumn = createAutumnClient(apiKey);
+  return autumn.trackTokens(input);
 }
 
 async function lockManagedAiCredit(tx: DatabaseTransaction, organizationId: string) {
@@ -545,30 +583,14 @@ export async function settleManagedAiCredit(input: {
     const autumn = apiKey ? createAutumnClient(apiKey) : null;
     const trackTokens =
       input.dependencies?.trackTokens ??
-      (async (params: Parameters<NonNullable<ManagedAiCreditDependencies["trackTokens"]>>[0]) => {
+      (async (params: AutumnTrackTokensInput) => {
         if (!autumn) throw new Error("Autumn is not configured");
         return autumn.trackTokens(params);
       });
     const tracked = await trackTokens({
       customerId: event.organizationId,
-      featureId: usageFeatureIds.aiTokens,
       modelId: input.modelId,
-      inputTokens: input.tokenUsage.inputTokens,
-      outputTokens: input.tokenUsage.outputTokens,
-      cacheReadTokens: input.tokenUsage.cacheReadTokens,
-      cacheWriteTokens: input.tokenUsage.cacheWriteTokens,
-      reasoningTokens: input.tokenUsage.reasoningTokens,
-      audioInputTokens: input.tokenUsage.audioInputTokens,
-      audioOutputTokens: input.tokenUsage.audioOutputTokens,
-      overageBehavior: event.dimensions.overage_allowed === true ? "overflow" : "cap",
-      properties: {
-        operation_key: event.operationKey,
-        source: event.source,
-        pricing_version: event.dimensions.pricing_version,
-        job_id: event.jobId,
-        interaction_id: event.interactionId,
-        provider_generation_id: input.providerGenerationId,
-      },
+      ...billableAutumnTokenUsage(input.reservation.credentialSource, input.tokenUsage),
     });
     const amountUsd = positiveNumber(tracked.value);
 

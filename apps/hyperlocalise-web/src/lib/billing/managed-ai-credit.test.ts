@@ -20,6 +20,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import {
+  billableAutumnTokenUsage,
   releaseManagedAiCredit,
   reserveManagedAiCredit,
   retainManagedAiCreditForUnmeteredSuccess,
@@ -71,6 +72,31 @@ function createDeferred<T>() {
 }
 
 describe("managed AI credit", () => {
+  it("sends model input/output tokens and zeroes BYOK usage", () => {
+    expect(
+      billableAutumnTokenUsage("gateway", {
+        inputTokens: 1500,
+        outputTokens: 500,
+        cacheReadTokens: 20,
+        totalTokens: 2020,
+      }),
+    ).toEqual({
+      inputTokens: 1500,
+      outputTokens: 500,
+      cacheReadTokens: 20,
+    });
+    expect(
+      billableAutumnTokenUsage("byok", {
+        inputTokens: 1500,
+        outputTokens: 500,
+        totalTokens: 2000,
+      }),
+    ).toEqual({
+      inputTokens: 0,
+      outputTokens: 0,
+    });
+  });
+
   it("reserves estimated USD and includes outstanding reservations in the next check", async () => {
     const organization = await createOrganization();
     const check = allowedCheck(1);
@@ -151,19 +177,15 @@ describe("managed AI credit", () => {
       ok: true,
       value: { amountUsd: 0.012345678, status: "settled" },
     });
-    expect(trackTokens).toHaveBeenCalledWith(
-      expect.objectContaining({
-        customerId: organization.id,
-        featureId: "ai_tokens",
-        modelId: "openai/gpt-5.6-luna",
-        inputTokens: 100,
-        outputTokens: 20,
-        cacheReadTokens: 40,
-        cacheWriteTokens: 10,
-        reasoningTokens: 5,
-        overageBehavior: "cap",
-      }),
-    );
+    expect(trackTokens).toHaveBeenCalledWith({
+      customerId: organization.id,
+      modelId: "openai/gpt-5.6-luna",
+      inputTokens: 100,
+      outputTokens: 20,
+      cacheReadTokens: 40,
+      cacheWriteTokens: 10,
+      reasoningTokens: 5,
+    });
     await expect(getUsageEvent(operationKey)).resolves.toMatchObject({
       amountUsd: "0.012345678",
       providerGenerationId: "gen_123",
