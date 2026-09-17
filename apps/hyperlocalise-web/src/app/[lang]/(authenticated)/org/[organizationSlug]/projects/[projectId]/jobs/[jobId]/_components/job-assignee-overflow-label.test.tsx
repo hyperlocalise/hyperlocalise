@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
