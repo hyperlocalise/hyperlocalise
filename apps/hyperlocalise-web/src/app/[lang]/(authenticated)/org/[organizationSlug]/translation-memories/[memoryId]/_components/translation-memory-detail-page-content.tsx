@@ -300,11 +300,40 @@ export function TranslationMemoryDetailPageContent({
         canManageMemories={canManageMemoryEntries}
         isDeleting={deleteEntry.isPending}
         onDeleteEntry={(entryId) => deleteEntry.mutate(entryId)}
+        emptyActions={
+          canEdit ? (
+            <>
+              <Button type="button" size="sm" onClick={() => setAddEntryOpen(true)}>
+                <FormattedMessage {...messages.addEntry} />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => importActionRef.current?.()}
+              >
+                <HugeiconsIcon icon={Upload01Icon} className="size-4" strokeWidth={1.8} />
+                <FormattedMessage {...messages.importTmxAction} />
+              </Button>
+            </>
+          ) : null
+        }
         toolbarActions={
           <>
             <Button type="button" variant="outline" size="sm" onClick={() => setProjectsOpen(true)}>
               <FormattedMessage {...messages.projectsToolbar} />
             </Button>
+            {canEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => importActionRef.current?.()}
+              >
+                <HugeiconsIcon icon={Upload01Icon} className="size-4" strokeWidth={1.8} />
+                <FormattedMessage {...messages.importAction} />
+              </Button>
+            ) : null}
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
