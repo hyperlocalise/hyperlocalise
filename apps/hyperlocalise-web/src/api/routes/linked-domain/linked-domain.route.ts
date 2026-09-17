@@ -149,7 +149,10 @@ function mapLinkedDomainError(
       return notFoundResponse(c, error.code, error.message);
     case "domain_already_claimed":
     case "claim_pending_exists":
+    case "project_limit_reached":
       return conflictResponse(c, error.code, error.message);
+    case "project_limit_check_failed":
+      return serviceUnavailableResponse(c, error.code, error.message);
     default:
       return badRequestResponse(c, error.code, error.message);
   }
@@ -185,7 +188,7 @@ export function createLinkedDomainRoutes() {
           linkedDomainId,
         });
         if (!linkedDomain) return notFoundResponse(c, "linked_domain_not_found");
-        if (linkedDomain.status !== "verified") {
+        if (linkedDomain.status !== "verified" && linkedDomain.status !== "pending_verification") {
           return badRequestResponse(c, "linked_domain_not_verified", "Verify the domain first.");
         }
 
@@ -292,6 +295,9 @@ export function createLinkedDomainRoutes() {
         method: body.method,
         projectId: body.projectId,
         createProject: body.createProject ?? (!body.projectId ? true : undefined),
+        marketIds: body.marketIds,
+        teamId: c.var.auth.activeTeam?.id,
+        ensureCreatorTeamMembership: !hasCapability(c.var.auth.membership.role, "teams:write"),
       });
 
       if (isErr(result)) {

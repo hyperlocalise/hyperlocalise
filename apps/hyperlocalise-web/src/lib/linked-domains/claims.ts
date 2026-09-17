@@ -14,7 +14,12 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
+import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
+import {
+  withWorkspaceResourceLimit,
+  workspaceResourceFeatureIds,
+} from "@/lib/billing/workspace-resource-limits";
 import type {
   LinkedDomainStatus,
   LinkedDomainVerificationMethod,
@@ -23,7 +28,11 @@ import { isValidDomainSlug, resolveDomainIdentity } from "@/lib/localisation-aud
 import { DOMAIN_RESEARCH_MARKETS } from "@/lib/domains/research-prototype";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultNativeProjectMemory } from "@/lib/memory/ensure-default-native-project-memory";
-import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import {
+  ensureDefaultWorkspaceTeam,
+  ensureTeamMembership,
+} from "@/lib/teams/default-workspace-team";
+import { insertWithAllocatedProjectIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 
 import { buildLinkedDomainChallenges, mintLinkedDomainVerificationToken } from "./challenges";
 import type { LinkedDomainError, LinkedDomainAuditDetail, LinkedDomainPublic } from "./types";
@@ -580,6 +589,12 @@ export async function verifyAndClaimLinkedDomain(input: {
   projectId?: string;
   /** When true (or when omitted with no projectId), create a new native project. */
   createProject?: boolean;
+  /** Markets to persist with the verified domain. Omit to preserve existing selections. */
+  marketIds?: string[];
+  /** Active team selected by the caller for a newly created project. */
+  teamId?: string;
+  /** Whether the caller needs explicit membership to see projects on the team. */
+  ensureCreatorTeamMembership?: boolean;
   resolveTxt?: ResolveTxtFn;
   fetchPublic?: PublicFetchFn;
   database?: DatabaseClient;
@@ -587,6 +602,7 @@ export async function verifyAndClaimLinkedDomain(input: {
   const database = input.database ?? db;
   const shouldCreateProject =
     input.createProject === true || (!input.projectId && input.createProject === undefined);
+  const supportedMarketIds = new Set(DOMAIN_RESEARCH_MARKETS.map((market) => market.id));
 
   const [row] = await database
     .select()
@@ -601,6 +617,11 @@ export async function verifyAndClaimLinkedDomain(input: {
 
   if (!row) {
     return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
+
+  const marketIds = input.marketIds ? [...new Set(input.marketIds)] : row.marketIds;
+  if (marketIds.some((marketId) => !supportedMarketIds.has(marketId))) {
+    return err({ code: "invalid_market_selection", message: "Select supported markets." });
   }
 
   if (row.status === "verified") {
@@ -664,7 +685,7 @@ export async function verifyAndClaimLinkedDomain(input: {
   }
 
   try {
-    const verified = await database.transaction(async (tx) => {
+    const verifyInTransaction = async (tx: DatabaseTransaction) => {
       const raced = await findVerifiedLinkedDomainByDomainKey(row.domainKey, tx);
       if (raced && raced.id !== row.id) {
         throw new Error("domain_already_claimed");
@@ -672,25 +693,53 @@ export async function verifyAndClaimLinkedDomain(input: {
 
       let projectId = input.projectId ?? null;
       if (shouldCreateProject) {
-        const team = await ensureDefaultWorkspaceTeam(input.organizationId, tx);
-        const newProjectId = `project_${randomUUID()}`;
-        const [project] = await tx
-          .insert(schema.projects)
-          .values({
-            id: newProjectId,
-            organizationId: input.organizationId,
-            teamId: team.id,
-            createdByUserId: input.userId,
-            name: row.domainKey,
-            description: `Linked from localisation audit for ${row.domainKey}`,
-            source: "native",
-            sourceLocale: "en",
-            targetLocales: [],
-          })
-          .returning();
+        const team = input.teamId
+          ? (
+              await tx
+                .select()
+                .from(schema.teams)
+                .where(
+                  and(
+                    eq(schema.teams.id, input.teamId),
+                    eq(schema.teams.organizationId, input.organizationId),
+                  ),
+                )
+                .limit(1)
+            )[0]
+          : await ensureDefaultWorkspaceTeam(input.organizationId, tx);
+        if (!team) throw new Error("invalid_project_team");
+
+        const [project] = await insertWithAllocatedProjectIdentifier({
+          organizationId: input.organizationId,
+          name: row.domainKey,
+          database: tx,
+          insert: async (identifier, attemptDb) =>
+            attemptDb
+              .insert(schema.projects)
+              .values({
+                id: `project_${randomUUID()}`,
+                organizationId: input.organizationId,
+                teamId: team.id,
+                createdByUserId: input.userId,
+                name: row.domainKey,
+                identifier,
+                description: `Linked from localisation audit for ${row.domainKey}`,
+                source: "native",
+                sourceLocale: "en-US",
+                targetLocales: [],
+              })
+              .returning(),
+        });
 
         if (!project) {
           throw new Error("project_create_failed");
+        }
+        if (input.ensureCreatorTeamMembership !== false) {
+          await ensureTeamMembership({
+            teamId: team.id,
+            userId: input.userId,
+            database: tx,
+          });
         }
         await ensureDefaultNativeProjectMemory({
           organizationId: input.organizationId,
@@ -724,6 +773,7 @@ export async function verifyAndClaimLinkedDomain(input: {
           verifiedAt: new Date(),
           preferredMethod: input.method,
           projectId,
+          marketIds,
         })
         .where(eq(schema.linkedDomains.id, row.id))
         .returning();
@@ -739,7 +789,64 @@ export async function verifyAndClaimLinkedDomain(input: {
       }
 
       return updated;
-    });
+    };
+
+    let verified: LinkedDomainRow | undefined;
+    if (shouldCreateProject) {
+      const limitResult = await withWorkspaceResourceLimit(
+        {
+          organizationId: input.organizationId,
+          featureId: workspaceResourceFeatureIds.projects,
+          ...(database === db ? {} : { db: database as DatabaseTransaction }),
+          analyticsSource: "linked_domain_claim",
+        },
+        verifyInTransaction,
+      );
+      if (!limitResult.ok) {
+        if (limitResult.error.code === "workspace_resource_limit_reached") {
+          return err({
+            code: "project_limit_reached",
+            message: "Project limit reached for your current plan.",
+          });
+        }
+        return err({
+          code: "project_limit_check_failed",
+          message: "Unable to verify project limits. Try again later.",
+        });
+      }
+      verified = limitResult.value;
+    } else {
+      verified = await database.transaction(verifyInTransaction);
+    }
+
+    if (shouldCreateProject && verified.projectId) {
+      const [createdProject] = await database
+        .select()
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.id, verified.projectId),
+            eq(schema.projects.organizationId, input.organizationId),
+          ),
+        )
+        .limit(1);
+      if (!createdProject) throw new Error("project_create_failed");
+      await enqueueActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: input.userId,
+        eventType: "project_created",
+        organizationId: input.organizationId,
+        payload: {
+          name: createdProject.name,
+          providerKind: createdProject.externalProviderKind ?? undefined,
+          resourceId: createdProject.id,
+          source: createdProject.source,
+        },
+        targetId: createdProject.id,
+        targetKind: "project",
+      });
+    }
 
     return ok(toPublic(verified));
   } catch (error) {

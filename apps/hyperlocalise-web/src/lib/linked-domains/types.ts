@@ -34,6 +34,8 @@ export type LinkedDomainErrorCode =
   | "invalid_market_selection"
   | "linked_domain_not_verified"
   | "project_not_found"
+  | "project_limit_reached"
+  | "project_limit_check_failed"
   | "project_create_failed";
 
 export type LinkedDomainError = {

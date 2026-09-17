@@ -41,6 +41,20 @@ describe("create linked domain body schema", () => {
       { method: "dns_txt", createProject: false },
     );
   });
+
+  it("accepts markets alongside project intent", () => {
+    expect(
+      verifyLinkedDomainBodySchema.parse({
+        method: "dns_txt",
+        createProject: true,
+        marketIds: ["france-fr", "japan-ja"],
+      }),
+    ).toEqual({
+      method: "dns_txt",
+      createProject: true,
+      marketIds: ["france-fr", "japan-ja"],
+    });
+  });
 });
 
 describe("update linked domain markets body schema", () => {
