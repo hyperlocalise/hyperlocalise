@@ -14,17 +14,52 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { config as loadDotenv } from "dotenv";
-import pluginFormatjs from "eslint-plugin-formatjs";
 import { defineConfig } from "vite-plus";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 loadDotenv({ path: path.join(rootDir, ".env") });
 
+// Keep in sync with eslint-plugin-formatjs `configs.strict`. Do not import the
+// plugin here: Storybook loads this Vite config, and the plugin pulls
+// `@unicode/unicode-17.0.0` (tens of thousands of files) that CI installs often
+// omit. `jsPlugins` still loads it when `vp lint` runs.
+const formatjsStrictRules = {
+  "formatjs/no-offset": "error",
+  "formatjs/enforce-default-message": ["error", "literal"],
+  "formatjs/enforce-description": ["error", "literal"],
+  "formatjs/enforce-placeholders": "error",
+  "formatjs/no-emoji": "error",
+  "formatjs/no-multiple-whitespaces": "error",
+  "formatjs/no-multiple-plurals": "error",
+  "formatjs/no-complex-selectors": ["error", { limit: 20 }],
+  "formatjs/no-useless-message": "error",
+  "formatjs/prefer-pound-in-plural": "error",
+  "formatjs/no-missing-icu-plural-one-placeholders": "error",
+  "formatjs/enforce-id": [
+    "error",
+    { idInterpolationPattern: "[sha512:contenthash:base64:10]" },
+  ],
+  "formatjs/enforce-plural-rules": ["error", { one: true, other: true }],
+  "formatjs/no-literal-string-in-jsx": [
+    "error",
+    { props: { include: [["*", "{label,placeholder,title}"]] } },
+  ],
+  "formatjs/blocklist-elements": [
+    "error",
+    [
+      "selectordinal",
+      {
+        type: "select",
+        allow: { variable: "gender", options: ["male", "female", "other"] },
+      },
+    ],
+  ],
+  "formatjs/prefer-full-sentence": "error",
+} as const;
+
 const formatjsRulesOff = Object.fromEntries(
-  Object.entries({
-    ...pluginFormatjs.configs.strict.rules,
-  }).map(([rule]) => [rule, "off"]),
+  Object.keys(formatjsStrictRules).map((rule) => [rule, "off" as const]),
 );
 
 // Keep Hyperlocalise-synced target catalogs as pulled (see i18n.yml targets).
@@ -47,16 +82,14 @@ export default defineConfig({
     options: { typeAware: true, typeCheck: true },
     jsPlugins: ["eslint-plugin-formatjs"],
     rules: {
-      ...pluginFormatjs.configs.strict.rules,
+      ...formatjsStrictRules,
       // Most UI is not localized yet; re-enable as /localise coverage grows.
       "formatjs/no-literal-string-in-jsx": "off",
     },
     overrides: [
       {
         files: ["**/*.stories.ts", "**/*.stories.tsx", "**/*.test.ts", "**/*.test.tsx"],
-        rules: formatjsRulesOff as Partial<
-          Record<keyof typeof pluginFormatjs.configs.strict.rules, "off">
-        >,
+        rules: formatjsRulesOff,
       },
     ],
   },
