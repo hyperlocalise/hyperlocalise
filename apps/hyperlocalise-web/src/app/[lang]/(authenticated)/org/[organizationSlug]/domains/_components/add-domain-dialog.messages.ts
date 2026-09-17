@@ -364,6 +364,11 @@ export const addDomainDialogMessages = defineMessages({
     defaultMessage: "Select at least one market to continue.",
     description: "Required market selection validation message",
   },
+  marketSelectionLimit: {
+    id: "6L6wa37ZDx",
+    defaultMessage: "You can select up to 16 markets.",
+    description: "Maximum market selection message",
+  },
   invalidDomain: {
     id: "ezTvHw7x6I",
     defaultMessage: "Enter a valid domain, like example.com.",

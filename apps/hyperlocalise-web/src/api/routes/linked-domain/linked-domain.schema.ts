@@ -33,7 +33,7 @@ export const marketRecommendationsBodySchema = z.object({
 });
 
 export const updateLinkedDomainMarketsBodySchema = z.object({
-  marketIds: z.array(z.string().trim().min(1).max(64)).min(1).max(16),
+  marketIds: z.array(z.string().trim().min(1).max(64)).max(16),
 });
 
 export const linkedDomainIdParamSchema = z.object({

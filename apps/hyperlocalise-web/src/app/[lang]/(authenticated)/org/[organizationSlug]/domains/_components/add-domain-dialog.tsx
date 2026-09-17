@@ -89,6 +89,7 @@ function emptyMarketRecommendation(marketId: string): MarketRecommendation {
 const supportedMarketRecommendations = DOMAIN_RESEARCH_MARKETS.map((market) =>
   emptyMarketRecommendation(market.id),
 );
+const MAX_MARKET_SELECTIONS = 16;
 
 export function AddDomainDialog({
   open,
@@ -138,6 +139,7 @@ export function AddDomainDialog({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const allowsEmptyMarkets = Boolean(claimDomainSlug || linkedDomain?.localisationAuditId);
 
   useEffect(() => {
     if (!open) return;
@@ -297,7 +299,7 @@ export function AddDomainDialog({
 
   async function saveMarkets() {
     if (!linkedDomain) return;
-    if (selectedMarketIds.length === 0) {
+    if (selectedMarketIds.length === 0 && !allowsEmptyMarkets) {
       setError(intl.formatMessage(messages.marketSelectionRequired));
       return;
     }
@@ -650,6 +652,9 @@ export function AddDomainDialog({
                         >
                           <Checkbox
                             checked={selectedMarketIds.includes(market.marketId)}
+                            disabled={
+                              !selected && selectedMarketIds.length >= MAX_MARKET_SELECTIONS
+                            }
                             onCheckedChange={(checked) =>
                               setSelectedMarketIds((current) =>
                                 checked
@@ -692,7 +697,12 @@ export function AddDomainDialog({
                   {intl.formatMessage(messages.noRecommendations)}
                 </p>
               )}
-              {selectedMarketIds.length === 0 ? (
+              {selectedMarketIds.length >= MAX_MARKET_SELECTIONS ? (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {intl.formatMessage(messages.marketSelectionLimit)}
+                </p>
+              ) : null}
+              {selectedMarketIds.length === 0 && !allowsEmptyMarkets ? (
                 <p role="alert" className="text-sm text-destructive">
                   {intl.formatMessage(messages.marketSelectionRequired)}
                 </p>
@@ -703,7 +713,7 @@ export function AddDomainDialog({
                 </Button>
                 <Button
                   type="button"
-                  disabled={pending || selectedMarketIds.length === 0}
+                  disabled={pending || (selectedMarketIds.length === 0 && !allowsEmptyMarkets)}
                   onClick={() => setStep("project")}
                 >
                   {intl.formatMessage(messages.continueToProject)}
@@ -818,7 +828,7 @@ export function AddDomainDialog({
                 </Button>
                 <Button
                   type="button"
-                  disabled={pending || selectedMarketIds.length === 0}
+                  disabled={pending || (selectedMarketIds.length === 0 && !allowsEmptyMarkets)}
                   onClick={() => void saveMarkets()}
                 >
                   {pending

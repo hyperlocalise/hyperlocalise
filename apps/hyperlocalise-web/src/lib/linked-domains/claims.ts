@@ -290,7 +290,10 @@ export async function updateLinkedDomainMarkets(input: {
 
   const marketIds = [...new Set(input.marketIds)];
   const supportedMarketIds = new Set(DOMAIN_RESEARCH_MARKETS.map((market) => market.id));
-  if (marketIds.length === 0 || marketIds.some((marketId) => !supportedMarketIds.has(marketId))) {
+  if (
+    (marketIds.length === 0 && !row.localisationAuditId) ||
+    marketIds.some((marketId) => !supportedMarketIds.has(marketId))
+  ) {
     return err({ code: "invalid_market_selection", message: "Select supported markets." });
   }
 

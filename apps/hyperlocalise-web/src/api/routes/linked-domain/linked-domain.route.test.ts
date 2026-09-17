@@ -185,6 +185,20 @@ describe("linkedDomainRoutes", () => {
     expect(verified.linkedDomain.projectId).toMatch(/^project_/);
     expect(verified.linkedDomain.verifiedMethod).toBe("dns_txt");
 
+    const clearMarketsResponse = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].markets.$patch(
+      {
+        param: { organizationSlug, linkedDomainId },
+        json: { marketIds: [] },
+      },
+      { headers },
+    );
+    expect(clearMarketsResponse.status).toBe(200);
+    await expect(clearMarketsResponse.json()).resolves.toMatchObject({
+      linkedDomain: { marketIds: [] },
+    });
+
     const projectId = verified.linkedDomain.projectId;
     expect(projectId).toBeTruthy();
     const projectMemoryRows = await db
