@@ -26,6 +26,8 @@ export type DomainResearchNavId = DomainResearchSurface;
 
 export type DomainResearchStatus = "verified" | "pending_verification";
 
+export type DomainResearchDevice = "desktop" | "mobile";
+
 export type KeywordIntent = "informational" | "commercial" | "transactional" | "navigational";
 
 export type BrandEngine = "chatgpt" | "claude" | "gemini" | "perplexity";
@@ -84,6 +86,7 @@ export type RankRow = {
   url: string;
   volume: number;
   marketId?: string;
+  device?: DomainResearchDevice;
 };
 
 export type OverviewKeywordRow = {

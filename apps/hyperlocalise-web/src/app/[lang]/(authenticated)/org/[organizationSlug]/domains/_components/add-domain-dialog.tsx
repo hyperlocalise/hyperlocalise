@@ -76,11 +76,26 @@ function getMarketTier(market: MarketRecommendation): MarketTier {
   return "discovery";
 }
 
+function emptyMarketRecommendation(marketId: string): MarketRecommendation {
+  return {
+    marketId,
+    organicCount: 0,
+    organicEtv: 0,
+    top10Count: 0,
+    hasOrganicVisibility: false,
+  };
+}
+
+const supportedMarketRecommendations = DOMAIN_RESEARCH_MARKETS.map((market) =>
+  emptyMarketRecommendation(market.id),
+);
+
 export function AddDomainDialog({
   open,
   onOpenChange,
   organizationSlug,
   initialDomainSlug,
+  mode = "create",
   initialStep = "details",
   initialLinkedDomain,
   initialRecommendations = [],
@@ -95,6 +110,7 @@ export function AddDomainDialog({
   onOpenChange: (open: boolean) => void;
   organizationSlug: string;
   initialDomainSlug?: string;
+  mode?: "create" | "edit";
   initialStep?: Step;
   initialLinkedDomain?: LinkedDomainPublic;
   initialRecommendations?: MarketRecommendation[];
@@ -132,8 +148,16 @@ export function AddDomainDialog({
     setMethod("dns_txt");
     setProjectMode("create");
     setProjectId("");
-    setRecommendations(initialRecommendations);
-    setSelectedMarketIds(initialSelectedMarketIds);
+    setRecommendations(
+      initialRecommendations.length || mode !== "edit"
+        ? initialRecommendations
+        : supportedMarketRecommendations,
+    );
+    setSelectedMarketIds(
+      initialSelectedMarketIds.length || !initialLinkedDomain
+        ? initialSelectedMarketIds
+        : initialLinkedDomain.marketIds,
+    );
     setPending(false);
     setError(null);
     setCopied(false);
@@ -242,6 +266,7 @@ export function AddDomainDialog({
         message?: string;
       };
       if (!response.ok || !body.marketRecommendations) {
+        setRecommendations(supportedMarketRecommendations);
         setStep("markets");
         throw new Error(body.message || intl.formatMessage(messages.recommendationsError));
       }
@@ -250,19 +275,16 @@ export function AddDomainDialog({
       const candidatesById = new Map(candidates.map((market) => [market.marketId, market]));
       const supportedMarkets = DOMAIN_RESEARCH_MARKETS.map(
         (market): MarketRecommendation =>
-          candidatesById.get(market.id) ?? {
-            marketId: market.id,
-            organicCount: 0,
-            organicEtv: 0,
-            top10Count: 0,
-            hasOrganicVisibility: false,
-          },
+          candidatesById.get(market.id) ?? emptyMarketRecommendation(market.id),
       );
       setRecommendations(supportedMarkets);
       setSelectedMarketIds(
         (body.marketRecommendations.recommended ?? []).map((market) => market.marketId),
       );
     } catch (reason) {
+      setRecommendations((current) =>
+        current.length > 0 ? current : supportedMarketRecommendations,
+      );
       setError(
         reason instanceof Error
           ? reason.message
@@ -275,9 +297,34 @@ export function AddDomainDialog({
 
   async function saveMarkets() {
     if (!linkedDomain) return;
+    if (selectedMarketIds.length === 0) {
+      setError(intl.formatMessage(messages.marketSelectionRequired));
+      return;
+    }
     setPending(true);
     setError(null);
     try {
+      if (mode === "edit") {
+        const response = await fetch(
+          `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/markets`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ marketIds: selectedMarketIds }),
+          },
+        );
+        const body = (await response.json().catch(() => ({}))) as {
+          linkedDomain?: LinkedDomainPublic;
+          message?: string;
+        };
+        if (!response.ok || !body.linkedDomain) {
+          throw new Error(body.message || intl.formatMessage(messages.saveMarketsError));
+        }
+        onComplete?.(body.linkedDomain);
+        onOpenChange(false);
+        return;
+      }
+
       let selectedProjectId: string | undefined;
       let createProject: boolean | undefined;
       if (projectMode === "existing") {
@@ -645,11 +692,20 @@ export function AddDomainDialog({
                   {intl.formatMessage(messages.noRecommendations)}
                 </p>
               )}
+              {selectedMarketIds.length === 0 ? (
+                <p role="alert" className="text-sm text-destructive">
+                  {intl.formatMessage(messages.marketSelectionRequired)}
+                </p>
+              ) : null}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setStep("connect")}>
                   {intl.formatMessage(messages.back)}
                 </Button>
-                <Button type="button" disabled={pending} onClick={() => setStep("project")}>
+                <Button
+                  type="button"
+                  disabled={pending || selectedMarketIds.length === 0}
+                  onClick={() => setStep("project")}
+                >
                   {intl.formatMessage(messages.continueToProject)}
                 </Button>
               </DialogFooter>
@@ -760,10 +816,18 @@ export function AddDomainDialog({
                 <Button type="button" variant="outline" onClick={() => setStep("markets")}>
                   {intl.formatMessage(messages.back)}
                 </Button>
-                <Button type="button" disabled={pending} onClick={() => void saveMarkets()}>
+                <Button
+                  type="button"
+                  disabled={pending || selectedMarketIds.length === 0}
+                  onClick={() => void saveMarkets()}
+                >
                   {pending
                     ? intl.formatMessage(messages.finishing)
-                    : intl.formatMessage(messages.addSelectedMarkets)}
+                    : intl.formatMessage(
+                        mode === "edit"
+                          ? messages.saveSelectedMarkets
+                          : messages.addSelectedMarkets,
+                      )}
                 </Button>
               </DialogFooter>
             </>

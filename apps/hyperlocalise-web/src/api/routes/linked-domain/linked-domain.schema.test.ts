@@ -58,8 +58,8 @@ describe("create linked domain body schema", () => {
 });
 
 describe("update linked domain markets body schema", () => {
-  it("accepts an empty market selection", () => {
-    expect(updateLinkedDomainMarketsBodySchema.safeParse({ marketIds: [] }).success).toBe(true);
+  it("rejects an empty market selection", () => {
+    expect(updateLinkedDomainMarketsBodySchema.safeParse({ marketIds: [] }).success).toBe(false);
   });
 
   it("accepts one or more selected markets", () => {

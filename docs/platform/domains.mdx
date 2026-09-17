@@ -41,18 +41,53 @@ If a market has no saved data yet, the UI shows an explicit empty state instead 
 
 ## Supported markets
 
-Live domains currently expose four fixed research markets:
+Live domains currently expose these 39 research markets. The market ID, label, language, and DataForSEO location mapping come from the shared application catalog.
 
-| Market ID | Location | Language |
+| Market ID | Location | Label |
 | --- | --- | --- |
-| `france-fr` | France | French |
-| `germany-de` | Germany | German |
-| `japan-ja` | Japan | Japanese |
-| `vietnam-vi` | Vietnam | Vietnamese |
+| `france-fr` | France | French (France) |
+| `germany-de` | Germany | German (Germany) |
+| `japan-ja` | Japan | Japanese (Japan) |
+| `vietnam-vi` | Vietnam | Vietnamese (Vietnam) |
+| `united-states-en` | United States | English (United States) |
+| `united-kingdom-en` | United Kingdom | English (United Kingdom) |
+| `australia-en` | Australia | English (Australia) |
+| `india-en` | India | English (India) |
+| `spain-es` | Spain | Spanish (Spain) |
+| `mexico-es` | Mexico | Spanish (Mexico) |
+| `canada-fr` | Canada | French (Canada) |
+| `italy-it` | Italy | Italian (Italy) |
+| `brazil-pt` | Brazil | Portuguese (Brazil) |
+| `portugal-pt` | Portugal | Portuguese (Portugal) |
+| `netherlands-nl` | Netherlands | Dutch (Netherlands) |
+| `sweden-sv` | Sweden | Swedish (Sweden) |
+| `denmark-da` | Denmark | Danish (Denmark) |
+| `norway-nb` | Norway | Norwegian (Norway) |
+| `finland-fi` | Finland | Finnish (Finland) |
+| `poland-pl` | Poland | Polish (Poland) |
+| `czechia-cs` | Czechia | Czech (Czechia) |
+| `hungary-hu` | Hungary | Hungarian (Hungary) |
+| `romania-ro` | Romania | Romanian (Romania) |
+| `greece-el` | Greece | Greek (Greece) |
+| `turkey-tr` | Türkiye | Turkish (Türkiye) |
+| `russia-ru` | Russia | Russian (Russia) |
+| `ukraine-uk` | Ukraine | Ukrainian (Ukraine) |
+| `saudi-arabia-ar` | Saudi Arabia | Arabic (Saudi Arabia) |
+| `israel-he` | Israel | Hebrew (Israel) |
+| `iran-fa` | Iran | Persian (Iran) |
+| `bangladesh-bn` | Bangladesh | Bengali (Bangladesh) |
+| `indonesia-id` | Indonesia | Indonesian (Indonesia) |
+| `malaysia-ms` | Malaysia | Malay (Malaysia) |
+| `thailand-th` | Thailand | Thai (Thailand) |
+| `philippines-fil` | Philippines | Filipino (Philippines) |
+| `china-zh` | China | Chinese (China) |
+| `taiwan-zh` | Taiwan | Chinese (Taiwan) |
+| `hong-kong-zh` | Hong Kong | Chinese (Hong Kong) |
+| `south-korea-ko` | South Korea | Korean (South Korea) |
 
-Every verified domain can use all four markets. Research rows are stored per market in Postgres (`marketId`, DataForSEO `locationCode`, and `languageCode`).
+Every verified domain can use any supported market. Research rows are stored per market in Postgres (`marketId`, DataForSEO `locationCode`, and `languageCode`).
 
-When linking a domain, the user provides only the hostname. After ownership verification succeeds, Hyperlocalise reads locale metadata and checks those markets plus the four defaults through DataForSEO Labs. Each market is requested separately; users review and save the resulting market selection.
+When linking a domain, the user reviews recommended markets after ownership verification and must select at least one before completing direct-domain onboarding. Each market is requested separately through DataForSEO Labs; the user can change the selection before saving and later from the linked-domain detail page.
 
 ## Keyword research workflow
 
