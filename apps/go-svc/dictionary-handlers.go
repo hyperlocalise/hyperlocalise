@@ -6,12 +6,28 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"unicode/utf16"
 
 	"github.com/jackc/pgx/v5"
 )
 
-func utf16Length(value string) int { return len(utf16.Encode([]rune(value))) }
+// utf16Length returns the number of UTF-16 code units in value without heap allocations.
+func utf16Length(value string) int {
+	// ASCII fast-path: if all bytes are ASCII (< 0x80), UTF-16 code unit count equals string length.
+	for i := 0; i < len(value); i++ {
+		if value[i] >= 0x80 {
+			n := 0
+			for _, r := range value {
+				if r > 0xffff {
+					n += 2
+				} else {
+					n++
+				}
+			}
+			return n
+		}
+	}
+	return len(value)
+}
 
 type dictionaryPayload struct {
 	Name        *string `json:"name"`
