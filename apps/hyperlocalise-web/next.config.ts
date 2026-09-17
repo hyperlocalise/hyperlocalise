@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
   // View transitions work without config in Next.js 16.3+ (experimental.viewTransition removed).
   // Agent prompts load from src/agents/**/*.md at runtime via process.cwd() (see paths.ts).
   outputFileTracingIncludes: {
-    "/*": [AGENT_MARKDOWN_TRACE_GLOB, "_posts/**/*.md", "datadog-init.mjs"],
+    "/*": [AGENT_MARKDOWN_TRACE_GLOB, "_posts/**/*.md", "datadog-init.mjs", "datadog-init-env.mjs"],
   },
   // Crowdin App frame-ancestors CSP is set at runtime in `src/proxy.ts`
   // (defaults ∪ CROWDIN_APP_FRAME_ANCESTORS). Do not also set CSP here —
