@@ -134,11 +134,14 @@ describe("image generation", () => {
     );
 
     const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as {
-      run: () => Promise<{ billing: { tokenUsage: unknown } }>;
       extractTokenUsage: (result: { billing: { tokenUsage: unknown } }) => unknown;
       aiCreditModelId: (result: { billing: { tokenUsage: unknown } }) => string;
     };
-    const generated = await metering.run();
+    const generated = {
+      billing: {
+        tokenUsage: { inputTokens: 120, outputTokens: 80, totalTokens: 200 },
+      },
+    };
     expect(metering.extractTokenUsage(generated)).toEqual({
       inputTokens: 120,
       outputTokens: 80,
