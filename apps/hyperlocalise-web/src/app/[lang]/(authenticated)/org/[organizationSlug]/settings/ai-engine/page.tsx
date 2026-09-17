@@ -10,31 +10,41 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { redirect } from "next/navigation";
+import { hasCapability } from "@/api/auth/policy";
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
+import { AiEnginePageContent } from "../../ai-engine/_components/ai-engine-page-content";
 import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
-  return generateAuthenticatedPageMetadata(params, "settingsLinkedDomains");
+  return generateAuthenticatedPageMetadata(params, "aiEngine");
 }
 
-export default function LinkedDomainsSettingsPage({
+export default function AiEngineSettingsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
   return (
     <OrgPageSuspense>
-      <LinkedDomainsSettingsPageLoader params={params} />
+      <AiEngineSettingsPageLoader params={params} />
     </OrgPageSuspense>
   );
 }
 
-async function LinkedDomainsSettingsPageLoader({
+async function AiEngineSettingsPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  return redirect(`/org/${organizationSlug}/settings/domains`);
+  const auth = await requireAppAuthContext({ organizationSlug });
+
+  return (
+    <AiEnginePageContent
+      organizationSlug={organizationSlug}
+      canManageAiEngine={hasCapability(auth.membership.role, "integrations:read")}
+    />
+  );
 }

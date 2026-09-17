@@ -48,14 +48,13 @@ import {
   Key01Icon,
   LanguageCircleIcon,
   Message01Icon,
-  PuzzleIcon,
   SearchIcon,
   SearchList01Icon,
-  SentIcon,
   Settings01Icon,
   SparklesIcon,
   TextFontIcon,
   UserMultiple02Icon,
+  Video01Icon,
 } from "@hugeicons/core-free-icons";
 import type { HugeiconsIcon } from "@hugeicons/react";
 
@@ -79,6 +78,8 @@ export type NavigationItem = {
     | typeof RELEASE_CAT_ALL_FILES_FLAG;
   /** When true, the feature flag is off and the nav item links to a teaser page. */
   preview?: boolean;
+  /** When true, the item is visible but not navigable. */
+  disabled?: boolean;
 };
 
 export type NavigationGroup = {
@@ -144,6 +145,33 @@ export function buildGlobalNavigationGroups(
       items: [
         {
           label: intl.formatMessage({
+            defaultMessage: "Overview",
+            id: "M1acCMedpF",
+            description: "Sidebar navigation item for the workspace dashboard overview",
+          }),
+          href: org("dashboard"),
+          icon: DashboardSquare01Icon,
+        },
+        {
+          label: intl.formatMessage({
+            defaultMessage: "Projects",
+            id: "WXz3UNteSC",
+            description: "Sidebar navigation item for the projects list",
+          }),
+          href: org("projects"),
+          icon: CubeIcon,
+        },
+      ],
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Workspace",
+        id: "VMLVh0fGup",
+        description: "Sidebar group label for workspace-level navigation items",
+      }),
+      items: [
+        {
+          label: intl.formatMessage({
             defaultMessage: "Inbox",
             id: "qYH/VTnW7r",
             description: "Sidebar navigation item for the workspace inbox",
@@ -172,15 +200,6 @@ export function buildGlobalNavigationGroups(
         },
         {
           label: intl.formatMessage({
-            defaultMessage: "Overview",
-            id: "M1acCMedpF",
-            description: "Sidebar navigation item for the workspace dashboard overview",
-          }),
-          href: org("dashboard"),
-          icon: DashboardSquare01Icon,
-        },
-        {
-          label: intl.formatMessage({
             defaultMessage: "Reports",
             id: "0wXT++q3xO",
             description: "Workspace translation reports",
@@ -202,123 +221,11 @@ export function buildGlobalNavigationGroups(
     },
     {
       label: intl.formatMessage({
-        defaultMessage: "Agents",
-        id: "/EOfWYVF9T",
-        description: "Sidebar group label for agent navigation items",
+        defaultMessage: "Content Intelligence",
+        id: "x4rENGJxzk",
+        description: "Sidebar group label for content intelligence navigation items",
       }),
       items: [
-        {
-          label: intl.formatMessage({
-            defaultMessage: "New Request",
-            id: "VtO24sqmBM",
-            description: "Sidebar navigation item to start a new localisation request",
-          }),
-          href: org("inbox/new"),
-          exact: true,
-          icon: SentIcon,
-          description: intl.formatMessage({
-            defaultMessage: "Ask the localisation agent to prepare work",
-            id: "z45OPLD254",
-            description: "Sidebar description for the New Request navigation item",
-          }),
-        },
-        {
-          label: intl.formatMessage({
-            defaultMessage: "Automations",
-            id: "87mk4HgY5S",
-            description: "Sidebar navigation item for workspace automations",
-          }),
-          href: org("automations"),
-          icon: FlashIcon,
-          description: intl.formatMessage({
-            defaultMessage: "Scheduled and GitHub-triggered deterministic workflows",
-            id: "TBagRGINiT",
-            description: "Sidebar description for the Automations navigation item",
-          }),
-          badge: intl.formatMessage({
-            defaultMessage: "Beta",
-            id: "+WwLLR9+vz",
-            description: "Badge shown next to the Automations navigation item",
-          }),
-          featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
-        },
-        {
-          label: intl.formatMessage({
-            defaultMessage: "AI Engine",
-            id: "Q8QL+zifeT",
-            description: "Sidebar navigation item for workspace AI model providers",
-          }),
-          href: org("ai-engine"),
-          icon: SparklesIcon,
-          description: intl.formatMessage({
-            defaultMessage: "Choose the model provider agents use",
-            id: "ZnnVLUSfjR",
-            description: "Sidebar description for the AI Engine navigation item",
-          }),
-        },
-      ],
-    },
-    {
-      label: intl.formatMessage({
-        defaultMessage: "Workspace",
-        id: "VMLVh0fGup",
-        description: "Sidebar group label for workspace-level navigation items",
-      }),
-      items: [
-        {
-          label: intl.formatMessage({
-            defaultMessage: "Projects",
-            id: "WXz3UNteSC",
-            description: "Sidebar navigation item for the projects list",
-          }),
-          href: org("projects"),
-          icon: CubeIcon,
-        },
-        {
-          label: intl.formatMessage({
-            defaultMessage: "Domains",
-            id: "sHQ6RKFJ37",
-            description: "Sidebar navigation item for linked domains",
-          }),
-          href: org("domains"),
-          icon: Globe02Icon,
-          description: intl.formatMessage({
-            defaultMessage: "Claimed sites and localisation audit reports",
-            id: "B3yFCBQLDF",
-            description: "Sidebar description for the Domains navigation item",
-          }),
-          featureFlagKey: WORKSPACE_DOMAINS_FLAG,
-        },
-        {
-          label: intl.formatMessage({
-            defaultMessage: "Hyperlab",
-            id: "e1WibRfkfv",
-            description: "Sidebar navigation item for Hyperlab experiments",
-          }),
-          href: org("hyperlab"),
-          icon: FlaskConicalIcon,
-          description: intl.formatMessage({
-            defaultMessage: "Flags and experiments for your apps",
-            id: "4/gpJsFcCP",
-            description: "Sidebar description for the Hyperlab navigation item",
-          }),
-          featureFlagKey: WORKSPACE_HYPERLAB_FLAG,
-        },
-        {
-          label: intl.formatMessage({
-            defaultMessage: "Guideline",
-            id: "D6HJDahz6H",
-            description: "Sidebar navigation item for workspace guideline",
-          }),
-          href: org("knowledge"),
-          icon: Bookmark01Icon,
-          description: intl.formatMessage({
-            defaultMessage: "Shared guidance for agents and teams",
-            id: "dEzuHMWHq4",
-            description: "Sidebar description for the Guideline navigation item",
-          }),
-          featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,
-        },
         {
           label: intl.formatMessage({
             defaultMessage: "Glossaries",
@@ -348,27 +255,23 @@ export function buildGlobalNavigationGroups(
         },
         {
           label: intl.formatMessage({
-            defaultMessage: "Integrations",
-            id: "lq1y6qqiDK",
-            description: "Sidebar navigation item for integrations",
+            defaultMessage: "Guideline",
+            id: "D6HJDahz6H",
+            description: "Sidebar navigation item for workspace guideline",
           }),
-          href: org("integrations"),
-          icon: PuzzleIcon,
-        },
-        {
-          label: intl.formatMessage({
-            defaultMessage: "Members",
-            id: "1/YUf106Rt",
-            description: "Sidebar navigation item for workspace members",
-          }),
-          href: org("members"),
-          icon: UserMultiple02Icon,
+          href: org("knowledge"),
+          icon: Bookmark01Icon,
           description: intl.formatMessage({
-            defaultMessage: "Invite people and manage workspace roles",
-            id: "blLcFpSkB4",
-            description: "Sidebar description for the Members navigation item",
+            defaultMessage: "Shared guidance for agents and teams",
+            id: "dEzuHMWHq4",
+            description: "Sidebar description for the Guideline navigation item",
           }),
+          featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,
         },
+      ],
+    },
+    {
+      items: [
         {
           label: intl.formatMessage({
             defaultMessage: "Settings",
@@ -383,61 +286,29 @@ export function buildGlobalNavigationGroups(
   ] as const;
 }
 
-export function buildProjectNavigationItems(
+export function buildProjectNavigationGroups(
   organizationSlug: string,
   projectId: string,
   intl: IntlShape,
-): readonly NavigationItem[] {
+): readonly NavigationGroup[] {
   const project = (section: string) => buildProjectPath(organizationSlug, projectId, section);
   const providerKind = parseProviderProjectId(projectId)?.providerKind ?? null;
   const showContentEditor = supportsContentEditorAllFilesProvider(providerKind);
 
-  const items: NavigationItem[] = [
+  const contentStudioItems: NavigationItem[] = [
     {
       label: intl.formatMessage({
-        defaultMessage: "Overview",
-        id: "w6stmLL+C3",
-        description: "Project sidebar navigation item for the project overview",
+        defaultMessage: "Files",
+        id: "IMr6sfD/7/",
+        description: "Project sidebar navigation item for project files",
       }),
-      href: buildProjectPath(organizationSlug, projectId),
-      icon: CubeIcon,
-    },
-    {
-      label: intl.formatMessage({
-        defaultMessage: "Reports",
-        id: "MDRyeVzjZ2",
-        description: "Project translation reports",
-      }),
-      href: project("reports"),
-      icon: ChartHistogramIcon,
-      featureFlagKey: WORKSPACE_REPORTS_FLAG,
+      href: project("files"),
+      icon: File01Icon,
     },
   ];
 
-  if (!providerKind) {
-    items.push({
-      label: intl.formatMessage({
-        defaultMessage: "QA",
-        id: "jDgpB2Pv9x",
-        description: "Project sidebar navigation item for translation QA reports",
-      }),
-      href: project("qa"),
-      icon: CheckmarkCircle02Icon,
-    });
-  }
-
-  items.push({
-    label: intl.formatMessage({
-      defaultMessage: "Files",
-      id: "IMr6sfD/7/",
-      description: "Project sidebar navigation item for project files",
-    }),
-    href: project("files"),
-    icon: File01Icon,
-  });
-
   if (showContentEditor) {
-    items.push({
+    contentStudioItems.push({
       label: intl.formatMessage({
         defaultMessage: "Content Editor",
         id: "1XfD1U3TWk",
@@ -449,7 +320,42 @@ export function buildProjectNavigationItems(
     });
   }
 
-  items.push(
+  contentStudioItems.push({
+    label: intl.formatMessage({
+      defaultMessage: "Video Editor",
+      id: "SHEAO5sth2",
+      description: "Project sidebar navigation item for the Video Editor",
+    }),
+    href: project("videos"),
+    icon: Video01Icon,
+    description: intl.formatMessage({
+      defaultMessage: "Localize on-screen video text and speech",
+      id: "hbEoUHCttQ",
+      description: "Sidebar description for the Video Editor navigation item",
+    }),
+    badge: intl.formatMessage({
+      defaultMessage: "Coming soon",
+      id: "tYvhpR2krg",
+      description: "Badge shown next to the Video Editor navigation item",
+    }),
+    disabled: true,
+  });
+
+  const workspaceItems: NavigationItem[] = [];
+
+  if (!providerKind) {
+    workspaceItems.push({
+      label: intl.formatMessage({
+        defaultMessage: "QA",
+        id: "jDgpB2Pv9x",
+        description: "Project sidebar navigation item for translation QA reports",
+      }),
+      href: project("qa"),
+      icon: CheckmarkCircle02Icon,
+    });
+  }
+
+  workspaceItems.push(
     {
       label: intl.formatMessage({
         defaultMessage: "Jobs",
@@ -479,33 +385,62 @@ export function buildProjectNavigationItems(
       icon: FlashIcon,
       featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
     },
-    {
-      label: intl.formatMessage({
-        defaultMessage: "Guideline",
-        id: "6dq9jGfioL",
-        description: "Project sidebar navigation item for project guideline",
-      }),
-      href: project("knowledge"),
-      icon: Bookmark01Icon,
-      description: intl.formatMessage({
-        defaultMessage: "Project-specific guidance for agents and teams",
-        id: "tMOiEvbyBd",
-        description: "Sidebar description for the project Guideline navigation item",
-      }),
-      featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,
-    },
-    {
-      label: intl.formatMessage({
-        defaultMessage: "Settings",
-        id: "Ly3jSjXVvC",
-        description: "Project sidebar navigation item for project settings",
-      }),
-      href: project("settings"),
-      icon: Settings01Icon,
-    },
   );
 
-  return items;
+  return [
+    {
+      items: [
+        {
+          label: intl.formatMessage({
+            defaultMessage: "Overview",
+            id: "w6stmLL+C3",
+            description: "Project sidebar navigation item for the project overview",
+          }),
+          href: buildProjectPath(organizationSlug, projectId),
+          icon: CubeIcon,
+        },
+      ],
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Content Studio",
+        id: "GCOyt/P/VO",
+        description: "Sidebar group label for content studio navigation items",
+      }),
+      items: contentStudioItems,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Workspace",
+        id: "hQ6AUqX0CM",
+        description: "Project sidebar group label for workspace-level navigation items",
+      }),
+      items: workspaceItems,
+    },
+    {
+      items: [
+        {
+          label: intl.formatMessage({
+            defaultMessage: "Settings",
+            id: "Ly3jSjXVvC",
+            description: "Project sidebar navigation item for project settings",
+          }),
+          href: project("settings"),
+          icon: Settings01Icon,
+        },
+      ],
+    },
+  ] as const;
+}
+
+export function buildProjectNavigationItems(
+  organizationSlug: string,
+  projectId: string,
+  intl: IntlShape,
+): readonly NavigationItem[] {
+  return buildProjectNavigationGroups(organizationSlug, projectId, intl).flatMap(
+    (group) => group.items,
+  );
 }
 
 export function buildDomainNavigationItems(

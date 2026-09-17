@@ -40,7 +40,7 @@ import { AppShellNavigation } from "./app-shell-navigation";
 import {
   buildDomainNavigationItems,
   buildGlobalNavigationGroups,
-  buildProjectNavigationItems,
+  buildProjectNavigationGroups,
 } from "./navigation-config";
 import { NavUser } from "./nav-user";
 import { AppShellHeaderActions } from "./store/app-shell-header-actions";
@@ -94,15 +94,11 @@ export function buildAppShellStoryNavigationGroups(locale: string = "en") {
 
 export function buildAppShellStoryProjectNavigationGroups(locale: string = "en") {
   const intl = getIntlShape(locale) as IntlShape;
-  return [
-    {
-      items: buildProjectNavigationItems(
-        APP_SHELL_STORY_ORGANIZATION_SLUG,
-        APP_SHELL_STORY_PROJECT_ID,
-        intl,
-      ),
-    },
-  ];
+  return buildProjectNavigationGroups(
+    APP_SHELL_STORY_ORGANIZATION_SLUG,
+    APP_SHELL_STORY_PROJECT_ID,
+    intl,
+  );
 }
 
 export function buildAppShellStoryDomainNavigationGroups(locale: string = "en") {

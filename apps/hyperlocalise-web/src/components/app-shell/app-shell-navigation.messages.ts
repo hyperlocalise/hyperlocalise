@@ -70,4 +70,19 @@ export const appShellNavigationMessages = defineMessages({
     id: "pJnog+S4bX",
     description: "Sidebar section label above Hyperlab navigation items",
   },
+  workspaceSection: {
+    defaultMessage: "Workspace",
+    id: "5RYXpxJmvr",
+    description: "Sidebar group label for workspace navigation items",
+  },
+  contentStudioSection: {
+    defaultMessage: "Content Studio",
+    id: "GCOyt/P/VO",
+    description: "Sidebar group label for content studio navigation items",
+  },
+  contentIntelligenceSection: {
+    defaultMessage: "Content Intelligence",
+    id: "x4rENGJxzk",
+    description: "Sidebar group label for content intelligence navigation items",
+  },
 });

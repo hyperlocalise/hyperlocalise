@@ -41,8 +41,8 @@ export const GlobalNavigation: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("link", { name: "Overview" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Inbox" })).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: "Automations" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Projects" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Settings" })).toBeInTheDocument();
   },
 };
 
@@ -76,6 +76,7 @@ export const ProjectNavigation: Story = {
     await expect(canvas.getByRole("link", { name: "All projects" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Files" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Overview" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Video Editor/ })).toBeDisabled();
   },
 };
 
