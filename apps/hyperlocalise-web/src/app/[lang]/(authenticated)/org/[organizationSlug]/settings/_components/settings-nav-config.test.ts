@@ -88,7 +88,9 @@ describe("settings nav config", () => {
     expect(resolveActiveSettingsNavItem("/org/acme/settings/ai-engine", "acme")).toBe("ai-engine");
     expect(resolveActiveSettingsNavItem("/org/acme/ai-engine", "acme")).toBe("ai-engine");
     expect(resolveActiveSettingsNavItem("/org/acme/settings/domains", "acme")).toBe("domains");
-    expect(resolveActiveSettingsNavItem("/org/acme/settings/linked-domains", "acme")).toBe("domains");
+    expect(resolveActiveSettingsNavItem("/org/acme/settings/linked-domains", "acme")).toBe(
+      "domains",
+    );
     expect(resolveActiveSettingsNavItem("/org/acme/domains", "acme")).toBe("domains");
     expect(resolveActiveSettingsNavItem("/org/acme/settings/hyperlab", "acme")).toBe("hyperlab");
     expect(resolveActiveSettingsNavItem("/org/acme/hyperlab", "acme")).toBe("hyperlab");
