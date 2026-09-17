@@ -168,6 +168,11 @@ export const tmImportExportPanelMessages = defineMessages({
     id: "S1WdU+6z/U",
     description: "Error when a translation memory import file exceeds the documented size limit",
   },
+  unsupportedImportFormat: {
+    defaultMessage: "Choose a TMX or CSV file.",
+    id: "q2TmX8nR4p",
+    description: "Error when a translation memory import file is not TMX or CSV",
+  },
   importFailed: {
     defaultMessage: "Unable to import entries",
     id: "VxRWiDyH8o",

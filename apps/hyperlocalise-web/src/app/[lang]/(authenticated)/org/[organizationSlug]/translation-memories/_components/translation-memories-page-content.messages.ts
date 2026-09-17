@@ -45,9 +45,30 @@ export const translationMemoriesPageContentMessages = defineMessages({
     id: "xZLc+H/X20",
     description: "Toast after a translation memory is created successfully",
   },
+  memoryCreatedAndImported: {
+    defaultMessage: "Translation memory created. Import started.",
+    id: "t4Kq8nWm2P",
+    description: "Toast after a translation memory is created and a TMX or CSV import starts",
+  },
+  importAfterCreateFailed: {
+    defaultMessage: "Translation memory created, but the file could not be imported.",
+    id: "b7Hs3pLc9R",
+    description: "Toast when memory creation succeeds but the follow-up TMX or CSV import fails",
+  },
   nameRequired: {
     defaultMessage: "Translation memory name is required.",
     id: "p+mx30+l3M",
     description: "Validation error when the create translation memory name field is empty",
+  },
+  importFileInvalid: {
+    defaultMessage: "Choose a TMX or CSV file.",
+    id: "m5Vd2qYn8T",
+    description: "Validation error when the create-memory upload is not TMX or CSV",
+  },
+  importFileTooLarge: {
+    defaultMessage:
+      "This file is larger than the {maxMegabytes, number} MB import limit. Split the memory into smaller TMX files.",
+    id: "h9Wp4sKc1L",
+    description: "Error when a create-memory upload exceeds the documented size limit",
   },
 });
