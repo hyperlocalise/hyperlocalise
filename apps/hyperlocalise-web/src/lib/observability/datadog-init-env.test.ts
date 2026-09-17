@@ -50,6 +50,7 @@ describe("applyDatadogInitEnv", () => {
       DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP: "password=.*",
     });
 
+    // dd-trace treats `.*` as a full redact and strips `?search=...` from http.url.
     expect(COMPLETE_QUERY_STRING_REDACTION_REGEXP).toBe(".*");
     expect(env.DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP).toBe(".*");
   });
