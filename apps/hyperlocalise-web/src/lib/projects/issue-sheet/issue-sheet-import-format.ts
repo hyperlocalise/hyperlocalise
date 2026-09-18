@@ -24,7 +24,9 @@ export const ISSUE_SHEET_IMPORT_ACCEPT_ALL = [
   ISSUE_SHEET_IMPORT_ACCEPT.xlsx,
 ].join(",");
 
-export function issueSheetImportFormatFromFilename(filename: string): IssueSheetImportFormat | null {
+export function issueSheetImportFormatFromFilename(
+  filename: string,
+): IssueSheetImportFormat | null {
   const lower = filename.toLowerCase();
   if (lower.endsWith(".csv")) {
     return "csv";

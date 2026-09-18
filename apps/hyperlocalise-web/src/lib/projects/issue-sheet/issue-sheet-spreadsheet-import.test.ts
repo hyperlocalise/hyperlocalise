@@ -52,9 +52,9 @@ describe("issue-sheet-spreadsheet-import", () => {
       ["Fix CTA, primary", "Open", 'He said "ship it"'],
       ["Update glossary term", "Done", "Line one\nline two"],
     ]);
-    expect(parseIssueSheetImportCsv(serializeIssueSheetImportCsv(parsed.headers, parsed.rows))).toEqual(
-      parsed,
-    );
+    expect(
+      parseIssueSheetImportCsv(serializeIssueSheetImportCsv(parsed.headers, parsed.rows)),
+    ).toEqual(parsed);
   });
 
   it("parses xls workbooks", () => {
@@ -79,10 +79,7 @@ describe("issue-sheet-spreadsheet-import", () => {
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([[], []]), "Empty");
     XLSX.utils.book_append_sheet(
       workbook,
-      XLSX.utils.aoa_to_sheet([
-        ["Title"],
-        ["Use the filled sheet"],
-      ]),
+      XLSX.utils.aoa_to_sheet([["Title"], ["Use the filled sheet"]]),
       "Queries",
     );
     const parsed = parseIssueSheetImportWorkbook(
@@ -99,8 +96,8 @@ describe("issue-sheet-spreadsheet-import", () => {
     expect(() => parseIssueSheetImportWorkbook(Uint8Array.from([1, 2, 3, 4]))).toThrow(
       "issue_sheet_import_invalid_spreadsheet",
     );
-    expect(() => parseIssueSheetImportWorkbook(Uint8Array.from(Buffer.from("not an xlsx")))).toThrow(
-      "issue_sheet_import_invalid_spreadsheet",
-    );
+    expect(() =>
+      parseIssueSheetImportWorkbook(Uint8Array.from(Buffer.from("not an xlsx"))),
+    ).toThrow("issue_sheet_import_invalid_spreadsheet");
   });
 });

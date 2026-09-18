@@ -47,9 +47,7 @@ export function IssueSheetImportMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={
-          <Button type="button" variant={variant} size={size} disabled={disabled} />
-        }
+        render={<Button type="button" variant={variant} size={size} disabled={disabled} />}
       >
         <FormattedMessage {...messages.import} />
         <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" strokeWidth={2} />

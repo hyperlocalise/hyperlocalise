@@ -261,10 +261,11 @@ export function IssueSheetImportDialog({
         content = await file.text();
         parsed = parseIssueSheetImportCsv(content);
       } else {
-        const spreadsheet = await import(
-          "@/lib/projects/issue-sheet/issue-sheet-spreadsheet-import"
+        const spreadsheet =
+          await import("@/lib/projects/issue-sheet/issue-sheet-spreadsheet-import");
+        parsed = spreadsheet.parseIssueSheetImportWorkbook(
+          new Uint8Array(await file.arrayBuffer()),
         );
-        parsed = spreadsheet.parseIssueSheetImportWorkbook(new Uint8Array(await file.arrayBuffer()));
         content = spreadsheet.serializeIssueSheetImportCsv(parsed.headers, parsed.rows);
       }
 

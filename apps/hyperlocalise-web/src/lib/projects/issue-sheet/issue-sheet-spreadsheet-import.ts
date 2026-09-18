@@ -29,7 +29,10 @@ function cellToString(value: unknown) {
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
-  return String(value).trim();
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return "";
 }
 
 function isSheetHidden(workbook: XLSX.WorkBook, name: string) {
