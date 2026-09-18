@@ -181,6 +181,9 @@ func TestDatadogLogHandlerWithAttrsAndWithGroupPreserveWrapping(t *testing.T) {
 	_, ok = withGroup.(*datadogLogHandler)
 	require.True(t, ok, "WithGroup must return a *datadogLogHandler, not unwrap the enrichment")
 
+	require.Equal(t, base, base.WithGroup(""), "empty WithGroup must return the receiver")
+	require.Equal(t, base, base.WithAttrs(nil), "empty WithAttrs must return the receiver")
+
 	logger := slog.New(withAttrs)
 	sc := testSpanContext(t, "4bf92f3577b34da6a3ce929d0e0e4736", "00f067aa0ba902b7", false)
 	ctx := trace.ContextWithSpanContext(context.Background(), sc)
@@ -190,6 +193,104 @@ func TestDatadogLogHandlerWithAttrsAndWithGroupPreserveWrapping(t *testing.T) {
 	require.Equal(t, "go-svc", entry["dd.service"])
 	require.Equal(t, "value", entry["extra"])
 	require.Equal(t, "4bf92f3577b34da6a3ce929d0e0e4736", entry["dd.trace_id"])
+}
+
+func TestDatadogLogHandlerWithGroupKeepsCorrelationAttrsTopLevel(t *testing.T) {
+	const (
+		traceIDHex = "4bf92f3577b34da6a3ce929d0e0e4736"
+		spanIDHex  = "00f067aa0ba902b7"
+	)
+	sc := testSpanContext(t, traceIDHex, spanIDHex, false)
+	ctx := trace.ContextWithSpanContext(context.Background(), sc)
+
+	requireRootDatadog := func(t *testing.T, entry map[string]any) {
+		t.Helper()
+		require.Equal(t, "go-svc", entry["dd.service"])
+		require.Equal(t, traceIDHex, entry["dd.trace_id"])
+		require.Equal(t, spanIDHex, entry["dd.span_id"])
+	}
+	requireNoDatadog := func(t *testing.T, group map[string]any) {
+		t.Helper()
+		require.NotContains(t, group, "dd.service")
+		require.NotContains(t, group, "dd.env")
+		require.NotContains(t, group, "dd.version")
+		require.NotContains(t, group, "dd.trace_id")
+		require.NotContains(t, group, "dd.span_id")
+	}
+	asGroup := func(t *testing.T, value any) map[string]any {
+		t.Helper()
+		group, ok := value.(map[string]any)
+		require.True(t, ok, "group must decode as a JSON object, got %T", value)
+		return group
+	}
+
+	t.Run("single group", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := slog.New(newTestDatadogHandler(&buf, slog.String("dd.service", "go-svc")).WithGroup("grp"))
+		logger.InfoContext(ctx, "msg", slog.String("k", "1"))
+
+		entry := decodeLogLine(t, &buf)
+		requireRootDatadog(t, entry)
+		require.NotContains(t, entry, "k")
+		group := asGroup(t, entry["grp"])
+		require.Equal(t, "1", group["k"])
+		requireNoDatadog(t, group)
+	})
+
+	t.Run("with attrs then group", func(t *testing.T) {
+		var buf bytes.Buffer
+		handler := newTestDatadogHandler(&buf, slog.String("dd.service", "go-svc")).
+			WithAttrs([]slog.Attr{slog.String("extra", "value")}).
+			WithGroup("grp")
+		slog.New(handler).InfoContext(ctx, "msg", slog.String("k", "1"))
+
+		entry := decodeLogLine(t, &buf)
+		requireRootDatadog(t, entry)
+		require.Equal(t, "value", entry["extra"])
+		require.NotContains(t, entry, "k")
+		group := asGroup(t, entry["grp"])
+		require.Equal(t, "1", group["k"])
+		require.NotContains(t, group, "extra")
+		requireNoDatadog(t, group)
+	})
+
+	t.Run("with group then attrs", func(t *testing.T) {
+		var buf bytes.Buffer
+		handler := newTestDatadogHandler(&buf, slog.String("dd.service", "go-svc")).
+			WithGroup("grp").
+			WithAttrs([]slog.Attr{slog.String("extra", "value")})
+		slog.New(handler).InfoContext(ctx, "msg", slog.String("k", "1"))
+
+		entry := decodeLogLine(t, &buf)
+		requireRootDatadog(t, entry)
+		require.NotContains(t, entry, "extra")
+		require.NotContains(t, entry, "k")
+		group := asGroup(t, entry["grp"])
+		require.Equal(t, "value", group["extra"])
+		require.Equal(t, "1", group["k"])
+		requireNoDatadog(t, group)
+	})
+
+	t.Run("nested groups", func(t *testing.T) {
+		var buf bytes.Buffer
+		handler := newTestDatadogHandler(&buf, slog.String("dd.service", "go-svc")).
+			WithGroup("a").
+			WithAttrs([]slog.Attr{slog.String("k1", "1")}).
+			WithGroup("b")
+		slog.New(handler).InfoContext(ctx, "msg", slog.String("k2", "2"))
+
+		entry := decodeLogLine(t, &buf)
+		requireRootDatadog(t, entry)
+		require.NotContains(t, entry, "k1")
+		require.NotContains(t, entry, "k2")
+		outer := asGroup(t, entry["a"])
+		require.Equal(t, "1", outer["k1"])
+		requireNoDatadog(t, outer)
+		inner := asGroup(t, outer["b"])
+		require.Equal(t, "2", inner["k2"])
+		require.NotContains(t, inner, "k1")
+		requireNoDatadog(t, inner)
+	})
 }
 
 func TestNewDatadogLogHandlerOmitsUnsetServiceAttrs(t *testing.T) {
