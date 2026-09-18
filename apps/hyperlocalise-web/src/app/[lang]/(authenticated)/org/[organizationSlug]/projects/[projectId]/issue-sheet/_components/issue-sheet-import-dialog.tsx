@@ -41,6 +41,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import {
   ISSUE_SHEET_IMPORT_MAX_CONTENT_BYTES,
+  issueSheetImportContentExceedsByteLimit,
   issueSheetSystemFields,
   parseIssueSheetImportCsv,
   suggestIssueSheetImportMappings,
@@ -267,6 +268,9 @@ export function IssueSheetImportDialog({
           new Uint8Array(await file.arrayBuffer()),
         );
         content = spreadsheet.serializeIssueSheetImportCsv(parsed.headers, parsed.rows);
+        if (issueSheetImportContentExceedsByteLimit(content)) {
+          throw new Error("issue_sheet_import_file_too_large");
+        }
       }
 
       const suggestions = suggestIssueSheetImportMappings({

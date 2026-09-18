@@ -10,12 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import JSZip from "jszip";
 import * as XLSX from "xlsx";
 import { describe, expect, it } from "vite-plus/test";
 
-import { parseIssueSheetImportCsv } from "./issue-sheet-csv-import";
+import { ISSUE_SHEET_IMPORT_MAX_ROWS, parseIssueSheetImportCsv } from "./issue-sheet-csv-import";
 import { issueSheetImportFormatFromFilename } from "./issue-sheet-import-format";
 import {
+  ISSUE_SHEET_IMPORT_MAX_DECODE_COLUMNS,
+  ISSUE_SHEET_IMPORT_MAX_DECODE_ROWS,
   parseIssueSheetImportWorkbook,
   serializeIssueSheetImportCsv,
 } from "./issue-sheet-spreadsheet-import";
@@ -99,5 +102,66 @@ describe("issue-sheet-spreadsheet-import", () => {
     expect(() =>
       parseIssueSheetImportWorkbook(Uint8Array.from(Buffer.from("not an xlsx"))),
     ).toThrow("issue_sheet_import_invalid_spreadsheet");
+  });
+
+  it("rejects serialized spreadsheet CSV that exceeds the byte limit", () => {
+    expect(() =>
+      serializeIssueSheetImportCsv(
+        ["Title", "Notes"],
+        Array.from({ length: 80 }, () => ["Fix CTA", "y".repeat(40_000)]),
+      ),
+    ).toThrow("issue_sheet_import_file_too_large");
+  });
+
+  it("rejects workbooks whose used range exceeds the decode row bound", () => {
+    const overflowRows = ISSUE_SHEET_IMPORT_MAX_DECODE_ROWS + 1;
+    expect(() =>
+      parseIssueSheetImportWorkbook(
+        workbookBytes(
+          [
+            ["Title"],
+            ...Array.from({ length: overflowRows - 1 }, (_, index) => [`Row ${index + 1}`]),
+          ],
+          "xlsx",
+        ),
+      ),
+    ).toThrow("issue_sheet_import_too_many_rows");
+  });
+
+  it("rejects workbooks whose used range exceeds the decode column bound", () => {
+    const headers = Array.from(
+      { length: ISSUE_SHEET_IMPORT_MAX_DECODE_COLUMNS + 1 },
+      (_, index) => `Col ${index + 1}`,
+    );
+    expect(() =>
+      parseIssueSheetImportWorkbook(workbookBytes([headers, headers.map(() => "x")], "xlsx")),
+    ).toThrow("issue_sheet_import_too_many_rows");
+  });
+
+  it("rejects workbooks with an inflated used range before materializing rows", async () => {
+    const zip = await JSZip.loadAsync(workbookBytes([["Title"], ["One visible row"]], "xlsx"));
+    const sheetPath = Object.keys(zip.files).find((path) =>
+      /xl\/worksheets\/sheet\d+\.xml$/.test(path),
+    );
+    if (!sheetPath) {
+      throw new Error("Expected an xlsx worksheet part");
+    }
+    const sheetXml = await zip.file(sheetPath)?.async("string");
+    if (!sheetXml) {
+      throw new Error("Expected worksheet XML");
+    }
+    const inflatedXml = sheetXml.replace(
+      /<dimension[^>]*ref="A1:A2"[^>]*\/>/,
+      `<dimension ref="A1:A${ISSUE_SHEET_IMPORT_MAX_ROWS + 50}"/>`,
+    );
+    if (inflatedXml === sheetXml) {
+      throw new Error(`Expected to rewrite worksheet dimension, got ${sheetXml}`);
+    }
+    zip.file(sheetPath, inflatedXml);
+    const inflatedBytes = new Uint8Array(await zip.generateAsync({ type: "uint8array" }));
+
+    expect(() => parseIssueSheetImportWorkbook(inflatedBytes)).toThrow(
+      "issue_sheet_import_too_many_rows",
+    );
   });
 });
