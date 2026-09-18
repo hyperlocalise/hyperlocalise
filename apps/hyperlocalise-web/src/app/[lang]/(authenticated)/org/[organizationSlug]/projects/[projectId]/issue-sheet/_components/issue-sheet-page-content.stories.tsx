@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 
 import {
   issueSheetEmptyMswHandlers,
@@ -54,7 +54,13 @@ export const Default: Story = {
     await expect(canvas.getByText("Open")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Issue" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Column" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Import CSV" })).toBeInTheDocument();
+    const importButton = canvas.getByRole("button", { name: "Import" });
+    await expect(importButton).toBeInTheDocument();
+    await userEvent.click(importButton);
+    const menu = within(document.body);
+    await expect(menu.getByRole("menuitem", { name: "CSV" })).toBeInTheDocument();
+    await expect(menu.getByRole("menuitem", { name: "XLS" })).toBeInTheDocument();
+    await expect(menu.getByRole("menuitem", { name: "XLSX" })).toBeInTheDocument();
     await expect(canvasElement.querySelector("table")).toBeNull();
     await expect(canvas.queryByText("3 total")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Owner note")).not.toBeInTheDocument();

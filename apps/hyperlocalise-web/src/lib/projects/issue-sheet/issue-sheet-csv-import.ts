@@ -324,12 +324,7 @@ export function suggestIssueSheetImportMappings(input: {
   });
 }
 
-export function parseIssueSheetImportCsv(content: string) {
-  if (issueSheetImportContentExceedsByteLimit(content)) {
-    throw new Error("issue_sheet_import_file_too_large");
-  }
-
-  const rows = parseCsvRows(content);
+export function parseIssueSheetImportTable(rows: string[][]) {
   if (rows.length === 0) {
     throw new Error("issue_sheet_import_empty_csv");
   }
@@ -343,6 +338,14 @@ export function parseIssueSheetImportCsv(content: string) {
   }
 
   return { headers, rows: bodyRows };
+}
+
+export function parseIssueSheetImportCsv(content: string) {
+  if (issueSheetImportContentExceedsByteLimit(content)) {
+    throw new Error("issue_sheet_import_file_too_large");
+  }
+
+  return parseIssueSheetImportTable(parseCsvRows(content));
 }
 
 export function normalizeIssueSheetImportStatus(raw: string): {

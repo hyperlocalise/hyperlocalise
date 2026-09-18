@@ -1,5 +1,3 @@
-"use client";
-
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -12,12 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { defineMessages } from "react-intl";
+function serializeCsvCell(value: string) {
+  return `"${value.replaceAll('"', '""')}"`;
+}
 
-export const issuesActionsMessages = defineMessages({
-  issue: {
-    defaultMessage: "Issue",
-    id: "QKWLDi+L9H",
-    description: "Button to open the create issue dialog on the workspace issues page",
-  },
-});
+export function serializeCsvRows(rows: string[][]) {
+  return rows.map((row) => row.map(serializeCsvCell).join(",")).join("\n");
+}
