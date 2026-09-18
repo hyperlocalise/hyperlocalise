@@ -51,6 +51,40 @@ describe("qa finding issue bridge", () => {
     expect(ref.length).toBeLessThanOrEqual(512);
   });
 
+  it("keeps multi-byte UTF-16 under the Linear external-ref limit without hashing", () => {
+    const runId = "11111111-1111-4111-8111-111111111111";
+    const findingKey = "é".repeat(225);
+    const raw = `proj_1:${runId}:${findingKey}:length:en-US`;
+    expect(Buffer.byteLength(raw, "utf8")).toBeGreaterThan(505);
+    expect(raw.length).toBeLessThanOrEqual(505);
+    expect(
+      buildQaFindingExternalRef({
+        projectId: "proj_1",
+        runId,
+        findingKey,
+        checkType: "length",
+        targetLocale: "en-US",
+      }),
+    ).toBe(`qa:${raw}`);
+  });
+
+  it("hashes when astral-plane keys push past the UTF-16 unit limit", () => {
+    const runId = "11111111-1111-4111-8111-111111111111";
+    const findingKey = "😀".repeat(230);
+    const raw = `proj_1:${runId}:${findingKey}:length:en-US`;
+    expect(raw.length).toBeGreaterThan(505);
+
+    const ref = buildQaFindingExternalRef({
+      projectId: "proj_1",
+      runId,
+      findingKey,
+      checkType: "length",
+      targetLocale: "en-US",
+    });
+    expect(ref.startsWith(`qa:proj_1:${runId}:`)).toBe(true);
+    expect(ref).not.toBe(`qa:${raw}`);
+  });
+
   it("stores QA metadata on issues", () => {
     expect(
       buildQaFindingIssueMetadata({

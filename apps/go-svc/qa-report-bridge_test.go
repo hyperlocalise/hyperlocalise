@@ -1,14 +1,32 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
+	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
+
+func TestUTF16Length(t *testing.T) {
+	cases := []string{
+		"",
+		"ascii",
+		"café",
+		"日本語",
+		"emoji😀",
+		"mixed café 😀 日本語",
+		strings.Repeat("a", 64) + "😀" + strings.Repeat("é", 32),
+	}
+	for _, value := range cases {
+		require.Equal(t, len(utf16.Encode([]rune(value))), utf16Length(value), "value=%q", value)
+	}
+}
 
 func TestBuildQaFindingExternalRef(t *testing.T) {
 	short := buildQaFindingExternalRef(
@@ -28,6 +46,23 @@ func TestBuildQaFindingExternalRef(t *testing.T) {
 	hashed := buildQaFindingExternalRef("proj_1", "11111111-1111-4111-8111-111111111111", longKey, "length", "en-US")
 	require.True(t, strings.HasPrefix(hashed, "qa:proj_1:11111111-1111-4111-8111-111111111111:"))
 	require.LessOrEqual(t, len(hashed), 512)
+
+	raw := fmt.Sprintf("proj_1:11111111-1111-4111-8111-111111111111:%s:length:en-US", longKey)
+	sum := sha256.Sum256([]byte(raw))
+	require.Equal(t, fmt.Sprintf("qa:proj_1:11111111-1111-4111-8111-111111111111:%s", hex.EncodeToString(sum[:16])), hashed)
+}
+
+func TestBuildQaFindingExternalRefSurrogateThreshold(t *testing.T) {
+	runID := "11111111-1111-4111-8111-111111111111"
+	// Each emoji is 2 UTF-16 units. Component-wise length must stay aligned with the joined string
+	// after the #2452 fast-path rewrite, or promote/dedupe refs drift across workers.
+	key := strings.Repeat("😀", 230)
+	raw := fmt.Sprintf("proj_1:%s:%s:length:en-US", runID, key)
+	require.Greater(t, utf16Length(raw), 505)
+
+	ref := buildQaFindingExternalRef("proj_1", runID, key, "length", "en-US")
+	sum := sha256.Sum256([]byte(raw))
+	require.Equal(t, fmt.Sprintf("qa:proj_1:%s:%s", runID, hex.EncodeToString(sum[:16])), ref)
 }
 
 func TestBuildTranslationQaFindingHref(t *testing.T) {

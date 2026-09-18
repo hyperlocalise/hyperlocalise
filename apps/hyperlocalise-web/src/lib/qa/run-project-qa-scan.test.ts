@@ -27,7 +27,9 @@ import { emptyTranslationQaSummary } from "./qa-report-store";
 import {
   claimTranslationQaRun,
   completeTranslationQaScan,
+  KEY_PAGE_SIZE,
   reclaimStaleTranslationQaRuns,
+  scanTranslationQaPage,
   startTranslationQaScan,
   STALE_RUNNING_SCAN_MS,
 } from "./run-project-qa-scan";
@@ -255,5 +257,94 @@ describe("run-project-qa-scan claim and reclaim", () => {
         projectId: project.id,
       }),
     ).resolves.toEqual({ ok: true, alreadyCompleted: true });
+  });
+});
+
+describe("scanTranslationQaPage", () => {
+  it("returns done when the run is missing or no longer running", async () => {
+    await expect(
+      scanTranslationQaPage({
+        runId: randomUUID(),
+        organizationId: `org_${randomUUID()}`,
+        projectId: `project_${randomUUID()}`,
+        afterKeyId: null,
+      }),
+    ).resolves.toEqual({ done: true });
+  });
+
+  it("pages keys, inserts not_localized findings, and continues until the last page", async () => {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    expect(claimed).toMatchObject({ ok: true });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+
+    const keyCount = KEY_PAGE_SIZE + 1;
+    const keyRows = Array.from({ length: keyCount }, (_, index) => {
+      const label = `key_${String(index).padStart(4, "0")}`;
+      return {
+        organizationId: organization.id,
+        projectId: project.id,
+        key: label,
+        sourceText: `Source ${label}`,
+        normalizedSourceText: `source ${label}`,
+      };
+    });
+    await db.insert(schema.projectTranslationKeys).values(keyRows);
+
+    const firstPage = await scanTranslationQaPage({
+      runId: claimed.runId,
+      organizationId: organization.id,
+      projectId: project.id,
+      afterKeyId: null,
+    });
+    expect(firstPage).toMatchObject({ done: false });
+    if (firstPage.done) {
+      throw new Error("expected another page");
+    }
+
+    const firstPageFindings = await db
+      .select({
+        translationKeyId: schema.translationQaFindings.translationKeyId,
+        checkType: schema.translationQaFindings.checkType,
+        targetLocale: schema.translationQaFindings.targetLocale,
+      })
+      .from(schema.translationQaFindings)
+      .where(eq(schema.translationQaFindings.runId, claimed.runId));
+
+    expect(firstPageFindings).toHaveLength(KEY_PAGE_SIZE);
+    expect(firstPageFindings.every((row) => row.checkType === "not_localized")).toBe(true);
+    expect(firstPageFindings.every((row) => row.targetLocale === "de-DE")).toBe(true);
+    expect(firstPageFindings.some((row) => row.translationKeyId === firstPage.afterKeyId)).toBe(
+      true,
+    );
+
+    const secondPage = await scanTranslationQaPage({
+      runId: claimed.runId,
+      organizationId: organization.id,
+      projectId: project.id,
+      afterKeyId: firstPage.afterKeyId,
+    });
+    expect(secondPage).toEqual({ done: true });
+
+    const allFindings = await db
+      .select({ id: schema.translationQaFindings.id })
+      .from(schema.translationQaFindings)
+      .where(eq(schema.translationQaFindings.runId, claimed.runId));
+    expect(allFindings).toHaveLength(keyCount);
   });
 });
