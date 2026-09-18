@@ -118,12 +118,12 @@ func recordDictionaryFailure(r *http.Request, phase string, err error) {
 		attrs := dictionaryLogAttrs(r, phase)
 		attrs = append(attrs, "status", failure.status, "code", failure.code)
 		if failure.status >= 500 {
-			slog.Error("dictionary_request_failed", attrs...)
+			slog.ErrorContext(r.Context(), "dictionary_request_failed", attrs...)
 		}
 		return
 	}
 	attrs := appendDictionaryErrorDetail(dictionaryLogAttrs(r, phase), err)
-	slog.Error("dictionary_request_failed", attrs...)
+	slog.ErrorContext(r.Context(), "dictionary_request_failed", attrs...)
 }
 
 func writeDictionaryError(w http.ResponseWriter, r *http.Request, phase string, err error) {
