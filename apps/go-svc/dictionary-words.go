@@ -23,10 +23,29 @@ const (
 	dictionaryMaxResolvedBytes = 256 * 1024
 )
 
+// BOLT OPTIMIZATION: Reuse package-level Caser to avoid allocation on every normalization.
+var englishLowerCaser = cases.Lower(language.English)
+
 type normalizedDictionaryWord struct{ word, folded string }
 
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
+}
+
 func normalizeDictionaryWord(raw string) (normalizedDictionaryWord, bool) {
-	word := norm.NFC.String(trimDictionaryInput(raw))
+	trimmed := trimDictionaryInput(raw)
+	var word string
+	// BOLT OPTIMIZATION: Bypass NFC normalization for plain ASCII strings.
+	if isASCII(trimmed) {
+		word = trimmed
+	} else {
+		word = norm.NFC.String(trimmed)
+	}
 	if word == "" || utf8.RuneCountInString(word) > dictionaryMaxWordLength {
 		return normalizedDictionaryWord{}, false
 	}
@@ -35,17 +54,31 @@ func normalizeDictionaryWord(raw string) (normalizedDictionaryWord, bool) {
 			return normalizedDictionaryWord{}, false
 		}
 	}
-	return normalizedDictionaryWord{word, cases.Lower(language.English).String(word)}, true
+	return normalizedDictionaryWord{word, englishLowerCaser.String(word)}, true
 }
 
 func parseDictionaryWords(content string) []normalizedDictionaryWord {
-	result := []normalizedDictionaryWord{}
-	seen := map[string]bool{}
-	for _, line := range strings.Split(content, "\n") {
-		if strings.HasPrefix(trimDictionaryInput(line), "#") {
+	// BOLT OPTIMIZATION: Pre-allocate result and seen map based on line count hint.
+	linesCount := strings.Count(content, "\n") + 1
+	result := make([]normalizedDictionaryWord, 0, min(linesCount, dictionaryMaxWords))
+	seen := make(map[string]bool, min(linesCount, dictionaryMaxWords))
+
+	// BOLT OPTIMIZATION: Stream lines with IndexByte instead of allocating a []string slice via strings.Split.
+	for len(content) > 0 {
+		var line string
+		if idx := strings.IndexByte(content, '\n'); idx >= 0 {
+			line = content[:idx]
+			content = content[idx+1:]
+		} else {
+			line = content
+			content = ""
+		}
+
+		trimmed := trimDictionaryInput(line)
+		if strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		word, ok := normalizeDictionaryWord(line)
+		word, ok := normalizeDictionaryWord(trimmed)
 		if !ok || seen[word.folded] {
 			continue
 		}
@@ -277,9 +310,26 @@ func capDictionaryWords(words []string) []string {
 	return result
 }
 
+func isDictionaryTrimRune(r rune) bool {
+	if r <= ' ' {
+		return r == ' ' || (r >= '\t' && r <= '\r')
+	}
+	switch r {
+	case '\u00a0', '\u1680', '\u2000', '\u2001', '\u2002', '\u2003', '\u2004', '\u2005', '\u2006', '\u2007', '\u2008', '\u2009', '\u200a', '\u2028', '\u2029', '\u202f', '\u205f', '\u3000', '\ufeff':
+		return true
+	}
+	return false
+}
+
 // Match JavaScript String.trim, including the BOM commonly found in word files.
 func trimDictionaryInput(value string) string {
-	return strings.TrimFunc(value, func(r rune) bool {
-		return strings.ContainsRune("\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff", r)
-	})
+	if value == "" {
+		return ""
+	}
+	// BOLT OPTIMIZATION: ASCII fast path to avoid TrimFunc when bounds are non-whitespace.
+	if value[0] > ' ' && value[0] < utf8.RuneSelf && value[len(value)-1] > ' ' && value[len(value)-1] < utf8.RuneSelf {
+		return value
+	}
+	// BOLT OPTIMIZATION: Use top-level function to avoid closure allocation and strings.ContainsRune.
+	return strings.TrimFunc(value, isDictionaryTrimRune)
 }
