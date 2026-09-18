@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net/url"
 	"strings"
 )
@@ -47,12 +48,22 @@ func truncateUTF16Prefix(value string, maxUnits int) string {
 }
 
 func buildQaFindingExternalRef(projectID, runID, findingKey, checkType, targetLocale string) string {
-	raw := fmt.Sprintf("%s:%s:%s:%s:%s", projectID, runID, findingKey, checkType, targetLocale)
-	if utf16Length(raw) <= 505 {
-		return "qa:" + raw
+	rawLen := utf16Length(projectID) + utf16Length(runID) + utf16Length(findingKey) + utf16Length(checkType) + utf16Length(targetLocale) + 4
+	if rawLen <= 505 {
+		return "qa:" + projectID + ":" + runID + ":" + findingKey + ":" + checkType + ":" + targetLocale
 	}
-	sum := sha256.Sum256([]byte(raw))
-	return fmt.Sprintf("qa:%s:%s:%s", projectID, runID, hex.EncodeToString(sum[:16]))
+	h := sha256.New()
+	_, _ = io.WriteString(h, projectID)
+	_, _ = io.WriteString(h, ":")
+	_, _ = io.WriteString(h, runID)
+	_, _ = io.WriteString(h, ":")
+	_, _ = io.WriteString(h, findingKey)
+	_, _ = io.WriteString(h, ":")
+	_, _ = io.WriteString(h, checkType)
+	_, _ = io.WriteString(h, ":")
+	_, _ = io.WriteString(h, targetLocale)
+	sum := h.Sum(nil)
+	return "qa:" + projectID + ":" + runID + ":" + hex.EncodeToString(sum[:16])
 }
 
 func buildQaFindingIssueTitle(checkType, findingKey, targetLocale string) string {
