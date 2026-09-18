@@ -67,6 +67,62 @@ func TestRequestAccessLogCorrelatesWithRecordedSpan(t *testing.T) {
 	require.Equal(t, "go-svc", entry["dd.service"])
 }
 
+func TestRequestAccessLogPreservesPublicPathPrefix(t *testing.T) {
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		wantLogged string
+	}{
+		{
+			name:       "unbounded route keeps full public path",
+			method:     http.MethodPost,
+			path:       publicPathPrefix + "/v1/validate/segment",
+			wantLogged: publicPathPrefix + "/v1/validate/segment",
+		},
+		{
+			name:       "bounded org route keeps prefix and bounding",
+			method:     http.MethodGet,
+			path:       publicPathPrefix + "/v1/orgs/acme-corp/dictionaries",
+			wantLogged: publicPathPrefix + "/v1/orgs/{organizationSlug}/dictionaries/{resource}",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := withTestSpanRecorder(t)
+
+			var buf bytes.Buffer
+			previous := slog.Default()
+			slog.SetDefault(slog.New(newTestDatadogHandler(&buf, slog.String("dd.service", "go-svc"))))
+			t.Cleanup(func() { slog.SetDefault(previous) })
+
+			mux := http.NewServeMux()
+			mux.HandleFunc("POST /v1/validate/segment", func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+			mux.HandleFunc("GET /v1/orgs/{organizationSlug}/dictionaries", func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+			handler := withOptionalPrefix(publicPathPrefix, tracingMiddleware(requestLogMiddleware(mux)))
+
+			req := httptest.NewRequest(tc.method, tc.path, nil)
+			handler.ServeHTTP(httptest.NewRecorder(), req)
+
+			spans := rec.Ended()
+			require.Len(t, spans, 1)
+			wantTraceID := spans[0].SpanContext().TraceID().String()
+			wantSpanID := spans[0].SpanContext().SpanID().String()
+
+			entry := findLogEntry(t, &buf, "request")
+			require.Equal(t, tc.wantLogged, entry["path"])
+			require.NotContains(t, entry["path"], "acme-corp")
+			require.Equal(t, wantTraceID, entry["dd.trace_id"])
+			require.Equal(t, wantSpanID, entry["dd.span_id"])
+		})
+	}
+}
+
 func TestRequestLogMiddlewareSkipsHealth(t *testing.T) {
 	var buf bytes.Buffer
 	previous := slog.Default()

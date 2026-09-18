@@ -1,11 +1,23 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 )
+
+type publicPathContextKey struct{}
+
+func withPublicPath(ctx context.Context, path string) context.Context {
+	return context.WithValue(ctx, publicPathContextKey{}, path)
+}
+
+func publicPathFromContext(ctx context.Context) (string, bool) {
+	path, ok := ctx.Value(publicPathContextKey{}).(string)
+	return path, ok
+}
 
 type statusRecorder struct {
 	http.ResponseWriter
@@ -43,9 +55,13 @@ func requestLogMiddleware(next http.Handler) http.Handler {
 		if status == 0 {
 			status = http.StatusOK
 		}
+		loggedPath := r.URL.Path
+		if original, ok := publicPathFromContext(r.Context()); ok {
+			loggedPath = original
+		}
 		attrs := []any{
 			"method", r.Method,
-			"path", requestLogPath(r.URL.Path),
+			"path", requestLogPath(loggedPath),
 			"status", status,
 			"duration_ms", time.Since(started).Milliseconds(),
 		}
