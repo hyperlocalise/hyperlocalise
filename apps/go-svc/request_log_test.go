@@ -39,6 +39,34 @@ func TestRequestLogMiddlewareRecordsStatus(t *testing.T) {
 	require.NotContains(t, buf.String(), "wos-session")
 }
 
+func TestRequestAccessLogCorrelatesWithRecordedSpan(t *testing.T) {
+	rec := withTestSpanRecorder(t)
+
+	var buf bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(newTestDatadogHandler(&buf, slog.String("dd.service", "go-svc"))))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v1/validate/segment", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	handler := withOptionalPrefix(publicPathPrefix, tracingMiddleware(requestLogMiddleware(mux)))
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", nil)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	spans := rec.Ended()
+	require.Len(t, spans, 1)
+	wantTraceID := spans[0].SpanContext().TraceID().String()
+	wantSpanID := spans[0].SpanContext().SpanID().String()
+
+	entry := findLogEntry(t, &buf, "request")
+	require.Equal(t, wantTraceID, entry["dd.trace_id"])
+	require.Equal(t, wantSpanID, entry["dd.span_id"])
+	require.Equal(t, "go-svc", entry["dd.service"])
+}
+
 func TestRequestLogMiddlewareSkipsHealth(t *testing.T) {
 	var buf bytes.Buffer
 	previous := slog.Default()

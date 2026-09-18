@@ -42,7 +42,7 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 }
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	slog.SetDefault(slog.New(newDatadogLogHandler(slog.NewJSONHandler(os.Stdout, nil))))
 
 	shutdownTelemetry, err := initTelemetry(context.Background())
 	if err != nil {
@@ -138,7 +138,8 @@ func main() {
 	registerRoutes(mux, h, verifier)
 
 	addr := ":" + port
-	server := newHTTPServer(addr, requestLogMiddleware(withOptionalPrefix(publicPathPrefix, tracingMiddleware(mux))))
+	// Keep request logging inside tracing without breaking tracing's access to mux-populated r.Pattern.
+	server := newHTTPServer(addr, withOptionalPrefix(publicPathPrefix, tracingMiddleware(requestLogMiddleware(mux))))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

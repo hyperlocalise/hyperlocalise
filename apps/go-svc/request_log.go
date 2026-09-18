@@ -52,7 +52,7 @@ func requestLogMiddleware(next http.Handler) http.Handler {
 		if id := requestID(r); id != "" {
 			attrs = append(attrs, "request_id", id)
 		}
-		slog.Info("request", attrs...)
+		slog.InfoContext(r.Context(), "request", attrs...)
 	})
 }
 
