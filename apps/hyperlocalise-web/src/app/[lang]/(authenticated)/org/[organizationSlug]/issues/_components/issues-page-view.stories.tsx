@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { http, HttpResponse } from "msw";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import { IssuesActions } from "./issues-actions";
@@ -108,6 +109,23 @@ export const LoadMore: Story = {
 };
 
 export const WithActions: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get("/api/orgs/:organizationSlug/projects", () =>
+          HttpResponse.json({
+            projects: [
+              {
+                id: "project_website",
+                name: "Website localization",
+                targetLocales: ["de-DE", "fr-FR"],
+              },
+            ],
+          }),
+        ),
+      ],
+    },
+  },
   args: {
     actions: (
       <IssuesActions organizationSlug={issuesOrganizationSlug} onIssuesChanged={async () => {}} />
