@@ -43,14 +43,14 @@ func teamFailure(status int, code string) error {
 	return &teamError{status, code}
 }
 
-func teamJSON(w http.ResponseWriter, status int, value any) {
+func teamJSON(ctx context.Context, w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if value == nil {
 		return
 	}
 	if err := json.NewEncoder(w).Encode(value); err != nil {
-		slog.Warn("team_response_write_failed")
+		slog.WarnContext(ctx, "team_response_write_failed")
 	}
 }
 
@@ -62,7 +62,7 @@ func writeTeamError(w http.ResponseWriter, r *http.Request, phase string, err er
 	} else if failure.status >= 500 {
 		slog.ErrorContext(r.Context(), "team_request_failed", "phase", phase, "path", r.URL.Path, "code", failure.code)
 	}
-	teamJSON(w, failure.status, map[string]string{"error": failure.code})
+	teamJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code})
 }
 
 func formatTeamTime(t time.Time) string {
@@ -223,5 +223,5 @@ func (api *teamAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 		return
 	}
-	teamJSON(w, status, value)
+	teamJSON(r.Context(), w, status, value)
 }
