@@ -11,7 +11,8 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn } from "storybook/test";
+import { http, HttpResponse } from "msw";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import { IssuesActions } from "./issues-actions";
 import {
@@ -108,14 +109,36 @@ export const LoadMore: Story = {
 };
 
 export const WithActions: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get("/api/orgs/:organizationSlug/projects", () =>
+          HttpResponse.json({
+            projects: [
+              {
+                id: "project_website",
+                name: "Website localization",
+                targetLocales: ["de-DE", "fr-FR"],
+              },
+            ],
+          }),
+        ),
+      ],
+    },
+  },
   args: {
     actions: (
       <IssuesActions organizationSlug={issuesOrganizationSlug} onIssuesChanged={async () => {}} />
     ),
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole("button", { name: "Import CSV" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Issue" })).toBeInTheDocument();
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Import" })).toBeEnabled());
+    await userEvent.click(canvas.getByRole("button", { name: "Import" }));
+    const menu = within(document.body);
+    await expect(menu.getByRole("menuitem", { name: "CSV" })).toBeInTheDocument();
+    await expect(menu.getByRole("menuitem", { name: "XLS" })).toBeInTheDocument();
+    await expect(menu.getByRole("menuitem", { name: "XLSX" })).toBeInTheDocument();
   },
 };
 

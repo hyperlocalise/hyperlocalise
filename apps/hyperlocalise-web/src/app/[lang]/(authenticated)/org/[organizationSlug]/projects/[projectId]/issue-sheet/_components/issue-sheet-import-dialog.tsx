@@ -40,6 +40,8 @@ import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import {
+  ISSUE_SHEET_IMPORT_MAX_CONTENT_BYTES,
+  issueSheetImportContentExceedsByteLimit,
   issueSheetSystemFields,
   parseIssueSheetImportCsv,
   suggestIssueSheetImportMappings,
@@ -48,6 +50,12 @@ import {
   type IssueSheetSuggestedMapping,
   type IssueSheetSystemField,
 } from "@/lib/projects/issue-sheet/issue-sheet-csv-import";
+import {
+  ISSUE_SHEET_IMPORT_ACCEPT,
+  ISSUE_SHEET_IMPORT_ACCEPT_ALL,
+  issueSheetImportFormatFromFilename,
+  type IssueSheetImportFormat,
+} from "@/lib/projects/issue-sheet/issue-sheet-import-format";
 
 import { issueSheetImportDialogMessages as messages } from "./issue-sheet-import-dialog.messages";
 import { issueSheetSharedMessages as sharedMessages } from "./issue-sheet-shared.messages";
@@ -163,6 +171,7 @@ export function IssueSheetImportDialog({
   projectId,
   columns,
   onImported,
+  format,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -170,6 +179,7 @@ export function IssueSheetImportDialog({
   projectId: string;
   columns: IssueSheetColumn[];
   onImported: () => Promise<void>;
+  format?: IssueSheetImportFormat;
 }) {
   const intl = useIntl();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -234,14 +244,35 @@ export function IssueSheetImportDialog({
   });
 
   const handleFile = async (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      toast.error(intl.formatMessage(messages.uploadCsvRequired));
+    const detectedFormat = issueSheetImportFormatFromFilename(file.name);
+    if (!detectedFormat || (format && detectedFormat !== format)) {
+      toast.error(intl.formatMessage(messages.uploadFileRequired));
+      return;
+    }
+    if (file.size > ISSUE_SHEET_IMPORT_MAX_CONTENT_BYTES) {
+      toast.error(intl.formatMessage(messages.parseFileFailed));
       return;
     }
 
-    const content = await file.text();
     try {
-      const parsed = parseIssueSheetImportCsv(content);
+      let content = "";
+      let parsed: { headers: string[]; rows: string[][] };
+
+      if (detectedFormat === "csv") {
+        content = await file.text();
+        parsed = parseIssueSheetImportCsv(content);
+      } else {
+        const spreadsheet =
+          await import("@/lib/projects/issue-sheet/issue-sheet-spreadsheet-import");
+        parsed = spreadsheet.parseIssueSheetImportWorkbook(
+          new Uint8Array(await file.arrayBuffer()),
+        );
+        content = spreadsheet.serializeIssueSheetImportCsv(parsed.headers, parsed.rows);
+        if (issueSheetImportContentExceedsByteLimit(content)) {
+          throw new Error("issue_sheet_import_file_too_large");
+        }
+      }
+
       const suggestions = suggestIssueSheetImportMappings({
         headers: parsed.headers,
         rows: parsed.rows,
@@ -258,8 +289,16 @@ export function IssueSheetImportDialog({
       setPreviewResult(null);
       setStep("map");
     } catch (error) {
+      const code = error instanceof Error ? error.message : "";
       toast.error(
-        error instanceof Error ? error.message : intl.formatMessage(messages.parseCsvFailed),
+        code === "issue_sheet_import_invalid_spreadsheet" ||
+          code === "issue_sheet_import_file_too_large" ||
+          code === "issue_sheet_import_too_many_rows" ||
+          code === "issue_sheet_import_empty_csv"
+          ? intl.formatMessage(messages.parseFileFailed)
+          : error instanceof Error
+            ? error.message
+            : intl.formatMessage(messages.parseFileFailed),
       );
     }
   };
@@ -338,17 +377,17 @@ export function IssueSheetImportDialog({
               <HugeiconsIcon icon={Upload01Icon} className="size-8 text-muted-foreground" />
               <div>
                 <TypographyP weight="medium">
-                  <FormattedMessage {...messages.chooseCsvFile} />
+                  <FormattedMessage {...messages.chooseFile} />
                 </TypographyP>
                 <TypographyP size="small" tone="subtle">
-                  <FormattedMessage {...messages.csvLimits} />
+                  <FormattedMessage {...messages.fileLimits} />
                 </TypographyP>
               </div>
             </button>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,text/csv"
+              accept={format ? ISSUE_SHEET_IMPORT_ACCEPT[format] : ISSUE_SHEET_IMPORT_ACCEPT_ALL}
               className="hidden"
               onChange={(event) => {
                 const file = event.currentTarget.files?.[0];

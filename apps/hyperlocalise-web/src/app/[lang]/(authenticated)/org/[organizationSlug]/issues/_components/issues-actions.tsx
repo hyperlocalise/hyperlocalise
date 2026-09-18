@@ -21,8 +21,10 @@ import { FormattedMessage } from "react-intl";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import type { IssueSheetImportFormat } from "@/lib/projects/issue-sheet/issue-sheet-import-format";
 
 import { IssueSheetCreateIssueDialog } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-create-issue-dialog";
+import { IssueSheetImportMenu } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-import-menu";
 import { issuesActionsMessages } from "./issues-actions.messages";
 import { IssuesProjectImportDialog } from "./issues-project-import-dialog";
 
@@ -35,6 +37,7 @@ export function IssuesActions({
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [importFormat, setImportFormat] = useState<IssueSheetImportFormat>("csv");
 
   const projectsQuery = useQuery({
     queryKey: ["projects", organizationSlug],
@@ -59,14 +62,13 @@ export function IssuesActions({
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setImportOpen(true)}
+        <IssueSheetImportMenu
           disabled={projectsQuery.isLoading}
-        >
-          <FormattedMessage {...issuesActionsMessages.importCsv} />
-        </Button>
+          onSelectFormat={(nextFormat) => {
+            setImportFormat(nextFormat);
+            setImportOpen(true);
+          }}
+        />
         <Button
           type="button"
           onClick={() => setCreateOpen(true)}
@@ -90,6 +92,7 @@ export function IssuesActions({
         organizationSlug={organizationSlug}
         projects={projects}
         onImported={onIssuesChanged}
+        format={importFormat}
       />
     </>
   );
