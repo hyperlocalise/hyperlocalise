@@ -379,7 +379,7 @@ func logAuthRejected(r *http.Request, reason string) {
 	if id := requestID(r); id != "" {
 		attrs = append(attrs, "request_id", id)
 	}
-	slog.Info("auth rejected", attrs...)
+	slog.InfoContext(r.Context(), "auth rejected", attrs...)
 }
 
 func logAuthOK(r *http.Request, userID string) {
@@ -387,7 +387,7 @@ func logAuthOK(r *http.Request, userID string) {
 	if id := requestID(r); id != "" {
 		attrs = append(attrs, "request_id", id)
 	}
-	slog.Info("auth ok", attrs...)
+	slog.InfoContext(r.Context(), "auth ok", attrs...)
 }
 
 func writeUnauthorized(w http.ResponseWriter, message string) {
