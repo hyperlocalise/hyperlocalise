@@ -446,9 +446,7 @@ export function IssueSheetImportDialog({
                           <div className="flex flex-col gap-2">
                             <Select
                               value={mappingToSelectValue(entry.target)}
-                              onValueChange={(value) =>
-                                updateMapping(columnIndex, value ?? "skip")
-                              }
+                              onValueChange={(value) => updateMapping(columnIndex, value ?? "skip")}
                             >
                               <SelectTrigger className="w-full min-w-48">
                                 <SelectValue
