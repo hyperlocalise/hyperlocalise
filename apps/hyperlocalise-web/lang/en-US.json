@@ -1731,6 +1731,10 @@
     "defaultMessage": "Close chat",
     "description": "Accessible label for closing a chat dock tab"
   },
+  "1fzjoEGRB4": {
+    "defaultMessage": "Import issues",
+    "description": "Title of the Queries import dialog"
+  },
   "1g8M6J7skz": {
     "defaultMessage": "Refreshing concepts…",
     "description": "Loading signal shown while the concept list refetches"
@@ -4043,10 +4047,6 @@
     "defaultMessage": "Inactive",
     "description": "Badge shown on inactive project cards"
   },
-  "6ieanONu91": {
-    "defaultMessage": "Import CSV",
-    "description": "Button to open the workspace issues CSV import dialog"
-  },
   "6ilKS2sOmJ": {
     "defaultMessage": "Failed to fetch Contentful connections",
     "description": "Error when the Contentful connections list fails to load"
@@ -4914,6 +4914,10 @@
   "8U3urKYKTg": {
     "defaultMessage": "Agent",
     "description": "Activity log actor filter option for agent events"
+  },
+  "8UCB2eKoiL": {
+    "defaultMessage": "Add node from {handle}",
+    "description": "Accessible label for a per-output quick-add control on a node handle"
   },
   "8UVXVLYDSf": {
     "defaultMessage": "Modified",
@@ -10031,6 +10035,10 @@
     "defaultMessage": "Slug",
     "description": "Teams table column header for team slug"
   },
+  "JC+c980Dxc": {
+    "defaultMessage": "CSV",
+    "description": "Menu option to import Queries rows from a CSV file"
+  },
   "JC6yhq1JP6": {
     "defaultMessage": "SharePoint",
     "description": "SharePoint source name on the guidelines board"
@@ -10106,10 +10114,6 @@
   "JNdoGRjKr4": {
     "defaultMessage": "Connect a domain, verify ownership, and choose the markets to research.",
     "description": "Dialog description"
-  },
-  "JO5M8qgbCX": {
-    "defaultMessage": "Upload a UTF-8 CSV file",
-    "description": "Toast when the selected file is not a CSV"
   },
   "JOEjtzHHyY": {
     "defaultMessage": "You",
@@ -11783,6 +11787,10 @@
     "defaultMessage": "Branch on a condition.",
     "description": "Catalog description for the if/else node"
   },
+  "N8b0F0tKAl": {
+    "defaultMessage": "XLSX",
+    "description": "Menu option to import Queries rows from an XLSX file"
+  },
   "N8ghyZ/Xzt": {
     "defaultMessage": "Checking technical, linguistic, contextual, and visual signals.",
     "description": "Detail text when a localisation audit is analyzing"
@@ -12454,10 +12462,6 @@
   "OWqbmY/jNp": {
     "defaultMessage": "Page",
     "description": "Search Console page column"
-  },
-  "OXTjKr806t": {
-    "defaultMessage": "Choose a CSV file",
-    "description": "Primary label on the CSV upload drop zone"
   },
   "OXxWMckqBr": {
     "defaultMessage": "When knowledge is shared instead of searched for, localisation teams can focus on what humans do best: making products feel genuinely local, culturally relevant, and trustworthy.",
@@ -13526,10 +13530,6 @@
   "QpmZurrWHD": {
     "defaultMessage": "GitHub",
     "description": "GitHub provider label"
-  },
-  "Qpt4IfmhcE": {
-    "defaultMessage": "CSV column",
-    "description": "Table header for the CSV column name in the mapping step"
   },
   "QqEr64QiAA": {
     "defaultMessage": "Brand",
@@ -16042,6 +16042,10 @@
   "WPbNdWbmRX": {
     "defaultMessage": "Vietnamese (Vietnam)",
     "description": "Display name for BCP-47 locale vi-VN"
+  },
+  "WPwGMykiJy": {
+    "defaultMessage": "Upload a CSV, XLS, or XLSX file",
+    "description": "Toast when the selected Queries import file is not a supported spreadsheet"
   },
   "WPxe7oDZ6H": {
     "defaultMessage": "API credential",
@@ -20655,10 +20659,6 @@
     "defaultMessage": "Request a Demo",
     "description": "Use case page call-to-action to request a demo"
   },
-  "g3WGoqC7FR": {
-    "defaultMessage": "Import CSV",
-    "description": "Button to open the Issue Sheet CSV import dialog"
-  },
   "g4IjA7F0HP": {
     "defaultMessage": "Failed to regenerate image",
     "description": "Fallback error when regenerating a CAT image translation fails"
@@ -21226,10 +21226,6 @@
   "h4qqRHFDUX": {
     "defaultMessage": "Send",
     "description": "Send button in the guidelines board chat"
-  },
-  "h5YfBD98F1": {
-    "defaultMessage": "Import issues from CSV",
-    "description": "Title of the Issue Sheet CSV import dialog"
   },
   "h6siz+8bqw": {
     "defaultMessage": "No native projects yet.",
@@ -22375,6 +22371,10 @@
     "defaultMessage": "Search projects",
     "description": "Search placeholder for the project multi-select"
   },
+  "jU5YqZST56": {
+    "defaultMessage": "Could not parse the spreadsheet",
+    "description": "Fallback toast when Queries spreadsheet parsing fails"
+  },
   "jUaILvHKPq": {
     "defaultMessage": "Run the change for Japan first. If it works, show it to every market. If it does not, nobody else ever saw it.",
     "description": "Body for the Hyperlab audience targeting section"
@@ -22966,6 +22966,10 @@
   "kbsJHfvLxl": {
     "defaultMessage": "Add connection",
     "description": "Button to add a new Zernio connection"
+  },
+  "kbwuSrf5q5": {
+    "defaultMessage": "Column",
+    "description": "Table header for the source column name in the mapping step"
   },
   "kca9z02Mat": {
     "defaultMessage": "03 Count what wins",
@@ -24443,6 +24447,10 @@
     "defaultMessage": "Glossary Created",
     "description": "Activity log event type label for glossary creation"
   },
+  "niov1t8GR9": {
+    "defaultMessage": "CSV, XLS, or XLSX up to 2 MB and 2,000 rows",
+    "description": "Helper text describing Queries import size and row limits"
+  },
   "njHQVnCm4E": {
     "defaultMessage": "Dictionaries",
     "description": "App shell breadcrumb title for the spellcheck dictionaries page"
@@ -24774,6 +24782,10 @@
   "oQnxh21y9E": {
     "defaultMessage": "Invite member",
     "description": "Title of the invite member dialog"
+  },
+  "oRgI0X9Pkl": {
+    "defaultMessage": "XLS",
+    "description": "Menu option to import Queries rows from an XLS file"
   },
   "oS7mysSU95": {
     "defaultMessage": "{kind} · {format}",
@@ -27347,10 +27359,6 @@
     "defaultMessage": "Marketing",
     "description": "First breadcrumb in the marketing hero CAT workspace mock"
   },
-  "tn0uMdvPeH": {
-    "defaultMessage": "Could not parse CSV",
-    "description": "Fallback toast when CSV parsing fails"
-  },
   "toaWaws2L2": {
     "defaultMessage": "Show token",
     "description": "Accessible label to reveal the personal access token value"
@@ -27686,10 +27694,6 @@
   "uXvES3jNQD": {
     "defaultMessage": "Scheduled",
     "description": "Project QA scheduled trigger label"
-  },
-  "uYFDr/Lkl1": {
-    "defaultMessage": "UTF-8 CSV up to 2 MB and 2,000 rows",
-    "description": "Helper text describing CSV size and row limits for import"
   },
   "uYwF7v8b0H": {
     "defaultMessage": "Cancel",
@@ -29359,6 +29363,10 @@
     "defaultMessage": "Hyperlab",
     "description": "App shell breadcrumb title for Hyperlab"
   },
+  "xfMEcMmH8Z": {
+    "defaultMessage": "Import",
+    "description": "Button that opens the Queries import format menu"
+  },
   "xfunHs6ciZ": {
     "defaultMessage": "Link your Crowdin account",
     "description": "Title when Crowdin user is not linked in Hyperlocalise"
@@ -29630,6 +29638,10 @@
   "yB2wsLvc7h": {
     "defaultMessage": "Catch Translation Drift Before Your Customers Do | Hyperlocalise",
     "description": "Page title for the localisation-quality-monitoring use case"
+  },
+  "yBvXsTHP4U": {
+    "defaultMessage": "Choose a CSV, XLS, or XLSX file",
+    "description": "Primary label on the Queries import upload drop zone"
   },
   "yC7UjRaWKX": {
     "defaultMessage": "at",
