@@ -55,12 +55,25 @@ type ParsedRow = {
 type ColumnLookup = Map<string, IssueSheetColumn>;
 
 function buildHeaderMappings(headers: string[], mapping: IssueSheetImportBody["mapping"]) {
-  const indexByHeader = new Map(headers.map((header, index) => [header, index]));
-  return mapping.map((entry) => ({
-    csvHeader: entry.csvHeader,
-    target: entry.target,
-    columnIndex: indexByHeader.get(entry.csvHeader) ?? -1,
-  }));
+  // Walk headers left-to-right so duplicate column names bind to distinct indexes.
+  // A Map keyed by header would last-win and silently remap every duplicate to the
+  // rightmost column (UI samples use indexOf / first-win, so titles look correct).
+  const usedIndexes = new Set<number>();
+  return mapping.map((entry) => {
+    let columnIndex = -1;
+    for (let index = 0; index < headers.length; index += 1) {
+      if (headers[index] === entry.csvHeader && !usedIndexes.has(index)) {
+        columnIndex = index;
+        usedIndexes.add(index);
+        break;
+      }
+    }
+    return {
+      csvHeader: entry.csvHeader,
+      target: entry.target,
+      columnIndex,
+    };
+  });
 }
 
 function resolveSelectValue(
@@ -139,10 +152,10 @@ export async function runIssueSheetCsvImport(
     actorUserId: input.actorUserId,
   });
 
-  const mappingWithHeaders = input.body.mapping;
+  const headerMappings = buildHeaderMappings(parsed.headers, input.body.mapping);
 
   if (!input.body.dryRun) {
-    for (const entry of mappingWithHeaders) {
+    for (const entry of headerMappings) {
       if (entry.target.kind !== "create") {
         continue;
       }
@@ -158,10 +171,9 @@ export async function runIssueSheetCsvImport(
               options: [
                 ...new Set(
                   parsed.rows
-                    .map((row) => {
-                      const columnIndex = parsed.headers.indexOf(entry.csvHeader);
-                      return columnIndex >= 0 ? (row[columnIndex] ?? "").trim() : "";
-                    })
+                    .map((row) =>
+                      entry.columnIndex >= 0 ? (row[entry.columnIndex] ?? "").trim() : "",
+                    )
                     .filter(Boolean),
                 ),
               ]
@@ -185,7 +197,7 @@ export async function runIssueSheetCsvImport(
       result.columnsCreated.push({ key: column.key, label: column.label });
     }
   } else {
-    for (const entry of mappingWithHeaders) {
+    for (const entry of headerMappings) {
       if (entry.target.kind === "create") {
         result.columnsCreated.push({ key: entry.target.key, label: entry.target.label });
       }
@@ -228,8 +240,6 @@ export async function runIssueSheetCsvImport(
     projectId: input.projectId,
     userIds: memberRows.map((row) => row.userId),
   });
-
-  const headerMappings = buildHeaderMappings(parsed.headers, input.body.mapping);
 
   const hasExternalRefMapping = headerMappings.some(
     (entry) => entry.target.kind === "system" && entry.target.field === "external_ref",

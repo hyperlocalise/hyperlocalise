@@ -303,29 +303,29 @@ export function IssueSheetImportDialog({
     }
   };
 
-  const updateMapping = (csvHeader: string, optionValue: string) => {
+  const updateMapping = (columnIndex: number, optionValue: string) => {
     setMappings((current) =>
-      current.map((entry) => {
-        if (entry.csvHeader !== csvHeader) {
+      current.map((entry, index) => {
+        if (index !== columnIndex) {
           return entry;
         }
         const option = mappingOptions.find((item) => item.value === optionValue);
         if (option) {
-          return { csvHeader, target: option.target };
+          return { csvHeader: entry.csvHeader, target: option.target };
         }
         return entry;
       }),
     );
   };
 
-  const updateCreateType = (csvHeader: string, type: IssueSheetImportColumnType) => {
+  const updateCreateType = (columnIndex: number, type: IssueSheetImportColumnType) => {
     setMappings((current) =>
-      current.map((entry) => {
-        if (entry.csvHeader !== csvHeader || entry.target.kind !== "create") {
+      current.map((entry, index) => {
+        if (index !== columnIndex || entry.target.kind !== "create") {
           return entry;
         }
         return {
-          csvHeader,
+          csvHeader: entry.csvHeader,
           target: { ...entry.target, type },
         };
       }),
@@ -428,8 +428,7 @@ export function IssueSheetImportDialog({
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {mappings.map((entry) => {
-                    const columnIndex = headers.indexOf(entry.csvHeader);
+                  {mappings.map((entry, columnIndex) => {
                     const sample =
                       previewRows
                         .map((row) => row[columnIndex] ?? "")
@@ -441,15 +440,13 @@ export function IssueSheetImportDialog({
                           })
                         : null;
                     return (
-                      <tr key={entry.csvHeader}>
+                      <tr key={`${columnIndex}:${entry.csvHeader}`}>
                         <td className="px-3 py-3 font-medium">{entry.csvHeader}</td>
                         <td className="px-3 py-3">
                           <div className="flex flex-col gap-2">
                             <Select
                               value={mappingToSelectValue(entry.target)}
-                              onValueChange={(value) =>
-                                updateMapping(entry.csvHeader, value ?? "skip")
-                              }
+                              onValueChange={(value) => updateMapping(columnIndex, value ?? "skip")}
                             >
                               <SelectTrigger className="w-full min-w-48">
                                 <SelectValue
@@ -481,7 +478,7 @@ export function IssueSheetImportDialog({
                                 value={entry.target.type}
                                 onValueChange={(value) =>
                                   updateCreateType(
-                                    entry.csvHeader,
+                                    columnIndex,
                                     (value ?? "text") as IssueSheetImportColumnType,
                                   )
                                 }
