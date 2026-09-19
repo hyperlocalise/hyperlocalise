@@ -1511,6 +1511,9 @@
   "1fxDZQx14T": {
     "defaultMessage": "Chat schließen"
   },
+  "1fzjoEGRB4": {
+    "defaultMessage": "Issues importieren"
+  },
   "1g8M6J7skz": {
     "defaultMessage": "Konzepte werden aktualisiert …"
   },
@@ -8642,6 +8645,9 @@
   "JBzesbmAoL": {
     "defaultMessage": "Slug"
   },
+  "JC+c980Dxc": {
+    "defaultMessage": "CSV"
+  },
   "JC6yhq1JP6": {
     "defaultMessage": "SharePoint"
   },
@@ -10165,6 +10171,9 @@
   },
   "N83FNjAdU2": {
     "defaultMessage": "Welche Lokalisierungszeichenfolgen wurden kürzlich geändert?"
+  },
+  "N8b0F0tKAl": {
+    "defaultMessage": "XLSX"
   },
   "N8ghyZ/Xzt": {
     "defaultMessage": "Technische, sprachliche, kontextuelle und visuelle Signale werden überprüft."
@@ -13795,6 +13804,9 @@
   },
   "WPbNdWbmRX": {
     "defaultMessage": "Vietnamesisch (Vietnam)"
+  },
+  "WPwGMykiJy": {
+    "defaultMessage": "Lade eine CSV-, XLS- oder XLSX-Datei hoch"
   },
   "WPxe7oDZ6H": {
     "defaultMessage": "API-Anmeldedaten"
@@ -19241,6 +19253,9 @@
   "jTZSup9Rup": {
     "defaultMessage": "Projekte suchen"
   },
+  "jU5YqZST56": {
+    "defaultMessage": "Die Tabelle konnte nicht verarbeitet werden"
+  },
   "jUCQWPQBsD": {
     "defaultMessage": "Alle Locales herunterladen"
   },
@@ -19762,6 +19777,9 @@
   },
   "kbsJHfvLxl": {
     "defaultMessage": "Verbindung hinzufügen"
+  },
+  "kbwuSrf5q5": {
+    "defaultMessage": "Spalte"
   },
   "kca9z02Mat": {
     "defaultMessage": "03 Zähle, was gewinnt"
@@ -21071,6 +21089,9 @@
   "niVQ/efJm6": {
     "defaultMessage": "Glossar erstellt"
   },
+  "niov1t8GR9": {
+    "defaultMessage": "CSV, XLS oder XLSX bis zu 2 MB und 2.000 Zeilen"
+  },
   "njHQVnCm4E": {
     "defaultMessage": "Wörterbücher"
   },
@@ -21352,6 +21373,9 @@
   },
   "oQnxh21y9E": {
     "defaultMessage": "Mitglied einladen"
+  },
+  "oRgI0X9Pkl": {
+    "defaultMessage": "XLS"
   },
   "oS7mysSU95": {
     "defaultMessage": "{kind} · {format}"
@@ -22026,7 +22050,7 @@
     "defaultMessage": "Verschachtelte For-Each-Schleifen werden noch nicht unterstützt."
   },
   "pym2jLFt91": {
-    "defaultMessage": "Drive. Notion.\nSharePoint."
+    "defaultMessage": "Drive. Notion. SharePoint."
   },
   "pzOrHk3KQa": {
     "defaultMessage": "Öffnen Sie diese Datei im CAT-Arbeitsbereich, um Übersetzungen zu überprüfen und zu bearbeiten."
@@ -25250,6 +25274,9 @@
   "xeqCGSaHwJ": {
     "defaultMessage": "Hyperlab"
   },
+  "xfMEcMmH8Z": {
+    "defaultMessage": "Importieren"
+  },
   "xfunHs6ciZ": {
     "defaultMessage": "Verknüpfen Sie Ihr Crowdin-Konto"
   },
@@ -25468,6 +25495,9 @@
   },
   "yB2wsLvc7h": {
     "defaultMessage": "Erkenne Übersetzungsabweichungen, bevor deine Kunden es tun | Hyperlocalise"
+  },
+  "yBvXsTHP4U": {
+    "defaultMessage": "Wählen Sie eine CSV-, XLS- oder XLSX-Datei aus"
   },
   "yC7UjRaWKX": {
     "defaultMessage": "um"
