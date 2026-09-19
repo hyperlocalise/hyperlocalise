@@ -1511,6 +1511,9 @@
   "1fxDZQx14T": {
     "defaultMessage": "关闭聊天"
   },
+  "1fzjoEGRB4": {
+    "defaultMessage": "导入问题"
+  },
   "1g8M6J7skz": {
     "defaultMessage": "正在刷新概念…"
   },
@@ -8642,6 +8645,9 @@
   "JBzesbmAoL": {
     "defaultMessage": "Slug"
   },
+  "JC+c980Dxc": {
+    "defaultMessage": "CSV"
+  },
   "JC6yhq1JP6": {
     "defaultMessage": "SharePoint"
   },
@@ -10165,6 +10171,9 @@
   },
   "N83FNjAdU2": {
     "defaultMessage": "最近更改了哪些本地化字符串？"
+  },
+  "N8b0F0tKAl": {
+    "defaultMessage": "XLSX"
   },
   "N8ghyZ/Xzt": {
     "defaultMessage": "正在检查技术、语言、上下文和视觉信号。"
@@ -13795,6 +13804,9 @@
   },
   "WPbNdWbmRX": {
     "defaultMessage": "越南语（越南）"
+  },
+  "WPwGMykiJy": {
+    "defaultMessage": "上传 CSV、XLS 或 XLSX 文件"
   },
   "WPxe7oDZ6H": {
     "defaultMessage": "API 凭据"
@@ -19241,6 +19253,9 @@
   "jTZSup9Rup": {
     "defaultMessage": "搜索项目"
   },
+  "jU5YqZST56": {
+    "defaultMessage": "无法解析电子表格"
+  },
   "jUCQWPQBsD": {
     "defaultMessage": "下载所有语言环境"
   },
@@ -19762,6 +19777,9 @@
   },
   "kbsJHfvLxl": {
     "defaultMessage": "添加连接"
+  },
+  "kbwuSrf5q5": {
+    "defaultMessage": "Column"
   },
   "kca9z02Mat": {
     "defaultMessage": "03 统计胜果"
@@ -21071,6 +21089,9 @@
   "niVQ/efJm6": {
     "defaultMessage": "词汇表已创建"
   },
+  "niov1t8GR9": {
+    "defaultMessage": "CSV、XLS 或 XLSX 文件，大小不超过 2 MB，且最多 2,000 行"
+  },
   "njHQVnCm4E": {
     "defaultMessage": "词典"
   },
@@ -21352,6 +21373,9 @@
   },
   "oQnxh21y9E": {
     "defaultMessage": "邀请成员"
+  },
+  "oRgI0X9Pkl": {
+    "defaultMessage": "XLS"
   },
   "oS7mysSU95": {
     "defaultMessage": "{kind} · {format}"
@@ -25250,6 +25274,9 @@
   "xeqCGSaHwJ": {
     "defaultMessage": "Hyperlab"
   },
+  "xfMEcMmH8Z": {
+    "defaultMessage": "Import"
+  },
   "xfunHs6ciZ": {
     "defaultMessage": "关联您的 Crowdin 账户"
   },
@@ -25468,6 +25495,9 @@
   },
   "yB2wsLvc7h": {
     "defaultMessage": "在客户发现之前，及时发现翻译偏差 | Hyperlocalise"
+  },
+  "yBvXsTHP4U": {
+    "defaultMessage": "选择一个 CSV、XLS 或 XLSX 文件"
   },
   "yC7UjRaWKX": {
     "defaultMessage": "at"
