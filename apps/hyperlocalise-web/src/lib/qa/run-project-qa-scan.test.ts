@@ -258,6 +258,202 @@ describe("run-project-qa-scan claim and reclaim", () => {
       }),
     ).resolves.toEqual({ ok: true, alreadyCompleted: true });
   });
+
+  it("aggregates finding summaries, counts, and stamps qaScanLastRunAt on success", async () => {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+
+    await db
+      .update(schema.projects)
+      .set({ targetLocales: ["de-DE", "fr-FR"] })
+      .where(eq(schema.projects.id, project.id));
+
+    const [keyA, keyB] = await db
+      .insert(schema.projectTranslationKeys)
+      .values([
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          key: "greeting",
+          sourceText: "Hello",
+          normalizedSourceText: "hello",
+        },
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          key: "farewell",
+          sourceText: "Goodbye",
+          normalizedSourceText: "goodbye",
+        },
+      ])
+      .returning({ id: schema.projectTranslationKeys.id });
+
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    expect(claimed).toMatchObject({ ok: true });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+
+    await db.insert(schema.translationQaFindings).values([
+      {
+        runId: claimed.runId,
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: keyA!.id,
+        key: "greeting",
+        targetLocale: "de-DE",
+        checkType: "not_localized",
+        severity: "error",
+        category: "qa",
+        message: "Missing German",
+        relatedTokens: [],
+        sourceText: "Hello",
+        targetText: "",
+      },
+      {
+        runId: claimed.runId,
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: keyA!.id,
+        key: "greeting",
+        targetLocale: "fr-FR",
+        checkType: "same_as_source",
+        severity: "warning",
+        category: "qa",
+        message: "Untranslated French",
+        relatedTokens: [],
+        sourceText: "Hello",
+        targetText: "Hello",
+      },
+      {
+        runId: claimed.runId,
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: keyB!.id,
+        key: "farewell",
+        targetLocale: "de-DE",
+        checkType: "not_localized",
+        severity: "error",
+        category: "qa",
+        message: "Missing German farewell",
+        relatedTokens: [],
+        sourceText: "Goodbye",
+        targetText: "",
+      },
+    ]);
+
+    await expect(
+      completeTranslationQaScan({
+        runId: claimed.runId,
+        organizationId: organization.id,
+        projectId: project.id,
+      }),
+    ).resolves.toEqual({ ok: true, alreadyCompleted: false });
+
+    const [completed] = await db
+      .select({
+        status: schema.translationQaRuns.status,
+        segmentCount: schema.translationQaRuns.segmentCount,
+        findingCount: schema.translationQaRuns.findingCount,
+        errorCount: schema.translationQaRuns.errorCount,
+        warningCount: schema.translationQaRuns.warningCount,
+        summary: schema.translationQaRuns.summary,
+        completedAt: schema.translationQaRuns.completedAt,
+      })
+      .from(schema.translationQaRuns)
+      .where(eq(schema.translationQaRuns.id, claimed.runId));
+
+    expect(completed).toMatchObject({
+      status: "succeeded",
+      // 2 keys × 2 target locales
+      segmentCount: 4,
+      findingCount: 3,
+      errorCount: 2,
+      warningCount: 1,
+      summary: {
+        byCheckType: { not_localized: 2, same_as_source: 1 },
+        bySeverity: { error: 2, warning: 1 },
+        byLocale: { "de-DE": 2, "fr-FR": 1 },
+      },
+    });
+    expect(completed?.completedAt).toBeInstanceOf(Date);
+
+    const [projectRow] = await db
+      .select({ qaScanLastRunAt: schema.projects.qaScanLastRunAt })
+      .from(schema.projects)
+      .where(eq(schema.projects.id, project.id));
+    expect(projectRow?.qaScanLastRunAt?.getTime()).toBe(completed?.completedAt?.getTime());
+
+    await expect(
+      completeTranslationQaScan({
+        runId: claimed.runId,
+        organizationId: organization.id,
+        projectId: project.id,
+      }),
+    ).resolves.toEqual({ ok: true, alreadyCompleted: true });
+  });
+
+  it("completes a running scan with zero findings and zero keys", async () => {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "scheduled",
+      createdByUserId: user.id,
+    });
+    expect(claimed).toMatchObject({ ok: true });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+
+    await expect(
+      completeTranslationQaScan({
+        runId: claimed.runId,
+        organizationId: organization.id,
+        projectId: project.id,
+      }),
+    ).resolves.toEqual({ ok: true, alreadyCompleted: false });
+
+    const [completed] = await db
+      .select({
+        status: schema.translationQaRuns.status,
+        segmentCount: schema.translationQaRuns.segmentCount,
+        findingCount: schema.translationQaRuns.findingCount,
+        errorCount: schema.translationQaRuns.errorCount,
+        warningCount: schema.translationQaRuns.warningCount,
+        summary: schema.translationQaRuns.summary,
+      })
+      .from(schema.translationQaRuns)
+      .where(eq(schema.translationQaRuns.id, claimed.runId));
+
+    expect(completed).toMatchObject({
+      status: "succeeded",
+      segmentCount: 0,
+      findingCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      summary: { byCheckType: {}, bySeverity: {}, byLocale: {} },
+    });
+  });
 });
 
 describe("scanTranslationQaPage", () => {
