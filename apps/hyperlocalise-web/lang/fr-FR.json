@@ -1511,6 +1511,9 @@
   "1fxDZQx14T": {
     "defaultMessage": "Fermer le chat"
   },
+  "1fzjoEGRB4": {
+    "defaultMessage": "Importer des problèmes"
+  },
   "1g8M6J7skz": {
     "defaultMessage": "Actualisation des concepts…"
   },
@@ -8642,6 +8645,9 @@
   "JBzesbmAoL": {
     "defaultMessage": "Slug"
   },
+  "JC+c980Dxc": {
+    "defaultMessage": "CSV"
+  },
   "JC6yhq1JP6": {
     "defaultMessage": "SharePoint"
   },
@@ -10165,6 +10171,9 @@
   },
   "N83FNjAdU2": {
     "defaultMessage": "Quelles chaînes de localisation ont changé récemment ?"
+  },
+  "N8b0F0tKAl": {
+    "defaultMessage": "XLSX"
   },
   "N8ghyZ/Xzt": {
     "defaultMessage": "Vérification des éléments techniques, linguistiques, contextuels et visuels."
@@ -13795,6 +13804,9 @@
   },
   "WPbNdWbmRX": {
     "defaultMessage": "vietnamien (Vietnam)"
+  },
+  "WPwGMykiJy": {
+    "defaultMessage": "Téléversez un fichier CSV, XLS ou XLSX"
   },
   "WPxe7oDZ6H": {
     "defaultMessage": "Identifiants d’API"
@@ -19241,6 +19253,9 @@
   "jTZSup9Rup": {
     "defaultMessage": "Rechercher des projets"
   },
+  "jU5YqZST56": {
+    "defaultMessage": "Impossible d’analyser la feuille de calcul"
+  },
   "jUCQWPQBsD": {
     "defaultMessage": "Télécharger tous les paramètres régionaux"
   },
@@ -19762,6 +19777,9 @@
   },
   "kbsJHfvLxl": {
     "defaultMessage": "Ajouter une connexion"
+  },
+  "kbwuSrf5q5": {
+    "defaultMessage": "Colonne"
   },
   "kca9z02Mat": {
     "defaultMessage": "03 Comptez ce qui gagne"
@@ -21071,6 +21089,9 @@
   "niVQ/efJm6": {
     "defaultMessage": "Glossaire créé"
   },
+  "niov1t8GR9": {
+    "defaultMessage": "CSV, XLS ou XLSX jusqu’à 2 Mo et 2 000 lignes"
+  },
   "njHQVnCm4E": {
     "defaultMessage": "Dictionnaires"
   },
@@ -21352,6 +21373,9 @@
   },
   "oQnxh21y9E": {
     "defaultMessage": "Inviter un membre"
+  },
+  "oRgI0X9Pkl": {
+    "defaultMessage": "XLS"
   },
   "oS7mysSU95": {
     "defaultMessage": "{kind} · {format}"
@@ -25250,6 +25274,9 @@
   "xeqCGSaHwJ": {
     "defaultMessage": "Hyperlab"
   },
+  "xfMEcMmH8Z": {
+    "defaultMessage": "Importer"
+  },
   "xfunHs6ciZ": {
     "defaultMessage": "Associez votre compte Crowdin"
   },
@@ -25468,6 +25495,9 @@
   },
   "yB2wsLvc7h": {
     "defaultMessage": "Détectez les dérives de traduction avant vos clients | Hyperlocalise"
+  },
+  "yBvXsTHP4U": {
+    "defaultMessage": "Choisissez un fichier CSV, XLS ou XLSX"
   },
   "yC7UjRaWKX": {
     "defaultMessage": "at"

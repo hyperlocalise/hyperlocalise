@@ -1511,6 +1511,9 @@
   "1fxDZQx14T": {
     "defaultMessage": "Đóng trò chuyện"
   },
+  "1fzjoEGRB4": {
+    "defaultMessage": "Nhập vấn đề"
+  },
   "1g8M6J7skz": {
     "defaultMessage": "Đang làm mới các khái niệm…"
   },
@@ -8642,6 +8645,9 @@
   "JBzesbmAoL": {
     "defaultMessage": "Slug"
   },
+  "JC+c980Dxc": {
+    "defaultMessage": "CSV"
+  },
   "JC6yhq1JP6": {
     "defaultMessage": "SharePoint"
   },
@@ -10165,6 +10171,9 @@
   },
   "N83FNjAdU2": {
     "defaultMessage": "Những chuỗi bản địa hóa nào đã thay đổi gần đây?"
+  },
+  "N8b0F0tKAl": {
+    "defaultMessage": "XLSX"
   },
   "N8ghyZ/Xzt": {
     "defaultMessage": "Đang kiểm tra các tín hiệu kỹ thuật, ngôn ngữ, ngữ cảnh và hình ảnh."
@@ -13795,6 +13804,9 @@
   },
   "WPbNdWbmRX": {
     "defaultMessage": "Tiếng Việt (Việt Nam)"
+  },
+  "WPwGMykiJy": {
+    "defaultMessage": "Tải lên tệp CSV, XLS hoặc XLSX"
   },
   "WPxe7oDZ6H": {
     "defaultMessage": "Thông tin xác thực API"
@@ -19241,6 +19253,9 @@
   "jTZSup9Rup": {
     "defaultMessage": "Tìm kiếm dự án"
   },
+  "jU5YqZST56": {
+    "defaultMessage": "Không thể phân tích cú pháp bảng tính"
+  },
   "jUCQWPQBsD": {
     "defaultMessage": "Tải xuống tất cả các ngôn ngữ"
   },
@@ -19762,6 +19777,9 @@
   },
   "kbsJHfvLxl": {
     "defaultMessage": "Thêm kết nối"
+  },
+  "kbwuSrf5q5": {
+    "defaultMessage": "Column"
   },
   "kca9z02Mat": {
     "defaultMessage": "03 Đếm những gì chiến thắng"
@@ -21071,6 +21089,9 @@
   "niVQ/efJm6": {
     "defaultMessage": "Đã tạo bảng thuật ngữ"
   },
+  "niov1t8GR9": {
+    "defaultMessage": "CSV, XLS hoặc XLSX tối đa 2 MB và 2.000 hàng"
+  },
   "njHQVnCm4E": {
     "defaultMessage": "Từ điển"
   },
@@ -21352,6 +21373,9 @@
   },
   "oQnxh21y9E": {
     "defaultMessage": "Mời thành viên"
+  },
+  "oRgI0X9Pkl": {
+    "defaultMessage": "XLS"
   },
   "oS7mysSU95": {
     "defaultMessage": "{kind} · {format}"
@@ -25250,6 +25274,9 @@
   "xeqCGSaHwJ": {
     "defaultMessage": "Hyperlab"
   },
+  "xfMEcMmH8Z": {
+    "defaultMessage": "Import"
+  },
   "xfunHs6ciZ": {
     "defaultMessage": "Liên kết tài khoản Crowdin của bạn"
   },
@@ -25468,6 +25495,9 @@
   },
   "yB2wsLvc7h": {
     "defaultMessage": "Phát hiện sai lệch bản dịch trước khi khách hàng của bạn nhận ra | Hyperlocalise"
+  },
+  "yBvXsTHP4U": {
+    "defaultMessage": "Chọn tệp CSV, XLS hoặc XLSX"
   },
   "yC7UjRaWKX": {
     "defaultMessage": "at"
