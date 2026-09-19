@@ -231,6 +231,36 @@ func TestDictionaryNormalizeWords(t *testing.T) {
 	require.Equal(t, []normalizedDictionaryWord{{"AuthKit", "authkit"}, {"Café", "café"}, {"Hyperlocalise", "hyperlocalise"}}, words)
 }
 
+func TestDictionaryTrimAndParseEdges(t *testing.T) {
+	for _, tc := range []struct {
+		name, input, want string
+	}{
+		{name: "ascii unchanged", input: "AuthKit", want: "AuthKit"},
+		{name: "ascii padded", input: "\t AuthKit \r\n", want: "AuthKit"},
+		{name: "bom only", input: "\ufeff", want: ""},
+		{name: "nbsp padded", input: "\u00a0Brand\u00a0", want: "Brand"},
+		{name: "ideographic space", input: "\u3000Café\u3000", want: "Café"},
+	} {
+		t.Run("trim/"+tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, trimDictionaryInput(tc.input))
+		})
+	}
+
+	t.Run("parse streams without trailing newline and skips blank comment lines", func(t *testing.T) {
+		words := parseDictionaryWords("# leading\n\n\u00a0\nAuthKit\n# mid\nauthkit\nHyperlocalise")
+		require.Equal(t, []normalizedDictionaryWord{
+			{"AuthKit", "authkit"},
+			{"Hyperlocalise", "hyperlocalise"},
+		}, words)
+	})
+
+	t.Run("ascii normalize bypasses nfc without changing letters", func(t *testing.T) {
+		word, ok := normalizeDictionaryWord("  Product-1  ")
+		require.True(t, ok)
+		require.Equal(t, normalizedDictionaryWord{"Product-1", "product-1"}, word)
+	})
+}
+
 func TestDictionaryLocaleAndPageValidation(t *testing.T) {
 	for input, want := range map[string]string{" en_us ": "en-US", "EN-gb": "en-GB", "zh_hant_tw": "zh-Hant-TW", "fr": "fr"} {
 		t.Run(input, func(t *testing.T) {
