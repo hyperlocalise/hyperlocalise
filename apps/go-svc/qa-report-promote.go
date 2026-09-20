@@ -311,7 +311,7 @@ func (api *qaReportAPI) promoteSingleFinding(ctx context.Context, actor qaReport
 	}, nil
 }
 
-func ensureIssueStarterColumns(ctx context.Context, tx pgx.Tx, organizationID, projectID, actorUserID string) error {
+func ensureIssueStarterColumns(ctx context.Context, db dictionaryDB, organizationID, projectID, actorUserID string) error {
 	starter := []struct {
 		key, label, layer, typ string
 		sortOrder              int
@@ -322,7 +322,7 @@ func ensureIssueStarterColumns(ctx context.Context, tx pgx.Tx, organizationID, p
 		{"context", "Context", "enrichment", "enrichment", 30, `{"agentKind":"context","autoRun":"never"}`},
 	}
 	for _, column := range starter {
-		if _, err := tx.Exec(ctx, `
+		if _, err := db.Exec(ctx, `
             insert into issue_sheet_columns (
                 organization_id, project_id, key, label, layer, type, config, sort_order, created_by_user_id
             ) values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)
