@@ -23,6 +23,17 @@ func (api *issueSheetAPI) dispatch(r *http.Request, actor issueSheetActor, proje
 	case len(parts) == 1 && parts[0] == "assignable-members" && r.Method == http.MethodGet:
 		return api.listAssignableMembers(r.Context(), actor, project)
 	case len(parts) == 1 && parts[0] == "columns" && r.Method == http.MethodGet:
+		tx, err := api.pool.Begin(r.Context())
+		if err != nil {
+			return nil, 0, err
+		}
+		defer func() { _ = tx.Rollback(r.Context()) }()
+		if err := ensureIssueStarterColumns(r.Context(), tx, actor.organizationID, project.ID, actor.userID); err != nil {
+			return nil, 0, err
+		}
+		if err := tx.Commit(r.Context()); err != nil {
+			return nil, 0, err
+		}
 		columns, err := api.loadColumns(r.Context(), actor.organizationID, project.ID)
 		if err != nil {
 			return nil, 0, err

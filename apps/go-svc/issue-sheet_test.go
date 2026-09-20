@@ -369,9 +369,23 @@ func TestBuildIssueListWhere(t *testing.T) {
 	require.Equal(t, "org", args[0])
 	require.Equal(t, "proj", args[1])
 
-	_, _, needsPriority = buildIssueListWhere("org", "proj", "actor", issueListQuery{
-		priority: "P0",
-		sort:     "priority",
+	sql, args, needsPriority = buildIssueListWhere("org", "proj", "actor", issueListQuery{
+		priority:    "P0",
+		sort:        "priority",
+		qaCheckType: "placeholder_mismatch",
 	})
 	require.True(t, needsPriority)
+	require.Contains(t, sql, "qaFinding,checkType")
+	require.Contains(t, args, "placeholder_mismatch")
+}
+
+func TestParseIssueListQueryQACheckType(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/?qaCheckType=placeholder_mismatch", nil)
+	query, err := parseIssueListQuery(req, "actor")
+	require.NoError(t, err)
+	require.Equal(t, "placeholder_mismatch", query.qaCheckType)
+
+	req = httptest.NewRequest(http.MethodGet, "/?qaCheckType=nope", nil)
+	_, err = parseIssueListQuery(req, "actor")
+	require.Error(t, err)
 }

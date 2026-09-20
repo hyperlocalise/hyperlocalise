@@ -163,6 +163,9 @@ func (api *issueSheetAPI) updateColumn(ctx context.Context, actor issueSheetActo
 		}
 	}
 	if len(body.Config) > 0 {
+		if typ == "enrichment" || isProtectedIssueSheetColumnKey(key) || typ != "select" {
+			return nil, 0, issueSheetFailure(400, "issue_sheet_column_config_not_editable", "Column config is not editable")
+		}
 		config = body.Config
 	}
 	if body.SortOrder != nil {
@@ -172,6 +175,9 @@ func (api *issueSheetAPI) updateColumn(ctx context.Context, actor issueSheetActo
 		hidden = *body.Hidden
 	}
 	if body.Icon != nil {
+		if !canDeleteIssueSheetColumn(key, layer) {
+			return nil, 0, issueSheetFailure(400, "issue_sheet_column_icon_not_editable", "Column icon is not editable")
+		}
 		icon = body.Icon
 	}
 	var updated time.Time

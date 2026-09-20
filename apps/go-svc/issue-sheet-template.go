@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 )
 
@@ -21,7 +22,7 @@ func (api *issueSheetAPI) getTemplateConfig(ctx context.Context, actor issueShee
 	if err != nil {
 		return nil, 0, err
 	}
-	config, err := mapTemplateConfig(raw)
+	config, err := api.mapTemplateConfig(ctx, actor.organizationID, project.ID, raw)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -35,6 +36,11 @@ func (api *issueSheetAPI) putTemplateConfig(ctx context.Context, actor issueShee
 	}
 	if body.AssigneeByTemplate == nil {
 		body.AssigneeByTemplate = map[string]string{}
+	}
+	for _, userID := range body.AssigneeByTemplate {
+		if err := api.assertAssignableAssignee(ctx, actor.organizationID, project.ID, userID); err != nil {
+			return nil, 0, err
+		}
 	}
 	stored := map[string]any{
 		"assigneeByTemplate": body.AssigneeByTemplate,
@@ -56,7 +62,7 @@ func (api *issueSheetAPI) putTemplateConfig(ctx context.Context, actor issueShee
 	return api.getTemplateConfig(ctx, actor, project)
 }
 
-func mapTemplateConfig(raw []byte) (map[string]any, error) {
+func (api *issueSheetAPI) mapTemplateConfig(ctx context.Context, organizationID, projectID string, raw []byte) (map[string]any, error) {
 	var stored struct {
 		DefaultTemplateKey *string           `json:"defaultTemplateKey"`
 		AssigneeByTemplate map[string]string `json:"assigneeByTemplate"`
@@ -68,10 +74,18 @@ func mapTemplateConfig(raw []byte) (map[string]any, error) {
 	}
 	assignees := []map[string]any{}
 	for templateKey, userID := range stored.AssigneeByTemplate {
+		assignable := true
+		if err := api.assertAssignableAssignee(ctx, organizationID, projectID, userID); err != nil {
+			var failure *issueSheetError
+			if !errors.As(err, &failure) || failure.code != "assignee_not_assignable" {
+				return nil, err
+			}
+			assignable = false
+		}
 		assignees = append(assignees, map[string]any{
 			"templateKey": templateKey,
 			"userId":      userID,
-			"assignable":  true,
+			"assignable":  assignable,
 		})
 	}
 	var defaultKey any

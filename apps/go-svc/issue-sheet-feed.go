@@ -114,7 +114,7 @@ func (api *issueSheetAPI) listFeed(ctx context.Context, actor issueSheetActor, p
 		}
 	}
 
-	activitiesByID, err := api.loadFeedActivities(ctx, actor, activityIDs)
+	activitiesByID, err := api.loadFeedActivities(ctx, project.ID, activityIDs)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -247,60 +247,225 @@ func (api *issueSheetAPI) queryFeedPage(
 	return out, rows.Err()
 }
 
-func (api *issueSheetAPI) loadFeedActivities(ctx context.Context, _ issueSheetActor, ids []string) (map[string]map[string]any, error) {
+func (api *issueSheetAPI) loadFeedActivities(ctx context.Context, projectID string, ids []string) (map[string]map[string]any, error) {
 	out := map[string]map[string]any{}
 	if len(ids) == 0 {
 		return out, nil
 	}
+
+	type activityRow struct {
+		id        string
+		typ       string
+		payload   map[string]any
+		actorID   *string
+		createdAt time.Time
+	}
 	rows, err := api.pool.Query(ctx, `
-        select a.id, a.type, a.payload, a.actor_user_id, a.created_at,
-               u.first_name, u.last_name, u.email, u.avatar_url
+        select a.id, a.type, a.payload, a.actor_user_id, a.created_at
         from issue_sheet_activities a
-        left join users u on u.id = a.actor_user_id
         where a.id = any($1::uuid[])`, ids)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
+	rawRows := []activityRow{}
+	userIDs := map[string]struct{}{}
+	relatedIssueIDs := map[string]struct{}{}
 	for rows.Next() {
-		var id, typ string
-		var payload []byte
-		var actorID *string
-		var created time.Time
-		var first, last, email, avatar *string
-		if err := rows.Scan(&id, &typ, &payload, &actorID, &created, &first, &last, &email, &avatar); err != nil {
+		var row activityRow
+		var payloadRaw []byte
+		if err := rows.Scan(&row.id, &row.typ, &payloadRaw, &row.actorID, &row.createdAt); err != nil {
 			return nil, err
 		}
-		activity := map[string]any{
-			"id":        id,
-			"type":      typ,
-			"createdAt": formatIssueSheetTime(created),
-			"actor":     nil,
+		row.payload = map[string]any{}
+		if len(payloadRaw) > 0 && string(payloadRaw) != "null" {
+			_ = json.Unmarshal(payloadRaw, &row.payload)
 		}
-		if actorID != nil {
-			display := strings.TrimSpace(stringFromPtr(first) + " " + stringFromPtr(last))
-			if display == "" {
-				display = stringFromPtr(email)
-			}
-			if display == "" {
-				display = "Unknown"
-			}
-			activity["actor"] = map[string]any{
-				"userId":      *actorID,
-				"displayName": display,
-				"email":       email,
-				"avatarUrl":   avatar,
-			}
+		if row.actorID != nil {
+			userIDs[*row.actorID] = struct{}{}
 		}
-		if len(payload) > 0 && string(payload) != "null" {
-			var fields map[string]any
-			if err := json.Unmarshal(payload, &fields); err == nil {
-				for key, value := range fields {
-					activity[key] = value
-				}
+		switch row.typ {
+		case "assignee_changed":
+			if previous, ok := row.payload["previousAssigneeUserId"].(string); ok && previous != "" {
+				userIDs[previous] = struct{}{}
+			}
+			if next, ok := row.payload["nextAssigneeUserId"].(string); ok && next != "" {
+				userIDs[next] = struct{}{}
+			}
+		case "relationship_added", "relationship_removed":
+			if relatedID, ok := row.payload["relatedIssueId"].(string); ok && relatedID != "" {
+				relatedIssueIDs[relatedID] = struct{}{}
 			}
 		}
-		out[id] = activity
+		rawRows = append(rawRows, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	usersByID, err := api.loadActivityUsers(ctx, keysOf(userIDs))
+	if err != nil {
+		return nil, err
+	}
+	relatedTitles, err := api.loadRelatedIssueTitles(ctx, projectID, keysOf(relatedIssueIDs))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range rawRows {
+		actor := mapActivityUser(row.actorID, usersByID)
+		createdAt := formatIssueSheetTime(row.createdAt)
+		switch row.typ {
+		case "issue_created":
+			out[row.id] = map[string]any{
+				"id": row.id, "type": row.typ, "actor": actor, "createdAt": createdAt,
+			}
+		case "status_changed":
+			previousStatus, _ := row.payload["previousStatus"].(string)
+			nextStatus, _ := row.payload["nextStatus"].(string)
+			if previousStatus == "" || nextStatus == "" {
+				continue
+			}
+			out[row.id] = map[string]any{
+				"id": row.id, "type": row.typ, "actor": actor, "createdAt": createdAt,
+				"previousStatus": previousStatus, "nextStatus": nextStatus,
+			}
+		case "issue_type_changed":
+			previousType, _ := row.payload["previousIssueType"].(string)
+			nextType, _ := row.payload["nextIssueType"].(string)
+			if previousType == "" || nextType == "" {
+				continue
+			}
+			out[row.id] = map[string]any{
+				"id": row.id, "type": row.typ, "actor": actor, "createdAt": createdAt,
+				"previousIssueType": previousType, "nextIssueType": nextType,
+			}
+		case "priority_changed":
+			nextPriority, _ := row.payload["nextPriority"].(string)
+			if nextPriority == "" {
+				continue
+			}
+			var previousPriority any
+			if value, ok := row.payload["previousPriority"].(string); ok {
+				previousPriority = value
+			}
+			out[row.id] = map[string]any{
+				"id": row.id, "type": row.typ, "actor": actor, "createdAt": createdAt,
+				"previousPriority": previousPriority, "nextPriority": nextPriority,
+			}
+		case "relationship_added", "relationship_removed":
+			relatedIssueID, _ := row.payload["relatedIssueId"].(string)
+			relationshipKind, _ := row.payload["kind"].(string)
+			if relatedIssueID == "" || relationshipKind == "" {
+				continue
+			}
+			var title any
+			if value, ok := relatedTitles[relatedIssueID]; ok {
+				title = value
+			}
+			out[row.id] = map[string]any{
+				"id": row.id, "type": row.typ, "actor": actor, "createdAt": createdAt,
+				"relationshipKind": relationshipKind,
+				"relatedIssue": map[string]any{
+					"issueId": relatedIssueID,
+					"title":   title,
+				},
+			}
+		case "assignee_changed":
+			var previousID, nextID *string
+			if value, ok := row.payload["previousAssigneeUserId"].(string); ok && value != "" {
+				previousID = &value
+			}
+			if value, ok := row.payload["nextAssigneeUserId"].(string); ok && value != "" {
+				nextID = &value
+			}
+			out[row.id] = map[string]any{
+				"id": row.id, "type": row.typ, "actor": actor, "createdAt": createdAt,
+				"previousAssignee": mapActivityUser(previousID, usersByID),
+				"nextAssignee":     mapActivityUser(nextID, usersByID),
+			}
+		}
+	}
+	return out, nil
+}
+
+func keysOf(set map[string]struct{}) []string {
+	out := make([]string, 0, len(set))
+	for key := range set {
+		out = append(out, key)
+	}
+	return out
+}
+
+func mapActivityUser(userID *string, usersByID map[string]map[string]any) any {
+	if userID == nil || *userID == "" {
+		return nil
+	}
+	if user, ok := usersByID[*userID]; ok {
+		return user
+	}
+	return map[string]any{
+		"userId":      *userID,
+		"displayName": "Unknown",
+		"email":       nil,
+		"avatarUrl":   nil,
+	}
+}
+
+func (api *issueSheetAPI) loadActivityUsers(ctx context.Context, ids []string) (map[string]map[string]any, error) {
+	out := map[string]map[string]any{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := api.pool.Query(ctx, `
+        select id, first_name, last_name, email, avatar_url
+        from users where id = any($1::uuid[])`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var first, last, email, avatar *string
+		if err := rows.Scan(&id, &first, &last, &email, &avatar); err != nil {
+			return nil, err
+		}
+		display := strings.TrimSpace(stringFromPtr(first) + " " + stringFromPtr(last))
+		if display == "" {
+			display = stringFromPtr(email)
+		}
+		if display == "" {
+			display = "Unknown"
+		}
+		out[id] = map[string]any{
+			"userId":      id,
+			"displayName": display,
+			"email":       email,
+			"avatarUrl":   avatar,
+		}
+	}
+	return out, rows.Err()
+}
+
+func (api *issueSheetAPI) loadRelatedIssueTitles(ctx context.Context, projectID string, ids []string) (map[string]string, error) {
+	out := map[string]string{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := api.pool.Query(ctx, `
+        select id, title from issue_sheet_issues
+        where project_id = $1 and id = any($2::uuid[])`, projectID, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, title string
+		if err := rows.Scan(&id, &title); err != nil {
+			return nil, err
+		}
+		out[id] = title
 	}
 	return out, rows.Err()
 }

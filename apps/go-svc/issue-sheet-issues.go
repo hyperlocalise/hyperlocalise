@@ -180,11 +180,22 @@ type issueListQuery struct {
 	locale           string
 	assignee         string
 	translationKeyID string
+	qaCheckType      string
 	search           string
 	sort             string
 	sortDir          string
 	limit            int
 	offset           int
+}
+
+var validQACheckTypes = map[string]struct{}{
+	"not_localized":         {},
+	"whitespace_only":       {},
+	"same_as_source":        {},
+	"escaped_char_mismatch": {},
+	"length":                {},
+	"placeholder_mismatch":  {},
+	"glossary_violation":    {},
 }
 
 func parseIssueListQuery(r *http.Request, actorUserID string) (issueListQuery, error) {
@@ -197,6 +208,7 @@ func parseIssueListQuery(r *http.Request, actorUserID string) (issueListQuery, e
 		locale:           strings.TrimSpace(q.Get("locale")),
 		assignee:         strings.TrimSpace(q.Get("assignee")),
 		translationKeyID: strings.TrimSpace(q.Get("translationKeyId")),
+		qaCheckType:      strings.TrimSpace(q.Get("qaCheckType")),
 		search:           strings.TrimSpace(q.Get("search")),
 		sort:             strings.TrimSpace(q.Get("sort")),
 		sortDir:          strings.TrimSpace(q.Get("sortDir")),
@@ -229,6 +241,11 @@ func parseIssueListQuery(r *http.Request, actorUserID string) (issueListQuery, e
 		switch out.priority {
 		case "P0", "P1", "P2":
 		default:
+			return out, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
+		}
+	}
+	if out.qaCheckType != "" {
+		if _, ok := validQACheckTypes[out.qaCheckType]; !ok {
 			return out, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
 		}
 	}
@@ -333,6 +350,9 @@ func buildIssueListWhere(organizationID, projectID, actorUserID string, query is
 	}
 	if query.translationKeyID != "" {
 		add("i.translation_key_id = $%d", query.translationKeyID)
+	}
+	if query.qaCheckType != "" {
+		add("i.metadata #>> '{qaFinding,checkType}' = $%d", query.qaCheckType)
 	}
 	if query.search != "" {
 		pattern := "%" + query.search + "%"
@@ -790,6 +810,27 @@ func (api *issueSheetAPI) updateIssue(ctx context.Context, actor issueSheetActor
 		}
 	}
 
+	tx, err := api.pool.Begin(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var previousStatus, previousIssueType string
+	var previousAssignee *string
+	if err := tx.QueryRow(ctx, `
+        select status, issue_type, assignee_user_id
+        from issue_sheet_issues
+        where organization_id = $1 and project_id = $2 and id = $3
+        for update`,
+		actor.organizationID, project.ID, issueID,
+	).Scan(&previousStatus, &previousIssueType, &previousAssignee); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, 0, issueSheetFailure(400, "issue_sheet_issue_not_found", "Issue not found")
+		}
+		return nil, 0, err
+	}
+
 	sets := []string{"updated_at = now()"}
 	args := []any{actor.organizationID, project.ID, issueID}
 	add := func(col string, value any) {
@@ -842,7 +883,7 @@ func (api *issueSheetAPI) updateIssue(ctx context.Context, actor issueSheetActor
 		return nil, 0, issueSheetFailure(400, "invalid_issue_sheet_issue_payload", "At least one field must be provided")
 	}
 
-	tag, err := api.pool.Exec(ctx, `
+	tag, err := tx.Exec(ctx, `
         update issue_sheet_issues set `+strings.Join(sets, ", ")+`
         where organization_id = $1 and project_id = $2 and id = $3`, args...)
 	if err != nil {
@@ -850,6 +891,64 @@ func (api *issueSheetAPI) updateIssue(ctx context.Context, actor issueSheetActor
 	}
 	if tag.RowsAffected() == 0 {
 		return nil, 0, issueSheetFailure(400, "issue_sheet_issue_not_found", "Issue not found")
+	}
+
+	if body.Status != nil && *body.Status != previousStatus {
+		payload, _ := json.Marshal(map[string]string{
+			"previousStatus": previousStatus,
+			"nextStatus":     *body.Status,
+		})
+		if _, err := tx.Exec(ctx, `
+            insert into issue_sheet_activities (
+                organization_id, project_id, issue_id, actor_user_id, type, payload, created_at
+            ) values ($1, $2, $3, $4, 'status_changed', $5::jsonb, clock_timestamp())`,
+			actor.organizationID, project.ID, issueID, actor.userID, string(payload)); err != nil {
+			return nil, 0, err
+		}
+	}
+	if body.IssueType != nil && *body.IssueType != previousIssueType {
+		payload, _ := json.Marshal(map[string]string{
+			"previousIssueType": previousIssueType,
+			"nextIssueType":     *body.IssueType,
+		})
+		if _, err := tx.Exec(ctx, `
+            insert into issue_sheet_activities (
+                organization_id, project_id, issue_id, actor_user_id, type, payload, created_at
+            ) values ($1, $2, $3, $4, 'issue_type_changed', $5::jsonb, clock_timestamp())`,
+			actor.organizationID, project.ID, issueID, actor.userID, string(payload)); err != nil {
+			return nil, 0, err
+		}
+	}
+	if body.AssigneeUserID.Present {
+		nextAssignee := body.AssigneeUserID.Value
+		assigneeChanged := (previousAssignee == nil) != (nextAssignee == nil) ||
+			(previousAssignee != nil && nextAssignee != nil && *previousAssignee != *nextAssignee)
+		if assigneeChanged {
+			payload, _ := json.Marshal(map[string]any{
+				"previousAssigneeUserId": previousAssignee,
+				"nextAssigneeUserId":     nextAssignee,
+			})
+			if _, err := tx.Exec(ctx, `
+                insert into issue_sheet_activities (
+                    organization_id, project_id, issue_id, actor_user_id, type, payload, created_at
+                ) values ($1, $2, $3, $4, 'assignee_changed', $5::jsonb, clock_timestamp())`,
+				actor.organizationID, project.ID, issueID, actor.userID, string(payload)); err != nil {
+				return nil, 0, err
+			}
+			if nextAssignee != nil && *nextAssignee != "" {
+				if _, err := tx.Exec(ctx, `
+                    insert into issue_sheet_subscriptions (organization_id, project_id, issue_id, user_id)
+                    values ($1, $2, $3, $4)
+                    on conflict do nothing`,
+					actor.organizationID, project.ID, issueID, *nextAssignee); err != nil {
+					return nil, 0, err
+				}
+			}
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, 0, err
 	}
 	issue, err := api.loadIssue(ctx, actor, project, issueID)
 	if err != nil {
