@@ -226,3 +226,20 @@ func TestMemoryRequestLogPath(t *testing.T) {
 	path := publicPathPrefix + "/v1/orgs/acme/translation-memories/" + testMemoryID + "/entries"
 	require.Equal(t, publicPathPrefix+"/v1/orgs/{organizationSlug}/translation-memories/{resource}", requestLogPath(path))
 }
+
+func TestMemoryActorPermissions(t *testing.T) {
+	require.True(t, memoryActor{role: "admin"}.canWriteMemories())
+	require.True(t, memoryActor{role: "localization_manager"}.canWriteMemories())
+	require.False(t, memoryActor{role: "reviewer"}.canWriteMemories())
+	require.False(t, memoryActor{role: "translator"}.canWriteMemories())
+	require.False(t, memoryActor{role: "member"}.canWriteMemories())
+
+	require.True(t, memoryActor{role: "admin"}.canReviewMemories())
+	require.True(t, memoryActor{role: "localization_manager"}.canReviewMemories())
+	require.True(t, memoryActor{role: "reviewer"}.canReviewMemories())
+	require.False(t, memoryActor{role: "translator"}.canReviewMemories())
+	require.False(t, memoryActor{role: "member"}.canReviewMemories())
+
+	require.True(t, memoryActor{role: "admin"}.orgWideAccess())
+	require.False(t, memoryActor{role: "reviewer"}.orgWideAccess())
+}

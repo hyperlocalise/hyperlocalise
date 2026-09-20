@@ -309,6 +309,65 @@ describe("typed values and secret inspection", () => {
       Authorization: "Bearer {{literal-secret}}",
     });
   });
+  it("skips body templating when body input is bound", () => {
+    const context = createVisualWorkflowExecutionContext({
+      triggerInput: { id: "should-not-appear" },
+    });
+    const literalBody = '{"token":"{{keep-literal}}","id":"{{trigger.id}}"}';
+    const node: CanonicalVisualWorkflowNode = {
+      id: "http",
+      type: "action.http",
+      config: {
+        kind: "action.http",
+        method: "POST",
+        url: "https://example.com/hooks/{{trigger.id}}",
+        bodyType: "json",
+        body: '{"fallback":"{{trigger.id}}"}',
+        headers: [],
+        queryParams: [],
+        auth: { type: "none" },
+        onError: "stop",
+      },
+      inputs: {
+        body: { kind: "literal", value: literalBody },
+      },
+    };
+    const resolved = resolveWorkflowNodeInputs(node, context);
+    expect(resolved.config).toMatchObject({
+      url: "https://example.com/hooks/should-not-appear",
+      body: literalBody,
+    });
+  });
+  it("skips body templating when a body.* input is bound", () => {
+    const context = createVisualWorkflowExecutionContext({
+      triggerInput: { id: "expanded-in-url-only" },
+    });
+    const node: CanonicalVisualWorkflowNode = {
+      id: "http",
+      type: "action.http",
+      config: {
+        kind: "action.http",
+        method: "POST",
+        url: "https://example.com/{{trigger.id}}",
+        bodyType: "json",
+        body: '{"raw":"{{trigger.id}}"}',
+        headers: [],
+        queryParams: [],
+        auth: { type: "none" },
+        onError: "stop",
+      },
+      inputs: {
+        "body.raw": { kind: "literal", value: "injected" },
+      },
+    };
+    const resolved = resolveWorkflowNodeInputs(node, context);
+    expect(resolved.config).toMatchObject({
+      url: "https://example.com/expanded-in-url-only",
+      // body.* applies the bound leaf and skips unbound body templating.
+      body: { raw: "injected" },
+    });
+  });
+
   it("serializes bound JSON once, including quotes and template-like content", () => {
     const body = { text: 'a "quote" and {{literal}}' };
     expect(
