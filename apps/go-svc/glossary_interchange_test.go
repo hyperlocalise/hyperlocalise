@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -287,4 +288,77 @@ func TestSampleExportConceptIDsAreStableShape(t *testing.T) {
 	concepts := sampleGlossaryExportConcepts(1)
 	require.Len(t, concepts[0].ID, 36)
 	require.WithinDuration(t, testGlossaryTime, concepts[0].CreatedAt, time.Second)
+}
+
+func TestLookupImportGlossaryTermPrefersStableID(t *testing.T) {
+	termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+	byID := dictionaryRowStep("glossary_id=$1 and concept_id=$2 and id=$3", termID)
+	byID.args = []any{testGlossaryID, conceptID, termID}
+	db := newDictionaryTestDB(t, byID)
+	found, matchedByID, err := lookupImportGlossaryTerm(t.Context(), db, testGlossaryID, conceptID, termID, "en-US", "Changed text")
+	require.NoError(t, err)
+	require.True(t, matchedByID)
+	require.Equal(t, termID, found)
+}
+
+func TestLookupImportGlossaryTermFallsBackToLocaleText(t *testing.T) {
+	termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+	byID := dictionaryRowStep("glossary_id=$1 and concept_id=$2 and id=$3")
+	byID.err = pgx.ErrNoRows
+	byID.args = []any{testGlossaryID, conceptID, termID}
+	conflict := dictionaryRowStep("glossary_id=$1 and id=$2")
+	conflict.err = pgx.ErrNoRows
+	conflict.args = []any{testGlossaryID, termID}
+	byText := dictionaryRowStep("locale=$3 and lower(term)=lower($4)", termID)
+	byText.args = []any{testGlossaryID, conceptID, "en-US", "Checkout"}
+	db := newDictionaryTestDB(t, byID, conflict, byText)
+	found, matchedByID, err := lookupImportGlossaryTerm(t.Context(), db, testGlossaryID, conceptID, termID, "en-US", "Checkout")
+	require.NoError(t, err)
+	require.False(t, matchedByID)
+	require.Equal(t, termID, found)
+}
+
+func TestLookupImportGlossaryTermDetectsCrossConceptConflict(t *testing.T) {
+	termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+	otherConcept := "ffffffff-ffff-4fff-8fff-ffffffffffff"
+	byID := dictionaryRowStep("glossary_id=$1 and concept_id=$2 and id=$3")
+	byID.err = pgx.ErrNoRows
+	byID.args = []any{testGlossaryID, conceptID, termID}
+	conflict := dictionaryRowStep("glossary_id=$1 and id=$2", otherConcept)
+	conflict.args = []any{testGlossaryID, termID}
+	db := newDictionaryTestDB(t, byID, conflict)
+	_, _, err := lookupImportGlossaryTerm(t.Context(), db, testGlossaryID, conceptID, termID, "en-US", "Checkout")
+	require.Error(t, err)
+	require.True(t, isGlossaryImportTermConflict(err))
+}
+
+func TestCreateGlossaryTermRequiresOwnedConcept(t *testing.T) {
+	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+	missing := dictionaryRowStep("from glossary_concepts where id=$1")
+	missing.err = pgx.ErrNoRows
+	missing.args = []any{conceptID, testGlossaryID}
+	api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), missing)
+	rec := glossaryRequestForTest(api, "POST", testGlossaryBase+"/"+testGlossaryID+"/concepts/"+conceptID+"/terms", `{"locale":"en-US","term":"Checkout"}`)
+	require.Equal(t, 404, rec.Code, rec.Body.String())
+}
+
+func TestGlossaryTermPageTotalRespectsLocaleFilter(t *testing.T) {
+	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+	termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+	exists := dictionaryRowStep("from glossary_concepts where id=$1", conceptID)
+	exists.args = []any{conceptID, testGlossaryID}
+	terms := dictionaryDBStep{kind: "query", sql: "from glossary_terms t where", values: [][]any{{
+		termID, testGlossaryID, conceptID, "fr-FR", "Paiement", "", "", "", nil, nil, nil, nil, "draft", false, false, "manual", "proposed", testGlossaryTime, testGlossaryTime,
+	}}}
+	terms.args = []any{testGlossaryID, conceptID, "fr-FR", 51}
+	total := dictionaryRowStep("select count(*) from glossary_terms t where", 1)
+	total.args = []any{testGlossaryID, conceptID, "fr-FR"}
+	api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), exists, terms, total)
+	rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/concepts/"+conceptID+"/terms/page?locale=fr-FR", "")
+	require.Equal(t, 200, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"total":1`)
+	require.Contains(t, rec.Body.String(), "Paiement")
 }

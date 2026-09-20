@@ -136,6 +136,16 @@ func TestMemoryCreateListEntryConflict(t *testing.T) {
 		require.Equal(t, 403, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), "external_tms_memory_immutable")
 	})
+	t.Run("delete rejects archived memory", func(t *testing.T) {
+		archived := memoryRecordValues()
+		archived[5] = "archived"
+		owned := dictionaryRowStep("m.id=$1 and", archived...)
+		owned.args = []any{testMemoryID, testMemoryOrgID, testMemoryUserID, true}
+		api, _ := memoryTestAPI(t, "admin", owned)
+		rec := memoryRequestForTest(api, "DELETE", testMemoryBase+"/"+testMemoryID, "")
+		require.Equal(t, 403, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), "memory_action_archived")
+	})
 	t.Run("import dry run", func(t *testing.T) {
 		dupCheck := dictionaryRowStep("select id from memory_entries where memory_id=$1")
 		dupCheck.err = pgx.ErrNoRows

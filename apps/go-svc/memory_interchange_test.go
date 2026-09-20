@@ -80,6 +80,23 @@ func TestMemoryExportCSVHTTP(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "Bonjour")
 }
 
+func TestMemoryExportCSVEscapesFormulas(t *testing.T) {
+	entries := dictionaryDBStep{kind: "query", sql: "from memory_entries where", values: [][]any{{
+		"en-US", "fr-FR", "=1+1", "@SUM(A1)", 100, nil,
+	}}}
+	entries.args = []any{testMemoryID}
+	api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), entries)
+	rec := memoryRequestForTest(api, "GET", testMemoryBase+"/"+testMemoryID+"/entries/export?format=csv", "")
+	require.Equal(t, 200, rec.Code, rec.Body.String())
+	body := rec.Body.String()
+	require.Contains(t, body, glossaryCSVFormulaEscapePrefix+"=1+1")
+	require.Contains(t, body, glossaryCSVFormulaEscapePrefix+"@SUM(A1)")
+	candidates := parseMemoryCSV(body)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "=1+1", candidates[0].SourceText)
+	require.Equal(t, "@SUM(A1)", candidates[0].TargetText)
+}
+
 func TestMemoryImportApply(t *testing.T) {
 	dupCheck := dictionaryRowStep("select id from memory_entries where memory_id=$1")
 	dupCheck.err = pgx.ErrNoRows
