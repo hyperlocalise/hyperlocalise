@@ -29,7 +29,6 @@ import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
 import { createSlackConnectRoutes } from "./routes/slack-connect/slack-connect.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
-import { createNativeAuthRoutes } from "./routes/auth/native-auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
@@ -91,10 +90,7 @@ export type PublicApiRouteOptions = {
 };
 
 export function createAuthRoutes() {
-  return new Hono()
-    .route("/native", createNativeAuthRoutes())
-    .route("/", authRoutes)
-    .route("/slack", createSlackOAuthRoutes());
+  return new Hono().route("/", authRoutes).route("/slack", createSlackOAuthRoutes());
 }
 
 export function createPublicApiRoutes(options: PublicApiRouteOptions) {
