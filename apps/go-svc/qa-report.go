@@ -71,23 +71,23 @@ func qaReportFailure(status int, code, message string) error {
 	return &qaReportError{status, code, message}
 }
 
-func qaReportJSON(w http.ResponseWriter, status int, value any) {
+func qaReportJSON(ctx context.Context, w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(value); err != nil {
-		slog.Warn("qa_report_json_encode_failed")
+		slog.WarnContext(ctx, "qa_report_json_encode_failed")
 	}
 }
 
 func writeQaReportError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *qaReportError
 	if !errors.As(err, &failure) {
-		slog.Error("qa_report_request_failed", "phase", phase, "path", r.URL.Path)
+		slog.ErrorContext(r.Context(), "qa_report_request_failed", "phase", phase, "path", r.URL.Path)
 		failure = &qaReportError{500, "internal_error", "Internal server error"}
 	} else if failure.status >= 500 {
-		slog.Error("qa_report_request_failed", "phase", phase, "path", r.URL.Path, "error", failure.code)
+		slog.ErrorContext(r.Context(), "qa_report_request_failed", "phase", phase, "path", r.URL.Path, "error", failure.code)
 	}
-	qaReportJSON(w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
+	qaReportJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
 }
 
 func (api *qaReportAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
@@ -203,7 +203,7 @@ func (api *qaReportAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		writeQaReportError(w, r, "handle", err)
 		return
 	}
-	qaReportJSON(w, status, value)
+	qaReportJSON(r.Context(), w, status, value)
 }
 
 func readQaReportBody(r *http.Request, dest any) error {

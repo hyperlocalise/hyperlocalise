@@ -29,6 +29,21 @@ func telemetryEnabled() bool {
 	return ep != "" || epTraces != ""
 }
 
+// serviceResourceInfo holds service identity shared by tracing and log correlation.
+type serviceResourceInfo struct {
+	name    string
+	version string
+	env     string
+}
+
+func loadServiceResourceInfo() serviceResourceInfo {
+	return serviceResourceInfo{
+		name:    otelServiceName,
+		version: strings.TrimSpace(os.Getenv("VERCEL_GIT_COMMIT_SHA")),
+		env:     strings.TrimSpace(os.Getenv("VERCEL_ENV")),
+	}
+}
+
 // initTelemetry configures OTLP tracing and returns a caller-bounded shutdown function.
 func initTelemetry(ctx context.Context) (shutdown func(context.Context) error, err error) {
 	if !telemetryEnabled() {
@@ -40,12 +55,13 @@ func initTelemetry(ctx context.Context) (shutdown func(context.Context) error, e
 		return nil, fmt.Errorf("telemetry: OTLP HTTP exporter: %w", err)
 	}
 
-	attrs := []attribute.KeyValue{semconv.ServiceName(otelServiceName)}
-	if v := strings.TrimSpace(os.Getenv("VERCEL_GIT_COMMIT_SHA")); v != "" {
-		attrs = append(attrs, semconv.ServiceVersion(v))
+	info := loadServiceResourceInfo()
+	attrs := []attribute.KeyValue{semconv.ServiceName(info.name)}
+	if info.version != "" {
+		attrs = append(attrs, semconv.ServiceVersion(info.version))
 	}
-	if v := strings.TrimSpace(os.Getenv("VERCEL_ENV")); v != "" {
-		attrs = append(attrs, semconv.DeploymentEnvironmentNameKey.String(v))
+	if info.env != "" {
+		attrs = append(attrs, semconv.DeploymentEnvironmentNameKey.String(info.env))
 	}
 
 	res, err := resource.New(ctx, resource.WithAttributes(attrs...))

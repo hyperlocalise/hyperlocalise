@@ -77,11 +77,11 @@ func missingDictionaryProject() error {
 	return dictionaryFailure(404, "project_not_found", "Project not found")
 }
 
-func dictionaryJSON(w http.ResponseWriter, status int, value any) {
+func dictionaryJSON(ctx context.Context, w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(value); err != nil {
-		slog.Warn("dictionary_response_write_failed")
+		slog.WarnContext(ctx, "dictionary_response_write_failed")
 	}
 }
 
@@ -118,12 +118,12 @@ func recordDictionaryFailure(r *http.Request, phase string, err error) {
 		attrs := dictionaryLogAttrs(r, phase)
 		attrs = append(attrs, "status", failure.status, "code", failure.code)
 		if failure.status >= 500 {
-			slog.Error("dictionary_request_failed", attrs...)
+			slog.ErrorContext(r.Context(), "dictionary_request_failed", attrs...)
 		}
 		return
 	}
 	attrs := appendDictionaryErrorDetail(dictionaryLogAttrs(r, phase), err)
-	slog.Error("dictionary_request_failed", attrs...)
+	slog.ErrorContext(r.Context(), "dictionary_request_failed", attrs...)
 }
 
 func writeDictionaryError(w http.ResponseWriter, r *http.Request, phase string, err error) {
@@ -134,7 +134,7 @@ func writeDictionaryError(w http.ResponseWriter, r *http.Request, phase string, 
 	} else if failure.status >= 500 {
 		recordDictionaryFailure(r, phase, failure)
 	}
-	dictionaryJSON(w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
+	dictionaryJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
 }
 
 func (api *dictionaryAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
@@ -237,15 +237,19 @@ func (api *dictionaryAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if export, ok := value.(dictionaryExport); ok {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("Content-Disposition", `attachment; filename="`+export.locale+`.txt"`)
-		w.WriteHeader(status)
-		if _, err := io.WriteString(w, export.body); err != nil {
-			slog.Warn("dictionary_export_write_failed")
-		}
+		writeDictionaryExport(r.Context(), w, status, export)
 		return
 	}
-	dictionaryJSON(w, status, value)
+	dictionaryJSON(r.Context(), w, status, value)
+}
+
+func writeDictionaryExport(ctx context.Context, w http.ResponseWriter, status int, export dictionaryExport) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+export.locale+`.txt"`)
+	w.WriteHeader(status)
+	if _, err := io.WriteString(w, export.body); err != nil {
+		slog.WarnContext(ctx, "dictionary_export_write_failed")
+	}
 }
 
 type (

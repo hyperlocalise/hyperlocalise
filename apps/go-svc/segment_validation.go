@@ -38,14 +38,14 @@ func (h *handler) composeSegmentValidation(
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return nil, nil, err
 	case errors.Is(err, ErrSpellCheckUnavailable), errors.Is(err, spellcheck.ErrUnsupportedLocale):
-		logSpellingObservability(duration, true, 0, 0)
+		logSpellingObservability(ctx, duration, true, 0, 0)
 		return checks, []string{QA_MODE_SPELLING}, nil
 	case err != nil:
-		slog.Warn("spellcheck: skipping spelling checks after unexpected provider error", "error", err)
-		logSpellingObservability(duration, false, 1, 0)
+		slog.WarnContext(ctx, "spellcheck: skipping spelling checks after unexpected provider error", "error", err)
+		logSpellingObservability(ctx, duration, false, 1, 0)
 		return checks, []string{QA_MODE_SPELLING}, nil
 	default:
-		logSpellingObservability(duration, false, 0, len(issues))
+		logSpellingObservability(ctx, duration, false, 0, len(issues))
 		return append(checks, spellingWarningChecks(issues)...), nil, nil
 	}
 }

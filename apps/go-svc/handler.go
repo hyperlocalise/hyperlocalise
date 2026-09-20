@@ -110,6 +110,7 @@ func withOptionalPrefix(prefix string, next http.Handler) http.Handler {
 	stripped := http.StripPrefix(prefix, next)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == prefix || strings.HasPrefix(r.URL.Path, prefix+"/") {
+			r = r.WithContext(withPublicPath(r.Context(), r.URL.Path))
 			stripped.ServeHTTP(w, r)
 			return
 		}

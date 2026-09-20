@@ -128,7 +128,7 @@ func (api *qaReportAPI) serveProjectQaReport(w http.ResponseWriter, r *http.Requ
 		writeQaReportError(w, r, "handle", err)
 		return
 	}
-	qaReportJSON(w, status, value)
+	qaReportJSON(r.Context(), w, status, value)
 }
 
 func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *time.Time) map[string]any {
