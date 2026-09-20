@@ -49,10 +49,14 @@ full WorkOS identity model.
    still loads WorkOS-authoritative membership and capabilities for that
    user/org. Crowdin JWTs and Crowdin user OAuth tokens must never be accepted
    as org API auth by themselves.
-   9b. **Native Mac clients use the same WorkOS sealed session.** The Mac app
-   obtains a sealed `wos-session` via `/api/auth/native/*` (AuthKit PKCE) and
-   presents it as a `Cookie` header. Do not mint a separate native identity
-   channel that bypasses WorkOS session verification.
+   9b. **Native Mac clients use the same WorkOS session.** The Mac app
+   obtains a sealed `wos-session` and the session access-token JWT via
+   `/api/auth/native/*` (AuthKit PKCE). Present the sealed value as a
+   `Cookie` header on org session routes. On go-svc, present either that
+   cookie or `Authorization: Bearer` with the WorkOS session access token
+   (JWKS-verified, `aud` = `WORKOS_CLIENT_ID`, `sub` = user id, `sid`
+   required). Do not mint a separate native identity token. Do not accept
+   agent JWTs (`act.sub`) on this channel.
    9c. **Figma plugin clients use a personal access token.** The plugin sends
    the PAT as `x-api-key` only. Protected `/api/integrations/figma/*` routes
    authenticate through `apiKeyAuthMiddleware` and authorize with

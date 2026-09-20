@@ -25,8 +25,9 @@ import { nativeAuthorizeQuerySchema, nativeTokenBodySchema } from "./native-auth
  *
  * Authorize builds a WorkOS AuthKit URL for a client-generated PKCE challenge.
  * Token exchanges the authorization code for a sealed WorkOS session that the
- * Mac app stores in Keychain and sends as `Cookie: wos-session=…` — the same
- * channel used by the web app (see AUTH_INVARIANTS §9).
+ * Mac app stores in Keychain and can send as `Cookie: wos-session=…`, plus the
+ * short-lived session access token for `Authorization: Bearer` on go-svc.
+ * Both credentials are the same WorkOS session (see AUTH_INVARIANTS §9).
  */
 export function createNativeAuthRoutes() {
   return new Hono()
@@ -109,12 +110,18 @@ export function createNativeAuthRoutes() {
             return c.json({ error: "session_seal_failed" }, 502);
           }
 
+          const accessToken = authResponse.accessToken?.trim();
+          if (!accessToken) {
+            return c.json({ error: "session_access_token_missing" }, 502);
+          }
+
           return c.json(
             {
               session: {
                 sealedSession,
                 cookieName: "wos-session",
               },
+              accessToken,
               user: {
                 workosUserId: authResponse.user.id,
                 email: authResponse.user.email,

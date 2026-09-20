@@ -28,6 +28,13 @@ func (m mockSessionVerifier) Verify(_ context.Context, _ string) (SessionResult,
 	return SessionResult{Claims: m.claims}, nil
 }
 
+func (m mockSessionVerifier) VerifyAccessToken(_ context.Context, _ string) (AuthClaims, error) {
+	if m.err != nil {
+		return AuthClaims{}, m.err
+	}
+	return m.claims, nil
+}
+
 func TestHealth(t *testing.T) {
 	h := newHandler()
 	rec := httptest.NewRecorder()
