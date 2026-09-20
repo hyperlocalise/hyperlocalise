@@ -86,12 +86,17 @@ func TestMemoryImportApply(t *testing.T) {
 	dupCheck.args = []any{testMemoryID, "en-US", "fr-FR", "hello"}
 	insert := dictionaryRowStep("insert into memory_entries as e", memoryEntryValues()...)
 	attempt := dictionaryRowStep("insert into memory_import_attempts", "dddddddd-dddd-4ddd-8ddd-dddddddddddd")
-	api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), dupCheck, insert, attempt)
+	api, db := memoryTestAPI(t, "admin", memoryOwnedStep(),
+		dictionaryDBStep{kind: "begin"},
+		dupCheck, insert, attempt,
+		dictionaryDBStep{kind: "commit"},
+	)
 	body := `{"format":"csv","content":"source_locale,target_locale,source_text,target_text\nen-US,fr-FR,Hello,Bonjour"}`
 	rec := memoryRequestForTest(api, "POST", testMemoryBase+"/"+testMemoryID+"/entries/import", body)
 	require.Equal(t, 201, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"imported":1`)
 	require.Contains(t, rec.Body.String(), `"importAttemptId"`)
+	require.True(t, db.committed)
 }
 
 func TestMemoryImportAttemptReport(t *testing.T) {

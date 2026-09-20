@@ -290,6 +290,12 @@ func (api *memoryAPI) memoryProjectRequest(r *http.Request, actor memoryActor, m
 		if !actor.canWriteMemories() {
 			return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
 		}
+		if err := requireNativeMemory(m); err != nil {
+			return nil, 0, err
+		}
+		if m.Status == "archived" {
+			return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
+		}
 		projectID, err := api.ownedMemoryProject(ctx, actor, rest[0])
 		if err != nil {
 			return nil, 0, err

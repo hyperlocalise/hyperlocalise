@@ -117,6 +117,25 @@ func TestMemoryCreateListEntryConflict(t *testing.T) {
 		require.Contains(t, rec.Body.String(), "stale_memory_entry")
 		require.Contains(t, rec.Body.String(), `"memoryEntry"`)
 	})
+	t.Run("entry patch rejects blank source text", func(t *testing.T) {
+		current := memoryEntryValues()
+		currentStep := dictionaryRowStep("from memory_entries e where e.id=$1", current...)
+		currentStep.args = []any{testMemoryEntry, testMemoryID}
+		api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), currentStep)
+		rec := memoryRequestForTest(api, "PATCH", testMemoryBase+"/"+testMemoryID+"/entries/"+testMemoryEntry, `{"sourceText":"","expectedVersion":1}`)
+		require.Equal(t, 400, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), "invalid_memory_payload")
+	})
+	t.Run("detach requires native memory", func(t *testing.T) {
+		external := memoryRecordValues()
+		external[6] = "external_tms"
+		owned := dictionaryRowStep("m.id=$1 and", external...)
+		owned.args = []any{testMemoryID, testMemoryOrgID, testMemoryUserID, true}
+		api, _ := memoryTestAPI(t, "admin", owned)
+		rec := memoryRequestForTest(api, "DELETE", testMemoryBase+"/"+testMemoryID+"/projects/99999999-9999-4999-8999-999999999999", "")
+		require.Equal(t, 403, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), "external_tms_memory_immutable")
+	})
 	t.Run("import dry run", func(t *testing.T) {
 		dupCheck := dictionaryRowStep("select id from memory_entries where memory_id=$1")
 		dupCheck.err = pgx.ErrNoRows

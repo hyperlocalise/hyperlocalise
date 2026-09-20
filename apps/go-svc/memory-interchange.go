@@ -169,10 +169,23 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 	ctx := r.Context()
 	batchID := uuid.NewString()
 	var createdEntries []memoryEntryRecord
+	var tx pgx.Tx
+	if !dryRun {
+		begun, beginErr := api.pool.Begin(ctx)
+		if beginErr != nil {
+			return nil, 0, beginErr
+		}
+		tx = begun
+		defer func() { _ = tx.Rollback(ctx) }()
+	}
+	db := dictionaryDB(api.pool)
+	if tx != nil {
+		db = tx
+	}
 	for _, candidate := range candidates {
 		normalized := normalizeMemorySourceText(candidate.SourceText)
 		var existingID string
-		err := api.pool.QueryRow(ctx, `select id from memory_entries where memory_id=$1 and source_locale=$2 and target_locale=$3 and normalized_source_text=$4`, m.ID, candidate.SourceLocale, candidate.TargetLocale, normalized).Scan(&existingID)
+		err := db.QueryRow(ctx, `select id from memory_entries where memory_id=$1 and source_locale=$2 and target_locale=$3 and normalized_source_text=$4`, m.ID, candidate.SourceLocale, candidate.TargetLocale, normalized).Scan(&existingID)
 		action := "create"
 		if err == nil {
 			action = "update"
@@ -193,20 +206,18 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 			continue
 		}
 		if action == "create" {
-			entry, insertErr := scanMemoryEntry(api.pool.QueryRow(ctx, `insert into memory_entries as e (memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, match_score, provenance, created_by_user_id, import_batch_id, external_key) values ($1,$2,$3,$4,$5,$6,$7,'import',$8,$9,$10) returning `+memoryEntryColumns,
+			entry, insertErr := scanMemoryEntry(db.QueryRow(ctx, `insert into memory_entries as e (memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, match_score, provenance, created_by_user_id, import_batch_id, external_key) values ($1,$2,$3,$4,$5,$6,$7,'import',$8,$9,$10) returning `+memoryEntryColumns,
 				m.ID, candidate.SourceLocale, candidate.TargetLocale, candidate.SourceText, normalized, candidate.TargetText, candidate.MatchScore, actor.userID, batchID, candidate.ExternalKey))
 			if insertErr != nil {
-				skipped++
-				continue
+				return nil, 0, insertErr
 			}
 			createdEntries = append(createdEntries, entry)
 			created++
 		} else {
-			_, updateErr := api.pool.Exec(ctx, `update memory_entries set target_text=$5, match_score=$6, provenance='import', modified_by_user_id=$7, import_batch_id=$8, external_key=coalesce($9,external_key), version=version+1, updated_at=now() where id=$1 and memory_id=$2`,
+			_, updateErr := db.Exec(ctx, `update memory_entries set target_text=$5, match_score=$6, provenance='import', modified_by_user_id=$7, import_batch_id=$8, external_key=coalesce($9,external_key), version=version+1, updated_at=now() where id=$1 and memory_id=$2`,
 				existingID, m.ID, candidate.SourceLocale, candidate.TargetLocale, candidate.TargetText, candidate.MatchScore, actor.userID, batchID, candidate.ExternalKey)
 			if updateErr != nil {
-				skipped++
-				continue
+				return nil, 0, updateErr
 			}
 			updated++
 		}
@@ -220,9 +231,12 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 	var importBatchID any
 	if !dryRun {
 		importBatchID = batchID
-		attemptID, persistErr := api.persistMemoryImportAttempt(ctx, actor, m, payload, format, report, issues, headerSrclang)
+		attemptID, persistErr := api.persistMemoryImportAttempt(ctx, db, actor, m, payload, format, report, issues, headerSrclang)
 		if persistErr != nil {
 			return nil, 0, persistErr
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return nil, 0, err
 		}
 		importAttemptID = attemptID
 	}
@@ -400,7 +414,7 @@ func parseMemoryTMX(content string) ([]memoryImportCandidate, []memoryImportIssu
 	return candidates, issues, headerSrclang
 }
 
-func (api *memoryAPI) persistMemoryImportAttempt(ctx context.Context, actor memoryActor, m memoryRecord, payload memoryImportPayload, format string, report map[string]any, issues []memoryImportIssue, headerSrclang *string) (string, error) {
+func (api *memoryAPI) persistMemoryImportAttempt(ctx context.Context, db dictionaryDB, actor memoryActor, m memoryRecord, payload memoryImportPayload, format string, report map[string]any, issues []memoryImportIssue, headerSrclang *string) (string, error) {
 	options, _ := json.Marshal(map[string]any{"dryRun": false})
 	counts, _ := json.Marshal(report)
 	sum := sha256.Sum256([]byte(payload.Content))
@@ -410,15 +424,17 @@ func (api *memoryAPI) persistMemoryImportAttempt(ctx context.Context, actor memo
 		status = "partially_successful"
 	}
 	var attemptID string
-	err := api.pool.QueryRow(ctx, `insert into memory_import_attempts (organization_id, memory_id, created_by_user_id, status, format, options, source_filename, source_byte_size, source_sha256, counts, header_srclang, completed_at) values ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10::jsonb,$11,now()) returning id`,
+	err := db.QueryRow(ctx, `insert into memory_import_attempts (organization_id, memory_id, created_by_user_id, status, format, options, source_filename, source_byte_size, source_sha256, counts, header_srclang, completed_at) values ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10::jsonb,$11,now()) returning id`,
 		actor.organizationID, m.ID, actor.userID, status, format, options, payload.SourceFilename, payload.SourceByteSize, sha, counts, headerSrclang,
 	).Scan(&attemptID)
 	if err != nil {
 		return "", err
 	}
 	for _, issue := range issues {
-		_, _ = api.pool.Exec(ctx, `insert into memory_import_attempt_diagnostics (attempt_id, severity, code, message, unit_index, tuid) values ($1,$2,$3,$4,$5,$6)`,
-			attemptID, issue.Severity, issue.Code, issue.Message, issue.UnitIndex, issue.Tuid)
+		if _, err := db.Exec(ctx, `insert into memory_import_attempt_diagnostics (attempt_id, severity, code, message, unit_index, tuid) values ($1,$2,$3,$4,$5,$6)`,
+			attemptID, issue.Severity, issue.Code, issue.Message, issue.UnitIndex, issue.Tuid); err != nil {
+			return "", err
+		}
 	}
 	return attemptID, nil
 }

@@ -105,16 +105,73 @@ func TestGlossaryExportSlug(t *testing.T) {
 }
 
 func TestGlossaryPageCursorRoundTrip(t *testing.T) {
-	cursor := encodeGlossaryPageCursor("2026-01-01T00:00:00.000Z", testGlossaryID)
+	cursor := encodeGlossaryPageCursor("2026-01-01T00:00:00.000000Z", testGlossaryID)
 	updatedAt, id, err := decodeGlossaryPageCursor(cursor)
 	require.NoError(t, err)
-	require.Equal(t, "2026-01-01T00:00:00.000Z", updatedAt)
+	require.Equal(t, "2026-01-01T00:00:00.000000Z", updatedAt)
 	require.Equal(t, testGlossaryID, id)
 
 	_, _, err = decodeGlossaryPageCursor("!!!")
 	require.Error(t, err)
 	_, _, err = decodeGlossaryPageCursor(encodeGlossaryPageCursor("only-one-part", ""))
 	require.Error(t, err)
+}
+
+func TestSerializeGlossaryCSVEscapesFormulas(t *testing.T) {
+	concepts := []glossaryExportConcept{{
+		ID: "c1", PrimaryTerm: "=1+1", Subject: "+cmd", Definition: "@SUM(A1)",
+		Note: "-1", CreatedAt: testGlossaryTime, UpdatedAt: testGlossaryTime,
+		Terms: []glossaryExportTerm{{
+			ID: "t1", ConceptID: "c1", Locale: "en-US", Term: "=HYPERLINK(\"x\")",
+			Status: "draft", Provenance: "manual", ReviewStatus: "proposed",
+			CreatedAt: testGlossaryTime, UpdatedAt: testGlossaryTime,
+		}},
+	}}
+	body, err := serializeGlossaryCSV(concepts)
+	require.NoError(t, err)
+	csvText := string(body)
+	require.Contains(t, csvText, glossaryCSVFormulaEscapePrefix+"=1+1")
+	require.Contains(t, csvText, glossaryCSVFormulaEscapePrefix+"=HYPERLINK")
+	parsed, diagnostics := parseGlossaryCSV(csvText)
+	require.Empty(t, diagnostics)
+	require.Len(t, parsed, 1)
+	require.Equal(t, "=1+1", parsed[0].PrimaryTerm)
+	require.Equal(t, "=HYPERLINK(\"x\")", parsed[0].Terms[0].Term)
+}
+
+func TestApplyGlossaryImportLocaleOptions(t *testing.T) {
+	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{"fr-FR"}}
+	strict := true
+	payload := glossaryImportPayload{
+		StrictLocale:  &strict,
+		LocaleMapping: map[string]string{"fr": "fr-FR"},
+	}
+	concepts := []glossaryImportConcept{{
+		ID: "c1", PrimaryTerm: "Checkout",
+		Terms: []glossaryImportTerm{
+			{ID: "t1", Locale: "en-US", Term: "Checkout"},
+			{ID: "t2", Locale: "fr", Term: "Paiement"},
+			{ID: "t3", Locale: "de", Term: "Kasse"},
+		},
+	}}
+	out, diagnostics := applyGlossaryImportLocaleOptions(g, payload, concepts, nil)
+	require.Len(t, out, 1)
+	require.Len(t, out[0].Terms, 2)
+	require.Equal(t, "fr-FR", out[0].Terms[1].Locale)
+	require.NotEmpty(t, diagnostics)
+	require.Equal(t, "unknown_locale", diagnostics[0].Code)
+}
+
+func TestGlossaryImportReplaceRejectsParserErrors(t *testing.T) {
+	insertRun := dictionaryRowStep("insert into glossary_import_runs", "ffffffff-ffff-4fff-8fff-ffffffffffff")
+	insertEntry := dictionaryDBStep{kind: "exec", sql: "insert into glossary_import_report_entries", affected: 1}
+	api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), insertRun, insertEntry)
+	body := `{"format":"csv","content":"conceptId,locale,term\n,,","mode":"replace"}`
+	rec := glossaryRequestForTest(api, "POST", testGlossaryBase+"/"+testGlossaryID+"/concepts/import", body)
+	require.Equal(t, 400, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"diagnostics"`)
+	require.Contains(t, rec.Body.String(), "invalid_csv_row")
+	require.NotContains(t, rec.Body.String(), `"concepts"`)
 }
 
 func TestGlossaryExportTBXHTTP(t *testing.T) {

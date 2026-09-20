@@ -278,6 +278,9 @@ func (api *memoryAPI) patchMemoryEntry(r *http.Request, actor memoryActor, m mem
 	if payload.TargetText != nil {
 		targetText = *payload.TargetText
 	}
+	if sourceLocale == "" || targetLocale == "" || trimMemoryInput(sourceText) == "" || utf16Length(sourceText) > 100000 || utf16Length(targetText) > 100000 {
+		return nil, 0, invalidMemory()
+	}
 	matchScore := current.MatchScore
 	if payload.MatchScore != nil {
 		if *payload.MatchScore < 0 || *payload.MatchScore > 100 {

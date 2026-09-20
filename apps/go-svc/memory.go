@@ -96,7 +96,9 @@ func writeMemoryError(w http.ResponseWriter, r *http.Request, phase string, err 
 }
 
 func formatMemoryTime(t time.Time) string {
-	return t.UTC().Format("2006-01-02T15:04:05.000Z")
+	// Microsecond precision matches PostgreSQL timestamptz so page cursors
+	// built from these strings do not skip same-millisecond rows.
+	return t.UTC().Format("2006-01-02T15:04:05.000000Z")
 }
 
 func formatMemoryTimePtr(t *time.Time) *string {

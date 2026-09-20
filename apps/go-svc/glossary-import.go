@@ -166,9 +166,10 @@ func (api *glossaryAPI) importGlossaryConcepts(r *http.Request, actor glossaryAc
 		content = string(decoded)
 	}
 	concepts, diagnostics := parseGlossaryImport(format, content)
+	concepts, diagnostics = applyGlossaryImportLocaleOptions(g, payload, concepts, diagnostics)
 	if mode == "preview" {
 		counts := glossaryImportCounts(concepts, diagnostics)
-		reportID, err := api.persistGlossaryImportRun(r.Context(), actor, g, payload, mode, "preview", concepts, counts, diagnostics, nil)
+		reportID, err := api.persistGlossaryImportRun(r.Context(), api.pool, actor, g, payload, mode, "preview", concepts, counts, diagnostics, nil)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -184,15 +185,27 @@ func (api *glossaryAPI) importGlossaryConcepts(r *http.Request, actor glossaryAc
 			},
 		}, 200, nil
 	}
-	applied, counts, applyDiagnostics, err := api.applyGlossaryImport(r.Context(), actor, g, mode, concepts)
+	if mode == "replace" && glossaryImportHasErrors(diagnostics) {
+		counts := glossaryImportCounts(concepts, diagnostics)
+		reportID, err := api.persistGlossaryImportRun(r.Context(), api.pool, actor, g, payload, mode, "failed", concepts, counts, diagnostics, nil)
+		if err != nil {
+			return nil, 0, err
+		}
+		return map[string]any{
+			"reportId":     reportID,
+			"imported":     0,
+			"updated":      0,
+			"merged":       0,
+			"skipped":      counts["skipped"],
+			"diagnostics":  diagnostics,
+			"backupFileId": nil,
+		}, 400, nil
+	}
+	applied, counts, applyDiagnostics, reportID, err := api.applyGlossaryImport(r.Context(), actor, g, payload, mode, concepts, diagnostics)
 	if err != nil {
 		return nil, 0, err
 	}
 	diagnostics = append(diagnostics, applyDiagnostics...)
-	reportID, err := api.persistGlossaryImportRun(r.Context(), actor, g, payload, mode, "completed", concepts, counts, diagnostics, nil)
-	if err != nil {
-		return nil, 0, err
-	}
 	return map[string]any{
 		"reportId":     reportID,
 		"concepts":     applied,
@@ -203,6 +216,73 @@ func (api *glossaryAPI) importGlossaryConcepts(r *http.Request, actor glossaryAc
 		"diagnostics":  diagnostics,
 		"backupFileId": nil,
 	}, 201, nil
+}
+
+func glossaryImportHasErrors(diagnostics []glossaryImportDiagnostic) bool {
+	for _, d := range diagnostics {
+		if d.Severity == "error" {
+			return true
+		}
+	}
+	return false
+}
+
+func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPayload, concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
+	strict := payload.StrictLocale == nil || *payload.StrictLocale
+	known := map[string]bool{}
+	for _, lang := range glossaryLanguages(g) {
+		known[strings.ToLower(lang.Locale)] = true
+	}
+	out := make([]glossaryImportConcept, 0, len(concepts))
+	for _, concept := range concepts {
+		terms := make([]glossaryImportTerm, 0, len(concept.Terms))
+		for _, term := range concept.Terms {
+			raw := strings.ReplaceAll(trimGlossaryInput(term.Locale), "_", "-")
+			mapped := raw
+			if payload.LocaleMapping != nil {
+				if replacement, ok := payload.LocaleMapping[raw]; ok {
+					mapped = strings.ReplaceAll(trimGlossaryInput(replacement), "_", "-")
+				} else if replacement, ok := payload.LocaleMapping[term.Locale]; ok {
+					mapped = strings.ReplaceAll(trimGlossaryInput(replacement), "_", "-")
+				}
+			}
+			term.Locale = mapped
+			if mapped == "" {
+				id := concept.ID
+				termID := term.ID
+				field := "locale"
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "error", Code: "invalid_locale", Message: "Term locale is missing",
+					ConceptID: &id, TermID: &termID, Field: &field,
+				})
+				continue
+			}
+			if strict && len(known) > 0 && !known[strings.ToLower(mapped)] {
+				id := concept.ID
+				termID := term.ID
+				field := "locale"
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "error", Code: "unknown_locale", Message: "Term locale is not configured for this glossary",
+					ConceptID: &id, TermID: &termID, Field: &field,
+				})
+				continue
+			}
+			terms = append(terms, term)
+		}
+		if len(terms) == 0 {
+			if len(concept.Terms) > 0 {
+				id := concept.ID
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "error", Code: "concept_has_no_valid_terms", Message: "Concept has no valid terms and was not imported",
+					ConceptID: &id,
+				})
+			}
+			continue
+		}
+		concept.Terms = terms
+		out = append(out, concept)
+	}
+	return out, diagnostics
 }
 
 func countImportTerms(concepts []glossaryImportConcept) int {
@@ -271,7 +351,7 @@ func parseGlossaryCSV(content string) ([]glossaryImportConcept, []glossaryImport
 		if !ok || idx >= len(row) {
 			return ""
 		}
-		return strings.TrimSpace(row[idx])
+		return unescapeGlossaryCSVFormula(strings.TrimSpace(row[idx]))
 	}
 	byConcept := map[string]*glossaryImportConcept{}
 	order := []string{}
@@ -424,18 +504,18 @@ func attrOr(values ...string) string {
 	return ""
 }
 
-func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryActor, g glossaryRecord, mode string, concepts []glossaryImportConcept) ([]glossaryConceptRecord, map[string]int, []glossaryImportDiagnostic, error) {
-	counts := glossaryImportCounts(concepts, nil)
+func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryActor, g glossaryRecord, payload glossaryImportPayload, mode string, concepts []glossaryImportConcept, parseDiagnostics []glossaryImportDiagnostic) ([]glossaryConceptRecord, map[string]int, []glossaryImportDiagnostic, string, error) {
+	counts := glossaryImportCounts(concepts, parseDiagnostics)
 	diagnostics := []glossaryImportDiagnostic{}
 	appliedIDs := []string{}
 	tx, err := api.pool.Begin(ctx)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, "", err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	if mode == "replace" {
 		if _, err := tx.Exec(ctx, `delete from glossary_concepts where glossary_id=$1`, g.ID); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, "", err
 		}
 	}
 	for _, incoming := range concepts {
@@ -443,13 +523,13 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 		lookupErr := tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and id=$2 and archived_at is null`, g.ID, incoming.ID).Scan(&existingID)
 		exists := lookupErr == nil
 		if lookupErr != nil && !errorsIsNoRows(lookupErr) {
-			return nil, nil, nil, lookupErr
+			return nil, nil, nil, "", lookupErr
 		}
 		if !exists && !validGlossaryID(incoming.ID) {
 			lookupErr = tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and lower(primary_term)=lower($2) and archived_at is null limit 1`, g.ID, incoming.PrimaryTerm).Scan(&existingID)
 			exists = lookupErr == nil
 			if lookupErr != nil && !errorsIsNoRows(lookupErr) {
-				return nil, nil, nil, lookupErr
+				return nil, nil, nil, "", lookupErr
 			}
 		}
 		switch mode {
@@ -477,7 +557,7 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 			conceptID = existingID
 			_, err = tx.Exec(ctx, `update glossary_concepts set primary_term=$3, subject=$4, definition=$5, note=$6, modified_by_user_id=$7, version=version+1, updated_at=now() where id=$1 and glossary_id=$2`, conceptID, g.ID, primary, incoming.Subject, incoming.Definition, incoming.Note, actor.userID)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, "", err
 			}
 			if mode == "merge" || mode == "replace" {
 				counts["merged"]++
@@ -493,7 +573,7 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 			}
 			err = tx.QueryRow(ctx, `insert into glossary_concepts (id, glossary_id, primary_term, subject, definition, note, created_by_user_id, modified_by_user_id) values ($1,$2,$3,$4,$5,$6,$7,$7) returning id`, conceptID, g.ID, primary, incoming.Subject, incoming.Definition, incoming.Note, actor.userID).Scan(&conceptID)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, "", err
 			}
 			counts["created"]++
 			counts["conceptsCreated"]++
@@ -514,28 +594,33 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 				}
 				_, err = tx.Exec(ctx, `update glossary_terms set description=$4, note=$5, part_of_speech=$6, status=$7, modified_by_user_id=$8, version=version+1, updated_at=now() where id=$1 and concept_id=$2 and glossary_id=$3`, termExists, conceptID, g.ID, term.Description, term.Note, term.PartOfSpeech, firstNonEmpty(term.Status, "draft"), actor.userID)
 				if err != nil {
-					return nil, nil, nil, err
+					return nil, nil, nil, "", err
 				}
 				counts["termsMerged"]++
 				continue
 			}
 			if termErr != nil && !errorsIsNoRows(termErr) {
-				return nil, nil, nil, termErr
+				return nil, nil, nil, "", termErr
 			}
 			status := firstNonEmpty(term.Status, "draft")
 			_, err = insertGlossaryTerm(ctx, tx, g, conceptID, actor.userID, glossaryConceptTermInput{
 				Locale: locale, Term: text, Description: &term.Description, Note: &term.Note, PartOfSpeech: &term.PartOfSpeech, Status: &status,
 			})
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, "", err
 			}
 			counts["termsCreated"]++
 			counts["created"]++
 		}
 		appliedIDs = append(appliedIDs, conceptID)
 	}
+	allDiagnostics := append(append([]glossaryImportDiagnostic{}, parseDiagnostics...), diagnostics...)
+	reportID, err := api.persistGlossaryImportRun(ctx, tx, actor, g, payload, mode, "completed", concepts, counts, allDiagnostics, nil)
+	if err != nil {
+		return nil, nil, nil, "", err
+	}
 	if err := tx.Commit(ctx); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, "", err
 	}
 	applied := []glossaryConceptRecord{}
 	for _, conceptID := range appliedIDs {
@@ -549,10 +634,10 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 			}
 		}
 	}
-	return applied, counts, diagnostics, nil
+	return applied, counts, diagnostics, reportID, nil
 }
 
-func (api *glossaryAPI) persistGlossaryImportRun(ctx context.Context, actor glossaryActor, g glossaryRecord, payload glossaryImportPayload, mode, status string, concepts []glossaryImportConcept, counts map[string]int, diagnostics []glossaryImportDiagnostic, backupFileID *string) (string, error) {
+func (api *glossaryAPI) persistGlossaryImportRun(ctx context.Context, db dictionaryDB, actor glossaryActor, g glossaryRecord, payload glossaryImportPayload, mode, status string, concepts []glossaryImportConcept, counts map[string]int, diagnostics []glossaryImportDiagnostic, backupFileID *string) (string, error) {
 	options, _ := json.Marshal(map[string]any{
 		"strictLocale":  payload.StrictLocale == nil || *payload.StrictLocale,
 		"localeMapping": payload.LocaleMapping,
@@ -562,15 +647,17 @@ func (api *glossaryAPI) persistGlossaryImportRun(ctx context.Context, actor glos
 	sum := sha256.Sum256([]byte(payload.Content))
 	sha := hex.EncodeToString(sum[:])
 	var reportID string
-	err := api.pool.QueryRow(ctx, `insert into glossary_import_runs (organization_id, glossary_id, created_by_user_id, format, mode, status, source_filename, source_sha256, options, source_totals, counts, backup_file_id, completed_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12,now()) returning id`,
+	err := db.QueryRow(ctx, `insert into glossary_import_runs (organization_id, glossary_id, created_by_user_id, format, mode, status, source_filename, source_sha256, options, source_totals, counts, backup_file_id, completed_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12,now()) returning id`,
 		actor.organizationID, g.ID, actor.userID, strings.ToLower(payload.Format), mode, status, payload.SourceFilename, sha, options, sourceTotals, countsJSON, backupFileID,
 	).Scan(&reportID)
 	if err != nil {
 		return "", err
 	}
 	for _, d := range diagnostics {
-		_, _ = api.pool.Exec(ctx, `insert into glossary_import_report_entries (run_id, severity, code, message, source_row, concept_id, term_id, field) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
-			reportID, d.Severity, d.Code, d.Message, d.SourceRow, d.ConceptID, d.TermID, d.Field)
+		if _, err := db.Exec(ctx, `insert into glossary_import_report_entries (run_id, severity, code, message, source_row, concept_id, term_id, field) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+			reportID, d.Severity, d.Code, d.Message, d.SourceRow, d.ConceptID, d.TermID, d.Field); err != nil {
+			return "", err
+		}
 	}
 	return reportID, nil
 }

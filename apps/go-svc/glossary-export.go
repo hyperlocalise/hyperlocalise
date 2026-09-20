@@ -159,6 +159,42 @@ var glossaryCSVHeaders = []string{
 	"createdAt", "updatedAt",
 }
 
+const glossaryCSVFormulaEscapePrefix = "__HYPERLOCALISE_CSV_FORMULA__"
+
+func escapeGlossaryCSVFormula(value string) string {
+	if strings.HasPrefix(value, glossaryCSVFormulaEscapePrefix) {
+		return glossaryCSVFormulaEscapePrefix + value
+	}
+	trimmed := strings.TrimLeft(value, " \t")
+	if trimmed == "" {
+		return value
+	}
+	switch trimmed[0] {
+	case '=', '+', '-', '@':
+		return glossaryCSVFormulaEscapePrefix + value
+	default:
+		return value
+	}
+}
+
+func unescapeGlossaryCSVFormula(value string) string {
+	if !strings.HasPrefix(value, glossaryCSVFormulaEscapePrefix) {
+		return value
+	}
+	escaped := strings.TrimPrefix(value, glossaryCSVFormulaEscapePrefix)
+	if strings.HasPrefix(value, glossaryCSVFormulaEscapePrefix+glossaryCSVFormulaEscapePrefix) {
+		return escaped
+	}
+	trimmed := strings.TrimLeft(escaped, " \t")
+	if trimmed != "" {
+		switch trimmed[0] {
+		case '=', '+', '-', '@':
+			return escaped
+		}
+	}
+	return value
+}
+
 func serializeGlossaryCSV(concepts []glossaryExportConcept) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteString("\ufeff")
@@ -170,11 +206,18 @@ func serializeGlossaryCSV(concepts []glossaryExportConcept) ([]byte, error) {
 	for _, concept := range concepts {
 		for _, term := range concept.Terms {
 			row := []string{
-				concept.ID, term.ID, term.Locale, term.Term, concept.PrimaryTerm, concept.Subject, concept.Definition,
-				fmt.Sprintf("%t", concept.Translatable), concept.Note, stringOrEmpty(concept.URL), stringOrEmpty(concept.Figure),
-				term.Description, term.Note, term.PartOfSpeech, stringOrEmpty(term.Gender), stringOrEmpty(term.TermType),
-				stringOrEmpty(term.URL), stringOrEmpty(term.Lemma), term.Status, fmt.Sprintf("%t", term.CaseSensitive),
-				fmt.Sprintf("%t", term.Forbidden), term.Provenance, term.ReviewStatus,
+				escapeGlossaryCSVFormula(concept.ID), escapeGlossaryCSVFormula(term.ID),
+				escapeGlossaryCSVFormula(term.Locale), escapeGlossaryCSVFormula(term.Term),
+				escapeGlossaryCSVFormula(concept.PrimaryTerm), escapeGlossaryCSVFormula(concept.Subject),
+				escapeGlossaryCSVFormula(concept.Definition),
+				fmt.Sprintf("%t", concept.Translatable), escapeGlossaryCSVFormula(concept.Note),
+				escapeGlossaryCSVFormula(stringOrEmpty(concept.URL)), escapeGlossaryCSVFormula(stringOrEmpty(concept.Figure)),
+				escapeGlossaryCSVFormula(term.Description), escapeGlossaryCSVFormula(term.Note),
+				escapeGlossaryCSVFormula(term.PartOfSpeech), escapeGlossaryCSVFormula(stringOrEmpty(term.Gender)),
+				escapeGlossaryCSVFormula(stringOrEmpty(term.TermType)), escapeGlossaryCSVFormula(stringOrEmpty(term.URL)),
+				escapeGlossaryCSVFormula(stringOrEmpty(term.Lemma)), escapeGlossaryCSVFormula(term.Status),
+				fmt.Sprintf("%t", term.CaseSensitive), fmt.Sprintf("%t", term.Forbidden),
+				escapeGlossaryCSVFormula(term.Provenance), escapeGlossaryCSVFormula(term.ReviewStatus),
 				formatGlossaryTime(term.CreatedAt), formatGlossaryTime(term.UpdatedAt),
 			}
 			if err := w.Write(row); err != nil {
