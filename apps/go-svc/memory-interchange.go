@@ -105,7 +105,13 @@ func (api *memoryAPI) exportMemoryEntries(r *http.Request, m memoryRecord) (any,
 		w := csv.NewWriter(&buf)
 		w.UseCRLF = true
 		for _, row := range entries {
-			_ = w.Write([]string{row.sourceLocale, row.targetLocale, row.sourceText, row.targetText, strconv.Itoa(row.matchScore)})
+			_ = w.Write([]string{
+				escapeGlossaryCSVFormula(row.sourceLocale),
+				escapeGlossaryCSVFormula(row.targetLocale),
+				escapeGlossaryCSVFormula(row.sourceText),
+				escapeGlossaryCSVFormula(row.targetText),
+				strconv.Itoa(row.matchScore),
+			})
 		}
 		w.Flush()
 		return interchangeDownload{contentType: "text/csv; charset=utf-8", filename: slug + ".csv", body: buf.Bytes()}, 200, w.Error()
@@ -287,10 +293,10 @@ func parseMemoryCSV(content string) []memoryImportCandidate {
 				score = n
 			}
 		}
-		sourceLocale := strings.ReplaceAll(strings.TrimSpace(row[0]), "_", "-")
-		targetLocale := strings.ReplaceAll(strings.TrimSpace(row[1]), "_", "-")
-		sourceText := row[2]
-		targetText := row[3]
+		sourceLocale := strings.ReplaceAll(unescapeGlossaryCSVFormula(strings.TrimSpace(row[0])), "_", "-")
+		targetLocale := strings.ReplaceAll(unescapeGlossaryCSVFormula(strings.TrimSpace(row[1])), "_", "-")
+		sourceText := unescapeGlossaryCSVFormula(row[2])
+		targetText := unescapeGlossaryCSVFormula(row[3])
 		if sourceLocale == "" || targetLocale == "" || strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
 			continue
 		}

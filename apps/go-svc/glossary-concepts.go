@@ -409,6 +409,14 @@ func (api *glossaryAPI) glossaryTermRequest(r *http.Request, actor glossaryActor
 			if err := api.requireConceptWrite(r.Context(), actor, g); err != nil {
 				return nil, 0, err
 			}
+			var exists string
+			err := api.pool.QueryRow(r.Context(), `select id from glossary_concepts where id=$1 and glossary_id=$2 and archived_at is null`, conceptID, g.ID).Scan(&exists)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, 0, missingGlossary()
+			}
+			if err != nil {
+				return nil, 0, err
+			}
 			var payload glossaryConceptTermInput
 			if err := readGlossaryBody(r, []string{"locale", "term", "partOfSpeech", "note", "gender", "termType", "url", "lemma", "status", "description", "caseSensitive", "forbidden"}, &payload); err != nil {
 				return nil, 0, err

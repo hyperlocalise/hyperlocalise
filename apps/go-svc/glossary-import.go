@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -504,6 +505,42 @@ func attrOr(values ...string) string {
 	return ""
 }
 
+var errGlossaryImportTermIDConflict = errors.New("glossary import term id conflict")
+
+func isGlossaryImportTermConflict(err error) bool {
+	return errors.Is(err, errGlossaryImportTermIDConflict)
+}
+
+func lookupImportGlossaryTerm(ctx context.Context, db dictionaryDB, glossaryID, conceptID, termID, locale, text string) (string, bool, error) {
+	if validGlossaryID(termID) {
+		var existing string
+		err := db.QueryRow(ctx, `select id from glossary_terms where glossary_id=$1 and concept_id=$2 and id=$3 and archived_at is null`, glossaryID, conceptID, termID).Scan(&existing)
+		if err == nil {
+			return existing, true, nil
+		}
+		if !errorsIsNoRows(err) {
+			return "", false, err
+		}
+		var otherConcept string
+		conflictErr := db.QueryRow(ctx, `select concept_id from glossary_terms where glossary_id=$1 and id=$2 and archived_at is null`, glossaryID, termID).Scan(&otherConcept)
+		if conflictErr == nil {
+			return "", false, errGlossaryImportTermIDConflict
+		}
+		if !errorsIsNoRows(conflictErr) {
+			return "", false, conflictErr
+		}
+	}
+	var existing string
+	err := db.QueryRow(ctx, `select id from glossary_terms where glossary_id=$1 and concept_id=$2 and locale=$3 and lower(term)=lower($4) and archived_at is null limit 1`, glossaryID, conceptID, locale, text).Scan(&existing)
+	if err == nil {
+		return existing, false, nil
+	}
+	if errorsIsNoRows(err) {
+		return "", false, nil
+	}
+	return "", false, err
+}
+
 func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryActor, g glossaryRecord, payload glossaryImportPayload, mode string, concepts []glossaryImportConcept, parseDiagnostics []glossaryImportDiagnostic) ([]glossaryConceptRecord, map[string]int, []glossaryImportDiagnostic, string, error) {
 	counts := glossaryImportCounts(concepts, parseDiagnostics)
 	diagnostics := []glossaryImportDiagnostic{}
@@ -584,23 +621,33 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 			if locale == "" || text == "" {
 				continue
 			}
-			var termExists string
-			termErr := tx.QueryRow(ctx, `select id from glossary_terms where glossary_id=$1 and concept_id=$2 and locale=$3 and lower(term)=lower($4) and archived_at is null limit 1`, g.ID, conceptID, locale, text).Scan(&termExists)
-			if termErr == nil {
+			termExists, _, termErr := lookupImportGlossaryTerm(ctx, tx, g.ID, conceptID, term.ID, locale, text)
+			if termErr != nil {
+				if isGlossaryImportTermConflict(termErr) {
+					counts["failed"]++
+					id := term.ID
+					conceptRef := conceptID
+					diagnostics = append(diagnostics, glossaryImportDiagnostic{
+						Severity: "error", Code: "term_id_conflict", Message: "Term id belongs to another concept in this glossary",
+						ConceptID: &conceptRef, TermID: &id,
+					})
+					continue
+				}
+				return nil, nil, nil, "", termErr
+			}
+			if termExists != "" {
 				if mode == "create" {
 					counts["termsSkipped"]++
 					counts["skipped"]++
 					continue
 				}
-				_, err = tx.Exec(ctx, `update glossary_terms set description=$4, note=$5, part_of_speech=$6, status=$7, modified_by_user_id=$8, version=version+1, updated_at=now() where id=$1 and concept_id=$2 and glossary_id=$3`, termExists, conceptID, g.ID, term.Description, term.Note, term.PartOfSpeech, firstNonEmpty(term.Status, "draft"), actor.userID)
+				_, err = tx.Exec(ctx, `update glossary_terms set locale=$4, term=$5, source_term=$5, target_term=$5, description=$6, note=$7, part_of_speech=$8, status=$9, modified_by_user_id=$10, version=version+1, updated_at=now() where id=$1 and concept_id=$2 and glossary_id=$3`,
+					termExists, conceptID, g.ID, locale, text, term.Description, term.Note, term.PartOfSpeech, firstNonEmpty(term.Status, "draft"), actor.userID)
 				if err != nil {
 					return nil, nil, nil, "", err
 				}
 				counts["termsMerged"]++
 				continue
-			}
-			if termErr != nil && !errorsIsNoRows(termErr) {
-				return nil, nil, nil, "", termErr
 			}
 			status := firstNonEmpty(term.Status, "draft")
 			_, err = insertGlossaryTerm(ctx, tx, g, conceptID, actor.userID, glossaryConceptTermInput{

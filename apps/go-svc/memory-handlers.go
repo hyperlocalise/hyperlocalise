@@ -207,6 +207,9 @@ func (api *memoryAPI) deleteMemory(ctx context.Context, actor memoryActor, m mem
 	if err := requireNativeMemory(m); err != nil {
 		return nil, 0, err
 	}
+	if m.Status == "archived" {
+		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
+	}
 	_, err := api.pool.Exec(ctx, `delete from memories where id=$1 and organization_id=$2 and source='native'`, m.ID, actor.organizationID)
 	return nil, 204, err
 }

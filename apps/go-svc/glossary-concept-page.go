@@ -283,9 +283,13 @@ func (api *glossaryAPI) pageConceptTerms(r *http.Request, g glossaryRecord, conc
 	}
 	where := `t.glossary_id=$1 and t.concept_id=$2 and t.archived_at is null`
 	args := []any{g.ID, conceptID}
+	countWhere := where
+	countArgs := []any{g.ID, conceptID}
 	if locale := strings.ReplaceAll(trimGlossaryInput(r.URL.Query().Get("locale")), "_", "-"); locale != "" {
 		args = append(args, locale)
 		where += ` and t.locale=$` + strconv.Itoa(len(args))
+		countArgs = append(countArgs, locale)
+		countWhere += ` and t.locale=$` + strconv.Itoa(len(countArgs))
 	}
 	cursor := trimGlossaryInput(r.URL.Query().Get("cursor"))
 	if cursor != "" {
@@ -319,7 +323,7 @@ func (api *glossaryAPI) pageConceptTerms(r *http.Request, g glossaryRecord, conc
 		terms = terms[:limit]
 	}
 	var total int
-	err = api.pool.QueryRow(r.Context(), `select count(*) from glossary_terms t where t.glossary_id=$1 and t.concept_id=$2 and t.archived_at is null`, g.ID, conceptID).Scan(&total)
+	err = api.pool.QueryRow(r.Context(), `select count(*) from glossary_terms t where `+countWhere, countArgs...).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
