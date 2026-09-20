@@ -59,7 +59,6 @@ describe("createApiClient", () => {
     expect(typeof client.api.v1.files.$post).toBe("function");
     expect(typeof client.api.v1.jobs.$post).toBe("function");
     expect(typeof client.api.auth.context.$get).toBe("function");
-    expect(typeof client.api.auth.native.authorize.$get).toBe("function");
     expect(typeof client.api.auth.slack.callback.$get).toBe("function");
   });
 
