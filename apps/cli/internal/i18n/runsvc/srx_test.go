@@ -534,7 +534,7 @@ func TestJoinSRXStagedEntriesMergesExistingWhenSpanCountsMatch(t *testing.T) {
 	}
 }
 
-func TestJoinSRXStagedEntriesFallsBackToSourceWhenCountsDiverge(t *testing.T) {
+func TestJoinSRXStagedEntriesPreservesExistingWhenCountsDiverge(t *testing.T) {
 	doc, err := srx.LoadTemplate("default")
 	if err != nil {
 		t.Fatalf("template: %v", err)
@@ -544,8 +544,22 @@ func TestJoinSRXStagedEntriesFallsBackToSourceWhenCountsDiverge(t *testing.T) {
 	existing := map[string]string{"hello": "Salut tout le monde"}
 
 	got := joinSRXStagedEntries(doc, "en.json", "json", "en", "fr", source, staged, existing)
-	if got["hello"] != "Bonjour. World." {
-		t.Fatalf("joined = %#v", got)
+	if got["hello"] != "Salut tout le monde" {
+		t.Fatalf("joined = %#v, want prior existing value preserved", got)
+	}
+}
+
+func TestJoinSRXStagedEntriesOmitsKeyWhenIncompleteAndNoExisting(t *testing.T) {
+	doc, err := srx.LoadTemplate("default")
+	if err != nil {
+		t.Fatalf("template: %v", err)
+	}
+	source := map[string]string{"hello": "Hello. World."}
+	staged := map[string]string{"hello#srx.0": "Bonjour."}
+
+	got := joinSRXStagedEntries(doc, "en.json", "json", "en", "fr", source, staged, nil)
+	if _, ok := got["hello"]; ok {
+		t.Fatalf("joined = %#v, want incomplete key omitted", got)
 	}
 }
 
