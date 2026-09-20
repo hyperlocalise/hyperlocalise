@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -84,6 +85,14 @@ func main() {
 	h.memories = &memoryAPI{}
 	h.qaReports = &qaReportAPI{}
 	h.teams = &teamAPI{}
+	h.issueSheets = &issueSheetAPI{}
+	if autumnKey := strings.TrimSpace(os.Getenv("AUTUMN_API_KEY")); autumnKey != "" {
+		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
+			log.Printf("configure autumn: %v", err)
+		} else {
+			h.issueSheets.autumn = autumnClientChecker{client: client}
+		}
+	}
 	if key := strings.TrimSpace(os.Getenv("WORKOS_API_KEY")); key != "" {
 		client := workos.NewClient(key)
 		membershipLookup := func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
@@ -94,6 +103,7 @@ func main() {
 		h.memories.membership = membershipLookup
 		h.qaReports.membership = membershipLookup
 		h.teams.membership = membershipLookup
+		h.issueSheets.membership = membershipLookup
 	}
 
 	if apiKey := strings.TrimSpace(os.Getenv("DATAFORSEO_API_KEY")); apiKey != "" {
@@ -115,6 +125,7 @@ func main() {
 		h.glossaries.pool = pool
 		h.memories.pool = pool
 		h.qaReports.pool = pool
+		h.issueSheets.pool = pool
 		h.teams.pool = pool
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
 		if err != nil {

@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public routes are served at `/api/go-svc/...` in production (Vercel rewrite) and at `/v1/...` or `/ofrep/...` when called directly via the `GO_SVC_URL` binding.
 
@@ -31,7 +31,8 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `WORKOS_API_HOSTNAME` | `api.workos.com` | WorkOS API host used for session refresh and JWKS (`/sso/jwks/{client_id}`). Point at the WorkOS emulator in local e2e. |
 | `WORKOS_API_HTTPS` | `true` | Set `false` for the local emulator. |
 | `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
-| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, and Hyperlab OFREP evaluate routes. |
+| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, issue-sheet, and Hyperlab OFREP evaluate routes. |
+| `AUTUMN_API_KEY` | _(unset)_ | Autumn secret key. Required for issue-sheet routes (`queries-board` gate). Fail-closed when unset. |
 
 ### DataForSEO (Domains research)
 
