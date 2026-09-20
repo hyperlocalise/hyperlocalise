@@ -23,11 +23,11 @@ func (api *issueSheetAPI) listRelationships(ctx context.Context, actor issueShee
 		return nil, 0, err
 	}
 
-	outgoing, err := api.queryRelationships(ctx, actor.organizationID, issueID, true)
+	outgoing, err := api.queryRelationships(ctx, actor, issueID, true)
 	if err != nil {
 		return nil, 0, err
 	}
-	incoming, err := api.queryRelationships(ctx, actor.organizationID, issueID, false)
+	incoming, err := api.queryRelationships(ctx, actor, issueID, false)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -35,22 +35,27 @@ func (api *issueSheetAPI) listRelationships(ctx context.Context, actor issueShee
 	return map[string]any{"relationships": relationships}, 200, nil
 }
 
-func (api *issueSheetAPI) queryRelationships(ctx context.Context, organizationID, issueID string, outgoing bool) ([]map[string]any, error) {
+func (api *issueSheetAPI) queryRelationships(ctx context.Context, actor issueSheetActor, issueID string, outgoing bool) ([]map[string]any, error) {
+	accessSQL := formatQaProjectTeamAccessSQL(3, 4, 1)
 	var sql string
 	if outgoing {
 		sql = `
             select r.id, r.kind, r.created_at, i.id, i.project_id, i.title, i.status
             from issue_sheet_relationships r
             join issue_sheet_issues i on i.id = r.related_issue_id
-            where r.organization_id = $1 and r.issue_id = $2`
+            join projects p on p.id = i.project_id
+            where r.organization_id = $1 and r.issue_id = $2
+              and ` + accessSQL
 	} else {
 		sql = `
             select r.id, r.kind, r.created_at, i.id, i.project_id, i.title, i.status
             from issue_sheet_relationships r
             join issue_sheet_issues i on i.id = r.issue_id
-            where r.organization_id = $1 and r.related_issue_id = $2`
+            join projects p on p.id = i.project_id
+            where r.organization_id = $1 and r.related_issue_id = $2
+              and ` + accessSQL
 	}
-	rows, err := api.pool.Query(ctx, sql, organizationID, issueID)
+	rows, err := api.pool.Query(ctx, sql, actor.organizationID, issueID, actor.canWriteProjectTeam(), actor.userID)
 	if err != nil {
 		return nil, err
 	}
@@ -124,21 +129,7 @@ func (api *issueSheetAPI) createRelationship(ctx context.Context, actor issueShe
 		return nil, 0, issueSheetFailure(400, "relationship_target_is_self", "An issue cannot be related to itself")
 	}
 
-	var targetID, targetProjectID, targetTitle, targetStatus string
-	err = api.pool.QueryRow(ctx, `
-        select id, project_id, title, status from issue_sheet_issues
-        where organization_id = $1 and id = $2
-        limit 1`, actor.organizationID, relatedRef).Scan(&targetID, &targetProjectID, &targetTitle, &targetStatus)
-	if errors.Is(err, pgx.ErrNoRows) {
-		// Also allow identifier lookup within org for convenience.
-		err = api.pool.QueryRow(ctx, `
-            select id, project_id, title, status from issue_sheet_issues
-            where organization_id = $1 and identifier = $2
-            limit 1`, actor.organizationID, relatedRef).Scan(&targetID, &targetProjectID, &targetTitle, &targetStatus)
-	}
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, 0, issueSheetFailure(404, "related_issue_not_found", "Issue not found")
-	}
+	targetID, targetProjectID, targetTitle, targetStatus, err := api.lookupAccessibleRelatedIssue(ctx, actor, relatedRef)
 	if err != nil {
 		return nil, 0, err
 	}

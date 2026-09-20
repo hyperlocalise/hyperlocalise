@@ -14,38 +14,39 @@ import (
 )
 
 type createIssueBody struct {
-	Title            string  `json:"title"`
-	Description      *string `json:"description"`
-	IssueType        *string `json:"issueType"`
-	Status           *string `json:"status"`
-	TargetLocale     *string `json:"targetLocale"`
-	SourcePath       *string `json:"sourcePath"`
-	SegmentID        *string `json:"segmentId"`
-	TranslationKeyID *string `json:"translationKeyId"`
-	LinkedCommentID  *string `json:"linkedCommentId"`
-	LinkedAgentRunID *string `json:"linkedAgentRunId"`
-	LinkKind         *string `json:"linkKind"`
-	LinkLabel        *string `json:"linkLabel"`
-	LinkURL          *string `json:"linkUrl"`
-	ExternalRef      *string `json:"externalRef"`
-	TemplateKey      *string `json:"templateKey"`
-	AssigneeUserID   *string `json:"assigneeUserId"`
-	Priority         *string `json:"priority"`
+	Title            string                     `json:"title"`
+	Description      *string                    `json:"description"`
+	IssueType        *string                    `json:"issueType"`
+	Status           *string                    `json:"status"`
+	TargetLocale     *string                    `json:"targetLocale"`
+	SourcePath       *string                    `json:"sourcePath"`
+	SegmentID        *string                    `json:"segmentId"`
+	TranslationKeyID *string                    `json:"translationKeyId"`
+	LinkedCommentID  *string                    `json:"linkedCommentId"`
+	LinkedAgentRunID *string                    `json:"linkedAgentRunId"`
+	LinkKind         *string                    `json:"linkKind"`
+	LinkLabel        *string                    `json:"linkLabel"`
+	LinkURL          *string                    `json:"linkUrl"`
+	ExternalRef      *string                    `json:"externalRef"`
+	TemplateKey      *string                    `json:"templateKey"`
+	AssigneeUserID   *string                    `json:"assigneeUserId"`
+	Priority         *string                    `json:"priority"`
+	Values           map[string]json.RawMessage `json:"values"`
 }
 
 type updateIssueBody struct {
-	Title            *string `json:"title"`
-	Description      *string `json:"description"`
-	IssueType        *string `json:"issueType"`
-	Status           *string `json:"status"`
-	TargetLocale     *string `json:"targetLocale"`
-	SourcePath       *string `json:"sourcePath"`
-	SegmentID        *string `json:"segmentId"`
-	TranslationKeyID *string `json:"translationKeyId"`
-	LinkKind         *string `json:"linkKind"`
-	LinkLabel        *string `json:"linkLabel"`
-	LinkURL          *string `json:"linkUrl"`
-	AssigneeUserID   *string `json:"assigneeUserId"`
+	Title            *string                `json:"title"`
+	Description      *string                `json:"description"`
+	IssueType        *string                `json:"issueType"`
+	Status           *string                `json:"status"`
+	TargetLocale     optionalNullableString `json:"targetLocale"`
+	SourcePath       optionalNullableString `json:"sourcePath"`
+	SegmentID        optionalNullableString `json:"segmentId"`
+	TranslationKeyID optionalNullableString `json:"translationKeyId"`
+	LinkKind         optionalNullableString `json:"linkKind"`
+	LinkLabel        optionalNullableString `json:"linkLabel"`
+	LinkURL          optionalNullableString `json:"linkUrl"`
+	AssigneeUserID   optionalNullableString `json:"assigneeUserId"`
 }
 
 type setValueBody struct {
@@ -80,21 +81,9 @@ func (api *issueSheetAPI) listIssues(ctx context.Context, actor issueSheetActor,
 		return nil, 0, err
 	}
 
-	limit, offset := 50, 0
-	q := r.URL.Query()
-	if raw := strings.TrimSpace(q.Get("limit")); raw != "" {
-		n, parseErr := strconv.Atoi(raw)
-		if parseErr != nil || n < 1 || n > 200 {
-			return nil, 0, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
-		}
-		limit = n
-	}
-	if raw := strings.TrimSpace(q.Get("offset")); raw != "" {
-		n, parseErr := strconv.Atoi(raw)
-		if parseErr != nil || n < 0 {
-			return nil, 0, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
-		}
-		offset = n
+	query, err := parseIssueListQuery(r, actor.userID)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	columns, err := api.loadColumns(ctx, actor.organizationID, project.ID)
@@ -102,11 +91,22 @@ func (api *issueSheetAPI) listIssues(ctx context.Context, actor issueSheetActor,
 		return nil, 0, err
 	}
 
+	whereSQL, whereArgs, needsPriorityJoin := buildIssueListWhere(actor.organizationID, project.ID, actor.userID, query)
+	countSQL := `select count(*)::int from issue_sheet_issues i`
+	if needsPriorityJoin {
+		countSQL += `
+            left join issue_sheet_columns priority_columns
+              on priority_columns.organization_id = i.organization_id
+             and priority_columns.project_id = i.project_id
+             and priority_columns.key = 'priority'
+            left join issue_sheet_row_values priority_values
+              on priority_values.issue_id = i.id
+             and priority_values.column_id = priority_columns.id`
+	}
+	countSQL += ` where ` + whereSQL
+
 	var total int
-	if err := api.pool.QueryRow(ctx, `
-        select count(*)::int from issue_sheet_issues
-        where organization_id = $1 and project_id = $2`,
-		actor.organizationID, project.ID).Scan(&total); err != nil {
+	if err := api.pool.QueryRow(ctx, countSQL, whereArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -115,10 +115,24 @@ func (api *issueSheetAPI) listIssues(ctx context.Context, actor issueSheetActor,
 		return nil, 0, err
 	}
 
-	rows, err := api.pool.Query(ctx, issueSelectSQL+`
-        where i.organization_id = $1 and i.project_id = $2
-        order by i.updated_at desc, i.id desc
-        limit $3 offset $4`, actor.organizationID, project.ID, limit, offset)
+	orderSQL := buildIssueListOrderBy(query)
+	listSQL := issueSelectSQL
+	if needsPriorityJoin || query.sort == "priority" {
+		listSQL += `
+            left join issue_sheet_columns priority_columns
+              on priority_columns.organization_id = i.organization_id
+             and priority_columns.project_id = i.project_id
+             and priority_columns.key = 'priority'
+            left join issue_sheet_row_values priority_values
+              on priority_values.issue_id = i.id
+             and priority_values.column_id = priority_columns.id`
+	}
+	listArgs := append([]any{}, whereArgs...)
+	listArgs = append(listArgs, query.limit, query.offset)
+	listSQL += ` where ` + whereSQL + ` order by ` + orderSQL +
+		fmt.Sprintf(` limit $%d offset $%d`, len(whereArgs)+1, len(whereArgs)+2)
+
+	rows, err := api.pool.Query(ctx, listSQL, listArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -158,6 +172,223 @@ func (api *issueSheetAPI) listIssues(ctx context.Context, actor issueSheetActor,
 	}, 200, nil
 }
 
+type issueListQuery struct {
+	view             string
+	status           string
+	issueType        string
+	priority         string
+	locale           string
+	assignee         string
+	translationKeyID string
+	search           string
+	sort             string
+	sortDir          string
+	limit            int
+	offset           int
+}
+
+func parseIssueListQuery(r *http.Request, actorUserID string) (issueListQuery, error) {
+	q := r.URL.Query()
+	out := issueListQuery{
+		view:             strings.TrimSpace(q.Get("view")),
+		status:           strings.TrimSpace(q.Get("status")),
+		issueType:        strings.TrimSpace(q.Get("issueType")),
+		priority:         strings.TrimSpace(q.Get("priority")),
+		locale:           strings.TrimSpace(q.Get("locale")),
+		assignee:         strings.TrimSpace(q.Get("assignee")),
+		translationKeyID: strings.TrimSpace(q.Get("translationKeyId")),
+		search:           strings.TrimSpace(q.Get("search")),
+		sort:             strings.TrimSpace(q.Get("sort")),
+		sortDir:          strings.TrimSpace(q.Get("sortDir")),
+		limit:            50,
+		offset:           0,
+	}
+	if out.view != "" {
+		switch out.view {
+		case "my_work", "qa_triage", "source_context", "all_open":
+		default:
+			return out, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
+		}
+	}
+	if out.status != "" {
+		switch out.status {
+		case "open", "in_progress", "resolved", "wont_fix", "all":
+		default:
+			return out, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
+		}
+	}
+	if out.issueType != "" {
+		switch out.issueType {
+		case "general_question", "translation_mistake", "context_request", "source_mistake",
+			"glossary_violation", "qa_failure", "all":
+		default:
+			return out, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
+		}
+	}
+	if out.priority != "" {
+		switch out.priority {
+		case "P0", "P1", "P2":
+		default:
+			return out, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
+		}
+	}
+	if out.sort != "" {
+		switch out.sort {
+		case "updated_at", "created_at", "priority", "status":
+		default:
+			return out, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
+		}
+	}
+	if out.sortDir != "" {
+		switch out.sortDir {
+		case "asc", "desc":
+		default:
+			return out, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
+		}
+	}
+	if out.view == "my_work" && out.assignee == "" {
+		out.assignee = actorUserID
+	}
+	if raw := strings.TrimSpace(q.Get("limit")); raw != "" {
+		n, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || n < 1 || n > 200 {
+			return out, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
+		}
+		out.limit = n
+	}
+	if raw := strings.TrimSpace(q.Get("offset")); raw != "" {
+		n, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || n < 0 {
+			return out, issueSheetFailure(400, "invalid_issue_sheet_query", "Invalid issue sheet query")
+		}
+		out.offset = n
+	}
+	return out, nil
+}
+
+func buildIssueListWhere(organizationID, projectID, actorUserID string, query issueListQuery) (string, []any, bool) {
+	parts := []string{"i.organization_id = $1", "i.project_id = $2"}
+	args := []any{organizationID, projectID}
+	add := func(clause string, value any) {
+		args = append(args, value)
+		parts = append(parts, fmt.Sprintf(clause, len(args)))
+	}
+
+	hasStatusFilter := query.status != "" && query.status != "all"
+	hasTypeFilter := query.issueType != "" && query.issueType != "all"
+	hasAssigneeFilter := query.assignee != ""
+
+	switch query.view {
+	case "my_work":
+		if !hasAssigneeFilter {
+			add("i.assignee_user_id = $%d", actorUserID)
+		}
+		if !hasStatusFilter {
+			parts = append(parts, "i.status in ('open', 'in_progress')")
+		}
+	case "qa_triage":
+		if !hasTypeFilter {
+			parts = append(parts, "i.issue_type = 'qa_failure'")
+		}
+		if !hasAssigneeFilter {
+			parts = append(parts, "i.assignee_user_id is null")
+		}
+		if !hasStatusFilter {
+			parts = append(parts, "i.status in ('open', 'in_progress')")
+		}
+	case "source_context":
+		if !hasTypeFilter {
+			parts = append(parts, "i.issue_type in ('source_mistake', 'context_request', 'general_question')")
+		}
+		if !hasStatusFilter {
+			parts = append(parts, "i.status in ('open', 'in_progress')")
+		}
+	case "all_open":
+		if !hasStatusFilter {
+			parts = append(parts, "i.status in ('open', 'in_progress')")
+		}
+	}
+
+	if hasStatusFilter {
+		add("i.status = $%d", query.status)
+	}
+	if hasTypeFilter {
+		add("i.issue_type = $%d", query.issueType)
+	}
+	needsPriorityJoin := query.priority != "" || query.sort == "priority"
+	if query.priority != "" {
+		add("priority_values.value #>> '{}' = $%d", query.priority)
+	}
+	if query.locale != "" {
+		add("i.target_locale = $%d", query.locale)
+	}
+	switch query.assignee {
+	case "":
+	case "me":
+		add("i.assignee_user_id = $%d", actorUserID)
+	case "unassigned":
+		parts = append(parts, "i.assignee_user_id is null")
+	default:
+		add("i.assignee_user_id = $%d", query.assignee)
+	}
+	if query.translationKeyID != "" {
+		add("i.translation_key_id = $%d", query.translationKeyID)
+	}
+	if query.search != "" {
+		pattern := "%" + query.search + "%"
+		args = append(args, pattern)
+		n := len(args)
+		parts = append(parts, fmt.Sprintf(
+			`(i.identifier ilike $%d or i.title ilike $%d or i.description ilike $%d or i.source_path ilike $%d)`,
+			n, n, n, n,
+		))
+	}
+
+	return strings.Join(parts, " and "), args, needsPriorityJoin
+}
+
+func buildIssueListOrderBy(query issueListQuery) string {
+	sort := query.sort
+	if sort == "" {
+		sort = "status"
+	}
+	direction := query.sortDir
+	if direction == "" {
+		if sort == "priority" || sort == "status" {
+			direction = "asc"
+		} else {
+			direction = "desc"
+		}
+	}
+	ordered := func(expr string) string {
+		return expr + " " + direction
+	}
+	statusRank := `case
+        when i.status = 'open' then 0
+        when i.status = 'in_progress' then 1
+        when i.status = 'resolved' then 2
+        when i.status = 'wont_fix' then 3
+        else 4 end`
+	priorityRank := `case
+        when priority_values.value #>> '{}' = 'P0' then 0
+        when priority_values.value #>> '{}' = 'P1' then 1
+        when priority_values.value #>> '{}' = 'P2' then 2
+        else 3 end`
+	idTie := "i.id asc"
+	withinUpdated := "i.updated_at desc"
+
+	switch sort {
+	case "status":
+		return ordered(statusRank) + ", " + withinUpdated + ", " + idTie
+	case "created_at":
+		return statusRank + " asc, " + ordered("i.created_at") + ", " + idTie
+	case "priority":
+		return statusRank + " asc, " + ordered(priorityRank) + ", " + idTie
+	default:
+		return statusRank + " asc, " + ordered("i.updated_at") + ", " + idTie
+	}
+}
+
 func (api *issueSheetAPI) loadIssueSummary(ctx context.Context, organizationID, projectID string) (map[string]int, error) {
 	rows, err := api.pool.Query(ctx, `
         select status, count(*)::int
@@ -190,15 +421,26 @@ func (api *issueSheetAPI) loadIssueSummary(ctx context.Context, organizationID, 
 	return summary, rows.Err()
 }
 
-func (api *issueSheetAPI) listAssignableMembers(ctx context.Context, actor issueSheetActor, _ issueSheetProject) (any, int, error) {
+func (api *issueSheetAPI) listAssignableMembers(ctx context.Context, actor issueSheetActor, project issueSheetProject) (any, int, error) {
 	rows, err := api.pool.Query(ctx, `
         select u.id, u.workos_user_id, u.email, u.first_name, u.last_name, u.avatar_url
         from organization_memberships m
         join users u on u.id = m.user_id
+        join projects p on p.id = $2 and p.organization_id = $1
         where m.organization_id = $1
-          and m.workos_membership_id is not null
-          and m.workos_membership_id not in ('', 'replacing')
-        order by u.email asc`, actor.organizationID)
+          and `+activeOrgMembershipSQL+`
+          and (
+            m.role in ('admin', 'localization_manager')
+            or exists (
+                select 1
+                from team_memberships tm
+                join teams t on t.id = tm.team_id
+                where tm.user_id = m.user_id
+                  and t.organization_id = $1
+                  and (t.id = p.team_id or (p.team_id is null and t.slug = 'default'))
+            )
+          )
+        order by u.email asc`, actor.organizationID, project.ID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -400,6 +642,16 @@ func (api *issueSheetAPI) createIssue(ctx context.Context, actor issueSheetActor
 	if title == "" {
 		return nil, 0, issueSheetFailure(400, "invalid_issue_sheet_issue_payload", "Title is required")
 	}
+	if body.TranslationKeyID != nil && strings.TrimSpace(*body.TranslationKeyID) != "" {
+		if err := api.assertTranslationKeyInProject(ctx, actor.organizationID, project.ID, strings.TrimSpace(*body.TranslationKeyID)); err != nil {
+			return nil, 0, err
+		}
+	}
+	if body.AssigneeUserID != nil && strings.TrimSpace(*body.AssigneeUserID) != "" {
+		if err := api.assertAssignableAssignee(ctx, actor.organizationID, project.ID, strings.TrimSpace(*body.AssigneeUserID)); err != nil {
+			return nil, 0, err
+		}
+	}
 
 	tx, err := api.pool.Begin(ctx)
 	if err != nil {
@@ -493,6 +745,14 @@ func (api *issueSheetAPI) createIssue(ctx context.Context, actor issueSheetActor
 			return nil, 0, err
 		}
 	}
+	for columnKey, rawValue := range body.Values {
+		if columnKey == "priority" {
+			continue
+		}
+		if err := setIssueValueTx(ctx, tx, actor.organizationID, project.ID, issueID, columnKey, rawValue); err != nil {
+			return nil, 0, err
+		}
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, 0, err
@@ -519,6 +779,17 @@ func (api *issueSheetAPI) updateIssue(ctx context.Context, actor issueSheetActor
 		return nil, 0, err
 	}
 
+	if body.AssigneeUserID.Present && body.AssigneeUserID.Value != nil && strings.TrimSpace(*body.AssigneeUserID.Value) != "" {
+		if err := api.assertAssignableAssignee(ctx, actor.organizationID, project.ID, strings.TrimSpace(*body.AssigneeUserID.Value)); err != nil {
+			return nil, 0, err
+		}
+	}
+	if body.TranslationKeyID.Present && body.TranslationKeyID.Value != nil && strings.TrimSpace(*body.TranslationKeyID.Value) != "" {
+		if err := api.assertTranslationKeyInProject(ctx, actor.organizationID, project.ID, strings.TrimSpace(*body.TranslationKeyID.Value)); err != nil {
+			return nil, 0, err
+		}
+	}
+
 	sets := []string{"updated_at = now()"}
 	args := []any{actor.organizationID, project.ID, issueID}
 	add := func(col string, value any) {
@@ -543,29 +814,32 @@ func (api *issueSheetAPI) updateIssue(ctx context.Context, actor issueSheetActor
 			add("resolved_at", nil)
 		}
 	}
-	if body.TargetLocale != nil {
-		add("target_locale", *body.TargetLocale)
+	if body.TargetLocale.Present {
+		add("target_locale", body.TargetLocale.Value)
 	}
-	if body.SourcePath != nil {
-		add("source_path", *body.SourcePath)
+	if body.SourcePath.Present {
+		add("source_path", body.SourcePath.Value)
 	}
-	if body.SegmentID != nil {
-		add("segment_id", *body.SegmentID)
+	if body.SegmentID.Present {
+		add("segment_id", body.SegmentID.Value)
 	}
-	if body.TranslationKeyID != nil {
-		add("translation_key_id", *body.TranslationKeyID)
+	if body.TranslationKeyID.Present {
+		add("translation_key_id", body.TranslationKeyID.Value)
 	}
-	if body.LinkKind != nil {
-		add("link_kind", *body.LinkKind)
+	if body.LinkKind.Present {
+		add("link_kind", body.LinkKind.Value)
 	}
-	if body.LinkLabel != nil {
-		add("link_label", *body.LinkLabel)
+	if body.LinkLabel.Present {
+		add("link_label", body.LinkLabel.Value)
 	}
-	if body.LinkURL != nil {
-		add("link_url", *body.LinkURL)
+	if body.LinkURL.Present {
+		add("link_url", body.LinkURL.Value)
 	}
-	if body.AssigneeUserID != nil {
-		add("assignee_user_id", *body.AssigneeUserID)
+	if body.AssigneeUserID.Present {
+		add("assignee_user_id", body.AssigneeUserID.Value)
+	}
+	if len(sets) == 1 {
+		return nil, 0, issueSheetFailure(400, "invalid_issue_sheet_issue_payload", "At least one field must be provided")
 	}
 
 	tag, err := api.pool.Exec(ctx, `

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -313,4 +314,64 @@ func TestIsProtectedIssueSheetColumnKey(t *testing.T) {
 	require.True(t, isProtectedIssueSheetColumnKey("owner_note"))
 	require.True(t, isProtectedIssueSheetColumnKey("context"))
 	require.False(t, isProtectedIssueSheetColumnKey("severity"))
+}
+
+func TestOptionalNullableStringUnmarshal(t *testing.T) {
+	var omitted struct {
+		Assignee optionalNullableString `json:"assigneeUserId"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(`{}`), &omitted))
+	require.False(t, omitted.Assignee.Present)
+
+	var cleared struct {
+		Assignee optionalNullableString `json:"assigneeUserId"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(`{"assigneeUserId":null}`), &cleared))
+	require.True(t, cleared.Assignee.Present)
+	require.Nil(t, cleared.Assignee.Value)
+
+	var set struct {
+		Assignee optionalNullableString `json:"assigneeUserId"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(`{"assigneeUserId":"user-1"}`), &set))
+	require.True(t, set.Assignee.Present)
+	require.Equal(t, "user-1", *set.Assignee.Value)
+}
+
+func TestParseFeedCursor(t *testing.T) {
+	cursor, ok := parseFeedCursor("2026-09-20 12:00:00.123456+00|1|11111111-1111-4111-8111-111111111111")
+	require.True(t, ok)
+	require.Equal(t, 1, cursor.sortRank)
+	require.Equal(t, "11111111-1111-4111-8111-111111111111", cursor.id)
+
+	_, ok = parseFeedCursor("bad")
+	require.False(t, ok)
+
+	encoded := encodeFeedCursor(feedCursor{
+		createdAt: "2026-09-20T12:00:00Z",
+		sortRank:  0,
+		id:        "11111111-1111-4111-8111-111111111111",
+		issueID:   "22222222-2222-4222-8222-222222222222",
+	})
+	require.Equal(t, "2026-09-20T12:00:00Z|0|11111111-1111-4111-8111-111111111111|22222222-2222-4222-8222-222222222222", encoded)
+}
+
+func TestBuildIssueListWhere(t *testing.T) {
+	sql, args, needsPriority := buildIssueListWhere("org", "proj", "actor", issueListQuery{
+		view:   "my_work",
+		status: "open",
+		search: "login",
+	})
+	require.Contains(t, sql, "i.assignee_user_id")
+	require.Contains(t, sql, "i.status =")
+	require.Contains(t, sql, "ilike")
+	require.False(t, needsPriority)
+	require.Equal(t, "org", args[0])
+	require.Equal(t, "proj", args[1])
+
+	_, _, needsPriority = buildIssueListWhere("org", "proj", "actor", issueListQuery{
+		priority: "P0",
+		sort:     "priority",
+	})
+	require.True(t, needsPriority)
 }
