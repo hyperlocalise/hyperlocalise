@@ -88,6 +88,12 @@ func requestLogPath(path string) string {
 	if parts[4] == "dictionaries" {
 		return prefix + "/v1/orgs/{organizationSlug}/dictionaries/{resource}"
 	}
+	if parts[4] == "glossaries" {
+		return prefix + "/v1/orgs/{organizationSlug}/glossaries/{resource}"
+	}
+	if parts[4] == "translation-memories" {
+		return prefix + "/v1/orgs/{organizationSlug}/translation-memories/{resource}"
+	}
 	if len(parts) >= 7 && parts[4] == "projects" && parts[6] == "dictionaries" {
 		return prefix + "/v1/orgs/{organizationSlug}/projects/{projectId}/dictionaries/{resource}"
 	}

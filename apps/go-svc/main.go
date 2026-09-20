@@ -80,6 +80,8 @@ func main() {
 	h := newHandler()
 	h.spellChecker = spellChecker
 	h.dictionaries = &dictionaryAPI{}
+	h.glossaries = &glossaryAPI{}
+	h.memories = &memoryAPI{}
 	h.qaReports = &qaReportAPI{}
 	h.teams = &teamAPI{}
 	if key := strings.TrimSpace(os.Getenv("WORKOS_API_KEY")); key != "" {
@@ -88,6 +90,8 @@ func main() {
 			return client.OrganizationMembership().Get(ctx, id)
 		}
 		h.dictionaries.membership = membershipLookup
+		h.glossaries.membership = membershipLookup
+		h.memories.membership = membershipLookup
 		h.qaReports.membership = membershipLookup
 		h.teams.membership = membershipLookup
 	}
@@ -108,6 +112,8 @@ func main() {
 		}
 		defer pool.Close()
 		h.dictionaries.pool = pool
+		h.glossaries.pool = pool
+		h.memories.pool = pool
 		h.qaReports.pool = pool
 		h.teams.pool = pool
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)

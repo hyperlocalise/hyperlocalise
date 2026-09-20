@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`.
 
 Public routes are served at `/api/go-svc/...` in production (Vercel rewrite) and at `/v1/...` or `/ofrep/...` when called directly via the `GO_SVC_URL` binding.
 
@@ -31,7 +31,7 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `WORKOS_API_HOSTNAME` | `api.workos.com` | WorkOS API host used for session refresh and JWKS (`/sso/jwks/{client_id}`). Point at the WorkOS emulator in local e2e. |
 | `WORKOS_API_HTTPS` | `true` | Set `false` for the local emulator. |
 | `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
-| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary routes and Hyperlab OFREP evaluate routes. |
+| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, and Hyperlab OFREP evaluate routes. |
 
 ### DataForSEO (Domains research)
 
@@ -345,3 +345,65 @@ limits, set `DICTIONARY_TEST_DATABASE_URL` to an explicit test PostgreSQL databa
 and run `go test -race ./apps/go-svc -run '^TestDictionaryPostgres'`. The suite creates
 and removes a unique schema per test. Without that variable, these integration
 tests are skipped; it never starts a database or reads `DATABASE_URL` implicitly.
+
+## Glossaries and translation memories
+
+The browser can call `/api/go-svc/v1/orgs/{organizationSlug}/glossaries` and
+`/api/go-svc/v1/orgs/{organizationSlug}/translation-memories` for native library
+CRUD, project attachments, glossary concepts/terms, memory entries, and
+CSV/TBX/TMX (plus glossary XLSX export) interchange. Hono routes remain available
+in parallel. The only deferred interchange path is glossary import-report backup
+download (`GET .../import-reports/{reportId}/backup`), which still returns 501
+because it depends on Vercel Blob / stored file adapters.
+Auth matches dictionary routes: WorkOS session cookie, live membership verification,
+and role checks (`glossaries:write` / `memories:write` for managers; translators may
+contribute to team-controlled native glossaries).
+
+Concept page cursors are opaque base64 of `updatedAt|id` (no HMAC). Treat
+`nextCursor` as opaque.
+
+### Glossary / TM tests and benchmarks
+
+These commands do not require Docker or PostgreSQL:
+
+```bash
+go test -race ./apps/go-svc -run 'Glossary|Memory'
+go test ./apps/go-svc -run '^$' -bench 'BenchmarkGlossary|BenchmarkMemory|BenchmarkNormalizeMemory' -benchmem
+```
+
+Benchmarks cover CSV/TBX/XLSX serialize and parse, TMX/CSV memory interchange,
+source-text normalization, and page-cursor decode at 100–5,000 units. They exclude
+database and network latency.
+
+All paths below are relative to `/v1/orgs/{organizationSlug}`:
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET, POST | `/glossaries` | List or create native glossaries |
+| GET, PATCH, DELETE | `/glossaries/{glossaryId}` | Read, update, or delete |
+| GET, POST | `/glossaries/{glossaryId}/projects` | List or attach projects |
+| DELETE | `/glossaries/{glossaryId}/projects/{projectId}` | Detach a project |
+| GET | `/glossaries/{glossaryId}/export` | Export CSV, TBX, or XLSX |
+| GET | `/glossaries/{glossaryId}/import-reports/{reportId}` | Import report JSON |
+| GET | `/glossaries/{glossaryId}/import-reports/{reportId}/backup` | 501 (Blob deferred) |
+| GET, POST | `/glossaries/{glossaryId}/concepts` | List or create concepts |
+| GET | `/glossaries/{glossaryId}/concepts/page` | Cursor-paginated concepts |
+| GET | `/glossaries/{glossaryId}/concepts/authors` | Distinct concept/term authors |
+| GET | `/glossaries/{glossaryId}/concepts/history` | Glossary history events |
+| POST | `/glossaries/{glossaryId}/concepts/import` | Import CSV/TBX (no Blob backup) |
+| GET, PATCH, DELETE | `/glossaries/{glossaryId}/concepts/{conceptId}` | Concept CRUD |
+| GET, POST | `/glossaries/{glossaryId}/concepts/{conceptId}/terms` | List or create terms |
+| GET | `.../concepts/{conceptId}/terms/page` | Cursor-paginated terms |
+| PATCH, DELETE | `.../terms/{termId}` | Term update or delete |
+| GET, POST | `/translation-memories` | List or create memories |
+| GET, PATCH, DELETE | `/translation-memories/{memoryId}` | Read, update, or delete |
+| GET, POST | `/translation-memories/{memoryId}/projects` | List or attach projects |
+| DELETE | `/translation-memories/{memoryId}/projects/{projectId}` | Detach a project |
+| GET, POST | `/translation-memories/{memoryId}/entries` | List or create entries |
+| GET | `/translation-memories/{memoryId}/entries/export` | Export CSV or TMX |
+| POST | `/translation-memories/{memoryId}/entries/import` | Import CSV/TMX (supports dryRun) |
+| POST | `/translation-memories/{memoryId}/entries/promote-from-project` | Promote approved project translations |
+| GET | `/translation-memories/{memoryId}/import-attempts` | List import attempts |
+| GET | `/translation-memories/{memoryId}/import-attempts/{attemptId}` | Attempt + diagnostics |
+| GET | `.../import-attempts/{attemptId}/report` | JSON report download |
+| GET, PATCH, DELETE | `/translation-memories/{memoryId}/entries/{entryId}` | Entry CRUD (PATCH requires `expectedVersion`) |
