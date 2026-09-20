@@ -13,9 +13,9 @@
 import { fromVisualWorkflowDefinition } from "../schema/serializers";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "../schema/types";
 
-export const visualWorkflowQuickAddDraft = fromVisualWorkflowDefinition({
+export const visualWorkflowSwitchDeleteDraft = fromVisualWorkflowDefinition({
   schemaVersion: VISUAL_WORKFLOW_SCHEMA_VERSION,
-  name: "Quick-add branches",
+  name: "Switch case delete",
   nodes: [
     {
       id: "trigger",
@@ -35,28 +35,39 @@ export const visualWorkflowQuickAddDraft = fromVisualWorkflowDefinition({
       },
     },
     {
-      id: "loop",
-      type: "logic.for_each",
-      config: { kind: "logic.for_each", collection: "[]" },
-      bodyNodeIds: ["body"],
+      id: "pending",
+      type: "logic.set",
+      config: { kind: "logic.set", assignments: [{ key: "branch", value: "pending" }] },
     },
     {
-      id: "body",
+      id: "ready",
       type: "logic.set",
-      config: { kind: "logic.set", assignments: [{ key: "item", value: "1" }] },
+      config: { kind: "logic.set", assignments: [{ key: "branch", value: "ready" }] },
     },
   ],
   edges: [
     { id: "e1", source: "trigger", target: "switch", sourceHandle: null, targetHandle: null },
-    { id: "e2", source: "trigger", target: "loop", sourceHandle: null, targetHandle: null },
-    { id: "e3", source: "loop", target: "body", sourceHandle: "each", targetHandle: null },
+    {
+      id: "e2",
+      source: "switch",
+      target: "pending",
+      sourceHandle: "case-pending",
+      targetHandle: null,
+    },
+    {
+      id: "e3",
+      source: "switch",
+      target: "ready",
+      sourceHandle: "case-ready",
+      targetHandle: null,
+    },
   ],
   editor: {
     positions: {
       trigger: { x: 40, y: 160 },
-      switch: { x: 320, y: 80 },
-      loop: { x: 320, y: 280 },
-      body: { x: 580, y: 280 },
+      switch: { x: 320, y: 160 },
+      pending: { x: 580, y: 80 },
+      ready: { x: 580, y: 240 },
     },
   },
 });

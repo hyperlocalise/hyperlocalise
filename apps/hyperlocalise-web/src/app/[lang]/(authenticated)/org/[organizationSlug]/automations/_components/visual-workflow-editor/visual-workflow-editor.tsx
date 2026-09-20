@@ -32,11 +32,13 @@ import {
 } from "@/lib/visual-workflows/catalog/node-catalog";
 import {
   applyVisualWorkflowGraphConnection,
+  applyNodeConfigUpdate,
   reconcileForEachBodyMembership,
   removeVisualWorkflowNode,
   replaceVisualWorkflowNodeType,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
 import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
+import { getSwitchCaseIndexByHandleId } from "@/lib/visual-workflows/schema/switch-cases";
 import { toVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/serializers";
 import type {
   MockNodeRunStatus,
@@ -78,21 +80,20 @@ function quickAddOffsetY(handleId: string | undefined, source: VisualWorkflowRfN
   const sourceHeight = source.height ?? getVisualNodeDimensions(source.data.catalogType).height;
   const branchStep = sourceHeight + NODE_GAP_Y;
 
-  if (!handleId || handleId === "true" || handleId === "each" || handleId === "0") {
+  if (!handleId || handleId === "true" || handleId === "each") {
     return 0;
   }
   if (handleId === "false" || handleId === "done" || handleId === "error") {
     return branchStep;
   }
-  if (handleId === "default") {
-    if (source.data.catalogType === "logic.switch" && source.data.config.kind === "logic.switch") {
+  if (source.data.catalogType === "logic.switch" && source.data.config.kind === "logic.switch") {
+    if (handleId === "default") {
       return source.data.config.cases.length * branchStep;
     }
-    return branchStep;
-  }
-  const index = Number(handleId);
-  if (Number.isInteger(index) && index > 0) {
-    return index * branchStep;
+    const caseIndex = getSwitchCaseIndexByHandleId(source.data.config.cases, handleId);
+    if (caseIndex !== null) {
+      return caseIndex * branchStep;
+    }
   }
   return 0;
 }
@@ -268,13 +269,11 @@ export function VisualWorkflowEditor({
       if (!selectedNodeId) {
         return;
       }
-      setNodes((current) =>
-        current.map((node) =>
-          node.id === selectedNodeId ? { ...node, data: { ...node.data, config } } : node,
-        ),
-      );
+      const next = applyNodeConfigUpdate(nodes, edges, selectedNodeId, config);
+      setNodes(next.nodes);
+      setEdges(next.edges);
     },
-    [selectedNodeId],
+    [edges, nodes, selectedNodeId],
   );
 
   const onChangeNodeType = useCallback(

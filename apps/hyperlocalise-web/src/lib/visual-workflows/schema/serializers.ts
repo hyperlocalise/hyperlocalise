@@ -19,6 +19,7 @@ import type {
   VisualWorkflowRfNode,
 } from "./types";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
+import { normalizeVisualWorkflowDefinition } from "./switch-cases";
 
 const ENABLED_TYPES = new Set<VisualCatalogType>([
   "trigger.manual",
@@ -73,6 +74,7 @@ export const toCanonicalDraft = toVisualWorkflowDefinition;
 export function fromVisualWorkflowDefinition(
   definition: VisualWorkflowDefinition,
 ): VisualWorkflowEditorState {
+  definition = normalizeVisualWorkflowDefinition(definition);
   const nodes: VisualWorkflowRfNode[] = definition.nodes.map((node) => {
     const type = ENABLED_TYPES.has(node.type) ? node.type : "action.http";
     const position = definition.editor.positions[node.id] ?? { x: 80, y: 160 };

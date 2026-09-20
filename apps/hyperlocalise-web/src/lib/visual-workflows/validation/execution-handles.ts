@@ -24,7 +24,7 @@ export function getAllowedExecutionSourceHandles(
     return ["true", "false"];
   }
   if (node.config.kind === "logic.switch") {
-    return ["default", ...node.config.cases.map((_, index) => String(index))];
+    return ["default", ...node.config.cases.map((entry) => entry.id)];
   }
   if (node.type === "logic.for_each") {
     return ["each", "done"];
@@ -41,7 +41,7 @@ export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource
     return "true";
   }
   if (node.config.kind === "logic.switch") {
-    return node.config.cases.length > 0 ? "0" : "default";
+    return node.config.cases[0]?.id ?? "default";
   }
   if (node.type === "logic.for_each") {
     return "each";

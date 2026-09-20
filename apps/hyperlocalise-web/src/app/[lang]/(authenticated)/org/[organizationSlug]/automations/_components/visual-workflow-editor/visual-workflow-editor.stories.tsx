@@ -17,6 +17,7 @@ import {
   visualWorkflowDemoDraft,
   visualWorkflowPlaygroundDraft,
   visualWorkflowQuickAddDraft,
+  visualWorkflowSwitchDeleteDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
 
@@ -84,7 +85,7 @@ export const QuickAddBranches: Story = {
     await click("Add node from Case 2");
     await click(/Assign values into the workflow context/);
     await expect(
-      await canvas.findByTestId(/visual-workflow-edge-switch-.+-1$/),
+      await canvas.findByTestId(/visual-workflow-edge-switch-.+-case-ready$/),
     ).toBeInTheDocument();
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
 
@@ -99,6 +100,43 @@ export const QuickAddBranches: Story = {
     await click(/Assign values into the workflow context/);
     await expect(
       await canvas.findByTestId(/visual-workflow-edge-loop-.+-done$/),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+  },
+};
+
+export const SwitchCaseDelete: Story = {
+  name: "Deleting a Switch case keeps other branches",
+  args: {
+    initialName: visualWorkflowSwitchDeleteDraft.name,
+    initialNodes: visualWorkflowSwitchDeleteDraft.nodes,
+    initialEdges: visualWorkflowSwitchDeleteDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByTestId("visual-workflow-edge-switch-pending-case-pending"),
+    ).toBeInTheDocument();
+    await expect(
+      await canvas.findByTestId("visual-workflow-edge-switch-ready-case-ready"),
+    ).toBeInTheDocument();
+
+    const switchTitle = await canvas.findByText("Switch", {}, { timeout: 10_000 });
+    switchTitle.click();
+
+    const removeFirst = await canvas.findByRole(
+      "button",
+      { name: "Remove case 1" },
+      { timeout: 10_000 },
+    );
+    removeFirst.click();
+
+    await expect(
+      canvas.queryByTestId("visual-workflow-edge-switch-pending-case-pending"),
+    ).not.toBeInTheDocument();
+    await expect(
+      await canvas.findByTestId("visual-workflow-edge-switch-ready-case-ready"),
     ).toBeInTheDocument();
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
   },

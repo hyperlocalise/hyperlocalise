@@ -122,9 +122,32 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     kind: z.literal("logic.switch"),
     expression: z.string().max(2000),
     cases: z
-      .array(z.object({ value: z.string().max(2000) }))
+      .array(
+        z.object({
+          id: z
+            .string()
+            .trim()
+            .min(1)
+            .max(64)
+            .refine((id) => id !== "default", { message: "Switch case id cannot be default." }),
+          value: z.string().max(2000),
+        }),
+      )
       .min(1)
-      .max(12),
+      .max(12)
+      .superRefine((cases, ctx) => {
+        const seen = new Set<string>();
+        for (const [index, entry] of cases.entries()) {
+          if (seen.has(entry.id)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Switch case ids must be unique.",
+              path: [index, "id"],
+            });
+          }
+          seen.add(entry.id);
+        }
+      }),
   }),
   z.object({
     kind: z.literal("logic.set"),

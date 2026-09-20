@@ -13,3 +13,4 @@
 export { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
 export { visualWorkflowPlaygroundDraft } from "@/lib/visual-workflows/fixtures/playground-draft";
 export { visualWorkflowQuickAddDraft } from "@/lib/visual-workflows/fixtures/quick-add-draft";
+export { visualWorkflowSwitchDeleteDraft } from "@/lib/visual-workflows/fixtures/switch-delete-draft";
