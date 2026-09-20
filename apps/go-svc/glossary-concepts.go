@@ -113,8 +113,29 @@ func (api *glossaryAPI) glossaryConceptRequest(r *http.Request, actor glossaryAc
 			return glossaryMethodNotAllowed()
 		}
 	}
-	if rest[0] == "import" || rest[0] == "page" || rest[0] == "terms" {
-		return glossaryNotImplemented()
+	switch rest[0] {
+	case "import":
+		if len(rest) != 1 || r.Method != http.MethodPost {
+			return nil, 0, missingGlossary()
+		}
+		return api.importGlossaryConcepts(r, actor, g)
+	case "page":
+		if len(rest) != 1 || r.Method != http.MethodGet {
+			return nil, 0, missingGlossary()
+		}
+		return api.pageGlossaryConcepts(r, g)
+	case "authors":
+		if len(rest) != 1 || r.Method != http.MethodGet {
+			return nil, 0, missingGlossary()
+		}
+		return api.listGlossaryConceptAuthors(r.Context(), g)
+	case "history":
+		if len(rest) != 1 || r.Method != http.MethodGet {
+			return nil, 0, missingGlossary()
+		}
+		return api.pageGlossaryHistory(r, g)
+	case "terms":
+		return nil, 0, missingGlossary()
 	}
 	if !validGlossaryID(rest[0]) {
 		return nil, 0, missingGlossary()
@@ -373,6 +394,9 @@ func (api *glossaryAPI) deleteConcept(ctx context.Context, actor glossaryActor, 
 }
 
 func (api *glossaryAPI) glossaryTermRequest(r *http.Request, actor glossaryActor, g glossaryRecord, conceptID string, rest []string) (any, int, error) {
+	if len(rest) == 1 && rest[0] == "page" && r.Method == http.MethodGet {
+		return api.pageConceptTerms(r, g, conceptID)
+	}
 	if len(rest) == 0 {
 		switch r.Method {
 		case http.MethodGet:

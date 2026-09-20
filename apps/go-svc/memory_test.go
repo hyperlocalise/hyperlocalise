@@ -117,10 +117,60 @@ func TestMemoryCreateListEntryConflict(t *testing.T) {
 		require.Contains(t, rec.Body.String(), "stale_memory_entry")
 		require.Contains(t, rec.Body.String(), `"memoryEntry"`)
 	})
-	t.Run("import returns 501", func(t *testing.T) {
-		api, _ := memoryTestAPI(t, "admin")
-		rec := memoryRequestForTest(api, "POST", testMemoryBase+"/"+testMemoryID+"/entries/import", `{}`)
-		require.Equal(t, 501, rec.Code)
+	t.Run("import dry run", func(t *testing.T) {
+		dupCheck := dictionaryRowStep("select id from memory_entries where memory_id=$1")
+		dupCheck.err = pgx.ErrNoRows
+		dupCheck.args = []any{testMemoryID, "en-US", "fr-FR", "hello"}
+		api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), dupCheck)
+		body := `{"format":"csv","content":"source_locale,target_locale,source_text,target_text\nen-US,fr-FR,Hello,Bonjour","dryRun":true}`
+		rec := memoryRequestForTest(api, "POST", testMemoryBase+"/"+testMemoryID+"/entries/import", body)
+		require.Equal(t, 200, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"dryRun":true`)
+		require.Contains(t, rec.Body.String(), `"preview"`)
+	})
+	t.Run("export tmx content type", func(t *testing.T) {
+		entries := dictionaryDBStep{kind: "query", sql: "from memory_entries where", values: [][]any{{
+			"en-US", "fr-FR", "Hello", "Bonjour", 100, nil,
+		}}}
+		entries.args = []any{testMemoryID}
+		api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), entries)
+		rec := memoryRequestForTest(api, "GET", testMemoryBase+"/"+testMemoryID+"/entries/export?format=tmx", "")
+		require.Equal(t, 200, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Header().Get("Content-Type"), "tmx")
+		require.Contains(t, rec.Body.String(), "<tmx")
+	})
+	t.Run("promote from project", func(t *testing.T) {
+		projectID := "99999999-9999-4999-8999-999999999999"
+		ownedProject := dictionaryRowStep("from projects p where p.id=$1", projectID)
+		ownedProject.args = []any{projectID, testMemoryOrgID, true, testMemoryUserID}
+		attached := dictionaryRowStep("from project_memories where project_id=$1", testMemoryID)
+		attached.args = []any{projectID, testMemoryID, testMemoryOrgID}
+		translations := dictionaryDBStep{kind: "query", sql: "from project_translations t join project_translation_keys", values: [][]any{{
+			"greeting", "Hello", "fr-FR", "Bonjour", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", nil,
+		}}}
+		translations.args = []any{testMemoryOrgID, projectID}
+		upsert := dictionaryDBStep{kind: "exec", sql: "insert into memory_entries", affected: 1}
+		api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), ownedProject, attached, translations, upsert)
+		body := `{"projectId":"` + projectID + `","sourceLocale":"en-US"}`
+		rec := memoryRequestForTest(api, "POST", testMemoryBase+"/"+testMemoryID+"/entries/promote-from-project", body)
+		require.Equal(t, 200, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"promoted":1`)
+	})
+	t.Run("list import attempts", func(t *testing.T) {
+		attemptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+		userID := testMemoryUserID
+		completed := testMemoryTime
+		list := dictionaryDBStep{kind: "query", sql: "from memory_import_attempts a", values: [][]any{{
+			attemptID, testMemoryOrgID, testMemoryID, &userID, "completed", "csv",
+			[]byte(`{}`), nil, nil, "abc", []byte(`{}`), nil, false, "available", nil, nil, testMemoryTime, &completed, strPtr("Ada"),
+		}}}
+		list.args = []any{testMemoryID, testMemoryOrgID, 51}
+		total := dictionaryRowStep("select count(*) from memory_import_attempts a where", 1)
+		total.args = []any{testMemoryID, testMemoryOrgID}
+		api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), list, total)
+		rec := memoryRequestForTest(api, "GET", testMemoryBase+"/"+testMemoryID+"/import-attempts", "")
+		require.Equal(t, 200, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"memoryImportAttempts"`)
 	})
 	t.Run("create entry", func(t *testing.T) {
 		dupCheck := dictionaryRowStep("select id from memory_entries where memory_id=$1")

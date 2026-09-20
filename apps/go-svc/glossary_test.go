@@ -113,11 +113,55 @@ func TestGlossaryCreateListGet(t *testing.T) {
 		require.Contains(t, rec.Body.String(), `"canContribute":true`)
 		require.Contains(t, rec.Body.String(), `"termCount":3`)
 	})
-	t.Run("export returns 501", func(t *testing.T) {
-		api, _ := glossaryTestAPI(t, "admin")
-		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/export", "")
+	t.Run("export returns csv", func(t *testing.T) {
+		conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+		termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+		concepts := dictionaryDBStep{kind: "query", sql: "from glossary_concepts c where c.glossary_id=$1", values: [][]any{{
+			conceptID, "Checkout", "Commerce", "Payment step", true, "", nil, nil, testGlossaryTime, testGlossaryTime,
+		}}}
+		concepts.args = []any{testGlossaryID}
+		terms := dictionaryDBStep{kind: "query", sql: "from glossary_terms t where t.glossary_id=$1", values: [][]any{{
+			termID, conceptID, "en-US", "Checkout", "", "", "", nil, nil, nil, nil, "preferred", false, false, "manual", "approved", testGlossaryTime, testGlossaryTime,
+		}}}
+		terms.args = []any{testGlossaryID, []string{conceptID}}
+		api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), concepts, terms)
+		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/export?format=csv", "")
+		require.Equal(t, 200, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Header().Get("Content-Type"), "text/csv")
+		require.Contains(t, rec.Body.String(), "Checkout")
+		require.Contains(t, rec.Header().Get("Content-Disposition"), "attachment")
+	})
+	t.Run("import backup still 501", func(t *testing.T) {
+		reportID := "ffffffff-ffff-4fff-8fff-ffffffffffff"
+		api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep())
+		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/import-reports/"+reportID+"/backup", "")
 		require.Equal(t, 501, rec.Code)
 		require.Contains(t, rec.Body.String(), "not_implemented")
+	})
+	t.Run("concepts page returns envelope", func(t *testing.T) {
+		conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+		list := dictionaryDBStep{kind: "query", sql: "from glossary_concepts c where", values: [][]any{{
+			conceptID, testGlossaryID, "Checkout", "Commerce", "Payment", "approved", testGlossaryTime, testGlossaryTime,
+		}}}
+		list.args = []any{testGlossaryID, 51}
+		counts := dictionaryDBStep{kind: "query", sql: "from glossary_terms where concept_id = any", values: [][]any{{conceptID, 1, 1}}}
+		counts.args = []any{[]string{conceptID}}
+		total := dictionaryRowStep("select count(*) from glossary_concepts c where", 1)
+		total.args = []any{testGlossaryID}
+		api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), list, counts, total)
+		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/concepts/page", "")
+		require.Equal(t, 200, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"concepts"`)
+		require.Contains(t, rec.Body.String(), `"pagination"`)
+	})
+	t.Run("import dry preview", func(t *testing.T) {
+		insertRun := dictionaryRowStep("insert into glossary_import_runs", "ffffffff-ffff-4fff-8fff-ffffffffffff")
+		api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), insertRun)
+		body := `{"format":"csv","content":"conceptId,locale,term\nc1,en-US,Hello","mode":"preview"}`
+		rec := glossaryRequestForTest(api, "POST", testGlossaryBase+"/"+testGlossaryID+"/concepts/import", body)
+		require.Equal(t, 200, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"planned"`)
+		require.Contains(t, rec.Body.String(), `"reportId"`)
 	})
 	t.Run("malformed id never queries", func(t *testing.T) {
 		api, _ := glossaryTestAPI(t, "member")

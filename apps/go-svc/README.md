@@ -334,11 +334,30 @@ tests are skipped; it never starts a database or reads `DATABASE_URL` implicitly
 
 The browser can call `/api/go-svc/v1/orgs/{organizationSlug}/glossaries` and
 `/api/go-svc/v1/orgs/{organizationSlug}/translation-memories` for native library
-CRUD, project attachments, glossary concepts/terms, and memory entries. Hono routes
-remain available in parallel. Import/export interchange paths return 501 from go-svc.
+CRUD, project attachments, glossary concepts/terms, memory entries, and
+CSV/TBX/TMX (plus glossary XLSX export) interchange. Hono routes remain available
+in parallel. The only deferred interchange path is glossary import-report backup
+download (`GET .../import-reports/{reportId}/backup`), which still returns 501
+because it depends on Vercel Blob / stored file adapters.
 Auth matches dictionary routes: WorkOS session cookie, live membership verification,
 and role checks (`glossaries:write` / `memories:write` for managers; translators may
 contribute to team-controlled native glossaries).
+
+Concept page cursors are opaque base64 of `updatedAt|id` (no HMAC). Treat
+`nextCursor` as opaque.
+
+### Glossary / TM tests and benchmarks
+
+These commands do not require Docker or PostgreSQL:
+
+```bash
+go test -race ./apps/go-svc -run 'Glossary|Memory'
+go test ./apps/go-svc -run '^$' -bench 'BenchmarkGlossary|BenchmarkMemory|BenchmarkNormalizeMemory' -benchmem
+```
+
+Benchmarks cover CSV/TBX/XLSX serialize and parse, TMX/CSV memory interchange,
+source-text normalization, and page-cursor decode at 100–5,000 units. They exclude
+database and network latency.
 
 All paths below are relative to `/v1/orgs/{organizationSlug}`:
 
@@ -348,13 +367,27 @@ All paths below are relative to `/v1/orgs/{organizationSlug}`:
 | GET, PATCH, DELETE | `/glossaries/{glossaryId}` | Read, update, or delete |
 | GET, POST | `/glossaries/{glossaryId}/projects` | List or attach projects |
 | DELETE | `/glossaries/{glossaryId}/projects/{projectId}` | Detach a project |
+| GET | `/glossaries/{glossaryId}/export` | Export CSV, TBX, or XLSX |
+| GET | `/glossaries/{glossaryId}/import-reports/{reportId}` | Import report JSON |
+| GET | `/glossaries/{glossaryId}/import-reports/{reportId}/backup` | 501 (Blob deferred) |
 | GET, POST | `/glossaries/{glossaryId}/concepts` | List or create concepts |
+| GET | `/glossaries/{glossaryId}/concepts/page` | Cursor-paginated concepts |
+| GET | `/glossaries/{glossaryId}/concepts/authors` | Distinct concept/term authors |
+| GET | `/glossaries/{glossaryId}/concepts/history` | Glossary history events |
+| POST | `/glossaries/{glossaryId}/concepts/import` | Import CSV/TBX (no Blob backup) |
 | GET, PATCH, DELETE | `/glossaries/{glossaryId}/concepts/{conceptId}` | Concept CRUD |
 | GET, POST | `/glossaries/{glossaryId}/concepts/{conceptId}/terms` | List or create terms |
+| GET | `.../concepts/{conceptId}/terms/page` | Cursor-paginated terms |
 | PATCH, DELETE | `.../terms/{termId}` | Term update or delete |
 | GET, POST | `/translation-memories` | List or create memories |
 | GET, PATCH, DELETE | `/translation-memories/{memoryId}` | Read, update, or delete |
 | GET, POST | `/translation-memories/{memoryId}/projects` | List or attach projects |
 | DELETE | `/translation-memories/{memoryId}/projects/{projectId}` | Detach a project |
 | GET, POST | `/translation-memories/{memoryId}/entries` | List or create entries |
+| GET | `/translation-memories/{memoryId}/entries/export` | Export CSV or TMX |
+| POST | `/translation-memories/{memoryId}/entries/import` | Import CSV/TMX (supports dryRun) |
+| POST | `/translation-memories/{memoryId}/entries/promote-from-project` | Promote approved project translations |
+| GET | `/translation-memories/{memoryId}/import-attempts` | List import attempts |
+| GET | `/translation-memories/{memoryId}/import-attempts/{attemptId}` | Attempt + diagnostics |
+| GET | `.../import-attempts/{attemptId}/report` | JSON report download |
 | GET, PATCH, DELETE | `/translation-memories/{memoryId}/entries/{entryId}` | Entry CRUD (PATCH requires `expectedVersion`) |

@@ -86,9 +86,6 @@ func (api *memoryAPI) memoryRequest(r *http.Request, actor memoryActor) (any, in
 		}
 	}
 	parts := strings.Split(rest, "/")
-	if isMemoryNotImplementedPath(parts) {
-		return memoryNotImplemented()
-	}
 	m, err := ownedMemory(r.Context(), api.pool, actor, parts[0])
 	if err != nil {
 		return nil, 0, err
@@ -99,6 +96,8 @@ func (api *memoryAPI) memoryRequest(r *http.Request, actor memoryActor) (any, in
 			return api.memoryProjectRequest(r, actor, m, parts[2:])
 		case "entries":
 			return api.memoryEntryRequest(r, actor, m, parts[2:])
+		case "import-attempts":
+			return api.memoryImportAttemptRequest(r, actor, m, parts[2:])
 		default:
 			return nil, 0, missingMemory()
 		}
@@ -113,24 +112,6 @@ func (api *memoryAPI) memoryRequest(r *http.Request, actor memoryActor) (any, in
 	default:
 		return memoryMethodNotAllowed()
 	}
-}
-
-func isMemoryNotImplementedPath(parts []string) bool {
-	if len(parts) < 2 {
-		return false
-	}
-	switch parts[1] {
-	case "import-attempts":
-		return true
-	case "entries":
-		if len(parts) >= 3 {
-			switch parts[2] {
-			case "export", "import", "promote-from-project":
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func (api *memoryAPI) listMemories(r *http.Request, actor memoryActor) (any, int, error) {

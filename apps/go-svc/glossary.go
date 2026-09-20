@@ -188,6 +188,10 @@ func (api *glossaryAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 		return
 	}
+	if download, ok := value.(interchangeDownload); ok {
+		writeInterchangeDownload(w, status, download)
+		return
+	}
 	glossaryJSON(w, status, value)
 }
 

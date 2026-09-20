@@ -129,9 +129,6 @@ func (api *glossaryAPI) glossaryRequest(r *http.Request, actor glossaryActor) (a
 		}
 	}
 	parts := strings.Split(rest, "/")
-	if isGlossaryNotImplementedPath(parts) {
-		return glossaryNotImplemented()
-	}
 	g, err := ownedGlossary(r.Context(), api.pool, actor, parts[0])
 	if err != nil {
 		return nil, 0, err
@@ -142,6 +139,13 @@ func (api *glossaryAPI) glossaryRequest(r *http.Request, actor glossaryActor) (a
 			return api.glossaryProjectRequest(r, actor, g, parts[2:])
 		case "concepts":
 			return api.glossaryConceptRequest(r, actor, g, parts[2:])
+		case "export":
+			if len(parts) != 2 || r.Method != http.MethodGet {
+				return nil, 0, missingGlossary()
+			}
+			return api.exportGlossary(r, g)
+		case "import-reports":
+			return api.glossaryImportReportRequest(r, actor, g, parts[2:])
 		default:
 			return nil, 0, missingGlossary()
 		}
@@ -156,24 +160,6 @@ func (api *glossaryAPI) glossaryRequest(r *http.Request, actor glossaryActor) (a
 	default:
 		return glossaryMethodNotAllowed()
 	}
-}
-
-func isGlossaryNotImplementedPath(parts []string) bool {
-	if len(parts) < 2 {
-		return false
-	}
-	switch parts[1] {
-	case "export", "import-reports", "authors", "history":
-		return true
-	case "concepts":
-		if len(parts) >= 3 && (parts[2] == "import" || parts[2] == "page") {
-			return true
-		}
-		if len(parts) >= 3 && parts[2] == "terms" && len(parts) >= 4 && parts[3] == "page" {
-			return true
-		}
-	}
-	return false
 }
 
 func (api *glossaryAPI) listGlossaries(r *http.Request, actor glossaryActor) (any, int, error) {

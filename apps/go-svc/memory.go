@@ -198,6 +198,10 @@ func (api *memoryAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 		return
 	}
+	if download, ok := value.(interchangeDownload); ok {
+		writeInterchangeDownload(w, status, download)
+		return
+	}
 	memoryJSON(w, status, value)
 }
 
@@ -393,10 +397,6 @@ func validMemoryID(id string) bool {
 	}
 	_, err := uuid.Parse(id)
 	return err == nil
-}
-
-func memoryNotImplemented() (any, int, error) {
-	return nil, 0, memoryFailure(501, "not_implemented", "This translation memory operation is not available on the native Go service yet")
 }
 
 func trimMemoryInput(value string) string {

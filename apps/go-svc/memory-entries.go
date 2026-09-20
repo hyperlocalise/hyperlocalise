@@ -82,6 +82,25 @@ func (api *memoryAPI) memoryEntryRequest(r *http.Request, actor memoryActor, m m
 			return memoryMethodNotAllowed()
 		}
 	}
+	if len(rest) == 1 {
+		switch rest[0] {
+		case "export":
+			if r.Method != http.MethodGet {
+				return memoryMethodNotAllowed()
+			}
+			return api.exportMemoryEntries(r, m)
+		case "import":
+			if r.Method != http.MethodPost {
+				return memoryMethodNotAllowed()
+			}
+			return api.importMemoryEntries(r, actor, m)
+		case "promote-from-project":
+			if r.Method != http.MethodPost {
+				return memoryMethodNotAllowed()
+			}
+			return api.promoteMemoryFromProject(r, actor, m)
+		}
+	}
 	if len(rest) != 1 || !validMemoryID(rest[0]) {
 		return nil, 0, missingMemory()
 	}
