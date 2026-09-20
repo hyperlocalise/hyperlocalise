@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public routes are served at `/api/go-svc/...` in production (Vercel rewrite) and at `/v1/...` or `/ofrep/...` when called directly via the `GO_SVC_URL` binding.
 
@@ -269,6 +269,22 @@ source reads the existing workspace/project guideline tables without a migration
 The app's existing lexical guideline selection is unchanged. Transactional outbox
 integration and deletion-event delivery remain application adoption work. An index
 must never be the only retained copy of guideline content.
+
+## Activity logs
+
+Parallel read API for the workspace settings activity log. The Hono route at
+`/api/orgs/{organizationSlug}/activity-logs` remains the live browser path.
+go-svc exposes the same contract at `/api/go-svc/v1/orgs/{organizationSlug}/activity-logs`
+for parity and a later cutover. Requires `activity_logs:read` (`admin` or
+`localization_manager`), WorkOS session auth, and `DATABASE_URL`.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/activity-logs` | List organization activity events |
+
+Query parameters match Hono: `actor`, `cursor`, `eventTypes`, `limit` (1–100,
+default 50), `range` (`24h` \| `7d` \| `30d` \| `all`). Response:
+`{ activityLogs, actors, nextCursor }`.
 
 ## Teams
 

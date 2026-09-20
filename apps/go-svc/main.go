@@ -86,6 +86,7 @@ func main() {
 	h.qaReports = &qaReportAPI{}
 	h.teams = &teamAPI{}
 	h.issueSheets = &issueSheetAPI{}
+	h.activityLogs = &activityLogAPI{}
 	if autumnKey := strings.TrimSpace(os.Getenv("AUTUMN_API_KEY")); autumnKey != "" {
 		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
 			log.Printf("configure autumn: %v", err)
@@ -104,6 +105,7 @@ func main() {
 		h.qaReports.membership = membershipLookup
 		h.teams.membership = membershipLookup
 		h.issueSheets.membership = membershipLookup
+		h.activityLogs.membership = membershipLookup
 	}
 
 	if apiKey := strings.TrimSpace(os.Getenv("DATAFORSEO_API_KEY")); apiKey != "" {
@@ -127,6 +129,7 @@ func main() {
 		h.qaReports.pool = pool
 		h.issueSheets.pool = pool
 		h.teams.pool = pool
+		h.activityLogs.pool = pool
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure experiment store: %v", err)
