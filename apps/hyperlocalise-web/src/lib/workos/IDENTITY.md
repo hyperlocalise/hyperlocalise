@@ -82,6 +82,14 @@ Dashboard: Authentication → Agents — service auth on, anonymous off, access
 token credentials, trusted permissions matching PAT scopes plus `mcp`. See
 [`docs/adr/2026-09-08-workos-agent-registration-design.md`](../../../../docs/adr/2026-09-08-workos-agent-registration-design.md).
 
+## go-svc session access tokens
+
+Human WorkOS session access tokens (the JWT inside an AuthKit session) are a
+second credential for go-svc. Verify them against the WorkOS User Management
+JWKS (`/sso/jwks/{client_id}`), not AuthKit agent JWKS. Reject tokens that
+carry `act` so agent credentials cannot reach dictionary, team, or CAT routes.
+See [`docs/adr/2026-09-20-go-svc-workos-access-token-design.md`](../../../../docs/adr/2026-09-20-go-svc-workos-access-token-design.md).
+
 ## Placeholder users
 
 Invited users who have not signed in use `users.workos_user_id` values prefixed with `invited_user_`. They may have pending local membership rows for member management UI, but they never receive `workos_authoritative` access until WorkOS confirms membership and the placeholder id is promoted on `user.created`.

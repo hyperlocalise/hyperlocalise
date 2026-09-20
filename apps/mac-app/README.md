@@ -9,6 +9,7 @@ Licensed under the Business Source License 1.1 — see [LICENSE](./LICENSE).
 
 - WorkOS AuthKit login via `ASWebAuthenticationSession` + PKCE
 - Sealed session stored in Keychain (`wos-session`, same channel as the web app)
+- Session access token from `/api/auth/native/token` for go-svc `Authorization: Bearer`
 - Organization context bootstrap
 - Conversation list, create, reply, and AI SDK UIMessage streaming
 - Sparkle 2 in-app updates (**Hyperlocalise → Check for Updates…**)

@@ -12,14 +12,14 @@ Public routes are served at `/api/go-svc/...` in production (Vercel rewrite) and
 |----------|-------------|
 | `WORKOS_COOKIE_PASSWORD` | Secret used to seal and verify WorkOS session cookies. Must match the web app value. At least 32 characters. |
 
-### Required for session refresh
+### Required for WorkOS session refresh and access tokens
 
 These must match the web app's WorkOS configuration. Without them, valid sessions that need a token refresh will be rejected.
 
 | Variable | Description |
 |----------|-------------|
 | `WORKOS_API_KEY` | WorkOS API key (`sk_test_...` or `sk_live_...`). |
-| `WORKOS_CLIENT_ID` | WorkOS client ID (`client_...`). |
+| `WORKOS_CLIENT_ID` | WorkOS client ID (`client_...`). Required to verify session access tokens (`aud`) and to refresh sealed sessions. |
 
 ### Optional
 
@@ -28,6 +28,9 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `PORT` | `8080` | HTTP listen port. |
 | `HUNSPELL_DICT_DIR` | `/usr/share/hunspell` | Directory containing Hunspell `.aff` / `.dic` files. The container image bundles dictionaries at the default path. |
 | `WORKOS_COOKIE_DOMAIN` | _(unset)_ | Cookie `Domain` attribute when setting a refreshed session cookie. Leave unset for host-only cookies. |
+| `WORKOS_API_HOSTNAME` | `api.workos.com` | WorkOS API host used for session refresh and JWKS (`/sso/jwks/{client_id}`). Point at the WorkOS emulator in local e2e. |
+| `WORKOS_API_HTTPS` | `true` | Set `false` for the local emulator. |
+| `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
 | `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary routes and Hyperlab OFREP evaluate routes. |
 
 ### DataForSEO (Domains research)
@@ -143,24 +146,24 @@ For tracing, set `OTEL_EXPORTER_OTLP_ENDPOINT` in the `go_svc` service environme
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `GET` | `/health` | No | Liveness probe |
-| `POST` | `/v1/validate/segment` | WorkOS session cookie | Validate a CAT segment (format, length, spelling) |
-| `POST` | `/v1/domains/research/keywords` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Expand a seed keyword + market through DataForSEO Labs |
-| `POST` | `/v1/domains/research/market-visibility` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Check one domain market through DataForSEO Labs; one market per request |
-| `POST` | `/v1/domains/research/serp` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Fetch a live organic SERP snapshot |
-| `POST` | `/v1/domains/research/rank-check` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Live rank check for one keyword against a hostname |
-| `POST` | `/v1/domains/research/rank-check/batch` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Live rank check for up to 20 keywords |
-| `POST` | `/v1/domains/gsc/sites` | WorkOS session cookie + `X-Go-Svc-Research-Token` | List verified Search Console properties for a minted access token |
-| `POST` | `/v1/domains/gsc/performance` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Query Search Analytics clicks, impressions, CTR, and position |
-| `POST` | `/v1/domains/gsc/inspect` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Inspect one URL against a Search Console property |
+| `POST` | `/v1/validate/segment` | WorkOS session cookie or Bearer access token | Validate a CAT segment (format, length, spelling) |
+| `POST` | `/v1/domains/research/keywords` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Expand a seed keyword + market through DataForSEO Labs |
+| `POST` | `/v1/domains/research/market-visibility` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Check one domain market through DataForSEO Labs; one market per request |
+| `POST` | `/v1/domains/research/serp` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Fetch a live organic SERP snapshot |
+| `POST` | `/v1/domains/research/rank-check` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Live rank check for one keyword against a hostname |
+| `POST` | `/v1/domains/research/rank-check/batch` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Live rank check for up to 20 keywords |
+| `POST` | `/v1/domains/gsc/sites` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | List verified Search Console properties for a minted access token |
+| `POST` | `/v1/domains/gsc/performance` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Query Search Analytics clicks, impressions, CTR, and position |
+| `POST` | `/v1/domains/gsc/inspect` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Inspect one URL against a Search Console property |
 | `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 
-Authenticated CAT requests must include the `wos-session` cookie from a signed-in Hyperlocalise user. Research routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
+Authenticated CAT requests must include either the `wos-session` cookie from a signed-in Hyperlocalise user or `Authorization: Bearer` with that session's WorkOS access-token JWT. go-svc verifies Bearer tokens against the WorkOS JWKS for `WORKOS_CLIENT_ID` (`sub` is the user, `sid` is required). Agent JWTs are not accepted. If both a cookie and a Bearer token are present, the cookie wins. Research routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
 
 ## Object storage and guideline search
 
 The optional storage and guideline routes reuse `serverCallAuthMiddleware` in
-`auth.go`: the existing `wos-session` cookie plus the existing Hono-to-Go server-call
+`auth.go`: the existing `wos-session` cookie or WorkOS session Bearer token, plus the existing Hono-to-Go server-call
 proof. The `X-Go-Svc-Research-Token` header and its `go-svc-research` HMAC message
 remain unchanged for compatibility with deployed clients. No new authentication
 secret is required. Hono must authorize each file, project, and organization before
@@ -277,8 +280,9 @@ PostgreSQL tables are `spellcheck_word_libraries`, `spellcheck_word_library_word
 and `project_spellcheck_word_libraries` (not the legacy `spellcheck_dictionaries`
 names from migration `0124_premium_cerise`, which production often never applied).
 
-Dictionary routes use the existing `wos-session` cookie. Configure
-`WORKOS_COOKIE_PASSWORD`, `WORKOS_API_KEY`, and `DATABASE_URL` in go-svc.
+Dictionary routes use the existing `wos-session` cookie or a WorkOS session
+access token. Configure `WORKOS_COOKIE_PASSWORD`, `WORKOS_API_KEY`,
+`WORKOS_CLIENT_ID`, and `DATABASE_URL` in go-svc.
 Go resolves the local user and active organization, excludes pending/replacing
 memberships, and verifies the membership and current role with WorkOS on every
 request. Failed membership lookups fail closed with a 503. Admins and localization

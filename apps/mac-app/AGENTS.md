@@ -13,7 +13,9 @@ node scripts/add-bsl-headers.mjs apps/mac-app
 - Generate the Xcode project with `./Scripts/generate-project.sh` (requires `xcodegen`).
 - Do not commit `Hyperlocalise.xcodeproj` unless the team decides to vend it.
 - Prefer editing sources under `Hyperlocalise/` and `HyperlocaliseTests/`.
-- Keep auth on the WorkOS sealed session cookie channel — do not invent a parallel Bearer identity for org APIs.
+- Keep auth on the WorkOS session: sealed `wos-session` cookie for org APIs,
+  and the same session's access-token JWT as `Authorization: Bearer` when
+  calling go-svc. Do not invent a custom native identity token.
 - Sparkle 2 is an SPM dependency in `project.yml`. Set `SU_PUBLIC_ED_KEY` after
   `./Scripts/generate-sparkle-keys.sh`; never commit `.sparkle-keys/`.
 

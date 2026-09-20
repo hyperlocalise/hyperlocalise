@@ -122,6 +122,7 @@ describe("nativeAuthRoutes", () => {
     });
     authenticateWithCodeMock.mockResolvedValue({
       sealedSession: "sealed.session.value",
+      accessToken: "eyJhbGciOiJSUzI1NiJ9.e30.sig",
       user: {
         id: "user_123",
         email: "dev@example.com",
@@ -149,6 +150,7 @@ describe("nativeAuthRoutes", () => {
         sealedSession: "sealed.session.value",
         cookieName: "wos-session",
       },
+      accessToken: "eyJhbGciOiJSUzI1NiJ9.e30.sig",
       user: {
         workosUserId: "user_123",
         email: "dev@example.com",
@@ -183,6 +185,37 @@ describe("nativeAuthRoutes", () => {
     expect(getWorkosAuthKitConfigMock).not.toHaveBeenCalled();
     expect(getWorkosServerClientMock).not.toHaveBeenCalled();
     expect(authenticateWithCodeMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 502 when WorkOS does not return a session access token", async () => {
+    getWorkosAuthKitConfigMock.mockReturnValue({
+      clientId: "client_test",
+      apiKey: "sk_test",
+      redirectUri: "http://localhost:3000/auth/callback",
+      cookiePassword: "test-workos-cookie-password-at-least-32-chars",
+    });
+    authenticateWithCodeMock.mockResolvedValue({
+      sealedSession: "sealed.session.value",
+      accessToken: "",
+      user: {
+        id: "user_123",
+        email: "dev@example.com",
+      },
+    });
+    getWorkosServerClientMock.mockReturnValue({
+      userManagement: { authenticateWithCode: authenticateWithCodeMock },
+    });
+
+    const response = await client.api.auth.native.token.$post({
+      json: {
+        code: "auth_code",
+        codeVerifier: VALID_VERIFIER,
+        redirectUri: "hyperlocalise://auth/callback",
+      },
+    });
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: "session_access_token_missing" });
   });
 
   it("returns 502 when WorkOS does not seal a native session", async () => {

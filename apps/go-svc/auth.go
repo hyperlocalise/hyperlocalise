@@ -39,6 +39,7 @@ type SessionResult struct {
 
 type SessionVerifier interface {
 	Verify(ctx context.Context, sealedSession string) (SessionResult, error)
+	VerifyAccessToken(ctx context.Context, accessToken string) (AuthClaims, error)
 }
 
 type authError struct {
@@ -68,6 +69,8 @@ type WorkOSSessionVerifier struct {
 	cookiePassword string
 	apiKey         string
 	clientID       string
+	apiBaseURL     string
+	jwks           *jwksCache
 	refresh        sessionRefreshFunc
 }
 
@@ -97,10 +100,16 @@ func NewWorkOSSessionVerifier(cookiePassword string) (*WorkOSSessionVerifier, er
 	if len(cookiePassword) < 32 {
 		return nil, errors.New("WORKOS_COOKIE_PASSWORD must be at least 32 characters")
 	}
+	clientID := strings.TrimSpace(os.Getenv("WORKOS_CLIENT_ID"))
+	apiBaseURL := workosAPIBaseURL()
 	verifier := &WorkOSSessionVerifier{
 		cookiePassword: cookiePassword,
 		apiKey:         strings.TrimSpace(os.Getenv("WORKOS_API_KEY")),
-		clientID:       strings.TrimSpace(os.Getenv("WORKOS_CLIENT_ID")),
+		clientID:       clientID,
+		apiBaseURL:     apiBaseURL,
+	}
+	if clientID != "" {
+		verifier.jwks = newJWKSCache(workos.GetJWKSURL(apiBaseURL, clientID))
 	}
 	verifier.refresh = verifier.refreshWithWorkOS
 	return verifier, nil
@@ -189,7 +198,7 @@ func (v *WorkOSSessionVerifier) refreshWithWorkOS(ctx context.Context, refreshTo
 		return "", "", newAuthError("session_expired", "invalid session: session_expired")
 	}
 
-	client := workos.NewClient(v.apiKey, workos.WithClientID(v.clientID))
+	client := workos.NewClient(v.apiKey, workos.WithClientID(v.clientID), workos.WithBaseURL(v.apiBaseURL))
 	var orgID *string
 	if organizationID != "" {
 		orgID = &organizationID
@@ -247,7 +256,7 @@ func (v *WorkOSSessionVerifier) refreshGoSDK(ctx context.Context, sealedSession 
 		return SessionResult{}, newAuthError("session_expired", "invalid session: session_expired")
 	}
 
-	client := workos.NewClient(v.apiKey, workos.WithClientID(v.clientID))
+	client := workos.NewClient(v.apiKey, workos.WithClientID(v.clientID), workos.WithBaseURL(v.apiBaseURL))
 	refreshed, err := client.RefreshSession(ctx, sealedSession, v.cookiePassword)
 	if err != nil {
 		reason := "refresh_failed"
@@ -346,29 +355,53 @@ func newSessionCookie(r *http.Request, value string) *http.Cookie {
 	return cookie
 }
 
+func bearerAccessToken(r *http.Request) string {
+	auth := strings.TrimSpace(r.Header.Get("Authorization"))
+	const prefix = "Bearer "
+	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+		return ""
+	}
+	return strings.TrimSpace(auth[len(prefix):])
+}
+
 func authMiddleware(verifier SessionVerifier) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			sealedSession, err := sessionCookieValue(r)
-			if err != nil {
-				logAuthRejected(r, "missing_session_cookie")
-				writeUnauthorized(w, "missing session cookie")
+			sealedSession, cookieErr := sessionCookieValue(r)
+			if cookieErr == nil {
+				result, err := verifier.Verify(r.Context(), sealedSession)
+				if err != nil {
+					logAuthRejected(r, authReason(err))
+					writeUnauthorized(w, err.Error())
+					return
+				}
+
+				if result.SealedCookie != "" {
+					http.SetCookie(w, newSessionCookie(r, result.SealedCookie))
+				}
+
+				logAuthOK(r, result.Claims.UserID)
+				ctx := context.WithValue(r.Context(), authContextKey{}, result.Claims)
+				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 
-			result, err := verifier.Verify(r.Context(), sealedSession)
+			accessToken := bearerAccessToken(r)
+			if accessToken == "" {
+				logAuthRejected(r, "missing_credentials")
+				writeUnauthorized(w, "missing credentials")
+				return
+			}
+
+			claims, err := verifier.VerifyAccessToken(r.Context(), accessToken)
 			if err != nil {
 				logAuthRejected(r, authReason(err))
 				writeUnauthorized(w, err.Error())
 				return
 			}
 
-			if result.SealedCookie != "" {
-				http.SetCookie(w, newSessionCookie(r, result.SealedCookie))
-			}
-
-			logAuthOK(r, result.Claims.UserID)
-			ctx := context.WithValue(r.Context(), authContextKey{}, result.Claims)
+			logAuthOK(r, claims.UserID)
+			ctx := context.WithValue(r.Context(), authContextKey{}, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
