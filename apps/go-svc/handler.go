@@ -46,6 +46,7 @@ type handler struct {
 	qaReports    *qaReportAPI
 	teams        *teamAPI
 	issueSheets  *issueSheetAPI
+	activityLogs *activityLogAPI
 }
 
 func newHandler() *handler {
@@ -76,6 +77,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.teams != nil {
 		h.teams.register(mux, verifier)
+	}
+	if h.activityLogs != nil {
+		h.activityLogs.register(mux, verifier)
 	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	editorExport := authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
