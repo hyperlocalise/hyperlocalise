@@ -49,15 +49,7 @@ full WorkOS identity model.
    still loads WorkOS-authoritative membership and capabilities for that
    user/org. Crowdin JWTs and Crowdin user OAuth tokens must never be accepted
    as org API auth by themselves.
-   9b. **Native Mac clients use the same WorkOS session.** The Mac app
-   obtains a sealed `wos-session` and the session access-token JWT via
-   `/api/auth/native/*` (AuthKit PKCE). Present the sealed value as a
-   `Cookie` header on org session routes. On go-svc, present either that
-   cookie or `Authorization: Bearer` with the WorkOS session access token
-   (JWKS-verified, `aud` = `WORKOS_CLIENT_ID`, `sub` = user id, `sid`
-   required). Do not mint a separate native identity token. Do not accept
-   agent JWTs (`act.sub`) on this channel.
-   9c. **Figma plugin clients use a personal access token.** The plugin sends
+   9b. **Figma plugin clients use a personal access token.** The plugin sends
    the PAT as `x-api-key` only. Protected `/api/integrations/figma/*` routes
    authenticate through `apiKeyAuthMiddleware` and authorize with
    `requireApiKeyPermission`. Compound routes require every scope they
@@ -67,15 +59,15 @@ full WorkOS identity model.
    role, team access, and capabilities. Do not accept WorkOS sealed sessions,
    `X-Hyperlocalise-Figma-Session`, or `Authorization: Bearer` as Figma
    integration auth. Do not mint a Figma-specific identity token.
-   9d. **WorkOS agent JWTs are an explicit alternate channel for MCP and
+   9c. **WorkOS agent JWTs are an explicit alternate channel for MCP and
    `/api/v1` only.** Agents register through AuthKit (`service_auth`), complete
    the hosted claim ceremony, and present a short-lived access token as
    `Authorization: Bearer`. The JWT must carry `act.sub` (claimed user) and
    `org_id`. Access is the token `scope` ∩ the claimed user's live WorkOS
    membership, role, team access, and capabilities. Tokens without a claim,
    unknown users/orgs, and unauthoritative memberships fail closed. Do not
-   accept these JWTs on Figma, Crowdin embed, org-scoped session routes, or
-   native Mac session channels. Keep first-party MCP OAuth (`hl_mcp_*`) and
+   accept these JWTs on Figma, Crowdin embed, or org-scoped session routes.
+   Keep first-party MCP OAuth (`hl_mcp_*`) and
    PATs (`x-api-key`) as separate channels.
 10. **Org slug must match an active membership.** Requested
     `organizationSlug` must resolve to a membership returned after the access
