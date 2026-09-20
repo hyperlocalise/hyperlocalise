@@ -41,6 +41,8 @@ type handler struct {
 	objects      *objectstore.Registry
 	guidelines   *guidelines.Service
 	dictionaries *dictionaryAPI
+	glossaries   *glossaryAPI
+	memories     *memoryAPI
 	qaReports    *qaReportAPI
 	teams        *teamAPI
 }
@@ -58,6 +60,12 @@ const publicPathPrefix = "/api/go-svc"
 func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	if h.dictionaries != nil {
 		h.dictionaries.register(mux, verifier)
+	}
+	if h.glossaries != nil {
+		h.glossaries.register(mux, verifier)
+	}
+	if h.memories != nil {
+		h.memories.register(mux, verifier)
 	}
 	if h.qaReports != nil {
 		h.qaReports.register(mux, verifier)
