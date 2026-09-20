@@ -105,7 +105,7 @@ func (api *activityLogAPI) loadTargetViews(
 	if len(projectIDs) > 0 {
 		queryRows, err := api.pool.Query(ctx, `
             select id, name from projects
-            where organization_id = $1 and id = any($2::uuid[])`, organizationID, projectIDs)
+            where organization_id = $1 and id = any($2::text[])`, organizationID, projectIDs)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +186,7 @@ func (api *activityLogAPI) loadTargetViews(
 	if len(jobIDs) > 0 {
 		queryRows, err := api.pool.Query(ctx, `
             select id, kind, project_id from jobs
-            where organization_id = $1 and id = any($2::uuid[])`, organizationID, jobIDs)
+            where organization_id = $1 and id = any($2::text[])`, organizationID, jobIDs)
 		if err != nil {
 			return nil, err
 		}

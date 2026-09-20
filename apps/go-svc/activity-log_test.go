@@ -112,13 +112,14 @@ func TestActivityLogListSuccess(t *testing.T) {
 	firstName := "Ada"
 	lastName := "Lovelace"
 	actorUserID := testActivityActorUser
+	projectID := "project_native_1"
 	api, _ := activityLogTestAPI(t, "localization_manager",
 		dictionaryDBStep{
 			kind: "query",
 			sql:  "from organization_activity_events e",
 			values: [][]any{{
 				nil, "user", &actorUserID, createdAt, "project_created", testActivityEventID,
-				payload, testActivityProjectID, "project", &firstName, &lastName,
+				payload, projectID, "project", &firstName, &lastName,
 			}},
 		},
 		dictionaryDBStep{
@@ -130,9 +131,10 @@ func TestActivityLogListSuccess(t *testing.T) {
 		},
 		dictionaryDBStep{
 			kind: "query",
-			sql:  "select id, name from projects",
+			sql:  "id = any($2::text[])",
+			args: []any{testDictionaryOrgID, []string{projectID}},
 			values: [][]any{{
-				testActivityProjectID, "Acme App",
+				projectID, "Acme App",
 			}},
 		},
 	)
@@ -145,10 +147,44 @@ func TestActivityLogListSuccess(t *testing.T) {
 	require.Equal(t, "project_created", body.ActivityLogs[0].EventType)
 	require.Equal(t, "Ada Lovelace", body.ActivityLogs[0].Actor.DisplayName)
 	require.Equal(t, "Acme App", *body.ActivityLogs[0].Target.DisplayName)
-	require.Equal(t, "/org/acme/projects/"+testActivityProjectID, *body.ActivityLogs[0].Target.Href)
+	require.Equal(t, "/org/acme/projects/"+projectID, *body.ActivityLogs[0].Target.Href)
 	require.Len(t, body.Actors, 1)
 	require.Equal(t, "Ada Lovelace", body.Actors[0].DisplayName)
 	require.Nil(t, body.NextCursor)
+}
+
+func TestActivityLogJobTargetUsesTextIDs(t *testing.T) {
+	createdAt := testDictionaryTime
+	jobID := "job_abc123"
+	projectID := "project_native_1"
+	payload := []byte(`{}`)
+	api, _ := activityLogTestAPI(t, "admin",
+		dictionaryDBStep{
+			kind: "query",
+			sql:  "from organization_activity_events e",
+			values: [][]any{{
+				nil, "system", nil, createdAt, "job_created", testActivityEventID,
+				payload, jobID, "job", nil, nil,
+			}},
+		},
+		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
+		dictionaryDBStep{
+			kind: "query",
+			sql:  "from jobs",
+			args: []any{testDictionaryOrgID, []string{jobID}},
+			values: [][]any{{
+				jobID, "translate", &projectID,
+			}},
+		},
+	)
+	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+	require.Equal(t, 200, rec.Code, rec.Body.String())
+
+	var body activityLogListResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.ActivityLogs, 1)
+	require.Equal(t, "translate", *body.ActivityLogs[0].Target.DisplayName)
+	require.Equal(t, "/org/acme/projects/"+projectID+"/jobs/"+jobID, *body.ActivityLogs[0].Target.Href)
 }
 
 func TestActivityLogInvalidCursorFingerprint(t *testing.T) {
@@ -275,7 +311,7 @@ func TestActivityLogPaginationCursor(t *testing.T) {
 			},
 		},
 		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-		dictionaryDBStep{kind: "query", sql: "select id, name from projects", values: [][]any{}},
+		dictionaryDBStep{kind: "query", sql: "id = any($2::text[])", values: [][]any{}},
 	)
 	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase+"?limit=1")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
