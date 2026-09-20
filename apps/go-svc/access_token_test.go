@@ -239,3 +239,49 @@ func TestIssuerAllowed(t *testing.T) {
 	require.False(t, issuerAllowed("https://authkit.example", "https://api.workos.com", "client_1"))
 	require.False(t, issuerAllowed("", "https://api.workos.com", "client_1"))
 }
+
+func TestJWKSCacheDoesNotRefreshUnknownKidWhileFresh(t *testing.T) {
+	fixture := newAccessTokenFixture(t)
+	verifier := accessTokenVerifier(t, fixture)
+	fetches := 0
+	verifier.jwks.fetch = func(_ context.Context, _ string) (*workos.JWKSResponse, error) {
+		fetches++
+		return fixture.jwks, nil
+	}
+
+	_, err := verifier.jwks.publicKey(context.Background(), "test-kid")
+	require.NoError(t, err)
+	require.Equal(t, 1, fetches)
+
+	_, err = verifier.jwks.publicKey(context.Background(), "unknown-kid-1")
+	require.Error(t, err)
+	_, err = verifier.jwks.publicKey(context.Background(), "unknown-kid-2")
+	require.Error(t, err)
+	require.Equal(t, 1, fetches)
+
+	_, err = verifier.jwks.publicKey(context.Background(), "test-kid")
+	require.NoError(t, err)
+	require.Equal(t, 1, fetches)
+}
+
+func TestJWKSCacheRefreshesUnknownKidAfterExpiry(t *testing.T) {
+	fixture := newAccessTokenFixture(t)
+	verifier := accessTokenVerifier(t, fixture)
+	fetches := 0
+	verifier.jwks.fetch = func(_ context.Context, _ string) (*workos.JWKSResponse, error) {
+		fetches++
+		return fixture.jwks, nil
+	}
+
+	_, err := verifier.jwks.publicKey(context.Background(), "test-kid")
+	require.NoError(t, err)
+	require.Equal(t, 1, fetches)
+
+	verifier.jwks.mu.Lock()
+	verifier.jwks.expiry = time.Now().Add(-time.Second)
+	verifier.jwks.mu.Unlock()
+
+	_, err = verifier.jwks.publicKey(context.Background(), "unknown-kid")
+	require.Error(t, err)
+	require.Equal(t, 2, fetches)
+}

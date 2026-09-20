@@ -44,3 +44,6 @@ session JWT. Browser CAT traffic is unchanged. go-svc needs `WORKOS_CLIENT_ID`
 (and the same WorkOS API host as the web app) to verify tokens. Access tokens
 expire in minutes; native apps must refresh via AuthKit or present the sealed
 session cookie, which go-svc can still refresh.
+
+JWKS is cached for ten minutes. An unknown `kid` does not refetch while that
+set is still fresh, so callers cannot force a WorkOS JWKS request per token.

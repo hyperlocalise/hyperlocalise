@@ -131,8 +131,12 @@ func (c *jwksCache) publicKey(ctx context.Context, kid string) (*rsa.PublicKey, 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if key, ok := c.keys[kid]; ok && time.Now().Before(c.expiry) {
-		return key, nil
+	now := time.Now()
+	if now.Before(c.expiry) && len(c.keys) > 0 {
+		if key, ok := c.keys[kid]; ok {
+			return key, nil
+		}
+		return nil, fmt.Errorf("unknown jwks kid %q", kid)
 	}
 
 	if err := c.refreshLocked(ctx); err != nil {
