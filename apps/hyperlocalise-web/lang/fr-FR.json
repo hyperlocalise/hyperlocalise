@@ -7271,6 +7271,9 @@
   "FbWiUTt6DX": {
     "defaultMessage": "Vérifier le DNS"
   },
+  "FcPrCbZm2T": {
+    "defaultMessage": "Supprimer le cas {index}"
+  },
   "FcadZC4Ojx": {
     "defaultMessage": "Réussi"
   },
@@ -16293,7 +16296,7 @@
     "defaultMessage": "Supprimer le fichier"
   },
   "cb/1dHJtyC": {
-    "defaultMessage": "Search Console"
+    "defaultMessage": "Console de recherche"
   },
   "cbNqGo9VKV": {
     "defaultMessage": "Réessayer"

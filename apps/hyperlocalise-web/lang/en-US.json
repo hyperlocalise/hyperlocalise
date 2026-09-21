@@ -4715,6 +4715,10 @@
     "defaultMessage": "Loading issue…",
     "description": "Loading state while fetching a single issue"
   },
+  "87mk4HgY5S": {
+    "defaultMessage": "Automations",
+    "description": "Sidebar navigation item for workspace automations"
+  },
   "88AdkbjRBH": {
     "defaultMessage": "More options",
     "description": "Collapsible trigger for advanced create-flag settings"
@@ -8462,6 +8466,10 @@
   "FbWiUTt6DX": {
     "defaultMessage": "Verify DNS",
     "description": "Verify DNS dialog title"
+  },
+  "FcPrCbZm2T": {
+    "defaultMessage": "Remove case {index}",
+    "description": "Accessible label for removing a numbered switch case"
   },
   "FcadZC4Ojx": {
     "defaultMessage": "Succeeded",
