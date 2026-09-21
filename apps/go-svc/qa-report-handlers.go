@@ -324,21 +324,33 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
 }
 
 func parseFindingIDs(raw []string) ([]uuid.UUID, error) {
-	if len(raw) == 0 || len(raw) > 100 {
+	n := len(raw)
+	if n == 0 || n > 100 {
 		return nil, qaReportFailure(400, "invalid_qa_findings_promote", "Invalid QA findings promote payload")
 	}
-	seen := make(map[uuid.UUID]struct{}, len(raw))
-	ids := make([]uuid.UUID, 0, len(raw))
+	// Pre-allocate ids slice capacity; since n <= 100, linear deduplication scan
+	// avoids allocating a map[uuid.UUID]struct{} on the heap.
+	ids := make([]uuid.UUID, 0, n)
 	for _, item := range raw {
-		id, err := uuid.Parse(strings.TrimSpace(item))
+		// Fast-path: canonical UUID strings are exactly 36 bytes long without extra whitespace.
+		s := item
+		if len(item) != 36 {
+			s = strings.TrimSpace(item)
+		}
+		id, err := uuid.Parse(s)
 		if err != nil {
 			return nil, qaReportFailure(400, "invalid_qa_findings_promote", "Invalid QA findings promote payload")
 		}
-		if _, ok := seen[id]; ok {
-			continue
+		duplicate := false
+		for _, existing := range ids {
+			if existing == id {
+				duplicate = true
+				break
+			}
 		}
-		seen[id] = struct{}{}
-		ids = append(ids, id)
+		if !duplicate {
+			ids = append(ids, id)
+		}
 	}
 	return ids, nil
 }
