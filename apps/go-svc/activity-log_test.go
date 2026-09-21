@@ -484,6 +484,121 @@ func TestActivityLogAllFilesSourcePathOmitsHref(t *testing.T) {
 	}
 }
 
+func TestActivityLogGlossaryMemoryAutomationAndOrgJobTargets(t *testing.T) {
+	createdAt := testDictionaryTime
+	glossaryID := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	memoryID := "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+	automationID := "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+	jobID := "job_org_only"
+
+	cases := []struct {
+		name       string
+		targetKind string
+		targetID   string
+		eventType  string
+		lookupSQL  string
+		lookupRow  []any
+		wantName   string
+		wantHref   string
+	}{
+		{
+			name:       "glossary",
+			targetKind: "glossary",
+			targetID:   glossaryID,
+			eventType:  "glossary_updated",
+			lookupSQL:  "from glossaries",
+			lookupRow:  []any{glossaryID, "Product terms"},
+			wantName:   "Product terms",
+			wantHref:   "/org/acme/glossaries/" + glossaryID,
+		},
+		{
+			name:       "translation_memory",
+			targetKind: "translation_memory",
+			targetID:   memoryID,
+			eventType:  "translation_memory_updated",
+			lookupSQL:  "from memories",
+			lookupRow:  []any{memoryID, "Brand TM"},
+			wantName:   "Brand TM",
+			wantHref:   "/org/acme/translation-memories/" + memoryID,
+		},
+		{
+			name:       "automation",
+			targetKind: "automation",
+			targetID:   automationID,
+			eventType:  "automation_updated",
+			lookupSQL:  "from workspace_automations",
+			lookupRow:  []any{automationID, "Nightly sync"},
+			wantName:   "Nightly sync",
+			wantHref:   "/org/acme/automations/" + automationID,
+		},
+		{
+			name:       "org-scoped job",
+			targetKind: "job",
+			targetID:   jobID,
+			eventType:  "job_created",
+			lookupSQL:  "from jobs",
+			lookupRow:  []any{jobID, "export", (*string)(nil)},
+			wantName:   "export",
+			wantHref:   "/org/acme/jobs",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			payload := []byte(`{}`)
+			api, _ := activityLogTestAPI(t, "admin",
+				dictionaryDBStep{
+					kind: "query",
+					sql:  "from organization_activity_events e",
+					values: [][]any{{
+						nil, "system", nil, createdAt, tc.eventType, testActivityEventID,
+						payload, tc.targetID, tc.targetKind, nil, nil,
+					}},
+				},
+				dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
+				dictionaryDBStep{
+					kind:   "query",
+					sql:    tc.lookupSQL,
+					args:   []any{testDictionaryOrgID, []string{tc.targetID}},
+					values: [][]any{tc.lookupRow},
+				},
+			)
+			rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+			require.Equal(t, 200, rec.Code, rec.Body.String())
+
+			var body activityLogListResult
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+			require.Len(t, body.ActivityLogs, 1)
+			require.Equal(t, tc.wantName, *body.ActivityLogs[0].Target.DisplayName)
+			require.Equal(t, tc.wantHref, *body.ActivityLogs[0].Target.Href)
+		})
+	}
+}
+
+func TestActivityLogStringSegmentAllFilesSourcePathOmitsHref(t *testing.T) {
+	createdAt := testDictionaryTime
+	payload := []byte(`{"fileName":"batch","projectId":"` + testActivityProjectID + `","sourcePath":"*"}`)
+	api, _ := activityLogTestAPI(t, "admin",
+		dictionaryDBStep{
+			kind: "query",
+			sql:  "from organization_activity_events e",
+			values: [][]any{{
+				nil, "system", nil, createdAt, "string_segment_updated", testActivityEventID,
+				payload, testActivityTargetID, "string_segment", nil, nil,
+			}},
+		},
+		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
+	)
+	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+	require.Equal(t, 200, rec.Code, rec.Body.String())
+
+	var body activityLogListResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.ActivityLogs, 1)
+	require.Equal(t, "batch", *body.ActivityLogs[0].Target.DisplayName)
+	require.Nil(t, body.ActivityLogs[0].Target.Href)
+}
+
 func mustActivityLogFingerprint(t *testing.T, query activityLogQuery) string {
 	t.Helper()
 	fingerprint, err := activityLogFilterFingerprint(query)
