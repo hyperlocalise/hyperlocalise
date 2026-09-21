@@ -124,3 +124,22 @@ func TestParseFindingIDs(t *testing.T) {
 	_, err = parseFindingIDs(nil)
 	require.Error(t, err)
 }
+
+func TestParseFindingIDsTrims36BytePaddedRawHex(t *testing.T) {
+	id := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	raw := strings.ReplaceAll(id.String(), "-", "")
+	require.Len(t, raw, 32)
+
+	padded := "  " + raw + "  "
+	require.Len(t, padded, 36)
+	parsed, err := parseFindingIDs([]string{padded})
+	require.NoError(t, err)
+	require.Equal(t, []uuid.UUID{id}, parsed)
+
+	// Two-byte NBSP plus two ASCII spaces also totals 36 bytes around 32 hex digits.
+	paddedNBSP := "\u00a0" + raw + "  "
+	require.Len(t, paddedNBSP, 36)
+	parsed, err = parseFindingIDs([]string{paddedNBSP})
+	require.NoError(t, err)
+	require.Equal(t, []uuid.UUID{id}, parsed)
+}

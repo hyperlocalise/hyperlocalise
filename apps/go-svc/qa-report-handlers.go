@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -332,9 +333,12 @@ func parseFindingIDs(raw []string) ([]uuid.UUID, error) {
 	// avoids allocating a map[uuid.UUID]struct{} on the heap.
 	ids := make([]uuid.UUID, 0, n)
 	for _, item := range raw {
-		// Fast-path: canonical UUID strings are exactly 36 bytes long without extra whitespace.
+		// Canonical UUIDs are 36 bytes with non-whitespace edges. A shorter form
+		// that uuid.Parse accepts (for example 32 hex digits) can also total 36
+		// bytes once surrounding spaces are counted, so check the boundaries
+		// before skipping TrimSpace.
 		s := item
-		if len(item) != 36 {
+		if len(item) != 36 || item[0] <= ' ' || item[0] >= utf8.RuneSelf || item[len(item)-1] <= ' ' || item[len(item)-1] >= utf8.RuneSelf {
 			s = strings.TrimSpace(item)
 		}
 		id, err := uuid.Parse(s)
