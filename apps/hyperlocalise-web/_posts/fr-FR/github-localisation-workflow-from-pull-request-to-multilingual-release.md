@@ -16,7 +16,7 @@ tags:
   - translation review
 ---
 
-Ce guide vous accompagne dans la mise en place d’un flux de localisation GitHub avec GitHub Actions, l’outil CLI `hyperlocalise` et la plateforme Hyperlocalise. Vous commencerez par un petit exemple et suivrez une modification de produit, de sa première pull request jusqu’à une version multilingue.
+This guide walks you through setting up a GitHub localization workflow with GitHub Actions, the `hyperlocalise` CLI, and the Hyperlocalise platform. You will start with a small example and follow one product change from its first pull request to a multilingual release.
 
 À la fin, votre flux de travail couvrira quatre étapes :
 
@@ -27,7 +27,7 @@ Ce guide vous accompagne dans la mise en place d’un flux de localisation GitHu
 
 Le résultat s’inscrit dans un processus intégré au dépôt. Les ingénieurs restent dans les pull requests, les réviseurs linguistiques travaillent avec le contexte dans Hyperlocalise, et la version publiée n’utilise que les traductions revenues dans Git.
 
-Si vous souhaitez consulter le schéma général du produit avant les détails de mise en œuvre, consultez le [cas d’utilisation de la localisation du produit GitHub](/use-cases/product-localisation).
+If you want the broader product pattern before the implementation details, see the [GitHub product localisation use case](/use-cases/product-localisation).
 
 ## Ce que nous allons construire
 
@@ -53,19 +53,19 @@ L’anglais est la langue source. Le français et l’allemand sont les langues 
 
 Vous aurez besoin de :
 
-- un projet Hyperlocalise avec `en-US` comme langue source et `fr-FR` et `de-DE` comme langues cibles ;
-- un `HYPERLOCALISE_API_KEY` secret GitHub Actions ;
-- un `HYPERLOCALISE_PROJECT_ID` secret GitHub Actions ; et
+- a Hyperlocalise project with `en-US` as its source locale and `fr-FR` and `de-DE` as targets;
+- a `HYPERLOCALISE_API_KEY` GitHub Actions secret;
+- a `HYPERLOCALISE_PROJECT_ID` GitHub Actions secret; and
 - autorisation d’ajouter des workflows et des secrets de dépôt.
 
-Utilisez un environnement GitHub tel que `localisation` pour les identifiants de production si votre organisation exige des approbations de déploiement.
+Use a GitHub environment such as `localisation` for production credentials if your organisation requires deployment approvals.
 
 ## Étape 1 : mapper les fichiers source et cible
 
-Créez `i18n.yml` à la racine du dépôt :
+Create `i18n.yml` at the repository root:
 
 ```yaml
-version: hyperlocalise@1.11.0
+version: hyperlocalise@1.12.1
 
 locales:
   source: en-US
@@ -95,15 +95,15 @@ hyperlocalise:
   api_key_env: HYPERLOCALISE_API_KEY
 ```
 
-Les deux buckets rendent la propriété explicite. `product` associe un catalogue source à un catalogue par langue cible. `release-notes` associe chaque fichier Markdown en anglais au répertoire de langue correspondant tout en conservant son nom de fichier.
+The two buckets make ownership explicit. `product` maps one source catalogue to one catalogue per target locale. `release-notes` maps every English Markdown file to the equivalent locale directory while preserving its filename.
 
-Épingler la CLI dans la configuration permet également d’aligner les exécutions locales et CI. Mettez à jour la version d’exemple avec la version publiée que votre équipe a testée. Si vous omettez `version`, épinglez plutôt l’entrée `version` dans l’action d’installation.
+Pinning the CLI in the configuration also makes local and CI runs agree. Update the example version to the release your team has tested. If you omit `version`, pin the `version` input in the install action instead.
 
 Le profil LLM est utilisé lorsque votre projet génère des traductions avec ce fournisseur. Stockez les identifiants du fournisseur dans Hyperlocalise plutôt que de les ajouter au workflow. Le runner GitHub n’a besoin que des identifiants du projet Hyperlocalise.
 
 ## Étape 2 : apportez une modification au produit
 
-Supposons que la version 1.8.0 ajoute des filtres enregistrés. La pull request modifie `locales/en-US.json` :
+Suppose version 1.8.0 adds saved filters. The pull request changes `locales/en-US.json`:
 
 ```json
 {
@@ -113,7 +113,7 @@ Supposons que la version 1.8.0 ajoute des filtres enregistrés. La pull request 
 }
 ```
 
-Cela ajoute également `release-notes/en-US/v1.8.0.md` :
+It also adds `release-notes/en-US/v1.8.0.md`:
 
 ```markdown
 # Saved filters
@@ -129,11 +129,11 @@ You can now save a filter and reuse it across your workspace.
 
 Validez le contenu source avec la fonctionnalité. Cela permet aux réviseurs de trouver la modification du code, les textes d’interface et l’explication destinée aux clients dans une seule pull request. Cela permet également à l’historique Git d’indiquer quelle formulation a été publiée avec une version.
 
-Ne recopiez pas manuellement les chaînes anglaises dans `fr-FR.json` ou `de-DE.json` en guise d’espaces réservés. Une valeur source copiée peut sembler complète lors d’une simple vérification du nombre de clés, même si aucune localisation n’a été effectuée.
+Do not hand-copy English strings into `fr-FR.json` or `de-DE.json` as placeholders. A copied source value can look complete to a simple key-count check even though no localisation happened.
 
 ## Étape 3 : vérifiez les chaînes modifiées dans la pull request
 
-Ajoutez `.github/workflows/localise.yml`. Le premier job s’exécute lors des pull requests et limite les résultats de Hyperlocalise aux différences GitHub :
+Add `.github/workflows/localise.yml`. The first job runs on pull requests and scopes Hyperlocalise findings to the GitHub diff:
 
 ```yaml
 name: Localise
@@ -184,7 +184,7 @@ jobs:
           upload-artifact: true
 ```
 
-Avec `github-diff: true`, l’action récupère le correctif de la pull request et le transmet à `hyperlocalise check --diff-stdin`. Pour les catalogues structurés pris en charge, les annotations se concentrent sur les clés modifiées par cette pull request plutôt que de demander à l’auteur de résoudre un backlog sans rapport.
+With `github-diff: true`, the action fetches the pull request patch and passes it to `hyperlocalise check --diff-stdin`. For supported structured catalogues, annotations focus on keys changed by this pull request rather than making the author resolve unrelated backlog.
 
 L’action télécharge également son rapport JSON et son résumé texte. Conservez ces artefacts lorsqu’une vérification échoue : ils permettent de distinguer les erreurs structurelles, les traductions manquantes et les problèmes de contenu d’un échec d’installation ou de configuration.
 
@@ -192,7 +192,7 @@ Cette vérification constitue la première étape de contrôle, et non la révis
 
 ## Étape 4 : envoyer le contenu source fusionné vers Hyperlocalise
 
-Ajoutez un deuxième job au même workflow `localise.yml` :
+Add a second job to the same `localise.yml` workflow:
 
 ```yaml
 push-sources:
@@ -216,9 +216,9 @@ push-sources:
         HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
-Ceci est la limite de push. Une fois la pull request de fonctionnalité fusionnée dans `main`, `hl sync push` lit les buckets dans `i18n.yml` et envoie les sources JSON et Markdown en anglais au projet Hyperlocalise associé.
+This is the push boundary. After the feature pull request merges to `main`, `hl sync push` reads the buckets in `i18n.yml` and sends the English JSON and Markdown sources to the linked Hyperlocalise project.
 
-Le job dispose d’autorisations en lecture seule sur le dépôt, car il envoie du contenu, mais ne modifie pas Git. Ses identifiants ne sont disponibles que dans l’étape qui en a besoin. Le filtre `paths` empêche les fusions sans rapport de créer des exécutions de synchronisation inutiles.
+The job has read-only repository permission because it sends content out but does not modify Git. Its credentials live only in the step that needs them. The `paths` filter prevents unrelated merges from creating unnecessary sync runs.
 
 Vous pouvez exécuter la même opération avant de valider :
 
@@ -229,7 +229,7 @@ hl sync push --dry-run
 hl sync push
 ```
 
-Utilisez `--dry-run` lors de la modification des mappages de buckets. Il vous permet d’inspecter le plan avant de mettre à jour le projet distant.
+Use `--dry-run` when changing bucket mappings. It lets you inspect the plan before updating the remote project.
 
 ## Étape 5 : relisez ensemble les chaînes du produit et les notes de version
 
@@ -239,8 +239,8 @@ Pour cet exemple, un réviseur doit vérifier plus que l’exactitude littérale
 
 | Contenu         | Question d’évaluation                                   |
 | --------------- | -------------------------------------------------------- |
-| `filters.save`  | S’agit-il clairement d’une action plutôt que d’un état enregistré ?    |
-| `filters.saved` | Le terme correspond-il au texte de navigation et des paramètres ?        |
+| `filters.save`  | Is this clearly an action, rather than a saved state?    |
+| `filters.saved` | Does the term match navigation and settings copy?        |
 | Description     | Cela convient-il à l’interface utilisateur et préserve-t-il la terminologie « workspace » ? |
 | Titre de la version   | Utilise-t-il le même nom que la fonctionnalité du produit ?        |
 | Points de la version | Les commandes, les noms de menus et les résultats pour l’utilisateur sont-ils cohérents ?  |
@@ -251,7 +251,7 @@ Résolvez les commentaires de révision et approuvez les traductions conforméme
 
 ## Étape 6 : récupérer les traductions révisées dans GitHub
 
-Ajouter un troisième job à `localise.yml`:
+Add a third job to `localise.yml`:
 
 ```yaml
 pull-translations:
@@ -289,7 +289,7 @@ pull-translations:
         labels: localization
 ```
 
-Exécutez ce job depuis l’onglet **Actions** après examen. `hl sync pull` écrit le contenu cible dans les chemins indiqués dans `i18n.yml`, en produisant des fichiers tels que :
+Run this job from the **Actions** tab after review. `hl sync pull` writes target content to the paths in `i18n.yml`, producing files such as:
 
 ```text
 locales/fr-FR.json
@@ -298,13 +298,13 @@ release-notes/fr-FR/v1.8.0.md
 release-notes/de-DE/v1.8.0.md
 ```
 
-Le workflow ouvre une pull request au lieu de valider directement dans `main`. Cela préserve la protection de la branche, permet aux ingénieurs d’exécuter l’application avec chaque langue et consigne les traductions exactes incluses dans la version.
+The workflow opens a pull request instead of committing directly to `main`. That preserves branch protection, gives engineers a chance to run the application with each locale, and records the exact translations included in the release.
 
 Pour la production, épinglez les actions tierces sur des SHA de commit complets conformément à votre politique de dépendances. Les balises majeures évolutives permettent de garder ce tutoriel lisible, mais les références immuables réduisent les risques liés à la chaîne d’approvisionnement.
 
 ## Étape 7 : tester la pull request traduite
 
-Le contrôle automatisé sera exécuté à nouveau, car la demande de modification de traduction modifie `locales/**` et `release-notes/**`. Ajoutez également les propres tests de votre application aux vérifications requises.
+The automated check will run again because the translation pull request changes `locales/**` and `release-notes/**`. Add your application's own tests to the required checks as well.
 
 Au minimum, vérifiez :
 
@@ -321,7 +321,7 @@ Ne fusionnez la pull request de traduction que lorsque ces vérifications sont r
 
 ## Étape 8 : publier les notes de version multilingues
 
-GitHub Releases ne permet qu’un seul corps de publication, alors assemblez chaque langue dans un seul document Markdown. Ajoutez `.github/workflows/release.yml` :
+GitHub Releases has one release body, so assemble each locale into one Markdown document. Add `.github/workflows/release.yml`:
 
 ```yaml
 name: Release
@@ -424,19 +424,19 @@ Chaque transition a une seule responsabilité. Les pull requests examinent les m
 
 ### La vérification de la PR signale des traductions sans rapport.
 
-Confirmez que l’action s’exécute sur un événement `pull_request` et définit `github-diff: true`. L’action a besoin de `pull-requests: read` pour pouvoir récupérer le correctif. La vérification limitée au diff s’applique aux fichiers de traduction structurés pris en charge ; gardez les vérifications sur l’ensemble du projet dans une tâche planifiée distincte si vous souhaitez également avoir une visibilité sur le retard accumulé.
+Confirm the action runs on a `pull_request` event and sets `github-diff: true`. The action needs `pull-requests: read` so it can fetch the patch. Diff-scoped checking applies to supported structured translation files; keep full-project checks in a separate scheduled job if you also want backlog visibility.
 
 ### La source push ne peut pas s’authentifier
 
-Vérifiez que `HYPERLOCALISE_API_KEY` et `HYPERLOCALISE_PROJECT_ID` existent dans l’environnement GitHub sélectionné. Les secrets d’environnement ne sont disponibles que si le job déclare cet environnement, et les environnements protégés peuvent rester en attente d’une approbation.
+Check that both `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` exist in the selected GitHub environment. Environment secrets are not available unless the job declares that environment, and protected environments may wait for approval.
 
 ### Le téléchargement des traductions ne produit aucune différence Git
 
-Confirmez d’abord que le travail de traduction est terminé dans le même projet nommé par `HYPERLOCALISE_PROJECT_ID`. Vérifiez ensuite les chemins cibles dans `i18n.yml`. Exécutez localement `hl sync pull --dry-run` pour inspecter le téléchargement prévu sans écraser les fichiers.
+First confirm that translation work has finished in the same project named by `HYPERLOCALISE_PROJECT_ID`. Then check the target paths in `i18n.yml`. Run `hl sync pull --dry-run` locally to inspect the planned download without overwriting files.
 
 ### La version ne trouve pas ses notes
 
-Le tag et le nom de fichier Markdown doivent correspondre exactement. Le tag `v1.8.0` attend `release-notes/<locale>/v1.8.0.md`. Conservez le `v` aux deux endroits, ou modifiez la construction du chemin du workflow dans le cadre d’une mise à jour délibérée de la convention.
+The tag and Markdown filename must match exactly. Tag `v1.8.0` expects `release-notes/<locale>/v1.8.0.md`. Keep the `v` in both places, or change the workflow's path construction in one deliberate convention update.
 
 ### Les traductions arrivent après la sortie du produit
 
@@ -448,9 +448,9 @@ Avant de baliser une version multilingue, vérifiez que :
 
 - [ ] chaînes sources et notes de version en anglais fusionnées ;
 - [ ] la vérification de localisation de la pull request a réussi ;
-- [ ] `hl sync push` terminé après la fusion;
+- [ ] `hl sync push` completed after merge;
 - [ ] les langues cibles ont été révisées et approuvées dans Hyperlocalise ;
-- [ ] `hl sync pull` a ouvert une pull request de traduction ;
+- [ ] `hl sync pull` opened a translation pull request;
 - [ ] vérifications automatisées, linguistiques et visuelles réussies ;
 - [ ] la pull request de traduction a été fusionnée ; et
 - [ ] chaque paramètre régional des notes de version possède un fichier non vide correspondant à la balise.
@@ -459,8 +459,8 @@ Avant de baliser une version multilingue, vérifiez que :
 
 L’élément important de la localisation de GitHub n’est pas le YAML. C’est la succession de transmissions dont la responsabilité est clairement définie.
 
-La `hyperlocalise` CLI relie les fichiers du dépôt à la plateforme. L’action GitHub fournit aux ingénieurs un retour rapide sur les chaînes modifiées. Hyperlocalise fournit aux réviseurs linguistiques le contexte et le workflow d’approbation que Git seul ne peut pas offrir. Le tag final publie exactement ce que l’équipe a révisé.
+The `hyperlocalise` CLI connects repository files to the platform. The GitHub Action gives engineers fast feedback on changed strings. Hyperlocalise gives language reviewers the context and approval workflow that Git alone cannot provide. The final tag publishes exactly what the team reviewed.
 
 Cela transforme la localisation d’une tâche effectuée après le développement en une partie intégrante de la mise en production.
 
-[Découvrez Hyperlocalise pour la localisation de produits](/use-cases/product-localisation) afin de connecter vos référentiels, de vérifier vos workflows et de gérer vos versions multilingues.
+[Explore Hyperlocalise for product localisation](/use-cases/product-localisation) to connect your repositories, review workflows, and multilingual releases.

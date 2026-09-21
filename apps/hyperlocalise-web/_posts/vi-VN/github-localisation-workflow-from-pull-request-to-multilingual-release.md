@@ -16,7 +16,7 @@ tags:
   - translation review
 ---
 
-Hướng dẫn này sẽ giúp bạn thiết lập quy trình bản địa hóa GitHub với GitHub Actions, CLI `hyperlocalise` và nền tảng Hyperlocalise. Bạn sẽ bắt đầu với một ví dụ nhỏ và theo dõi một thay đổi sản phẩm từ pull request đầu tiên đến bản phát hành đa ngôn ngữ.
+This guide walks you through setting up a GitHub localization workflow with GitHub Actions, the `hyperlocalise` CLI, and the Hyperlocalise platform. You will start with a small example and follow one product change from its first pull request to a multilingual release.
 
 Đến cuối cùng, quy trình của bạn sẽ bao gồm bốn giai đoạn:
 
@@ -27,7 +27,7 @@ Hướng dẫn này sẽ giúp bạn thiết lập quy trình bản địa hóa 
 
 Kết quả là một quy trình tự nhiên với kho mã. Kỹ sư làm việc trong các pull request, người đánh giá ngôn ngữ làm việc với ngữ cảnh trong Hyperlocalise, và bản phát hành chỉ sử dụng những bản dịch đã được đưa trở lại Git.
 
-Nếu bạn muốn xem mẫu hình sản phẩm tổng quát trước các chi tiết triển khai, hãy xem [trường hợp sử dụng bản địa hóa sản phẩm GitHub](/use-cases/product-localisation).
+If you want the broader product pattern before the implementation details, see the [GitHub product localisation use case](/use-cases/product-localisation).
 
 ## Những gì chúng ta sẽ xây dựng
 
@@ -53,19 +53,19 @@ Tiếng Anh là ngôn ngữ nguồn. Tiếng Pháp và tiếng Đức là các n
 
 Bạn sẽ cần:
 
-- một dự án Hyperlocalise với `en-US` là ngôn ngữ nguồn và `fr-FR` và `de-DE` là các ngôn ngữ đích;
-- một `HYPERLOCALISE_API_KEY` bí mật GitHub Actions;
-- một `HYPERLOCALISE_PROJECT_ID` secret GitHub Actions; và
+- a Hyperlocalise project with `en-US` as its source locale and `fr-FR` and `de-DE` as targets;
+- a `HYPERLOCALISE_API_KEY` GitHub Actions secret;
+- a `HYPERLOCALISE_PROJECT_ID` GitHub Actions secret; and
 - quyền thêm quy trình làm việc và các bí mật của kho lưu trữ.
 
-Sử dụng một môi trường GitHub chẳng hạn như `localisation` cho thông tin xác thực production nếu tổ chức của bạn yêu cầu phê duyệt triển khai.
+Use a GitHub environment such as `localisation` for production credentials if your organisation requires deployment approvals.
 
 ## Bước 1: lập bản đồ các tệp nguồn và tệp đích
 
-Tạo `i18n.yml` tại thư mục gốc của kho lưu trữ:
+Create `i18n.yml` at the repository root:
 
 ```yaml
-version: hyperlocalise@1.11.0
+version: hyperlocalise@1.12.1
 
 locales:
   source: en-US
@@ -95,15 +95,15 @@ hyperlocalise:
   api_key_env: HYPERLOCALISE_API_KEY
 ```
 
-Hai nhóm này làm rõ quyền sở hữu. `product` ánh xạ một danh mục nguồn sang một danh mục cho mỗi locale đích. `release-notes` ánh xạ mọi tệp Markdown tiếng Anh vào thư mục locale tương ứng đồng thời giữ nguyên tên tệp.
+The two buckets make ownership explicit. `product` maps one source catalogue to one catalogue per target locale. `release-notes` maps every English Markdown file to the equivalent locale directory while preserving its filename.
 
-Việc cố định phiên bản CLI trong cấu hình cũng giúp các lần chạy cục bộ và CI nhất quán với nhau. Hãy cập nhật phiên bản ví dụ thành bản phát hành mà nhóm của bạn đã kiểm thử. Nếu bỏ qua `version`, thay vào đó hãy cố định đầu vào `version` trong hành động cài đặt.
+Pinning the CLI in the configuration also makes local and CI runs agree. Update the example version to the release your team has tested. If you omit `version`, pin the `version` input in the install action instead.
 
 Hồ sơ LLM được sử dụng khi dự án của bạn tạo bản dịch bằng nhà cung cấp đó. Lưu thông tin xác thực của nhà cung cấp trong Hyperlocalise thay vì thêm chúng vào quy trình. GitHub runner chỉ cần thông tin xác thực cho dự án Hyperlocalise.
 
 ## Bước 2: thực hiện một thay đổi đối với sản phẩm
 
-Giả sử phiên bản 1.8.0 bổ sung các bộ lọc đã lưu. Pull request thay đổi `locales/en-US.json`:
+Suppose version 1.8.0 adds saved filters. The pull request changes `locales/en-US.json`:
 
 ```json
 {
@@ -113,7 +113,7 @@ Giả sử phiên bản 1.8.0 bổ sung các bộ lọc đã lưu. Pull request 
 }
 ```
 
-Nó cũng bổ sung `release-notes/en-US/v1.8.0.md`:
+It also adds `release-notes/en-US/v1.8.0.md`:
 
 ```markdown
 # Saved filters
@@ -129,11 +129,11 @@ You can now save a filter and reuse it across your workspace.
 
 Commit nội dung nguồn cùng với tính năng. Điều này giúp người đánh giá có thể xem thay đổi mã, nội dung giao diện và phần giải thích dành cho khách hàng trong cùng một pull request. Đồng thời, lịch sử Git có thể cho biết nội dung nào đã được phát hành cùng với một phiên bản.
 
-Không được sao chép nguyên văn các chuỗi tiếng Anh vào `fr-FR.json` hoặc `de-DE.json` làm giá trị giữ chỗ. Một giá trị nguồn được sao chép có thể trông đầy đủ khi kiểm tra số lượng khóa đơn giản, mặc dù chưa hề thực hiện bản địa hóa.
+Do not hand-copy English strings into `fr-FR.json` or `de-DE.json` as placeholders. A copied source value can look complete to a simple key-count check even though no localisation happened.
 
 ## Bước 3: kiểm tra các chuỗi đã thay đổi trong pull request
 
-Thêm `.github/workflows/localise.yml`. Tác vụ đầu tiên chạy trên các yêu cầu kéo và giới hạn các phát hiện của Hyperlocalise trong phần khác biệt của GitHub:
+Add `.github/workflows/localise.yml`. The first job runs on pull requests and scopes Hyperlocalise findings to the GitHub diff:
 
 ```yaml
 name: Localise
@@ -184,7 +184,7 @@ jobs:
           upload-artifact: true
 ```
 
-Với `github-diff: true`, tác vụ sẽ lấy bản vá của pull request và chuyển nó cho `hyperlocalise check --diff-stdin`. Đối với các danh mục có cấu trúc được hỗ trợ, chú thích tập trung vào những khóa đã thay đổi trong pull request này thay vì yêu cầu tác giả xử lý các công việc tồn đọng không liên quan.
+With `github-diff: true`, the action fetches the pull request patch and passes it to `hyperlocalise check --diff-stdin`. For supported structured catalogues, annotations focus on keys changed by this pull request rather than making the author resolve unrelated backlog.
 
 Tác vụ cũng tải lên báo cáo JSON và bản tóm tắt dạng văn bản. Hãy giữ lại các tệp này khi một lượt kiểm tra không thành công: chúng phân biệt các lỗi cấu trúc, bản dịch bị thiếu và các vấn đề về nội dung với lỗi cài đặt hoặc cấu hình.
 
@@ -192,7 +192,7 @@ Bước kiểm tra này là cổng rà soát đầu tiên, không phải rà so�
 
 ## Bước 4: đẩy nội dung nguồn đã hợp nhất lên Hyperlocalise
 
-Thêm một job thứ hai vào cùng workflow `localise.yml`:
+Add a second job to the same `localise.yml` workflow:
 
 ```yaml
 push-sources:
@@ -216,9 +216,9 @@ push-sources:
         HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
-Đây là ranh giới push. Sau khi pull request tính năng được hợp nhất vào `main`, `hl sync push` đọc các bucket trong `i18n.yml` và gửi các nguồn JSON và Markdown bằng tiếng Anh đến dự án Hyperlocalise được liên kết.
+This is the push boundary. After the feature pull request merges to `main`, `hl sync push` reads the buckets in `i18n.yml` and sends the English JSON and Markdown sources to the linked Hyperlocalise project.
 
-Tác vụ có quyền chỉ đọc đối với kho lưu trữ vì nó gửi nội dung ra ngoài nhưng không sửa đổi Git. Thông tin xác thực của tác vụ chỉ tồn tại trong bước cần đến chúng. Bộ lọc `paths` ngăn các lần hợp nhất không liên quan tạo ra những lần chạy đồng bộ không cần thiết.
+The job has read-only repository permission because it sends content out but does not modify Git. Its credentials live only in the step that needs them. The `paths` filter prevents unrelated merges from creating unnecessary sync runs.
 
 Bạn có thể chạy cùng thao tác trước khi commit:
 
@@ -229,7 +229,7 @@ hl sync push --dry-run
 hl sync push
 ```
 
-Sử dụng `--dry-run` khi thay đổi ánh xạ bucket. Lệnh này cho phép bạn kiểm tra kế hoạch trước khi cập nhật dự án từ xa.
+Use `--dry-run` when changing bucket mappings. It lets you inspect the plan before updating the remote project.
 
 ## Bước 5: cùng xem xét các chuỗi sản phẩm và ghi chú phát hành
 
@@ -239,8 +239,8 @@ Sau khi quá trình đồng bộ nguồn hoàn tất, hãy xem lại nội dung 
 
 | Nội dung         | Câu hỏi đánh giá                                          |
 | --------------- | -------------------------------------------------------- |
-| `filters.save`  | Đây có rõ ràng là một hành động, thay vì một trạng thái đã lưu không?    |
-| `filters.saved` | Thuật ngữ có phù hợp với nội dung điều hướng và cài đặt không?        |
+| `filters.save`  | Is this clearly an action, rather than a saved state?    |
+| `filters.saved` | Does the term match navigation and settings copy?        |
 | Mô tả     | Có phù hợp với giao diện người dùng và duy trì thuật ngữ “không gian làm việc” không? |
 | Tiêu đề bản phát hành   | Có sử dụng cùng tên với tính năng sản phẩm không?        |
 | Các gạch đầu dòng về bản phát hành | Các lệnh, tên menu và kết quả của người dùng có nhất quán không? |
@@ -251,7 +251,7 @@ Giải quyết các nhận xét đánh giá và phê duyệt bản dịch theo q
 
 ## Bước 6: kéo các bản dịch đã được duyệt vào GitHub
 
-Thêm tác vụ thứ ba vào `localise.yml`:
+Add a third job to `localise.yml`:
 
 ```yaml
 pull-translations:
@@ -289,7 +289,7 @@ pull-translations:
         labels: localization
 ```
 
-Chạy tác vụ này từ tab **Actions** sau khi xem xét. `hl sync pull` ghi nội dung đích vào các đường dẫn trong `i18n.yml`, tạo ra các tệp như:
+Run this job from the **Actions** tab after review. `hl sync pull` writes target content to the paths in `i18n.yml`, producing files such as:
 
 ```text
 locales/fr-FR.json
@@ -298,13 +298,13 @@ release-notes/fr-FR/v1.8.0.md
 release-notes/de-DE/v1.8.0.md
 ```
 
-Quy trình này sẽ mở một pull request thay vì commit trực tiếp vào `main`. Điều đó giúp duy trì cơ chế bảo vệ nhánh, cho phép các kỹ sư chạy ứng dụng với từng locale và ghi lại chính xác các bản dịch được đưa vào bản phát hành.
+The workflow opens a pull request instead of committing directly to `main`. That preserves branch protection, gives engineers a chance to run the application with each locale, and records the exact translations included in the release.
 
 Đối với môi trường production, hãy ghim các action của bên thứ ba vào SHA commit đầy đủ theo chính sách dependency của bạn. Việc sử dụng các tag chính có thể thay đổi giúp hướng dẫn này dễ đọc, nhưng các tham chiếu bất biến sẽ giảm rủi ro đối với chuỗi cung ứng.
 
 ## Bước 7: kiểm thử pull request đã dịch
 
-Kiểm tra tự động sẽ chạy lại vì pull request bản dịch thay đổi `locales/**` và `release-notes/**`. Đồng thời, hãy thêm các bài kiểm tra riêng của ứng dụng vào danh sách kiểm tra bắt buộc.
+The automated check will run again because the translation pull request changes `locales/**` and `release-notes/**`. Add your application's own tests to the required checks as well.
 
 Tối thiểu, hãy xác minh:
 
@@ -321,7 +321,7 @@ Chỉ hợp nhất pull request bản dịch khi các bước kiểm tra đó đ
 
 ## Bước 8: xuất bản ghi chú phát hành đa ngôn ngữ
 
-GitHub Releases chỉ có một nội dung bản phát hành, vì vậy hãy tập hợp từng ngôn ngữ vào một tài liệu Markdown duy nhất. Thêm `.github/workflows/release.yml`:
+GitHub Releases has one release body, so assemble each locale into one Markdown document. Add `.github/workflows/release.yml`:
 
 ```yaml
 name: Release
@@ -424,19 +424,19 @@ Mỗi bước chuyển tiếp có một trách nhiệm. Pull request xem xét c�
 
 ### Kiểm tra PR báo cáo các bản dịch không liên quan
 
-Xác nhận hành động chạy trên một sự kiện `pull_request` và thiết lập `github-diff: true`. Hành động cần `pull-requests: read` để có thể tìm nạp bản vá. Việc kiểm tra theo phạm vi diff áp dụng cho các tệp bản dịch có cấu trúc được hỗ trợ; nếu cũng muốn theo dõi phần tồn đọng, hãy chạy các lượt kiểm tra toàn dự án trong một tác vụ theo lịch riêng.
+Confirm the action runs on a `pull_request` event and sets `github-diff: true`. The action needs `pull-requests: read` so it can fetch the patch. Diff-scoped checking applies to supported structured translation files; keep full-project checks in a separate scheduled job if you also want backlog visibility.
 
 ### Nguồn push không thể xác thực
 
-Kiểm tra để đảm bảo cả `HYPERLOCALISE_API_KEY` và `HYPERLOCALISE_PROJECT_ID` đều tồn tại trong môi trường GitHub đã chọn. Các secret của môi trường không khả dụng trừ khi job khai báo môi trường đó, và các môi trường được bảo vệ có thể phải chờ phê duyệt.
+Check that both `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` exist in the selected GitHub environment. Environment secrets are not available unless the job declares that environment, and protected environments may wait for approval.
 
 ### Việc kéo bản dịch không tạo ra Git diff
 
-Trước tiên, hãy xác nhận rằng công việc dịch đã hoàn tất trong cùng dự án có tên là `HYPERLOCALISE_PROJECT_ID`. Sau đó, kiểm tra các đường dẫn đích trong `i18n.yml`. Chạy `hl sync pull --dry-run` cục bộ để kiểm tra nội dung tải xuống dự kiến mà không ghi đè các tệp.
+First confirm that translation work has finished in the same project named by `HYPERLOCALISE_PROJECT_ID`. Then check the target paths in `i18n.yml`. Run `hl sync pull --dry-run` locally to inspect the planned download without overwriting files.
 
 ### Bản phát hành không thể tìm thấy ghi chú của bản phát hành.
 
-Thẻ và tên tệp Markdown phải khớp chính xác. Thẻ `v1.8.0` yêu cầu `release-notes/<locale>/v1.8.0.md`. Giữ `v` ở cả hai vị trí hoặc thay đổi cách xây dựng đường dẫn của quy trình trong một lần cập nhật quy ước có chủ đích.
+The tag and Markdown filename must match exactly. Tag `v1.8.0` expects `release-notes/<locale>/v1.8.0.md`. Keep the `v` in both places, or change the workflow's path construction in one deliberate convention update.
 
 ### Bản dịch sẽ có sau khi sản phẩm được phát hành
 
@@ -448,9 +448,9 @@ Trước khi gắn thẻ một phiên bản đa ngôn ngữ, hãy xác nhận r�
 
 - [ ] chuỗi nguồn và ghi chú phát hành bằng tiếng Anh được hợp nhất với nhau;
 - [ ] kiểm tra bản địa hóa pull request đã đạt;
-- [ ] `hl sync push` đã hoàn tất sau khi hợp nhất;
+- [ ] `hl sync push` completed after merge;
 - [ ] các ngôn ngữ đích đã được xem xét và phê duyệt trong Hyperlocalise;
-- [ ] `hl sync pull` đã mở một pull request dịch thuật;
+- [ ] `hl sync pull` opened a translation pull request;
 - [ ] đã vượt qua các bước kiểm tra tự động, ngôn ngữ và trực quan;
 - [ ] pull request bản dịch đã được hợp nhất; và
 - [ ] mọi locale ghi chú phát hành đều có tệp không rỗng khớp với thẻ.
@@ -459,8 +459,8 @@ Trước khi gắn thẻ một phiên bản đa ngôn ngữ, hãy xác nhận r�
 
 Phần quan trọng của việc bản địa hóa GitHub không phải là YAML. Mà là chuỗi các lần bàn giao có trách nhiệm giải trình.
 
-CLI `hyperlocalise` kết nối các tệp trong kho lưu trữ với nền tảng. GitHub Action cung cấp phản hồi nhanh chóng cho kỹ sư về các chuỗi đã thay đổi. Hyperlocalise cung cấp cho người đánh giá ngôn ngữ ngữ cảnh và quy trình phê duyệt mà Git không thể cung cấp. Thẻ cuối cùng xuất bản chính xác những gì nhóm đã đánh giá.
+The `hyperlocalise` CLI connects repository files to the platform. The GitHub Action gives engineers fast feedback on changed strings. Hyperlocalise gives language reviewers the context and approval workflow that Git alone cannot provide. The final tag publishes exactly what the team reviewed.
 
 Điều đó biến việc bản địa hóa từ một nhiệm vụ sau khi phát triển thành một phần của chính quá trình phát hành.
 
-[Khám phá Hyperlocalise để bản địa hóa sản phẩm](/use-cases/product-localisation) để kết nối các kho lưu trữ, xem xét quy trình làm việc và phát hành đa ngôn ngữ.
+[Explore Hyperlocalise for product localisation](/use-cases/product-localisation) to connect your repositories, review workflows, and multilingual releases.

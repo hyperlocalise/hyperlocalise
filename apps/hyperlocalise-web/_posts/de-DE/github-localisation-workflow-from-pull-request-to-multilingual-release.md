@@ -1,7 +1,7 @@
 ---
-title: "GitHub Localisation Workflow: From Pull Request to Multilingual Release"
+title: "GitHub-Lokalisierungsworkflow: Vom Pull Request zur mehrsprachigen Veröffentlichung"
 date: 2026-09-09T00:00:00.000Z
-excerpt: Build a practical GitHub localisation workflow that checks changed strings, sends source content to Hyperlocalise, brings reviewed translations back, and publishes multilingual release notes.
+excerpt: Erstelle einen praktischen GitHub-Lokalisierungsworkflow, der geänderte Zeichenfolgen prüft, Quellinhalte an Hyperlocalise sendet, geprüfte Übersetzungen zurückholt und mehrsprachige Versionshinweise veröffentlicht.
 category: Ingenieurwesen
 tags:
   - github localization
@@ -65,7 +65,7 @@ Use a GitHub environment such as `localisation` for production credentials if yo
 Create `i18n.yml` at the repository root:
 
 ```yaml
-version: hyperlocalise@1.11.0
+version: hyperlocalise@1.12.1
 
 locales:
   source: en-US

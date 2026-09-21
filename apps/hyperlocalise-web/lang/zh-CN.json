@@ -7125,7 +7125,7 @@
     "defaultMessage": "AI 可以用它来回答"
   },
   "FBmmj9seNr": {
-    "defaultMessage": "Contentful webhook"
+    "defaultMessage": "Contentful Webhook"
   },
   "FBzKoGNaC+": {
     "defaultMessage": "Overview"
@@ -7270,6 +7270,9 @@
   },
   "FbWiUTt6DX": {
     "defaultMessage": "验证 DNS"
+  },
+  "FcPrCbZm2T": {
+    "defaultMessage": "移除案例 {index}"
   },
   "FcadZC4Ojx": {
     "defaultMessage": "Succeeded"
@@ -24012,7 +24015,7 @@
     "defaultMessage": "linguistic"
   },
   "urSbyPXHeu": {
-    "defaultMessage": "Mina Chen"
+    "defaultMessage": "米娜·陈"
   },
   "usZU30knmw": {
     "defaultMessage": "频率"
