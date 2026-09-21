@@ -70,7 +70,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
     ? intl.formatMessage(messages.trueHandle)
     : isSwitch && primaryHandle === "default"
       ? intl.formatMessage(messages.switchDefaultHandle)
-      : isSwitch && primaryHandle === "0"
+      : isSwitch
         ? intl.formatMessage(messages.switchCaseHandle, { index: 1 })
         : data.catalogType === "logic.for_each"
           ? intl.formatMessage(messages.eachHandle)
@@ -86,8 +86,8 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   const switchHandles =
     isSwitch && data.config.kind === "logic.switch"
       ? [
-          ...data.config.cases.map((_, index) => ({
-            id: String(index),
+          ...data.config.cases.map((caseEntry, index) => ({
+            id: caseEntry.id,
             label: intl.formatMessage(messages.switchCaseHandle, { index: index + 1 }),
           })),
           { id: "default", label: intl.formatMessage(messages.switchDefaultHandle) },

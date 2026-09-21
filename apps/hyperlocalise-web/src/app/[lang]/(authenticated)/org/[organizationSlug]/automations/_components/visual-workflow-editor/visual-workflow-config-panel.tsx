@@ -36,6 +36,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { isTriggerType } from "@/lib/visual-workflows/catalog/node-catalog";
+import { createSwitchCaseId } from "@/lib/visual-workflows/schema/switch-cases";
 import {
   isVisualTriggerCatalogType,
   VISUAL_TRIGGER_TYPES,
@@ -292,12 +293,12 @@ export function VisualWorkflowConfigPanel({
                 <FormattedMessage {...messages.switchCases} />
               </Label>
               {config.cases.map((caseEntry, index) => (
-                <div key={`case-${index}`} className="flex items-center gap-2">
+                <div key={caseEntry.id} className="flex items-center gap-2">
                   <Input
                     value={caseEntry.value}
                     onChange={(event) => {
                       const cases = config.cases.map((entry, caseIndex) =>
-                        caseIndex === index ? { value: event.target.value } : entry,
+                        caseIndex === index ? { ...entry, value: event.target.value } : entry,
                       );
                       onChangeConfig({ ...config, cases });
                     }}
@@ -309,6 +310,9 @@ export function VisualWorkflowConfigPanel({
                     type="button"
                     variant="ghost"
                     size="icon-sm"
+                    aria-label={intl.formatMessage(messages.removeSwitchCase, {
+                      index: index + 1,
+                    })}
                     disabled={config.cases.length <= 1}
                     onClick={() => {
                       onChangeConfig({
@@ -329,7 +333,7 @@ export function VisualWorkflowConfigPanel({
                 onClick={() =>
                   onChangeConfig({
                     ...config,
-                    cases: [...config.cases, { value: "" }],
+                    cases: [...config.cases, { id: createSwitchCaseId(), value: "" }],
                   })
                 }
               >

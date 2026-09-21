@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { createDefaultConfig } from "../catalog/node-catalog";
 import {
+  applyNodeConfigUpdate,
   applyVisualWorkflowGraphConnection,
   reconcileForEachBodyMembership,
   removeVisualWorkflowNode,
@@ -57,15 +58,18 @@ describe("applyVisualWorkflowGraphConnection", () => {
       config: {
         kind: "logic.switch",
         expression: "status",
-        cases: [{ value: "pending" }, { value: "ready" }],
+        cases: [
+          { id: "case-pending", value: "pending" },
+          { id: "case-ready", value: "ready" },
+        ],
       },
     });
     const first = applyVisualWorkflowGraphConnection(
       [node("t", "trigger.manual"), switchNode, node("a", "logic.set")],
       [{ id: "e0", source: "t", target: "sw" }],
-      { source: "sw", target: "a", sourceHandle: "1", targetHandle: null },
+      { source: "sw", target: "a", sourceHandle: "case-ready", targetHandle: null },
     );
-    expect(first.edges.at(-1)?.sourceHandle).toBe("1");
+    expect(first.edges.at(-1)?.sourceHandle).toBe("case-ready");
     expect(codes(validateVisualWorkflowDefinition(definition(first)))).not.toContain(
       "invalid_handle",
     );
@@ -86,7 +90,10 @@ describe("applyVisualWorkflowGraphConnection", () => {
       config: {
         kind: "logic.switch",
         expression: "status",
-        cases: [{ value: "pending" }, { value: "ready" }],
+        cases: [
+          { id: "case-pending", value: "pending" },
+          { id: "case-ready", value: "ready" },
+        ],
       },
     });
     const nodes = [node("t", "trigger.manual"), switchNode, node("a", "logic.set")];
@@ -278,5 +285,36 @@ describe("removeVisualWorkflowNode", () => {
     const result = removeVisualWorkflowNode(nodes, edges, "body");
     expect(result.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual([]);
     expect(result.edges).toEqual([{ id: "e0", source: "t", target: "loop" }]);
+  });
+});
+
+describe("applyNodeConfigUpdate", () => {
+  it("removes edges for deleted Switch cases and keeps other branches", () => {
+    const switchNode = node("sw", "logic.switch", {
+      config: {
+        kind: "logic.switch",
+        expression: "status",
+        cases: [
+          { id: "case-pending", value: "pending" },
+          { id: "case-ready", value: "ready" },
+        ],
+      },
+    });
+    const next = applyNodeConfigUpdate(
+      [node("t", "trigger.manual"), switchNode, node("a", "logic.set"), node("b", "logic.set")],
+      [
+        { id: "e0", source: "t", target: "sw" },
+        { id: "e1", source: "sw", target: "a", sourceHandle: "case-pending" },
+        { id: "e2", source: "sw", target: "b", sourceHandle: "case-ready" },
+      ],
+      "sw",
+      {
+        kind: "logic.switch",
+        expression: "status",
+        cases: [{ id: "case-ready", value: "ready" }],
+      },
+    );
+    expect(next.edges.map((edge) => edge.id)).toEqual(["e0", "e2"]);
+    expect(next.edges.find((edge) => edge.id === "e2")?.sourceHandle).toBe("case-ready");
   });
 });

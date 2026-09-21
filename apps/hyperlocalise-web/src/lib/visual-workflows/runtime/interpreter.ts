@@ -80,14 +80,15 @@ export async function runVisualWorkflowInterpreter(input: {
     failedNodeId: nodeId,
     error,
   });
-  const issues = validateVisualWorkflowDefinition(input.definition);
+  const definition = input.definition;
+  const issues = validateVisualWorkflowDefinition(definition);
   if (issues.length)
     return fail("", { code: "invalid_graph", message: "Workflow graph is invalid.", issues });
-  const graph = buildVisualWorkflowGraphIndex(input.definition)!;
+  const graph = buildVisualWorkflowGraphIndex(definition)!;
   let stepCount = 0;
   const deadline = Date.now() + WORKFLOW_LIMITS.runTimeoutMs;
   const settledIds = new Set<string>();
-  const bodyIds = new Set(input.definition.nodes.flatMap((node) => node.bodyNodeIds ?? []));
+  const bodyIds = new Set(definition.nodes.flatMap((node) => node.bodyNodeIds ?? []));
   const emit = async (
     node: CanonicalVisualWorkflowNode,
     status: VisualWorkflowInterpreterNodeUpdate["status"],
@@ -115,7 +116,7 @@ export async function runVisualWorkflowInterpreter(input: {
       for (const id of ids) {
         if (completed.has(id)) continue;
         const node = graph.nodesById.get(id)!;
-        const incoming = input.definition.edges.filter(
+        const incoming = definition.edges.filter(
           (edge) => edge.target === id && ids.has(edge.source),
         );
         if (incoming.some((edge) => !states.has(edge.id))) continue;
@@ -285,16 +286,15 @@ export async function runVisualWorkflowInterpreter(input: {
     return null;
   };
   const failure = await runScope(
-    new Set(input.definition.nodes.filter((node) => !bodyIds.has(node.id)).map((node) => node.id)),
+    new Set(definition.nodes.filter((node) => !bodyIds.has(node.id)).map((node) => node.id)),
     new Set([graph.triggerNodeId]),
   );
   if (failure && failure.error.code !== "yield_execution")
-    for (const node of input.definition.nodes)
+    for (const node of definition.nodes)
       if (!settledIds.has(node.id))
         await emit(node, failure.error.code === "cancelled" ? "cancelled" : "blocked");
   if (!failure)
-    for (const node of input.definition.nodes)
-      if (!settledIds.has(node.id)) await emit(node, "skipped");
+    for (const node of definition.nodes) if (!settledIds.has(node.id)) await emit(node, "skipped");
   return failure ? fail(failure.nodeId, failure.error) : { ok: true, context, nodeResults };
 }
 export const getVisualWorkflowGraphIndex = buildVisualWorkflowGraphIndex;

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 // @vitest-environment happy-dom
 
 /*
@@ -64,5 +76,52 @@ describe("VisualWorkflowConfigPanel", () => {
 
     await user.click(screen.getByRole("button", { name: "Delete step" }));
     expect(onDeleteNode).toHaveBeenCalledOnce();
+  });
+
+  it("keeps Switch case ids when the case value changes", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "sw",
+      type: "logic.switch",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.switch"),
+      data: {
+        catalogType: "logic.switch",
+        config: {
+          kind: "logic.switch",
+          expression: "status",
+          cases: [
+            { id: "case-pending", value: "pending" },
+            { id: "case-ready", value: "ready" },
+          ],
+        },
+        runStatus: "idle",
+      },
+    };
+
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <VisualWorkflowConfigPanel
+          node={node}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={onChangeConfig}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      </IntlProvider>,
+    );
+
+    await user.type(screen.getByPlaceholderText("Case 1"), "x");
+    expect(onChangeConfig).toHaveBeenCalled();
+    const lastConfig = onChangeConfig.mock.calls.at(-1)?.[0];
+    expect(lastConfig).toMatchObject({
+      kind: "logic.switch",
+      cases: [
+        { id: "case-pending", value: "pendingx" },
+        { id: "case-ready", value: "ready" },
+      ],
+    });
   });
 });

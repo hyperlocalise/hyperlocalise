@@ -28,6 +28,7 @@ import type { HugeiconsIcon } from "@hugeicons/react";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import type { VisualCatalogCategory, VisualCatalogType, VisualNodeConfig } from "../schema/types";
+import { createSwitchCaseId } from "../schema/switch-cases";
 
 export type CatalogIcon = ComponentProps<typeof HugeiconsIcon>["icon"];
 
@@ -172,7 +173,10 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return {
         kind: "logic.switch",
         expression: "",
-        cases: [{ value: "" }, { value: "" }],
+        cases: [
+          { id: createSwitchCaseId(), value: "" },
+          { id: createSwitchCaseId(), value: "" },
+        ],
       };
     case "logic.set":
       return { kind: "logic.set", assignments: [{ key: "", value: "" }] };

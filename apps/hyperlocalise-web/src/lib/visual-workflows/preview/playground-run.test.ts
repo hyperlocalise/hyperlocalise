@@ -50,7 +50,10 @@ describe("playground workflow runner", () => {
           config: {
             kind: "logic.switch",
             expression: "{{nodes.set.status}}",
-            cases: [{ value: "ready" }, { value: "blocked" }],
+            cases: [
+              { id: "case-ready", value: "ready" },
+              { id: "case-blocked", value: "blocked" },
+            ],
           },
         },
       },
@@ -70,7 +73,7 @@ describe("playground workflow runner", () => {
     const edges: VisualWorkflowRfEdge[] = [
       { id: "e1", source: "trigger", target: "set" },
       { id: "e2", source: "set", target: "switch" },
-      { id: "e3", source: "switch", target: "taken", sourceHandle: "0" },
+      { id: "e3", source: "switch", target: "taken", sourceHandle: "case-ready" },
     ];
 
     const statuses: string[] = [];

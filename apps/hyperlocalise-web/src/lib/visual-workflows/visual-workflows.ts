@@ -46,9 +46,21 @@ function toIsoString(value: Date): string {
   return value.toISOString();
 }
 
+function parseStoredVisualWorkflowDefinition(input: unknown): VisualWorkflowDefinition | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return null;
+  }
+  const candidate = input as Record<string, unknown>;
+  if (!Array.isArray(candidate.nodes) || !Array.isArray(candidate.edges)) {
+    return null;
+  }
+  const parsed = visualWorkflowDefinitionSchema.safeParse(input);
+  return parsed.success ? parsed.data : null;
+}
+
 function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | null {
-  const parsedDefinition = visualWorkflowDefinitionSchema.safeParse(row.definition);
-  if (!parsedDefinition.success) {
+  const parsedDefinition = parseStoredVisualWorkflowDefinition(row.definition);
+  if (!parsedDefinition) {
     return null;
   }
 
@@ -59,12 +71,11 @@ function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | nu
     projectId: row.projectId,
     status: row.status,
     name: row.name,
-    definition: parsedDefinition.data,
+    definition: parsedDefinition,
     definitionVersion: row.definitionVersion,
     revision: row.revision,
     publishedVersion: row.publishedVersion,
-    publishedDefinition:
-      visualWorkflowDefinitionSchema.safeParse(row.publishedDefinition).data ?? null,
+    publishedDefinition: parseStoredVisualWorkflowDefinition(row.publishedDefinition),
     triggerFingerprint: row.triggerFingerprint,
     nextRunAt: row.nextRunAt ? toIsoString(row.nextRunAt) : null,
     createdAt: toIsoString(row.createdAt),

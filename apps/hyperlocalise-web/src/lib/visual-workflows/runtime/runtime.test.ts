@@ -371,7 +371,10 @@ describe("visual workflow node execution edges", () => {
         config: {
           kind: "logic.switch",
           expression: "{{nodes.http.json.status}}",
-          cases: [{ value: "pending" }, { value: "ready" }],
+          cases: [
+            { id: "case-pending", value: "pending" },
+            { id: "case-ready", value: "ready" },
+          ],
         },
       },
     });
@@ -380,9 +383,9 @@ describe("visual workflow node execution edges", () => {
       ok: true,
       output: {
         expression: "ready",
-        matchedCase: "1",
+        matchedCase: "case-ready",
       },
-      switchCase: "1",
+      switchCase: "case-ready",
     });
   });
 });
@@ -390,6 +393,66 @@ describe("visual workflow node execution edges", () => {
 describe("visual workflow interpreter", () => {
   beforeEach(() => {
     withPublicHttpFetchMock.mockReset();
+  });
+
+  it("routes only the matching switch case by stable id", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Switch cases",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "switch",
+          type: "logic.switch",
+          config: {
+            kind: "logic.switch",
+            expression: "ready",
+            cases: [
+              { id: "case-pending", value: "pending" },
+              { id: "case-ready", value: "ready" },
+            ],
+          },
+        },
+        { id: "pending", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+        { id: "ready", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "switch", sourceHandle: null, targetHandle: null },
+        {
+          id: "e2",
+          source: "switch",
+          target: "pending",
+          sourceHandle: "case-pending",
+          targetHandle: null,
+        },
+        {
+          id: "e3",
+          source: "switch",
+          target: "ready",
+          sourceHandle: "case-ready",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const updates: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "succeeded") {
+          updates.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(updates).toEqual(["t", "switch", "ready"]);
+    expect(result.nodeResults.switch).toEqual({
+      expression: "ready",
+      matchedCase: "case-ready",
+    });
   });
 
   it("walks trigger and if nodes without following the false branch", async () => {

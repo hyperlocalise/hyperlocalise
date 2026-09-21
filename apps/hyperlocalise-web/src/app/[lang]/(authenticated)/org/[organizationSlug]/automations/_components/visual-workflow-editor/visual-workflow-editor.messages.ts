@@ -475,6 +475,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "n4hpRZLl37",
     description: "Button to add a switch case",
   },
+  removeSwitchCase: {
+    defaultMessage: "Remove case {index}",
+    id: "FcPrCbZm2T",
+    description: "Accessible label for removing a numbered switch case",
+  },
   switchCaseHandle: {
     defaultMessage: "Case {index}",
     id: "04QgRuZsOk",

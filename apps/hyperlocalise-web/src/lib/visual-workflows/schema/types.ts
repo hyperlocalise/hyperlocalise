@@ -130,7 +130,7 @@ export type VisualNodeConfig =
   | {
       kind: "logic.switch";
       expression: string;
-      cases: { value: string }[];
+      cases: { id: string; value: string }[];
     }
   | {
       kind: "logic.set";

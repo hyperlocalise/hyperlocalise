@@ -32,16 +32,19 @@ describe("getAllowedExecutionSourceHandles", () => {
     expect(getAllowedExecutionSourceHandles(canonical("logic.if"))).toEqual(["true", "false"]);
   });
 
-  it("lists Switch case indexes and default", () => {
+  it("lists Switch case ids and default", () => {
     expect(
       getAllowedExecutionSourceHandles(
         canonical("logic.switch", {
           kind: "logic.switch",
           expression: "status",
-          cases: [{ value: "a" }, { value: "b" }],
+          cases: [
+            { id: "case-a", value: "a" },
+            { id: "case-b", value: "b" },
+          ],
         }),
       ),
-    ).toEqual(["default", "0", "1"]);
+    ).toEqual(["default", "case-a", "case-b"]);
   });
 
   it("lists For Each each and done handles", () => {
@@ -77,14 +80,21 @@ describe("normalizeExecutionSourceHandle", () => {
     const node = canonical("logic.switch", {
       kind: "logic.switch",
       expression: "status",
-      cases: [{ value: "a" }, { value: "b" }],
+      cases: [
+        { id: "case-a", value: "a" },
+        { id: "case-b", value: "b" },
+      ],
     });
-    expect(normalizeExecutionSourceHandle(node, "1")).toEqual({ ok: true, handle: "1" });
+    expect(normalizeExecutionSourceHandle(node, "case-b")).toEqual({
+      ok: true,
+      handle: "case-b",
+    });
     expect(normalizeExecutionSourceHandle(node, "default")).toEqual({
       ok: true,
       handle: "default",
     });
-    expect(normalizeExecutionSourceHandle(node, "3")).toEqual({ ok: false });
+    expect(normalizeExecutionSourceHandle(node, "1")).toEqual({ ok: false });
+    expect(normalizeExecutionSourceHandle(node, "missing")).toEqual({ ok: false });
   });
 
   it("keeps unlabeled handles on single-output nodes and rejects foreign pins", () => {
@@ -106,6 +116,18 @@ describe("normalizeExecutionSourceHandle", () => {
   it("does not invent a primary handle for missing multi-output pins", () => {
     expect(getPrimaryExecutionSourceHandle(canonical("logic.if"))).toBe("true");
     expect(getPrimaryExecutionSourceHandle(canonical("logic.for_each"))).toBe("each");
+    expect(
+      getPrimaryExecutionSourceHandle(
+        canonical("logic.switch", {
+          kind: "logic.switch",
+          expression: "status",
+          cases: [
+            { id: "case-a", value: "a" },
+            { id: "case-b", value: "b" },
+          ],
+        }),
+      ),
+    ).toBe("case-a");
     expect(normalizeExecutionSourceHandle(canonical("logic.if"), undefined)).toEqual({
       ok: false,
     });

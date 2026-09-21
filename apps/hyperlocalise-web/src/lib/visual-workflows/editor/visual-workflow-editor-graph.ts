@@ -19,9 +19,11 @@ import {
 } from "../catalog/node-catalog";
 import type {
   VisualCatalogType,
+  VisualNodeConfig,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
 } from "../schema/types";
+import { collectRemovedSwitchCaseIds, pruneSwitchCaseEdges } from "../schema/switch-cases";
 import { normalizeExecutionSourceHandle } from "../validation/execution-handles";
 
 export const VISUAL_TRIGGER_TYPES = VISUAL_NODE_CATALOG.filter(
@@ -201,6 +203,29 @@ export function syncForEachBodyMembership(
       },
     };
   });
+}
+
+export function applyNodeConfigUpdate(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+  nodeId: string,
+  nextConfig: VisualNodeConfig,
+): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
+  const current = nodes.find((node) => node.id === nodeId);
+  const nextNodes = nodes.map((node) =>
+    node.id === nodeId ? { ...node, data: { ...node.data, config: nextConfig } } : node,
+  );
+  if (current?.data.config.kind === "logic.switch" && nextConfig.kind === "logic.switch") {
+    return {
+      nodes: nextNodes,
+      edges: pruneSwitchCaseEdges(
+        edges,
+        nodeId,
+        collectRemovedSwitchCaseIds(current.data.config.cases, nextConfig.cases),
+      ),
+    };
+  }
+  return { nodes: nextNodes, edges: [...edges] };
 }
 
 export function applyVisualWorkflowGraphConnection(
