@@ -202,10 +202,10 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   onGlossaryTermAdded?: () => void;
 }) {
   const store = useContentEditorWorkspace();
-  const hoveredSegmentId = store.ui.hoveredSegmentId;
   const intelligenceSegmentId = store.intelligenceSegmentId;
-  const handleVisibleSegmentIdsChange = useCallback(
-    (segmentIds: string[]) => store.ui.setVisibleSideBySideSegmentIds(segmentIds),
+  const handleVisibleRangeChange = useCallback(
+    (range: { visibleSegmentIds: string[]; loadSegmentIds: string[] }) =>
+      store.ui.setSideBySideViewport(range),
     [store],
   );
 
@@ -255,7 +255,6 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
               <ContentEditorSideBySideVirtualList
                 segments={segments}
                 focusedSegmentId={focusedSegmentId}
-                hoveredSegmentId={hoveredSegmentId}
                 dirtySegmentIds={dirtySegmentIds}
                 canEdit={canEditTranslations}
                 loadingSegmentIds={loadingSegmentIds}
@@ -275,9 +274,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
                 primaryActionLabel={primaryActionLabel}
                 segmentShareUrl={segmentShareUrl}
                 onFocusSegment={onFocusSegment}
-                onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
-                onLeaveSegment={() => store.ui.clearHoveredSegment()}
-                onVisibleSegmentIdsChange={handleVisibleSegmentIdsChange}
+                onVisibleRangeChange={handleVisibleRangeChange}
                 onTargetChange={onTargetChange}
                 onApprove={onApprove}
                 onSaveDraft={onSaveDraft}

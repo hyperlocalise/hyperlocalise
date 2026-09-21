@@ -20,7 +20,7 @@ import {
   Video01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -108,8 +108,6 @@ export function ContentEditorSideBySideRow({
   primaryActionLabel,
   segmentShareUrl = null,
   onFocus,
-  onHover,
-  onLeave,
   onTargetChange,
   onApprove,
   onSaveDraft,
@@ -123,7 +121,7 @@ export function ContentEditorSideBySideRow({
 }: {
   segment: ContentEditorSegment;
   isFocused: boolean;
-  isHovered: boolean;
+  isHovered?: boolean;
   isDirty: boolean;
   canEdit: boolean;
   isTargetLoading: boolean;
@@ -141,8 +139,6 @@ export function ContentEditorSideBySideRow({
   primaryActionLabel?: string;
   segmentShareUrl?: string | null;
   onFocus: () => void;
-  onHover: () => void;
-  onLeave: () => void;
   onTargetChange: (value: string) => void;
   onApprove?: () => void;
   onSaveDraft?: () => void;
@@ -157,9 +153,10 @@ export function ContentEditorSideBySideRow({
   const intl = useIntl();
   const isMac = useIsMac();
   const upgradeHref = useAiFeaturesUpgradeHref();
+  const [isPointerHovered, setIsPointerHovered] = useState(false);
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorEditorPanelMessages.approve);
-  const isActive = isFocused || isHovered;
+  const isActive = isFocused || (isHovered ?? isPointerHovered);
   const isImageSegment = isImageEditorSegment(segment);
   const isVideoSegment = isVideoEditorSegment(segment);
   const isAssetSegment = isAssetEditorSegment(segment);
@@ -360,8 +357,8 @@ export function ContentEditorSideBySideRow({
         isActive && "bg-grove-500/5",
         isFocused && "ring-1 ring-inset ring-grove-400/30",
       )}
-      onMouseEnter={onHover}
-      onMouseLeave={onLeave}
+      onMouseEnter={() => setIsPointerHovered(true)}
+      onMouseLeave={() => setIsPointerHovered(false)}
       onFocus={onFocus}
     >
       <div className={cn("min-w-0 border-r border-border px-4", isFocused ? "py-4" : "py-3")}>

@@ -84,7 +84,7 @@ export class ContentEditorReviewController {
     const selectedId = this.workspace.selectedSegmentId;
     if (selectedId) {
       const selected = this.workspace.getSegmentView(selectedId);
-      if (selected) {
+      if (selected && this.canValidateSegmentTarget(selectedId)) {
         void this.runChecks(selected, selected.targetText);
       }
     }
@@ -98,7 +98,7 @@ export class ContentEditorReviewController {
         continue;
       }
       const segment = this.workspace.getSegmentView(segmentId);
-      if (segment) {
+      if (segment && this.shouldRunVisibleSideBySideChecks(segment)) {
         void this.runChecks(segment, segment.targetText, undefined, { quiet: true });
       }
     }
@@ -108,13 +108,20 @@ export class ContentEditorReviewController {
     this.disposed = false;
     this.selectedSegmentDisposer?.();
     this.selectedSegmentDisposer = reaction(
-      () => this.workspace.selectedSegmentId,
+      () => {
+        const segmentId = this.workspace.selectedSegmentId;
+        if (!segmentId || !this.canRunChecks || !this.canValidateSegmentTarget(segmentId)) {
+          return null;
+        }
+        return segmentId;
+      },
       (segmentId) => {
-        if (segmentId && this.canRunChecks) {
-          const segment = this.workspace.getSegmentView(segmentId);
-          if (segment) {
-            void this.runChecks(segment, segment.targetText);
-          }
+        if (!segmentId) {
+          return;
+        }
+        const segment = this.workspace.getSegmentView(segmentId);
+        if (segment) {
+          void this.runChecks(segment, segment.targetText);
         }
       },
       { fireImmediately: true },
@@ -131,19 +138,8 @@ export class ContentEditorReviewController {
           if (segmentId === this.workspace.selectedSegmentId) {
             return [];
           }
-          if (this.workspace.loadingSegmentIds.has(segmentId)) {
-            return [];
-          }
           const segment = this.workspace.getSegmentView(segmentId);
-          if (
-            !segment ||
-            segment.contentKind === "image_file" ||
-            segment.contentKind === "video_file" ||
-            segment.contentKind === "office_file" ||
-            segment.contentKind === "document" ||
-            segment.contentKind === "image_url" ||
-            segment.contentKind === "video_url"
-          ) {
+          if (!segment || !this.shouldRunVisibleSideBySideChecks(segment)) {
             return [];
           }
           return [{ id: segmentId, fingerprint: `${segmentId}:${segment.targetText}` }];
@@ -197,6 +193,35 @@ export class ContentEditorReviewController {
 
   get canRunChecks() {
     return Boolean(this.ports.services?.validateFormat || this.ports.services?.runQaChecks);
+  }
+
+  private canValidateSegmentTarget(segmentId: string) {
+    if (this.workspace.loadingSegmentIds.has(segmentId)) {
+      return false;
+    }
+
+    return this.workspace.hasHydratedTarget(segmentId);
+  }
+
+  private isAssetSegment(segment: ContentEditorSegment) {
+    return (
+      segment.contentKind === "image_file" ||
+      segment.contentKind === "video_file" ||
+      segment.contentKind === "office_file" ||
+      segment.contentKind === "document" ||
+      segment.contentKind === "image_url" ||
+      segment.contentKind === "video_url"
+    );
+  }
+
+  private shouldRunVisibleSideBySideChecks(segment: ContentEditorSegment) {
+    if (this.isAssetSegment(segment) || !this.canValidateSegmentTarget(segment.id)) {
+      return false;
+    }
+
+    // Empty translations are only flagged on the focused row. Visible rows still
+    // get QA after hydration once they have text the reviewer can actually see.
+    return segment.targetText.trim().length > 0;
   }
 
   private isCurrentFileScope(generation: number) {

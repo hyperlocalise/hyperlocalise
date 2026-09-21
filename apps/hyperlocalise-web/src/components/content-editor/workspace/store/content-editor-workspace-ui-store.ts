@@ -12,6 +12,7 @@
  */
 import { makeAutoObservable } from "mobx";
 
+import { sameSegmentIdList } from "@/components/content-editor/side-by-side/content-editor-side-by-side-visible-range";
 import {
   contentEditorPageLimitForViewMode,
   readCatWorkspaceViewMode,
@@ -21,13 +22,12 @@ import {
 
 export class ContentEditorWorkspaceUiStore {
   viewMode: ContentEditorWorkspaceViewMode;
-  hoveredSegmentId: string | null = null;
-  previewLoadingSegmentId: string | null = null;
-  previewTargetLoading = false;
-  previewCommentsLoading = false;
   /** True while the translation/editor pane is waiting for a new file snapshot. */
   translationViewLoading = false;
+  /** Rows intersecting the side-by-side scrollport. Used for QA after hydration. */
   visibleSideBySideSegmentIds: string[] = [];
+  /** Rendered side-by-side rows, including overscan. Used to fetch translations. */
+  loadSideBySideSegmentIds: string[] = [];
   // Explicit initial modes (e.g. marketing demos) must not overwrite the
   // visitor's real CAT workspace preference.
   #persistViewMode: boolean;
@@ -55,34 +55,27 @@ export class ContentEditorWorkspaceUiStore {
     if (this.#persistViewMode) {
       writeCatWorkspaceViewMode(mode);
     }
+    if (mode !== "side-by-side") {
+      this.setSideBySideViewport({ visibleSegmentIds: [], loadSegmentIds: [] });
+    }
   }
 
-  setHoveredSegment(segmentId: string | null) {
-    this.hoveredSegmentId = segmentId;
-  }
-
-  clearHoveredSegment() {
-    this.hoveredSegmentId = null;
-  }
-
-  setVisibleSideBySideSegmentIds(segmentIds: string[]) {
-    if (
-      this.visibleSideBySideSegmentIds.length === segmentIds.length &&
-      this.visibleSideBySideSegmentIds.every((segmentId, index) => segmentId === segmentIds[index])
-    ) {
+  setSideBySideViewport(input: { visibleSegmentIds: string[]; loadSegmentIds: string[] }) {
+    const visibleUnchanged = sameSegmentIdList(
+      this.visibleSideBySideSegmentIds,
+      input.visibleSegmentIds,
+    );
+    const loadUnchanged = sameSegmentIdList(this.loadSideBySideSegmentIds, input.loadSegmentIds);
+    if (visibleUnchanged && loadUnchanged) {
       return;
     }
 
-    this.visibleSideBySideSegmentIds = segmentIds;
-  }
-
-  setPreviewLoadingState(
-    segmentId: string | null,
-    state: { isTargetLoading: boolean; isCommentsLoading: boolean },
-  ) {
-    this.previewLoadingSegmentId = segmentId;
-    this.previewTargetLoading = state.isTargetLoading;
-    this.previewCommentsLoading = state.isCommentsLoading;
+    if (!visibleUnchanged) {
+      this.visibleSideBySideSegmentIds = input.visibleSegmentIds;
+    }
+    if (!loadUnchanged) {
+      this.loadSideBySideSegmentIds = input.loadSegmentIds;
+    }
   }
 
   setTranslationViewLoading(loading: boolean) {

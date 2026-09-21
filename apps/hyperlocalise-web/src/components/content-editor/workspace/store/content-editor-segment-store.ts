@@ -31,6 +31,8 @@ export class ContentEditorSegmentStore {
   resolvingCommentId: string | null = null;
   commentPostError: string | undefined;
   queueTargetLoadingSegmentIds = new Set<string>();
+  /** Target requests that settled without a payload (error, retries exhausted, or disabled). */
+  failedTargetSegmentIds = new Set<string>();
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
@@ -45,6 +47,18 @@ export class ContentEditorSegmentStore {
     }
 
     this.queueTargetLoadingSegmentIds = new Set(segmentIds);
+  }
+
+  markTargetLoadFailed(segmentId: string) {
+    this.failedTargetSegmentIds.add(segmentId);
+  }
+
+  clearTargetLoadFailed(segmentId: string) {
+    this.failedTargetSegmentIds.delete(segmentId);
+  }
+
+  clearFailedTargetSegmentIds() {
+    this.failedTargetSegmentIds.clear();
   }
 
   get dirtySegmentIds(): ReadonlySet<string> {
@@ -62,6 +76,7 @@ export class ContentEditorSegmentStore {
     this.openIssueCounts.clear();
     this.drafts.clear();
     this.queueTargetLoadingSegmentIds.clear();
+    this.failedTargetSegmentIds.clear();
   }
 
   removeIfClean(segmentId: string) {
@@ -70,6 +85,7 @@ export class ContentEditorSegmentStore {
       this.drafts.delete(segmentId);
       this.comments.delete(segmentId);
       this.openIssueCounts.delete(segmentId);
+      this.failedTargetSegmentIds.delete(segmentId);
       return true;
     }
     return false;

@@ -634,7 +634,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   get intelligenceSegmentId() {
-    return this.ui.hoveredSegmentId ?? this.selectedSegmentId;
+    return this.selectedSegmentId;
   }
 
   get intelligenceSegmentView(): ContentEditorSegment | undefined {
@@ -649,14 +649,21 @@ export class ContentEditorWorkspaceOrchestrator {
 
   get loadingSegmentIds(): ReadonlySet<string> {
     const hasSelectedLoading = this.isSegmentTargetLoading && this.selectedSegmentId;
-    const hasPreviewLoading = this.ui.previewTargetLoading && this.ui.previewLoadingSegmentId;
     const queueLoadingIds = this.segments.queueTargetLoadingSegmentIds;
+    const pendingViewportIds = this.ui.isSideBySideView
+      ? this.ui.loadSideBySideSegmentIds.filter(
+          (segmentId) =>
+            !this.hasHydratedTarget(segmentId) &&
+            !this.hasFailedTarget(segmentId) &&
+            !this.drafts.get(segmentId)?.targetText.trim(),
+        )
+      : [];
 
-    if (!hasSelectedLoading && !hasPreviewLoading && queueLoadingIds.size === 0) {
+    if (!hasSelectedLoading && queueLoadingIds.size === 0 && pendingViewportIds.length === 0) {
       return EMPTY_LOADING_SEGMENT_IDS;
     }
 
-    const ids = new Set<string>();
+    const ids = new Set<string>(pendingViewportIds);
     for (const segmentId of queueLoadingIds) {
       // Read drafts here so MobX recomputes when the user types during a fetch.
       if (!this.drafts.get(segmentId)?.targetText.trim()) {
@@ -666,23 +673,11 @@ export class ContentEditorWorkspaceOrchestrator {
     if (hasSelectedLoading) {
       ids.add(this.selectedSegmentId);
     }
-    if (hasPreviewLoading && this.ui.previewLoadingSegmentId) {
-      ids.add(this.ui.previewLoadingSegmentId);
-    }
     return ids;
   }
 
   get isIntelligenceCommentsLoading() {
-    const segmentId = this.intelligenceSegmentId;
-    if (!segmentId) {
-      return false;
-    }
-
-    if (segmentId === this.selectedSegmentId) {
-      return this.isCommentsLoading;
-    }
-
-    return this.ui.previewCommentsLoading;
+    return this.isCommentsLoading;
   }
 
   get selectedDraft(): ContentEditorSegmentDraft | undefined {
@@ -695,6 +690,7 @@ export class ContentEditorWorkspaceOrchestrator {
     this.lastHydratedQueueIdentity = "";
     this.initialSegmentJumpApplied = false;
     this.hydratedTargetSegmentIds = new Set();
+    this.segments.clearFailedTargetSegmentIds();
     this.locallyCommittedTargetTexts = new Map();
     this.preSaveTargetTexts = new Map();
     this.localStatusOverrides = new Map();
@@ -729,6 +725,7 @@ export class ContentEditorWorkspaceOrchestrator {
     this.lastHydratedQueueIdentity = "";
     this.initialSegmentJumpApplied = false;
     this.hydratedTargetSegmentIds = new Set();
+    this.segments.clearFailedTargetSegmentIds();
     this.locallyCommittedTargetTexts = new Map();
     this.preSaveTargetTexts = new Map();
     this.localStatusOverrides = new Map();
@@ -758,6 +755,27 @@ export class ContentEditorWorkspaceOrchestrator {
 
   hasHydratedTarget(segmentId: string) {
     return this.hydratedTargetSegmentIds.has(segmentId);
+  }
+
+  hasFailedTarget(segmentId: string) {
+    return this.segments.failedTargetSegmentIds.has(segmentId);
+  }
+
+  markSegmentTargetLoadFailed(segmentId: string) {
+    if (this.hasHydratedTarget(segmentId) || this.hasFailedTarget(segmentId)) {
+      return;
+    }
+
+    this.segments.markTargetLoadFailed(segmentId);
+  }
+
+  clearSegmentTargetLoadFailed(segmentId: string) {
+    this.segments.clearTargetLoadFailed(segmentId);
+  }
+
+  private markTargetHydrated(segmentId: string) {
+    this.hydratedTargetSegmentIds.add(segmentId);
+    this.segments.clearTargetLoadFailed(segmentId);
   }
 
   ingestQueue(
@@ -902,7 +920,7 @@ export class ContentEditorWorkspaceOrchestrator {
     if (existingDraft) {
       if (existingDraft.isDirty) {
         existingDraft.applyServerStatus(status);
-        this.hydratedTargetSegmentIds.add(segmentId);
+        this.markTargetHydrated(segmentId);
         return;
       }
 
@@ -912,7 +930,7 @@ export class ContentEditorWorkspaceOrchestrator {
           const preSaveText = this.preSaveTargetTexts.get(segmentId);
           if (preSaveText !== undefined && targetText === preSaveText) {
             // In-flight pre-save fetch — ignore without clearing the guard.
-            this.hydratedTargetSegmentIds.add(segmentId);
+            this.markTargetHydrated(segmentId);
             return;
           }
         }
@@ -924,17 +942,17 @@ export class ContentEditorWorkspaceOrchestrator {
 
       if (existingDraft.targetText.trim() && !targetText.trim()) {
         existingDraft.applyServerStatus(status);
-        this.hydratedTargetSegmentIds.add(segmentId);
+        this.markTargetHydrated(segmentId);
         return;
       }
 
       existingDraft.applyServerTarget(targetText, status);
-      this.hydratedTargetSegmentIds.add(segmentId);
+      this.markTargetHydrated(segmentId);
       return;
     }
 
     this.drafts.set(segmentId, new ContentEditorSegmentDraft(segmentId, targetText, status));
-    this.hydratedTargetSegmentIds.add(segmentId);
+    this.markTargetHydrated(segmentId);
   }
 
   applySegmentComments(segmentId: string, comments: ProjectFileContentEditorComment[]) {
@@ -977,10 +995,16 @@ export class ContentEditorWorkspaceOrchestrator {
 
   setSegmentTargetLoading(loading: boolean) {
     this.isSegmentTargetLoading = loading;
+    if (loading && this.selectedSegmentId) {
+      this.segments.clearTargetLoadFailed(this.selectedSegmentId);
+    }
   }
 
   setQueueTargetLoadingSegmentIds(segmentIds: readonly string[]) {
     this.segments.setQueueTargetLoadingSegmentIds(segmentIds);
+    for (const segmentId of segmentIds) {
+      this.segments.clearTargetLoadFailed(segmentId);
+    }
   }
 
   setCommentsLoading(loading: boolean) {
@@ -996,6 +1020,7 @@ export class ContentEditorWorkspaceOrchestrator {
     this.segments.openIssueCounts.clear();
     this.drafts.clear();
     this.hydratedTargetSegmentIds = new Set();
+    this.segments.clearFailedTargetSegmentIds();
     this.locallyCommittedTargetTexts = new Map();
     this.preSaveTargetTexts = new Map();
     this.segmentIntelligence = { ...segmentIntelligence };
@@ -1014,13 +1039,14 @@ export class ContentEditorWorkspaceOrchestrator {
     this.segments.openIssueCounts.clear();
     this.drafts.clear();
     this.hydratedTargetSegmentIds = new Set();
+    this.segments.clearFailedTargetSegmentIds();
     this.locallyCommittedTargetTexts = new Map();
     this.preSaveTargetTexts = new Map();
     this.segmentIntelligence = { ...segmentIntelligence };
 
     for (const segment of segments) {
       this.segmentMeta.set(segment.id, toQueueSegment(segment));
-      this.hydratedTargetSegmentIds.add(segment.id);
+      this.markTargetHydrated(segment.id);
       if (segment.comments !== undefined) {
         this.segmentComments.set(segment.id, segment.comments);
       }
@@ -1072,6 +1098,7 @@ export class ContentEditorWorkspaceOrchestrator {
           this.segmentComments.delete(segmentId);
           this.segments.openIssueCounts.delete(segmentId);
           this.hydratedTargetSegmentIds.delete(segmentId);
+          this.segments.clearTargetLoadFailed(segmentId);
           this.locallyCommittedTargetTexts.delete(segmentId);
           this.preSaveTargetTexts.delete(segmentId);
         }
@@ -1129,7 +1156,6 @@ export class ContentEditorWorkspaceOrchestrator {
   setSelectedSegmentId(segmentId: string) {
     this.queue.select(segmentId);
     this.segments.clearCommentError();
-    this.ui.clearHoveredSegment();
   }
 
   setTargetText(segmentId: string, value: string) {
@@ -1172,6 +1198,7 @@ export class ContentEditorWorkspaceOrchestrator {
     this.segmentComments.delete(segmentId);
     this.segments.openIssueCounts.delete(segmentId);
     this.hydratedTargetSegmentIds.delete(segmentId);
+    this.segments.clearTargetLoadFailed(segmentId);
     this.locallyCommittedTargetTexts.delete(segmentId);
     this.preSaveTargetTexts.delete(segmentId);
     return true;
