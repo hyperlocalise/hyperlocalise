@@ -89,6 +89,47 @@ describe("switch case identifiers", () => {
     expect(remapLegacySwitchSourceHandle(cases, null)).toBeNull();
   });
 
+  it("accepts legacy switch cases through the definition schema", () => {
+    const parsed = visualWorkflowDefinitionSchema.safeParse(legacySwitchDefinition());
+    expect(parsed.success).toBe(true);
+    const switchNode = parsed.data?.nodes.find((node) => node.id === "switch");
+    expect(switchNode?.config.kind).toBe("logic.switch");
+    if (switchNode?.config.kind === "logic.switch") {
+      expect(switchNode.config.cases.every((entry) => entry.id.length > 0)).toBe(true);
+    }
+  });
+
+  it("does not remap numeric handles when cases already had stable ids", () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: VISUAL_WORKFLOW_SCHEMA_VERSION,
+      name: "Numeric ids",
+      nodes: [
+        { id: "trigger", type: "trigger.manual", config: { kind: "trigger.manual" } },
+        {
+          id: "switch",
+          type: "logic.switch",
+          config: {
+            kind: "logic.switch",
+            expression: "status",
+            cases: [
+              { id: "1", value: "first" },
+              { id: "other", value: "second" },
+            ],
+          },
+        },
+        { id: "target", type: "logic.set", config: { kind: "logic.set", assignments: [] } },
+      ],
+      edges: [
+        { id: "e0", source: "trigger", target: "switch", sourceHandle: null, targetHandle: null },
+        { id: "e1", source: "switch", target: "target", sourceHandle: "1", targetHandle: null },
+      ],
+      editor: { positions: {} },
+    };
+    const normalized = normalizeVisualWorkflowDefinition(definition);
+    expect(normalized.edges.find((edge) => edge.id === "e1")?.sourceHandle).toBe("1");
+    expect(validateVisualWorkflowDefinition(normalized)).toEqual([]);
+  });
+
   it("normalizes a three-case legacy graph and is idempotent", () => {
     const first = normalizeVisualWorkflowDefinition(legacySwitchDefinition());
     const switchNode = first.nodes.find((node) => node.id === "switch");

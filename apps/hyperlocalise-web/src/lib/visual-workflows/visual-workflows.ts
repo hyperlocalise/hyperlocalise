@@ -27,7 +27,6 @@ import {
 } from "./dispatch/trigger-matching";
 
 import { visualWorkflowDefinitionSchema } from "./schema/definition-schema";
-import { normalizeVisualWorkflowDefinition } from "./schema/switch-cases";
 import {
   createEmptyVisualWorkflowDefinition,
   fromVisualWorkflowDefinition,
@@ -48,12 +47,14 @@ function toIsoString(value: Date): string {
 }
 
 function parseStoredVisualWorkflowDefinition(input: unknown): VisualWorkflowDefinition | null {
-  if (!input || typeof input !== "object") {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
     return null;
   }
-  const parsed = visualWorkflowDefinitionSchema.safeParse(
-    normalizeVisualWorkflowDefinition(input as VisualWorkflowDefinition),
-  );
+  const candidate = input as Record<string, unknown>;
+  if (!Array.isArray(candidate.nodes) || !Array.isArray(candidate.edges)) {
+    return null;
+  }
+  const parsed = visualWorkflowDefinitionSchema.safeParse(input);
   return parsed.success ? parsed.data : null;
 }
 
@@ -87,9 +88,7 @@ function validateVisualWorkflowPayload(input: {
   definition: VisualWorkflowDefinition;
   draft?: boolean;
 }): Result<VisualWorkflowDefinition, VisualWorkflowValidationError> {
-  const parsed = visualWorkflowDefinitionSchema.safeParse(
-    normalizeVisualWorkflowDefinition(input.definition),
-  );
+  const parsed = visualWorkflowDefinitionSchema.safeParse(input.definition);
   if (!parsed.success) {
     return err({
       code: "invalid_definition",

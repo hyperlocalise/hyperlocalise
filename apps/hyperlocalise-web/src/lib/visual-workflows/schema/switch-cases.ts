@@ -65,6 +65,25 @@ export function ensureSwitchCasesWithIds(
   }));
 }
 
+export function switchCasesNeedLegacyEdgeRemap(cases: readonly VisualSwitchCaseDraft[]): boolean {
+  return cases.some((entry) => !entry.id?.trim());
+}
+
+export function preprocessVisualWorkflowDefinitionInput(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+  const record = value as Record<string, unknown>;
+  if (!Array.isArray(record.nodes) || !Array.isArray(record.edges)) {
+    return value;
+  }
+  try {
+    return normalizeVisualWorkflowDefinition(value as VisualWorkflowDefinition);
+  } catch {
+    return value;
+  }
+}
+
 export function remapLegacySwitchSourceHandle(
   cases: readonly VisualSwitchCase[],
   sourceHandle: string | null,
@@ -113,10 +132,13 @@ export function pruneSwitchCaseEdges<T extends { source: string; sourceHandle?: 
 export function normalizeVisualWorkflowDefinition(
   definition: VisualWorkflowDefinition,
 ): VisualWorkflowDefinition {
+  const legacyEdgeRemapBySwitchId = new Map<string, boolean>();
+
   const nodes = definition.nodes.map((node) => {
     if (node.config.kind !== "logic.switch") {
       return node;
     }
+    legacyEdgeRemapBySwitchId.set(node.id, switchCasesNeedLegacyEdgeRemap(node.config.cases));
     return {
       ...node,
       config: {
@@ -134,7 +156,7 @@ export function normalizeVisualWorkflowDefinition(
 
   const edges: CanonicalVisualWorkflowEdge[] = definition.edges.map((edge) => {
     const cases = switchCasesByNodeId.get(edge.source);
-    if (!cases) {
+    if (!cases || !legacyEdgeRemapBySwitchId.get(edge.source)) {
       return edge;
     }
     const sourceHandle = remapLegacySwitchSourceHandle(cases, edge.sourceHandle);
