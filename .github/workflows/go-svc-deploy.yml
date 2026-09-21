@@ -27,27 +27,25 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
   ECR_REPOSITORY_PARAMETER_NAME: /hyperlocalise/prod/ecr/go-svc/repository_name
+  ECS_CLUSTER_PARAMETER_NAME: /hyperlocalise/prod/ecs/go-svc/cluster_name
+  ECS_SERVICE_PARAMETER_NAME: /hyperlocalise/prod/ecs/go-svc/service_name
 
 jobs:
   build-and-deploy:
     name: Build and deploy go-svc
     if: github.ref == 'refs/heads/main'
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Validate AWS configuration
+      - name: Validate configuration
         run: |
-          set -euo pipefail
-          missing=()
-          [ -n "${AWS_REGION:-}" ] || missing+=("vars.AWS_REGION")
-          [ -n "${AWS_DEPLOY_ROLE_ARN:-}" ] || missing+=("vars.AWS_DEPLOY_ROLE_ARN")
-          if [ "${#missing[@]}" -gt 0 ]; then
-            echo "::error::Missing GitHub configuration: ${missing[*]}"
-            exit 1
-          fi
+          set -u
+          : "${AWS_REGION:?vars.AWS_REGION is required}"
+          : "${AWS_DEPLOY_ROLE_ARN:?vars.AWS_DEPLOY_ROLE_ARN is required}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
@@ -56,40 +54,41 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: github-actions-go-svc-deploy
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
-      - name: Read ECR repository from Parameter Store
-        id: repository
+      - name: Read deployment parameters
         run: |
           set -euo pipefail
-          repository=$(aws ssm get-parameter \
-            --name "${ECR_REPOSITORY_PARAMETER_NAME}" \
-            --query 'Parameter.Value' \
-            --output text)
-          if [ -z "${repository}" ] || [ "${repository}" = "None" ]; then
-            echo "::error::ECR repository parameter is empty"
+          response=$(aws ssm get-parameters \
+            --names "${ECR_REPOSITORY_PARAMETER_NAME}" \
+                    "${ECS_CLUSTER_PARAMETER_NAME}" \
+                    "${ECS_SERVICE_PARAMETER_NAME}" \
+            --output json)
+          invalid=$(echo "${response}" | jq -r '.InvalidParameters[]?')
+          if [ -n "${invalid}" ]; then
+            echo "::error::Missing SSM parameters: ${invalid}"
             exit 1
           fi
-          if [ "${#repository}" -gt 256 ] || \
-            [[ ! "${repository}" =~ ^([a-z0-9]+([._-][a-z0-9]+)*/)*[a-z0-9]+([._-][a-z0-9]+)*$ ]]; then
-            echo "::error::ECR repository parameter is invalid"
-            exit 1
-          fi
-          echo "name=${repository}" >> "${GITHUB_OUTPUT}"
+          value_of() {
+            echo "${response}" | jq -r --arg name "$1" \
+              '.Parameters[] | select(.Name == $name) | .Value // empty'
+          }
+          ECR_REPOSITORY=$(value_of "${ECR_REPOSITORY_PARAMETER_NAME}")
+          ECS_CLUSTER=$(value_of "${ECS_CLUSTER_PARAMETER_NAME}")
+          ECS_SERVICE=$(value_of "${ECS_SERVICE_PARAMETER_NAME}")
+          for var in ECR_REPOSITORY ECS_CLUSTER ECS_SERVICE; do
+            if [ -z "${!var:-}" ] || [ "${!var}" = "None" ]; then
+              echo "::error::SSM parameter missing or empty for ${var}"
+              exit 1
+            fi
+          done
+          {
+            echo "ECR_REPOSITORY=${ECR_REPOSITORY}"
+            echo "ECS_CLUSTER=${ECS_CLUSTER}"
+            echo "ECS_SERVICE=${ECS_SERVICE}"
+          } >> "${GITHUB_ENV}"
 
-      - name: Compute image reference and log in to ECR
-        id: image
-        env:
-          ECR_REPOSITORY: ${{ steps.repository.outputs.name }}
-        run: |
-          set -euo pipefail
-          account_id=$(aws sts get-caller-identity --query Account --output text)
-          registry="${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-          image="${registry}/${ECR_REPOSITORY}:${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          aws ecr get-login-password --region "${AWS_REGION}" \
-            | docker login --username AWS --password-stdin "${registry}"
-          echo "image=${image}" >> "${GITHUB_OUTPUT}"
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and push image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -98,6 +97,37 @@ jobs:
           file: Dockerfile.vercel
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.image.outputs.image }}
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Partial update: clone the live task definition, swap only the image to
+      # the new SHA, and point the service at the new revision. Everything
+      # else (CPU, memory, roles, secrets, port mapping) carries over untouched.
+      - name: Deploy new image to ECS
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition \
+            --task-definition "${ECS_SERVICE}" \
+            --query 'taskDefinition' --output json \
+          | jq --arg image "${IMAGE}" '
+              del(.taskDefinitionArn, .revision, .status,
+                  .registeredAt, .registeredBy, .compatibilities,
+                  .requiresAttributes)
+              | (.containerDefinitions[0].image = $image)' \
+            > /tmp/taskdef.json
+          task_def_arn=$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/taskdef.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+          aws ecs update-service \
+            --cluster "${ECS_CLUSTER}" \
+            --service "${ECS_SERVICE}" \
+            --task-definition "${task_def_arn}"
+
+      - name: Wait for service stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${ECS_CLUSTER}" \
+            --services "${ECS_SERVICE}"
