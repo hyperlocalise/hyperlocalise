@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { normalizeVisualWorkflowDefinition } from "../schema/switch-cases";
 import type {
   CanonicalVisualWorkflowNode,
   VisualWorkflowDefinition,
@@ -81,7 +80,7 @@ export async function runVisualWorkflowInterpreter(input: {
     failedNodeId: nodeId,
     error,
   });
-  const definition = normalizeVisualWorkflowDefinition(input.definition);
+  const definition = input.definition;
   const issues = validateVisualWorkflowDefinition(definition);
   if (issues.length)
     return fail("", { code: "invalid_graph", message: "Workflow graph is invalid.", issues });

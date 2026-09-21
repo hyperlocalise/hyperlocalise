@@ -18,19 +18,17 @@ import { VISUAL_WORKFLOW_SCHEMA_VERSION, type VisualWorkflowDefinition } from ".
 import {
   collectRemovedSwitchCaseIds,
   createSwitchCaseId,
-  ensureSwitchCasesWithIds,
   getSwitchCaseIndexByHandleId,
-  legacySwitchCaseId,
-  normalizeVisualWorkflowDefinition,
   pruneSwitchCaseEdges,
-  remapLegacySwitchSourceHandle,
 } from "./switch-cases";
 import { validateVisualWorkflowDefinition } from "../validation/validate-workflow";
 
-function legacySwitchDefinition(): VisualWorkflowDefinition {
+function switchDefinitionWithIds(): VisualWorkflowDefinition {
+  const casePending = "case-pending";
+  const caseReady = "case-ready";
   return {
     schemaVersion: VISUAL_WORKFLOW_SCHEMA_VERSION,
-    name: "Legacy switch",
+    name: "Switch",
     nodes: [
       { id: "trigger", type: "trigger.manual", config: { kind: "trigger.manual" } },
       {
@@ -39,7 +37,11 @@ function legacySwitchDefinition(): VisualWorkflowDefinition {
         config: {
           kind: "logic.switch",
           expression: "status",
-          cases: [{ value: "pending" }, { value: "ready" }, { value: "done" }] as never,
+          cases: [
+            { id: casePending, value: "pending" },
+            { id: caseReady, value: "ready" },
+            { id: "case-done", value: "done" },
+          ],
         },
       },
       { id: "a", type: "logic.set", config: { kind: "logic.set", assignments: [] } },
@@ -48,8 +50,8 @@ function legacySwitchDefinition(): VisualWorkflowDefinition {
     ],
     edges: [
       { id: "e0", source: "trigger", target: "switch", sourceHandle: null, targetHandle: null },
-      { id: "e1", source: "switch", target: "a", sourceHandle: "0", targetHandle: null },
-      { id: "e2", source: "switch", target: "b", sourceHandle: "1", targetHandle: null },
+      { id: "e1", source: "switch", target: "a", sourceHandle: casePending, targetHandle: null },
+      { id: "e2", source: "switch", target: "b", sourceHandle: caseReady, targetHandle: null },
       {
         id: "e3",
         source: "switch",
@@ -63,43 +65,42 @@ function legacySwitchDefinition(): VisualWorkflowDefinition {
 }
 
 describe("switch case identifiers", () => {
-  it("keeps legacy ids under the sourceHandle length cap for max-length node ids", () => {
-    const nodeId = "n".repeat(128);
-    const id = legacySwitchCaseId(nodeId, 11);
-    expect(id.length).toBeLessThanOrEqual(64);
-    expect(id).toBe(legacySwitchCaseId(nodeId, 11));
-    expect(id).not.toBe(legacySwitchCaseId(`${nodeId}x`, 11));
+  it("rejects switch cases without ids in the definition schema", () => {
+    const parsed = visualWorkflowDefinitionSchema.safeParse({
+      schemaVersion: VISUAL_WORKFLOW_SCHEMA_VERSION,
+      name: "Legacy",
+      nodes: [
+        {
+          id: "switch",
+          type: "logic.switch",
+          config: {
+            kind: "logic.switch",
+            expression: "x",
+            cases: [{ value: "a" }],
+          },
+        },
+      ],
+      edges: [],
+      editor: { positions: {} },
+    });
+    expect(parsed.success).toBe(false);
   });
 
-  it("assigns deterministic ids when cases are missing them", () => {
-    const cases = ensureSwitchCasesWithIds("switch", [
-      { value: "a" },
-      { id: "keep-me", value: "b" },
-    ]);
-    expect(cases[0]?.id).toBe(legacySwitchCaseId("switch", 0));
-    expect(cases[1]).toEqual({ id: "keep-me", value: "b" });
+  it("rejects index-based source handles when cases use stable ids", () => {
+    const definition = switchDefinitionWithIds();
+    definition.edges.push({
+      id: "bad",
+      source: "switch",
+      target: "a",
+      sourceHandle: "0",
+      targetHandle: null,
+    });
+    expect(validateVisualWorkflowDefinition(definition).map((issue) => issue.code)).toContain(
+      "invalid_handle",
+    );
   });
 
-  it("remaps in-range index handles and leaves out-of-range indexes unchanged", () => {
-    const cases = ensureSwitchCasesWithIds("switch", [{ value: "a" }, { value: "b" }]);
-    expect(remapLegacySwitchSourceHandle(cases, "1")).toBe(cases[1]?.id);
-    expect(remapLegacySwitchSourceHandle(cases, "default")).toBe("default");
-    expect(remapLegacySwitchSourceHandle(cases, cases[0]!.id)).toBe(cases[0]!.id);
-    expect(remapLegacySwitchSourceHandle(cases, "2")).toBe("2");
-    expect(remapLegacySwitchSourceHandle(cases, null)).toBeNull();
-  });
-
-  it("accepts legacy switch cases through the definition schema", () => {
-    const parsed = visualWorkflowDefinitionSchema.safeParse(legacySwitchDefinition());
-    expect(parsed.success).toBe(true);
-    const switchNode = parsed.data?.nodes.find((node) => node.id === "switch");
-    expect(switchNode?.config.kind).toBe("logic.switch");
-    if (switchNode?.config.kind === "logic.switch") {
-      expect(switchNode.config.cases.every((entry) => entry.id.length > 0)).toBe(true);
-    }
-  });
-
-  it("does not remap numeric handles when cases already had stable ids", () => {
+  it("accepts numeric case ids without remapping edges", () => {
     const definition: VisualWorkflowDefinition = {
       schemaVersion: VISUAL_WORKFLOW_SCHEMA_VERSION,
       name: "Numeric ids",
@@ -125,50 +126,13 @@ describe("switch case identifiers", () => {
       ],
       editor: { positions: {} },
     };
-    const normalized = normalizeVisualWorkflowDefinition(definition);
-    expect(normalized.edges.find((edge) => edge.id === "e1")?.sourceHandle).toBe("1");
-    expect(validateVisualWorkflowDefinition(normalized)).toEqual([]);
+    expect(definition.edges.find((edge) => edge.id === "e1")?.sourceHandle).toBe("1");
+    expect(validateVisualWorkflowDefinition(definition)).toEqual([]);
   });
 
-  it("normalizes a three-case legacy graph and is idempotent", () => {
-    const first = normalizeVisualWorkflowDefinition(legacySwitchDefinition());
-    const switchNode = first.nodes.find((node) => node.id === "switch");
-    if (switchNode?.config.kind !== "logic.switch") {
-      throw new Error("expected switch node");
-    }
-    const [firstCase, secondCase] = switchNode.config.cases;
-    expect(first.edges.find((edge) => edge.id === "e1")?.sourceHandle).toBe(firstCase?.id);
-    expect(first.edges.find((edge) => edge.id === "e2")?.sourceHandle).toBe(secondCase?.id);
-    expect(first.edges.find((edge) => edge.id === "e3")?.sourceHandle).toBe("default");
-    expect(validateVisualWorkflowDefinition(first)).toEqual([]);
-    expect(normalizeVisualWorkflowDefinition(first)).toEqual(first);
-  });
-
-  it("leaves an out-of-range legacy handle so validation can reject it", () => {
-    const definition = legacySwitchDefinition();
-    definition.edges.push({
-      id: "bad",
-      source: "switch",
-      target: "a",
-      sourceHandle: "2",
-      targetHandle: null,
-    });
-    definition.nodes = definition.nodes.map((node) =>
-      node.id === "switch" && node.config.kind === "logic.switch"
-        ? {
-            ...node,
-            config: {
-              ...node.config,
-              cases: [{ value: "pending" }, { value: "ready" }] as never,
-            },
-          }
-        : node,
-    );
-    const normalized = normalizeVisualWorkflowDefinition(definition);
-    expect(normalized.edges.find((edge) => edge.id === "bad")?.sourceHandle).toBe("2");
-    expect(validateVisualWorkflowDefinition(normalized).map((issue) => issue.code)).toContain(
-      "invalid_handle",
-    );
+  it("validates a three-case switch graph wired by case id", () => {
+    const definition = switchDefinitionWithIds();
+    expect(validateVisualWorkflowDefinition(definition)).toEqual([]);
   });
 
   it("prunes only edges for deleted case ids", () => {

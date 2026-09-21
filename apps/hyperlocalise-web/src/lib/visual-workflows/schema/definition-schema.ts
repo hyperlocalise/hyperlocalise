@@ -13,7 +13,6 @@
 import { z } from "zod";
 
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
-import { preprocessVisualWorkflowDefinitionInput } from "./switch-cases";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
 
 const httpMethodSchema = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
@@ -218,7 +217,7 @@ const visualWorkflowEdgeSchema = z
   })
   .strict();
 
-const visualWorkflowDefinitionObjectSchema = z
+export const visualWorkflowDefinitionSchema = z
   .object({
     schemaVersion: z.literal(VISUAL_WORKFLOW_SCHEMA_VERSION),
     name: z.string().trim().min(1).max(120),
@@ -234,10 +233,5 @@ const visualWorkflowDefinitionObjectSchema = z
       .strict(),
   })
   .strict();
-
-export const visualWorkflowDefinitionSchema = z.preprocess(
-  preprocessVisualWorkflowDefinitionInput,
-  visualWorkflowDefinitionObjectSchema,
-);
 
 export type VisualWorkflowDefinitionInput = z.infer<typeof visualWorkflowDefinitionSchema>;

@@ -19,7 +19,6 @@ import {
 import { buildVisualWorkflowGraphIndex } from "../runtime/graph-index";
 import { findForEachLoopRegion } from "../runtime/loop-region";
 import { visualWorkflowDefinitionSchema } from "../schema/definition-schema";
-import { normalizeVisualWorkflowDefinition } from "../schema/switch-cases";
 import type {
   VisualWorkflowDefinition,
   VisualWorkflowRfEdge,
@@ -119,7 +118,6 @@ function collectSchemaConfigIssues(
 export function validateVisualWorkflowDefinition(
   definition: VisualWorkflowDefinition,
 ): VisualWorkflowValidationIssue[] {
-  definition = normalizeVisualWorkflowDefinition(definition);
   const schemaIssues = collectSchemaConfigIssues(definition);
   if (schemaIssues.length) return schemaIssues;
   const nodes: VisualWorkflowRfNode[] = definition.nodes.map((node) => ({
