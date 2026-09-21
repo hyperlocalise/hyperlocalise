@@ -20,6 +20,8 @@ Add a dedicated application-repository workflow at
   dispatch from `main`.
 - Authenticate with GitHub Actions OIDC and the existing
   `AWS_DEPLOY_ROLE_ARN` repository variable.
+- Read the ECR repository name from its exact Parameter Store key with the AWS
+  CLI.
 - Build the repository-root `Dockerfile.vercel` for `linux/amd64`.
 - Push an immutable tag containing the commit SHA, workflow run ID, and run
   attempt to `hyperlocalise/go-svc`.
