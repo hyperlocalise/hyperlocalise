@@ -634,7 +634,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   get intelligenceSegmentId() {
-    return this.ui.hoveredSegmentId ?? this.selectedSegmentId;
+    return this.selectedSegmentId;
   }
 
   get intelligenceSegmentView(): ContentEditorSegment | undefined {
@@ -649,14 +649,19 @@ export class ContentEditorWorkspaceOrchestrator {
 
   get loadingSegmentIds(): ReadonlySet<string> {
     const hasSelectedLoading = this.isSegmentTargetLoading && this.selectedSegmentId;
-    const hasPreviewLoading = this.ui.previewTargetLoading && this.ui.previewLoadingSegmentId;
     const queueLoadingIds = this.segments.queueTargetLoadingSegmentIds;
+    const pendingViewportIds = this.ui.isSideBySideView
+      ? this.ui.loadSideBySideSegmentIds.filter(
+          (segmentId) =>
+            !this.hasHydratedTarget(segmentId) && !this.drafts.get(segmentId)?.targetText.trim(),
+        )
+      : [];
 
-    if (!hasSelectedLoading && !hasPreviewLoading && queueLoadingIds.size === 0) {
+    if (!hasSelectedLoading && queueLoadingIds.size === 0 && pendingViewportIds.length === 0) {
       return EMPTY_LOADING_SEGMENT_IDS;
     }
 
-    const ids = new Set<string>();
+    const ids = new Set<string>(pendingViewportIds);
     for (const segmentId of queueLoadingIds) {
       // Read drafts here so MobX recomputes when the user types during a fetch.
       if (!this.drafts.get(segmentId)?.targetText.trim()) {
@@ -666,23 +671,11 @@ export class ContentEditorWorkspaceOrchestrator {
     if (hasSelectedLoading) {
       ids.add(this.selectedSegmentId);
     }
-    if (hasPreviewLoading && this.ui.previewLoadingSegmentId) {
-      ids.add(this.ui.previewLoadingSegmentId);
-    }
     return ids;
   }
 
   get isIntelligenceCommentsLoading() {
-    const segmentId = this.intelligenceSegmentId;
-    if (!segmentId) {
-      return false;
-    }
-
-    if (segmentId === this.selectedSegmentId) {
-      return this.isCommentsLoading;
-    }
-
-    return this.ui.previewCommentsLoading;
+    return this.isCommentsLoading;
   }
 
   get selectedDraft(): ContentEditorSegmentDraft | undefined {
@@ -1129,7 +1122,6 @@ export class ContentEditorWorkspaceOrchestrator {
   setSelectedSegmentId(segmentId: string) {
     this.queue.select(segmentId);
     this.segments.clearCommentError();
-    this.ui.clearHoveredSegment();
   }
 
   setTargetText(segmentId: string, value: string) {

@@ -1067,7 +1067,7 @@ describe("resolveSegmentIntelligenceForDisplay", () => {
 });
 
 describe("ContentEditorWorkspaceOrchestrator ui state", () => {
-  it("resolves intelligence segment from hover and clears hover on selection", () => {
+  it("keeps intelligence on the selected segment instead of hover", () => {
     const store = createCatWorkspace(
       createContentEditorWorkspaceState({
         selectedSegmentId: "seg-01",
@@ -1096,30 +1096,54 @@ describe("ContentEditorWorkspaceOrchestrator ui state", () => {
       }),
     );
 
-    store.ui.setHoveredSegment("seg-02");
-
-    expect(store.intelligenceSegmentId).toBe("seg-02");
-    expect(store.intelligenceSegmentView?.key).toBe("second");
+    expect(store.intelligenceSegmentId).toBe("seg-01");
+    expect(store.intelligenceSegmentView?.key).toBe("first");
 
     store.setSelectedSegmentId("seg-02");
 
     expect(store.selectedSegmentId).toBe("seg-02");
-    expect(store.ui.hoveredSegmentId).toBeNull();
     expect(store.intelligenceSegmentId).toBe("seg-02");
+    expect(store.intelligenceSegmentView?.key).toBe("second");
   });
 
-  it("tracks loading segment ids from selected and preview targets", () => {
+  it("tracks loading segment ids from the selected target", () => {
     const store = createCatWorkspace(
       createContentEditorWorkspaceState({ selectedSegmentId: "seg-01" }),
     );
 
     store.setSegmentTargetLoading(true);
-    store.ui.setPreviewLoadingState("seg-02", {
-      isTargetLoading: true,
-      isCommentsLoading: false,
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-01"]);
+  });
+
+  it("treats unhydrated side-by-side load-range rows as loading", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+          { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
+        ],
+        segments: [],
+      }),
+    );
+
+    store.ui.setViewMode("side-by-side");
+    store.ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01", "seg-02"],
+      loadSegmentIds: ["seg-01", "seg-02", "seg-03"],
     });
 
-    expect([...store.loadingSegmentIds]).toEqual(["seg-01", "seg-02"]);
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-02", "seg-03"]);
+
+    store.applySegmentTarget("seg-02", {
+      text: "Second target",
+      externalTranslationId: "translation-2",
+      isApproved: false,
+    });
+
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-03"]);
   });
 
   it("includes queue target loading segment ids in side-by-side loading state", () => {

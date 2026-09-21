@@ -24,13 +24,13 @@ import type {
 } from "@/components/content-editor/shared/types";
 
 import { ContentEditorSideBySideRow } from "./content-editor-side-by-side-row";
+import { partitionSideBySideVirtualItems } from "./content-editor-side-by-side-visible-range";
 
 const ESTIMATED_ROW_HEIGHT = 72;
 
 export function ContentEditorSideBySideVirtualList({
   segments,
   focusedSegmentId,
-  hoveredSegmentId,
   dirtySegmentIds,
   canEdit,
   loadingSegmentIds,
@@ -50,9 +50,7 @@ export function ContentEditorSideBySideVirtualList({
   primaryActionLabel,
   segmentShareUrl = null,
   onFocusSegment,
-  onHoverSegment,
-  onLeaveSegment,
-  onVisibleSegmentIdsChange,
+  onVisibleRangeChange,
   onTargetChange,
   onApprove,
   onSaveDraft,
@@ -70,7 +68,6 @@ export function ContentEditorSideBySideVirtualList({
 }: {
   segments: ContentEditorSegment[];
   focusedSegmentId: string;
-  hoveredSegmentId: string | null;
   dirtySegmentIds?: ReadonlySet<string>;
   canEdit: boolean;
   loadingSegmentIds?: ReadonlySet<string>;
@@ -90,9 +87,7 @@ export function ContentEditorSideBySideVirtualList({
   primaryActionLabel?: string;
   segmentShareUrl?: string | null;
   onFocusSegment: (segmentId: string) => void;
-  onHoverSegment: (segmentId: string) => void;
-  onLeaveSegment: () => void;
-  onVisibleSegmentIdsChange: (segmentIds: string[]) => void;
+  onVisibleRangeChange: (range: { visibleSegmentIds: string[]; loadSegmentIds: string[] }) => void;
   onTargetChange: (segmentId: string, value: string) => void;
   onApprove?: (segmentId: string) => void;
   onSaveDraft?: (segmentId: string) => void;
@@ -132,16 +127,23 @@ export function ContentEditorSideBySideVirtualList({
     [hasMore, isLoadingMore, onNearEnd, segments.length],
   );
 
-  const publishVisibleSegmentIds = useCallback(
-    (items: Array<{ index: number }>) => {
-      onVisibleSegmentIdsChange(
-        items.flatMap((item) => {
-          const segment = segments[item.index];
-          return segment ? [segment.id] : [];
-        }),
-      );
+  const publishVisibleRange = useCallback(
+    (instance: {
+      getVirtualItems: () => Array<{ index: number; start: number; end: number }>;
+      scrollOffset?: number;
+      scrollRect?: { height: number } | null;
+      getScrollElement?: () => HTMLElement | null;
+    }) => {
+      const scrollElement = instance.getScrollElement?.() ?? parentRef.current;
+      const range = partitionSideBySideVirtualItems({
+        items: instance.getVirtualItems(),
+        segments,
+        scrollOffset: instance.scrollOffset ?? scrollElement?.scrollTop ?? 0,
+        viewportHeight: instance.scrollRect?.height ?? scrollElement?.clientHeight ?? 0,
+      });
+      onVisibleRangeChange(range);
     },
-    [onVisibleSegmentIdsChange, segments],
+    [onVisibleRangeChange, segments],
   );
 
   const getItemKey = useCallback((index: number) => segments[index]?.id ?? index, [segments]);
@@ -155,7 +157,7 @@ export function ContentEditorSideBySideVirtualList({
     onChange: (instance) => {
       const virtualItems = instance.getVirtualItems();
       checkForNearEnd(virtualItems);
-      publishVisibleSegmentIds(virtualItems);
+      publishVisibleRange(instance);
     },
   });
 
@@ -168,14 +170,14 @@ export function ContentEditorSideBySideVirtualList({
   useEffect(() => {
     const virtualItems = virtualizer.getVirtualItems();
     checkForNearEnd(virtualItems);
-    publishVisibleSegmentIds(virtualItems);
-  }, [checkForNearEnd, publishVisibleSegmentIds, virtualizer]);
+    publishVisibleRange(virtualizer);
+  }, [checkForNearEnd, publishVisibleRange, virtualizer]);
 
   useEffect(
     () => () => {
-      onVisibleSegmentIdsChange([]);
+      onVisibleRangeChange({ visibleSegmentIds: [], loadSegmentIds: [] });
     },
-    [onVisibleSegmentIdsChange],
+    [onVisibleRangeChange],
   );
 
   return (
@@ -198,7 +200,6 @@ export function ContentEditorSideBySideVirtualList({
               <ContentEditorSideBySideRow
                 segment={segment}
                 isFocused={segment.id === focusedSegmentId}
-                isHovered={segment.id === hoveredSegmentId}
                 isDirty={dirtySegmentIds?.has(segment.id) ?? false}
                 canEdit={canEdit}
                 isTargetLoading={loadingSegmentIds?.has(segment.id) ?? false}
@@ -224,8 +225,6 @@ export function ContentEditorSideBySideVirtualList({
                 primaryActionLabel={primaryActionLabel}
                 segmentShareUrl={segment.id === focusedSegmentId ? segmentShareUrl : null}
                 onFocus={() => onFocusSegment(segment.id)}
-                onHover={() => onHoverSegment(segment.id)}
-                onLeave={onLeaveSegment}
                 onTargetChange={(value) => onTargetChange(segment.id, value)}
                 onApprove={onApprove ? () => onApprove(segment.id) : undefined}
                 onSaveDraft={onSaveDraft ? () => onSaveDraft(segment.id) : undefined}

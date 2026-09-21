@@ -269,12 +269,8 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
   }) {
     const store = useContentEditorWorkspace();
     const selectedSegmentId = store.selectedSegmentId;
-    const previewSegmentId =
-      store.ui.hoveredSegmentId && store.ui.hoveredSegmentId !== selectedSegmentId
-        ? store.ui.hoveredSegmentId
-        : null;
     const isSideBySideView = store.ui.isSideBySideView;
-    const visibleSideBySideSegmentIds = store.ui.visibleSideBySideSegmentIds;
+    const loadSideBySideSegmentIds = store.ui.loadSideBySideSegmentIds;
 
     useCatLoadedQueueTargetsSync({
       organizationSlug,
@@ -285,10 +281,10 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
       resourceType,
       contentEditorFile,
       enabled: enabled && isSideBySideView,
-      segmentIds: visibleSideBySideSegmentIds,
+      segmentIds: loadSideBySideSegmentIds,
     });
 
-    const _selectedSync = useCatSegmentLazySync({
+    useCatSegmentLazySync({
       organizationSlug,
       projectId,
       sourcePath,
@@ -302,37 +298,6 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
       syncTargetLoading: true,
       syncCommentsLoading: true,
     });
-
-    const previewSync = useCatSegmentLazySync({
-      organizationSlug,
-      projectId,
-      sourcePath,
-      targetLocale,
-      externalResourceId,
-      resourceType,
-      contentEditorFile,
-      enabled: enabled && Boolean(previewSegmentId),
-      segmentId: previewSegmentId,
-      syncComments: true,
-      syncTargetLoading: false,
-      syncCommentsLoading: false,
-    });
-
-    useEffect(() => {
-      store.ui.setPreviewLoadingState(previewSync.segmentId, {
-        isTargetLoading: previewSync.isTargetLoading,
-        isCommentsLoading:
-          Boolean(previewSync.segmentId) &&
-          previewSync.isCommentsFetching &&
-          previewSync.comments === undefined,
-      });
-    }, [
-      previewSync.comments,
-      previewSync.isCommentsFetching,
-      previewSync.isTargetLoading,
-      previewSync.segmentId,
-      store,
-    ]);
 
     return null;
   },

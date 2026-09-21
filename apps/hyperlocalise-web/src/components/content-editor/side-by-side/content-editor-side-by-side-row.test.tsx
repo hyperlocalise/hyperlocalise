@@ -33,8 +33,6 @@ function renderRow(overrides: Partial<Parameters<typeof ContentEditorSideBySideR
     canEdit: true,
     isTargetLoading: false,
     onFocus: vi.fn(),
-    onHover: vi.fn(),
-    onLeave: vi.fn(),
     onTargetChange: vi.fn(),
     onApprove: vi.fn(),
     onSaveDraft: vi.fn(),
