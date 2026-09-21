@@ -191,3 +191,20 @@ func TestGlossaryCreateBodyRoundTrip(t *testing.T) {
 }
 
 func strPtr(v string) *string { return &v }
+
+func TestGlossaryActorCanContribute(t *testing.T) {
+	teamID := "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+	teamGlossary := glossaryRecord{ControlLevel: "team", Source: "native", TeamID: &teamID}
+	orgGlossary := glossaryRecord{ControlLevel: "org", Source: "native", TeamID: &teamID}
+	externalTeam := glossaryRecord{ControlLevel: "team", Source: "phrase", TeamID: &teamID}
+	teamWithoutID := glossaryRecord{ControlLevel: "team", Source: "native", TeamID: nil}
+
+	require.True(t, glossaryActor{role: "admin"}.canContribute(orgGlossary))
+	require.True(t, glossaryActor{role: "localization_manager"}.canContribute(orgGlossary))
+	require.True(t, glossaryActor{role: "translator"}.canContribute(teamGlossary))
+	require.False(t, glossaryActor{role: "translator"}.canContribute(orgGlossary))
+	require.False(t, glossaryActor{role: "translator"}.canContribute(externalTeam))
+	require.False(t, glossaryActor{role: "translator"}.canContribute(teamWithoutID))
+	require.False(t, glossaryActor{role: "member"}.canContribute(teamGlossary))
+	require.False(t, glossaryActor{role: "reviewer"}.canContribute(teamGlossary))
+}

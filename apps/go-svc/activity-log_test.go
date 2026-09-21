@@ -439,6 +439,51 @@ func TestParseActivityLogQueryFull(t *testing.T) {
 	require.Equal(t, "30d", query.rangeKey)
 }
 
+func TestContentEditorAllFilesSourcePath(t *testing.T) {
+	require.True(t, isContentEditorAllFilesSourcePath(""))
+	require.True(t, isContentEditorAllFilesSourcePath("   "))
+	require.True(t, isContentEditorAllFilesSourcePath("*"))
+	require.True(t, isContentEditorAllFilesSourcePath(" * "))
+	require.False(t, isContentEditorAllFilesSourcePath("locales/en.json"))
+	require.False(t, isContentEditorAllFilesSourcePath("*/partial"))
+}
+
+func TestActivityLogPayloadUUID(t *testing.T) {
+	valid := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	require.Equal(t, valid, activityLogPayloadUUID(map[string]any{"memberUserId": valid}, "memberUserId"))
+	require.Equal(t, "", activityLogPayloadUUID(map[string]any{"memberUserId": "not-a-uuid"}, "memberUserId"))
+	require.Equal(t, "", activityLogPayloadUUID(map[string]any{"memberUserId": 42}, "memberUserId"))
+	require.Equal(t, "", activityLogPayloadUUID(map[string]any{}, "memberUserId"))
+}
+
+func TestActivityLogAllFilesSourcePathOmitsHref(t *testing.T) {
+	createdAt := testDictionaryTime
+	for _, sourcePath := range []string{"*", "  "} {
+		t.Run(sourcePath, func(t *testing.T) {
+			payload := []byte(`{"fileName":"all files","projectId":"` + testActivityProjectID + `","sourcePath":"` + sourcePath + `"}`)
+			api, _ := activityLogTestAPI(t, "admin",
+				dictionaryDBStep{
+					kind: "query",
+					sql:  "from organization_activity_events e",
+					values: [][]any{{
+						nil, "system", nil, createdAt, "file_uploaded", testActivityEventID,
+						payload, testActivityTargetID, "file", nil, nil,
+					}},
+				},
+				dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
+			)
+			rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+			require.Equal(t, 200, rec.Code, rec.Body.String())
+
+			var body activityLogListResult
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+			require.Len(t, body.ActivityLogs, 1)
+			require.Equal(t, "all files", *body.ActivityLogs[0].Target.DisplayName)
+			require.Nil(t, body.ActivityLogs[0].Target.Href)
+		})
+	}
+}
+
 func mustActivityLogFingerprint(t *testing.T, query activityLogQuery) string {
 	t.Helper()
 	fingerprint, err := activityLogFilterFingerprint(query)

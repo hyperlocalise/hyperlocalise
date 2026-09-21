@@ -109,6 +109,13 @@ func TestIsPlaceholderNameEdgeCases(t *testing.T) {
 		{"empty", "", false},
 		{"unicode", "π", true},
 		{"unicode path", "π.val", true},
+		// ASCII fast-path cases after Bolt #2463 (simple identifiers without '.' / '[').
+		{"ascii user_id", "user_id", true},
+		{"ascii dollar", "$count", true},
+		{"ascii hyphenated", "folder-name", true},
+		{"reject trailing bracket", "name]", false},
+		{"reject open bracket", "items[", false},
+		{"reject space", "user name", false},
 	}
 
 	for _, tt := range tests {
