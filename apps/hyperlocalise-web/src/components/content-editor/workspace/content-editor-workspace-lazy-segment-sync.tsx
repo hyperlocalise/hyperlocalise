@@ -25,6 +25,7 @@ import {
 } from "@/components/content-editor/project-file/use-content-editor-segment-target";
 
 import { useContentEditorWorkspace } from "./content-editor-workspace-context";
+import { isSegmentTargetQuerySettledWithoutData } from "./content-editor-workspace-segment-target-query-status";
 
 function useCatSegmentLazySync(input: {
   organizationSlug: string;
@@ -44,6 +45,7 @@ function useCatSegmentLazySync(input: {
   const segmentId = input.segmentId
     ? (store.findSegmentIdByKeyOrId(input.segmentId) ?? input.segmentId)
     : null;
+  const hasContentEditorFile = Boolean(input.contentEditorFile);
 
   const queueSegment = segmentId
     ? input.contentEditorFile?.segments.find((segment) => segment.externalStringId === segmentId)
@@ -115,16 +117,27 @@ function useCatSegmentLazySync(input: {
       return;
     }
 
+    const queryEnabled = input.enabled && hasContentEditorFile;
     const isLoading =
+      queryEnabled &&
       segmentTargetQuery.isFetching &&
       segmentTargetQuery.data === undefined &&
       !(segmentId && store.drafts.get(segmentId)?.targetText.trim());
 
     store.setSegmentTargetLoading(isLoading);
+    if (isLoading) {
+      store.clearSegmentTargetLoadFailed(segmentId);
+    } else if (queryEnabled && isSegmentTargetQuerySettledWithoutData(segmentTargetQuery)) {
+      store.markSegmentTargetLoadFailed(segmentId);
+    }
   }, [
+    hasContentEditorFile,
+    input.enabled,
     input.syncTargetLoading,
     segmentId,
     segmentTargetQuery.data,
+    segmentTargetQuery.fetchStatus,
+    segmentTargetQuery.isError,
     segmentTargetQuery.isFetching,
     store,
   ]);
@@ -215,7 +228,10 @@ function useCatLoadedQueueTargetsSync(input: {
     .map((query) => `${query.dataUpdatedAt}:${query.status}`)
     .join("|");
   const targetLoadingSyncKey = targetQueries
-    .map((query) => `${query.isFetching}:${query.data === undefined}`)
+    .map(
+      (query) =>
+        `${query.isFetching}:${query.data === undefined}:${query.status}:${query.fetchStatus}`,
+    )
     .join("|");
 
   useEffect(() => {
@@ -238,12 +254,28 @@ function useCatLoadedQueueTargetsSync(input: {
     // Track fetch-in-flight only. Draft text is filtered in `loadingSegmentIds`
     // so typing during a fetch clears the skeleton without needing this effect
     // to re-run on draft changes.
-    const loadingIds = segmentIds.filter((_segmentId, index) => {
+    const loadingIds: string[] = [];
+    const failedIds: string[] = [];
+    segmentIds.forEach((segmentId, index) => {
       const query = targetQueriesRef.current[index];
-      return Boolean(query?.isFetching && query.data === undefined);
+      if (!query) {
+        return;
+      }
+
+      if (query.isFetching && query.data === undefined) {
+        loadingIds.push(segmentId);
+        return;
+      }
+
+      if (isSegmentTargetQuerySettledWithoutData(query)) {
+        failedIds.push(segmentId);
+      }
     });
 
     store.setQueueTargetLoadingSegmentIds(loadingIds);
+    for (const segmentId of failedIds) {
+      store.markSegmentTargetLoadFailed(segmentId);
+    }
   }, [segmentIds, store, targetLoadingSyncKey, targetsEnabled]);
 }
 
