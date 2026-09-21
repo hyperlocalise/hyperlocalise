@@ -218,6 +218,8 @@ describe("path builders", () => {
     expect(byLabel.get("Guideline")?.href).toBe("/org/acme/knowledge");
     expect(byLabel.get("Guideline")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
     expect(byLabel.get("QA")?.href).toBe("/org/acme/qa");
+    expect(byLabel.get("Automations")?.href).toBe("/org/acme/automations");
+    expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
     expect(byLabel.get("Settings")?.href).toBe("/org/acme/settings");
 
     expect(groups.map((group) => group.label)).toEqual([
@@ -233,6 +235,7 @@ describe("path builders", () => {
       "Queries",
       "Reports",
       "QA",
+      "Automations",
     ]);
     expect(groups[2]?.items.map((item) => item.label)).toEqual([
       "Glossaries",
@@ -501,6 +504,16 @@ describe("buildProjectNavigationItems", () => {
     });
     const items = buildProjectNavigationItems("acme", projectId, intl);
     expect(items.find((item) => item.label === "QA")).toBeUndefined();
+  });
+
+  it("includes a workspace Automations item gated by the workspace automations flag", () => {
+    const groups = buildGlobalNavigationGroups("acme", intl);
+    const automationsItem = groups
+      .flatMap((group) => group.items)
+      .find((item) => item.label === "Automations");
+
+    expect(automationsItem?.href).toBe("/org/acme/automations");
+    expect(automationsItem?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
   });
 
   it("includes an Automations item gated by the workspace automations flag", () => {
