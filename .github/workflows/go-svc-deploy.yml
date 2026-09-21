@@ -31,7 +31,7 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
   ECR_REPOSITORY_PARAMETER_NAME: /hyperlocalise/prod/ecr/go-svc/repository_name
-  ECS_CLUSTER_PARAMETER_NAME: /hyperlocalise/prod/ecs/go-svc/cluster_name
+  ECS_CLUSTER_PARAMETER_NAME: /hyperlocalise/prod/ecs/cluster_name
   ECS_SERVICE_PARAMETER_NAME: /hyperlocalise/prod/ecs/go-svc/service_name
 
 jobs:
