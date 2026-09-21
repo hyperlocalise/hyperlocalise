@@ -31,7 +31,8 @@ Add a dedicated application-repository workflow at
 - Read and validate the three infra-published SSM parameters before building
   the image; any missing or empty parameter fails the workflow.
 - Build the repository-root `Dockerfile.vercel` for `linux/amd64`.
-- Push an immutable commit-SHA tag to `hyperlocalise/go-svc`.
+- Push an immutable tag containing the commit SHA, workflow run ID, and run
+  attempt to `hyperlocalise/go-svc`.
 - Partial update: clone the live task definition, swap only the container
   image to the new SHA, register the new revision, and point the service at
   it. CPU, memory, roles, secrets, and port mapping carry over untouched, so
@@ -65,7 +66,8 @@ empty.
 
 ### ECS rollout
 
-- Each deploy pushes an immutable commit-SHA image tag, then patches only the
+- Each deploy pushes an immutable `{sha}-{run_id}-{run_attempt}` image tag,
+  then patches only the
   image field of the current task-definition revision (family == service
   name) and moves the service to the new revision. Infra keeps owning the
   target group (`/health` on port `8080`) and every other task setting.
