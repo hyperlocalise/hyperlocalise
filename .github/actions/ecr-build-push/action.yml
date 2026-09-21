@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: ECR build push
+description: Build a container image and push it to ECR
+inputs:
+  registry:
+    description: ECR registry URI
+    required: true
+  repository:
+    description: ECR repository name
+    required: true
+  tag:
+    description: Image tag (without registry/repository prefix)
+    required: true
+  context:
+    description: Docker build context
+    default: .
+  dockerfile:
+    description: Path to the Dockerfile
+    default: Dockerfile.vercel
+  platforms:
+    description: Target platforms
+    default: linux/amd64
+outputs:
+  image:
+    description: Fully-qualified image URI that was pushed
+    value: ${{ steps.image.outputs.image }}
+runs:
+  using: composite
+  steps:
+    - name: Resolve image URI
+      id: image
+      shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        REPOSITORY: ${{ inputs.repository }}
+        TAG: ${{ inputs.tag }}
+      run: |
+        echo "image=${REGISTRY}/${REPOSITORY}:${TAG}" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+    - name: Build and push image
+      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.dockerfile }}
+        platforms: ${{ inputs.platforms }}
+        push: true
+        tags: ${{ steps.image.outputs.image }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
