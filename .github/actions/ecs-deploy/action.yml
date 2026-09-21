@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: ECS deploy
+description: Roll out a new image to ECS by cloning the live task definition and swapping only the image
+inputs:
+  ecs-service:
+    description: ECS service name
+    required: true
+  ecs-cluster:
+    description: ECS cluster name
+    required: true
+  image:
+    description: Fully-qualified container image URI to deploy
+    required: true
+  container-name:
+    description: Container name inside the task definition to update
+    required: true
+  task-definition-file:
+    description: Working file for the downloaded task definition
+    default: task-definition.json
+  wait-for-minutes:
+    description: Minutes to wait for service stability
+    default: "15"
+  wait-max-delay-seconds:
+    description: Max delay between stability checks, in seconds
+    default: "15"
+runs:
+  using: composite
+  steps:
+    # Partial update: clone the live task definition, swap only the image to
+    # the new SHA, and point the service at the new revision. Everything
+    # else (CPU, memory, roles, secrets, port mapping) carries over untouched.
+    - name: Download current task definition
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      env:
+        ECS_SERVICE: ${{ inputs.ecs-service }}
+        TASK_DEFINITION_FILE: ${{ inputs.task-definition-file }}
+      with:
+        script: |
+          let stdout = '';
+          await exec.exec('aws', ['ecs', 'describe-task-definition', '--task-definition', process.env.ECS_SERVICE, '--query', 'taskDefinition', '--output', 'json'], {
+            listeners: { stdout: (data) => { stdout += data.toString(); } },
+          });
+          const taskDefinition = JSON.parse(stdout);
+          for (const key of ['taskDefinitionArn', 'revision', 'status', 'registeredAt', 'registeredBy', 'compatibilities', 'requiresAttributes']) {
+            delete taskDefinition[key];
+          }
+          require('fs').writeFileSync(process.env.TASK_DEFINITION_FILE, `${JSON.stringify(taskDefinition)}\n`);
+
+    - name: Render task definition with new image
+      id: render
+      uses: aws-actions/amazon-ecs-render-task-definition@138c24f321fdbdf7edee4a685519d253cae2cdea # v1
+      with:
+        task-definition: ${{ inputs.task-definition-file }}
+        container-name: ${{ inputs.container-name }}
+        image: ${{ inputs.image }}
+
+    - name: Deploy new image to ECS
+      uses: aws-actions/amazon-ecs-deploy-task-definition@c465972ecbd160473f22e683363b422a5412a3de # v2
+      with:
+        task-definition: ${{ steps.render.outputs.task-definition }}
+        service: ${{ inputs.ecs-service }}
+        cluster: ${{ inputs.ecs-cluster }}
+        wait-for-service-stability: true
+        wait-for-minutes: ${{ inputs.wait-for-minutes }}
+        wait-max-delay-seconds: ${{ inputs.wait-max-delay-seconds }}

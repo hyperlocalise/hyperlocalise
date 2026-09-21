@@ -12,6 +12,10 @@ on:
       - third_party/**
       - internal/**
       - apps/go-svc/**
+      - .github/actions/aws-auth/**
+      - .github/actions/ssm-deployment-params/**
+      - .github/actions/ecr-build-push/**
+      - .github/actions/ecs-deploy/**
       - .github/workflows/go-svc-deploy.yml
   workflow_dispatch:
 
@@ -41,93 +45,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Validate configuration
-        run: |
-          set -u
-          : "${AWS_REGION:?vars.AWS_REGION is required}"
-          : "${AWS_DEPLOY_ROLE_ARN:?vars.AWS_DEPLOY_ROLE_ARN is required}"
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+      - name: Authenticate with AWS and ECR
+        id: auth
+        uses: ./.github/actions/aws-auth
         with:
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: github-actions-go-svc-deploy
 
       - name: Read deployment parameters
-        run: |
-          set -euo pipefail
-          response=$(aws ssm get-parameters \
-            --names "${ECR_REPOSITORY_PARAMETER_NAME}" \
-                    "${ECS_CLUSTER_PARAMETER_NAME}" \
-                    "${ECS_SERVICE_PARAMETER_NAME}" \
-            --output json)
-          invalid=$(echo "${response}" | jq -r '.InvalidParameters[]?')
-          if [ -n "${invalid}" ]; then
-            echo "::error::Missing SSM parameters: ${invalid}"
-            exit 1
-          fi
-          value_of() {
-            echo "${response}" | jq -r --arg name "$1" \
-              '.Parameters[] | select(.Name == $name) | .Value // empty'
-          }
-          ECR_REPOSITORY=$(value_of "${ECR_REPOSITORY_PARAMETER_NAME}")
-          ECS_CLUSTER=$(value_of "${ECS_CLUSTER_PARAMETER_NAME}")
-          ECS_SERVICE=$(value_of "${ECS_SERVICE_PARAMETER_NAME}")
-          for var in ECR_REPOSITORY ECS_CLUSTER ECS_SERVICE; do
-            if [ -z "${!var:-}" ] || [ "${!var}" = "None" ]; then
-              echo "::error::SSM parameter missing or empty for ${var}"
-              exit 1
-            fi
-          done
-          {
-            echo "ECR_REPOSITORY=${ECR_REPOSITORY}"
-            echo "ECS_CLUSTER=${ECS_CLUSTER}"
-            echo "ECS_SERVICE=${ECS_SERVICE}"
-          } >> "${GITHUB_ENV}"
-
-      - name: Log in to Amazon ECR
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        id: params
+        uses: ./.github/actions/ssm-deployment-params
+        with:
+          ecr-parameter-name: ${{ env.ECR_REPOSITORY_PARAMETER_NAME }}
+          ecs-cluster-parameter-name: ${{ env.ECS_CLUSTER_PARAMETER_NAME }}
+          ecs-service-parameter-name: ${{ env.ECS_SERVICE_PARAMETER_NAME }}
 
       - name: Build and push image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        id: build
+        uses: ./.github/actions/ecr-build-push
         with:
-          context: .
-          file: Dockerfile.vercel
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          registry: ${{ steps.auth.outputs.registry }}
+          repository: ${{ steps.params.outputs.ecr-repository }}
+          tag: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-      # Partial update: clone the live task definition, swap only the image to
-      # the new SHA, and point the service at the new revision. Everything
-      # else (CPU, memory, roles, secrets, port mapping) carries over untouched.
       - name: Deploy new image to ECS
-        env:
-          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-        run: |
-          set -euo pipefail
-          aws ecs describe-task-definition \
-            --task-definition "${ECS_SERVICE}" \
-            --query 'taskDefinition' --output json \
-          | jq --arg image "${IMAGE}" '
-              del(.taskDefinitionArn, .revision, .status,
-                  .registeredAt, .registeredBy, .compatibilities,
-                  .requiresAttributes)
-              | (.containerDefinitions[0].image = $image)' \
-            > /tmp/taskdef.json
-          task_def_arn=$(aws ecs register-task-definition \
-            --cli-input-json file:///tmp/taskdef.json \
-            --query 'taskDefinition.taskDefinitionArn' --output text)
-          aws ecs update-service \
-            --cluster "${ECS_CLUSTER}" \
-            --service "${ECS_SERVICE}" \
-            --task-definition "${task_def_arn}"
-
-      - name: Wait for service stability
-        run: |
-          aws ecs wait services-stable \
-            --cluster "${ECS_CLUSTER}" \
-            --services "${ECS_SERVICE}"
+        uses: ./.github/actions/ecs-deploy
+        with:
+          ecs-service: ${{ steps.params.outputs.ecs-service }}
+          ecs-cluster: ${{ steps.params.outputs.ecs-cluster }}
+          image: ${{ steps.build.outputs.image }}
+          container-name: go-svc
