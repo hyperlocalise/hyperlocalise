@@ -74,7 +74,7 @@ jobs:
           set -euo pipefail
           account_id=$(aws sts get-caller-identity --query Account --output text)
           registry="${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-          image="${registry}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+          image="${registry}/${ECR_REPOSITORY}:${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           aws ecr get-login-password --region "${AWS_REGION}" \
             | docker login --username AWS --password-stdin "${registry}"
           echo "image=${image}" >> "${GITHUB_OUTPUT}"

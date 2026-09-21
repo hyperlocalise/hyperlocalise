@@ -21,7 +21,8 @@ Add a dedicated application-repository workflow at
 - Authenticate with GitHub Actions OIDC and the existing
   `AWS_DEPLOY_ROLE_ARN` repository variable.
 - Build the repository-root `Dockerfile.vercel` for `linux/amd64`.
-- Push only the immutable commit-SHA tag to `hyperlocalise/go-svc`.
+- Push an immutable tag containing the commit SHA, workflow run ID, and run
+  attempt to `hyperlocalise/go-svc`.
 - Use GitHub Actions Buildx cache and cancel superseded builds on the same ref.
 
 ## Configuration
