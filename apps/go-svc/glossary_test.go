@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 	"github.com/workos/workos-go/v10"
 )
@@ -207,4 +208,29 @@ func TestGlossaryActorCanContribute(t *testing.T) {
 	require.False(t, glossaryActor{role: "translator"}.canContribute(teamWithoutID))
 	require.False(t, glossaryActor{role: "member"}.canContribute(teamGlossary))
 	require.False(t, glossaryActor{role: "reviewer"}.canContribute(teamGlossary))
+}
+
+func TestGlossaryTeamPrivateAccessDenied(t *testing.T) {
+	// Translators without team/project membership must not learn that a
+	// team-private glossary exists via GET or history (same class as #2378).
+	denied := dictionaryDBStep{
+		kind: "row",
+		sql:  "g.id=$1 and",
+		args: []any{testGlossaryID, testGlossaryOrgID, testGlossaryUserID, false},
+		err:  pgx.ErrNoRows,
+	}
+
+	t.Run("get glossary", func(t *testing.T) {
+		api, _ := glossaryTestAPI(t, "translator", denied)
+		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID, "")
+		require.Equal(t, 404, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"glossary_not_found"`)
+	})
+
+	t.Run("concepts history", func(t *testing.T) {
+		api, _ := glossaryTestAPI(t, "translator", denied)
+		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/concepts/history", "")
+		require.Equal(t, 404, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"glossary_not_found"`)
+	})
 }
