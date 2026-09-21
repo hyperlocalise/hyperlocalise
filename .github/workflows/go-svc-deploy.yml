@@ -101,22 +101,33 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Fetches the live task definition by family, swaps only the image to the
-      # newly pushed tag, then registers and deploys it. No checked-in file,
-      # no AWS CLI. Convention: family and container share the service name.
-      - name: Render task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition-family: ${{ env.ECS_SERVICE }}
-          container-name: ${{ env.ECS_SERVICE }}
-          image: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      # Partial update: clone the live task definition, swap only the image to
+      # the new SHA, and point the service at the new revision. Everything
+      # else (CPU, memory, roles, secrets, port mapping) carries over untouched.
+      - name: Deploy new image to ECS
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition \
+            --task-definition "${ECS_SERVICE}" \
+            --query 'taskDefinition' --output json \
+          | jq --arg image "${IMAGE}" '
+              del(.taskDefinitionArn, .revision, .status,
+                  .registeredAt, .registeredBy, .compatibilities,
+                  .requiresAttributes)
+              | (.containerDefinitions[0].image = $image)' \
+            > /tmp/taskdef.json
+          task_def_arn=$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/taskdef.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+          aws ecs update-service \
+            --cluster "${ECS_CLUSTER}" \
+            --service "${ECS_SERVICE}" \
+            --task-definition "${task_def_arn}"
 
-      - name: Deploy to ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-          wait-max-delay-seconds: 15
+      - name: Wait for service stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${ECS_CLUSTER}" \
+            --services "${ECS_SERVICE}"
