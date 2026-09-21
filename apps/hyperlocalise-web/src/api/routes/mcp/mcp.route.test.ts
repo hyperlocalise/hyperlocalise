@@ -125,9 +125,13 @@ vi.mock("@/lib/workflow/queues", async (importOriginal) => {
   };
 });
 
-const { ensureAiFeaturesAllowedMock } = vi.hoisted(() => ({
+const { ensureAiFeaturesAllowedMock, isAutumnBooleanFeatureEnabledMock } = vi.hoisted(() => ({
   ensureAiFeaturesAllowedMock:
     vi.fn<typeof import("@/lib/billing/ai-features").ensureAiFeaturesAllowed>(),
+  isAutumnBooleanFeatureEnabledMock:
+    vi.fn<
+      typeof import("@/lib/billing/autumn-boolean-feature-access").isAutumnBooleanFeatureEnabled
+    >(),
 }));
 
 vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
@@ -136,6 +140,16 @@ vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
   return {
     ...actual,
     ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
+  };
+});
+
+vi.mock("@/lib/billing/autumn-boolean-feature-access", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/billing/autumn-boolean-feature-access")>();
+
+  return {
+    ...actual,
+    isAutumnBooleanFeatureEnabled: isAutumnBooleanFeatureEnabledMock,
   };
 });
 
@@ -303,6 +317,8 @@ describe("mcpRoutes", () => {
     translationJobEnqueueMock.mockClear();
     ensureAiFeaturesAllowedMock.mockReset();
     ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
+    isAutumnBooleanFeatureEnabledMock.mockReset();
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
     workspaceKnowledgeFlagRunMock.mockReset();
     workspaceKnowledgeFlagRunMock.mockResolvedValue(true);
   });
@@ -2417,6 +2433,35 @@ describe("mcpRoutes", () => {
     } finally {
       updateSpy.mockRestore();
     }
+  });
+
+  it("rejects MCP issue tools when Autumn queries-board is disabled", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
+
+    const createResponse = await callMcpTool(headers, "create_issue", {
+      projectId: stored.project.id,
+      title: "Should be plan-gated",
+    });
+    const createResult = await readMcpToolResult(createResponse);
+    expect(createResult.isError).toBe(true);
+    expect(createResult.output).toMatchObject({
+      error: "feature_unavailable",
+      message: "Queries is not included in your current plan.",
+    });
+
+    const listResponse = await callMcpTool(headers, "list_issues", {
+      limit: 10,
+      offset: 0,
+    });
+    const listResult = await readMcpToolResult(listResponse);
+    expect(listResult.isError).toBe(true);
+    expect(listResult.output).toMatchObject({
+      error: "feature_unavailable",
+    });
+
+    expect(isAutumnBooleanFeatureEnabledMock).toHaveBeenCalled();
   });
 
   it("advertises the create_issue tool with a bounded input schema", async () => {
