@@ -18,8 +18,6 @@ export function isSegmentTargetQuerySettledWithoutData(query: {
   fetchStatus: "fetching" | "paused" | "idle";
 }) {
   return (
-    query.data === undefined &&
-    !query.isFetching &&
-    (query.isError || query.fetchStatus === "idle")
+    query.data === undefined && !query.isFetching && (query.isError || query.fetchStatus === "idle")
   );
 }
