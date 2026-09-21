@@ -58,7 +58,7 @@ The infra role trust policy must continue to allow the `main` branch subject.
 | Parameter | Content |
 |-----------|---------|
 | `/hyperlocalise/prod/ecr/go-svc/repository_name` | ECR repository name (`hyperlocalise/go-svc`) |
-| `/hyperlocalise/prod/ecs/go-svc/cluster_name` | ECS cluster name |
+| `/hyperlocalise/prod/ecs/cluster_name` | ECS cluster name |
 | `/hyperlocalise/prod/ecs/go-svc/service_name` | ECS service name; also the task-definition family |
 
 The workflow reads all three up front and fails fast if any is missing or
