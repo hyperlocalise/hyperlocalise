@@ -217,6 +217,16 @@ export function buildGlobalNavigationGroups(
           href: org("qa"),
           icon: CheckmarkCircle02Icon,
         },
+        {
+          label: intl.formatMessage({
+            defaultMessage: "Automations",
+            id: "87mk4HgY5S",
+            description: "Sidebar navigation item for workspace automations",
+          }),
+          href: org("automations"),
+          icon: FlashIcon,
+          featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
+        },
       ],
     },
     {

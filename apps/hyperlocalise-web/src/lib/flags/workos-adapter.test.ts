@@ -155,7 +155,7 @@ describe("workosAdapter", () => {
 const intl = getIntlShape("en") as IntlShape;
 
 describe("annotateNavigationByWorkspaceFlags", () => {
-  it("marks Queries, Reports, and Guideline as preview when workspace flags are disabled", () => {
+  it("marks Queries, Reports, Guideline, and Automations as preview when workspace flags are disabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const annotated = annotateNavigationByWorkspaceFlags(groups, {
       automations: false,
@@ -178,10 +178,14 @@ describe("annotateNavigationByWorkspaceFlags", () => {
     const reportsItem = annotated
       .flatMap((group) => group.items)
       .find((item) => item.label === "Reports");
+    const automationsItem = annotated
+      .flatMap((group) => group.items)
+      .find((item) => item.label === "Automations");
 
     expect(queriesItem?.preview).toBe(true);
     expect(guidelineItem?.preview).toBe(true);
     expect(reportsItem?.preview).toBe(true);
+    expect(automationsItem?.preview).toBe(true);
   });
 
   it("clears preview badges when workspace flags are enabled", () => {
@@ -234,7 +238,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
     expect(itemLabels).toContain("Settings");
   });
 
-  it("keeps Queries, Reports, and Guideline when workspace flags are enabled", () => {
+  it("keeps Queries, Reports, Guideline, and Automations when workspace flags are enabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const filtered = filterNavigationByWorkspaceFlags(groups, {
       automations: true,
@@ -253,7 +257,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
     expect(itemLabels).toContain("Guideline");
     expect(itemLabels).toContain("Queries");
     expect(itemLabels).toContain("Reports");
-    expect(itemLabels).not.toContain("Automations");
+    expect(itemLabels).toContain("Automations");
     expect(itemLabels).not.toContain("Domains");
     expect(itemLabels).not.toContain("AI Engine");
   });
@@ -278,7 +282,12 @@ describe("groupPreviewNavigationGroups", () => {
     const workspaceGroup = grouped.find((group) => group.label === "Workspace");
     const promotedLabels = grouped[0]?.items.map((item) => item.label) ?? [];
 
-    expect(tryGroup?.items.map((item) => item.label)).toEqual(["Queries", "Reports", "Guideline"]);
+    expect(tryGroup?.items.map((item) => item.label)).toEqual([
+      "Queries",
+      "Reports",
+      "Automations",
+      "Guideline",
+    ]);
     expect(workspaceGroup?.items.map((item) => item.label)).not.toContain("Queries");
     expect(workspaceGroup?.items.map((item) => item.label)).toContain("Inbox");
     expect(workspaceGroup?.items.map((item) => item.label)).toContain("QA");

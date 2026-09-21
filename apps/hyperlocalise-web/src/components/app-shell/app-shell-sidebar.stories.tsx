@@ -42,6 +42,7 @@ export const GlobalNavigation: Story = {
     await expect(canvas.getByRole("link", { name: "Overview" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Inbox" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Projects" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Automations" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Settings" })).toBeInTheDocument();
   },
 };

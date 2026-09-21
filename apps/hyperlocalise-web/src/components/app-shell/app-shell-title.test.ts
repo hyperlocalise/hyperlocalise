@@ -43,6 +43,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/my-work", "My Jobs"],
     ["/org/acme/my-jobs", "My Jobs"],
     ["/org/acme/knowledge", "Guideline"],
+    ["/org/acme/automations", "Automations"],
     ["/org/acme/ai-engine", "AI Engine"],
     ["/org/acme/domains", "Domains"],
     ["/org/acme/domains/ld_1", "ld_1"],
