@@ -60,16 +60,28 @@ jobs:
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Read ECR repository from Parameter Store
-        uses: eliasjcjunior/aws-ssm-parameters-action@19bcb2989e7fb81e469ad13d4a819212cfda834c # 1.2.2
-        with:
-          paths: ${{ env.ECR_REPOSITORY_PARAMETER_NAME }}
-          split-env: true
-          upper-case: true
+        id: repository
+        run: |
+          set -euo pipefail
+          repository=$(aws ssm get-parameter \
+            --name "${ECR_REPOSITORY_PARAMETER_NAME}" \
+            --query 'Parameter.Value' \
+            --output text)
+          if [ -z "${repository}" ] || [ "${repository}" = "None" ]; then
+            echo "::error::ECR repository parameter is empty"
+            exit 1
+          fi
+          if [ "${#repository}" -gt 256 ] || \
+            [[ ! "${repository}" =~ ^([a-z0-9]+([._-][a-z0-9]+)*/)*[a-z0-9]+([._-][a-z0-9]+)*$ ]]; then
+            echo "::error::ECR repository parameter is invalid"
+            exit 1
+          fi
+          echo "name=${repository}" >> "${GITHUB_OUTPUT}"
 
       - name: Compute image reference and log in to ECR
         id: image
         env:
-          ECR_REPOSITORY: ${{ env.REPOSITORY_NAME }}
+          ECR_REPOSITORY: ${{ steps.repository.outputs.name }}
         run: |
           set -euo pipefail
           account_id=$(aws sts get-caller-identity --query Account --output text)
