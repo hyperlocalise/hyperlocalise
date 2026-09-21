@@ -83,9 +83,7 @@ describe("partitionSideBySideVirtualItems", () => {
 
 describe("itemIntersectsViewport", () => {
   it("counts a row that only partially overlaps the scrollport", () => {
-    expect(
-      itemIntersectsViewport({ index: 1, start: 72, end: 144 }, 100, 80),
-    ).toBe(true);
+    expect(itemIntersectsViewport({ index: 1, start: 72, end: 144 }, 100, 80)).toBe(true);
     expect(itemIntersectsViewport({ index: 0, start: 0, end: 72 }, 72, 80)).toBe(false);
     expect(itemIntersectsViewport({ index: 2, start: 144, end: 216 }, 100, 44)).toBe(false);
   });

@@ -219,10 +219,11 @@ describe("ContentEditorReviewController", () => {
       controller.start();
 
       await vi.waitFor(() => expect(validateFormat).toHaveBeenCalled());
-      expect(validateFormat.mock.calls.map((call) => call[0].id).toSorted()).toEqual([
-        "seg-01",
-        "seg-02",
-      ]);
+      expect(
+        validateFormat.mock.calls
+          .map((call) => (call[0] as { id: string }).id)
+          .toSorted((left, right) => left.localeCompare(right)),
+      ).toEqual(["seg-01", "seg-02"]);
       controller.dispose();
     });
 
@@ -267,10 +268,11 @@ describe("ContentEditorReviewController", () => {
       });
 
       await vi.waitFor(() => expect(validateFormat).toHaveBeenCalled());
-      expect(validateFormat.mock.calls.map((call) => call[0].id).toSorted()).toEqual([
-        "seg-01",
-        "seg-02",
-      ]);
+      expect(
+        validateFormat.mock.calls
+          .map((call) => (call[0] as { id: string }).id)
+          .toSorted((left, right) => left.localeCompare(right)),
+      ).toEqual(["seg-01", "seg-02"]);
       controller.dispose();
     });
   });

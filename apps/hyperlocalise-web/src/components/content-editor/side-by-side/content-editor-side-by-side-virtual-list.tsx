@@ -128,20 +128,18 @@ export function ContentEditorSideBySideVirtualList({
   );
 
   const publishVisibleRange = useCallback(
-    (instance: {
-      getVirtualItems: () => Array<{ index: number; start: number; end: number }>;
-      scrollOffset?: number;
-      scrollRect?: { height: number } | null;
-      getScrollElement?: () => HTMLElement | null;
-    }) => {
-      const scrollElement = instance.getScrollElement?.() ?? parentRef.current;
-      const range = partitionSideBySideVirtualItems({
-        items: instance.getVirtualItems(),
-        segments,
-        scrollOffset: instance.scrollOffset ?? scrollElement?.scrollTop ?? 0,
-        viewportHeight: instance.scrollRect?.height ?? scrollElement?.clientHeight ?? 0,
-      });
-      onVisibleRangeChange(range);
+    (
+      items: Array<{ index: number; start: number; end: number }>,
+      metrics: { scrollOffset: number; viewportHeight: number },
+    ) => {
+      onVisibleRangeChange(
+        partitionSideBySideVirtualItems({
+          items,
+          segments,
+          scrollOffset: metrics.scrollOffset,
+          viewportHeight: metrics.viewportHeight,
+        }),
+      );
     },
     [onVisibleRangeChange, segments],
   );
@@ -156,8 +154,12 @@ export function ContentEditorSideBySideVirtualList({
     getItemKey,
     onChange: (instance) => {
       const virtualItems = instance.getVirtualItems();
+      const scrollElement = parentRef.current;
       checkForNearEnd(virtualItems);
-      publishVisibleRange(instance);
+      publishVisibleRange(virtualItems, {
+        scrollOffset: instance.scrollOffset ?? scrollElement?.scrollTop ?? 0,
+        viewportHeight: instance.scrollRect?.height ?? scrollElement?.clientHeight ?? 0,
+      });
     },
   });
 
@@ -169,8 +171,12 @@ export function ContentEditorSideBySideVirtualList({
 
   useEffect(() => {
     const virtualItems = virtualizer.getVirtualItems();
+    const scrollElement = parentRef.current;
     checkForNearEnd(virtualItems);
-    publishVisibleRange(virtualizer);
+    publishVisibleRange(virtualItems, {
+      scrollOffset: virtualizer.scrollOffset ?? scrollElement?.scrollTop ?? 0,
+      viewportHeight: virtualizer.scrollRect?.height ?? scrollElement?.clientHeight ?? 0,
+    });
   }, [checkForNearEnd, publishVisibleRange, virtualizer]);
 
   useEffect(

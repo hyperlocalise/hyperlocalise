@@ -84,5 +84,7 @@ export function partitionSideBySideVirtualItems(input: {
 }
 
 export function sameSegmentIdList(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((segmentId, index) => segmentId === right[index]);
+  return (
+    left.length === right.length && left.every((segmentId, index) => segmentId === right[index])
+  );
 }

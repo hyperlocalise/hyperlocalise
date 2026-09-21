@@ -65,10 +65,7 @@ const virtualizer: MockVirtualizer = {
 };
 
 vi.mock("@tanstack/react-virtual", () => ({
-  useVirtualizer: (options: {
-    count: number;
-    onChange?: (instance: MockVirtualizer) => void;
-  }) => {
+  useVirtualizer: (options: { count: number; onChange?: (instance: MockVirtualizer) => void }) => {
     virtualizerCount = options.count;
     onVirtualizerChange = options.onChange;
     return virtualizer;
