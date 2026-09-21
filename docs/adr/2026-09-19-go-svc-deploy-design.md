@@ -33,11 +33,11 @@ Add a dedicated application-repository workflow at
 - Build the repository-root `Dockerfile.vercel` for `linux/amd64`.
 - Push an immutable tag containing the commit SHA, workflow run ID, and run
   attempt to `hyperlocalise/go-svc`.
-- Partial update: clone the live task definition, swap only the container
-  image to the new SHA, register the new revision, and point the service at
-  it. CPU, memory, roles, secrets, and port mapping carry over untouched, so
-  the workflow never reconstructs the full task definition.
-- Wait for `aws ecs wait services-stable` to gate the workflow on the rollout.
+- Partial update via AWS actions: fetch the live task definition by family,
+  swap only the container image to the new tag, register the new revision,
+  and deploy it to the service with stability waiting. No checked-in task
+  definition file, no AWS CLI. Convention: family and container share the
+  service name.
 - Use a 20-minute job timeout and GitHub Actions Buildx cache, and cancel
   superseded builds on the same ref. Untuned ALB defaults cost ~2.5 min of
   health checks plus up to 5 min of deregistration drain per Qovery's ECS
@@ -66,11 +66,11 @@ empty.
 
 ### ECS rollout
 
-- Each deploy pushes an immutable `{sha}-{run_id}-{run_attempt}` image tag,
-  then patches only the
-  image field of the current task-definition revision (family == service
-  name) and moves the service to the new revision. Infra keeps owning the
-  target group (`/health` on port `8080`) and every other task setting.
-- `wait services-stable` gates the workflow on the rollout.
-- Rollback is a redeploy pointing at a previous SHA revision
+- Each deploy pushes an immutable `{sha}-{run_id}-{run_attempt}` image tag.
+- `amazon-ecs-render-task-definition` fetches the live task definition by
+  family and swaps only the image field; `amazon-ecs-deploy-task-definition`
+  registers the new revision, moves the service to it, and waits for
+  stability (15s poll interval). Infra keeps owning the target group
+  (`/health` on port `8080`) and every other task setting, so nothing drifts.
+- Rollback is a redeploy pointing at a previous revision
   (`update-service --task-definition <family>:<revision>`).
