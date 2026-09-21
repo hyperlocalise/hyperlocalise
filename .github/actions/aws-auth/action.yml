@@ -27,4 +27,4 @@ runs:
 
     - name: Log in to Amazon ECR
       id: ecr
-      uses: aws-actions/amazon-ecr-login@v2
+      uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2

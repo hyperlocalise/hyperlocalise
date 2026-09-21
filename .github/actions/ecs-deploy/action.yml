@@ -26,21 +26,48 @@ inputs:
 runs:
   using: composite
   steps:
-    # Partial update: clone the live task definition, swap only the image to
-    # the new SHA, and point the service at the new revision. Everything
-    # else (CPU, memory, roles, secrets, port mapping) carries over untouched.
-    - name: Download current task definition
+    # Partial update: clone the task definition revision currently deployed
+    # by the service, swap only the image to the new ref, and point the
+    # service at the new revision. Everything else (CPU, memory, roles,
+    # secrets, port mapping) carries over untouched. The deployed revision
+    # is resolved via describe-services: describe-task-definition with only
+    # the family name would return the latest ACTIVE revision, which may
+    # include unrelated changes staged after the last deployment.
+    - name: Download deployed task definition
       uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
       env:
         ECS_SERVICE: ${{ inputs.ecs-service }}
+        ECS_CLUSTER: ${{ inputs.ecs-cluster }}
         TASK_DEFINITION_FILE: ${{ inputs.task-definition-file }}
       with:
         script: |
-          let stdout = '';
-          await exec.exec('aws', ['ecs', 'describe-task-definition', '--task-definition', process.env.ECS_SERVICE, '--query', 'taskDefinition', '--output', 'json'], {
-            listeners: { stdout: (data) => { stdout += data.toString(); } },
-          });
-          const taskDefinition = JSON.parse(stdout);
+          async function capture(args) {
+            let stdout = '';
+            await exec.exec('aws', args, {
+              listeners: { stdout: (data) => { stdout += data.toString(); } },
+            });
+            return stdout;
+          }
+          const servicesOut = await capture([
+            'ecs', 'describe-services',
+            '--cluster', process.env.ECS_CLUSTER,
+            '--services', process.env.ECS_SERVICE,
+            '--query', 'services[0].taskDefinition',
+            '--output', 'text',
+          ]);
+          const deployedArn = servicesOut.trim();
+          if (!deployedArn || deployedArn === 'None') {
+            core.setFailed(`Unable to resolve deployed task definition for service ${process.env.ECS_SERVICE} in cluster ${process.env.ECS_CLUSTER}`);
+            return;
+          }
+          core.info(`Cloning deployed task definition: ${deployedArn}`);
+          const taskDefinitionOut = await capture([
+            'ecs', 'describe-task-definition',
+            '--task-definition', deployedArn,
+            '--query', 'taskDefinition',
+            '--output', 'json',
+          ]);
+          const taskDefinition = JSON.parse(taskDefinitionOut);
           for (const key of ['taskDefinitionArn', 'revision', 'status', 'registeredAt', 'registeredBy', 'compatibilities', 'requiresAttributes']) {
             delete taskDefinition[key];
           }
@@ -63,3 +90,58 @@ runs:
         wait-for-service-stability: true
         wait-for-minutes: ${{ inputs.wait-for-minutes }}
         wait-max-delay-seconds: ${{ inputs.wait-max-delay-seconds }}
+
+    # The stability waiter only observes that the service is stable, not
+    # that it runs the new revision: with circuit-breaker rollback enabled
+    # a failed image can roll back to the previous revision and still
+    # report success. Fail the run unless the deployed revision actually
+    # runs the requested image.
+    - name: Verify deployed image
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      env:
+        ECS_SERVICE: ${{ inputs.ecs-service }}
+        ECS_CLUSTER: ${{ inputs.ecs-cluster }}
+        CONTAINER_NAME: ${{ inputs.container-name }}
+        EXPECTED_IMAGE: ${{ inputs.image }}
+      with:
+        script: |
+          async function capture(args) {
+            let stdout = '';
+            await exec.exec('aws', args, {
+              listeners: { stdout: (data) => { stdout += data.toString(); } },
+            });
+            return stdout;
+          }
+          const servicesOut = await capture([
+            'ecs', 'describe-services',
+            '--cluster', process.env.ECS_CLUSTER,
+            '--services', process.env.ECS_SERVICE,
+            '--output', 'json',
+          ]);
+          const service = JSON.parse(servicesOut).services?.[0];
+          if (!service?.taskDefinition) {
+            core.setFailed(`Unable to resolve deployed task definition for service ${process.env.ECS_SERVICE}`);
+            return;
+          }
+          const primary = (service.deployments ?? []).find((d) => d.status === 'PRIMARY');
+          if (primary && primary.rolloutState && primary.rolloutState !== 'COMPLETED') {
+            core.setFailed(`Primary deployment rollout state is ${primary.rolloutState} (expected COMPLETED) for task definition ${service.taskDefinition}`);
+            return;
+          }
+          const taskDefinitionOut = await capture([
+            'ecs', 'describe-task-definition',
+            '--task-definition', service.taskDefinition,
+            '--query', 'taskDefinition.containerDefinitions',
+            '--output', 'json',
+          ]);
+          const containers = JSON.parse(taskDefinitionOut);
+          const container = containers.find((c) => c.name === process.env.CONTAINER_NAME);
+          if (!container) {
+            core.setFailed(`Container ${process.env.CONTAINER_NAME} not found in deployed task definition ${service.taskDefinition}`);
+            return;
+          }
+          if (container.image !== process.env.EXPECTED_IMAGE) {
+            core.setFailed(`Deployed image mismatch: service runs ${container.image}, expected ${process.env.EXPECTED_IMAGE} (deployed revision ${service.taskDefinition} may have rolled back)`);
+            return;
+          }
+          core.info(`Verified ${process.env.CONTAINER_NAME} runs ${container.image}`);
