@@ -884,6 +884,25 @@ export async function executeVisualWorkflowRun(input: {
       status: "failed",
       error: { code: "execution_limit", message: "Run deadline exceeded." },
     });
+  const pendingBackoff = payload.retryBackoff as
+    | { retryNodeId: string; wakeAt: string; nextAttempt: number }
+    | undefined;
+  if (pendingBackoff?.wakeAt && Date.now() < Date.parse(pendingBackoff.wakeAt)) {
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({ leaseExpiresAt: null })
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.id, run.id),
+          eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
+        ),
+      );
+    return getVisualWorkflowRunById({
+      organizationId: input.organizationId,
+      visualWorkflowId: input.visualWorkflowId,
+      runId: run.id,
+    });
+  }
   const { executeDurableWorkflowSlice } = await import("./runtime/durable-slice");
   const result = await executeDurableWorkflowSlice({
     leaseToken,
@@ -921,6 +940,38 @@ export async function executeVisualWorkflowRun(input: {
       visualWorkflowId: input.visualWorkflowId,
       runId: run.id,
     });
+  if (!result.ok && result.error.code === "retry_backoff") {
+    const wakeAt =
+      typeof result.error.wakeAt === "string"
+        ? result.error.wakeAt
+        : new Date(Date.now() + 30_001).toISOString();
+    const nextPayload = {
+      ...payload,
+      retryBackoff: {
+        retryNodeId: typeof result.error.retryNodeId === "string" ? result.error.retryNodeId : "",
+        wakeAt,
+        nextAttempt: Number(result.error.nextAttempt ?? 1),
+      },
+    };
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({
+        leaseExpiresAt: null,
+        encryptedPayload: encryptWorkflowPayload(nextPayload),
+      })
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.id, run.id),
+          eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
+        ),
+      );
+    return getVisualWorkflowRunById({
+      organizationId: input.organizationId,
+      visualWorkflowId: input.visualWorkflowId,
+      runId: run.id,
+    });
+  }
+
   if (!result.ok && result.error.code === "yield_execution") {
     await db
       .update(schema.visualWorkflowRuns)

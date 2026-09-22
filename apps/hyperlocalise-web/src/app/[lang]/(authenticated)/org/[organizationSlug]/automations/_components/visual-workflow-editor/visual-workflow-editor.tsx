@@ -33,7 +33,7 @@ import {
 import {
   applyVisualWorkflowGraphConnection,
   applyNodeConfigUpdate,
-  reconcileForEachBodyMembership,
+  reconcileFlowBodyMembership,
   removeVisualWorkflowNode,
   replaceVisualWorkflowNodeType,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
@@ -180,7 +180,7 @@ export function VisualWorkflowEditor({
     const { nodes: currentNodes, edges: currentEdges } = graphRef.current;
     const nextEdges = applyEdgeChanges(changes, currentEdges);
     setEdges(nextEdges);
-    setNodes(reconcileForEachBodyMembership(currentNodes, nextEdges));
+    setNodes(reconcileFlowBodyMembership(currentNodes, nextEdges));
   }, []);
 
   const onConnect = useCallback((connection: Connection) => {
@@ -685,6 +685,16 @@ function issueMessage(
       return messages.invalidNodeConfig;
     case "nested_for_each":
       return messages.nestedForEach;
+    case "nested_retry":
+      return messages.nestedRetry;
+    case "invalid_retry":
+      return messages.invalidRetry;
+    case "retry_foreach_nesting":
+      return messages.retryForEachNesting;
+    case "non_idempotent_retry":
+      return messages.nonIdempotentRetry;
+    case "invalid_retry_policy":
+      return messages.invalidRetryPolicy;
     default:
       return messages.invalidNodeConfig;
   }

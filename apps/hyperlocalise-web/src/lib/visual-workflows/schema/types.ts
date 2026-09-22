@@ -29,7 +29,8 @@ export type VisualCatalogType =
   | "logic.switch"
   | "logic.set"
   | "ai.agent"
-  | "logic.for_each";
+  | "logic.for_each"
+  | "logic.retry";
 
 export type VisualCatalogCategory = "trigger" | "action" | "logic" | "ai" | "flow";
 
@@ -138,7 +139,16 @@ export type VisualNodeConfig =
       assignments: VisualKeyValuePair[];
     }
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
-  | { kind: "logic.for_each"; collection: string };
+  | { kind: "logic.for_each"; collection: string }
+  | {
+      kind: "logic.retry";
+      maxAttempts?: number;
+      initialDelayMs?: number;
+      backoffMultiplier?: number;
+      jitter?: boolean;
+      retryableErrorCodes?: string[];
+      acknowledgeDuplicateRisk?: boolean;
+    };
 
 export type VisualWorkflowNodeData = WorkflowNodeContract & {
   catalogType: VisualCatalogType;
@@ -214,6 +224,11 @@ export type VisualWorkflowValidationIssue = {
     | "invalid_trigger_config"
     | "invalid_node_config"
     | "nested_for_each"
+    | "nested_retry"
+    | "invalid_retry"
+    | "retry_foreach_nesting"
+    | "non_idempotent_retry"
+    | "invalid_retry_policy"
     | "duplicate_id"
     | "cycle"
     | "invalid_handle"

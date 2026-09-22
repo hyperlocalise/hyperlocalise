@@ -17,6 +17,7 @@ import {
   GitBranchIcon,
   Globe02Icon,
   Mail01Icon,
+  ReloadIcon,
   Route01Icon,
   Task01Icon,
   Upload04Icon,
@@ -112,6 +113,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     enabled: true,
     icon: Task01Icon,
   },
+  {
+    type: "logic.retry",
+    category: "flow",
+    enabled: true,
+    icon: ReloadIcon,
+  },
 ];
 
 export const VISUAL_CATALOG_CATEGORY_ORDER: readonly VisualCatalogCategory[] = [
@@ -184,6 +191,15 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
       return { kind: "logic.for_each", collection: "[]" };
+    case "logic.retry":
+      return {
+        kind: "logic.retry",
+        maxAttempts: 3,
+        initialDelayMs: 1000,
+        backoffMultiplier: 2,
+        jitter: true,
+        acknowledgeDuplicateRisk: false,
+      };
     default:
       return assertNever(type);
   }
@@ -200,6 +216,9 @@ export function getVisualNodeDimensions(type: VisualCatalogType): {
     return { width: 200, height: 120 };
   }
   if (type === "logic.switch") {
+    return { width: 200, height: 140 };
+  }
+  if (type === "logic.retry") {
     return { width: 200, height: 140 };
   }
   if (type.startsWith("trigger.")) {
@@ -248,6 +267,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return "Tools agent";
     case "logic.for_each":
       return "For each item";
+    case "logic.retry":
+      return config.maxAttempts ? `${config.maxAttempts} attempts` : "Retry policy";
     default:
       return assertNever(config);
   }

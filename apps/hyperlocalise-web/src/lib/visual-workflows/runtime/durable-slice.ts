@@ -29,6 +29,8 @@ import type { VisualWorkflowV3Definition } from "../schema/types";
 import type { VisualWorkflowRunRecord } from "../visual-workflow-run-types";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 import { WORKFLOW_LIMITS } from "./limits";
+import { collectRetryBodyNodeIds } from "../validation/retry-idempotency";
+import type { RetryBackoffState } from "./retry-delay";
 const logger = createLogger("visual-workflow-node");
 export async function executeDurableWorkflowSlice(input: {
   run: VisualWorkflowRunRecord;
@@ -67,6 +69,8 @@ export async function executeDurableWorkflowSlice(input: {
   for (const result of completed.values())
     if (result.ok) secrets.push(...collectWorkflowSecrets(result.output));
   let externalExecuted = false;
+  const retryBodyNodeIds = collectRetryBodyNodeIds(input.definition);
+  const retryBackoff = input.payload.retryBackoff as RetryBackoffState | undefined;
   const mock = createMockWorkflowExecutor(
     (input.payload.mockOutputs as Record<string, Record<string, unknown>>) ?? {},
   );
@@ -101,16 +105,24 @@ export async function executeDurableWorkflowSlice(input: {
                 "mockOutputs",
                 "triggeredAt",
                 "executionPlanVersion",
+                "retryBackoff",
               ].includes(name),
           ),
         ),
       },
       signal: controller.signal,
       shouldCancel: isCancelled,
+      mockMode: input.run.mode === "mock",
+      retryBackoff: retryBackoff ?? null,
       executeNode: async (args) => {
         const id = key(args.node.id, args.iteration);
         const isExternal = args.node.type.startsWith("action.") || args.node.type === "ai.agent";
-        if (args.node.type !== "logic.for_each" && completed.has(id)) return completed.get(id)!;
+        if (
+          args.node.type !== "logic.for_each" &&
+          args.node.type !== "logic.retry" &&
+          completed.has(id)
+        )
+          return completed.get(id)!;
         if (isExternal && externalExecuted)
           return {
             ok: false,
@@ -159,10 +171,13 @@ export async function executeDurableWorkflowSlice(input: {
             key(record.nodeId, record.iteration) === id &&
             (!input.run.startedAt || record.createdAt.getTime() >= Date.parse(input.run.startedAt)),
         ).length;
+        const inRetryBody = retryBodyNodeIds.has(args.node.id);
         const maxAttempts =
-          safe && input.run.mode !== "mock"
-            ? Math.max(0, WORKFLOW_LIMITS.attempts - currentAttempts)
-            : 1;
+          inRetryBody || input.run.mode === "mock"
+            ? 1
+            : safe
+              ? Math.max(0, WORKFLOW_LIMITS.attempts - currentAttempts)
+              : 1;
         let execution: VisualWorkflowNodeExecutionResult = {
           ok: false,
           error: { message: "Execution did not start." },
@@ -245,7 +260,12 @@ export async function executeDurableWorkflowSlice(input: {
       },
       onNodeUpdate: async (update) => {
         const id = key(update.nodeId, update.iteration);
-        if (completed.has(id) && update.nodeType !== "logic.for_each") return;
+        if (
+          completed.has(id) &&
+          update.nodeType !== "logic.for_each" &&
+          update.nodeType !== "logic.retry"
+        )
+          return;
         if (update.status === "running") {
           inputs.set(id, update.inputSnapshot ?? {});
           return;

@@ -159,6 +159,20 @@ export function validateVisualWorkflowDefinition(
         if (bodyNode?.type === "logic.for_each") {
           issues.push({ code: "nested_for_each", nodeId: bodyNodeId });
         }
+        if (bodyNode?.type === "logic.retry") {
+          issues.push({ code: "retry_foreach_nesting", nodeId: bodyNodeId });
+        }
+      }
+    }
+    for (const node of definition.nodes) {
+      if (node.type !== "logic.retry") {
+        continue;
+      }
+      for (const bodyNodeId of node.bodyNodeIds ?? []) {
+        const bodyNode = graph.nodesById.get(bodyNodeId);
+        if (bodyNode?.type === "logic.for_each") {
+          issues.push({ code: "retry_foreach_nesting", nodeId: bodyNodeId });
+        }
       }
     }
   }

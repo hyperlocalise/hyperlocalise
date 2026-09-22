@@ -121,6 +121,14 @@ export function executeLogicVisualWorkflowNode(input: {
         },
       };
     }
+    case "logic.retry":
+      return {
+        ok: true,
+        output: {
+          attemptNumber: 1,
+          exhausted: false,
+        },
+      };
     default:
       return {
         ok: false,

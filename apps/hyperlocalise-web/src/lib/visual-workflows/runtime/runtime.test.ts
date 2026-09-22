@@ -829,6 +829,157 @@ describe("visual workflow interpreter", () => {
     expect(started).not.toContain("success");
   });
 
+  it("retries a failing body HTTP action and exits through succeeded", async () => {
+    let calls = 0;
+    withPublicHttpFetchMock.mockImplementation(async () => {
+      calls += 1;
+      if (calls < 2) {
+        throw new Error("upstream unavailable");
+      }
+      return {
+        status: 200,
+        statusText: "OK",
+        ok: true,
+        headers: {},
+        body: "{}",
+        json: {},
+      };
+    });
+
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Retry success",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "retry",
+          type: "logic.retry",
+          bodyNodeIds: ["http"],
+          config: {
+            kind: "logic.retry",
+            maxAttempts: 3,
+            initialDelayMs: 0,
+            backoffMultiplier: 2,
+            jitter: false,
+            acknowledgeDuplicateRisk: true,
+          },
+        },
+        {
+          id: "http",
+          type: "action.http",
+          config: {
+            kind: "action.http",
+            method: "POST",
+            url: "https://example.com/retry-body",
+            onError: "stop",
+          },
+        },
+        { id: "after", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "retry", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "retry", target: "http", sourceHandle: "attempt", targetHandle: null },
+        {
+          id: "e3",
+          source: "retry",
+          target: "after",
+          sourceHandle: "succeeded",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const started: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "running") {
+          started.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls).toBe(2);
+    expect(started).toContain("after");
+    if (result.ok) {
+      expect(result.nodeResults.retry).toMatchObject({
+        attemptNumber: 2,
+        exhausted: false,
+      });
+    }
+  });
+
+  it("exits through exhausted when retry attempts are used up", async () => {
+    withPublicHttpFetchMock.mockRejectedValue(new Error("upstream unavailable"));
+
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Retry exhausted",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "retry",
+          type: "logic.retry",
+          bodyNodeIds: ["http"],
+          config: {
+            kind: "logic.retry",
+            maxAttempts: 2,
+            initialDelayMs: 0,
+            backoffMultiplier: 2,
+            jitter: false,
+            acknowledgeDuplicateRisk: true,
+          },
+        },
+        {
+          id: "http",
+          type: "action.http",
+          config: {
+            kind: "action.http",
+            method: "POST",
+            url: "https://example.com/retry-exhaust",
+            onError: "stop",
+          },
+        },
+        { id: "fallback", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "retry", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "retry", target: "http", sourceHandle: "attempt", targetHandle: null },
+        {
+          id: "e3",
+          source: "retry",
+          target: "fallback",
+          sourceHandle: "exhausted",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const started: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "running") {
+          started.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(started).toContain("fallback");
+    if (result.ok) {
+      expect(result.nodeResults.retry).toMatchObject({
+        exhausted: true,
+        attemptNumber: 2,
+      });
+    }
+  });
+
   it("rejects nested for-each loops", async () => {
     const definition: VisualWorkflowDefinition = {
       schemaVersion: 2,

@@ -29,6 +29,9 @@ export function getAllowedExecutionSourceHandles(
   if (node.type === "logic.for_each") {
     return ["each", "done"];
   }
+  if (node.type === "logic.retry") {
+    return ["attempt", "succeeded", "exhausted"];
+  }
   return [
     null,
     "success",
@@ -45,6 +48,9 @@ export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource
   }
   if (node.type === "logic.for_each") {
     return "each";
+  }
+  if (node.type === "logic.retry") {
+    return "attempt";
   }
   return null;
 }

@@ -28,6 +28,8 @@ import { resolveWorkflowNodeInputs, resolveWorkflowBinding } from "./bindings";
 import { getWorkflowOutputFields, matchesWorkflowType } from "../catalog/node-contracts";
 import { readWorkflowPath } from "./bindings";
 import { WORKFLOW_LIMITS } from "./limits";
+import { runRetryRegion } from "./run-retry-region";
+import type { RetryBackoffState } from "./retry-delay";
 
 export type VisualWorkflowInterpreterNodeUpdate = {
   nodeId: string;
@@ -67,6 +69,8 @@ export async function runVisualWorkflowInterpreter(input: {
   onNodeUpdate?: (update: VisualWorkflowInterpreterNodeUpdate) => Promise<void> | void;
   signal?: AbortSignal;
   shouldCancel?: () => Promise<boolean>;
+  mockMode?: boolean;
+  retryBackoff?: RetryBackoffState | null;
 }): Promise<VisualWorkflowInterpreterResult> {
   const context = createVisualWorkflowExecutionContext({ triggerInput: input.triggerInput });
   const nodeResults: Record<string, Record<string, unknown>> = {};
@@ -162,7 +166,8 @@ export async function runVisualWorkflowInterpreter(input: {
             },
           };
         }
-        if (execution.ok && node.type !== "logic.for_each") {
+        let retryExitHandle: "succeeded" | "exhausted" | null = null;
+        if (execution.ok && node.type !== "logic.for_each" && node.type !== "logic.retry") {
           for (const field of getWorkflowOutputFields(node)) {
             const value = readWorkflowPath(execution.output, field.path.split("."));
             if (value === undefined && field.optional) continue;
@@ -181,9 +186,14 @@ export async function runVisualWorkflowInterpreter(input: {
         let errorBranch = false;
         if (!execution.ok) {
           if (
-            ["yield_execution", "needs_attention", "cancelled"].includes(execution.error.code ?? "")
+            ["yield_execution", "needs_attention", "cancelled", "retry_backoff"].includes(
+              execution.error.code ?? "",
+            )
           ) {
-            if (execution.error.code !== "yield_execution")
+            if (
+              execution.error.code !== "yield_execution" &&
+              execution.error.code !== "retry_backoff"
+            )
               await emit(node, execution.error.code as "needs_attention" | "cancelled", iteration, {
                 error: execution.error,
               });
@@ -225,7 +235,10 @@ export async function runVisualWorkflowInterpreter(input: {
               );
               const failure = await runScope(body, starts, index);
               if (failure) {
-                if (failure.error.code !== "yield_execution")
+                if (
+                  failure.error.code !== "yield_execution" &&
+                  failure.error.code !== "retry_backoff"
+                )
                   await emit(node, "failed", iteration, { error: failure.error });
                 return failure;
               }
@@ -252,6 +265,32 @@ export async function runVisualWorkflowInterpreter(input: {
             setNodeOutput(context, id, execution.output);
             nodeResults[id] = execution.output;
           }
+          if (node.type === "logic.retry") {
+            const resume = input.retryBackoff?.retryNodeId === node.id ? input.retryBackoff : null;
+            const retryResult = await runRetryRegion({
+              node,
+              graph,
+              context,
+              nodeResults,
+              runScope,
+              signal: input.signal,
+              mockMode: input.mockMode,
+              startAttempt: resume?.nextAttempt,
+            });
+            if (!retryResult.ok) {
+              if (
+                retryResult.error.code !== "yield_execution" &&
+                retryResult.error.code !== "retry_backoff"
+              ) {
+                await emit(node, "failed", iteration, { error: retryResult.error });
+              }
+              return { nodeId: id, error: retryResult.error };
+            }
+            retryExitHandle = retryResult.exitHandle;
+            execution = { ok: true, output: retryResult.output };
+            setNodeOutput(context, id, retryResult.output);
+            nodeResults[id] = retryResult.output;
+          }
           await emit(node, "succeeded", iteration, {
             outputSnapshot: execution.output,
             error: null,
@@ -260,13 +299,15 @@ export async function runVisualWorkflowInterpreter(input: {
         const next =
           node.type === "logic.for_each"
             ? outgoing.filter((edge) => edge.sourceHandle === "done")
-            : selectNextEdges({
-                nodeType: node.type,
-                branchResult: execution.ok ? (execution.branchResult ?? null) : null,
-                switchCase: execution.ok ? (execution.switchCase ?? null) : null,
-                useErrorBranch: errorBranch,
-                outgoing,
-              });
+            : node.type === "logic.retry" && retryExitHandle
+              ? outgoing.filter((edge) => edge.sourceHandle === retryExitHandle)
+              : selectNextEdges({
+                  nodeType: node.type,
+                  branchResult: execution.ok ? (execution.branchResult ?? null) : null,
+                  switchCase: execution.ok ? (execution.switchCase ?? null) : null,
+                  useErrorBranch: errorBranch,
+                  outgoing,
+                });
         const selectedIds = new Set(next.map((edge) => edge.id));
         for (const edge of outgoing)
           states.set(edge.id, selectedIds.has(edge.id) ? "selected" : "skipped");
@@ -289,7 +330,11 @@ export async function runVisualWorkflowInterpreter(input: {
     new Set(definition.nodes.filter((node) => !bodyIds.has(node.id)).map((node) => node.id)),
     new Set([graph.triggerNodeId]),
   );
-  if (failure && failure.error.code !== "yield_execution")
+  if (
+    failure &&
+    failure.error.code !== "yield_execution" &&
+    failure.error.code !== "retry_backoff"
+  )
     for (const node of definition.nodes)
       if (!settledIds.has(node.id))
         await emit(node, failure.error.code === "cancelled" ? "cancelled" : "blocked");

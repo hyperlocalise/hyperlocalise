@@ -51,6 +51,14 @@ describe("getAllowedExecutionSourceHandles", () => {
     expect(getAllowedExecutionSourceHandles(canonical("logic.for_each"))).toEqual(["each", "done"]);
   });
 
+  it("lists Retry attempt, succeeded, and exhausted handles", () => {
+    expect(getAllowedExecutionSourceHandles(canonical("logic.retry"))).toEqual([
+      "attempt",
+      "succeeded",
+      "exhausted",
+    ]);
+  });
+
   it("allows null and success on single-output actions", () => {
     expect(getAllowedExecutionSourceHandles(canonical("action.http"))).toEqual([null, "success"]);
   });
@@ -111,6 +119,23 @@ describe("normalizeExecutionSourceHandle", () => {
     const node = canonical("logic.for_each");
     expect(normalizeExecutionSourceHandle(node, "each")).toEqual({ ok: true, handle: "each" });
     expect(normalizeExecutionSourceHandle(node, "done")).toEqual({ ok: true, handle: "done" });
+  });
+
+  it("keeps Retry attempt, succeeded, and exhausted", () => {
+    const node = canonical("logic.retry");
+    expect(normalizeExecutionSourceHandle(node, "attempt")).toEqual({
+      ok: true,
+      handle: "attempt",
+    });
+    expect(normalizeExecutionSourceHandle(node, "succeeded")).toEqual({
+      ok: true,
+      handle: "succeeded",
+    });
+    expect(normalizeExecutionSourceHandle(node, "exhausted")).toEqual({
+      ok: true,
+      handle: "exhausted",
+    });
+    expect(normalizeExecutionSourceHandle(node, "each")).toEqual({ ok: false });
   });
 
   it("does not invent a primary handle for missing multi-output pins", () => {
