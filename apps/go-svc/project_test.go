@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -105,6 +106,19 @@ func TestProjectRoutes(t *testing.T) {
 		require.JSONEq(t, `{"error":"invalid_project_files_query","message":"Invalid project files query parameters"}`, rec.Body.String())
 	})
 
+	t.Run("short-circuits provider-only file filters to an empty list", func(t *testing.T) {
+		step := dictionaryRowStep("and false", true, json.RawMessage(`[]`))
+		step.args = []any{"project_1", testDictionaryOrgID, true, testDictionaryUserID, 500, 0}
+
+		rec := projectRequestForTest(
+			projectTestAPI(t, step),
+			testProjectBase+"/project_1/files?origin=provider",
+		)
+
+		require.Equal(t, http.StatusOK, rec.Code)
+		require.JSONEq(t, `{"files":[]}`, rec.Body.String())
+	})
+
 	t.Run("does not serve external project ids", func(t *testing.T) {
 		rec := projectRequestForTest(
 			projectTestAPI(t),
@@ -114,4 +128,96 @@ func TestProjectRoutes(t *testing.T) {
 		require.Equal(t, http.StatusNotFound, rec.Code)
 		require.Contains(t, rec.Body.String(), `"project_not_found"`)
 	})
+}
+
+func TestProjectActorRoles(t *testing.T) {
+	require.True(t, projectActor{role: "admin"}.canReadAllTeams())
+	require.True(t, projectActor{role: "localization_manager"}.canReadAllTeams())
+	require.False(t, projectActor{role: "member"}.canReadAllTeams())
+	require.False(t, projectActor{role: "translator"}.canReadAllTeams())
+
+	require.True(t, projectActor{role: "admin"}.canManageContentEditorBehavior())
+	require.True(t, projectActor{role: "localization_manager"}.canManageContentEditorBehavior())
+	require.False(t, projectActor{role: "developer"}.canManageContentEditorBehavior())
+	require.False(t, projectActor{role: "reviewer"}.canManageContentEditorBehavior())
+}
+
+func TestParseProjectFilesQuery(t *testing.T) {
+	defaults, err := parseProjectFilesQuery(url.Values{})
+	require.NoError(t, err)
+	require.Equal(t, projectFilesQuery{limit: projectFilesDefaultLimit}, defaults)
+
+	searchAndLocale, err := parseProjectFilesQuery(url.Values{
+		"search": {" messages "},
+		"locale": {"fr-FR"},
+		"limit":  {"25"},
+		"offset": {"10"},
+		"origin": {"repository"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, projectFilesQuery{
+		limit:  25,
+		offset: 10,
+		search: "messages",
+		locale: "fr-FR",
+	}, searchAndLocale)
+
+	for _, values := range []url.Values{
+		{"origin": {"provider"}},
+		{"resourceType": {"key"}},
+		{"providerKind": {"crowdin"}},
+		{"syncState": {"pending"}},
+	} {
+		query, parseErr := parseProjectFilesQuery(values)
+		require.NoError(t, parseErr, values.Encode())
+		require.True(t, query.empty, values.Encode())
+	}
+
+	for _, values := range []url.Values{
+		{"origin": {"all"}},
+		{"resourceType": {"file"}},
+		{"providerKind": {"all"}},
+		{"syncState": {"all"}},
+		{"syncState": {"repository"}},
+	} {
+		query, parseErr := parseProjectFilesQuery(values)
+		require.NoError(t, parseErr, values.Encode())
+		require.False(t, query.empty, values.Encode())
+	}
+
+	for _, values := range []url.Values{
+		{"limit": {"0"}},
+		{"limit": {"1001"}},
+		{"limit": {"abc"}},
+		{"offset": {"-1"}},
+		{"offset": {"abc"}},
+		{"search": {strings.Repeat("x", 257)}},
+		{"locale": {strings.Repeat("y", 33)}},
+		{"origin": {"combined"}},
+		{"resourceType": {"folder"}},
+		{"providerKind": {"memoq"}},
+		{"syncState": {strings.Repeat("z", 65)}},
+		{"branch": {""}},
+		{"branch": {strings.Repeat("b", 257)}},
+	} {
+		_, parseErr := parseProjectFilesQuery(values)
+		require.Error(t, parseErr, values.Encode())
+		var projectErr *projectError
+		require.ErrorAs(t, parseErr, &projectErr)
+		require.Equal(t, 400, projectErr.status)
+		require.Equal(t, "invalid_project_files_query", projectErr.code)
+	}
+}
+
+func TestNormalizedNativeProjectID(t *testing.T) {
+	id, err := normalizedNativeProjectID("  project_1  ")
+	require.NoError(t, err)
+	require.Equal(t, "project_1", id)
+
+	_, err = normalizedNativeProjectID("")
+	require.Error(t, err)
+	_, err = normalizedNativeProjectID("ext:crowdin:1")
+	require.Error(t, err)
+	_, err = normalizedNativeProjectID(strings.Repeat("p", 257))
+	require.Error(t, err)
 }

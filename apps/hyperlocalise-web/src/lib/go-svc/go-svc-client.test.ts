@@ -13,6 +13,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { DEFAULT_GO_SVC_BASE_URL, GoSvcClient, GoSvcClientError } from "./go-svc-client";
+import { GoSvcRequest, issueSheetPath, orgPath } from "./go-svc-request";
 
 function clientWith(fetchMock: ReturnType<typeof vi.fn>, getAccessToken = () => "access-token") {
   return new GoSvcClient({
@@ -244,5 +245,45 @@ describe("GoSvcClient", () => {
 
     expect(fetchMock.mock.calls[0][0]).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/glossaries`);
     expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST");
+  });
+
+  it("rejects invalid base URLs and non-absolute paths", async () => {
+    expect(
+      () =>
+        new GoSvcClient({
+          getAccessToken: () => "access-token",
+          baseUrl: "ftp://api.example.com",
+        }),
+    ).toThrow(TypeError);
+
+    const fetchMock = vi.fn();
+    const request = new GoSvcRequest({
+      getAccessToken: () => "access-token",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(request.json("v1/orgs/acme/teams")).rejects.toThrow(TypeError);
+    await expect(request.json("//evil.example/v1/orgs/acme/teams")).rejects.toThrow(TypeError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rethrows abort errors without wrapping them as network failures", async () => {
+    const abortError = new DOMException("Aborted", "AbortError");
+    const fetchMock = vi.fn().mockRejectedValue(abortError);
+    const request = new GoSvcRequest({
+      getAccessToken: () => "access-token",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(request.json("/v1/orgs/acme/teams")).rejects.toBe(abortError);
+  });
+
+  it("encodes organization and issue-sheet path segments", () => {
+    expect(orgPath("acme / eu", "dictionaries", "dict/1")).toBe(
+      "/v1/orgs/acme%20%2F%20eu/dictionaries/dict%2F1",
+    );
+    expect(issueSheetPath("acme", "project/1", "issues", "ISS-1")).toBe(
+      "/v1/orgs/acme/projects/project%2F1/issue-sheet/issues/ISS-1",
+    );
   });
 });
