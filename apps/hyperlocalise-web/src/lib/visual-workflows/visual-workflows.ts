@@ -50,29 +50,12 @@ function toIsoString(value: Date): string {
   return value.toISOString();
 }
 
-function parseStoredVisualWorkflowDefinition(input: unknown): VisualWorkflowDefinition | null {
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    return null;
-  }
-  const candidate = input as Record<string, unknown>;
-  if (!Array.isArray(candidate.nodes) || !Array.isArray(candidate.edges)) {
-    return null;
-  }
-  const parsed = visualWorkflowDefinitionSchema.safeParse(input);
-  return parsed.success ? parsed.data : null;
-}
-
 function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | null {
-<<<<<<< HEAD
-  const parsedDefinition = parseStoredVisualWorkflowDefinition(row.definition);
-  if (!parsedDefinition) {
-=======
   let definition: VisualWorkflowV3Definition;
 
   try {
     definition = parseVisualWorkflowV3Definition(row.definition);
   } catch {
->>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
     return null;
   }
 
@@ -93,19 +76,11 @@ function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | nu
     projectId: row.projectId,
     status: row.status,
     name: row.name,
-<<<<<<< HEAD
-    definition: parsedDefinition,
-    definitionVersion: row.definitionVersion,
-    revision: row.revision,
-    publishedVersion: row.publishedVersion,
-    publishedDefinition: parseStoredVisualWorkflowDefinition(row.publishedDefinition),
-=======
     definition,
     definitionVersion: row.definitionVersion,
     revision: row.revision,
     publishedVersion: row.publishedVersion,
     publishedDefinition,
->>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
     triggerFingerprint: row.triggerFingerprint,
     nextRunAt: row.nextRunAt ? toIsoString(row.nextRunAt) : null,
     createdAt: toIsoString(row.createdAt),

@@ -12,11 +12,30 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { applyVisualWorkflowConnection } from "./visual-workflow-canvas";
+import { createDefaultConfig } from "@/lib/visual-workflows/catalog/node-catalog";
+import { applyVisualWorkflowGraphConnection } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
+import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
 
-describe("applyVisualWorkflowConnection", () => {
+function node(id: string, type: VisualWorkflowRfNode["data"]["catalogType"]): VisualWorkflowRfNode {
+  return {
+    id,
+    type,
+    position: { x: 0, y: 0 },
+    data: {
+      catalogType: type,
+      config: createDefaultConfig(type),
+      runStatus: "idle",
+    },
+  };
+}
+
+const nodes = [node("trigger", "trigger.manual"), node("request", "action.http")];
+
+describe("applyVisualWorkflowGraphConnection edge kinds", () => {
   it("creates an execution edge for execution ports", () => {
-    const [edge] = applyVisualWorkflowConnection([], {
+    const {
+      edges: [edge],
+    } = applyVisualWorkflowGraphConnection(nodes, [], {
       source: "trigger",
       target: "request",
       sourceHandle: "success",
@@ -31,7 +50,9 @@ describe("applyVisualWorkflowConnection", () => {
   });
 
   it("normalizes omitted execution handles to stable port IDs", () => {
-    const [edge] = applyVisualWorkflowConnection([], {
+    const {
+      edges: [edge],
+    } = applyVisualWorkflowGraphConnection(nodes, [], {
       source: "trigger",
       target: "request",
       sourceHandle: null,
@@ -46,7 +67,9 @@ describe("applyVisualWorkflowConnection", () => {
   });
 
   it("creates a data edge and keeps its stable port IDs", () => {
-    const [edge] = applyVisualWorkflowConnection([], {
+    const {
+      edges: [edge],
+    } = applyVisualWorkflowGraphConnection(nodes, [], {
       source: "trigger",
       target: "request",
       sourceHandle: "triggeredAt",

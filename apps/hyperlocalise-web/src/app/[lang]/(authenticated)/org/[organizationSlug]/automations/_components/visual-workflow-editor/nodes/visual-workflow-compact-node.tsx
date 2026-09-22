@@ -23,14 +23,11 @@ import {
   resolveNodeSubtitle,
   TRIGGER_BADGE_ICON,
 } from "@/lib/visual-workflows/catalog/node-catalog";
-<<<<<<< HEAD
 import { getPrimaryExecutionSourceHandle } from "@/lib/visual-workflows/validation/execution-handles";
-=======
 import {
   getWorkflowOutputFields,
   NODE_CONTRACTS,
 } from "@/lib/visual-workflows/catalog/node-contracts";
->>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
 import { nodeSupportsErrorBranch } from "@/lib/visual-workflows/runtime/node-options";
 import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
 import { cn } from "@/lib/primitives/cn";

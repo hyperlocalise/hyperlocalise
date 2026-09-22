@@ -38,12 +38,8 @@ import {
   replaceVisualWorkflowNodeType,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
 import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
-<<<<<<< HEAD
 import { getSwitchCaseIndexByHandleId } from "@/lib/visual-workflows/schema/switch-cases";
-import { toVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/serializers";
-=======
 import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
->>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
 import type {
   MockNodeRunStatus,
   VisualCatalogType,

@@ -11,11 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-<<<<<<< HEAD
 import { expect, waitFor } from "storybook/test";
-=======
-import { expect } from "storybook/test";
->>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
 
 import {
   visualWorkflowDemoDraft,
@@ -115,26 +111,16 @@ export const SampleWorkflow: Story = {
   },
 };
 
-<<<<<<< HEAD
 export const QuickAddBranches: Story = {
   name: "Quick-add Switch and For Each",
   args: {
     initialName: visualWorkflowQuickAddDraft.name,
     initialNodes: visualWorkflowQuickAddDraft.nodes,
     initialEdges: visualWorkflowQuickAddDraft.edges,
-=======
-export const ExecutionAndDataEdges: Story = {
-  name: "Execution and data edges",
-  args: {
-    initialName: edgeKindsDraft.name,
-    initialNodes: edgeKindsDraft.nodes,
-    initialEdges: edgeKindsDraft.edges,
->>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
     previewMode: true,
     playgroundMode: true,
   },
   play: async ({ canvas }) => {
-<<<<<<< HEAD
     const click = async (name: string | RegExp) => {
       const button = await canvas.findByRole("button", { name }, { timeout: 10_000 });
       button.click();
@@ -197,12 +183,23 @@ export const SwitchCaseDelete: Story = {
       await canvas.findByTestId("visual-workflow-edge-switch-ready-case-ready"),
     ).toBeInTheDocument();
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
-=======
+  },
+};
+
+export const ExecutionAndDataEdges: Story = {
+  name: "Execution and data edges",
+  args: {
+    initialName: edgeKindsDraft.name,
+    initialNodes: edgeKindsDraft.nodes,
+    initialEdges: edgeKindsDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
     await expect(canvas.getByLabelText("Execution input")).toBeInTheDocument();
     await expect(canvas.getAllByLabelText("Execution success")).toHaveLength(2);
     await expect(canvas.getByLabelText("Data output: triggeredAt")).toBeInTheDocument();
     await expect(canvas.getByLabelText("Data input: url")).toBeInTheDocument();
     await expect(canvas.getByText("triggeredAt → url")).toBeInTheDocument();
->>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
   },
 };

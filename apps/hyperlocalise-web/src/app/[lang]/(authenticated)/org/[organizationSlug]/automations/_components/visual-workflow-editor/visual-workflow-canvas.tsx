@@ -144,31 +144,3 @@ export function VisualWorkflowCanvas({
     </div>
   );
 }
-<<<<<<< HEAD
-=======
-
-export function applyVisualWorkflowConnection(
-  edges: VisualWorkflowRfEdge[],
-  connection: Connection,
-): VisualWorkflowRfEdge[] {
-  const sourceHandle = connection.sourceHandle ?? null;
-  const targetHandle = connection.targetHandle ?? null;
-  const kind = targetHandle && targetHandle !== "input" ? "data" : "execution";
-  const normalizedSourceHandle = kind === "execution" ? (sourceHandle ?? "success") : sourceHandle;
-  const normalizedTargetHandle = kind === "execution" ? (targetHandle ?? "input") : targetHandle;
-  return addEdge(
-    {
-      ...connection,
-      sourceHandle: normalizedSourceHandle,
-      targetHandle: normalizedTargetHandle,
-      data: { kind },
-      label:
-        kind === "execution"
-          ? normalizedSourceHandle
-          : `${normalizedSourceHandle} → ${normalizedTargetHandle}`,
-      style: kind === "data" ? { strokeDasharray: "5 4" } : undefined,
-    },
-    edges,
-  );
-}
->>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)

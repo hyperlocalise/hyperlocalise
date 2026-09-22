@@ -94,7 +94,10 @@ export function computeForEachBodyNodeIds(
   edges: readonly VisualWorkflowRfEdge[],
 ): string[] {
   const roots = edges
-    .filter((edge) => edge.source === loopId && edge.sourceHandle === "each")
+    .filter(
+      (edge) =>
+        edge.data?.kind !== "data" && edge.source === loopId && edge.sourceHandle === "each",
+    )
     .map((edge) => edge.target)
     .filter((target): target is string => Boolean(target && target !== loopId));
 
@@ -104,7 +107,7 @@ export function computeForEachBodyNodeIds(
   while (queue.length > 0) {
     const current = queue.shift()!;
     for (const edge of edges) {
-      if (edge.source !== current) {
+      if (edge.data?.kind === "data" || edge.source !== current) {
         continue;
       }
       if (edge.source === loopId && edge.sourceHandle === "done") {
@@ -242,6 +245,30 @@ export function applyVisualWorkflowGraphConnection(
     return asMutableGraph(nodes, edges);
   }
 
+  const targetHandle = connection.targetHandle ?? null;
+  const kind = targetHandle && targetHandle !== "input" ? "data" : "execution";
+
+  if (kind === "data") {
+    if (!connection.sourceHandle || !targetHandle) {
+      return asMutableGraph(nodes, edges);
+    }
+
+    return {
+      nodes: nodes as VisualWorkflowRfNode[],
+      edges: addEdge(
+        {
+          ...connection,
+          sourceHandle: connection.sourceHandle,
+          targetHandle,
+          data: { kind },
+          label: `${connection.sourceHandle} → ${targetHandle}`,
+          style: { strokeDasharray: "5 4" },
+        },
+        [...edges],
+      ),
+    };
+  }
+
   const normalized = normalizeExecutionSourceHandle(
     { type: source.data.catalogType, config: source.data.config },
     connection.sourceHandle,
@@ -252,15 +279,16 @@ export function applyVisualWorkflowGraphConnection(
 
   const nextConnection: Connection = {
     ...connection,
-    sourceHandle: normalized.handle,
-    targetHandle: connection.targetHandle ?? null,
+    sourceHandle: normalized.handle ?? "success",
+    targetHandle: "input",
   };
   return {
     nodes: syncForEachBodyMembership(nodes, nextConnection),
     edges: addEdge(
       {
         ...nextConnection,
-        label: normalized.handle ?? undefined,
+        data: { kind },
+        label: nextConnection.sourceHandle ?? undefined,
       },
       [...edges],
     ),
