@@ -38,6 +38,7 @@ import {
   buildAccessibleProjectsWhere,
   buildProjectLinkedGlossaryWhere,
   canAccessGlossary,
+  canAccessProject,
   ownedProjectWhere,
 } from "@/api/auth/team-access";
 import { jobIdParamsSchema } from "@/api/routes/public-jobs/public-jobs.schema";
@@ -2496,15 +2497,24 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
         resolvedProjectId = ensuredProject.value;
       }
 
-      const projectWhere =
-        target.kind === "provider"
-          ? and(
-              eq(schema.projects.organizationId, apiAuth.organization.localOrganizationId),
-              eq(schema.projects.id, resolvedProjectId),
-            )
-          : await ownedProjectWhere(apiAuth, resolvedProjectId);
+      // Always enforce project access after materialization. Org-only lookups on
+      // provider targets skipped team ACL and live TMS membership for already-
+      // materialized `ext:` rows (ensureOrganizationProjectRecord early-returns).
+      const accessibleProject = await canAccessProject(apiAuth, resolvedProjectId);
+      if (!accessibleProject) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
 
-      const [project] = await db.select().from(schema.projects).where(projectWhere).limit(1);
+      const [project] = await db
+        .select()
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, apiAuth.organization.localOrganizationId),
+            eq(schema.projects.id, accessibleProject.id),
+          ),
+        )
+        .limit(1);
 
       if (!project) {
         return mcpToolError("project_not_found", "Project not found or inaccessible");
