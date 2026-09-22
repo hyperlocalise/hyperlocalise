@@ -194,9 +194,17 @@ export class ContentEditorWorkspaceOrchestrator {
 
   fileContext: ContentEditorFileContext = defaultFileContext;
 
-  isApproving = false;
-  isSavingDraft = false;
+  pendingWrites = new Map<string, "approve" | "draft">();
+
+  get isApproving() {
+    return this.pendingWrites.get(this.selectedSegmentId) === "approve";
+  }
+  get isSavingDraft() {
+    return this.pendingWrites.get(this.selectedSegmentId) === "draft";
+  }
   isBulkActionPending = false;
+  bulkCompletedCount = 0;
+  bulkTotalCount = 0;
 
   unsavedNavigationPrompt: UnsavedNavigationPrompt | null = null;
 
@@ -225,6 +233,7 @@ export class ContentEditorWorkspaceOrchestrator {
   validationSequence = 0;
   reviewSequence = 0;
   fileScopeGeneration = 0;
+  readonly queueViewCache = new WeakMap<ContentEditorQueueSegment, ContentEditorSegment>();
   private controllers: WorkspaceControllerLifecycle[] = [];
   private dirtyStateDisposer?: IReactionDisposer;
   private beforeUnloadHandler?: (event: BeforeUnloadEvent) => void;
@@ -237,6 +246,7 @@ export class ContentEditorWorkspaceOrchestrator {
     makeAutoObservable(
       this,
       {
+        queueViewCache: false,
         validationSequence: false,
         reviewSequence: false,
         fileScopeGeneration: false,
@@ -479,19 +489,19 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   get isSegmentTargetLoading() {
-    return this.segments.isTargetLoading;
+    return this.segments.targetLoadingSegmentIds.has(this.selectedSegmentId);
   }
 
   set isSegmentTargetLoading(value: boolean) {
-    this.segments.isTargetLoading = value;
+    this.setSegmentTargetLoading(value);
   }
 
   get isCommentsLoading() {
-    return this.segments.isCommentsLoading;
+    return this.segments.commentsLoadingSegmentIds.has(this.selectedSegmentId);
   }
 
   set isCommentsLoading(value: boolean) {
-    this.segments.isCommentsLoading = value;
+    this.setCommentsLoading(value);
   }
 
   get canEditTranslations() {
@@ -618,13 +628,47 @@ export class ContentEditorWorkspaceOrchestrator {
     filter: ContentEditorQueueFilter,
     usesServerQueueFilter: boolean,
   ): ContentEditorSegment[] {
-    return this.getFilteredQueueSegments(filter, usesServerQueueFilter).flatMap((meta) => {
-      const view = this.getSegmentView(meta.id);
-      if (!view) {
-        return [];
-      }
-
-      return [view];
+    return this.getFilteredQueueSegments(filter, usesServerQueueFilter).map((meta) => {
+      const cached = this.queueViewCache.get(meta);
+      if (cached) return cached;
+      // Getters intentionally defer MobX reads until the row observer renders.
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      const workspace = this;
+      // Read mutable segment fields in the consuming observer, not while the
+      // workspace builds its ordered list. Offscreen drafts stay unsubscribed.
+      const view: ContentEditorSegment = {
+        ...meta,
+        get sourceLocale() {
+          return workspace.fileContext.sourceLocale;
+        },
+        get targetLocale() {
+          return workspace.fileContext.targetLocale;
+        },
+        get targetText() {
+          return workspace.drafts.get(meta.id)?.targetText ?? "";
+        },
+        get status() {
+          return workspace.drafts.get(meta.id)?.status ?? "pending";
+        },
+        get comments() {
+          return workspace.segmentComments.get(meta.id);
+        },
+        get tags() {
+          return workspace.getSegmentView(meta.id)?.tags;
+        },
+        get hasOpenIssues() {
+          return workspace.segmentHasOpenIssues(meta.id);
+        },
+        get contextLabel() {
+          return workspace.segmentIntelligence[meta.id]?.productMeaning?.trim() || undefined;
+        },
+        get maxLength() {
+          const maxLength = workspace.segmentIntelligence[meta.id]?.maxLength;
+          return maxLength != null && maxLength > 0 ? maxLength : undefined;
+        },
+      };
+      this.queueViewCache.set(meta, view);
+      return view;
     });
   }
 
@@ -710,8 +754,7 @@ export class ContentEditorWorkspaceOrchestrator {
     this.fileScopeGeneration += 1;
     this.reviewSequence += 1;
     this.validationSequence += 1;
-    this.isApproving = false;
-    this.isSavingDraft = false;
+    this.pendingWrites.clear();
     this.isBulkActionPending = false;
     this.isPostingComment = false;
     this.isResolvingComment = false;
@@ -993,10 +1036,12 @@ export class ContentEditorWorkspaceOrchestrator {
     }
   }
 
-  setSegmentTargetLoading(loading: boolean) {
-    this.isSegmentTargetLoading = loading;
-    if (loading && this.selectedSegmentId) {
-      this.segments.clearTargetLoadFailed(this.selectedSegmentId);
+  setSegmentTargetLoading(loading: boolean, segmentId = this.selectedSegmentId) {
+    if (loading) {
+      this.segments.targetLoadingSegmentIds.add(segmentId);
+      this.segments.clearTargetLoadFailed(segmentId);
+    } else {
+      this.segments.targetLoadingSegmentIds.delete(segmentId);
     }
   }
 
@@ -1007,8 +1052,9 @@ export class ContentEditorWorkspaceOrchestrator {
     }
   }
 
-  setCommentsLoading(loading: boolean) {
-    this.isCommentsLoading = loading;
+  setCommentsLoading(loading: boolean, segmentId = this.selectedSegmentId) {
+    if (loading) this.segments.commentsLoadingSegmentIds.add(segmentId);
+    else this.segments.commentsLoadingSegmentIds.delete(segmentId);
   }
 
   private applySnapshotQueueMeta(

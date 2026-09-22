@@ -142,6 +142,11 @@ export const ContentEditorQueueToolbarConnected = observer(
         onBulkLock={onBulkLock}
         onBulkUnlock={onBulkUnlock}
         isBulkActionPending={store.isBulkActionPending}
+        bulkProgress={
+          store.isBulkActionPending && store.bulkTotalCount > 0
+            ? `${store.bulkCompletedCount}/${store.bulkTotalCount}`
+            : undefined
+        }
         onDownloadFilteredView={onDownloadFilteredView}
         isDownloadingFilteredView={isDownloadingFilteredView}
       />

@@ -24,8 +24,8 @@ export class ContentEditorSegmentStore {
   openIssueCounts = new Map<string, number>();
   drafts = new Map<string, ContentEditorSegmentDraft>();
 
-  isTargetLoading = false;
-  isCommentsLoading = false;
+  targetLoadingSegmentIds = new Set<string>();
+  commentsLoadingSegmentIds = new Set<string>();
   isPostingComment = false;
   isResolvingComment = false;
   resolvingCommentId: string | null = null;
@@ -72,6 +72,8 @@ export class ContentEditorSegmentStore {
   }
 
   clear() {
+    this.targetLoadingSegmentIds.clear();
+    this.commentsLoadingSegmentIds.clear();
     this.comments.clear();
     this.openIssueCounts.clear();
     this.drafts.clear();

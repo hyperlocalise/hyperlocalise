@@ -932,6 +932,45 @@ describe("ContentEditorReviewController", () => {
     });
   });
 
+  it("preserves edits made during a pending save and leaves that segment selected", async () => {
+    let finish!: (status: ContentEditorSegmentStatus) => void;
+    const { controller, workspace } = createController(undefined, {
+      review: {
+        onApprove: () =>
+          new Promise<ContentEditorSegmentStatus>((resolve) => {
+            finish = resolve;
+          }),
+      },
+    });
+    workspace.setTargetText("seg-02", "Submitted");
+    const pending = controller.approve("seg-02", "Submitted");
+    workspace.setTargetText("seg-02", "Edited while saving");
+    finish("reviewed");
+    await pending;
+    expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Edited while saving");
+    expect(workspace.drafts.get("seg-02")?.isDirty).toBe(true);
+    expect(workspace.selectedSegmentId).toBe("seg-02");
+  });
+
+  it("keeps failed bulk items selected and refreshes once after all writes", async () => {
+    const onBulkApproveComplete = vi.fn();
+    const onApprove = vi.fn(async (id: string) => {
+      if (id === "seg-02") throw new Error("Write failed");
+      return "reviewed" as const;
+    });
+    const { controller, workspace } = createController(undefined, {
+      review: { onApprove, onBulkApproveComplete },
+    });
+    workspace.toggleSegmentChecked("seg-02", true);
+    workspace.toggleSegmentChecked("seg-03", true);
+    await controller.bulkApprove();
+    expect([...workspace.checkedSegmentIds]).toEqual(["seg-02"]);
+    expect(workspace.getSegmentView("seg-03")?.status).toBe("reviewed");
+    expect(onBulkApproveComplete).toHaveBeenCalledTimes(1);
+    expect(workspace.bulkCompletedCount).toBe(2);
+    expect(onApprove).toHaveBeenCalledWith("seg-03", "Troisième", { deferQueueRefresh: true });
+  });
+
   describe("bulkApprove", () => {
     it("delegates to onBulkApprove when provided", async () => {
       const onBulkApprove = vi.fn().mockResolvedValue(undefined);

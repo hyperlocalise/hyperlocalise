@@ -22,6 +22,44 @@ import {
   resolveSegmentIntelligenceForDisplay,
 } from "./store/content-editor-workspace-store-utils";
 
+describe("editor subscription boundaries", () => {
+  it("keeps the ordered queue subscription stable when a draft changes", () => {
+    const store = createCatWorkspace(createContentEditorWorkspaceState());
+    let listReads = 0;
+    let rowReads = 0;
+    const stopList = autorun(() => {
+      store.getQueuePanelSegments("all", false);
+      listReads += 1;
+    });
+    const row = store.getQueuePanelSegments("all", false)[0]!;
+    const stopRow = autorun(() => {
+      void row.targetText;
+      rowReads += 1;
+    });
+    const before = listReads;
+    store.setTargetText(row.id, "Changed translation");
+    expect(listReads).toBe(before);
+    expect(rowReads).toBe(2);
+    expect(row.targetText).toBe("Changed translation");
+    stopList();
+    stopRow();
+  });
+
+  it("keeps target and comment loading local to the requested segment", () => {
+    const store = createCatWorkspace(createContentEditorWorkspaceState());
+    const [first, second] = store.queueSegments;
+    store.setSelectedSegmentId(first!.id);
+    store.setSegmentTargetLoading(true, first!.id);
+    store.setCommentsLoading(true, first!.id);
+    expect(store.isSegmentTargetLoading).toBe(true);
+    store.setSelectedSegmentId(second!.id);
+    expect(store.isSegmentTargetLoading).toBe(false);
+    expect(store.isCommentsLoading).toBe(false);
+    store.setSelectedSegmentId(first!.id);
+    expect(store.isCommentsLoading).toBe(true);
+  });
+});
+
 describe("ContentEditorWorkspaceOrchestrator hydration", () => {
   it("preserves selected segment and unsaved target edits across server refreshes", () => {
     const previousInitialState = createContentEditorWorkspaceState({

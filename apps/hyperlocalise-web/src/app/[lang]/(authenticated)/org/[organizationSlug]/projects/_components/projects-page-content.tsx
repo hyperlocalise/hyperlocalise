@@ -202,7 +202,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       return response.json();
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
+      void queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
       setProjectDialogMode(null);
       toast.success(intl.formatMessage(projectsPageContentMessages.projectCreated));
     },
@@ -231,7 +231,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       return response.json();
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
+      void queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
       setProjectDialogMode(null);
       setEditingProject(null);
       toast.success(intl.formatMessage(projectsPageContentMessages.projectUpdated));
@@ -256,7 +256,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
+      void queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
       setDeleteProject(null);
       toast.success(intl.formatMessage(projectsPageContentMessages.projectDeleted));
     },

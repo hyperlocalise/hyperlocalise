@@ -163,10 +163,10 @@ describe("ContentEditorEditorPanel UI", () => {
     expect(onNext).toHaveBeenCalled();
   });
 
-  it("blocks primary actions while context lookup is running", () => {
+  it("keeps approval available while context lookup is running", () => {
     renderEditorPanel({ isLookingUpContext: true });
 
-    expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Approve/i })).not.toBeDisabled();
     expect(screen.getByRole("button", { name: /Finding context/i })).toBeDisabled();
   });
 

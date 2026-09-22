@@ -369,8 +369,8 @@ export function GlossariesPageContent({
       return response.json();
     },
     onSuccess: async (body) => {
-      await queryClient.invalidateQueries({ queryKey: ["glossaries", organizationSlug] });
-      await queryClient.invalidateQueries({ queryKey: ["native-glossaries", organizationSlug] });
+      void queryClient.invalidateQueries({ queryKey: ["glossaries", organizationSlug] });
+      void queryClient.invalidateQueries({ queryKey: ["native-glossaries", organizationSlug] });
       setCreateDialogOpen(false);
       setCreateForm(createEmptyGlossaryForm());
       toast.success(intl.formatMessage(glossariesPageContentMessages.glossaryCreated));

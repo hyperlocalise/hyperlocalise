@@ -237,7 +237,6 @@ export function JobsPageContent({
     organizationSlug,
     "tms-live",
     scope,
-    statusFilter,
     projectId ?? "workspace",
   ] as const;
 
@@ -324,7 +323,7 @@ export function JobsPageContent({
         }
         isNativeLoading={isNativeLoading}
         isProviderProjectScope={isProviderProjectScope}
-        isTmsLoading={tmsJobsQuery.isLoading || tmsJobsQuery.isFetching}
+        isTmsLoading={tmsJobsQuery.isLoading && !tmsJobsQuery.data}
         nativeError={nativeError}
         nativeJobs={nativeJobs}
         onStatusFilterChange={setStatusFilter}

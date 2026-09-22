@@ -144,6 +144,7 @@ export function ContentEditorSideBySideVirtualList({
     [onVisibleRangeChange, segments],
   );
 
+  const previousSelectedId = useRef<string | null>(null);
   const getItemKey = useCallback((index: number) => segments[index]?.id ?? index, [segments]);
 
   const virtualizer = useVirtualizer({
@@ -162,6 +163,14 @@ export function ContentEditorSideBySideVirtualList({
       });
     },
   });
+
+  useEffect(() => {
+    if (previousSelectedId.current === focusedSegmentId) return;
+    const index = segments.findIndex((segment) => segment.id === focusedSegmentId);
+    if (index < 0) return;
+    previousSelectedId.current = focusedSegmentId;
+    virtualizer.scrollToIndex(index, { align: "auto" });
+  }, [focusedSegmentId, segments, virtualizer]);
 
   useEffect(() => {
     if (!isLoadingMore) {

@@ -222,6 +222,7 @@ describe("fetchProjectFileContentEditorSegmentTarget", () => {
           targetLocale: contentEditorApiTestContext.targetLocale,
         },
       }),
+      { init: { signal: undefined } },
     );
   });
 
