@@ -32,7 +32,28 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `WORKOS_API_HTTPS` | `true` | Set `false` for the local emulator. |
 | `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
 | `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, issue-sheet, and Hyperlab OFREP evaluate routes. |
+| `VALKEY_URL` | _(unset)_ | Valkey/Redis URL (`redis://`, `rediss://`, `valkey://`, `valkeys://`, or `unix://`). Leave unset to skip the client. When set, go-svc connects at startup and fails if ping does not succeed. |
+| `VALKEY_ADDR` | _(unset)_ | Host:port used when `VALKEY_URL` is empty. Comma-separated addresses are allowed for cluster setups. |
+| `VALKEY_USERNAME` | _(unset)_ | Optional username overlaid on `VALKEY_URL` or used with `VALKEY_ADDR`. |
+| `VALKEY_PASSWORD` | _(unset)_ | Optional password overlaid on `VALKEY_URL` or used with `VALKEY_ADDR`. |
 | `AUTUMN_API_KEY` | _(unset)_ | Autumn secret key. Required for issue-sheet routes (`queries-board` gate). Fail-closed when unset. |
+
+Example Go usage:
+
+```go
+client, err := valkey.NewClient(valkey.Config{
+    URL: os.Getenv("VALKEY_URL"),
+})
+if err != nil {
+    return err
+}
+defer client.Close()
+
+raw := client.Inner()
+err = raw.Do(ctx, raw.B().Set().Key("k").Value("v").Build()).Error()
+```
+
+Callers that need commands beyond `Ping` should use `Inner()` and the valkey-go command builder. Do not reuse a built command across `Do` calls unless it is `Pin()`ned.
 
 ### DataForSEO (Domains research)
 

@@ -32,6 +32,7 @@ use_repo(
     "com_github_stretchr_testify",
     "com_github_subosito_gotenv",
     "com_github_tidwall_jsonc",
+    "com_github_valkey_io_valkey_go",
     "com_github_workos_workos_go_v10",
     "com_github_yuin_goldmark_v2",
     "in_gopkg_yaml_v3",

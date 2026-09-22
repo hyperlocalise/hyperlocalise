@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "valkey",
+    srcs = [
+        "client.go",
+        "config.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/valkey",
+    visibility = ["//apps/go-svc:__pkg__"],
+    deps = ["@com_github_valkey_io_valkey_go//:valkey-go"],
+)
+
+go_test(
+    name = "valkey_test",
+    srcs = ["client_test.go"],
+    embed = [":valkey"],
+)
