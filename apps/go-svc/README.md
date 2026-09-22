@@ -218,7 +218,7 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | GET | `/files/detail/cat/segments/{id}/target` | Segment translation |
 | GET | `/files/detail/cat/segments/{id}/comments` | Segment comments |
 | POST | `/files/detail/cat/translations` | Save draft or approved translation |
-| PATCH | `/files/detail/cat/translations/status` | Update translation status |
+| POST, PATCH | `/files/detail/cat/translations/status` | Update translation status |
 | POST | `/files/detail/cat/comments` | Add a comment |
 | PATCH | `/files/detail/cat/comments/{id}/resolve` | Resolve a legacy native issue comment |
 | POST | `/files/detail/cat/concordance` | Native glossary + TM lookup |

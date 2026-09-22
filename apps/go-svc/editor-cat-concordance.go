@@ -42,12 +42,12 @@ func (api *editorCatAPI) loadConcordance(r *http.Request, actor editorCatActor, 
 	if sourceLocale == "" || targetLocale == "" || trimEditorCat(sourceText) == "" || len(sourceText) > 100_000 {
 		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
-	pattern := "%" + escapeEditorCatIlike(sourceText) + "%"
-	glossaryTerms, err := api.searchConcordanceGlossary(r, actor, project, sourceLocale, targetLocale, pattern)
+	memoryPattern := "%" + escapeEditorCatIlike(sourceText) + "%"
+	glossaryTerms, err := api.searchConcordanceGlossary(r, actor, project, sourceLocale, targetLocale, sourceText)
 	if err != nil {
 		return nil, 0, err
 	}
-	memoryMatches, err := api.searchConcordanceMemory(r, actor, project, sourceLocale, targetLocale, pattern)
+	memoryMatches, err := api.searchConcordanceMemory(r, actor, project, sourceLocale, targetLocale, memoryPattern)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -57,18 +57,20 @@ func (api *editorCatAPI) loadConcordance(r *http.Request, actor editorCatActor, 
 	}}, 200, nil
 }
 
-func (api *editorCatAPI) searchConcordanceGlossary(r *http.Request, actor editorCatActor, project editorCatProject, sourceLocale, targetLocale, pattern string) ([]editorCatGlossaryTerm, error) {
+func (api *editorCatAPI) searchConcordanceGlossary(r *http.Request, actor editorCatActor, project editorCatProject, sourceLocale, targetLocale, sourceText string) ([]editorCatGlossaryTerm, error) {
 	rows, err := api.pool.Query(r.Context(), `
         select st.id::text, st.term, coalesce(tt.term, ''), coalesce(tt.forbidden, false)
         from project_glossaries pg
         join glossaries g on g.id = pg.glossary_id
         join glossary_terms st on st.glossary_id = g.id and st.locale=$3 and st.archived_at is null
+            and st.review_status='approved'
         left join glossary_terms tt on tt.glossary_id = g.id and tt.concept_id = st.concept_id
-            and tt.locale=$4 and tt.archived_at is null
+            and tt.locale=$4 and tt.archived_at is null and tt.review_status='approved'
         where pg.project_id=$2 and g.organization_id=$1 and g.status='active' and g.source='native'
-          and st.term ilike $5 escape '\'
+          and st.term <> ''
+          and $5 ilike '%' || replace(replace(replace(st.term, E'\\', E'\\\\'), '%', E'\\%'), '_', E'\\_') || '%' escape '\'
         order by pg.priority, st.term
-        limit 20`, actor.organizationID, project.ID, sourceLocale, targetLocale, pattern)
+        limit 20`, actor.organizationID, project.ID, sourceLocale, targetLocale, sourceText)
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +95,7 @@ func (api *editorCatAPI) searchConcordanceMemory(r *http.Request, actor editorCa
         join memory_entries e on e.memory_id = m.id
         where pm.project_id=$2 and m.organization_id=$1 and m.source='native'
           and e.source_locale=$3 and e.target_locale=$4
+          and e.review_status='approved'
           and e.source_text ilike $5 escape '\'
         order by e.match_score desc, e.updated_at desc
         limit 20`, actor.organizationID, project.ID, sourceLocale, targetLocale, pattern)

@@ -73,6 +73,10 @@ func editorCatRequest(api *editorCatAPI, method, path, body string) *httptest.Re
 	return rec
 }
 
+func editorCatActivityStep() dictionaryDBStep {
+	return dictionaryDBStep{kind: "exec", sql: "insert into organization_activity_events"}
+}
+
 func TestEditorCatSkipsVercelRoutes(t *testing.T) {
 	routes := []struct {
 		method, path, code string
@@ -149,9 +153,28 @@ func TestEditorCatCachedStringContext(t *testing.T) {
 		editorCatProjectStep("native"),
 		dictionaryRowStep("from project_file_string_repository_contexts", &summary),
 	)
-	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/string-context"), `{"sourcePath":"a.json","key":"hello","text":"Hello","cachedOnly":true}`)
+	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/string-context"), `{"sourcePath":"a.json","key":"hello","text":"Hello","context":null,"cachedOnly":true}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), "Looks up the repository key.")
+}
+
+func TestEditorCatCachedStringContextMiss(t *testing.T) {
+	api := editorCatTestAPI(t, "translator",
+		editorCatProjectStep("native"),
+		dictionaryDBStep{kind: "row", sql: "from project_file_string_repository_contexts", err: pgx.ErrNoRows},
+	)
+	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/string-context"), `{"sourcePath":"a.json","key":"hello","text":"Hello","context":null,"cachedOnly":true}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"summary":null`)
+}
+
+func TestEditorCatCachedStringContextQueryError(t *testing.T) {
+	api := editorCatTestAPI(t, "translator",
+		editorCatProjectStep("native"),
+		dictionaryDBStep{kind: "row", sql: "from project_file_string_repository_contexts", err: context.DeadlineExceeded},
+	)
+	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/string-context"), `{"sourcePath":"a.json","key":"hello","text":"Hello","cachedOnly":true}`)
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
 }
 
 func TestEditorCatFreshStringContextDeferred(t *testing.T) {
@@ -398,10 +421,25 @@ func TestEditorCatUpdateTranslationStatus(t *testing.T) {
 	}
 	steps = append(steps, editorCatTextKeySteps()...)
 	steps = append(steps, dictionaryRowStep("update project_translations", testEditorCatTranslationID, "Bonjour", "approved"))
+	steps = append(steps, editorCatActivityStep())
 	api := editorCatTestAPI(t, "reviewer", steps...)
 	rec := editorCatRequest(api, http.MethodPatch, editorCatPath("/files/detail/cat/translations/status"), `{"sourcePath":"a.json","targetLocale":"fr","externalStringId":"`+testEditorCatKeyID+`","status":"approved"}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"isApproved":true`)
+}
+
+func TestEditorCatUpdateTranslationStatusPost(t *testing.T) {
+	steps := []dictionaryDBStep{
+		editorCatProjectStep("native"),
+		dictionaryRowStep("from project_cat_segment_locks", 0),
+	}
+	steps = append(steps, editorCatTextKeySteps()...)
+	steps = append(steps, dictionaryRowStep("update project_translations", testEditorCatTranslationID, "Bonjour", "needs_review"))
+	steps = append(steps, editorCatActivityStep())
+	api := editorCatTestAPI(t, "translator", steps...)
+	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/detail/cat/translations/status"), `{"sourcePath":"a.json","targetLocale":"fr","externalStringId":"`+testEditorCatKeyID+`","status":"needs_review"}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"status":"needs_review"`)
 }
 
 func TestEditorCatUpdateTranslationStatusInvalid(t *testing.T) {
@@ -417,6 +455,7 @@ func TestEditorCatSaveComment(t *testing.T) {
 	steps = append(steps, editorCatTextKeySteps()...)
 	steps = append(steps, dictionaryRowStep("insert into project_translation_comments", testEditorCatCommentID, "comment", (*string)(nil), "Looks good", created, "fr"))
 	steps = append(steps, dictionaryRowStep("from users where id=$1", &first, (*string)(nil), (*string)(nil)))
+	steps = append(steps, editorCatActivityStep())
 	api := editorCatTestAPI(t, "translator", steps...)
 	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/detail/cat/comments"), `{"sourcePath":"a.json","targetLocale":"fr","externalStringId":"`+testEditorCatKeyID+`","text":"Looks good"}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -454,14 +493,24 @@ func TestEditorCatResolveComment(t *testing.T) {
 func TestEditorCatConcordance(t *testing.T) {
 	api := editorCatTestAPI(t, "translator",
 		editorCatProjectStep("native"),
-		dictionaryDBStep{kind: "query", sql: "join glossary_terms st", values: [][]any{{
-			"term-1", "Hello", "Bonjour", false,
-		}}},
-		dictionaryDBStep{kind: "query", sql: "from project_memories pm", values: [][]any{{
-			"mem-1", "Hello world", "Bonjour le monde", 90,
-		}}},
+		dictionaryDBStep{
+			kind: "query",
+			sql:  "st.review_status='approved'",
+			args: []any{testDictionaryOrgID, testEditorCatProjectID, "en", "fr", "Click Save to continue"},
+			values: [][]any{{
+				"term-1", "Save", "Enregistrer", false,
+			}},
+		},
+		dictionaryDBStep{
+			kind: "query",
+			sql:  "e.review_status='approved'",
+			args: []any{testDictionaryOrgID, testEditorCatProjectID, "en", "fr", "%Click Save to continue%"},
+			values: [][]any{{
+				"mem-1", "Click Save to continue", "Cliquez sur Enregistrer pour continuer", 90,
+			}},
+		},
 	)
-	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/detail/cat/concordance"), `{"sourceLocale":"en","targetLocale":"fr","sourceText":"Hello"}`)
+	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/detail/cat/concordance"), `{"sourceLocale":"en","targetLocale":"fr","sourceText":"Click Save to continue"}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	var body struct {
 		Concordance struct {
@@ -470,7 +519,7 @@ func TestEditorCatConcordance(t *testing.T) {
 		} `json:"concordance"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
-	require.Equal(t, "Bonjour", body.Concordance.GlossaryTerms[0].Target)
+	require.Equal(t, "Enregistrer", body.Concordance.GlossaryTerms[0].Target)
 	require.True(t, body.Concordance.GlossaryTerms[0].Approved)
 	require.Equal(t, 90, body.Concordance.TranslationMemoryMatches[0].MatchPercent)
 }
@@ -480,6 +529,7 @@ func TestEditorCatSetHidden(t *testing.T) {
 		editorCatProjectStep("native"),
 		dictionaryRowStep("from repository_source_files", testEditorCatSourceFileID),
 		dictionaryDBStep{kind: "exec", sql: "update project_translation_keys set is_hidden", affected: 1},
+		editorCatActivityStep(),
 	)
 	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/detail/cat/strings/hidden"), `{"sourcePath":"a.json","externalStringIds":["`+testEditorCatKeyID+`"],"isHidden":true}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -491,6 +541,7 @@ func TestEditorCatSetLocked(t *testing.T) {
 	api := editorCatTestAPI(t, "translator",
 		editorCatProjectStep("native"),
 		dictionaryDBStep{kind: "exec", sql: "insert into project_cat_segment_locks", affected: 1},
+		editorCatActivityStep(),
 	)
 	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/detail/cat/strings/locked"), `{"sourcePath":"a.json","targetLocale":"fr","externalStringIds":["`+testEditorCatKeyID+`"],"isLocked":true}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -501,6 +552,7 @@ func TestEditorCatUnlock(t *testing.T) {
 	api := editorCatTestAPI(t, "translator",
 		editorCatProjectStep("native"),
 		dictionaryDBStep{kind: "exec", sql: "delete from project_cat_segment_locks", affected: 1},
+		editorCatActivityStep(),
 	)
 	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/detail/cat/strings/locked"), `{"sourcePath":"a.json","targetLocale":"fr","externalStringIds":["`+testEditorCatKeyID+`"],"isLocked":false}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())

@@ -1,6 +1,11 @@
 package main
 
-import "net/http"
+import (
+	"errors"
+	"net/http"
+
+	"github.com/jackc/pgx/v5"
+)
 
 func (api *editorCatAPI) skipVisualContext(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
 	return nil, 0, editorCatVercelDeferred(
@@ -36,6 +41,7 @@ func (api *editorCatAPI) stringContext(r *http.Request, actor editorCatActor, pr
 		RepositoryFullName *string `json:"repositoryFullName"`
 		Key                string  `json:"key"`
 		Text               string  `json:"text"`
+		Context            *string `json:"context"`
 		CachedOnly         *bool   `json:"cachedOnly"`
 		ForceRefresh       *bool   `json:"forceRefresh"`
 	}
@@ -68,8 +74,11 @@ func (api *editorCatAPI) stringContext(r *http.Request, actor editorCatActor, pr
 	sql += ` order by updated_at desc limit 1`
 	var summary *string
 	err := api.pool.QueryRow(r.Context(), sql, args...).Scan(&summary)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return map[string]any{"stringContext": map[string]any{"summary": nil, "cached": true}}, 200, nil
+	}
+	if err != nil {
+		return nil, 0, err
 	}
 	return map[string]any{"stringContext": map[string]any{"summary": summary, "cached": true}}, 200, nil
 }

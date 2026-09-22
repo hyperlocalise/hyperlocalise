@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -292,6 +293,14 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 	if err != nil {
 		return nil, 0, err
 	}
+	if body.Approve != nil && *body.Approve {
+		api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
+			eventType:    "string_segment_approved",
+			segmentID:    keyID,
+			sourcePath:   sourcePath,
+			targetLocale: targetLocale,
+		})
+	}
 	return map[string]any{"translation": editorCatTranslation{
 		Text:                  text,
 		ExternalTranslationID: &id,
@@ -349,6 +358,24 @@ func (api *editorCatAPI) updateTranslationStatus(r *http.Request, actor editorCa
 	if err != nil {
 		return nil, 0, err
 	}
+	sourcePath := trimEditorCat(body.SourcePath)
+	targetLocale := trimEditorCat(body.TargetLocale)
+	if status == "approved" {
+		api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
+			eventType:    "string_segment_approved",
+			segmentID:    keyID,
+			sourcePath:   sourcePath,
+			targetLocale: targetLocale,
+		})
+	} else {
+		api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
+			eventType:    "string_segment_status_changed",
+			segmentID:    keyID,
+			sourcePath:   sourcePath,
+			targetLocale: targetLocale,
+			extra:        map[string]any{"nextStatus": status},
+		})
+	}
 	return map[string]any{"translation": editorCatTranslation{
 		Text:                  text,
 		ExternalTranslationID: &id,
@@ -404,6 +431,12 @@ func (api *editorCatAPI) saveComment(r *http.Request, actor editorCatActor, proj
 	var first, last, email *string
 	_ = api.pool.QueryRow(r.Context(), `select first_name, last_name, email from users where id=$1`, actor.userID).Scan(&first, &last, &email)
 	comment.Author = formatEditorCatAuthor(first, last, email)
+	api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
+		eventType:    "string_segment_commented",
+		segmentID:    keyID,
+		sourcePath:   trimEditorCat(body.SourcePath),
+		targetLocale: trimEditorCat(body.TargetLocale),
+	})
 	return map[string]any{"comment": comment}, 200, nil
 }
 
@@ -493,6 +526,16 @@ func (api *editorCatAPI) setHidden(r *http.Request, actor editorCatActor, projec
 	if err != nil {
 		return nil, 0, err
 	}
+	eventType := "string_segment_unhidden"
+	if body.IsHidden {
+		eventType = "string_segment_hidden"
+	}
+	api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
+		eventType:  eventType,
+		segmentID:  ids[0],
+		sourcePath: trimEditorCat(body.SourcePath),
+		itemCount:  int(tag.RowsAffected()),
+	})
 	return map[string]any{"updatedCount": tag.RowsAffected(), "isHidden": body.IsHidden}, 200, nil
 }
 
@@ -522,6 +565,13 @@ func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, projec
 		if err != nil {
 			return nil, 0, err
 		}
+		api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
+			eventType:    "string_segment_unlocked",
+			segmentID:    ids[0],
+			sourcePath:   trimEditorCat(body.SourcePath),
+			targetLocale: targetLocale,
+			itemCount:    int(tag.RowsAffected()),
+		})
 		return map[string]any{"contentEditorSegmentLock": map[string]any{"updatedCount": tag.RowsAffected(), "isLocked": false}}, 200, nil
 	}
 	_, err := api.pool.Exec(r.Context(), `
@@ -536,6 +586,13 @@ func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, projec
 	if err != nil {
 		return nil, 0, err
 	}
+	api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
+		eventType:    "string_segment_locked",
+		segmentID:    ids[0],
+		sourcePath:   trimEditorCat(body.SourcePath),
+		targetLocale: targetLocale,
+		itemCount:    len(ids),
+	})
 	return map[string]any{"contentEditorSegmentLock": map[string]any{"updatedCount": len(ids), "isLocked": true}}, 200, nil
 }
 
@@ -746,6 +803,50 @@ func (api *editorCatAPI) rejectIfLocked(r *http.Request, actor editorCatActor, p
 		return editorCatFailure(409, "cat_segment_locked", "This string is locked")
 	}
 	return nil
+}
+
+type editorCatSegmentActivity struct {
+	eventType    string
+	segmentID    string
+	sourcePath   string
+	targetLocale string
+	itemCount    int
+	extra        map[string]any
+}
+
+func (api *editorCatAPI) recordEditorCatSegmentActivity(r *http.Request, actor editorCatActor, project editorCatProject, activity editorCatSegmentActivity) {
+	sourcePath := trimEditorCat(activity.sourcePath)
+	fileName := filenameFromSourcePath(sourcePath)
+	payload := map[string]any{
+		"fileName":   fileName,
+		"name":       fileName,
+		"projectId":  project.ID,
+		"segmentId":  activity.segmentID,
+		"sourcePath": sourcePath,
+	}
+	if locale := trimEditorCat(activity.targetLocale); locale != "" {
+		payload["targetLocale"] = locale
+	}
+	if activity.itemCount > 1 {
+		payload["itemCount"] = activity.itemCount
+	}
+	for key, value := range activity.extra {
+		payload[key] = value
+	}
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		slog.ErrorContext(r.Context(), "editor_cat_activity_encode_failed", "event_type", activity.eventType)
+		return
+	}
+	_, err = api.pool.Exec(r.Context(), `
+        insert into organization_activity_events (
+            organization_id, actor_kind, actor_user_id, event_type, target_kind, target_id, payload
+        ) values ($1,'user',$2,$3,'string_segment',$4,$5::jsonb)`,
+		actor.organizationID, actor.userID, activity.eventType, activity.segmentID, encoded,
+	)
+	if err != nil {
+		slog.ErrorContext(r.Context(), "editor_cat_activity_insert_failed", "event_type", activity.eventType)
+	}
 }
 
 func uniqueEditorCatIDs(values []string, max int) []string {
