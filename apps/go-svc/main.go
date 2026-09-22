@@ -88,6 +88,7 @@ func main() {
 	h.issueSheets = &issueSheetAPI{}
 	h.activityLogs = &activityLogAPI{}
 	h.contentEditor = &editorCatAPI{}
+	h.projects = &projectAPI{}
 	if autumnKey := strings.TrimSpace(os.Getenv("AUTUMN_API_KEY")); autumnKey != "" {
 		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
 			log.Printf("configure autumn: %v", err)
@@ -95,19 +96,12 @@ func main() {
 			h.issueSheets.autumn = autumnClientChecker{client: client}
 		}
 	}
+	var membershipLookup organizationMembershipLookup
 	if key := strings.TrimSpace(os.Getenv("WORKOS_API_KEY")); key != "" {
 		client := workos.NewClient(key)
-		membershipLookup := func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
+		membershipLookup = func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
 			return client.OrganizationMembership().Get(ctx, id)
 		}
-		h.dictionaries.membership = membershipLookup
-		h.glossaries.membership = membershipLookup
-		h.memories.membership = membershipLookup
-		h.qaReports.membership = membershipLookup
-		h.teams.membership = membershipLookup
-		h.issueSheets.membership = membershipLookup
-		h.activityLogs.membership = membershipLookup
-		h.contentEditor.membership = membershipLookup
 	}
 
 	if apiKey := strings.TrimSpace(os.Getenv("DATAFORSEO_API_KEY")); apiKey != "" {
@@ -134,6 +128,7 @@ func main() {
 		h.teams.pool = pool
 		h.activityLogs.pool = pool
 		h.contentEditor.pool = pool
+		h.projects.pool = pool
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure experiment store: %v", err)
@@ -170,6 +165,16 @@ func main() {
 		h.glossaries.readCache = valkeyClient
 		defer valkeyClient.Close()
 	}
+	membershipLookup = newCachedOrganizationMembershipLookup(membershipLookup, valkeyClient)
+	h.dictionaries.membership = membershipLookup
+	h.glossaries.membership = membershipLookup
+	h.memories.membership = membershipLookup
+	h.qaReports.membership = membershipLookup
+	h.teams.membership = membershipLookup
+	h.issueSheets.membership = membershipLookup
+	h.activityLogs.membership = membershipLookup
+	h.contentEditor.membership = membershipLookup
+	h.projects.membership = membershipLookup
 
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, verifier)
