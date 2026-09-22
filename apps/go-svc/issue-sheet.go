@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -186,19 +185,9 @@ func (api *issueSheetAPI) queriesBoardEnabled(ctx context.Context, organizationI
 
 func (api *issueSheetAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		origin := r.Header.Get("Origin")
-		if origin != "" {
-			parsed, err := url.Parse(origin)
-			if err != nil || parsed.Host != r.Host || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-				writeIssueSheetError(w, r, "origin_guard", issueSheetFailure(403, "forbidden", "Cross-origin request denied"))
-				return
-			}
-		}
-		if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
-			writeIssueSheetError(w, r, "origin_guard", issueSheetFailure(403, "forbidden", "Cross-origin request denied"))
-			return
-		}
+	if denyBrowserMutation(r) {
+		writeIssueSheetError(w, r, "origin_guard", issueSheetFailure(403, "forbidden", "Cross-origin request denied"))
+		return
 	}
 	if api.pool == nil {
 		writeIssueSheetError(w, r, "availability", issueSheetFailure(503, "issue_sheet_unavailable", "Issue sheet service unavailable"))

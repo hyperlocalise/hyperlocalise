@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -143,19 +142,9 @@ func (api *qaReportAPI) actor(ctx context.Context, claims AuthClaims, slug strin
 
 func (api *qaReportAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		origin := r.Header.Get("Origin")
-		if origin != "" {
-			parsed, err := url.Parse(origin)
-			if err != nil || parsed.Host != r.Host || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-				writeQaReportError(w, r, "origin_guard", qaReportFailure(403, "forbidden", "Cross-origin request denied"))
-				return
-			}
-		}
-		if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
-			writeQaReportError(w, r, "origin_guard", qaReportFailure(403, "forbidden", "Cross-origin request denied"))
-			return
-		}
+	if denyBrowserMutation(r) {
+		writeQaReportError(w, r, "origin_guard", qaReportFailure(403, "forbidden", "Cross-origin request denied"))
+		return
 	}
 	if api.pool == nil {
 		writeQaReportError(w, r, "availability", qaReportFailure(503, "qa_report_unavailable", "QA report service unavailable"))

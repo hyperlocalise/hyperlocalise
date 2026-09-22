@@ -157,6 +157,10 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if denyBrowserMutation(r) {
+		writeForbidden(w, "Cross-origin request denied")
+		return
+	}
 
 	var req validateSegmentRequest
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxValidateSegmentBodyBytes))
@@ -209,6 +213,15 @@ func validateTargetLocale(raw string) (string, error) {
 		return "", errors.New("targetLocale must be a valid BCP 47 language tag")
 	}
 	return trimmed, nil
+}
+
+func writeForbidden(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error":   "forbidden",
+		"message": message,
+	})
 }
 
 func writeBadRequest(w http.ResponseWriter, message string) {

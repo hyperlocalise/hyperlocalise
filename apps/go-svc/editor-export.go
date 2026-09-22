@@ -17,6 +17,10 @@ type editorFilteredExportRequest struct {
 }
 
 func (h *handler) serializeEditorFilteredExport(w http.ResponseWriter, r *http.Request) {
+	if denyBrowserMutation(r) {
+		writeForbidden(w, "Cross-origin request denied")
+		return
+	}
 	var req editorFilteredExportRequest
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxEditorFilteredExportBodyBytes))
 	decoder.DisallowUnknownFields()

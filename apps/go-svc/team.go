@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -120,19 +119,9 @@ func (api *teamAPI) actor(ctx context.Context, claims AuthClaims, slug string) (
 
 func (api *teamAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		origin := r.Header.Get("Origin")
-		if origin != "" {
-			parsed, err := url.Parse(origin)
-			if err != nil || parsed.Host != r.Host || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-				writeTeamError(w, r, "origin_guard", teamFailure(403, "forbidden"))
-				return
-			}
-		}
-		if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
-			writeTeamError(w, r, "origin_guard", teamFailure(403, "forbidden"))
-			return
-		}
+	if denyBrowserMutation(r) {
+		writeTeamError(w, r, "origin_guard", teamFailure(403, "forbidden"))
+		return
 	}
 	if api.pool == nil {
 		writeTeamError(w, r, "availability", teamFailure(503, "team_unavailable"))

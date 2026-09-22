@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -159,19 +158,9 @@ func (api *memoryAPI) actor(ctx context.Context, claims AuthClaims, slug string)
 
 func (api *memoryAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		origin := r.Header.Get("Origin")
-		if origin != "" {
-			parsed, err := url.Parse(origin)
-			if err != nil || parsed.Host != r.Host || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-				writeMemoryError(w, r, "origin_guard", memoryFailure(403, "forbidden", "Cross-origin request denied"))
-				return
-			}
-		}
-		if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
-			writeMemoryError(w, r, "origin_guard", memoryFailure(403, "forbidden", "Cross-origin request denied"))
-			return
-		}
+	if denyBrowserMutation(r) {
+		writeMemoryError(w, r, "origin_guard", memoryFailure(403, "forbidden", "Cross-origin request denied"))
+		return
 	}
 	if api.pool == nil {
 		writeMemoryError(w, r, "availability", memoryFailure(503, "memory_unavailable", "Translation memory unavailable"))

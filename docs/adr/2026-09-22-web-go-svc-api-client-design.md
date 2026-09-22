@@ -61,9 +61,10 @@ URL, Bearer authorization, omitted cookies, path/query encoding, JSON and empty
 responses, token refresh per request, error envelopes, malformed responses,
 downloads, and abort-signal forwarding.
 
-## Deferred integration constraint
+## Browser CORS
 
-Some mutating go-svc handlers currently reject browser requests whose `Origin`
-host differs from the API host. A later browser integration must add a narrow
-origin allowlist and CORS policy for the web application. Server-side callers
-do not send browser origin headers and are unaffected.
+Browser callers send `Origin` from the web app. go-svc allows
+`https://hyperlocalise.com` and `https://hyperlocalize.com` (including `www`),
+same-host rewrites, loopback origins, and extras in `GO_SVC_CORS_ORIGINS`.
+Mutating handlers reject other origins. CORS is credential-less because
+`GoSvcClient` uses `Authorization: Bearer` and `credentials: "omit"`.

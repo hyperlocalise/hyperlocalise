@@ -198,6 +198,8 @@ For tracing, set `OTEL_EXPORTER_OTLP_ENDPOINT` in the `go_svc` service environme
 
 Authenticated CAT requests must include either the `wos-session` cookie from a signed-in Hyperlocalise user or `Authorization: Bearer` with that session's WorkOS access-token JWT. go-svc verifies Bearer tokens against the WorkOS JWKS for `WORKOS_CLIENT_ID` (`sub` is the user, `sid` is required). Agent JWTs are not accepted. If both a cookie and a Bearer token are present, the cookie wins. Research routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
 
+Browser callers from `https://hyperlocalise.com` and `https://hyperlocalize.com` (and `www`) may call session-auth `/v1` routes on `https://api.hyperlocalise.com`. Those origins receive CORS headers; mutating requests from other origins are rejected. Same-host `/api/go-svc` rewrites still pass the origin guard. Extra origins can be listed in `GO_SVC_CORS_ORIGINS`. CORS does not allow credentials: the web `GoSvcClient` sends a Bearer token and omits cookies.
+
 ## Object storage and guideline search
 
 The optional storage and guideline routes reuse `serverCallAuthMiddleware` in
