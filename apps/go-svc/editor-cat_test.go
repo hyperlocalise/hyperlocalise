@@ -643,3 +643,37 @@ func TestFormatEditorCatAuthor(t *testing.T) {
 func TestUniqueEditorCatIDs(t *testing.T) {
 	require.Equal(t, []string{"a", "b"}, uniqueEditorCatIDs([]string{" a ", "", "a", "b", "c"}, 2))
 }
+
+func TestEditorCatQueueFilterSQL(t *testing.T) {
+	const orgN, projectN, localeN = 1, 2, 4
+
+	require.Empty(t, editorCatQueueFilterSQL("all", orgN, projectN, localeN))
+	require.Empty(t, editorCatQueueFilterSQL("qa_issues", orgN, projectN, localeN))
+	require.Empty(t, editorCatQueueFilterSQL("machine_translated", orgN, projectN, localeN))
+	require.Empty(t, editorCatQueueFilterSQL("with_comments", orgN, projectN, localeN))
+	require.Empty(t, editorCatQueueFilterSQL("unknown", orgN, projectN, localeN))
+
+	untranslated := editorCatQueueFilterSQL("untranslated", orgN, projectN, localeN)
+	require.Contains(t, untranslated, "not exists (select 1 from project_translations t where")
+	require.Contains(t, untranslated, "t.target_locale=$4")
+	require.Contains(t, untranslated, "trim(t.text) != ''")
+
+	reviewed := editorCatQueueFilterSQL("reviewed", orgN, projectN, localeN)
+	require.Contains(t, reviewed, "exists (select 1 from project_translations t where")
+	require.Contains(t, reviewed, "t.status='approved'")
+
+	needsReview := editorCatQueueFilterSQL("needs_review", orgN, projectN, localeN)
+	require.Contains(t, needsReview, "trim(t.text) != '' and t.status != 'approved'")
+
+	hasIssues := editorCatQueueFilterSQL("has_issues", orgN, projectN, localeN)
+	require.Contains(t, hasIssues, "from issue_sheet_issues i")
+	require.Contains(t, hasIssues, "i.status in ('open', 'in_progress')")
+	require.Contains(t, hasIssues, "from project_translation_comments c")
+	require.Contains(t, hasIssues, "c.type='issue' and c.status='unresolved'")
+	require.Contains(t, hasIssues, "not exists (select 1 from issue_sheet_issues i where i.linked_comment_id = c.id)")
+	require.Contains(t, hasIssues, "i.organization_id=$1")
+	require.Contains(t, hasIssues, "i.project_id=$2")
+	require.Contains(t, hasIssues, "i.target_locale=$4")
+
+	require.Equal(t, " and k.is_hidden = true", editorCatQueueFilterSQL("hidden", orgN, projectN, localeN))
+}
