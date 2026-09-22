@@ -26,7 +26,8 @@ The client:
 - sends `Authorization: Bearer <token>` and never sends cookies;
 - calls native `/v1` routes, not the former `/api/go-svc` rewrite;
 - accepts an optional `AbortSignal`;
-- exposes typed methods for all routes protected by go-svc's session
+- exposes nested resource APIs (`client.glossary.create`,
+  `client.team.members.add`) for all routes protected by go-svc's session
   authentication middleware;
 - returns typed success data and throws a typed `GoSvcClientError` for HTTP,
   network, and malformed-response failures;
@@ -37,6 +38,10 @@ issue sheets, QA reports, activity logs, segment validation, and filtered editor
 exports. It excludes Domains research, Google Search Console, object storage,
 guidelines, and OFREP because those routes use service credentials or a separate
 authentication contract.
+
+`GoSvcClient` is a thin composer. Transport lives in `GoSvcRequest`. Each
+resource owns its own file (`go-svc-glossary-api.ts`, and so on) so callers
+import the composer without a barrel file.
 
 No existing caller, singleton, environment variable, or AuthKit integration
 will change in this work.
