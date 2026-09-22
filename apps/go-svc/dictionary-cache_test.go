@@ -56,7 +56,7 @@ func TestResolvedDictionaryCacheHit(t *testing.T) {
 				require.Equal(t, resolvedDictionaryCacheKey(testDictionaryOrgID, "project_1", "en-US", cachedDictionaryRecords(1)), key)
 				deadline, ok := ctx.Deadline()
 				require.True(t, ok)
-				require.LessOrEqual(t, time.Until(deadline), dictionaryWordsCacheTimeout)
+				require.LessOrEqual(t, time.Until(deadline), DICTIONARY_WORDS_CACHE_TIMEOUT)
 				return words, nil
 			}}
 			rec := dictionaryRequestForTest(api, "GET", testResolvedWordsPath, "")
@@ -77,7 +77,7 @@ func TestResolvedDictionaryCacheFallback(t *testing.T) {
 		{name: "malformed", value: `not json`},
 		{name: "null", value: `null`},
 		{name: "wrong shape", value: `{}`},
-		{name: "oversized", value: strings.Repeat("x", dictionaryWordsCacheMaxBytes+1)},
+		{name: "oversized", value: strings.Repeat("x", DICTIONARY_WORDS_CACHE_MAX_BYTES+1)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			steps := []dictionaryDBStep{dictionaryRowStep("from projects p", "project_1"), cachedDictionaryMetadataStep(1)}
@@ -89,10 +89,10 @@ func TestResolvedDictionaryCacheFallback(t *testing.T) {
 					writes++
 					require.True(t, db.committed)
 					require.JSONEq(t, `["AuthKit"]`, value)
-					require.Equal(t, dictionaryWordsCacheTTL, ttl)
+					require.Equal(t, DICTIONARY_WORDS_CACHE_TTL, ttl)
 					deadline, ok := ctx.Deadline()
 					require.True(t, ok)
-					require.LessOrEqual(t, time.Until(deadline), dictionaryWordsCacheTimeout)
+					require.LessOrEqual(t, time.Until(deadline), DICTIONARY_WORDS_CACHE_TIMEOUT)
 					return tc.setErr
 				},
 			}

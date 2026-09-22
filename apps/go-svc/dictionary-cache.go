@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	dictionaryWordsCacheTTL      = 10 * time.Minute
-	dictionaryWordsCacheTimeout  = 100 * time.Millisecond
-	dictionaryWordsCacheMaxBytes = dictionaryMaxResolvedBytes
+	DICTIONARY_WORDS_CACHE_TTL       = 10 * time.Minute
+	DICTIONARY_WORDS_CACHE_TIMEOUT   = 100 * time.Millisecond
+	DICTIONARY_WORDS_CACHE_MAX_BYTES = dictionaryMaxResolvedBytes
 )
 
 type dictionaryWordsCache interface {
@@ -39,10 +39,10 @@ func resolvedDictionaryCacheKey(organizationID, projectID, locale string, dictio
 
 func (api *dictionaryAPI) cachedResolvedWords(ctx context.Context, actor dictionaryActor, projectID, locale string, dictionaries []dictionaryRecord) (any, int, error) {
 	key := resolvedDictionaryCacheKey(actor.organizationID, projectID, locale, dictionaries)
-	cacheCtx, cancel := context.WithTimeout(ctx, dictionaryWordsCacheTimeout)
+	cacheCtx, cancel := context.WithTimeout(ctx, DICTIONARY_WORDS_CACHE_TIMEOUT)
 	raw, err := api.wordsCache.Get(cacheCtx, key)
 	cancel()
-	if err == nil && len(raw) <= dictionaryWordsCacheMaxBytes {
+	if err == nil && len(raw) <= DICTIONARY_WORDS_CACHE_MAX_BYTES {
 		var words []string
 		if json.Unmarshal([]byte(raw), &words) == nil && words != nil && len(words) <= dictionaryMaxResolvedWords {
 			return resolvedDictionaryResponse(locale, dictionaries, words), 200, nil
@@ -72,9 +72,9 @@ func (api *dictionaryAPI) cachedResolvedWords(ctx context.Context, actor diction
 	}
 	key = resolvedDictionaryCacheKey(actor.organizationID, projectID, locale, dictionaries)
 	payload, err := json.Marshal(words)
-	if err == nil && len(payload) <= dictionaryWordsCacheMaxBytes {
-		cacheCtx, cancel := context.WithTimeout(ctx, dictionaryWordsCacheTimeout)
-		if err := api.wordsCache.Set(cacheCtx, key, string(payload), dictionaryWordsCacheTTL); err != nil {
+	if err == nil && len(payload) <= DICTIONARY_WORDS_CACHE_MAX_BYTES {
+		cacheCtx, cancel := context.WithTimeout(ctx, DICTIONARY_WORDS_CACHE_TIMEOUT)
+		if err := api.wordsCache.Set(cacheCtx, key, string(payload), DICTIONARY_WORDS_CACHE_TTL); err != nil {
 			// Avoid logging keys, words, credentials, or provider error text.
 			slog.WarnContext(ctx, "dictionary_words_cache_write_failed")
 		}
