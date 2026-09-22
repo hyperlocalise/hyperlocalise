@@ -234,3 +234,83 @@ func TestGlossaryTeamPrivateAccessDenied(t *testing.T) {
 		require.Contains(t, rec.Body.String(), `"glossary_not_found"`)
 	})
 }
+
+// Model a pool whose last connection is held by the transaction. A pool-level
+// query would wait until its context expires; fail immediately to keep this
+// regression test deterministic. Transaction queries use the underlying DB.
+type glossarySingleConnectionPool struct {
+	dictionaryPool
+	inTransaction bool
+	extraAcquires int
+}
+
+func (p *glossarySingleConnectionPool) Begin(ctx context.Context) (pgx.Tx, error) {
+	tx, err := p.dictionaryPool.Begin(ctx)
+	if err == nil {
+		p.inTransaction = true
+	}
+	return tx, err
+}
+
+func (p *glossarySingleConnectionPool) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	if p.inTransaction {
+		p.extraAcquires++
+		return dictionaryTestRow{err: context.DeadlineExceeded}
+	}
+	return p.dictionaryPool.QueryRow(ctx, sql, args...)
+}
+
+func TestGlossaryCreateUsesTransactionConnection(t *testing.T) {
+	const projectID = "project-one"
+	const teamID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+	for _, tc := range []struct {
+		name, role string
+		member     bool
+		wantStatus int
+	}{
+		{name: "manager attaches project", role: "admin", member: true, wantStatus: 201},
+		{name: "translator checks team membership", role: "translator", member: true, wantStatus: 201},
+		{name: "translator outside team remains forbidden", role: "translator", member: false, wantStatus: 403},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			project := dictionaryRowStep("select p.id from projects p where", projectID)
+			project.args = []any{projectID, testGlossaryOrgID, tc.role == "admin", testGlossaryUserID}
+			lock := dictionaryRowStep("for update", projectID, "native", strPtr("en-US"), strPtr(teamID))
+			lock.args = []any{projectID, testGlossaryOrgID}
+			team := dictionaryRowStep("select id from teams where", teamID)
+			team.args = []any{teamID, testGlossaryOrgID}
+			steps := []dictionaryDBStep{{kind: "begin"}, project, lock, team}
+			if tc.role == "translator" {
+				membership := dictionaryRowStep("select t.id from teams t join team_memberships", teamID)
+				membership.args = []any{teamID, testGlossaryOrgID, testGlossaryUserID}
+				if !tc.member {
+					membership.err = pgx.ErrNoRows
+				}
+				steps = append(steps, membership)
+			}
+			if tc.wantStatus == 201 {
+				values := glossaryRecordValues()
+				values[9], values[10] = "team", strPtr(teamID)
+				insert := dictionaryRowStep("insert into glossaries", values...)
+				insert.args = []any{testGlossaryOrgID, testGlossaryUserID, "Team terms", "", "en-US", "team", strPtr(teamID)}
+				steps = append(steps, insert,
+					dictionaryDBStep{kind: "exec", sql: "insert into project_glossaries", args: []any{testGlossaryOrgID, projectID, testGlossaryID}, affected: 1},
+					dictionaryDBStep{kind: "commit"})
+			}
+			api, db := glossaryTestAPI(t, tc.role, steps...)
+			pool := &glossarySingleConnectionPool{dictionaryPool: db}
+			api.pool = pool
+			rec := glossaryRequestForTest(api, "POST", testGlossaryBase,
+				`{"name":"Team terms","sourceLocale":"en-US","controlLevel":"team","projectIds":["project-one"]}`)
+			require.Equal(t, tc.wantStatus, rec.Code, rec.Body.String())
+			require.Zero(t, pool.extraAcquires, "creation must not acquire another connection while holding a transaction")
+			require.Equal(t, tc.wantStatus == 201, db.committed)
+			require.Equal(t, 1, db.rollbacks, "transaction cleanup must run on success and failure")
+			if tc.wantStatus == 201 {
+				require.Contains(t, rec.Body.String(), `"projectCount":1`)
+			} else {
+				require.Contains(t, rec.Body.String(), `"error":"forbidden"`)
+			}
+		})
+	}
+}

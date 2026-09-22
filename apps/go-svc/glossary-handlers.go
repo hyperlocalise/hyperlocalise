@@ -278,9 +278,11 @@ func (api *glossaryAPI) createGlossary(r *http.Request, actor glossaryActor) (an
 		sourceLocale *string
 		teamID       *string
 	}
+	// Reuse the transaction connection for access checks; pool reads here can
+	// exhaust the pool while concurrent creates each hold a transaction.
 	projects := []lockedProject{}
 	for _, projectID := range projectIDs {
-		owned, projectErr := api.ownedGlossaryProject(ctx, actor, projectID)
+		owned, projectErr := ownedGlossaryProject(ctx, tx, actor, projectID)
 		if projectErr != nil {
 			return nil, 0, projectErr
 		}
@@ -325,7 +327,7 @@ func (api *glossaryAPI) createGlossary(r *http.Request, actor glossaryActor) (an
 			return nil, 0, err
 		}
 		if !actor.canManageGlossaries() {
-			ok, memberErr := api.isTeamMember(ctx, actor, *teamID)
+			ok, memberErr := isGlossaryTeamMember(ctx, tx, actor, *teamID)
 			if memberErr != nil {
 				return nil, 0, memberErr
 			}
