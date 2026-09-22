@@ -123,6 +123,7 @@ func main() {
 			log.Fatalf("configure dictionary store: %v", err)
 		}
 		defer pool.Close()
+		h.postgres = pool
 		h.dictionaries.pool = pool
 		h.glossaries.pool = pool
 		h.memories.pool = pool

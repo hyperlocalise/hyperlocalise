@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -18,11 +19,20 @@ import (
 
 const maxValidateSegmentBodyBytes = 512 << 10 // 512 KiB
 
-const valkeyHealthTimeout = time.Second
+const dependencyHealthTimeout = time.Second
+
+type healthPinger interface {
+	Ping(context.Context) error
+}
 
 type valkeyHealthClient interface {
-	Ping(context.Context) error
+	healthPinger
 	Close()
+}
+
+type dependencyHealth struct {
+	Status      string   `json:"status"`
+	RoundtripMS *float64 `json:"roundtrip_ms,omitempty"`
 }
 
 type validateSegmentRequest struct {
@@ -56,6 +66,7 @@ type handler struct {
 	issueSheets  *issueSheetAPI
 	activityLogs *activityLogAPI
 	valkey       valkeyHealthClient
+	postgres     healthPinger
 }
 
 func newHandler() *handler {
@@ -153,24 +164,34 @@ func (h *handler) checkSpelling(ctx context.Context, locale, text string, accept
 }
 
 func (h *handler) health(w http.ResponseWriter, r *http.Request) {
-	valkeyStatus := "disabled"
-	if h.valkey != nil {
-		ctx, cancel := context.WithTimeout(r.Context(), valkeyHealthTimeout)
-		err := h.valkey.Ping(ctx)
-		cancel()
-		if err == nil {
-			valkeyStatus = "ok"
-		} else {
-			valkeyStatus = "unavailable"
-		}
-	}
+	valkey := checkDependencyHealth(r.Context(), h.valkey)
+	postgres := checkDependencyHealth(r.Context(), h.postgres)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"status": "ok",
-		"valkey": map[string]string{"status": valkeyStatus},
+		"status":   "ok",
+		"valkey":   valkey,
+		"postgres": postgres,
 	})
+}
+
+func checkDependencyHealth(parent context.Context, pinger healthPinger) dependencyHealth {
+	if pinger == nil {
+		return dependencyHealth{Status: "disabled"}
+	}
+
+	ctx, cancel := context.WithTimeout(parent, dependencyHealthTimeout)
+	started := time.Now()
+	err := pinger.Ping(ctx)
+	roundtripMS := math.Round(float64(time.Since(started))/float64(time.Millisecond)*1000) / 1000
+	cancel()
+
+	status := "ok"
+	if err != nil {
+		status = "unavailable"
+	}
+	return dependencyHealth{Status: status, RoundtripMS: &roundtripMS}
 }
 
 func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {

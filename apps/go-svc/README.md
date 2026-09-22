@@ -165,8 +165,13 @@ Health check:
 
 ```bash
 curl http://localhost:8080/health
-# {"status":"ok","valkey":{"status":"disabled"}}
+# {"status":"ok","valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}
 ```
+
+When configured, Valkey and PostgreSQL health objects report `status` as
+`ok` or `unavailable` and include the small probe's `roundtrip_ms`. When a
+dependency is not configured, its status is `disabled` and no timing is
+reported. The endpoint remains an HTTP 200 liveness check.
 
 The web app reaches go-svc through `GO_SVC_URL` (set automatically on Vercel via the service binding). Domains research is **not** available on the public `/api/go-svc` rewrite: handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js org API computes and sends that header server-side.
 
@@ -186,7 +191,7 @@ For tracing, set `OTEL_EXPORTER_OTLP_ENDPOINT` in the `go_svc` service environme
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/health` | No | Liveness probe with Valkey connectivity status |
+| `GET` | `/health` | No | Liveness probe with Valkey and PostgreSQL connectivity status and round-trip times |
 | `POST` | `/v1/validate/segment` | WorkOS session cookie or Bearer access token | Validate a CAT segment (format, length, spelling) |
 | `POST` | `/v1/domains/research/keywords` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Expand a seed keyword + market through DataForSEO Labs |
 | `POST` | `/v1/domains/research/market-visibility` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Check one domain market through DataForSEO Labs; one market per request |
