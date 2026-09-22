@@ -131,10 +131,7 @@ func formatActivityLogTime(t time.Time) string {
 }
 
 func (api *activityLogAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
-	mux.Handle(
-		"/v1/orgs/{organizationSlug}/activity-logs",
-		authMiddleware(verifier)(http.HandlerFunc(api.serveHTTP)),
-	)
+	registerAuthenticated(mux, verifier, "GET "+orgRoutePrefix+"/activity-logs", http.HandlerFunc(api.serveHTTP))
 }
 
 func (api *activityLogAPI) actor(ctx context.Context, claims AuthClaims, slug string) (activityLogActor, error) {
@@ -180,10 +177,6 @@ func (api *activityLogAPI) actor(ctx context.Context, claims AuthClaims, slug st
 
 func (api *activityLogAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		writeActivityLogError(w, r, "route", activityLogFailure(404, "not_found", "Not found"))
-		return
-	}
 	if api.pool == nil {
 		writeActivityLogError(w, r, "availability", activityLogFailure(503, "activity_log_unavailable", "Activity log is unavailable"))
 		return

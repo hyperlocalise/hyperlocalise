@@ -73,45 +73,16 @@ func memoryPage(r *http.Request, defaultLimit, maxLimit int) (int, int, error) {
 	return limit, offset, nil
 }
 
-func (api *memoryAPI) memoryRequest(r *http.Request, actor memoryActor) (any, int, error) {
-	rest := strings.Trim(r.PathValue("rest"), "/")
-	if rest == "" {
-		switch r.Method {
-		case http.MethodGet:
-			return api.listMemories(r, actor)
-		case http.MethodPost:
-			return api.createMemory(r, actor)
-		default:
-			return memoryMethodNotAllowed()
-		}
-	}
-	parts := strings.Split(rest, "/")
-	m, err := ownedMemory(r.Context(), api.pool, actor, parts[0])
-	if err != nil {
-		return nil, 0, err
-	}
-	if len(parts) > 1 {
-		switch parts[1] {
-		case "projects":
-			return api.memoryProjectRequest(r, actor, m, parts[2:])
-		case "entries":
-			return api.memoryEntryRequest(r, actor, m, parts[2:])
-		case "import-attempts":
-			return api.memoryImportAttemptRequest(r, actor, m, parts[2:])
-		default:
-			return nil, 0, missingMemory()
-		}
-	}
-	switch r.Method {
-	case http.MethodGet:
-		return map[string]any{"memory": m}, 200, nil
-	case http.MethodPatch:
-		return api.patchMemory(r, actor, m)
-	case http.MethodDelete:
-		return api.deleteMemory(r.Context(), actor, m)
-	default:
-		return memoryMethodNotAllowed()
-	}
+func (api *memoryAPI) getMemoryHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	return map[string]any{"memory": m}, 200, nil
+}
+
+func (api *memoryAPI) patchMemoryHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	return api.patchMemory(r, actor, m)
+}
+
+func (api *memoryAPI) deleteMemoryHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	return api.deleteMemory(r.Context(), actor, m)
 }
 
 func (api *memoryAPI) listMemories(r *http.Request, actor memoryActor) (any, int, error) {
@@ -284,60 +255,55 @@ func (api *memoryAPI) memoryProjects(ctx context.Context, actor memoryActor, mem
 	return result, rows.Err()
 }
 
-func (api *memoryAPI) memoryProjectRequest(r *http.Request, actor memoryActor, m memoryRecord, rest []string) (any, int, error) {
-	if len(rest) > 1 {
-		return nil, 0, missingMemory()
+func (api *memoryAPI) listMemoryProjects(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	projects, err := api.memoryProjects(r.Context(), actor, m.ID)
+	return map[string]any{"projects": projects}, 200, err
+}
+
+func (api *memoryAPI) attachMemoryProject(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	if !actor.canWriteMemories() {
+		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
+	}
+	if err := requireNativeMemory(m); err != nil {
+		return nil, 0, err
+	}
+	var payload memoryAttachmentPayload
+	if err := readMemoryBody(r, []string{"projectId", "priority"}, &payload); err != nil {
+		return nil, 0, err
+	}
+	if err := payload.validate(); err != nil {
+		return nil, 0, err
 	}
 	ctx := r.Context()
-	if r.Method == http.MethodDelete && len(rest) == 1 {
-		if !actor.canWriteMemories() {
-			return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
-		}
-		if err := requireNativeMemory(m); err != nil {
-			return nil, 0, err
-		}
-		if m.Status == "archived" {
-			return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
-		}
-		projectID, err := api.ownedMemoryProject(ctx, actor, rest[0])
-		if err != nil {
-			return nil, 0, err
-		}
-		_, err = api.pool.Exec(ctx, `delete from project_memories where memory_id=$1 and project_id=$2 and organization_id=$3`, m.ID, projectID, actor.organizationID)
-		return nil, 204, err
+	projectID, err := api.ownedMemoryProject(ctx, actor, payload.ProjectID)
+	if err != nil {
+		return nil, 0, err
 	}
-	if len(rest) != 0 {
-		return nil, 0, missingMemory()
+	priority := 0
+	if payload.Priority != nil {
+		priority = *payload.Priority
 	}
-	if r.Method == http.MethodPost {
-		if !actor.canWriteMemories() {
-			return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
-		}
-		if err := requireNativeMemory(m); err != nil {
-			return nil, 0, err
-		}
-		var payload memoryAttachmentPayload
-		if err := readMemoryBody(r, []string{"projectId", "priority"}, &payload); err != nil {
-			return nil, 0, err
-		}
-		if err := payload.validate(); err != nil {
-			return nil, 0, err
-		}
-		projectID, err := api.ownedMemoryProject(ctx, actor, payload.ProjectID)
-		if err != nil {
-			return nil, 0, err
-		}
-		priority := 0
-		if payload.Priority != nil {
-			priority = *payload.Priority
-		}
-		_, err = api.pool.Exec(ctx, `insert into project_memories (organization_id, project_id, memory_id, priority) values ($1,$2,$3,$4) on conflict (project_id, memory_id) do update set priority=excluded.priority, updated_at=now()`, actor.organizationID, projectID, m.ID, priority)
-		if err != nil {
-			return nil, 0, err
-		}
-	} else if r.Method != http.MethodGet {
-		return memoryMethodNotAllowed()
+	_, err = api.pool.Exec(ctx, `insert into project_memories (organization_id, project_id, memory_id, priority) values ($1,$2,$3,$4) on conflict (project_id, memory_id) do update set priority=excluded.priority, updated_at=now()`, actor.organizationID, projectID, m.ID, priority)
+	if err != nil {
+		return nil, 0, err
 	}
-	projects, err := api.memoryProjects(ctx, actor, m.ID)
-	return map[string]any{"projects": projects}, 200, err
+	return api.listMemoryProjects(r, actor, m)
+}
+
+func (api *memoryAPI) detachMemoryProject(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	if !actor.canWriteMemories() {
+		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
+	}
+	if err := requireNativeMemory(m); err != nil {
+		return nil, 0, err
+	}
+	if m.Status == "archived" {
+		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
+	}
+	projectID, err := api.ownedMemoryProject(r.Context(), actor, r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
+	}
+	_, err = api.pool.Exec(r.Context(), `delete from project_memories where memory_id=$1 and project_id=$2 and organization_id=$3`, m.ID, projectID, actor.organizationID)
+	return nil, 204, err
 }

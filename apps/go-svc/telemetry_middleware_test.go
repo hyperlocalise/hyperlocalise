@@ -107,6 +107,25 @@ func TestTracingMiddlewareStartsNewTraceWithoutIncomingHeader(t *testing.T) {
 	require.False(t, spans[0].Parent().IsValid(), "no traceparent header means no parent span context")
 }
 
+func TestTracingMiddlewareUsesRegisteredDictionaryEndpoint(t *testing.T) {
+	rec := withTestSpanRecorder(t)
+	mux := http.NewServeMux()
+	api := &dictionaryAPI{}
+	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_live"}})
+	handler := withOptionalPrefix(publicPathPrefix, tracingMiddleware(mux))
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/orgs/acme-corp/dictionaries", nil)
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	spans := rec.Ended()
+	require.Len(t, spans, 1)
+	const pattern = "/v1/orgs/{organizationSlug}/dictionaries"
+	require.Equal(t, "GET "+pattern, spans[0].Name())
+	require.Equal(t, pattern, requireSpanStringAttr(t, spans[0], "http.route"))
+	require.NotContains(t, spans[0].Name(), "acme-corp")
+}
+
 func TestTracingMiddlewareUsesBoundedRouteTemplate(t *testing.T) {
 	rec := withTestSpanRecorder(t)
 	const pattern = "/v1/orgs/{organizationSlug}/dictionaries"

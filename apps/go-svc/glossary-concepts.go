@@ -99,64 +99,127 @@ func scanGlossaryTerm(row pgx.Row, sourceLocale string) (glossaryConceptTermReco
 	return t, err
 }
 
-func (api *glossaryAPI) glossaryConceptRequest(r *http.Request, actor glossaryActor, g glossaryRecord, rest []string) (any, int, error) {
-	if err := requireNativeGlossary(g); err != nil && r.Method != http.MethodGet {
+func (api *glossaryAPI) listConceptsHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	return api.listConcepts(r.Context(), g)
+}
+
+func (api *glossaryAPI) createConceptHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	return api.createConcept(r, actor, g)
+}
+
+func (api *glossaryAPI) pageGlossaryConceptsHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	return api.pageGlossaryConcepts(r, g)
+}
+
+func (api *glossaryAPI) listGlossaryConceptAuthorsHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	return api.listGlossaryConceptAuthors(r.Context(), g)
+}
+
+func (api *glossaryAPI) pageGlossaryHistoryHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	return api.pageGlossaryHistory(r, g)
+}
+
+func (api *glossaryAPI) importGlossaryConceptsHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	return api.importGlossaryConcepts(r, actor, g)
+}
+
+func (api *glossaryAPI) getConceptHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	conceptID := r.PathValue("conceptId")
+	if !validGlossaryID(conceptID) {
+		return nil, 0, missingGlossary()
+	}
+	return api.getConcept(r.Context(), g, conceptID)
+}
+
+func (api *glossaryAPI) patchConceptHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	conceptID := r.PathValue("conceptId")
+	if !validGlossaryID(conceptID) {
+		return nil, 0, missingGlossary()
+	}
+	return api.patchConcept(r, actor, g, conceptID)
+}
+
+func (api *glossaryAPI) deleteConceptHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	conceptID := r.PathValue("conceptId")
+	if !validGlossaryID(conceptID) {
+		return nil, 0, missingGlossary()
+	}
+	return api.deleteConcept(r.Context(), actor, g, conceptID)
+}
+
+func (api *glossaryAPI) listConceptTermsHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	conceptID := r.PathValue("conceptId")
+	if !validGlossaryID(conceptID) {
+		return nil, 0, missingGlossary()
+	}
+	terms, err := api.listConceptTerms(r.Context(), g, conceptID)
+	if err != nil {
 		return nil, 0, err
 	}
-	if len(rest) == 0 {
-		switch r.Method {
-		case http.MethodGet:
-			return api.listConcepts(r.Context(), g)
-		case http.MethodPost:
-			return api.createConcept(r, actor, g)
-		default:
-			return glossaryMethodNotAllowed()
-		}
+	return map[string]any{"terms": terms, "total": len(terms)}, 200, nil
+}
+
+func (api *glossaryAPI) createConceptTermHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	if err := api.requireConceptWrite(r.Context(), actor, g); err != nil {
+		return nil, 0, err
 	}
-	switch rest[0] {
-	case "import":
-		if len(rest) != 1 || r.Method != http.MethodPost {
-			return nil, 0, missingGlossary()
-		}
-		return api.importGlossaryConcepts(r, actor, g)
-	case "page":
-		if len(rest) != 1 || r.Method != http.MethodGet {
-			return nil, 0, missingGlossary()
-		}
-		return api.pageGlossaryConcepts(r, g)
-	case "authors":
-		if len(rest) != 1 || r.Method != http.MethodGet {
-			return nil, 0, missingGlossary()
-		}
-		return api.listGlossaryConceptAuthors(r.Context(), g)
-	case "history":
-		if len(rest) != 1 || r.Method != http.MethodGet {
-			return nil, 0, missingGlossary()
-		}
-		return api.pageGlossaryHistory(r, g)
-	case "terms":
+	conceptID := r.PathValue("conceptId")
+	if !validGlossaryID(conceptID) {
 		return nil, 0, missingGlossary()
 	}
-	if !validGlossaryID(rest[0]) {
+	var exists string
+	err := api.pool.QueryRow(r.Context(), `select id from glossary_concepts where id=$1 and glossary_id=$2 and archived_at is null`, conceptID, g.ID).Scan(&exists)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, missingGlossary()
 	}
-	conceptID := rest[0]
-	if len(rest) >= 2 && rest[1] == "terms" {
-		return api.glossaryTermRequest(r, actor, g, conceptID, rest[2:])
+	if err != nil {
+		return nil, 0, err
 	}
-	if len(rest) > 1 {
+	var payload glossaryConceptTermInput
+	if err := readGlossaryBody(r, []string{"locale", "term", "partOfSpeech", "note", "gender", "termType", "url", "lemma", "status", "description", "caseSensitive", "forbidden"}, &payload); err != nil {
+		return nil, 0, err
+	}
+	term, err := insertGlossaryTerm(r.Context(), api.pool, g, conceptID, actor.userID, payload)
+	if err != nil {
+		return nil, 0, err
+	}
+	return map[string]any{"term": term}, 201, nil
+}
+
+func (api *glossaryAPI) pageConceptTermsHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	conceptID := r.PathValue("conceptId")
+	if !validGlossaryID(conceptID) {
 		return nil, 0, missingGlossary()
 	}
-	switch r.Method {
-	case http.MethodGet:
-		return api.getConcept(r.Context(), g, conceptID)
-	case http.MethodPatch:
-		return api.patchConcept(r, actor, g, conceptID)
-	case http.MethodDelete:
-		return api.deleteConcept(r.Context(), actor, g, conceptID)
-	default:
-		return glossaryMethodNotAllowed()
+	return api.pageConceptTerms(r, g, conceptID)
+}
+
+func (api *glossaryAPI) patchTermHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	conceptID := r.PathValue("conceptId")
+	termID := r.PathValue("termId")
+	if !validGlossaryID(conceptID) || !validGlossaryID(termID) {
+		return nil, 0, missingGlossary()
 	}
+	return api.patchTerm(r, actor, g, conceptID, termID)
+}
+
+func (api *glossaryAPI) deleteTermHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	if err := api.requireConceptWrite(r.Context(), actor, g); err != nil {
+		return nil, 0, err
+	}
+	conceptID := r.PathValue("conceptId")
+	termID := r.PathValue("termId")
+	if !validGlossaryID(conceptID) || !validGlossaryID(termID) {
+		return nil, 0, missingGlossary()
+	}
+	tag, err := api.pool.Exec(r.Context(), `delete from glossary_terms where id=$1 and concept_id=$2 and glossary_id=$3`, termID, conceptID, g.ID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, 0, missingGlossary()
+	}
+	return nil, 204, nil
 }
 
 func (api *glossaryAPI) requireConceptWrite(ctx context.Context, actor glossaryActor, g glossaryRecord) error {
@@ -391,67 +454,6 @@ func (api *glossaryAPI) deleteConcept(ctx context.Context, actor glossaryActor, 
 		return nil, 0, missingGlossary()
 	}
 	return nil, 204, nil
-}
-
-func (api *glossaryAPI) glossaryTermRequest(r *http.Request, actor glossaryActor, g glossaryRecord, conceptID string, rest []string) (any, int, error) {
-	if len(rest) == 1 && rest[0] == "page" && r.Method == http.MethodGet {
-		return api.pageConceptTerms(r, g, conceptID)
-	}
-	if len(rest) == 0 {
-		switch r.Method {
-		case http.MethodGet:
-			terms, err := api.listConceptTerms(r.Context(), g, conceptID)
-			if err != nil {
-				return nil, 0, err
-			}
-			return map[string]any{"terms": terms, "total": len(terms)}, 200, nil
-		case http.MethodPost:
-			if err := api.requireConceptWrite(r.Context(), actor, g); err != nil {
-				return nil, 0, err
-			}
-			var exists string
-			err := api.pool.QueryRow(r.Context(), `select id from glossary_concepts where id=$1 and glossary_id=$2 and archived_at is null`, conceptID, g.ID).Scan(&exists)
-			if errors.Is(err, pgx.ErrNoRows) {
-				return nil, 0, missingGlossary()
-			}
-			if err != nil {
-				return nil, 0, err
-			}
-			var payload glossaryConceptTermInput
-			if err := readGlossaryBody(r, []string{"locale", "term", "partOfSpeech", "note", "gender", "termType", "url", "lemma", "status", "description", "caseSensitive", "forbidden"}, &payload); err != nil {
-				return nil, 0, err
-			}
-			term, err := insertGlossaryTerm(r.Context(), api.pool, g, conceptID, actor.userID, payload)
-			if err != nil {
-				return nil, 0, err
-			}
-			return map[string]any{"term": term}, 201, nil
-		default:
-			return glossaryMethodNotAllowed()
-		}
-	}
-	if len(rest) != 1 || !validGlossaryID(rest[0]) {
-		return nil, 0, missingGlossary()
-	}
-	termID := rest[0]
-	switch r.Method {
-	case http.MethodPatch:
-		return api.patchTerm(r, actor, g, conceptID, termID)
-	case http.MethodDelete:
-		if err := api.requireConceptWrite(r.Context(), actor, g); err != nil {
-			return nil, 0, err
-		}
-		tag, err := api.pool.Exec(r.Context(), `delete from glossary_terms where id=$1 and concept_id=$2 and glossary_id=$3`, termID, conceptID, g.ID)
-		if err != nil {
-			return nil, 0, err
-		}
-		if tag.RowsAffected() == 0 {
-			return nil, 0, missingGlossary()
-		}
-		return nil, 204, nil
-	default:
-		return glossaryMethodNotAllowed()
-	}
 }
 
 func (api *glossaryAPI) patchTerm(r *http.Request, actor glossaryActor, g glossaryRecord, conceptID, termID string) (any, int, error) {

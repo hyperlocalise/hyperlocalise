@@ -121,84 +121,89 @@ type dictionaryWordPayload struct {
 	Content string `json:"content"`
 }
 
-func (api *dictionaryAPI) wordRequest(r *http.Request, actor dictionaryActor, d dictionaryRecord, rest []string) (any, int, error) {
-	if len(rest) > 1 {
+func (api *dictionaryAPI) exportDictionaryWords(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	locale, err := dictionaryLocale(r.URL.Query().Get("locale"))
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := api.pool.Query(r.Context(), `select word from spellcheck_word_library_words where library_id=$1 and locale=$2 order by word`, d.ID, locale)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	words := []string{}
+	for rows.Next() {
+		var word string
+		if err := rows.Scan(&word); err != nil {
+			return nil, 0, err
+		}
+		words = append(words, word)
+	}
+	return dictionaryExport{locale, strings.Join(words, "\n") + "\n"}, 200, rows.Err()
+}
+
+func (api *dictionaryAPI) listDictionaryWords(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	limit, offset, err := dictionaryPage(r, 100, 500)
+	if err != nil {
+		return nil, 0, err
+	}
+	locale := ""
+	if r.URL.Query().Has("locale") {
+		locale, err = dictionaryLocale(r.URL.Query().Get("locale"))
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+	rows, err := api.pool.Query(r.Context(), `select id,locale,word,created_at from spellcheck_word_library_words where library_id=$1 and ($2='' or locale=$2) order by locale,word limit $3 offset $4`, d.ID, locale, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	words := []dictionaryWordRecord{}
+	for rows.Next() {
+		word, err := scanDictionaryWord(rows)
+		if err != nil {
+			rows.Close()
+			return nil, 0, err
+		}
+		words = append(words, word)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	var total int
+	err = api.pool.QueryRow(r.Context(), `select count(*) from spellcheck_word_library_words where library_id=$1 and ($2='' or locale=$2)`, d.ID, locale).Scan(&total)
+	return map[string]any{"words": words, "total": total}, 200, err
+}
+
+func (api *dictionaryAPI) deleteDictionaryWord(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	wordID := r.PathValue("wordId")
+	if !validDictionaryID(wordID) {
 		return nil, 0, missingDictionary()
 	}
+	err := api.withDictionaryWords(r.Context(), actor, d.ID, func(tx pgx.Tx) error {
+		deleted, err := tx.Exec(r.Context(), `delete from spellcheck_word_library_words where id=$1 and library_id=$2`, wordID, d.ID)
+		if err != nil {
+			return err
+		}
+		if deleted.RowsAffected() == 0 {
+			return missingDictionary()
+		}
+		return bumpDictionary(r.Context(), tx, d.ID)
+	})
+	return nil, 204, err
+}
+
+func (api *dictionaryAPI) createDictionaryWord(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	return api.writeDictionaryWords(r, actor, d, false)
+}
+
+func (api *dictionaryAPI) importDictionaryWords(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	return api.writeDictionaryWords(r, actor, d, true)
+}
+
+func (api *dictionaryAPI) writeDictionaryWords(r *http.Request, actor dictionaryActor, d dictionaryRecord, importing bool) (any, int, error) {
 	ctx := r.Context()
-	if len(rest) == 1 && rest[0] == "export" && r.Method == http.MethodGet {
-		locale, err := dictionaryLocale(r.URL.Query().Get("locale"))
-		if err != nil {
-			return nil, 0, err
-		}
-		rows, err := api.pool.Query(ctx, `select word from spellcheck_word_library_words where library_id=$1 and locale=$2 order by word`, d.ID, locale)
-		if err != nil {
-			return nil, 0, err
-		}
-		defer rows.Close()
-		words := []string{}
-		for rows.Next() {
-			var word string
-			if err := rows.Scan(&word); err != nil {
-				return nil, 0, err
-			}
-			words = append(words, word)
-		}
-		return dictionaryExport{locale, strings.Join(words, "\n") + "\n"}, 200, rows.Err()
-	}
-	if len(rest) == 0 && r.Method == http.MethodGet {
-		limit, offset, err := dictionaryPage(r, 100, 500)
-		if err != nil {
-			return nil, 0, err
-		}
-		locale := ""
-		if r.URL.Query().Has("locale") {
-			locale, err = dictionaryLocale(r.URL.Query().Get("locale"))
-			if err != nil {
-				return nil, 0, err
-			}
-		}
-		rows, err := api.pool.Query(ctx, `select id,locale,word,created_at from spellcheck_word_library_words where library_id=$1 and ($2='' or locale=$2) order by locale,word limit $3 offset $4`, d.ID, locale, limit, offset)
-		if err != nil {
-			return nil, 0, err
-		}
-		words := []dictionaryWordRecord{}
-		for rows.Next() {
-			word, err := scanDictionaryWord(rows)
-			if err != nil {
-				rows.Close()
-				return nil, 0, err
-			}
-			words = append(words, word)
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return nil, 0, err
-		}
-		var total int
-		err = api.pool.QueryRow(ctx, `select count(*) from spellcheck_word_library_words where library_id=$1 and ($2='' or locale=$2)`, d.ID, locale).Scan(&total)
-		return map[string]any{"words": words, "total": total}, 200, err
-	}
-	if len(rest) == 1 && r.Method == http.MethodDelete {
-		if !validDictionaryID(rest[0]) {
-			return nil, 0, missingDictionary()
-		}
-		err := api.withDictionaryWords(ctx, actor, d.ID, func(tx pgx.Tx) error {
-			deleted, err := tx.Exec(ctx, `delete from spellcheck_word_library_words where id=$1 and library_id=$2`, rest[0], d.ID)
-			if err != nil {
-				return err
-			}
-			if deleted.RowsAffected() == 0 {
-				return missingDictionary()
-			}
-			return bumpDictionary(ctx, tx, d.ID)
-		})
-		return nil, 204, err
-	}
-	importing := len(rest) == 1 && rest[0] == "import"
-	if r.Method != http.MethodPost || (len(rest) > 0 && !importing) {
-		return dictionaryMethodNotAllowed()
-	}
 	var payload dictionaryWordPayload
 	if err := readDictionaryBody(r, &payload); err != nil {
 		return nil, 0, err

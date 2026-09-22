@@ -106,42 +106,36 @@ func (api *dictionaryAPI) attachDictionary(ctx context.Context, actor dictionary
 	return value, tag.RowsAffected() > 0, tx.Commit(ctx)
 }
 
-func (api *dictionaryAPI) dictionaryProjectRequest(r *http.Request, actor dictionaryActor, d dictionaryRecord, rest []string) (any, int, error) {
-	if len(rest) > 1 {
-		return nil, 0, missingDictionary()
-	}
-	ctx := r.Context()
-	if r.Method == http.MethodDelete && len(rest) == 1 {
-		projectID, err := api.ownedProject(ctx, actor, rest[0])
-		if err != nil {
-			return nil, 0, err
-		}
-		_, err = api.pool.Exec(ctx, `delete from project_spellcheck_word_libraries where library_id=$1 and project_id=$2 and organization_id=$3`, d.ID, projectID, actor.organizationID)
-		return nil, 204, err
-	}
-	if len(rest) != 0 {
-		return nil, 0, missingDictionary()
-	}
-	if r.Method == http.MethodPost {
-		var payload dictionaryAttachmentPayload
-		if err := readDictionaryBody(r, &payload); err != nil {
-			return nil, 0, err
-		}
-		if err := payload.validate(); err != nil {
-			return nil, 0, err
-		}
-		projectID, err := api.ownedProject(ctx, actor, payload.ProjectID)
-		if err != nil {
-			return nil, 0, err
-		}
-		if _, _, err := api.attachDictionary(ctx, actor, projectID, d.ID, payload.Priority); err != nil {
-			return nil, 0, err
-		}
-	} else if r.Method != http.MethodGet {
-		return dictionaryMethodNotAllowed()
-	}
-	projects, err := api.dictionaryProjects(ctx, actor, d.ID)
+func (api *dictionaryAPI) listDictionaryProjects(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	projects, err := api.dictionaryProjects(r.Context(), actor, d.ID)
 	return map[string]any{"projects": projects}, 200, err
+}
+
+func (api *dictionaryAPI) attachDictionaryProject(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	var payload dictionaryAttachmentPayload
+	if err := readDictionaryBody(r, &payload); err != nil {
+		return nil, 0, err
+	}
+	if err := payload.validate(); err != nil {
+		return nil, 0, err
+	}
+	projectID, err := api.ownedProject(r.Context(), actor, payload.ProjectID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if _, _, err := api.attachDictionary(r.Context(), actor, projectID, d.ID, payload.Priority); err != nil {
+		return nil, 0, err
+	}
+	return api.listDictionaryProjects(r, actor, d)
+}
+
+func (api *dictionaryAPI) detachDictionaryProject(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	projectID, err := api.ownedProject(r.Context(), actor, r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
+	}
+	_, err = api.pool.Exec(r.Context(), `delete from project_spellcheck_word_libraries where library_id=$1 and project_id=$2 and organization_id=$3`, d.ID, projectID, actor.organizationID)
+	return nil, 204, err
 }
 
 func (api *dictionaryAPI) projectDictionaries(ctx context.Context, actor dictionaryActor, projectID string, activeOnly bool) ([]dictionaryRecord, error) {
@@ -163,57 +157,65 @@ func (api *dictionaryAPI) projectDictionaries(ctx context.Context, actor diction
 	return result, rows.Err()
 }
 
-func (api *dictionaryAPI) projectRequest(r *http.Request, actor dictionaryActor) (any, int, error) {
+func (api *dictionaryAPI) listProjectDictionaries(r *http.Request, actor dictionaryActor) (any, int, error) {
+	projectID, err := api.ownedProject(r.Context(), actor, r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
+	}
+	dictionaries, err := api.projectDictionaries(r.Context(), actor, projectID, false)
+	return map[string]any{"dictionaries": dictionaries}, 200, err
+}
+
+func (api *dictionaryAPI) attachProjectDictionary(r *http.Request, actor dictionaryActor) (any, int, error) {
 	ctx := r.Context()
 	projectID, err := api.ownedProject(ctx, actor, r.PathValue("projectId"))
 	if err != nil {
 		return nil, 0, err
 	}
-	rest := strings.Trim(r.PathValue("rest"), "/")
-	if r.Method == http.MethodGet && rest == "resolved" {
-		locale, err := dictionaryLocale(r.URL.Query().Get("locale"))
-		if err != nil {
-			return nil, 0, err
-		}
-		return api.resolvedWords(ctx, actor, projectID, locale)
+	var payload dictionaryAttachmentPayload
+	if err := readDictionaryBody(r, &payload); err != nil {
+		return nil, 0, err
 	}
-	if r.Method == http.MethodDelete && rest != "" && !strings.Contains(rest, "/") {
-		// An absent attachment is an idempotent delete, including an unknown dictionary.
-		if !validDictionaryID(rest) {
-			return nil, 0, missingDictionary()
-		}
-		_, err := api.pool.Exec(ctx, `delete from project_spellcheck_word_libraries where project_id=$1 and library_id=$2 and organization_id=$3`, projectID, rest, actor.organizationID)
-		return nil, 204, err
+	if err := payload.validate(); err != nil {
+		return nil, 0, err
 	}
-	if rest != "" {
+	d, err := ownedDictionary(ctx, api.pool, actor, payload.DictionaryID)
+	if err != nil {
+		return nil, 0, err
+	}
+	priority, inserted, err := api.attachDictionary(ctx, actor, projectID, d.ID, payload.Priority)
+	d.Priority = &priority
+	status := 200
+	if inserted {
+		status = 201
+	}
+	return map[string]any{"dictionary": d}, status, err
+}
+
+func (api *dictionaryAPI) detachProjectDictionary(r *http.Request, actor dictionaryActor) (any, int, error) {
+	ctx := r.Context()
+	projectID, err := api.ownedProject(ctx, actor, r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
+	}
+	dictionaryID := r.PathValue("dictionaryId")
+	if !validDictionaryID(dictionaryID) {
 		return nil, 0, missingDictionary()
 	}
-	switch r.Method {
-	case http.MethodGet:
-		dictionaries, err := api.projectDictionaries(ctx, actor, projectID, false)
-		return map[string]any{"dictionaries": dictionaries}, 200, err
-	case http.MethodPost:
-		var payload dictionaryAttachmentPayload
-		if err := readDictionaryBody(r, &payload); err != nil {
-			return nil, 0, err
-		}
-		if err := payload.validate(); err != nil {
-			return nil, 0, err
-		}
-		d, err := ownedDictionary(ctx, api.pool, actor, payload.DictionaryID)
-		if err != nil {
-			return nil, 0, err
-		}
-		priority, inserted, err := api.attachDictionary(ctx, actor, projectID, d.ID, payload.Priority)
-		d.Priority = &priority
-		status := 200
-		if inserted {
-			status = 201
-		}
-		return map[string]any{"dictionary": d}, status, err
-	default:
-		return dictionaryMethodNotAllowed()
+	_, err = api.pool.Exec(ctx, `delete from project_spellcheck_word_libraries where project_id=$1 and library_id=$2 and organization_id=$3`, projectID, dictionaryID, actor.organizationID)
+	return nil, 204, err
+}
+
+func (api *dictionaryAPI) listResolvedProjectWords(r *http.Request, actor dictionaryActor) (any, int, error) {
+	projectID, err := api.ownedProject(r.Context(), actor, r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
 	}
+	locale, err := dictionaryLocale(r.URL.Query().Get("locale"))
+	if err != nil {
+		return nil, 0, err
+	}
+	return api.resolvedWords(r.Context(), actor, projectID, locale)
 }
 
 func (api *dictionaryAPI) resolvedWords(ctx context.Context, actor dictionaryActor, projectID, locale string) (any, int, error) {

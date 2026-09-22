@@ -7,12 +7,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/workos/workos-go/v10"
 )
 
 const (
@@ -22,7 +20,7 @@ const (
 
 type glossaryAPI struct {
 	pool       dictionaryPool
-	membership func(context.Context, string) (*workos.UserOrganizationMembership, error)
+	membership organizationMembershipLookup
 }
 
 type glossaryActor struct{ userID, organizationID, role string }
@@ -99,91 +97,98 @@ func formatGlossaryTimePtr(t *time.Time) *string {
 }
 
 func (api *glossaryAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
-	for _, path := range []string{
-		"/v1/orgs/{organizationSlug}/glossaries",
-		"/v1/orgs/{organizationSlug}/glossaries/{rest...}",
-	} {
-		mux.Handle(path, authMiddleware(verifier)(http.HandlerFunc(api.serveHTTP)))
+	g := orgRoutePrefix + "/glossaries"
+	route := func(pattern string, fn func(*http.Request, glossaryActor) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
+	}
+	owned := func(fn func(*glossaryAPI, *http.Request, glossaryActor, glossaryRecord) (any, int, error)) func(*http.Request, glossaryActor) (any, int, error) {
+		return api.withOwnedGlossary(fn)
+	}
+	route("GET "+g, bindActor(api, (*glossaryAPI).listGlossaries))
+	route("POST "+g, bindActor(api, (*glossaryAPI).createGlossary))
+	route("GET "+g+"/{glossaryId}", owned((*glossaryAPI).getGlossaryHandler))
+	route("PATCH "+g+"/{glossaryId}", owned((*glossaryAPI).patchGlossaryHandler))
+	route("DELETE "+g+"/{glossaryId}", owned((*glossaryAPI).deleteGlossaryHandler))
+	route("GET "+g+"/{glossaryId}/projects", owned((*glossaryAPI).listGlossaryProjects))
+	route("POST "+g+"/{glossaryId}/projects", owned((*glossaryAPI).attachGlossaryProject))
+	route("DELETE "+g+"/{glossaryId}/projects/{projectId}", owned((*glossaryAPI).detachGlossaryProject))
+	route("GET "+g+"/{glossaryId}/export", owned((*glossaryAPI).exportGlossaryHandler))
+	route("GET "+g+"/{glossaryId}/import-reports/{reportId}", owned((*glossaryAPI).getGlossaryImportReportHandler))
+	route("GET "+g+"/{glossaryId}/import-reports/{reportId}/backup", owned((*glossaryAPI).getGlossaryImportBackupHandler))
+	route("GET "+g+"/{glossaryId}/concepts", owned((*glossaryAPI).listConceptsHandler))
+	route("POST "+g+"/{glossaryId}/concepts", owned((*glossaryAPI).createConceptHandler))
+	route("GET "+g+"/{glossaryId}/concepts/page", owned((*glossaryAPI).pageGlossaryConceptsHandler))
+	route("GET "+g+"/{glossaryId}/concepts/authors", owned((*glossaryAPI).listGlossaryConceptAuthorsHandler))
+	route("GET "+g+"/{glossaryId}/concepts/history", owned((*glossaryAPI).pageGlossaryHistoryHandler))
+	route("POST "+g+"/{glossaryId}/concepts/import", owned((*glossaryAPI).importGlossaryConceptsHandler))
+	route("GET "+g+"/{glossaryId}/concepts/{conceptId}", owned((*glossaryAPI).getConceptHandler))
+	route("PATCH "+g+"/{glossaryId}/concepts/{conceptId}", owned((*glossaryAPI).patchConceptHandler))
+	route("DELETE "+g+"/{glossaryId}/concepts/{conceptId}", owned((*glossaryAPI).deleteConceptHandler))
+	route("GET "+g+"/{glossaryId}/concepts/{conceptId}/terms", owned((*glossaryAPI).listConceptTermsHandler))
+	route("POST "+g+"/{glossaryId}/concepts/{conceptId}/terms", owned((*glossaryAPI).createConceptTermHandler))
+	route("GET "+g+"/{glossaryId}/concepts/{conceptId}/terms/page", owned((*glossaryAPI).pageConceptTermsHandler))
+	route("PATCH "+g+"/{glossaryId}/concepts/{conceptId}/terms/{termId}", owned((*glossaryAPI).patchTermHandler))
+	route("DELETE "+g+"/{glossaryId}/concepts/{conceptId}/terms/{termId}", owned((*glossaryAPI).deleteTermHandler))
+}
+
+func (api *glossaryAPI) withOwnedGlossary(fn func(*glossaryAPI, *http.Request, glossaryActor, glossaryRecord) (any, int, error)) func(*http.Request, glossaryActor) (any, int, error) {
+	return func(r *http.Request, actor glossaryActor) (any, int, error) {
+		g, err := ownedGlossary(r.Context(), api.pool, actor, r.PathValue("glossaryId"))
+		if err != nil {
+			return nil, 0, err
+		}
+		return fn(api, r, actor, g)
 	}
 }
 
 func (api *glossaryAPI) actor(ctx context.Context, claims AuthClaims, slug string) (glossaryActor, error) {
-	var actor glossaryActor
-	var membershipID, workosOrg string
-	if strings.HasPrefix(claims.UserID, "invited_user_") {
-		return actor, glossaryFailure(403, "organization_access_denied", "Organization access denied")
-	}
-	err := api.pool.QueryRow(ctx, `select u.id, o.id, m.workos_membership_id, o.workos_organization_id
-        from users u join organization_memberships m on m.user_id=u.id join organizations o on o.id=m.organization_id
-        where u.workos_user_id=$1 and o.slug=$2 and o.lifecycle_status='active'
-        and m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing')`, claims.UserID, slug).Scan(&actor.userID, &actor.organizationID, &membershipID, &workosOrg)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return actor, glossaryFailure(403, "organization_access_denied", "Organization access denied")
-	}
+	resolved, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, slug)
 	if err != nil {
-		return actor, err
+		return glossaryActor{}, mapOrganizationAccessError(err, glossaryFailure)
 	}
-	if api.membership == nil {
-		return actor, glossaryFailure(503, "workos_membership_lookup_failed", "Organization membership could not be verified")
-	}
-	member, err := api.membership(ctx, membershipID)
-	if err != nil {
-		var apiErr *workos.APIError
-		if errors.As(err, &apiErr) && apiErr.StatusCode == 404 {
-			return actor, glossaryFailure(403, "organization_access_denied", "Organization access denied")
-		}
-		return actor, glossaryFailure(503, "workos_membership_lookup_failed", "Organization membership could not be verified")
-	}
-	if member == nil || member.ID != membershipID || member.UserID != claims.UserID || member.OrganizationID != workosOrg || member.Status != "active" || member.Role == nil {
-		return actor, glossaryFailure(403, "organization_access_denied", "Organization access denied")
-	}
-	switch member.Role.Slug {
-	case "admin", "localization_manager", "member", "developer", "translator", "reviewer":
-		actor.role = member.Role.Slug
-	default:
-		return actor, glossaryFailure(403, "organization_access_denied", "Organization access denied")
-	}
-	return actor, nil
+	return glossaryActor(resolved), nil
 }
 
-func (api *glossaryAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	if denyBrowserMutation(r) {
-		writeGlossaryError(w, r, "origin_guard", glossaryFailure(403, "forbidden", "Cross-origin request denied"))
-		return
-	}
-	if api.pool == nil {
-		writeGlossaryError(w, r, "availability", glossaryFailure(503, "glossary_unavailable", "Glossary service unavailable"))
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), glossaryRequestTimeout)
-	defer cancel()
-	r = r.WithContext(ctx)
-	claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
-	if !ok {
-		writeGlossaryError(w, r, "auth", glossaryFailure(401, "unauthorized", "Authentication required"))
-		return
-	}
-	actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
-	if err != nil {
-		writeGlossaryError(w, r, "resolve_actor", err)
-		return
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, glossaryBodyLimit)
-	value, status, err := api.glossaryRequest(r, actor)
-	if err != nil {
-		writeGlossaryError(w, r, "handle", err)
-		return
-	}
-	if status == 204 {
-		w.WriteHeader(status)
-		return
-	}
-	if download, ok := value.(interchangeDownload); ok {
-		writeInterchangeDownload(w, status, download)
-		return
-	}
-	glossaryJSON(w, status, value)
+func (api *glossaryAPI) handle(fn func(*http.Request, glossaryActor) (any, int, error)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		if denyBrowserMutation(r) {
+			writeGlossaryError(w, r, "origin_guard", glossaryFailure(403, "forbidden", "Cross-origin request denied"))
+			return
+		}
+		if api.pool == nil {
+			writeGlossaryError(w, r, "availability", glossaryFailure(503, "glossary_unavailable", "Glossary service unavailable"))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), glossaryRequestTimeout)
+		defer cancel()
+		r = r.WithContext(ctx)
+		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
+		if !ok {
+			writeGlossaryError(w, r, "auth", glossaryFailure(401, "unauthorized", "Authentication required"))
+			return
+		}
+		actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
+		if err != nil {
+			writeGlossaryError(w, r, "resolve_actor", err)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, glossaryBodyLimit)
+		value, status, err := fn(r, actor)
+		if err != nil {
+			writeGlossaryError(w, r, "handle", err)
+			return
+		}
+		if status == 204 {
+			w.WriteHeader(status)
+			return
+		}
+		if download, ok := value.(interchangeDownload); ok {
+			writeInterchangeDownload(w, status, download)
+			return
+		}
+		glossaryJSON(w, status, value)
+	})
 }
 
 type glossaryLanguage struct {
@@ -331,10 +336,6 @@ func readGlossaryBody(r *http.Request, allowed []string, target any) error {
 		return invalidGlossary()
 	}
 	return nil
-}
-
-func glossaryMethodNotAllowed() (any, int, error) {
-	return nil, 405, glossaryFailure(405, "method_not_allowed", "Method not allowed")
 }
 
 func validGlossaryID(id string) bool {

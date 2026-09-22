@@ -80,57 +80,6 @@ func (api *qaReportAPI) ownedNativeProject(ctx context.Context, actor qaReportAc
 	return project, nil
 }
 
-func (api *qaReportAPI) serveProjectQaReport(w http.ResponseWriter, r *http.Request, actor qaReportActor, rawProjectID string) {
-	project, err := api.ownedNativeProject(r.Context(), actor, rawProjectID)
-	if err != nil {
-		writeQaReportError(w, r, "resolve_project", err)
-		return
-	}
-
-	rest := strings.Trim(r.PathValue("rest"), "/")
-	var value any
-	var status int
-	switch {
-	case rest == "" && r.Method == http.MethodGet:
-		value, status, err = api.listProjectQaReports(r.Context(), actor, project)
-	case rest == "" && r.Method == http.MethodPost:
-		writeQaReportError(w, r, "route", qaReportFailure(404, "not_found", "Not found"))
-		return
-	case rest == "settings" && r.Method == http.MethodPatch:
-		if !actor.canProjectWrite() {
-			writeQaReportError(w, r, "authorize", qaReportFailure(403, "forbidden", "Forbidden"))
-			return
-		}
-		r.Body = http.MaxBytesReader(w, r.Body, qaReportBodyLimit)
-		value, status, err = api.patchProjectQaSettings(r.Context(), actor, project, r)
-	case rest == "latest-findings" && r.Method == http.MethodGet:
-		value, status, err = api.listProjectLatestFindings(r.Context(), actor, project.ID, r)
-	case rest == "findings/promote" && r.Method == http.MethodPost:
-		if !actor.canPromoteFindings() {
-			writeQaReportError(w, r, "authorize", qaReportFailure(403, "forbidden", "Forbidden"))
-			return
-		}
-		r.Body = http.MaxBytesReader(w, r.Body, qaReportBodyLimit)
-		value, status, err = api.promoteProjectFindings(r.Context(), actor, project.ID, r)
-	default:
-		if r.Method != http.MethodGet {
-			writeQaReportError(w, r, "route", qaReportFailure(404, "not_found", "Not found"))
-			return
-		}
-		runID, parseErr := uuid.Parse(rest)
-		if parseErr != nil {
-			writeQaReportError(w, r, "route", qaReportFailure(404, "not_found", "Not found"))
-			return
-		}
-		value, status, err = api.getProjectQaRunDetail(r.Context(), actor, project.ID, runID, r)
-	}
-	if err != nil {
-		writeQaReportError(w, r, "handle", err)
-		return
-	}
-	qaReportJSON(r.Context(), w, status, value)
-}
-
 func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *time.Time) map[string]any {
 	return map[string]any{
 		"cadence":           cadence,
