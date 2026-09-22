@@ -103,7 +103,10 @@ function useCatSegmentLazySync(input: {
       return;
     }
 
-    store.setCommentsLoading(segmentCommentsQuery.isFetching && !segmentCommentsQuery.data);
+    store.setCommentsLoading(
+      segmentCommentsQuery.isFetching && !segmentCommentsQuery.data,
+      segmentId,
+    );
   }, [
     input.syncCommentsLoading,
     segmentCommentsQuery.data,
@@ -124,7 +127,7 @@ function useCatSegmentLazySync(input: {
       segmentTargetQuery.data === undefined &&
       !(segmentId && store.drafts.get(segmentId)?.targetText.trim());
 
-    store.setSegmentTargetLoading(isLoading);
+    store.setSegmentTargetLoading(isLoading, segmentId);
     if (isLoading) {
       store.clearSegmentTargetLoadFailed(segmentId);
     } else if (queryEnabled && isSegmentTargetQuerySettledWithoutData(segmentTargetQuery)) {
@@ -304,6 +307,16 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
     const isSideBySideView = store.ui.isSideBySideView;
     const loadSideBySideSegmentIds = store.ui.loadSideBySideSegmentIds;
 
+    const adjacentSegmentIds = useMemo(() => {
+      const segments = contentEditorFile?.segments ?? [];
+      const index = segments.findIndex((segment) => segment.externalStringId === selectedSegmentId);
+      return index < 0
+        ? []
+        : segments
+            .slice(Math.max(0, index - 1), index + 3)
+            .map((segment) => segment.externalStringId);
+    }, [contentEditorFile, selectedSegmentId]);
+
     useCatLoadedQueueTargetsSync({
       organizationSlug,
       projectId,
@@ -312,8 +325,8 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
       externalResourceId,
       resourceType,
       contentEditorFile,
-      enabled: enabled && isSideBySideView,
-      segmentIds: loadSideBySideSegmentIds,
+      enabled,
+      segmentIds: isSideBySideView ? loadSideBySideSegmentIds : adjacentSegmentIds,
     });
 
     useCatSegmentLazySync({

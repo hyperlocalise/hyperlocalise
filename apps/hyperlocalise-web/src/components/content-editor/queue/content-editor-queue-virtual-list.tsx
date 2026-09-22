@@ -75,6 +75,7 @@ export function ContentEditorQueueVirtualList({
     },
     [hasMore, isLoadingMore, onNearEnd, segments.length],
   );
+  const previousSelectedId = useRef<string | null>(null);
   const getItemKey = useCallback((index: number) => segments[index]?.id ?? index, [segments]);
   const virtualizer = useVirtualizer({
     count: segments.length,
@@ -86,6 +87,14 @@ export function ContentEditorQueueVirtualList({
       checkForNearEnd(instance.getVirtualItems());
     },
   });
+
+  useEffect(() => {
+    if (previousSelectedId.current === selectedSegmentId) return;
+    const index = segments.findIndex((segment) => segment.id === selectedSegmentId);
+    if (index < 0) return;
+    previousSelectedId.current = selectedSegmentId;
+    virtualizer.scrollToIndex(index, { align: "auto" });
+  }, [selectedSegmentId, segments, virtualizer]);
 
   useEffect(() => {
     if (!isLoadingMore) {

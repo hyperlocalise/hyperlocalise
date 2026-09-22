@@ -65,30 +65,39 @@ async function AppShellWithData({
   const displayName =
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
     auth.sessionUser.email;
-  const workspaceFeatureFlags = await evaluateWorkspaceFeatureFlags(auth);
+  const workspaceFeatureFlagsPromise = evaluateWorkspaceFeatureFlags(auth);
+  const tmsUserConnectCtaPromise: Promise<TmsUserConnectCta> = hasCapability(
+    auth.membership.role,
+    "jobs:read",
+  )
+    ? getTmsUserConnectCtaState({
+        organizationId: auth.activeOrganization.localOrganizationId,
+        userId: auth.user.localUserId,
+      })
+    : Promise.resolve({ showConnectCta: false });
+  const providerConnectionPromise = (async (): Promise<ActiveTmsProviderConnection | null> => {
+    if (hasCapability(auth.membership.role, "provider_credentials:read")) {
+      try {
+        return await getTmsProviderConnection(auth.activeOrganization.localOrganizationId);
+      } catch (error) {
+        console.error("[app-shell] Failed to prefetch TMS provider connection", {
+          organizationId: auth.activeOrganization.localOrganizationId,
+          error,
+        });
+      }
+    }
+    return null;
+  })();
+  const [workspaceFeatureFlags, tmsUserConnectCta, initialTmsProviderConnection] =
+    await Promise.all([
+      workspaceFeatureFlagsPromise,
+      tmsUserConnectCtaPromise,
+      providerConnectionPromise,
+    ]);
   const navigationGroups = annotateNavigationByWorkspaceFlags(
     buildGlobalNavigationGroups(activeOrganizationSlug, intl),
     workspaceFeatureFlags,
   );
-  const tmsUserConnectCta: TmsUserConnectCta = hasCapability(auth.membership.role, "jobs:read")
-    ? await getTmsUserConnectCtaState({
-        organizationId: auth.activeOrganization.localOrganizationId,
-        userId: auth.user.localUserId,
-      })
-    : { showConnectCta: false };
-  let initialTmsProviderConnection: ActiveTmsProviderConnection | null = null;
-  if (hasCapability(auth.membership.role, "provider_credentials:read")) {
-    try {
-      initialTmsProviderConnection = await getTmsProviderConnection(
-        auth.activeOrganization.localOrganizationId,
-      );
-    } catch (error) {
-      console.error("[app-shell] Failed to prefetch TMS provider connection", {
-        organizationId: auth.activeOrganization.localOrganizationId,
-        error,
-      });
-    }
-  }
 
   return (
     <AppShellClient

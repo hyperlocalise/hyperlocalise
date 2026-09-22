@@ -85,7 +85,7 @@ export function ContentEditorEditorTargetSection({
         ) : null}
       </div>
       {isLoading ? (
-        <Skeleton className="h-28 w-full rounded-md" />
+        <Skeleton className="min-h-36 w-full rounded-2xl" />
       ) : (
         <ContentEditorTargetEditor
           key={segment.id}

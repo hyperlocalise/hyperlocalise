@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import type {
@@ -30,7 +30,6 @@ export function useContentEditorWorkspaceQuerySync(input: {
   search: string;
   debouncedSearch: string;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
@@ -52,13 +51,10 @@ export function useContentEditorWorkspaceQuerySync(input: {
       return;
     }
 
-    router.replace(nextString ? `${pathname}?${nextString}` : pathname, { scroll: false });
-  }, [
-    input.debouncedSearch,
-    input.queueFilter,
-    input.queueSort,
-    pathname,
-    router,
-    searchParamsString,
-  ]);
+    window.history.replaceState(
+      null,
+      "",
+      `${nextString ? `${pathname}?${nextString}` : pathname}${window.location.hash}`,
+    );
+  }, [input.debouncedSearch, input.queueFilter, input.queueSort, pathname, searchParamsString]);
 }

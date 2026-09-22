@@ -211,6 +211,17 @@ describe("ContentEditorSideBySideRow", () => {
     expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
   });
 
+  it.each([
+    { isPostingComment: true },
+    { isLookingUpContext: true },
+    { isAiSuggestionLoading: true },
+    { isFormatChecksLoading: true },
+  ])("allows saving while advisory work runs %j", (pending) => {
+    renderRow(pending);
+    expect(screen.getByRole("button", { name: /Approve/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /Save as draft/i })).not.toBeDisabled();
+  });
+
   it("shows copy source and clear for focused text rows", async () => {
     const user = userEvent.setup();
     const onTargetChange = vi.fn();
@@ -311,7 +322,7 @@ describe("ContentEditorSideBySideRow", () => {
     expect(screen.getByRole("status", { name: /Checking format & QA/i })).toBeInTheDocument();
   });
 
-  it("shows a spelling warning icon and details for focused text rows", () => {
+  it("shows a spelling warning icon and details for focused text rows", async () => {
     renderRow({
       formatChecks: [
         {
@@ -332,15 +343,16 @@ describe("ContentEditorSideBySideRow", () => {
       ],
     });
 
-    const icon = screen.getByRole("img", { name: /Format & QA warning/i });
+    const icon = screen.getByRole("button", { name: /Format & QA warning/i });
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveAttribute("data-status", "warn");
+    await userEvent.setup().click(icon);
     expect(screen.getByText("Spelling")).toBeInTheDocument();
     expect(screen.getByText("Possible misspelling: recieve.")).toBeInTheDocument();
     expect(screen.queryByText("Placeholders & markup")).not.toBeInTheDocument();
   });
 
-  it("shows a format check warning icon and details for focused text rows", () => {
+  it("shows a format check warning icon and details for focused text rows", async () => {
     renderRow({
       formatChecks: [
         {
@@ -360,9 +372,10 @@ describe("ContentEditorSideBySideRow", () => {
       ],
     });
 
-    const icon = screen.getByRole("img", { name: /Format & QA warning/i });
+    const icon = screen.getByRole("button", { name: /Format & QA warning/i });
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveAttribute("data-status", "warn");
+    await userEvent.setup().click(icon);
     expect(screen.getByText("Terminology consistency")).toBeInTheDocument();
     expect(screen.getByText("Ambiguous noun: review")).toBeInTheDocument();
     expect(screen.queryByText("Placeholders & markup")).not.toBeInTheDocument();
@@ -384,13 +397,13 @@ describe("ContentEditorSideBySideRow", () => {
       ],
     });
 
-    const icon = screen.getByRole("img", { name: /Format & QA failed/i });
+    const icon = screen.getByRole("button", { name: /Format & QA failed/i });
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveAttribute("data-status", "fail");
     expect(screen.queryByText("Terminology consistency")).not.toBeInTheDocument();
   });
 
-  it("reveals format check details when an inactive row is hovered", async () => {
+  it("keeps hovered rows stable and opens checks only on explicit activation", async () => {
     renderRow({
       isFocused: false,
       isHovered: true,
@@ -405,7 +418,9 @@ describe("ContentEditorSideBySideRow", () => {
       ],
     });
 
-    expect(screen.getByRole("img", { name: /Format & QA warning/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Format & QA warning/i })).toBeInTheDocument();
+    expect(screen.queryByText("Terminology consistency")).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: /Format & QA warning/i }));
     expect(await screen.findByText("Terminology consistency")).toBeInTheDocument();
   });
 
@@ -424,13 +439,13 @@ describe("ContentEditorSideBySideRow", () => {
     });
 
     expect(screen.getByRole("status", { name: /Checking format & QA/i })).toBeInTheDocument();
-    expect(screen.queryByRole("img", { name: /Format & QA warning/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Format & QA warning/i })).not.toBeInTheDocument();
   });
 
   it("hides format check icons when there are no issues", () => {
     renderRow({ formatChecks: [] });
 
-    expect(screen.queryByRole("img", { name: /Format & QA/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Format & QA/i })).not.toBeInTheDocument();
   });
 
   it("hides format check icons when every check passed", () => {
@@ -446,7 +461,7 @@ describe("ContentEditorSideBySideRow", () => {
       ],
     });
 
-    expect(screen.queryByRole("img", { name: /Format & QA/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Format & QA/i })).not.toBeInTheDocument();
   });
 
   it("hides ICU structure summary when the source has no ICU blocks", () => {
@@ -581,10 +596,6 @@ describe("ContentEditorSideBySideRow", () => {
   it.each([
     { isApproving: true },
     { isSavingDraft: true },
-    { isPostingComment: true },
-    { isLookingUpContext: true },
-    { isAiSuggestionLoading: true },
-    { isFormatChecksLoading: true },
     { isTargetLoading: true },
     { isImageBusy: true },
   ] as const)("disables approve during busy state %j", (busyState) => {

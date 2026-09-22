@@ -27,7 +27,7 @@ import {
   analyzeCatMessageFormat,
   contentEditorMessageTokenSignature,
   compareCatMessageFormats,
-  missingCatMessageTokens,
+  missingCatMessageTokensFromAnalysis,
   type ContentEditorIcuBlockSummary,
   type ContentEditorMessageAnalysis,
   type ContentEditorMessageToken,
@@ -98,11 +98,14 @@ function createCatMessageFormatExtension() {
   return Extension.create({
     name: "contentEditorMessageFormatDecorations",
     addProseMirrorPlugins() {
+      let previousDocument: unknown;
+      let previousDecorations = DecorationSet.empty;
       return [
         new Plugin({
           key: new PluginKey("contentEditorMessageFormatDecorations"),
           props: {
             decorations(state) {
+              if (state.doc === previousDocument) return previousDecorations;
               const textRanges: Array<{
                 offsetStart: number;
                 offsetEnd: number;
@@ -167,7 +170,9 @@ function createCatMessageFormatExtension() {
                 });
               }
 
-              return DecorationSet.create(state.doc, decorations);
+              previousDocument = state.doc;
+              previousDecorations = DecorationSet.create(state.doc, decorations);
+              return previousDecorations;
             },
           },
         }),
@@ -344,8 +349,8 @@ export function ContentEditorTargetEditor({
     [sourceAnalysis, targetAnalysis],
   );
   const missingTokens = useMemo(
-    () => missingCatMessageTokens(sourceText, value),
-    [sourceText, value],
+    () => missingCatMessageTokensFromAnalysis(sourceAnalysis, targetAnalysis),
+    [sourceAnalysis, targetAnalysis],
   );
   const targetSignatures = useMemo(() => presentTokenSignatures(targetAnalysis), [targetAnalysis]);
   const sourceTokens = sourceAnalysis.tokens.filter((token) => token.kind !== "pound");

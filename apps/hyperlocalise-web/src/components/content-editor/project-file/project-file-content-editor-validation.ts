@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createContentEditorRequestScheduler } from "@/components/content-editor/shared/content-editor-request-scheduler";
 import { z } from "zod";
 
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
@@ -22,6 +23,8 @@ import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitive
 import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
 
 import { projectFileCatValidationMessages } from "./project-file-content-editor-validation.messages";
+
+const scheduleValidation = createContentEditorRequestScheduler(3);
 
 const CAT_FORMAT_CHECK_CATEGORIES = [
   "length",
@@ -108,25 +111,31 @@ export async function fetchCatSegmentValidation(
       : CAT_SEGMENT_QA_MODES.filter((mode) => mode !== CAT_SEGMENT_SPELLING_MODE);
 
   const responseResult = await fromThrowableAsync(
-    fetcher("/api/go-svc/v1/validate/segment", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        sourceText: input.sourceText,
-        targetText: input.targetText,
-        sourcePath: input.sourcePath,
-        ...(input.maxLength != null && input.maxLength > 0 ? { maxLength: input.maxLength } : {}),
-        ...(targetLocale ? { targetLocale } : {}),
-        ...(input.acceptedWords && input.acceptedWords.length > 0
-          ? { acceptedWords: capResolvedSpellcheckWords(input.acceptedWords) }
-          : {}),
-        modes,
-      }),
-      signal: input.signal,
-    }),
+    scheduleValidation(
+      () =>
+        fetcher("/api/go-svc/v1/validate/segment", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sourceText: input.sourceText,
+            targetText: input.targetText,
+            sourcePath: input.sourcePath,
+            ...(input.maxLength != null && input.maxLength > 0
+              ? { maxLength: input.maxLength }
+              : {}),
+            ...(targetLocale ? { targetLocale } : {}),
+            ...(input.acceptedWords && input.acceptedWords.length > 0
+              ? { acceptedWords: capResolvedSpellcheckWords(input.acceptedWords) }
+              : {}),
+            modes,
+          }),
+          signal: input.signal,
+        }),
+      input.signal,
+    ),
   );
 
   if (isErr(responseResult)) {

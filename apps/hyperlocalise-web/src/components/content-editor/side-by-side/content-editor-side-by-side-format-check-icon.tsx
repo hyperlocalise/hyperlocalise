@@ -17,6 +17,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo } from "react";
 import { useIntl } from "react-intl";
 
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { ContentEditorEditorFormatChecksSection } from "@/components/content-editor/editor/content-editor-editor-format-checks-section";
 import { Spinner } from "@/components/ui/spinner";
 import {
   formatCheckRowBackgroundClass,
@@ -85,19 +87,28 @@ export function ContentEditorSideBySideFormatCheckIcon({
   const icon = status === "fail" ? AlertCircleIcon : Alert02Icon;
 
   return (
-    <span
-      role="img"
-      aria-label={label}
-      title={summary}
-      data-status={status}
-      className={cn(
-        "inline-flex size-6 shrink-0 items-center justify-center rounded-md",
-        formatCheckRowBackgroundClass(status),
-        formatCheckStatusClass(status),
-        className,
-      )}
-    >
-      <HugeiconsIcon icon={icon} className="size-3.5" aria-hidden />
-    </span>
+    <Popover>
+      <PopoverTrigger
+        aria-label={label}
+        title={summary}
+        data-status={status}
+        className={cn(
+          "inline-flex size-6 shrink-0 items-center justify-center rounded-md",
+          formatCheckRowBackgroundClass(status),
+          formatCheckStatusClass(status),
+          className,
+        )}
+      >
+        <HugeiconsIcon icon={icon} className="size-3.5" aria-hidden />
+      </PopoverTrigger>
+      <PopoverContent align="end" className="max-h-80 w-80 overflow-y-auto">
+        <PopoverTitle className="sr-only">{label}</PopoverTitle>
+        <ContentEditorEditorFormatChecksSection
+          formatChecks={actionableChecks}
+          isLoading={false}
+          showHeading={false}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }

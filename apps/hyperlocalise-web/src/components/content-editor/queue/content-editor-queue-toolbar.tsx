@@ -99,6 +99,7 @@ export function ContentEditorQueueToolbar({
   onBulkLock,
   onBulkUnlock,
   isBulkActionPending = false,
+  bulkProgress,
   isQueueLoading = false,
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
@@ -125,6 +126,7 @@ export function ContentEditorQueueToolbar({
   onBulkLock?: () => void;
   onBulkUnlock?: () => void;
   isBulkActionPending?: boolean;
+  bulkProgress?: string;
   /**
    * When the queue query is showing placeholder data, or the store has not
    * ingested the current snapshot yet, visible segments may still be from the
@@ -172,6 +174,11 @@ export function ContentEditorQueueToolbar({
       <div className="flex shrink-0 items-center gap-1.5">
         {onQueueFilterChange ? (
           <DropdownMenu>
+            {bulkProgress ? (
+              <span role="status" className="text-xs text-muted-foreground tabular-nums">
+                {bulkProgress}
+              </span>
+            ) : null}
             <DropdownMenuTrigger
               render={
                 <Button

@@ -433,6 +433,13 @@ export function compareCatMessageFormats(
 export function missingCatMessageTokens(sourceMessage: string, targetMessage: string) {
   const source = analyzeCatMessageFormat(sourceMessage);
   const target = analyzeCatMessageFormat(targetMessage);
+  return missingCatMessageTokensFromAnalysis(source, target);
+}
+
+export function missingCatMessageTokensFromAnalysis(
+  source: ReturnType<typeof analyzeCatMessageFormat>,
+  target: ReturnType<typeof analyzeCatMessageFormat>,
+) {
   const hasMarkup = analysisHasMarkup(source) || analysisHasMarkup(target);
   if ((source.parseError || target.parseError) && !hasMarkup) {
     return [];

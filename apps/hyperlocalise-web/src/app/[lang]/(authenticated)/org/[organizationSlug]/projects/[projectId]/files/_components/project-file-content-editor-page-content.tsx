@@ -23,6 +23,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
+import { ContentEditorWorkspaceSkeleton } from "@/components/content-editor/workspace/content-editor-workspace-skeleton";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -309,14 +310,31 @@ export function ProjectFileContentEditorPageContent({
 
   if (projectQuery.isLoading || (!canOpenFromUrlIdentity && filesQuery.isLoading)) {
     return (
-      <ProjectPageShell>
-        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
-          <Spinner />
-          <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.loadingFile} />
-          </TypographyP>
-        </div>
-      </ProjectPageShell>
+      <ContentEditorPageRoot
+        initialState={createContentEditorLoadingWorkspaceState({
+          sourcePath: sourcePath ?? "",
+          sourceLocale: "",
+          targetLocale: highlightLocale ?? "",
+        })}
+        chrome={{
+          files: [],
+          selectedSourcePath: sourcePath,
+          allFiles,
+          canUseAllFiles: false,
+          targetLocale: highlightLocale ?? "",
+          targetLocales: [],
+          repositoryFullNames: [],
+          selectedRepositoryFullName: null,
+          activitySourcePath: sourcePath ?? "",
+          organizationSlug,
+          projectId,
+          showFileSidebar: true,
+        }}
+        backHref={filesHref}
+        actions={{ onSelectFile: () => undefined, onLocaleChange: () => undefined }}
+      >
+        <ContentEditorWorkspaceSkeleton />
+      </ContentEditorPageRoot>
     );
   }
 

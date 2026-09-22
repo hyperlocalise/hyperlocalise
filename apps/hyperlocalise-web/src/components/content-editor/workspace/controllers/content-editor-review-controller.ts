@@ -31,6 +31,7 @@ import type {
   ContentEditorSegmentCommentInput,
   ContentEditorSegmentStatus,
 } from "@/components/content-editor/shared/types";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { mergeLiveAndScanFormatChecks } from "@/lib/qa/merge-format-checks";
 
 import type { ContentEditorWorkspaceOrchestrator } from "../content-editor-workspace-orchestrator";
@@ -392,6 +393,21 @@ export class ContentEditorReviewController {
         }
       }
 
+      if (
+        this.disposed ||
+        abortController.signal.aborted ||
+        !this.workspace.isReviewCurrent(sequence)
+      )
+        return;
+      if (recommendation) {
+        this.workspace.mergeSegmentIntelligence(segmentId, {
+          aiSuggestion: recommendation.aiSuggestion,
+          aiReasoning: recommendation.aiReasoning,
+        });
+      }
+      this.workspace.setReviewPhaseLoading(sequence, "ai", false);
+      this.workspace.setReviewPhaseLoading(sequence, "formatChecks", includeFormatChecks);
+
       const scanChecks =
         includeFormatChecks && runQaChecks
           ? await runQaChecks(segmentForReview, segmentForReview.targetText)
@@ -447,7 +463,9 @@ export class ContentEditorReviewController {
 
   async approve(segmentId: string, targetText: string) {
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
-    this.workspace.isApproving = true;
+    if (this.workspace.pendingWrites.has(segmentId)) return;
+    this.workspace.pendingWrites.set(segmentId, "approve");
+    const draftAtSubmission = this.workspace.drafts.get(segmentId)?.targetText;
     try {
       // Resolve the next row before the status change so Needs Review (and other
       // filters) can drop the approved segment without losing navigation.
@@ -464,11 +482,15 @@ export class ContentEditorReviewController {
       if (!this.isCurrentFileScope(fileScopeGeneration)) {
         return;
       }
+      const currentText = this.workspace.drafts.get(segmentId)?.targetText;
       this.workspace.markSegmentSaved(
         segmentId,
         targetText,
         nextStatus as ContentEditorSegmentStatus,
       );
+      if (currentText !== undefined && currentText !== draftAtSubmission) {
+        this.workspace.setTargetText(segmentId, currentText);
+      }
 
       if (
         this.ports.queueFilter !== "all" &&
@@ -477,7 +499,10 @@ export class ContentEditorReviewController {
         this.workspace.removeQueueSegmentIfClean(segmentId);
       }
 
-      if (this.workspace.selectedSegmentId === segmentId) {
+      if (
+        this.workspace.selectedSegmentId === segmentId &&
+        !this.workspace.drafts.get(segmentId)?.isDirty
+      ) {
         this.workspace.setSelectedSegmentId(
           nextSegmentId ??
             (this.workspace.segmentMeta.has(segmentId)
@@ -500,7 +525,7 @@ export class ContentEditorReviewController {
       );
     } finally {
       if (this.isCurrentFileScope(fileScopeGeneration)) {
-        this.workspace.isApproving = false;
+        this.workspace.pendingWrites.delete(segmentId);
       }
     }
   }
@@ -511,17 +536,23 @@ export class ContentEditorReviewController {
       return;
     }
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
-    this.workspace.isSavingDraft = true;
+    if (this.workspace.pendingWrites.has(segmentId)) return;
+    this.workspace.pendingWrites.set(segmentId, "draft");
+    const draftAtSubmission = this.workspace.drafts.get(segmentId)?.targetText;
     try {
       const nextStatus = (await saveDraft(segmentId, targetText)) ?? "needs_review";
       if (!this.isCurrentFileScope(fileScopeGeneration)) {
         return;
       }
+      const currentText = this.workspace.drafts.get(segmentId)?.targetText;
       this.workspace.markSegmentSaved(
         segmentId,
         targetText,
         nextStatus as ContentEditorSegmentStatus,
       );
+      if (currentText !== undefined && currentText !== draftAtSubmission) {
+        this.workspace.setTargetText(segmentId, currentText);
+      }
     } catch (error) {
       if (!this.isCurrentFileScope(fileScopeGeneration)) {
         return;
@@ -537,7 +568,7 @@ export class ContentEditorReviewController {
       );
     } finally {
       if (this.isCurrentFileScope(fileScopeGeneration)) {
-        this.workspace.isSavingDraft = false;
+        this.workspace.pendingWrites.delete(segmentId);
       }
     }
   }
@@ -623,29 +654,69 @@ export class ContentEditorReviewController {
 
   async bulkApprove() {
     const segmentIds = [...this.workspace.checkedSegmentIds];
-    if (segmentIds.length === 0) {
-      return;
-    }
+    if (segmentIds.length === 0 || this.workspace.isBulkActionPending) return;
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
     this.workspace.isBulkActionPending = true;
+    this.workspace.bulkCompletedCount = 0;
+    this.workspace.bulkTotalCount = segmentIds.length;
     try {
       if (this.ports.review?.onBulkApprove) {
         await this.ports.review.onBulkApprove(segmentIds);
+        if (this.isCurrentFileScope(fileScopeGeneration)) this.workspace.clearChecked();
       } else {
-        for (const segmentId of segmentIds) {
-          if (!this.isCurrentFileScope(fileScopeGeneration)) {
-            return;
-          }
+        await mapWithConcurrency(segmentIds, 3, async (segmentId) => {
+          if (!this.isCurrentFileScope(fileScopeGeneration)) return;
           const segment = this.workspace.getSegmentView(segmentId);
-          if (segment) {
-            await this.approve(segmentId, segment.targetText);
+          if (!segment || segment.isLocked || this.workspace.pendingWrites.has(segmentId)) return;
+          this.workspace.pendingWrites.set(segmentId, "approve");
+          const targetText = segment.targetText;
+          try {
+            const status =
+              (await this.ports.review?.onApprove?.(segmentId, targetText, {
+                deferQueueRefresh: true,
+              })) ?? "reviewed";
+            if (!this.isCurrentFileScope(fileScopeGeneration)) return;
+            const currentText = this.workspace.drafts.get(segmentId)?.targetText;
+            this.workspace.markSegmentSaved(segmentId, targetText, status);
+            if (currentText !== undefined && currentText !== targetText)
+              this.workspace.setTargetText(segmentId, currentText);
+            this.workspace.toggleSegmentChecked(segmentId, false);
+            if (
+              this.ports.queueFilter !== "all" &&
+              !this.workspace.matchesQueueFilter(segmentId, this.ports.queueFilter)
+            ) {
+              this.workspace.removeQueueSegmentIfClean(segmentId);
+            }
+          } catch (error) {
+            if (this.isCurrentFileScope(fileScopeGeneration)) {
+              this.workspace.addSaveFailureCheck(
+                segmentId,
+                error instanceof Error
+                  ? error.message
+                  : this.ports.intl.formatMessage(
+                      contentEditorWorkspaceContainerMessages.saveTranslationFailed,
+                    ),
+                this.ports.intl.formatMessage(
+                  contentEditorWorkspaceContainerMessages.saveFailedLabel,
+                ),
+              );
+            }
+          } finally {
+            if (this.isCurrentFileScope(fileScopeGeneration)) {
+              this.workspace.pendingWrites.delete(segmentId);
+              this.workspace.bulkCompletedCount += 1;
+            }
           }
-        }
+        });
       }
     } finally {
       if (this.isCurrentFileScope(fileScopeGeneration)) {
         this.workspace.isBulkActionPending = false;
-        this.workspace.clearChecked();
+        if (!this.workspace.segmentMeta.has(this.workspace.selectedSegmentId)) {
+          this.workspace.setSelectedSegmentId(this.workspace.queueSegments[0]?.id ?? "");
+        }
+        // Reconcile once, without extending the completed writes' busy state.
+        void Promise.resolve(this.ports.review?.onBulkApproveComplete?.()).catch(() => undefined);
       }
     }
   }

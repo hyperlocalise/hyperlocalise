@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 
 import {
@@ -27,7 +27,10 @@ import type { ContentEditorIssueType } from "@/components/content-editor/shared/
 
 import { requireProviderExternalResourceId } from "./project-file-content-editor-mapper";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
-import { useInvalidateCatSegmentComments } from "./use-content-editor-segment-comments";
+import {
+  projectFileCatSegmentCommentsQueryKey,
+  useInvalidateCatSegmentComments,
+} from "./use-content-editor-segment-comments";
 import {
   useInvalidateCatSegmentTarget,
   useSyncCatSegmentTargetAfterSave,
@@ -81,6 +84,7 @@ export function useContentEditorMutations(input: {
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
 }) {
   const intl = useIntl();
+  const queryClient = useQueryClient();
   const invalidateSegmentTarget = useInvalidateCatSegmentTarget();
   const syncSegmentTargetAfterSave = useSyncCatSegmentTargetAfterSave();
   const invalidateSegmentComments = useInvalidateCatSegmentComments();
@@ -90,6 +94,7 @@ export function useContentEditorMutations(input: {
       externalStringId: string;
       text: string;
       approve?: boolean;
+      deferQueueRefresh?: boolean;
     }) => {
       const segment = input.contentEditorFile?.segments.find(
         (entry) => entry.externalStringId === mutationInput.externalStringId,
@@ -158,10 +163,12 @@ export function useContentEditorMutations(input: {
         externalStringId: variables.externalStringId,
       };
 
-      await Promise.all([
-        input.invalidateQueue(),
-        syncSegmentTargetAfterSave(segmentTargetInput, translation),
-      ]);
+      // Reconcile the saved target before releasing the mutation, but never wait for
+      // unrelated reads. Bulk operations refresh the queue once when complete.
+      await syncSegmentTargetAfterSave(segmentTargetInput, translation);
+      if (!variables.deferQueueRefresh) {
+        void input.invalidateQueue().catch(() => undefined);
+      }
     },
   });
 
@@ -208,14 +215,34 @@ export function useContentEditorMutations(input: {
       const body = await response.json();
       return body.comment;
     },
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (comment, variables) => {
       const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
         input,
         variables.externalStringId,
         intl,
       );
 
-      await Promise.all([
+      const commentKey = projectFileCatSegmentCommentsQueryKey({
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        sourcePath,
+        externalResourceId,
+        resourceType,
+        targetLocale: input.targetLocale,
+        externalStringId: variables.externalStringId,
+      });
+      await queryClient.cancelQueries({ queryKey: commentKey });
+      // Do not fabricate a complete collection when the comments have not loaded.
+      queryClient.setQueryData<Array<typeof comment>>(commentKey, (previous) =>
+        previous
+          ? previous.some((entry) => entry.externalCommentId === comment.externalCommentId)
+            ? previous.map((entry) =>
+                entry.externalCommentId === comment.externalCommentId ? comment : entry,
+              )
+            : [...previous, comment]
+          : previous,
+      );
+      void Promise.allSettled([
         input.invalidateQueue(),
         invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
@@ -273,14 +300,34 @@ export function useContentEditorMutations(input: {
       const body = await response.json();
       return body.comment;
     },
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (comment, variables) => {
       const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
         input,
         variables.externalStringId,
         intl,
       );
 
-      await Promise.all([
+      const commentKey = projectFileCatSegmentCommentsQueryKey({
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        sourcePath,
+        externalResourceId,
+        resourceType,
+        targetLocale: input.targetLocale,
+        externalStringId: variables.externalStringId,
+      });
+      await queryClient.cancelQueries({ queryKey: commentKey });
+      // Do not fabricate a complete collection when the comments have not loaded.
+      queryClient.setQueryData<Array<typeof comment>>(commentKey, (previous) =>
+        previous
+          ? previous.some((entry) => entry.externalCommentId === comment.externalCommentId)
+            ? previous.map((entry) =>
+                entry.externalCommentId === comment.externalCommentId ? comment : entry,
+              )
+            : [...previous, comment]
+          : previous,
+      );
+      void Promise.allSettled([
         input.invalidateQueue(),
         invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,

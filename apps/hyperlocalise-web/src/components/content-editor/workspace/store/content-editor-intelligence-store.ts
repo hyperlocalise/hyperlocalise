@@ -41,7 +41,7 @@ export class ContentEditorIntelligenceStore {
       if (this.formatCheckLoadingSegmentIds.has(segmentId)) {
         return;
       }
-      this.formatCheckLoadingSegmentIds = new Set(this.formatCheckLoadingSegmentIds).add(segmentId);
+      this.formatCheckLoadingSegmentIds.add(segmentId);
       return;
     }
 
@@ -49,9 +49,7 @@ export class ContentEditorIntelligenceStore {
       return;
     }
 
-    const next = new Set(this.formatCheckLoadingSegmentIds);
-    next.delete(segmentId);
-    this.formatCheckLoadingSegmentIds = next;
+    this.formatCheckLoadingSegmentIds.delete(segmentId);
   }
 
   clearFormatCheckLoading() {
@@ -62,14 +60,14 @@ export class ContentEditorIntelligenceStore {
   }
 
   setChecks(segmentId: string, checks: ContentEditorFormatCheck[], isSelected: boolean) {
-    this.segmentFormatChecks = { ...this.segmentFormatChecks, [segmentId]: checks };
+    this.segmentFormatChecks[segmentId] = checks;
     if (isSelected) {
       this.formatChecks = checks;
     }
   }
 
   setSegment(segmentId: string, intelligence: ContentEditorSegmentIntelligence) {
-    this.bySegment = { ...this.bySegment, [segmentId]: intelligence };
+    this.bySegment[segmentId] = intelligence;
   }
 
   mergeSegment(segmentId: string, patch: Partial<ContentEditorSegmentIntelligence>) {

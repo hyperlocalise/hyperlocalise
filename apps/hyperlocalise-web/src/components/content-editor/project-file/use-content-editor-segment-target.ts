@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createContentEditorRequestScheduler } from "@/components/content-editor/shared/content-editor-request-scheduler";
 import { useMemo } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
@@ -22,6 +23,8 @@ import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { projectFileCatApiMessages } from "./project-file-content-editor-api.messages";
+
+const scheduleTargetRequest = createContentEditorRequestScheduler(4);
 
 export function projectFileCatSegmentTargetQueryKey(input: {
   organizationSlug: string;
@@ -53,22 +56,26 @@ export async function fetchProjectFileContentEditorSegmentTarget(input: {
   targetLocale: string;
   externalStringId: string;
   intl: ContentEditorFormatMessageIntl;
+  signal?: AbortSignal;
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
-  ].files.detail.cat.segments[":externalStringId"].target.$get({
-    param: {
-      organizationSlug: input.organizationSlug,
-      projectId: input.projectId,
-      externalStringId: input.externalStringId,
+  ].files.detail.cat.segments[":externalStringId"].target.$get(
+    {
+      param: {
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        externalStringId: input.externalStringId,
+      },
+      query: {
+        sourcePath: input.sourcePath,
+        ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
+        ...(input.resourceType ? { resourceType: input.resourceType } : {}),
+        targetLocale: input.targetLocale,
+      },
     },
-    query: {
-      sourcePath: input.sourcePath,
-      ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
-      ...(input.resourceType ? { resourceType: input.resourceType } : {}),
-      targetLocale: input.targetLocale,
-    },
-  });
+    { init: { signal: input.signal } },
+  );
 
   if (response.status !== 200) {
     throw new Error(
@@ -92,6 +99,7 @@ function contentEditorSegmentTargetQueryOptions(input: {
   targetLocale: string;
   externalStringId: string;
   enabled?: boolean;
+  priority?: boolean;
   intl: ContentEditorFormatMessageIntl;
 }) {
   return {
@@ -102,7 +110,12 @@ function contentEditorSegmentTargetQueryOptions(input: {
       Boolean(input.targetLocale) &&
       Boolean(input.sourcePath),
     staleTime: 30_000,
-    queryFn: () => fetchProjectFileContentEditorSegmentTarget(input),
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      scheduleTargetRequest(
+        () => fetchProjectFileContentEditorSegmentTarget({ ...input, signal }),
+        signal,
+        input.priority,
+      ),
   };
 }
 
@@ -129,6 +142,7 @@ export function useContentEditorSegmentTarget(input: {
       targetLocale: input.targetLocale,
       externalStringId,
       enabled: input.enabled,
+      priority: true,
       intl,
     }),
   );
@@ -203,7 +217,7 @@ export function useInvalidateCatSegmentTarget() {
   };
 }
 
-/** Cancel in-flight fetches, seed cache with the saved translation, then refetch. */
+/** The write response is authoritative; cancel older reads and publish it immediately. */
 export function useSyncCatSegmentTargetAfterSave() {
   const queryClient = useQueryClient();
 
@@ -214,6 +228,5 @@ export function useSyncCatSegmentTargetAfterSave() {
     const queryKey = projectFileCatSegmentTargetQueryKey(input);
     await queryClient.cancelQueries({ queryKey });
     queryClient.setQueryData(queryKey, translation);
-    await queryClient.invalidateQueries({ queryKey });
   };
 }

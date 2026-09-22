@@ -93,7 +93,8 @@ vi.mock("./use-content-editor-segment-target", () => ({
   useSyncCatSegmentTargetAfterSave: () => syncSegmentTargetAfterSaveMock,
 }));
 
-vi.mock("./use-content-editor-segment-comments", () => ({
+vi.mock("./use-content-editor-segment-comments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./use-content-editor-segment-comments")>()),
   useInvalidateCatSegmentComments: () => invalidateSegmentCommentsMock,
 }));
 
@@ -157,6 +158,33 @@ describe("useContentEditorMutations", () => {
       }),
       translation,
     );
+  });
+
+  it("finishes a saved write even while queue reconciliation is pending", async () => {
+    contentEditorTranslationsPostMock.mockResolvedValue(
+      jsonResponse({ translation: createCatTranslation() }),
+    );
+    invalidateQueue.mockImplementationOnce(() => new Promise<void>(() => undefined));
+    const { result } = renderCatMutations();
+    await act(async () => {
+      await result.current.saveTranslation({ externalStringId: "segment-1", text: "Bonjour" });
+    });
+    await waitFor(() => expect(result.current.isSaving).toBe(false));
+  });
+
+  it("does not refresh the queue for each write in a bulk operation", async () => {
+    contentEditorTranslationsPostMock.mockResolvedValue(
+      jsonResponse({ translation: createCatTranslation() }),
+    );
+    const { result } = renderCatMutations();
+    await act(async () => {
+      await result.current.saveTranslation({
+        externalStringId: "segment-1",
+        text: "Bonjour",
+        deferQueueRefresh: true,
+      });
+    });
+    expect(invalidateQueue).not.toHaveBeenCalled();
   });
 
   it("surfaces API errors when saving translations fails", async () => {

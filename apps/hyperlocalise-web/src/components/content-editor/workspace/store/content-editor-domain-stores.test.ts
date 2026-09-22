@@ -25,6 +25,19 @@ const queueSegments = [
   { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
 ] as const;
 
+it("does not invalidate another segment's intelligence when checks arrive", () => {
+  const store = new ContentEditorIntelligenceStore();
+  store.setSegment("first", { glossaryTerms: [] });
+  let runs = 0;
+  const dispose = autorun(() => {
+    void store.bySegment.first;
+    runs += 1;
+  });
+  store.setSegment("second", { glossaryTerms: [], aiSuggestion: "Bonjour" });
+  expect(runs).toBe(1);
+  dispose();
+});
+
 describe("ContentEditorQueueStore", () => {
   it("constructs without throwing when storage is unavailable", () => {
     vi.stubGlobal("localStorage", undefined);

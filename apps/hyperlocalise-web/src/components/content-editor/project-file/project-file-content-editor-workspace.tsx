@@ -396,7 +396,7 @@ export function ProjectFileContentEditorWorkspace({
     );
 
   const handleApprove = useCallback(
-    async (segmentId: string, targetText: string) => {
+    async (segmentId: string, targetText: string, options?: { deferQueueRefresh?: boolean }) => {
       if (!contentEditorFile?.canEditTranslations) {
         throw new Error(
           intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
@@ -441,6 +441,7 @@ export function ProjectFileContentEditorWorkspace({
         externalStringId: segmentId,
         text: targetText,
         approve: isNativeProject ? true : undefined,
+        deferQueueRefresh: options?.deferQueueRefresh,
       });
       return translation.isApproved ? "reviewed" : "needs_review";
     },
@@ -777,7 +778,7 @@ export function ProjectFileContentEditorWorkspace({
     isSearchPending ||
     (contentEditorQuery.isLoading && !contentEditorFile) ||
     contentEditorQuery.isPlaceholderData;
-  const isQueueListLoading = isSearchPending;
+  const isQueueListLoading = contentEditorQuery.isLoading && !contentEditorFile;
   const isTranslationViewLoading = contentEditorQuery.isLoading && !contentEditorFile;
 
   if (contentEditorQuery.isError) {
@@ -933,6 +934,7 @@ export function ProjectFileContentEditorWorkspace({
             }}
             review={{
               onApprove: handleApprove,
+              onBulkApproveComplete: invalidateQueue,
               onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
               onAddComment: handleAddComment,
               onAddToIssueSheet: handleAddToIssueSheet,
@@ -959,7 +961,7 @@ export function ProjectFileContentEditorWorkspace({
             queueSort={queueSort}
             onQueueSortChange={setQueueSort}
             availableQueueSorts={availableQueueSorts}
-            isQueueSearchPending={isSearchPending}
+            isQueueSearchPending={isSearchPending || contentEditorQuery.isFetching}
             isQueueFetchingPage={isFetchingNextPage}
             isQueueListLoading={isQueueListLoading}
             isQueueDataPending={isQueueDataPending}
