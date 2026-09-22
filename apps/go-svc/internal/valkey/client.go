@@ -2,11 +2,15 @@ package valkey
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	valkeygo "github.com/valkey-io/valkey-go"
 )
+
+// ErrNil is returned by Get when the key does not exist.
+var ErrNil = errors.New("valkey: nil")
 
 // Client is a Valkey connection owned by go-svc.
 type Client struct {
@@ -42,9 +46,13 @@ func (c *Client) Inner() valkeygo.Client {
 	return c.inner
 }
 
-// Get retrieves a cache value. Missing keys and transport failures return errors.
+// Get retrieves a cache value. Missing keys return ErrNil.
 func (c *Client) Get(ctx context.Context, key string) (string, error) {
-	return c.inner.Do(ctx, c.inner.B().Get().Key(key).Build()).ToString()
+	value, err := c.inner.Do(ctx, c.inner.B().Get().Key(key).Build()).ToString()
+	if valkeygo.IsValkeyNil(err) {
+		return "", ErrNil
+	}
+	return value, err
 }
 
 // Set stores a cache value with an expiration in one command.
@@ -58,6 +66,14 @@ func (c *Client) Incr(ctx context.Context, key string) (int64, error) {
 		return 0, fmt.Errorf("valkey: client is not configured")
 	}
 	return c.inner.Do(ctx, c.inner.B().Incr().Key(key).Build()).AsInt64()
+}
+
+// Del removes a key. It is safe on a nil Client.
+func (c *Client) Del(ctx context.Context, key string) error {
+	if c == nil || c.inner == nil {
+		return fmt.Errorf("valkey: client is not configured")
+	}
+	return c.inner.Do(ctx, c.inner.B().Del().Key(key).Build()).Error()
 }
 
 // Ping sends PING and returns a protocol or transport error.

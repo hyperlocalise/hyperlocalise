@@ -19,7 +19,7 @@ func TestCacheCommands(t *testing.T) {
 	key := "go-svc:test:cache:" + t.Name() + time.Now().Format("150405.000000000")
 	ctx := t.Context()
 	_, err = client.Get(ctx, key)
-	require.Error(t, err)
+	require.ErrorIs(t, err, ErrNil)
 	require.NoError(t, client.Set(ctx, key, `["AuthKit"]`, time.Minute))
 	value, err := client.Get(ctx, key)
 	require.NoError(t, err)

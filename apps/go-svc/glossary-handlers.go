@@ -431,6 +431,9 @@ func (api *glossaryAPI) patchGlossary(r *http.Request, actor glossaryActor, g gl
 	if err != nil {
 		return nil, 0, err
 	}
+	if payload.SourceLocale != nil && updated.SourceLocale != g.SourceLocale {
+		api.bumpGlossaryCache(ctx, actor, updated.ID)
+	}
 	return api.getGlossary(ctx, actor, updated)
 }
 
