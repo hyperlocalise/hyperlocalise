@@ -21,10 +21,16 @@ import type { VisualWorkflowExecutionContext } from "./context";
 import { setNodeOutput } from "./context";
 import { waitForRetryDelay } from "./retry-delay";
 
+export type RunRetryScopeOptions = {
+  /** When true, `onError: continue` still fails the attempt (retry body semantics). */
+  failOnHandledErrors?: boolean;
+};
+
 export type RunRetryScope = (
   ids: Set<string>,
   entry: Set<string>,
   iteration?: number,
+  options?: RunRetryScopeOptions,
 ) => Promise<{ nodeId: string; error: Record<string, unknown> } | null>;
 
 function workflowErrorCode(error: Record<string, unknown>): string | undefined {
@@ -87,7 +93,7 @@ export async function runRetryRegion(input: {
       exhausted: false,
     });
 
-    const failure = await input.runScope(body, starts, attempt);
+    const failure = await input.runScope(body, starts, attempt, { failOnHandledErrors: true });
     if (!failure) {
       for (const bodyId of bodyIds) {
         delete input.context.nodes[bodyId];
@@ -107,10 +113,17 @@ export async function runRetryRegion(input: {
 
     lastError = failure.error;
     const failureCode = workflowErrorCode(failure.error);
-    if (
-      failureCode &&
-      ["yield_execution", "needs_attention", "cancelled", "retry_backoff"].includes(failureCode)
-    ) {
+    if (failureCode === "yield_execution") {
+      return {
+        ok: false,
+        error: {
+          ...failure.error,
+          retryNodeId: input.node.id,
+          nextAttempt: attempt,
+        },
+      };
+    }
+    if (failureCode && ["needs_attention", "cancelled", "retry_backoff"].includes(failureCode)) {
       return { ok: false, error: failure.error };
     }
 

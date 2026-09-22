@@ -18,6 +18,7 @@ export const RETRY_MAX_ATTEMPTS_CAP = 10;
 export const DEFAULT_RETRYABLE_ERROR_CODES = [
   "node_execution_failed",
   "http_request_failed",
+  "http_error",
   "invalid_node_input",
   "invalid_node_output",
 ] as const;

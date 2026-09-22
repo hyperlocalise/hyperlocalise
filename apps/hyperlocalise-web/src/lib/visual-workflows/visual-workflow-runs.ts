@@ -31,6 +31,17 @@ import type {
   VisualWorkflowRunStatus,
   VisualWorkflowRunTriggerSource,
 } from "./visual-workflow-run-types";
+import {
+  isRetryWakePending,
+  parseRetryResumeState,
+  type RetryResumeState,
+} from "./runtime/retry-delay";
+
+export type VisualWorkflowRunExecutionView = VisualWorkflowRunRecord & {
+  executionLeaseBusy?: boolean;
+  /** When set, durable workflow steps must not spin until this instant (ISO). */
+  executionPausedUntil?: string;
+};
 
 type VisualWorkflowRunRow = typeof schema.visualWorkflowRuns.$inferSelect;
 type VisualWorkflowNodeRunRow = typeof schema.visualWorkflowNodeRuns.$inferSelect;
@@ -211,6 +222,43 @@ async function finishVisualWorkflowRun(input: {
     .returning();
 
   return row ? serializeRun(row) : null;
+}
+
+async function persistRunRetryResume(input: {
+  leaseToken: string;
+  runId: string;
+  organizationId: string;
+  payload: Record<string, unknown>;
+  resume: RetryResumeState;
+}): Promise<void> {
+  const nextPayload = { ...input.payload, retryBackoff: input.resume };
+  const wakeAt = input.resume.wakeAt;
+  await db
+    .update(schema.visualWorkflowRuns)
+    .set({
+      leaseExpiresAt: wakeAt ? new Date(wakeAt) : null,
+      encryptedPayload: encryptWorkflowPayload(nextPayload),
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, input.runId),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowRuns.leaseToken, input.leaseToken),
+      ),
+    );
+}
+
+function retryResumeFromError(error: Record<string, unknown>): RetryResumeState | null {
+  if (typeof error.retryNodeId !== "string" || typeof error.nextAttempt !== "number") {
+    return null;
+  }
+  const wakeAt = typeof error.wakeAt === "string" ? error.wakeAt : undefined;
+  return {
+    retryNodeId: error.retryNodeId,
+    nextAttempt: error.nextAttempt,
+    wakeAt,
+  };
 }
 
 function visualWorkflowRunEnqueueCommitted(outputSummary: Record<string, unknown>): boolean {
@@ -807,7 +855,7 @@ export async function executeVisualWorkflowRun(input: {
   runId: string;
   organizationId: string;
   visualWorkflowId: string;
-}): Promise<(VisualWorkflowRunRecord & { executionLeaseBusy?: boolean }) | null> {
+}): Promise<VisualWorkflowRunExecutionView | null> {
   const claim = await claimVisualWorkflowRunForExecution(input);
   if (!claim) {
     return null;
@@ -844,9 +892,28 @@ export async function executeVisualWorkflowRun(input: {
       ),
     )
     .limit(1);
-  const payload = stored?.encryptedPayload
+  let payload = stored?.encryptedPayload
     ? (decryptWorkflowPayload(stored.encryptedPayload) as Record<string, unknown>)
     : run.inputSnapshot;
+  let retryResume = parseRetryResumeState(payload.retryBackoff);
+  if (retryResume?.wakeAt && !isRetryWakePending(retryResume)) {
+    const { wakeAt: _wakeAt, ...withoutWake } = retryResume;
+    retryResume = withoutWake;
+    payload = { ...payload, retryBackoff: withoutWake };
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({
+        encryptedPayload: encryptWorkflowPayload(payload),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.id, run.id),
+          eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+          eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
+        ),
+      );
+  }
   const definition = resolveRunDefinition({ run: { ...run, inputSnapshot: payload }, workflow });
   if (!definition)
     return finishVisualWorkflowRun({
@@ -884,24 +951,23 @@ export async function executeVisualWorkflowRun(input: {
       status: "failed",
       error: { code: "execution_limit", message: "Run deadline exceeded." },
     });
-  const pendingBackoff = payload.retryBackoff as
-    | { retryNodeId: string; wakeAt: string; nextAttempt: number }
-    | undefined;
-  if (pendingBackoff?.wakeAt && Date.now() < Date.parse(pendingBackoff.wakeAt)) {
+  if (isRetryWakePending(retryResume)) {
+    const wakeAt = retryResume!.wakeAt!;
     await db
       .update(schema.visualWorkflowRuns)
-      .set({ leaseExpiresAt: null })
+      .set({ leaseExpiresAt: new Date(wakeAt) })
       .where(
         and(
           eq(schema.visualWorkflowRuns.id, run.id),
           eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
         ),
       );
-    return getVisualWorkflowRunById({
+    const current = await getVisualWorkflowRunById({
       organizationId: input.organizationId,
       visualWorkflowId: input.visualWorkflowId,
       runId: run.id,
     });
+    return current ? { ...current, executionPausedUntil: wakeAt, executionLeaseBusy: false } : null;
   }
   const { executeDurableWorkflowSlice } = await import("./runtime/durable-slice");
   const result = await executeDurableWorkflowSlice({
@@ -945,43 +1011,47 @@ export async function executeVisualWorkflowRun(input: {
       typeof result.error.wakeAt === "string"
         ? result.error.wakeAt
         : new Date(Date.now() + 30_001).toISOString();
-    const nextPayload = {
-      ...payload,
-      retryBackoff: {
-        retryNodeId: typeof result.error.retryNodeId === "string" ? result.error.retryNodeId : "",
-        wakeAt,
-        nextAttempt: Number(result.error.nextAttempt ?? 1),
-      },
+    const resume: RetryResumeState = {
+      retryNodeId: typeof result.error.retryNodeId === "string" ? result.error.retryNodeId : "",
+      wakeAt,
+      nextAttempt: Number(result.error.nextAttempt ?? 1),
     };
-    await db
-      .update(schema.visualWorkflowRuns)
-      .set({
-        leaseExpiresAt: null,
-        encryptedPayload: encryptWorkflowPayload(nextPayload),
-      })
-      .where(
-        and(
-          eq(schema.visualWorkflowRuns.id, run.id),
-          eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
-        ),
-      );
-    return getVisualWorkflowRunById({
+    await persistRunRetryResume({
+      leaseToken,
+      runId: run.id,
+      organizationId: input.organizationId,
+      payload,
+      resume,
+    });
+    const current = await getVisualWorkflowRunById({
       organizationId: input.organizationId,
       visualWorkflowId: input.visualWorkflowId,
       runId: run.id,
     });
+    return current ? { ...current, executionPausedUntil: wakeAt, executionLeaseBusy: false } : null;
   }
 
   if (!result.ok && result.error.code === "yield_execution") {
-    await db
-      .update(schema.visualWorkflowRuns)
-      .set({ leaseExpiresAt: null })
-      .where(
-        and(
-          eq(schema.visualWorkflowRuns.id, run.id),
-          eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
-        ),
-      );
+    const resume = retryResumeFromError(result.error);
+    if (resume) {
+      await persistRunRetryResume({
+        leaseToken,
+        runId: run.id,
+        organizationId: input.organizationId,
+        payload,
+        resume,
+      });
+    } else {
+      await db
+        .update(schema.visualWorkflowRuns)
+        .set({ leaseExpiresAt: null })
+        .where(
+          and(
+            eq(schema.visualWorkflowRuns.id, run.id),
+            eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
+          ),
+        );
+    }
     return getVisualWorkflowRunById({
       organizationId: input.organizationId,
       visualWorkflowId: input.visualWorkflowId,
@@ -1012,6 +1082,23 @@ export async function executeVisualWorkflowRun(input: {
         nodeResults: result.nodeResults,
       },
     });
+  }
+
+  if (payload.retryBackoff) {
+    const { retryBackoff: _removed, ...payloadWithoutResume } = payload;
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({
+        encryptedPayload: encryptWorkflowPayload(payloadWithoutResume),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.id, run.id),
+          eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+          eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
+        ),
+      );
   }
 
   return finishVisualWorkflowRun({

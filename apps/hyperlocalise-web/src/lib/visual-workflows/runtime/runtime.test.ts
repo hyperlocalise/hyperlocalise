@@ -980,6 +980,131 @@ describe("visual workflow interpreter", () => {
     }
   });
 
+  it("treats onError continue as a failed retry attempt", async () => {
+    withPublicHttpFetchMock.mockRejectedValue(new Error("upstream unavailable"));
+
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Retry continue error",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "retry",
+          type: "logic.retry",
+          bodyNodeIds: ["http"],
+          config: {
+            kind: "logic.retry",
+            maxAttempts: 2,
+            initialDelayMs: 0,
+            backoffMultiplier: 2,
+            jitter: false,
+            acknowledgeDuplicateRisk: true,
+          },
+        },
+        {
+          id: "http",
+          type: "action.http",
+          config: {
+            kind: "action.http",
+            method: "POST",
+            url: "https://example.com/retry-continue",
+            onError: "continue",
+          },
+        },
+        { id: "fallback", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "retry", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "retry", target: "http", sourceHandle: "attempt", targetHandle: null },
+        {
+          id: "e3",
+          source: "retry",
+          target: "fallback",
+          sourceHandle: "exhausted",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.nodeResults.retry).toMatchObject({ exhausted: true, attemptNumber: 2 });
+    }
+  });
+
+  it("retries http_error responses from the HTTP action", async () => {
+    let calls = 0;
+    withPublicHttpFetchMock.mockImplementation(async () => {
+      calls += 1;
+      return {
+        status: calls === 1 ? 503 : 200,
+        statusText: calls === 1 ? "Unavailable" : "OK",
+        ok: calls !== 1,
+        headers: {},
+        body: "{}",
+        json: {},
+      };
+    });
+
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Retry http_error",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "retry",
+          type: "logic.retry",
+          bodyNodeIds: ["http"],
+          config: {
+            kind: "logic.retry",
+            maxAttempts: 3,
+            initialDelayMs: 0,
+            backoffMultiplier: 2,
+            jitter: false,
+            acknowledgeDuplicateRisk: true,
+          },
+        },
+        {
+          id: "http",
+          type: "action.http",
+          config: {
+            kind: "action.http",
+            method: "POST",
+            url: "https://example.com/retry-http-error",
+            onError: "stop",
+          },
+        },
+        { id: "after", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "retry", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "retry", target: "http", sourceHandle: "attempt", targetHandle: null },
+        {
+          id: "e3",
+          source: "retry",
+          target: "after",
+          sourceHandle: "succeeded",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+
   it("rejects nested for-each loops", async () => {
     const definition: VisualWorkflowDefinition = {
       schemaVersion: 2,

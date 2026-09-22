@@ -50,6 +50,21 @@ export function retryBodyRequiresDuplicateAcknowledgement(
   return false;
 }
 
+export function findRetryNodeForBodyNodeId(
+  definition: { nodes: readonly CanonicalVisualWorkflowNode[] },
+  bodyNodeId: string,
+): CanonicalVisualWorkflowNode | null {
+  for (const node of definition.nodes) {
+    if (node.type !== "logic.retry") {
+      continue;
+    }
+    if ((node.bodyNodeIds ?? []).includes(bodyNodeId)) {
+      return node;
+    }
+  }
+  return null;
+}
+
 export function collectRetryBodyNodeIds(definition: {
   nodes: readonly CanonicalVisualWorkflowNode[];
 }): Set<string> {

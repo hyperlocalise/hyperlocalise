@@ -78,6 +78,7 @@ describe("isRetryableWorkflowError", () => {
 
   it("allows configured retryable codes", () => {
     expect(isRetryableWorkflowError("http_request_failed", policy)).toBe(true);
+    expect(isRetryableWorkflowError("http_error", policy)).toBe(true);
   });
 
   it("rejects never-retry control codes", () => {

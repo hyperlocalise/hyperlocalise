@@ -12,11 +12,40 @@
  */
 import { RETRY_DELAY_INLINE_MAX_MS } from "../schema/retry-policy";
 
-export type RetryBackoffState = {
+/** Persisted on the run payload to resume a `logic.retry` region across durable slices. */
+export type RetryResumeState = {
   retryNodeId: string;
-  wakeAt: string;
   nextAttempt: number;
+  /** Present when the worker must not execute until this instant (long backoff). */
+  wakeAt?: string;
 };
+
+/** @deprecated Use `RetryResumeState` — kept as alias for existing imports. */
+export type RetryBackoffState = RetryResumeState;
+
+export function parseRetryResumeState(value: unknown): RetryResumeState | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.retryNodeId !== "string" || typeof record.nextAttempt !== "number") {
+    return null;
+  }
+  const wakeAt = typeof record.wakeAt === "string" ? record.wakeAt : undefined;
+  return {
+    retryNodeId: record.retryNodeId,
+    nextAttempt: record.nextAttempt,
+    wakeAt,
+  };
+}
+
+export function isRetryWakePending(resume: RetryResumeState | null | undefined): boolean {
+  if (!resume?.wakeAt) {
+    return false;
+  }
+  const wakeMs = Date.parse(resume.wakeAt);
+  return Number.isFinite(wakeMs) && Date.now() < wakeMs;
+}
 
 export async function waitForRetryDelay(input: {
   delayMs: number;

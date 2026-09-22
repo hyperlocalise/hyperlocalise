@@ -29,7 +29,8 @@ import { getWorkflowOutputFields, matchesWorkflowType } from "../catalog/node-co
 import { readWorkflowPath } from "./bindings";
 import { WORKFLOW_LIMITS } from "./limits";
 import { runRetryRegion } from "./run-retry-region";
-import type { RetryBackoffState } from "./retry-delay";
+import type { RetryResumeState } from "./retry-delay";
+import type { RunRetryScopeOptions } from "./run-retry-region";
 
 export type VisualWorkflowInterpreterNodeUpdate = {
   nodeId: string;
@@ -70,7 +71,7 @@ export async function runVisualWorkflowInterpreter(input: {
   signal?: AbortSignal;
   shouldCancel?: () => Promise<boolean>;
   mockMode?: boolean;
-  retryBackoff?: RetryBackoffState | null;
+  retryBackoff?: RetryResumeState | null;
 }): Promise<VisualWorkflowInterpreterResult> {
   const context = createVisualWorkflowExecutionContext({ triggerInput: input.triggerInput });
   const nodeResults: Record<string, Record<string, unknown>> = {};
@@ -112,6 +113,7 @@ export async function runVisualWorkflowInterpreter(input: {
     ids: Set<string>,
     entry: Set<string>,
     iteration?: number,
+    scopeOptions?: RunRetryScopeOptions,
   ): Promise<{ nodeId: string; error: Record<string, unknown> } | null> => {
     const states = new Map<string, "selected" | "skipped">();
     const completed = new Set<string>();
@@ -204,6 +206,9 @@ export async function runVisualWorkflowInterpreter(input: {
             error: execution.error,
           });
           if (behavior === "stop") return { nodeId: id, error: execution.error };
+          if (scopeOptions?.failOnHandledErrors && behavior === "continue") {
+            return { nodeId: id, error: execution.error };
+          }
           errorBranch = behavior === "branch";
           setNodeOutput(context, id, { failed: true, error: execution.error });
           nodeResults[id] = context.nodes[id]!;
@@ -266,9 +271,10 @@ export async function runVisualWorkflowInterpreter(input: {
             nodeResults[id] = execution.output;
           }
           if (node.type === "logic.retry") {
+            const resolvedRetry = resolveWorkflowNodeInputs(node, context);
             const resume = input.retryBackoff?.retryNodeId === node.id ? input.retryBackoff : null;
             const retryResult = await runRetryRegion({
-              node,
+              node: resolvedRetry,
               graph,
               context,
               nodeResults,
