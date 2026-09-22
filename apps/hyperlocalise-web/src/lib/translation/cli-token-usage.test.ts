@@ -60,7 +60,7 @@ describe("CLI token usage", () => {
           outputTokens: 4,
           totalTokens: 14,
           cacheReadTokens: 2,
-          modelId: "openai/gpt-5.6-luna",
+          modelId: "openai/gpt-6-luna",
           credentialSource: "gateway",
         },
         { inputTokens: 5, outputTokens: 1, totalTokens: 9, reasoningTokens: 3 },
@@ -71,7 +71,7 @@ describe("CLI token usage", () => {
       totalTokens: 23,
       cacheReadTokens: 2,
       reasoningTokens: 3,
-      modelId: "openai/gpt-5.6-luna",
+      modelId: "openai/gpt-6-luna",
       credentialSource: "gateway",
     });
   });
@@ -94,7 +94,7 @@ describe("CLI token usage", () => {
       inputTokens: 2,
       outputTokens: 1,
       totalTokens: 3,
-      modelId: "openai/gpt-5.6-luna",
+      modelId: "openai/gpt-6-luna",
       credentialSource: "gateway",
     });
   });

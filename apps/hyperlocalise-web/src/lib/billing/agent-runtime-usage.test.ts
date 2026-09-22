@@ -171,7 +171,7 @@ describe("agent-runtime-usage", () => {
       operationKey: "agent-run:test",
       dimensions: { surface: "web" },
       tokenUsage: { inputTokens: 1, outputTokens: 2, totalTokens: 3 },
-      aiCreditModelId: "openai/gpt-5.6-luna",
+      aiCreditModelId: "openai/gpt-6-luna",
       aiCreditCredentialSource: "gateway",
     });
 
@@ -182,7 +182,7 @@ describe("agent-runtime-usage", () => {
       unit: "run",
       dimensions: { surface: "web" },
       tokenUsage: { inputTokens: 1, outputTokens: 2, totalTokens: 3 },
-      aiCreditModelId: "openai/gpt-5.6-luna",
+      aiCreditModelId: "openai/gpt-6-luna",
       aiCreditCredentialSource: "gateway",
       interactionId: undefined,
       aiCreditSource: "agent_runtime_complete",
@@ -217,7 +217,7 @@ describe("agent-runtime-usage", () => {
       expect.objectContaining({
         operationKey: "workspace-automation:run_1:agent_runs",
         tokenUsage: { inputTokens: 4, outputTokens: 6, totalTokens: 10 },
-        aiCreditModelId: "openai/gpt-5.6-luna",
+        aiCreditModelId: "openai/gpt-6-luna",
         aiCreditCredentialSource: "gateway",
       }),
     );
@@ -239,7 +239,7 @@ describe("agent-runtime-usage", () => {
 
     expect(completeAndTrackBillableUsageMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        aiCreditModelId: "openai/gpt-5.6-luna",
+        aiCreditModelId: "openai/gpt-6-luna",
         aiCreditCredentialSource: "gateway",
         tokenUsage: { inputTokens: 4, outputTokens: 6, totalTokens: 10 },
       }),

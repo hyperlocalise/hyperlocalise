@@ -1013,6 +1013,21 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "4/w2RcdLUO",
     description: "Helper text for the automation language model select",
   },
+  modelGpt6Luna: {
+    defaultMessage: "GPT-6 Luna",
+    id: "lNo4qG1F4d",
+    description: "Label for the OpenAI GPT-6 Luna automation model",
+  },
+  modelGpt6Astra: {
+    defaultMessage: "GPT-6 Astra",
+    id: "5wWPtxr+Iq",
+    description: "Label for the OpenAI GPT-6 Astra automation model",
+  },
+  modelGpt6Sol: {
+    defaultMessage: "GPT-6 Sol",
+    id: "v5ZuLrI48c",
+    description: "Label for the OpenAI GPT-6 Sol automation model",
+  },
   modelGpt56Luna: {
     defaultMessage: "GPT-5.6 Luna",
     id: "IrSQ6vE36K",

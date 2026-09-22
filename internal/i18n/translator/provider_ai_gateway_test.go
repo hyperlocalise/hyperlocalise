@@ -15,7 +15,7 @@ func TestAIGatewayProviderTranslateRequiresAPIKey(t *testing.T) {
 	_, err := NewAIGatewayProvider().Translate(context.Background(), Request{
 		Source:         "hello",
 		TargetLanguage: "fr",
-		Model:          "openai/gpt-5.6-luna",
+		Model:          "openai/gpt-6-luna",
 		SystemPrompt:   "system",
 		UserPrompt:     "user",
 	})

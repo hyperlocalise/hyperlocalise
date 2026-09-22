@@ -20,7 +20,7 @@ const {
 } = vi.hoisted(() => ({
   selectMock: vi.fn(),
   decryptProviderCredentialMock: vi.fn(),
-  getManagedLanguageModelMock: vi.fn(() => ({ kind: "gateway", modelId: "openai/gpt-5.6-luna" })),
+  getManagedLanguageModelMock: vi.fn(() => ({ kind: "gateway", modelId: "openai/gpt-6-luna" })),
   resolveProviderLanguageModelMock: vi.fn(
     (input: { provider: string; apiKey: string; model: string }) => ({
       kind: input.provider,
@@ -71,7 +71,7 @@ vi.mock("@/lib/security/provider-credential-crypto", () => ({
 
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedLanguageModel: getManagedLanguageModelMock,
-  hyperlocaliseManagedGatewayModelId: "openai/gpt-5.6-luna",
+  hyperlocaliseManagedGatewayModelId: "openai/gpt-6-luna",
   resolveProviderLanguageModel: resolveProviderLanguageModelMock,
 }));
 
@@ -88,9 +88,9 @@ describe("resolveHyperlocaliseAgentLanguageModel", () => {
     await expect(
       resolveHyperlocaliseAgentLanguageModel({ organizationId: "org_1" }),
     ).resolves.toEqual({
-      model: { kind: "gateway", modelId: "openai/gpt-5.6-luna" },
+      model: { kind: "gateway", modelId: "openai/gpt-6-luna" },
       source: "gateway",
-      modelId: "openai/gpt-5.6-luna",
+      modelId: "openai/gpt-6-luna",
     });
   });
 
