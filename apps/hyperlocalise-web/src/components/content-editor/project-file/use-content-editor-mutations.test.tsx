@@ -187,8 +187,8 @@ describe("useContentEditorMutations", () => {
   it("coalesces rapid inline saves into one queue refresh", async () => {
     vi.useFakeTimers();
     try {
-      contentEditorTranslationsPostMock.mockResolvedValue(
-        jsonResponse({ translation: createCatTranslation() }),
+      contentEditorTranslationsPostMock.mockImplementation(() =>
+        Promise.resolve(jsonResponse({ translation: createCatTranslation() })),
       );
       const { result } = renderCatMutations();
       await act(async () => {
