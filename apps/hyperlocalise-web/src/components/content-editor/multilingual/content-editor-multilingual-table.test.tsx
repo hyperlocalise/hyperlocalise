@@ -133,9 +133,29 @@ describe("multilingual table", () => {
     await waitFor(() => expect(saveTranslation).toHaveBeenCalledWith(segments[0], "de", "Hallo"));
   });
 
-  it("does not edit locked cells", async () => {
-    renderTable({ segments: [{ ...segments[0], isLocked: true }] });
-    expect(await screen.findByRole("button", { name: "Edit message.0 in French" })).toBeDisabled();
+  it("opens locked cells in the detailed view instead of editing them", async () => {
+    const { onOpenTranslation } = renderTable({
+      segments: [{ ...segments[0], isLocked: true }],
+    });
+    const locked = await screen.findByRole("button", { name: "Edit message.0 in French" });
+    expect(locked).toBeEnabled();
+    fireEvent.click(locked);
+    expect(onOpenTranslation).toHaveBeenCalledWith(expect.objectContaining({ id: "key-0" }), "fr");
+    expect(
+      screen.queryByRole("textbox", { name: "Edit message.0 in French" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens read-only cells in the detailed view instead of editing them", async () => {
+    const { onOpenTranslation } = renderTable({
+      config: { ...config, canEdit: false },
+      segments: segments.slice(0, 1),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Edit message.0 in French" }));
+    expect(onOpenTranslation).toHaveBeenCalledWith(segments[0], "fr");
+    expect(
+      screen.queryByRole("textbox", { name: "Edit message.0 in French" }),
+    ).not.toBeInTheDocument();
   });
 
   it("bounds mounted rows, columns, and translation subscriptions for 10,000 keys", async () => {

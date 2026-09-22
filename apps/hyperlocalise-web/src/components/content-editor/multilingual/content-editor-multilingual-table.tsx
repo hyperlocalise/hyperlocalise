@@ -76,6 +76,7 @@ const TranslationCell = observer(function TranslationCell({
   active,
   onActivate,
   onFinish,
+  onOpenTranslation,
 }: {
   config: ContentEditorMultilingualConfig;
   segment: ContentEditorSegment;
@@ -85,6 +86,7 @@ const TranslationCell = observer(function TranslationCell({
   active: boolean;
   onActivate: () => void;
   onFinish: (direction?: "down" | "next" | "previous") => void;
+  onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
 }) {
   const intl = useIntl();
   const identity = config.identities?.get(segment.id);
@@ -104,6 +106,7 @@ const TranslationCell = observer(function TranslationCell({
   const draft = drafts.cells.get(cellKey);
   const editable =
     config.canEdit !== false && Boolean(config.onSaveTranslation) && !segment.isLocked;
+  const openTranslation = config.onOpenTranslation ?? onOpenTranslation;
   const label = intl.formatMessage(messages.open, {
     key: segment.key,
     language: formatLocaleDisplayName(intl, locale),
@@ -193,13 +196,17 @@ const TranslationCell = observer(function TranslationCell({
     <button
       ref={buttonRef}
       type="button"
-      disabled={!editable}
+      disabled={!editable && !openTranslation}
       className={cn(
         "flex h-full w-full items-center gap-2 px-3 text-start text-sm hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
         !text && "text-muted-foreground",
       )}
       aria-label={label}
       onClick={() => {
+        if (!editable) {
+          openTranslation?.(segment, locale);
+          return;
+        }
         cancelled.current = false;
         drafts.get(cellKey, query.data?.text ?? "");
         onActivate();
@@ -233,6 +240,7 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   isLoadingMore = false,
   onLoadMore,
   drafts: providedDrafts,
+  onOpenTranslation,
 }: {
   config: ContentEditorMultilingualConfig;
   segments: ContentEditorSegment[];
@@ -473,6 +481,7 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
                         onFinish={(direction) =>
                           finishEditing(row.index, columns[column.index], direction)
                         }
+                        onOpenTranslation={onOpenTranslation}
                       />
                     )}
                   </div>
