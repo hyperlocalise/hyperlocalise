@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -18,6 +19,7 @@ type membershipCacheTestStore struct {
 	getErr   error
 	setErr   error
 	setCalls int
+	setTTL   time.Duration
 }
 
 func (s *membershipCacheTestStore) Get(context.Context, string) (string, error) {
@@ -26,12 +28,18 @@ func (s *membershipCacheTestStore) Get(context.Context, string) (string, error) 
 	return s.value, s.getErr
 }
 
-func (s *membershipCacheTestStore) Set(_ context.Context, _ string, value string, _ time.Duration) error {
+func (s *membershipCacheTestStore) Set(_ context.Context, _ string, value string, ttl time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.setCalls++
 	s.value = value
+	s.setTTL = ttl
 	return s.setErr
+}
+
+func sharedMembershipValue(role string, expiresAt time.Time) string {
+	return `{"id":"om_live","userId":"user_live","organizationId":"org_live","status":"active","role":"` + role +
+		`","expiresAt":` + strconv.FormatInt(expiresAt.UnixMilli(), 10) + `}`
 }
 
 func activeMembership() *workos.UserOrganizationMembership {
@@ -79,7 +87,7 @@ func TestOrganizationMembershipCache(t *testing.T) {
 
 	t.Run("uses shared store before WorkOS", func(t *testing.T) {
 		store := &membershipCacheTestStore{
-			value: `{"id":"om_live","userId":"user_live","organizationId":"org_live","status":"active","role":"reviewer"}`,
+			value: sharedMembershipValue("reviewer", time.Now().Add(organizationMembershipCacheTTL)),
 		}
 		var calls atomic.Int32
 		lookup := newCachedOrganizationMembershipLookup(
@@ -142,4 +150,60 @@ func TestOrganizationMembershipCache(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, int32(2), calls.Load())
 	})
+
+	t.Run("local copy inherits the shared expiry", func(t *testing.T) {
+		now := time.Date(2026, 9, 22, 12, 0, 0, 0, time.UTC)
+		var calls atomic.Int32
+		store := &membershipCacheTestStore{
+			value: sharedMembershipValue("reviewer", now.Add(time.Second)),
+		}
+		cache := &organizationMembershipCache{
+			live: func(context.Context, string) (*workos.UserOrganizationMembership, error) {
+				calls.Add(1)
+				return activeMembership(), nil
+			},
+			store: store,
+			now:   func() time.Time { return now },
+			local: make(map[string]localMembershipCacheEntry),
+		}
+
+		member, err := cache.lookup(t.Context(), "om_live")
+		require.NoError(t, err)
+		require.Equal(t, "reviewer", member.Role.Slug)
+		require.Zero(t, calls.Load())
+
+		// The shared entry expires one second from now, so the local copy must
+		// expire with it rather than surviving another full TTL.
+		now = now.Add(2 * time.Second)
+		member, err = cache.lookup(t.Context(), "om_live")
+		require.NoError(t, err)
+		require.Equal(t, "admin", member.Role.Slug)
+		require.Equal(t, int32(1), calls.Load())
+		require.Equal(t, organizationMembershipCacheTTL, store.setTTL)
+	})
+
+	for _, tc := range []struct {
+		name  string
+		value string
+	}{
+		{name: "expired shared value", value: sharedMembershipValue("reviewer", time.Now().Add(-time.Second))},
+		{name: "shared value without expiry", value: `{"id":"om_live","userId":"user_live","organizationId":"org_live","status":"active","role":"reviewer"}`},
+	} {
+		t.Run(tc.name+" is ignored", func(t *testing.T) {
+			var calls atomic.Int32
+			store := &membershipCacheTestStore{value: tc.value}
+			lookup := newCachedOrganizationMembershipLookup(
+				func(context.Context, string) (*workos.UserOrganizationMembership, error) {
+					calls.Add(1)
+					return activeMembership(), nil
+				},
+				store,
+			)
+
+			member, err := lookup(t.Context(), "om_live")
+			require.NoError(t, err)
+			require.Equal(t, "admin", member.Role.Slug)
+			require.Equal(t, int32(1), calls.Load())
+		})
+	}
 }

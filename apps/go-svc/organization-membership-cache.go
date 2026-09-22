@@ -33,6 +33,14 @@ type cachedOrganizationMembership struct {
 	Role           string `json:"role"`
 }
 
+// cachedMembershipPayload is the shared-store representation. The absolute
+// expiry keeps every instance inside the same revocation window instead of
+// restarting the TTL each time an entry is copied into a local cache.
+type cachedMembershipPayload struct {
+	cachedOrganizationMembership
+	ExpiresAtMilli int64 `json:"expiresAt"`
+}
+
 func cachedMembershipFromWorkOS(member *workos.UserOrganizationMembership) (cachedOrganizationMembership, bool) {
 	if member == nil || member.Role == nil {
 		return cachedOrganizationMembership{}, false
@@ -107,15 +115,18 @@ func (c *organizationMembershipCache) localGet(key string) (*workos.UserOrganiza
 	return entry.membership.workOSMembership(), true
 }
 
-func (c *organizationMembershipCache) localSet(key string, membership cachedOrganizationMembership) {
+func (c *organizationMembershipCache) localSet(key string, membership cachedOrganizationMembership, expiresAt time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if limit := c.now().Add(organizationMembershipCacheTTL); expiresAt.After(limit) {
+		expiresAt = limit
+	}
 	if len(c.local) >= organizationMembershipLocalCacheLimit {
 		clear(c.local)
 	}
 	c.local[key] = localMembershipCacheEntry{
 		membership: membership,
-		expiresAt:  c.now().Add(organizationMembershipCacheTTL),
+		expiresAt:  expiresAt,
 	}
 }
 
@@ -129,28 +140,39 @@ func (c *organizationMembershipCache) storeGet(ctx context.Context, key string) 
 	if err != nil {
 		return nil, false
 	}
-	var membership cachedOrganizationMembership
-	if json.Unmarshal([]byte(raw), &membership) != nil {
+	var payload cachedMembershipPayload
+	if json.Unmarshal([]byte(raw), &payload) != nil {
 		return nil, false
 	}
-	member := membership.workOSMembership()
+	member := payload.workOSMembership()
 	if _, ok := cachedMembershipFromWorkOS(member); !ok {
 		return nil, false
 	}
-	c.localSet(key, membership)
+	expiresAt := time.UnixMilli(payload.ExpiresAtMilli)
+	if !c.now().Before(expiresAt) {
+		return nil, false
+	}
+	c.localSet(key, payload.cachedOrganizationMembership, expiresAt)
 	return member, true
 }
 
-func (c *organizationMembershipCache) storeSet(ctx context.Context, key string, membership cachedOrganizationMembership) {
+func (c *organizationMembershipCache) storeSet(ctx context.Context, key string, membership cachedOrganizationMembership, expiresAt time.Time) {
 	if c.store == nil {
 		return
 	}
-	payload, err := json.Marshal(membership)
+	payload, err := json.Marshal(cachedMembershipPayload{
+		cachedOrganizationMembership: membership,
+		ExpiresAtMilli:               expiresAt.UnixMilli(),
+	})
 	if err != nil {
 		return
 	}
+	ttl := expiresAt.Sub(c.now())
+	if ttl <= 0 {
+		return
+	}
 	cacheCtx, cancel := context.WithTimeout(ctx, organizationMembershipCacheTimeout)
-	err = c.store.Set(cacheCtx, key, string(payload), organizationMembershipCacheTTL)
+	err = c.store.Set(cacheCtx, key, string(payload), ttl)
 	cancel()
 	if err != nil {
 		slog.WarnContext(ctx, "organization_membership_cache_write_failed")
@@ -178,8 +200,9 @@ func (c *organizationMembershipCache) lookup(ctx context.Context, membershipID s
 		if !ok {
 			return member, nil
 		}
-		c.localSet(key, cached)
-		c.storeSet(ctx, key, cached)
+		expiresAt := c.now().Add(organizationMembershipCacheTTL)
+		c.localSet(key, cached, expiresAt)
+		c.storeSet(ctx, key, cached, expiresAt)
 		return member, nil
 	})
 	if err != nil {
