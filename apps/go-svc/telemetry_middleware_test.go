@@ -107,6 +107,22 @@ func TestTracingMiddlewareStartsNewTraceWithoutIncomingHeader(t *testing.T) {
 	require.False(t, spans[0].Parent().IsValid(), "no traceparent header means no parent span context")
 }
 
+func TestHTTPRouteFromPattern(t *testing.T) {
+	tests := []struct {
+		pattern string
+		want    string
+	}{
+		{pattern: "", want: "unmatched"},
+		{pattern: "/v1/orgs/{organizationSlug}/dictionaries", want: "/v1/orgs/{organizationSlug}/dictionaries"},
+		{pattern: "GET /v1/orgs/{organizationSlug}/dictionaries", want: "/v1/orgs/{organizationSlug}/dictionaries"},
+		{pattern: "POST /v1/validate/segment", want: "/v1/validate/segment"},
+		{pattern: "GET example.com/v1/orgs/{organizationSlug}/dictionaries", want: "example.com/v1/orgs/{organizationSlug}/dictionaries"},
+	}
+	for _, tc := range tests {
+		require.Equal(t, tc.want, httpRouteFromPattern(tc.pattern), tc.pattern)
+	}
+}
+
 func TestTracingMiddlewareUsesRegisteredDictionaryEndpoint(t *testing.T) {
 	rec := withTestSpanRecorder(t)
 	mux := http.NewServeMux()
@@ -124,6 +140,26 @@ func TestTracingMiddlewareUsesRegisteredDictionaryEndpoint(t *testing.T) {
 	require.Equal(t, "GET "+pattern, spans[0].Name())
 	require.Equal(t, pattern, requireSpanStringAttr(t, spans[0], "http.route"))
 	require.NotContains(t, spans[0].Name(), "acme-corp")
+}
+
+func TestTracingMiddlewareStripsMatchedGetVerbFromHeadRoute(t *testing.T) {
+	rec := withTestSpanRecorder(t)
+	const pattern = "/v1/orgs/{organizationSlug}/dictionaries"
+	handler := tracedTestMux(map[string]http.HandlerFunc{
+		"GET " + pattern: func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodHead, "/v1/orgs/acme-corp/dictionaries", nil)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	spans := rec.Ended()
+	require.Len(t, spans, 1)
+	require.Equal(t, "HEAD "+pattern, spans[0].Name())
+	require.Equal(t, pattern, requireSpanStringAttr(t, spans[0], "http.route"))
+	require.Equal(t, "HEAD", requireSpanStringAttr(t, spans[0], "http.request.method"))
+	require.NotContains(t, spans[0].Name(), "GET")
 }
 
 func TestTracingMiddlewareUsesBoundedRouteTemplate(t *testing.T) {
