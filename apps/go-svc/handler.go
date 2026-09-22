@@ -66,6 +66,7 @@ type handler struct {
 	issueSheets   *issueSheetAPI
 	activityLogs  *activityLogAPI
 	contentEditor *editorCatAPI
+	projects      *projectAPI
 	valkey        valkeyHealthClient
 	postgres      healthPinger
 }
@@ -104,6 +105,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.contentEditor != nil {
 		h.contentEditor.register(mux, verifier)
+	}
+	if h.projects != nil {
+		h.projects.register(mux, verifier)
 	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	editorExport := authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
