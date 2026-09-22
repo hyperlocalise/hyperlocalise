@@ -91,6 +91,9 @@ func TestValkeyConfigFromEnvURL(t *testing.T) {
 func TestConfigureValkeyDisabled(t *testing.T) {
 	t.Setenv("VALKEY_URL", "")
 	t.Setenv("VALKEY_ADDR", "")
+	t.Setenv("VALKEY_ENDPOINT", "")
+	t.Setenv("VALKEY_PORT", "")
+	t.Setenv("VALKEY_TLS", "")
 
 	client, err := configureValkey(t.Context())
 	if err != nil {
