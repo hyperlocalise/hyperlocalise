@@ -69,18 +69,55 @@ describe("cat-file-view-capabilities", () => {
     expect(capabilities.defaultView).toBe("file");
   });
 
-  it("keeps segment views for text files", () => {
+  it("keeps segment views for string resource files", () => {
     const capabilities = resolveCatFileViewCapabilities({
       sourcePath: "locales/en.json",
     });
 
     expect(capabilities).toEqual({
       family: "text",
-      availableViews: ["comfortable", "side-by-side", "multilingual"],
+      availableViews: ["comfortable", "side-by-side"],
       defaultView: "side-by-side",
       viewerId: null,
     });
     expect(isCatFileViewAvailable(capabilities)).toBe(false);
+
+    expect(resolveCatFileViewCapabilities({ sourcePath: "ios/Localizable.strings" })).toEqual(
+      capabilities,
+    );
+    expect(resolveCatFileViewCapabilities({ sourcePath: "android/strings.xml" })).toEqual(
+      capabilities,
+    );
+  });
+
+  it("falls back to segment views for paths with no recognised format", () => {
+    expect(resolveCatFileViewCapabilities({ sourcePath: "CAT_ALL_FILES" }).family).toBe("text");
+    expect(resolveCatFileViewCapabilities({ sourcePath: "" }).family).toBe("text");
+  });
+
+  it("offers the multilingual view only when a table configuration exists", () => {
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "locales/en.json",
+        multilingualViewAvailable: true,
+      }).availableViews,
+    ).toEqual(["comfortable", "side-by-side", "multilingual"]);
+
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "locales/en.json",
+        multilingualViewAvailable: false,
+      }).availableViews,
+    ).toEqual(["comfortable", "side-by-side"]);
+  });
+
+  it("keeps whole-file families on file view even when multilingual is configured", () => {
+    for (const sourcePath of ["marketing/hero.png", "docs/brief.docx", "docs/intro.md"]) {
+      expect(
+        resolveCatFileViewCapabilities({ sourcePath, multilingualViewAvailable: true })
+          .availableViews,
+      ).toEqual(["file"]);
+    }
   });
 
   it("registers Univer viewers for office paths", () => {
@@ -125,6 +162,13 @@ describe("cat-file-view-capabilities", () => {
   it("clamps disallowed modes to the family default", () => {
     const text = resolveCatFileViewCapabilities({ sourcePath: "a.json" });
     expect(clampCatWorkspaceViewMode("file", text)).toBe("side-by-side");
+    expect(clampCatWorkspaceViewMode("multilingual", text)).toBe("side-by-side");
+
+    const multilingualText = resolveCatFileViewCapabilities({
+      sourcePath: "a.json",
+      multilingualViewAvailable: true,
+    });
+    expect(clampCatWorkspaceViewMode("multilingual", multilingualText)).toBe("multilingual");
 
     const image = resolveCatFileViewCapabilities({ sourcePath: "a.webp" });
     expect(clampCatWorkspaceViewMode("comfortable", image)).toBe("file");

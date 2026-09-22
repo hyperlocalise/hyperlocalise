@@ -197,6 +197,10 @@ const ContentEditorWorkspaceContainerObserver = observer(
       store.ui.setTranslationViewLoading(Boolean(isTranslationViewLoading));
     }, [isTranslationViewLoading, store]);
 
+    useLayoutEffect(() => {
+      store.ui.setMultilingualViewAvailable(Boolean(multilingual));
+    }, [multilingual, store]);
+
     // Cache hits make the query look ready before ContentEditorQueryBridge writes the
     // snapshot. Block bulk targets until both the query and the store agree.
     const isQueueBulkBlocked =
