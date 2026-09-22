@@ -105,6 +105,25 @@ describe("GoSvcClient", () => {
     await expect(client.team.delete("acme", "team-1")).resolves.toBeUndefined();
   });
 
+  it("throws typed HTTP errors when the JSON error body is not an object", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("null", {
+        status: 502,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const client = clientWith(fetchMock);
+
+    const error = await client.team.list("acme").catch((cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(GoSvcClientError);
+    expect(error).toMatchObject({
+      code: "http_error",
+      message: "go-svc request failed with status 502",
+      status: 502,
+    });
+  });
+
   it("throws typed errors from go-svc error envelopes", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json(

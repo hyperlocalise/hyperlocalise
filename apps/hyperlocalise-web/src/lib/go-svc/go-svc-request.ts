@@ -185,7 +185,10 @@ function normalizeBaseUrl(value: string): string {
 async function responseError(response: Response): Promise<GoSvcClientError> {
   let body: GoSvcErrorBody = {};
   try {
-    body = (await response.json()) as GoSvcErrorBody;
+    const parsed: unknown = await response.json();
+    if (isErrorEnvelope(parsed)) {
+      body = parsed;
+    }
   } catch {
     // A non-JSON upstream error still carries useful HTTP status context.
   }
@@ -198,6 +201,10 @@ async function responseError(response: Response): Promise<GoSvcClientError> {
     status: response.status,
     details: body.details,
   });
+}
+
+function isErrorEnvelope(value: unknown): value is GoSvcErrorBody {
+  return typeof value === "object" && value !== null;
 }
 
 function responseFilename(contentDisposition: string | null): string | null {
