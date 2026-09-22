@@ -6,9 +6,9 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
-	gosvcvalkey "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/valkey"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/spellcheck"
@@ -17,6 +17,13 @@ import (
 )
 
 const maxValidateSegmentBodyBytes = 512 << 10 // 512 KiB
+
+const valkeyHealthTimeout = time.Second
+
+type valkeyHealthClient interface {
+	Ping(context.Context) error
+	Close()
+}
 
 type validateSegmentRequest struct {
 	SourceText    string   `json:"sourceText"`
@@ -48,7 +55,7 @@ type handler struct {
 	teams        *teamAPI
 	issueSheets  *issueSheetAPI
 	activityLogs *activityLogAPI
-	valkey       *gosvcvalkey.Client
+	valkey       valkeyHealthClient
 }
 
 func newHandler() *handler {
@@ -145,10 +152,25 @@ func (h *handler) checkSpelling(ctx context.Context, locale, text string, accept
 	return h.spellChecker.Check(ctx, locale, words)
 }
 
-func (h *handler) health(w http.ResponseWriter, _ *http.Request) {
+func (h *handler) health(w http.ResponseWriter, r *http.Request) {
+	valkeyStatus := "disabled"
+	if h.valkey != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), valkeyHealthTimeout)
+		err := h.valkey.Ping(ctx)
+		cancel()
+		if err == nil {
+			valkeyStatus = "ok"
+		} else {
+			valkeyStatus = "unavailable"
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`{"status":"ok"}`))
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status": "ok",
+		"valkey": map[string]string{"status": valkeyStatus},
+	})
 }
 
 func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {

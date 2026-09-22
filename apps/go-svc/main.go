@@ -155,13 +155,14 @@ func main() {
 	h.guidelines = guidelineSearch
 
 	valkeyCtx, cancelValkey := context.WithTimeout(context.Background(), 5*time.Second)
-	h.valkey, err = configureValkey(valkeyCtx)
+	valkeyClient, err := configureValkey(valkeyCtx)
 	cancelValkey()
 	if err != nil {
 		log.Fatalf("configure valkey: %v", err)
 	}
-	if h.valkey != nil {
-		defer h.valkey.Close()
+	if valkeyClient != nil {
+		h.valkey = valkeyClient
+		defer valkeyClient.Close()
 	}
 
 	mux := http.NewServeMux()

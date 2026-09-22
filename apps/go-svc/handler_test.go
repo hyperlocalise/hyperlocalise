@@ -21,6 +21,16 @@ type mockSessionVerifier struct {
 	err    error
 }
 
+type mockValkeyHealthClient struct {
+	err error
+}
+
+func (m mockValkeyHealthClient) Ping(context.Context) error {
+	return m.err
+}
+
+func (mockValkeyHealthClient) Close() {}
+
 func (m mockSessionVerifier) Verify(_ context.Context, _ string) (SessionResult, error) {
 	if m.err != nil {
 		return SessionResult{}, m.err
@@ -43,7 +53,31 @@ func TestHealth(t *testing.T) {
 	h.health(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.JSONEq(t, `{"status":"ok"}`, rec.Body.String())
+	require.JSONEq(t, `{"status":"ok","valkey":{"status":"disabled"}}`, rec.Body.String())
+}
+
+func TestHealthValkeyOK(t *testing.T) {
+	h := newHandler()
+	h.valkey = mockValkeyHealthClient{}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+
+	h.health(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.JSONEq(t, `{"status":"ok","valkey":{"status":"ok"}}`, rec.Body.String())
+}
+
+func TestHealthValkeyUnavailable(t *testing.T) {
+	h := newHandler()
+	h.valkey = mockValkeyHealthClient{err: errors.New("connection refused")}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+
+	h.health(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.JSONEq(t, `{"status":"ok","valkey":{"status":"unavailable"}}`, rec.Body.String())
 }
 
 func TestValidateSegmentUnauthorized(t *testing.T) {
@@ -99,7 +133,7 @@ func TestRegisterRoutesServesStrippedPaths(t *testing.T) {
 		healthReq := httptest.NewRequest(http.MethodGet, path, nil)
 		handler.ServeHTTP(healthRec, healthReq)
 		require.Equal(t, http.StatusOK, healthRec.Code, path)
-		require.JSONEq(t, `{"status":"ok"}`, healthRec.Body.String())
+		require.JSONEq(t, `{"status":"ok","valkey":{"status":"disabled"}}`, healthRec.Body.String())
 	}
 
 	payload := `{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json"}`

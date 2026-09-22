@@ -32,7 +32,10 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `WORKOS_API_HTTPS` | `true` | Set `false` for the local emulator. |
 | `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
 | `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, issue-sheet, and Hyperlab OFREP evaluate routes. |
-| `VALKEY_URL` | _(unset)_ | Valkey/Redis URL (`redis://`, `rediss://`, `valkey://`, `valkeys://`, or `unix://`). Leave unset to skip the client. When set, go-svc connects at startup and fails if ping does not succeed. |
+| `VALKEY_ENDPOINT` | _(unset)_ | Valkey hostname. When set without `VALKEY_URL`, go-svc builds a URL from this endpoint, `VALKEY_PORT`, and `VALKEY_TLS`. |
+| `VALKEY_PORT` | `6379` | Valkey port used with `VALKEY_ENDPOINT`. |
+| `VALKEY_TLS` | _(unset)_ | Set to `required`, `true`, or `enabled` to use `rediss://` with `VALKEY_ENDPOINT`; other values use `redis://`. |
+| `VALKEY_URL` | _(unset)_ | Explicit Valkey/Redis URL (`redis://`, `rediss://`, `valkey://`, `valkeys://`, or `unix://`). Takes precedence over `VALKEY_ENDPOINT`. When configured, go-svc connects at startup and fails if ping does not succeed. |
 | `VALKEY_ADDR` | _(unset)_ | Host:port used when `VALKEY_URL` is empty. Comma-separated addresses are allowed for cluster setups. |
 | `VALKEY_USERNAME` | _(unset)_ | Optional username overlaid on `VALKEY_URL` or used with `VALKEY_ADDR`. |
 | `VALKEY_PASSWORD` | _(unset)_ | Optional password overlaid on `VALKEY_URL` or used with `VALKEY_ADDR`. |
@@ -162,7 +165,7 @@ Health check:
 
 ```bash
 curl http://localhost:8080/health
-# {"status":"ok"}
+# {"status":"ok","valkey":{"status":"disabled"}}
 ```
 
 The web app reaches go-svc through `GO_SVC_URL` (set automatically on Vercel via the service binding). Domains research is **not** available on the public `/api/go-svc` rewrite: handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js org API computes and sends that header server-side.
@@ -183,7 +186,7 @@ For tracing, set `OTEL_EXPORTER_OTLP_ENDPOINT` in the `go_svc` service environme
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/health` | No | Liveness probe |
+| `GET` | `/health` | No | Liveness probe with Valkey connectivity status |
 | `POST` | `/v1/validate/segment` | WorkOS session cookie or Bearer access token | Validate a CAT segment (format, length, spelling) |
 | `POST` | `/v1/domains/research/keywords` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Expand a seed keyword + market through DataForSEO Labs |
 | `POST` | `/v1/domains/research/market-visibility` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Check one domain market through DataForSEO Labs; one market per request |
