@@ -19,6 +19,8 @@ export class MultilingualDraft {
   saving = false;
   error: string | null = null;
   private requestedText: string | null = null;
+  private submittedText: string | null = null;
+  private ignoreSaveError = false;
 
   constructor(text: string) {
     this.text = text;
@@ -34,8 +36,14 @@ export class MultilingualDraft {
     this.error = null;
   }
   cancel() {
-    this.text = this.savedText;
+    this.requestedText = null;
     this.error = null;
+    if (this.saving && this.submittedText !== null) {
+      this.text = this.submittedText;
+      this.ignoreSaveError = true;
+      return;
+    }
+    this.text = this.savedText;
   }
 
   async save(write: (text: string) => Promise<void>) {
@@ -43,24 +51,35 @@ export class MultilingualDraft {
     if (this.saving) return;
     this.saving = true;
     this.error = null;
+    this.ignoreSaveError = false;
     try {
       while (this.requestedText !== null) {
         const submitted = this.requestedText;
         this.requestedText = null;
         if (submitted === this.savedText) continue;
+        this.submittedText = submitted;
         await write(submitted);
         runInAction(() => {
           this.savedText = submitted;
+          this.submittedText = null;
         });
       }
     } catch (error) {
       runInAction(() => {
         this.requestedText = null;
+        this.submittedText = null;
+        if (this.ignoreSaveError) {
+          this.text = this.savedText;
+          this.error = null;
+          this.ignoreSaveError = false;
+          return;
+        }
         this.error = error instanceof Error ? error.message : String(error);
       });
     } finally {
       runInAction(() => {
         this.saving = false;
+        this.submittedText = null;
       });
     }
   }

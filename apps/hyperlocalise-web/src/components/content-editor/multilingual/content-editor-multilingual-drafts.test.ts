@@ -47,6 +47,46 @@ describe("multilingual drafts", () => {
     expect(draft.error).toBeNull();
     expect(draft.dirty).toBe(false);
   });
+  it("cancels to the in-flight submitted text instead of the pre-save baseline", async () => {
+    const draft = new MultilingualDraft("original");
+    let finish!: () => void;
+    const write = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    draft.change("saved");
+    const saving = draft.save(write);
+    draft.change("unsaved");
+    draft.cancel();
+    expect(draft.text).toBe("saved");
+    finish();
+    await saving;
+    expect(draft.text).toBe("saved");
+    expect(draft.savedText).toBe("saved");
+    expect(draft.dirty).toBe(false);
+  });
+
+  it("reverts to the last saved text when a cancelled in-flight save fails", async () => {
+    const draft = new MultilingualDraft("original");
+    let fail!: (error: Error) => void;
+    const write = vi.fn(
+      () =>
+        new Promise<void>((_, reject) => {
+          fail = reject;
+        }),
+    );
+    draft.change("saved");
+    const saving = draft.save(write);
+    draft.cancel();
+    fail(new Error("offline"));
+    await saving;
+    expect(draft.text).toBe("original");
+    expect(draft.error).toBeNull();
+    expect(draft.dirty).toBe(false);
+  });
+
   it("isolates language drafts and retains unsaved text during refetch", () => {
     const drafts = new MultilingualDrafts();
     drafts.get("file:key:fr", "French").change("Bonjour");
