@@ -131,5 +131,8 @@ func TestPingNilClient(t *testing.T) {
 	if err := client.Ping(t.Context()); err == nil {
 		t.Fatal("expected error")
 	}
+	if _, err := client.Incr(t.Context(), "k"); err == nil {
+		t.Fatal("expected error")
+	}
 	client.Close()
 }

@@ -211,6 +211,7 @@ func (api *glossaryAPI) importGlossaryConcepts(r *http.Request, actor glossaryAc
 	if err != nil {
 		return nil, 0, err
 	}
+	api.bumpGlossaryCache(r.Context(), actor, g.ID)
 	diagnostics = append(diagnostics, applyDiagnostics...)
 	return map[string]any{
 		"reportId":     reportID,

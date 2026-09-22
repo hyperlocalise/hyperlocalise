@@ -378,7 +378,7 @@ func (api *glossaryAPI) getGlossary(ctx context.Context, actor glossaryActor, g 
 	}
 	g.ProjectCount = count
 	if g.Source == "native" {
-		termCount, termErr := api.glossaryTermCount(ctx, g.ID)
+		termCount, termErr := api.cachedGlossaryTermCount(ctx, actor, g.ID)
 		if termErr != nil {
 			return nil, 0, termErr
 		}
@@ -431,6 +431,9 @@ func (api *glossaryAPI) patchGlossary(r *http.Request, actor glossaryActor, g gl
 	if err != nil {
 		return nil, 0, err
 	}
+	if payload.SourceLocale != nil && updated.SourceLocale != g.SourceLocale {
+		api.bumpGlossaryCache(ctx, actor, updated.ID)
+	}
 	return api.getGlossary(ctx, actor, updated)
 }
 
@@ -442,5 +445,9 @@ func (api *glossaryAPI) deleteGlossary(ctx context.Context, actor glossaryActor,
 		return nil, 0, err
 	}
 	_, err := api.pool.Exec(ctx, `delete from glossaries where id=$1 and organization_id=$2 and source='native'`, g.ID, actor.organizationID)
-	return nil, 204, err
+	if err != nil {
+		return nil, 0, err
+	}
+	api.bumpGlossaryCache(ctx, actor, g.ID)
+	return nil, 204, nil
 }
