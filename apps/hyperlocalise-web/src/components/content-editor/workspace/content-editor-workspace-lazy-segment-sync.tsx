@@ -325,7 +325,7 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
       externalResourceId,
       resourceType,
       contentEditorFile,
-      enabled,
+      enabled: enabled && store.ui.viewMode !== "multilingual",
       segmentIds: isSideBySideView ? loadSideBySideSegmentIds : adjacentSegmentIds,
     });
 
@@ -337,7 +337,7 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
       externalResourceId,
       resourceType,
       contentEditorFile,
-      enabled,
+      enabled: enabled && store.ui.viewMode !== "multilingual",
       segmentId: selectedSegmentId || null,
       syncComments: true,
       syncTargetLoading: true,

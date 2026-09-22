@@ -12,8 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { observer } from "mobx-react-lite";
+import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import { useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,9 @@ import type { ContentEditorSegment } from "@/components/content-editor/shared/ty
 import { useContentEditorSegmentTarget } from "@/components/content-editor/project-file/use-content-editor-segment-target";
 import { formatInternalMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-internal-markup";
 import { multilingualMessages as messages } from "./content-editor-multilingual.messages";
+
+import { ContentEditorTargetEditor } from "../editor/content-editor-target-editor";
+import { MultilingualDrafts } from "./content-editor-multilingual-drafts";
 
 const KEY_WIDTH = 224;
 const LANGUAGE_WIDTH = 320;
@@ -54,38 +58,78 @@ export interface ContentEditorMultilingualConfig {
       resourceType?: "file" | "key" | null;
     }
   >;
+  canEdit?: boolean;
+  onSaveTranslation?: (
+    segment: ContentEditorSegment,
+    locale: string,
+    text: string,
+  ) => Promise<void>;
   onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
 }
 
-const TranslationCell = memo(function TranslationCell({
+const TranslationCell = observer(function TranslationCell({
   config,
   segment,
   locale,
   pending,
-  onOpen,
+  drafts,
+  active,
+  onActivate,
+  onFinish,
+  onOpenTranslation,
 }: {
   config: ContentEditorMultilingualConfig;
   segment: ContentEditorSegment;
   locale: string;
   pending: boolean;
-  onOpen: (segment: ContentEditorSegment, locale: string) => void;
+  drafts: MultilingualDrafts;
+  active: boolean;
+  onActivate: () => void;
+  onFinish: (direction?: "down" | "next" | "previous") => void;
+  onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
 }) {
   const intl = useIntl();
   const identity = config.identities?.get(segment.id);
+  const sourcePath = identity?.sourcePath || segment.sourcePath || config.sourcePath;
+  const cellKey = JSON.stringify([config.projectId, sourcePath, segment.id, locale]);
   const query = useContentEditorSegmentTarget({
     organizationSlug: config.organizationSlug,
     projectId: config.projectId,
-    sourcePath: identity?.sourcePath || segment.sourcePath || config.sourcePath,
+    sourcePath,
     externalResourceId: identity?.externalResourceId ?? config.externalResourceId,
     resourceType: identity?.resourceType ?? config.resourceType,
     targetLocale: locale,
     externalStringId: segment.id,
     enabled: !pending,
-    priority: false,
+    priority: active,
   });
-  if (pending || query.isPending) {
-    return <Skeleton className="mx-3 h-4 w-3/4" />;
-  }
+  const draft = drafts.cells.get(cellKey);
+  const editable =
+    config.canEdit !== false && Boolean(config.onSaveTranslation) && !segment.isLocked;
+  const openTranslation = config.onOpenTranslation ?? onOpenTranslation;
+  const label = intl.formatMessage(messages.open, {
+    key: segment.key,
+    language: formatLocaleDisplayName(intl, locale),
+  });
+  useEffect(() => {
+    if (active && editable && !pending && query.data !== undefined) {
+      drafts.get(cellKey, query.data?.text ?? "");
+    }
+  }, [active, editable, pending, query.data, drafts, cellKey]);
+  const save = () => {
+    if (draft && editable && config.onSaveTranslation) {
+      void draft.save((text) => config.onSaveTranslation!(segment, locale, text));
+    }
+  };
+  const cancelled = useRef(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!active && cancelled.current) {
+      buttonRef.current?.focus();
+      cancelled.current = false;
+    }
+  }, [active]);
+  if (pending || query.isPending) return <Skeleton className="mx-3 h-4 w-3/4" />;
   if (query.isError && query.data === undefined) {
     return (
       <Button
@@ -99,25 +143,86 @@ const TranslationCell = memo(function TranslationCell({
       </Button>
     );
   }
-  const text = query.data?.text;
+  const text = draft?.dirty || draft?.error ? draft.text : query.data?.text;
+  if (active && draft && editable) {
+    return (
+      <div
+        className="absolute inset-x-0 top-0 z-40 min-h-full border border-ring bg-background shadow-sm"
+        onBlur={(event) => {
+          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+          if (!cancelled.current) save();
+          cancelled.current = false;
+        }}
+        onKeyDownCapture={(event) => {
+          if (event.nativeEvent.isComposing) return;
+          if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            cancelled.current = true;
+            draft.cancel();
+            onFinish();
+          } else if (event.key === "Tab" || (event.key === "Enter" && !event.shiftKey)) {
+            event.preventDefault();
+            event.stopPropagation();
+            save();
+            onFinish(event.key === "Enter" ? "down" : event.shiftKey ? "previous" : "next");
+          }
+        }}
+      >
+        <ContentEditorTargetEditor
+          sourceText={segment.sourceText}
+          value={draft.text}
+          maxLength={segment.maxLength}
+          onChange={(text) => draft.change(text)}
+          compact
+          inline
+          autoFocus
+          ariaLabel={label}
+        />
+        {draft.error ? (
+          <p role="alert" className="px-3 py-1 text-xs text-destructive">
+            {draft.error}
+          </p>
+        ) : null}
+        {draft.saving ? (
+          <p role="status" className="px-3 text-xs text-muted-foreground">
+            {intl.formatMessage(messages.saving)}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
   return (
     <button
+      ref={buttonRef}
       type="button"
+      disabled={!editable && !openTranslation}
       className={cn(
         "flex h-full w-full items-center gap-2 px-3 text-start text-sm hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
         !text && "text-muted-foreground",
       )}
-      aria-label={intl.formatMessage(messages.open, {
-        key: segment.key,
-        language: formatLocaleDisplayName(intl, locale),
-      })}
-      onClick={() => onOpen(segment, locale)}
-      title={text || intl.formatMessage(messages.missing)}
+      aria-label={label}
+      onClick={() => {
+        if (!editable) {
+          openTranslation?.(segment, locale);
+          return;
+        }
+        cancelled.current = false;
+        drafts.get(cellKey, query.data?.text ?? "");
+        onActivate();
+      }}
+      title={draft?.error ?? text ?? intl.formatMessage(messages.missing)}
     >
       <span dir="auto" className="line-clamp-2 min-w-0 flex-1 whitespace-pre-wrap break-words">
         {text ? formatInternalMarkupForDisplay(text) : intl.formatMessage(messages.missing)}
       </span>
-      {query.data?.isApproved ? (
+      {draft?.saving ? <span role="status">{intl.formatMessage(messages.saving)}</span> : null}
+      {draft?.error ? (
+        <span role="alert" className="text-destructive">
+          {intl.formatMessage(messages.retry)}
+        </span>
+      ) : null}
+      {!draft?.dirty && query.data?.isApproved ? (
         <span className="shrink-0 text-primary" aria-label={intl.formatMessage(messages.approved)}>
           ✓
         </span>
@@ -126,7 +231,7 @@ const TranslationCell = memo(function TranslationCell({
   );
 });
 
-export function ContentEditorMultilingualTable({
+export const ContentEditorMultilingualTable = observer(function ContentEditorMultilingualTable({
   config,
   segments,
   selectedSegmentId,
@@ -134,6 +239,7 @@ export function ContentEditorMultilingualTable({
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
+  drafts: providedDrafts,
   onOpenTranslation,
 }: {
   config: ContentEditorMultilingualConfig;
@@ -143,10 +249,15 @@ export function ContentEditorMultilingualTable({
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
-  onOpenTranslation: (segment: ContentEditorSegment, locale: string) => void;
+  drafts?: MultilingualDrafts;
+  onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
 }) {
   const intl = useIntl();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [localDrafts] = useState(() => new MultilingualDrafts());
+  const drafts = providedDrafts ?? localDrafts;
+  const [activeCell, setActiveCell] = useState<{ id: string; locale: string } | null>(null);
+  const activeRow = segments.findIndex((segment) => segment.id === activeCell?.id);
   const [hiddenLocales, setHiddenLocales] = useState<ReadonlySet<string>>(() => new Set());
   const locales = useMemo(() => [...new Set(config.targetLocales)], [config.targetLocales]);
   const visibleLocales = useMemo(
@@ -170,6 +281,10 @@ export function ContentEditorMultilingualTable({
     estimateSize: () => ROW_HEIGHT,
     getItemKey: getRowKey,
     overscan: ROW_OVERSCAN,
+    rangeExtractor: (range) =>
+      [...new Set([...defaultRangeExtractor(range), ...(activeRow >= 0 ? [activeRow] : [])])].sort(
+        (a, b) => a - b,
+      ),
     paddingStart: HEADER_HEIGHT,
   });
   const columnVirtualizer = useVirtualizer({
@@ -180,7 +295,38 @@ export function ContentEditorMultilingualTable({
     getItemKey: getColumnKey,
     paddingStart: KEY_WIDTH,
     overscan: 1,
+    rangeExtractor: (range) => {
+      const activeColumn = activeCell ? columns.indexOf(activeCell.locale, 1) : -1;
+      return [
+        ...new Set([...defaultRangeExtractor(range), ...(activeColumn >= 0 ? [activeColumn] : [])]),
+      ].sort((a, b) => a - b);
+    },
   });
+  const finishEditing = (row: number, locale: string, direction?: "down" | "next" | "previous") => {
+    if (!direction) {
+      setActiveCell(null);
+      return;
+    }
+    let nextRow = row;
+    let nextColumn = visibleLocales.indexOf(locale);
+    if (direction === "down") nextRow++;
+    else nextColumn += direction === "next" ? 1 : -1;
+    if (nextColumn >= visibleLocales.length) {
+      nextColumn = 0;
+      nextRow++;
+    }
+    if (nextColumn < 0) {
+      nextColumn = visibleLocales.length - 1;
+      nextRow--;
+    }
+    if (!segments[nextRow]) {
+      setActiveCell(null);
+      return;
+    }
+    rowVirtualizer.scrollToIndex(nextRow, { align: "auto" });
+    columnVirtualizer.scrollToIndex(nextColumn + 1, { align: "auto" });
+    setActiveCell({ id: segments[nextRow].id, locale: visibleLocales[nextColumn] });
+  };
   const rows = rowVirtualizer.getVirtualItems();
   const virtualColumns = columnVirtualizer.getVirtualItems();
   const lastRow = rows.at(-1)?.index ?? -1;
@@ -324,7 +470,18 @@ export function ContentEditorMultilingualTable({
                         segment={segment}
                         locale={columns[column.index]}
                         pending={isLoading}
-                        onOpen={onOpenTranslation}
+                        drafts={drafts}
+                        active={
+                          activeCell?.id === segment.id &&
+                          activeCell.locale === columns[column.index]
+                        }
+                        onActivate={() =>
+                          setActiveCell({ id: segment.id, locale: columns[column.index] })
+                        }
+                        onFinish={(direction) =>
+                          finishEditing(row.index, columns[column.index], direction)
+                        }
+                        onOpenTranslation={onOpenTranslation}
                       />
                     )}
                   </div>
@@ -356,4 +513,4 @@ export function ContentEditorMultilingualTable({
       </div>
     </section>
   );
-}
+});

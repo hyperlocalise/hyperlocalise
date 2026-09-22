@@ -41,7 +41,28 @@ vi.mock("@tanstack/react-virtual", async (importOriginal) => {
   };
 });
 
+vi.mock("../editor/content-editor-target-editor", () => ({
+  ContentEditorTargetEditor: ({
+    value,
+    onChange,
+    ariaLabel,
+  }: {
+    value: string;
+    onChange: (text: string) => void;
+    ariaLabel: string;
+  }) => (
+    <textarea
+      aria-label={ariaLabel}
+      value={value}
+      autoFocus
+      onChange={(event) => onChange(event.target.value)}
+    />
+  ),
+}));
+
+const saveTranslation = vi.fn().mockResolvedValue(undefined);
 const config: ContentEditorMultilingualConfig = {
+  onSaveTranslation: saveTranslation,
   organizationSlug: "acme",
   projectId: "p1",
   sourcePath: "en.json",
@@ -72,6 +93,7 @@ function renderTable(
 }
 
 beforeEach(() => {
+  saveTranslation.mockClear();
   targetQuery.mockReset();
   retry.mockReset();
   targetQuery.mockImplementation((input) => ({
@@ -84,6 +106,58 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("multilingual table", () => {
+  it("cancels edits and does not save composing Enter or Shift+Enter", async () => {
+    renderTable();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit message.0 in French" }));
+    const editor = await screen.findByRole("textbox", { name: "Edit message.0 in French" });
+    fireEvent.change(editor, { target: { value: "draft" } });
+    fireEvent.keyDown(editor, { key: "Enter", isComposing: true });
+    fireEvent.keyDown(editor, { key: "Enter", shiftKey: true });
+    expect(saveTranslation).not.toHaveBeenCalled();
+    fireEvent.keyDown(editor, { key: "Escape" });
+    expect(saveTranslation).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Edit message.0 in French" })).toHaveTextContent(
+      "fr:key-0",
+    );
+  });
+
+  it("moves between languages with Tab and saves on blur", async () => {
+    renderTable();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit message.0 in French" }));
+    const editor = await screen.findByRole("textbox", { name: "Edit message.0 in French" });
+    fireEvent.change(editor, { target: { value: "Bonjour" } });
+    fireEvent.keyDown(editor, { key: "Tab" });
+    const german = await screen.findByRole("textbox", { name: "Edit message.0 in German" });
+    fireEvent.change(german, { target: { value: "Hallo" } });
+    fireEvent.blur(german);
+    await waitFor(() => expect(saveTranslation).toHaveBeenCalledWith(segments[0], "de", "Hallo"));
+  });
+
+  it("opens locked cells in the detailed view instead of editing them", async () => {
+    const { onOpenTranslation } = renderTable({
+      segments: [{ ...segments[0], isLocked: true }],
+    });
+    const locked = await screen.findByRole("button", { name: "Edit message.0 in French" });
+    expect(locked).toBeEnabled();
+    fireEvent.click(locked);
+    expect(onOpenTranslation).toHaveBeenCalledWith(expect.objectContaining({ id: "key-0" }), "fr");
+    expect(
+      screen.queryByRole("textbox", { name: "Edit message.0 in French" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens read-only cells in the detailed view instead of editing them", async () => {
+    const { onOpenTranslation } = renderTable({
+      config: { ...config, canEdit: false },
+      segments: segments.slice(0, 1),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Edit message.0 in French" }));
+    expect(onOpenTranslation).toHaveBeenCalledWith(segments[0], "fr");
+    expect(
+      screen.queryByRole("textbox", { name: "Edit message.0 in French" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("bounds mounted rows, columns, and translation subscriptions for 10,000 keys", async () => {
     renderTable();
     await waitFor(() => expect(screen.getAllByRole("row").length).toBeGreaterThan(2));
@@ -100,7 +174,7 @@ describe("multilingual table", () => {
     expect(targetQuery.mock.calls.every(([input]) => input.priority === false)).toBe(true);
   });
 
-  it("opens the clicked key and language and resolves per-file provider identity", async () => {
+  it("edits inline, saves the clicked language, and moves down without opening another view", async () => {
     const { onOpenTranslation } = renderTable({
       config: {
         ...config,
@@ -112,8 +186,15 @@ describe("multilingual table", () => {
         ]),
       },
     });
-    fireEvent.click(await screen.findByRole("button", { name: "Open message.0 in French" }));
-    expect(onOpenTranslation).toHaveBeenCalledWith(segments[0], "fr");
+    fireEvent.click(await screen.findByRole("button", { name: "Edit message.0 in French" }));
+    expect(onOpenTranslation).not.toHaveBeenCalled();
+    const editor = await screen.findByRole("textbox", { name: "Edit message.0 in French" });
+    fireEvent.change(editor, { target: { value: "Bonjour" } });
+    fireEvent.keyDown(editor, { key: "Enter" });
+    await waitFor(() => expect(saveTranslation).toHaveBeenCalledWith(segments[0], "fr", "Bonjour"));
+    expect(
+      await screen.findByRole("textbox", { name: "Edit message.1 in French" }),
+    ).toBeInTheDocument();
     expect(targetQuery).toHaveBeenCalledWith(
       expect.objectContaining({
         externalStringId: "key-0",
@@ -162,7 +243,7 @@ describe("multilingual table", () => {
     await waitFor(() => expect(targetQuery).toHaveBeenCalled());
     expect(targetQuery.mock.calls.every(([input]) => input.enabled === false)).toBe(true);
     expect(
-      screen.queryByRole("button", { name: "Open message.0 in French" }),
+      screen.queryByRole("button", { name: "Edit message.0 in French" }),
     ).not.toBeInTheDocument();
   });
 });

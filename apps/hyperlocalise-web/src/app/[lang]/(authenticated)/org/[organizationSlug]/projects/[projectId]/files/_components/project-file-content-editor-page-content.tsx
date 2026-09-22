@@ -13,8 +13,8 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +36,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { supportsProviderContentEditorFile } from "@/lib/providers/capabilities/provider-content-editor-capabilities";
 import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
 import {
+  parseProjectFileContentEditorSearchParams,
   buildProjectFileContentEditorAllFilesHref,
   buildProjectFileContentEditorHref,
   canOpenProjectFileContentEditor,
@@ -45,7 +46,12 @@ import {
   resolveProjectFileContentEditorTargetLocaleResolution,
   resolveProjectFileContentEditorTargetLocales,
 } from "@/lib/projects/project-file-content-editor-routing";
-import { buildCatNavigationSearchParams } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
+import {
+  parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueSortParam,
+  parseCatWorkspaceSearchParam,
+  buildCatNavigationSearchParams,
+} from "@/lib/projects/content-editor/content-editor-workspace-query-params";
 import type {
   ContentEditorQueueFilter,
   ContentEditorQueueSort,
@@ -80,7 +86,29 @@ function githubInstallationRepositoriesQueryKey(organizationSlug: string) {
   return ["github-installation-repositories", organizationSlug] as const;
 }
 
-export function ProjectFileContentEditorPageContent({
+export function ProjectFileContentEditorPageContent(
+  props: ComponentProps<typeof ProjectFileContentEditorPageContentInner>,
+) {
+  const searchParams = useSearchParams();
+  // File/locale changes within the editor are client navigation. Keep the page
+  // and file tree mounted; native history also updates Back/Forward through Next.
+  const live = searchParams?.has("sourcePath") ? Object.fromEntries(searchParams.entries()) : null;
+  return (
+    <ProjectFileContentEditorPageContentInner
+      {...props}
+      {...(live
+        ? {
+            ...parseProjectFileContentEditorSearchParams(live),
+            initialQueueFilter: parseCatWorkspaceQueueFilterParam(live.queueFilter) ?? "all",
+            initialQueueSort: parseCatWorkspaceQueueSortParam(live.queueSort) ?? "file_order",
+            initialSearch: parseCatWorkspaceSearchParam(live.search),
+          }
+        : {})}
+    />
+  );
+}
+
+function ProjectFileContentEditorPageContentInner({
   organizationSlug,
   projectId,
   sourcePath,
@@ -491,7 +519,7 @@ export function ProjectFileContentEditorPageContent({
   }
 
   const handleFileChange = (nextSourcePath: string | null) => {
-    if (!nextSourcePath) {
+    if (!nextSourcePath || (!allFiles && nextSourcePath === sourcePath)) {
       return;
     }
 
@@ -517,9 +545,13 @@ export function ProjectFileContentEditorPageContent({
         branch,
         segment: null,
       });
-      router.push(
-        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
-      );
+      if (allFiles) {
+        router.push(
+          `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
+        );
+      } else {
+        window.history.pushState(null, "", `?${params.toString()}`);
+      }
     });
   };
 
@@ -597,9 +629,7 @@ export function ProjectFileContentEditorPageContent({
         params.set("search", segmentKey);
         params.set("queueFilter", "all");
       }
-      router.push(
-        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
-      );
+      window.history.pushState(null, "", `?${params.toString()}`);
     };
 
     if (segmentKey) navigate();

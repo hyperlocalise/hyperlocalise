@@ -66,19 +66,25 @@ export const multilingualMessages = defineMessages({
     description: "Multilingual table empty label",
   },
   open: {
-    defaultMessage: "Open {key} in {language}",
-    id: "5ROaWKy9xu",
+    defaultMessage: "Edit {key} in {language}",
+    id: "z7zgiC7+v3",
     description: "Multilingual table open label",
   },
   hint: {
-    defaultMessage: "Select a translation to open the editor.",
-    id: "zOn5vF4r7i",
+    defaultMessage:
+      "Click to edit. Enter moves down, Tab moves across, Shift+Enter adds a line, Escape cancels.",
+    id: "4XuQhGpKaz",
     description: "Multilingual table hint label",
   },
   count: {
     defaultMessage: "{count, number} keys loaded",
     id: "F0KK3Ot1t7",
     description: "Multilingual table count label",
+  },
+  saving: {
+    defaultMessage: "Saving…",
+    id: "oNLP4frHL4",
+    description: "Inline translation save status",
   },
   approved: {
     defaultMessage: "Approved",

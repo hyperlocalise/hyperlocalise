@@ -79,7 +79,8 @@ describe("run-project-qa-scan claim and reclaim", () => {
       teamId: team.id,
       source: "external_tms",
     });
-    const queue = { enqueue: vi.fn() } as unknown as TranslationQaScanQueue;
+    const enqueue = vi.fn();
+    const queue = { enqueue } as unknown as TranslationQaScanQueue;
 
     await expect(
       startTranslationQaScan({
@@ -101,7 +102,7 @@ describe("run-project-qa-scan claim and reclaim", () => {
       }),
     ).resolves.toEqual({ ok: false, code: "project_not_native" });
 
-    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it("returns scan_in_progress when another running scan already holds the lease", async () => {
