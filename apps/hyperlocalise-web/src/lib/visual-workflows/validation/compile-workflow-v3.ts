@@ -70,7 +70,7 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
   }
 
   if (node.config.kind === "logic.switch") {
-    return new Set(["default", ...node.config.cases.map((_, index) => String(index))]);
+    return new Set(["default", ...node.config.cases.map((caseEntry) => caseEntry.id)]);
   }
 
   if (node.type === "logic.for_each") {

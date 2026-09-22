@@ -190,6 +190,39 @@ it("rejects an execution edge whose target is a data port", () => {
   expect(result.executionEdges).toEqual([]);
 });
 
+it("accepts a Switch execution port identified by its stable case ID", () => {
+  const input = definition([
+    {
+      id: "switch-case-ready",
+      kind: "execution",
+      source: "switch",
+      target: "set",
+      sourcePortId: "case-ready",
+      targetPortId: "input",
+    },
+  ]);
+
+  input.nodes.splice(1, 0, {
+    id: "switch",
+    type: "logic.switch",
+    config: {
+      kind: "logic.switch",
+      expression: "status",
+      cases: [{ id: "case-ready", value: "ready" }],
+    },
+  });
+  input.editor.positions.switch = { x: 120, y: 0 };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).not.toContainEqual({
+    code: "invalid_source_port",
+    edgeId: "switch-case-ready",
+    nodeId: "switch",
+  });
+  expect(result.executionEdges).toContainEqual(input.edges[0]);
+});
+
 it("rejects a data edge that conflicts with an existing input binding", () => {
   const input = definition([
     {
