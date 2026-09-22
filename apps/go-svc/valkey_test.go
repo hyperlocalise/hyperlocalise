@@ -8,12 +8,54 @@ import (
 func TestValkeyConfigFromEnvEmpty(t *testing.T) {
 	t.Setenv("VALKEY_URL", "")
 	t.Setenv("VALKEY_ADDR", "")
+	t.Setenv("VALKEY_ENDPOINT", "")
+	t.Setenv("VALKEY_PORT", "")
+	t.Setenv("VALKEY_TLS", "")
 	t.Setenv("VALKEY_USERNAME", "")
 	t.Setenv("VALKEY_PASSWORD", "")
 
 	cfg := valkeyConfigFromEnv()
 	if cfg.Enabled() {
 		t.Fatalf("expected disabled config, got %#v", cfg)
+	}
+}
+
+func TestValkeyConfigFromEnvEndpoint(t *testing.T) {
+	t.Setenv("VALKEY_URL", "")
+	t.Setenv("VALKEY_ADDR", "")
+	t.Setenv("VALKEY_ENDPOINT", "cache.example")
+	t.Setenv("VALKEY_PORT", "6379")
+	t.Setenv("VALKEY_TLS", "required")
+	t.Setenv("VALKEY_USERNAME", "go-svc")
+	t.Setenv("VALKEY_PASSWORD", "s3cret")
+
+	cfg := valkeyConfigFromEnv()
+	if cfg.URL != "rediss://cache.example:6379" {
+		t.Fatalf("URL = %q", cfg.URL)
+	}
+
+	opt, err := cfg.ClientOption()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opt.TLSConfig == nil {
+		t.Fatal("expected TLS configuration")
+	}
+	if opt.Username != "go-svc" || opt.Password != "s3cret" {
+		t.Fatalf("auth = %q %q", opt.Username, opt.Password)
+	}
+}
+
+func TestValkeyConfigFromEnvEndpointDefaultsPort(t *testing.T) {
+	t.Setenv("VALKEY_URL", "")
+	t.Setenv("VALKEY_ADDR", "")
+	t.Setenv("VALKEY_ENDPOINT", "cache.example")
+	t.Setenv("VALKEY_PORT", "")
+	t.Setenv("VALKEY_TLS", "required")
+
+	cfg := valkeyConfigFromEnv()
+	if cfg.URL != "rediss://cache.example:6379" {
+		t.Fatalf("URL = %q", cfg.URL)
 	}
 }
 
@@ -49,6 +91,9 @@ func TestValkeyConfigFromEnvURL(t *testing.T) {
 func TestConfigureValkeyDisabled(t *testing.T) {
 	t.Setenv("VALKEY_URL", "")
 	t.Setenv("VALKEY_ADDR", "")
+	t.Setenv("VALKEY_ENDPOINT", "")
+	t.Setenv("VALKEY_PORT", "")
+	t.Setenv("VALKEY_TLS", "")
 
 	client, err := configureValkey(t.Context())
 	if err != nil {

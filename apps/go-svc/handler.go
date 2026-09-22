@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
-	gosvcvalkey "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/valkey"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/spellcheck"
@@ -17,6 +18,22 @@ import (
 )
 
 const maxValidateSegmentBodyBytes = 512 << 10 // 512 KiB
+
+const dependencyHealthTimeout = time.Second
+
+type healthPinger interface {
+	Ping(context.Context) error
+}
+
+type valkeyHealthClient interface {
+	healthPinger
+	Close()
+}
+
+type dependencyHealth struct {
+	Status      string   `json:"status"`
+	RoundtripMS *float64 `json:"roundtrip_ms,omitempty"`
+}
 
 type validateSegmentRequest struct {
 	SourceText    string   `json:"sourceText"`
@@ -48,7 +65,8 @@ type handler struct {
 	teams        *teamAPI
 	issueSheets  *issueSheetAPI
 	activityLogs *activityLogAPI
-	valkey       *gosvcvalkey.Client
+	valkey       valkeyHealthClient
+	postgres     healthPinger
 }
 
 func newHandler() *handler {
@@ -145,10 +163,35 @@ func (h *handler) checkSpelling(ctx context.Context, locale, text string, accept
 	return h.spellChecker.Check(ctx, locale, words)
 }
 
-func (h *handler) health(w http.ResponseWriter, _ *http.Request) {
+func (h *handler) health(w http.ResponseWriter, r *http.Request) {
+	valkey := checkDependencyHealth(r.Context(), h.valkey)
+	postgres := checkDependencyHealth(r.Context(), h.postgres)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`{"status":"ok"}`))
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status":   "ok",
+		"valkey":   valkey,
+		"postgres": postgres,
+	})
+}
+
+func checkDependencyHealth(parent context.Context, pinger healthPinger) dependencyHealth {
+	if pinger == nil {
+		return dependencyHealth{Status: "disabled"}
+	}
+
+	ctx, cancel := context.WithTimeout(parent, dependencyHealthTimeout)
+	started := time.Now()
+	err := pinger.Ping(ctx)
+	roundtripMS := math.Round(float64(time.Since(started))/float64(time.Millisecond)*1000) / 1000
+	cancel()
+
+	status := "ok"
+	if err != nil {
+		status = "unavailable"
+	}
+	return dependencyHealth{Status: status, RoundtripMS: &roundtripMS}
 }
 
 func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {

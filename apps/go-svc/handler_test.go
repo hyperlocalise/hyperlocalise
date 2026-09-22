@@ -21,6 +21,25 @@ type mockSessionVerifier struct {
 	err    error
 }
 
+type mockValkeyHealthClient struct {
+	err error
+}
+
+func (m mockValkeyHealthClient) Ping(context.Context) error {
+	return m.err
+}
+
+func (mockValkeyHealthClient) Close() {}
+
+func dependencyStatus(t *testing.T, body []byte, name string) map[string]any {
+	t.Helper()
+	var response map[string]any
+	require.NoError(t, json.Unmarshal(body, &response))
+	dependency, ok := response[name].(map[string]any)
+	require.True(t, ok, "%s health payload", name)
+	return dependency
+}
+
 func (m mockSessionVerifier) Verify(_ context.Context, _ string) (SessionResult, error) {
 	if m.err != nil {
 		return SessionResult{}, m.err
@@ -43,7 +62,50 @@ func TestHealth(t *testing.T) {
 	h.health(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.JSONEq(t, `{"status":"ok"}`, rec.Body.String())
+	require.JSONEq(t, `{"status":"ok","valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}`, rec.Body.String())
+}
+
+func TestHealthValkeyOK(t *testing.T) {
+	h := newHandler()
+	h.valkey = mockValkeyHealthClient{}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+
+	h.health(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	valkey := dependencyStatus(t, rec.Body.Bytes(), "valkey")
+	require.Equal(t, "ok", valkey["status"])
+	require.IsType(t, float64(0), valkey["roundtrip_ms"])
+	require.GreaterOrEqual(t, valkey["roundtrip_ms"].(float64), float64(0))
+}
+
+func TestHealthValkeyUnavailable(t *testing.T) {
+	h := newHandler()
+	h.valkey = mockValkeyHealthClient{err: errors.New("connection refused")}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+
+	h.health(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	valkey := dependencyStatus(t, rec.Body.Bytes(), "valkey")
+	require.Equal(t, "unavailable", valkey["status"])
+	require.IsType(t, float64(0), valkey["roundtrip_ms"])
+}
+
+func TestHealthPostgresOK(t *testing.T) {
+	h := newHandler()
+	h.postgres = mockValkeyHealthClient{}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+
+	h.health(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	postgres := dependencyStatus(t, rec.Body.Bytes(), "postgres")
+	require.Equal(t, "ok", postgres["status"])
+	require.IsType(t, float64(0), postgres["roundtrip_ms"])
 }
 
 func TestValidateSegmentUnauthorized(t *testing.T) {
@@ -99,7 +161,7 @@ func TestRegisterRoutesServesStrippedPaths(t *testing.T) {
 		healthReq := httptest.NewRequest(http.MethodGet, path, nil)
 		handler.ServeHTTP(healthRec, healthReq)
 		require.Equal(t, http.StatusOK, healthRec.Code, path)
-		require.JSONEq(t, `{"status":"ok"}`, healthRec.Body.String())
+		require.JSONEq(t, `{"status":"ok","valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}`, healthRec.Body.String())
 	}
 
 	payload := `{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json"}`

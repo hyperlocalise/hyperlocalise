@@ -13,12 +13,14 @@ go_binary(
         "request_log.go",
         "spellcheck.go",
         "spellcheck_provider_default.go",
+        "valkey.go",
     ],
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc",
     visibility = ["//visibility:public"],
     deps = [
         "//apps/go-svc/internal/experiment",
         "//apps/go-svc/internal/ironsession",
+        "//apps/go-svc/internal/valkey",
         "//internal/i18n/segmentvalidate",
         "//internal/i18n/spellcheck",
         "@com_github_google_uuid//:uuid",
@@ -47,6 +49,7 @@ go_test(
         "request_log_test.go",
         "server_test.go",
         "spellcheck_test.go",
+        "valkey_test.go",
     ],
     embed = [":go_svc"],
     deps = [
