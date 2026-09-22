@@ -76,7 +76,7 @@ describe("cat-file-view-capabilities", () => {
 
     expect(capabilities).toEqual({
       family: "text",
-      availableViews: ["comfortable", "side-by-side"],
+      availableViews: ["comfortable", "side-by-side", "multilingual"],
       defaultView: "side-by-side",
       viewerId: null,
     });

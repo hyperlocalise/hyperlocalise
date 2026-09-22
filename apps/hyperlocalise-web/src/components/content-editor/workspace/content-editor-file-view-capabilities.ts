@@ -34,6 +34,7 @@ export type ContentEditorFileViewCapabilities = {
 const SEGMENT_VIEWS = [
   "comfortable",
   "side-by-side",
+  "multilingual",
 ] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 const FILE_ONLY_VIEWS = ["file"] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 

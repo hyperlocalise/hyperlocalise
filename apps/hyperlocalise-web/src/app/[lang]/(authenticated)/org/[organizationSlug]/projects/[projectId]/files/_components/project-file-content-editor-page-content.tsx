@@ -556,7 +556,7 @@ export function ProjectFileContentEditorPageContent({
     setRepositoryOverride(nextRepositoryFullName);
   };
 
-  const handleLocaleChange = (nextLocale: string) => {
+  const handleLocaleChange = (nextLocale: string, segmentKey?: string) => {
     if (nextLocale === targetLocale) {
       return;
     }
@@ -567,6 +567,11 @@ export function ProjectFileContentEditorPageContent({
           locale: nextLocale,
           sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
         });
+        if (segmentKey) {
+          params.set("segment", segmentKey);
+          params.set("search", segmentKey);
+          params.set("queueFilter", "all");
+        }
         const section = "strings";
         router.push(
           `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/${section}?${params.toString()}`,
@@ -587,12 +592,18 @@ export function ProjectFileContentEditorPageContent({
         branch,
       });
 
+      if (segmentKey) {
+        params.set("segment", segmentKey);
+        params.set("search", segmentKey);
+        params.set("queueFilter", "all");
+      }
       router.push(
         `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
       );
     };
 
-    attemptCatPageNavigation(pageNavigationGuardRef, navigate);
+    if (segmentKey) navigate();
+    else attemptCatPageNavigation(pageNavigationGuardRef, navigate);
   };
 
   const resolvedSourcePath = allFiles
@@ -668,6 +679,7 @@ export function ProjectFileContentEditorPageContent({
         resourceType={allFiles ? undefined : resolvedResourceType}
         targetLocale={targetLocale}
         targetLocales={workspaceTargetLocales}
+        onOpenTranslationLocale={handleLocaleChange}
         highlightLocale={highlightLocale}
         repositoryFullName={selectedRepositoryFullName}
         canLookupFreshContext={canLookupFreshCatRepositoryContext(

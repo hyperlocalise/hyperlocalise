@@ -128,6 +128,7 @@ export function useContentEditorSegmentTarget(input: {
   targetLocale: string;
   externalStringId: string | null;
   enabled?: boolean;
+  priority?: boolean;
 }) {
   const intl = useIntl();
   const externalStringId = input.externalStringId ?? "";
@@ -142,7 +143,7 @@ export function useContentEditorSegmentTarget(input: {
       targetLocale: input.targetLocale,
       externalStringId,
       enabled: input.enabled,
-      priority: true,
+      priority: input.priority ?? true,
       intl,
     }),
   );

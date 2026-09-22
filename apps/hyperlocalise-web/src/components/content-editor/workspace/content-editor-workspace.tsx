@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ContentEditorMultilingualTable } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import { useCallback, useEffect, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage } from "react-intl";
@@ -75,6 +76,7 @@ function useIsCompactWorkspace(viewMode: string) {
 
 export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspaceView({
   shell,
+  multilingual,
   queueSegments,
   selectedSegment,
   dependencies,
@@ -100,6 +102,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   queueSearch,
   isQueueFetchingPage = false,
   isQueueListLoading = false,
+  isQueueDataPending = false,
   isTranslationViewLoading = false,
   isCommentsLoading = false,
   isSegmentTargetLoading = false,
@@ -140,7 +143,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const isIntelligencePanelVisible = Boolean(
     selectedSegmentIdForIntelligence &&
     (!isCompact || activePanel === "ai") &&
-    !isSideBySideDesktop,
+    !isSideBySideDesktop &&
+    viewMode !== "multilingual",
   );
 
   useEffect(() => {
@@ -161,6 +165,36 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   ]);
 
   const showTranslationViewSkeleton = isTranslationViewLoading || store.ui.translationViewLoading;
+
+  if (viewMode === "multilingual" && multilingual) {
+    return (
+      <div
+        ref={workspaceRef}
+        className={cn("flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}
+      >
+        <ContentEditorMultilingualTable
+          key={`${multilingual.projectId}:${multilingual.sourcePath}`}
+          config={multilingual}
+          segments={queueSegments}
+          selectedSegmentId={shell.selectedSegmentId}
+          isLoading={isQueueListLoading || isQueueDataPending}
+          hasMore={hasMoreQueue}
+          isLoadingMore={isQueueFetchingPage}
+          onLoadMore={onLoadMoreQueue}
+          onOpenTranslation={(segment, locale) => {
+            store.attemptPageNavigation(() => {
+              store.ui.setViewMode("comfortable");
+              if (locale === store.fileContext.targetLocale) {
+                dependencies.navigation.onSelectSegment(segment.id);
+              } else {
+                multilingual.onOpenTranslation?.(segment, locale);
+              }
+            });
+          }}
+        />
+      </div>
+    );
+  }
 
   if (!selectedSegment) {
     const emptyQueuePanel = (

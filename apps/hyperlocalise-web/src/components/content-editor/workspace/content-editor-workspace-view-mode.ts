@@ -15,7 +15,11 @@ import {
   writeBrowserLocalStorageItem,
 } from "@/lib/primitives/browser-local-storage/browser-local-storage";
 
-export type ContentEditorWorkspaceViewMode = "comfortable" | "side-by-side" | "file";
+export type ContentEditorWorkspaceViewMode =
+  | "comfortable"
+  | "side-by-side"
+  | "file"
+  | "multilingual";
 
 export const CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY = "content-editor-workspace-view-mode:v1";
 
@@ -28,7 +32,12 @@ export const CAT_FILE_VIEW_PAGE_LIMIT = CAT_COMFORTABLE_PAGE_LIMIT;
 export function isCatWorkspaceViewMode(
   value: string | null | undefined,
 ): value is ContentEditorWorkspaceViewMode {
-  return value === "comfortable" || value === "side-by-side" || value === "file";
+  return (
+    value === "comfortable" ||
+    value === "side-by-side" ||
+    value === "file" ||
+    value === "multilingual"
+  );
 }
 
 export function readCatWorkspaceViewMode(): ContentEditorWorkspaceViewMode {

@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ContentEditorMultilingualConfig } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import type { ContentEditorVisualContext } from "@/lib/translation/content-editor-visual-context";
 import type {
   ContentEditorFormatCheck,
@@ -133,6 +134,7 @@ export type PartialCatWorkspaceDependencies = {
 export type { ContentEditorWorkspaceShell };
 
 export interface ContentEditorWorkspaceViewProps {
+  multilingual?: ContentEditorMultilingualConfig;
   shell: ContentEditorWorkspaceShell;
   queueSegments: ContentEditorSegment[];
   selectedSegment: ContentEditorSegment | null;
