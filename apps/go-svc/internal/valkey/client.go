@@ -52,6 +52,14 @@ func (c *Client) Set(ctx context.Context, key, value string, ttl time.Duration) 
 	return c.inner.Do(ctx, c.inner.B().Set().Key(key).Value(value).Px(ttl).Build()).Error()
 }
 
+// Incr increments a key by one and returns the new value. Missing keys start at 0.
+func (c *Client) Incr(ctx context.Context, key string) (int64, error) {
+	if c == nil || c.inner == nil {
+		return 0, fmt.Errorf("valkey: client is not configured")
+	}
+	return c.inner.Do(ctx, c.inner.B().Incr().Key(key).Build()).AsInt64()
+}
+
 // Ping sends PING and returns a protocol or transport error.
 func (c *Client) Ping(ctx context.Context) error {
 	if c == nil || c.inner == nil {

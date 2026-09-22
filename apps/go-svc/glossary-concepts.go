@@ -100,7 +100,9 @@ func scanGlossaryTerm(row pgx.Row, sourceLocale string) (glossaryConceptTermReco
 }
 
 func (api *glossaryAPI) listConceptsHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
-	return api.listConcepts(r.Context(), g)
+	return api.cachedGlossaryJSON(r.Context(), actor, g.ID, GLOSSARY_COLLECTION_CACHE_TTL, []string{"concepts"}, func() (any, int, error) {
+		return api.listConcepts(r.Context(), g)
+	})
 }
 
 func (api *glossaryAPI) createConceptHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
@@ -108,11 +110,15 @@ func (api *glossaryAPI) createConceptHandler(r *http.Request, actor glossaryActo
 }
 
 func (api *glossaryAPI) pageGlossaryConceptsHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
-	return api.pageGlossaryConcepts(r, g)
+	return api.cachedGlossaryJSON(r.Context(), actor, g.ID, GLOSSARY_COLLECTION_CACHE_TTL, []string{"concepts-page", glossaryPageDigest(r)}, func() (any, int, error) {
+		return api.pageGlossaryConcepts(r, g)
+	})
 }
 
 func (api *glossaryAPI) listGlossaryConceptAuthorsHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
-	return api.listGlossaryConceptAuthors(r.Context(), g)
+	return api.cachedGlossaryJSON(r.Context(), actor, g.ID, GLOSSARY_AUTHORS_CACHE_TTL, []string{"authors"}, func() (any, int, error) {
+		return api.listGlossaryConceptAuthors(r.Context(), g)
+	})
 }
 
 func (api *glossaryAPI) pageGlossaryHistoryHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
@@ -128,7 +134,9 @@ func (api *glossaryAPI) getConceptHandler(r *http.Request, actor glossaryActor, 
 	if !validGlossaryID(conceptID) {
 		return nil, 0, missingGlossary()
 	}
-	return api.getConcept(r.Context(), g, conceptID)
+	return api.cachedGlossaryJSON(r.Context(), actor, g.ID, GLOSSARY_COLLECTION_CACHE_TTL, []string{"concept", conceptID}, func() (any, int, error) {
+		return api.getConcept(r.Context(), g, conceptID)
+	})
 }
 
 func (api *glossaryAPI) patchConceptHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
@@ -152,11 +160,13 @@ func (api *glossaryAPI) listConceptTermsHandler(r *http.Request, actor glossaryA
 	if !validGlossaryID(conceptID) {
 		return nil, 0, missingGlossary()
 	}
-	terms, err := api.listConceptTerms(r.Context(), g, conceptID)
-	if err != nil {
-		return nil, 0, err
-	}
-	return map[string]any{"terms": terms, "total": len(terms)}, 200, nil
+	return api.cachedGlossaryJSON(r.Context(), actor, g.ID, GLOSSARY_COLLECTION_CACHE_TTL, []string{"concept", conceptID, "terms"}, func() (any, int, error) {
+		terms, err := api.listConceptTerms(r.Context(), g, conceptID)
+		if err != nil {
+			return nil, 0, err
+		}
+		return map[string]any{"terms": terms, "total": len(terms)}, 200, nil
+	})
 }
 
 func (api *glossaryAPI) createConceptTermHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
@@ -183,6 +193,7 @@ func (api *glossaryAPI) createConceptTermHandler(r *http.Request, actor glossary
 	if err != nil {
 		return nil, 0, err
 	}
+	api.bumpGlossaryCache(r.Context(), actor, g.ID)
 	return map[string]any{"term": term}, 201, nil
 }
 
@@ -191,7 +202,9 @@ func (api *glossaryAPI) pageConceptTermsHandler(r *http.Request, actor glossaryA
 	if !validGlossaryID(conceptID) {
 		return nil, 0, missingGlossary()
 	}
-	return api.pageConceptTerms(r, g, conceptID)
+	return api.cachedGlossaryJSON(r.Context(), actor, g.ID, GLOSSARY_COLLECTION_CACHE_TTL, []string{"concept", conceptID, "terms-page", glossaryPageDigest(r)}, func() (any, int, error) {
+		return api.pageConceptTerms(r, g, conceptID)
+	})
 }
 
 func (api *glossaryAPI) patchTermHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
@@ -219,6 +232,7 @@ func (api *glossaryAPI) deleteTermHandler(r *http.Request, actor glossaryActor, 
 	if tag.RowsAffected() == 0 {
 		return nil, 0, missingGlossary()
 	}
+	api.bumpGlossaryCache(r.Context(), actor, g.ID)
 	return nil, 204, nil
 }
 
@@ -364,6 +378,7 @@ func (api *glossaryAPI) createConcept(r *http.Request, actor glossaryActor, g gl
 	if err := tx.Commit(ctx); err != nil {
 		return nil, 0, err
 	}
+	api.bumpGlossaryCache(ctx, actor, g.ID)
 	value, _, err := api.getConcept(ctx, g, c.ID)
 	return value, 201, err
 }
@@ -439,6 +454,7 @@ func (api *glossaryAPI) patchConcept(r *http.Request, actor glossaryActor, g glo
 		return nil, 0, err
 	}
 	c.Terms = terms
+	api.bumpGlossaryCache(r.Context(), actor, g.ID)
 	return map[string]any{"concept": c}, 200, nil
 }
 
@@ -453,6 +469,7 @@ func (api *glossaryAPI) deleteConcept(ctx context.Context, actor glossaryActor, 
 	if tag.RowsAffected() == 0 {
 		return nil, 0, missingGlossary()
 	}
+	api.bumpGlossaryCache(ctx, actor, g.ID)
 	return nil, 204, nil
 }
 
@@ -483,5 +500,6 @@ func (api *glossaryAPI) patchTerm(r *http.Request, actor glossaryActor, g glossa
 	if err != nil {
 		return nil, 0, err
 	}
+	api.bumpGlossaryCache(r.Context(), actor, g.ID)
 	return map[string]any{"term": term}, 200, nil
 }
