@@ -40,11 +40,17 @@ const {
       sourcePath,
       targetLocale,
       targetLocales,
+      initialQueueFilter,
+      initialQueueSort,
+      initialSearch,
     }: {
       repositoryFullName?: string | null;
       sourcePath: string;
       targetLocale: string;
       targetLocales?: string[];
+      initialQueueFilter?: string;
+      initialQueueSort?: string;
+      initialSearch?: string;
       onOpenTranslationLocale?: (locale: string, key: string) => void;
     }) => (
       <div
@@ -53,6 +59,9 @@ const {
         data-source-path={sourcePath}
         data-target-locale={targetLocale}
         data-target-locales={(targetLocales ?? []).join(",")}
+        data-queue-filter={initialQueueFilter ?? ""}
+        data-queue-sort={initialQueueSort ?? ""}
+        data-search={initialSearch ?? ""}
       />
     ),
   ),
@@ -337,6 +346,70 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
       "en-US.json",
     );
     expect(fetchProjectFilesMock).toHaveBeenCalledTimes(requests);
+  });
+
+  it("forwards restored queue params after Back/Forward", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "?sourcePath=en-US.json&locale=vi&queueFilter=untranslated&search=checkout",
+    );
+    render(
+      <ContentEditorTestProviders>
+        <ProjectFileContentEditorPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath="en-US.json"
+          highlightLocale="vi"
+          initialQueueFilter="untranslated"
+          initialSearch="checkout"
+        />
+      </ContentEditorTestProviders>,
+    );
+    await screen.findByTestId("content-editor-workspace");
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-queue-filter",
+      "untranslated",
+    );
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-search",
+      "checkout",
+    );
+    act(() => {
+      window.history.replaceState(
+        null,
+        "",
+        "?sourcePath=marketing/pricing.json&locale=vi&queueFilter=needs_review&search=welcome",
+      );
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+        "data-source-path",
+        "marketing/pricing.json",
+      );
+    });
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-queue-filter",
+      "needs_review",
+    );
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute("data-search", "welcome");
+    act(() => {
+      window.history.replaceState(
+        null,
+        "",
+        "?sourcePath=en-US.json&locale=vi&queueFilter=untranslated&search=checkout",
+      );
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-queue-filter",
+      "untranslated",
+    );
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-search",
+      "checkout",
+    );
   });
 
   it("renders the file sidebar, locale selector, and mobile file picker in the CAT shell", async () => {
