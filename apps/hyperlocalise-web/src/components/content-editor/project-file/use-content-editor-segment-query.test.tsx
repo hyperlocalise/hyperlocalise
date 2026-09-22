@@ -14,18 +14,31 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
+import type {
+  ContentEditorQueueFilter,
+  ContentEditorQueueSort,
+} from "@/components/content-editor/queue/content-editor-queue-filter";
 import { ContentEditorTestProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 
 import { useContentEditorSegmentQuery } from "./use-content-editor-segment-query";
 
-const baseInput = {
+const baseInput: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  enabled: boolean;
+  initialQueueFilter: ContentEditorQueueFilter;
+  initialQueueSort: ContentEditorQueueSort;
+  initialSearch: string;
+} = {
   organizationSlug: "acme",
   projectId: "proj_1",
   sourcePath: "en.json",
   targetLocale: "fr",
   enabled: false,
-  initialQueueFilter: "all" as const,
-  initialQueueSort: "file_order" as const,
+  initialQueueFilter: "all",
+  initialQueueSort: "file_order",
   initialSearch: "",
 };
 

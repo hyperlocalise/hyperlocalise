@@ -393,7 +393,10 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
       "data-queue-filter",
       "needs_review",
     );
-    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute("data-search", "welcome");
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-search",
+      "welcome",
+    );
     act(() => {
       window.history.replaceState(
         null,
