@@ -330,11 +330,7 @@ export async function runVisualWorkflowInterpreter(input: {
     new Set(definition.nodes.filter((node) => !bodyIds.has(node.id)).map((node) => node.id)),
     new Set([graph.triggerNodeId]),
   );
-  if (
-    failure &&
-    failure.error.code !== "yield_execution" &&
-    failure.error.code !== "retry_backoff"
-  )
+  if (failure && failure.error.code !== "yield_execution" && failure.error.code !== "retry_backoff")
     for (const node of definition.nodes)
       if (!settledIds.has(node.id))
         await emit(node, failure.error.code === "cancelled" ? "cancelled" : "blocked");
