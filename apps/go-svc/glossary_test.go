@@ -89,19 +89,38 @@ func TestGlossaryCreateListGet(t *testing.T) {
 		require.Equal(t, 403, rec.Code)
 	})
 	t.Run("list glossaries", func(t *testing.T) {
-		listStep := dictionaryDBStep{kind: "query", sql: "from glossaries g where", values: [][]any{glossaryRecordValues()}}
+		secondID := "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+		externalID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+		second := glossaryRecordValues()
+		second[0] = secondID
+		external := glossaryRecordValues()
+		external[0] = externalID
+		external[8] = "external_tms"
+		listStep := dictionaryDBStep{kind: "query", sql: "from glossaries g where", values: [][]any{glossaryRecordValues(), second, external}}
 		listStep.args = []any{testGlossaryOrgID, testGlossaryUserID, true, 50, 0}
-		countStep := dictionaryRowStep("select count(*) from glossaries g where", 1)
+		countStep := dictionaryRowStep("select count(*) from glossaries g where", 3)
 		countStep.args = []any{testGlossaryOrgID, testGlossaryUserID, true}
-		projectCount := dictionaryRowStep("from project_glossaries a join projects", 0)
-		projectCount.args = []any{testGlossaryID, testGlossaryOrgID, true, testGlossaryUserID}
-		termCount := dictionaryRowStep("from glossary_terms where glossary_id=$1", 2)
-		termCount.args = []any{testGlossaryID}
+		projectCount := dictionaryDBStep{kind: "query", sql: "from project_glossaries a join projects", values: [][]any{
+			{testGlossaryID, 0},
+			{secondID, 1},
+			{externalID, 2},
+		}}
+		projectCount.args = []any{[]string{testGlossaryID, secondID, externalID}, testGlossaryOrgID, true, testGlossaryUserID}
+		termCount := dictionaryDBStep{kind: "query", sql: "from glossary_terms where glossary_id=any", values: [][]any{
+			{testGlossaryID, 2},
+			{secondID, 4},
+		}}
+		termCount.args = []any{[]string{testGlossaryID, secondID}}
 		api, _ := glossaryTestAPI(t, "admin", listStep, countStep, projectCount, termCount)
 		rec := glossaryRequestForTest(api, "GET", testGlossaryBase, "")
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"glossaries"`)
-		require.Contains(t, rec.Body.String(), `"total":1`)
+		require.Contains(t, rec.Body.String(), `"total":3`)
+		require.Contains(t, rec.Body.String(), `"projectCount":0`)
+		require.Contains(t, rec.Body.String(), `"projectCount":1`)
+		require.Contains(t, rec.Body.String(), `"projectCount":2`)
+		require.Contains(t, rec.Body.String(), `"termCount":2`)
+		require.Contains(t, rec.Body.String(), `"termCount":4`)
 	})
 	t.Run("get glossary", func(t *testing.T) {
 		projectCount := dictionaryRowStep("from project_glossaries a join projects", 1)

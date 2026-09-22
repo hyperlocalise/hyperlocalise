@@ -205,18 +205,27 @@ func (api *glossaryAPI) listGlossaries(r *http.Request, actor glossaryActor) (an
 	if err != nil {
 		return nil, 0, err
 	}
-	for i := range records {
-		count, countErr := api.glossaryProjectCount(r.Context(), actor, records[i].ID)
-		if countErr != nil {
-			return nil, 0, countErr
+	ids := make([]string, len(records))
+	nativeIDs := make([]string, 0, len(records))
+	for i, g := range records {
+		ids[i] = g.ID
+		if g.Source == "native" {
+			nativeIDs = append(nativeIDs, g.ID)
 		}
-		records[i].ProjectCount = count
+	}
+	projectCounts, err := api.glossaryProjectCounts(r.Context(), actor, ids)
+	if err != nil {
+		return nil, 0, err
+	}
+	termCounts, err := api.glossaryTermCounts(r.Context(), nativeIDs)
+	if err != nil {
+		return nil, 0, err
+	}
+	for i := range records {
+		records[i].ProjectCount = projectCounts[records[i].ID]
 		if records[i].Source == "native" {
-			termCount, termErr := api.glossaryTermCount(r.Context(), records[i].ID)
-			if termErr != nil {
-				return nil, 0, termErr
-			}
-			records[i].TermCount = &termCount
+			count := termCounts[records[i].ID]
+			records[i].TermCount = &count
 		}
 	}
 	return map[string]any{"glossaries": records, "total": total}, 200, nil
@@ -228,10 +237,52 @@ func (api *glossaryAPI) glossaryTermCount(ctx context.Context, glossaryID string
 	return count, err
 }
 
+func (api *glossaryAPI) glossaryTermCounts(ctx context.Context, glossaryIDs []string) (map[string]int, error) {
+	counts := map[string]int{}
+	if len(glossaryIDs) == 0 {
+		return counts, nil
+	}
+	rows, err := api.pool.Query(ctx, `select glossary_id, count(*) from glossary_terms where glossary_id=any($1::uuid[]) and concept_id is not null and archived_at is null group by glossary_id`, glossaryIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var count int
+		if err := rows.Scan(&id, &count); err != nil {
+			return nil, err
+		}
+		counts[id] = count
+	}
+	return counts, rows.Err()
+}
+
 func (api *glossaryAPI) glossaryProjectCount(ctx context.Context, actor glossaryActor, glossaryID string) (int, error) {
 	var count int
 	err := api.pool.QueryRow(ctx, `select count(*) from project_glossaries a join projects p on p.id=a.project_id where a.glossary_id=$1 and a.organization_id=$2 and p.organization_id=$2 and ($3 or exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$4 and t.organization_id=$2 and (t.id=p.team_id or (p.team_id is null and t.slug='default'))))`, glossaryID, actor.organizationID, actor.orgWideAccess(), actor.userID).Scan(&count)
 	return count, err
+}
+
+func (api *glossaryAPI) glossaryProjectCounts(ctx context.Context, actor glossaryActor, glossaryIDs []string) (map[string]int, error) {
+	counts := map[string]int{}
+	if len(glossaryIDs) == 0 {
+		return counts, nil
+	}
+	rows, err := api.pool.Query(ctx, `select a.glossary_id, count(*) from project_glossaries a join projects p on p.id=a.project_id where a.glossary_id=any($1::uuid[]) and a.organization_id=$2 and p.organization_id=$2 and ($3 or exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$4 and t.organization_id=$2 and (t.id=p.team_id or (p.team_id is null and t.slug='default')))) group by a.glossary_id`, glossaryIDs, actor.organizationID, actor.orgWideAccess(), actor.userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var count int
+		if err := rows.Scan(&id, &count); err != nil {
+			return nil, err
+		}
+		counts[id] = count
+	}
+	return counts, rows.Err()
 }
 
 func (api *glossaryAPI) createGlossary(r *http.Request, actor glossaryActor) (any, int, error) {
