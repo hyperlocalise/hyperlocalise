@@ -15,6 +15,7 @@ import type { Edge, Node } from "@xyflow/react";
 import type { EmailProviderSlug } from "@/lib/email/constants";
 
 export const VISUAL_WORKFLOW_SCHEMA_VERSION = 2 as const;
+export const VISUAL_WORKFLOW_SCHEMA_V3_VERSION = 3 as const;
 
 export type VisualCatalogType =
   | "trigger.manual"
@@ -151,7 +152,11 @@ export type VisualWorkflowNodeData = WorkflowNodeContract & {
 };
 
 export type VisualWorkflowRfNode = Node<VisualWorkflowNodeData, VisualCatalogType>;
-export type VisualWorkflowRfEdge = Edge;
+export type VisualWorkflowRfEdgeData = {
+  kind?: "execution" | "data";
+};
+
+export type VisualWorkflowRfEdge = Edge<VisualWorkflowRfEdgeData>;
 
 export type CanonicalVisualWorkflowNode = WorkflowNodeContract & {
   id: string;
@@ -167,6 +172,18 @@ export type CanonicalVisualWorkflowEdge = {
   targetHandle: string | null;
 };
 
+type VisualWorkflowV3EdgeBase = {
+  id: string;
+  source: string;
+  target: string;
+  sourcePortId: string;
+  targetPortId: string;
+};
+
+export type VisualWorkflowV3Edge =
+  | (VisualWorkflowV3EdgeBase & { kind: "execution" })
+  | (VisualWorkflowV3EdgeBase & { kind: "data" });
+
 export type VisualWorkflowDefinition = {
   schemaVersion: typeof VISUAL_WORKFLOW_SCHEMA_VERSION;
   name: string;
@@ -175,6 +192,14 @@ export type VisualWorkflowDefinition = {
   editor: {
     positions: Record<string, { x: number; y: number }>;
   };
+};
+
+export type VisualWorkflowV3Definition = Omit<
+  VisualWorkflowDefinition,
+  "schemaVersion" | "edges"
+> & {
+  schemaVersion: typeof VISUAL_WORKFLOW_SCHEMA_V3_VERSION;
+  edges: VisualWorkflowV3Edge[];
 };
 
 /** @deprecated Use VisualWorkflowDefinition */

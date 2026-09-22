@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 
-import { visualWorkflowDefinitionSchema } from "@/lib/visual-workflows/schema/definition-schema";
+import { visualWorkflowV3DefinitionSchema } from "@/lib/visual-workflows/schema/definition-schema";
 import { visualWorkflowStatusSchema } from "@/lib/visual-workflows/visual-workflow-types";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
@@ -32,7 +32,7 @@ export const createVisualWorkflowBodySchema = z
     name: z.string().trim().min(1).max(120).optional(),
     projectId: optionalProjectIdSchema,
     status: visualWorkflowStatusSchema.optional(),
-    definition: visualWorkflowDefinitionSchema.optional(),
+    definition: visualWorkflowV3DefinitionSchema.optional(),
   })
   .strict();
 
@@ -42,7 +42,7 @@ export const updateVisualWorkflowBodySchema = z
     name: z.string().trim().min(1).max(120).optional(),
     projectId: optionalProjectIdSchema.nullable().optional(),
     status: visualWorkflowStatusSchema.optional(),
-    definition: visualWorkflowDefinitionSchema.optional(),
+    definition: visualWorkflowV3DefinitionSchema.optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
@@ -68,7 +68,7 @@ export const createVisualWorkflowRunBodySchema = z
 export const workflowTestSchema = z
   .object({
     idempotencyKey: z.string().min(1).max(200),
-    definition: visualWorkflowDefinitionSchema,
+    definition: visualWorkflowV3DefinitionSchema,
     mode: z.enum(["mock", "live"]).default("mock"),
     inputSnapshot: z.record(z.string(), z.unknown()).default({}),
     mockOutputs: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),

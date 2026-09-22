@@ -23,7 +23,14 @@ import {
   resolveNodeSubtitle,
   TRIGGER_BADGE_ICON,
 } from "@/lib/visual-workflows/catalog/node-catalog";
+<<<<<<< HEAD
 import { getPrimaryExecutionSourceHandle } from "@/lib/visual-workflows/validation/execution-handles";
+=======
+import {
+  getWorkflowOutputFields,
+  NODE_CONTRACTS,
+} from "@/lib/visual-workflows/catalog/node-contracts";
+>>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
 import { nodeSupportsErrorBranch } from "@/lib/visual-workflows/runtime/node-options";
 import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
 import { cn } from "@/lib/primitives/cn";
@@ -60,6 +67,16 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   const isIf = data.catalogType === "logic.if";
   const isSwitch = data.catalogType === "logic.switch";
   const showErrorHandle = nodeSupportsErrorBranch(data.config);
+  const dataInputs = NODE_CONTRACTS[data.catalogType].inputs;
+  const dataOutputs = getWorkflowOutputFields({
+    id,
+    type: data.catalogType,
+    config: data.config,
+    inputs: data.inputs,
+    outputFields: data.outputFields,
+    bodyNodeIds: data.bodyNodeIds,
+    collect: data.collect,
+  });
   const title = intl.formatMessage(titleMessage(data.catalogType));
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
   const primaryHandle = getPrimaryExecutionSourceHandle({
@@ -105,6 +122,30 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         data.runStatus === "failed" ? "border-destructive/40 bg-destructive/5" : null,
       )}
     >
+      {dataInputs.map((input, index) => (
+        <Handle
+          key={`data-input-${input.name}`}
+          id={input.name}
+          type="target"
+          position={Position.Top}
+          className={cn(HANDLE_CLASS, "bg-sky-500")}
+          style={{ left: `${((index + 1) / (dataInputs.length + 1)) * 100}%` }}
+          aria-label={`Data input: ${input.name}`}
+          title={input.name}
+        />
+      ))}
+      {dataOutputs.map((output, index) => (
+        <Handle
+          key={`data-output-${output.path}`}
+          id={output.path}
+          type="source"
+          position={Position.Bottom}
+          className={cn(HANDLE_CLASS, "bg-sky-500")}
+          style={{ left: `${((index + 1) / (dataOutputs.length + 1)) * 100}%` }}
+          aria-label={`Data output: ${output.path}`}
+          title={output.path}
+        />
+      ))}
       {isTrigger ? (
         <span
           className="absolute top-2 left-2 text-primary"
@@ -113,7 +154,13 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           <HugeiconsIcon icon={TRIGGER_BADGE_ICON} className="size-3.5" strokeWidth={2} />
         </span>
       ) : (
-        <Handle className={HANDLE_CLASS} position={Position.Left} type="target" />
+        <Handle
+          id="input"
+          className={HANDLE_CLASS}
+          position={Position.Left}
+          type="target"
+          aria-label="Execution input"
+        />
       )}
 
       {isIf ? (
@@ -163,7 +210,13 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         ))
       ) : (
         <>
-          <Handle className={HANDLE_CLASS} position={Position.Right} type="source" />
+          <Handle
+            id="success"
+            className={HANDLE_CLASS}
+            position={Position.Right}
+            type="source"
+            aria-label="Execution success"
+          />
           {showErrorHandle ? (
             <Handle
               className={cn(HANDLE_CLASS, "top-[75%]! bg-destructive")}

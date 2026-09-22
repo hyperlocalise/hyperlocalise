@@ -24,6 +24,7 @@ import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflo
 
 import { VisualWorkflowsPageContent } from "./visual-workflows-page-content";
 import type { VisualWorkflowsApi } from "./visual-workflows-api";
+import { parseVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/definition-migration";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -44,7 +45,7 @@ function createWorkflow(name: string): VisualWorkflowRecord {
     projectId: null,
     status: "draft",
     name,
-    definition: createEmptyVisualWorkflowDefinition(name),
+    definition: parseVisualWorkflowV3Definition(createEmptyVisualWorkflowDefinition(name)),
     definitionVersion: 1,
     revision: 1,
     publishedVersion: null,

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { VisualWorkflowDefinition } from "@/lib/visual-workflows/schema/types";
+import type { VisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 import type { VisualWorkflowRunRecord } from "@/lib/visual-workflows/visual-workflow-run-types";
 import { readApiResponseError } from "@/lib/api-error";
@@ -23,7 +23,7 @@ export type VisualWorkflowsApi = {
   ): Promise<VisualWorkflowRecord>;
   createVisualWorkflow(
     organizationSlug: string,
-    input?: { name?: string; definition?: VisualWorkflowDefinition },
+    input?: { name?: string; definition?: VisualWorkflowV3Definition },
   ): Promise<VisualWorkflowRecord>;
   updateVisualWorkflow(
     organizationSlug: string,
@@ -31,7 +31,7 @@ export type VisualWorkflowsApi = {
     input: {
       expectedRevision?: number;
       name?: string;
-      definition?: VisualWorkflowDefinition;
+      definition?: VisualWorkflowV3Definition;
       status?: VisualWorkflowRecord["status"];
     },
   ): Promise<VisualWorkflowRecord>;
@@ -42,7 +42,7 @@ export type VisualWorkflowsApi = {
     input: {
       idempotencyKey: string;
       inputSnapshot?: Record<string, unknown>;
-      definition?: VisualWorkflowDefinition;
+      definition?: VisualWorkflowV3Definition;
       mode?: "mock" | "live";
       mockOutputs?: Record<string, Record<string, unknown>>;
     },

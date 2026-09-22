@@ -38,20 +38,25 @@ import {
   replaceVisualWorkflowNodeType,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
 import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
+<<<<<<< HEAD
 import { getSwitchCaseIndexByHandleId } from "@/lib/visual-workflows/schema/switch-cases";
 import { toVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/serializers";
+=======
+import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
+>>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
 import type {
   MockNodeRunStatus,
   VisualCatalogType,
   VisualNodeConfig,
-  VisualWorkflowDefinition,
+  VisualWorkflowV3Definition,
   VisualWorkflowEditorState,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
 } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowStatus } from "@/lib/visual-workflows/visual-workflow-types";
-import { validateVisualWorkflowDefinition } from "@/lib/visual-workflows/validation/validate-workflow";
+import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
+import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
 import { VisualWorkflowCanvas } from "./visual-workflow-canvas";
 import {
@@ -122,14 +127,17 @@ export function VisualWorkflowEditor({
   previewMode?: boolean;
   playgroundMode?: boolean;
   sampleDraft?: VisualWorkflowEditorState;
-  onSave?: (definition: VisualWorkflowDefinition) => void | Promise<void>;
+  onSave?: (definition: VisualWorkflowV3Definition) => void | Promise<void>;
   isSaving?: boolean;
   organizationSlug?: string;
   visualWorkflowId?: string;
   visualWorkflowsApi?: VisualWorkflowsApi;
-  onPersistBeforeTest?: (definition: VisualWorkflowDefinition) => Promise<unknown>;
+  onPersistBeforeTest?: (definition: VisualWorkflowV3Definition) => Promise<unknown>;
   workflowStatus?: VisualWorkflowStatus;
-  onStatusChange?: (active: boolean, definition: VisualWorkflowDefinition) => void | Promise<void>;
+  onStatusChange?: (
+    active: boolean,
+    definition: VisualWorkflowV3Definition,
+  ) => void | Promise<void>;
   statusUpdating?: boolean;
   onDelete?: () => void;
   isDeleting?: boolean;
@@ -155,7 +163,7 @@ export function VisualWorkflowEditor({
 
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
   const issues = useMemo(
-    () => validateVisualWorkflowDefinition(toVisualWorkflowDefinition({ name, nodes, edges })),
+    () => validateVisualWorkflowV3Definition(toVisualWorkflowV3Definition({ name, nodes, edges })),
     [edges, name, nodes],
   );
   const hasTrigger = nodes.some((node) => isTriggerType(node.data.catalogType));
@@ -384,7 +392,7 @@ export function VisualWorkflowEditor({
       })),
     );
 
-    const definition = toVisualWorkflowDefinition({ name, nodes, edges });
+    const definition = toVisualWorkflowV3Definition({ name, nodes, edges });
 
     try {
       if (organizationSlug && visualWorkflowId && visualWorkflowsApi) {
@@ -465,7 +473,7 @@ export function VisualWorkflowEditor({
   ]);
 
   const draftJson = useCallback(() => {
-    const definition = toVisualWorkflowDefinition({ name, nodes, edges });
+    const definition = toVisualWorkflowV3Definition({ name, nodes, edges });
     return `${JSON.stringify(redactWorkflowSnapshot(definition, collectWorkflowSecrets(definition)), null, 2)}\n`;
   }, [edges, name, nodes]);
 
@@ -489,7 +497,7 @@ export function VisualWorkflowEditor({
     if (!onSave) {
       return;
     }
-    void onSave(toVisualWorkflowDefinition({ name, nodes, edges }));
+    void onSave(toVisualWorkflowV3Definition({ name, nodes, edges }));
   }, [edges, name, nodes, onSave, saveDisabled]);
 
   const handleStatusChange = useCallback(
@@ -497,7 +505,7 @@ export function VisualWorkflowEditor({
       if (!onStatusChange || (active && saveDisabled)) {
         return;
       }
-      await onStatusChange(active, toVisualWorkflowDefinition({ name, nodes, edges }));
+      await onStatusChange(active, toVisualWorkflowV3Definition({ name, nodes, edges }));
     },
     [edges, name, nodes, onStatusChange, saveDisabled],
   );
@@ -663,7 +671,9 @@ export function VisualWorkflowEditor({
   );
 }
 
-function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
+function issueMessage(
+  code: VisualWorkflowValidationIssue["code"] | VisualWorkflowV3ValidationIssue["code"],
+) {
   switch (code) {
     case "missing_trigger":
       return messages.missingTrigger;

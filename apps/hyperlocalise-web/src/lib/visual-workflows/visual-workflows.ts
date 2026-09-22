@@ -26,12 +26,11 @@ import {
   validateActiveVisualWorkflowTrigger,
 } from "./dispatch/trigger-matching";
 
-import { visualWorkflowDefinitionSchema } from "./schema/definition-schema";
 import {
   createEmptyVisualWorkflowDefinition,
-  fromVisualWorkflowDefinition,
+  fromVisualWorkflowV3Definition,
 } from "./schema/serializers";
-import type { VisualWorkflowDefinition } from "./schema/types";
+import type { VisualWorkflowDefinition, VisualWorkflowV3Definition } from "./schema/types";
 import { validateVisualWorkflowDefinition } from "./validation/validate-workflow";
 import { stampEmailNodePipesUsersOnDefinition } from "./stamp-email-node-pipes-users";
 import type {
@@ -39,6 +38,11 @@ import type {
   VisualWorkflowStatus,
   VisualWorkflowValidationError,
 } from "./visual-workflow-types";
+import { parseVisualWorkflowV3Definition } from "./schema/definition-migration";
+import {
+  compileVisualWorkflowV3Definition,
+  toVisualWorkflowExecutionDefinition,
+} from "./validation/compile-workflow-v3";
 
 type VisualWorkflowRow = typeof schema.visualWorkflows.$inferSelect;
 
@@ -59,9 +63,27 @@ function parseStoredVisualWorkflowDefinition(input: unknown): VisualWorkflowDefi
 }
 
 function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | null {
+<<<<<<< HEAD
   const parsedDefinition = parseStoredVisualWorkflowDefinition(row.definition);
   if (!parsedDefinition) {
+=======
+  let definition: VisualWorkflowV3Definition;
+
+  try {
+    definition = parseVisualWorkflowV3Definition(row.definition);
+  } catch {
+>>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
     return null;
+  }
+
+  let publishedDefinition: VisualWorkflowV3Definition | null = null;
+
+  if (row.publishedDefinition !== null) {
+    try {
+      publishedDefinition = parseVisualWorkflowV3Definition(row.publishedDefinition);
+    } catch {
+      return null;
+    }
   }
 
   return {
@@ -71,11 +93,19 @@ function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | nu
     projectId: row.projectId,
     status: row.status,
     name: row.name,
+<<<<<<< HEAD
     definition: parsedDefinition,
     definitionVersion: row.definitionVersion,
     revision: row.revision,
     publishedVersion: row.publishedVersion,
     publishedDefinition: parseStoredVisualWorkflowDefinition(row.publishedDefinition),
+=======
+    definition,
+    definitionVersion: row.definitionVersion,
+    revision: row.revision,
+    publishedVersion: row.publishedVersion,
+    publishedDefinition,
+>>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
     triggerFingerprint: row.triggerFingerprint,
     nextRunAt: row.nextRunAt ? toIsoString(row.nextRunAt) : null,
     createdAt: toIsoString(row.createdAt),
@@ -85,39 +115,52 @@ function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | nu
 
 function validateVisualWorkflowPayload(input: {
   name: string;
-  definition: VisualWorkflowDefinition;
+  definition: unknown;
   draft?: boolean;
-}): Result<VisualWorkflowDefinition, VisualWorkflowValidationError> {
-  const parsed = visualWorkflowDefinitionSchema.safeParse(input.definition);
-  if (!parsed.success) {
+}): Result<VisualWorkflowV3Definition, VisualWorkflowValidationError> {
+  let normalized: VisualWorkflowV3Definition;
+
+  try {
+    normalized = {
+      ...parseVisualWorkflowV3Definition(input.definition),
+      name: input.name.trim(),
+    };
+  } catch {
     return err({
       code: "invalid_definition",
       message: "Workflow definition is invalid.",
     });
   }
 
-  const normalized: VisualWorkflowDefinition = {
-    ...parsed.data,
-    name: input.name.trim(),
-  };
-
-  if (normalized.nodes.some(hasLiteralHttpCredentials))
+  if (normalized.nodes.some(hasLiteralHttpCredentials)) {
     return err({
       code: "invalid_definition",
       message: "Use credential references for sensitive fields.",
     });
-  const issues = input.draft
-    ? normalized.nodes
-        .filter(
-          (node) =>
-            node.config.kind === "action.http" &&
-            (node.config.auth?.token ||
-              node.config.headers?.some(
-                (header) => /^(authorization|x-api-key|cookie)$/i.test(header.key) && header.value,
-              )),
-        )
-        .map((node) => ({ code: "invalid_node_config", nodeId: node.id }))
-    : validateVisualWorkflowDefinition(normalized);
+  }
+
+  const compiled = compileVisualWorkflowV3Definition(normalized);
+
+  const issues = [
+    ...compiled.issues,
+    ...(input.draft
+      ? normalized.nodes
+          .filter(
+            (node) =>
+              node.config.kind === "action.http" &&
+              (node.config.auth?.token ||
+                node.config.headers?.some(
+                  (header) =>
+                    /^(authorization|x-api-key|cookie)$/i.test(header.key) && header.value,
+                )),
+          )
+          .map((node) => ({
+            code: "invalid_node_config",
+            nodeId: node.id,
+          }))
+      : validateVisualWorkflowDefinition(toVisualWorkflowExecutionDefinition(compiled))),
+  ];
+
   if (issues.length > 0) {
     return err({
       code: "invalid_graph",
@@ -131,7 +174,7 @@ function validateVisualWorkflowPayload(input: {
 function resolveWorkflowSchedulingMetadata(input: {
   workflowId: string;
   status: VisualWorkflowStatus;
-  definition: VisualWorkflowDefinition;
+  definition: VisualWorkflowV3Definition;
   from?: Date;
 }): { triggerFingerprint: string | null; nextRunAt: Date | null } {
   const triggerFingerprint = resolveVisualWorkflowTriggerFingerprint({
@@ -147,7 +190,7 @@ function resolveWorkflowSchedulingMetadata(input: {
 
 function schedulingConfigChanged(input: {
   existing: VisualWorkflowRecord;
-  nextDefinition: VisualWorkflowDefinition;
+  nextDefinition: VisualWorkflowV3Definition;
   nextStatus: VisualWorkflowStatus;
 }): boolean {
   if (input.existing.status !== input.nextStatus) {
@@ -252,7 +295,7 @@ export async function createVisualWorkflow(input: {
   actorWorkosUserId?: string | null;
   projectId?: string | null;
   name?: string;
-  definition?: VisualWorkflowDefinition;
+  definition?: VisualWorkflowDefinition | VisualWorkflowV3Definition;
   status?: VisualWorkflowStatus;
   dbClient?: DatabaseClient;
 }): Promise<
@@ -342,7 +385,7 @@ export async function updateVisualWorkflow(input: {
   visualWorkflowId: string;
   actorWorkosUserId?: string | null;
   name?: string;
-  definition?: VisualWorkflowDefinition;
+  definition?: VisualWorkflowDefinition | VisualWorkflowV3Definition;
   status?: VisualWorkflowStatus;
   projectId?: string | null;
   dbClient?: DatabaseClient;
@@ -524,7 +567,7 @@ export async function deleteVisualWorkflow(input: {
 }
 
 export function visualWorkflowEditorStateFromRecord(record: VisualWorkflowRecord) {
-  return fromVisualWorkflowDefinition({
+  return fromVisualWorkflowV3Definition({
     ...record.definition,
     name: record.name,
   });

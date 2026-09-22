@@ -52,6 +52,7 @@ import type {
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
 } from "@/lib/visual-workflows/schema/types";
+import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
@@ -77,7 +78,7 @@ export function VisualWorkflowConfigPanel({
   nodes?: readonly VisualWorkflowRfNode[];
   edges?: readonly VisualWorkflowRfEdge[];
   onChangeContract?: (patch: WorkflowNodeContract) => void;
-  issues: readonly VisualWorkflowValidationIssue[];
+  issues: readonly (VisualWorkflowValidationIssue | VisualWorkflowV3ValidationIssue)[];
   onBack: () => void;
   onChangeConfig: (config: VisualNodeConfig) => void;
   onChangeNodeType: (type: VisualCatalogType) => void;
@@ -893,7 +894,9 @@ function titleForTrigger(type: VisualCatalogType) {
   }
 }
 
-function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
+function issueMessage(
+  code: VisualWorkflowValidationIssue["code"] | VisualWorkflowV3ValidationIssue["code"],
+) {
   switch (code) {
     case "missing_trigger":
       return messages.missingTrigger;

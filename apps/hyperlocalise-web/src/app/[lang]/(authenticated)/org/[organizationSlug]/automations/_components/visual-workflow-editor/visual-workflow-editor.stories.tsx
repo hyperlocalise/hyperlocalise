@@ -11,7 +11,11 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+<<<<<<< HEAD
 import { expect, waitFor } from "storybook/test";
+=======
+import { expect } from "storybook/test";
+>>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
 
 import {
   visualWorkflowDemoDraft,
@@ -20,6 +24,50 @@ import {
   visualWorkflowSwitchDeleteDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
+
+const edgeKindsDraft = {
+  name: "Execution and data edges",
+  nodes: [
+    {
+      id: "trigger",
+      type: "trigger.manual" as const,
+      position: { x: 80, y: 180 },
+      data: {
+        catalogType: "trigger.manual" as const,
+        config: { kind: "trigger.manual" as const },
+        runStatus: "idle" as const,
+      },
+    },
+    {
+      id: "request",
+      type: "action.http" as const,
+      position: { x: 420, y: 180 },
+      data: {
+        catalogType: "action.http" as const,
+        config: { kind: "action.http" as const, method: "GET" as const, url: "" },
+        runStatus: "idle" as const,
+      },
+    },
+  ],
+  edges: [
+    {
+      id: "execution-edge",
+      source: "trigger",
+      target: "request",
+      sourceHandle: "success",
+      targetHandle: "input",
+      data: { kind: "execution" as const },
+    },
+    {
+      id: "data-edge",
+      source: "trigger",
+      target: "request",
+      sourceHandle: "triggeredAt",
+      targetHandle: "url",
+      data: { kind: "data" as const },
+    },
+  ],
+};
 
 const meta = {
   title: "App/Automations/Visual Workflow",
@@ -67,16 +115,26 @@ export const SampleWorkflow: Story = {
   },
 };
 
+<<<<<<< HEAD
 export const QuickAddBranches: Story = {
   name: "Quick-add Switch and For Each",
   args: {
     initialName: visualWorkflowQuickAddDraft.name,
     initialNodes: visualWorkflowQuickAddDraft.nodes,
     initialEdges: visualWorkflowQuickAddDraft.edges,
+=======
+export const ExecutionAndDataEdges: Story = {
+  name: "Execution and data edges",
+  args: {
+    initialName: edgeKindsDraft.name,
+    initialNodes: edgeKindsDraft.nodes,
+    initialEdges: edgeKindsDraft.edges,
+>>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
     previewMode: true,
     playgroundMode: true,
   },
   play: async ({ canvas }) => {
+<<<<<<< HEAD
     const click = async (name: string | RegExp) => {
       const button = await canvas.findByRole("button", { name }, { timeout: 10_000 });
       button.click();
@@ -139,5 +197,12 @@ export const SwitchCaseDelete: Story = {
       await canvas.findByTestId("visual-workflow-edge-switch-ready-case-ready"),
     ).toBeInTheDocument();
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+=======
+    await expect(canvas.getByLabelText("Execution input")).toBeInTheDocument();
+    await expect(canvas.getAllByLabelText("Execution success")).toHaveLength(2);
+    await expect(canvas.getByLabelText("Data output: triggeredAt")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: url")).toBeInTheDocument();
+    await expect(canvas.getByText("triggeredAt → url")).toBeInTheDocument();
+>>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)
   },
 };

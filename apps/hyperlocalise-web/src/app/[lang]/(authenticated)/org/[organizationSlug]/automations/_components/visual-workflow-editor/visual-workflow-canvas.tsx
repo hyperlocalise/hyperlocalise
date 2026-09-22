@@ -19,7 +19,7 @@ import {
   type NodeChange,
   type OnSelectionChangeParams,
 } from "@xyflow/react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { FormattedMessage } from "react-intl";
 
 import { Canvas } from "@/components/ai-elements/canvas";
@@ -66,6 +66,18 @@ export function VisualWorkflowCanvas({
   onLoadSample: () => void;
   onTestWorkflow: () => void;
 }) {
+  const presentedEdges = useMemo(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        label:
+          edge.data?.kind === "data"
+            ? `${edge.sourceHandle ?? "output"} → ${edge.targetHandle ?? "input"}`
+            : edge.label,
+        style: edge.data?.kind === "data" ? { ...edge.style, strokeDasharray: "5 4" } : edge.style,
+      })),
+    [edges],
+  );
   const isValidConnection = useCallback(
     (connection: Connection | VisualWorkflowRfEdge) => {
       if (!connection.target || connection.source === connection.target) {
@@ -85,7 +97,7 @@ export function VisualWorkflowCanvas({
       <Canvas
         className="h-full"
         nodes={nodes}
-        edges={edges}
+        edges={presentedEdges}
         nodeTypes={VISUAL_WORKFLOW_NODE_TYPES}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -132,3 +144,31 @@ export function VisualWorkflowCanvas({
     </div>
   );
 }
+<<<<<<< HEAD
+=======
+
+export function applyVisualWorkflowConnection(
+  edges: VisualWorkflowRfEdge[],
+  connection: Connection,
+): VisualWorkflowRfEdge[] {
+  const sourceHandle = connection.sourceHandle ?? null;
+  const targetHandle = connection.targetHandle ?? null;
+  const kind = targetHandle && targetHandle !== "input" ? "data" : "execution";
+  const normalizedSourceHandle = kind === "execution" ? (sourceHandle ?? "success") : sourceHandle;
+  const normalizedTargetHandle = kind === "execution" ? (targetHandle ?? "input") : targetHandle;
+  return addEdge(
+    {
+      ...connection,
+      sourceHandle: normalizedSourceHandle,
+      targetHandle: normalizedTargetHandle,
+      data: { kind },
+      label:
+        kind === "execution"
+          ? normalizedSourceHandle
+          : `${normalizedSourceHandle} → ${normalizedTargetHandle}`,
+      style: kind === "data" ? { strokeDasharray: "5 4" } : undefined,
+    },
+    edges,
+  );
+}
+>>>>>>> 4ffc02ff (feat(visual-workflows): introduce schema v3 edge kinds)

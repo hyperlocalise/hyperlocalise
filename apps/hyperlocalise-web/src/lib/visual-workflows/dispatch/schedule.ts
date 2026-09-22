@@ -13,13 +13,17 @@
 import { computeNextScheduledRunAt } from "@/lib/agents/github/github-repository-automation-settings";
 
 import { getVisualWorkflowTriggerNode } from "./trigger-matching";
-import type { VisualWorkflowDefinition } from "../schema/types";
+import type { CanonicalVisualWorkflowNode } from "../schema/types";
 import type { VisualWorkflowStatus } from "../visual-workflow-types";
+
+type VisualWorkflowDefinitionWithNodes = {
+  nodes: readonly CanonicalVisualWorkflowNode[];
+};
 
 export function resolveNextRunAtForVisualWorkflow(
   input: {
     status: VisualWorkflowStatus;
-    definition: VisualWorkflowDefinition;
+    definition: VisualWorkflowDefinitionWithNodes;
   },
   from: Date = new Date(),
 ): Date | null {

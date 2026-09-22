@@ -10,7 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { VisualNodeConfig, VisualWorkflowDefinition } from "./schema/types";
+import type { CanonicalVisualWorkflowNode, VisualNodeConfig } from "./schema/types";
+
+type VisualWorkflowDefinitionWithNodes = {
+  nodes: CanonicalVisualWorkflowNode[];
+};
 
 type NotifyEmailNodeConfig = Extract<VisualNodeConfig, { kind: "action.notify_email" }>;
 
@@ -20,7 +24,7 @@ function emailNodeConfigFingerprint(config: NotifyEmailNodeConfig): string {
 }
 
 function previousEmailNodeConfigById(
-  previousDefinition: VisualWorkflowDefinition | null | undefined,
+  previousDefinition: VisualWorkflowDefinitionWithNodes | null | undefined,
 ): Map<string, NotifyEmailNodeConfig> {
   const configs = new Map<string, NotifyEmailNodeConfig>();
   if (!previousDefinition) {
@@ -37,9 +41,9 @@ function previousEmailNodeConfigById(
 }
 
 function withEmailWorkosUserId(
-  node: VisualWorkflowDefinition["nodes"][number],
+  node: CanonicalVisualWorkflowNode,
   workosUserId: string | undefined,
-): VisualWorkflowDefinition["nodes"][number] {
+): CanonicalVisualWorkflowNode {
   if (node.config.kind !== "action.notify_email") {
     return node;
   }
@@ -68,11 +72,13 @@ function withEmailWorkosUserId(
   };
 }
 
-export function stampEmailNodePipesUsersOnDefinition(input: {
-  definition: VisualWorkflowDefinition;
-  previousDefinition?: VisualWorkflowDefinition | null;
+export function stampEmailNodePipesUsersOnDefinition<
+  TDefinition extends VisualWorkflowDefinitionWithNodes,
+>(input: {
+  definition: TDefinition;
+  previousDefinition?: VisualWorkflowDefinitionWithNodes | null;
   actorWorkosUserId?: string | null;
-}): VisualWorkflowDefinition {
+}): TDefinition {
   const actorWorkosUserId = input.actorWorkosUserId?.trim() || null;
   const previousConfigs = previousEmailNodeConfigById(input.previousDefinition);
 

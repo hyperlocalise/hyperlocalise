@@ -13,7 +13,7 @@
 import { z } from "zod";
 
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
-import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
+import { VISUAL_WORKFLOW_SCHEMA_VERSION, VISUAL_WORKFLOW_SCHEMA_V3_VERSION } from "./types";
 
 const httpMethodSchema = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
@@ -217,6 +217,19 @@ const visualWorkflowEdgeSchema = z
   })
   .strict();
 
+const visualWorkflowV3EdgeBaseSchema = z.object({
+  id: z.string().trim().min(1).max(128),
+  source: z.string().trim().min(1).max(128),
+  target: z.string().trim().min(1).max(128),
+  sourcePortId: z.string().trim().min(1).max(128),
+  targetPortId: z.string().trim().min(1).max(128),
+});
+
+export const visualWorkflowV3EdgeSchema = z.discriminatedUnion("kind", [
+  visualWorkflowV3EdgeBaseSchema.extend({ kind: z.literal("execution") }).strict(),
+  visualWorkflowV3EdgeBaseSchema.extend({ kind: z.literal("data") }).strict(),
+]);
+
 export const visualWorkflowDefinitionSchema = z
   .object({
     schemaVersion: z.literal(VISUAL_WORKFLOW_SCHEMA_VERSION),
@@ -233,5 +246,10 @@ export const visualWorkflowDefinitionSchema = z
       .strict(),
   })
   .strict();
+
+export const visualWorkflowV3DefinitionSchema = visualWorkflowDefinitionSchema.extend({
+  schemaVersion: z.literal(VISUAL_WORKFLOW_SCHEMA_V3_VERSION),
+  edges: z.array(visualWorkflowV3EdgeSchema).max(400),
+});
 
 export type VisualWorkflowDefinitionInput = z.infer<typeof visualWorkflowDefinitionSchema>;

@@ -36,6 +36,8 @@ export async function runVisualWorkflowInterpreter(input: {
   triggerInput?: Record<string, unknown>;
   executeNode?: VisualWorkflowInterpreterExecuteNode;
   onNodeUpdate?: (update: VisualWorkflowInterpreterNodeUpdate) => Promise<void> | void;
+  signal?: AbortSignal;
+  shouldCancel?: () => Promise<boolean>;
 }): Promise<VisualWorkflowInterpreterResult> {
   return runVisualWorkflowInterpreterCore({
     ...input,

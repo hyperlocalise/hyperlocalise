@@ -19,7 +19,12 @@ import {
   replaceVisualWorkflowNodeType,
 } from "./editor/visual-workflow-editor-graph";
 import { visualWorkflowDefinitionSchema } from "./schema/definition-schema";
-import { fromVisualWorkflowDefinition, toVisualWorkflowDefinition } from "./schema/serializers";
+import {
+  fromVisualWorkflowDefinition,
+  fromVisualWorkflowV3Definition,
+  toVisualWorkflowDefinition,
+  toVisualWorkflowV3Definition,
+} from "./schema/serializers";
 import {
   validateVisualWorkflowDefinition,
   validateVisualWorkflowGraph,
@@ -278,5 +283,80 @@ describe("fake-run ordering", () => {
     expect(nodeFailsInFakeRun(http)).toBe(true);
     http.data.config = { kind: "action.http", method: "GET", url: "https://example.test" };
     expect(nodeFailsInFakeRun(http)).toBe(false);
+  });
+});
+
+describe("schema v3 serializers", () => {
+  it("serializes execution and data edge kinds with stable port IDs", () => {
+    const definition = toVisualWorkflowV3Definition({
+      name: "V3 edges",
+      nodes: [node("trigger", "trigger.manual"), node("set", "logic.set")],
+      edges: [
+        {
+          id: "execution",
+          source: "trigger",
+          target: "set",
+          sourceHandle: "success",
+          targetHandle: "input",
+          data: {
+            kind: "execution",
+          },
+        },
+        {
+          id: "data",
+          source: "trigger",
+          target: "set",
+          sourceHandle: "triggeredAt",
+          targetHandle: "value",
+          data: {
+            kind: "data",
+          },
+        },
+      ],
+    });
+
+    expect(definition.schemaVersion).toBe(3);
+    expect(definition.edges).toEqual([
+      {
+        id: "execution",
+        kind: "execution",
+        source: "trigger",
+        target: "set",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "data",
+        kind: "data",
+        source: "trigger",
+        target: "set",
+        sourcePortId: "triggeredAt",
+        targetPortId: "value",
+      },
+    ]);
+  });
+
+  it("round-trips v3 edge kinds and stable port IDs through editor state", () => {
+    const original = toVisualWorkflowV3Definition({
+      name: "V3 round trip",
+      nodes: [node("trigger", "trigger.manual"), node("set", "logic.set")],
+      edges: [
+        {
+          id: "data",
+          source: "trigger",
+          target: "set",
+          sourceHandle: "triggeredAt",
+          targetHandle: "value",
+          data: {
+            kind: "data",
+          },
+        },
+      ],
+    });
+
+    const restored = fromVisualWorkflowV3Definition(original);
+    const serialized = toVisualWorkflowV3Definition(restored);
+
+    expect(serialized).toEqual(original);
   });
 });
