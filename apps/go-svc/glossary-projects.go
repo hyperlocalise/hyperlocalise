@@ -23,13 +23,13 @@ func normalizeGlossaryProjectID(raw string) string {
 	return trimGlossaryInput(value)
 }
 
-func (api *glossaryAPI) ownedGlossaryProject(ctx context.Context, actor glossaryActor, raw string) (string, error) {
+func ownedGlossaryProject(ctx context.Context, db dictionaryDB, actor glossaryActor, raw string) (string, error) {
 	id := normalizeGlossaryProjectID(raw)
 	if id == "" || utf16Length(id) > 128 {
 		return "", missingGlossaryProject()
 	}
 	var found string
-	err := api.pool.QueryRow(ctx, `select p.id from projects p where p.id=$1 and p.organization_id=$2 and ($3 or exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$4 and t.organization_id=$2 and (t.id=p.team_id or (p.team_id is null and t.slug='default'))))`, id, actor.organizationID, actor.orgWideAccess(), actor.userID).Scan(&found)
+	err := db.QueryRow(ctx, `select p.id from projects p where p.id=$1 and p.organization_id=$2 and ($3 or exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$4 and t.organization_id=$2 and (t.id=p.team_id or (p.team_id is null and t.slug='default'))))`, id, actor.organizationID, actor.orgWideAccess(), actor.userID).Scan(&found)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", missingGlossaryProject()
 	}
@@ -95,7 +95,7 @@ func (api *glossaryAPI) glossaryProjectRequest(r *http.Request, actor glossaryAc
 		if err := requireNativeGlossary(g); err != nil {
 			return nil, 0, err
 		}
-		projectID, err := api.ownedGlossaryProject(ctx, actor, rest[0])
+		projectID, err := ownedGlossaryProject(ctx, api.pool, actor, rest[0])
 		if err != nil {
 			return nil, 0, err
 		}
@@ -134,7 +134,7 @@ func (api *glossaryAPI) glossaryProjectRequest(r *http.Request, actor glossaryAc
 		if err := payload.validate(); err != nil {
 			return nil, 0, err
 		}
-		projectID, err := api.ownedGlossaryProject(ctx, actor, payload.ProjectID)
+		projectID, err := ownedGlossaryProject(ctx, api.pool, actor, payload.ProjectID)
 		if err != nil {
 			return nil, 0, err
 		}

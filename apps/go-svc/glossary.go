@@ -353,9 +353,9 @@ func trimGlossaryInput(value string) string {
 	return trimDictionaryInput(value)
 }
 
-func (api *glossaryAPI) isTeamMember(ctx context.Context, actor glossaryActor, teamID string) (bool, error) {
+func isGlossaryTeamMember(ctx context.Context, db dictionaryDB, actor glossaryActor, teamID string) (bool, error) {
 	var found string
-	err := api.pool.QueryRow(ctx, `select t.id from teams t join team_memberships m on m.team_id=t.id where t.id=$1 and t.organization_id=$2 and m.user_id=$3`, teamID, actor.organizationID, actor.userID).Scan(&found)
+	err := db.QueryRow(ctx, `select t.id from teams t join team_memberships m on m.team_id=t.id where t.id=$1 and t.organization_id=$2 and m.user_id=$3`, teamID, actor.organizationID, actor.userID).Scan(&found)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}
@@ -372,5 +372,5 @@ func (api *glossaryAPI) canContributeGlossary(ctx context.Context, actor glossar
 	if g.TeamID == nil {
 		return false, nil
 	}
-	return api.isTeamMember(ctx, actor, *g.TeamID)
+	return isGlossaryTeamMember(ctx, api.pool, actor, *g.TeamID)
 }
