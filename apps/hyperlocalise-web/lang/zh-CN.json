@@ -1286,6 +1286,9 @@
   "19Yj5RY029": {
     "defaultMessage": "捕捉你团队已经创建的上下文和修正，然后在下一次发布开始时让它们可用。"
   },
+  "1A3oOwAeXf": {
+    "defaultMessage": "{language}（源语言）"
+  },
   "1AN+Q/JkbE": {
     "defaultMessage": "Queue translation jobs for uploaded source files in the project selected above."
   },
@@ -1769,6 +1772,9 @@
   "2HD/xUOuDn": {
     "defaultMessage": "星期几"
   },
+  "2Hftj6qZP3": {
+    "defaultMessage": "无法加载翻译"
+  },
   "2IB+W+9a77": {
     "defaultMessage": "使用默认值"
   },
@@ -2200,6 +2206,9 @@
   },
   "3NyprC4I6O": {
     "defaultMessage": "拓展创意"
+  },
+  "3QmQFMO6jX": {
+    "defaultMessage": "语言"
   },
   "3R2FH9E6p2": {
     "defaultMessage": "Download"
@@ -3038,6 +3047,9 @@
   "5R6QcLONiw": {
     "defaultMessage": "项目指南"
   },
+  "5ROaWKy9xu": {
+    "defaultMessage": "在{language}中打开{key}"
+  },
   "5RYXpxJmvr": {
     "defaultMessage": "工作区"
   },
@@ -3526,6 +3538,9 @@
   },
   "6g9RHsjL+m": {
     "defaultMessage": "减少审核反复修改"
+  },
+  "6hO1kU+HPL": {
+    "defaultMessage": "加载更多密钥"
   },
   "6hZ0OrRvp2": {
     "defaultMessage": "Inactive"
@@ -5360,6 +5375,9 @@
   "B7F4I10QjV": {
     "defaultMessage": "失败"
   },
+  "B7HJpY5IHI": {
+    "defaultMessage": "重试"
+  },
   "B8H5qyHiWy": {
     "defaultMessage": "翻译错误"
   },
@@ -5647,6 +5665,9 @@
   },
   "Bn0C5KWma3": {
     "defaultMessage": "在集成中连接 GitHub 以选择仓库。"
+  },
+  "BnVSqljQov": {
+    "defaultMessage": "键"
   },
   "BnZ3uPwDP7": {
     "defaultMessage": "查找此字符串在已连接仓库中的出现位置"
@@ -6115,6 +6136,9 @@
   },
   "CtXpaStJTy": {
     "defaultMessage": "营销网站上线"
+  },
+  "CuNKMtOPln": {
+    "defaultMessage": "未翻译"
   },
   "Cuem8lXjuP": {
     "defaultMessage": "删除工作流？"
@@ -7034,6 +7058,9 @@
   "F/lm8Q5OV6": {
     "defaultMessage": "正在运行"
   },
+  "F0KK3Ot1t7": {
+    "defaultMessage": "已加载 {count, number} 个密钥"
+  },
   "F0U2CC+DdD": {
     "defaultMessage": "受审核域名中排名前 {percentile}%"
   },
@@ -7402,6 +7429,9 @@
   },
   "FxNFbqpNBI": {
     "defaultMessage": "频道 ID"
+  },
+  "FxqkXT7ENB": {
+    "defaultMessage": "已批准"
   },
   "G+NJ7A8R9g": {
     "defaultMessage": "正在加载…"
@@ -12908,6 +12938,9 @@
   "U9HdNspgPF": {
     "defaultMessage": "正在处理…"
   },
+  "U9JGBvqNdg": {
+    "defaultMessage": "没有符合当前筛选条件的键。"
+  },
   "U9t/eIwVYM": {
     "defaultMessage": "recall_knowledge_files"
   },
@@ -17669,6 +17702,9 @@
   "fmoDfLltk/": {
     "defaultMessage": "Loading…"
   },
+  "fmtkoir6Cw": {
+    "defaultMessage": "多语言翻译"
+  },
   "fmu4X2/dDf": {
     "defaultMessage": "原始 · {locale}"
   },
@@ -21275,6 +21311,9 @@
   "oD4c197bVX": {
     "defaultMessage": "版本"
   },
+  "oD9uIlyEmh": {
+    "defaultMessage": "正在加载翻译…"
+  },
   "oDR2kKlwsc": {
     "defaultMessage": "Failed to load Ahrefs connections."
   },
@@ -24158,6 +24197,9 @@
   "vAwILOzBUa": {
     "defaultMessage": "立即开始使用 Hyperlocalise"
   },
+  "vB15JCGjFn": {
+    "defaultMessage": "多语言"
+  },
   "vB9oObJ76R": {
     "defaultMessage": "您的文本图层编辑将在本地化图像前保存。"
   },
@@ -25972,6 +26014,9 @@
   },
   "zNmLFPYZSE": {
     "defaultMessage": "图像生成"
+  },
+  "zOn5vF4r7i": {
+    "defaultMessage": "选择翻译以打开编辑器。"
   },
   "zPBtoUzMcl": {
     "defaultMessage": "过去 30 天"

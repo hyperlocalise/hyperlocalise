@@ -1286,6 +1286,9 @@
   "19Yj5RY029": {
     "defaultMessage": "Erfassen Sie den Kontext und die Korrekturen, die Ihr Team bereits erstellt, und stellen Sie sie dann bereit, wenn der nächste Launch beginnt."
   },
+  "1A3oOwAeXf": {
+    "defaultMessage": "{language} (Quelle)"
+  },
   "1AN+Q/JkbE": {
     "defaultMessage": "Übersetzungsaufträge für hochgeladene Quelldateien im oben ausgewählten Projekt in die Warteschlange einreihen."
   },
@@ -1769,6 +1772,9 @@
   "2HD/xUOuDn": {
     "defaultMessage": "Wochentag"
   },
+  "2Hftj6qZP3": {
+    "defaultMessage": "Übersetzung konnte nicht geladen werden"
+  },
   "2IB+W+9a77": {
     "defaultMessage": "Standard verwenden"
   },
@@ -2200,6 +2206,9 @@
   },
   "3NyprC4I6O": {
     "defaultMessage": "Ideen erweitern"
+  },
+  "3QmQFMO6jX": {
+    "defaultMessage": "Sprachen"
   },
   "3R2FH9E6p2": {
     "defaultMessage": "Herunterladen"
@@ -3038,6 +3047,9 @@
   "5R6QcLONiw": {
     "defaultMessage": "Projektleitfaden"
   },
+  "5ROaWKy9xu": {
+    "defaultMessage": "{key} auf {language} öffnen"
+  },
   "5RYXpxJmvr": {
     "defaultMessage": "Arbeitsbereich"
   },
@@ -3526,6 +3538,9 @@
   },
   "6g9RHsjL+m": {
     "defaultMessage": "Reduziere den Review-Aufwand"
+  },
+  "6hO1kU+HPL": {
+    "defaultMessage": "Weitere Schlüssel laden"
   },
   "6hZ0OrRvp2": {
     "defaultMessage": "Inactive"
@@ -5360,6 +5375,9 @@
   "B7F4I10QjV": {
     "defaultMessage": "Fehlgeschlagen"
   },
+  "B7HJpY5IHI": {
+    "defaultMessage": "Erneut versuchen"
+  },
   "B8H5qyHiWy": {
     "defaultMessage": "Übersetzungsfehler"
   },
@@ -5647,6 +5665,9 @@
   },
   "Bn0C5KWma3": {
     "defaultMessage": "Verbinde GitHub unter „Integrationen“, um Repositorys auszuwählen."
+  },
+  "BnVSqljQov": {
+    "defaultMessage": "Schlüssel"
   },
   "BnZ3uPwDP7": {
     "defaultMessage": "Nachsehen, wo dieser String im verbundenen Repository vorkommt"
@@ -6115,6 +6136,9 @@
   },
   "CtXpaStJTy": {
     "defaultMessage": "Start der Marketing-Website"
+  },
+  "CuNKMtOPln": {
+    "defaultMessage": "Nicht übersetzt"
   },
   "Cuem8lXjuP": {
     "defaultMessage": "Workflow löschen?"
@@ -7034,6 +7058,9 @@
   "F/lm8Q5OV6": {
     "defaultMessage": "Wird ausgeführt"
   },
+  "F0KK3Ot1t7": {
+    "defaultMessage": "{count, number} Schlüssel geladen"
+  },
   "F0U2CC+DdD": {
     "defaultMessage": "Top {percentile}% der geprüften Domains"
   },
@@ -7402,6 +7429,9 @@
   },
   "FxNFbqpNBI": {
     "defaultMessage": "Kanal-ID"
+  },
+  "FxqkXT7ENB": {
+    "defaultMessage": "Genehmigt"
   },
   "G+NJ7A8R9g": {
     "defaultMessage": "Wird geladen …"
@@ -12908,6 +12938,9 @@
   "U9HdNspgPF": {
     "defaultMessage": "Wird bearbeitet …"
   },
+  "U9JGBvqNdg": {
+    "defaultMessage": "Keine Schlüssel entsprechen den aktuellen Filtern."
+  },
   "U9t/eIwVYM": {
     "defaultMessage": "recall_knowledge_files"
   },
@@ -17669,6 +17702,9 @@
   "fmoDfLltk/": {
     "defaultMessage": "Wird geladen …"
   },
+  "fmtkoir6Cw": {
+    "defaultMessage": "Mehrsprachige Übersetzungen"
+  },
   "fmu4X2/dDf": {
     "defaultMessage": "Original · {locale}"
   },
@@ -21275,6 +21311,9 @@
   "oD4c197bVX": {
     "defaultMessage": "Version"
   },
+  "oD9uIlyEmh": {
+    "defaultMessage": "Übersetzungen werden geladen …"
+  },
   "oDR2kKlwsc": {
     "defaultMessage": "Failed to load Ahrefs connections."
   },
@@ -24158,6 +24197,9 @@
   "vAwILOzBUa": {
     "defaultMessage": "Starten Sie noch heute mit Hyperlocalise"
   },
+  "vB15JCGjFn": {
+    "defaultMessage": "Mehrsprachig"
+  },
   "vB9oObJ76R": {
     "defaultMessage": "Ihre Änderungen an der Textebene werden vor der Lokalisierung des Bildes gespeichert."
   },
@@ -25005,7 +25047,7 @@
     "defaultMessage": "Täglich"
   },
   "x4rENGJxzk": {
-    "defaultMessage": "Content Intelligence"
+    "defaultMessage": "Content-Intelligence"
   },
   "x5IFswpz2S": {
     "defaultMessage": "Editor öffnen"
@@ -25972,6 +26014,9 @@
   },
   "zNmLFPYZSE": {
     "defaultMessage": "Bildgenerierung"
+  },
+  "zOn5vF4r7i": {
+    "defaultMessage": "Wählen Sie eine Übersetzung aus, um den Editor zu öffnen."
   },
   "zPBtoUzMcl": {
     "defaultMessage": "Letzte 30 Tage"
