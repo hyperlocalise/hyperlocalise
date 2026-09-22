@@ -1286,6 +1286,9 @@
   "19Yj5RY029": {
     "defaultMessage": "Ghi lại bối cảnh và các chỉnh sửa mà nhóm của bạn đã tạo ra, rồi làm cho chúng sẵn sàng khi đợt ra mắt tiếp theo bắt đầu."
   },
+  "1A3oOwAeXf": {
+    "defaultMessage": "{language} (nguồn)"
+  },
   "1AN+Q/JkbE": {
     "defaultMessage": "Queue translation jobs for uploaded source files in the project selected above."
   },
@@ -1769,6 +1772,9 @@
   "2HD/xUOuDn": {
     "defaultMessage": "Ngày trong tuần"
   },
+  "2Hftj6qZP3": {
+    "defaultMessage": "Không thể tải bản dịch"
+  },
   "2IB+W+9a77": {
     "defaultMessage": "Sử dụng mặc định"
   },
@@ -2200,6 +2206,9 @@
   },
   "3NyprC4I6O": {
     "defaultMessage": "Mở rộng ý tưởng"
+  },
+  "3QmQFMO6jX": {
+    "defaultMessage": "Ngôn ngữ"
   },
   "3R2FH9E6p2": {
     "defaultMessage": "Tải xuống"
@@ -3038,6 +3047,9 @@
   "5R6QcLONiw": {
     "defaultMessage": "Hướng dẫn dự án"
   },
+  "5ROaWKy9xu": {
+    "defaultMessage": "Mở {key} bằng {language}"
+  },
   "5RYXpxJmvr": {
     "defaultMessage": "Không gian làm việc"
   },
@@ -3526,6 +3538,9 @@
   },
   "6g9RHsjL+m": {
     "defaultMessage": "Giảm tình trạng chỉnh sửa lặp lại trong quá trình xem xét"
+  },
+  "6hO1kU+HPL": {
+    "defaultMessage": "Tải thêm khóa"
   },
   "6hZ0OrRvp2": {
     "defaultMessage": "Inactive"
@@ -5360,6 +5375,9 @@
   "B7F4I10QjV": {
     "defaultMessage": "Thất bại"
   },
+  "B7HJpY5IHI": {
+    "defaultMessage": "Thử lại"
+  },
   "B8H5qyHiWy": {
     "defaultMessage": "Lỗi dịch thuật"
   },
@@ -5647,6 +5665,9 @@
   },
   "Bn0C5KWma3": {
     "defaultMessage": "Kết nối GitHub trong mục Tích hợp để chọn các kho lưu trữ."
+  },
+  "BnVSqljQov": {
+    "defaultMessage": "Khóa"
   },
   "BnZ3uPwDP7": {
     "defaultMessage": "Tra cứu nơi chuỗi này xuất hiện trong kho lưu trữ đã kết nối"
@@ -6115,6 +6136,9 @@
   },
   "CtXpaStJTy": {
     "defaultMessage": "Ra mắt trang web tiếp thị"
+  },
+  "CuNKMtOPln": {
+    "defaultMessage": "Chưa được dịch"
   },
   "Cuem8lXjuP": {
     "defaultMessage": "Xóa quy trình làm việc?"
@@ -7034,6 +7058,9 @@
   "F/lm8Q5OV6": {
     "defaultMessage": "Đang chạy"
   },
+  "F0KK3Ot1t7": {
+    "defaultMessage": "Đã tải {count, number} khóa"
+  },
   "F0U2CC+DdD": {
     "defaultMessage": "Top {percentile}% số miền được kiểm tra"
   },
@@ -7402,6 +7429,9 @@
   },
   "FxNFbqpNBI": {
     "defaultMessage": "ID kênh"
+  },
+  "FxqkXT7ENB": {
+    "defaultMessage": "Đã phê duyệt"
   },
   "G+NJ7A8R9g": {
     "defaultMessage": "Đang tải…"
@@ -12908,6 +12938,9 @@
   "U9HdNspgPF": {
     "defaultMessage": "Đang xử lý…"
   },
+  "U9JGBvqNdg": {
+    "defaultMessage": "Không có khóa nào khớp với các bộ lọc hiện tại."
+  },
   "U9t/eIwVYM": {
     "defaultMessage": "recall_knowledge_files"
   },
@@ -15834,7 +15867,7 @@
     "defaultMessage": "DE: tránh các danh từ ghép dài hơn 3 thành phần"
   },
   "bSLGYWqIO6": {
-    "defaultMessage": "DNS TXT"
+    "defaultMessage": "Bản ghi TXT DNS"
   },
   "bSoPJAmJQC": {
     "defaultMessage": "Bản kiểm tra này đã được xếp hàng đợi và sẽ sớm bắt đầu."
@@ -17668,6 +17701,9 @@
   },
   "fmoDfLltk/": {
     "defaultMessage": "Loading…"
+  },
+  "fmtkoir6Cw": {
+    "defaultMessage": "Bản dịch đa ngôn ngữ"
   },
   "fmu4X2/dDf": {
     "defaultMessage": "Bản gốc · {locale}"
@@ -21275,6 +21311,9 @@
   "oD4c197bVX": {
     "defaultMessage": "Phiên bản"
   },
+  "oD9uIlyEmh": {
+    "defaultMessage": "Đang tải bản dịch…"
+  },
   "oDR2kKlwsc": {
     "defaultMessage": "Failed to load Ahrefs connections."
   },
@@ -22467,7 +22506,7 @@
     "defaultMessage": "Workspace"
   },
   "qxdCTJo5wL": {
-    "defaultMessage": "Pull request"
+    "defaultMessage": "Yêu cầu kéo"
   },
   "qyAeUOVpZe": {
     "defaultMessage": "Tiếng Séc (Séc)"
@@ -24157,6 +24196,9 @@
   },
   "vAwILOzBUa": {
     "defaultMessage": "Bắt đầu với Hyperlocalise ngay hôm nay"
+  },
+  "vB15JCGjFn": {
+    "defaultMessage": "Đa ngôn ngữ"
   },
   "vB9oObJ76R": {
     "defaultMessage": "Các chỉnh sửa lớp văn bản của bạn sẽ được lưu trước khi bản địa hóa hình ảnh."
@@ -25972,6 +26014,9 @@
   },
   "zNmLFPYZSE": {
     "defaultMessage": "Tạo hình ảnh"
+  },
+  "zOn5vF4r7i": {
+    "defaultMessage": "Chọn bản dịch để mở trình chỉnh sửa."
   },
   "zPBtoUzMcl": {
     "defaultMessage": "30 ngày qua"

@@ -1455,6 +1455,10 @@
     "defaultMessage": "Mina assigned you · Payment button label too long",
     "description": "Inbox issue notification preview in content ops mock"
   },
+  "1A3oOwAeXf": {
+    "defaultMessage": "{language} (source)",
+    "description": "Multilingual table source label"
+  },
   "1B4aT4LjmI": {
     "defaultMessage": "Access",
     "description": "Activity log event type group for access credentials"
@@ -2035,6 +2039,10 @@
     "defaultMessage": "Day of week",
     "description": "Label for weekly schedule day field"
   },
+  "2Hftj6qZP3": {
+    "defaultMessage": "Could not load translation",
+    "description": "Multilingual table failed label"
+  },
   "2IB+W+9a77": {
     "defaultMessage": "Use default",
     "description": "Action that clears a custom issue column icon back to the default"
@@ -2490,6 +2498,10 @@
   "3NyprC4I6O": {
     "defaultMessage": "Expand ideas",
     "description": "Submit seed keywords"
+  },
+  "3QmQFMO6jX": {
+    "defaultMessage": "Languages",
+    "description": "Multilingual table languages label"
   },
   "3R2FH9E6p2": {
     "defaultMessage": "Download",
@@ -3074,6 +3086,10 @@
   "4WxpcyFNqc": {
     "defaultMessage": "Reject selected",
     "description": "Bulk action to reject selected proposals"
+  },
+  "4XuQhGpKaz": {
+    "defaultMessage": "Click to edit. Enter moves down, Tab moves across, Shift+Enter adds a line, Escape cancels.",
+    "description": "Multilingual table hint label"
   },
   "4Xya9zkpLQ": {
     "defaultMessage": "Evaluate Hyperlocalise with a single-seat workspace.",
@@ -4042,6 +4058,10 @@
   "6fx4WFqVom": {
     "defaultMessage": "Save credential",
     "description": "Save encrypted workflow credential"
+  },
+  "6hO1kU+HPL": {
+    "defaultMessage": "Load more keys",
+    "description": "Multilingual table more label"
   },
   "6hZ0OrRvp2": {
     "defaultMessage": "Inactive",
@@ -6211,6 +6231,10 @@
     "defaultMessage": "Failed",
     "description": "Failed import status"
   },
+  "B7HJpY5IHI": {
+    "defaultMessage": "Retry",
+    "description": "Multilingual table retry label"
+  },
   "B8H5qyHiWy": {
     "defaultMessage": "Translation mistake",
     "description": "Label for the translation mistake issue template"
@@ -6558,6 +6582,10 @@
   "Bn0C5KWma3": {
     "defaultMessage": "Connect GitHub in Integrations to choose repositories.",
     "description": "Empty state when the workspace has no GitHub repositories"
+  },
+  "BnVSqljQov": {
+    "defaultMessage": "Key",
+    "description": "Multilingual table key label"
   },
   "BnZ3uPwDP7": {
     "defaultMessage": "Look up where this string appears in the connected repository",
@@ -7114,6 +7142,10 @@
   "CtXpaStJTy": {
     "defaultMessage": "Marketing site launch",
     "description": "Placeholder for the project name field"
+  },
+  "CuNKMtOPln": {
+    "defaultMessage": "Not translated",
+    "description": "Multilingual table missing label"
   },
   "Cuem8lXjuP": {
     "defaultMessage": "Delete workflow?",
@@ -8179,6 +8211,10 @@
     "defaultMessage": "Running",
     "description": "Running import status"
   },
+  "F0KK3Ot1t7": {
+    "defaultMessage": "{count, number} keys loaded",
+    "description": "Multilingual table count label"
+  },
   "F0U2CC+DdD": {
     "defaultMessage": "Top {percentile}% of audited domains",
     "description": "Percentile line on a localisation audit result standing section"
@@ -8622,6 +8658,10 @@
   "FxNFbqpNBI": {
     "defaultMessage": "Channel ID",
     "description": "Label for the Slack channel ID input"
+  },
+  "FxqkXT7ENB": {
+    "defaultMessage": "Approved",
+    "description": "Multilingual table approved label"
   },
   "G+NJ7A8R9g": {
     "defaultMessage": "Loading…",
@@ -15015,6 +15055,10 @@
     "defaultMessage": "Working…",
     "description": "Fallback live explore status for an unknown explore tool"
   },
+  "U9JGBvqNdg": {
+    "defaultMessage": "No keys match the current filters.",
+    "description": "Multilingual table empty label"
+  },
   "U9t/eIwVYM": {
     "defaultMessage": "recall_knowledge_files",
     "description": "Tool name shown in brand chat mock"
@@ -20515,6 +20559,10 @@
     "defaultMessage": "Loading…",
     "description": "Short loading status under the project files list title"
   },
+  "fmtkoir6Cw": {
+    "defaultMessage": "Multilingual translations",
+    "description": "Multilingual table title label"
+  },
   "fmu4X2/dDf": {
     "defaultMessage": "Original · {locale}",
     "description": "Image viewer: original"
@@ -24659,6 +24707,10 @@
     "defaultMessage": "Version",
     "description": "Label for the variant field when assigning a flag"
   },
+  "oD9uIlyEmh": {
+    "defaultMessage": "Loading translations…",
+    "description": "Multilingual table loading label"
+  },
   "oDluyiLepj": {
     "defaultMessage": "Answer engine optimisation. When someone asks an AI search tool, they can still get your page as the answer, not a competitor’s.",
     "description": "Domains FAQ answer about AEO"
@@ -24762,6 +24814,10 @@
   "oNE0YnvOn0": {
     "defaultMessage": "Connect brand-voice and claims PDFs from Google Drive. Agents cite the clause in the file when they flag a draft.",
     "description": "Body for the Google Drive source panel"
+  },
+  "oNLP4frHL4": {
+    "defaultMessage": "Saving…",
+    "description": "Inline translation save status"
   },
   "oNrNYjWrTm": {
     "defaultMessage": "Translation memory not found.",
@@ -28051,6 +28107,10 @@
     "defaultMessage": "Get started with Hyperlocalise today",
     "description": "Headline for the bottom CTA on integration pages"
   },
+  "vB15JCGjFn": {
+    "defaultMessage": "Multilingual",
+    "description": "CAT view with a column for each language"
+  },
   "vB9oObJ76R": {
     "defaultMessage": "Your text-layer edits will be saved before localising the image.",
     "description": "Image viewer: unsaved"
@@ -30074,6 +30134,10 @@
   "z6J/H68BKd": {
     "defaultMessage": "Source control",
     "description": "Integrations page section heading for source control providers"
+  },
+  "z7zgiC7+v3": {
+    "defaultMessage": "Edit {key} in {language}",
+    "description": "Multilingual table open label"
   },
   "z9I05YOvbx": {
     "defaultMessage": "None yet",
