@@ -16,11 +16,12 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, sql, or, isNull, lte } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { createLogger } from "@/lib/log";
 
 import { encryptWorkflowPayload, decryptWorkflowPayload } from "./workflow-credentials";
 import { redactWorkflowSnapshot, collectWorkflowSecrets } from "./runtime/snapshots";
-import { visualWorkflowDefinitionSchema } from "./schema/definition-schema";
-import type { VisualWorkflowDefinition } from "./schema/types";
+import { parseVisualWorkflowV3Definition } from "./schema/definition-migration";
+import type { VisualWorkflowDefinition, VisualWorkflowV3Definition } from "./schema/types";
 import type { VisualWorkflowRecord } from "./visual-workflow-types";
 import { getVisualWorkflowById } from "./visual-workflows";
 import type {
@@ -34,8 +35,9 @@ import type {
 type VisualWorkflowRunRow = typeof schema.visualWorkflowRuns.$inferSelect;
 type VisualWorkflowNodeRunRow = typeof schema.visualWorkflowNodeRuns.$inferSelect;
 
-const EXECUTION_PLAN_VERSION = 2;
+const EXECUTION_PLAN_VERSION = 3;
 const DEFINITION_SNAPSHOT_KEY = "definitionSnapshot";
+const logger = createLogger("visual-workflow-runs");
 
 const TERMINAL_VISUAL_WORKFLOW_RUN_STATUSES = new Set<VisualWorkflowRunStatus>([
   "succeeded",
@@ -47,7 +49,7 @@ const TERMINAL_VISUAL_WORKFLOW_RUN_STATUSES = new Set<VisualWorkflowRunStatus>([
 
 function buildRunInputSnapshot(input: {
   triggerInput?: Record<string, unknown>;
-  definition: VisualWorkflowDefinition;
+  definition: VisualWorkflowV3Definition;
 }): Record<string, unknown> {
   const { [DEFINITION_SNAPSHOT_KEY]: _ignored, ...triggerInput } = input.triggerInput ?? {};
   return {
@@ -60,18 +62,18 @@ function buildRunInputSnapshot(input: {
 function resolveRunDefinition(input: {
   run: VisualWorkflowRunRecord;
   workflow: VisualWorkflowRecord;
-}): VisualWorkflowDefinition | null {
+}): VisualWorkflowV3Definition | null {
   const snapshot = input.run.inputSnapshot[DEFINITION_SNAPSHOT_KEY];
-  const parsedSnapshot = visualWorkflowDefinitionSchema.safeParse(snapshot);
-  if (parsedSnapshot.success) {
-    return parsedSnapshot.data;
-  }
 
-  if (input.run.definitionVersion === input.workflow.definitionVersion) {
-    return input.workflow.definition;
-  }
+  try {
+    return parseVisualWorkflowV3Definition(snapshot);
+  } catch {
+    if (input.run.definitionVersion === input.workflow.definitionVersion) {
+      return input.workflow.definition;
+    }
 
-  return null;
+    return null;
+  }
 }
 
 function mergeRunOutputSummary(
@@ -469,7 +471,7 @@ export async function createVisualWorkflowRun(input: {
   inputSnapshot?: Record<string, unknown>;
   status?: VisualWorkflowRunStatus;
   matchedDefinitionVersion?: number;
-  testDefinition?: VisualWorkflowDefinition;
+  testDefinition?: VisualWorkflowDefinition | VisualWorkflowV3Definition;
   mode?: "mock" | "live";
   mockOutputs?: Record<string, Record<string, unknown>>;
   dbClient?: DatabaseClient;
@@ -507,8 +509,11 @@ export async function createVisualWorkflowRun(input: {
     }
   }
 
-  const definition = input.testDefinition ?? workflow.publishedDefinition;
-  if (!definition) throw new Error("workflow_not_published");
+  const definitionInput = input.testDefinition ?? workflow.publishedDefinition;
+  if (!definitionInput) {
+    throw new Error("workflow_not_published");
+  }
+  const definition = parseVisualWorkflowV3Definition(definitionInput);
   const payload = buildRunInputSnapshot({ triggerInput: input.inputSnapshot, definition });
   const [row] = await dbClient
     .insert(schema.visualWorkflowRuns)
@@ -888,6 +893,14 @@ export async function executeVisualWorkflowRun(input: {
     organizationId: input.organizationId,
   }).catch(async (error: unknown) => {
     if (error instanceof Error && error.message === "workflow_lease_lost") throw error;
+    logger.error(
+      {
+        error,
+        runId: run.id,
+        visualWorkflowId: input.visualWorkflowId,
+      },
+      "visual workflow recovery failed",
+    );
     await updateVisualWorkflowRun({
       leaseToken,
       runId: run.id,

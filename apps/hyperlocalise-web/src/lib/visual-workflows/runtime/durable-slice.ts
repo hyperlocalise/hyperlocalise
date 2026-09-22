@@ -14,7 +14,7 @@ import "server-only";
 import { and, eq, asc } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
-import { runVisualWorkflowInterpreter } from "./interpreter";
+import { runVisualWorkflowV3Interpreter } from "./interpreter-v3";
 import { executeVisualWorkflowNode } from "./execute-node";
 import { createMockWorkflowExecutor } from "./mock-executor";
 import {
@@ -25,7 +25,7 @@ import {
 import { redactWorkflowSnapshot, collectWorkflowSecrets } from "./snapshots";
 import { resolveSelectedNodeCredentials } from "./resolve-node-credentials";
 import { upsertVisualWorkflowNodeRun } from "../visual-workflow-runs";
-import type { VisualWorkflowDefinition } from "../schema/types";
+import type { VisualWorkflowV3Definition } from "../schema/types";
 import type { VisualWorkflowRunRecord } from "../visual-workflow-run-types";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 import { WORKFLOW_LIMITS } from "./limits";
@@ -33,7 +33,7 @@ const logger = createLogger("visual-workflow-node");
 export async function executeDurableWorkflowSlice(input: {
   run: VisualWorkflowRunRecord;
   leaseToken: string;
-  definition: VisualWorkflowDefinition;
+  definition: VisualWorkflowV3Definition;
   payload: Record<string, unknown>;
   organizationId: string;
 }) {
@@ -87,7 +87,7 @@ export async function executeDurableWorkflowSlice(input: {
     void isCancelled().catch(() => controller.abort());
   }, 1000);
   try {
-    const result = await runVisualWorkflowInterpreter({
+    const result = await runVisualWorkflowV3Interpreter({
       definition: input.definition,
       organizationId: input.organizationId,
       triggerInput: {

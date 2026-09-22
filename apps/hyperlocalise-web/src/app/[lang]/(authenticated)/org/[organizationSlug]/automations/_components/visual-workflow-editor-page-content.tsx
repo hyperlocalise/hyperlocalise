@@ -22,8 +22,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
-import { fromVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/serializers";
-import type { VisualWorkflowDefinition } from "@/lib/visual-workflows/schema/types";
+import { fromVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
+import type { VisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 
 import { VisualWorkflowDeleteDialog } from "./visual-workflow-delete-dialog";
@@ -52,14 +52,14 @@ export function VisualWorkflowEditorPageContent({
   const orgRouter = useOrgRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   useAppShellSidebar({ forceCollapsed: true });
-  const editorState = fromVisualWorkflowDefinition({
+  const editorState = fromVisualWorkflowV3Definition({
     ...workflow.definition,
     name: workflow.name,
   });
 
   const persistMutation = useMutation({
     mutationFn: (input: {
-      definition: VisualWorkflowDefinition;
+      definition: VisualWorkflowV3Definition;
       status?: VisualWorkflowRecord["status"];
     }) =>
       injectedApi
@@ -77,7 +77,7 @@ export function VisualWorkflowEditorPageContent({
 
   const saveMutation = {
     ...persistMutation,
-    mutate: (definition: VisualWorkflowDefinition) => {
+    mutate: (definition: VisualWorkflowV3Definition) => {
       persistMutation.mutate(
         { definition },
         {
@@ -105,7 +105,7 @@ export function VisualWorkflowEditorPageContent({
     },
   });
 
-  const handleStatusChange = async (active: boolean, definition: VisualWorkflowDefinition) => {
+  const handleStatusChange = async (active: boolean, definition: VisualWorkflowV3Definition) => {
     try {
       await persistMutation.mutateAsync({
         definition,

@@ -102,7 +102,7 @@ describe("visual workflow runs", () => {
     expect(first.inputSnapshot).toMatchObject({
       lead: "Ada",
       definitionSnapshot: expect.objectContaining({
-        schemaVersion: 2,
+        schemaVersion: 3,
         name: "Run coverage",
       }),
     });

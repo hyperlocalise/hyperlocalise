@@ -17,6 +17,7 @@ import type {
   VisualWorkflowEditorState,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
+  VisualWorkflowV3Definition,
 } from "./types";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
 
@@ -67,6 +68,44 @@ export function toVisualWorkflowDefinition(
   };
 }
 
+export function toVisualWorkflowV3Definition(
+  state: VisualWorkflowEditorState,
+): VisualWorkflowV3Definition {
+  const positions: VisualWorkflowV3Definition["editor"]["positions"] = {};
+
+  for (const node of state.nodes) {
+    positions[node.id] = {
+      x: node.position.x,
+      y: node.position.y,
+    };
+  }
+
+  return {
+    schemaVersion: 3,
+    name: state.name,
+    nodes: state.nodes.map((node) => ({
+      id: node.id,
+      type: node.data.catalogType,
+      config: node.data.config,
+      inputs: node.data.inputs,
+      outputFields: node.data.outputFields,
+      bodyNodeIds: node.data.bodyNodeIds,
+      collect: node.data.collect,
+    })),
+    edges: state.edges.map((edge) => ({
+      id: edge.id,
+      kind: edge.data?.kind ?? "execution",
+      source: edge.source,
+      target: edge.target,
+      sourcePortId: edge.sourceHandle ?? "success",
+      targetPortId: edge.targetHandle ?? "input",
+    })),
+    editor: {
+      positions,
+    },
+  };
+}
+
 /** @deprecated Use toVisualWorkflowDefinition */
 export const toCanonicalDraft = toVisualWorkflowDefinition;
 
@@ -109,6 +148,32 @@ export function fromVisualWorkflowDefinition(
     name: definition.name,
     nodes,
     edges,
+  };
+}
+
+export function fromVisualWorkflowV3Definition(
+  definition: VisualWorkflowV3Definition,
+): VisualWorkflowEditorState {
+  const state = fromVisualWorkflowDefinition({
+    ...definition,
+    schemaVersion: 2,
+    edges: definition.edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourcePortId,
+      targetHandle: edge.targetPortId,
+    })),
+  });
+
+  return {
+    ...state,
+    edges: state.edges.map((edge, index) => ({
+      ...edge,
+      data: {
+        kind: definition.edges[index]?.kind ?? "execution",
+      },
+    })),
   };
 }
 

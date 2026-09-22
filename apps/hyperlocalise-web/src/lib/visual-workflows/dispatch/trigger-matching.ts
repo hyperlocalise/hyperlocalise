@@ -17,13 +17,16 @@ import { isTriggerType } from "../catalog/node-catalog";
 import type {
   CanonicalVisualWorkflowNode,
   VisualNodeConfig,
-  VisualWorkflowDefinition,
   VisualWorkflowGithubTriggerEvent,
 } from "../schema/types";
 import type { VisualWorkflowRecord } from "../visual-workflow-types";
 
+type VisualWorkflowDefinitionWithNodes = {
+  nodes: readonly CanonicalVisualWorkflowNode[];
+};
+
 export function getVisualWorkflowTriggerNode(
-  definition: VisualWorkflowDefinition,
+  definition: VisualWorkflowDefinitionWithNodes,
 ): CanonicalVisualWorkflowNode | null {
   const triggers = definition.nodes.filter((node) => isTriggerType(node.type));
   return triggers.length === 1 ? (triggers[0] ?? null) : null;
@@ -45,9 +48,10 @@ export function visualWorkflowGithubEventsInclude(
   return resolveVisualWorkflowGithubEvents(events).includes(event);
 }
 
-export function resolveVisualWorkflowTriggerFingerprint(
-  workflow: Pick<VisualWorkflowRecord, "id" | "definition">,
-): string | null {
+export function resolveVisualWorkflowTriggerFingerprint(workflow: {
+  id: string;
+  definition: VisualWorkflowDefinitionWithNodes;
+}): string | null {
   const trigger = getVisualWorkflowTriggerNode(workflow.definition);
   if (!trigger) {
     return null;
@@ -170,7 +174,7 @@ export function validateVisualWorkflowTriggerConfig(
 }
 
 export function validateActiveVisualWorkflowTrigger(
-  definition: VisualWorkflowDefinition,
+  definition: VisualWorkflowDefinitionWithNodes,
 ): { ok: true } | { ok: false; message: string } {
   const trigger = getVisualWorkflowTriggerNode(definition);
   if (!trigger) {

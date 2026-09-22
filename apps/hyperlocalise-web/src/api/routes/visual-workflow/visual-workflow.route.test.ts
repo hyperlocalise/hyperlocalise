@@ -87,6 +87,87 @@ async function getOrganizationId(workosOrganizationId: string) {
 }
 
 describe("visual workflow routes", () => {
+  it("round-trips execution and data edges through persistence", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const definition = {
+      schemaVersion: 3 as const,
+      name: "Persisted edge kinds",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual" as const,
+          config: { kind: "trigger.manual" as const },
+        },
+        {
+          id: "set",
+          type: "logic.set" as const,
+          config: { kind: "logic.set" as const, assignments: [] },
+        },
+      ],
+      edges: [
+        {
+          id: "execution",
+          kind: "execution" as const,
+          source: "trigger",
+          target: "set",
+          sourcePortId: "success",
+          targetPortId: "input",
+        },
+        {
+          id: "data",
+          kind: "data" as const,
+          source: "trigger",
+          target: "set",
+          sourcePortId: "triggeredAt",
+          targetPortId: "value",
+        },
+      ],
+      editor: {
+        positions: {
+          trigger: { x: 0, y: 0 },
+          set: { x: 240, y: 0 },
+        },
+      },
+    };
+
+    const createdResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$post(
+      {
+        param: { organizationSlug },
+        json: { name: definition.name, definition },
+      },
+      { headers },
+    );
+
+    expect(createdResponse.status).toBe(201);
+    const created = (await createdResponse.json()) as {
+      visualWorkflow: { id: string };
+    };
+
+    const readResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$get(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(readResponse.status).toBe(200);
+    await expect(readResponse.json()).resolves.toMatchObject({
+      visualWorkflow: {
+        definition: {
+          schemaVersion: 3,
+          edges: definition.edges,
+        },
+      },
+    });
+  });
+
   it("creates, reads, updates, and lists visual workflows for an operator", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
@@ -217,7 +298,7 @@ describe("visual workflow routes", () => {
     const organizationSlug = identity.organization.slug ?? "missing-slug";
     const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
     const scheduledDefinition = {
-      schemaVersion: 2 as const,
+      schemaVersion: 3 as const,
       name: "Delete then revive",
       nodes: [
         {
@@ -339,7 +420,7 @@ describe("visual workflow routes", () => {
         json: {
           name: "Manual run workflow",
           definition: {
-            schemaVersion: 2,
+            schemaVersion: 3,
             name: "Manual run workflow",
             nodes: [
               {
