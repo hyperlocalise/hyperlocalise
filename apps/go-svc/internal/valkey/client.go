@@ -3,6 +3,7 @@ package valkey
 import (
 	"context"
 	"fmt"
+	"time"
 
 	valkeygo "github.com/valkey-io/valkey-go"
 )
@@ -39,6 +40,16 @@ func (c *Client) Inner() valkeygo.Client {
 		return nil
 	}
 	return c.inner
+}
+
+// Get retrieves a cache value. Missing keys and transport failures return errors.
+func (c *Client) Get(ctx context.Context, key string) (string, error) {
+	return c.inner.Do(ctx, c.inner.B().Get().Key(key).Build()).ToString()
+}
+
+// Set stores a cache value with an expiration in one command.
+func (c *Client) Set(ctx context.Context, key, value string, ttl time.Duration) error {
+	return c.inner.Do(ctx, c.inner.B().Set().Key(key).Value(value).Px(ttl).Build()).Error()
 }
 
 // Ping sends PING and returns a protocol or transport error.
