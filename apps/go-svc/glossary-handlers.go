@@ -116,50 +116,16 @@ func glossaryPage(r *http.Request, defaultLimit, maxLimit int) (int, int, error)
 	return limit, offset, nil
 }
 
-func (api *glossaryAPI) glossaryRequest(r *http.Request, actor glossaryActor) (any, int, error) {
-	rest := strings.Trim(r.PathValue("rest"), "/")
-	if rest == "" {
-		switch r.Method {
-		case http.MethodGet:
-			return api.listGlossaries(r, actor)
-		case http.MethodPost:
-			return api.createGlossary(r, actor)
-		default:
-			return glossaryMethodNotAllowed()
-		}
-	}
-	parts := strings.Split(rest, "/")
-	g, err := ownedGlossary(r.Context(), api.pool, actor, parts[0])
-	if err != nil {
-		return nil, 0, err
-	}
-	if len(parts) > 1 {
-		switch parts[1] {
-		case "projects":
-			return api.glossaryProjectRequest(r, actor, g, parts[2:])
-		case "concepts":
-			return api.glossaryConceptRequest(r, actor, g, parts[2:])
-		case "export":
-			if len(parts) != 2 || r.Method != http.MethodGet {
-				return nil, 0, missingGlossary()
-			}
-			return api.exportGlossary(r, g)
-		case "import-reports":
-			return api.glossaryImportReportRequest(r, actor, g, parts[2:])
-		default:
-			return nil, 0, missingGlossary()
-		}
-	}
-	switch r.Method {
-	case http.MethodGet:
-		return api.getGlossary(r.Context(), actor, g)
-	case http.MethodPatch:
-		return api.patchGlossary(r, actor, g)
-	case http.MethodDelete:
-		return api.deleteGlossary(r.Context(), actor, g)
-	default:
-		return glossaryMethodNotAllowed()
-	}
+func (api *glossaryAPI) getGlossaryHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	return api.getGlossary(r.Context(), actor, g)
+}
+
+func (api *glossaryAPI) patchGlossaryHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	return api.patchGlossary(r, actor, g)
+}
+
+func (api *glossaryAPI) deleteGlossaryHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	return api.deleteGlossary(r.Context(), actor, g)
 }
 
 func (api *glossaryAPI) listGlossaries(r *http.Request, actor glossaryActor) (any, int, error) {

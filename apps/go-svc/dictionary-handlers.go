@@ -78,71 +78,50 @@ func dictionaryPage(r *http.Request, defaultLimit, maxLimit int) (int, int, erro
 	return limit, offset, nil
 }
 
-func (api *dictionaryAPI) dictionaryRequest(r *http.Request, actor dictionaryActor) (any, int, error) {
-	ctx := r.Context()
-	rest := strings.Trim(r.PathValue("rest"), "/")
-	if rest == "" {
-		switch r.Method {
-		case http.MethodGet:
-			return api.listDictionaries(r, actor)
-		case http.MethodPost:
-			var payload dictionaryPayload
-			if err := readDictionaryBody(r, &payload); err != nil {
-				return nil, 0, err
-			}
-			if err := payload.validate(true); err != nil {
-				return nil, 0, err
-			}
-			description := ""
-			if payload.Description != nil {
-				description = *payload.Description
-			}
-			d, err := scanDictionary(api.pool.QueryRow(ctx, `insert into spellcheck_word_libraries as d (organization_id, created_by_user_id, name, description) values ($1,$2,$3,$4) returning `+dictionaryColumns, actor.organizationID, actor.userID, *payload.Name, description))
-			return map[string]any{"dictionary": d}, 201, err
-		default:
-			return dictionaryMethodNotAllowed()
-		}
-	}
-	parts := strings.SplitN(rest, "/", 3)
-	d, err := ownedDictionary(ctx, api.pool, actor, parts[0])
-	if err != nil {
+func (api *dictionaryAPI) createDictionary(r *http.Request, actor dictionaryActor) (any, int, error) {
+	var payload dictionaryPayload
+	if err := readDictionaryBody(r, &payload); err != nil {
 		return nil, 0, err
 	}
-	if len(parts) > 1 {
-		switch parts[1] {
-		case "words":
-			return api.wordRequest(r, actor, d, parts[2:])
-		case "projects":
-			return api.dictionaryProjectRequest(r, actor, d, parts[2:])
-		default:
-			return nil, 0, missingDictionary()
-		}
+	if err := payload.validate(true); err != nil {
+		return nil, 0, err
 	}
-	switch r.Method {
-	case http.MethodGet:
-		d.WordCount, err = dictionaryCount(ctx, api.pool, d.ID)
-	case http.MethodPatch:
-		var payload dictionaryPayload
-		if err := readDictionaryBody(r, &payload); err != nil {
-			return nil, 0, err
-		}
-		if err := payload.validate(false); err != nil {
-			return nil, 0, err
-		}
-		d, err = scanDictionary(api.pool.QueryRow(ctx, `update spellcheck_word_libraries as d set name=coalesce($3,name), description=coalesce($4,description), status=coalesce($5::asset_status,status), updated_at=now() where id=$1 and organization_id=$2 returning `+dictionaryColumns, d.ID, actor.organizationID, payload.Name, payload.Description, payload.Status))
-		if err == nil {
-			d.WordCount, err = dictionaryCount(ctx, api.pool, d.ID)
-		}
-	case http.MethodDelete:
-		_, err = api.pool.Exec(ctx, `delete from spellcheck_word_libraries where id=$1 and organization_id=$2`, d.ID, actor.organizationID)
-		return nil, 204, err
-	default:
-		return dictionaryMethodNotAllowed()
+	description := ""
+	if payload.Description != nil {
+		description = *payload.Description
 	}
+	d, err := scanDictionary(api.pool.QueryRow(r.Context(), `insert into spellcheck_word_libraries as d (organization_id, created_by_user_id, name, description) values ($1,$2,$3,$4) returning `+dictionaryColumns, actor.organizationID, actor.userID, *payload.Name, description))
+	return map[string]any{"dictionary": d}, 201, err
+}
+
+func (api *dictionaryAPI) getDictionary(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	var err error
+	d.WordCount, err = dictionaryCount(r.Context(), api.pool, d.ID)
+	return map[string]any{"dictionary": d}, 200, err
+}
+
+func (api *dictionaryAPI) patchDictionary(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	var payload dictionaryPayload
+	if err := readDictionaryBody(r, &payload); err != nil {
+		return nil, 0, err
+	}
+	if err := payload.validate(false); err != nil {
+		return nil, 0, err
+	}
+	updated, err := scanDictionary(api.pool.QueryRow(r.Context(), `update spellcheck_word_libraries as d set name=coalesce($3,name), description=coalesce($4,description), status=coalesce($5::asset_status,status), updated_at=now() where id=$1 and organization_id=$2 returning `+dictionaryColumns, d.ID, actor.organizationID, payload.Name, payload.Description, payload.Status))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, missingDictionary()
 	}
-	return map[string]any{"dictionary": d}, 200, err
+	if err != nil {
+		return nil, 0, err
+	}
+	updated.WordCount, err = dictionaryCount(r.Context(), api.pool, updated.ID)
+	return map[string]any{"dictionary": updated}, 200, err
+}
+
+func (api *dictionaryAPI) deleteDictionary(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	_, err := api.pool.Exec(r.Context(), `delete from spellcheck_word_libraries where id=$1 and organization_id=$2`, d.ID, actor.organizationID)
+	return nil, 204, err
 }
 
 func (api *dictionaryAPI) listDictionaries(r *http.Request, actor dictionaryActor) (any, int, error) {

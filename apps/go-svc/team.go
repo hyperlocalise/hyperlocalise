@@ -8,9 +8,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/workos/workos-go/v10"
 )
 
 const (
@@ -20,7 +17,7 @@ const (
 
 type teamAPI struct {
 	pool       dictionaryPool
-	membership func(context.Context, string) (*workos.UserOrganizationMembership, error)
+	membership organizationMembershipLookup
 }
 
 type teamActor struct {
@@ -69,148 +66,130 @@ func formatTeamTime(t time.Time) string {
 }
 
 func (api *teamAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
-	for _, path := range []string{
-		"/v1/orgs/{organizationSlug}/teams",
-		"/v1/orgs/{organizationSlug}/teams/{rest...}",
-	} {
-		mux.Handle(path, authMiddleware(verifier)(http.HandlerFunc(api.serveHTTP)))
+	t := orgRoutePrefix + "/teams"
+	route := func(pattern string, fn func(*http.Request, teamActor) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
 	}
+	route("GET "+t, bindActor(api, (*teamAPI).listTeamsHandler))
+	route("POST "+t, bindActor(api, (*teamAPI).createTeamHandler))
+	route("GET "+t+"/member-directory", bindActor(api, (*teamAPI).listMemberDirectoryHandler))
+	route("GET "+t+"/{teamId}", bindActor(api, (*teamAPI).getTeamHandler))
+	route("PATCH "+t+"/{teamId}", bindActor(api, (*teamAPI).updateTeamHandler))
+	route("DELETE "+t+"/{teamId}", bindActor(api, (*teamAPI).deleteTeamHandler))
+	route("POST "+t+"/{teamId}/members", bindActor(api, (*teamAPI).addTeamMemberHandler))
+	route("DELETE "+t+"/{teamId}/members/{workosUserId}", bindActor(api, (*teamAPI).removeTeamMemberHandler))
 }
 
 func (api *teamAPI) actor(ctx context.Context, claims AuthClaims, slug string) (teamActor, error) {
-	var actor teamActor
-	var membershipID, workosOrg string
-	if strings.HasPrefix(claims.UserID, "invited_user_") {
-		return actor, teamFailure(403, "organization_access_denied")
-	}
-	err := api.pool.QueryRow(ctx, `select u.id, o.id, m.workos_membership_id, o.workos_organization_id
-        from users u join organization_memberships m on m.user_id=u.id join organizations o on o.id=m.organization_id
-        where u.workos_user_id=$1 and o.slug=$2 and o.lifecycle_status='active'
-        and m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing')`,
-		claims.UserID, slug).Scan(&actor.userID, &actor.organizationID, &membershipID, &workosOrg)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return actor, teamFailure(403, "organization_access_denied")
-	}
+	resolved, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, slug)
 	if err != nil {
-		return actor, err
+		return teamActor{}, mapOrganizationAccessCode(err, teamFailure)
 	}
-	if api.membership == nil {
-		return actor, teamFailure(503, "workos_membership_lookup_failed")
-	}
-	member, err := api.membership(ctx, membershipID)
-	if err != nil {
-		var apiErr *workos.APIError
-		if errors.As(err, &apiErr) && apiErr.StatusCode == 404 {
-			return actor, teamFailure(403, "organization_access_denied")
-		}
-		return actor, teamFailure(503, "workos_membership_lookup_failed")
-	}
-	if member == nil || member.ID != membershipID || member.UserID != claims.UserID || member.OrganizationID != workosOrg || member.Status != "active" || member.Role == nil {
-		return actor, teamFailure(403, "organization_access_denied")
-	}
-	switch member.Role.Slug {
-	case "admin", "localization_manager", "member", "developer", "translator", "reviewer":
-		actor.role = member.Role.Slug
-	default:
-		return actor, teamFailure(403, "organization_access_denied")
-	}
-	return actor, nil
+	return teamActor(resolved), nil
 }
 
-func (api *teamAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	if denyBrowserMutation(r) {
-		writeTeamError(w, r, "origin_guard", teamFailure(403, "forbidden"))
-		return
-	}
-	if api.pool == nil {
-		writeTeamError(w, r, "availability", teamFailure(503, "team_unavailable"))
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), teamRequestTimeout)
-	defer cancel()
-	r = r.WithContext(ctx)
-	claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
-	if !ok {
-		writeTeamError(w, r, "auth", teamFailure(401, "unauthorized"))
-		return
-	}
-	actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
-	if err != nil {
-		writeTeamError(w, r, "resolve_actor", err)
-		return
-	}
+func (api *teamAPI) handle(fn func(*http.Request, teamActor) (any, int, error)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		if denyBrowserMutation(r) {
+			writeTeamError(w, r, "origin_guard", teamFailure(403, "forbidden"))
+			return
+		}
+		if api.pool == nil {
+			writeTeamError(w, r, "availability", teamFailure(503, "team_unavailable"))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), teamRequestTimeout)
+		defer cancel()
+		r = r.WithContext(ctx)
+		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
+		if !ok {
+			writeTeamError(w, r, "auth", teamFailure(401, "unauthorized"))
+			return
+		}
+		actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
+		if err != nil {
+			writeTeamError(w, r, "resolve_actor", err)
+			return
+		}
+		if r.Method == http.MethodPost || r.Method == http.MethodPatch {
+			r.Body = http.MaxBytesReader(w, r.Body, teamBodyLimit)
+		}
+		value, status, err := fn(r, actor)
+		if err != nil {
+			writeTeamError(w, r, "handle", err)
+			return
+		}
+		if status == 204 {
+			w.WriteHeader(status)
+			return
+		}
+		teamJSON(r.Context(), w, status, value)
+	})
+}
 
-	rest := strings.Trim(r.PathValue("rest"), "/")
-	var status int
-	var value any
-	switch rest {
-	case "":
-		switch r.Method {
-		case http.MethodGet:
-			value, status, err = api.listTeams(ctx, actor)
-		case http.MethodPost:
-			r.Body = http.MaxBytesReader(w, r.Body, teamBodyLimit)
-			value, status, err = api.createTeam(ctx, actor, r)
-		default:
-			writeTeamError(w, r, "route", teamFailure(404, "not_found"))
-			return
-		}
-	case "member-directory":
-		if r.Method != http.MethodGet {
-			writeTeamError(w, r, "route", teamFailure(404, "not_found"))
-			return
-		}
-		value, status, err = api.listMemberDirectory(ctx, actor)
-	default:
-		parts := strings.Split(rest, "/")
-		switch {
-		case len(parts) == 1:
-			teamID := parts[0]
-			if !validTeamID(teamID) {
-				writeTeamError(w, r, "route", teamFailure(404, "team_not_found"))
-				return
-			}
-			switch r.Method {
-			case http.MethodGet:
-				value, status, err = api.getTeam(ctx, actor, teamID)
-			case http.MethodPatch:
-				r.Body = http.MaxBytesReader(w, r.Body, teamBodyLimit)
-				value, status, err = api.updateTeam(ctx, actor, teamID, r)
-			case http.MethodDelete:
-				status, err = api.deleteTeam(ctx, actor, teamID)
-			default:
-				writeTeamError(w, r, "route", teamFailure(404, "not_found"))
-				return
-			}
-		case len(parts) == 2 && parts[1] == "members":
-			teamID := parts[0]
-			if !validTeamID(teamID) || r.Method != http.MethodPost {
-				writeTeamError(w, r, "route", teamFailure(404, "not_found"))
-				return
-			}
-			r.Body = http.MaxBytesReader(w, r.Body, teamBodyLimit)
-			value, status, err = api.addTeamMember(ctx, actor, teamID, r)
-		case len(parts) == 3 && parts[1] == "members":
-			teamID := parts[0]
-			workosUserID := parts[2]
-			if !validTeamID(teamID) || strings.TrimSpace(workosUserID) == "" || len(workosUserID) > 256 || r.Method != http.MethodDelete {
-				writeTeamError(w, r, "route", teamFailure(404, "not_found"))
-				return
-			}
-			status, err = api.removeTeamMember(ctx, actor, teamID, workosUserID)
-		default:
-			writeTeamError(w, r, "route", teamFailure(404, "not_found"))
-			return
-		}
+func (api *teamAPI) listTeamsHandler(r *http.Request, actor teamActor) (any, int, error) {
+	return api.listTeams(r.Context(), actor)
+}
+
+func (api *teamAPI) createTeamHandler(r *http.Request, actor teamActor) (any, int, error) {
+	return api.createTeam(r.Context(), actor, r)
+}
+
+func (api *teamAPI) listMemberDirectoryHandler(r *http.Request, actor teamActor) (any, int, error) {
+	return api.listMemberDirectory(r.Context(), actor)
+}
+
+func (api *teamAPI) requireTeamID(r *http.Request) (string, error) {
+	teamID := r.PathValue("teamId")
+	if !validTeamID(teamID) {
+		return "", teamFailure(404, "team_not_found")
 	}
+	return teamID, nil
+}
+
+func (api *teamAPI) getTeamHandler(r *http.Request, actor teamActor) (any, int, error) {
+	teamID, err := api.requireTeamID(r)
 	if err != nil {
-		writeTeamError(w, r, "handle", err)
-		return
+		return nil, 0, err
 	}
-	if status == 204 {
-		w.WriteHeader(status)
-		return
+	return api.getTeam(r.Context(), actor, teamID)
+}
+
+func (api *teamAPI) updateTeamHandler(r *http.Request, actor teamActor) (any, int, error) {
+	teamID, err := api.requireTeamID(r)
+	if err != nil {
+		return nil, 0, err
 	}
-	teamJSON(r.Context(), w, status, value)
+	return api.updateTeam(r.Context(), actor, teamID, r)
+}
+
+func (api *teamAPI) deleteTeamHandler(r *http.Request, actor teamActor) (any, int, error) {
+	teamID, err := api.requireTeamID(r)
+	if err != nil {
+		return nil, 0, err
+	}
+	status, err := api.deleteTeam(r.Context(), actor, teamID)
+	return nil, status, err
+}
+
+func (api *teamAPI) addTeamMemberHandler(r *http.Request, actor teamActor) (any, int, error) {
+	teamID, err := api.requireTeamID(r)
+	if err != nil {
+		return nil, 0, err
+	}
+	return api.addTeamMember(r.Context(), actor, teamID, r)
+}
+
+func (api *teamAPI) removeTeamMemberHandler(r *http.Request, actor teamActor) (any, int, error) {
+	teamID, err := api.requireTeamID(r)
+	if err != nil {
+		return nil, 0, err
+	}
+	workosUserID := r.PathValue("workosUserId")
+	if strings.TrimSpace(workosUserID) == "" || len(workosUserID) > 256 {
+		return nil, 0, teamFailure(404, "not_found")
+	}
+	status, err := api.removeTeamMember(r.Context(), actor, teamID, workosUserID)
+	return nil, status, err
 }

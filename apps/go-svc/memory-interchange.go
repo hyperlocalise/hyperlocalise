@@ -540,24 +540,24 @@ func (api *memoryAPI) promoteMemoryFromProject(r *http.Request, actor memoryActo
 	return map[string]any{"promoted": promoted, "skipped": 0, "reason": nil}, 200, nil
 }
 
-func (api *memoryAPI) memoryImportAttemptRequest(r *http.Request, actor memoryActor, m memoryRecord, rest []string) (any, int, error) {
-	if len(rest) == 0 {
-		if r.Method != http.MethodGet {
-			return memoryMethodNotAllowed()
-		}
-		return api.listMemoryImportAttempts(r, actor, m)
-	}
-	if !validMemoryID(rest[0]) {
-		return nil, 0, missingMemory()
-	}
-	attemptID := rest[0]
-	if len(rest) == 2 && rest[1] == "report" && r.Method == http.MethodGet {
-		return api.getMemoryImportAttemptReport(r.Context(), actor, m, attemptID)
-	}
-	if len(rest) != 1 || r.Method != http.MethodGet {
+func (api *memoryAPI) listMemoryImportAttemptsHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	return api.listMemoryImportAttempts(r, actor, m)
+}
+
+func (api *memoryAPI) getMemoryImportAttemptHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	attemptID := r.PathValue("attemptId")
+	if !validMemoryID(attemptID) {
 		return nil, 0, missingMemory()
 	}
 	return api.getMemoryImportAttempt(r.Context(), actor, m, attemptID)
+}
+
+func (api *memoryAPI) getMemoryImportAttemptReportHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	attemptID := r.PathValue("attemptId")
+	if !validMemoryID(attemptID) {
+		return nil, 0, missingMemory()
+	}
+	return api.getMemoryImportAttemptReport(r.Context(), actor, m, attemptID)
 }
 
 func (api *memoryAPI) listMemoryImportAttempts(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {

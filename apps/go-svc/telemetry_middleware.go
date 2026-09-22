@@ -26,6 +26,19 @@ var knownHTTPMethods = map[string]attribute.KeyValue{
 	http.MethodTrace:   semconv.HTTPRequestMethodTrace,
 }
 
+// httpRouteFromPattern returns the host/path from a ServeMux pattern.
+// Patterns are "[METHOD ][HOST]/[PATH]". Strip the method independently of
+// the request method so HEAD on a GET route does not keep "GET" in http.route.
+func httpRouteFromPattern(pattern string) string {
+	if pattern == "" {
+		return "unmatched"
+	}
+	if _, rest, ok := strings.Cut(pattern, " "); ok {
+		return rest
+	}
+	return pattern
+}
+
 func httpRequestMethodAttrs(method string) []attribute.KeyValue {
 	if attr, ok := knownHTTPMethods[method]; ok {
 		return []attribute.KeyValue{attr}
@@ -50,12 +63,7 @@ func tracingMiddleware(next http.Handler) http.Handler {
 		rec := &statusRecorder{ResponseWriter: w, status: 0}
 		next.ServeHTTP(rec, r)
 
-		route := r.Pattern
-		if route == "" {
-			route = "unmatched"
-		} else if rest, ok := strings.CutPrefix(route, r.Method+" "); ok {
-			route = rest
-		}
+		route := httpRouteFromPattern(r.Pattern)
 		span.SetName(r.Method + " " + route)
 
 		status := rec.status

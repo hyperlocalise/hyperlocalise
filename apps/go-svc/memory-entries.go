@@ -71,50 +71,48 @@ func scanMemoryEntry(row pgx.Row) (memoryEntryRecord, error) {
 	return e, nil
 }
 
-func (api *memoryAPI) memoryEntryRequest(r *http.Request, actor memoryActor, m memoryRecord, rest []string) (any, int, error) {
-	if len(rest) == 0 {
-		switch r.Method {
-		case http.MethodGet:
-			return api.listMemoryEntries(r, m)
-		case http.MethodPost:
-			return api.createMemoryEntry(r, actor, m)
-		default:
-			return memoryMethodNotAllowed()
-		}
-	}
-	if len(rest) == 1 {
-		switch rest[0] {
-		case "export":
-			if r.Method != http.MethodGet {
-				return memoryMethodNotAllowed()
-			}
-			return api.exportMemoryEntries(r, m)
-		case "import":
-			if r.Method != http.MethodPost {
-				return memoryMethodNotAllowed()
-			}
-			return api.importMemoryEntries(r, actor, m)
-		case "promote-from-project":
-			if r.Method != http.MethodPost {
-				return memoryMethodNotAllowed()
-			}
-			return api.promoteMemoryFromProject(r, actor, m)
-		}
-	}
-	if len(rest) != 1 || !validMemoryID(rest[0]) {
+func (api *memoryAPI) listMemoryEntriesHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	return api.listMemoryEntries(r, m)
+}
+
+func (api *memoryAPI) createMemoryEntryHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	return api.createMemoryEntry(r, actor, m)
+}
+
+func (api *memoryAPI) exportMemoryEntriesHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	return api.exportMemoryEntries(r, m)
+}
+
+func (api *memoryAPI) importMemoryEntriesHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	return api.importMemoryEntries(r, actor, m)
+}
+
+func (api *memoryAPI) promoteMemoryFromProjectHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	return api.promoteMemoryFromProject(r, actor, m)
+}
+
+func (api *memoryAPI) getMemoryEntryHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	entryID := r.PathValue("entryId")
+	if !validMemoryID(entryID) {
 		return nil, 0, missingMemory()
 	}
-	entryID := rest[0]
-	switch r.Method {
-	case http.MethodGet:
-		return api.getMemoryEntry(r.Context(), m, entryID)
-	case http.MethodPatch:
-		return api.patchMemoryEntry(r, actor, m, entryID)
-	case http.MethodDelete:
-		return api.deleteMemoryEntry(r.Context(), actor, m, entryID)
-	default:
-		return memoryMethodNotAllowed()
+	return api.getMemoryEntry(r.Context(), m, entryID)
+}
+
+func (api *memoryAPI) patchMemoryEntryHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	entryID := r.PathValue("entryId")
+	if !validMemoryID(entryID) {
+		return nil, 0, missingMemory()
 	}
+	return api.patchMemoryEntry(r, actor, m, entryID)
+}
+
+func (api *memoryAPI) deleteMemoryEntryHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
+	entryID := r.PathValue("entryId")
+	if !validMemoryID(entryID) {
+		return nil, 0, missingMemory()
+	}
+	return api.deleteMemoryEntry(r.Context(), actor, m, entryID)
 }
 
 func (api *memoryAPI) listMemoryEntries(r *http.Request, m memoryRecord) (any, int, error) {

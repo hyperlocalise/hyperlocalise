@@ -91,14 +91,19 @@ func TestDictionaryMembershipFailsClosed(t *testing.T) {
 
 func TestDictionaryWriteRoles(t *testing.T) {
 	for _, role := range []string{"member", "developer", "translator", "reviewer"} {
-		for _, method := range []string{"POST", "PATCH", "DELETE"} {
-			t.Run(role+"/"+method, func(t *testing.T) {
-				api, _ := dictionaryTestAPI(t, role)
-				rec := dictionaryRequestForTest(api, method, testDictionaryBase, `{"name":"Brand"}`)
-				require.Equal(t, 403, rec.Code)
-			})
-		}
+		t.Run(role+"/POST", func(t *testing.T) {
+			api, _ := dictionaryTestAPI(t, role)
+			rec := dictionaryRequestForTest(api, "POST", testDictionaryBase, `{"name":"Brand"}`)
+			require.Equal(t, 403, rec.Code)
+		})
 	}
+	t.Run("collection PATCH DELETE method not allowed", func(t *testing.T) {
+		api := &dictionaryAPI{}
+		for _, method := range []string{"PATCH", "DELETE"} {
+			rec := dictionaryRequestForTest(api, method, testDictionaryBase, `{"name":"Brand"}`)
+			require.Equal(t, http.StatusMethodNotAllowed, rec.Code, method)
+		}
+	})
 	for _, role := range []string{"admin", "localization_manager"} {
 		t.Run(role, func(t *testing.T) {
 			step := dictionaryRowStep("insert into spellcheck_word_libraries", dictionaryRecordValues()...)

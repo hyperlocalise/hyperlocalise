@@ -15,18 +15,18 @@ import (
 
 func TestQaReportSessionAndOrigin(t *testing.T) {
 	for _, tc := range []struct {
-		name, method, cookie, origin, site string
-		status                             int
+		name, method, path, cookie, origin, site string
+		status                                   int
 	}{
-		{name: "missing cookie", method: http.MethodGet, status: 401},
-		{name: "cross origin post", method: http.MethodPost, cookie: "session", origin: "https://evil.example", status: 403},
-		{name: "unconfigured database", method: http.MethodGet, cookie: "session", status: 503},
+		{name: "missing cookie", method: http.MethodGet, path: "/v1/orgs/acme/qa-reports", status: 401},
+		{name: "cross origin post", method: http.MethodPost, path: "/v1/orgs/acme/qa-reports/findings/promote", cookie: "session", origin: "https://evil.example", status: 403},
+		{name: "unconfigured database", method: http.MethodGet, path: "/v1/orgs/acme/qa-reports", cookie: "session", status: 503},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			api := &qaReportAPI{}
 			mux := http.NewServeMux()
 			api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_live"}})
-			req := httptest.NewRequest(tc.method, "/v1/orgs/acme/qa-reports/findings/promote", strings.NewReader(`{"findingIds":[]}`))
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(`{"findingIds":[]}`))
 			if tc.method == http.MethodPost {
 				req.Header.Set("Content-Type", "application/json")
 			}

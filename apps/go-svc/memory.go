@@ -15,7 +15,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/workos/workos-go/v10"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -26,7 +25,7 @@ const (
 
 type memoryAPI struct {
 	pool       dictionaryPool
-	membership func(context.Context, string) (*workos.UserOrganizationMembership, error)
+	membership organizationMembershipLookup
 }
 
 type memoryActor struct{ userID, organizationID, role string }
@@ -109,91 +108,92 @@ func formatMemoryTimePtr(t *time.Time) *string {
 }
 
 func (api *memoryAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
-	for _, path := range []string{
-		"/v1/orgs/{organizationSlug}/translation-memories",
-		"/v1/orgs/{organizationSlug}/translation-memories/{rest...}",
-	} {
-		mux.Handle(path, authMiddleware(verifier)(http.HandlerFunc(api.serveHTTP)))
+	m := orgRoutePrefix + "/translation-memories"
+	route := func(pattern string, fn func(*http.Request, memoryActor) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
+	}
+	owned := func(fn func(*memoryAPI, *http.Request, memoryActor, memoryRecord) (any, int, error)) func(*http.Request, memoryActor) (any, int, error) {
+		return api.withOwnedMemory(fn)
+	}
+	route("GET "+m, bindActor(api, (*memoryAPI).listMemories))
+	route("POST "+m, bindActor(api, (*memoryAPI).createMemory))
+	route("GET "+m+"/{memoryId}", owned((*memoryAPI).getMemoryHandler))
+	route("PATCH "+m+"/{memoryId}", owned((*memoryAPI).patchMemoryHandler))
+	route("DELETE "+m+"/{memoryId}", owned((*memoryAPI).deleteMemoryHandler))
+	route("GET "+m+"/{memoryId}/projects", owned((*memoryAPI).listMemoryProjects))
+	route("POST "+m+"/{memoryId}/projects", owned((*memoryAPI).attachMemoryProject))
+	route("DELETE "+m+"/{memoryId}/projects/{projectId}", owned((*memoryAPI).detachMemoryProject))
+	route("GET "+m+"/{memoryId}/entries", owned((*memoryAPI).listMemoryEntriesHandler))
+	route("POST "+m+"/{memoryId}/entries", owned((*memoryAPI).createMemoryEntryHandler))
+	route("GET "+m+"/{memoryId}/entries/export", owned((*memoryAPI).exportMemoryEntriesHandler))
+	route("POST "+m+"/{memoryId}/entries/import", owned((*memoryAPI).importMemoryEntriesHandler))
+	route("POST "+m+"/{memoryId}/entries/promote-from-project", owned((*memoryAPI).promoteMemoryFromProjectHandler))
+	route("GET "+m+"/{memoryId}/entries/{entryId}", owned((*memoryAPI).getMemoryEntryHandler))
+	route("PATCH "+m+"/{memoryId}/entries/{entryId}", owned((*memoryAPI).patchMemoryEntryHandler))
+	route("DELETE "+m+"/{memoryId}/entries/{entryId}", owned((*memoryAPI).deleteMemoryEntryHandler))
+	route("GET "+m+"/{memoryId}/import-attempts", owned((*memoryAPI).listMemoryImportAttemptsHandler))
+	route("GET "+m+"/{memoryId}/import-attempts/{attemptId}", owned((*memoryAPI).getMemoryImportAttemptHandler))
+	route("GET "+m+"/{memoryId}/import-attempts/{attemptId}/report", owned((*memoryAPI).getMemoryImportAttemptReportHandler))
+}
+
+func (api *memoryAPI) withOwnedMemory(fn func(*memoryAPI, *http.Request, memoryActor, memoryRecord) (any, int, error)) func(*http.Request, memoryActor) (any, int, error) {
+	return func(r *http.Request, actor memoryActor) (any, int, error) {
+		m, err := ownedMemory(r.Context(), api.pool, actor, r.PathValue("memoryId"))
+		if err != nil {
+			return nil, 0, err
+		}
+		return fn(api, r, actor, m)
 	}
 }
 
 func (api *memoryAPI) actor(ctx context.Context, claims AuthClaims, slug string) (memoryActor, error) {
-	var actor memoryActor
-	var membershipID, workosOrg string
-	if strings.HasPrefix(claims.UserID, "invited_user_") {
-		return actor, memoryFailure(403, "organization_access_denied", "Organization access denied")
-	}
-	err := api.pool.QueryRow(ctx, `select u.id, o.id, m.workos_membership_id, o.workos_organization_id
-        from users u join organization_memberships m on m.user_id=u.id join organizations o on o.id=m.organization_id
-        where u.workos_user_id=$1 and o.slug=$2 and o.lifecycle_status='active'
-        and m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing')`, claims.UserID, slug).Scan(&actor.userID, &actor.organizationID, &membershipID, &workosOrg)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return actor, memoryFailure(403, "organization_access_denied", "Organization access denied")
-	}
+	resolved, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, slug)
 	if err != nil {
-		return actor, err
+		return memoryActor{}, mapOrganizationAccessError(err, memoryFailure)
 	}
-	if api.membership == nil {
-		return actor, memoryFailure(503, "workos_membership_lookup_failed", "Organization membership could not be verified")
-	}
-	member, err := api.membership(ctx, membershipID)
-	if err != nil {
-		var apiErr *workos.APIError
-		if errors.As(err, &apiErr) && apiErr.StatusCode == 404 {
-			return actor, memoryFailure(403, "organization_access_denied", "Organization access denied")
-		}
-		return actor, memoryFailure(503, "workos_membership_lookup_failed", "Organization membership could not be verified")
-	}
-	if member == nil || member.ID != membershipID || member.UserID != claims.UserID || member.OrganizationID != workosOrg || member.Status != "active" || member.Role == nil {
-		return actor, memoryFailure(403, "organization_access_denied", "Organization access denied")
-	}
-	switch member.Role.Slug {
-	case "admin", "localization_manager", "member", "developer", "translator", "reviewer":
-		actor.role = member.Role.Slug
-	default:
-		return actor, memoryFailure(403, "organization_access_denied", "Organization access denied")
-	}
-	return actor, nil
+	return memoryActor(resolved), nil
 }
 
-func (api *memoryAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	if denyBrowserMutation(r) {
-		writeMemoryError(w, r, "origin_guard", memoryFailure(403, "forbidden", "Cross-origin request denied"))
-		return
-	}
-	if api.pool == nil {
-		writeMemoryError(w, r, "availability", memoryFailure(503, "memory_unavailable", "Translation memory unavailable"))
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), memoryRequestTimeout)
-	defer cancel()
-	r = r.WithContext(ctx)
-	claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
-	if !ok {
-		writeMemoryError(w, r, "auth", memoryFailure(401, "unauthorized", "Authentication required"))
-		return
-	}
-	actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
-	if err != nil {
-		writeMemoryError(w, r, "resolve_actor", err)
-		return
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, memoryBodyLimit)
-	value, status, err := api.memoryRequest(r, actor)
-	if err != nil {
-		writeMemoryError(w, r, "handle", err)
-		return
-	}
-	if status == 204 {
-		w.WriteHeader(status)
-		return
-	}
-	if download, ok := value.(interchangeDownload); ok {
-		writeInterchangeDownload(w, status, download)
-		return
-	}
-	memoryJSON(w, status, value)
+func (api *memoryAPI) handle(fn func(*http.Request, memoryActor) (any, int, error)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		if denyBrowserMutation(r) {
+			writeMemoryError(w, r, "origin_guard", memoryFailure(403, "forbidden", "Cross-origin request denied"))
+			return
+		}
+		if api.pool == nil {
+			writeMemoryError(w, r, "availability", memoryFailure(503, "memory_unavailable", "Translation memory unavailable"))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), memoryRequestTimeout)
+		defer cancel()
+		r = r.WithContext(ctx)
+		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
+		if !ok {
+			writeMemoryError(w, r, "auth", memoryFailure(401, "unauthorized", "Authentication required"))
+			return
+		}
+		actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
+		if err != nil {
+			writeMemoryError(w, r, "resolve_actor", err)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, memoryBodyLimit)
+		value, status, err := fn(r, actor)
+		if err != nil {
+			writeMemoryError(w, r, "handle", err)
+			return
+		}
+		if status == 204 {
+			w.WriteHeader(status)
+			return
+		}
+		if download, ok := value.(interchangeDownload); ok {
+			writeInterchangeDownload(w, status, download)
+			return
+		}
+		memoryJSON(w, status, value)
+	})
 }
 
 type memoryCapabilityDecision struct {
@@ -376,10 +376,6 @@ func readMemoryBody(r *http.Request, allowed []string, target any) error {
 		return invalidMemory()
 	}
 	return nil
-}
-
-func memoryMethodNotAllowed() (any, int, error) {
-	return nil, 405, memoryFailure(405, "method_not_allowed", "Method not allowed")
 }
 
 func validMemoryID(id string) bool {

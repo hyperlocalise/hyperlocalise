@@ -58,18 +58,23 @@ type glossaryImportDiagnostic struct {
 	Field     *string `json:"field,omitempty"`
 }
 
-func (api *glossaryAPI) glossaryImportReportRequest(r *http.Request, actor glossaryActor, g glossaryRecord, rest []string) (any, int, error) {
-	if len(rest) == 0 || !validGlossaryID(rest[0]) {
-		return nil, 0, missingGlossary()
-	}
-	reportID := rest[0]
-	if len(rest) == 2 && rest[1] == "backup" {
-		return glossaryNotImplemented()
-	}
-	if len(rest) != 1 || r.Method != http.MethodGet {
+func (api *glossaryAPI) exportGlossaryHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	return api.exportGlossary(r, g)
+}
+
+func (api *glossaryAPI) getGlossaryImportReportHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	reportID := r.PathValue("reportId")
+	if !validGlossaryID(reportID) {
 		return nil, 0, missingGlossary()
 	}
 	return api.getGlossaryImportReport(r.Context(), actor, g, reportID)
+}
+
+func (api *glossaryAPI) getGlossaryImportBackupHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	if !validGlossaryID(r.PathValue("reportId")) {
+		return nil, 0, missingGlossary()
+	}
+	return glossaryNotImplemented()
 }
 
 func (api *glossaryAPI) getGlossaryImportReport(ctx context.Context, actor glossaryActor, g glossaryRecord, reportID string) (any, int, error) {

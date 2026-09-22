@@ -283,7 +283,7 @@ func TestActivityLogRejectsNonGet(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
 	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
-	require.Equal(t, 404, rec.Code)
+	require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 }
 
 func TestActivityLogAllowsAdmin(t *testing.T) {

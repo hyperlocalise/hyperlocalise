@@ -100,6 +100,8 @@ func missingIssueSheetIssue() error {
 	return issueSheetFailure(404, "issue_not_found", "Issue not found")
 }
 
+var errIssueSheetUnmatched = errors.New("issue_sheet_unmatched")
+
 func issueSheetJSON(ctx context.Context, w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -128,12 +130,33 @@ func formatIssueSheetTimePtr(t *time.Time) *string {
 }
 
 func (api *issueSheetAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
-	for _, path := range []string{
-		"/v1/orgs/{organizationSlug}/projects/{projectId}/issue-sheet",
-		"/v1/orgs/{organizationSlug}/projects/{projectId}/issue-sheet/{rest...}",
-	} {
-		mux.Handle(path, authMiddleware(verifier)(http.HandlerFunc(api.serveHTTP)))
+	s := orgRoutePrefix + "/projects/{projectId}/issue-sheet"
+	route := func(pattern string, fn func(*http.Request, issueSheetActor, issueSheetProject) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
 	}
+	route("GET "+s, api.listIssuesHandler)
+	route("POST "+s, api.createIssueHandler)
+	route("GET "+s+"/assignable-members", api.listAssignableMembersHandler)
+	route("GET "+s+"/columns", api.listColumnsHandler)
+	route("POST "+s+"/columns", api.createColumnHandler)
+	route("PUT "+s+"/columns/order", api.reorderColumnsHandler)
+	route("GET "+s+"/template-config", api.getTemplateConfigHandler)
+	route("PUT "+s+"/template-config", api.putTemplateConfigHandler)
+	route("GET "+s+"/{issueId}", api.getIssueHandler)
+	route("PATCH "+s+"/{issueId}", api.updateIssueHandler)
+	route("GET "+s+"/{issueId}/feed", api.listFeedHandler)
+	route("GET "+s+"/{issueId}/subscriptions", api.listSubscriptionsHandler)
+	route("POST "+s+"/{issueId}/subscription", api.watchIssueHandler)
+	route("POST "+s+"/{issueId}/comments", api.createCommentHandler)
+	// PATCH/DELETE two-segment patterns overlap (columns/{columnId} vs {issueId}/values
+	// and {issueId}/subscription), so ServeMux cannot register both.
+	route("PATCH "+s+"/{first}/{second}", api.patchTwoSegmentHandler)
+	route("DELETE "+s+"/{first}/{second}", api.deleteTwoSegmentHandler)
+	route("PATCH "+s+"/{issueId}/comments/{commentId}", api.updateCommentHandler)
+	route("DELETE "+s+"/{issueId}/comments/{commentId}", api.deleteCommentHandler)
+	route("GET "+s+"/{issueId}/relationships", api.listRelationshipsHandler)
+	route("POST "+s+"/{issueId}/relationships", api.createRelationshipHandler)
+	route("DELETE "+s+"/{issueId}/relationships/{relationshipId}", api.deleteRelationshipHandler)
 }
 
 func (api *issueSheetAPI) actor(ctx context.Context, claims AuthClaims, slug string) (issueSheetActor, error) {
@@ -183,56 +206,61 @@ func (api *issueSheetAPI) queriesBoardEnabled(ctx context.Context, organizationI
 	return api.autumn.BooleanFeatureEnabled(ctx, organizationID, autumn.QueriesBoard)
 }
 
-func (api *issueSheetAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	if denyBrowserMutation(r) {
-		writeIssueSheetError(w, r, "origin_guard", issueSheetFailure(403, "forbidden", "Cross-origin request denied"))
-		return
-	}
-	if api.pool == nil {
-		writeIssueSheetError(w, r, "availability", issueSheetFailure(503, "issue_sheet_unavailable", "Issue sheet service unavailable"))
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), issueSheetRequestTimeout)
-	defer cancel()
-	r = r.WithContext(ctx)
-	claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
-	if !ok {
-		writeIssueSheetError(w, r, "auth", issueSheetFailure(401, "unauthorized", "Authentication required"))
-		return
-	}
-	actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
-	if err != nil {
-		writeIssueSheetError(w, r, "resolve_actor", err)
-		return
-	}
-	if !actor.canRead() {
-		writeIssueSheetError(w, r, "authorize", issueSheetFailure(403, "forbidden", "Forbidden"))
-		return
-	}
-	if !api.queriesBoardEnabled(ctx, actor.organizationID) {
-		writeIssueSheetError(w, r, "autumn", issueSheetFailure(403, "feature_unavailable", "Queries is not included in your current plan."))
-		return
-	}
+func (api *issueSheetAPI) handle(fn func(*http.Request, issueSheetActor, issueSheetProject) (any, int, error)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		if denyBrowserMutation(r) {
+			writeIssueSheetError(w, r, "origin_guard", issueSheetFailure(403, "forbidden", "Cross-origin request denied"))
+			return
+		}
+		if api.pool == nil {
+			writeIssueSheetError(w, r, "availability", issueSheetFailure(503, "issue_sheet_unavailable", "Issue sheet service unavailable"))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), issueSheetRequestTimeout)
+		defer cancel()
+		r = r.WithContext(ctx)
+		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
+		if !ok {
+			writeIssueSheetError(w, r, "auth", issueSheetFailure(401, "unauthorized", "Authentication required"))
+			return
+		}
+		actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
+		if err != nil {
+			writeIssueSheetError(w, r, "resolve_actor", err)
+			return
+		}
+		if !actor.canRead() {
+			writeIssueSheetError(w, r, "authorize", issueSheetFailure(403, "forbidden", "Forbidden"))
+			return
+		}
+		if !api.queriesBoardEnabled(ctx, actor.organizationID) {
+			writeIssueSheetError(w, r, "autumn", issueSheetFailure(403, "feature_unavailable", "Queries is not included in your current plan."))
+			return
+		}
 
-	projectID := strings.TrimSpace(r.PathValue("projectId"))
-	project, err := api.ownedProject(ctx, actor, projectID)
-	if err != nil {
-		writeIssueSheetError(w, r, "resolve_project", err)
-		return
-	}
+		project, err := api.ownedProject(ctx, actor, strings.TrimSpace(r.PathValue("projectId")))
+		if err != nil {
+			writeIssueSheetError(w, r, "resolve_project", err)
+			return
+		}
 
-	r.Body = http.MaxBytesReader(w, r.Body, issueSheetBodyLimit)
-	value, status, err := api.dispatch(r, actor, project)
-	if err != nil {
-		writeIssueSheetError(w, r, "handle", err)
-		return
-	}
-	if status == http.StatusNoContent {
-		w.WriteHeader(status)
-		return
-	}
-	issueSheetJSON(r.Context(), w, status, value)
+		r.Body = http.MaxBytesReader(w, r.Body, issueSheetBodyLimit)
+		value, status, err := fn(r, actor, project)
+		if errors.Is(err, errIssueSheetUnmatched) {
+			http.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			writeIssueSheetError(w, r, "handle", err)
+			return
+		}
+		if status == http.StatusNoContent {
+			w.WriteHeader(status)
+			return
+		}
+		issueSheetJSON(r.Context(), w, status, value)
+	})
 }
 
 func readIssueSheetBody(r *http.Request, dest any) error {
