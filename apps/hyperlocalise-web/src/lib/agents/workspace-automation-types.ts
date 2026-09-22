@@ -36,7 +36,10 @@ export {
 export const workspaceAutomationStatusSchema = z.enum(["active", "paused", "archived"]);
 
 export const WORKSPACE_AUTOMATION_MODELS = [
-  "openai/gpt-5.6-luna",
+  "openai/gpt-6-luna",
+  "openai/gpt-6-astra",
+  "openai/gpt-6-sol",
+  "openai/gpt-6-luna",
   "openai/gpt-5.6-terra",
   "openai/gpt-5.6-sol",
   "anthropic/claude-sonnet-5",
@@ -45,7 +48,7 @@ export const WORKSPACE_AUTOMATION_MODELS = [
 
 export type WorkspaceAutomationModel = (typeof WORKSPACE_AUTOMATION_MODELS)[number];
 
-export const DEFAULT_WORKSPACE_AUTOMATION_MODEL: WorkspaceAutomationModel = "openai/gpt-5.6-luna";
+export const DEFAULT_WORKSPACE_AUTOMATION_MODEL: WorkspaceAutomationModel = "openai/gpt-6-luna";
 
 export const workspaceAutomationModelSchema = z.enum(WORKSPACE_AUTOMATION_MODELS);
 

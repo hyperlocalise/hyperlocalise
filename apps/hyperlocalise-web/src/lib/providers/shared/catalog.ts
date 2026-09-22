@@ -28,9 +28,12 @@ export const llmProviderContentEditoralog = {
   openai: {
     label: "OpenAI",
     models: [
+      "gpt-6-luna",
+      "gpt-6-astra",
+      "gpt-6-sol",
       "gpt-5.6-sol",
       "gpt-5.6-terra",
-      "gpt-5.6-luna",
+      "gpt-6-luna",
       "gpt-5.5",
       "gpt-5.5-pro",
       "gpt-5.4",

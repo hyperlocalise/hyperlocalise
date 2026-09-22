@@ -57,7 +57,7 @@ function session(
     toolConfig: overrides.toolConfig ?? {
       slack: { enabled: true, channelId: "C123" },
     },
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-6-luna",
     configVersion: 1,
     nextRunAt: null,
     createdAt: new Date().toISOString(),

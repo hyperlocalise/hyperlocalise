@@ -25,7 +25,7 @@ Resolve language models in `src/lib/providers/language-model.ts` and
 | Managed | No org BYOK credential | AI SDK Gateway model string | Vercel OIDC on deploy |
 | BYOK | Latest org credential | `createAnthropic`, `createOpenAI`, or OpenAI-compatible | Decrypted org key |
 
-Managed calls pass a Gateway model id, for example `openai/gpt-5.6-luna`
+Managed calls pass a Gateway model id, for example `openai/gpt-6-luna`
 (`hyperlocaliseManagedGatewayModelId`). The AI SDK default provider is Vercel
 AI Gateway, so no `AI_GATEWAY_API_KEY` or `createGateway({ apiKey })` is
 required on Vercel. BYOK keeps the catalog model name the org selected.

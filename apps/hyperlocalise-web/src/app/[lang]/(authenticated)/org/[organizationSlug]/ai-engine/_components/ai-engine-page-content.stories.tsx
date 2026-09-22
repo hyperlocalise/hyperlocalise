@@ -85,7 +85,7 @@ export const Disconnected: Story = {
     await expect(canvas.getByText("Managed by Hyperlocalise")).toBeInTheDocument();
     await expect(canvas.getByText("Always available")).toBeInTheDocument();
     await expect(canvas.getByText("Included")).toBeInTheDocument();
-    await expect(canvas.getByText("gpt-5.6-luna")).toBeInTheDocument();
+    await expect(canvas.getByText("gpt-6-luna")).toBeInTheDocument();
     await expect(canvas.queryByText("Connected")).not.toBeInTheDocument();
     await expect(canvas.getAllByText("Configure").length).toBe(3);
   },

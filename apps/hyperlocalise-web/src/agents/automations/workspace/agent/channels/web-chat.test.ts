@@ -98,7 +98,7 @@ function automation(overrides?: Partial<WorkspaceAutomationRecord>): WorkspaceAu
     status: "active",
     name: "Support bot",
     instructions: "Answer product questions.",
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-6-luna",
     projectId: null,
     triggerConfig: { mode: "manual" },
     repositoryTarget: { kind: "none" },

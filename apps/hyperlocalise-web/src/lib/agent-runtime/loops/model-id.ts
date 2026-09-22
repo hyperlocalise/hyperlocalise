@@ -11,4 +11,4 @@
  * Version 2.0 or later.
  */
 /** Lightweight model id for config writers and workflows (no SDK / env imports). */
-export const hyperlocaliseAgentModelId = "gpt-5.6-luna";
+export const hyperlocaliseAgentModelId = "gpt-6-luna";

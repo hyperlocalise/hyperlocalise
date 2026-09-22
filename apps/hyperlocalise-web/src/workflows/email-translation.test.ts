@@ -118,7 +118,7 @@ describe("email translation temporary config", () => {
       const config = buildTempConfig("source.json", "target.json", "en", "fr", null);
 
       expect(config).toContain("provider: ai_gateway");
-      expect(config).toContain("model: openai/gpt-5.6-luna");
+      expect(config).toContain("model: openai/gpt-6-luna");
     });
   });
 
