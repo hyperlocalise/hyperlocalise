@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 
@@ -36,6 +37,8 @@ import {
   useSyncCatSegmentTargetAfterSave,
 } from "./use-content-editor-segment-target";
 import { useContentEditorMutationsMessages } from "./use-content-editor-mutations.messages";
+
+const INLINE_QUEUE_REFRESH_DELAY_MS = 750;
 
 function resolveCatMutationFileIdentity(
   input: {
@@ -89,12 +92,30 @@ export function useContentEditorMutations(input: {
   const syncSegmentTargetAfterSave = useSyncCatSegmentTargetAfterSave();
   const invalidateSegmentComments = useInvalidateCatSegmentComments();
 
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRefreshes = useRef(new Set<() => Promise<void>>());
+  const flushQueueRefreshes = () => {
+    refreshTimer.current = null;
+    for (const refresh of pendingRefreshes.current) void refresh().catch(() => undefined);
+    pendingRefreshes.current.clear();
+  };
+  useEffect(
+    () => () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      for (const refresh of pendingRefreshes.current) void refresh().catch(() => undefined);
+      pendingRefreshes.current.clear();
+    },
+    [],
+  );
+
   const saveMutation = useMutation({
     mutationFn: async (mutationInput: {
       externalStringId: string;
       text: string;
       approve?: boolean;
       deferQueueRefresh?: boolean;
+      targetLocale?: string;
+      coalesceQueueRefresh?: boolean;
     }) => {
       const segment = input.contentEditorFile?.segments.find(
         (entry) => entry.externalStringId === mutationInput.externalStringId,
@@ -121,7 +142,7 @@ export function useContentEditorMutations(input: {
         },
         json: {
           sourcePath,
-          targetLocale: input.targetLocale,
+          targetLocale: mutationInput.targetLocale ?? input.targetLocale,
           externalStringId: mutationInput.externalStringId,
           externalResourceId,
           text: mutationInput.text,
@@ -159,14 +180,18 @@ export function useContentEditorMutations(input: {
         sourcePath,
         externalResourceId,
         resourceType,
-        targetLocale: input.targetLocale,
+        targetLocale: variables.targetLocale ?? input.targetLocale,
         externalStringId: variables.externalStringId,
       };
 
       // Reconcile the saved target before releasing the mutation, but never wait for
       // unrelated reads. Bulk operations refresh the queue once when complete.
       await syncSegmentTargetAfterSave(segmentTargetInput, translation);
-      if (!variables.deferQueueRefresh) {
+      if (variables.coalesceQueueRefresh) {
+        pendingRefreshes.current.add(input.invalidateQueue);
+        if (refreshTimer.current) clearTimeout(refreshTimer.current);
+        refreshTimer.current = setTimeout(flushQueueRefreshes, INLINE_QUEUE_REFRESH_DELAY_MS);
+      } else if (!variables.deferQueueRefresh) {
         void input.invalidateQueue().catch(() => undefined);
       }
     },

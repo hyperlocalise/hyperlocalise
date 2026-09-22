@@ -159,7 +159,7 @@ export function useContentEditorSegmentQuery(input: {
         sortBucketOffset: pagePagination.nextSortBucketOffset,
       };
     },
-    queryFn: ({ pageParam }) =>
+    queryFn: ({ pageParam, signal }) =>
       fetchProjectFileContentEditorQueuePage({
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
@@ -171,6 +171,7 @@ export function useContentEditorSegmentQuery(input: {
         queueFilter: serverQueueFilter,
         queueSort,
         limit,
+        signal,
         offset: pageParam.offset,
         phraseScanPage: pageParam.phraseScanPage,
         phraseScanSkip: pageParam.phraseScanSkip,

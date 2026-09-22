@@ -160,6 +160,45 @@ describe("useContentEditorMutations", () => {
     );
   });
 
+  it("saves an inline cell to its language and only reconciles that target cache", async () => {
+    const translation = createCatTranslation();
+    contentEditorTranslationsPostMock.mockResolvedValue(jsonResponse({ translation }));
+    const { result } = renderCatMutations();
+    await act(async () => {
+      await result.current.saveTranslation({
+        externalStringId: "segment-1",
+        text: "Hallo",
+        targetLocale: "de",
+        deferQueueRefresh: true,
+      });
+    });
+    expect(contentEditorTranslationsPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({ targetLocale: "de", text: "Hallo" }),
+      }),
+    );
+    expect(syncSegmentTargetAfterSaveMock).toHaveBeenCalledWith(
+      expect.objectContaining({ targetLocale: "de" }),
+      translation,
+    );
+    expect(invalidateQueue).not.toHaveBeenCalled();
+  });
+
+  it("coalesces rapid inline saves into one queue refresh", async () => {
+    vi.useFakeTimers();
+    try {
+      contentEditorTranslationsPostMock.mockResolvedValue(jsonResponse({ translation: createCatTranslation() }));
+      const { result } = renderCatMutations();
+      await act(async () => {
+        await result.current.saveTranslation({ externalStringId: "segment-1", text: "first", coalesceQueueRefresh: true });
+        await result.current.saveTranslation({ externalStringId: "segment-1", text: "second", coalesceQueueRefresh: true });
+      });
+      expect(invalidateQueue).not.toHaveBeenCalled();
+      await act(async () => { await vi.advanceTimersByTimeAsync(750); });
+      expect(invalidateQueue).toHaveBeenCalledTimes(1);
+    } finally { vi.useRealTimers(); }
+  });
+
   it("finishes a saved write even while queue reconciliation is pending", async () => {
     contentEditorTranslationsPostMock.mockResolvedValue(
       jsonResponse({ translation: createCatTranslation() }),

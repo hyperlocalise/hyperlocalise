@@ -181,16 +181,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           hasMore={hasMoreQueue}
           isLoadingMore={isQueueFetchingPage}
           onLoadMore={onLoadMoreQueue}
-          onOpenTranslation={(segment, locale) => {
-            store.attemptPageNavigation(() => {
-              store.ui.setViewMode("comfortable");
-              if (locale === store.fileContext.targetLocale) {
-                dependencies.navigation.onSelectSegment(segment.id);
-              } else {
-                multilingual.onOpenTranslation?.(segment, locale);
-              }
-            });
-          }}
+          drafts={store.multilingualDrafts}
         />
       </div>
     );

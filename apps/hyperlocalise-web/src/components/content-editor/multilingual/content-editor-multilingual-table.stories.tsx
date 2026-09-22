@@ -105,6 +105,7 @@ const meta = {
   ],
   args: {
     config: {
+      onSaveTranslation: fn().mockResolvedValue(undefined),
       organizationSlug: "demo",
       projectId: "demo",
       sourcePath: "messages.json",
