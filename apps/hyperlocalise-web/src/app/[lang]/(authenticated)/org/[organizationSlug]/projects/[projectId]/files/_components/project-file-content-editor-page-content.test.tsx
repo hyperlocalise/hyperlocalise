@@ -316,7 +316,9 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
     const user = userEvent.setup();
     await user.click(screen.getAllByRole("button", { name: "pricing.json" })[0]);
     // Next's native-history integration notifies useSearchParams; emulate that notification.
-    act(() => { window.dispatchEvent(new PopStateEvent("popstate")); });
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
     await waitFor(() =>
       expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
         "data-source-path",
