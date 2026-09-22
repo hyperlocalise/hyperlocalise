@@ -76,3 +76,5 @@ jobs:
           ecs-cluster: ${{ steps.params.outputs.ecs-cluster }}
           image: ${{ steps.build.outputs.image }}
           container-name: go-svc
+          awslogs-group: /aws/ecs/go-svc
+          awslogs-region: ${{ env.AWS_REGION }}

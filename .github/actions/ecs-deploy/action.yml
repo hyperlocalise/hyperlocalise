@@ -14,6 +14,12 @@ inputs:
   container-name:
     description: Container name inside the task definition to update
     required: true
+  awslogs-group:
+    description: CloudWatch Logs group for container stdout and stderr
+    required: true
+  awslogs-region:
+    description: AWS region for the CloudWatch Logs driver
+    required: true
   task-definition-file:
     description: Working file for the downloaded task definition
     default: task-definition.json
@@ -38,6 +44,9 @@ runs:
       env:
         ECS_SERVICE: ${{ inputs.ecs-service }}
         ECS_CLUSTER: ${{ inputs.ecs-cluster }}
+        CONTAINER_NAME: ${{ inputs.container-name }}
+        AWSLOGS_GROUP: ${{ inputs.awslogs-group }}
+        AWSLOGS_REGION: ${{ inputs.awslogs-region }}
         TASK_DEFINITION_FILE: ${{ inputs.task-definition-file }}
       with:
         script: |
@@ -71,6 +80,19 @@ runs:
           for (const key of ['taskDefinitionArn', 'revision', 'status', 'registeredAt', 'registeredBy', 'compatibilities', 'requiresAttributes']) {
             delete taskDefinition[key];
           }
+          const container = taskDefinition.containerDefinitions?.find((item) => item.name === process.env.CONTAINER_NAME);
+          if (!container) {
+            core.setFailed(`Container ${process.env.CONTAINER_NAME} not found in deployed task definition ${deployedArn}`);
+            return;
+          }
+          container.logConfiguration = {
+            logDriver: 'awslogs',
+            options: {
+              'awslogs-group': process.env.AWSLOGS_GROUP,
+              'awslogs-region': process.env.AWSLOGS_REGION,
+              'awslogs-stream-prefix': 'ecs',
+            },
+          };
           require('fs').writeFileSync(process.env.TASK_DEFINITION_FILE, `${JSON.stringify(taskDefinition)}\n`);
 
     - name: Render task definition with new image
@@ -103,6 +125,7 @@ runs:
         ECS_CLUSTER: ${{ inputs.ecs-cluster }}
         CONTAINER_NAME: ${{ inputs.container-name }}
         EXPECTED_IMAGE: ${{ inputs.image }}
+        EXPECTED_LOG_GROUP: ${{ inputs.awslogs-group }}
       with:
         script: |
           async function capture(args) {
@@ -142,6 +165,11 @@ runs:
           }
           if (container.image !== process.env.EXPECTED_IMAGE) {
             core.setFailed(`Deployed image mismatch: service runs ${container.image}, expected ${process.env.EXPECTED_IMAGE} (deployed revision ${service.taskDefinition} may have rolled back)`);
+            return;
+          }
+          const logConfiguration = container.logConfiguration;
+          if (logConfiguration?.logDriver !== 'awslogs' || logConfiguration.options?.['awslogs-group'] !== process.env.EXPECTED_LOG_GROUP) {
+            core.setFailed(`Deployed container ${process.env.CONTAINER_NAME} is not configured for CloudWatch Logs group ${process.env.EXPECTED_LOG_GROUP}`);
             return;
           }
           core.info(`Verified ${process.env.CONTAINER_NAME} runs ${container.image}`);
