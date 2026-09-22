@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
+	gosvcvalkey "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/valkey"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/spellcheck"
@@ -47,6 +48,7 @@ type handler struct {
 	teams        *teamAPI
 	issueSheets  *issueSheetAPI
 	activityLogs *activityLogAPI
+	valkey       *gosvcvalkey.Client
 }
 
 func newHandler() *handler {
