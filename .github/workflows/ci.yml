@@ -33,8 +33,12 @@ jobs:
           make fmt
           git diff --exit-code
 
+      # Keep version in sync with Makefile golangci_lint_version.
       - name: Lint
-        run: make lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.12.2
+          args: ./...
 
   action-self-test:
     name: Action Self Test

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 name: Go bootstrap
-description: Setup Go toolchain and bootstrap deps
+description: Setup Go toolchain and restore module cache
 inputs:
   go-version-file:
     description: Path to the go.mod file
@@ -13,6 +13,6 @@ runs:
       with:
         go-version-file: ${{ inputs.go-version-file }}
         cache: true
-    - name: Bootstrap dependencies
-      run: make bootstrap
+    - name: Download modules
+      run: go mod download
       shell: bash
