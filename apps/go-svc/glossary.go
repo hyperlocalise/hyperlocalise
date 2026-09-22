@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -149,19 +148,9 @@ func (api *glossaryAPI) actor(ctx context.Context, claims AuthClaims, slug strin
 
 func (api *glossaryAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		origin := r.Header.Get("Origin")
-		if origin != "" {
-			parsed, err := url.Parse(origin)
-			if err != nil || parsed.Host != r.Host || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-				writeGlossaryError(w, r, "origin_guard", glossaryFailure(403, "forbidden", "Cross-origin request denied"))
-				return
-			}
-		}
-		if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
-			writeGlossaryError(w, r, "origin_guard", glossaryFailure(403, "forbidden", "Cross-origin request denied"))
-			return
-		}
+	if denyBrowserMutation(r) {
+		writeGlossaryError(w, r, "origin_guard", glossaryFailure(403, "forbidden", "Cross-origin request denied"))
+		return
 	}
 	if api.pool == nil {
 		writeGlossaryError(w, r, "availability", glossaryFailure(503, "glossary_unavailable", "Glossary service unavailable"))

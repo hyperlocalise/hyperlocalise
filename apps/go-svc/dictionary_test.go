@@ -24,6 +24,8 @@ func TestDictionarySessionAndOrigin(t *testing.T) {
 		{name: "cross origin", cookie: "session", origin: "https://evil.example", status: 403},
 		{name: "opaque origin", cookie: "session", origin: "null", status: 403},
 		{name: "cross site", cookie: "session", site: "cross-site", status: 403},
+		{name: "web origin", cookie: "session", origin: "https://hyperlocalise.com", status: 503},
+		{name: "us spelling origin", cookie: "session", origin: "https://hyperlocalize.com", site: "cross-site", status: 503},
 		{name: "unconfigured database", cookie: "session", status: 503},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

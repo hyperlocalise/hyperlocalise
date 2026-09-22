@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -185,19 +184,9 @@ func (api *dictionaryAPI) actor(ctx context.Context, claims AuthClaims, slug str
 
 func (api *dictionaryAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		origin := r.Header.Get("Origin")
-		if origin != "" {
-			parsed, err := url.Parse(origin)
-			if err != nil || parsed.Host != r.Host || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-				writeDictionaryError(w, r, "origin_guard", dictionaryFailure(403, "forbidden", "Cross-origin request denied"))
-				return
-			}
-		}
-		if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
-			writeDictionaryError(w, r, "origin_guard", dictionaryFailure(403, "forbidden", "Cross-origin request denied"))
-			return
-		}
+	if denyBrowserMutation(r) {
+		writeDictionaryError(w, r, "origin_guard", dictionaryFailure(403, "forbidden", "Cross-origin request denied"))
+		return
 	}
 	if api.pool == nil {
 		writeDictionaryError(w, r, "availability", dictionaryFailure(503, "dictionary_unavailable", "Dictionary service unavailable"))

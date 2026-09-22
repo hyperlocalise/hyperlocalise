@@ -62,6 +62,32 @@ func TestValidateSegmentUnauthorized(t *testing.T) {
 	require.Equal(t, "unauthorized", body["error"])
 }
 
+func TestValidateSegmentOriginGuard(t *testing.T) {
+	h := newHandler()
+	mux := http.NewServeMux()
+	mux.Handle(
+		"POST /v1/validate/segment",
+		authMiddleware(mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
+	)
+
+	denied := httptest.NewRecorder()
+	deniedReq := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(`{}`))
+	deniedReq.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	deniedReq.Header.Set("Origin", "https://evil.example")
+	mux.ServeHTTP(denied, deniedReq)
+	require.Equal(t, http.StatusForbidden, denied.Code)
+
+	allowed := httptest.NewRecorder()
+	allowedReq := httptest.NewRequest(http.MethodPost, "http://api.hyperlocalise.com/v1/validate/segment", bytes.NewBufferString(
+		`{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json"}`,
+	))
+	allowedReq.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	allowedReq.Header.Set("Origin", "https://hyperlocalize.com")
+	allowedReq.Header.Set("Sec-Fetch-Site", "cross-site")
+	mux.ServeHTTP(allowed, allowedReq)
+	require.Equal(t, http.StatusOK, allowed.Code)
+}
+
 func TestRegisterRoutesServesStrippedPaths(t *testing.T) {
 	h := newHandler()
 	mux := http.NewServeMux()
