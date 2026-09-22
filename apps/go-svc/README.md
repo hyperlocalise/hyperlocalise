@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs (parallel to Hono), and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public routes are served at `/api/go-svc/...` in production (Vercel rewrite) and at `/v1/...` or `/ofrep/...` when called directly via the `GO_SVC_URL` binding.
 
@@ -204,7 +204,48 @@ For tracing, set `OTEL_EXPORTER_OTLP_ENDPOINT` in the `go_svc` service environme
 | `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 
-Authenticated CAT requests must include either the `wos-session` cookie from a signed-in Hyperlocalise user or `Authorization: Bearer` with that session's WorkOS access-token JWT. go-svc verifies Bearer tokens against the WorkOS JWKS for `WORKOS_CLIENT_ID` (`sub` is the user, `sid` is required). Agent JWTs are not accepted. If both a cookie and a Bearer token are present, the cookie wins. Research routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
+## Content editor (CAT)
+
+Parallel native CAT API. Hono routes under `/api/orgs/{organizationSlug}/projects/{projectId}/files/detail/cat` remain the live browser path. go-svc exposes the same JSON contracts at `/api/go-svc/v1/orgs/{organizationSlug}/projects/{projectId}/files/detail/cat` for a later cutover. Auth matches dictionary routes. Native projects only; connected TMS CAT stays on Hono (`501 provider_cat_deferred`).
+
+All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId}`:
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/files/detail/cat/queue` | Paginated native CAT queue |
+| GET | `/files/detail/cat` | Same payload as queue (`contentEditorFile`) |
+| GET | `/files/detail/cat/activity-logs` | File-segment activity for a source path |
+| GET | `/files/detail/cat/segments/{id}/target` | Segment translation |
+| GET | `/files/detail/cat/segments/{id}/comments` | Segment comments |
+| POST | `/files/detail/cat/translations` | Save draft or approved translation |
+| PATCH | `/files/detail/cat/translations/status` | Update translation status |
+| POST | `/files/detail/cat/comments` | Add a comment |
+| PATCH | `/files/detail/cat/comments/{id}/resolve` | Resolve a legacy native issue comment |
+| POST | `/files/detail/cat/concordance` | Native glossary + TM lookup |
+| POST | `/files/detail/cat/strings/hidden` | Hide or unhide keys |
+| POST | `/files/detail/cat/strings/locked` | Lock or unlock segments |
+| POST | `/files/detail/cat/segments/{id}/max-length` | Set key max length |
+| PATCH | `/files/detail/cat/images/status` | Update image/video variant status |
+| POST | `/files/detail/cat/segments/{id}/treat-as-image` | Toggle image-URL content kind |
+| POST | `/files/detail/cat/segments/{id}/treat-as-video` | Toggle video-URL content kind |
+| POST | `/files/string-context` | Cached repository context only (`cachedOnly: true`) |
+
+### Deferred CAT routes (Hono remains canonical)
+
+These return `501` with a stable error code. Browser clients keep calling Hono.
+
+| Method | Path | Error | Why it stays on Hono |
+|--------|------|-------|----------------------|
+| POST | `/files/detail/cat/images/regenerate` | `image_regenerate_deferred` | Vercel Workflow + Blob-backed stored files |
+| POST | `/files/detail/cat/images/upload` | `image_upload_deferred` | Vercel Blob file adapter |
+| POST | `/files/detail/cat/recommendation` | `ai_recommendation_deferred` | Vercel AI Gateway / AI SDK |
+| POST | `/files/detail/cat/visual-context` | `visual_context_deferred` | Live TMS screenshot adapters |
+| POST | `/files/string-context` without `cachedOnly` | `string_context_deferred` | Vercel Workflow repository agent |
+| * | Provider/TMS CAT (`projects.source != native`) | `provider_cat_deferred` | TypeScript TMS provider adapters |
+
+Authenticated CAT requests use the same WorkOS session cookie or Bearer access token as dictionary routes. They do not need `X-Go-Svc-Research-Token`.
+
+Authenticated requests must include either the `wos-session` cookie from a signed-in Hyperlocalise user or `Authorization: Bearer` with that session's WorkOS access-token JWT. go-svc verifies Bearer tokens against the WorkOS JWKS for `WORKOS_CLIENT_ID` (`sub` is the user, `sid` is required). Agent JWTs are not accepted. If both a cookie and a Bearer token are present, the cookie wins. Research routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
 
 Browser callers from `https://hyperlocalise.com` and `https://hyperlocalize.com` (and `www`) may call session-auth `/v1` routes on `https://api.hyperlocalise.com`. Those origins receive CORS headers; mutating requests from other origins are rejected. Same-host `/api/go-svc` rewrites still pass the origin guard. Extra origins can be listed in `GO_SVC_CORS_ORIGINS`. CORS does not allow credentials: the web `GoSvcClient` sends a Bearer token and omits cookies.
 
