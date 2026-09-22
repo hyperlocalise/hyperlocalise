@@ -101,7 +101,20 @@ func parseBrowserOrigin(origin string) (*url.URL, bool) {
 }
 
 func canonicalOrigin(parsed *url.URL) string {
-	return strings.ToLower(parsed.Scheme) + "://" + strings.ToLower(parsed.Host)
+	scheme := strings.ToLower(parsed.Scheme)
+	hostname := strings.ToLower(parsed.Hostname())
+	port := parsed.Port()
+	if port == "" || isDefaultOriginPort(scheme, port) {
+		if strings.Contains(hostname, ":") {
+			return scheme + "://[" + hostname + "]"
+		}
+		return scheme + "://" + hostname
+	}
+	return scheme + "://" + net.JoinHostPort(hostname, port)
+}
+
+func isDefaultOriginPort(scheme, port string) bool {
+	return (scheme == "https" && port == "443") || (scheme == "http" && port == "80")
 }
 
 func isLoopbackOrigin(parsed *url.URL) bool {

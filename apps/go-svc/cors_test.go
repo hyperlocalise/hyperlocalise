@@ -9,7 +9,7 @@ import (
 )
 
 func TestAllowedBrowserOrigin(t *testing.T) {
-	t.Setenv("GO_SVC_CORS_ORIGINS", "https://preview.example:443")
+	t.Setenv("GO_SVC_CORS_ORIGINS", "https://preview.example:443,http://legacy.example:80,https://custom.example:8443")
 
 	for _, tc := range []struct {
 		name, origin, host string
@@ -20,7 +20,11 @@ func TestAllowedBrowserOrigin(t *testing.T) {
 		{name: "www web", origin: "https://www.hyperlocalise.com", host: "api.hyperlocalise.com", allowed: true},
 		{name: "same host rewrite", origin: "https://hyperlocalise.com", host: "hyperlocalise.com", allowed: true},
 		{name: "loopback", origin: "http://localhost:3000", host: "127.0.0.1:8080", allowed: true},
-		{name: "extra env origin", origin: "https://preview.example:443", host: "api.hyperlocalise.com", allowed: true},
+		{name: "extra env origin omits default https port", origin: "https://preview.example", host: "api.hyperlocalise.com", allowed: true},
+		{name: "extra env origin with default https port", origin: "https://preview.example:443", host: "api.hyperlocalise.com", allowed: true},
+		{name: "extra env origin omits default http port", origin: "http://legacy.example", host: "api.hyperlocalise.com", allowed: true},
+		{name: "extra env origin keeps non-default port", origin: "https://custom.example:8443", host: "api.hyperlocalise.com", allowed: true},
+		{name: "extra env origin without non-default port", origin: "https://custom.example", host: "api.hyperlocalise.com", allowed: false},
 		{name: "evil", origin: "https://evil.example", host: "api.hyperlocalise.com", allowed: false},
 		{name: "opaque", origin: "null", host: "api.hyperlocalise.com", allowed: false},
 		{name: "empty", origin: "", host: "api.hyperlocalise.com", allowed: false},
@@ -82,4 +86,13 @@ func TestCORSMiddleware(t *testing.T) {
 	require.Equal(t, http.StatusOK, getRec.Code)
 	require.Equal(t, "https://hyperlocalize.com", getRec.Header().Get("Access-Control-Allow-Origin"))
 	require.Contains(t, getRec.Header().Get("Access-Control-Expose-Headers"), "X-Export-Extension")
+
+	t.Setenv("GO_SVC_CORS_ORIGINS", "https://preview.example:443")
+	preview := httptest.NewRequest(http.MethodOptions, "http://api.hyperlocalise.com/v1/orgs/acme/teams", nil)
+	preview.Header.Set("Origin", "https://preview.example")
+	preview.Header.Set("Access-Control-Request-Method", "POST")
+	previewRec := httptest.NewRecorder()
+	handler.ServeHTTP(previewRec, preview)
+	require.Equal(t, http.StatusNoContent, previewRec.Code)
+	require.Equal(t, "https://preview.example", previewRec.Header().Get("Access-Control-Allow-Origin"))
 }
