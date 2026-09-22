@@ -75,6 +75,7 @@ import {
 import {
   createContentEditorLoadingWorkspaceState,
   projectFileCatToWorkspaceState,
+  resolveCatFileIdentity,
 } from "./project-file-content-editor-mapper";
 import { projectFileCatWorkspaceMessages } from "./project-file-content-editor-workspace.messages";
 import { fetchCatSegmentValidation } from "./project-file-content-editor-validation";
@@ -110,6 +111,7 @@ export function ProjectFileContentEditorWorkspace({
   resourceType,
   targetLocale: targetLocaleProp,
   targetLocales,
+  onOpenTranslationLocale,
   highlightLocale = null,
   repositoryFullName = null,
   canLookupFreshContext = true,
@@ -131,6 +133,7 @@ export function ProjectFileContentEditorWorkspace({
   resourceType?: "file" | "key";
   targetLocale?: string;
   targetLocales?: string[];
+  onOpenTranslationLocale?: (locale: string, segmentKey: string) => void;
   highlightLocale?: string | null;
   repositoryFullName?: string | null;
   canLookupFreshContext?: boolean;
@@ -151,6 +154,7 @@ export function ProjectFileContentEditorWorkspace({
     aiFeaturesAccess.status === "denied"
       ? { organizationSlug, href: buildAvailablePlansHref(organizationSlug) }
       : null;
+  const [openedSegmentKey, setOpenedSegmentKey] = useState<string | null>(null);
   const [linkedIssuesOpen, setLinkedIssuesOpen] = useState(false);
   const [linkedIssuesSegment, setLinkedIssuesSegment] =
     useState<ContentEditorLinkedIssueSegmentContext | null>(null);
@@ -764,6 +768,48 @@ export function ProjectFileContentEditorWorkspace({
     [intl, organizationSlug, projectId, sourcePath, targetLocale],
   );
 
+  const multilingual = useMemo(
+    () => ({
+      organizationSlug,
+      projectId,
+      sourcePath,
+      sourceLocale,
+      targetLocales:
+        targetLocaleProp && !onOpenTranslationLocale
+          ? [targetLocale]
+          : [...new Set([targetLocale, ...(targetLocales ?? [])].filter(Boolean))],
+      ...resolveCatFileIdentity({ externalResourceId, resourceType, contentEditorFile }),
+      identities: new Map(
+        contentEditorFile?.segments.map((segment) => [segment.externalStringId, segment]),
+      ),
+      onOpenTranslation: (segment: ContentEditorSegment, locale: string) => {
+        setOpenedSegmentKey(segment.key);
+        setSearch(segment.key);
+        setQueueFilter("all");
+        if (onOpenTranslationLocale) {
+          onOpenTranslationLocale(locale, segment.key);
+        } else {
+          setTargetLocaleState(locale);
+        }
+      },
+    }),
+    [
+      organizationSlug,
+      projectId,
+      sourcePath,
+      sourceLocale,
+      targetLocaleProp,
+      onOpenTranslationLocale,
+      targetLocale,
+      targetLocales,
+      externalResourceId,
+      resourceType,
+      contentEditorFile,
+      setSearch,
+      setQueueFilter,
+    ],
+  );
+
   if (showLocaleSelector && (targetLocales?.length ?? 0) === 0) {
     return (
       <TypographyP size="small" tone="subtle">
@@ -871,6 +917,7 @@ export function ProjectFileContentEditorWorkspace({
 
         <AiFeaturesUpgradeHrefProvider value={upgradePlanHref}>
           <ContentEditorWorkspaceContainer
+            multilingual={multilingual}
             initialState={workspaceForRender}
             queueSnapshot={workspaceState}
             fileScopeKey={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
@@ -951,7 +998,7 @@ export function ProjectFileContentEditorWorkspace({
               onBulkLock: (segmentIds: string[]) => handleSetStringsLocked(segmentIds, true),
               onBulkUnlock: (segmentIds: string[]) => handleSetStringsLocked(segmentIds, false),
             }}
-            initialSegmentKeyOrId={initialSegmentKey}
+            initialSegmentKeyOrId={openedSegmentKey ?? initialSegmentKey}
             buildSegmentShareUrl={buildSegmentShareUrl}
             queueSearch={search}
             onQueueSearchChange={setSearch}

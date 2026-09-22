@@ -28,6 +28,8 @@ export class ContentEditorWorkspaceUiStore {
   visibleSideBySideSegmentIds: string[] = [];
   /** Rendered side-by-side rows, including overscan. Used to fetch translations. */
   loadSideBySideSegmentIds: string[] = [];
+  /** True when the workspace was given a multilingual table configuration. */
+  multilingualViewAvailable = false;
   // Explicit initial modes (e.g. marketing demos) must not overwrite the
   // visitor's real CAT workspace preference.
   #persistViewMode: boolean;
@@ -80,5 +82,12 @@ export class ContentEditorWorkspaceUiStore {
 
   setTranslationViewLoading(loading: boolean) {
     this.translationViewLoading = loading;
+  }
+
+  setMultilingualViewAvailable(available: boolean) {
+    if (this.multilingualViewAvailable === available) {
+      return;
+    }
+    this.multilingualViewAvailable = available;
   }
 }

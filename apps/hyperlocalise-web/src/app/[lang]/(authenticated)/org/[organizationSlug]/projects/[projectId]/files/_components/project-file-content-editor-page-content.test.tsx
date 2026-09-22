@@ -27,7 +27,9 @@ const {
   repositoriesGetMock,
   ProjectFileContentEditorWorkspaceMock,
   projectFilesTreeMock,
+  routerPushMock,
 } = vi.hoisted(() => ({
+  routerPushMock: vi.fn(),
   useProjectPageQueryMock: vi.fn(),
   useAppShellSidebarMock: vi.fn(),
   fetchProjectFilesMock: vi.fn(),
@@ -43,6 +45,7 @@ const {
       sourcePath: string;
       targetLocale: string;
       targetLocales?: string[];
+      onOpenTranslationLocale?: (locale: string, key: string) => void;
     }) => (
       <div
         data-testid="content-editor-workspace"
@@ -94,7 +97,7 @@ vi.mock("./project-files-tree-panel", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: routerPushMock,
   }),
 }));
 
@@ -248,11 +251,38 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
       { fullName: "acme/docs", enabled: true, archived: false },
     ]);
     ProjectFileContentEditorWorkspaceMock.mockClear();
+    routerPushMock.mockClear();
     vi.stubGlobal("localStorage", createLocalStorageMock());
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("opens a multilingual cell at its locale and key, clearing locale-specific filters", async () => {
+    render(
+      <ContentEditorTestProviders>
+        <ProjectFileContentEditorPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath="en-US.json"
+          highlightLocale="vi"
+          contentEditorAllFilesEnabled
+        />
+      </ContentEditorTestProviders>,
+    );
+    await screen.findByTestId("content-editor-workspace");
+    const props = ProjectFileContentEditorWorkspaceMock.mock.calls.at(-1)?.[0];
+    expect(props?.onOpenTranslationLocale).toBeDefined();
+    props?.onOpenTranslationLocale?.("fr-FR", "checkout.confirm");
+    const destination = new URL(
+      routerPushMock.mock.calls.at(-1)?.[0] as string,
+      "http://localhost",
+    );
+    expect(destination.searchParams.get("locale")).toBe("fr-FR");
+    expect(destination.searchParams.get("segment")).toBe("checkout.confirm");
+    expect(destination.searchParams.get("search")).toBe("checkout.confirm");
+    expect(destination.searchParams.get("queueFilter")).toBe("all");
   });
 
   it("renders the file sidebar, locale selector, and mobile file picker in the CAT shell", async () => {
