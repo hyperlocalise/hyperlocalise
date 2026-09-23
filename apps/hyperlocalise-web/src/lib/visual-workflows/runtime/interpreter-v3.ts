@@ -16,6 +16,7 @@ import {
   toVisualWorkflowExecutionDefinition,
 } from "../validation/compile-workflow-v3";
 import { createVisualWorkflowExecutionContext } from "./context";
+import type { RetryResumeState } from "./retry-delay";
 import {
   runVisualWorkflowInterpreter,
   type VisualWorkflowInterpreterExecuteNode,
@@ -31,6 +32,8 @@ export async function runVisualWorkflowV3Interpreter(input: {
   onNodeUpdate?: (update: VisualWorkflowInterpreterNodeUpdate) => Promise<void> | void;
   signal?: AbortSignal;
   shouldCancel?: () => Promise<boolean>;
+  mockMode?: boolean;
+  retryBackoff?: RetryResumeState | null;
 }): Promise<VisualWorkflowInterpreterResult> {
   const compiled = compileVisualWorkflowV3Definition(input.definition);
 
@@ -60,5 +63,7 @@ export async function runVisualWorkflowV3Interpreter(input: {
     onNodeUpdate: input.onNodeUpdate,
     signal: input.signal,
     shouldCancel: input.shouldCancel,
+    mockMode: input.mockMode,
+    retryBackoff: input.retryBackoff,
   });
 }
