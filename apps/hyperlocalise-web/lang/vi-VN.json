@@ -2705,6 +2705,9 @@
   "4WxpcyFNqc": {
     "defaultMessage": "Từ chối các mục đã chọn"
   },
+  "4XuQhGpKaz": {
+    "defaultMessage": "Nhấp để chỉnh sửa. Enter di chuyển xuống, Tab di chuyển ngang, Shift+Enter thêm một dòng, Escape hủy."
+  },
   "4Xya9zkpLQ": {
     "defaultMessage": "Đánh giá Hyperlocalise với một không gian làm việc dành cho một người dùng."
   },
@@ -3244,6 +3247,9 @@
   },
   "5wR0b8PqT0": {
     "defaultMessage": "Không tìm thấy phân đoạn."
+  },
+  "5wWPtxr+Iq": {
+    "defaultMessage": "GPT-6 Astra"
   },
   "5wkpaoahQN": {
     "defaultMessage": "{count} open"
@@ -4464,7 +4470,7 @@
     "defaultMessage": "Tài khoản"
   },
   "8qg+o4BfKa": {
-    "defaultMessage": "Brand-claims-policy.pdf · Google Drive"
+    "defaultMessage": "Chính sách về tuyên bố thương hiệu.pdf · Google Drive"
   },
   "8qtlRUPEdv": {
     "defaultMessage": "Tiếng Anh"
@@ -12975,7 +12981,7 @@
     "defaultMessage": "Bản địa hóa tiếp thị"
   },
   "UCLrz7xtcS": {
-    "defaultMessage": "Content Studio"
+    "defaultMessage": "Studio Nội dung"
   },
   "UCzEXfoNQa": {
     "defaultMessage": "Close"
@@ -15195,7 +15201,7 @@
     "defaultMessage": "Acme · Ra mắt web · Trình chỉnh sửa"
   },
   "ZpIy+48cVo": {
-    "defaultMessage": "Acme Corp"
+    "defaultMessage": "Công ty Acme"
   },
   "Zq6yckXsZ1": {
     "defaultMessage": "Tìm kiếm kho lưu trữ"
@@ -19931,6 +19937,9 @@
   "kscww+zSt8": {
     "defaultMessage": "Cuộn đến đầu"
   },
+  "ksdV9RsBoH": {
+    "defaultMessage": "Claude Opus 5.5"
+  },
   "ksdqzG4/Xq": {
     "defaultMessage": "Xuất bộ lọc dưới dạng TBX"
   },
@@ -20134,6 +20143,9 @@
   },
   "lNHTcG3rKm": {
     "defaultMessage": "Kết nối Google Drive, Notion và SharePoint hoặc nhập hướng dẫn trực tiếp. Các tác nhân sẽ đọc và đánh dấu những nội dung không khớp."
+  },
+  "lNo4qG1F4d": {
+    "defaultMessage": "GPT-6 Luna"
   },
   "lO+u6H8vSf": {
     "defaultMessage": "Đã lưu cài đặt tự động hóa"
@@ -20556,7 +20568,7 @@
     "defaultMessage": "Liên hệ Hyperlocalise"
   },
   "mNhu5W2AEy": {
-    "defaultMessage": "@hyperlocalise review"
+    "defaultMessage": "@hyperlocalise xem xét"
   },
   "mObQkKgd8s": {
     "defaultMessage": "Không thể tải các kết nối Intercom."
@@ -20664,7 +20676,7 @@
     "defaultMessage": "Chuyển văn bản thành giọng nói"
   },
   "mgqDzjgTSc": {
-    "defaultMessage": "Brand-claims-policy.pdf · Google Drive"
+    "defaultMessage": "Chính-sách-về-tuyên-bố-thương-hiệu.pdf · Google Drive"
   },
   "mhUvADobO8": {
     "defaultMessage": "Tất cả trạng thái"
@@ -21394,6 +21406,9 @@
   },
   "oNE0YnvOn0": {
     "defaultMessage": "Kết nối các tệp PDF về giọng điệu thương hiệu và thông tin tuyên bố từ Google Drive. Tác nhân sẽ trích dẫn điều khoản trong tệp khi đánh dấu một bản nháp."
+  },
+  "oNLP4frHL4": {
+    "defaultMessage": "Saving..."
   },
   "oNrNYjWrTm": {
     "defaultMessage": "Không tìm thấy bộ nhớ dịch."
@@ -23724,7 +23739,7 @@
     "defaultMessage": "Không có ngôn ngữ địa phương nào được liệt kê"
   },
   "u5OvRKaeK4": {
-    "defaultMessage": "daylight.example.com › journal › a-different-light"
+    "defaultMessage": "daylight.example.com › nhật ký › một ánh sáng khác"
   },
   "u5hy7XQ9he": {
     "defaultMessage": "Không tìm thấy loại nội dung nào trong không gian này."
@@ -24169,6 +24184,9 @@
   },
   "v5SnDiBsnL": {
     "defaultMessage": "Đính kèm hình ảnh"
+  },
+  "v5ZuLrI48c": {
+    "defaultMessage": "GPT-6 Sol"
   },
   "v5cHP+g65A": {
     "defaultMessage": "Yêu cầu không thành công"
@@ -25906,6 +25924,9 @@
   },
   "z6mrxTSFHp": {
     "defaultMessage": "Thêm mô tả…"
+  },
+  "z7zgiC7+v3": {
+    "defaultMessage": "Chỉnh sửa {key} trong {language}"
   },
   "z9I05YOvbx": {
     "defaultMessage": "Chưa có gì"

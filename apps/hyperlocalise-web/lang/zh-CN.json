@@ -117,7 +117,7 @@
     "defaultMessage": "停留"
   },
   "+FX267AAXq": {
-    "defaultMessage": "SERP · {keyword}"
+    "defaultMessage": "搜索结果页 · {keyword}"
   },
   "+FuW5t+7ZR": {
     "defaultMessage": "评论失败"
@@ -2705,6 +2705,9 @@
   "4WxpcyFNqc": {
     "defaultMessage": "拒绝所选内容"
   },
+  "4XuQhGpKaz": {
+    "defaultMessage": "点击以编辑。按 Enter 向下移动，按 Tab 横向移动，按 Shift+Enter 添加一行，按 Escape 取消。"
+  },
   "4Xya9zkpLQ": {
     "defaultMessage": "使用单席位工作空间体验 Hyperlocalise。"
   },
@@ -3244,6 +3247,9 @@
   },
   "5wR0b8PqT0": {
     "defaultMessage": "未找到片段。"
+  },
+  "5wWPtxr+Iq": {
+    "defaultMessage": "GPT-6 Astra"
   },
   "5wkpaoahQN": {
     "defaultMessage": "{count} open"
@@ -10884,7 +10890,7 @@
     "defaultMessage": "发现、连接并管理团队用于源内容、翻译和发布工作流的系统。"
   },
   "OtoAcs/psJ": {
-    "defaultMessage": "SSO / SAML"
+    "defaultMessage": "单点登录（SSO）/ SAML"
   },
   "Ou1XbnhiV6": {
     "defaultMessage": "性别"
@@ -10899,7 +10905,7 @@
     "defaultMessage": "加载项目设置失败。"
   },
   "Oxu+yRmzWu": {
-    "defaultMessage": "Heidi Health"
+    "defaultMessage": "海蒂健康"
   },
   "Oy/qd39Day": {
     "defaultMessage": "页面 · GTM · 本周更新"
@@ -19931,6 +19937,9 @@
   "kscww+zSt8": {
     "defaultMessage": "滚动到开头"
   },
+  "ksdV9RsBoH": {
+    "defaultMessage": "Claude Opus 5.5"
+  },
   "ksdqzG4/Xq": {
     "defaultMessage": "导出筛选结果为 TBX"
   },
@@ -20134,6 +20143,9 @@
   },
   "lNHTcG3rKm": {
     "defaultMessage": "连接 Google Drive、Notion 和 SharePoint，或直接输入指南内容。智能体会读取这些内容，并标记不匹配之处。"
+  },
+  "lNo4qG1F4d": {
+    "defaultMessage": "GPT-6 Luna"
   },
   "lO+u6H8vSf": {
     "defaultMessage": "自动化设置已保存"
@@ -21395,6 +21407,9 @@
   "oNE0YnvOn0": {
     "defaultMessage": "从 Google Drive 连接品牌语调和声明 PDF。代理标记草稿时，会引用文件中的条款。"
   },
+  "oNLP4frHL4": {
+    "defaultMessage": "Saving..."
+  },
   "oNrNYjWrTm": {
     "defaultMessage": "未找到翻译记忆。"
   },
@@ -21993,7 +22008,7 @@
     "defaultMessage": "GitHub 已连接"
   },
   "pjTufHJtA+": {
-    "defaultMessage": "SSO / SAML"
+    "defaultMessage": "单点登录 / SAML"
   },
   "pk2cfeU9zV": {
     "defaultMessage": "在提供商中打开"
@@ -23724,7 +23739,7 @@
     "defaultMessage": "未列出任何语言区域"
   },
   "u5OvRKaeK4": {
-    "defaultMessage": "daylight.example.com › journal › a-different-light"
+    "defaultMessage": "daylight.example.com › 日志 › 不一样的光"
   },
   "u5hy7XQ9he": {
     "defaultMessage": "此空间中未找到内容类型。"
@@ -24169,6 +24184,9 @@
   },
   "v5SnDiBsnL": {
     "defaultMessage": "附加图片"
+  },
+  "v5ZuLrI48c": {
+    "defaultMessage": "GPT-6 Sol"
   },
   "v5cHP+g65A": {
     "defaultMessage": "请求失败"
@@ -25906,6 +25924,9 @@
   },
   "z6mrxTSFHp": {
     "defaultMessage": "添加描述…"
+  },
+  "z7zgiC7+v3": {
+    "defaultMessage": "在{language}中编辑{key}"
   },
   "z9I05YOvbx": {
     "defaultMessage": "暂无任何内容"
