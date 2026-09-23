@@ -38,7 +38,6 @@ runs:
       env:
         ECS_SERVICE: ${{ inputs.ecs-service }}
         ECS_CLUSTER: ${{ inputs.ecs-cluster }}
-        CONTAINER_NAME: ${{ inputs.container-name }}
         TASK_DEFINITION_FILE: ${{ inputs.task-definition-file }}
       with:
         script: |
@@ -71,11 +70,6 @@ runs:
           const taskDefinition = JSON.parse(taskDefinitionOut);
           for (const key of ['taskDefinitionArn', 'revision', 'status', 'registeredAt', 'registeredBy', 'compatibilities', 'requiresAttributes']) {
             delete taskDefinition[key];
-          }
-          const container = taskDefinition.containerDefinitions?.find((item) => item.name === process.env.CONTAINER_NAME);
-          if (!container) {
-            core.setFailed(`Container ${process.env.CONTAINER_NAME} not found in deployed task definition ${deployedArn}`);
-            return;
           }
           require('fs').writeFileSync(process.env.TASK_DEFINITION_FILE, `${JSON.stringify(taskDefinition)}\n`);
 
