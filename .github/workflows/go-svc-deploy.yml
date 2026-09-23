@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - .dockerignore
+      - Dockerfile.ecs
       - Dockerfile.vercel
       - go.mod
       - go.sum
@@ -68,7 +69,7 @@ jobs:
           registry: ${{ steps.auth.outputs.registry }}
           repository: ${{ steps.params.outputs.ecr-repository }}
           tag: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          dockerfile: ./Dockerfile.vercel
+          dockerfile: ./Dockerfile.ecs
 
       - name: Deploy new image to ECS
         uses: ./.github/actions/ecs-deploy
