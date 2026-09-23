@@ -97,3 +97,30 @@ export function collectRetryBodyNodeIds(definition: {
   }
   return ids;
 }
+
+/**
+ * Whether a persisted node run may short-circuit execution in a durable slice.
+ *
+ * `logic.retry` clears body outputs and re-runs the region on each attempt. After a
+ * durable `retry_backoff` wake, earlier succeeded/handled_error body runs must not
+ * be reused — otherwise side effects never re-fire and handled_error nodes never
+ * actually retry across the durable boundary.
+ *
+ * Same-attempt resumes (mid-body `yield_execution`) keep short-circuiting so a
+ * completed body node is not duplicated within one attempt.
+ */
+export function shouldReuseCompletedNodeRun(input: {
+  nodeId: string;
+  attempt: number;
+  retryBodyNodeIds: ReadonlySet<string>;
+  resumeAttempt: number | null;
+}): boolean {
+  if (
+    input.resumeAttempt != null &&
+    input.retryBodyNodeIds.has(input.nodeId) &&
+    input.attempt < input.resumeAttempt
+  ) {
+    return false;
+  }
+  return true;
+}
