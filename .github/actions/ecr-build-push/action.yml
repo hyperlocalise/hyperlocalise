@@ -16,7 +16,7 @@ inputs:
     default: .
   dockerfile:
     description: Path to the Dockerfile
-    default: Dockerfile.vercel
+    default: Dockerfile.ecs
   platforms:
     description: Target platforms
     default: linux/amd64
