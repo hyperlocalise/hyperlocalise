@@ -195,11 +195,6 @@ func TestGlossaryRequestLogPath(t *testing.T) {
 	require.Equal(t, publicPathPrefix+"/v1/orgs/{organizationSlug}/glossaries/{resource}", requestLogPath(path))
 }
 
-func TestNormalizeMemorySourceText(t *testing.T) {
-	require.Equal(t, "hello world", normalizeMemorySourceText("  Hello   WORLD  "))
-	require.Equal(t, "café", normalizeMemorySourceText("CAFÉ"))
-}
-
 func TestGlossaryCreateBodyRoundTrip(t *testing.T) {
 	payload := glossaryPayload{Name: strPtr("  Brand  "), SourceLocale: strPtr("en_US")}
 	require.NoError(t, payload.validateCreate())

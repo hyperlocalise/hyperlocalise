@@ -243,3 +243,43 @@ func TestMemoryActorPermissions(t *testing.T) {
 	require.True(t, memoryActor{role: "admin"}.orgWideAccess())
 	require.False(t, memoryActor{role: "reviewer"}.orgWideAccess())
 }
+
+func TestNormalizeMemorySourceText(t *testing.T) {
+	// Guard the Bolt ASCII / streaming rewrite against behavior drift vs the
+	// historical NFKC + collapse-whitespace + lowercase contract used for TM lookups.
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "empty", in: "", want: ""},
+		{name: "whitespace only ascii", in: " \t\n\r\f\v ", want: ""},
+		{name: "already normalized ascii", in: "hello world", want: "hello world"},
+		{name: "trim and collapse ascii", in: "  Hello   WORLD  ", want: "hello world"},
+		{name: "ascii control whitespace", in: "A\t\nB\r\fC\vD", want: "a b c d"},
+		{name: "ascii double space mid", in: "foo  bar", want: "foo bar"},
+		{name: "nbsp and unicode space", in: "\u00a0A\t  B\n", want: "a b"},
+		{name: "precomposed accent", in: "CAFÉ", want: "café"},
+		{name: "combining accent", in: "CAFE\u0301", want: "café"},
+		{name: "fullwidth latin nfkc", in: "Ｈｅｌｌｏ", want: "hello"},
+		{name: "fi ligature nfkc", in: "ﬁle", want: "file"},
+		{name: "mixed ascii and accent trim", in: "  Brand\u00a0Name  ", want: "brand name"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, normalizeMemorySourceText(tc.in))
+		})
+	}
+}
+
+func TestNormalizeMemorySourceTextNormalizedASCIIZeroAllocs(t *testing.T) {
+	in := "hello world"
+	allocs := testing.AllocsPerRun(1000, func() {
+		got := normalizeMemorySourceText(in)
+		if got != in {
+			t.Fatalf("unexpected normalize result %q", got)
+		}
+	})
+	require.Zero(t, allocs)
+}

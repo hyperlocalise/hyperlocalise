@@ -145,8 +145,3 @@ func TestMemoryImportForbiddenForMember(t *testing.T) {
 	rec := memoryRequestForTest(api, "POST", testMemoryBase+"/"+testMemoryID+"/entries/import", body)
 	require.Equal(t, 403, rec.Code)
 }
-
-func TestNormalizeMemorySourceTextBenchCases(t *testing.T) {
-	require.Equal(t, "a b", normalizeMemorySourceText("\u00a0A\t  B\n"))
-	require.Equal(t, "", normalizeMemorySourceText("   "))
-}
