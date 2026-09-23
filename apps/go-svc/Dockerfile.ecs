@@ -44,7 +44,7 @@ FROM gcr.io/distroless/cc-debian12:nonroot
 WORKDIR /
 COPY --from=builder /service /service
 COPY --from=builder /runtime-libs/ /
-COPY --from=builder --chmod=0644 /dictionaries-staging/hunspell/ /usr/share/hunspell/
+COPY --from=builder /dictionaries-staging/hunspell/ /usr/share/hunspell/
 COPY --from=builder /dictionaries-staging/licenses/ /usr/share/doc/hunspell-dictionaries/
 EXPOSE 8080
 USER nonroot:nonroot
