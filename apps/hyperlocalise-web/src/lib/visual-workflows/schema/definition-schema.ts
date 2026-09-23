@@ -58,6 +58,7 @@ const visualCatalogTypeSchema = z.enum([
   "logic.set",
   "ai.agent",
   "logic.for_each",
+  "logic.retry",
 ]);
 
 const visualNodeConfigSchema = z.discriminatedUnion("kind", [
@@ -161,6 +162,15 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("logic.for_each"),
     collection: z.string().max(2000),
+  }),
+  z.object({
+    kind: z.literal("logic.retry"),
+    maxAttempts: z.number().int().min(1).max(10).optional(),
+    initialDelayMs: z.number().int().min(0).max(3_600_000).optional(),
+    backoffMultiplier: z.number().min(1).max(10).optional(),
+    jitter: z.boolean().optional(),
+    retryableErrorCodes: z.array(z.string().trim().min(1).max(64)).max(32).optional(),
+    acknowledgeDuplicateRisk: z.boolean().optional(),
   }),
 ]);
 

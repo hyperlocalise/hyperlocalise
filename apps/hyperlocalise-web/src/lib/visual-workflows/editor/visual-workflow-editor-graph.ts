@@ -89,17 +89,19 @@ function asMutableGraph(
   };
 }
 
-export function computeForEachBodyNodeIds(
-  loopId: string,
+function computeFlowBodyNodeIds(
+  ownerId: string,
   edges: readonly VisualWorkflowRfEdge[],
+  entryHandle: string,
+  exitHandle: string,
 ): string[] {
   const roots = edges
     .filter(
       (edge) =>
-        edge.data?.kind !== "data" && edge.source === loopId && edge.sourceHandle === "each",
+        edge.data?.kind !== "data" && edge.source === ownerId && edge.sourceHandle === entryHandle,
     )
     .map((edge) => edge.target)
-    .filter((target): target is string => Boolean(target && target !== loopId));
+    .filter((target): target is string => Boolean(target && target !== ownerId));
 
   const body = new Set<string>(roots);
   const queue = [...roots];
@@ -110,11 +112,11 @@ export function computeForEachBodyNodeIds(
       if (edge.data?.kind === "data" || edge.source !== current) {
         continue;
       }
-      if (edge.source === loopId && edge.sourceHandle === "done") {
+      if (edge.source === ownerId && edge.sourceHandle === exitHandle) {
         continue;
       }
       const target = edge.target;
-      if (!target || target === loopId || body.has(target)) {
+      if (!target || target === ownerId || body.has(target)) {
         continue;
       }
       body.add(target);
@@ -123,6 +125,20 @@ export function computeForEachBodyNodeIds(
   }
 
   return [...body];
+}
+
+export function computeForEachBodyNodeIds(
+  loopId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return computeFlowBodyNodeIds(loopId, edges, "each", "done");
+}
+
+export function computeRetryBodyNodeIds(
+  retryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return computeFlowBodyNodeIds(retryId, edges, "attempt", "succeeded");
 }
 
 function forEachBodyIdsEqual(left: readonly string[], right: readonly string[]): boolean {
@@ -134,16 +150,18 @@ function forEachBodyIdsEqual(left: readonly string[], right: readonly string[]):
   return sortedLeft.every((id, index) => id === sortedRight[index]);
 }
 
-export function reconcileForEachBodyMembership(
+function reconcileBodyMembershipForType(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
+  catalogType: "logic.for_each" | "logic.retry",
+  compute: (ownerId: string, edges: readonly VisualWorkflowRfEdge[]) => string[],
 ): VisualWorkflowRfNode[] {
   let changed = false;
   const next = nodes.map((node) => {
-    if (node.data.catalogType !== "logic.for_each") {
+    if (node.data.catalogType !== catalogType) {
       return node;
     }
-    const computed = computeForEachBodyNodeIds(node.id, edges);
+    const computed = compute(node.id, edges);
     const current = node.data.bodyNodeIds ?? [];
     if (forEachBodyIdsEqual(current, computed)) {
       return node;
@@ -158,6 +176,27 @@ export function reconcileForEachBodyMembership(
     };
   });
   return changed ? next : (nodes as VisualWorkflowRfNode[]);
+}
+
+export function reconcileForEachBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  return reconcileBodyMembershipForType(nodes, edges, "logic.for_each", computeForEachBodyNodeIds);
+}
+
+export function reconcileRetryBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  return reconcileBodyMembershipForType(nodes, edges, "logic.retry", computeRetryBodyNodeIds);
+}
+
+export function reconcileFlowBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  return reconcileRetryBodyMembership(reconcileForEachBodyMembership(nodes, edges), edges);
 }
 
 export function syncForEachBodyMembership(
@@ -176,10 +215,13 @@ export function syncForEachBodyMembership(
 
   if (sourceNode?.data.catalogType === "logic.for_each" && sourceHandle === "each") {
     ownerId = sourceId;
+  } else if (sourceNode?.data.catalogType === "logic.retry" && sourceHandle === "attempt") {
+    ownerId = sourceId;
   } else {
     const bodyOwners = nodes.filter(
       (node) =>
-        node.data.catalogType === "logic.for_each" && node.data.bodyNodeIds?.includes(sourceId),
+        (node.data.catalogType === "logic.for_each" || node.data.catalogType === "logic.retry") &&
+        node.data.bodyNodeIds?.includes(sourceId),
     );
     if (bodyOwners.length === 1) {
       ownerId = bodyOwners[0]?.id ?? null;

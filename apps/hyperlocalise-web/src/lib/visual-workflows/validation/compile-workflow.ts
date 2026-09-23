@@ -19,6 +19,8 @@ import type {
 } from "../schema/types";
 import { isTriggerType } from "../catalog/node-catalog";
 import { getAllowedExecutionSourceHandles } from "./execution-handles";
+import { retryBodyRequiresDuplicateAcknowledgement } from "./retry-idempotency";
+import { RETRY_MAX_ATTEMPTS_CAP } from "../schema/retry-policy";
 import {
   NODE_CONTRACTS,
   matchesWorkflowType,
@@ -101,6 +103,7 @@ export function compileWorkflowIssues(
         add("invalid_loop", id);
       owners.set(id, node.id);
       if (nodes.get(id)?.type === "logic.for_each") add("nested_for_each", id);
+      if (nodes.get(id)?.type === "logic.retry") add("retry_foreach_nesting", id);
     }
     for (const edge of definition.edges) {
       if (edge.source === node.id && (edge.sourceHandle === "each") !== body.has(edge.target))
@@ -111,6 +114,55 @@ export function compileWorkflowIssues(
     }
     if (!definition.edges.some((edge) => edge.source === node.id && edge.sourceHandle === "each"))
       add("invalid_loop", node.id);
+  }
+  for (const node of definition.nodes.filter((node) => node.type === "logic.retry")) {
+    if (node.config.kind !== "logic.retry") {
+      add("invalid_retry", node.id);
+      continue;
+    }
+    const config = node.config;
+    if (
+      (config.maxAttempts !== undefined &&
+        (config.maxAttempts < 1 || config.maxAttempts > RETRY_MAX_ATTEMPTS_CAP)) ||
+      (config.initialDelayMs !== undefined && config.initialDelayMs < 0) ||
+      (config.backoffMultiplier !== undefined && config.backoffMultiplier < 1)
+    ) {
+      add("invalid_retry_policy", node.id);
+    }
+    const body = new Set(node.bodyNodeIds ?? []);
+    if (!body.size || body.has(node.id) || body.size !== (node.bodyNodeIds ?? []).length) {
+      add("invalid_retry", node.id);
+    }
+    for (const id of body) {
+      if (!nodes.has(id) || owners.has(id) || !workflowAncestors(definition, id).has(node.id)) {
+        add("invalid_retry", id);
+      }
+      owners.set(id, node.id);
+      if (nodes.get(id)?.type === "logic.retry") add("nested_retry", id);
+      if (nodes.get(id)?.type === "logic.for_each") add("retry_foreach_nesting", id);
+    }
+    for (const edge of definition.edges) {
+      if (edge.source === node.id && (edge.sourceHandle === "attempt") !== body.has(edge.target)) {
+        add("invalid_retry", undefined, edge.id);
+      }
+      if (body.has(edge.target) && !body.has(edge.source) && edge.source !== node.id) {
+        add("invalid_retry", undefined, edge.id);
+      }
+      if (body.has(edge.source) && !body.has(edge.target)) {
+        add("invalid_retry", undefined, edge.id);
+      }
+    }
+    if (
+      !definition.edges.some((edge) => edge.source === node.id && edge.sourceHandle === "attempt")
+    ) {
+      add("invalid_retry", node.id);
+    }
+    if (
+      retryBodyRequiresDuplicateAcknowledgement(definition.nodes, [...body]) &&
+      !config.acknowledgeDuplicateRisk
+    ) {
+      add("non_idempotent_retry", node.id);
+    }
   }
   const checkReference = (
     node: CanonicalVisualWorkflowNode,
@@ -135,6 +187,12 @@ export function compileWorkflowIssues(
     if (
       source.type === "logic.for_each" &&
       ["item", "index"].includes(String(binding.path[0])) &&
+      owners.get(node.id) !== source.id
+    )
+      return false;
+    if (
+      source.type === "logic.retry" &&
+      String(binding.path[0]) === "attemptNumber" &&
       owners.get(node.id) !== source.id
     )
       return false;
@@ -242,7 +300,11 @@ export function compileWorkflowIssues(
         (binding.kind === "reference" && !checkReference(node, binding, true))
       )
         add("invalid_binding", node.id);
-    if (node.type !== "logic.for_each" && (node.bodyNodeIds || node.collect))
+    if (
+      node.type !== "logic.for_each" &&
+      node.type !== "logic.retry" &&
+      (node.bodyNodeIds || node.collect)
+    )
       add("invalid_loop", node.id);
     if (hasLiteralHttpCredentials(node)) add("invalid_node_config", node.id);
   }

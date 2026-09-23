@@ -17,6 +17,7 @@ import {
   visualWorkflowDemoDraft,
   visualWorkflowPlaygroundDraft,
   visualWorkflowQuickAddDraft,
+  visualWorkflowRetryDraft,
   visualWorkflowSwitchDeleteDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
@@ -201,5 +202,29 @@ export const ExecutionAndDataEdges: Story = {
     await expect(canvas.getByLabelText("Data output: triggeredAt")).toBeInTheDocument();
     await expect(canvas.getByLabelText("Data input: url")).toBeInTheDocument();
     await expect(canvas.getByText("triggeredAt → url")).toBeInTheDocument();
+  },
+};
+
+export const RetryAttemptWiring: Story = {
+  name: "Retry Attempt body",
+  args: {
+    initialName: visualWorkflowRetryDraft.name,
+    initialNodes: visualWorkflowRetryDraft.nodes,
+    initialEdges: visualWorkflowRetryDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const click = async (name: string | RegExp) => {
+      const button = await canvas.findByRole("button", { name }, { timeout: 10_000 });
+      button.click();
+    };
+
+    await click("Add node from Succeeded");
+    await click(/Assign values into the workflow context/);
+    await expect(
+      await canvas.findByTestId(/visual-workflow-edge-retry-.+-succeeded$/),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
   },
 };

@@ -362,6 +362,58 @@ export function VisualWorkflowConfigPanel({
             placeholder="{{trigger.items}}"
           />
         ) : null}
+        {config.kind === "logic.retry" ? (
+          <>
+            <TextField
+              id="vw-retry-max-attempts"
+              label={intl.formatMessage(messages.retryMaxAttempts)}
+              value={String(config.maxAttempts ?? 3)}
+              onChange={(value) =>
+                onChangeConfig({
+                  ...config,
+                  maxAttempts: Number.parseInt(value, 10) || 1,
+                })
+              }
+            />
+            <TextField
+              id="vw-retry-initial-delay"
+              label={intl.formatMessage(messages.retryInitialDelay)}
+              value={String(config.initialDelayMs ?? 1000)}
+              onChange={(value) =>
+                onChangeConfig({
+                  ...config,
+                  initialDelayMs: Number.parseInt(value, 10) || 0,
+                })
+              }
+            />
+            <TextField
+              id="vw-retry-backoff"
+              label={intl.formatMessage(messages.retryBackoffMultiplier)}
+              value={String(config.backoffMultiplier ?? 2)}
+              onChange={(value) =>
+                onChangeConfig({
+                  ...config,
+                  backoffMultiplier: Number.parseFloat(value) || 1,
+                })
+              }
+            />
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="vw-retry-ack-dup"
+                checked={config.acknowledgeDuplicateRisk ?? false}
+                onCheckedChange={(checked) =>
+                  onChangeConfig({
+                    ...config,
+                    acknowledgeDuplicateRisk: checked === true,
+                  })
+                }
+              />
+              <Label htmlFor="vw-retry-ack-dup" className="text-sm font-normal">
+                {intl.formatMessage(messages.retryAcknowledgeDuplicateRisk)}
+              </Label>
+            </div>
+          </>
+        ) : null}
         {config.kind === "action.notify_slack" ? (
           <>
             <TextField
@@ -912,6 +964,16 @@ function issueMessage(
       return messages.invalidNodeConfig;
     case "nested_for_each":
       return messages.nestedForEach;
+    case "nested_retry":
+      return messages.nestedRetry;
+    case "invalid_retry":
+      return messages.invalidRetry;
+    case "retry_foreach_nesting":
+      return messages.retryForEachNesting;
+    case "non_idempotent_retry":
+      return messages.nonIdempotentRetry;
+    case "invalid_retry_policy":
+      return messages.invalidRetryPolicy;
     default:
       return messages.invalidNodeConfig;
   }

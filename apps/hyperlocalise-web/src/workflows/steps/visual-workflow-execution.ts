@@ -84,13 +84,20 @@ export async function executeVisualWorkflowStep(
       };
     }
 
+    const pausedUntil =
+      "executionPausedUntil" in run && typeof run.executionPausedUntil === "string"
+        ? run.executionPausedUntil
+        : undefined;
+    const waitingForRetryWake = pausedUntil !== undefined && Date.now() < Date.parse(pausedUntil);
+
     logger.info({ ...stepContext, status: run.status }, "visual workflow execution step completed");
     return {
       ok: true,
       value: {
         runId: run.id,
         status: run.status,
-        continueExecution: run.status === "running" && !run.executionLeaseBusy,
+        continueExecution:
+          run.status === "running" && !run.executionLeaseBusy && !waitingForRetryWake,
       },
     };
   } catch (error) {
