@@ -572,6 +572,22 @@ export function getLocalisationAuditResultCopy(locale: string) {
         },
         values,
       ),
+    standingRankLabel: intl.formatMessage({
+      defaultMessage: "Your rank",
+      id: "J28/EOysfn",
+      description: "Row label for rank on a localisation audit result standing section",
+    }),
+    standingPercentileLabel: intl.formatMessage({
+      defaultMessage: "Percentile",
+      id: "YJsGX22fsS",
+      description: "Row label for percentile on a localisation audit result standing section",
+    }),
+    standingAverageLabel: intl.formatMessage({
+      defaultMessage: "Public average",
+      id: "xCe9LryDFj",
+      description:
+        "Row label for the public average on a localisation audit result standing section",
+    }),
     standingCta: intl.formatMessage({
       defaultMessage: "See the full leaderboard",
       id: "TU09/PYmBW",
@@ -792,6 +808,16 @@ export function getLocalisationAuditResultCopy(locale: string) {
         },
         values,
       ),
+    pagesExpand: intl.formatMessage({
+      defaultMessage: "Show pages",
+      id: "dCFFGZzuKW",
+      description: "Control to expand the sampled pages list on a localisation audit result",
+    }),
+    pagesCollapse: intl.formatMessage({
+      defaultMessage: "Hide pages",
+      id: "ljM3NRfDH1",
+      description: "Control to collapse the sampled pages list on a localisation audit result",
+    }),
     reauditHeading: intl.formatMessage({
       defaultMessage: "Next step",
       id: "20wJJveUDM",

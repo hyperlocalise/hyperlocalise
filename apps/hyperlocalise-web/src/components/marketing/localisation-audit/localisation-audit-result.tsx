@@ -163,38 +163,43 @@ function FindingDetailBlock({
   showSummary?: boolean;
 }) {
   const findingHref = sanitizeLocalisationAuditFindingUrl(finding.url, domainKey);
+  const labelClass =
+    "mb-1.5 text-[0.625rem] font-semibold tracking-wide uppercase text-muted-foreground";
 
   return (
-    <div className="space-y-2 text-sm">
+    <div className="space-y-5 text-sm">
       {showSummary ? <p className="text-muted-foreground">{finding.summary}</p> : null}
+
       {finding.where || findingHref ? (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">{copy.findingWhereLabel}</p>
-          {finding.where ? <p className="text-sm wrap-break-word">{finding.where}</p> : null}
+        <div className="space-y-1">
+          <p className={labelClass}>{copy.findingWhereLabel}</p>
+          {finding.where ? <p className="wrap-break-word">{finding.where}</p> : null}
           {findingHref ? (
             <a
               href={findingHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="block break-all text-xs text-muted-foreground"
+              className="block break-all text-xs text-primary underline-offset-4 hover:underline"
             >
               {findingHref}
             </a>
           ) : null}
         </div>
       ) : null}
+
       {finding.evidence ? (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">{copy.findingEvidenceLabel}</p>
-          <p className="font-mono text-xs wrap-break-word whitespace-pre-wrap text-muted-foreground">
+        <div className="space-y-1">
+          <p className={labelClass}>{copy.findingEvidenceLabel}</p>
+          <pre className="overflow-x-auto rounded-md border border-border bg-muted px-3 py-2 font-mono text-xs whitespace-pre-wrap text-muted-foreground">
             {finding.evidence}
-          </p>
+          </pre>
         </div>
       ) : null}
+
       {finding.advice ? (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">{copy.findingAdviceLabel}</p>
-          <p className="text-sm wrap-break-word">{finding.advice}</p>
+        <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5">
+          <p className={labelClass}>{copy.findingAdviceLabel}</p>
+          <p className="wrap-break-word text-foreground">{finding.advice}</p>
         </div>
       ) : null}
     </div>
@@ -773,6 +778,8 @@ export function LocalisationAuditResult({
   const [deliveryMessage, setDeliveryMessage] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const teaserTracked = useRef(false);
+  const shareTimer = useRef<number | null>(null);
+  const [pagesOpen, setPagesOpen] = useState(false);
 
   useEffect(() => {
     if (audit.status !== "succeeded" || teaserTracked.current) return;
@@ -801,6 +808,12 @@ export function LocalisationAuditResult({
 
     return () => window.clearInterval(timer);
   }, [audit.status, domainSlug]);
+
+  useEffect(() => {
+    return () => {
+      if (shareTimer.current) window.clearTimeout(shareTimer.current);
+    };
+  }, []);
 
   async function requestReportEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -872,8 +885,11 @@ export function LocalisationAuditResult({
       await navigator.clipboard.writeText(url);
       setShareMessage(copy.shareCopied);
       trackCta("share_teaser");
+
+      if (shareTimer.current) window.clearTimeout(shareTimer.current);
+      shareTimer.current = window.setTimeout(() => setShareMessage(null), 2000);
     } catch {
-      setShareMessage(url);
+      // leave the button label alone when the clipboard is unavailable
     }
   }
 
@@ -1155,8 +1171,17 @@ export function LocalisationAuditResult({
                     className="border-primary/25 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                     onClick={copyShareLink}
                   >
-                    <HugeiconsIcon icon={Share08Icon} className="size-3.5" aria-hidden />
-                    {copy.shareCopyLink}
+                    <HugeiconsIcon
+                      icon={shareMessage ? Tick02Icon : Share08Icon}
+                      className="size-3.5"
+                      aria-hidden
+                    />
+                    <span
+                      key={shareMessage ? "copied" : "idle"}
+                      className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+                    >
+                      {shareMessage ?? copy.shareCopyLink}
+                    </span>
                   </Button>
                 )}
               </div>
@@ -1231,7 +1256,7 @@ export function LocalisationAuditResult({
                 </div>
 
                 {score != null ? (
-                  <div className="mt-2.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-black/10">
+                  <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-black/10">
                     <div
                       className={cn("h-full rounded-full", scoreBarClass)}
                       style={{ width: `${score}%` }}
@@ -1253,10 +1278,6 @@ export function LocalisationAuditResult({
                     {copy.scopeLabel}: {copy.scopeBody}
                   </span>
                 </div>
-
-                {shareMessage ? (
-                  <p className="mt-2.5 text-sm text-black/70">{shareMessage}</p>
-                ) : null}
 
                 <p className="mt-3 text-xs text-black/55">
                   {copy.sampledPages({
@@ -1283,20 +1304,22 @@ export function LocalisationAuditResult({
               <CardContent>
                 <dl className="space-y-8">
                   <div className="flex items-baseline justify-between gap-2">
-                    <dt className="text-sm text-muted-foreground">{copy.standingHeading}</dt>
+                    <dt className="text-sm text-muted-foreground">{copy.standingRankLabel}</dt>
                     <dd className="text-sm font-semibold tabular-nums">
                       {copy.standingRank({ rank: standing.rank, total: standing.total })}
                     </dd>
                   </div>
                   <div className="flex items-baseline justify-between gap-2 border-t border-border pt-3">
-                    <dt className="text-sm text-muted-foreground">{copy.scopeLabel}</dt>
+                    <dt className="text-sm text-muted-foreground">
+                      {copy.standingPercentileLabel}
+                    </dt>
                     <dd className="text-sm font-semibold text-primary tabular-nums">
                       {copy.standingPercentile({ percentile: standing.percentile })}
                     </dd>
                   </div>
                   {standing.averageScore != null ? (
                     <div className="flex items-baseline justify-between gap-2 border-t border-border pt-3">
-                      <dt className="text-sm text-muted-foreground">{copy.scoreLabel}</dt>
+                      <dt className="text-sm text-muted-foreground">{copy.standingAverageLabel}</dt>
                       <dd className="text-sm font-semibold tabular-nums">
                         {copy.standingAverage({ average: standing.averageScore })}
                       </dd>
@@ -1406,22 +1429,22 @@ export function LocalisationAuditResult({
 
       {report?.pages && report.pages.length > 0 ? (
         <Card className="mt-6">
-          <Collapsible>
+          <Collapsible open={pagesOpen} onOpenChange={setPagesOpen}>
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
                 <CardTitle className="font-serif text-xl">{copy.pagesHeading}</CardTitle>
                 <CollapsibleTrigger className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
-                  {copy.pagesHeading}
+                  {pagesOpen ? copy.pagesCollapse : copy.pagesExpand}
                   <HugeiconsIcon
                     icon={ArrowDown01Icon}
-                    className="size-3.5 transition-transform [[data-state=open]_&]:rotate-180"
+                    className={cn("size-3.5 transition-transform", pagesOpen && "rotate-180")}
                   />
                 </CollapsibleTrigger>
               </div>
             </CardHeader>
             <CollapsibleContent>
               <CardContent>
-                <ul className="space-y-1.5 text-xs text-muted-foreground">
+                <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
                   {report.pages.map((page) => (
                     <li key={page.url} className="flex items-baseline gap-2 break-all">
                       <span
