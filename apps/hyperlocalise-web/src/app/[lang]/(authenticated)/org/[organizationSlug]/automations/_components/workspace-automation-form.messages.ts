@@ -1053,6 +1053,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "hGgsaGVVDY",
     description: "Label for the Anthropic Claude Opus 5 automation model",
   },
+  modelClaudeOpus55: {
+    defaultMessage: "Claude Opus 5.5",
+    id: "ksdV9RsBoH",
+    description: "Label for the Anthropic Claude Opus 5.5 automation model",
+  },
   instructionsPlaceholder: {
     defaultMessage: "Tell the automation what to do, what to inspect, and what to ignore.",
     id: "rkQ7AmKMrt",

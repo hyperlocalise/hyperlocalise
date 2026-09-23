@@ -117,7 +117,7 @@ describe("resolveHyperlocaliseAgentLanguageModel", () => {
         apiKey: "sk-ant",
       },
       source: "anthropic",
-      modelId: "claude-sonnet-4-6",
+      modelId: "anthropic/claude-sonnet-4.6",
     });
     expect(getManagedLanguageModelMock).not.toHaveBeenCalled();
     expect(resolveProviderLanguageModelMock).toHaveBeenCalledWith({

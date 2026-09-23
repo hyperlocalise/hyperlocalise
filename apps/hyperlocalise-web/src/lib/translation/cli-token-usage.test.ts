@@ -84,7 +84,7 @@ describe("CLI token usage", () => {
         model: "claude-sonnet-4-6",
       }),
     ).toEqual({
-      modelId: "claude-sonnet-4-6",
+      modelId: "anthropic/claude-sonnet-4.6",
       credentialSource: "byok",
     });
   });
