@@ -19,14 +19,16 @@ import {
   type NodeChange,
   type OnSelectionChangeParams,
 } from "@xyflow/react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
+import { toast } from "sonner";
 import { FormattedMessage } from "react-intl";
 
 import { Canvas } from "@/components/ai-elements/canvas";
 import { Controls } from "@/components/ai-elements/controls";
 import { Panel } from "@/components/ai-elements/panel";
 import { Button } from "@/components/ui/button";
-import { isTriggerType, VISUAL_NODE_CATALOG } from "@/lib/visual-workflows/catalog/node-catalog";
+import { VISUAL_NODE_CATALOG } from "@/lib/visual-workflows/catalog/node-catalog";
+import { validateVisualWorkflowConnection } from "@/lib/visual-workflows/validation/validate-connection";
 import type {
   VisualCatalogType,
   VisualWorkflowRfEdge,
@@ -50,6 +52,7 @@ export function VisualWorkflowCanvas({
   onNodesChange,
   onEdgesChange,
   onConnect,
+  onReconnect,
   onSelectionChange,
   onAddFirstStep,
   onLoadSample,
@@ -61,11 +64,14 @@ export function VisualWorkflowCanvas({
   onNodesChange: (changes: NodeChange<VisualWorkflowRfNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<VisualWorkflowRfEdge>[]) => void;
   onConnect: (connection: Connection) => void;
+  onReconnect: (oldEdge: VisualWorkflowRfEdge, connection: Connection) => void;
   onSelectionChange: (params: OnSelectionChangeParams) => void;
   onAddFirstStep: () => void;
   onLoadSample: () => void;
   onTestWorkflow: () => void;
 }) {
+  const reconnectingEdgeIdRef = useRef<string | null>(null);
+  const lastConnectionErrorRef = useRef<string | null>(null);
   const presentedEdges = useMemo(
     () =>
       edges.map((edge) => ({
@@ -80,16 +86,23 @@ export function VisualWorkflowCanvas({
   );
   const isValidConnection = useCallback(
     (connection: Connection | VisualWorkflowRfEdge) => {
-      if (!connection.target || connection.source === connection.target) {
-        return false;
-      }
-      const target = nodes.find((node) => node.id === connection.target);
-      if (!target) {
-        return false;
-      }
-      return !isTriggerType(target.data.catalogType);
+      const result = validateVisualWorkflowConnection({
+        nodes,
+        edges,
+        replacingEdgeId: reconnectingEdgeIdRef.current ?? undefined,
+        connection: {
+          source: connection.source,
+          target: connection.target,
+          sourceHandle: connection.sourceHandle ?? null,
+          targetHandle: connection.targetHandle ?? null,
+        },
+      });
+
+      lastConnectionErrorRef.current = result.valid ? null : result.message;
+
+      return result.valid;
     },
-    [nodes],
+    [edges, nodes],
   );
 
   return (
@@ -102,6 +115,37 @@ export function VisualWorkflowCanvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectStart={() => {
+          lastConnectionErrorRef.current = null;
+        }}
+        onConnectEnd={(_, connectionState) => {
+          if (
+            connectionState.toHandle &&
+            connectionState.isValid === false &&
+            lastConnectionErrorRef.current
+          ) {
+            toast.error(lastConnectionErrorRef.current);
+          }
+
+          lastConnectionErrorRef.current = null;
+        }}
+        onReconnect={onReconnect}
+        onReconnectStart={(_, edge) => {
+          reconnectingEdgeIdRef.current = edge.id;
+          lastConnectionErrorRef.current = null;
+        }}
+        onReconnectEnd={(_, _edge, _handleType, connectionState) => {
+          if (
+            connectionState.toHandle &&
+            connectionState.isValid === false &&
+            lastConnectionErrorRef.current
+          ) {
+            toast.error(lastConnectionErrorRef.current);
+          }
+
+          reconnectingEdgeIdRef.current = null;
+          lastConnectionErrorRef.current = null;
+        }}
         onSelectionChange={onSelectionChange}
         isValidConnection={isValidConnection}
         panOnDrag

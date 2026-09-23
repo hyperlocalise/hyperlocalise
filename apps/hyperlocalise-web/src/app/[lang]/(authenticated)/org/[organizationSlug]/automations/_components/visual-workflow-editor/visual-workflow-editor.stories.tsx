@@ -74,6 +74,8 @@ const meta = {
       description: {
         component:
           "Interactive playground for visual workflows. Add nodes from the picker, connect steps, configure each node, and run **Test workflow** to execute the graph in the browser. Logic nodes run for real; HTTP, Slack, and AI steps return simulated outputs.",
+        story:
+          "Shows execution and data ports with compatible-port highlighting. Invalid connections are rejected before they are committed to the graph.",
       },
     },
   },
@@ -186,8 +188,16 @@ export const SwitchCaseDelete: Story = {
   },
 };
 
-export const ExecutionAndDataEdges: Story = {
-  name: "Execution and data edges",
+export const PortCompatibility: Story = {
+  name: "Port compatibility",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Shows execution and data ports with compatible-port highlighting. Invalid connections are rejected before they are committed to the graph.",
+      },
+    },
+  },
   args: {
     initialName: edgeKindsDraft.name,
     initialNodes: edgeKindsDraft.nodes,
@@ -196,10 +206,20 @@ export const ExecutionAndDataEdges: Story = {
     playgroundMode: true,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByLabelText("Execution input")).toBeInTheDocument();
+    const executionInput = canvas.getByLabelText("Execution input");
+    const dataOutput = canvas.getByLabelText("Data output: triggeredAt");
+    const dataInput = canvas.getByLabelText("Data input: url");
+
+    await expect(executionInput).toBeInTheDocument();
     await expect(canvas.getAllByLabelText("Execution success")).toHaveLength(2);
-    await expect(canvas.getByLabelText("Data output: triggeredAt")).toBeInTheDocument();
-    await expect(canvas.getByLabelText("Data input: url")).toBeInTheDocument();
+    await expect(dataOutput).toBeInTheDocument();
+    await expect(dataInput).toBeInTheDocument();
     await expect(canvas.getByText("triggeredAt → url")).toBeInTheDocument();
+
+    await expect(dataOutput).toHaveAttribute("title", "triggeredAt");
+    await expect(dataInput).toHaveAttribute("title", "url");
+
+    await expect(dataInput.className).toContain("[&.connecting.valid]:bg-emerald-500");
+    await expect(dataInput.className).toContain("[&.connecting]:opacity-30");
   },
 };
