@@ -112,6 +112,7 @@ import {
   toolAccessibleJobsWhere,
   toolCanAccessProject,
   toolCanAccessStoredFileProject,
+  toolGetAccessibleMemory,
 } from "@/lib/agent-runtime/tools/tool-access";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
@@ -642,6 +643,82 @@ describe("Agent Tools RBAC", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain("permission");
       expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
+      expect(dbSpy(ctx, "delete")).not.toHaveBeenCalled();
+    });
+
+    it("denies review-only entry update when parent memory is team-inaccessible", async () => {
+      vi.mocked(toolGetAccessibleMemory).mockResolvedValueOnce(null);
+      const ctx = mockCtx("reviewer");
+      dbSpy(ctx, "select").mockReturnValueOnce({
+        from: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [
+                {
+                  version: 1,
+                  memory: {
+                    id: "memory_team_a",
+                    organizationId: "org_123",
+                    source: "native",
+                    status: "active",
+                    name: "Team A TM",
+                    description: "",
+                    capabilityMode: "native",
+                    externalProviderKind: null,
+                  },
+                },
+              ]),
+            })),
+          })),
+        })),
+      } as never);
+
+      const tool = createUpdateMemoryEntryTool(ctx);
+      const result = await executeTool(tool, {
+        entryId: "entry_cross_team",
+        reviewStatus: "approved",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found");
+      expect(toolGetAccessibleMemory).toHaveBeenCalledWith(ctx, "memory_team_a");
+      expect(dbSpy(ctx, "update")).not.toHaveBeenCalled();
+    });
+
+    it("denies entry delete when parent memory is team-inaccessible", async () => {
+      vi.mocked(toolGetAccessibleMemory).mockResolvedValueOnce(null);
+      const ctx = mockCtx("admin");
+      dbSpy(ctx, "select").mockReturnValueOnce({
+        from: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [
+                {
+                  memory: {
+                    id: "memory_team_a",
+                    organizationId: "org_123",
+                    source: "native",
+                    status: "active",
+                    name: "Team A TM",
+                    description: "",
+                    capabilityMode: "native",
+                    externalProviderKind: null,
+                  },
+                },
+              ]),
+            })),
+          })),
+        })),
+      } as never);
+
+      const tool = createDeleteMemoryEntryTool(ctx);
+      const result = await executeTool(tool, {
+        entryId: "entry_cross_team",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found");
+      expect(toolGetAccessibleMemory).toHaveBeenCalledWith(ctx, "memory_team_a");
       expect(dbSpy(ctx, "delete")).not.toHaveBeenCalled();
     });
 
