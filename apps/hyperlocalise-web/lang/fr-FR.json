@@ -2705,6 +2705,9 @@
   "4WxpcyFNqc": {
     "defaultMessage": "Rejeter les éléments sélectionnés"
   },
+  "4XuQhGpKaz": {
+    "defaultMessage": "Cliquez pour modifier. Entrée déplace vers le bas, Tab déplace vers la droite, Maj+Entrée ajoute une ligne, Échap annule."
+  },
   "4Xya9zkpLQ": {
     "defaultMessage": "Évaluez Hyperlocalise avec un espace de travail pour un seul utilisateur."
   },
@@ -3244,6 +3247,9 @@
   },
   "5wR0b8PqT0": {
     "defaultMessage": "Segment introuvable."
+  },
+  "5wWPtxr+Iq": {
+    "defaultMessage": "GPT-6 Astra"
   },
   "5wkpaoahQN": {
     "defaultMessage": "{count} open"
@@ -4464,7 +4470,7 @@
     "defaultMessage": "Account"
   },
   "8qg+o4BfKa": {
-    "defaultMessage": "Brand-claims-policy.pdf · Google Drive"
+    "defaultMessage": "Politique-sur-les-allégations-de-marque.pdf · Google Drive"
   },
   "8qtlRUPEdv": {
     "defaultMessage": "anglais"
@@ -10422,7 +10428,7 @@
     "defaultMessage": "Toutes les langues locales"
   },
   "Nf32FGPaYc": {
-    "defaultMessage": "Content Studio"
+    "defaultMessage": "Studio de contenu"
   },
   "Nf77AX5l7/": {
     "defaultMessage": "Impossible de charger les projets"
@@ -11235,7 +11241,7 @@
     "defaultMessage": "Masquer les zones de texte"
   },
   "PoNN6ffaMf": {
-    "defaultMessage": "Source {locale}"
+    "defaultMessage": "Langue source {locale}"
   },
   "PomrlG5RDY": {
     "defaultMessage": "Mineur"
@@ -12201,7 +12207,7 @@
     "defaultMessage": "Créer un problème"
   },
   "SGPPXTsltm": {
-    "defaultMessage": "Message #launch-ops"
+    "defaultMessage": "Envoyer un message à #launch-ops"
   },
   "SGrQFByJdA": {
     "defaultMessage": "Blog | Hyperlocalise"
@@ -12975,7 +12981,7 @@
     "defaultMessage": "Localisation marketing"
   },
   "UCLrz7xtcS": {
-    "defaultMessage": "Content Studio"
+    "defaultMessage": "Studio de contenu"
   },
   "UCzEXfoNQa": {
     "defaultMessage": "Fermer"
@@ -19931,6 +19937,9 @@
   "kscww+zSt8": {
     "defaultMessage": "Faire défiler jusqu’au début"
   },
+  "ksdV9RsBoH": {
+    "defaultMessage": "Claude Opus 5.5"
+  },
   "ksdqzG4/Xq": {
     "defaultMessage": "Exporter le filtre en TBX"
   },
@@ -20134,6 +20143,9 @@
   },
   "lNHTcG3rKm": {
     "defaultMessage": "Connectez Google Drive, Notion et SharePoint, ou saisissez directement des directives. Les agents les lisent et signalent ce qui ne correspond pas."
+  },
+  "lNo4qG1F4d": {
+    "defaultMessage": "GPT-6 Luna"
   },
   "lO+u6H8vSf": {
     "defaultMessage": "Paramètres d’automatisation enregistrés"
@@ -20664,7 +20676,7 @@
     "defaultMessage": "Synthèse vocale"
   },
   "mgqDzjgTSc": {
-    "defaultMessage": "Brand-claims-policy.pdf · Google Drive"
+    "defaultMessage": "Politique relative aux allégations de marque.pdf · Google Drive"
   },
   "mhUvADobO8": {
     "defaultMessage": "Tous les statuts"
@@ -21394,6 +21406,9 @@
   },
   "oNE0YnvOn0": {
     "defaultMessage": "Connectez les PDF sur la voix de marque et les allégations depuis Google Drive. Les agents citent la clause du fichier lorsqu’ils signalent un brouillon."
+  },
+  "oNLP4frHL4": {
+    "defaultMessage": "Enregistrement…"
   },
   "oNrNYjWrTm": {
     "defaultMessage": "Mémoire de traduction introuvable."
@@ -23724,7 +23739,7 @@
     "defaultMessage": "Aucun paramètre régional répertorié"
   },
   "u5OvRKaeK4": {
-    "defaultMessage": "daylight.example.com › journal › a-different-light"
+    "defaultMessage": "daylight.example.com › journal › une-lumière-différente"
   },
   "u5hy7XQ9he": {
     "defaultMessage": "Aucun type de contenu trouvé dans cet espace."
@@ -24169,6 +24184,9 @@
   },
   "v5SnDiBsnL": {
     "defaultMessage": "Joindre une image"
+  },
+  "v5ZuLrI48c": {
+    "defaultMessage": "GPT-6 Sol"
   },
   "v5cHP+g65A": {
     "defaultMessage": "Échec de la requête"
@@ -25906,6 +25924,9 @@
   },
   "z6mrxTSFHp": {
     "defaultMessage": "Ajouter une description…"
+  },
+  "z7zgiC7+v3": {
+    "defaultMessage": "Modifier {key} en {language}"
   },
   "z9I05YOvbx": {
     "defaultMessage": "Pas encore"

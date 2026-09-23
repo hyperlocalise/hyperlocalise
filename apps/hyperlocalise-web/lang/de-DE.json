@@ -2705,6 +2705,9 @@
   "4WxpcyFNqc": {
     "defaultMessage": "Ausgewählte ablehnen"
   },
+  "4XuQhGpKaz": {
+    "defaultMessage": "Zum Bearbeiten klicken. Mit der Eingabetaste nach unten, mit Tabulator zur Seite, mit Umschalt+Eingabetaste eine Zeile hinzufügen, mit Escape abbrechen."
+  },
   "4Xya9zkpLQ": {
     "defaultMessage": "Testen Sie Hyperlocalise mit einem Workspace für einen einzelnen Nutzer."
   },
@@ -3244,6 +3247,9 @@
   },
   "5wR0b8PqT0": {
     "defaultMessage": "Segment nicht gefunden."
+  },
+  "5wWPtxr+Iq": {
+    "defaultMessage": "GPT-6 Astra"
   },
   "5wkpaoahQN": {
     "defaultMessage": "{count} offen"
@@ -15195,7 +15201,7 @@
     "defaultMessage": "Acme · Webstart · Editor"
   },
   "ZpIy+48cVo": {
-    "defaultMessage": "Acme Corp"
+    "defaultMessage": "Acme Corp."
   },
   "Zq6yckXsZ1": {
     "defaultMessage": "Repositories durchsuchen"
@@ -19931,6 +19937,9 @@
   "kscww+zSt8": {
     "defaultMessage": "Zum Anfang scrollen"
   },
+  "ksdV9RsBoH": {
+    "defaultMessage": "Claude Opus 5.5"
+  },
   "ksdqzG4/Xq": {
     "defaultMessage": "Gefilterte Einträge als TBX exportieren"
   },
@@ -20134,6 +20143,9 @@
   },
   "lNHTcG3rKm": {
     "defaultMessage": "Verbinden Sie Google Drive, Notion und SharePoint oder geben Sie Richtlinien direkt ein. Agents lesen sie und markieren, was nicht übereinstimmt."
+  },
+  "lNo4qG1F4d": {
+    "defaultMessage": "GPT-6 Luna"
   },
   "lO+u6H8vSf": {
     "defaultMessage": "Automatisierungseinstellungen gespeichert"
@@ -21394,6 +21406,9 @@
   },
   "oNE0YnvOn0": {
     "defaultMessage": "Verbinden Sie PDFs zu Markenstimme und Claims aus Google Drive. Agents zitieren die entsprechende Klausel in der Datei, wenn sie einen Entwurf beanstanden."
+  },
+  "oNLP4frHL4": {
+    "defaultMessage": "Speichern ..."
   },
   "oNrNYjWrTm": {
     "defaultMessage": "Übersetzungsspeicher nicht gefunden."
@@ -23724,7 +23739,7 @@
     "defaultMessage": "Keine Locales aufgeführt"
   },
   "u5OvRKaeK4": {
-    "defaultMessage": "daylight.example.com › journal › a-different-light"
+    "defaultMessage": "daylight.example.com › journal › ein-anderes-licht"
   },
   "u5hy7XQ9he": {
     "defaultMessage": "In diesem Space wurden keine Inhaltstypen gefunden."
@@ -24169,6 +24184,9 @@
   },
   "v5SnDiBsnL": {
     "defaultMessage": "Bild anhängen"
+  },
+  "v5ZuLrI48c": {
+    "defaultMessage": "GPT-6 Sol"
   },
   "v5cHP+g65A": {
     "defaultMessage": "Anfrage fehlgeschlagen"
@@ -25906,6 +25924,9 @@
   },
   "z6mrxTSFHp": {
     "defaultMessage": "Beschreibung hinzufügen…"
+  },
+  "z7zgiC7+v3": {
+    "defaultMessage": "{key} in {language} bearbeiten"
   },
   "z9I05YOvbx": {
     "defaultMessage": "Noch keine"

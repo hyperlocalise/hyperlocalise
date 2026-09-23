@@ -3723,6 +3723,10 @@
     "defaultMessage": "Segment not found.",
     "description": "Error when adding a missing segment to the issue sheet"
   },
+  "5wWPtxr+Iq": {
+    "defaultMessage": "GPT-6 Astra",
+    "description": "Label for the OpenAI GPT-6 Astra automation model"
+  },
   "5x5hr7hrs6": {
     "defaultMessage": "On or off",
     "description": "Experiment type option for a single-variant toggle"
@@ -23155,6 +23159,10 @@
     "defaultMessage": "Scroll to start",
     "description": "Accessible label for the message scroller jump-to-start control"
   },
+  "ksdV9RsBoH": {
+    "defaultMessage": "Claude Opus 5.5",
+    "description": "Label for the Anthropic Claude Opus 5.5 automation model"
+  },
   "ksdqzG4/Xq": {
     "defaultMessage": "Export filtered as TBX",
     "description": "Glossary action to export the current language filter as TBX"
@@ -23382,6 +23390,10 @@
   "lNHTcG3rKm": {
     "defaultMessage": "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents read them and flag what does not match.",
     "description": "Hero subcopy for the Guidelines product page"
+  },
+  "lNo4qG1F4d": {
+    "defaultMessage": "GPT-6 Luna",
+    "description": "Label for the OpenAI GPT-6 Luna automation model"
   },
   "lO+u6H8vSf": {
     "defaultMessage": "Automation settings saved",
@@ -28070,6 +28082,10 @@
   "v5SnDiBsnL": {
     "defaultMessage": "Attach image",
     "description": "Accessible label for attaching an image in public web chat"
+  },
+  "v5ZuLrI48c": {
+    "defaultMessage": "GPT-6 Sol",
+    "description": "Label for the OpenAI GPT-6 Sol automation model"
   },
   "v5cHP+g65A": {
     "defaultMessage": "Request failed",
