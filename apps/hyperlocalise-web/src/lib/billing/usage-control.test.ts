@@ -305,7 +305,7 @@ describe("usage-control", () => {
       parentOperationKey: operationKey,
       tokenUsage: { inputTokens: 40, outputTokens: 60, totalTokens: 100 },
       source: "translation_job_complete",
-      modelId: "anthropic/claude-sonnet-4-6",
+      modelId: "anthropic/claude-sonnet-4.6",
       credentialSource: "byok",
       autumnApiKey: "am_sk_test",
       trackTokens,

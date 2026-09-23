@@ -205,6 +205,7 @@ const AUTOMATION_MODEL_MESSAGES = {
   "openai/gpt-5.6-terra": workspaceAutomationFormMessages.modelGpt56Terra,
   "openai/gpt-5.6-sol": workspaceAutomationFormMessages.modelGpt56Sol,
   "anthropic/claude-sonnet-5": workspaceAutomationFormMessages.modelClaudeSonnet5,
+  "anthropic/claude-opus-5.5": workspaceAutomationFormMessages.modelClaudeOpus55,
   "anthropic/claude-opus-5": workspaceAutomationFormMessages.modelClaudeOpus5,
 } as const;
 

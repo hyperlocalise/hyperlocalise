@@ -25,6 +25,7 @@ import {
   resolveProviderLanguageModel,
 } from "@/lib/providers/language-model";
 import { loadLatestOrganizationProviderCredential } from "@/lib/providers/organization-language-model";
+import { toVercelAiGatewayModelId } from "@/lib/providers/shared/vercel-ai-gateway-model-id";
 import type {
   ContentEditorAiRecommendationInput,
   ContentEditorAiRecommendationResult,
@@ -400,17 +401,21 @@ export class OrganizationModelResolver {
         apiKey: loadedCredential.credential.apiKey,
         model: loadedCredential.credential.model,
       });
+      const gatewayModelId = toVercelAiGatewayModelId({
+        provider: loadedCredential.credential.provider,
+        model: loadedCredential.credential.model,
+      });
 
       return {
         ok: true as const,
         project: projectContext,
         organizationId: project.organizationId,
         model,
-        modelId: loadedCredential.credential.model,
+        modelId: gatewayModelId,
         credentialSource: "byok" as const,
         translateStringJob: createStringTranslationGenerator({
           model,
-          modelId: loadedCredential.credential.model,
+          modelId: gatewayModelId,
           credentialSource: "byok",
         }),
       };

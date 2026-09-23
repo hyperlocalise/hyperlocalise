@@ -133,6 +133,16 @@ describe("workspace automation view model", () => {
     expect(resolveWorkspaceAutomationModel("openai/gpt-5.6-sol")).toBe("openai/gpt-5.6-sol");
     expect(resolveWorkspaceAutomationModel("openai/gpt-6-astra")).toBe("openai/gpt-6-astra");
     expect(resolveWorkspaceAutomationModel("openai/gpt-6-sol")).toBe("openai/gpt-6-sol");
+    expect(resolveWorkspaceAutomationModel("openai/gpt-5.6-luna")).toBe("openai/gpt-6-luna");
+  });
+
+  it("resolves Anthropic gateway models with Vercel AI Gateway id matching", () => {
+    expect(resolveWorkspaceAutomationModel("anthropic/claude-opus-5.5")).toBe(
+      "anthropic/claude-opus-5.5",
+    );
+    expect(resolveWorkspaceAutomationModel("anthropic/claude-opus-5-5")).toBe(
+      "anthropic/claude-opus-5.5",
+    );
   });
 
   it("maps knowledge memories tool into the API payload", () => {
