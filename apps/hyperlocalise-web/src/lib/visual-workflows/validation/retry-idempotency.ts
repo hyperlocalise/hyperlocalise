@@ -30,6 +30,24 @@ export function isSafeIdempotentHttpNode(node: CanonicalVisualWorkflowNode): boo
   return node.config.method === "GET" || Boolean(node.config.idempotencyHeader);
 }
 
+/** Outbound Idempotency-Key for durable HTTP; stable across retry attempts when a header is configured. */
+export function buildVisualWorkflowNodeIdempotencyKey(input: {
+  runId: string;
+  nodeId: string;
+  iteration?: number;
+  inRetryBody: boolean;
+  node: CanonicalVisualWorkflowNode;
+}): string {
+  const httpWithHeader =
+    input.node.type === "action.http" &&
+    input.node.config.kind === "action.http" &&
+    Boolean(input.node.config.idempotencyHeader);
+  if (input.inRetryBody && httpWithHeader) {
+    return `${input.runId}/${input.nodeId}`;
+  }
+  return `${input.runId}/${input.nodeId}/${input.iteration ?? -1}`;
+}
+
 export function retryBodyRequiresDuplicateAcknowledgement(
   nodes: readonly CanonicalVisualWorkflowNode[],
   bodyNodeIds: readonly string[],

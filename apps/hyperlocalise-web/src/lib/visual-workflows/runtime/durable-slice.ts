@@ -30,6 +30,7 @@ import type { VisualWorkflowRunRecord } from "../visual-workflow-run-types";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 import { WORKFLOW_LIMITS } from "./limits";
 import {
+  buildVisualWorkflowNodeIdempotencyKey,
   collectRetryBodyNodeIds,
   findRetryNodeForBodyNodeId,
 } from "../validation/retry-idempotency";
@@ -163,11 +164,18 @@ export async function executeDurableWorkflowSlice(input: {
           secrets.push(...resolvedSecrets.value.secrets);
         }
         inputs.set(id, { config });
+        const inRetryBody = retryBodyNodeIds.has(args.node.id);
         const resolved = {
           ...args,
           node: { ...args.node, config: config as typeof args.node.config },
           inputsResolved: true,
-          idempotencyKey: `${input.run.id}/${args.node.id}/${args.iteration ?? -1}`,
+          idempotencyKey: buildVisualWorkflowNodeIdempotencyKey({
+            runId: input.run.id,
+            nodeId: args.node.id,
+            iteration: args.iteration,
+            inRetryBody,
+            node: args.node,
+          }),
         };
         const firstAttempt = (previous?.attempt ?? 0) + 1;
         const currentAttempts = records.filter(
@@ -175,7 +183,6 @@ export async function executeDurableWorkflowSlice(input: {
             key(record.nodeId, record.iteration) === id &&
             (!input.run.startedAt || record.createdAt.getTime() >= Date.parse(input.run.startedAt)),
         ).length;
-        const inRetryBody = retryBodyNodeIds.has(args.node.id);
         const retryParent = findRetryNodeForBodyNodeId(input.definition, args.node.id);
         const duplicateRiskAcknowledged =
           inRetryBody &&
