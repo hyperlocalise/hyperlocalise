@@ -101,7 +101,7 @@ func BenchmarkTrackTokens(b *testing.B) {
 	req := TrackTokensRequest{
 		CustomerID:   "org_1",
 		FeatureID:    "ai_tokens",
-		ModelID:      "openai/gpt-5.6-luna",
+		ModelID:      "openai/gpt-6-luna",
 		InputTokens:  40,
 		OutputTokens: 12,
 	}

@@ -243,7 +243,7 @@ describe("executeProviderAgentTranslation", () => {
           cacheReadTokens: 3,
           cacheWriteTokens: 1,
           reasoningTokens: 1,
-          modelId: "openai/gpt-5.6-luna",
+          modelId: "openai/gpt-6-luna",
           credentialSource: "gateway",
         },
       })),
@@ -274,7 +274,7 @@ describe("executeProviderAgentTranslation", () => {
         cacheReadTokens: 3,
         cacheWriteTokens: 1,
         reasoningTokens: 1,
-        modelId: "openai/gpt-5.6-luna",
+        modelId: "openai/gpt-6-luna",
         credentialSource: "gateway",
       },
     });

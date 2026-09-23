@@ -250,7 +250,7 @@ func TestTrackTokensUsesAPIVersion230(t *testing.T) {
 	err = client.TrackTokens(context.Background(), TrackTokensRequest{
 		CustomerID:      "org_1",
 		FeatureID:       "ai_tokens",
-		ModelID:         "openai/gpt-5.6-luna",
+		ModelID:         "openai/gpt-6-luna",
 		InputTokens:     40,
 		OutputTokens:    12,
 		CacheReadTokens: &cacheRead,
@@ -261,7 +261,7 @@ func TestTrackTokensUsesAPIVersion230(t *testing.T) {
 	if gotVersion != tokensAPIVersion {
 		t.Fatalf("x-api-version = %q, want %q", gotVersion, tokensAPIVersion)
 	}
-	if body["model_id"] != "openai/gpt-5.6-luna" || body["input_tokens"] != float64(40) {
+	if body["model_id"] != "openai/gpt-6-luna" || body["input_tokens"] != float64(40) {
 		t.Fatalf("body = %#v", body)
 	}
 	if body["cache_read_tokens"] != float64(2) {

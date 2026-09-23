@@ -13,6 +13,10 @@ go_library(
 
 go_test(
     name = "valkey_test",
-    srcs = ["client_test.go"],
+    srcs = [
+        "cache_test.go",
+        "client_test.go",
+    ],
     embed = [":valkey"],
+    deps = ["@com_github_stretchr_testify//require"],
 )

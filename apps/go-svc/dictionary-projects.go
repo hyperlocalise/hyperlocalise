@@ -139,7 +139,11 @@ func (api *dictionaryAPI) detachDictionaryProject(r *http.Request, actor diction
 }
 
 func (api *dictionaryAPI) projectDictionaries(ctx context.Context, actor dictionaryActor, projectID string, activeOnly bool) ([]dictionaryRecord, error) {
-	rows, err := api.pool.Query(ctx, `select `+dictionaryColumns+`,a.priority from project_spellcheck_word_libraries a join spellcheck_word_libraries d on d.id=a.library_id where a.project_id=$1 and a.organization_id=$2 and d.organization_id=$2 and (not $3 or d.status='active') order by a.priority,a.created_at,a.library_id`, projectID, actor.organizationID, activeOnly)
+	return loadProjectDictionaries(ctx, api.pool, actor, projectID, activeOnly)
+}
+
+func loadProjectDictionaries(ctx context.Context, db dictionaryDB, actor dictionaryActor, projectID string, activeOnly bool) ([]dictionaryRecord, error) {
+	rows, err := db.Query(ctx, `select `+dictionaryColumns+`,a.priority from project_spellcheck_word_libraries a join spellcheck_word_libraries d on d.id=a.library_id where a.project_id=$1 and a.organization_id=$2 and d.organization_id=$2 and (not $3 or d.status='active') order by a.priority,a.created_at,a.library_id`, projectID, actor.organizationID, activeOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -223,6 +227,17 @@ func (api *dictionaryAPI) resolvedWords(ctx context.Context, actor dictionaryAct
 	if err != nil {
 		return nil, 0, err
 	}
+	if api.wordsCache != nil {
+		return api.cachedResolvedWords(ctx, actor, projectID, locale, dictionaries)
+	}
+	words, err := loadResolvedDictionaryWords(ctx, api.pool, actor, projectID, locale)
+	if err != nil {
+		return nil, 0, err
+	}
+	return resolvedDictionaryResponse(locale, dictionaries, words), 200, nil
+}
+
+func resolvedDictionaryResponse(locale string, dictionaries []dictionaryRecord, words []string) map[string]any {
 	ids := []string{}
 	versions := []string{}
 	for _, d := range dictionaries {
@@ -231,23 +246,27 @@ func (api *dictionaryAPI) resolvedWords(ctx context.Context, actor dictionaryAct
 	}
 	sort.Strings(versions)
 	versions = append(versions, locale)
-	rows, err := api.pool.Query(ctx, `select w.word,w.word_normalized,a.priority,a.created_at,a.library_id from project_spellcheck_word_libraries a join spellcheck_word_libraries d on d.id=a.library_id join spellcheck_word_library_words w on w.library_id=d.id where a.project_id=$1 and a.organization_id=$2 and d.organization_id=$2 and d.status='active' and w.locale=$3 order by a.priority,a.created_at,a.library_id`, projectID, actor.organizationID, locale)
+	return map[string]any{"locale": locale, "words": words, "wordsVersion": strings.Join(versions, ","), "dictionaryIds": ids}
+}
+
+func loadResolvedDictionaryWords(ctx context.Context, db dictionaryDB, actor dictionaryActor, projectID, locale string) ([]string, error) {
+	rows, err := db.Query(ctx, `select w.word,w.word_normalized,a.priority,a.created_at,a.library_id from project_spellcheck_word_libraries a join spellcheck_word_libraries d on d.id=a.library_id join spellcheck_word_library_words w on w.library_id=d.id where a.project_id=$1 and a.organization_id=$2 and d.organization_id=$2 and d.status='active' and w.locale=$3 order by a.priority,a.created_at,a.library_id`, projectID, actor.organizationID, locale)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	defer rows.Close()
 	wordRows := []dictionaryResolvedWord{}
 	for rows.Next() {
 		var row dictionaryResolvedWord
 		if err := rows.Scan(&row.word, &row.folded, &row.priority, &row.createdAt, &row.dictionaryID); err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		wordRows = append(wordRows, row)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return map[string]any{"locale": locale, "words": mergeDictionaryWords(wordRows), "wordsVersion": strings.Join(versions, ","), "dictionaryIds": ids}, 200, nil
+	return mergeDictionaryWords(wordRows), nil
 }
 
 type dictionaryResolvedWord struct {

@@ -1286,6 +1286,9 @@
   "19Yj5RY029": {
     "defaultMessage": "Capturez le contexte et les corrections que votre équipe crée déjà, puis rendez-les disponibles au lancement suivant."
   },
+  "1A3oOwAeXf": {
+    "defaultMessage": "{language} (source)"
+  },
   "1AN+Q/JkbE": {
     "defaultMessage": "Queue translation jobs for uploaded source files in the project selected above."
   },
@@ -1769,6 +1772,9 @@
   "2HD/xUOuDn": {
     "defaultMessage": "Jour de la semaine"
   },
+  "2Hftj6qZP3": {
+    "defaultMessage": "Impossible de charger la traduction"
+  },
   "2IB+W+9a77": {
     "defaultMessage": "Utiliser la valeur par défaut"
   },
@@ -2200,6 +2206,9 @@
   },
   "3NyprC4I6O": {
     "defaultMessage": "Développer des idées"
+  },
+  "3QmQFMO6jX": {
+    "defaultMessage": "Langues"
   },
   "3R2FH9E6p2": {
     "defaultMessage": "Download"
@@ -3038,6 +3047,9 @@
   "5R6QcLONiw": {
     "defaultMessage": "Directive du projet"
   },
+  "5ROaWKy9xu": {
+    "defaultMessage": "Ouvrir {key} en {language}"
+  },
   "5RYXpxJmvr": {
     "defaultMessage": "Espace de travail"
   },
@@ -3526,6 +3538,9 @@
   },
   "6g9RHsjL+m": {
     "defaultMessage": "Réduire les allers-retours de relecture"
+  },
+  "6hO1kU+HPL": {
+    "defaultMessage": "Charger plus de clés"
   },
   "6hZ0OrRvp2": {
     "defaultMessage": "Inactif"
@@ -4101,7 +4116,7 @@
     "defaultMessage": "Chargement du problème…"
   },
   "87mk4HgY5S": {
-    "defaultMessage": "Automations"
+    "defaultMessage": "Automatisations"
   },
   "88AdkbjRBH": {
     "defaultMessage": "Plus d’options"
@@ -5360,6 +5375,9 @@
   "B7F4I10QjV": {
     "defaultMessage": "Échec"
   },
+  "B7HJpY5IHI": {
+    "defaultMessage": "Réessayer"
+  },
   "B8H5qyHiWy": {
     "defaultMessage": "Erreur de traduction"
   },
@@ -5647,6 +5665,9 @@
   },
   "Bn0C5KWma3": {
     "defaultMessage": "Connectez GitHub dans Intégrations pour choisir des dépôts."
+  },
+  "BnVSqljQov": {
+    "defaultMessage": "Clé"
   },
   "BnZ3uPwDP7": {
     "defaultMessage": "Consultez où cette chaîne apparaît dans le dépôt connecté"
@@ -6115,6 +6136,9 @@
   },
   "CtXpaStJTy": {
     "defaultMessage": "Lancement du site marketing"
+  },
+  "CuNKMtOPln": {
+    "defaultMessage": "Non traduit"
   },
   "Cuem8lXjuP": {
     "defaultMessage": "Supprimer le workflow ?"
@@ -7034,6 +7058,9 @@
   "F/lm8Q5OV6": {
     "defaultMessage": "En cours"
   },
+  "F0KK3Ot1t7": {
+    "defaultMessage": "{count, number} clés chargées"
+  },
   "F0U2CC+DdD": {
     "defaultMessage": "Top {percentile} % des domaines audités"
   },
@@ -7402,6 +7429,9 @@
   },
   "FxNFbqpNBI": {
     "defaultMessage": "ID du canal"
+  },
+  "FxqkXT7ENB": {
+    "defaultMessage": "Approuvé"
   },
   "G+NJ7A8R9g": {
     "defaultMessage": "Chargement…"
@@ -12908,6 +12938,9 @@
   "U9HdNspgPF": {
     "defaultMessage": "En cours…"
   },
+  "U9JGBvqNdg": {
+    "defaultMessage": "Aucune clé ne correspond aux filtres actuels."
+  },
   "U9t/eIwVYM": {
     "defaultMessage": "recall_knowledge_files"
   },
@@ -17669,6 +17702,9 @@
   "fmoDfLltk/": {
     "defaultMessage": "Chargement…"
   },
+  "fmtkoir6Cw": {
+    "defaultMessage": "Traductions multilingues"
+  },
   "fmu4X2/dDf": {
     "defaultMessage": "Original · {locale}"
   },
@@ -21275,6 +21311,9 @@
   "oD4c197bVX": {
     "defaultMessage": "Version"
   },
+  "oD9uIlyEmh": {
+    "defaultMessage": "Chargement des traductions…"
+  },
   "oDR2kKlwsc": {
     "defaultMessage": "Failed to load Ahrefs connections."
   },
@@ -24158,6 +24197,9 @@
   "vAwILOzBUa": {
     "defaultMessage": "Commencez dès aujourd’hui avec Hyperlocalise"
   },
+  "vB15JCGjFn": {
+    "defaultMessage": "Multilingue"
+  },
   "vB9oObJ76R": {
     "defaultMessage": "Vos modifications de la couche de texte seront enregistrées avant la localisation de l’image."
   },
@@ -25972,6 +26014,9 @@
   },
   "zNmLFPYZSE": {
     "defaultMessage": "Génération d’images"
+  },
+  "zOn5vF4r7i": {
+    "defaultMessage": "Sélectionnez une traduction pour ouvrir l’éditeur."
   },
   "zPBtoUzMcl": {
     "defaultMessage": "30 derniers jours"

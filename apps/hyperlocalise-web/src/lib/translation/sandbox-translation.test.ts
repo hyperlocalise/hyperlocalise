@@ -508,7 +508,7 @@ describe("sandbox translation temporary config", () => {
     expect(config).toContain("  file:");
     expect(config).not.toContain("  email:");
     expect(config).toContain("provider: openai");
-    expect(config).toContain("model: gpt-5.6-luna");
+    expect(config).toContain("model: gpt-6-luna");
     expect(config).toContain('from: "source.md"');
     expect(config).toContain('to: "source-de-DE.md"');
   });
@@ -642,7 +642,7 @@ describe("sandbox translation temporary config", () => {
       const config = buildTempConfig("source.json", "target.json", "en-US", "fr-FR", null);
 
       expect(config).toContain("provider: ai_gateway");
-      expect(config).toContain("model: openai/gpt-5.6-luna");
+      expect(config).toContain("model: openai/gpt-6-luna");
       expect(getSandboxTranslationEnv()).toEqual({
         OPENAI_API_KEY: "test-openai-api-key",
         AI_GATEWAY_API_KEY: "vck_test_key",

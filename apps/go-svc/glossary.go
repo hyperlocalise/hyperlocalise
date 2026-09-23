@@ -21,6 +21,7 @@ const (
 type glossaryAPI struct {
 	pool       dictionaryPool
 	membership organizationMembershipLookup
+	readCache  glossaryReadCache
 }
 
 type glossaryActor struct{ userID, organizationID, role string }

@@ -45,7 +45,7 @@ export function createAutomationSummary(
     kind: "agent",
     name: "Validate localisation on push",
     instructions: "Validate source and translation changes on every push.",
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-6-luna",
     projectId: "project-1",
     triggerConfig: {
       mode: "github",

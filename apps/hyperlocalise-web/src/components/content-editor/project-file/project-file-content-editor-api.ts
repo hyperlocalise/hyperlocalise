@@ -142,28 +142,32 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
   sortBucketOffset?: number;
   sourcePaths?: string | null;
   intl: ContentEditorFormatMessageIntl;
+  signal?: AbortSignal;
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
-  ].files.detail.cat.queue.$get({
-    param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
-    query: {
-      sourcePath: input.sourcePath,
-      ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
-      ...(input.resourceType ? { resourceType: input.resourceType } : {}),
-      ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
-      targetLocale: input.targetLocale,
-      offset: input.offset,
-      limit: input.limit,
-      ...(input.search ? { search: input.search } : {}),
-      ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
-      ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
-      ...(input.phraseScanPage != null ? { phraseScanPage: input.phraseScanPage } : {}),
-      ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
-      ...(input.sortBucket != null ? { sortBucket: input.sortBucket } : {}),
-      ...(input.sortBucketOffset != null ? { sortBucketOffset: input.sortBucketOffset } : {}),
+  ].files.detail.cat.queue.$get(
+    {
+      param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
+      query: {
+        sourcePath: input.sourcePath,
+        ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
+        ...(input.resourceType ? { resourceType: input.resourceType } : {}),
+        ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
+        targetLocale: input.targetLocale,
+        offset: input.offset,
+        limit: input.limit,
+        ...(input.search ? { search: input.search } : {}),
+        ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
+        ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
+        ...(input.phraseScanPage != null ? { phraseScanPage: input.phraseScanPage } : {}),
+        ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
+        ...(input.sortBucket != null ? { sortBucket: input.sortBucket } : {}),
+        ...(input.sortBucketOffset != null ? { sortBucketOffset: input.sortBucketOffset } : {}),
+      },
     },
-  });
+    { init: { signal: input.signal } },
+  );
 
   if (response.status !== 200) {
     throw new Error(

@@ -17,6 +17,9 @@ import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
 describe("llmProviderContentEditoralog", () => {
   it("uses Anthropic native model IDs for BYOK validation", () => {
     expect(llmProviderContentEditoralog.anthropic.models).toEqual([
+      "claude-opus-5-5",
+      "claude-opus-5",
+      "claude-sonnet-5",
       "claude-sonnet-4-6",
       "claude-opus-4-8",
       "claude-opus-4-7",

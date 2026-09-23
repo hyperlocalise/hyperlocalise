@@ -267,7 +267,11 @@ export function ProjectFilesTreePanel({
   useEffect(() => {
     setAutoAdvanceExhausted(false);
     setFileLimit(PROJECT_FILES_PAGE_SIZE);
-  }, [branch, selectedSourcePath]);
+  }, [organizationSlug, projectId, branch]);
+
+  useEffect(() => {
+    setAutoAdvanceExhausted(false);
+  }, [selectedSourcePath]);
 
   useEffect(() => {
     onLoadedFilesChange?.(files);

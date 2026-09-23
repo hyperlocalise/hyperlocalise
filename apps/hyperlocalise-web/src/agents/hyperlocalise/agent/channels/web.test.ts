@@ -458,9 +458,9 @@ describe("createWebChatAgentUIStreamResponse", () => {
         totalTokens: 12,
       },
       languageModel: {
-        model: "openai/gpt-5.6-luna",
+        model: "openai/gpt-6-luna",
         source: "gateway",
-        modelId: "openai/gpt-5.6-luna",
+        modelId: "openai/gpt-6-luna",
       },
       agent: {
         stream: vi.fn(async () => ({
@@ -485,9 +485,9 @@ describe("createWebChatAgentUIStreamResponse", () => {
       hasTranslationAttachments: false,
       usageOperationKey: "chat-agent-turn:msg_123:agent_runs",
       languageModel: {
-        model: "openai/gpt-5.6-luna",
+        model: "openai/gpt-6-luna",
         source: "gateway",
-        modelId: "openai/gpt-5.6-luna",
+        modelId: "openai/gpt-6-luna",
       },
     });
 
@@ -506,7 +506,7 @@ describe("createWebChatAgentUIStreamResponse", () => {
         outputTokens: 10,
         totalTokens: 60,
       },
-      aiCreditModelId: "openai/gpt-5.6-luna",
+      aiCreditModelId: "openai/gpt-6-luna",
       aiCreditCredentialSource: "gateway",
       interactionId: "conv_123",
     });
@@ -558,9 +558,9 @@ describe("createWebChatAgentUIStreamResponse", () => {
       hasTranslationAttachments: false,
       usageOperationKey: "chat-agent-turn:msg_persist_fail:agent_runs",
       languageModel: {
-        model: "openai/gpt-5.6-luna",
+        model: "openai/gpt-6-luna",
         source: "gateway",
-        modelId: "openai/gpt-5.6-luna",
+        modelId: "openai/gpt-6-luna",
       },
     });
 
@@ -574,7 +574,7 @@ describe("createWebChatAgentUIStreamResponse", () => {
           outputTokens: 10,
           totalTokens: 60,
         },
-        aiCreditModelId: "openai/gpt-5.6-luna",
+        aiCreditModelId: "openai/gpt-6-luna",
         aiCreditCredentialSource: "gateway",
       }),
     );
@@ -638,9 +638,9 @@ describe("createWebChatAgentUIStreamResponse", () => {
       hasTranslationAttachments: false,
       usageOperationKey: "chat-agent-turn:msg_missing_agent_usage:agent_runs",
       languageModel: {
-        model: "openai/gpt-5.6-luna",
+        model: "openai/gpt-6-luna",
         source: "gateway",
-        modelId: "openai/gpt-5.6-luna",
+        modelId: "openai/gpt-6-luna",
       },
     });
 
@@ -654,7 +654,7 @@ describe("createWebChatAgentUIStreamResponse", () => {
           outputTokens: 2,
           totalTokens: 12,
         },
-        aiCreditModelId: "openai/gpt-5.6-luna",
+        aiCreditModelId: "openai/gpt-6-luna",
         aiCreditCredentialSource: "gateway",
       }),
     );
@@ -696,9 +696,9 @@ describe("createWebChatAgentUIStreamResponse", () => {
       hasTranslationAttachments: false,
       usageOperationKey: "chat-agent-turn:msg_no_usage:agent_runs",
       languageModel: {
-        model: "openai/gpt-5.6-luna",
+        model: "openai/gpt-6-luna",
         source: "gateway",
-        modelId: "openai/gpt-5.6-luna",
+        modelId: "openai/gpt-6-luna",
       },
     });
 

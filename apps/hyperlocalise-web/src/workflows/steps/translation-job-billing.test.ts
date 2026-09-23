@@ -387,7 +387,7 @@ describe("translation job workflow billing", () => {
         expect.objectContaining({
           url: "https://api.useautumn.com/v1/balances.track_tokens",
           body: expect.objectContaining({
-            model_id: "openai/gpt-5.6-luna",
+            model_id: "openai/gpt-6-luna",
             input_tokens: 40,
             output_tokens: 12,
           }),
