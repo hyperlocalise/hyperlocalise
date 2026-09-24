@@ -1,0 +1,210 @@
+---
+title: "XLIFF"
+description: "Sync XLIFF 1.2 or 2.x files, review units and inline placeholders, and return translated interchange files."
+---
+
+This tutorial uses XLIFF as the localisation boundary for a backend, content pipeline, or vendor interchange. Hyperlocalise supports `.xlf`, `.xlif`, and `.xliff` files in XLIFF 1.2 and 2.x shapes.
+
+## Prerequisites
+
+You need:
+
+- a build or extraction step that produces XLIFF;
+- stable IDs for translation units;
+- the [Hyperlocalise CLI](/cli/getting-started/install);
+- a Cloud project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
+
+The example uses one source and one file per target locale:
+
+```text
+locales/
+├── en-US/messages.xliff
+├── fr-FR/messages.xliff
+└── de-DE/messages.xliff
+```
+
+## 1. Produce stable XLIFF units
+
+An XLIFF 1.2 source file can look like:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+  <file
+    original="backend"
+    source-language="en-US"
+    datatype="plaintext"
+  >
+    <body>
+      <trans-unit id="filters.saved.title">
+        <source>Saved filters</source>
+        <target></target>
+        <note>Heading on the saved filters page</note>
+      </trans-unit>
+      <trans-unit id="filters.saved.confirmation">
+        <source>Saved <ph id="filter_name">{name}</ph></source>
+        <target></target>
+        <note>Confirmation after a user saves a filter</note>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>
+```
+
+Use stable `id`, `name`, or `resname` values. Do not derive IDs from array positions or line numbers.
+
+Keep a `<target>` element in each source unit. During reconstruction, Hyperlocalise preserves `<source>` and writes the translated value into `<target>`.
+
+<Note>
+XLIFF 2.x is supported through `<unit>` elements. Keep one translatable segment per unit in the current workflow so one stable unit ID maps to one translation value.
+</Note>
+
+## 2. Map source and targets
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - de-DE
+
+buckets:
+  backend:
+    files:
+      - from: locales/{{source}}/messages.xliff
+        to: locales/{{target}}/messages.xliff
+
+hyperlocalise:
+  project_id_env: HYPERLOCALISE_PROJECT_ID
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+```
+
+XLIFF is already segmented. Hyperlocalise does not apply SRX sentence splitting to it.
+
+## 3. Check generated XLIFF in the source pull request
+
+Regenerate the source file and compare it with git:
+
+```bash
+./scripts/export-xliff.sh
+git diff --exit-code -- locales/en-US/messages.xliff
+hl sync push --dry-run
+```
+
+Your export check should reject:
+
+- missing or duplicate unit IDs;
+- units without source text;
+- invalid XML;
+- inline placeholder changes;
+- generated IDs that churn after unrelated edits; and
+- source units without a target element.
+
+Commit the generated XLIFF with the backend change.
+
+## 4. Push source XLIFF
+
+After merge:
+
+```bash
+hl sync push
+```
+
+Start work through a **Source upload** automation or **New Request**. Cloud presents units by their stable IDs while retaining source content and inline markup.
+
+## 5. Review units and inline placeholders
+
+In **Content Editor**, verify:
+
+- `<ph>`, `<g>`, or other inline codes remain in the correct semantic position;
+- placeholders such as `{name}` stay unchanged;
+- notes provide enough product context;
+- adjacent units use consistent terminology; and
+- target text does not contain escaped placeholder markup.
+
+Approve each target locale after review.
+
+## 6. Pull translated XLIFF
+
+Run:
+
+```bash
+hl sync pull
+hl check --bucket backend --quiet
+```
+
+Hyperlocalise reconstructs each target file from the source structure. For XLIFF 1.2 it preserves `source-language`, sets `target-language`, keeps source text, and replaces target text. For XLIFF 2.x it preserves `srcLang` and sets `trgLang`.
+
+Inline XML markup remains inline rather than becoming plain escaped text.
+
+## 7. Validate and import targets
+
+Open a translation pull request, then validate each target against the schema and your importer:
+
+```bash
+xmllint --noout locales/fr-FR/messages.xliff
+xmllint --noout locales/de-DE/messages.xliff
+./scripts/import-xliff.sh locales/fr-FR/messages.xliff
+./scripts/import-xliff.sh locales/de-DE/messages.xliff
+```
+
+If your toolchain ships an XLIFF schema validator, run it in addition to `xmllint`; well-formed XML alone does not prove that the file follows your XLIFF profile.
+
+Test:
+
+- every expected unit imports;
+- target locale metadata is correct;
+- inline codes survive the import;
+- no source-only fallback appears unexpectedly; and
+- the importer rejects missing required targets.
+
+## XLIFF 2.x example
+
+Use one `<segment>` per `<unit>`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff
+  xmlns="urn:oasis:names:tc:xliff:document:2.0"
+  version="2.0"
+  srcLang="en-US"
+>
+  <file id="backend">
+    <unit id="filters.saved.title">
+      <notes>
+        <note>Heading on the saved filters page</note>
+      </notes>
+      <segment>
+        <source>Saved filters</source>
+        <target></target>
+      </segment>
+    </unit>
+  </file>
+</xliff>
+```
+
+Avoid multiple independently translated segments under one unit until your export/import profile has been tested against Hyperlocalise's unit-level mapping.
+
+## Troubleshooting
+
+### Source text changes during pull
+
+Ensure every source unit contains a `<target>` element. Without one, reconstruction may update the source element because no target node exists.
+
+### Units disappear in Cloud
+
+Confirm every `<trans-unit>` or `<unit>` has a non-empty stable identifier and source text.
+
+### Inline placeholders break import
+
+Compare the source and target inline element sequence. Keep IDs and markup intact, then return the unit to review.
+
+## Next
+
+- [GitHub localisation workflow](/platform/tutorials/github-localisation-workflow)
+- [Gettext POT and PO](/platform/tutorials/gettext-pot-po)
+- [Content Editor](/platform/cat)

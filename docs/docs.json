@@ -131,6 +131,18 @@
                 ]
               },
               {
+                "group": "Tutorials",
+                "pages": [
+                  "platform/tutorials/github-localisation-workflow",
+                  "platform/tutorials/react-intl-icu",
+                  "platform/tutorials/vue-i18n",
+                  "platform/tutorials/ios-strings",
+                  "platform/tutorials/android-string-resources",
+                  "platform/tutorials/gettext-pot-po",
+                  "platform/tutorials/xliff"
+                ]
+              },
+              {
                 "group": "Workspace",
                 "pages": [
                   "platform/cat",

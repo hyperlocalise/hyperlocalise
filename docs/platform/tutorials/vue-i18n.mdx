@@ -1,0 +1,258 @@
+---
+title: "Vue and vue-i18n"
+description: "Keep vue-i18n JSON catalogs in git, review translations in Cloud, and load approved locales in Vue."
+---
+
+This tutorial connects a Vue app that uses [vue-i18n](https://vue-i18n.intlify.dev/) to Hyperlocalise Cloud. You keep nested JSON catalogs in the repository, review translations in Cloud, and load the approved files at runtime.
+
+`hl extract` scans React Intl descriptors in `.ts` and `.tsx` files. It does not scan `.vue` templates. Treat the locale JSON as the source of truth, and fail the pull request when components introduce keys that are missing from `locales/en-US.json`.
+
+## Prerequisites
+
+You need:
+
+- a Vue 3 app using `vue-i18n`;
+- the [Hyperlocalise CLI](/cli/getting-started/install);
+- a Cloud project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
+
+The example uses:
+
+```text
+.
+├── src/components/SavedFilters.vue
+├── locales/
+│   ├── en-US.json
+│   ├── fr-FR.json
+│   └── de-DE.json
+└── i18n.yml
+```
+
+## 1. Keep copy in locale JSON
+
+Write nested JSON with stable keys. vue-i18n resolves dotted paths such as `filters.saved.title`.
+
+`locales/en-US.json`:
+
+```json
+{
+  "filters": {
+    "saved": {
+      "title": "Saved filters",
+      "confirmation": "Saved {name}",
+      "count": "No saved filters | {n} saved filter | {n} saved filters"
+    }
+  }
+}
+```
+
+Use those keys in a component:
+
+```vue
+<script setup lang="ts">
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
+
+defineProps<{
+  count: number;
+  name: string;
+}>();
+</script>
+
+<template>
+  <section>
+    <h1>{{ t("filters.saved.title") }}</h1>
+    <p>{{ t("filters.saved.confirmation", { name }) }}</p>
+    <p>{{ t("filters.saved.count", count) }}</p>
+  </section>
+</template>
+```
+
+vue-i18n pipe plurals (`zero | one | other`) stay one string. Translators may change the prose, but they must keep the `|` separators and placeholders such as `{name}` and `{n}`.
+
+<Note>
+Do not store product copy in SFC `<i18n>` blocks for this workflow. Hyperlocalise syncs locale files, not compiled Vue single-file components. If you already use `<i18n>` blocks, compile them to JSON first and map the JSON files.
+</Note>
+
+## 2. Load catalogs in the app
+
+```ts
+import { createI18n } from "vue-i18n";
+import deDE from "../locales/de-DE.json";
+import enUS from "../locales/en-US.json";
+import frFR from "../locales/fr-FR.json";
+
+export const i18n = createI18n({
+  legacy: false,
+  locale: "en-US",
+  fallbackLocale: "en-US",
+  messages: {
+    "en-US": enUS,
+    "fr-FR": frFR,
+    "de-DE": deDE,
+  },
+});
+```
+
+Register `i18n` in `main.ts` with `app.use(i18n)`.
+
+## 3. Map the catalogs
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - de-DE
+
+buckets:
+  web:
+    files:
+      - from: locales/{{source}}.json
+        to: locales/{{target}}.json
+
+hyperlocalise:
+  project_id_env: HYPERLOCALISE_PROJECT_ID
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+```
+
+Hyperlocalise treats nested JSON as dotted keys such as `filters.saved.title`. It rewrites string leaves and keeps object structure.
+
+If you prefer TypeScript locale modules instead of JSON, map `.ts` files as described in [i18n configuration](/cli/configuration/i18n-config#js-ts-locale-module-patterns).
+
+## 4. Catch missing keys in the source pull request
+
+Install `@intlify/eslint-plugin-vue-i18n` and fail CI when a component calls a key that is missing from the English catalog:
+
+```js
+// eslint.config.js
+import vueI18n from "@intlify/eslint-plugin-vue-i18n";
+
+export default [
+  ...vueI18n.configs["flat/recommended"],
+  {
+    rules: {
+      "@intlify/vue-i18n/no-missing-keys": "error",
+      "@intlify/vue-i18n/no-raw-text": "error",
+    },
+    settings: {
+      "vue-i18n": {
+        localeDir: "./locales/*.{json,json5,yaml,yml}",
+        messageSyntaxVersion: "^11.0.0",
+      },
+    },
+  },
+];
+```
+
+Then preview the Cloud upload:
+
+```yaml
+- name: Check vue-i18n keys
+  run: npx eslint .
+
+- uses: hyperlocalise/hyperlocalise/install@v1
+  with:
+    version: latest
+
+- name: Preview source upload
+  run: hl sync push --dry-run
+  env:
+    HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+    HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+```
+
+Use the lint command your repository already runs (`vp lint`, `npx eslint`, or equivalent). The important gate is: new `t()` / `$t()` calls cannot merge without a matching English catalog entry.
+
+Commit `locales/en-US.json` with the component change.
+
+## 5. Push and review
+
+After the source pull request merges:
+
+```bash
+hl sync push
+```
+
+Start generation through a **Source upload** automation or **New Request**. In **Content Editor**, review:
+
+- pipe plural branches for `0`, `1`, and several items;
+- placeholders such as `{name}` and `{n}`;
+- linked messages that start with `@:`;
+- labels that must fit compact Vue layouts; and
+- terminology shared with API errors or emails.
+
+Approve the translations before pulling them back.
+
+## 6. Pull and validate translations
+
+Run:
+
+```bash
+hl sync pull
+hl check --bucket web --quiet
+```
+
+`hl check` reports missing target keys and placeholder mismatches. For ICU messages, it also reports `icu_shape_mismatch`. vue-i18n pipe plurals are one string, so they do not use the ICU shape check; cover those branches in tests instead.
+
+```ts
+import { createI18n } from "vue-i18n";
+import frFR from "../locales/fr-FR.json";
+
+const i18n = createI18n({
+  legacy: false,
+  locale: "fr-FR",
+  messages: { "fr-FR": frFR },
+});
+
+expect(i18n.global.t("filters.saved.count", 0)).toBe("Aucun filtre enregistré");
+expect(i18n.global.t("filters.saved.count", 1)).toBe("1 filtre enregistré");
+expect(i18n.global.t("filters.saved.count", 5)).toBe("5 filtres enregistrés");
+```
+
+Open a translation pull request containing the pulled JSON. Run unit, build, and visual tests before merging it.
+
+## ICU messages in vue-i18n
+
+If your app already uses ICU instead of pipe plurals, store the full message as a single JSON string:
+
+```json
+{
+  "filters": {
+    "saved": {
+      "count": "{n, plural, =0 {No saved filters} one {# saved filter} other {# saved filters}}"
+    }
+  }
+}
+```
+
+Keep ICU in one leaf. Do not split branches into sibling JSON keys unless your runtime already expects that shape. `hl check` can then catch `icu_shape_mismatch` on the pulled catalogs.
+
+## Troubleshooting
+
+### A component shows the key instead of copy
+
+Confirm `locales/en-US.json` contains the nested path, `createI18n` loads that file, and the `t()` call uses the same dotted key.
+
+### Nested keys flatten unexpectedly
+
+JSON object keys cannot contain `.`, `[`, or `]`. Use nested objects (`filters.saved.title`) rather than a key whose name includes a dot.
+
+### Pull writes FormatJS-shaped JSON
+
+That happens when the source catalog is strict FormatJS (`defaultMessage` per id). vue-i18n expects nested string leaves. Keep source JSON in the nested vue-i18n shape shown above.
+
+### Linked messages break after translation
+
+A value such as `@:filters.saved.title` must keep the `@:` prefix and the target key. Return the segment to review if a translator inlines the English text.
+
+## Next
+
+- [GitHub localisation workflow](/platform/tutorials/github-localisation-workflow)
+- [React Intl and ICU](/platform/tutorials/react-intl-icu)
+- [i18n configuration](/cli/configuration/i18n-config)
+- [`check` reference](/cli/commands/check)
