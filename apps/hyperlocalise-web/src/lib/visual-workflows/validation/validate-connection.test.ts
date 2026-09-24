@@ -55,7 +55,16 @@ describe("validateVisualWorkflowConnection", () => {
     {
       name: "accepts a compatible data connection",
       nodes: [trigger, request],
-      edges: [],
+      edges: [
+        {
+          id: "trigger-request",
+          source: "trigger",
+          target: "request",
+          sourceHandle: "success",
+          targetHandle: "input",
+          data: { kind: "execution" as const },
+        },
+      ],
       connection: {
         source: "trigger",
         target: "request",
@@ -252,7 +261,17 @@ describe("validateVisualWorkflowConnection", () => {
 
     const result = validateVisualWorkflowConnection({
       nodes: [trigger, request],
-      edges,
+      edges: [
+        ...edges,
+        {
+          id: "trigger-request",
+          source: "trigger",
+          target: "request",
+          sourceHandle: "success",
+          targetHandle: "input",
+          data: { kind: "execution" },
+        },
+      ],
       replacingEdgeId: "existing-data",
       connection: {
         source: "trigger",
@@ -405,7 +424,16 @@ it("allows an explicitly configured error route", () => {
 it("allows a compatible optional data input", () => {
   const result = validateVisualWorkflowConnection({
     nodes: [trigger, request],
-    edges: [],
+    edges: [
+      {
+        id: "trigger-request",
+        source: "trigger",
+        target: "request",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ],
     connection: {
       source: "trigger",
       target: "request",
@@ -509,5 +537,75 @@ it("rejects nested For Each loop regions", () => {
   expect(result).toMatchObject({
     valid: false,
     code: "loop_boundary",
+  });
+});
+
+it("rejects a For Each reached from an existing loop body", () => {
+  const outer = node("outer", "logic.for_each", {
+    bodyNodeIds: ["body"],
+  });
+  const body = node("body", "logic.set");
+  const inner = node("inner", "logic.for_each");
+
+  const result = validateVisualWorkflowConnection({
+    nodes: [outer, body, inner],
+    edges: [],
+    connection: {
+      source: "body",
+      target: "inner",
+      sourceHandle: "success",
+      targetHandle: "input",
+    },
+  });
+
+  expect(result).toMatchObject({
+    valid: false,
+    code: "loop_boundary",
+  });
+});
+
+it.each([
+  {
+    name: "downstream",
+    executionSource: "target",
+    executionTarget: "source",
+  },
+  {
+    name: "unrelated",
+    executionSource: "trigger",
+    executionTarget: "target",
+  },
+])("rejects a $name node as a data source", ({ executionSource, executionTarget }) => {
+  const source = node("source", "logic.set", {
+    outputFields: [{ path: "value", type: "string" }],
+  });
+  const target = node("target", "action.http");
+  const edges: VisualWorkflowRfEdge[] = [
+    {
+      id: "execution",
+      source: executionSource,
+      target: executionTarget,
+      sourceHandle: "success",
+      targetHandle: "input",
+      data: { kind: "execution" },
+    },
+  ];
+
+  const result = validateVisualWorkflowConnection({
+    nodes: [trigger, source, target],
+    edges,
+    connection: {
+      source: "source",
+      target: "target",
+      sourceHandle: "value",
+      targetHandle: "url",
+    },
+  });
+
+  expect(result).toMatchObject({
+    valid: false,
+    code: "invalid_data_source",
+    sourcePortId: "value",
+    targetPortId: "url",
   });
 });

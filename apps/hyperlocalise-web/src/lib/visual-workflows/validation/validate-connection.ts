@@ -26,6 +26,7 @@ export type ConnectionValidationCode =
   | "invalid_target_port"
   | "incompatible_data_types"
   | "target_already_connected"
+  | "invalid_data_source"
   | "execution_cycle"
   | "loop_boundary";
 
@@ -179,11 +180,12 @@ export function validateVisualWorkflowConnection(input: {
       );
     }
 
-    if (
-      sourceNode.data.catalogType === "logic.for_each" &&
-      normalizedSourcePortId === "each" &&
-      targetNode.data.catalogType === "logic.for_each"
-    ) {
+    const createsNestedLoop =
+      targetNode.data.catalogType === "logic.for_each" &&
+      (sourceLoopOwner !== undefined ||
+        (sourceNode.data.catalogType === "logic.for_each" && normalizedSourcePortId === "each"));
+
+    if (createsNestedLoop) {
       return invalidResult(
         "loop_boundary",
         normalizedSourcePortId,
@@ -262,6 +264,35 @@ export function validateVisualWorkflowConnection(input: {
           normalizedTargetPortId,
           "The connection references an invalid node.",
         );
+    }
+  }
+
+  if (edgeKind === "data") {
+    const executionAncestors = new Set<string>();
+    const queue = [connection.target];
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+
+      for (const edge of existingEdges) {
+        if (edge.data?.kind === "data" || edge.target !== current) {
+          continue;
+        }
+
+        if (!executionAncestors.has(edge.source)) {
+          executionAncestors.add(edge.source);
+          queue.push(edge.source);
+        }
+      }
+    }
+
+    if (!executionAncestors.has(connection.source)) {
+      return invalidResult(
+        "invalid_data_source",
+        normalizedSourcePortId,
+        normalizedTargetPortId,
+        `Source port "${normalizedSourcePortId}" must belong to an execution ancestor of target port "${normalizedTargetPortId}".`,
+      );
     }
   }
 
