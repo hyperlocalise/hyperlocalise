@@ -13,10 +13,19 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { getIntlShape } from "@/lib/app-i18n/intl";
+import { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 
 import { fetchCatSegmentValidation } from "./project-file-content-editor-validation";
 
 const testIntl = getIntlShape("en");
+
+function clientWith(fetcher: ReturnType<typeof vi.fn>) {
+  return new GoSvcClient({
+    baseUrl: "https://api.hyperlocalise.com",
+    getAccessToken: () => "access-token",
+    fetch: fetcher as unknown as typeof fetch,
+  });
+}
 
 describe("fetchCatSegmentValidation", () => {
   it("posts the segment and all QA modes to go-svc", async () => {
@@ -46,7 +55,7 @@ describe("fetchCatSegmentValidation", () => {
         maxLength: 40,
         intl: testIntl,
       },
-      fetcher,
+      clientWith(fetcher),
     );
 
     expect(result).toEqual({
@@ -62,10 +71,11 @@ describe("fetchCatSegmentValidation", () => {
       ],
     });
     expect(fetcher).toHaveBeenCalledWith(
-      "/api/go-svc/v1/validate/segment",
+      "https://api.hyperlocalise.com/v1/validate/segment",
       expect.objectContaining({
         method: "POST",
-        credentials: "same-origin",
+        credentials: "omit",
+        headers: expect.any(Headers),
         body: JSON.stringify({
           sourceText: "Hello {name}",
           targetText: "Bonjour {name}",
@@ -82,6 +92,9 @@ describe("fetchCatSegmentValidation", () => {
         }),
       }),
     );
+    const request = fetcher.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(request).toBeDefined();
+    expect(new Headers(request?.headers).get("authorization")).toBe("Bearer access-token");
   });
 
   it("rejects malformed service responses", async () => {
@@ -99,7 +112,7 @@ describe("fetchCatSegmentValidation", () => {
         targetLocale: "fr-FR",
         intl: testIntl,
       },
-      fetcher,
+      clientWith(fetcher),
     );
 
     expect(result).toEqual({
@@ -143,7 +156,7 @@ describe("fetchCatSegmentValidation", () => {
         targetLocale: "en-US",
         intl: testIntl,
       },
-      fetcher,
+      clientWith(fetcher),
     );
 
     expect(result).toEqual({
@@ -193,7 +206,7 @@ describe("fetchCatSegmentValidation", () => {
         targetLocale: "fr-FR",
         intl: testIntl,
       },
-      fetcher,
+      clientWith(fetcher),
     );
 
     expect(result).toEqual({
@@ -236,7 +249,7 @@ describe("fetchCatSegmentValidation", () => {
         targetLocale: "ja-JP",
         intl: testIntl,
       },
-      fetcher,
+      clientWith(fetcher),
     );
 
     expect(result).toEqual({
@@ -288,7 +301,7 @@ describe("fetchCatSegmentValidation", () => {
         targetLocale: "ja-JP",
         intl: testIntl,
       },
-      fetcher,
+      clientWith(fetcher),
     );
 
     expect(result).toEqual({
@@ -321,7 +334,7 @@ describe("fetchCatSegmentValidation", () => {
         targetLocale: "invalid_locale_format",
         intl: testIntl,
       },
-      fetcher,
+      clientWith(fetcher),
     );
 
     const request = fetcher.mock.calls[0]?.[1] as RequestInit;
@@ -350,7 +363,7 @@ describe("fetchCatSegmentValidation", () => {
         targetLocale: "   ",
         intl: testIntl,
       },
-      fetcher,
+      clientWith(fetcher),
     );
 
     const request = fetcher.mock.calls[0]?.[1] as RequestInit;
@@ -378,7 +391,7 @@ describe("fetchCatSegmentValidation", () => {
         targetLocale: "fr-FR",
         intl: testIntl,
       },
-      fetcher,
+      clientWith(fetcher),
     );
 
     const request = fetcher.mock.calls[0]?.[1] as RequestInit;
@@ -414,7 +427,7 @@ describe("fetchCatSegmentValidation", () => {
         signal: abortController.signal,
         intl: testIntl,
       },
-      fetcher,
+      clientWith(fetcher),
     );
 
     expect(result).toEqual({
@@ -440,7 +453,7 @@ describe("fetchCatSegmentValidation", () => {
         acceptedWords: ["Hyperlocalise", "AuthKit"],
         intl: testIntl,
       },
-      fetcher,
+      clientWith(fetcher),
     );
 
     const request = fetcher.mock.calls[0]?.[1] as RequestInit;

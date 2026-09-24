@@ -293,6 +293,9 @@ export const env = createEnv({
     /** Public runtime environment exposed to the browser. Mirrors NODE_ENV. */
     NEXT_PUBLIC_APP_ENV: z.enum(["development", "test", "production"]).default("development"),
 
+    /** Public origin used by browser-direct Go service requests. */
+    NEXT_PUBLIC_API_BASE_URL: z.url().optional(),
+
     /** Public WorkOS OAuth redirect URI exposed to the browser. Optional — falls back to WORKOS_REDIRECT_URI. */
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: z.url().optional(),
 
@@ -302,6 +305,8 @@ export const env = createEnv({
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
+    NEXT_PUBLIC_API_BASE_URL:
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? (isTestEnv ? "http://127.0.0.1:8080" : undefined),
     DATABASE_URL: process.env.DATABASE_URL,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? (isTestEnv ? "test-openai-api-key" : undefined),
     AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,

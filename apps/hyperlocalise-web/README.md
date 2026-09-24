@@ -63,6 +63,11 @@ Keyword research and rank tracking proxy to [`go-svc`](../go-svc/README.md). For
 
 1. Run `go-svc` with `DATAFORSEO_API_KEY` and matching `WORKOS_*` values.
 2. Set `GO_SVC_URL=http://127.0.0.1:8080` in `.env`.
+
+Browser-direct Go service calls use `NEXT_PUBLIC_API_BASE_URL`. Set it to
+`http://127.0.0.1:8080` for local development; production uses
+`https://api.hyperlocalise.com`.
+
 3. Enable the `workspace-domains` WorkOS feature flag for your test org.
 
 Without `go-svc`, Domains UI still loads but research mutations return provider errors.
