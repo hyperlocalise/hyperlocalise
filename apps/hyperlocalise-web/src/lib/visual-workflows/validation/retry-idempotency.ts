@@ -97,3 +97,42 @@ export function collectRetryBodyNodeIds(definition: {
   }
   return ids;
 }
+
+export function collectRetryBodyNodeIdsForRetryNode(
+  definition: { nodes: readonly CanonicalVisualWorkflowNode[] },
+  retryNodeId: string,
+): Set<string> {
+  const retryNode = definition.nodes.find((node) => node.id === retryNodeId);
+  if (!retryNode || retryNode.type !== "logic.retry") {
+    return new Set();
+  }
+  return new Set(retryNode.bodyNodeIds ?? []);
+}
+
+/**
+ * Whether a persisted node run may short-circuit execution in a durable slice.
+ *
+ * `logic.retry` clears body outputs and re-runs the region on each attempt. After a
+ * durable `retry_backoff` wake, earlier succeeded/handled_error body runs must not
+ * be reused — otherwise side effects never re-fire and handled_error nodes never
+ * actually retry across the durable boundary.
+ *
+ * Same-attempt resumes (mid-body `yield_execution`) keep short-circuiting so a
+ * completed body node is not duplicated within one attempt.
+ */
+export function shouldReuseCompletedNodeRun(input: {
+  nodeId: string;
+  /** Interpreter iteration for retry-body nodes is the enclosing retry attempt (not the node-run attempt counter). */
+  retryRegionAttempt: number;
+  resumedRetryBodyNodeIds: ReadonlySet<string>;
+  resumeAttempt: number | null;
+}): boolean {
+  if (
+    input.resumeAttempt != null &&
+    input.resumedRetryBodyNodeIds.has(input.nodeId) &&
+    input.retryRegionAttempt < input.resumeAttempt
+  ) {
+    return false;
+  }
+  return true;
+}

@@ -13,7 +13,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { createDefaultConfig } from "../catalog/node-catalog";
-import { buildVisualWorkflowNodeIdempotencyKey } from "./retry-idempotency";
+import {
+  buildVisualWorkflowNodeIdempotencyKey,
+  shouldReuseCompletedNodeRun,
+} from "./retry-idempotency";
 
 describe("buildVisualWorkflowNodeIdempotencyKey", () => {
   it("reuses the same key across retry attempts when an idempotency header is set", () => {
@@ -64,5 +67,76 @@ describe("buildVisualWorkflowNodeIdempotencyKey", () => {
         node,
       }),
     ).toBe("run-1/http/3");
+  });
+});
+
+describe("shouldReuseCompletedNodeRun", () => {
+  const resumedRetryBodyNodeIds = new Set(["create", "process"]);
+
+  it("reuses completed body runs within the same retry attempt after a mid-body yield", () => {
+    expect(
+      shouldReuseCompletedNodeRun({
+        nodeId: "create",
+        retryRegionAttempt: 1,
+        resumedRetryBodyNodeIds,
+        resumeAttempt: 1,
+      }),
+    ).toBe(true);
+  });
+
+  it("reuses a first-time body node run during the resumed retry attempt even when node-run attempt is 1", () => {
+    expect(
+      shouldReuseCompletedNodeRun({
+        nodeId: "process",
+        retryRegionAttempt: 2,
+        resumedRetryBodyNodeIds,
+        resumeAttempt: 2,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not reuse earlier attempt body runs after a retry_backoff wake", () => {
+    expect(
+      shouldReuseCompletedNodeRun({
+        nodeId: "create",
+        retryRegionAttempt: 1,
+        resumedRetryBodyNodeIds,
+        resumeAttempt: 2,
+      }),
+    ).toBe(false);
+  });
+
+  it("still reuses completed nodes outside the resumed retry body", () => {
+    expect(
+      shouldReuseCompletedNodeRun({
+        nodeId: "setup",
+        retryRegionAttempt: 1,
+        resumedRetryBodyNodeIds,
+        resumeAttempt: 2,
+      }),
+    ).toBe(true);
+  });
+
+  it("still reuses an earlier retry region body after a later retry wakes", () => {
+    const secondRetryBodyOnly = new Set(["process"]);
+    expect(
+      shouldReuseCompletedNodeRun({
+        nodeId: "legacy",
+        retryRegionAttempt: 1,
+        resumedRetryBodyNodeIds: secondRetryBodyOnly,
+        resumeAttempt: 2,
+      }),
+    ).toBe(true);
+  });
+
+  it("reuses completed runs when there is no retry resume state", () => {
+    expect(
+      shouldReuseCompletedNodeRun({
+        nodeId: "create",
+        retryRegionAttempt: 1,
+        resumedRetryBodyNodeIds,
+        resumeAttempt: null,
+      }),
+    ).toBe(true);
   });
 });

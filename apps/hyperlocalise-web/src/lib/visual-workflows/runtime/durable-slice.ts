@@ -32,7 +32,9 @@ import { WORKFLOW_LIMITS } from "./limits";
 import {
   buildVisualWorkflowNodeIdempotencyKey,
   collectRetryBodyNodeIds,
+  collectRetryBodyNodeIdsForRetryNode,
   findRetryNodeForBodyNodeId,
+  shouldReuseCompletedNodeRun,
 } from "../validation/retry-idempotency";
 import { isLogicRetryConfig } from "../schema/retry-policy";
 import { parseRetryResumeState } from "./retry-delay";
@@ -55,11 +57,25 @@ export async function executeDurableWorkflowSlice(input: {
     )
     .orderBy(asc(schema.visualWorkflowNodeRuns.attempt));
   const key = (id: string, iteration = -1) => JSON.stringify([id, iteration]);
+  const retryBodyNodeIds = collectRetryBodyNodeIds(input.definition);
+  const retryBackoff = parseRetryResumeState(input.payload.retryBackoff);
+  const resumeAttempt = retryBackoff?.nextAttempt ?? null;
+  const resumedRetryBodyNodeIds =
+    retryBackoff != null
+      ? collectRetryBodyNodeIdsForRetryNode(input.definition, retryBackoff.retryNodeId)
+      : new Set<string>();
   const completed = new Map(
     records
       .filter(
         (record) =>
-          record.encryptedOutput && ["succeeded", "handled_error"].includes(record.status),
+          record.encryptedOutput &&
+          ["succeeded", "handled_error"].includes(record.status) &&
+          shouldReuseCompletedNodeRun({
+            nodeId: record.nodeId,
+            retryRegionAttempt: record.iteration,
+            resumedRetryBodyNodeIds,
+            resumeAttempt,
+          }),
       )
       .map((record) => [
         key(record.nodeId, record.iteration),
@@ -74,8 +90,6 @@ export async function executeDurableWorkflowSlice(input: {
   for (const result of completed.values())
     if (result.ok) secrets.push(...collectWorkflowSecrets(result.output));
   let externalExecuted = false;
-  const retryBodyNodeIds = collectRetryBodyNodeIds(input.definition);
-  const retryBackoff = parseRetryResumeState(input.payload.retryBackoff);
   const mock = createMockWorkflowExecutor(
     (input.payload.mockOutputs as Record<string, Record<string, unknown>>) ?? {},
   );
