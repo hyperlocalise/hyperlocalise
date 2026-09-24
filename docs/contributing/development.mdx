@@ -92,7 +92,18 @@ vp test
 
 ### go-svc sidecar
 
-Spellcheck, Domains research, and Hyperlab OFREP evaluate routes run in [`apps/go-svc`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/go-svc/README.md). Set `GO_SVC_URL` in the web `.env` when testing Domains or CAT validation locally. Domains research also needs `DATAFORSEO_API_KEY` on `go-svc`.
+[`apps/go-svc`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/go-svc/README.md) hosts segment validation, native CRUD APIs (dictionaries, glossaries, teams, QA reports), Domains research, Search Console proxies, and Hyperlab OFREP evaluate routes.
+
+The web app uses two call paths:
+
+| Caller | Env var | Auth | Typical routes |
+| --- | --- | --- | --- |
+| Browser (`GoSvcClient` via `useGoSvcClient`) | `NEXT_PUBLIC_API_BASE_URL` (defaults to `https://api.hyperlocalise.com`) | WorkOS session access token (`Authorization: Bearer`) | CAT validation, dictionaries, teams, QA reports |
+| Next.js server (Domains, GSC) | `GO_SVC_URL` | Session cookie plus `X-Go-Svc-Research-Token` where required | `/v1/domains/research/*`, `/v1/domains/gsc/*` |
+
+For local development, run `go run ./apps/go-svc` with matching `WORKOS_*` and `WORKOS_COOKIE_PASSWORD`, then set both `GO_SVC_URL=http://127.0.0.1:8080` and `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8080` in `apps/hyperlocalise-web/.env`. Domains research also needs `DATAFORSEO_API_KEY` on `go-svc` (see [`apps/go-svc/README.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/go-svc/README.md)).
+
+Design notes: [`docs/adr/2026-09-22-web-go-svc-api-client-design.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/docs/adr/2026-09-22-web-go-svc-api-client-design.md) and [`docs/adr/2026-09-20-go-svc-workos-access-token-design.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/docs/adr/2026-09-20-go-svc-workos-access-token-design.md).
 
 ### Before opening a web PR
 
