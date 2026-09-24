@@ -106,12 +106,8 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
       <h1>
         <FormattedMessage {...savedFiltersBannerMessages.title} />
       </h1>
-      <p>
-        {intl.formatMessage(savedFiltersBannerMessages.savedCount, { count: savedCount })}
-      </p>
-      <p>
-        {intl.formatMessage(savedFiltersBannerMessages.scope, { scope })}
-      </p>
+      <p>{intl.formatMessage(savedFiltersBannerMessages.savedCount, { count: savedCount })}</p>
+      <p>{intl.formatMessage(savedFiltersBannerMessages.scope, { scope })}</p>
     </section>
   );
 }
@@ -324,11 +320,11 @@ Use `hl sync push --dry-run` when you change bucket paths or locale lists.
 
 Translators should see the full ICU message, not isolated English fragments. In review, ask locale-specific questions ICU hides in a single string:
 
-| Message | Review question |
-| ------- | ---------------- |
+| Message                     | Review question                                                                                                |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `filters.banner.savedCount` | Do `=0`, `one`, and `other` branches read naturally? Does `#` expand correctly for each locale’s plural rules? |
-| `filters.banner.scope` | Does `select` cover every `scope` value the app sends? Is `other` a safe fallback? |
-| Short labels | Do translated strings still fit buttons after plural expansion? |
+| `filters.banner.scope`      | Does `select` cover every `scope` value the app sends? Is `other` a safe fallback?                             |
+| Short labels                | Do translated strings still fit buttons after plural expansion?                                                |
 
 Attach screenshots when a plural branch appears in a constrained layout. Hyperlocalise keeps glossary and project instructions alongside the segment—the CLI only moves files.
 
