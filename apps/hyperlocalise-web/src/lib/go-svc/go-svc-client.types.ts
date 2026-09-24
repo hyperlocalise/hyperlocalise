@@ -224,9 +224,9 @@ export type ValidateSegmentBody = {
   targetText: string;
   sourcePath: string;
   maxLength?: number;
-  modes?: string[];
+  modes?: readonly string[];
   targetLocale?: string;
-  acceptedWords?: string[];
+  acceptedWords?: readonly string[];
 };
 
 export type ValidateSegmentResult = {

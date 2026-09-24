@@ -18,7 +18,7 @@ import type {
   ContentEditorFormatCheck,
   ContentEditorFormatCheckCategory,
 } from "@/components/content-editor/shared/types";
-import { readApiError } from "@/lib/api-error";
+import { GoSvcClientError, type GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
 
@@ -94,7 +94,7 @@ export async function fetchCatSegmentValidation(
     signal?: AbortSignal;
     intl: ContentEditorFormatMessageIntl;
   },
-  fetcher: typeof fetch = fetch,
+  goSvcClient: GoSvcClient,
 ): Promise<Result<ContentEditorFormatCheck[], ContentEditorSegmentValidationError>> {
   if (!CAT_SEGMENT_VALIDATION_ENABLED) {
     return ok([]);
@@ -113,13 +113,8 @@ export async function fetchCatSegmentValidation(
   const responseResult = await fromThrowableAsync(
     scheduleValidation(
       () =>
-        fetcher("/api/go-svc/v1/validate/segment", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+        goSvcClient.cat.validateSegment(
+          {
             sourceText: input.sourceText,
             targetText: input.targetText,
             sourcePath: input.sourcePath,
@@ -131,9 +126,9 @@ export async function fetchCatSegmentValidation(
               ? { acceptedWords: capResolvedSpellcheckWords(input.acceptedWords) }
               : {}),
             modes,
-          }),
-          signal: input.signal,
-        }),
+          },
+          { signal: input.signal },
+        ),
       input.signal,
     ),
   );
@@ -143,6 +138,23 @@ export async function fetchCatSegmentValidation(
       return err({ code: "aborted" });
     }
 
+    if (responseResult.error instanceof GoSvcClientError) {
+      if (responseResult.error.code === "invalid_response") {
+        return err({
+          code: "invalid_response",
+          message: input.intl.formatMessage(projectFileCatValidationMessages.invalidJson),
+        });
+      }
+
+      if (
+        responseResult.error.code === "network_error" ||
+        responseResult.error.code === "missing_access_token"
+      ) {
+        console.warn("[cat-validation] Go service request failed", responseResult.error);
+        return err({ code: "service_error", message: requestFailedMessage });
+      }
+    }
+
     return err({
       code: "service_error",
       message:
@@ -150,23 +162,7 @@ export async function fetchCatSegmentValidation(
     });
   }
 
-  const response = responseResult.value;
-  if (!response.ok) {
-    return err({
-      code: "service_error",
-      message: await readApiError(response, requestFailedMessage),
-    });
-  }
-
-  const bodyResult = await fromThrowableAsync(response.json());
-  if (isErr(bodyResult)) {
-    return err({
-      code: "invalid_response",
-      message: input.intl.formatMessage(projectFileCatValidationMessages.invalidJson),
-    });
-  }
-
-  const parsed = contentEditorSegmentValidationResponseSchema.safeParse(bodyResult.value);
+  const parsed = contentEditorSegmentValidationResponseSchema.safeParse(responseResult.value);
   if (!parsed.success) {
     return err({
       code: "invalid_response",

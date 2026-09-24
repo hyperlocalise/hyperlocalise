@@ -35,6 +35,7 @@ import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/content-
 import { AiFeaturesUpgradeHrefProvider } from "@/lib/billing/ai-features-upgrade-href";
 import { buildAvailablePlansHref } from "@/lib/billing/plan-usage";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -148,6 +149,7 @@ export function ProjectFileContentEditorWorkspace({
   canWriteDictionaries?: boolean;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const aiFeaturesAccess = useAiFeaturesAccess();
   const aiFeaturesAllowed = aiFeaturesAccess.status === "allowed";
   const upgradePlanHref =
@@ -347,16 +349,19 @@ export function ProjectFileContentEditorWorkspace({
       glossaryTerms: ContentEditorGlossaryTerm[] = [],
       options?: { signal?: AbortSignal },
     ) => {
-      const validation = await fetchCatSegmentValidation({
-        sourceText: segment.sourceText,
-        targetText: value,
-        sourcePath,
-        targetLocale: segment.targetLocale,
-        maxLength: segment.maxLength,
-        acceptedWords: spellcheckDictionary.acceptedWords,
-        signal: options?.signal,
-        intl,
-      });
+      const validation = await fetchCatSegmentValidation(
+        {
+          sourceText: segment.sourceText,
+          targetText: value,
+          sourcePath,
+          targetLocale: segment.targetLocale,
+          maxLength: segment.maxLength,
+          acceptedWords: spellcheckDictionary.acceptedWords,
+          signal: options?.signal,
+          intl,
+        },
+        goSvcClient,
+      );
 
       if (!validation.ok) {
         if (validation.error.code === "aborted") {
@@ -382,7 +387,7 @@ export function ProjectFileContentEditorWorkspace({
         ...glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
       ];
     },
-    [intl, sourcePath, spellcheckDictionary.acceptedWords],
+    [goSvcClient, intl, sourcePath, spellcheckDictionary.acceptedWords],
   );
 
   const isNativeProject = !contentEditorFile?.provider;
