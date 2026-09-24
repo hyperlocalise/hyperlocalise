@@ -56,8 +56,8 @@ export function getPricingFaqItems(locale: string): PricingFaqItem[] {
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Starter suits small teams that need more seats, integrations, and 20 AI Tokens per month ($20 of managed AI credit). Growth adds agent runs, automations, Automation Workflow, unlimited translation jobs, and 2,000 AI Tokens ($2,000 of credit) for production localisation. Each AI Token is one dollar of credit; usage consumes that balance at model rates, not as a separate per-token overage fee.",
-        id: "UAWeYDdmul",
+          "Starter suits small teams that need more seats, integrations, and $20 per month of managed AI credit. Growth adds agent runs, automations, Automation Workflow, unlimited translation jobs, and $2,000 per month AI credit for production localisation. Usage draws down that balance at model rates.",
+        id: "1xP+9DRzHz",
         description: "Pricing FAQ answer comparing Starter and Growth",
       }),
     },

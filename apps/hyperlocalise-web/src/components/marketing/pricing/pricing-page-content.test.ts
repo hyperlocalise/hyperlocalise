@@ -37,7 +37,7 @@ describe("pricing page content", () => {
       "5 seats",
       "AI Feature",
       "Queries Board",
-      "20 AI Tokens ($20 of AI credit)",
+      "$20 per month AI credit",
     ]);
     expect(plans.find((plan) => plan.id === "growth")?.features).toEqual([
       "20 automations",
@@ -49,7 +49,7 @@ describe("pricing page content", () => {
       "AI Feature",
       "Automation Workflow",
       "Queries Board",
-      "2,000 AI Tokens ($2,000 of AI credit)",
+      "$2,000 per month AI credit",
     ]);
     expect(plans.filter((plan) => plan.cta.kind === "coming_soon")).toHaveLength(3);
     expect(plans.find((plan) => plan.id === "enterprise")?.cta).toEqual({
@@ -64,15 +64,16 @@ describe("pricing page content", () => {
 
     expect(sections.length).toBeGreaterThan(0);
     expect(rows.find((row) => row.id === "automations")?.label).toBe("Automations");
+    expect(rows.find((row) => row.id === "ai-tokens")?.label).toBe("AI credit / month");
     expect(rows.find((row) => row.id === "ai-tokens")?.cells.starter).toEqual({
       kind: "text",
-      value: "20 ($20)",
+      value: "$20",
     });
     expect(rows.find((row) => row.id === "ai-tokens")?.cells.growth).toEqual({
       kind: "text",
-      value: "2,000 ($2,000)",
+      value: "$2,000",
     });
-    expect(rows.find((row) => row.id === "ai-tokens")?.detail).toContain("$1 of managed AI credit");
+    expect(rows.find((row) => row.id === "ai-tokens")?.detail).toContain("monthly AI credit");
     expect(rows.find((row) => row.id === "ai-token-overage")).toBeUndefined();
     expect(rows.find((row) => row.id === "ai-features")?.cells.starter).toEqual({ kind: "check" });
     const queriesSection = sections.find((section) => section.id === "queries-automation");
