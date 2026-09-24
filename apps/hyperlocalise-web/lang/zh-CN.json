@@ -269,6 +269,9 @@
   "+f0xDGLORc": {
     "defaultMessage": "此文件无法在内容编辑器中打开。"
   },
+  "+fsq3dqMqp": {
+    "defaultMessage": "最大尝试次数"
+  },
   "+g4oD8eEBW": {
     "defaultMessage": "这些占比相加应为 100%。"
   },
@@ -473,6 +476,9 @@
   "/7gytilAet": {
     "defaultMessage": "查看 GitHub Action"
   },
+  "/8/pZ5ze7R": {
+    "defaultMessage": "确认重复执行的风险，或为重试请求体中的操作添加幂等性。"
+  },
   "/8fHPQltQc": {
     "defaultMessage": "在需要时找回正确的上下文。"
   },
@@ -646,6 +652,9 @@
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "筛选器"
+  },
+  "/a2VqYlgh4": {
+    "defaultMessage": "自动启用"
   },
   "/arLdcgfuq": {
     "defaultMessage": "Resolved"
@@ -1214,6 +1223,9 @@
   "0x11s5ha3b": {
     "defaultMessage": "{position}+"
   },
+  "0x5bWok1f2": {
+    "defaultMessage": "成长计划"
+  },
   "0xVoz6BUOo": {
     "defaultMessage": "按严重程度分组"
   },
@@ -1592,6 +1604,9 @@
   "1xBioz9EDW": {
     "defaultMessage": "验证"
   },
+  "1xP+9DRzHz": {
+    "defaultMessage": "Starter 适合需要更多席位、集成服务以及每月 20 美元托管式 AI 额度的小团队。Growth 则增加了代理运行次数、自动化功能、Automation Workflow、无限翻译任务，以及每月 2,000 美元的 AI 额度，用于生产环境本地化。使用量会按模型费率从该额度中扣减。"
+  },
   "1xfAnPlbdy": {
     "defaultMessage": "邀请了一名成员"
   },
@@ -1711,6 +1726,9 @@
   },
   "2963Vncu1b": {
     "defaultMessage": "请先修正步骤配置，然后再保存此工作流。"
+  },
+  "2AFaXwgQin": {
+    "defaultMessage": "托管模型的使用会按照公布的费率扣减您的每月 AI 点数余额。"
   },
   "2AHzit242a": {
     "defaultMessage": "无法创建翻译记忆库"
@@ -1852,6 +1870,9 @@
   },
   "2RA1MDUmR3": {
     "defaultMessage": "源语言区域设置：{locale}"
+  },
+  "2RORR1xT6r": {
+    "defaultMessage": "重试"
   },
   "2SPuScjz1x": {
     "defaultMessage": "API 密钥末尾为 {suffix}"
@@ -3671,6 +3692,9 @@
   "712aIFkBYq": {
     "defaultMessage": "请求提前访问 Hyperlocalise。"
   },
+  "71I+YToKV7": {
+    "defaultMessage": "免费套餐"
+  },
   "71wFkHX0+3": {
     "defaultMessage": "较上次运行 +4"
   },
@@ -3997,6 +4021,9 @@
   },
   "7pTwJNAe0D": {
     "defaultMessage": "草稿准备好后通知 #localization。"
+  },
+  "7pn2UnpCsA": {
+    "defaultMessage": "Retry 和 For each 不能相互嵌套。"
   },
   "7qG8V9eHbJ": {
     "defaultMessage": "显示文件活动"
@@ -4702,6 +4729,9 @@
   },
   "9O5X8+eR3t": {
     "defaultMessage": "无法完成域名设置。"
+  },
+  "9OQEks5YGx": {
+    "defaultMessage": "修复重试区域的连线和主体成员关系。"
   },
   "9OS3Rz0crI": {
     "defaultMessage": "路由审核"
@@ -6638,6 +6668,9 @@
   "DznPBLz/y6": {
     "defaultMessage": "选择一个项目以继续。"
   },
+  "E+E8CAWOEz": {
+    "defaultMessage": "不支持嵌套重试区域。"
+  },
   "E+GVWuHtit": {
     "defaultMessage": "网页 URL"
   },
@@ -7000,6 +7033,9 @@
   },
   "Esr6tXDJJe": {
     "defaultMessage": "此字符串没有问题"
+  },
+  "EtJmzwZSzn": {
+    "defaultMessage": "AI 功能"
   },
   "EtLBqA9kAL": {
     "defaultMessage": "没有相关变体。"
@@ -8126,6 +8162,9 @@
   "Ho5CjjaEBq": {
     "defaultMessage": "在创建任务之前，请在项目设置中添加目标区域设置。"
   },
+  "HoA+8TKVfD": {
+    "defaultMessage": "退避乘数"
+  },
   "HpiB8HnD5r": {
     "defaultMessage": "术语状态"
   },
@@ -8895,7 +8934,7 @@
     "defaultMessage": "选择一个项目"
   },
   "JmNB19hrDA": {
-    "defaultMessage": "• {cost}"
+    "defaultMessage": "• {cost} cost"
   },
   "JmbIxnhLVK": {
     "defaultMessage": "查看此工作区的核心控制项，并进入需要更新的区域。"
@@ -9322,6 +9361,9 @@
   },
   "KzyWBbcmTH": {
     "defaultMessage": "无法更新关注设置"
+  },
+  "L+aQftO9Id": {
+    "defaultMessage": "带退避机制重新运行正文区域"
   },
   "L/LTF1REU5": {
     "defaultMessage": "研究关键词、本地化草稿，并按计划写入 CMS。"
@@ -13040,6 +13082,9 @@
   "UKiNYTCKL8": {
     "defaultMessage": "评论了一个字符串"
   },
+  "UL0g2ZIWhm": {
+    "defaultMessage": "免费"
+  },
   "UL3odPVruI": {
     "defaultMessage": "标记顺序"
   },
@@ -15605,6 +15650,9 @@
   "akKSazt0o+": {
     "defaultMessage": "内容类型"
   },
+  "akMqVdhYbU": {
+    "defaultMessage": "重试"
+  },
   "alKFWoCQYb": {
     "defaultMessage": "Download"
   },
@@ -15818,6 +15866,9 @@
   "bH9+5GUIgE": {
     "defaultMessage": "使用 Hyperlocalise Agent"
   },
+  "bHCCUqEOmY": {
+    "defaultMessage": "重试策略值超出范围。"
+  },
   "bHnFWGWqed": {
     "defaultMessage": "此任务未关联任何文件。"
   },
@@ -16001,6 +16052,9 @@
   "blgD4379yD": {
     "defaultMessage": "还没有关联的域名。请从本地化审计中认领一个域名以开始使用。"
   },
+  "blxqR2KvgQ": {
+    "defaultMessage": "每月 2,000 美元的 AI 额度"
+  },
   "bmeCBL87Ap": {
     "defaultMessage": "将 OpenFeature OFREP 提供程序指向此基 URL，并将可公开的密钥作为 X-API-Key 或 Authorization: Bearer 发送。"
   },
@@ -16057,6 +16111,9 @@
   },
   "bu/fF+Rrb5": {
     "defaultMessage": "消费警告"
+  },
+  "buLiPCDEq1": {
+    "defaultMessage": "允许重试时产生重复副作用"
   },
   "buVScYQI5w": {
     "defaultMessage": "将 Hyperlocalise 指向已存储披露内容、已批准措辞和受监管声明的 SharePoint 文档库。"
@@ -16442,6 +16499,9 @@
   "cpV11AmTHs": {
     "defaultMessage": "更新术语"
   },
+  "cpyaLTW85o": {
+    "defaultMessage": "尝试内部的节点"
+  },
   "cq8+wKJLJG": {
     "defaultMessage": "筛选器"
   },
@@ -16459,6 +16519,9 @@
   },
   "csK4Zbn9gk": {
     "defaultMessage": "审核产品和网站。\n每天。"
+  },
+  "csr373/O34": {
+    "defaultMessage": "AI 积分 / 月"
   },
   "csuMeaGNQo": {
     "defaultMessage": "创建新项目"
@@ -17717,6 +17780,9 @@
   "fnnzeRJcnZ": {
     "defaultMessage": "Edit"
   },
+  "fnuHA5r7aQ": {
+    "defaultMessage": "每月 20 美元的 AI 额度"
+  },
   "fp+BAxQben": {
     "defaultMessage": "使用"
   },
@@ -17932,6 +17998,9 @@
   },
   "gInelMBn+I": {
     "defaultMessage": "源图像不可用"
+  },
+  "gJ4nnkkpNU": {
+    "defaultMessage": "已用尽"
   },
   "gJ8XFIM+3j": {
     "defaultMessage": "查看所有帖子"
@@ -21332,6 +21401,9 @@
   "oDluyiLepj": {
     "defaultMessage": "答案引擎优化。当有人向 AI 搜索工具提问时，您的页面仍有机会成为答案，而不是竞争对手的页面。"
   },
+  "oE/d+yPnQC": {
+    "defaultMessage": "初始延迟（毫秒）"
+  },
   "oEmsIJPKd5": {
     "defaultMessage": "推送草稿翻译"
   },
@@ -22600,6 +22672,9 @@
   },
   "r9CtFkZBBj": {
     "defaultMessage": "连接 GitHub 和 Slack，让代理能够验证更改并自动通知您的团队。"
+  },
+  "r9cem/tyVw": {
+    "defaultMessage": "Succeeded"
   },
   "rAeEoKNL9f": {
     "defaultMessage": "重新发送"

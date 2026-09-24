@@ -269,6 +269,9 @@
   "+f0xDGLORc": {
     "defaultMessage": "Ce fichier ne peut pas être ouvert dans l’éditeur de contenu."
   },
+  "+fsq3dqMqp": {
+    "defaultMessage": "Nombre maximal de tentatives"
+  },
   "+g4oD8eEBW": {
     "defaultMessage": "Ces parts doivent totaliser 100 %."
   },
@@ -473,6 +476,9 @@
   "/7gytilAet": {
     "defaultMessage": "Voir l’action GitHub"
   },
+  "/8/pZ5ze7R": {
+    "defaultMessage": "Reconnaissez le risque de doublon ou ajoutez une clé d’idempotence aux actions dans le corps de la nouvelle tentative."
+  },
   "/8fHPQltQc": {
     "defaultMessage": "Rétablissez le contexte pertinent lorsque cela est nécessaire."
   },
@@ -646,6 +652,9 @@
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Filtres"
+  },
+  "/a2VqYlgh4": {
+    "defaultMessage": "Activation automatique"
   },
   "/arLdcgfuq": {
     "defaultMessage": "Resolved"
@@ -1214,6 +1223,9 @@
   "0x11s5ha3b": {
     "defaultMessage": "{position}+"
   },
+  "0x5bWok1f2": {
+    "defaultMessage": "Forfait Croissance"
+  },
   "0xVoz6BUOo": {
     "defaultMessage": "Regrouper par gravité"
   },
@@ -1287,7 +1299,7 @@
     "defaultMessage": "Capturez le contexte et les corrections que votre équipe crée déjà, puis rendez-les disponibles au lancement suivant."
   },
   "1A3oOwAeXf": {
-    "defaultMessage": "{language} (source)"
+    "defaultMessage": "{language} (langue source)"
   },
   "1AN+Q/JkbE": {
     "defaultMessage": "Queue translation jobs for uploaded source files in the project selected above."
@@ -1592,6 +1604,9 @@
   "1xBioz9EDW": {
     "defaultMessage": "Validation"
   },
+  "1xP+9DRzHz": {
+    "defaultMessage": "Starter convient aux petites équipes qui ont besoin de plus de sièges, d’intégrations et de 20 $ par mois de crédit IA géré. Growth ajoute les exécutions d’agents, les automatisations, Automation Workflow, des tâches de traduction illimitées et 2 000 $ par mois de crédit IA pour la localisation en production. L’utilisation est déduite de ce solde aux tarifs des modèles."
+  },
   "1xfAnPlbdy": {
     "defaultMessage": "a invité un membre"
   },
@@ -1711,6 +1726,9 @@
   },
   "2963Vncu1b": {
     "defaultMessage": "Corrigez la configuration de l’étape avant d’enregistrer ce workflow."
+  },
+  "2AFaXwgQin": {
+    "defaultMessage": "L’utilisation des modèles gérés vient en déduction de votre solde mensuel de crédits IA, selon les tarifs publiés."
   },
   "2AHzit242a": {
     "defaultMessage": "Impossible de créer la mémoire de traduction"
@@ -1852,6 +1870,9 @@
   },
   "2RA1MDUmR3": {
     "defaultMessage": "Locale source : {locale}"
+  },
+  "2RORR1xT6r": {
+    "defaultMessage": "Réessayer"
   },
   "2SPuScjz1x": {
     "defaultMessage": "Clé API se terminant par {suffix}"
@@ -3671,6 +3692,9 @@
   "712aIFkBYq": {
     "defaultMessage": "Demandez un accès anticipé à Hyperlocalise."
   },
+  "71I+YToKV7": {
+    "defaultMessage": "Forfait gratuit"
+  },
   "71wFkHX0+3": {
     "defaultMessage": "+4 par rapport à la dernière exécution"
   },
@@ -3997,6 +4021,9 @@
   },
   "7pTwJNAe0D": {
     "defaultMessage": "Notifiez #localization lorsque les brouillons sont prêts."
+  },
+  "7pn2UnpCsA": {
+    "defaultMessage": "Retry et For each ne peuvent pas être imbriqués l’un dans l’autre."
   },
   "7qG8V9eHbJ": {
     "defaultMessage": "Afficher l’activité du fichier"
@@ -4702,6 +4729,9 @@
   },
   "9O5X8+eR3t": {
     "defaultMessage": "Impossible de terminer la configuration du domaine."
+  },
+  "9OQEks5YGx": {
+    "defaultMessage": "Corrigez le câblage de la région de nouvelle tentative et l’appartenance du corps."
   },
   "9OS3Rz0crI": {
     "defaultMessage": "Acheminer la revue"
@@ -6638,6 +6668,9 @@
   "DznPBLz/y6": {
     "defaultMessage": "Sélectionnez un projet pour continuer."
   },
+  "E+E8CAWOEz": {
+    "defaultMessage": "Les régions de nouvelle tentative imbriquées ne sont pas prises en charge."
+  },
   "E+GVWuHtit": {
     "defaultMessage": "URL de la page"
   },
@@ -7000,6 +7033,9 @@
   },
   "Esr6tXDJJe": {
     "defaultMessage": "Aucun problème pour cette chaîne"
+  },
+  "EtJmzwZSzn": {
+    "defaultMessage": "Fonctionnalité d’IA"
   },
   "EtLBqA9kAL": {
     "defaultMessage": "Aucune variante associée."
@@ -8125,6 +8161,9 @@
   },
   "Ho5CjjaEBq": {
     "defaultMessage": "Ajoutez des paramètres régionaux cibles dans les paramètres du projet avant de créer des tâches."
+  },
+  "HoA+8TKVfD": {
+    "defaultMessage": "Multiplicateur de délai exponentiel de nouvelle tentative"
   },
   "HpiB8HnD5r": {
     "defaultMessage": "Statut du terme"
@@ -9322,6 +9361,9 @@
   },
   "KzyWBbcmTH": {
     "defaultMessage": "Impossible de mettre à jour les paramètres de suivi"
+  },
+  "L+aQftO9Id": {
+    "defaultMessage": "Réexécuter une région de corps avec un délai progressif"
   },
   "L/LTF1REU5": {
     "defaultMessage": "Recherchez des mots-clés, adaptez les brouillons et publiez-les dans le CMS selon le calendrier."
@@ -13040,6 +13082,9 @@
   "UKiNYTCKL8": {
     "defaultMessage": "a commenté une chaîne"
   },
+  "UL0g2ZIWhm": {
+    "defaultMessage": "Gratuit"
+  },
   "UL3odPVruI": {
     "defaultMessage": "Ordre du balisage"
   },
@@ -15605,6 +15650,9 @@
   "akKSazt0o+": {
     "defaultMessage": "Types de contenu"
   },
+  "akMqVdhYbU": {
+    "defaultMessage": "Essayer"
+  },
   "alKFWoCQYb": {
     "defaultMessage": "Télécharger"
   },
@@ -15818,6 +15866,9 @@
   "bH9+5GUIgE": {
     "defaultMessage": "Utiliser l’agent Hyperlocalise"
   },
+  "bHCCUqEOmY": {
+    "defaultMessage": "Les valeurs de la politique de nouvelle tentative sont hors limites."
+  },
   "bHnFWGWqed": {
     "defaultMessage": "Aucun fichier n’est associé à cette tâche."
   },
@@ -16001,6 +16052,9 @@
   "blgD4379yD": {
     "defaultMessage": "Aucun domaine lié pour le moment. Revendiquez un domaine à partir d’un audit de localisation pour commencer."
   },
+  "blxqR2KvgQ": {
+    "defaultMessage": "Crédit IA de 2 000 $ par mois"
+  },
   "bmeCBL87Ap": {
     "defaultMessage": "Pointez le fournisseur OpenFeature OFREP vers cette URL de base et envoyez une clé publiable dans l’en-tête X-API-Key ou Authorization: Bearer."
   },
@@ -16057,6 +16111,9 @@
   },
   "bu/fF+Rrb5": {
     "defaultMessage": "Avertissement de dépenses"
+  },
+  "buLiPCDEq1": {
+    "defaultMessage": "Autoriser les effets secondaires en double lors d'une nouvelle tentative"
   },
   "buVScYQI5w": {
     "defaultMessage": "Pointez Hyperlocalise vers la bibliothèque SharePoint qui contient déjà les mentions obligatoires, les formulations approuvées et les allégations réglementées."
@@ -16442,6 +16499,9 @@
   "cpV11AmTHs": {
     "defaultMessage": "Mettre à jour le terme"
   },
+  "cpyaLTW85o": {
+    "defaultMessage": "Nœuds dans la tentative"
+  },
   "cq8+wKJLJG": {
     "defaultMessage": "Filtres"
   },
@@ -16459,6 +16519,9 @@
   },
   "csK4Zbn9gk": {
     "defaultMessage": "Auditez le produit et le site web.\nChaque jour."
+  },
+  "csr373/O34": {
+    "defaultMessage": "Crédit IA / mois"
   },
   "csuMeaGNQo": {
     "defaultMessage": "Créer un nouveau projet"
@@ -17717,6 +17780,9 @@
   "fnnzeRJcnZ": {
     "defaultMessage": "Edit"
   },
+  "fnuHA5r7aQ": {
+    "defaultMessage": "20 $ de crédit IA par mois"
+  },
   "fp+BAxQben": {
     "defaultMessage": "Utiliser"
   },
@@ -17932,6 +17998,9 @@
   },
   "gInelMBn+I": {
     "defaultMessage": "Image source indisponible"
+  },
+  "gJ4nnkkpNU": {
+    "defaultMessage": "Épuisé"
   },
   "gJ8XFIM+3j": {
     "defaultMessage": "Voir tous les articles"
@@ -21332,6 +21401,9 @@
   "oDluyiLepj": {
     "defaultMessage": "Optimisation pour les moteurs de réponse. Lorsqu’une personne pose une question à un outil de recherche basé sur l’IA, votre page peut tout de même être proposée comme réponse, plutôt que celle d’un concurrent."
   },
+  "oE/d+yPnQC": {
+    "defaultMessage": "Délai initial (ms)"
+  },
   "oEmsIJPKd5": {
     "defaultMessage": "Publier les traductions en brouillon"
   },
@@ -22600,6 +22672,9 @@
   },
   "r9CtFkZBBj": {
     "defaultMessage": "Connectez GitHub et Slack pour permettre à l’agent de valider les modifications et d’informer automatiquement votre équipe."
+  },
+  "r9cem/tyVw": {
+    "defaultMessage": "Réussi"
   },
   "rAeEoKNL9f": {
     "defaultMessage": "Renvoyer"

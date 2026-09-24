@@ -299,6 +299,10 @@
     "defaultMessage": "This file can’t be opened in the Content Editor.",
     "description": "Toast when a selected file cannot open in the Content Editor"
   },
+  "+fsq3dqMqp": {
+    "defaultMessage": "Max attempts",
+    "description": "Retry policy max attempts field"
+  },
   "+g4oD8eEBW": {
     "defaultMessage": "These shares should add up to 100%.",
     "description": "Warning when variant rollouts do not sum to 100 percent"
@@ -547,6 +551,10 @@
     "defaultMessage": "Your team has the final say.",
     "description": "Headline for the Content Studio review section"
   },
+  "/8/pZ5ze7R": {
+    "defaultMessage": "Acknowledge duplicate risk or add idempotency for actions in the retry body.",
+    "description": "Validation issue for non-idempotent retry body"
+  },
   "/8fHPQltQc": {
     "defaultMessage": "Bring the right context back when needed.",
     "description": "Knowledge hero signal card description"
@@ -755,6 +763,10 @@
     "defaultMessage": "Filters",
     "description": "Title for the issue list filter popover"
   },
+  "/a2VqYlgh4": {
+    "defaultMessage": "Auto-enable",
+    "description": "Badge on the Free pricing plan indicating automatic provisioning"
+  },
   "/bDXY5b2qg": {
     "defaultMessage": "Invitation revoked",
     "description": "Success toast after revoking a pending invitation"
@@ -922,10 +934,6 @@
   "00qb+AkuR9": {
     "defaultMessage": "Last crawl",
     "description": "URL inspection last crawl label"
-  },
-  "01P9p4MvIA": {
-    "defaultMessage": "Growth",
-    "description": "Growth plan name on the pricing page"
   },
   "01h5d0m29X": {
     "defaultMessage": "Context of {source}",
@@ -1383,6 +1391,10 @@
     "defaultMessage": "{position}+",
     "description": "Current segment index when more queue pages may exist and total count is unknown"
   },
+  "0x5bWok1f2": {
+    "defaultMessage": "Growth Plan",
+    "description": "Growth plan name on the pricing page"
+  },
   "0xs+BR2vTX": {
     "defaultMessage": "Could not save automation settings.",
     "description": "Fallback error when automation settings save fails without a specific message"
@@ -1474,10 +1486,6 @@
   "1BzqC2Ot9h": {
     "defaultMessage": "AI mentions",
     "description": "Metric label for AI mentions"
-  },
-  "1DnH47f5VQ": {
-    "defaultMessage": "Then $4 per 1,000,000 AI tokens",
-    "description": "Growth plan feature: AI token overage rate"
   },
   "1EFh6senwK": {
     "defaultMessage": "Reviewer",
@@ -1823,10 +1831,6 @@
     "defaultMessage": "Title",
     "description": "Label for the issue title input"
   },
-  "1wUO7p+IGh": {
-    "defaultMessage": "AI tokens / month",
-    "description": "Pricing matrix row label for AI tokens"
-  },
   "1weHpJduuv": {
     "defaultMessage": "Glossary Project Attached",
     "description": "Activity log event type label for attaching a glossary to a project"
@@ -1834,6 +1838,10 @@
   "1xBioz9EDW": {
     "defaultMessage": "Validation",
     "description": "Validation tool title in the marketing automation editor mock"
+  },
+  "1xP+9DRzHz": {
+    "defaultMessage": "Starter suits small teams that need more seats, integrations, and $20 per month of managed AI credit. Growth adds agent runs, automations, Automation Workflow, unlimited translation jobs, and $2,000 per month AI credit for production localisation. Usage draws down that balance at model rates.",
+    "description": "Pricing FAQ answer comparing Starter and Growth"
   },
   "1xfAnPlbdy": {
     "defaultMessage": "invited a member",
@@ -1966,6 +1974,10 @@
   "2963Vncu1b": {
     "defaultMessage": "Fix the step configuration before saving this workflow.",
     "description": "Validation message when a non-trigger node config is invalid"
+  },
+  "2AFaXwgQin": {
+    "defaultMessage": "Managed model usage draws down your monthly AI credit balance at published rates.",
+    "description": "Pricing matrix detail explaining monthly AI credit"
   },
   "2AHzit242a": {
     "defaultMessage": "Unable to create translation memory",
@@ -2130,6 +2142,10 @@
   "2RA1MDUmR3": {
     "defaultMessage": "Source locale: {locale}",
     "description": "Shows the project source locale in the create translation job dialog"
+  },
+  "2RORR1xT6r": {
+    "defaultMessage": "Retry",
+    "description": "Retry policy node title"
   },
   "2SPuScjz1x": {
     "defaultMessage": "API key ending in {suffix}",
@@ -4203,6 +4219,10 @@
     "defaultMessage": "Request early access to Hyperlocalise.",
     "description": "CTA section description for the marketing-localisation use case"
   },
+  "71I+YToKV7": {
+    "defaultMessage": "Free Plan",
+    "description": "Free plan name on the pricing page"
+  },
   "71wFkHX0+3": {
     "defaultMessage": "+4 vs last run",
     "description": "Domains mock UI score delta label"
@@ -4431,10 +4451,6 @@
     "defaultMessage": "Bring your content and your team into one studio.",
     "description": "Bottom CTA body on the multilingual Content Studio product page"
   },
-  "7QPFtqQQDE": {
-    "defaultMessage": "Free",
-    "description": "Free plan name on the pricing page"
-  },
   "7QQUiWq0U1": {
     "defaultMessage": "Content Management API token",
     "description": "Label for the Contentful Management API token field"
@@ -4498,6 +4514,10 @@
   "7YA8COINzJ": {
     "defaultMessage": "Project {projectId}",
     "description": "External project id shown in a translation memory row source detail"
+  },
+  "7aLZ0dWTTK": {
+    "defaultMessage": "Unable to load team details.",
+    "description": "Error loading team details"
   },
   "7aOYNlbDse": {
     "defaultMessage": "Modified from",
@@ -4590,6 +4610,10 @@
   "7ozFg2fpXs": {
     "defaultMessage": "Every market",
     "description": "Audience selector option for all visitors"
+  },
+  "7pn2UnpCsA": {
+    "defaultMessage": "Retry and For each cannot wrap each other.",
+    "description": "Validation issue for retry/for each nesting"
   },
   "7qG8V9eHbJ": {
     "defaultMessage": "Show file activity",
@@ -5422,6 +5446,10 @@
   "9O5X8+eR3t": {
     "defaultMessage": "Could not finish domain setup.",
     "description": "Domain setup error"
+  },
+  "9OQEks5YGx": {
+    "defaultMessage": "Fix the retry region wiring and body membership.",
+    "description": "Validation issue for invalid retry graph"
   },
   "9PKFI8itjo": {
     "defaultMessage": "Could not localise the image. Your instructions are preserved; try again.",
@@ -6270,10 +6298,6 @@
   "BBccZIFnh+": {
     "defaultMessage": "Clocks fall back at this time. Hyperlab uses the earlier occurrence.",
     "description": "Hint when a scheduled wall time happens twice during DST fallback"
-  },
-  "BBge+5Sj1e": {
-    "defaultMessage": "$0",
-    "description": "Free plan price on the pricing page"
   },
   "BBn+JiQbC1": {
     "defaultMessage": "Name Z–A",
@@ -7407,6 +7431,10 @@
     "defaultMessage": "Ready to upload",
     "description": "Title of the pending file upload section"
   },
+  "DPjhjRQyDt": {
+    "defaultMessage": "Unable to create team.",
+    "description": "Error creating a team"
+  },
   "DQ07Hv8A9f": {
     "defaultMessage": "This project does not have a source locale.",
     "description": "Error when the project has no configured source locale for CAT"
@@ -7510,6 +7538,10 @@
   "DZ8tm3n3xg": {
     "defaultMessage": "Prompt",
     "description": "AI node prompt field label"
+  },
+  "DZQygr4PBW": {
+    "defaultMessage": "Unable to update team role.",
+    "description": "Error updating a team member role"
   },
   "DZx5zjElsr": {
     "defaultMessage": "Ask any string. Get repo-backed context.",
@@ -7727,6 +7759,10 @@
     "defaultMessage": "Select a project to continue.",
     "description": "Project validation error"
   },
+  "E+E8CAWOEz": {
+    "defaultMessage": "Nested retry regions are not supported.",
+    "description": "Validation issue for nested retry"
+  },
   "E+GVWuHtit": {
     "defaultMessage": "Page URL",
     "description": "Search Console URL inspection input label"
@@ -7830,6 +7866,10 @@
   "ECw5CTvkCi": {
     "defaultMessage": "Give reviewers a clear view of locale coverage, quality flags, and unresolved items before merge.",
     "description": "Capability 4 description for the github-release-localisation use case"
+  },
+  "EE7waUBBeR": {
+    "defaultMessage": "Gemini 3.8 Flash",
+    "description": "Label for the Google Gemini 3.8 Flash automation model"
   },
   "EFds7VbW/w": {
     "defaultMessage": "95–99%",
@@ -8138,6 +8178,10 @@
   "EsHwflBzPz": {
     "defaultMessage": "Track review coverage and approval status",
     "description": "Capability 4 title for the localisation-quality-monitoring use case"
+  },
+  "EtJmzwZSzn": {
+    "defaultMessage": "AI Feature",
+    "description": "Paid plan feature: AI feature access"
   },
   "EtLBqA9kAL": {
     "defaultMessage": "No related variants.",
@@ -9447,6 +9491,10 @@
     "defaultMessage": "Add target locales in project settings before creating jobs.",
     "description": "Hint when the project has no target locales configured"
   },
+  "HoA+8TKVfD": {
+    "defaultMessage": "Backoff multiplier",
+    "description": "Retry exponential backoff multiplier"
+  },
   "HpiB8HnD5r": {
     "defaultMessage": "Term status",
     "description": "Label for the term status filter"
@@ -9570,10 +9618,6 @@
   "I5EnnRppoI": {
     "defaultMessage": "Automations",
     "description": "App shell breadcrumb title for the automations page"
-  },
-  "I5Rr6Z+zyR": {
-    "defaultMessage": "Then $8 per 1,000,000 AI tokens",
-    "description": "Starter plan feature: AI token overage rate"
   },
   "I6/kYi4M/3": {
     "defaultMessage": "Loading workspace…",
@@ -10794,6 +10838,10 @@
   "KzyWBbcmTH": {
     "defaultMessage": "Could not update watch settings",
     "description": "Toast shown when watch or unwatch fails"
+  },
+  "L+aQftO9Id": {
+    "defaultMessage": "Re-run a body region with backoff",
+    "description": "Retry policy node picker hint"
   },
   "L/LTF1REU5": {
     "defaultMessage": "Research keywords, localise drafts, and write to CMS on schedule.",
@@ -13631,6 +13679,10 @@
     "defaultMessage": "This match is only {matchPercent}% similar. Applying it may introduce errors. Continue?",
     "description": "Body for confirmation dialog when applying a low-quality TM match"
   },
+  "R+wRT9+VUQ": {
+    "defaultMessage": "Unable to load teams.",
+    "description": "Error loading teams"
+  },
   "R/LlfIB0DY": {
     "defaultMessage": "Display name",
     "description": "Label for Canva display name field"
@@ -13858,6 +13910,10 @@
   "RYfCDsRyCY": {
     "defaultMessage": "We've reached today's limit of {limit} scheduled audits. Try again tomorrow.",
     "description": "Error when the scheduled localisation audit daily quota is exhausted"
+  },
+  "RYlIDTbR9C": {
+    "defaultMessage": "Unable to update team.",
+    "description": "Error updating team details"
   },
   "RZLaeRVZkR": {
     "defaultMessage": "Activity logs",
@@ -14963,6 +15019,10 @@
     "defaultMessage": "Enforce terminology, character limits, and product voice before drafts reach human reviewers.",
     "description": "Capability 3 description for the product-localisation use case"
   },
+  "TvuxI/JPcp": {
+    "defaultMessage": "Gemini 3.5 Flash",
+    "description": "Label for the Google Gemini 3.5 Flash automation model"
+  },
   "TwAHdkAXq8": {
     "defaultMessage": "Not allowed",
     "description": "Screen-reader label when a role does not have a permission"
@@ -15163,6 +15223,10 @@
     "defaultMessage": "commented on a string",
     "description": "Action for a string comment activity"
   },
+  "UL0g2ZIWhm": {
+    "defaultMessage": "Free",
+    "description": "Free plan price on the pricing page"
+  },
   "UL3odPVruI": {
     "defaultMessage": "Markup order",
     "description": "CAT format check label when markup sentinel order does not match source"
@@ -15310,10 +15374,6 @@
   "UcF3Gc/Vdi": {
     "defaultMessage": "Developer",
     "description": "Organization membership role label for developers"
-  },
-  "UcQMMtZFaJ": {
-    "defaultMessage": "Starter suits small teams that need more seats, integrations, and 2,000,000 AI tokens per month. Growth adds agent runs, automations, Automation Workflow, unlimited translation jobs, and a lower AI token overage rate for production localisation.",
-    "description": "Pricing FAQ answer comparing Starter and Growth"
   },
   "UdxBZORXpe": {
     "defaultMessage": "All",
@@ -16635,6 +16695,10 @@
     "defaultMessage": "Unable to load projects",
     "description": "Fallback error when projects fail to load on the glossary detail page"
   },
+  "XaU9VG5iR6": {
+    "defaultMessage": "Unable to add member to team.",
+    "description": "Error adding a member to a team"
+  },
   "XahS11XRb2": {
     "defaultMessage": "Track which articles are missing translations or lag behind the English source after product changes.",
     "description": "Capability 6 description for the help-center-localisation use case"
@@ -17167,6 +17231,10 @@
     "defaultMessage": "translation · {type}",
     "description": "Translation job kind label including string or file type"
   },
+  "YlNYKWNMnX": {
+    "defaultMessage": "Gemini 3.6 Flash",
+    "description": "Label for the Google Gemini 3.6 Flash automation model"
+  },
   "YlQ8SQ7Hob": {
     "defaultMessage": "Scale your content. Keep control.",
     "description": "Title for the homepage trust and control section"
@@ -17226,10 +17294,6 @@
   "Yt7zrC9Btd": {
     "defaultMessage": "Loading translation memory entries",
     "description": "Accessible label for the translation memory entry loading state"
-  },
-  "YtKo2CQ5hL": {
-    "defaultMessage": "AI features",
-    "description": "Growth plan feature: AI feature access"
   },
   "YvOtHkprF2": {
     "defaultMessage": "{providerName} is connected via OAuth",
@@ -18123,6 +18187,10 @@
     "defaultMessage": "Content types",
     "description": "Label for the Contentful content type picker field"
   },
+  "akMqVdhYbU": {
+    "defaultMessage": "Attempt",
+    "description": "Retry body connection"
+  },
   "alKFWoCQYb": {
     "defaultMessage": "Download",
     "description": "Submit button in the download translations dialog footer"
@@ -18130,6 +18198,10 @@
   "ambL1h5gLQ": {
     "defaultMessage": "How do I apply?",
     "description": "Startups FAQ question about how to apply"
+  },
+  "amwt3mzL+t": {
+    "defaultMessage": "Unable to delete team.",
+    "description": "Error deleting a team"
   },
   "anFNHwBPyz": {
     "defaultMessage": "2.4 MB · 12 pages",
@@ -18367,6 +18439,10 @@
     "defaultMessage": "Use Hyperlocalise Agent",
     "description": "Agent terminal title in content ops mock"
   },
+  "bHCCUqEOmY": {
+    "defaultMessage": "Retry policy values are out of range.",
+    "description": "Validation issue for retry policy config"
+  },
   "bHnFWGWqed": {
     "defaultMessage": "No files are linked to this task.",
     "description": "Empty state when a live TMS job has no linked files"
@@ -18583,6 +18659,10 @@
     "defaultMessage": "Remove",
     "description": "Remove a single break rule"
   },
+  "blxqR2KvgQ": {
+    "defaultMessage": "$2,000 per month AI credit",
+    "description": "Growth plan feature: included monthly AI credit"
+  },
   "bmkBpNPbnu": {
     "defaultMessage": "Player volume changes your preview only. Use Sound to direct the generated audio.",
     "description": "Video refinement workspace: listenHint"
@@ -18643,6 +18723,10 @@
     "defaultMessage": "Spend warning",
     "description": "Translation reporting label"
   },
+  "buLiPCDEq1": {
+    "defaultMessage": "Allow duplicate side effects on retry",
+    "description": "Retry non-idempotent acknowledgement checkbox"
+  },
   "buVScYQI5w": {
     "defaultMessage": "Point Hyperlocalise at the SharePoint library that already holds disclosures, approved wording, and regulated claims.",
     "description": "Body for the SharePoint source panel"
@@ -18658,6 +18742,10 @@
   "bwRkCyVWjg": {
     "defaultMessage": "Leave the guidelines where they are. Let agents read them.",
     "description": "Details section headline for the Guidelines product page"
+  },
+  "bwRlaW2gsC": {
+    "defaultMessage": "Gemini 3.1 Pro Preview",
+    "description": "Label for the Google Gemini 3.1 Pro Preview automation model"
   },
   "bxdlmS/zEn": {
     "defaultMessage": "at",
@@ -19087,6 +19175,10 @@
     "defaultMessage": "Update term",
     "description": "Button to save edits to an existing glossary term"
   },
+  "cpyaLTW85o": {
+    "defaultMessage": "Nodes inside Attempt",
+    "description": "Visual workflow editor control"
+  },
   "cq8+wKJLJG": {
     "defaultMessage": "Filters",
     "description": "Button that opens translation memory entry filters"
@@ -19110,6 +19202,10 @@
   "csK4Zbn9gk": {
     "defaultMessage": "Audit product and the website.\nEvery day.",
     "description": "Headline for the Guidelines daily-audit section"
+  },
+  "csr373/O34": {
+    "defaultMessage": "AI credit / month",
+    "description": "Pricing matrix row label for included monthly AI credit"
   },
   "csuMeaGNQo": {
     "defaultMessage": "Create new project",
@@ -20575,6 +20671,10 @@
     "defaultMessage": "Edit",
     "description": "Button to edit a translation memory entry"
   },
+  "fnuHA5r7aQ": {
+    "defaultMessage": "$20 per month AI credit",
+    "description": "Starter plan feature: included monthly AI credit"
+  },
   "fp+BAxQben": {
     "defaultMessage": "Use",
     "description": "Button to apply the AI recommendation to the target translation"
@@ -20842,6 +20942,10 @@
   "gInelMBn+I": {
     "defaultMessage": "Source image unavailable",
     "description": "Empty state when the CAT source image cannot be shown"
+  },
+  "gJ4nnkkpNU": {
+    "defaultMessage": "Exhausted",
+    "description": "Retry exhaustion exit"
   },
   "gJ8XFIM+3j": {
     "defaultMessage": "View all posts",
@@ -21603,10 +21707,6 @@
     "defaultMessage": "Try again",
     "description": "Button to retry rendering the chat dock panel"
   },
-  "hlRvDSySq1": {
-    "defaultMessage": "2,000,000 AI tokens per month",
-    "description": "Growth plan feature: AI token quota"
-  },
   "hm9/43e7py": {
     "defaultMessage": "End time",
     "description": "Label for experiment end time"
@@ -21674,10 +21774,6 @@
   "hujEaVVQkb": {
     "defaultMessage": "3 flags · clause 3.2",
     "description": "German finding result on the daily compliance audit mock card"
-  },
-  "hv3wNQ+tWl": {
-    "defaultMessage": "2,000,000 AI tokens per month",
-    "description": "Growth plan feature: AI token quota on Growth"
   },
   "hvve+jJHsJ": {
     "defaultMessage": "Failed to load the {providerName} connection.",
@@ -22258,6 +22354,10 @@
   "j7qlYfJ6Qt": {
     "defaultMessage": "{kind} · {format}",
     "description": "Provider kind and file format shown in the job CAT header"
+  },
+  "j8e6X/c9hq": {
+    "defaultMessage": "Gemini 3.7 Flash",
+    "description": "Label for the Google Gemini 3.7 Flash automation model"
   },
   "j8gL5p92ex": {
     "defaultMessage": "Co-founder",
@@ -24323,6 +24423,10 @@
     "defaultMessage": "Locale",
     "description": "Label for issue target locale field"
   },
+  "nMNoXhRMk/": {
+    "defaultMessage": "Unable to remove member from team.",
+    "description": "Error removing a member from a team"
+  },
   "nMgCp4t1y/": {
     "defaultMessage": "Connect",
     "description": "Link to Integrations"
@@ -24726,6 +24830,10 @@
   "oDluyiLepj": {
     "defaultMessage": "Answer engine optimisation. When someone asks an AI search tool, they can still get your page as the answer, not a competitor’s.",
     "description": "Domains FAQ answer about AEO"
+  },
+  "oE/d+yPnQC": {
+    "defaultMessage": "Initial delay (ms)",
+    "description": "Retry initial delay field"
   },
   "oEmsIJPKd5": {
     "defaultMessage": "Push draft translations",
@@ -26262,6 +26370,10 @@
   "r9CtFkZBBj": {
     "defaultMessage": "Connect GitHub and Slack to let the agent validate changes and notify your team automatically.",
     "description": "Step 4 description"
+  },
+  "r9cem/tyVw": {
+    "defaultMessage": "Succeeded",
+    "description": "Retry success exit"
   },
   "rAeEoKNL9f": {
     "defaultMessage": "Resend",
@@ -28575,10 +28687,6 @@
     "defaultMessage": "Overview",
     "description": "Project sidebar navigation item for the project overview"
   },
-  "w71NtqKp6F": {
-    "defaultMessage": "AI token overage",
-    "description": "Pricing matrix row label for AI token overage rate"
-  },
   "w79MA47tly": {
     "defaultMessage": "3 strings changed, 1 French typo corrected directly from the PR thread",
     "description": "PR summary shown after the agent fix in the review PR illustration"
@@ -28962,6 +29070,10 @@
   "wqZ58St0W3": {
     "defaultMessage": "Unable to export translation memory",
     "description": "Fallback error when translation memory export fails"
+  },
+  "wqkEAl7nY6": {
+    "defaultMessage": "Unable to update team.",
+    "description": "Error updating a team"
   },
   "wr3AKpuOi3": {
     "defaultMessage": "Brand voice · Style guide",
