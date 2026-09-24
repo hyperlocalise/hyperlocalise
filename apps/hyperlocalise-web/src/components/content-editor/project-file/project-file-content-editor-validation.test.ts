@@ -16,13 +16,14 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 import { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 
 import { fetchCatSegmentValidation } from "./project-file-content-editor-validation";
+import { projectFileCatValidationMessages } from "./project-file-content-editor-validation.messages";
 
 const testIntl = getIntlShape("en");
 
-function clientWith(fetcher: ReturnType<typeof vi.fn>) {
+function clientWith(fetcher: ReturnType<typeof vi.fn>, getAccessToken = () => "access-token") {
   return new GoSvcClient({
     baseUrl: "https://api.hyperlocalise.com",
-    getAccessToken: () => "access-token",
+    getAccessToken,
     fetch: fetcher as unknown as typeof fetch,
   });
 }
@@ -119,6 +120,61 @@ describe("fetchCatSegmentValidation", () => {
       ok: false,
       error: expect.objectContaining({ code: "invalid_response" }),
     });
+  });
+
+  it("keeps transport failures localized while logging the implementation error", async () => {
+    const fetcher = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      const result = await fetchCatSegmentValidation(
+        {
+          sourceText: "Hello",
+          targetText: "Bonjour",
+          sourcePath: "/messages/en.json",
+          targetLocale: "fr-FR",
+          intl: testIntl,
+        },
+        clientWith(fetcher),
+      );
+
+      expect(result).toEqual({
+        ok: false,
+        error: {
+          code: "service_error",
+          message: testIntl.formatMessage(projectFileCatValidationMessages.requestFailed),
+        },
+      });
+      expect(warn).toHaveBeenCalledWith(
+        "[cat-validation] Go service request failed",
+        expect.objectContaining({ code: "network_error", message: "Unable to reach go-svc" }),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("keeps missing-token failures localized", async () => {
+    const fetcher = vi.fn();
+    const result = await fetchCatSegmentValidation(
+      {
+        sourceText: "Hello",
+        targetText: "Bonjour",
+        sourcePath: "/messages/en.json",
+        targetLocale: "fr-FR",
+        intl: testIntl,
+      },
+      clientWith(fetcher, () => null),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "service_error",
+        message: testIntl.formatMessage(projectFileCatValidationMessages.requestFailed),
+      },
+    });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("accepts spelling checks and optional skippedModes on the response", async () => {

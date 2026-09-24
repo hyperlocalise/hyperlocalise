@@ -145,6 +145,14 @@ export async function fetchCatSegmentValidation(
           message: input.intl.formatMessage(projectFileCatValidationMessages.invalidJson),
         });
       }
+
+      if (
+        responseResult.error.code === "network_error" ||
+        responseResult.error.code === "missing_access_token"
+      ) {
+        console.warn("[cat-validation] Go service request failed", responseResult.error);
+        return err({ code: "service_error", message: requestFailedMessage });
+      }
     }
 
     return err({
