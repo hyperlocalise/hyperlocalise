@@ -26,7 +26,7 @@ const { isStepCountMock, toolLoopAgentMock, resolveHyperlocaliseAgentLanguageMod
       }> => ({
         model: "mock-model",
         source: "gateway",
-        modelId: "openai/gpt-5.6-luna",
+        modelId: "openai/gpt-6-luna",
       }),
     ),
   }));
@@ -301,7 +301,7 @@ describe("conversation skill agent", () => {
       {
         model: "passed-model" as never,
         source: "openai",
-        modelId: "gpt-5.6-luna",
+        modelId: "gpt-6-luna",
       },
     );
 

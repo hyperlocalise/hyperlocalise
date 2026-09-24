@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -40,11 +40,17 @@ const {
       sourcePath,
       targetLocale,
       targetLocales,
+      initialQueueFilter,
+      initialQueueSort,
+      initialSearch,
     }: {
       repositoryFullName?: string | null;
       sourcePath: string;
       targetLocale: string;
       targetLocales?: string[];
+      initialQueueFilter?: string;
+      initialQueueSort?: string;
+      initialSearch?: string;
       onOpenTranslationLocale?: (locale: string, key: string) => void;
     }) => (
       <div
@@ -53,6 +59,9 @@ const {
         data-source-path={sourcePath}
         data-target-locale={targetLocale}
         data-target-locales={(targetLocales ?? []).join(",")}
+        data-queue-filter={initialQueueFilter ?? ""}
+        data-queue-sort={initialQueueSort ?? ""}
+        data-search={initialSearch ?? ""}
       />
     ),
   ),
@@ -95,11 +104,24 @@ vi.mock("./project-files-tree-panel", () => ({
   PROJECT_FILES_MAX_LIMIT: 1000,
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: routerPushMock,
-  }),
-}));
+vi.mock("next/navigation", async () => {
+  const { useSyncExternalStore } = await import("react");
+  return {
+    useSearchParams: () =>
+      new URLSearchParams(
+        useSyncExternalStore(
+          (notify) => {
+            window.addEventListener("popstate", notify);
+            return () => window.removeEventListener("popstate", notify);
+          },
+          () => window.location.search,
+        ),
+      ),
+    useRouter: () => ({
+      push: routerPushMock,
+    }),
+  };
+});
 
 vi.mock("@/lib/api-client-instance", () => ({
   apiClient: {
@@ -183,6 +205,10 @@ function mockReadyProjectQuery() {
     error: null,
   });
 }
+
+beforeEach(() => {
+  window.history.replaceState(null, "", "/");
+});
 
 describe("ProjectFileContentEditorPageContent guard ordering", () => {
   it("shows the select-a-file prompt when no source path is selected", () => {
@@ -275,14 +301,118 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
     const props = ProjectFileContentEditorWorkspaceMock.mock.calls.at(-1)?.[0];
     expect(props?.onOpenTranslationLocale).toBeDefined();
     props?.onOpenTranslationLocale?.("fr-FR", "checkout.confirm");
-    const destination = new URL(
-      routerPushMock.mock.calls.at(-1)?.[0] as string,
-      "http://localhost",
-    );
+    const destination = new URL(window.location.href);
     expect(destination.searchParams.get("locale")).toBe("fr-FR");
     expect(destination.searchParams.get("segment")).toBe("checkout.confirm");
     expect(destination.searchParams.get("search")).toBe("checkout.confirm");
     expect(destination.searchParams.get("queueFilter")).toBe("all");
+  });
+
+  it("keeps the file list mounted and cached when selecting another file or going back", async () => {
+    render(
+      <ContentEditorTestProviders>
+        <ProjectFileContentEditorPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath="en-US.json"
+          highlightLocale="vi"
+        />
+      </ContentEditorTestProviders>,
+    );
+    await screen.findByTestId("content-editor-workspace");
+    const tree = screen.getAllByRole("list", { name: "Source files" })[0];
+    const requests = fetchProjectFilesMock.mock.calls.length;
+    const user = userEvent.setup();
+    await user.click(screen.getAllByRole("button", { name: "pricing.json" })[0]);
+    // Next's native-history integration notifies useSearchParams; emulate that notification.
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+        "data-source-path",
+        "marketing/pricing.json",
+      ),
+    );
+    expect(screen.getAllByRole("list", { name: "Source files" })[0]).toBe(tree);
+    expect(fetchProjectFilesMock).toHaveBeenCalledTimes(requests);
+    expect(routerPushMock).not.toHaveBeenCalled();
+    act(() => {
+      window.history.replaceState(null, "", "?sourcePath=en-US.json&locale=vi");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-source-path",
+      "en-US.json",
+    );
+    expect(fetchProjectFilesMock).toHaveBeenCalledTimes(requests);
+  });
+
+  it("forwards restored queue params after Back/Forward", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "?sourcePath=en-US.json&locale=vi&queueFilter=untranslated&search=checkout",
+    );
+    render(
+      <ContentEditorTestProviders>
+        <ProjectFileContentEditorPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath="en-US.json"
+          highlightLocale="vi"
+          initialQueueFilter="untranslated"
+          initialSearch="checkout"
+        />
+      </ContentEditorTestProviders>,
+    );
+    await screen.findByTestId("content-editor-workspace");
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-queue-filter",
+      "untranslated",
+    );
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-search",
+      "checkout",
+    );
+    act(() => {
+      window.history.replaceState(
+        null,
+        "",
+        "?sourcePath=marketing/pricing.json&locale=vi&queueFilter=needs_review&search=welcome",
+      );
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+        "data-source-path",
+        "marketing/pricing.json",
+      );
+    });
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-queue-filter",
+      "needs_review",
+    );
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-search",
+      "welcome",
+    );
+    act(() => {
+      window.history.replaceState(
+        null,
+        "",
+        "?sourcePath=en-US.json&locale=vi&queueFilter=untranslated&search=checkout",
+      );
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-queue-filter",
+      "untranslated",
+    );
+    expect(screen.getByTestId("content-editor-workspace")).toHaveAttribute(
+      "data-search",
+      "checkout",
+    );
   });
 
   it("renders the file sidebar, locale selector, and mobile file picker in the CAT shell", async () => {

@@ -252,7 +252,7 @@ describe("usage-control", () => {
       parentOperationKey: operationKey,
       tokenUsage: { inputTokens: 40, outputTokens: 60, totalTokens: 100 },
       source: "translation_job_complete",
-      modelId: "openai/gpt-5.6-luna",
+      modelId: "openai/gpt-6-luna",
       credentialSource: "gateway",
       autumnApiKey: "am_sk_test",
       trackTokens,
@@ -264,14 +264,14 @@ describe("usage-control", () => {
     });
     expect(trackTokens).toHaveBeenCalledWith({
       customerId: organization.id,
-      modelId: "openai/gpt-5.6-luna",
+      modelId: "openai/gpt-6-luna",
       inputTokens: 40,
       outputTokens: 60,
     });
     await expect(getUsageEvent(`${operationKey}:ai_tokens`)).resolves.toMatchObject({
       featureId: "ai_tokens",
       status: "tracking_succeeded",
-      modelId: "openai/gpt-5.6-luna",
+      modelId: "openai/gpt-6-luna",
       quantity: 100,
     });
   });
@@ -305,7 +305,7 @@ describe("usage-control", () => {
       parentOperationKey: operationKey,
       tokenUsage: { inputTokens: 40, outputTokens: 60, totalTokens: 100 },
       source: "translation_job_complete",
-      modelId: "anthropic/claude-sonnet-4-6",
+      modelId: "anthropic/claude-sonnet-4.6",
       credentialSource: "byok",
       autumnApiKey: "am_sk_test",
       trackTokens,
@@ -337,7 +337,7 @@ describe("usage-control", () => {
       autumnEventName: "translation_job.completed",
       unit: "job",
       tokenUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-      aiCreditModelId: "openai/gpt-5.6-luna",
+      aiCreditModelId: "openai/gpt-6-luna",
       aiCreditCredentialSource: "gateway",
       aiCreditSource: "translation_job_complete",
       autumnApiKey: "am_sk_test",
@@ -399,7 +399,7 @@ describe("usage-control", () => {
       autumnEventName: "translation_job.completed",
       unit: "job",
       tokenUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-      aiCreditModelId: "openai/gpt-5.6-luna",
+      aiCreditModelId: "openai/gpt-6-luna",
       aiCreditCredentialSource: "gateway",
       autumnApiKey: "am_sk_test",
       fetchFn,
@@ -436,7 +436,7 @@ describe("usage-control", () => {
       autumnEventName: "translation_job.completed",
       unit: "job",
       tokenUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-      aiCreditModelId: "openai/gpt-5.6-luna",
+      aiCreditModelId: "openai/gpt-6-luna",
       aiCreditCredentialSource: "gateway",
       autumnApiKey: "am_sk_test",
       fetchFn,

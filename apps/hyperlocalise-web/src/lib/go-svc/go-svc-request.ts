@@ -109,9 +109,10 @@ export class GoSvcRequest {
       body = JSON.stringify(request.body);
     }
 
+    const requestUrl = this.url(path, request.query);
     let response: Response;
     try {
-      response = await this.fetch(this.url(path, request.query), {
+      response = await this.fetch(requestUrl, {
         method: request.method ?? "GET",
         headers,
         body,

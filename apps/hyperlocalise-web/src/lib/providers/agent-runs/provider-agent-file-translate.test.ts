@@ -518,7 +518,7 @@ describe("translateProviderJobFiles", () => {
       inputTokens: 12,
       outputTokens: 4,
       totalTokens: 16,
-      modelId: "openai/gpt-5.6-luna",
+      modelId: "openai/gpt-6-luna",
       credentialSource: "gateway",
     });
     expect(result.filesProcessed).toBe(2);

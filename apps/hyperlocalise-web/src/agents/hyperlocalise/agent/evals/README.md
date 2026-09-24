@@ -22,7 +22,7 @@ Model matrix runs:
 
 ```bash
 EVAL_MODEL=anthropic/claude-sonnet-4.5 vp run test:eval
-EVAL_JUDGE_MODEL=openai/gpt-5.6-luna vp run test:eval   # swap the judge
+EVAL_JUDGE_MODEL=openai/gpt-6-luna vp run test:eval   # swap the judge
 ```
 
 ## Suites

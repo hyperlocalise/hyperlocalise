@@ -68,6 +68,7 @@ func BenchmarkMemorySerializeTMX(b *testing.B) {
 
 func BenchmarkNormalizeMemorySourceText(b *testing.B) {
 	samples := []string{
+		"hello world",
 		"  Hello   WORLD  ",
 		"CAFÉ",
 		"Brand\u00a0Name\tWith\nWhitespace",

@@ -1013,6 +1013,21 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "4/w2RcdLUO",
     description: "Helper text for the automation language model select",
   },
+  modelGpt6Luna: {
+    defaultMessage: "GPT-6 Luna",
+    id: "lNo4qG1F4d",
+    description: "Label for the OpenAI GPT-6 Luna automation model",
+  },
+  modelGpt6Astra: {
+    defaultMessage: "GPT-6 Astra",
+    id: "5wWPtxr+Iq",
+    description: "Label for the OpenAI GPT-6 Astra automation model",
+  },
+  modelGpt6Sol: {
+    defaultMessage: "GPT-6 Sol",
+    id: "v5ZuLrI48c",
+    description: "Label for the OpenAI GPT-6 Sol automation model",
+  },
   modelGpt56Luna: {
     defaultMessage: "GPT-5.6 Luna",
     id: "IrSQ6vE36K",
@@ -1037,6 +1052,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Claude Opus 5",
     id: "hGgsaGVVDY",
     description: "Label for the Anthropic Claude Opus 5 automation model",
+  },
+  modelClaudeOpus55: {
+    defaultMessage: "Claude Opus 5.5",
+    id: "ksdV9RsBoH",
+    description: "Label for the Anthropic Claude Opus 5.5 automation model",
   },
   instructionsPlaceholder: {
     defaultMessage: "Tell the automation what to do, what to inspect, and what to ignore.",

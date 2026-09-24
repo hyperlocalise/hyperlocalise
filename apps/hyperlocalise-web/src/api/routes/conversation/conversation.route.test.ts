@@ -146,9 +146,9 @@ afterEach(async () => {
 
 beforeEach(() => {
   resolveHyperlocaliseAgentLanguageModelMock.mockResolvedValue({
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-6-luna",
     source: "gateway",
-    modelId: "openai/gpt-5.6-luna",
+    modelId: "openai/gpt-6-luna",
   });
   createWebChatAgentUIStreamResponseMock.mockReturnValue(new Response(null, { status: 200 }));
 });

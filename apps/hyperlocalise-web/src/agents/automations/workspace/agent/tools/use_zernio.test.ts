@@ -49,7 +49,7 @@ function session(
     triggerConfig: { mode: "manual" },
     repositoryTarget: { kind: "none" },
     toolConfig,
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-6-luna",
     configVersion: 1,
     nextRunAt: null,
     createdAt: new Date().toISOString(),

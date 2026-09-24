@@ -57,6 +57,8 @@ import {
   mergeSegmentIntelligenceOnHydrate,
 } from "./store/content-editor-workspace-store-utils";
 
+import { MultilingualDrafts } from "../multilingual/content-editor-multilingual-drafts";
+
 export type CreateCatWorkspaceOptions = {
   initialViewMode?: ContentEditorWorkspaceViewMode;
   initialQueueFilter?: ContentEditorQueueFilter;
@@ -182,6 +184,7 @@ function loadingSegmentIdsEqual(left: ReadonlySet<string>, right: ReadonlySet<st
 }
 
 export class ContentEditorWorkspaceOrchestrator {
+  readonly multilingualDrafts = new MultilingualDrafts();
   readonly queue = new ContentEditorQueueStore();
   readonly segments = new ContentEditorSegmentStore();
   readonly intelligenceState = new ContentEditorIntelligenceStore();
@@ -272,7 +275,7 @@ export class ContentEditorWorkspaceOrchestrator {
       const handleBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
       this.beforeUnloadHandler = handleBeforeUnload;
       this.dirtyStateDisposer = reaction(
-        () => this.segments.hasDirtySegments,
+        () => this.segments.hasDirtySegments || this.multilingualDrafts.dirty,
         (hasDirtySegments, previousHasDirtySegments) => {
           if (previousHasDirtySegments) {
             window.removeEventListener("beforeunload", handleBeforeUnload);
@@ -1361,7 +1364,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   attemptPageNavigation(proceed: () => void) {
-    if (this.dirtySegmentIds.size > 0) {
+    if (this.dirtySegmentIds.size > 0 || this.multilingualDrafts.dirty) {
       this.unsavedNavigationPrompt = { proceed };
       return;
     }
@@ -1375,6 +1378,7 @@ export class ContentEditorWorkspaceOrchestrator {
 
   confirmUnsavedNavigation() {
     const proceed = this.unsavedNavigationPrompt?.proceed;
+    this.multilingualDrafts.clear();
     this.unsavedNavigationPrompt = null;
     proceed?.();
   }

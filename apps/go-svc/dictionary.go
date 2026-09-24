@@ -44,6 +44,7 @@ type dictionaryPool interface {
 type dictionaryAPI struct {
 	pool       dictionaryPool
 	membership organizationMembershipLookup
+	wordsCache dictionaryWordsCache
 }
 
 type dictionaryActor struct{ userID, organizationID, role string }

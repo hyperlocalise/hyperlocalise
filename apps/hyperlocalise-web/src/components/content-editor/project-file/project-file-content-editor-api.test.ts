@@ -110,6 +110,7 @@ describe("fetchProjectFileContentEditorQueuePage", () => {
           limit: 50,
         },
       }),
+      { init: { signal: undefined } },
     );
   });
 
@@ -141,6 +142,7 @@ describe("fetchProjectFileContentEditorQueuePage", () => {
           phraseScanSkip: 10,
         },
       }),
+      { init: { signal: undefined } },
     );
   });
 
@@ -168,6 +170,7 @@ describe("fetchProjectFileContentEditorQueuePage", () => {
           sortBucketOffset: 10,
         }),
       }),
+      { init: { signal: undefined } },
     );
   });
 

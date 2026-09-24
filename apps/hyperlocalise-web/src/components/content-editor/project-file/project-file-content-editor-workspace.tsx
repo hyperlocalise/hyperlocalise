@@ -782,6 +782,21 @@ export function ProjectFileContentEditorWorkspace({
       identities: new Map(
         contentEditorFile?.segments.map((segment) => [segment.externalStringId, segment]),
       ),
+      canEdit: Boolean(contentEditorFile?.canEditTranslations),
+      onSaveTranslation: async (segment: ContentEditorSegment, locale: string, text: string) => {
+        if (!contentEditorFile?.canEditTranslations) {
+          throw new Error(
+            intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
+          );
+        }
+        await saveTranslation({
+          externalStringId: segment.id,
+          targetLocale: locale,
+          text,
+          approve: isNativeProject ? false : undefined,
+          coalesceQueueRefresh: true,
+        });
+      },
       onOpenTranslation: (segment: ContentEditorSegment, locale: string) => {
         setOpenedSegmentKey(segment.key);
         setSearch(segment.key);
@@ -794,6 +809,9 @@ export function ProjectFileContentEditorWorkspace({
       },
     }),
     [
+      intl,
+      saveTranslation,
+      isNativeProject,
       organizationSlug,
       projectId,
       sourcePath,

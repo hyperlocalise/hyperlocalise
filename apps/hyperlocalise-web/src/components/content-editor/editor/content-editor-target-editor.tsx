@@ -330,6 +330,9 @@ export function ContentEditorTargetEditor({
   maxLength,
   disabled = false,
   compact = false,
+  inline = false,
+  autoFocus = false,
+  ariaLabel,
   onChange,
 }: {
   sourceText: string;
@@ -337,6 +340,9 @@ export function ContentEditorTargetEditor({
   maxLength?: number;
   disabled?: boolean;
   compact?: boolean;
+  inline?: boolean;
+  autoFocus?: boolean;
+  ariaLabel?: string;
   onChange: (value: string) => void;
 }) {
   const intl = useIntl();
@@ -379,7 +385,9 @@ export function ContentEditorTargetEditor({
             : "min-h-36 px-4 py-4 text-lg leading-relaxed text-foreground focus:outline-none md:text-lg",
           "whitespace-pre-wrap break-words",
         ),
-        "aria-label": intl.formatMessage(contentEditorTargetEditorMessages.targetTranslationAria),
+        role: "textbox",
+        "aria-label":
+          ariaLabel ?? intl.formatMessage(contentEditorTargetEditorMessages.targetTranslationAria),
         "data-placeholder": intl.formatMessage(contentEditorTargetEditorMessages.targetPlaceholder),
         autocapitalize: "off",
         autocomplete: "off",
@@ -408,6 +416,10 @@ export function ContentEditorTargetEditor({
 
     editor.commands.setContent(textDocFromValue(value), { emitUpdate: false });
   }, [editor, value]);
+
+  useEffect(() => {
+    if (autoFocus && editor) editor.commands.focus("end");
+  }, [autoFocus, editor]);
 
   function insertToken(token: ContentEditorMessageToken) {
     if (!editor || disabled) {
@@ -455,39 +467,41 @@ export function ContentEditorTargetEditor({
         )}
       </div>
 
-      <div className="flex justify-end px-1">
-        <p
-          className={cn(
-            "text-xs tabular-nums",
-            isOverMaxLength ? "font-medium text-destructive" : "text-muted-foreground",
-          )}
-          aria-live="polite"
-          aria-label={
-            maxLength !== undefined
-              ? intl.formatMessage(contentEditorTargetEditorMessages.characterCountAria, {
-                  count: characterCount,
-                  maxLength,
-                })
-              : intl.formatMessage(contentEditorTargetEditorMessages.characterCountOnlyAria, {
-                  count: characterCount,
-                })
-          }
-        >
-          {maxLength !== undefined ? (
-            <FormattedMessage
-              {...contentEditorTargetEditorMessages.characterCount}
-              values={{ count: characterCount, maxLength }}
-            />
-          ) : (
-            <FormattedMessage
-              {...contentEditorTargetEditorMessages.characterCountOnly}
-              values={{ count: characterCount }}
-            />
-          )}
-        </p>
-      </div>
+      {!inline ? (
+        <div className="flex justify-end px-1">
+          <p
+            className={cn(
+              "text-xs tabular-nums",
+              isOverMaxLength ? "font-medium text-destructive" : "text-muted-foreground",
+            )}
+            aria-live="polite"
+            aria-label={
+              maxLength !== undefined
+                ? intl.formatMessage(contentEditorTargetEditorMessages.characterCountAria, {
+                    count: characterCount,
+                    maxLength,
+                  })
+                : intl.formatMessage(contentEditorTargetEditorMessages.characterCountOnlyAria, {
+                    count: characterCount,
+                  })
+            }
+          >
+            {maxLength !== undefined ? (
+              <FormattedMessage
+                {...contentEditorTargetEditorMessages.characterCount}
+                values={{ count: characterCount, maxLength }}
+              />
+            ) : (
+              <FormattedMessage
+                {...contentEditorTargetEditorMessages.characterCountOnly}
+                values={{ count: characterCount }}
+              />
+            )}
+          </p>
+        </div>
+      ) : null}
 
-      {sourceTokens.length > 0 ? (
+      {sourceTokens.length > 0 && !inline ? (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="me-1 text-xs font-medium text-muted-foreground">
             <FormattedMessage {...contentEditorTargetEditorMessages.requiredTokens} />

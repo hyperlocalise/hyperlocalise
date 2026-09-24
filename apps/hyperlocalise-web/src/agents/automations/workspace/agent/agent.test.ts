@@ -50,7 +50,7 @@ function automation(): WorkspaceAutomationRecord {
     status: "active",
     name: "Test automation",
     instructions: "",
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-6-luna",
     projectId: "project-1",
     triggerConfig: { mode: "manual" },
     repositoryTarget: { kind: "none" },
@@ -115,7 +115,7 @@ describe("workspace orchestrator agent", () => {
     );
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "openai/gpt-5.6-luna",
+        model: "openai/gpt-6-luna",
         activeTools: ["run_github_workflows", "notify_slack"],
         timeout: WORKSPACE_ORCHESTRATOR_TIMEOUT,
         prepareStep: expect.any(Function),

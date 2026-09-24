@@ -25,6 +25,11 @@ import {
   type ContentEditorQueueSort,
 } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { mergeContentEditorQueuePages } from "@/components/content-editor/queue/merge-content-editor-queue-pages";
+import {
+  parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueSortParam,
+  parseCatWorkspaceSearchParam,
+} from "@/lib/projects/content-editor/content-editor-workspace-query-params";
 
 import {
   canReuseCatQueuePlaceholderData,
@@ -57,6 +62,27 @@ function toServerQueueFilter(
   return isServerQueueFilter(filter) ? filter : "all";
 }
 
+function queueStateFromInitials(input: {
+  initialQueueFilter?: ContentEditorQueueFilter;
+  initialQueueSort?: ContentEditorQueueSort;
+  initialSearch?: string;
+}) {
+  return {
+    search: input.initialSearch ?? "",
+    queueFilter: input.initialQueueFilter ?? "all",
+    queueSort: input.initialQueueSort ?? "file_order",
+  } as const;
+}
+
+function queueStateFromLocationSearch(search: string) {
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  return {
+    search: parseCatWorkspaceSearchParam(params.get("search")),
+    queueFilter: parseCatWorkspaceQueueFilterParam(params.get("queueFilter")) ?? "all",
+    queueSort: parseCatWorkspaceQueueSortParam(params.get("queueSort")) ?? "file_order",
+  } as const;
+}
+
 export function useContentEditorSegmentQuery(input: {
   organizationSlug: string;
   projectId: string;
@@ -73,18 +99,36 @@ export function useContentEditorSegmentQuery(input: {
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState(() => input.initialSearch ?? "");
+  const restoredQueue = queueStateFromInitials(input);
+  const [search, setSearch] = useState(restoredQueue.search);
   const [queueFilter, setQueueFilter] = useState<ContentEditorQueueFilter>(
-    () => input.initialQueueFilter ?? "all",
+    restoredQueue.queueFilter,
   );
-  const [queueSort, setQueueSort] = useState<ContentEditorQueueSort>(
-    () => input.initialQueueSort ?? "file_order",
-  );
+  const [queueSort, setQueueSort] = useState<ContentEditorQueueSort>(restoredQueue.queueSort);
+  const fileIdentity = `${input.projectId}\0${input.sourcePath}`;
+  const [appliedFileIdentity, setAppliedFileIdentity] = useState(fileIdentity);
+  if (appliedFileIdentity !== fileIdentity) {
+    setAppliedFileIdentity(fileIdentity);
+    setSearch(restoredQueue.search);
+    setQueueFilter(restoredQueue.queueFilter);
+    setQueueSort(restoredQueue.queueSort);
+  }
   const limit = input.pageLimit ?? defaultCatPageLimit;
   const debouncedSearch = useDebouncedValue(search, 300);
   const isSearchPending = search !== debouncedSearch;
   const serverQueueFilter = toServerQueueFilter(queueFilter);
   const discoveredExternalResourceIdRef = useRef<string | null>(input.externalResourceId ?? null);
+
+  useEffect(() => {
+    const applyRestoredQueue = () => {
+      const restored = queueStateFromLocationSearch(window.location.search);
+      setSearch(restored.search);
+      setQueueFilter(restored.queueFilter);
+      setQueueSort(restored.queueSort);
+    };
+    window.addEventListener("popstate", applyRestoredQueue);
+    return () => window.removeEventListener("popstate", applyRestoredQueue);
+  }, []);
 
   if (input.externalResourceId) {
     discoveredExternalResourceIdRef.current = input.externalResourceId;
@@ -159,7 +203,7 @@ export function useContentEditorSegmentQuery(input: {
         sortBucketOffset: pagePagination.nextSortBucketOffset,
       };
     },
-    queryFn: ({ pageParam }) =>
+    queryFn: ({ pageParam, signal }) =>
       fetchProjectFileContentEditorQueuePage({
         organizationSlug: input.organizationSlug,
         projectId: input.projectId,
@@ -171,6 +215,7 @@ export function useContentEditorSegmentQuery(input: {
         queueFilter: serverQueueFilter,
         queueSort,
         limit,
+        signal,
         offset: pageParam.offset,
         phraseScanPage: pageParam.phraseScanPage,
         phraseScanSkip: pageParam.phraseScanSkip,
