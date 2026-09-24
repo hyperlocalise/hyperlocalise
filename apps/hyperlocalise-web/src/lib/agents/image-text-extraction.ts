@@ -12,8 +12,10 @@
  */
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { getManagedLanguageModel } from "@/lib/providers/language-model";
+
 import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
+import { getManagedLanguageModel } from "@/lib/providers/language-model";
 import {
   imageTextRegionSchema,
   imageTextRegionsSchema,
@@ -37,6 +39,7 @@ export async function extractImageText(input: {
       run: async () => {
         const result = await generateText({
           model: getManagedLanguageModel(),
+          telemetry: createAiTelemetry("image-extraction"),
           abortSignal: input.signal,
           output: Output.object({
             schema: z.object({

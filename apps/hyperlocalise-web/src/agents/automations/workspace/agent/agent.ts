@@ -21,6 +21,7 @@ import { resolveWorkspaceAutomationModel } from "@/lib/agents/workspace-automati
 
 import { buildWorkspaceOrchestratorTools } from "./build-workspace-orchestrator-tools";
 import type { WorkspaceOrchestratorSession } from "./context";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 export function createWorkspaceOrchestratorAgent(session: WorkspaceOrchestratorSession) {
   const tools = buildWorkspaceOrchestratorTools(session);
@@ -42,6 +43,7 @@ export function createWorkspaceOrchestratorAgent(session: WorkspaceOrchestratorS
   const stepLimit = Math.max(WORKSPACE_ORCHESTRATOR_STEP_LIMIT, plannedToolCount + 1);
 
   return new ToolLoopAgent({
+    telemetry: createAiTelemetry("workspace-automation"),
     model: resolveWorkspaceAutomationModel(session.automation.model),
     instructions: session.composedInstructions,
     tools,

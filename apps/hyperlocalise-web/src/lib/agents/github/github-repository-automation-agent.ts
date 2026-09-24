@@ -27,6 +27,7 @@ import {
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
 import { db } from "@/lib/database/client";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 const agentStepLimit = 8;
 
@@ -65,6 +66,7 @@ export async function runRepositoryLocalisationAgentForCommit(input: {
   ]) as ToolSet;
 
   const agent = new ToolLoopAgent({
+    telemetry: createAiTelemetry("repository-agent"),
     model: getHyperlocaliseAgentModel(),
     tools,
     stopWhen: [(step) => step.steps.length >= agentStepLimit],
@@ -148,6 +150,7 @@ export async function runGithubPullRequestReviewAgent(input: {
   ]) as ToolSet;
 
   const agent = new ToolLoopAgent({
+    telemetry: createAiTelemetry("repository-agent"),
     model: getHyperlocaliseAgentModel(),
     tools,
     stopWhen: [(step) => step.steps.length >= agentStepLimit],

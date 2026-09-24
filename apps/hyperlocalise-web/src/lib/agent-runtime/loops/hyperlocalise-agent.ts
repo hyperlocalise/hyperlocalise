@@ -40,6 +40,7 @@ import {
   createConversationSkillAgent,
   type ConversationSkillAgentOnFinish,
 } from "./conversation-skill-agent";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 export type { HyperlocaliseAgentSurface };
 export { hyperlocaliseAgentMaxOutputTokens, hyperlocaliseAgentStepLimit };
@@ -151,6 +152,7 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
   // tool declares contextSchema. Narrow suppression keeps the settings object typed.
   // @ts-expect-error ToolLoopAgent settings: ToolsContextParameter unresolved for generic TOOLS
   return new ToolLoopAgent({
+    telemetry: createAiTelemetry("hyperlocalise-agent"),
     model: model ?? getHyperlocaliseAgentModel(),
     instructions: buildHyperlocaliseAgentInstructions({
       surface,

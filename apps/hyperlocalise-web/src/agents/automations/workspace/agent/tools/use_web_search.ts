@@ -29,6 +29,7 @@ import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import { mergeToolOutputSummaryIntoSessionRun } from "../workspace-orchestrator-output-summary";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 const WEB_SEARCH_TOOL_STEP_LIMIT = 8;
 
@@ -96,6 +97,7 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
       const toolNames = Object.keys(tools);
 
       const agent = new ToolLoopAgent({
+        telemetry: createAiTelemetry("workspace-automation"),
         model: resolveWorkspaceAutomationModel(session.automation.model),
         tools,
         instructions: [

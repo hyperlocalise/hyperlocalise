@@ -29,6 +29,7 @@ import { createZernioAdsToolSet } from "@/lib/zernio/agent-tools";
 import { loadZernioConnectionWithApiKey } from "@/lib/zernio/connections";
 
 import type { WorkspaceOrchestratorSession } from "../context";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 const ZERNIO_TOOL_STEP_LIMIT = 10;
 
@@ -73,6 +74,7 @@ export function createUseZernioTool(session: WorkspaceOrchestratorSession) {
       const toolNames = Object.keys(tools);
 
       const agent = new ToolLoopAgent({
+        telemetry: createAiTelemetry("workspace-automation"),
         model: resolveWorkspaceAutomationModel(session.automation.model),
         tools,
         instructions: [

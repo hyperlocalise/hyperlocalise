@@ -23,6 +23,7 @@ import {
   SUBAGENT_TIMEOUT,
 } from "@/lib/agent-runtime/subagents/constants";
 import type { SubagentCallOptions } from "@/lib/agent-runtime/subagents/types";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 const callOptionsSchema = z.object({
   toolContext: z.custom<SubagentCallOptions["toolContext"]>(),
@@ -44,6 +45,7 @@ ${SUBAGENT_NO_QUESTIONS_RULES}`;
 const TRANSLATION_SYSTEM_PROMPT = buildTranslationSystemPrompt();
 
 export const translationSubagent = new ToolLoopAgent({
+  telemetry: createAiTelemetry("translation-generation"),
   model: getHyperlocaliseAgentModel(),
   instructions: TRANSLATION_SYSTEM_PROMPT,
   stopWhen: isStepCount(SUBAGENT_STEP_LIMIT),

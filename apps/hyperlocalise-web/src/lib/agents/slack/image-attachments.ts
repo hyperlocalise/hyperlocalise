@@ -20,6 +20,7 @@ import {
   type ImageLocalizationAttachment,
 } from "@/lib/agents/image-localization";
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 import {
   createStoredSlackImageAttachment,
@@ -130,6 +131,7 @@ export function createSlackImageRequestInterpreter({
   return async (input: InterpretSlackImageRequestInput) => {
     const { output } = await generateText({
       model,
+      telemetry: createAiTelemetry("slack-agent"),
       output: Output.object({
         schema: slackImageRequestIntentSchema,
       }),

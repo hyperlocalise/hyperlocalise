@@ -30,6 +30,7 @@ import {
   type ResolvedAgentLanguageModel,
 } from "@/lib/providers/language-model";
 import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 export type ConversationSkillAgentOnFinish = ToolLoopAgentSettings<never, ToolSet>["onEnd"];
 
@@ -49,6 +50,7 @@ export async function createConversationSkillAgent(
     }));
 
   return new ToolLoopAgent<never, ToolSet>({
+    telemetry: createAiTelemetry("conversation-skill"),
     model: resolvedModel.model,
     instructions: buildConversationSkillInstructions({
       surface: runtime.surface,

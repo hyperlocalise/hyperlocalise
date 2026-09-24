@@ -27,6 +27,7 @@ import {
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import { createCrowdinReviewTools } from "./crowdin-review-tools";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 const CROWDIN_TOOL_STEP_LIMIT = 10;
 
@@ -60,6 +61,7 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
       });
 
       const agent = new ToolLoopAgent({
+        telemetry: createAiTelemetry("workspace-automation"),
         model: resolveWorkspaceAutomationModel(session.automation.model),
         tools,
         instructions: [
