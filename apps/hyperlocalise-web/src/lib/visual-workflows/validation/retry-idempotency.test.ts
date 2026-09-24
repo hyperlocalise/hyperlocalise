@@ -71,15 +71,26 @@ describe("buildVisualWorkflowNodeIdempotencyKey", () => {
 });
 
 describe("shouldReuseCompletedNodeRun", () => {
-  const retryBodyNodeIds = new Set(["create", "process"]);
+  const resumedRetryBodyNodeIds = new Set(["create", "process"]);
 
   it("reuses completed body runs within the same retry attempt after a mid-body yield", () => {
     expect(
       shouldReuseCompletedNodeRun({
         nodeId: "create",
-        attempt: 1,
-        retryBodyNodeIds,
+        retryRegionAttempt: 1,
+        resumedRetryBodyNodeIds,
         resumeAttempt: 1,
+      }),
+    ).toBe(true);
+  });
+
+  it("reuses a first-time body node run during the resumed retry attempt even when node-run attempt is 1", () => {
+    expect(
+      shouldReuseCompletedNodeRun({
+        nodeId: "process",
+        retryRegionAttempt: 2,
+        resumedRetryBodyNodeIds,
+        resumeAttempt: 2,
       }),
     ).toBe(true);
   });
@@ -88,19 +99,31 @@ describe("shouldReuseCompletedNodeRun", () => {
     expect(
       shouldReuseCompletedNodeRun({
         nodeId: "create",
-        attempt: 1,
-        retryBodyNodeIds,
+        retryRegionAttempt: 1,
+        resumedRetryBodyNodeIds,
         resumeAttempt: 2,
       }),
     ).toBe(false);
   });
 
-  it("still reuses completed nodes outside the retry body", () => {
+  it("still reuses completed nodes outside the resumed retry body", () => {
     expect(
       shouldReuseCompletedNodeRun({
         nodeId: "setup",
-        attempt: 1,
-        retryBodyNodeIds,
+        retryRegionAttempt: 1,
+        resumedRetryBodyNodeIds,
+        resumeAttempt: 2,
+      }),
+    ).toBe(true);
+  });
+
+  it("still reuses an earlier retry region body after a later retry wakes", () => {
+    const secondRetryBodyOnly = new Set(["process"]);
+    expect(
+      shouldReuseCompletedNodeRun({
+        nodeId: "legacy",
+        retryRegionAttempt: 1,
+        resumedRetryBodyNodeIds: secondRetryBodyOnly,
         resumeAttempt: 2,
       }),
     ).toBe(true);
@@ -110,8 +133,8 @@ describe("shouldReuseCompletedNodeRun", () => {
     expect(
       shouldReuseCompletedNodeRun({
         nodeId: "create",
-        attempt: 1,
-        retryBodyNodeIds,
+        retryRegionAttempt: 1,
+        resumedRetryBodyNodeIds,
         resumeAttempt: null,
       }),
     ).toBe(true);

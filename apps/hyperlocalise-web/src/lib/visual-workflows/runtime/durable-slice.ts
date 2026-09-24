@@ -32,6 +32,7 @@ import { WORKFLOW_LIMITS } from "./limits";
 import {
   buildVisualWorkflowNodeIdempotencyKey,
   collectRetryBodyNodeIds,
+  collectRetryBodyNodeIdsForRetryNode,
   findRetryNodeForBodyNodeId,
   shouldReuseCompletedNodeRun,
 } from "../validation/retry-idempotency";
@@ -59,6 +60,10 @@ export async function executeDurableWorkflowSlice(input: {
   const retryBodyNodeIds = collectRetryBodyNodeIds(input.definition);
   const retryBackoff = parseRetryResumeState(input.payload.retryBackoff);
   const resumeAttempt = retryBackoff?.nextAttempt ?? null;
+  const resumedRetryBodyNodeIds =
+    retryBackoff != null
+      ? collectRetryBodyNodeIdsForRetryNode(input.definition, retryBackoff.retryNodeId)
+      : new Set<string>();
   const completed = new Map(
     records
       .filter(
@@ -67,8 +72,8 @@ export async function executeDurableWorkflowSlice(input: {
           ["succeeded", "handled_error"].includes(record.status) &&
           shouldReuseCompletedNodeRun({
             nodeId: record.nodeId,
-            attempt: record.attempt,
-            retryBodyNodeIds,
+            retryRegionAttempt: record.iteration,
+            resumedRetryBodyNodeIds,
             resumeAttempt,
           }),
       )

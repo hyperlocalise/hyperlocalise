@@ -98,6 +98,17 @@ export function collectRetryBodyNodeIds(definition: {
   return ids;
 }
 
+export function collectRetryBodyNodeIdsForRetryNode(
+  definition: { nodes: readonly CanonicalVisualWorkflowNode[] },
+  retryNodeId: string,
+): Set<string> {
+  const retryNode = definition.nodes.find((node) => node.id === retryNodeId);
+  if (!retryNode || retryNode.type !== "logic.retry") {
+    return new Set();
+  }
+  return new Set(retryNode.bodyNodeIds ?? []);
+}
+
 /**
  * Whether a persisted node run may short-circuit execution in a durable slice.
  *
@@ -111,14 +122,15 @@ export function collectRetryBodyNodeIds(definition: {
  */
 export function shouldReuseCompletedNodeRun(input: {
   nodeId: string;
-  attempt: number;
-  retryBodyNodeIds: ReadonlySet<string>;
+  /** Interpreter iteration for retry-body nodes is the enclosing retry attempt (not the node-run attempt counter). */
+  retryRegionAttempt: number;
+  resumedRetryBodyNodeIds: ReadonlySet<string>;
   resumeAttempt: number | null;
 }): boolean {
   if (
     input.resumeAttempt != null &&
-    input.retryBodyNodeIds.has(input.nodeId) &&
-    input.attempt < input.resumeAttempt
+    input.resumedRetryBodyNodeIds.has(input.nodeId) &&
+    input.retryRegionAttempt < input.resumeAttempt
   ) {
     return false;
   }
