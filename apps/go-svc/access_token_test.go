@@ -120,6 +120,102 @@ func TestWorkOSSessionVerifierAcceptsAuthKitAccessToken(t *testing.T) {
 	require.Equal(t, "session_authkit", claims.SessionID)
 }
 
+func TestWorkOSSessionVerifierRejectsAuthKitAccessTokenWithWrongClientID(t *testing.T) {
+	fixture := newAccessTokenFixture(t)
+	verifier := accessTokenVerifier(t, fixture)
+	token := fixture.sign(t, map[string]any{
+		"iss":       workOSProductionAPIURL + "/user_management/" + testWorkOSClientID,
+		"client_id": "client_other",
+		"sub":       "user_authkit",
+		"sid":       "session_authkit",
+		"org_id":    "org_authkit",
+		"exp":       time.Now().Add(time.Hour).Unix(),
+	})
+
+	_, err := verifier.VerifyAccessToken(context.Background(), token)
+	require.Error(t, err)
+	require.Equal(t, "invalid_access_token", authReason(err))
+}
+
+func TestWorkOSSessionVerifierRejectsAuthKitAccessTokenWithoutClientID(t *testing.T) {
+	fixture := newAccessTokenFixture(t)
+	verifier := accessTokenVerifier(t, fixture)
+	token := fixture.sign(t, map[string]any{
+		"iss":    workOSProductionAPIURL + "/user_management/" + testWorkOSClientID,
+		"sub":    "user_authkit",
+		"sid":    "session_authkit",
+		"org_id": "org_authkit",
+		"exp":    time.Now().Add(time.Hour).Unix(),
+	})
+
+	_, err := verifier.VerifyAccessToken(context.Background(), token)
+	require.Error(t, err)
+	require.Equal(t, "invalid_access_token", authReason(err))
+}
+
+func TestAccessTokenAudienceAllowed(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name             string
+		audience         jwt.ClaimStrings
+		clientID         string
+		expectedClientID string
+		want             bool
+	}{
+		{
+			name:             "aud matches expected client",
+			audience:         jwt.ClaimStrings{testWorkOSClientID},
+			clientID:         "ignored",
+			expectedClientID: testWorkOSClientID,
+			want:             true,
+		},
+		{
+			name:             "aud list includes expected client",
+			audience:         jwt.ClaimStrings{"other", testWorkOSClientID},
+			clientID:         "ignored",
+			expectedClientID: testWorkOSClientID,
+			want:             true,
+		},
+		{
+			name:             "aud present but wrong",
+			audience:         jwt.ClaimStrings{"client_other"},
+			clientID:         testWorkOSClientID,
+			expectedClientID: testWorkOSClientID,
+			want:             false,
+		},
+		{
+			name:             "empty aud falls back to matching client_id",
+			audience:         nil,
+			clientID:         testWorkOSClientID,
+			expectedClientID: testWorkOSClientID,
+			want:             true,
+		},
+		{
+			name:             "empty aud rejects mismatched client_id",
+			audience:         nil,
+			clientID:         "client_other",
+			expectedClientID: testWorkOSClientID,
+			want:             false,
+		},
+		{
+			name:             "empty aud rejects missing client_id",
+			audience:         jwt.ClaimStrings{},
+			clientID:         "",
+			expectedClientID: testWorkOSClientID,
+			want:             false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := accessTokenAudienceAllowed(tc.audience, tc.clientID, tc.expectedClientID)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func TestWorkOSSessionVerifierRejectsAccessTokenTampering(t *testing.T) {
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
