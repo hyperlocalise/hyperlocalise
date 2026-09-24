@@ -102,7 +102,7 @@ export function TeamDetailPageContent({
     },
     onError: (error) => {
       toast.error(
-        goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.teamUpdated)),
+        goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.updateFailed)),
       );
     },
   });
@@ -117,7 +117,7 @@ export function TeamDetailPageContent({
     },
     onError: (error) => {
       toast.error(
-        goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.memberAdded)),
+        goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.addMemberFailed)),
       );
     },
   });
@@ -132,7 +132,10 @@ export function TeamDetailPageContent({
     },
     onError: (error) => {
       toast.error(
-        goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.roleUpdated)),
+        goSvcErrorMessage(
+          error,
+          intl.formatMessage(teamDetailPageContentMessages.roleUpdateFailed),
+        ),
       );
     },
   });
@@ -147,7 +150,10 @@ export function TeamDetailPageContent({
     },
     onError: (error) => {
       toast.error(
-        goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.memberRemoved)),
+        goSvcErrorMessage(
+          error,
+          intl.formatMessage(teamDetailPageContentMessages.removeMemberFailed),
+        ),
       );
     },
   });

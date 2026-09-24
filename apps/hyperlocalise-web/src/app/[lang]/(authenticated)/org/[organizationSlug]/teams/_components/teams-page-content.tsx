@@ -78,7 +78,7 @@ export function TeamsPageContent({
     },
     onError: (error) => {
       toast.error(
-        goSvcErrorMessage(error, intl.formatMessage(teamsPageContentMessages.teamCreated)),
+        goSvcErrorMessage(error, intl.formatMessage(teamsPageContentMessages.createFailed)),
       );
     },
   });
@@ -102,7 +102,7 @@ export function TeamsPageContent({
     },
     onError: (error) => {
       toast.error(
-        goSvcErrorMessage(error, intl.formatMessage(teamsPageContentMessages.teamUpdated)),
+        goSvcErrorMessage(error, intl.formatMessage(teamsPageContentMessages.updateFailed)),
       );
     },
   });
@@ -122,7 +122,7 @@ export function TeamsPageContent({
     },
     onError: (error) => {
       toast.error(
-        goSvcErrorMessage(error, intl.formatMessage(teamsPageContentMessages.teamDeleted)),
+        goSvcErrorMessage(error, intl.formatMessage(teamsPageContentMessages.deleteFailed)),
       );
     },
   });

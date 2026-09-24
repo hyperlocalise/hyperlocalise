@@ -20,6 +20,26 @@ export const teamDetailPageContentMessages = defineMessages({
     id: "7aLZ0dWTTK",
     description: "Error loading team details",
   },
+  updateFailed: {
+    defaultMessage: "Unable to update team.",
+    id: 'RYlIDTbR9C',
+    description: "Error updating team details",
+  },
+  addMemberFailed: {
+    defaultMessage: "Unable to add member to team.",
+    id: 'XaU9VG5iR6',
+    description: "Error adding a member to a team",
+  },
+  roleUpdateFailed: {
+    defaultMessage: "Unable to update team role.",
+    id: 'DZQygr4PBW',
+    description: "Error updating a team member role",
+  },
+  removeMemberFailed: {
+    defaultMessage: "Unable to remove member from team.",
+    id: 'nMNoXhRMk/',
+    description: "Error removing a member from a team",
+  },
   teamUpdated: {
     defaultMessage: "Team updated",
     id: "p/PBwViDjv",

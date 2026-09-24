@@ -31,6 +31,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
@@ -118,9 +119,7 @@ export function QaProjectPageContent({
         });
         return response as QaListResponse;
       } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadError)), {
-          cause: error,
-        });
+        throw normalizeQaError(error, intl.formatMessage(messages.loadError));
       }
     },
     refetchInterval: (query) =>
@@ -150,9 +149,7 @@ export function QaProjectPageContent({
         });
         return response as QaDetailResponse;
       } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadError)), {
-          cause: error,
-        });
+        throw normalizeQaError(error, intl.formatMessage(messages.loadError));
       }
     },
     getNextPageParam: (lastPage, pages) => {
@@ -405,6 +402,14 @@ function isQaCheckType(value: string): value is TranslationQaCheckType {
 
 function isUnsupportedQaError(error: unknown) {
   return error instanceof Error && "code" in error && error.code === "unsupported";
+}
+
+function normalizeQaError(error: unknown, fallback: string) {
+  const normalized = new Error(goSvcErrorMessage(error, fallback), { cause: error });
+  if (error instanceof GoSvcClientError && error.code === "qa_scan_not_supported") {
+    Object.assign(normalized, { code: "unsupported" });
+  }
+  return normalized;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
