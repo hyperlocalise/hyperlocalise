@@ -31,6 +31,7 @@ type workosAccessTokenClaims struct {
 	jwt.RegisteredClaims
 	SessionID      string          `json:"sid"`
 	OrganizationID string          `json:"org_id"`
+	ClientID       string          `json:"client_id"`
 	Act            json.RawMessage `json:"act"`
 }
 
@@ -81,7 +82,6 @@ func (v *WorkOSSessionVerifier) VerifyAccessToken(ctx context.Context, accessTok
 		jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}),
 		jwt.WithExpirationRequired(),
 		jwt.WithLeeway(accessTokenClockLeeway),
-		jwt.WithAudience(v.clientID),
 	)
 	claims := &workosAccessTokenClaims{}
 	token, err := parser.ParseWithClaims(accessToken, claims, func(t *jwt.Token) (any, error) {
@@ -98,6 +98,9 @@ func (v *WorkOSSessionVerifier) VerifyAccessToken(ctx context.Context, accessTok
 		return AuthClaims{}, newAuthError("invalid_access_token", "invalid access token")
 	}
 
+	if !accessTokenAudienceAllowed(claims.Audience, claims.ClientID, v.clientID) {
+		return AuthClaims{}, newAuthError("invalid_access_token", "invalid access token")
+	}
 	if !issuerAllowed(claims.Issuer, v.apiBaseURL, v.clientID) {
 		return AuthClaims{}, newAuthError("invalid_access_token", "invalid access token")
 	}
@@ -115,6 +118,18 @@ func (v *WorkOSSessionVerifier) VerifyAccessToken(ctx context.Context, accessTok
 	}, nil
 }
 
+func accessTokenAudienceAllowed(audience jwt.ClaimStrings, clientID, expectedClientID string) bool {
+	if len(audience) > 0 {
+		for _, value := range audience {
+			if value == expectedClientID {
+				return true
+			}
+		}
+		return false
+	}
+	return clientID == expectedClientID
+}
+
 func issuerAllowed(issuer, apiBaseURL, clientID string) bool {
 	issuer = strings.TrimRight(strings.TrimSpace(issuer), "/")
 	apiBaseURL = strings.TrimRight(strings.TrimSpace(apiBaseURL), "/")
@@ -124,7 +139,7 @@ func issuerAllowed(issuer, apiBaseURL, clientID string) bool {
 	if issuer == apiBaseURL {
 		return true
 	}
-	return issuer == apiBaseURL+"/"+clientID
+	return issuer == apiBaseURL+"/"+clientID || issuer == apiBaseURL+"/user_management/"+clientID
 }
 
 func (c *jwksCache) publicKey(ctx context.Context, kid string) (*rsa.PublicKey, error) {
