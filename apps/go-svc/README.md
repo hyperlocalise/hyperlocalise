@@ -2,7 +2,7 @@
 
 Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs (parallel to Hono), and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
-Public routes are served at `/api/go-svc/...` in production (Vercel rewrite) and at `/v1/...` or `/ofrep/...` when called directly via the `GO_SVC_URL` binding.
+Public routes are served at `/api/go-svc/...` in production (Vercel rewrite), at `https://api.hyperlocalise.com/v1/...` from browser `GoSvcClient` callers (Bearer token, CORS), and at `/v1/...` or `/ofrep/...` when called directly via the `GO_SVC_URL` binding from the Next.js server.
 
 ## Environment variables
 
@@ -360,9 +360,10 @@ default 50), `range` (`24h` \| `7d` \| `30d` \| `all`). Response:
 
 ## Teams
 
-The browser calls `/api/go-svc/v1/orgs/{organizationSlug}/teams` for team
-CRUD, membership, and the org member directory. The former Hono team handlers are
-removed. Go uses the same session cookie, WorkOS membership verification, and
+The browser calls `/v1/orgs/{organizationSlug}/teams` on the Go service origin
+(typically `https://api.hyperlocalise.com` via `GoSvcClient`; the same paths also
+work under `/api/go-svc/...` on the web host). The former Hono team handlers are
+removed. Go accepts the WorkOS session access token or `wos-session` cookie, WorkOS membership verification, and
 `DATABASE_URL` as dictionary routes. Admins and localization managers may create,
 update, and delete teams; team managers may add or remove members without org
 admin rights.
@@ -377,9 +378,9 @@ admin rights.
 
 ## Spellcheck dictionaries
 
-The browser calls `/api/go-svc/v1/orgs/{organizationSlug}/dictionaries`
-and project dictionary routes directly. The former web dictionary handlers are
-removed. Go owns reads, mutations, word imports/exports, attachment ordering,
+The browser calls `/v1/orgs/{organizationSlug}/dictionaries` and project
+dictionary routes on the Go service origin (via `GoSvcClient`). The former web
+dictionary handlers are removed. Go owns reads, mutations, word imports/exports, attachment ordering,
 and resolved accepted words. Drizzle remains the schema and migration owner.
 PostgreSQL tables are `spellcheck_word_libraries`, `spellcheck_word_library_words`,
 and `project_spellcheck_word_libraries` (not the legacy `spellcheck_dictionaries`

@@ -8,7 +8,7 @@ Visual workflows compose fixed automation steps on a canvas. Your organization m
 ## Build and connect data
 
 1. Choose a manual, scheduled, GitHub, or source-upload trigger.
-2. Add HTTP, AI, Slack, email, condition, switch, Set, or For each nodes.
+2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, or Retry nodes.
 3. Connect execution order on the canvas.
 4. Open a node's **Inputs** section. Select a typed literal, an upstream field, or a text template. Use **Configuration** for provider and action settings.
 5. Review **Outputs** for expected fields. Test results show actual redacted values.
@@ -20,6 +20,10 @@ HTTP JSON responses have an unknown shape until you declare output fields such a
 ## Loops and branching
 
 **For each** requires an array. Connect **Each item** to the body, select the body nodes in the inspector, and connect **Done** to the next step. Body nodes can read the loop's `item` and `index`. Configure collected output bindings to expose `iterationOutputs` after the loop. Items run sequentially; an empty array follows Done with an empty result. Nested loops are not supported.
+
+**Retry** wraps steps that may fail with transient errors. Connect **Attempt** to the body (same body-selection pattern as **For each**). Connect **Succeeded** when the body finishes without a retryable failure, or **Exhausted** when all attempts are used. Defaults are 3 attempts, a 1 second initial delay, 2× backoff, and jitter; the cap is 10 attempts. Only configured error codes retry (defaults include HTTP and node execution failures). Delays between attempts use durable backoff so runs survive restarts.
+
+Retry bodies cannot nest another **Retry** or **For each**. When the body calls Slack, email, AI, or non-idempotent HTTP actions, enable **Acknowledge duplicate risk** in the Retry configuration, or make HTTP calls idempotent (GET, or a custom `Idempotency-Key` header on POST). Publish validation blocks non-idempotent retry bodies without that acknowledgement. Retry outputs include `attemptNumber`, `exhausted`, and optional `lastErrorCode` / `lastErrorMessage`.
 
 Conditions use true/false connections. Switches use case/default connections. Action failures can stop, continue with a visible handled error, or select an error branch. A merge waits for all incoming connections to settle and runs if any is selected.
 
@@ -45,7 +49,7 @@ Cancel stops further steps and supported requests. An external action may alread
 
 A workflow supports 200 nodes, 400 connections, 100 loop items, and 1,000 execution steps. HTTP requests time out after 30 seconds, AI requests after 120 seconds, and a run after 15 minutes. HTTP responses must fit the shared security size limit and contain valid JSON when declared as JSON.
 
-Old definition formats must be recreated or explicitly converted before execution. New integrations, arbitrary code nodes, and nested loops are outside this release.
+Old definition formats must be recreated or explicitly converted before execution. New integrations, arbitrary code nodes, nested loops, and nested retry regions are outside this release.
 
 ## Organization API
 

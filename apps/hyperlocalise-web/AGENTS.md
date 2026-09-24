@@ -65,6 +65,17 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 - Check the typed response status before reading its success or error body, and preserve the existing localized fallback when presenting errors.
 - Use raw `fetch` only when the endpoint is not represented by the Hono client or when the request requires a specialized transport such as streaming, file upload/download, or an external URL. If an internal route is missing from the client, add it to the RPC route/client wiring instead of bypassing the shared client.
 
+## Browser go-svc client
+
+Several Cloud surfaces call the Go service directly from the browser (CAT segment validation, spellcheck dictionaries, teams, QA reports, and related native APIs). Use [`useGoSvcClient`](src/lib/go-svc/use-go-svc-client.ts), which wraps [`GoSvcClient`](src/lib/go-svc/go-svc-client.ts) with the WorkOS session access token from `useAccessToken`.
+
+- Base URL comes from `NEXT_PUBLIC_API_BASE_URL` (production default: `https://api.hyperlocalise.com`). Local dev should set it to your running `go-svc` origin alongside `GO_SVC_URL` for server-side proxies.
+- Requests use `Authorization: Bearer` and `credentials: "omit"`. Do not send the `wos-session` cookie to `api.hyperlocalise.com`.
+- Add new resource methods on dedicated `go-svc-*-api.ts` modules composed by `GoSvcClient`; map failures with `GoSvcClientError` and [`go-svc-error.ts`](src/lib/go-svc/go-svc-error.ts) where transport errors need user-facing copy.
+- Domains research and Search Console stay on Next.js server providers that call `GO_SVC_URL` with the research HMAC header. Do not move those to browser `GoSvcClient` without an ADR.
+
+See [`docs/adr/2026-09-22-web-go-svc-api-client-design.md`](../../docs/adr/2026-09-22-web-go-svc-api-client-design.md).
+
 ## Browser E2E (local only, workos-emulate)
 
 Browser flows live under [`src/e2e/`](src/e2e/) and talk to a local [WorkOS emulator](https://github.com/workos/emulate). They exercise the real AuthKit authorize → callback → sealed session → membership reconcile path. They are **not** part of `vp test` and are **not** wired into CI yet.
