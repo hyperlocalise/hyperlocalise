@@ -22,17 +22,17 @@ export const teamsPageContentMessages = defineMessages({
   },
   createFailed: {
     defaultMessage: "Unable to create team.",
-    id: 'DPjhjRQyDt',
+    id: "DPjhjRQyDt",
     description: "Error creating a team",
   },
   updateFailed: {
     defaultMessage: "Unable to update team.",
-    id: 'wqkEAl7nY6',
+    id: "wqkEAl7nY6",
     description: "Error updating a team",
   },
   deleteFailed: {
     defaultMessage: "Unable to delete team.",
-    id: 'amwt3mzL+t',
+    id: "amwt3mzL+t",
     description: "Error deleting a team",
   },
   teamCreated: {
