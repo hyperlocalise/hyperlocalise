@@ -63,8 +63,7 @@ export function AppHeader() {
 		t.Fatalf("execute extract command: %v", err)
 	}
 
-	got := decodeExtractTestCatalog(t, out.Bytes())
-	want := map[string]extractCatalogMessage{
+	assertExtractTestCatalog(t, out, map[string]extractCatalogMessage{
 		"app.header.title": {
 			DefaultMessage: "Dashboard",
 			Description:    "Main dashboard heading",
@@ -84,77 +83,691 @@ export function AppHeader() {
 			DefaultMessage: "No projects yet",
 			Description:    "Empty project list text",
 		},
-	}
-
-	if len(got) != len(want) {
-		t.Fatalf("message count = %d, want %d; output=%s", len(got), len(want), out.String())
-	}
-	for id, wantMessage := range want {
-		gotMessage, ok := got[id]
-		if !ok {
-			t.Fatalf("missing message %q in output=%s", id, out.String())
-		}
-		if gotMessage.DefaultMessage != wantMessage.DefaultMessage ||
-			gotMessage.Description != wantMessage.Description {
-			t.Fatalf("message %q = %#v, want %#v", id, gotMessage, wantMessage)
-		}
-	}
+	})
 
 	if strings.Contains(out.String(), sourcePath) {
 		t.Fatalf("output should not include source metadata: %s", out.String())
 	}
-	if strings.Contains(out.String(), `"description": ""`) {
-		t.Fatalf("output should omit empty descriptions: %s", out.String())
-	}
-	if strings.Contains(out.String(), `"id":`) {
-		t.Fatalf("formatjs catalog should use ids as keys: %s", out.String())
-	}
 }
 
-func TestExtractCommandExtractsDefineMessagesWithComputedKeys(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
-
-	writeExtractTestFile(t, filepath.Join(dir, "src", "DeleteAccount.tsx"), `
+func TestExtractCommandExtractsDefineMessagesObjectKeys(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   map[string]extractCatalogMessage
+	}{
+		{
+			name: "decimal keys",
+			source: `
 import { defineMessages } from "react-intl";
 
-enum UserDeleteReason {
-  Leaving_current_role = "Leaving_current_role",
-  Switching_to_another_product = "Switching_to_another_product",
-}
-
-const DELETE_REASON_LABELS = defineMessages({
-  [UserDeleteReason.Leaving_current_role]: {
-    id: '8+RXxBclvz',
-    defaultMessage: 'Leaving current role',
-    description: 'Account deletion survey: reason option',
+export const messages = defineMessages({
+  0: {
+    id: "msg.0",
+    defaultMessage: "Zero",
+    description: "Numeric key 0",
   },
-  [UserDeleteReason.Switching_to_another_product]: {
-    id: '5faw+pEI3P',
-    defaultMessage: 'Switching to another product',
-    description: 'Account deletion survey: reason option',
+  12: {
+    id: "msg.12",
+    defaultMessage: "Twelve",
+    description: "Numeric key 12",
   },
 });
-`)
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.0":  {DefaultMessage: "Zero", Description: "Numeric key 0"},
+				"msg.12": {DefaultMessage: "Twelve", Description: "Numeric key 12"},
+			},
+		},
+		{
+			name: "quoted numeric keys",
+			source: `
+import { defineMessages } from "react-intl";
 
-	cmd := newExtractCmd()
-	out := bytes.NewBuffer(nil)
-	cmd.SetOut(out)
-	cmd.SetArgs([]string{"src"})
+export const messages = defineMessages({
+  "0": {
+    id: "msg.0",
+    defaultMessage: "Zero",
+    description: "Quoted numeric key 0",
+  },
+  '12': {
+    id: "msg.12",
+    defaultMessage: "Twelve",
+    description: "Quoted numeric key 12",
+  },
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.0":  {DefaultMessage: "Zero", Description: "Quoted numeric key 0"},
+				"msg.12": {DefaultMessage: "Twelve", Description: "Quoted numeric key 12"},
+			},
+		},
+		{
+			name: "separator key",
+			source: `
+import { defineMessages } from "react-intl";
 
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("execute extract command: %v", err)
+export const messages = defineMessages({
+  10_000: {
+    id: "msg.10000",
+    defaultMessage: "Many",
+    description: "Numeric key with separator",
+  },
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.10000": {DefaultMessage: "Many", Description: "Numeric key with separator"},
+			},
+		},
+		{
+			name: "mixed identifier and numeric keys",
+			source: `
+import { defineMessages } from "react-intl";
+
+export const messages = defineMessages({
+  label: {
+    id: "msg.label",
+    defaultMessage: "Label",
+    description: "Identifier key",
+  },
+  0: {
+    id: "msg.0",
+    defaultMessage: "Zero",
+    description: "Numeric key",
+  },
+  "2": {
+    id: "msg.2",
+    defaultMessage: "Two",
+    description: "Quoted numeric key",
+  },
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.label": {DefaultMessage: "Label", Description: "Identifier key"},
+				"msg.0":     {DefaultMessage: "Zero", Description: "Numeric key"},
+				"msg.2":     {DefaultMessage: "Two", Description: "Quoted numeric key"},
+			},
+		},
+		{
+			name: "computed keys",
+			source: `
+import { defineMessages } from "react-intl";
+
+enum ExampleKey {
+  First = "First",
+  Second = "Second",
+}
+
+export const messages = defineMessages({
+  [ExampleKey.First]: {
+    id: "msg.first",
+    defaultMessage: "First",
+    description: "Computed key first",
+  },
+  [ExampleKey.Second]: {
+    id: "msg.second",
+    defaultMessage: "Second",
+    description: "Computed key second",
+  },
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.first":  {DefaultMessage: "First", Description: "Computed key first"},
+				"msg.second": {DefaultMessage: "Second", Description: "Computed key second"},
+			},
+		},
+		{
+			name: "satisfies type assertion",
+			source: `
+import { defineMessages, type MessageDescriptor } from "react-intl";
+
+export const messages = defineMessages({
+  0: {
+    id: "msg.0",
+    defaultMessage: "Zero",
+    description: "Numeric key with satisfies",
+  },
+}) satisfies Record<number, MessageDescriptor>;
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.0": {DefaultMessage: "Zero", Description: "Numeric key with satisfies"},
+			},
+		},
+		{
+			name: "type arguments",
+			source: `
+import { defineMessages, type MessageDescriptor } from "react-intl";
+
+export const messages = defineMessages<Record<number, MessageDescriptor>>({
+  0: {
+    id: "msg.0",
+    defaultMessage: "Zero",
+    description: "Numeric key with type arguments",
+  },
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.0": {DefaultMessage: "Zero", Description: "Numeric key with type arguments"},
+			},
+		},
+		{
+			name: "omits empty description",
+			source: `
+import { defineMessages } from "react-intl";
+
+export const messages = defineMessages({
+  0: {
+    id: "msg.0",
+    defaultMessage: "Zero",
+  },
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.0": {DefaultMessage: "Zero"},
+			},
+		},
+		{
+			name: "missing id generates formatjs id",
+			source: `
+import { defineMessages } from "react-intl";
+
+export const messages = defineMessages({
+  0: {
+    defaultMessage: "Zero",
+    description: "Numeric key without id",
+  },
+});
+`,
+			want: map[string]extractCatalogMessage{
+				generatedFormatJSMessageID("Zero", "Numeric key without id"): {
+					DefaultMessage: "Zero",
+					Description:    "Numeric key without id",
+				},
+			},
+		},
 	}
 
-	catalog := decodeExtractTestCatalog(t, out.Bytes())
-	if got, want := len(catalog), 2; got != want {
-		t.Fatalf("message count = %d, want %d; output=%s", got, want, out.String())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Chdir(dir)
+
+			writeExtractTestFile(t, filepath.Join(dir, "src", "Messages.tsx"), tt.source)
+
+			cmd := newExtractCmd()
+			out := bytes.NewBuffer(nil)
+			cmd.SetOut(out)
+			cmd.SetArgs([]string{"src"})
+
+			if err := cmd.Execute(); err != nil {
+				t.Fatalf("execute extract command: %v", err)
+			}
+
+			assertExtractTestCatalog(t, out, tt.want)
+		})
 	}
-	if got, want := catalog["8+RXxBclvz"].DefaultMessage, "Leaving current role"; got != want {
-		t.Fatalf("computed-key message defaultMessage = %q, want %q", got, want)
+}
+
+func TestExtractCommandExtractsFormatJSEdgeCases(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   map[string]extractCatalogMessage
+	}{
+		{
+			name: "parenthesized defineMessages",
+			source: `
+import { defineMessages } from "react-intl";
+
+export const messages = defineMessages(({
+  label: {
+    id: "msg.parenthesized",
+    defaultMessage: "Parenthesized",
+  },
+}));
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.parenthesized": {DefaultMessage: "Parenthesized"},
+			},
+		},
+		{
+			name: "parenthesized defineMessage",
+			source: `
+import { defineMessage } from "react-intl";
+
+export const message = defineMessage(({
+  id: "msg.wrapped",
+  defaultMessage: "Wrapped define",
+}));
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.wrapped": {DefaultMessage: "Wrapped define"},
+			},
+		},
+		{
+			name: "optional call and non-null assertion",
+			source: `
+import { useIntl } from "react-intl";
+
+export function Label(intl: ReturnType<typeof useIntl>) {
+  return intl.formatMessage?.({
+    id: "msg.optional",
+    defaultMessage: "Optional",
+  }) + intl.formatMessage!({
+    id: "msg.nonnull",
+    defaultMessage: "Non-null",
+  });
+}
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.optional": {DefaultMessage: "Optional"},
+				"msg.nonnull":  {DefaultMessage: "Non-null"},
+			},
+		},
+		{
+			name: "optional call with type arguments",
+			source: `
+import { useIntl } from "react-intl";
+
+export function Label(intl: ReturnType<typeof useIntl>) {
+  return intl.formatMessage?.<string>({
+    id: "msg.optional-typed",
+    defaultMessage: "Optional typed",
+  });
+}
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.optional-typed": {DefaultMessage: "Optional typed"},
+			},
+		},
+		{
+			name: "unicode identifier key",
+			source: `
+import { defineMessages } from "react-intl";
+
+export const messages = defineMessages({
+  标题: {
+    id: "msg.unicode",
+    defaultMessage: "Title",
+    description: "Unicode identifier key",
+  },
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.unicode": {DefaultMessage: "Title", Description: "Unicode identifier key"},
+			},
+		},
+		{
+			name: "hex and bigint keys",
+			source: `
+import { defineMessages } from "react-intl";
+
+export const messages = defineMessages({
+  0x10: {
+    id: "msg.hex",
+    defaultMessage: "Hex key",
+  },
+  0n: {
+    id: "msg.bigint",
+    defaultMessage: "Bigint key",
+  },
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.hex":    {DefaultMessage: "Hex key"},
+				"msg.bigint": {DefaultMessage: "Bigint key"},
+			},
+		},
+		{
+			name: "array defaultMessage",
+			source: `
+import { defineMessage } from "react-intl";
+
+export const message = defineMessage({
+  id: "msg.array",
+  defaultMessage: [
+    "Hello {name},",
+    "welcome back.",
+  ],
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.array": {DefaultMessage: "Hello {name},welcome back."},
+			},
+		},
+		{
+			name: "concatenated defaultMessage",
+			source: `
+import { defineMessage } from "react-intl";
+
+export const message = defineMessage({
+  id: "msg.concat",
+  defaultMessage: "Hello " + "world",
+  description: "Concatenated static strings",
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.concat": {DefaultMessage: "Hello world", Description: "Concatenated static strings"},
+			},
+		},
+		{
+			name: "jsx children defaultMessage",
+			source: `
+import { FormattedMessage } from "react-intl";
+
+export function Label() {
+  return (
+    <FormattedMessage id="msg.children" description="From children">
+      Hello children
+    </FormattedMessage>
+  );
+}
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.children": {DefaultMessage: "Hello children", Description: "From children"},
+			},
+		},
+		{
+			name: "jsx children with rich text",
+			source: `
+import { FormattedMessage } from "react-intl";
+
+export function Label() {
+  return (
+    <FormattedMessage id="msg.rich">
+      Hello <b>world</b>
+    </FormattedMessage>
+  );
+}
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.rich": {DefaultMessage: "Hello <b>world</b>"},
+			},
+		},
+		{
+			name: "binary octal and hex bigint keys",
+			source: `
+import { defineMessages } from "react-intl";
+
+export const messages = defineMessages({
+  0b10: {
+    id: "msg.binary",
+    defaultMessage: "Binary key",
+  },
+  0o17: {
+    id: "msg.octal",
+    defaultMessage: "Octal key",
+  },
+  0x10n: {
+    id: "msg.hex-bigint",
+    defaultMessage: "Hex bigint key",
+  },
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.binary":     {DefaultMessage: "Binary key"},
+				"msg.octal":      {DefaultMessage: "Octal key"},
+				"msg.hex-bigint": {DefaultMessage: "Hex bigint key"},
+			},
+		},
+		{
+			name: "as const on descriptor fields",
+			source: `
+import { defineMessage } from "react-intl";
+
+export const message = defineMessage({
+  id: "msg.asconst" as const,
+  defaultMessage: "Hello" as const,
+  description: "Const assertion" as const,
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.asconst": {DefaultMessage: "Hello", Description: "Const assertion"},
+			},
+		},
+		{
+			name: "parenthesized concatenated defaultMessage",
+			source: `
+import { defineMessage } from "react-intl";
+
+export const message = defineMessage({
+  id: "msg.paren-concat",
+  defaultMessage: ("Hello " + "world"),
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.paren-concat": {DefaultMessage: "Hello world"},
+			},
+		},
+		{
+			name: "array of concatenated strings",
+			source: `
+import { defineMessage } from "react-intl";
+
+export const message = defineMessage({
+  id: "msg.array-concat",
+  defaultMessage: [
+    "Hello ",
+    "wo" + "rld",
+  ],
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.array-concat": {DefaultMessage: "Hello world"},
+			},
+		},
+		{
+			name: "template plus string concat",
+			source: `
+import { defineMessage } from "react-intl";
+
+export const message = defineMessage({
+  id: "msg.template-concat",
+  defaultMessage: ` + "`Hello `" + ` + "world",
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.template-concat": {DefaultMessage: "Hello world"},
+			},
+		},
+		{
+			name: "nested parenthesized defineMessages",
+			source: `
+import { defineMessages } from "react-intl";
+
+export const messages = defineMessages((({
+  label: {
+    id: "msg.nested-paren",
+    defaultMessage: "Nested parens",
+  },
+})));
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.nested-paren": {DefaultMessage: "Nested parens"},
+			},
+		},
+		{
+			name: "parenthesized formatMessage",
+			source: `
+import { useIntl } from "react-intl";
+
+export function Label(intl: ReturnType<typeof useIntl>) {
+  return intl.formatMessage(({
+    id: "msg.format-paren",
+    defaultMessage: "Format paren",
+  }));
+}
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.format-paren": {DefaultMessage: "Format paren"},
+			},
+		},
+		{
+			name: "non-null assertion with type arguments",
+			source: `
+import { useIntl } from "react-intl";
+
+export function Label(intl: ReturnType<typeof useIntl>) {
+  return intl.formatMessage!<string>({
+    id: "msg.nonnull-typed",
+    defaultMessage: "Non-null typed",
+  });
+}
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.nonnull-typed": {DefaultMessage: "Non-null typed"},
+			},
+		},
+		{
+			name: "jsx attribute concatenation",
+			source: `
+import { FormattedMessage } from "react-intl";
+
+export function Label() {
+  return <FormattedMessage id="msg.jsx-concat" defaultMessage={"Hello " + "world"} />;
+}
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.jsx-concat": {DefaultMessage: "Hello world"},
+			},
+		},
+		{
+			name: "jsx attribute array defaultMessage",
+			source: `
+import { FormattedMessage } from "react-intl";
+
+export function Label() {
+  return <FormattedMessage id="msg.jsx-array" defaultMessage={["Hello ", "world"]} />;
+}
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.jsx-array": {DefaultMessage: "Hello world"},
+			},
+		},
+		{
+			name: "jsx children generate formatjs id",
+			source: `
+import { FormattedMessage } from "react-intl";
+
+export function Label() {
+  return (
+    <FormattedMessage description="Children without id">
+      Generated from children
+    </FormattedMessage>
+  );
+}
+`,
+			want: map[string]extractCatalogMessage{
+				generatedFormatJSMessageID("Generated from children", "Children without id"): {
+					DefaultMessage: "Generated from children",
+					Description:    "Children without id",
+				},
+			},
+		},
+		{
+			name: "jsx attribute wins over children",
+			source: `
+import { FormattedMessage } from "react-intl";
+
+export function Label() {
+  return (
+    <FormattedMessage id="msg.attr-wins" defaultMessage="From attribute">
+      From children
+    </FormattedMessage>
+  );
+}
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.attr-wins": {DefaultMessage: "From attribute"},
+			},
+		},
+		{
+			name: "formatted html message children",
+			source: `
+import { FormattedHTMLMessage } from "react-intl";
+
+export function Label() {
+  return (
+    <FormattedHTMLMessage id="msg.html-children">
+      Hello <b>html</b>
+    </FormattedHTMLMessage>
+  );
+}
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.html-children": {DefaultMessage: "Hello <b>html</b>"},
+			},
+		},
+		{
+			name: "dynamic concat is not extracted",
+			source: `
+import { defineMessage } from "react-intl";
+
+const name = "Ada";
+export const message = defineMessage({
+  id: "msg.dynamic-concat",
+  defaultMessage: "Hello " + name,
+});
+`,
+			want: map[string]extractCatalogMessage{},
+		},
+		{
+			name: "render prop children are not extracted",
+			source: `
+import { FormattedMessage } from "react-intl";
+
+export function Label() {
+  return (
+    <FormattedMessage id="msg.render">
+      {(txt) => txt}
+    </FormattedMessage>
+  );
+}
+`,
+			want: map[string]extractCatalogMessage{},
+		},
+		{
+			name: "self-closing formatted message without defaultMessage is skipped",
+			source: `
+import { FormattedMessage } from "react-intl";
+
+export function Label() {
+  return <FormattedMessage id="msg.empty" />;
+}
+`,
+			want: map[string]extractCatalogMessage{},
+		},
+		{
+			name: "formatMessage arrow param is not a descriptor",
+			source: `
+import { useIntl } from "react-intl";
+
+export function Label(intl: ReturnType<typeof useIntl>) {
+  return intl.formatMessage(({id}) => id);
+}
+`,
+			want: map[string]extractCatalogMessage{},
+		},
 	}
-	if got, want := catalog["5faw+pEI3P"].Description, "Account deletion survey: reason option"; got != want {
-		t.Fatalf("computed-key message description = %q, want %q", got, want)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Chdir(dir)
+
+			writeExtractTestFile(t, filepath.Join(dir, "src", "Messages.tsx"), tt.source)
+
+			cmd := newExtractCmd()
+			out := bytes.NewBuffer(nil)
+			cmd.SetOut(out)
+			cmd.SetArgs([]string{"src"})
+
+			if err := cmd.Execute(); err != nil {
+				t.Fatalf("execute extract command: %v", err)
+			}
+
+			assertExtractTestCatalog(t, out, tt.want)
+		})
 	}
 }
 
@@ -959,6 +1572,74 @@ func TestSkipRegexLiteralDistinguishesDivision(t *testing.T) {
 	}
 }
 
+func TestParseStaticMessageExpression(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+		ok   bool
+	}{
+		{name: "string", src: `"Hello"`, want: "Hello", ok: true},
+		{name: "concat", src: `"Hello " + "world"`, want: "Hello world", ok: true},
+		{name: "mixed quotes", src: `'Hello ' + "world"`, want: "Hello world", ok: true},
+		{name: "template concat", src: "`Hello ` + \"world\"", want: "Hello world", ok: true},
+		{name: "as const", src: `"Hello" as const`, want: "Hello", ok: true},
+		{name: "parens", src: `("Hello " + "world")`, want: "Hello world", ok: true},
+		{name: "array", src: `["Hello ", "world"]`, want: "Hello world", ok: true},
+		{name: "array concat elements", src: `["Hello ", "wo" + "rld"]`, want: "Hello world", ok: true},
+		{name: "dynamic concat", src: `"Hello " + name`, ok: false},
+		{name: "interpolated template", src: "`Hello ${name}`", ok: false},
+		{name: "empty array", src: `[]`, ok: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _, ok := parseStaticMessageExpression(tt.src, 0, len(tt.src))
+			if ok != tt.ok || got != tt.want {
+				t.Fatalf("parseStaticMessageExpression(%q) = (%q, %t), want (%q, %t)",
+					tt.src, got, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}
+
+func TestReadObjectPropertyKey(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+		ok   bool
+	}{
+		{name: "identifier", src: "title:", want: "title", ok: true},
+		{name: "quoted", src: `"0":`, want: "0", ok: true},
+		{name: "decimal", src: "0:", want: "0", ok: true},
+		{name: "multi-digit", src: "12:", want: "12", ok: true},
+		{name: "separator", src: "10_000:", want: "10_000", ok: true},
+		{name: "hex", src: "0x10:", want: "0x10", ok: true},
+		{name: "binary", src: "0b10:", want: "0b10", ok: true},
+		{name: "octal", src: "0o17:", want: "0o17", ok: true},
+		{name: "hex bigint", src: "0x10n:", want: "0x10n", ok: true},
+		{name: "bigint", src: "0n:", want: "0n", ok: true},
+		{name: "unicode", src: "标题:", want: "标题", ok: true},
+		{name: "computed", src: "[Enum.Value]:", want: "", ok: true},
+		{name: "invalid", src: ":", want: "", ok: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, next, ok := readObjectPropertyKey(tt.src, 0)
+			wantNext := 0
+			if colon := strings.IndexByte(tt.src, ':'); colon >= 0 {
+				wantNext = colon
+			}
+			if got != tt.want || next != wantNext || ok != tt.ok {
+				t.Fatalf("readObjectPropertyKey(%q) = (%q, %d, %t), want (%q, %d, %t)",
+					tt.src, got, next, ok, tt.want, wantNext, tt.ok)
+			}
+		})
+	}
+}
+
 func TestSkipStringLiteralHandlesNestedTemplateLiterals(t *testing.T) {
 	src := "`outer ${`inner`} tail` ;"
 	got := skipStringLiteral(src, 0)
@@ -1418,4 +2099,28 @@ func decodeExtractTestCatalog(t *testing.T, content []byte) map[string]extractCa
 	}
 
 	return catalog
+}
+
+func assertExtractTestCatalog(t *testing.T, out *bytes.Buffer, want map[string]extractCatalogMessage) {
+	t.Helper()
+
+	got := decodeExtractTestCatalog(t, out.Bytes())
+	if len(got) != len(want) {
+		t.Fatalf("message count = %d, want %d; output=%s", len(got), len(want), out.String())
+	}
+	for id, wantMessage := range want {
+		gotMessage, ok := got[id]
+		if !ok {
+			t.Fatalf("missing message %q in output=%s", id, out.String())
+		}
+		if gotMessage != wantMessage {
+			t.Fatalf("message %q = %#v, want %#v", id, gotMessage, wantMessage)
+		}
+	}
+	if strings.Contains(out.String(), `"description": ""`) {
+		t.Fatalf("output should omit empty descriptions: %s", out.String())
+	}
+	if strings.Contains(out.String(), `"id":`) {
+		t.Fatalf("formatjs catalog should use ids as keys: %s", out.String())
+	}
 }
