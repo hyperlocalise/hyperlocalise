@@ -269,6 +269,9 @@
   "+f0xDGLORc": {
     "defaultMessage": "Diese Datei kann im Content-Editor nicht geöffnet werden."
   },
+  "+fsq3dqMqp": {
+    "defaultMessage": "Maximale Anzahl von Versuchen"
+  },
   "+g4oD8eEBW": {
     "defaultMessage": "Diese Anteile sollten sich auf 100 % summieren."
   },
@@ -473,6 +476,9 @@
   "/7gytilAet": {
     "defaultMessage": "GitHub-Aktion ansehen"
   },
+  "/8/pZ5ze7R": {
+    "defaultMessage": "Bestätigen Sie das Risiko doppelter Ausführungen oder fügen Sie den Aktionen im Wiederholungstext eine Idempotenzsicherung hinzu."
+  },
   "/8fHPQltQc": {
     "defaultMessage": "Bringen Sie bei Bedarf den richtigen Kontext zurück."
   },
@@ -646,6 +652,9 @@
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Filter"
+  },
+  "/a2VqYlgh4": {
+    "defaultMessage": "Automatisch aktivieren"
   },
   "/arLdcgfuq": {
     "defaultMessage": "Gelöst"
@@ -1214,6 +1223,9 @@
   "0x11s5ha3b": {
     "defaultMessage": "{position}+"
   },
+  "0x5bWok1f2": {
+    "defaultMessage": "Wachstumsplan"
+  },
   "0xVoz6BUOo": {
     "defaultMessage": "Nach Schweregrad gruppieren"
   },
@@ -1592,6 +1604,9 @@
   "1xBioz9EDW": {
     "defaultMessage": "Validierung"
   },
+  "1xP+9DRzHz": {
+    "defaultMessage": "Starter eignet sich für kleine Teams, die mehr Plätze, Integrationen und ein monatliches Guthaben von 20 $ für verwaltete KI benötigen. Growth bietet zusätzlich Agent-Ausführungen, Automatisierungen, Automation Workflow, unbegrenzte Übersetzungsaufträge und ein monatliches KI-Guthaben von 2.000 $ für die Lokalisierung in der Produktion. Die Nutzung wird zu den jeweiligen Modellsätzen von diesem Guthaben abgezogen."
+  },
   "1xfAnPlbdy": {
     "defaultMessage": "hat ein Mitglied eingeladen"
   },
@@ -1711,6 +1726,9 @@
   },
   "2963Vncu1b": {
     "defaultMessage": "Beheben Sie die Schritt­konfiguration, bevor Sie diesen Workflow speichern."
+  },
+  "2AFaXwgQin": {
+    "defaultMessage": "Die Nutzung verwalteter Modelle wird zu den veröffentlichten Tarifen von Ihrem monatlichen KI-Guthaben abgezogen."
   },
   "2AHzit242a": {
     "defaultMessage": "Übersetzungsspeicher konnte nicht erstellt werden"
@@ -1852,6 +1870,9 @@
   },
   "2RA1MDUmR3": {
     "defaultMessage": "Quellgebietsschema: {locale}"
+  },
+  "2RORR1xT6r": {
+    "defaultMessage": "Erneut versuchen"
   },
   "2SPuScjz1x": {
     "defaultMessage": "API-Schlüssel mit der Endung {suffix}"
@@ -3671,6 +3692,9 @@
   "712aIFkBYq": {
     "defaultMessage": "Frühen Zugriff auf Hyperlocalise anfordern."
   },
+  "71I+YToKV7": {
+    "defaultMessage": "Kostenloser Tarif"
+  },
   "71wFkHX0+3": {
     "defaultMessage": "+4 gegenüber dem letzten Lauf"
   },
@@ -3997,6 +4021,9 @@
   },
   "7pTwJNAe0D": {
     "defaultMessage": "Benachrichtige #localization, wenn Entwürfe fertig sind."
+  },
+  "7pn2UnpCsA": {
+    "defaultMessage": "„Retry“ und „For each“ können nicht ineinander verschachtelt werden."
   },
   "7qG8V9eHbJ": {
     "defaultMessage": "Dateiaktivität anzeigen"
@@ -4702,6 +4729,9 @@
   },
   "9O5X8+eR3t": {
     "defaultMessage": "Die Einrichtung der Domain konnte nicht abgeschlossen werden."
+  },
+  "9OQEks5YGx": {
+    "defaultMessage": "Behebe die Verdrahtung der Wiederholungsregion und die Zugehörigkeit zum Body."
   },
   "9OS3Rz0crI": {
     "defaultMessage": "Überprüfungsweg"
@@ -6576,7 +6606,7 @@
     "defaultMessage": "Vorgeschlagener Text"
   },
   "Dsh7E+5ifE": {
-    "defaultMessage": "US (api.intercom.io)"
+    "defaultMessage": "USA (api.intercom.io)"
   },
   "Dt8QOAfnsv": {
     "defaultMessage": "Trennen"
@@ -6637,6 +6667,9 @@
   },
   "DznPBLz/y6": {
     "defaultMessage": "Wählen Sie ein Projekt aus, um fortzufahren."
+  },
+  "E+E8CAWOEz": {
+    "defaultMessage": "Verschachtelte Wiederholungsbereiche werden nicht unterstützt."
   },
   "E+GVWuHtit": {
     "defaultMessage": "Seiten-URL"
@@ -7000,6 +7033,9 @@
   },
   "Esr6tXDJJe": {
     "defaultMessage": "Keine Probleme für diese Zeichenfolge"
+  },
+  "EtJmzwZSzn": {
+    "defaultMessage": "KI-Funktion"
   },
   "EtLBqA9kAL": {
     "defaultMessage": "Keine verwandten Varianten."
@@ -8125,6 +8161,9 @@
   },
   "Ho5CjjaEBq": {
     "defaultMessage": "Fügen Sie in den Projekteinstellungen Ziel-Lokalisierungen hinzu, bevor Sie Aufträge erstellen."
+  },
+  "HoA+8TKVfD": {
+    "defaultMessage": "Backoff-Multiplikator"
   },
   "HpiB8HnD5r": {
     "defaultMessage": "Begriffsstatus"
@@ -9323,6 +9362,9 @@
   "KzyWBbcmTH": {
     "defaultMessage": "Watch-Einstellungen konnten nicht aktualisiert werden"
   },
+  "L+aQftO9Id": {
+    "defaultMessage": "Einen Body-Bereich mit Backoff erneut ausführen"
+  },
   "L/LTF1REU5": {
     "defaultMessage": "Recherchiere Keywords, lokalisiere Entwürfe und veröffentliche sie nach Zeitplan im CMS."
   },
@@ -10428,7 +10470,7 @@
     "defaultMessage": "Alle Sprachumgebungen"
   },
   "Nf32FGPaYc": {
-    "defaultMessage": "Content Studio"
+    "defaultMessage": "Content-Studio"
   },
   "Nf77AX5l7/": {
     "defaultMessage": "Projekte konnten nicht geladen werden"
@@ -13040,6 +13082,9 @@
   "UKiNYTCKL8": {
     "defaultMessage": "hat einen Kommentar zu einem String hinterlassen"
   },
+  "UL0g2ZIWhm": {
+    "defaultMessage": "Kostenlos"
+  },
   "UL3odPVruI": {
     "defaultMessage": "Markup-Reihenfolge"
   },
@@ -15605,6 +15650,9 @@
   "akKSazt0o+": {
     "defaultMessage": "Inhaltstypen"
   },
+  "akMqVdhYbU": {
+    "defaultMessage": "Versuchen"
+  },
   "alKFWoCQYb": {
     "defaultMessage": "Download"
   },
@@ -15818,6 +15866,9 @@
   "bH9+5GUIgE": {
     "defaultMessage": "Hyperlocalise Agent verwenden"
   },
+  "bHCCUqEOmY": {
+    "defaultMessage": "Die Werte der Wiederholungsrichtlinie liegen außerhalb des zulässigen Bereichs."
+  },
   "bHnFWGWqed": {
     "defaultMessage": "Keine Dateien sind mit dieser Aufgabe verknüpft."
   },
@@ -16001,6 +16052,9 @@
   "blgD4379yD": {
     "defaultMessage": "Noch keine verknüpften Domains. Fordere eine Domain aus einem Lokalisierungs-Audit an, um zu beginnen."
   },
+  "blxqR2KvgQ": {
+    "defaultMessage": "2.000 $ KI-Guthaben pro Monat"
+  },
   "bmeCBL87Ap": {
     "defaultMessage": "Richten Sie den OpenFeature-OFREP-Provider auf diese Basis-URL und übermitteln Sie einen veröffentlichbaren Schlüssel als X-API-Key oder Authorization: Bearer."
   },
@@ -16057,6 +16111,9 @@
   },
   "bu/fF+Rrb5": {
     "defaultMessage": "Ausgabenwarnung"
+  },
+  "buLiPCDEq1": {
+    "defaultMessage": "Doppelte Seiteneffekte bei einem erneuten Versuch zulassen"
   },
   "buVScYQI5w": {
     "defaultMessage": "Richten Sie Hyperlocalise auf die SharePoint-Bibliothek aus, in der bereits Offenlegungen, genehmigte Formulierungen und regulierte Aussagen gespeichert sind."
@@ -16442,6 +16499,9 @@
   "cpV11AmTHs": {
     "defaultMessage": "Begriff aktualisieren"
   },
+  "cpyaLTW85o": {
+    "defaultMessage": "Knoten innerhalb von Attempt"
+  },
   "cq8+wKJLJG": {
     "defaultMessage": "Filter"
   },
@@ -16459,6 +16519,9 @@
   },
   "csK4Zbn9gk": {
     "defaultMessage": "Prüfe das Produkt und die Website.  \nJeden Tag."
+  },
+  "csr373/O34": {
+    "defaultMessage": "KI-Guthaben / Monat"
   },
   "csuMeaGNQo": {
     "defaultMessage": "Neues Projekt erstellen"
@@ -17717,6 +17780,9 @@
   "fnnzeRJcnZ": {
     "defaultMessage": "Bearbeiten"
   },
+  "fnuHA5r7aQ": {
+    "defaultMessage": "20 $ KI-Guthaben pro Monat"
+  },
   "fp+BAxQben": {
     "defaultMessage": "Verwenden"
   },
@@ -17932,6 +17998,9 @@
   },
   "gInelMBn+I": {
     "defaultMessage": "Quellbild nicht verfügbar"
+  },
+  "gJ4nnkkpNU": {
+    "defaultMessage": "Aufgebraucht"
   },
   "gJ8XFIM+3j": {
     "defaultMessage": "Alle Beiträge anzeigen"
@@ -21332,6 +21401,9 @@
   "oDluyiLepj": {
     "defaultMessage": "Optimierung für Antwortmaschinen. Wenn jemand ein KI-Suchtool fragt, kann Ihre Seite weiterhin als Antwort angezeigt werden – nicht die eines Mitbewerbers."
   },
+  "oE/d+yPnQC": {
+    "defaultMessage": "Anfangsverzögerung (ms)"
+  },
   "oEmsIJPKd5": {
     "defaultMessage": "Entwürfe von Übersetzungen übertragen"
   },
@@ -22600,6 +22672,9 @@
   },
   "r9CtFkZBBj": {
     "defaultMessage": "Verbinde GitHub und Slack, damit der Agent Änderungen validieren und dein Team automatisch benachrichtigen kann."
+  },
+  "r9cem/tyVw": {
+    "defaultMessage": "Erfolgreich"
   },
   "rAeEoKNL9f": {
     "defaultMessage": "Erneut senden"

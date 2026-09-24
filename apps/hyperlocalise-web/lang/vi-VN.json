@@ -269,6 +269,9 @@
   "+f0xDGLORc": {
     "defaultMessage": "Không thể mở tệp này trong Trình chỉnh sửa nội dung."
   },
+  "+fsq3dqMqp": {
+    "defaultMessage": "Số lần thử tối đa"
+  },
   "+g4oD8eEBW": {
     "defaultMessage": "Tổng các tỷ lệ này phải bằng 100%."
   },
@@ -473,6 +476,9 @@
   "/7gytilAet": {
     "defaultMessage": "Xem GitHub Action"
   },
+  "/8/pZ5ze7R": {
+    "defaultMessage": "Thừa nhận rủi ro trùng lặp hoặc thêm tính năng chống lặp cho các hành động trong nội dung yêu cầu thử lại."
+  },
   "/8fHPQltQc": {
     "defaultMessage": "Khôi phục đúng ngữ cảnh khi cần."
   },
@@ -646,6 +652,9 @@
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Bộ lọc"
+  },
+  "/a2VqYlgh4": {
+    "defaultMessage": "Tự động bật"
   },
   "/arLdcgfuq": {
     "defaultMessage": "Resolved"
@@ -1214,6 +1223,9 @@
   "0x11s5ha3b": {
     "defaultMessage": "{position}+"
   },
+  "0x5bWok1f2": {
+    "defaultMessage": "Gói Tăng trưởng"
+  },
   "0xVoz6BUOo": {
     "defaultMessage": "Nhóm theo mức độ nghiêm trọng"
   },
@@ -1592,6 +1604,9 @@
   "1xBioz9EDW": {
     "defaultMessage": "Xác thực"
   },
+  "1xP+9DRzHz": {
+    "defaultMessage": "Starter phù hợp với các nhóm nhỏ cần thêm người dùng, tích hợp và 20 USD tín dụng AI được quản lý mỗi tháng. Growth bổ sung lượt chạy tác nhân, tính năng tự động hóa, Automation Workflow, số lượng công việc dịch không giới hạn và 2.000 USD tín dụng AI mỗi tháng để bản địa hóa trong môi trường production. Mức sử dụng sẽ trừ vào số dư đó theo mức phí của từng mô hình."
+  },
   "1xfAnPlbdy": {
     "defaultMessage": "đã mời một thành viên"
   },
@@ -1711,6 +1726,9 @@
   },
   "2963Vncu1b": {
     "defaultMessage": "Hãy sửa cấu hình bước trước khi lưu quy trình này."
+  },
+  "2AFaXwgQin": {
+    "defaultMessage": "Việc sử dụng mô hình do chúng tôi quản lý sẽ trừ vào số dư tín dụng AI hằng tháng của bạn theo mức giá được công bố."
   },
   "2AHzit242a": {
     "defaultMessage": "Không thể tạo bộ nhớ dịch"
@@ -1852,6 +1870,9 @@
   },
   "2RA1MDUmR3": {
     "defaultMessage": "Ngôn ngữ nguồn: {locale}"
+  },
+  "2RORR1xT6r": {
+    "defaultMessage": "Thử lại"
   },
   "2SPuScjz1x": {
     "defaultMessage": "Khóa API có đuôi {suffix}"
@@ -3671,6 +3692,9 @@
   "712aIFkBYq": {
     "defaultMessage": "Yêu cầu quyền truy cập sớm vào Hyperlocalise."
   },
+  "71I+YToKV7": {
+    "defaultMessage": "Gói miễn phí"
+  },
   "71wFkHX0+3": {
     "defaultMessage": "+4 so với lần chạy trước"
   },
@@ -3997,6 +4021,9 @@
   },
   "7pTwJNAe0D": {
     "defaultMessage": "Thông báo cho #localization khi bản nháp sẵn sàng."
+  },
+  "7pn2UnpCsA": {
+    "defaultMessage": "Retry và For each không thể lồng nhau."
   },
   "7qG8V9eHbJ": {
     "defaultMessage": "Hiển thị hoạt động của tệp"
@@ -4702,6 +4729,9 @@
   },
   "9O5X8+eR3t": {
     "defaultMessage": "Không thể hoàn tất thiết lập tên miền."
+  },
+  "9OQEks5YGx": {
+    "defaultMessage": "Sửa kết nối vùng thử lại và thành phần thân."
   },
   "9OS3Rz0crI": {
     "defaultMessage": "Định tuyến việc xem xét"
@@ -6638,6 +6668,9 @@
   "DznPBLz/y6": {
     "defaultMessage": "Chọn một dự án để tiếp tục."
   },
+  "E+E8CAWOEz": {
+    "defaultMessage": "Không hỗ trợ các vùng thử lại lồng nhau."
+  },
   "E+GVWuHtit": {
     "defaultMessage": "URL trang@endsection"
   },
@@ -7000,6 +7033,9 @@
   },
   "Esr6tXDJJe": {
     "defaultMessage": "Không có vấn đề nào đối với chuỗi này"
+  },
+  "EtJmzwZSzn": {
+    "defaultMessage": "Tính năng AI"
   },
   "EtLBqA9kAL": {
     "defaultMessage": "Không có biến thể liên quan."
@@ -8125,6 +8161,9 @@
   },
   "Ho5CjjaEBq": {
     "defaultMessage": "Thêm ngôn ngữ đích trong cài đặt dự án trước khi tạo tác vụ."
+  },
+  "HoA+8TKVfD": {
+    "defaultMessage": "Hệ số nhân thời gian chờ lùi lại"
   },
   "HpiB8HnD5r": {
     "defaultMessage": "Trạng thái thuật ngữ"
@@ -9322,6 +9361,9 @@
   },
   "KzyWBbcmTH": {
     "defaultMessage": "Không thể cập nhật cài đặt theo dõi"
+  },
+  "L+aQftO9Id": {
+    "defaultMessage": "Chạy lại một vùng nội dung với thời gian chờ tăng dần"
   },
   "L/LTF1REU5": {
     "defaultMessage": "Nghiên cứu từ khóa, bản địa hóa bản nháp và đăng lên CMS theo lịch."
@@ -13040,6 +13082,9 @@
   "UKiNYTCKL8": {
     "defaultMessage": "đã bình luận về một chuỗi"
   },
+  "UL0g2ZIWhm": {
+    "defaultMessage": "Miễn phí"
+  },
   "UL3odPVruI": {
     "defaultMessage": "Thứ tự đánh dấu markup"
   },
@@ -15605,6 +15650,9 @@
   "akKSazt0o+": {
     "defaultMessage": "Các lo���i nội dung"
   },
+  "akMqVdhYbU": {
+    "defaultMessage": "Thử"
+  },
   "alKFWoCQYb": {
     "defaultMessage": "Download"
   },
@@ -15818,6 +15866,9 @@
   "bH9+5GUIgE": {
     "defaultMessage": "Sử dụng Hyperlocalise Agent"
   },
+  "bHCCUqEOmY": {
+    "defaultMessage": "Các giá trị của chính sách thử lại nằm ngoài phạm vi cho phép."
+  },
   "bHnFWGWqed": {
     "defaultMessage": "Không có tệp nào được liên kết với tác vụ này."
   },
@@ -16001,6 +16052,9 @@
   "blgD4379yD": {
     "defaultMessage": "Chưa có tên miền nào được liên kết. Hãy nhận một tên miền từ một cuộc kiểm tra bản địa hóa để bắt đầu."
   },
+  "blxqR2KvgQ": {
+    "defaultMessage": "Khoản tín dụng AI trị giá 2.000 USD mỗi tháng"
+  },
   "bmeCBL87Ap": {
     "defaultMessage": "Trỏ nhà cung cấp OFREP của OpenFeature đến URL cơ sở này và gửi khóa có thể công khai dưới dạng X-API-Key hoặc Authorization: Bearer."
   },
@@ -16057,6 +16111,9 @@
   },
   "bu/fF+Rrb5": {
     "defaultMessage": "Cảnh báo chi tiêu"
+  },
+  "buLiPCDEq1": {
+    "defaultMessage": "Cho phép các tác động phụ bị trùng lặp khi thử lại"
   },
   "buVScYQI5w": {
     "defaultMessage": "Trỏ Hyperlocalise đến thư viện SharePoint đã lưu trữ các nội dung công bố, câu chữ được phê duyệt và các tuyên bố chịu quy định."
@@ -16442,6 +16499,9 @@
   "cpV11AmTHs": {
     "defaultMessage": "Cập nhật thuật ngữ"
   },
+  "cpyaLTW85o": {
+    "defaultMessage": "Các nút bên trong Attempt"
+  },
   "cq8+wKJLJG": {
     "defaultMessage": "Bộ lọc"
   },
@@ -16459,6 +16519,9 @@
   },
   "csK4Zbn9gk": {
     "defaultMessage": "Kiểm tra sản phẩm và trang web.\nMỗi ngày."
+  },
+  "csr373/O34": {
+    "defaultMessage": "Tín dụng AI / tháng"
   },
   "csuMeaGNQo": {
     "defaultMessage": "Tạo dự án mới"
@@ -17717,6 +17780,9 @@
   "fnnzeRJcnZ": {
     "defaultMessage": "Edit"
   },
+  "fnuHA5r7aQ": {
+    "defaultMessage": "Tín dụng AI trị giá $20 mỗi tháng"
+  },
   "fp+BAxQben": {
     "defaultMessage": "Sử dụng"
   },
@@ -17932,6 +17998,9 @@
   },
   "gInelMBn+I": {
     "defaultMessage": "Không thể hiển thị hình ảnh nguồn"
+  },
+  "gJ4nnkkpNU": {
+    "defaultMessage": "Đã hết lượt thử"
   },
   "gJ8XFIM+3j": {
     "defaultMessage": "Xem tất cả bài viết"
@@ -21332,6 +21401,9 @@
   "oDluyiLepj": {
     "defaultMessage": "Tối ưu hóa công cụ trả lời. Khi ai đó đặt câu hỏi cho công cụ tìm kiếm AI, trang của bạn vẫn có thể được chọn làm câu trả lời thay vì trang của đối thủ."
   },
+  "oE/d+yPnQC": {
+    "defaultMessage": "Độ trễ ban đầu (ms)"
+  },
   "oEmsIJPKd5": {
     "defaultMessage": "Đẩy bản dịch nháp"
   },
@@ -22600,6 +22672,9 @@
   },
   "r9CtFkZBBj": {
     "defaultMessage": "Kết nối GitHub và Slack để agent có thể tự động xác thực các thay đổi và thông báo cho nhóm của bạn."
+  },
+  "r9cem/tyVw": {
+    "defaultMessage": "Succeeded"
   },
   "rAeEoKNL9f": {
     "defaultMessage": "Gửi lại"
