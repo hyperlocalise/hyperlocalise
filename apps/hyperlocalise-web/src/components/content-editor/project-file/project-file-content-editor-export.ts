@@ -17,6 +17,7 @@ import type {
   ProjectFileContentEditorQueueSort,
 } from "@/api/routes/project/project.schema";
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { collectCatFilteredExportRows } from "@/components/content-editor/project-file/content-editor-filtered-export-collect";
 import { isErr } from "@/lib/primitives/result/results";
 import {
@@ -28,6 +29,7 @@ import { serializeEditorFilteredExportViaGoSvc } from "@/lib/projects/content-ed
 import { projectFileCatApiMessages } from "./project-file-content-editor-api.messages";
 
 export async function downloadProjectFileContentEditorExport(input: {
+  goSvcClient: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
@@ -61,7 +63,7 @@ export async function downloadProjectFileContentEditorExport(input: {
     throw new Error(input.intl.formatMessage(projectFileCatApiMessages.filteredExportEmpty));
   }
 
-  const serialized = await serializeEditorFilteredExportViaGoSvc({
+  const serialized = await serializeEditorFilteredExportViaGoSvc(input.goSvcClient, {
     format: input.format,
     rows: collected.rows,
   });

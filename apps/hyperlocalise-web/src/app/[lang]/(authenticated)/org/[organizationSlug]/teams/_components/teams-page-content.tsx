@@ -12,18 +12,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { createTeamsApi, type TeamSummaryRow } from "./teams-api";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+
+import { createTeamsApi, type TeamsApi, type TeamSummaryRow } from "./teams-api";
 import { toCreateTeamPayload, toUpdateTeamPayload } from "./team-form";
 import { TeamsPageView } from "./teams-page-view";
 import { teamsPageContentMessages } from "./teams-page-content.messages";
-
-const teamsApi = createTeamsApi();
 
 function teamsQueryKey(organizationSlug: string) {
   return ["workspace-teams", organizationSlug] as const;
@@ -32,22 +33,34 @@ function teamsQueryKey(organizationSlug: string) {
 export function TeamsPageContent({
   organizationSlug,
   canManageTeams,
-  teamsApi: injectedTeamsApi = teamsApi,
+  teamsApi: injectedTeamsApi,
 }: {
   organizationSlug: string;
   canManageTeams: boolean;
-  teamsApi?: typeof teamsApi;
+  teamsApi?: TeamsApi;
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
+  const defaultTeamsApi = useMemo(() => createTeamsApi(goSvcClient), [goSvcClient]);
+  const activeTeamsApi = injectedTeamsApi ?? defaultTeamsApi;
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamSummaryRow | null>(null);
   const [deletingTeam, setDeletingTeam] = useState<TeamSummaryRow | null>(null);
 
   const teamsQuery = useQuery({
     queryKey: teamsQueryKey(organizationSlug),
-    queryFn: () => injectedTeamsApi.listTeams(organizationSlug),
+    queryFn: async () => {
+      try {
+        return await activeTeamsApi.listTeams(organizationSlug);
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(teamsPageContentMessages.loadFailed)),
+          { cause: error },
+        );
+      }
+    },
   });
 
   const invalidateTeams = async () => {
@@ -56,7 +69,7 @@ export function TeamsPageContent({
 
   const createTeam = useMutation({
     mutationFn: (values: { name: string; slug: string }) =>
-      injectedTeamsApi.createTeam(organizationSlug, toCreateTeamPayload(values)),
+      activeTeamsApi.createTeam(organizationSlug, toCreateTeamPayload(values)),
     onSuccess: async (team) => {
       setIsCreateOpen(false);
       await invalidateTeams();
@@ -64,7 +77,9 @@ export function TeamsPageContent({
       router.push(`/org/${organizationSlug}/teams/${team.id}`);
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error(
+        goSvcErrorMessage(error, intl.formatMessage(teamsPageContentMessages.createFailed)),
+      );
     },
   });
 
@@ -74,7 +89,7 @@ export function TeamsPageContent({
         throw new Error("No team selected for update.");
       }
 
-      return injectedTeamsApi.updateTeam(
+      return activeTeamsApi.updateTeam(
         organizationSlug,
         editingTeam.id,
         toUpdateTeamPayload(values),
@@ -86,7 +101,9 @@ export function TeamsPageContent({
       toast.success(intl.formatMessage(teamsPageContentMessages.teamUpdated));
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error(
+        goSvcErrorMessage(error, intl.formatMessage(teamsPageContentMessages.updateFailed)),
+      );
     },
   });
 
@@ -96,7 +113,7 @@ export function TeamsPageContent({
         throw new Error("No team selected for deletion.");
       }
 
-      return injectedTeamsApi.deleteTeam(organizationSlug, deletingTeam.id);
+      return activeTeamsApi.deleteTeam(organizationSlug, deletingTeam.id);
     },
     onSuccess: async () => {
       setDeletingTeam(null);
@@ -104,7 +121,9 @@ export function TeamsPageContent({
       toast.success(intl.formatMessage(teamsPageContentMessages.teamDeleted));
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error(
+        goSvcErrorMessage(error, intl.formatMessage(teamsPageContentMessages.deleteFailed)),
+      );
     },
   });
 

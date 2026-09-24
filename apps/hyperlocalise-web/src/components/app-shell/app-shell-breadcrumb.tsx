@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
-import { teamClient } from "@/lib/teams/team-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
 import { cn } from "@/lib/primitives/cn";
@@ -251,6 +251,7 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
 }: AppShellBreadcrumbProps) {
   const intl = useIntl();
   const store = useAppShellStore();
+  const { client: goSvcClient } = useGoSvcClient();
   const pathname = usePathname();
   const projectRoute = parseProjectRoute(pathname);
   const teamRoute = parseTeamRoute(pathname);
@@ -283,17 +284,8 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
     queryKey: ["workspace-team", resolvedOrganizationSlug, teamRoute?.teamId],
     enabled: Boolean(teamRoute?.teamId),
     queryFn: async () => {
-      const response = await teamClient.get({
-        param: {
-          organizationSlug: resolvedOrganizationSlug,
-          teamId: teamRoute!.teamId,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to load team (${response.status})`);
-      }
-      const body = (await response.json()) as { team: { name: string } };
-      return body.team;
+      const response = await goSvcClient.team.get(resolvedOrganizationSlug, teamRoute!.teamId);
+      return response.team;
     },
   });
 

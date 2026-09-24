@@ -17,8 +17,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { readApiError, readApiResponseError } from "@/lib/api-error";
-import { dictionaryClient } from "@/lib/spellcheck-dictionary/client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { createDictionaryClient } from "@/lib/spellcheck-dictionary/client";
 
 import { spellcheckDictionaryContextMessages } from "./spellcheck-dictionary-context.messages";
 
@@ -57,23 +58,28 @@ export function useProjectSpellcheckDictionary(input: {
 }): SpellcheckDictionaryContextValue {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
+  const dictionaryClient = useMemo(() => createDictionaryClient(goSvcClient), [goSvcClient]);
   const trimmedLocale = input.locale.trim();
 
   const resolvedQuery = useQuery({
     queryKey: ["project-spellcheck-words", input.organizationSlug, input.projectId, trimmedLocale],
     enabled: Boolean(input.organizationSlug && input.projectId && trimmedLocale),
     queryFn: async () => {
-      const response = await dictionaryClient.resolvedWords({
-        param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
-        query: { locale: trimmedLocale },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(spellcheckDictionaryContextMessages.loadFailed),
+      try {
+        return await dictionaryClient.resolvedWords({
+          param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
+          query: { locale: trimmedLocale },
+        });
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(spellcheckDictionaryContextMessages.loadFailed),
+          ),
+          { cause: error },
         );
       }
-      return response.json();
     },
   });
 
@@ -81,17 +87,20 @@ export function useProjectSpellcheckDictionary(input: {
     queryKey: ["project-spellcheck-dictionaries", input.organizationSlug, input.projectId],
     enabled: Boolean(input.organizationSlug && input.projectId),
     queryFn: async () => {
-      const response = await dictionaryClient.projectDictionaries({
-        param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(spellcheckDictionaryContextMessages.loadFailed),
+      try {
+        const response = await dictionaryClient.projectDictionaries({
+          param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
+        });
+        return (response.dictionaries ?? []) as AttachedSpellcheckDictionary[];
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(spellcheckDictionaryContextMessages.loadFailed),
+          ),
+          { cause: error },
         );
       }
-      const body = await response.json();
-      return (body.dictionaries ?? []) as AttachedSpellcheckDictionary[];
     },
   });
 
@@ -108,16 +117,18 @@ export function useProjectSpellcheckDictionary(input: {
         throw new Error(intl.formatMessage(spellcheckDictionaryContextMessages.noDictionary));
       }
 
-      const response = await dictionaryClient.addWord({
-        param: { organizationSlug: input.organizationSlug, dictionaryId: defaultDictionary.id },
-        json: { locale: trimmedLocale, word },
-      });
-      if (!response.ok) {
+      try {
+        await dictionaryClient.addWord({
+          param: { organizationSlug: input.organizationSlug, dictionaryId: defaultDictionary.id },
+          json: { locale: trimmedLocale, word },
+        });
+      } catch (error) {
         throw new Error(
-          await readApiError(
-            response,
+          goSvcErrorMessage(
+            error,
             intl.formatMessage(spellcheckDictionaryContextMessages.addFailed),
           ),
+          { cause: error },
         );
       }
       return { word, dictionaryName: defaultDictionary.name };
@@ -135,9 +146,7 @@ export function useProjectSpellcheckDictionary(input: {
     },
     onError: (error) => {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : intl.formatMessage(spellcheckDictionaryContextMessages.addFailed),
+        goSvcErrorMessage(error, intl.formatMessage(spellcheckDictionaryContextMessages.addFailed)),
       );
     },
   });

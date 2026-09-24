@@ -22,9 +22,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TypographyP } from "@/components/ui/typography";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { QA_FINDING_PROMOTE_BATCH_SIZE } from "@/lib/qa/qa-finding-issue-bridge";
-import { projectQaReportClient, workspaceQaReportClient } from "@/lib/qa/qa-report-client";
+import {
+  createProjectQaReportClient,
+  createWorkspaceQaReportClient,
+} from "@/lib/qa/qa-report-client";
 
 import { qaFindingsTableMessages as messages } from "./qa-findings-table.messages";
 
@@ -75,6 +79,15 @@ export function QaFindingsTable({
   onPromoted,
 }: QaFindingsTableProps) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
+  const projectQaReportClient = useMemo(
+    () => createProjectQaReportClient(goSvcClient),
+    [goSvcClient],
+  );
+  const workspaceQaReportClient = useMemo(
+    () => createWorkspaceQaReportClient(goSvcClient),
+    [goSvcClient],
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const allSelected = findings.length > 0 && findings.every((row) => selectedIds.has(row.id));
 
@@ -95,11 +108,7 @@ export function QaFindingsTable({
             json: { findingIds: chunk },
           });
         }
-        if (!response.ok) {
-          throw await readApiResponseError(response, intl.formatMessage(messages.promoteError));
-        }
-        const body = (await response.json()) as PromoteFindingsResponse;
-        results.push(...body.results);
+        results.push(...response.results);
       }
       return { results };
     },
@@ -111,9 +120,7 @@ export function QaFindingsTable({
       onPromoted?.();
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : intl.formatMessage(messages.promoteError),
-      );
+      toast.error(goSvcErrorMessage(error, intl.formatMessage(messages.promoteError)));
     },
   });
 

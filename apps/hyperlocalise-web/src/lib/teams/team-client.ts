@@ -6,70 +6,35 @@
  *
  * Change Date: Four years after publication of the applicable version.
  *
- * On the Change Date, in accordance with the Business Source License, use
- * of this software will be governed by the GNU General Public License
+ * On the Change Date, in accordance with the Business Source License 1.1,
+ * use of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type {
-  AddTeamMemberBody,
-  CreateTeamBody,
-  TeamMemberResponse,
-  TeamResponse,
-  TeamsResponse,
-  TeamWithMembersResponse,
-  UpdateTeamBody,
-} from "@/lib/teams/team.schema";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import type { TeamMember, TeamRecord, TeamSummary } from "@/lib/go-svc/go-svc-client.types";
+import type { AddTeamMemberBody, CreateTeamBody, UpdateTeamBody } from "@/lib/teams/team.schema";
+
+export type { TeamMember, TeamRecord, TeamSummary };
 
 type OrgParams = { organizationSlug: string };
 type TeamParams = OrgParams & { teamId: string };
-type TeamMemberParams = TeamParams & { workosUserId: string };
 
-type TeamResponseBody<T> = Omit<Response, "json"> & { json(): Promise<T> };
-
-type RequestInput<P, B> = { param: P } & ([B] extends [never] ? {} : { json: B });
-
-function teamEndpoint<P extends OrgParams, B, T>(method: string, path: string) {
-  return async (input: RequestInput<P, B>): Promise<TeamResponseBody<T>> => {
-    const pathname = path.replace(/:([a-zA-Z]+)/g, (_, key: string) => {
-      const value = (input.param as Record<string, string>)[key];
-      if (!value) {
-        throw new Error(`Missing team path parameter: ${key}`);
-      }
-      return encodeURIComponent(value);
-    });
-    return fetch(
-      `/api/go-svc/v1/orgs/:organizationSlug${pathname}`.replace(
-        ":organizationSlug",
-        encodeURIComponent(input.param.organizationSlug),
-      ),
-      {
-        method,
-        credentials: "same-origin",
-        ...("json" in input
-          ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(input.json) }
-          : {}),
-      },
-    ) as Promise<TeamResponseBody<T>>;
+export function createTeamClient(goSvcClient: GoSvcClient) {
+  return {
+    list: ({ param }: { param: OrgParams }) => goSvcClient.team.list(param.organizationSlug),
+    memberDirectory: ({ param }: { param: OrgParams }) =>
+      goSvcClient.team.memberDirectory(param.organizationSlug),
+    create: ({ param, json }: { param: OrgParams; json: CreateTeamBody }) =>
+      goSvcClient.team.create(param.organizationSlug, json),
+    get: ({ param }: { param: TeamParams }) =>
+      goSvcClient.team.get(param.organizationSlug, param.teamId),
+    update: ({ param, json }: { param: TeamParams; json: UpdateTeamBody }) =>
+      goSvcClient.team.update(param.organizationSlug, param.teamId, json),
+    delete: ({ param }: { param: TeamParams }) =>
+      goSvcClient.team.delete(param.organizationSlug, param.teamId),
+    addMember: ({ param, json }: { param: TeamParams; json: AddTeamMemberBody }) =>
+      goSvcClient.team.members.add(param.organizationSlug, param.teamId, json),
+    removeMember: ({ param }: { param: TeamParams & { workosUserId: string } }) =>
+      goSvcClient.team.members.remove(param.organizationSlug, param.teamId, param.workosUserId),
   };
 }
-
-export const teamClient = {
-  list: teamEndpoint<OrgParams, never, TeamsResponse>("GET", "/teams"),
-  memberDirectory: teamEndpoint<
-    OrgParams,
-    never,
-    { members: { workosUserId: string; email: string }[] }
-  >("GET", "/teams/member-directory"),
-  create: teamEndpoint<OrgParams, CreateTeamBody, TeamResponse>("POST", "/teams"),
-  get: teamEndpoint<TeamParams, never, TeamWithMembersResponse>("GET", "/teams/:teamId"),
-  update: teamEndpoint<TeamParams, UpdateTeamBody, TeamResponse>("PATCH", "/teams/:teamId"),
-  delete: teamEndpoint<TeamParams, never, never>("DELETE", "/teams/:teamId"),
-  addMember: teamEndpoint<TeamParams, AddTeamMemberBody, TeamMemberResponse>(
-    "POST",
-    "/teams/:teamId/members",
-  ),
-  removeMember: teamEndpoint<TeamMemberParams, never, never>(
-    "DELETE",
-    "/teams/:teamId/members/:workosUserId",
-  ),
-};

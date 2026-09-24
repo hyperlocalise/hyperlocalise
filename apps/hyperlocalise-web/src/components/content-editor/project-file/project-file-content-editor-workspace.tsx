@@ -242,6 +242,7 @@ export function ProjectFileContentEditorWorkspace({
       setIsExporting(true);
       try {
         await downloadProjectFileContentEditorExport({
+          goSvcClient,
           organizationSlug,
           projectId,
           sourcePath,

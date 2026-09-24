@@ -28,10 +28,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
-import { readApiError, readApiResponseError } from "@/lib/api-error";
-import { dictionaryClient } from "@/lib/spellcheck-dictionary/client";
+import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { normalizeSpellcheckWord } from "@/lib/spellcheck-dictionary/normalize-word";
+import { createDictionaryClient } from "@/lib/spellcheck-dictionary/client";
 
 import { PageHeader, WorkspacePageShell } from "../../../_components/workspace-resource-shared";
 import type { ApiDictionary } from "../../_components/dictionary-list";
@@ -68,6 +70,8 @@ export function DictionaryDetailPageContent({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
+  const dictionaryClient = useMemo(() => createDictionaryClient(goSvcClient), [goSvcClient]);
   const [locale, setLocale] = useState("en-US");
   const [word, setWord] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -76,17 +80,17 @@ export function DictionaryDetailPageContent({
   const dictionaryQuery = useQuery({
     queryKey: ["spellcheck-dictionary", organizationSlug, dictionaryId],
     queryFn: async () => {
-      const response = await dictionaryClient.get({
-        param: { organizationSlug, dictionaryId },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(dictionaryDetailMessages.loadFailed),
+      try {
+        const response = await dictionaryClient.get({
+          param: { organizationSlug, dictionaryId },
+        });
+        return response.dictionary as ApiDictionary;
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(dictionaryDetailMessages.loadFailed)),
+          { cause: error },
         );
       }
-      const body = await response.json();
-      return body.dictionary as ApiDictionary;
     },
   });
 
@@ -94,26 +98,26 @@ export function DictionaryDetailPageContent({
     queryKey: ["dictionary-words", organizationSlug, dictionaryId, locale],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
-      const response = await dictionaryClient.words({
-        param: { organizationSlug, dictionaryId },
-        query: {
-          locale,
-          limit: String(DICTIONARY_WORDS_PAGE_SIZE),
-          offset: String(pageParam),
-        },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(dictionaryDetailMessages.loadFailed),
+      try {
+        const response = await dictionaryClient.words({
+          param: { organizationSlug, dictionaryId },
+          query: {
+            locale,
+            limit: String(DICTIONARY_WORDS_PAGE_SIZE),
+            offset: String(pageParam),
+          },
+        });
+        return {
+          words: (response.words ?? []) as DictionaryWord[],
+          total: Number(response.total ?? 0),
+          offset: pageParam,
+        };
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(dictionaryDetailMessages.loadFailed)),
+          { cause: error },
         );
       }
-      const body = await response.json();
-      return {
-        words: (body.words ?? []) as DictionaryWord[],
-        total: Number(body.total ?? 0),
-        offset: pageParam,
-      };
     },
     getNextPageParam: (lastPage) => {
       const nextOffset = lastPage.offset + lastPage.words.length;
@@ -128,17 +132,17 @@ export function DictionaryDetailPageContent({
   const projectsQuery = useQuery({
     queryKey: ["dictionary-projects", organizationSlug, dictionaryId],
     queryFn: async () => {
-      const response = await dictionaryClient.projects({
-        param: { organizationSlug, dictionaryId },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(dictionaryDetailMessages.loadFailed),
+      try {
+        const response = await dictionaryClient.projects({
+          param: { organizationSlug, dictionaryId },
+        });
+        return (response.projects ?? []) as DictionaryProject[];
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(dictionaryDetailMessages.loadFailed)),
+          { cause: error },
         );
       }
-      const body = await response.json();
-      return (body.projects ?? []) as DictionaryProject[];
     },
   });
 
@@ -189,13 +193,15 @@ export function DictionaryDetailPageContent({
       if (!parsed) {
         throw new Error(intl.formatMessage(dictionaryDetailMessages.wordRequired));
       }
-      const response = await dictionaryClient.addWord({
-        param: { organizationSlug, dictionaryId },
-        json: { locale: locale.trim(), word: parsed.word },
-      });
-      if (!response.ok) {
+      try {
+        await dictionaryClient.addWord({
+          param: { organizationSlug, dictionaryId },
+          json: { locale: locale.trim(), word: parsed.word },
+        });
+      } catch (error) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(dictionaryDetailMessages.addFailed)),
+          goSvcErrorMessage(error, intl.formatMessage(dictionaryDetailMessages.addFailed)),
+          { cause: error },
         );
       }
     },
@@ -214,27 +220,38 @@ export function DictionaryDetailPageContent({
 
   const deleteWord = useMutation({
     mutationFn: async (wordId: string) => {
-      const response = await dictionaryClient.removeWord({
-        param: { organizationSlug, dictionaryId, wordId },
-      });
-      if (!response.ok) {
+      try {
+        await dictionaryClient.removeWord({
+          param: { organizationSlug, dictionaryId, wordId },
+        });
+      } catch (error) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(dictionaryDetailMessages.addFailed)),
+          goSvcErrorMessage(error, intl.formatMessage(dictionaryDetailMessages.addFailed)),
+          { cause: error },
         );
       }
     },
     onSuccess: invalidateDictionary,
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(dictionaryDetailMessages.addFailed),
+      );
+    },
   });
 
   const importWords = useMutation({
     mutationFn: async (content: string) => {
-      const response = await dictionaryClient.importWords({
-        param: { organizationSlug, dictionaryId },
-        json: { locale: locale.trim(), content },
-      });
-      if (!response.ok) {
+      try {
+        await dictionaryClient.importWords({
+          param: { organizationSlug, dictionaryId },
+          json: { locale: locale.trim(), content },
+        });
+      } catch (error) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(dictionaryDetailMessages.importFailed)),
+          goSvcErrorMessage(error, intl.formatMessage(dictionaryDetailMessages.importFailed)),
+          { cause: error },
         );
       }
     },
@@ -250,13 +267,15 @@ export function DictionaryDetailPageContent({
 
   const attachProject = useMutation({
     mutationFn: async (projectId: string) => {
-      const response = await dictionaryClient.attachProject({
-        param: { organizationSlug, dictionaryId },
-        json: { projectId },
-      });
-      if (!response.ok) {
+      try {
+        await dictionaryClient.attachProject({
+          param: { organizationSlug, dictionaryId },
+          json: { projectId },
+        });
+      } catch (error) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(dictionaryDetailMessages.attachFailed)),
+          goSvcErrorMessage(error, intl.formatMessage(dictionaryDetailMessages.attachFailed)),
+          { cause: error },
         );
       }
     },
@@ -275,16 +294,25 @@ export function DictionaryDetailPageContent({
 
   const detachProject = useMutation({
     mutationFn: async (projectId: string) => {
-      const response = await dictionaryClient.detachProject({
-        param: { organizationSlug, dictionaryId, projectId },
-      });
-      if (!response.ok) {
+      try {
+        await dictionaryClient.detachProject({
+          param: { organizationSlug, dictionaryId, projectId },
+        });
+      } catch (error) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(dictionaryDetailMessages.attachFailed)),
+          goSvcErrorMessage(error, intl.formatMessage(dictionaryDetailMessages.attachFailed)),
+          { cause: error },
         );
       }
     },
     onSuccess: invalidateDictionary,
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(dictionaryDetailMessages.attachFailed),
+      );
+    },
   });
 
   async function exportWords() {
@@ -293,13 +321,8 @@ export function DictionaryDetailPageContent({
         param: { organizationSlug, dictionaryId },
         query: { locale: locale.trim() },
       });
-      if (!response.ok) {
-        throw new Error(
-          await readApiError(response, intl.formatMessage(dictionaryDetailMessages.exportFailed)),
-        );
-      }
-      const body = await response.text();
-      const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
+      const body = await response.blob.text();
+      const blob = new Blob([body], { type: response.contentType ?? "text/plain;charset=utf-8" });
       const href = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = href;
@@ -308,9 +331,7 @@ export function DictionaryDetailPageContent({
       URL.revokeObjectURL(href);
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : intl.formatMessage(dictionaryDetailMessages.exportFailed),
+        goSvcErrorMessage(error, intl.formatMessage(dictionaryDetailMessages.exportFailed)),
       );
     }
   }

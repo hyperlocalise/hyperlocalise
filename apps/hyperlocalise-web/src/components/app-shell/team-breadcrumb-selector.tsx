@@ -15,8 +15,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
-import { readApiResponseError } from "@/lib/api-error";
-import { teamClient } from "@/lib/teams/team-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { BreadcrumbCrumbSelector } from "./breadcrumb-crumb-selector";
@@ -41,17 +40,12 @@ export function TeamBreadcrumbSelector({
 }: TeamBreadcrumbSelectorProps) {
   const intl = useIntl();
   const router = useOrgRouter();
+  const { client: goSvcClient } = useGoSvcClient();
   const teamsQuery = useQuery({
     queryKey: organizationTeamsQueryKey(organizationSlug),
     queryFn: async () => {
-      const response = await teamClient.list({ param: { organizationSlug } });
-
-      if (!response.ok) {
-        throw await readApiResponseError(response, intl.formatMessage(messages.teamsLoadError));
-      }
-
-      const body = await response.json();
-      return body.teams.map((team) => ({
+      const response = await goSvcClient.team.list(organizationSlug);
+      return response.teams.map((team) => ({
         value: team.id,
         label: team.name,
       }));

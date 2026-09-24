@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ import { hasCapability } from "@/api/auth/policy";
 import { createTeamsApi } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/teams/_components/teams-api";
 import { apiClient } from "@/lib/api-client-instance";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 
 import { membersPageContentMessages } from "./members-page-content.messages";
@@ -33,8 +34,6 @@ import {
 
 const membersQueryKey = (organizationSlug: string) => ["workspace-members", organizationSlug];
 const teamsQueryKey = (organizationSlug: string) => ["workspace-teams", organizationSlug];
-const teamsApi = createTeamsApi();
-
 function resolveDefaultTeamId(teams: { id: string; slug: string }[]) {
   return teams.find((team) => team.slug === DEFAULT_WORKSPACE_TEAM_SLUG)?.id ?? teams[0]?.id ?? "";
 }
@@ -56,6 +55,8 @@ async function readMemberError(response: Response, fallback: string) {
 export function MembersPageContent({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
+  const teamsApi = useMemo(() => createTeamsApi(goSvcClient), [goSvcClient]);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<OrganizationMembershipRole>("member");

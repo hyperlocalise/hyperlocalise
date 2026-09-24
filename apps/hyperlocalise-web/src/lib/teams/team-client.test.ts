@@ -12,21 +12,26 @@
  */
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { teamClient } from "./team-client";
+import { DEFAULT_GO_SVC_BASE_URL, GoSvcClient } from "@/lib/go-svc/go-svc-client";
 
-describe("teamClient", () => {
+import { createTeamClient } from "./team-client";
+
+describe("createTeamClient", () => {
   it("lists teams from go-svc", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ teams: [] }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ teams: [] }));
+    const teamClient = createTeamClient(
+      new GoSvcClient({
+        getAccessToken: () => "access-token",
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    );
 
     await teamClient.list({ param: { organizationSlug: "acme" } });
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/go-svc/v1/orgs/acme/teams", {
-      method: "GET",
-      credentials: "same-origin",
-    });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/teams`);
+    expect(init.method).toBe("GET");
+    expect(init.credentials).toBe("omit");
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer access-token");
   });
 });
