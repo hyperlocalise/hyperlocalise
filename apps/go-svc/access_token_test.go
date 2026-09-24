@@ -101,6 +101,25 @@ func TestWorkOSSessionVerifierAcceptsAccessTokenIssuerWithClientID(t *testing.T)
 	require.Equal(t, "user_native", claims.UserID)
 }
 
+func TestWorkOSSessionVerifierAcceptsAuthKitAccessToken(t *testing.T) {
+	fixture := newAccessTokenFixture(t)
+	verifier := accessTokenVerifier(t, fixture)
+	token := fixture.sign(t, map[string]any{
+		"iss":       workOSProductionAPIURL + "/user_management/" + testWorkOSClientID,
+		"client_id": testWorkOSClientID,
+		"sub":       "user_authkit",
+		"sid":       "session_authkit",
+		"org_id":    "org_authkit",
+		"exp":       time.Now().Add(time.Hour).Unix(),
+	})
+
+	claims, err := verifier.VerifyAccessToken(context.Background(), token)
+	require.NoError(t, err)
+	require.Equal(t, "user_authkit", claims.UserID)
+	require.Equal(t, "org_authkit", claims.OrgID)
+	require.Equal(t, "session_authkit", claims.SessionID)
+}
+
 func TestWorkOSSessionVerifierRejectsAccessTokenTampering(t *testing.T) {
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
@@ -236,6 +255,7 @@ func TestFetchWorkOSJWKS(t *testing.T) {
 func TestIssuerAllowed(t *testing.T) {
 	require.True(t, issuerAllowed("https://api.workos.com", "https://api.workos.com", "client_1"))
 	require.True(t, issuerAllowed("https://api.workos.com/client_1", "https://api.workos.com", "client_1"))
+	require.True(t, issuerAllowed("https://api.workos.com/user_management/client_1", "https://api.workos.com", "client_1"))
 	require.False(t, issuerAllowed("https://authkit.example", "https://api.workos.com", "client_1"))
 	require.False(t, issuerAllowed("", "https://api.workos.com", "client_1"))
 }
