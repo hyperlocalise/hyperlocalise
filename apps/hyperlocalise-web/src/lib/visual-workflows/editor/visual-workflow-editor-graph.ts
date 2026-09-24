@@ -24,7 +24,10 @@ import type {
   VisualWorkflowRfNode,
 } from "../schema/types";
 import { collectRemovedSwitchCaseIds, pruneSwitchCaseEdges } from "../schema/switch-cases";
-import { normalizeExecutionSourceHandle } from "../validation/execution-handles";
+import { validateVisualWorkflowConnection } from "../validation/validate-connection";
+import { computeForEachBodyNodeIds, computeRetryBodyNodeIds } from "./for-each-body-membership";
+
+export { computeForEachBodyNodeIds, computeRetryBodyNodeIds } from "./for-each-body-membership";
 
 export const VISUAL_TRIGGER_TYPES = VISUAL_NODE_CATALOG.filter(
   (item) => item.enabled && item.category === "trigger",
@@ -87,58 +90,6 @@ function asMutableGraph(
     nodes: nodes as VisualWorkflowRfNode[],
     edges: edges as VisualWorkflowRfEdge[],
   };
-}
-
-function computeFlowBodyNodeIds(
-  ownerId: string,
-  edges: readonly VisualWorkflowRfEdge[],
-  entryHandle: string,
-  exitHandle: string,
-): string[] {
-  const roots = edges
-    .filter(
-      (edge) =>
-        edge.data?.kind !== "data" && edge.source === ownerId && edge.sourceHandle === entryHandle,
-    )
-    .map((edge) => edge.target)
-    .filter((target): target is string => Boolean(target && target !== ownerId));
-
-  const body = new Set<string>(roots);
-  const queue = [...roots];
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    for (const edge of edges) {
-      if (edge.data?.kind === "data" || edge.source !== current) {
-        continue;
-      }
-      if (edge.source === ownerId && edge.sourceHandle === exitHandle) {
-        continue;
-      }
-      const target = edge.target;
-      if (!target || target === ownerId || body.has(target)) {
-        continue;
-      }
-      body.add(target);
-      queue.push(target);
-    }
-  }
-
-  return [...body];
-}
-
-export function computeForEachBodyNodeIds(
-  loopId: string,
-  edges: readonly VisualWorkflowRfEdge[],
-): string[] {
-  return computeFlowBodyNodeIds(loopId, edges, "each", "done");
-}
-
-export function computeRetryBodyNodeIds(
-  retryId: string,
-  edges: readonly VisualWorkflowRfEdge[],
-): string[] {
-  return computeFlowBodyNodeIds(retryId, edges, "attempt", "succeeded");
 }
 
 function forEachBodyIdsEqual(left: readonly string[], right: readonly string[]): boolean {
@@ -278,61 +229,109 @@ export function applyVisualWorkflowGraphConnection(
   edges: readonly VisualWorkflowRfEdge[],
   connection: Connection,
 ): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
-  if (!connection.source || !connection.target) {
+  const validation = validateVisualWorkflowConnection({
+    nodes,
+    edges,
+    connection,
+  });
+
+  if (!validation.valid) {
     return asMutableGraph(nodes, edges);
   }
 
-  const source = nodes.find((node) => node.id === connection.source);
-  if (!source) {
-    return asMutableGraph(nodes, edges);
-  }
+  const nextConnection: Connection = {
+    ...connection,
+    sourceHandle: validation.sourcePortId,
+    targetHandle: validation.targetPortId,
+  };
 
-  const targetHandle = connection.targetHandle ?? null;
-  const kind = targetHandle && targetHandle !== "input" ? "data" : "execution";
-
-  if (kind === "data") {
-    if (!connection.sourceHandle || !targetHandle) {
-      return asMutableGraph(nodes, edges);
-    }
-
+  if (validation.edgeKind === "data") {
     return {
       nodes: nodes as VisualWorkflowRfNode[],
       edges: addEdge(
         {
-          ...connection,
-          sourceHandle: connection.sourceHandle,
-          targetHandle,
-          data: { kind },
-          label: `${connection.sourceHandle} → ${targetHandle}`,
-          style: { strokeDasharray: "5 4" },
+          ...nextConnection,
+          data: {
+            kind: "data",
+          },
+          label: `${validation.sourcePortId} → ${validation.targetPortId}`,
+          style: {
+            strokeDasharray: "5 4",
+          },
         },
         [...edges],
       ),
     };
   }
 
-  const normalized = normalizeExecutionSourceHandle(
-    { type: source.data.catalogType, config: source.data.config },
-    connection.sourceHandle,
-  );
-  if (!normalized.ok) {
-    return asMutableGraph(nodes, edges);
-  }
-
-  const nextConnection: Connection = {
-    ...connection,
-    sourceHandle: normalized.handle ?? "success",
-    targetHandle: "input",
-  };
   return {
     nodes: syncForEachBodyMembership(nodes, nextConnection),
     edges: addEdge(
       {
         ...nextConnection,
-        data: { kind },
-        label: nextConnection.sourceHandle ?? undefined,
+        data: {
+          kind: "execution",
+        },
+        label: validation.sourcePortId,
       },
       [...edges],
     ),
+  };
+}
+
+export function reconnectVisualWorkflowGraphConnection(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+  edgeId: string,
+  connection: Connection,
+): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
+  const currentEdge = edges.find((edge) => edge.id === edgeId);
+
+  if (!currentEdge) {
+    return asMutableGraph(nodes, edges);
+  }
+
+  const validation = validateVisualWorkflowConnection({
+    nodes,
+    edges,
+    connection,
+    replacingEdgeId: edgeId,
+  });
+
+  if (!validation.valid) {
+    return asMutableGraph(nodes, edges);
+  }
+
+  const { strokeDasharray: _, ...baseStyle } = currentEdge.style ?? {};
+  const isDataEdge = validation.edgeKind === "data";
+
+  const nextEdge: VisualWorkflowRfEdge = {
+    ...currentEdge,
+    source: connection.source,
+    target: connection.target,
+    sourceHandle: validation.sourcePortId,
+    targetHandle: validation.targetPortId,
+    data: {
+      ...currentEdge.data,
+      kind: validation.edgeKind,
+    },
+    label: isDataEdge
+      ? `${validation.sourcePortId} → ${validation.targetPortId}`
+      : validation.sourcePortId,
+    style: isDataEdge
+      ? {
+          ...baseStyle,
+          strokeDasharray: "5 4",
+        }
+      : Object.keys(baseStyle).length > 0
+        ? baseStyle
+        : undefined,
+  };
+
+  const nextEdges = edges.map((edge) => (edge.id === edgeId ? nextEdge : edge));
+
+  return {
+    nodes: reconcileForEachBodyMembership(nodes, nextEdges),
+    edges: nextEdges,
   };
 }

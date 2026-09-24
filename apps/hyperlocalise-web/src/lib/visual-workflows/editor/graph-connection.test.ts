@@ -18,6 +18,7 @@ import {
   applyVisualWorkflowGraphConnection,
   reconcileForEachBodyMembership,
   removeVisualWorkflowNode,
+  reconnectVisualWorkflowGraphConnection,
 } from "./visual-workflow-editor-graph";
 import { fromVisualWorkflowDefinition, toVisualWorkflowDefinition } from "../schema/serializers";
 import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "../schema/types";
@@ -269,6 +270,73 @@ describe("applyVisualWorkflowGraphConnection", () => {
     expect(restored.edges.find((edge) => edge.target === "body")?.sourceHandle).toBe("each");
     expect(restored.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual(["body"]);
   });
+
+  it("does not commit an invalid reconnection", () => {
+    const nodes = [
+      node("trigger", "trigger.manual"),
+      node("first", "logic.set"),
+      node("second", "logic.set"),
+    ];
+
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "first-second",
+        source: "first",
+        target: "second",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+      {
+        id: "connection",
+        source: "trigger",
+        target: "first",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+    ];
+
+    const result = reconnectVisualWorkflowGraphConnection(nodes, edges, "connection", {
+      source: "second",
+      target: "first",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    expect(result.nodes).toBe(nodes);
+    expect(result.edges).toBe(edges);
+  });
+
+  it("does not commit an execution connection that creates a cycle", () => {
+    const nodes = [node("first", "logic.set"), node("second", "logic.set")];
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "first-second",
+        source: "first",
+        target: "second",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+    ];
+
+    const result = applyVisualWorkflowGraphConnection(nodes, edges, {
+      source: "second",
+      target: "first",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    expect(result.nodes).toBe(nodes);
+    expect(result.edges).toBe(edges);
+  });
 });
 
 describe("removeVisualWorkflowNode", () => {
@@ -316,5 +384,83 @@ describe("applyNodeConfigUpdate", () => {
     );
     expect(next.edges.map((edge) => edge.id)).toEqual(["e0", "e2"]);
     expect(next.edges.find((edge) => edge.id === "e2")?.sourceHandle).toBe("case-ready");
+  });
+});
+
+describe("reconnectVisualWorkflowGraphConnection", () => {
+  it("reconnects an edge through the shared validator", () => {
+    const nodes = [
+      node("trigger", "trigger.manual"),
+      node("first", "logic.set"),
+      node("second", "logic.set"),
+    ];
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "connection",
+        source: "trigger",
+        target: "first",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+    ];
+
+    const result = reconnectVisualWorkflowGraphConnection(nodes, edges, "connection", {
+      source: "trigger",
+      target: "second",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    expect(result.edges).toContainEqual(
+      expect.objectContaining({
+        id: "connection",
+        source: "trigger",
+        target: "second",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      }),
+    );
+  });
+
+  it("removes stale loop membership when reconnecting a loop body edge", () => {
+    const nodes = [
+      node("loop", "logic.for_each", { bodyNodeIds: ["body"] }),
+      node("outside", "logic.set"),
+      node("body", "logic.set"),
+    ];
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "loop-body",
+        source: "loop",
+        target: "body",
+        sourceHandle: "each",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+    ];
+
+    const result = reconnectVisualWorkflowGraphConnection(nodes, edges, "loop-body", {
+      source: "outside",
+      target: "body",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    expect(result.edges).toContainEqual(
+      expect.objectContaining({
+        id: "loop-body",
+        source: "outside",
+        target: "body",
+      }),
+    );
+    expect(result.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual([]);
   });
 });

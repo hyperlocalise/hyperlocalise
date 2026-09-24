@@ -54,7 +54,16 @@ const nodeStatusMessages = defineMessages({
     description: "Workflow node status",
   },
 });
-const HANDLE_CLASS = "size-2.5! border-2 border-background bg-primary";
+const HANDLE_CLASS = cn(
+  "size-2.5! border-2 border-background bg-primary",
+  "transition-[transform,opacity,box-shadow] duration-150",
+  "[&.connecting]:scale-125 [&.connecting]:opacity-30",
+  "[&.connecting.valid]:bg-emerald-500",
+  "[&.connecting.valid]:opacity-100",
+  "[&.connecting.valid]:ring-4",
+  "[&.connecting.valid]:ring-emerald-500/30",
+  "motion-reduce:transition-none",
+);
 
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();

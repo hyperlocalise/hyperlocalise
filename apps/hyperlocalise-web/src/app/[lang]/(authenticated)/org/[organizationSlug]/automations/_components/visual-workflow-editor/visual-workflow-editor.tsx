@@ -36,6 +36,7 @@ import {
   reconcileFlowBodyMembership,
   removeVisualWorkflowNode,
   replaceVisualWorkflowNodeType,
+  reconnectVisualWorkflowGraphConnection,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
 import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
 import { getSwitchCaseIndexByHandleId } from "@/lib/visual-workflows/schema/switch-cases";
@@ -189,6 +190,18 @@ export function VisualWorkflowEditor({
       graphRef.current.edges,
       connection,
     );
+    setNodes(next.nodes);
+    setEdges(next.edges);
+  }, []);
+
+  const onReconnect = useCallback((oldEdge: VisualWorkflowRfEdge, connection: Connection) => {
+    const next = reconnectVisualWorkflowGraphConnection(
+      graphRef.current.nodes,
+      graphRef.current.edges,
+      oldEdge.id,
+      connection,
+    );
+
     setNodes(next.nodes);
     setEdges(next.edges);
   }, []);
@@ -588,6 +601,7 @@ export function VisualWorkflowEditor({
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              onReconnect={onReconnect}
               onSelectionChange={onSelectionChange}
               onAddFirstStep={() => openPicker(null)}
               onLoadSample={() => {
