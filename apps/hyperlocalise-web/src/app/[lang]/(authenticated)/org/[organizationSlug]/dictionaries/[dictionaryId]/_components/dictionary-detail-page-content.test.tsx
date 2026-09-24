@@ -27,19 +27,16 @@ const apiMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/spellcheck-dictionary/client", () => ({
-  dictionaryClient: {
+  createDictionaryClient: () => ({
     get: apiMocks.getDictionary,
     words: apiMocks.getWords,
     projects: apiMocks.getProjects,
-  },
+  }),
 }));
 
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({ client: {}, loading: false }),
+}));
 
 function renderDetailPage() {
   const queryClient = new QueryClient({
@@ -65,21 +62,19 @@ describe("DictionaryDetailPageContent", () => {
     apiMocks.getWords.mockReset();
     apiMocks.getProjects.mockReset();
 
-    apiMocks.getDictionary.mockResolvedValue(
-      jsonResponse({
-        dictionary: {
-          id: "11111111-1111-4111-8111-111111111111",
-          name: "Brand names",
-          description: "Accepted tokens",
-          status: "active",
-          wordsVersion: 1,
-          wordCount: 201,
-          createdAt: "2026-01-01T00:00:00.000Z",
-          updatedAt: "2026-01-01T00:00:00.000Z",
-        },
-      }),
-    );
-    apiMocks.getProjects.mockResolvedValue(jsonResponse({ projects: [] }));
+    apiMocks.getDictionary.mockResolvedValue({
+      dictionary: {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Brand names",
+        description: "Accepted tokens",
+        status: "active",
+        wordsVersion: 1,
+        wordCount: 201,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    });
+    apiMocks.getProjects.mockResolvedValue({ projects: [] });
   });
 
   it("loads later dictionary words when Load more is clicked", async () => {
@@ -87,15 +82,15 @@ describe("DictionaryDetailPageContent", () => {
     apiMocks.getWords.mockImplementation(async (args: { query?: { offset?: string } }) => {
       const offset = Number(args.query?.offset ?? "0");
       if (offset === 0) {
-        return jsonResponse({
+        return {
           words: [{ id: "word-1", locale: "en-US", word: "AuthKit", createdAt: "2026-01-01" }],
           total: 2,
-        });
+        };
       }
-      return jsonResponse({
+      return {
         words: [{ id: "word-2", locale: "en-US", word: "Hyperlocalise", createdAt: "2026-01-01" }],
         total: 2,
-      });
+      };
     });
 
     renderDetailPage();

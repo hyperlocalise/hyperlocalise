@@ -31,7 +31,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
-import { projectQaReportClient } from "@/lib/qa/qa-report-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
 import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
 
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
@@ -97,6 +99,11 @@ export function QaProjectPageContent({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
+  const projectQaReportClient = useMemo(
+    () => createProjectQaReportClient(goSvcClient),
+    [goSvcClient],
+  );
   const [locale, setLocale] = useState("all");
   const [checkType, setCheckType] = useState("all");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -105,16 +112,16 @@ export function QaProjectPageContent({
   const listQuery = useQuery({
     queryKey: listKey,
     queryFn: async () => {
-      const response = await projectQaReportClient.listReports({
-        param: { organizationSlug, projectId },
-      });
-      if (response.status === 400) {
-        throw Object.assign(new Error("unsupported"), { code: "unsupported" });
+      try {
+        const response = await projectQaReportClient.listReports({
+          param: { organizationSlug, projectId },
+        });
+        return response as QaListResponse;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadError)), {
+          cause: error,
+        });
       }
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.loadError));
-      }
-      return (await response.json()) as QaListResponse;
     },
     refetchInterval: (query) =>
       query.state.data?.reports.some(
@@ -131,19 +138,22 @@ export function QaProjectPageContent({
     enabled: Boolean(activeRunId),
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
-      const response = await projectQaReportClient.getRun({
-        param: { organizationSlug, projectId, runId: activeRunId! },
-        query: {
-          locale: locale === "all" ? undefined : locale,
-          checkType: isQaCheckType(checkType) ? checkType : undefined,
-          limit: String(FINDINGS_PAGE_SIZE),
-          offset: String(pageParam),
-        },
-      });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.loadError));
+      try {
+        const response = await projectQaReportClient.getRun({
+          param: { organizationSlug, projectId, runId: activeRunId! },
+          query: {
+            locale: locale === "all" ? undefined : locale,
+            checkType: isQaCheckType(checkType) ? checkType : undefined,
+            limit: String(FINDINGS_PAGE_SIZE),
+            offset: String(pageParam),
+          },
+        });
+        return response as QaDetailResponse;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadError)), {
+          cause: error,
+        });
       }
-      return (await response.json()) as QaDetailResponse;
     },
     getNextPageParam: (lastPage, pages) => {
       const loaded = pages.reduce((count, page) => count + page.findings.length, 0);
@@ -168,7 +178,7 @@ export function QaProjectPageContent({
       await queryClient.invalidateQueries({ queryKey: listKey });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.runError));
+      toast.error(goSvcErrorMessage(error, intl.formatMessage(messages.runError)));
     },
   });
 
@@ -178,10 +188,7 @@ export function QaProjectPageContent({
         param: { organizationSlug, projectId },
         json: { cadence },
       });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.loadError));
-      }
-      return response.json();
+      return response;
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.scheduleSaved));

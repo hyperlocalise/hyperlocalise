@@ -11,64 +11,85 @@
  * Version 2.0 or later.
  */
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { dictionaryClient } from "./client";
+
+import { DEFAULT_GO_SVC_BASE_URL, GoSvcClient } from "@/lib/go-svc/go-svc-client";
+
+import { createDictionaryClient } from "./client";
+
+function createTestClient(fetchMock: ReturnType<typeof vi.fn>) {
+  return createDictionaryClient(
+    new GoSvcClient({
+      getAccessToken: () => "access-token",
+      fetch: fetchMock as unknown as typeof fetch,
+    }),
+  );
+}
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("dictionaryClient", () => {
-  it("calls Go directly with the session cookie and encoded filters", async () => {
+describe("createDictionaryClient", () => {
+  it("calls Go directly with the access token and encoded filters", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{"dictionaries":[],"total":0}'));
-    vi.stubGlobal("fetch", fetchMock);
+    const dictionaryClient = createTestClient(fetchMock);
     await dictionaryClient.list({
       param: { organizationSlug: "acme" },
       query: { limit: "10", offset: "20", projectId: "ext:provider:123" },
     });
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/go-svc/v1/orgs/acme/dictionaries?limit=10&offset=20&projectId=ext%3Aprovider%3A123",
-      { method: "GET", credentials: "same-origin" },
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/dictionaries?limit=10&offset=20&projectId=ext%3Aprovider%3A123`,
     );
+    expect(init.method).toBe("GET");
+    expect(init.credentials).toBe("omit");
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer access-token");
   });
+
   it("serializes mutation payloads", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}"));
-    vi.stubGlobal("fetch", fetchMock);
+    const dictionaryClient = createTestClient(fetchMock);
     await dictionaryClient.addWord({
       param: { organizationSlug: "acme", dictionaryId: "dict" },
       json: { locale: "en-US", word: "Brand" },
     });
-    expect(fetchMock).toHaveBeenCalledWith("/api/go-svc/v1/orgs/acme/dictionaries/dict/words", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: '{"locale":"en-US","word":"Brand"}',
-    });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/dictionaries/dict/words`);
+    expect(init.method).toBe("POST");
+    expect(new Headers(init.headers).get("content-type")).toBe("application/json");
+    expect(init.body).toBe('{"locale":"en-US","word":"Brand"}');
   });
+
   it("encodes project path segments", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}"));
-    vi.stubGlobal("fetch", fetchMock);
+    const dictionaryClient = createTestClient(fetchMock);
     await dictionaryClient.resolvedWords({
       param: { organizationSlug: "acme", projectId: "project/a" },
       query: { locale: "en-US" },
     });
     expect(fetchMock.mock.calls[0][0]).toBe(
-      "/api/go-svc/v1/orgs/acme/projects/project%2Fa/dictionaries/resolved?locale=en-US",
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/project%2Fa/dictionaries/resolved?locale=en-US`,
     );
   });
-  it("preserves errors for the existing UI error reader", async () => {
-    const response = new Response('{"error":"forbidden"}', { status: 403 });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
-    const result = await dictionaryClient.remove({
-      param: { organizationSlug: "acme", dictionaryId: "dict" },
-    });
-    expect(result).toBe(response);
-    expect(result.status).toBe(403);
+
+  it("throws typed errors for failed requests", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('{"error":"forbidden"}', { status: 403 }));
+    const dictionaryClient = createTestClient(fetchMock);
+    await expect(
+      dictionaryClient.remove({ param: { organizationSlug: "acme", dictionaryId: "dict" } }),
+    ).rejects.toMatchObject({ code: "forbidden", status: 403 });
   });
-  it("keeps exports as raw responses", async () => {
-    const response = new Response("Brand\n", { headers: { "Content-Type": "text/plain" } });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+
+  it("returns export metadata and content", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response("Brand\n", { headers: { "Content-Type": "text/plain" } }));
+    const dictionaryClient = createTestClient(fetchMock);
     const result = await dictionaryClient.exportWords({
       param: { organizationSlug: "acme", dictionaryId: "dict" },
       query: { locale: "en-US" },
     });
-    expect(await result.text()).toBe("Brand\n");
+    expect(await result.blob.text()).toBe("Brand\n");
+    expect(result.contentType).toBe("text/plain");
   });
 });

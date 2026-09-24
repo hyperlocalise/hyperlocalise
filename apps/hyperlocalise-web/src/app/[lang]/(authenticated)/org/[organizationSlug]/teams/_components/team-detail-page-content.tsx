@@ -12,18 +12,18 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { TeamRole } from "@/lib/teams/team.schema";
-import { createTeamsApi, type TeamMemberRow } from "./teams-api";
+import { createTeamsApi, type TeamMemberRow, type TeamsApi } from "./teams-api";
 import { toUpdateTeamPayload } from "./team-form";
 import { TeamDetailPageView } from "./team-detail-page-view";
 import { teamDetailPageContentMessages } from "./team-detail-page-content.messages";
-
-const teamsApi = createTeamsApi();
 
 function teamQueryKey(organizationSlug: string, teamId: string) {
   return ["workspace-team", organizationSlug, teamId] as const;
@@ -38,16 +38,19 @@ export function TeamDetailPageContent({
   teamId,
   canManageTeams,
   currentUserWorkosId,
-  teamsApi: injectedTeamsApi = teamsApi,
+  teamsApi: injectedTeamsApi,
 }: {
   organizationSlug: string;
   teamId: string;
   canManageTeams: boolean;
   currentUserWorkosId: string;
-  teamsApi?: typeof teamsApi;
+  teamsApi?: TeamsApi;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
+  const defaultTeamsApi = useMemo(() => createTeamsApi(goSvcClient), [goSvcClient]);
+  const activeTeamsApi = injectedTeamsApi ?? defaultTeamsApi;
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMemberRow | null>(null);
@@ -55,12 +58,30 @@ export function TeamDetailPageContent({
 
   const teamQuery = useQuery({
     queryKey: teamQueryKey(organizationSlug, teamId),
-    queryFn: () => injectedTeamsApi.getTeam(organizationSlug, teamId),
+    queryFn: async () => {
+      try {
+        return await activeTeamsApi.getTeam(organizationSlug, teamId);
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.loadFailed)),
+          { cause: error },
+        );
+      }
+    },
   });
 
   const memberDirectoryQuery = useQuery({
     queryKey: memberDirectoryQueryKey(organizationSlug),
-    queryFn: () => injectedTeamsApi.listMemberDirectory(organizationSlug),
+    queryFn: async () => {
+      try {
+        return await activeTeamsApi.listMemberDirectory(organizationSlug);
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.loadFailed)),
+          { cause: error },
+        );
+      }
+    },
     enabled: isAddMemberOpen,
   });
 
@@ -73,53 +94,61 @@ export function TeamDetailPageContent({
 
   const updateTeam = useMutation({
     mutationFn: (values: { name: string; slug: string }) =>
-      injectedTeamsApi.updateTeam(organizationSlug, teamId, toUpdateTeamPayload(values)),
+      activeTeamsApi.updateTeam(organizationSlug, teamId, toUpdateTeamPayload(values)),
     onSuccess: async () => {
       setIsEditOpen(false);
       await invalidateTeam();
       toast.success(intl.formatMessage(teamDetailPageContentMessages.teamUpdated));
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error(
+        goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.teamUpdated)),
+      );
     },
   });
 
   const addMember = useMutation({
     mutationFn: (input: { workosUserId: string; role: TeamRole }) =>
-      injectedTeamsApi.addTeamMember(organizationSlug, teamId, input),
+      activeTeamsApi.addTeamMember(organizationSlug, teamId, input),
     onSuccess: async () => {
       setIsAddMemberOpen(false);
       await invalidateTeam();
       toast.success(intl.formatMessage(teamDetailPageContentMessages.memberAdded));
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error(
+        goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.memberAdded)),
+      );
     },
   });
 
   const updateMemberRole = useMutation({
     mutationFn: (input: { workosUserId: string; role: TeamRole }) =>
-      injectedTeamsApi.addTeamMember(organizationSlug, teamId, input),
+      activeTeamsApi.addTeamMember(organizationSlug, teamId, input),
     onSuccess: async () => {
       setEditingMember(null);
       await invalidateTeam();
       toast.success(intl.formatMessage(teamDetailPageContentMessages.roleUpdated));
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error(
+        goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.roleUpdated)),
+      );
     },
   });
 
   const removeMember = useMutation({
     mutationFn: (workosUserId: string) =>
-      injectedTeamsApi.removeTeamMember(organizationSlug, teamId, workosUserId),
+      activeTeamsApi.removeTeamMember(organizationSlug, teamId, workosUserId),
     onSuccess: async () => {
       setRemovingMember(null);
       await invalidateTeam();
       toast.success(intl.formatMessage(teamDetailPageContentMessages.memberRemoved));
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error(
+        goSvcErrorMessage(error, intl.formatMessage(teamDetailPageContentMessages.memberRemoved)),
+      );
     },
   });
 

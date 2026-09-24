@@ -31,8 +31,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
-import { workspaceQaReportClient } from "@/lib/qa/qa-report-client";
+import { createWorkspaceQaReportClient } from "@/lib/qa/qa-report-client";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { qaWorkspaceMessages as messages } from "../qa-workspace.messages";
@@ -81,6 +83,11 @@ export function QaWorkspacePageContent({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
+  const workspaceQaReportClient = useMemo(
+    () => createWorkspaceQaReportClient(goSvcClient),
+    [goSvcClient],
+  );
   const [locale, setLocale] = useState("all");
   const [checkType, setCheckType] = useState("all");
   const [projectId, setProjectId] = useState("all");
@@ -88,13 +95,16 @@ export function QaWorkspacePageContent({
   const reportsQuery = useQuery({
     queryKey: ["workspace-qa-reports", organizationSlug],
     queryFn: async () => {
-      const response = await workspaceQaReportClient.listReports({
-        param: { organizationSlug },
-      });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.loadError));
+      try {
+        const response = await workspaceQaReportClient.listReports({
+          param: { organizationSlug },
+        });
+        return response as { reports: WorkspaceQaRow[] };
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadError)), {
+          cause: error,
+        });
       }
-      return (await response.json()) as { reports: WorkspaceQaRow[] };
     },
     refetchInterval: (queryState) =>
       queryState.state.data?.reports.some(
@@ -107,23 +117,26 @@ export function QaWorkspacePageContent({
   const findingsQuery = useInfiniteQuery({
     queryKey: ["workspace-qa-findings", organizationSlug, locale, checkType, projectId],
     queryFn: async ({ pageParam }) => {
-      const response = await workspaceQaReportClient.listFindings({
-        param: { organizationSlug },
-        query: {
-          locale: locale === "all" ? undefined : locale,
-          checkType: isQaCheckType(checkType) ? checkType : undefined,
-          projectId: projectId === "all" ? undefined : projectId,
-          limit: String(FINDINGS_PAGE_SIZE),
-          offset: String(pageParam),
-        },
-      });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.loadError));
+      try {
+        const response = await workspaceQaReportClient.listFindings({
+          param: { organizationSlug },
+          query: {
+            locale: locale === "all" ? undefined : locale,
+            checkType: isQaCheckType(checkType) ? checkType : undefined,
+            projectId: projectId === "all" ? undefined : projectId,
+            limit: String(FINDINGS_PAGE_SIZE),
+            offset: String(pageParam),
+          },
+        });
+        return response as {
+          findings: WorkspaceFinding[];
+          total: number;
+        };
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadError)), {
+          cause: error,
+        });
       }
-      return (await response.json()) as {
-        findings: WorkspaceFinding[];
-        total: number;
-      };
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, pages) => {
