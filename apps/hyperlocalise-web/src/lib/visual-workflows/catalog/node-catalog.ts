@@ -210,21 +210,21 @@ export function getVisualNodeDimensions(type: VisualCatalogType): {
   height: number;
 } {
   if (type === "ai.agent") {
-    return { width: 200, height: 156 };
+    return { width: 280, height: 156 };
   }
   if (type === "logic.if") {
-    return { width: 200, height: 120 };
+    return { width: 280, height: 120 };
   }
   if (type === "logic.switch") {
-    return { width: 200, height: 140 };
+    return { width: 280, height: 140 };
   }
   if (type === "logic.retry") {
-    return { width: 200, height: 140 };
+    return { width: 280, height: 140 };
   }
   if (type.startsWith("trigger.")) {
-    return { width: 200, height: 120 };
+    return { width: 280, height: 120 };
   }
-  return { width: 200, height: 104 };
+  return { width: 280, height: 104 };
 }
 
 export function isTriggerType(type: VisualCatalogType): boolean {

@@ -129,6 +129,10 @@ export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): Work
     for (const assignment of node.config.assignments)
       fields.set(assignment.key, { path: assignment.key, type: "string" });
     for (const [name, binding] of Object.entries(node.inputs ?? {})) {
+      if (binding.kind === "secret") {
+        continue;
+      }
+
       const value = binding.kind === "literal" ? binding.value : undefined;
       const type: WorkflowValueType = Array.isArray(value)
         ? "array"

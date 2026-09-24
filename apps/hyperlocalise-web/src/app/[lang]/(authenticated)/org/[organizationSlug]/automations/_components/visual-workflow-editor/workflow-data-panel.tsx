@@ -38,6 +38,7 @@ import type {
   WorkflowBinding,
 } from "@/lib/visual-workflows/schema/types";
 import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
+import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 
 const HTTP_SECRET_BINDING_PATH = /^(headers|body)\.[A-Za-z0-9_.-]+$/;
 
@@ -180,7 +181,13 @@ export function WorkflowDataPanel({
         />
       </Field>
       {inputFields.map((field) => {
-        const binding = node.data.inputs?.[field.name];
+        const wiredBinding = getVisualWorkflowDataEdgeBinding({
+          nodeId: node.id,
+          portId: field.name,
+          edges,
+        });
+        const binding = wiredBinding ?? node.data.inputs?.[field.name];
+        const isWired = wiredBinding !== undefined;
         return (
           <Field key={field.name}>
             <FieldLabel>
@@ -188,6 +195,7 @@ export function WorkflowDataPanel({
             </FieldLabel>
             <Select
               value={binding?.kind ?? "configuration"}
+              disabled={isWired}
               onValueChange={(value) => {
                 if (value === "reference")
                   change(field.name, {
@@ -214,7 +222,23 @@ export function WorkflowDataPanel({
                 </SelectGroup>
               </SelectContent>
             </Select>
-            {binding?.kind === "reference" ? (
+            {isWired ? (
+              <FieldDescription>
+                {intl.formatMessage(
+                  {
+                    description: "Visual workflow connected data input description",
+                    id: "02ZUVYObvj",
+                    defaultMessage:
+                      "Connected from {nodeId} · {path}. Remove the data wire to configure this input manually.",
+                  },
+                  {
+                    nodeId: wiredBinding.nodeId,
+                    path: wiredBinding.path.join("."),
+                  },
+                )}
+              </FieldDescription>
+            ) : null}
+            {binding?.kind === "reference" && !isWired ? (
               <>
                 <Select
                   value={JSON.stringify([binding.nodeId, binding.path])}

@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, waitFor } from "storybook/test";
+import { expect, userEvent, waitFor } from "storybook/test";
 
 import {
   visualWorkflowDemoDraft,
@@ -41,7 +41,17 @@ const edgeKindsDraft = {
       position: { x: 420, y: 180 },
       data: {
         catalogType: "action.http" as const,
-        config: { kind: "action.http" as const, method: "GET" as const, url: "" },
+        config: {
+          kind: "action.http" as const,
+          method: "GET" as const,
+          url: "https://example.com/api/items",
+        },
+        outputFields: [
+          {
+            path: "items",
+            type: "array" as const,
+          },
+        ],
         runStatus: "idle" as const,
       },
     },
@@ -207,21 +217,80 @@ export const PortCompatibility: Story = {
     playgroundMode: true,
   },
   play: async ({ canvas }) => {
-    const executionInput = canvas.getByLabelText("Execution input");
-    const dataOutput = canvas.getByLabelText("Data output: triggeredAt");
-    const dataInput = canvas.getByLabelText("Data input: url");
+    const executionInput = canvas.getAllByLabelText("Execution input");
+    const dataOutput = canvas.getByLabelText("Data output: triggeredAt, string");
+    const dataInput = canvas.getByLabelText("Data input: url, string");
+    const optionalInput = canvas.getByLabelText("Data input: body, unknown, optional");
+    const arrayInput = canvas.getByLabelText("Data output: items, array");
 
-    await expect(executionInput).toBeInTheDocument();
+    await expect(executionInput).toHaveLength(1);
     await expect(canvas.getAllByLabelText("Execution success")).toHaveLength(2);
+
     await expect(dataOutput).toBeInTheDocument();
     await expect(dataInput).toBeInTheDocument();
-    await expect(canvas.getByText("triggeredAt → url")).toBeInTheDocument();
+    await expect(optionalInput).toBeInTheDocument();
+    await expect(arrayInput).toBeInTheDocument();
 
-    await expect(dataOutput).toHaveAttribute("title", "triggeredAt");
-    await expect(dataInput).toHaveAttribute("title", "url");
+    await expect(
+      canvas.getByTestId("visual-workflow-edge-trigger-request-triggeredAt"),
+    ).toBeInTheDocument();
+
+    await expect(canvas.getByTitle("url: string")).toBeInTheDocument();
+    await expect(canvas.getByTitle("body: unknown (optional)")).toBeInTheDocument();
+
+    for (const type of ["string", "number", "boolean", "object", "array", "unknown"]) {
+      await expect(canvas.getAllByText(type).length).toBeGreaterThan(0);
+    }
+
+    await expect(dataInput.className).toContain("ring-2");
+    await expect(dataOutput.className).toContain("ring-2");
 
     await expect(dataInput.className).toContain("[&.connecting.valid]:bg-emerald-500");
     await expect(dataInput.className).toContain("[&.connecting]:opacity-30");
+
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+
+    const requestNode = canvas.getByTitle("url: string").closest(".react-flow__node");
+    await expect(requestNode).not.toBeNull();
+    await userEvent.click(requestNode!);
+
+    await expect(await canvas.findByLabelText("URL")).toBeDisabled();
+    await expect(
+      canvas.getAllByText(
+        "This value is supplied by a connected data port. Remove the data wire to edit it here.",
+      ).length,
+    ).toBeGreaterThan(0);
+  },
+};
+
+export const TypedDataPortsNarrow: Story = {
+  name: "Typed data ports — narrow viewport",
+  parameters: {
+    viewport: {
+      defaultViewport: "mobile1",
+    },
+    docs: {
+      description: {
+        story:
+          "Verifies typed input and output ports remain readable and usable at a narrow viewport.",
+      },
+    },
+  },
+  args: {
+    initialName: edgeKindsDraft.name,
+    initialNodes: edgeKindsDraft.nodes,
+    initialEdges: edgeKindsDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Data output: triggeredAt, string", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+
+    await expect(canvas.getByLabelText("Data input: url, string")).toBeInTheDocument();
+
+    await expect(canvas.getByLabelText("Data output: items, array")).toBeInTheDocument();
   },
 };
 
