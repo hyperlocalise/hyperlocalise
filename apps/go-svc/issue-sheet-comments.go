@@ -118,8 +118,36 @@ func (api *issueSheetAPI) createComment(ctx context.Context, actor issueSheetAct
 }
 
 func uniqueStrings(values []string) []string {
-	seen := map[string]struct{}{}
-	out := []string{}
+	if len(values) == 0 {
+		return []string{}
+	}
+
+	// BOLT OPTIMIZATION: For small slices (len <= 32), linear scan over out slice
+	// eliminates map allocation and map lookup overhead.
+	if len(values) <= 32 {
+		out := make([]string, 0, len(values))
+		for _, v := range values {
+			v = strings.TrimSpace(v)
+			if v == "" {
+				continue
+			}
+			duplicate := false
+			for _, existing := range out {
+				if existing == v {
+					duplicate = true
+					break
+				}
+			}
+			if !duplicate {
+				out = append(out, v)
+			}
+		}
+		return out
+	}
+
+	// BOLT OPTIMIZATION: Pre-allocate map and slice capacity for larger inputs.
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
 	for _, v := range values {
 		v = strings.TrimSpace(v)
 		if v == "" {
