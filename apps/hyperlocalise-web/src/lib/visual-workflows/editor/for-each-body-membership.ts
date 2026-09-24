@@ -12,17 +12,18 @@
  */
 import type { VisualWorkflowRfEdge } from "../schema/types";
 
-export function computeForEachBodyNodeIds(
-  loopId: string,
+function computeFlowBodyNodeIds(
+  ownerId: string,
   edges: readonly VisualWorkflowRfEdge[],
+  entryHandle: string,
 ): string[] {
   const roots = edges
     .filter(
       (edge) =>
-        edge.data?.kind !== "data" && edge.source === loopId && edge.sourceHandle === "each",
+        edge.data?.kind !== "data" && edge.source === ownerId && edge.sourceHandle === entryHandle,
     )
     .map((edge) => edge.target)
-    .filter((target): target is string => Boolean(target && target !== loopId));
+    .filter((target): target is string => Boolean(target && target !== ownerId));
 
   const body = new Set<string>(roots);
   const queue = [...roots];
@@ -37,7 +38,7 @@ export function computeForEachBodyNodeIds(
 
       const target = edge.target;
 
-      if (!target || target === loopId || body.has(target)) {
+      if (!target || target === ownerId || body.has(target)) {
         continue;
       }
 
@@ -47,4 +48,18 @@ export function computeForEachBodyNodeIds(
   }
 
   return [...body];
+}
+
+export function computeForEachBodyNodeIds(
+  loopId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return computeFlowBodyNodeIds(loopId, edges, "each");
+}
+
+export function computeRetryBodyNodeIds(
+  retryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return computeFlowBodyNodeIds(retryId, edges, "attempt");
 }

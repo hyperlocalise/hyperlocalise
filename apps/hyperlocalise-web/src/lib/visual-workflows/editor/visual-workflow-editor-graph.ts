@@ -25,9 +25,9 @@ import type {
 } from "../schema/types";
 import { collectRemovedSwitchCaseIds, pruneSwitchCaseEdges } from "../schema/switch-cases";
 import { validateVisualWorkflowConnection } from "../validation/validate-connection";
-import { computeForEachBodyNodeIds } from "./for-each-body-membership";
+import { computeForEachBodyNodeIds, computeRetryBodyNodeIds } from "./for-each-body-membership";
 
-export { computeForEachBodyNodeIds } from "./for-each-body-membership";
+export { computeForEachBodyNodeIds, computeRetryBodyNodeIds } from "./for-each-body-membership";
 
 export const VISUAL_TRIGGER_TYPES = VISUAL_NODE_CATALOG.filter(
   (item) => item.enabled && item.category === "trigger",
