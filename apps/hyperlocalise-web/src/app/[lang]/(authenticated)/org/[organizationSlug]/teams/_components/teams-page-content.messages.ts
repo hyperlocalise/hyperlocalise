@@ -17,7 +17,7 @@ import { defineMessages } from "react-intl";
 export const teamsPageContentMessages = defineMessages({
   loadFailed: {
     defaultMessage: "Unable to load teams.",
-    id: 'R+wRT9+VUQ',
+    id: "R+wRT9+VUQ",
     description: "Error loading teams",
   },
   teamCreated: {
