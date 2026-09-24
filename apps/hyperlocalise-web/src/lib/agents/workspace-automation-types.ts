@@ -46,6 +46,11 @@ export const WORKSPACE_AUTOMATION_MODELS = [
   "anthropic/claude-sonnet-5",
   "anthropic/claude-opus-5.5",
   "anthropic/claude-opus-5",
+  "google/gemini-3.8-flash",
+  "google/gemini-3.7-flash",
+  "google/gemini-3.6-flash",
+  "google/gemini-3.5-flash",
+  "google/gemini-3.1-pro-preview",
 ] as const;
 
 export type WorkspaceAutomationModel = (typeof WORKSPACE_AUTOMATION_MODELS)[number];

@@ -121,7 +121,7 @@ export const CreateEmpty: Story = {
       canvas.getByText("Add at least one supported tool to activate this automation."),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Model" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Model" })).toHaveTextContent("GPT-5.6 Luna");
+    await expect(canvas.getByRole("button", { name: "Model" })).toHaveTextContent("GPT-6 Luna");
   },
 };
 
@@ -141,11 +141,21 @@ export const CreateModelOptions: Story = {
   play: async ({ canvas, canvasElement, userEvent }) => {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("button", { name: "Model" }));
-    await expect(await body.findByRole("menuitem", { name: "GPT-5.6 Luna" })).toBeInTheDocument();
+    await expect(await body.findByRole("menuitem", { name: "GPT-6 Luna" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "GPT-6 Astra" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "GPT-6 Sol" })).toBeInTheDocument();
     await expect(body.getByRole("menuitem", { name: "GPT-5.6 Terra" })).toBeInTheDocument();
     await expect(body.getByRole("menuitem", { name: "GPT-5.6 Sol" })).toBeInTheDocument();
     await expect(body.getByRole("menuitem", { name: "Claude Sonnet 5" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Claude Opus 5.5" })).toBeInTheDocument();
     await expect(body.getByRole("menuitem", { name: "Claude Opus 5" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Gemini 3.8 Flash" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Gemini 3.7 Flash" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Gemini 3.6 Flash" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Gemini 3.5 Flash" })).toBeInTheDocument();
+    await expect(
+      body.getByRole("menuitem", { name: "Gemini 3.1 Pro Preview" }),
+    ).toBeInTheDocument();
   },
 };
 

@@ -145,6 +145,24 @@ describe("workspace automation view model", () => {
     );
   });
 
+  it("resolves Google Gemini gateway models with Vercel AI Gateway ids", () => {
+    expect(resolveWorkspaceAutomationModel("google/gemini-3.8-flash")).toBe(
+      "google/gemini-3.8-flash",
+    );
+    expect(resolveWorkspaceAutomationModel("google/gemini-3.7-flash")).toBe(
+      "google/gemini-3.7-flash",
+    );
+    expect(resolveWorkspaceAutomationModel("google/gemini-3.6-flash")).toBe(
+      "google/gemini-3.6-flash",
+    );
+    expect(resolveWorkspaceAutomationModel("google/gemini-3.5-flash")).toBe(
+      "google/gemini-3.5-flash",
+    );
+    expect(resolveWorkspaceAutomationModel("google/gemini-3.1-pro-preview")).toBe(
+      "google/gemini-3.1-pro-preview",
+    );
+  });
+
   it("maps knowledge memories tool into the API payload", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
