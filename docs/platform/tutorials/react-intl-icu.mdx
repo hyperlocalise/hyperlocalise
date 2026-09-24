@@ -1,0 +1,239 @@
+---
+title: "React Intl and ICU"
+description: "Extract React Intl messages, review ICU translations in Cloud, and return runtime catalogs to your app."
+---
+
+This tutorial connects React Intl message descriptors to Hyperlocalise Cloud. You will extract a stable FormatJS catalog, protect ICU structure, review translations, and load the returned catalogs in React.
+
+## Prerequisites
+
+You need:
+
+- a React app using `react-intl`;
+- the [Hyperlocalise CLI](/cli/getting-started/install);
+- a Cloud project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
+
+The example uses this layout:
+
+```text
+.
+├── src/components/saved-filters.messages.ts
+├── lang/
+│   ├── en-US.json
+│   ├── fr-FR.json
+│   └── de-DE.json
+└── i18n.yml
+```
+
+## 1. Define stable messages
+
+Keep user-facing copy in descriptors with explicit IDs and translator descriptions:
+
+```tsx
+import { defineMessages } from "react-intl";
+
+export const savedFiltersMessages = defineMessages({
+  title: {
+    id: "filters.saved.title",
+    defaultMessage: "Saved filters",
+    description: "Heading above the user's saved filters",
+  },
+  count: {
+    id: "filters.saved.count",
+    defaultMessage:
+      "{count, plural, =0 {No saved filters} one {# saved filter} other {# saved filters}}",
+    description: "Summary of how many filters the user saved",
+  },
+});
+```
+
+Render the descriptor with values:
+
+```tsx
+import { FormattedMessage } from "react-intl";
+import { savedFiltersMessages } from "./saved-filters.messages";
+
+export function SavedFilterCount({ count }: { count: number }) {
+  return <FormattedMessage {...savedFiltersMessages.count} values={{ count }} />;
+}
+```
+
+ICU keeps all plural branches in one message. Translators may change the prose, but they must preserve the `count` argument and valid plural syntax.
+
+## 2. Map the catalogs
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - de-DE
+
+buckets:
+  web:
+    files:
+      - from: lang/{{source}}.json
+        to: lang/{{target}}.json
+
+hyperlocalise:
+  project_id_env: HYPERLOCALISE_PROJECT_ID
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+```
+
+Hyperlocalise recognizes strict FormatJS JSON. It translates `defaultMessage` and preserves message IDs, descriptions, and other metadata.
+
+## 3. Extract the source catalog
+
+Run:
+
+```bash
+hl extract src \
+  --out-file lang/en-US.json \
+  --ignore "**/*.test.ts" \
+  --ignore "**/*.test.tsx" \
+  --ignore "**/*.stories.tsx"
+```
+
+The catalog contains one entry per descriptor:
+
+```json
+{
+  "filters.saved.count": {
+    "defaultMessage": "{count, plural, =0 {No saved filters} one {# saved filter} other {# saved filters}}",
+    "description": "Summary of how many filters the user saved"
+  }
+}
+```
+
+Commit `lang/en-US.json` with the code change. This makes catalog drift visible in pull requests and gives Cloud a file to sync.
+
+<Note>
+If you omit an `id`, `hl extract` generates a FormatJS-compatible hash. Explicit IDs produce easier diffs and more recognizable entries in review.
+</Note>
+
+## 4. Prevent extract drift in CI
+
+Re-run extraction in the source pull request and fail when it changes the committed catalog:
+
+```yaml
+- uses: hyperlocalise/hyperlocalise/install@v1
+  with:
+    version: latest
+
+- name: Verify React Intl catalog
+  run: |
+    hl extract src \
+      --out-file lang/en-US.json \
+      --ignore "**/*.test.ts" \
+      --ignore "**/*.test.tsx" \
+      --ignore "**/*.stories.tsx"
+    git diff --exit-code -- lang/en-US.json
+
+- name: Preview source upload
+  run: hl sync push --dry-run
+  env:
+    HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+    HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+```
+
+This gate catches a changed `defaultMessage` without an updated catalog. The dry run confirms that the catalog maps to the expected Cloud project.
+
+## 5. Push and review the catalog
+
+After the source pull request merges:
+
+```bash
+hl sync push
+```
+
+In Cloud, start generation through a **Source upload** automation or **New Request**. In **Content Editor**, review:
+
+- every required plural category for the target locale;
+- unchanged argument names such as `{count}`;
+- glossary terms in each plural branch;
+- descriptions and screenshots for ambiguous labels; and
+- length in the real interface.
+
+Approve the translations before pulling them back.
+
+## 6. Pull and validate translations
+
+Run:
+
+```bash
+hl sync pull
+hl check --bucket web --quiet
+```
+
+`hl check` catches missing target messages, placeholder mismatches, and `icu_shape_mismatch` errors.
+
+Exercise plural branches in tests:
+
+```tsx
+expect(formatSavedCount("fr-FR", 0)).toBe("Aucun filtre enregistré");
+expect(formatSavedCount("fr-FR", 1)).toBe("1 filtre enregistré");
+expect(formatSavedCount("fr-FR", 5)).toBe("5 filtres enregistrés");
+```
+
+Use values that cover `=0`, `one`, and `other`. Add locale-specific cases when a language has more plural categories.
+
+## 7. Pack catalogs for runtime
+
+FormatJS catalogs contain review metadata. Pack target catalogs in place:
+
+```bash
+hl pack --bucket web
+```
+
+The packed entry retains `defaultMessage` and removes its description:
+
+```json
+{
+  "filters.saved.count": {
+    "defaultMessage": "{count, plural, =0 {Aucun filtre enregistré} one {# filtre enregistré} other {# filtres enregistrés}}"
+  }
+}
+```
+
+Convert this shape to the `Record<string, string>` expected by `IntlProvider`:
+
+```tsx
+function toMessages(
+  catalog: Record<string, { defaultMessage: string } | string>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(catalog).map(([id, value]) => [
+      id,
+      typeof value === "string" ? value : value.defaultMessage,
+    ]),
+  );
+}
+```
+
+Open a translation pull request containing the pulled and packed files. Run unit, build, and visual tests before merging it.
+
+## Troubleshooting
+
+### CI reports catalog drift
+
+Run `hl extract` with the same paths and ignore patterns as CI, then commit `lang/en-US.json`.
+
+### `icu_shape_mismatch` appears
+
+Compare argument names and ICU branches with the source. Fix the target in Cloud and approve the new revision. Do not suppress a real ICU mismatch.
+
+### React shows `MISSING_TRANSLATION`
+
+Confirm the message ID exists in the pulled catalog, `hl pack` ran, and the app loads the target locale file passed to `IntlProvider`.
+
+## Next
+
+- [GitHub localisation workflow](/platform/tutorials/github-localisation-workflow)
+- [Vue and vue-i18n](/platform/tutorials/vue-i18n)
+- [`extract` reference](/cli/commands/extract)
+- [`pack` reference](/cli/commands/pack)
+- [`check` reference](/cli/commands/check)

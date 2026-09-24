@@ -1,0 +1,186 @@
+---
+title: "Android string resources"
+description: "Localise Android strings.xml files, plurals, and placeholders through Hyperlocalise Cloud."
+---
+
+This tutorial connects Android `strings.xml` resources to Hyperlocalise Cloud. The CLI translates `<string>` and `<plurals>` resources while preserving comments, namespaces, attributes, and Android placeholders.
+
+## Prerequisites
+
+You need:
+
+- an Android app with resources under `app/src/main/res`;
+- the [Hyperlocalise CLI](/cli/getting-started/install);
+- a Cloud project with `en` as source and `fr` and `de` as targets; and
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
+
+This tutorial uses language-only Android qualifiers:
+
+```text
+app/src/main/res/
+├── values/strings.xml
+├── values-fr/strings.xml
+└── values-de/strings.xml
+```
+
+For region-specific resources, use valid Android qualifiers such as `values-fr-rFR` or BCP 47 resource directories. Make the locale values in `i18n.yml` resolve to the exact directory names your app uses.
+
+## 1. Define strings and plurals
+
+Create or update `app/src/main/res/values/strings.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- Title on the saved filters screen -->
+    <string name="saved_filters_title">Saved filters</string>
+
+    <!-- Confirmation. The placeholder is the saved filter name. -->
+    <string name="filter_saved">
+        Saved <xliff:g id="filter_name">%1$s</xliff:g>
+    </string>
+
+    <plurals name="saved_filter_count">
+        <item quantity="one">%d saved filter</item>
+        <item quantity="other">%d saved filters</item>
+    </plurals>
+
+    <string name="internal_route" translatable="false">saved-filters</string>
+</resources>
+```
+
+Use resources from Kotlin:
+
+```kotlin
+val title = context.getString(R.string.saved_filters_title)
+val confirmation = context.getString(R.string.filter_saved, filterName)
+val count = resources.getQuantityString(
+    R.plurals.saved_filter_count,
+    savedCount,
+    savedCount,
+)
+```
+
+The parser exposes plural items as keys such as `saved_filter_count.one` and `saved_filter_count.other`. It skips resources marked `translatable="false"`.
+
+## 2. Map Android resource directories
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+  source: en
+  targets:
+    - fr
+    - de
+
+buckets:
+  android:
+    files:
+      - from: app/src/main/res/values/strings.xml
+        to: app/src/main/res/values-{{target}}/strings.xml
+
+hyperlocalise:
+  project_id_env: HYPERLOCALISE_PROJECT_ID
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+```
+
+Android resource paths are special. Hyperlocalise selects the Android parser only for files named `strings.xml` under `res/values*`.
+
+## 3. Check source resources
+
+Build the app and preview the upload:
+
+```bash
+./gradlew lint test
+hl sync push --dry-run
+```
+
+Before merging, confirm:
+
+- every UI literal lives in a string resource;
+- formatting arguments use stable positional forms such as `%1$s`;
+- plural calls pass both the quantity and formatting value;
+- non-user-facing values use `translatable="false"`; and
+- the file contains only supported translatable resource shapes.
+
+<Warning>
+Hyperlocalise fails on translatable `<string-array>` resources instead of silently dropping them. Move those entries into supported strings, split them into another file and workflow, or keep them outside this bucket.
+</Warning>
+
+## 4. Push and review resources
+
+After merge:
+
+```bash
+hl sync push
+```
+
+Start translation with a **Source upload** automation or **New Request**. In **Content Editor**, review:
+
+- `%1$s`, `%d`, and `<xliff:g>` placeholders;
+- each target locale's required plural categories;
+- UI length on small screens;
+- capitalization conventions for Android controls; and
+- comments that explain where the resource appears.
+
+Approve the target translations after review.
+
+## 5. Pull and check target resources
+
+Run:
+
+```bash
+hl sync pull
+hl check --bucket android --quiet
+```
+
+The pull creates:
+
+```text
+app/src/main/res/values-fr/strings.xml
+app/src/main/res/values-de/strings.xml
+```
+
+Comments, namespaces, attributes such as `formatted`, and `translatable="false"` resources remain intact. Hyperlocalise replaces only supported translatable values.
+
+Open a translation pull request with these files.
+
+## 6. Test Android resource resolution
+
+Run:
+
+```bash
+./gradlew lint test assembleDebug
+```
+
+Then change the emulator or device language and verify:
+
+1. Android loads the target `values-*` directory.
+2. Every placeholder renders with a real value.
+3. `getQuantityString` selects correct plural forms for `0`, `1`, `2`, and larger values.
+4. Text fits phones, tablets, and large font scales.
+5. Right-to-left layouts work when you add an RTL locale.
+
+Keep translation pull requests behind the same build and screenshot tests as feature code.
+
+## Troubleshooting
+
+### Hyperlocalise treats the file as generic XML
+
+The source and target must be named `strings.xml` and live under `res/values*`. Generic XML intentionally rejects Android `<resources>` files.
+
+### Pull fails on `<string-array>`
+
+The Android parser supports `<string>` and `<plurals>`. It fails closed on unsupported translatable resource shapes so content cannot disappear unnoticed.
+
+### A locale falls back to the source
+
+Check that the generated folder uses a valid Android qualifier and that the device locale matches it. Compare the resolved `to` path from `hl sync pull --dry-run` with the app's resource tree.
+
+## Next
+
+- [GitHub localisation workflow](/platform/tutorials/github-localisation-workflow)
+- [iOS Strings](/platform/tutorials/ios-strings)
+- [i18n configuration](/cli/configuration/i18n-config#android-xml-string-resource-mappings)

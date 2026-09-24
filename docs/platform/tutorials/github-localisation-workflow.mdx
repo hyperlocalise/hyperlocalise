@@ -1,0 +1,242 @@
+---
+title: "GitHub localisation workflow"
+description: "Move source files from a pull request through Cloud review and return approved translations to git."
+---
+
+This tutorial connects a GitHub repository to Hyperlocalise Cloud. Engineers keep source content in git, reviewers approve language in Cloud, and approved translations return through a pull request.
+
+By the end, your repository will:
+
+1. preview source uploads on pull requests;
+2. push merged source files to Hyperlocalise;
+3. pull reviewed translations into a separate branch; and
+4. test the exact files that ship.
+
+## Prerequisites
+
+You need:
+
+- a Hyperlocalise project with `en-US` as the source locale;
+- `fr-FR` and `de-DE` as target locales;
+- an organization API key with file read and write permissions;
+- the project ID from **Project settings** → **Connect CLI & CI**; and
+- permission to add GitHub Actions workflows and secrets.
+
+Read [Connect the CLI](/platform/cli) if you have not created an API key yet.
+
+## 1. Map repository files
+
+This example keeps product copy and release notes in separate buckets:
+
+```text
+.
+├── .github/workflows/localise.yml
+├── locales/
+│   ├── en-US.json
+│   ├── fr-FR.json
+│   └── de-DE.json
+├── release-notes/
+│   ├── en-US/
+│   ├── fr-FR/
+│   └── de-DE/
+└── i18n.yml
+```
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - de-DE
+
+buckets:
+  product:
+    files:
+      - from: locales/{{source}}.json
+        to: locales/{{target}}.json
+  release-notes:
+    files:
+      - from: release-notes/{{source}}/*.md
+        to: release-notes/{{target}}/*.md
+
+hyperlocalise:
+  project_id_env: HYPERLOCALISE_PROJECT_ID
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+```
+
+Keep the API key in GitHub secrets. The project ID is not a credential, but using a secret or environment variable lets the same repository target different projects.
+
+## 2. Add repository secrets
+
+In GitHub, open **Settings** → **Secrets and variables** → **Actions**. Add:
+
+- `HYPERLOCALISE_API_KEY`
+- `HYPERLOCALISE_PROJECT_ID`
+
+Use a protected GitHub environment such as `localisation` when production sync requires approval.
+
+## 3. Preview source changes on pull requests
+
+Create `.github/workflows/localise.yml`:
+
+```yaml
+name: Localise
+
+on:
+  pull_request:
+    paths:
+      - "i18n.yml"
+      - "locales/**"
+      - "release-notes/**"
+      - ".github/workflows/localise.yml"
+  push:
+    branches: [main]
+    paths:
+      - "i18n.yml"
+      - "locales/en-US.json"
+      - "release-notes/en-US/**"
+  workflow_dispatch:
+
+jobs:
+  preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hyperlocalise/hyperlocalise/install@v1
+        with:
+          version: latest
+
+      - name: Preview source upload
+        run: hl sync push --dry-run
+        env:
+          HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+          HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+```
+
+The dry run validates configuration and shows which source files the merge would upload. It does not change Cloud.
+
+Add your framework's extraction or source-file validation before this step. For example, a React app should verify that its extracted FormatJS catalog matches the code.
+
+## 4. Push sources after merge
+
+Add this job to the same workflow:
+
+```yaml
+  push-sources:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: localisation
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hyperlocalise/hyperlocalise/install@v1
+        with:
+          version: latest
+
+      - name: Push source files
+        run: hl sync push
+        env:
+          HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+          HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+```
+
+`sync push` uploads source files only. It does not start a translation job. In Cloud, add a **Source upload** automation or create a request after the upload.
+
+## 5. Review and approve in Cloud
+
+Open the project after the source job completes:
+
+1. Confirm the new source versions under **Files**.
+2. Start generation through your automation or **New Request**.
+3. Open **Content Editor**.
+4. Review terminology, placeholders, formatting, and product context.
+5. Approve the target translations.
+
+Use project [Knowledge](/platform/knowledge) for product instructions, glossaries, and translation memory. Approval is the language gate; the next pull records that approved state in git.
+
+## 6. Pull translations into a pull request
+
+Add a manual pull job:
+
+```yaml
+  pull-translations:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: localisation
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hyperlocalise/hyperlocalise/install@v1
+        with:
+          version: latest
+
+      - name: Pull reviewed translations
+        run: |
+          hl sync pull
+          hl check --quiet
+        env:
+          HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+          HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+
+      - name: Create translation pull request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          branch: hyperlocalise/reviewed-translations
+          delete-branch: true
+          commit-message: "chore(i18n): sync reviewed translations"
+          title: "chore(i18n): sync reviewed translations"
+          body: |
+            Pulls reviewed translations from Hyperlocalise.
+            Verify placeholders, terminology, rendering, and locale coverage.
+          labels: localization
+```
+
+`hl check --quiet` fails on errors such as missing translations, placeholder mismatches, and malformed ICU. Warning-only findings do not block the pull.
+
+For production workflows, pin third-party actions to immutable commit SHAs according to your dependency policy.
+
+## 7. Test what will ship
+
+Require your application tests on the translation pull request. Check:
+
+- every target file exists;
+- placeholders match the source;
+- translated UI fits supported layouts;
+- links and Markdown structure remain valid;
+- product copy and release notes use the same terminology; and
+- the build imports the files changed by the pull.
+
+Merge only after automated and visual checks pass. Git now contains the exact approved language state used by the release.
+
+## Troubleshooting
+
+### The push job cannot authenticate
+
+Confirm both environment variables exist in the selected GitHub environment. Protected environments may wait for approval before exposing secrets.
+
+### Pull creates no changes
+
+Confirm translations exist in the project selected by `HYPERLOCALISE_PROJECT_ID`. Then run `hl sync pull --dry-run` and check the target paths in `i18n.yml`.
+
+### A pull request reports missing translations
+
+Run `hl check` after `sync pull`, not on a source-only feature branch that intentionally precedes translation. Keep source validation and translation validation as separate gates.
+
+## Next
+
+- [React Intl and ICU](/platform/tutorials/react-intl-icu)
+- [Connect the CLI](/platform/cli)
+- [Content Editor](/platform/cat)
+- [CI automation](/cli/workflows/ci-automation)
