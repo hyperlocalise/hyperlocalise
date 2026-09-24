@@ -100,6 +100,20 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     mock: {},
   },
+  "logic.retry": {
+    inputs: [
+      field("maxAttempts", "number", false),
+      field("initialDelayMs", "number", false),
+      field("backoffMultiplier", "number", false),
+    ],
+    outputs: [
+      output("attemptNumber", "number"),
+      output("exhausted", "boolean"),
+      output("lastErrorCode", "string", true),
+      output("lastErrorMessage", "string", true),
+    ],
+    mock: { attemptNumber: 1, exhausted: false },
+  },
 };
 export function matchesWorkflowType(value: unknown, type: WorkflowValueType): boolean {
   if (type === "unknown") return true;

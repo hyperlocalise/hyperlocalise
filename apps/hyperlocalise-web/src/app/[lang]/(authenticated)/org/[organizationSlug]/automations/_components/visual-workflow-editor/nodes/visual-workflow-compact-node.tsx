@@ -97,7 +97,9 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         ? intl.formatMessage(messages.switchCaseHandle, { index: 1 })
         : data.catalogType === "logic.for_each"
           ? intl.formatMessage(messages.eachHandle)
-          : null;
+          : data.catalogType === "logic.retry"
+            ? intl.formatMessage(messages.attemptHandle)
+            : null;
 
   const addFromHandle = (handleId?: string) => {
     onAddFromNode({
@@ -201,6 +203,30 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Done"
           />
         </>
+      ) : data.catalogType === "logic.retry" ? (
+        <>
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[28%]!")}
+            id="attempt"
+            position={Position.Right}
+            type="source"
+            aria-label="Attempt"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[50%]!")}
+            id="succeeded"
+            position={Position.Right}
+            type="source"
+            aria-label="Succeeded"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[72%]! bg-muted-foreground")}
+            id="exhausted"
+            position={Position.Right}
+            type="source"
+            aria-label="Exhausted"
+          />
+        </>
       ) : isSwitch ? (
         switchHandles.map((handle, index) => (
           <Handle
@@ -281,6 +307,39 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           </span>
         </div>
       ) : null}
+      {data.catalogType === "logic.retry" ? (
+        <div className="pointer-events-none absolute inset-y-0 right-[-5.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+          <span>
+            <FormattedMessage {...messages.attemptHandle} />
+          </span>
+          <span className="flex items-center gap-1">
+            <FormattedMessage {...messages.succeededHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="succeeded"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.succeededHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
+          </span>
+          <span className="flex items-center gap-1">
+            <FormattedMessage {...messages.exhaustedHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="exhausted"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.exhaustedHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
+          </span>
+        </div>
+      ) : null}
       {data.runStatus && data.runStatus !== "idle" ? (
         <p className="mt-2 text-center text-xs text-muted-foreground" role="status">
           {intl.formatMessage(nodeStatusMessages[data.runStatus])}
@@ -304,7 +363,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </div>
       ) : null}
 
-      {showErrorHandle && !isIf && !isSwitch ? (
+      {showErrorHandle && !isIf && !isSwitch && data.catalogType !== "logic.retry" ? (
         <div className="pointer-events-none absolute top-[72%] right-[-4.5rem] flex items-center gap-1 text-[10px] font-medium text-destructive">
           <FormattedMessage {...messages.errorHandle} />
           {data.hideAddAction ? null : (
@@ -368,5 +427,7 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeAi;
     case "logic.for_each":
       return messages.nodeLoop;
+    case "logic.retry":
+      return messages.nodeRetry;
   }
 }

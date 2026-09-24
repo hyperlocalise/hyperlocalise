@@ -1,0 +1,51 @@
+# syntax=docker/dockerfile:1
+# Go container service build for Amazon ECS. Build context is the repository root.
+#
+# This is intentionally separate from Dockerfile.vercel so ECS image changes
+# can evolve independently from the Vercel service image.
+
+FROM golang:1.27.1-bookworm AS builder
+WORKDIR /repo
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates=20250419~deb12u1 \
+        git=1:2.39.5-0+deb12u3 \
+        libhunspell-dev=1.7.1-1 \
+        pkg-config=1.8.1-1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY go.mod go.sum ./
+COPY third_party ./third_party
+COPY internal ./internal
+COPY apps/go-svc ./apps/go-svc
+
+RUN go mod download
+RUN CGO_ENABLED=1 GOOS=linux go build -tags cgo_hunspell -o /dev/null ./apps/go-svc/internal/hunspell
+RUN CGO_ENABLED=1 GOOS=linux go build -tags cgo_hunspell -trimpath -ldflags="-s -w" -o /service ./apps/go-svc
+
+RUN set -eux; \
+    triplet="$(gcc -dumpmachine)"; \
+    mkdir -p "/runtime-libs/usr/lib/${triplet}"; \
+    cp -P "/usr/lib/${triplet}/libhunspell-1.7.so.0" "/usr/lib/${triplet}/libhunspell-1.7.so.0.0.1" "/runtime-libs/usr/lib/${triplet}/"
+
+RUN bash apps/go-svc/build/fetch-dictionaries.sh /repo /dictionaries-staging/hunspell /dictionaries-staging/licenses
+
+# Upstream archives can contain restrictive modes. ECS runs the service as
+# nonroot, so every dictionary must be readable in the final image.
+RUN chmod 0644 /dictionaries-staging/hunspell/*.aff /dictionaries-staging/hunspell/*.dic
+
+# Fail the image build if the complete supported dictionary set is not staged.
+RUN set -eux; \
+    test "$(find /dictionaries-staging/hunspell -maxdepth 1 -type f -name '*.aff' | wc -l)" -eq 20; \
+    test "$(find /dictionaries-staging/hunspell -maxdepth 1 -type f -name '*.dic' | wc -l)" -eq 20; \
+    find /dictionaries-staging/hunspell -maxdepth 1 -type f \( -name '*.aff' -o -name '*.dic' \) -exec test -r {} \;
+
+FROM gcr.io/distroless/cc-debian12:nonroot
+WORKDIR /
+COPY --from=builder /service /service
+COPY --from=builder /runtime-libs/ /
+COPY --from=builder /dictionaries-staging/hunspell/ /usr/share/hunspell/
+COPY --from=builder /dictionaries-staging/licenses/ /usr/share/doc/hunspell-dictionaries/
+EXPOSE 8080
+USER nonroot:nonroot
+ENTRYPOINT ["/service"]

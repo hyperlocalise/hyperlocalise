@@ -172,6 +172,101 @@ describe("validateVisualWorkflowGraph", () => {
       ]),
     );
   });
+
+  it("rejects retry inside for-each and for-each inside retry", () => {
+    const retryInLoop = toVisualWorkflowDefinition({
+      name: "Retry in loop",
+      nodes: [
+        node("t", "trigger.manual"),
+        {
+          ...node("loop", "logic.for_each"),
+          data: { ...node("loop", "logic.for_each").data, bodyNodeIds: ["retry"] },
+        },
+        {
+          ...node("retry", "logic.retry"),
+          data: { ...node("retry", "logic.retry").data, bodyNodeIds: ["body"] },
+        },
+        node("body", "logic.set"),
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "loop" },
+        { id: "e2", source: "loop", target: "retry", sourceHandle: "each" },
+        { id: "e3", source: "retry", target: "body", sourceHandle: "attempt" },
+      ],
+    });
+    const loopInRetry = toVisualWorkflowDefinition({
+      name: "Loop in retry",
+      nodes: [
+        node("t", "trigger.manual"),
+        {
+          ...node("retry", "logic.retry"),
+          data: { ...node("retry", "logic.retry").data, bodyNodeIds: ["loop"] },
+        },
+        node("loop", "logic.for_each"),
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "retry" },
+        { id: "e2", source: "retry", target: "loop", sourceHandle: "attempt" },
+      ],
+    });
+
+    expect(validateVisualWorkflowDefinition(retryInLoop)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "retry_foreach_nesting", nodeId: "retry" }),
+      ]),
+    );
+    expect(validateVisualWorkflowDefinition(loopInRetry)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "retry_foreach_nesting", nodeId: "loop" }),
+      ]),
+    );
+  });
+
+  it("requires duplicate-risk acknowledgement for non-idempotent retry bodies", () => {
+    const definition = toVisualWorkflowDefinition({
+      name: "Risky retry",
+      nodes: [
+        node("t", "trigger.manual"),
+        {
+          ...node("retry", "logic.retry"),
+          data: {
+            ...node("retry", "logic.retry").data,
+            bodyNodeIds: ["http"],
+            config: {
+              kind: "logic.retry",
+              maxAttempts: 3,
+              initialDelayMs: 1000,
+              backoffMultiplier: 2,
+              jitter: true,
+              acknowledgeDuplicateRisk: false,
+            },
+          },
+        },
+        {
+          ...node("http", "action.http"),
+          data: {
+            ...node("http", "action.http").data,
+            config: {
+              kind: "action.http",
+              method: "POST",
+              url: "https://example.test/write",
+              onError: "stop",
+            },
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "retry" },
+        { id: "e2", source: "retry", target: "http", sourceHandle: "attempt" },
+      ],
+    });
+
+    expect(validateVisualWorkflowDefinition(definition)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "non_idempotent_retry", nodeId: "retry" }),
+      ]),
+    );
+  });
 });
 
 describe("visualWorkflowDefinitionSchema", () => {

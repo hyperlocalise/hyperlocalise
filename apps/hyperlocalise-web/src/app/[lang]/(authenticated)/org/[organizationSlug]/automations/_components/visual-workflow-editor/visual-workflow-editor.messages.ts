@@ -455,6 +455,76 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "zZIbqHg71N",
     description: "Workflow loop completion connection",
   },
+  nodeRetry: {
+    defaultMessage: "Retry",
+    id: "2RORR1xT6r",
+    description: "Retry policy node title",
+  },
+  nodeRetryHint: {
+    defaultMessage: "Re-run a body region with backoff",
+    id: "L+aQftO9Id",
+    description: "Retry policy node picker hint",
+  },
+  attemptHandle: {
+    defaultMessage: "Attempt",
+    id: "akMqVdhYbU",
+    description: "Retry body connection",
+  },
+  succeededHandle: {
+    defaultMessage: "Succeeded",
+    id: "r9cem/tyVw",
+    description: "Retry success exit",
+  },
+  exhaustedHandle: {
+    defaultMessage: "Exhausted",
+    id: "gJ4nnkkpNU",
+    description: "Retry exhaustion exit",
+  },
+  retryMaxAttempts: {
+    defaultMessage: "Max attempts",
+    id: "+fsq3dqMqp",
+    description: "Retry policy max attempts field",
+  },
+  retryInitialDelay: {
+    defaultMessage: "Initial delay (ms)",
+    id: "oE/d+yPnQC",
+    description: "Retry initial delay field",
+  },
+  retryBackoffMultiplier: {
+    defaultMessage: "Backoff multiplier",
+    id: "HoA+8TKVfD",
+    description: "Retry exponential backoff multiplier",
+  },
+  retryAcknowledgeDuplicateRisk: {
+    defaultMessage: "Allow duplicate side effects on retry",
+    id: "buLiPCDEq1",
+    description: "Retry non-idempotent acknowledgement checkbox",
+  },
+  nestedRetry: {
+    defaultMessage: "Nested retry regions are not supported.",
+    id: "E+E8CAWOEz",
+    description: "Validation issue for nested retry",
+  },
+  invalidRetry: {
+    defaultMessage: "Fix the retry region wiring and body membership.",
+    id: "9OQEks5YGx",
+    description: "Validation issue for invalid retry graph",
+  },
+  retryForEachNesting: {
+    defaultMessage: "Retry and For each cannot wrap each other.",
+    id: "7pn2UnpCsA",
+    description: "Validation issue for retry/for each nesting",
+  },
+  nonIdempotentRetry: {
+    defaultMessage: "Acknowledge duplicate risk or add idempotency for actions in the retry body.",
+    id: "/8/pZ5ze7R",
+    description: "Validation issue for non-idempotent retry body",
+  },
+  invalidRetryPolicy: {
+    defaultMessage: "Retry policy values are out of range.",
+    id: "bHCCUqEOmY",
+    description: "Validation issue for retry policy config",
+  },
   switchExpression: {
     defaultMessage: "Expression",
     id: "vKVR+7LwqC",

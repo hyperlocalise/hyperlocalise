@@ -115,12 +115,20 @@ export function WorkflowDataPanel({
             }).some((declared) => declared.path === field.path),
         ),
       ]
-        .filter(
-          (field) =>
-            candidate.data.catalogType !== "logic.for_each" ||
-            !["item", "index"].includes(field.path) ||
-            candidate.data.bodyNodeIds?.includes(node.id),
-        )
+        .filter((field) => {
+          const inBody = candidate.data.bodyNodeIds?.includes(node.id);
+          if (candidate.data.catalogType === "logic.for_each") {
+            if (["item", "index"].includes(field.path)) {
+              return inBody;
+            }
+          }
+          if (candidate.data.catalogType === "logic.retry") {
+            if (field.path === "attemptNumber") {
+              return inBody;
+            }
+          }
+          return true;
+        })
         .map((field) => ({
           nodeId: candidate.id,
           path: field.path
@@ -376,15 +384,21 @@ export function WorkflowDataPanel({
           ) : null}
         </Field>
       ) : null}
-      {node.data.catalogType === "logic.for_each" ? (
+      {node.data.catalogType === "logic.for_each" || node.data.catalogType === "logic.retry" ? (
         <>
           <Field>
             <FieldLabel>
-              {intl.formatMessage({
-                description: "Visual workflow editor control",
-                id: "P7iGJ3MOIk",
-                defaultMessage: "Nodes inside Each item",
-              })}
+              {node.data.catalogType === "logic.retry"
+                ? intl.formatMessage({
+                    description: "Visual workflow editor control",
+                    id: "cpyaLTW85o",
+                    defaultMessage: "Nodes inside Attempt",
+                  })
+                : intl.formatMessage({
+                    description: "Visual workflow editor control",
+                    id: "P7iGJ3MOIk",
+                    defaultMessage: "Nodes inside Each item",
+                  })}
             </FieldLabel>
             {nodes
               .filter(

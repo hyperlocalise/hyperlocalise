@@ -68,6 +68,7 @@ jobs:
           registry: ${{ steps.auth.outputs.registry }}
           repository: ${{ steps.params.outputs.ecr-repository }}
           tag: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          dockerfile: ./apps/go-svc/Dockerfile.ecs
 
       - name: Deploy new image to ECS
         uses: ./.github/actions/ecs-deploy

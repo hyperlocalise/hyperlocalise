@@ -164,6 +164,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeAi;
     case "logic.for_each":
       return messages.nodeLoop;
+    case "logic.retry":
+      return messages.nodeRetry;
   }
 }
 
@@ -193,6 +195,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeAiHint;
     case "logic.for_each":
       return messages.nodeLoopHint;
+    case "logic.retry":
+      return messages.nodeRetryHint;
   }
 }
 

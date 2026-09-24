@@ -25,6 +25,12 @@ describe("toVercelAiGatewayModelId", () => {
     );
   });
 
+  it("maps Gemini native ids to the Google gateway prefix", () => {
+    expect(toVercelAiGatewayModelId({ provider: "gemini", model: "gemini-2.5-pro" })).toBe(
+      "google/gemini-2.5-pro",
+    );
+  });
+
   it("maps Anthropic native ids to gateway dotted versions", () => {
     expect(toVercelAiGatewayModelId({ provider: "anthropic", model: "claude-sonnet-4-6" })).toBe(
       "anthropic/claude-sonnet-4.6",
@@ -42,11 +48,27 @@ describe("toVercelAiGatewayModelId", () => {
       toVercelAiGatewayModelId({ provider: "anthropic", model: "anthropic/claude-sonnet-4-6" }),
     ).toBe("anthropic/claude-sonnet-4.6");
   });
+
+  it("returns empty and whitespace-only models unchanged", () => {
+    expect(toVercelAiGatewayModelId({ provider: "openai", model: "" })).toBe("");
+    expect(toVercelAiGatewayModelId({ provider: "openai", model: "   " })).toBe("");
+  });
 });
 
 describe("normalizeVercelAiGatewayModelId", () => {
   it("leaves non-Anthropic gateway ids unchanged", () => {
     expect(normalizeVercelAiGatewayModelId("openai/gpt-6-luna")).toBe("openai/gpt-6-luna");
+  });
+
+  it("trims whitespace and leaves bare model ids unchanged", () => {
+    expect(normalizeVercelAiGatewayModelId("  openai/gpt-6-luna  ")).toBe("openai/gpt-6-luna");
+    expect(normalizeVercelAiGatewayModelId("gpt-6-luna")).toBe("gpt-6-luna");
+  });
+
+  it("rewrites hyphenated Anthropic gateway versions to dotted form", () => {
+    expect(normalizeVercelAiGatewayModelId("anthropic/claude-opus-5-5")).toBe(
+      "anthropic/claude-opus-5.5",
+    );
   });
 });
 
@@ -65,7 +87,14 @@ describe("matchVercelAiGatewayModelId", () => {
     );
   });
 
+  it("trims whitespace before matching", () => {
+    expect(matchVercelAiGatewayModelId("  anthropic/claude-opus-5-5  ", allowed)).toBe(
+      "anthropic/claude-opus-5.5",
+    );
+  });
+
   it("returns null when no allowed id matches", () => {
     expect(matchVercelAiGatewayModelId("anthropic/claude-opus-4", allowed)).toBeNull();
+    expect(matchVercelAiGatewayModelId("claude-opus-5.5", allowed)).toBeNull();
   });
 });
