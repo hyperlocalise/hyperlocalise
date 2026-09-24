@@ -699,6 +699,52 @@ export function Label() {
 			},
 		},
 		{
+			name: "paren then dynamic concat is not extracted",
+			source: `
+import { defineMessage } from "react-intl";
+
+const name = "Ada";
+export const message = defineMessage({
+  id: "msg.paren-dynamic",
+  defaultMessage: ("Hello ") + name,
+});
+`,
+			want: map[string]extractCatalogMessage{},
+		},
+		{
+			name: "jsx children decode html entities",
+			source: `
+import { FormattedMessage } from "react-intl";
+
+export function Label() {
+  return (
+    <FormattedMessage id="msg.entities">
+      Tom &amp; Jerry
+    </FormattedMessage>
+  );
+}
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.entities": {DefaultMessage: "Tom & Jerry"},
+			},
+		},
+		{
+			name: "unicode combining-mark key",
+			source: `
+import { defineMessages } from "react-intl";
+
+export const messages = defineMessages({
+  शीर्षक: {
+    id: "msg.devanagari",
+    defaultMessage: "Title",
+  },
+});
+`,
+			want: map[string]extractCatalogMessage{
+				"msg.devanagari": {DefaultMessage: "Title"},
+			},
+		},
+		{
 			name: "dynamic concat is not extracted",
 			source: `
 import { defineMessage } from "react-intl";
@@ -1585,9 +1631,12 @@ func TestParseStaticMessageExpression(t *testing.T) {
 		{name: "template concat", src: "`Hello ` + \"world\"", want: "Hello world", ok: true},
 		{name: "as const", src: `"Hello" as const`, want: "Hello", ok: true},
 		{name: "parens", src: `("Hello " + "world")`, want: "Hello world", ok: true},
+		{name: "paren then static concat", src: `("Hello ") + "world"`, want: "Hello world", ok: true},
 		{name: "array", src: `["Hello ", "world"]`, want: "Hello world", ok: true},
 		{name: "array concat elements", src: `["Hello ", "wo" + "rld"]`, want: "Hello world", ok: true},
 		{name: "dynamic concat", src: `"Hello " + name`, ok: false},
+		{name: "paren then dynamic concat", src: `("Hello ") + name`, ok: false},
+		{name: "array then dynamic concat", src: `["Hello "] + name`, ok: false},
 		{name: "interpolated template", src: "`Hello ${name}`", ok: false},
 		{name: "empty array", src: `[]`, ok: false},
 	}
@@ -1621,6 +1670,7 @@ func TestReadObjectPropertyKey(t *testing.T) {
 		{name: "hex bigint", src: "0x10n:", want: "0x10n", ok: true},
 		{name: "bigint", src: "0n:", want: "0n", ok: true},
 		{name: "unicode", src: "标题:", want: "标题", ok: true},
+		{name: "unicode combining marks", src: "शीर्षक:", want: "शीर्षक", ok: true},
 		{name: "computed", src: "[Enum.Value]:", want: "", ok: true},
 		{name: "invalid", src: ":", want: "", ok: false},
 	}

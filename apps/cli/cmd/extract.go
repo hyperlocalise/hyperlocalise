@@ -1101,13 +1101,33 @@ func parseStaticMessageExpression(src string, index, end int) (string, int, bool
 			return "", index, false
 		}
 
-		return value, closeParen + 1, true
+		return continueStaticStringConcat(src, closeParen+1, end, value)
 	}
 	if src[i] == '[' {
-		return parseStaticStringArray(src, i, end)
+		value, next, ok := parseStaticStringArray(src, i, end)
+		if !ok {
+			return "", index, false
+		}
+
+		return continueStaticStringConcat(src, next, end, value)
 	}
 
 	return parseStaticStringConcat(src, i, end)
+}
+
+func continueStaticStringConcat(src string, index, end int, prefix string) (string, int, bool) {
+	i := skipTSConstAssertion(src, index, end)
+	i = skipWhitespaceAndComments(src, i)
+	if i >= end || src[i] != '+' {
+		return prefix, i, true
+	}
+
+	rest, next, ok := parseStaticStringConcat(src, i+1, end)
+	if !ok {
+		return "", index, false
+	}
+
+	return prefix + rest, next, true
 }
 
 func parseStaticStringConcat(src string, index, end int) (string, int, bool) {
@@ -1208,6 +1228,9 @@ func readStaticJSXTextChildren(src string, start int, name string) (string, bool
 	inner := strings.TrimSpace(src[start:closeStart])
 	if inner == "" || strings.Contains(inner, "{") {
 		return "", false
+	}
+	if strings.IndexByte(inner, '&') >= 0 {
+		return html.UnescapeString(inner), true
 	}
 
 	return inner, true
@@ -1779,7 +1802,11 @@ func isIdentifierStartRune(r rune) bool {
 }
 
 func isIdentifierPartRune(r rune) bool {
-	return isIdentifierStartRune(r) || unicode.IsDigit(r) || r == '\u200c' || r == '\u200d'
+	return isIdentifierStartRune(r) ||
+		unicode.IsDigit(r) ||
+		unicode.IsMark(r) ||
+		r == '\u200c' ||
+		r == '\u200d'
 }
 
 func isIdentifierStart(ch byte) bool {
