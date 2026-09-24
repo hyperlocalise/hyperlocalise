@@ -20,7 +20,10 @@ import { projectFileCatValidationMessages } from "./project-file-content-editor-
 
 const testIntl = getIntlShape("en");
 
-function clientWith(fetcher: ReturnType<typeof vi.fn>, getAccessToken = () => "access-token") {
+function clientWith(
+  fetcher: ReturnType<typeof vi.fn>,
+  getAccessToken: () => string | null | undefined = () => "access-token",
+) {
   return new GoSvcClient({
     baseUrl: "https://api.hyperlocalise.com",
     getAccessToken,
