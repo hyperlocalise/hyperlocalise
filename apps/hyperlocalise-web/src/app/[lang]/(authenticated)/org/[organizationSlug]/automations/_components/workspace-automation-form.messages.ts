@@ -1058,6 +1058,31 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "ksdV9RsBoH",
     description: "Label for the Anthropic Claude Opus 5.5 automation model",
   },
+  modelGemini38Flash: {
+    defaultMessage: "Gemini 3.8 Flash",
+    id: "EE7waUBBeR",
+    description: "Label for the Google Gemini 3.8 Flash automation model",
+  },
+  modelGemini37Flash: {
+    defaultMessage: "Gemini 3.7 Flash",
+    id: "j8e6X/c9hq",
+    description: "Label for the Google Gemini 3.7 Flash automation model",
+  },
+  modelGemini36Flash: {
+    defaultMessage: "Gemini 3.6 Flash",
+    id: "YlNYKWNMnX",
+    description: "Label for the Google Gemini 3.6 Flash automation model",
+  },
+  modelGemini35Flash: {
+    defaultMessage: "Gemini 3.5 Flash",
+    id: "TvuxI/JPcp",
+    description: "Label for the Google Gemini 3.5 Flash automation model",
+  },
+  modelGemini31ProPreview: {
+    defaultMessage: "Gemini 3.1 Pro Preview",
+    id: "bwRlaW2gsC",
+    description: "Label for the Google Gemini 3.1 Pro Preview automation model",
+  },
   instructionsPlaceholder: {
     defaultMessage: "Tell the automation what to do, what to inspect, and what to ignore.",
     id: "rkQ7AmKMrt",

@@ -207,6 +207,11 @@ const AUTOMATION_MODEL_MESSAGES = {
   "anthropic/claude-sonnet-5": workspaceAutomationFormMessages.modelClaudeSonnet5,
   "anthropic/claude-opus-5.5": workspaceAutomationFormMessages.modelClaudeOpus55,
   "anthropic/claude-opus-5": workspaceAutomationFormMessages.modelClaudeOpus5,
+  "google/gemini-3.8-flash": workspaceAutomationFormMessages.modelGemini38Flash,
+  "google/gemini-3.7-flash": workspaceAutomationFormMessages.modelGemini37Flash,
+  "google/gemini-3.6-flash": workspaceAutomationFormMessages.modelGemini36Flash,
+  "google/gemini-3.5-flash": workspaceAutomationFormMessages.modelGemini35Flash,
+  "google/gemini-3.1-pro-preview": workspaceAutomationFormMessages.modelGemini31ProPreview,
 } as const;
 
 function ZernioToolIcon() {
