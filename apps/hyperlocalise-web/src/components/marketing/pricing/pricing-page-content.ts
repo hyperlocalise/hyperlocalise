@@ -22,6 +22,8 @@ export type PricingPlanCta = {
 export type PricingPlan = {
   id: PricingPlanId;
   name: string;
+  /** Optional badge beside the plan name (for example Auto-enable on Free). */
+  badge: string | null;
   price: string;
   priceSuffix: string | null;
   description: string;
@@ -75,16 +77,21 @@ export function getPricingPlans(locale: string): PricingPlan[] {
     {
       id: "free",
       name: intl.formatMessage({
-        defaultMessage: "Free",
-        id: "7QPFtqQQDE",
+        defaultMessage: "Free Plan",
+        id: "71I+YToKV7",
         description: "Free plan name on the pricing page",
       }),
+      badge: intl.formatMessage({
+        defaultMessage: "Auto-enable",
+        id: "/a2VqYlgh4",
+        description: "Badge on the Free pricing plan indicating automatic provisioning",
+      }),
       price: intl.formatMessage({
-        defaultMessage: "$0",
-        id: "BBge+5Sj1e",
+        defaultMessage: "Free",
+        id: "UL0g2ZIWhm",
         description: "Free plan price on the pricing page",
       }),
-      priceSuffix: perMonth,
+      priceSuffix: null,
       description: intl.formatMessage({
         defaultMessage: "Evaluate Hyperlocalise with a single-seat workspace.",
         id: "4Xya9zkpLQ",
@@ -113,6 +120,7 @@ export function getPricingPlans(locale: string): PricingPlan[] {
         id: "dBWJx9vBQt",
         description: "Starter plan name on the pricing page",
       }),
+      badge: null,
       price: intl.formatMessage({
         defaultMessage: "$20",
         id: "cTTX9n9kbk",
@@ -147,9 +155,9 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Starter plan feature: seat limit",
         }),
         intl.formatMessage({
-          defaultMessage: "AI features",
-          id: "YtKo2CQ5hL",
-          description: "Growth plan feature: AI feature access",
+          defaultMessage: "AI Feature",
+          id: "EtJmzwZSzn",
+          description: "Paid plan feature: AI feature access",
         }),
         intl.formatMessage({
           defaultMessage: "Queries Board",
@@ -157,14 +165,9 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Starter plan feature: Queries Board access",
         }),
         intl.formatMessage({
-          defaultMessage: "2,000,000 AI tokens per month",
-          id: "hlRvDSySq1",
-          description: "Growth plan feature: AI token quota",
-        }),
-        intl.formatMessage({
-          defaultMessage: "Then $8 per 1,000,000 AI tokens",
-          id: "I5Rr6Z+zyR",
-          description: "Starter plan feature: AI token overage rate",
+          defaultMessage: "$20 per month AI credit",
+          id: "fnuHA5r7aQ",
+          description: "Starter plan feature: included monthly AI credit",
         }),
       ],
       cta: { label: comingSoon, kind: "coming_soon" },
@@ -172,10 +175,11 @@ export function getPricingPlans(locale: string): PricingPlan[] {
     {
       id: "growth",
       name: intl.formatMessage({
-        defaultMessage: "Growth",
-        id: "01P9p4MvIA",
+        defaultMessage: "Growth Plan",
+        id: "0x5bWok1f2",
         description: "Growth plan name on the pricing page",
       }),
+      badge: null,
       price: intl.formatMessage({
         defaultMessage: "$2,000",
         id: "y9blutdtEE",
@@ -225,9 +229,9 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Growth plan feature: unlimited translation jobs",
         }),
         intl.formatMessage({
-          defaultMessage: "AI features",
-          id: "YtKo2CQ5hL",
-          description: "Growth plan feature: AI feature access",
+          defaultMessage: "AI Feature",
+          id: "EtJmzwZSzn",
+          description: "Paid plan feature: AI feature access",
         }),
         intl.formatMessage({
           defaultMessage: "Automation Workflow",
@@ -240,14 +244,9 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Starter plan feature: Queries Board access",
         }),
         intl.formatMessage({
-          defaultMessage: "2,000,000 AI tokens per month",
-          id: "hv3wNQ+tWl",
-          description: "Growth plan feature: AI token quota on Growth",
-        }),
-        intl.formatMessage({
-          defaultMessage: "Then $4 per 1,000,000 AI tokens",
-          id: "1DnH47f5VQ",
-          description: "Growth plan feature: AI token overage rate",
+          defaultMessage: "$2,000 per month AI credit",
+          id: "blxqR2KvgQ",
+          description: "Growth plan feature: included monthly AI credit",
         }),
       ],
       cta: { label: comingSoon, kind: "coming_soon" },
@@ -259,6 +258,7 @@ export function getPricingPlans(locale: string): PricingPlan[] {
         id: "Bgy156rCP9",
         description: "Enterprise plan name on the pricing page",
       }),
+      badge: null,
       price: intl.formatMessage({
         defaultMessage: "Custom",
         id: "fMyeM5BW3s",
@@ -436,28 +436,20 @@ export function getPricingMatrixSections(locale: string): PricingMatrixSection[]
         {
           id: "ai-tokens",
           label: intl.formatMessage({
-            defaultMessage: "AI tokens / month",
-            id: "1wUO7p+IGh",
-            description: "Pricing matrix row label for AI tokens",
+            defaultMessage: "AI credit / month",
+            id: "csr373/O34",
+            description: "Pricing matrix row label for included monthly AI credit",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Managed model usage draws down your monthly AI credit balance at published rates.",
+            id: "2AFaXwgQin",
+            description: "Pricing matrix detail explaining monthly AI credit",
           }),
           cells: {
             free: { kind: "dash" },
-            starter: { kind: "text", value: "2,000,000" },
-            growth: { kind: "text", value: "2,000,000" },
-            enterprise: { kind: "text", value: custom },
-          },
-        },
-        {
-          id: "ai-token-overage",
-          label: intl.formatMessage({
-            defaultMessage: "AI token overage",
-            id: "w71NtqKp6F",
-            description: "Pricing matrix row label for AI token overage rate",
-          }),
-          cells: {
-            free: { kind: "dash" },
-            starter: { kind: "text", value: "$8 / 1M" },
-            growth: { kind: "text", value: "$4 / 1M" },
+            starter: { kind: "text", value: "$20" },
+            growth: { kind: "text", value: "$2,000" },
             enterprise: { kind: "text", value: custom },
           },
         },

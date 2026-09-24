@@ -65,8 +65,9 @@ export function PricingPlansSection({ plans, popularBadge }: PricingPlansSection
             plan.popular && "bg-muted/30",
           )}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-foreground">{plan.name}</h2>
+            {plan.badge ? <Badge variant="secondary">{plan.badge}</Badge> : null}
             {plan.popular ? <Badge variant="outline">{popularBadge}</Badge> : null}
           </div>
 
