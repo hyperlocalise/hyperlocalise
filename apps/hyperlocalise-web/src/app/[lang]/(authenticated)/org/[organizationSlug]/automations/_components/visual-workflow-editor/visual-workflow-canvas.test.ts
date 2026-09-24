@@ -67,14 +67,20 @@ describe("applyVisualWorkflowGraphConnection edge kinds", () => {
   });
 
   it("creates a data edge and keeps its stable port IDs", () => {
-    const {
-      edges: [edge],
-    } = applyVisualWorkflowGraphConnection(nodes, [], {
+    const executionGraph = applyVisualWorkflowGraphConnection(nodes, [], {
+      source: "trigger",
+      target: "request",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    const { edges } = applyVisualWorkflowGraphConnection(nodes, executionGraph.edges, {
       source: "trigger",
       target: "request",
       sourceHandle: "triggeredAt",
       targetHandle: "url",
     });
+    const edge = edges.find((candidate) => candidate.data?.kind === "data");
 
     expect(edge).toMatchObject({
       sourceHandle: "triggeredAt",
