@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -277,6 +278,26 @@ func TestUniqueStrings(t *testing.T) {
 	require.Equal(t, []string{"a", "b"}, uniqueStrings([]string{" a ", "", "a", "b", " a"}))
 	require.Equal(t, []string{}, uniqueStrings(nil))
 	require.Equal(t, []string{}, uniqueStrings([]string{"", "  "}))
+
+	// Fast path (len <= 32) and map path (len > 32) must trim, drop empties,
+	// preserve first-seen order, and stay consistent across the Bolt boundary.
+	small := make([]string, 0, 32)
+	for i := 0; i < 32; i++ {
+		small = append(small, fmt.Sprintf(" v%d ", i%16))
+	}
+	require.Equal(t, []string{
+		"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+		"v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
+	}, uniqueStrings(small))
+
+	large := make([]string, 0, 40)
+	for i := 0; i < 40; i++ {
+		large = append(large, fmt.Sprintf(" id-%d ", i%10), "", "  ")
+	}
+	require.Equal(t, []string{
+		"id-0", "id-1", "id-2", "id-3", "id-4",
+		"id-5", "id-6", "id-7", "id-8", "id-9",
+	}, uniqueStrings(large))
 }
 
 func TestFormatIssueUser(t *testing.T) {

@@ -13,7 +13,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { DEFAULT_GO_SVC_BASE_URL, GoSvcClient, GoSvcClientError } from "./go-svc-client";
-import { GoSvcRequest, issueSheetPath, orgPath } from "./go-svc-request";
+import { GoSvcRequest, catPath, issueSheetPath, orgPath } from "./go-svc-request";
 
 function clientWith(fetchMock: ReturnType<typeof vi.fn>, getAccessToken = () => "access-token") {
   return new GoSvcClient({
@@ -191,6 +191,7 @@ describe("GoSvcClient", () => {
         headers: {
           "Content-Disposition": `attachment; filename*=UTF-8''dictionary%20en.txt`,
           "Content-Type": "text/plain; charset=utf-8",
+          "X-Hyperlocalise-Export-Warning-Count": "3",
         },
       }),
     );
@@ -203,12 +204,81 @@ describe("GoSvcClient", () => {
 
     expect(result.filename).toBe("dictionary en.txt");
     expect(result.contentType).toBe("text/plain; charset=utf-8");
+    expect(result.warningCount).toBe(3);
     expect(await result.blob.text()).toBe("Brand\n");
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(
       `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/dictionaries/dictionary%2F1/words/export?locale=en-US`,
     );
     expect(init.signal).toBe(controller.signal);
+  });
+
+  it("defaults export warning count when the header is absent", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("id,term\n", {
+        headers: {
+          "Content-Disposition": `attachment; filename="glossary.csv"`,
+          "Content-Type": "text/csv",
+        },
+      }),
+    );
+    const client = clientWith(fetchMock);
+
+    const result = await client.glossary.export("acme", "glossary/1", { format: "csv" });
+
+    expect(result.warningCount).toBe(0);
+    expect(result.filename).toBe("glossary.csv");
+  });
+
+  it("routes CAT reads through the nested files/detail/cat path", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ targets: [] }))
+      .mockResolvedValueOnce(Response.json({ contentEditorQueue: { segments: [] } }));
+    const client = clientWith(fetchMock);
+
+    await client.cat.targets("acme / eu", "project/1", {
+      segments: [{ externalStringId: "key/1", sourcePath: "a.json" }],
+      targetLocales: ["fr"],
+    });
+    await client.cat.queue("acme / eu", "project/1", {
+      sourcePath: "a.json",
+      targetLocale: "fr",
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/files/detail/cat/targets`,
+    );
+    expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST");
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      body: JSON.stringify({
+        segments: [{ externalStringId: "key/1", sourcePath: "a.json" }],
+        targetLocales: ["fr"],
+      }),
+    });
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/files/detail/cat/queue?sourcePath=a.json&targetLocale=fr`,
+    );
+  });
+
+  it("downloads glossary import backups under the import-reports path", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("backup", {
+        headers: {
+          "Content-Disposition": `attachment; filename="backup.xlsx"`,
+          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+      }),
+    );
+    const client = clientWith(fetchMock);
+
+    const result = await client.glossary.importBackup("acme", "glossary/1", "report/9");
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/glossaries/glossary%2F1/import-reports/report%2F9/backup`,
+    );
+    expect(result.filename).toBe("backup.xlsx");
+    expect(result.warningCount).toBe(0);
   });
 
   it("supports repeated query parameters", async () => {
@@ -284,6 +354,9 @@ describe("GoSvcClient", () => {
     );
     expect(issueSheetPath("acme", "project/1", "issues", "ISS-1")).toBe(
       "/v1/orgs/acme/projects/project%2F1/issue-sheet/issues/ISS-1",
+    );
+    expect(catPath("acme / eu", "project/1", "segments", "key/1", "target")).toBe(
+      "/v1/orgs/acme%20%2F%20eu/projects/project%2F1/files/detail/cat/segments/key%2F1/target",
     );
   });
 });

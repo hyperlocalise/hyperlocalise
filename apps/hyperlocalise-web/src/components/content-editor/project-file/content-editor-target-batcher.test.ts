@@ -103,4 +103,18 @@ describe("native translation batches", () => {
     await vi.runAllTimersAsync();
     expect(await read).toBe("AbortError");
   });
+  it("rejects incomplete rectangles missing a requested locale", async () => {
+    vi.useFakeTimers();
+    const load = createTargetBatcher(async (body) =>
+      body.segments.map((segment) => ({
+        ...segment,
+        targets: {
+          fr: { text: "ok", isApproved: false, externalTranslationId: null },
+        },
+      })),
+    );
+    const read = load(cell(1, "de")).catch((error: Error) => error.message);
+    await vi.runAllTimersAsync();
+    expect(await read).toBe("Incomplete translation rectangle");
+  });
 });
