@@ -1,4 +1,4 @@
-name: Lambda Artifact Upload
+name: Lambda Artifact Deploy
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
       - apps/activity-log-lambda/**
       - .github/actions/go-bootstrap/**
       - .github/actions/upload-lambda-artifact/**
-      - .github/workflows/lambda-artifact-upload.yml
+      - .github/workflows/lambda-artifact-deploy.yml
   workflow_dispatch:
 
 permissions:
@@ -20,7 +20,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: lambda-artifact-upload-${{ github.ref }}
+  group: lambda-artifact-deploy-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -48,40 +48,20 @@ jobs:
       - name: Test activity-log Lambda
         run: go test ./apps/activity-log-lambda ./internal/activitylog
 
-      - name: Build and package Lambda artifact
-        id: package
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          artifact_dir="${RUNNER_TEMP}/hyperlocalise-lambda-artifact"
-          artifact_path="${artifact_dir}/bootstrap.zip"
-          mkdir -p "${artifact_dir}"
-
-          make build-activity-log-lambda
-          zip -j "${artifact_path}" dist/activity-log-lambda/bootstrap
-
-          if [[ "$(unzip -Z1 "${artifact_path}" | sort)" != "bootstrap" ]]; then
-            echo "Lambda artifact must contain exactly one root-level bootstrap file" >&2
-            unzip -Z1 "${artifact_path}" >&2
-            exit 1
-          fi
-
-          echo "artifact-path=${artifact_path}" >> "${GITHUB_OUTPUT}"
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
         with:
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-actions-lambda-artifact-upload
+          role-session-name: github-actions-lambda-artifact-deploy
 
-      - name: Upload Lambda artifact
+      - name: Build and upload Lambda artifact
         id: upload
         uses: ./.github/actions/upload-lambda-artifact
         with:
-          artifact-path: ${{ steps.package.outputs.artifact-path }}
           bucket-parameter-name: ${{ env.LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME }}
+          build-command: make build-activity-log-lambda
+          binary-path: dist/activity-log-lambda/bootstrap
           s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
 
       - name: Summarize upload

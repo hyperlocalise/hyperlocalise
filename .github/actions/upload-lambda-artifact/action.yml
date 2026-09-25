@@ -1,9 +1,12 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-action.json
-name: Upload Lambda artifact
-description: Resolve an artifact bucket from SSM and upload a Lambda artifact to S3
+name: Build and upload Lambda artifact
+description: Build, package, resolve an artifact bucket from SSM, and upload a Lambda artifact to S3
 inputs:
-  artifact-path:
-    description: Path to the Lambda artifact to upload
+  build-command:
+    description: Shell command used to build the Lambda executable
+    required: true
+  binary-path:
+    description: Path to the Lambda executable produced by the build command
     required: true
   s3-key:
     description: S3 object key for the Lambda artifact
@@ -27,19 +30,44 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Build and package artifact
+      id: package
+      shell: bash
+      env:
+        BUILD_COMMAND: ${{ inputs.build-command }}
+        BINARY_PATH: ${{ inputs.binary-path }}
+      run: |
+        set -euo pipefail
+
+        bash -c "${BUILD_COMMAND}"
+
+        if [[ ! -f "${BINARY_PATH}" ]]; then
+          echo "Lambda binary does not exist: ${BINARY_PATH}" >&2
+          exit 1
+        fi
+
+        artifact_dir="${RUNNER_TEMP}/lambda-artifact"
+        artifact_path="${artifact_dir}/artifact.zip"
+        entrypoint="$(basename "${BINARY_PATH}")"
+        mkdir -p "${artifact_dir}"
+
+        zip -j "${artifact_path}" "${BINARY_PATH}"
+
+        if [[ "$(unzip -Z1 "${artifact_path}" | sort)" != "${entrypoint}" ]]; then
+          echo "Lambda artifact must contain exactly one root-level executable" >&2
+          unzip -Z1 "${artifact_path}" >&2
+          exit 1
+        fi
+
+        echo "artifact-path=${artifact_path}" >> "${GITHUB_OUTPUT}"
+
     - name: Resolve artifact bucket
       id: resolve
       shell: bash
       env:
-        ARTIFACT_PATH: ${{ inputs.artifact-path }}
         BUCKET_PARAMETER_NAME: ${{ inputs.bucket-parameter-name }}
       run: |
         set -euo pipefail
-
-        if [[ ! -f "${ARTIFACT_PATH}" ]]; then
-          echo "Artifact does not exist: ${ARTIFACT_PATH}" >&2
-          exit 1
-        fi
 
         bucket="$(aws ssm get-parameter \
           --name "${BUCKET_PARAMETER_NAME}" \
@@ -58,7 +86,7 @@ runs:
       id: upload
       shell: bash
       env:
-        ARTIFACT_PATH: ${{ inputs.artifact-path }}
+        ARTIFACT_PATH: ${{ steps.package.outputs.artifact-path }}
         BUCKET: ${{ steps.resolve.outputs.bucket }}
         CONTENT_TYPE: ${{ inputs.content-type }}
         S3_KEY: ${{ inputs.s3-key }}
