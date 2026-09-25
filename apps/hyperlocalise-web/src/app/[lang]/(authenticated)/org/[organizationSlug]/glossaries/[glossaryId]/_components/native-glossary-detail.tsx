@@ -464,8 +464,13 @@ export function NativeGlossaryDetail({
       const isXlsx = filename.endsWith(".xlsx");
       const format = filename.endsWith(".tbx") ? "tbx" : isXlsx ? "xlsx" : "csv";
       const content = isXlsx ? arrayBufferToBase64(await file.arrayBuffer()) : await file.text();
-      try {
-        return await goSvcClient.glossary.concepts.import(organizationSlug, glossaryId, {
+      // Stays on Hono until go-svc import matches interchange parity: XLSX is 501,
+      // CSV/TBX drop gender/term type/URLs/metadata/review/flags, and there is no backup.
+      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].concepts["import"].$post({
+        param: { organizationSlug, glossaryId },
+        json: {
           format,
           content,
           sourceFilename: file.name,
@@ -474,12 +479,13 @@ export function NativeGlossaryDetail({
           previewForMode: "merge",
           strictLocale: true,
           localeMapping: {},
-        });
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.importTermsFailed)), {
-          cause: error,
-        });
-      }
+        },
+      });
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.importTermsFailed)),
+        );
+      return response.json();
     },
     onSuccess: async (body) => {
       await invalidateConcepts();
