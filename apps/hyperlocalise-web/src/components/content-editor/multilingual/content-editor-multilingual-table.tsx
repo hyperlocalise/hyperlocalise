@@ -12,7 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useEditorPageWindow } from "../project-file/content-editor-page-window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { reaction } from "mobx";
 import { observer } from "mobx-react-lite";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import { useIntl } from "react-intl";
@@ -104,6 +106,9 @@ const TranslationCell = observer(function TranslationCell({
     priority: active,
   });
   const draft = drafts.cells.get(cellKey);
+  useEffect(() => {
+    if (!active && draft && !draft.dirty && !draft.error) drafts.release(cellKey);
+  }, [active, draft?.dirty, draft?.error, drafts]);
   const editable =
     config.canEdit !== false && Boolean(config.onSaveTranslation) && !segment.isLocked;
   const openTranslation = config.onOpenTranslation ?? onOpenTranslation;
@@ -257,6 +262,15 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   const [localDrafts] = useState(() => new MultilingualDrafts());
   const drafts = providedDrafts ?? localDrafts;
   const [activeCell, setActiveCell] = useState<{ id: string; locale: string } | null>(null);
+  useEffect(
+    () =>
+      reaction(
+        () => [...drafts.cells.values()].map((cell) => [cell.dirty, cell.error]),
+        () => drafts.releaseInactive(activeCell?.id, activeCell?.locale),
+        { fireImmediately: true },
+      ),
+    [drafts, activeCell?.id, activeCell?.locale],
+  );
   const activeRow = segments.findIndex((segment) => segment.id === activeCell?.id);
   const [hiddenLocales, setHiddenLocales] = useState<ReadonlySet<string>>(() => new Set());
   const locales = useMemo(() => [...new Set(config.targetLocales)], [config.targetLocales]);
@@ -287,6 +301,7 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
       ),
     paddingStart: HEADER_HEIGHT,
   });
+  useEditorPageWindow(segments, scrollRef, rowVirtualizer);
   const columnVirtualizer = useVirtualizer({
     horizontal: true,
     count: columns.length,
@@ -330,19 +345,20 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   const rows = rowVirtualizer.getVirtualItems();
   const virtualColumns = columnVirtualizer.getVirtualItems();
   const lastRow = rows.at(-1)?.index ?? -1;
-  const requestedLength = useRef<number | null>(null);
+  const requestedLength = useRef<string | null>(null);
+  const pageEnd = segments.at(-1)?.id ?? "";
   useEffect(() => {
     if (
       hasMore &&
       !isLoading &&
       !isLoadingMore &&
-      lastRow >= segments.length - 4 &&
-      requestedLength.current !== segments.length
+      lastRow >= segments.length - 12 &&
+      requestedLength.current !== pageEnd
     ) {
-      requestedLength.current = segments.length;
+      requestedLength.current = pageEnd;
       onLoadMore?.();
     }
-  }, [hasMore, isLoading, isLoadingMore, lastRow, segments.length, onLoadMore]);
+  }, [hasMore, isLoading, isLoadingMore, lastRow, segments.length, pageEnd, onLoadMore]);
   const width = columnVirtualizer.getTotalSize();
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">

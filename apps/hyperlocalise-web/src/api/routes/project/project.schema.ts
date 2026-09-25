@@ -305,6 +305,7 @@ export const projectFileCatQuerySchema = z.object({
   /** Use `"*"` to load strings across every file in scope. */
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
+  initialTargetLocales: z.string().max(264).optional(),
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   resourceType: z.enum(["file", "key"]).optional(),
   repositoryFullName: z.string().trim().min(1).max(256).optional(),
@@ -761,6 +762,7 @@ export const projectFileCatContentKindSchema = z.enum([
 ]);
 
 export const projectFileCatTranslationSchema = z.object({
+  revision: z.string().optional(),
   text: z.string(),
   externalTranslationId: z.string().nullable(),
   isApproved: z.boolean(),
@@ -769,6 +771,35 @@ export const projectFileCatTranslationSchema = z.object({
   imageVariantId: z.string().nullable().optional(),
   status: z.enum(["draft", "needs_review", "approved", "rejected"]).optional(),
 });
+
+/** Bounds apply to the rectangle, including cells not explicitly requested by callers. */
+export const CAT_TARGET_BATCH_MAX_SEGMENTS = 50;
+export const CAT_TARGET_BATCH_MAX_LOCALES = 8;
+export const CAT_TARGET_BATCH_MAX_CELLS = 200;
+export const projectFileCatTargetIdentitySchema = z.object({
+  externalStringId: z.string().trim().min(1).max(128),
+  sourcePath: z.string().trim().min(1).max(2048),
+  externalResourceId: z.string().trim().min(1).max(128).optional(),
+  resourceType: z.enum(["file", "key"]).optional(),
+});
+export const projectFileCatTargetsBodySchema = z
+  .object({
+    segments: z.array(projectFileCatTargetIdentitySchema).min(1).max(CAT_TARGET_BATCH_MAX_SEGMENTS),
+    targetLocales: z
+      .array(z.string().trim().min(1).max(32))
+      .min(1)
+      .max(CAT_TARGET_BATCH_MAX_LOCALES),
+  })
+  .refine(
+    (value) => value.segments.length * value.targetLocales.length <= CAT_TARGET_BATCH_MAX_CELLS,
+    "Translation rectangle is too large",
+  );
+export const projectFileCatTargetRowSchema = projectFileCatTargetIdentitySchema.extend({
+  targets: z.record(z.string(), projectFileCatTranslationSchema.nullable()),
+});
+export type ProjectFileCatTargetIdentity = z.infer<typeof projectFileCatTargetIdentitySchema>;
+export type ProjectFileCatTargetsInput = z.infer<typeof projectFileCatTargetsBodySchema>;
+export type ProjectFileCatTargetRow = z.infer<typeof projectFileCatTargetRowSchema>;
 
 export const projectFileCatSegmentSchema = z.object({
   externalStringId: z.string(),
@@ -848,6 +879,7 @@ export const projectFileCatResponseSchema = z.object({
     teamName: z.string().optional(),
     projectTeamSlug: z.string().optional(),
     segments: z.array(projectFileCatSegmentSchema),
+    initialTargets: z.array(projectFileCatTargetRowSchema).optional(),
     pagination: projectFileCatPaginationSchema.optional(),
   }),
 });

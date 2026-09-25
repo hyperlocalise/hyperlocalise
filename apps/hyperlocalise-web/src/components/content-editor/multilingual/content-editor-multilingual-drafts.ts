@@ -104,6 +104,17 @@ export class MultilingualDrafts {
     }
     return cell;
   }
+  releaseInactive(activeId: string | undefined, activeLocale: string | undefined) {
+    for (const [key, cell] of this.cells) {
+      const [, , id, locale] = JSON.parse(key) as string[];
+      if ((id !== activeId || locale !== activeLocale) && !cell.dirty && !cell.error)
+        this.cells.delete(key);
+    }
+  }
+  release(key: string) {
+    const cell = this.cells.get(key);
+    if (cell && !cell.dirty && !cell.error) this.cells.delete(key);
+  }
   clear() {
     this.cells.clear();
   }

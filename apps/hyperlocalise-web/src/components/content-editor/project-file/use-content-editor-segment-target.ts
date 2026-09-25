@@ -13,6 +13,8 @@
  * Version 2.0 or later.
  */
 import { createContentEditorRequestScheduler } from "@/components/content-editor/shared/content-editor-request-scheduler";
+import { useNativeTargetLoader } from "./content-editor-native-target-context";
+import { CAT_CACHE_GC_TIME, installEditorCacheBudget } from "./content-editor-cache-budget";
 import { useMemo } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
@@ -101,6 +103,7 @@ function contentEditorSegmentTargetQueryOptions(input: {
   enabled?: boolean;
   priority?: boolean;
   intl: ContentEditorFormatMessageIntl;
+  nativeLoader?: ReturnType<typeof useNativeTargetLoader>;
 }) {
   return {
     queryKey: projectFileCatSegmentTargetQueryKey(input),
@@ -110,12 +113,15 @@ function contentEditorSegmentTargetQueryOptions(input: {
       Boolean(input.targetLocale) &&
       Boolean(input.sourcePath),
     staleTime: 30_000,
+    gcTime: CAT_CACHE_GC_TIME,
     queryFn: ({ signal }: { signal: AbortSignal }) =>
-      scheduleTargetRequest(
-        () => fetchProjectFileContentEditorSegmentTarget({ ...input, signal }),
-        signal,
-        input.priority,
-      ),
+      input.nativeLoader
+        ? input.nativeLoader(input, signal, input.priority)
+        : scheduleTargetRequest(
+            () => fetchProjectFileContentEditorSegmentTarget({ ...input, signal }),
+            signal,
+            input.priority,
+          ),
   };
 }
 
@@ -131,6 +137,8 @@ export function useContentEditorSegmentTarget(input: {
   priority?: boolean;
 }) {
   const intl = useIntl();
+  const nativeLoader = useNativeTargetLoader();
+  installEditorCacheBudget(useQueryClient());
   const externalStringId = input.externalStringId ?? "";
 
   return useQuery(
@@ -145,6 +153,7 @@ export function useContentEditorSegmentTarget(input: {
       enabled: input.enabled,
       priority: input.priority ?? true,
       intl,
+      nativeLoader,
     }),
   );
 }
@@ -166,6 +175,8 @@ export function useContentEditorSegmentTargets(input: {
   enabled?: boolean;
 }) {
   const intl = useIntl();
+  const nativeLoader = useNativeTargetLoader();
+  installEditorCacheBudget(useQueryClient());
   const segments = useMemo(() => {
     const seen = new Set<string>();
     const unique: typeof input.segments = [];
@@ -193,6 +204,7 @@ export function useContentEditorSegmentTargets(input: {
         externalStringId: segment.externalStringId,
         enabled: input.enabled,
         intl,
+        nativeLoader,
       }),
     ),
   });

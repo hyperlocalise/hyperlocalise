@@ -16,10 +16,49 @@ import type {
   ValidateSegmentBody,
   ValidateSegmentResult,
 } from "./go-svc-client.types";
-import type { GoSvcRequest } from "./go-svc-request";
+import { orgPath, type GoSvcRequest } from "./go-svc-request";
+import type {
+  ProjectFileCatTargetsInput,
+  ProjectFileCatTargetRow,
+  ProjectFileContentEditorQueueResponse,
+} from "@/api/routes/project/project.schema";
 
 export class GoSvcCatApi {
   constructor(private readonly request: GoSvcRequest) {}
+
+  targets(
+    organizationSlug: string,
+    projectId: string,
+    body: ProjectFileCatTargetsInput,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ targets: ProjectFileCatTargetRow[] }>(
+      orgPath(organizationSlug, "projects", projectId, "files", "detail", "cat", "targets"),
+      {
+        method: "POST",
+        body: {
+          segments: body.segments.map(({ externalStringId, sourcePath }) => ({
+            externalStringId,
+            sourcePath,
+          })),
+          targetLocales: body.targetLocales,
+        },
+        ...options,
+      },
+    );
+  }
+
+  queue(
+    organizationSlug: string,
+    projectId: string,
+    query: object,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<ProjectFileContentEditorQueueResponse>(
+      orgPath(organizationSlug, "projects", projectId, "files", "detail", "cat", "queue"),
+      { query, ...options },
+    );
+  }
 
   validateSegment(body: ValidateSegmentBody, options: GoSvcRequestOptions = {}) {
     return this.request.json<ValidateSegmentResult>("/v1/validate/segment", {

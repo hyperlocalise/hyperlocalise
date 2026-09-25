@@ -47,10 +47,13 @@ export function mergeContentEditorQueuePages(
     truncated: lastPagination?.hasMore ?? false,
     pagination: lastPagination
       ? {
-          offset: 0,
+          offset: firstPage.pagination?.offset ?? 0,
           limit: lastPagination.limit,
           returnedCount: segments.length,
-          totalCount: lastPagination.hasMore ? segments.length + 1 : segments.length,
+          totalCount: Math.max(
+            lastPagination.totalCount,
+            (firstPage.pagination?.offset ?? 0) + segments.length + Number(lastPagination.hasMore),
+          ),
           hasMore: lastPagination.hasMore,
         }
       : undefined,

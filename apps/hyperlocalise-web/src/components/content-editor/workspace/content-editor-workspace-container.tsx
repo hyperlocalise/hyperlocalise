@@ -18,6 +18,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
+import type { ContentEditorSegmentFileIdentityLookupRef } from "@/components/content-editor/project-file/use-content-editor-mutations";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 import {
   AlertDialog,
@@ -76,6 +77,7 @@ export interface ContentEditorWorkspaceContainerProps {
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
     contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+    retainedSegmentIdentityRef?: ContentEditorSegmentFileIdentityLookupRef;
     enabled: boolean;
   };
   dependencies?: PartialCatWorkspaceDependencies;

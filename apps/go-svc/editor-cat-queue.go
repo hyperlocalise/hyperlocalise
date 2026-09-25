@@ -50,6 +50,7 @@ type editorCatContributorTeam struct {
 }
 
 type editorCatQueueFile struct {
+	InitialTargets            []editorCatTargetRow       `json:"initialTargets,omitempty"`
 	SourcePath                string                     `json:"sourcePath"`
 	Filename                  string                     `json:"filename"`
 	Provider                  any                        `json:"provider"`
@@ -173,7 +174,29 @@ func (api *editorCatAPI) loadQueue(r *http.Request, actor editorCatActor, projec
 	if err != nil {
 		return editorCatQueueFile{}, err
 	}
-	return api.withQueueContext(r, actor, project, queue)
+	queue, err = api.withQueueContext(r, actor, project, queue)
+	if err != nil {
+		return editorCatQueueFile{}, err
+	}
+	if raw := r.URL.Query().Get("initialTargetLocales"); raw != "" && len(queue.Segments) > 0 {
+		body := editorCatTargetsBody{TargetLocales: strings.Split(raw, ",")}
+		// Hydrate only the initial viewport plus overscan, never the entire file.
+		for _, segment := range queue.Segments[:min(len(queue.Segments), 25)] {
+			sourcePath := query.sourcePath
+			if segment.SourcePath != nil {
+				sourcePath = *segment.SourcePath
+			}
+			body.Segments = append(body.Segments, editorCatTargetIdentity{ExternalStringID: segment.ExternalStringID, SourcePath: sourcePath})
+		}
+		if err := body.validate(); err != nil {
+			return editorCatQueueFile{}, err
+		}
+		queue.InitialTargets, err = api.loadSegmentTargets(r, actor, project, body)
+		if err != nil {
+			return editorCatQueueFile{}, err
+		}
+	}
+	return queue, nil
 }
 
 func (api *editorCatAPI) loadTextFileQueue(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery) (editorCatQueueFile, error) {
