@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/activitylog"
 	"github.com/jackc/pgx/v5"
 	"github.com/workos/workos-go/v10"
 )
@@ -64,14 +65,6 @@ var implementedActivityEventTypes = []string{
 	"string_segment_unlocked",
 	"string_segment_commented",
 }
-
-var implementedActivityEventTypeSet = func() map[string]struct{} {
-	out := make(map[string]struct{}, len(implementedActivityEventTypes))
-	for _, eventType := range implementedActivityEventTypes {
-		out[eventType] = struct{}{}
-	}
-	return out
-}()
 
 var activityLogRanges = map[string]struct{}{
 	"24h": {},
@@ -290,7 +283,7 @@ func parseActivityLogQuery(values url.Values) (activityLogQuery, error) {
 		if eventType == "" {
 			continue
 		}
-		if _, ok := implementedActivityEventTypeSet[eventType]; !ok {
+		if !activitylog.IsImplementedEventType(eventType) {
 			return query, activityLogFailure(400, "invalid_activity_log_query", "Activity log query is invalid")
 		}
 		query.eventTypes = append(query.eventTypes, eventType)

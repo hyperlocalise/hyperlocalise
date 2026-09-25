@@ -51,6 +51,8 @@ go build -o $(go env GOPATH)/bin/golangci-lint github.com/golangci/golangci-lint
 - Before the dev server works, create `apps/hyperlocalise-web/.env` with at minimum:
   ```
   DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise
+  ACTIVITY_LOG_SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/000000000000/activity-log-local
+  AWS_REGION=us-east-1
   PROVIDER_CREDENTIALS_MASTER_KEY=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
   WORKOS_API_KEY=sk_test_placeholder
   WORKOS_CLIENT_ID=client_placeholder

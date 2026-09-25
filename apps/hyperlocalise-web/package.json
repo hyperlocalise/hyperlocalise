@@ -26,6 +26,7 @@
     "@ai-sdk/mcp": "^2.0.54",
     "@ai-sdk/openai": "4.0.58",
     "@ai-sdk/react": "^4.0.110",
+    "@aws-sdk/client-sqs": "^3.1139.0",
     "@base-ui/react": "1.8.0",
     "@chat-adapter/github": "4.35.0",
     "@chat-adapter/slack": "4.35.0",

@@ -27,6 +27,12 @@ export const env = createEnv({
     /** Postgres connection string for Drizzle ORM. */
     DATABASE_URL: z.string().min(1),
 
+    /** SQS queue used for asynchronous organization activity-log events. */
+    ACTIVITY_LOG_SQS_QUEUE_URL: z.url(),
+
+    /** AWS region used to sign activity-log SQS requests. */
+    AWS_REGION: z.string().min(1),
+
     /** OpenAI API key used for CLI sandbox translation. Optional when AI Gateway or that feature is unused. */
     OPENAI_API_KEY: z.string().min(1).optional(),
 
@@ -308,6 +314,10 @@ export const env = createEnv({
     NEXT_PUBLIC_API_BASE_URL:
       process.env.NEXT_PUBLIC_API_BASE_URL ?? (isTestEnv ? "http://127.0.0.1:8080" : undefined),
     DATABASE_URL: process.env.DATABASE_URL,
+    ACTIVITY_LOG_SQS_QUEUE_URL:
+      process.env.ACTIVITY_LOG_SQS_QUEUE_URL ??
+      (isTestEnv ? "https://sqs.test.local/123456789012/activity-log" : undefined),
+    AWS_REGION: process.env.AWS_REGION ?? (isTestEnv ? "us-east-1" : undefined),
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? (isTestEnv ? "test-openai-api-key" : undefined),
     AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
     AI_GATEWAY_BASE_URL: process.env.AI_GATEWAY_BASE_URL,

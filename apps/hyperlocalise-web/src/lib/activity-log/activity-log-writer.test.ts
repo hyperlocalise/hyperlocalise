@@ -12,20 +12,32 @@
  */
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { start } from "workflow/api";
-
 import type { ActivityLogEventInput } from "./activity-log-contract";
 import { enqueueActivityLogEvent, enqueueActivityLogEvents } from "./activity-log-writer";
 
-vi.mock("workflow/api", () => ({
-  start: vi.fn(),
+const { sendMock } = vi.hoisted(() => ({
+  sendMock: vi.fn(),
 }));
 
-const startMock = vi.mocked(start);
+vi.mock("@aws-sdk/client-sqs", () => ({
+  SendMessageCommand: class {
+    constructor(input: unknown) {
+      Object.assign(this, input);
+    }
+  },
+  SQSClient: class {
+    send(input: unknown) {
+      return sendMock(input);
+    }
+  },
+}));
 
-function workflowRun() {
-  return { runId: "workflow-run-1" } as Awaited<ReturnType<typeof start>>;
-}
+vi.mock("@/lib/env", () => ({
+  env: {
+    ACTIVITY_LOG_SQS_QUEUE_URL: "https://sqs.test.local/queue/activity-log",
+    AWS_REGION: "us-east-1",
+  },
+}));
 
 function projectCreatedEvent(organizationId = "org-1"): ActivityLogEventInput {
   return {
@@ -49,22 +61,28 @@ describe("enqueueActivityLogEvent", () => {
     vi.clearAllMocks();
   });
 
-  it("enqueues a serialized workflow event without writing to the database", async () => {
-    startMock.mockResolvedValue(workflowRun());
+  it("enqueues a serialized SQS event without writing to the database", async () => {
+    sendMock.mockResolvedValue({ MessageId: "message-1" });
 
     const result = await enqueueActivityLogEvent(projectCreatedEvent());
 
     expect(result).toMatchObject({ ok: true });
-    expect(startMock).toHaveBeenCalledTimes(1);
-    expect(startMock).toHaveBeenCalledWith(expect.anything(), [
-      expect.objectContaining({
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(sendMock).toHaveBeenCalledWith({
+      MessageBody: expect.any(String),
+      QueueUrl: "https://sqs.test.local/queue/activity-log",
+    });
+    expect(JSON.parse(sendMock.mock.calls[0][0].MessageBody)).toEqual({
+      event: expect.objectContaining({
         createdAt: expect.any(String),
         eventType: "project_created",
         id: expect.any(String),
         organizationId: "org-1",
         targetId: "project-1",
       }),
-    ]);
+      messageType: "activity_log",
+      schemaVersion: 1,
+    });
   });
 
   it("rejects unsafe payloads before enqueueing", async () => {
@@ -80,7 +98,7 @@ describe("enqueueActivityLogEvent", () => {
     });
 
     expect(result).toEqual({ ok: false, error: { code: "activity_log_enqueue_failed" } });
-    expect(startMock).not.toHaveBeenCalled();
+    expect(sendMock).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(
       expect.objectContaining({
         correlationId: "activity-log-test-validation",
@@ -91,28 +109,28 @@ describe("enqueueActivityLogEvent", () => {
     expect(JSON.stringify(error.mock.calls)).not.toContain("must-not-leave-the-request");
   });
 
-  it("contains workflow enqueue failures and returns a safe typed error", async () => {
-    startMock.mockRejectedValue(new Error("workflow infrastructure failure"));
+  it("contains SQS enqueue failures and returns a safe typed error", async () => {
+    sendMock.mockRejectedValue(new Error("SQS infrastructure failure"));
     const error = vi.fn();
 
     const result = await enqueueActivityLogEvent(projectCreatedEvent(), {
-      correlationId: "activity-log-test-workflow",
+      correlationId: "activity-log-test-sqs",
       logger: { error },
     });
 
     expect(result).toEqual({ ok: false, error: { code: "activity_log_enqueue_failed" } });
     expect(error).toHaveBeenCalledWith(
       expect.objectContaining({
-        correlationId: "activity-log-test-workflow",
-        failure: "workflow_enqueue",
+        correlationId: "activity-log-test-sqs",
+        failure: "sqs_enqueue",
       }),
       "workspace activity log enqueue failed",
     );
-    expect(JSON.stringify(error.mock.calls)).not.toContain("workflow infrastructure failure");
+    expect(JSON.stringify(error.mock.calls)).not.toContain("SQS infrastructure failure");
   });
 
   it("enqueues multiple events with bounded fan-out", async () => {
-    startMock.mockResolvedValue(workflowRun());
+    sendMock.mockResolvedValue({ MessageId: "message-1" });
 
     const result = await enqueueActivityLogEvents([
       projectCreatedEvent("org-1"),
@@ -121,6 +139,6 @@ describe("enqueueActivityLogEvent", () => {
 
     expect(result).toHaveLength(2);
     expect(result.every((entry) => entry.ok)).toBe(true);
-    expect(startMock).toHaveBeenCalledTimes(2);
+    expect(sendMock).toHaveBeenCalledTimes(2);
   });
 });

@@ -51,6 +51,7 @@ completions
 bazel-*
 
 .hyperlocalise
+dist/
 
 .vercel
 .env*

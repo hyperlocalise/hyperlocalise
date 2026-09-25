@@ -14,19 +14,23 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { start } from "workflow/api";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
+import { env } from "@/lib/env";
 import { createLogger, type Logger } from "@/lib/log";
 import {
+  ACTIVITY_LOG_SQS_SCHEMA_VERSION,
   assertSafeActivityLogPayload,
   type ActivityLogEventInput,
   type ActivityLogEnqueueError,
+  type ActivityLogSqsMessage,
   type ActivityLogWorkflowEvent,
 } from "@/lib/activity-log/activity-log-contract";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 const logger = createLogger("activity-log-writer");
+const sqsClient = new SQSClient({ region: env.AWS_REGION });
 
 export type ActivityLogWriterLogger = Pick<Logger, "error">;
 
@@ -39,7 +43,7 @@ function logWriteFailure(
   log: ActivityLogWriterLogger,
   input: ActivityLogEventInput,
   correlationId: string,
-  failure: "payload_validation" | "workflow_enqueue",
+  failure: "payload_validation" | "sqs_enqueue",
 ): void {
   log.error(
     {
@@ -80,12 +84,21 @@ export async function enqueueActivityLogEvent(
       createdAt: new Date().toISOString(),
       id: randomUUID(),
     };
-    const { activityLogWorkflow } = await import("@/workflows/activity-log");
-    await start(activityLogWorkflow, [event]);
+    const message: ActivityLogSqsMessage = {
+      event,
+      messageType: "activity_log",
+      schemaVersion: ACTIVITY_LOG_SQS_SCHEMA_VERSION,
+    };
+    await sqsClient.send(
+      new SendMessageCommand({
+        MessageBody: JSON.stringify(message),
+        QueueUrl: env.ACTIVITY_LOG_SQS_QUEUE_URL,
+      }),
+    );
 
     return ok({ createdAt: new Date(event.createdAt), id: event.id });
   } catch {
-    logWriteFailure(log, input, correlationId, "workflow_enqueue");
+    logWriteFailure(log, input, correlationId, "sqs_enqueue");
     return err({ code: "activity_log_enqueue_failed" });
   }
 }

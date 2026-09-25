@@ -338,6 +338,14 @@ export type ActivityLogWorkflowEvent = ActivityLogEventInput & {
   id: string;
 };
 
+export const ACTIVITY_LOG_SQS_SCHEMA_VERSION = 1 as const;
+
+export type ActivityLogSqsMessage = {
+  event: ActivityLogWorkflowEvent;
+  messageType: "activity_log";
+  schemaVersion: typeof ACTIVITY_LOG_SQS_SCHEMA_VERSION;
+};
+
 export type ActivityLogCursor = {
   createdAt: Date;
   id: string;
