@@ -46,7 +46,7 @@ const (
 	DefaultMaxBytes = 32 << 20
 	DefaultMaxRunes = 50000
 	DefaultMaxPages = 500
-	// A PDF averaging fewer letters per page than this is treated as scanned.
+	// A page with fewer letters or digits than this lacks meaningful native text.
 	minNativePDFLettersPerPage = 16
 	sniffBytes                 = 512
 )
@@ -88,7 +88,8 @@ type Options struct {
 	MaxPages int
 	// PDFWorkers bounds concurrent PDF parses; further calls wait for a worker.
 	PDFWorkers int
-	// Vision is optional; without it images and scanned PDFs return ErrNoText.
+	// Vision is optional. Without it, images and PDFs whose native text is blank
+	// return ErrNoText. Sparse native PDF text is kept.
 	Vision Recognizer
 }
 
@@ -150,8 +151,11 @@ func (e *Extractor) Extract(ctx context.Context, in Input) (Result, error) {
 	case FormatDOCX:
 		text, err = extractDOCX(data, e.maxBytes)
 	case FormatPDF:
-		text, result.Pages, err = e.pdf.extract(ctx, data, e.maxPages)
-		if err == nil && isScanned(text, result.Pages) {
+		var scanned bool
+		text, result.Pages, scanned, err = e.pdf.extract(ctx, data, e.maxPages)
+		// One sparse page is enough: a text-heavy neighbour must not hide it.
+		// Replace the layer only when a recognizer can transcribe the scan.
+		if err == nil && e.vision != nil && scanned {
 			text, err = e.recognize(ctx, in.Filename, mediaType, data)
 			result.Method = MethodVision
 		}
@@ -209,14 +213,14 @@ func Detect(filename, contentType string, data []byte) (Format, string, error) {
 	return FormatText, "text/plain", nil
 }
 
-func isScanned(text string, pages int) bool {
+func pageLacksMeaningfulText(text string) bool {
 	letters := 0
 	for _, r := range text {
 		if unicode.IsLetter(r) || unicode.IsNumber(r) {
 			letters++
 		}
 	}
-	return letters < max(pages, 1)*minNativePDFLettersPerPage
+	return letters < minNativePDFLettersPerPage
 }
 
 // normalize strips a BOM, NUL and non-printing controls and collapses runs of

@@ -8,15 +8,18 @@ indexed as text.
 | Format | Detection | Method |
 | --- | --- | --- |
 | Markdown, plain text | valid UTF-8 text | passed through |
-| PDF | `%PDF-` header | PDFium text layer; vision fallback when scanned |
+| PDF | `%PDF-` header | PDFium text layer; vision if any page is scanned |
 | DOCX | zip containing `word/document.xml` | body paragraphs |
 | PNG, JPEG, GIF, WebP | image signature | vision |
 
-A PDF averaging fewer than 16 letters or digits per page is treated as scanned.
-Vision is optional: without a `Recognizer`, images and scanned PDFs return
-`ErrNoText`. `OpenAIRecognizer` targets any OpenAI-compatible chat completions
-API, including Vercel AI Gateway; the configured model must accept image and PDF
-file input. The package reads no environment variables.
+A page with fewer than 16 letters or digits is treated as scanned. If any page
+is scanned, the document is transcribed by vision when a recognizer is
+configured. Without one, the native text layer is kept, and `ErrNoText` is
+returned only when that layer is blank. Images without a recognizer also
+return `ErrNoText`. `OpenAIRecognizer`
+targets any OpenAI-compatible chat completions API, including Vercel AI Gateway;
+the configured model must accept image and PDF file input. The package reads no
+environment variables.
 
 PDFs are parsed by PDFium compiled to WebAssembly and run with wazero, so no
 cgo or system libraries are needed. Each document runs in a sandboxed instance

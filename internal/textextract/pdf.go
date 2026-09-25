@@ -81,14 +81,15 @@ func (e *pdfEngine) close() error {
 }
 
 // extract reads the text layer. Cancelling ctx kills the instance, which also
-// stops a pathological document that never finishes parsing.
-func (e *pdfEngine) extract(ctx context.Context, data []byte, maxPages int) (text string, pages int, err error) {
+// stops a pathological document that never finishes parsing. scanned is true
+// when any page lacks meaningful native text.
+func (e *pdfEngine) extract(ctx context.Context, data []byte, maxPages int) (text string, pages int, scanned bool, err error) {
 	instance, err := e.instance(ctx)
 	if err != nil {
 		if ctx.Err() != nil {
-			return "", 0, ctx.Err()
+			return "", 0, false, ctx.Err()
 		}
-		return "", 0, err
+		return "", 0, false, err
 	}
 	stopKill := context.AfterFunc(ctx, func() { _ = instance.Kill() })
 	defer func() {
@@ -96,35 +97,38 @@ func (e *pdfEngine) extract(ctx context.Context, data []byte, maxPages int) (tex
 			_ = instance.Close()
 		}
 		if ctx.Err() != nil {
-			text, pages, err = "", 0, ctx.Err()
+			text, pages, scanned, err = "", 0, false, ctx.Err()
 		}
 	}()
 	doc, err := instance.OpenDocument(&requests.OpenDocument{File: &data})
 	if errors.Is(err, pdfiumerrors.ErrPassword) || errors.Is(err, pdfiumerrors.ErrSecurity) {
-		return "", 0, ErrEncrypted
+		return "", 0, false, ErrEncrypted
 	}
 	if err != nil {
-		return "", 0, fmt.Errorf("%w: %v", ErrMalformed, err)
+		return "", 0, false, fmt.Errorf("%w: %v", ErrMalformed, err)
 	}
 	defer func() { _, _ = instance.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: doc.Document}) }()
 	count, err := instance.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc.Document})
 	if err != nil {
-		return "", 0, fmt.Errorf("%w: %v", ErrMalformed, err)
+		return "", 0, false, fmt.Errorf("%w: %v", ErrMalformed, err)
 	}
 	pages = count.PageCount
 	if pages > maxPages {
-		return "", pages, ErrTooLarge
+		return "", pages, false, ErrTooLarge
 	}
 	var b strings.Builder
 	for i := range pages {
 		page, err := instance.GetPageText(&requests.GetPageText{Page: requests.Page{ByIndex: &requests.PageByIndex{Document: doc.Document, Index: i}}})
 		if err != nil {
-			return "", pages, fmt.Errorf("%w: page %d: %v", ErrMalformed, i+1, err)
+			return "", pages, false, fmt.Errorf("%w: page %d: %v", ErrMalformed, i+1, err)
+		}
+		if pageLacksMeaningfulText(page.Text) {
+			scanned = true
 		}
 		if b.Len() > 0 {
 			b.WriteString("\n\n")
 		}
 		b.WriteString(page.Text)
 	}
-	return b.String(), pages, nil
+	return b.String(), pages, scanned, nil
 }

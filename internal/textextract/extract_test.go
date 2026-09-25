@@ -145,6 +145,89 @@ func TestExtractPDFTextLayer(t *testing.T) {
 	}
 }
 
+func TestExtractSparsePDFKeepsNativeTextWithoutVision(t *testing.T) {
+	cases := []struct {
+		name  string
+		pages []string
+	}{
+		{"one word", []string{"Hello"}},
+		{"sparse pages", []string{"Hi", "OK"}},
+		{"punctuation only", []string{"---"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := extract(t, Options{}, Input{Filename: "label.pdf"}, buildPDF(tc.pages...))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Method != MethodNative || got.Pages != len(tc.pages) {
+				t.Fatalf("got %+v", got)
+			}
+			for _, page := range tc.pages {
+				if !strings.Contains(got.Text, page) {
+					t.Fatalf("text = %q, missing %q", got.Text, page)
+				}
+			}
+		})
+	}
+
+	vision := &fakeRecognizer{text: "transcribed scan"}
+	got, err := extract(t, Options{Vision: vision}, Input{Filename: "label.pdf"}, buildPDF("Hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Method != MethodVision || got.Text != "transcribed scan" || len(vision.calls) != 1 {
+		t.Fatalf("got %+v, vision calls %d", got, len(vision.calls))
+	}
+}
+
+func TestExtractMixedPDFRecognizesSparsePages(t *testing.T) {
+	// 32 letters on the text page meet the old document-wide threshold for two
+	// pages, so an average would skip the empty or caption page.
+	const textPage = "Always write product names in English."
+	cases := []struct {
+		name  string
+		pages []string
+	}{
+		{"scan after text", []string{textPage, ""}},
+		{"scan before text", []string{"", textPage}},
+		{"short caption", []string{textPage, "Fig. 1"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data := buildPDF(tc.pages...)
+			got, err := extract(t, Options{}, Input{Filename: "mixed.pdf"}, data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Method != MethodNative || got.Pages != len(tc.pages) || !strings.Contains(got.Text, textPage) {
+				t.Fatalf("got %+v", got)
+			}
+
+			vision := &fakeRecognizer{text: "text page\n\nscanned page"}
+			got, err = extract(t, Options{Vision: vision}, Input{Filename: "uploads/mixed.pdf"}, data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Method != MethodVision || got.Pages != len(tc.pages) || got.Text != "text page\n\nscanned page" || len(vision.calls) != 1 {
+				t.Fatalf("got %+v, vision calls %d", got, len(vision.calls))
+			}
+			if vision.calls[0].Filename != "mixed.pdf" || vision.calls[0].MediaType != "application/pdf" {
+				t.Fatalf("calls = %+v", vision.calls)
+			}
+		})
+	}
+
+	vision := &fakeRecognizer{text: "unused"}
+	got, err := extract(t, Options{Vision: vision}, Input{}, buildPDF("Exactly16letters", "Exactly16letters"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Method != MethodNative || len(vision.calls) != 0 {
+		t.Fatalf("got %+v, vision calls %d", got, len(vision.calls))
+	}
+}
+
 func TestExtractScannedPDFUsesVision(t *testing.T) {
 	data := buildPDF("", "")
 	if _, err := extract(t, Options{}, Input{Filename: "scan.pdf"}, data); !errors.Is(err, ErrNoText) {
