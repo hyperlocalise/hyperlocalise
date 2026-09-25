@@ -824,6 +824,9 @@
   "01u9U8ASiI": {
     "defaultMessage": "创建任务"
   },
+  "02ZUVYObvj": {
+    "defaultMessage": "已连接自 {nodeId} · {path}。移除数据连线以手动配置此输入。"
+  },
   "032V4XY9wg": {
     "defaultMessage": "没有工作区术语表"
   },
@@ -2227,6 +2230,9 @@
   },
   "3NyprC4I6O": {
     "defaultMessage": "拓展创意"
+  },
+  "3OlJR3Fxjp": {
+    "defaultMessage": "循环成员关系会根据离开 Each 项目端口的连接自动推导。"
   },
   "3QmQFMO6jX": {
     "defaultMessage": "语言"
@@ -3944,6 +3950,9 @@
   "7YQmBHx9HV": {
     "defaultMessage": "正在加载集成功能"
   },
+  "7aLZ0dWTTK": {
+    "defaultMessage": "无法加载团队详情。"
+  },
   "7aOYNlbDse": {
     "defaultMessage": "修改起始日期"
   },
@@ -5267,6 +5276,9 @@
   "AfQNtHreD6": {
     "defaultMessage": "您将如何使用它"
   },
+  "AfVZqT7lYf": {
+    "defaultMessage": "输出"
+  },
   "AfaXCvPHA0": {
     "defaultMessage": "Name"
   },
@@ -6401,6 +6413,9 @@
   "DPeiBFpfQD": {
     "defaultMessage": "准备上传"
   },
+  "DPjhjRQyDt": {
+    "defaultMessage": "无法创建团队。"
+  },
   "DQ07Hv8A9f": {
     "defaultMessage": "此项目没有源语言区域设置。"
   },
@@ -6484,6 +6499,9 @@
   },
   "DZ8tm3n3xg": {
     "defaultMessage": "Prompt"
+  },
+  "DZQygr4PBW": {
+    "defaultMessage": "无法更新团队角色。"
   },
   "DZx5zjElsr": {
     "defaultMessage": "随便问一句，获取基于代码库的上下文。"
@@ -6772,6 +6790,9 @@
   },
   "ECw5CTvkCi": {
     "defaultMessage": "在合并前，让审阅者清楚了解区域设置覆盖情况、质量标记以及未解决项。"
+  },
+  "EE7waUBBeR": {
+    "defaultMessage": "Gemini 3.8 Flash"
   },
   "EFds7VbW/w": {
     "defaultMessage": "95–99%"
@@ -11792,6 +11813,9 @@
   "R+hZLscXuo": {
     "defaultMessage": "连接您的 Gemini 账户"
   },
+  "R+wRT9+VUQ": {
+    "defaultMessage": "无法加载团队。"
+  },
   "R/LlfIB0DY": {
     "defaultMessage": "显示名称"
   },
@@ -11983,6 +12007,9 @@
   },
   "RYfCDsRyCY": {
     "defaultMessage": "我们已达到今天计划审核的上限：{limit} 次。请明天再试。"
+  },
+  "RYlIDTbR9C": {
+    "defaultMessage": "无法更新团队。"
   },
   "RZBs1fe1V3": {
     "defaultMessage": "超本地化 | 面向智能体时代的本地化平台"
@@ -12904,6 +12931,9 @@
   },
   "TvKxxMeDL1": {
     "defaultMessage": "在草稿提交给人工审核之前，强制执行术语、字符限制和产品语调。"
+  },
+  "TvuxI/JPcp": {
+    "defaultMessage": "Gemini 3.5 Flash"
   },
   "TwAHdkAXq8": {
     "defaultMessage": "不允许"
@@ -14357,6 +14387,9 @@
   "XYe4THixuv": {
     "defaultMessage": "无法加载项目"
   },
+  "XaU9VG5iR6": {
+    "defaultMessage": "无法将成员添加到团队。"
+  },
   "XahS11XRb2": {
     "defaultMessage": "跟踪哪些文章缺少翻译，或在产品变更后落后于英文源内容。"
   },
@@ -14821,6 +14854,9 @@
   },
   "YlLKVRUEmO": {
     "defaultMessage": "上下文自动发现"
+  },
+  "YlNYKWNMnX": {
+    "defaultMessage": "Gemini 3.6 Flash"
   },
   "YlQ8SQ7Hob": {
     "defaultMessage": "扩展您的内容。掌控全局。"
@@ -15662,6 +15698,9 @@
   "ambL1h5gLQ": {
     "defaultMessage": "如何申请？"
   },
+  "amwt3mzL+t": {
+    "defaultMessage": "无法删除团队。"
+  },
   "anFNHwBPyz": {
     "defaultMessage": "2.4 MB · 12 页"
   },
@@ -15924,7 +15963,7 @@
     "defaultMessage": "DE：避免使用超过三个部分组成的复合名词"
   },
   "bSLGYWqIO6": {
-    "defaultMessage": "DNS TXT"
+    "defaultMessage": "DNS TXT记录"
   },
   "bSoPJAmJQC": {
     "defaultMessage": "此审核已排队，很快将开始。"
@@ -16126,6 +16165,9 @@
   },
   "bwRkCyVWjg": {
     "defaultMessage": "将指南留在原处，让代理阅读。"
+  },
+  "bwRlaW2gsC": {
+    "defaultMessage": "Gemini 3.1 Pro 预览版"
   },
   "bwuFPmHIKZ": {
     "defaultMessage": "读取作业"
@@ -19223,6 +19265,9 @@
   "j7qlYfJ6Qt": {
     "defaultMessage": "{kind} · {format}"
   },
+  "j8e6X/c9hq": {
+    "defaultMessage": "Gemini 3.7 Flash"
+  },
   "j8gL5p92ex": {
     "defaultMessage": "联合创始人"
   },
@@ -21028,6 +21073,9 @@
   },
   "nLGLyaeThi": {
     "defaultMessage": "Locale"
+  },
+  "nMNoXhRMk/": {
+    "defaultMessage": "无法将成员从团队中移除。"
   },
   "nMgCp4t1y/": {
     "defaultMessage": "连接"
@@ -24167,6 +24215,9 @@
   "uukLNszv2X": {
     "defaultMessage": "所有资源类型"
   },
+  "uwi6wLAbuv": {
+    "defaultMessage": "此值由已连接的数据端口提供。移除数据连线后，即可在此处编辑。"
+  },
   "uwkiRYaBX+": {
     "defaultMessage": "应用语气、术语表和法律护栏"
   },
@@ -25013,6 +25064,9 @@
   "wqZ58St0W3": {
     "defaultMessage": "无法导出翻译记忆库"
   },
+  "wqkEAl7nY6": {
+    "defaultMessage": "无法更新团队。"
+  },
   "wr3AKpuOi3": {
     "defaultMessage": "品牌语调 · 风格指南"
   },
@@ -25288,6 +25342,9 @@
   },
   "xOFZqYtkn0": {
     "defaultMessage": "有几件事需要您注意"
+  },
+  "xOduwNEWmK": {
+    "defaultMessage": "输入"
   },
   "xOg2DDTtXl": {
     "defaultMessage": "记录了一项失败的任务"
@@ -25696,6 +25753,9 @@
   },
   "yIJ8L6HdUp": {
     "defaultMessage": "使用代理翻译"
+  },
+  "yIZkW24JC2": {
+    "defaultMessage": "没有节点连接到“每个项目”区域。"
   },
   "yIpwcI2dct": {
     "defaultMessage": "{selected}/{total} chars"
