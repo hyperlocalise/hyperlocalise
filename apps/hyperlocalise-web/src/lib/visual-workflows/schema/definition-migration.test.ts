@@ -155,3 +155,150 @@ it("rejects malformed v2 definitions instead of partially migrating them", () =>
     }),
   ).toThrow();
 });
+
+it("derives migrated For Each membership from execution edges and preserves collect bindings", () => {
+  const definition = parseVisualWorkflowV3Definition({
+    schemaVersion: 2,
+    name: "Legacy loop",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: {
+          kind: "trigger.manual",
+        },
+      },
+      {
+        id: "loop",
+        type: "logic.for_each",
+        config: {
+          kind: "logic.for_each",
+          collection: "{{trigger.items}}",
+        },
+        bodyNodeIds: ["stale"],
+        collect: {
+          values: {
+            kind: "reference",
+            nodeId: "body",
+            path: ["value"],
+          },
+        },
+      },
+      {
+        id: "body",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [
+            {
+              key: "value",
+              value: "{{nodes.loop.item}}",
+            },
+          ],
+        },
+      },
+      {
+        id: "after",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-loop",
+        source: "trigger",
+        target: "loop",
+        sourceHandle: "success",
+        targetHandle: "input",
+      },
+      {
+        id: "loop-body",
+        source: "loop",
+        target: "body",
+        sourceHandle: "each",
+        targetHandle: "input",
+      },
+      {
+        id: "loop-after",
+        source: "loop",
+        target: "after",
+        sourceHandle: "done",
+        targetHandle: "input",
+      },
+    ],
+    editor: {
+      positions: {},
+    },
+  });
+
+  const loop = definition.nodes.find((node) => node.id === "loop");
+
+  expect(definition.schemaVersion).toBe(3);
+  expect(loop?.bodyNodeIds).toEqual(["body"]);
+  expect(loop?.collect).toEqual({
+    values: {
+      kind: "reference",
+      nodeId: "body",
+      path: ["value"],
+    },
+  });
+});
+
+it("replaces stale For Each membership in an existing v3 definition", () => {
+  const definition = parseVisualWorkflowV3Definition({
+    schemaVersion: 3,
+    name: "Current loop",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: {
+          kind: "trigger.manual",
+        },
+      },
+      {
+        id: "loop",
+        type: "logic.for_each",
+        config: {
+          kind: "logic.for_each",
+          collection: "[]",
+        },
+        bodyNodeIds: ["stale"],
+      },
+      {
+        id: "body",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-loop",
+        kind: "execution",
+        source: "trigger",
+        target: "loop",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "loop-body",
+        kind: "execution",
+        source: "loop",
+        target: "body",
+        sourcePortId: "each",
+        targetPortId: "input",
+      },
+    ],
+    editor: {
+      positions: {},
+    },
+  });
+
+  expect(definition.nodes.find((node) => node.id === "loop")?.bodyNodeIds).toEqual(["body"]);
+});

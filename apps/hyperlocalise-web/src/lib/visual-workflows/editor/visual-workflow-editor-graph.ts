@@ -60,21 +60,12 @@ export function removeVisualWorkflowNode(
   edges: readonly VisualWorkflowRfEdge[],
   nodeId: string,
 ): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
+  const nextNodes = nodes.filter((node) => node.id !== nodeId);
+  const nextEdges = edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
+
   return {
-    nodes: nodes
-      .filter((node) => node.id !== nodeId)
-      .map((node) =>
-        node.data.bodyNodeIds
-          ? {
-              ...node,
-              data: {
-                ...node.data,
-                bodyNodeIds: node.data.bodyNodeIds.filter((id) => id !== nodeId),
-              },
-            }
-          : node,
-      ),
-    edges: edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
+    nodes: reconcileFlowBodyMembership(nextNodes, nextEdges),
+    edges: nextEdges,
   };
 }
 
@@ -150,57 +141,6 @@ export function reconcileFlowBodyMembership(
   return reconcileRetryBodyMembership(reconcileForEachBodyMembership(nodes, edges), edges);
 }
 
-export function syncForEachBodyMembership(
-  nodes: readonly VisualWorkflowRfNode[],
-  connection: Pick<Connection, "source" | "target" | "sourceHandle">,
-): VisualWorkflowRfNode[] {
-  const sourceId = connection.source;
-  const targetId = connection.target;
-  if (!sourceId || !targetId || sourceId === targetId) {
-    return nodes as VisualWorkflowRfNode[];
-  }
-
-  const sourceHandle = connection.sourceHandle ?? null;
-  const sourceNode = nodes.find((node) => node.id === sourceId);
-  let ownerId: string | null = null;
-
-  if (sourceNode?.data.catalogType === "logic.for_each" && sourceHandle === "each") {
-    ownerId = sourceId;
-  } else if (sourceNode?.data.catalogType === "logic.retry" && sourceHandle === "attempt") {
-    ownerId = sourceId;
-  } else {
-    const bodyOwners = nodes.filter(
-      (node) =>
-        (node.data.catalogType === "logic.for_each" || node.data.catalogType === "logic.retry") &&
-        node.data.bodyNodeIds?.includes(sourceId),
-    );
-    if (bodyOwners.length === 1) {
-      ownerId = bodyOwners[0]?.id ?? null;
-    }
-  }
-
-  if (!ownerId || targetId === ownerId) {
-    return nodes as VisualWorkflowRfNode[];
-  }
-
-  return nodes.map((node) => {
-    if (node.id !== ownerId) {
-      return node;
-    }
-    const current = node.data.bodyNodeIds ?? [];
-    if (current.includes(targetId)) {
-      return node;
-    }
-    return {
-      ...node,
-      data: {
-        ...node.data,
-        bodyNodeIds: [...current, targetId],
-      },
-    };
-  });
-}
-
 export function applyNodeConfigUpdate(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
@@ -264,18 +204,20 @@ export function applyVisualWorkflowGraphConnection(
     };
   }
 
-  return {
-    nodes: syncForEachBodyMembership(nodes, nextConnection),
-    edges: addEdge(
-      {
-        ...nextConnection,
-        data: {
-          kind: "execution",
-        },
-        label: validation.sourcePortId,
+  const nextEdges = addEdge(
+    {
+      ...nextConnection,
+      data: {
+        kind: "execution",
       },
-      [...edges],
-    ),
+      label: validation.sourcePortId,
+    },
+    [...edges],
+  );
+
+  return {
+    nodes: reconcileFlowBodyMembership(nodes, nextEdges),
+    edges: nextEdges,
   };
 }
 
@@ -331,7 +273,7 @@ export function reconnectVisualWorkflowGraphConnection(
   const nextEdges = edges.map((edge) => (edge.id === edgeId ? nextEdge : edge));
 
   return {
-    nodes: reconcileForEachBodyMembership(nodes, nextEdges),
+    nodes: reconcileFlowBodyMembership(nodes, nextEdges),
     edges: nextEdges,
   };
 }

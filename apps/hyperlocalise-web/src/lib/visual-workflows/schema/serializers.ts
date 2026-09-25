@@ -20,6 +20,7 @@ import type {
   VisualWorkflowV3Definition,
 } from "./types";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
+import { computeForEachBodyNodeIds } from "../editor/for-each-body-membership";
 
 const ENABLED_TYPES = new Set<VisualCatalogType>([
   "trigger.manual",
@@ -36,19 +37,37 @@ const ENABLED_TYPES = new Set<VisualCatalogType>([
   "logic.for_each",
 ]);
 
+function deriveFlowBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  return nodes.map((node) =>
+    node.data.catalogType === "logic.for_each"
+      ? {
+          ...node,
+          data: {
+            ...node.data,
+            bodyNodeIds: computeForEachBodyNodeIds(node.id, edges),
+          },
+        }
+      : node,
+  );
+}
+
 export function toVisualWorkflowDefinition(
   state: VisualWorkflowEditorState,
 ): VisualWorkflowDefinition {
+  const nodes = deriveFlowBodyMembership(state.nodes, state.edges);
   const positions: VisualWorkflowDefinition["editor"]["positions"] = {};
 
-  for (const node of state.nodes) {
+  for (const node of nodes) {
     positions[node.id] = { x: node.position.x, y: node.position.y };
   }
 
   return {
     schemaVersion: VISUAL_WORKFLOW_SCHEMA_VERSION,
     name: state.name,
-    nodes: state.nodes.map((node) => ({
+    nodes: nodes.map((node) => ({
       id: node.id,
       type: node.data.catalogType,
       config: node.data.config,
@@ -71,9 +90,10 @@ export function toVisualWorkflowDefinition(
 export function toVisualWorkflowV3Definition(
   state: VisualWorkflowEditorState,
 ): VisualWorkflowV3Definition {
+  const nodes = deriveFlowBodyMembership(state.nodes, state.edges);
   const positions: VisualWorkflowV3Definition["editor"]["positions"] = {};
 
-  for (const node of state.nodes) {
+  for (const node of nodes) {
     positions[node.id] = {
       x: node.position.x,
       y: node.position.y,
@@ -83,7 +103,7 @@ export function toVisualWorkflowV3Definition(
   return {
     schemaVersion: 3,
     name: state.name,
-    nodes: state.nodes.map((node) => ({
+    nodes: nodes.map((node) => ({
       id: node.id,
       type: node.data.catalogType,
       config: node.data.config,
@@ -146,7 +166,7 @@ export function fromVisualWorkflowDefinition(
 
   return {
     name: definition.name,
-    nodes,
+    nodes: deriveFlowBodyMembership(nodes, edges),
     edges,
   };
 }

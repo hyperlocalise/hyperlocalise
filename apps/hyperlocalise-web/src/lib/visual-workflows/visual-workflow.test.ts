@@ -154,21 +154,39 @@ describe("validateVisualWorkflowGraph", () => {
       name: "Nested loops",
       nodes: [
         node("t", "trigger.manual"),
-        {
-          ...node("outer", "logic.for_each"),
-          data: { ...node("outer", "logic.for_each").data, bodyNodeIds: ["inner"] },
-        },
+        node("outer", "logic.for_each"),
         node("inner", "logic.for_each"),
       ],
       edges: [
-        { id: "e1", source: "t", target: "outer" },
-        { id: "e2", source: "outer", target: "inner" },
+        {
+          id: "e1",
+          source: "t",
+          target: "outer",
+          sourceHandle: "success",
+          targetHandle: "input",
+          data: {
+            kind: "execution",
+          },
+        },
+        {
+          id: "e2",
+          source: "outer",
+          target: "inner",
+          sourceHandle: "each",
+          targetHandle: "input",
+          data: {
+            kind: "execution",
+          },
+        },
       ],
     });
 
     expect(validateVisualWorkflowDefinition(definition)).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "nested_for_each", nodeId: "inner" }),
+        expect.objectContaining({
+          code: "nested_for_each",
+          nodeId: "inner",
+        }),
       ]),
     );
   });
@@ -453,5 +471,153 @@ describe("schema v3 serializers", () => {
     const serialized = toVisualWorkflowV3Definition(restored);
 
     expect(serialized).toEqual(original);
+  });
+
+  it("serializes For Each membership from execution edges instead of stale node data", () => {
+    const definition = toVisualWorkflowV3Definition({
+      name: "Graph-derived loop",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual",
+          position: { x: 0, y: 0 },
+          data: {
+            catalogType: "trigger.manual",
+            config: { kind: "trigger.manual" },
+            runStatus: "idle",
+          },
+        },
+        {
+          id: "loop",
+          type: "logic.for_each",
+          position: { x: 200, y: 0 },
+          data: {
+            catalogType: "logic.for_each",
+            config: {
+              kind: "logic.for_each",
+              collection: "[]",
+            },
+            bodyNodeIds: ["stale"],
+            runStatus: "idle",
+          },
+        },
+        {
+          id: "body",
+          type: "logic.set",
+          position: { x: 400, y: 0 },
+          data: {
+            catalogType: "logic.set",
+            config: {
+              kind: "logic.set",
+              assignments: [],
+            },
+            runStatus: "idle",
+          },
+        },
+        {
+          id: "after",
+          type: "logic.set",
+          position: { x: 400, y: 200 },
+          data: {
+            catalogType: "logic.set",
+            config: {
+              kind: "logic.set",
+              assignments: [],
+            },
+            runStatus: "idle",
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "trigger-loop",
+          source: "trigger",
+          target: "loop",
+          sourceHandle: "success",
+          targetHandle: "input",
+          data: {
+            kind: "execution",
+          },
+        },
+        {
+          id: "loop-body",
+          source: "loop",
+          target: "body",
+          sourceHandle: "each",
+          targetHandle: "input",
+          data: {
+            kind: "execution",
+          },
+        },
+        {
+          id: "loop-after",
+          source: "loop",
+          target: "after",
+          sourceHandle: "done",
+          targetHandle: "input",
+          data: {
+            kind: "execution",
+          },
+        },
+      ],
+    });
+
+    expect(definition.nodes.find((node) => node.id === "loop")?.bodyNodeIds).toEqual(["body"]);
+  });
+
+  it("replaces stale persisted For Each membership when loading the editor", () => {
+    const state = fromVisualWorkflowV3Definition({
+      schemaVersion: 3,
+      name: "Graph-derived loop",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual",
+          config: {
+            kind: "trigger.manual",
+          },
+        },
+        {
+          id: "loop",
+          type: "logic.for_each",
+          config: {
+            kind: "logic.for_each",
+            collection: "[]",
+          },
+          bodyNodeIds: ["stale"],
+        },
+        {
+          id: "body",
+          type: "logic.set",
+          config: {
+            kind: "logic.set",
+            assignments: [],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "trigger-loop",
+          kind: "execution",
+          source: "trigger",
+          target: "loop",
+          sourcePortId: "success",
+          targetPortId: "input",
+        },
+        {
+          id: "loop-body",
+          kind: "execution",
+          source: "loop",
+          target: "body",
+          sourcePortId: "each",
+          targetPortId: "input",
+        },
+      ],
+      editor: {
+        positions: {},
+      },
+    });
+
+    expect(state.nodes.find((node) => node.id === "loop")?.data.bodyNodeIds).toEqual(["body"]);
   });
 });

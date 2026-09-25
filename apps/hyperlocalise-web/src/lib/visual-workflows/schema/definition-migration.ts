@@ -14,6 +14,7 @@ import { z } from "zod";
 
 import { visualWorkflowV3DefinitionSchema } from "./definition-schema";
 import type { VisualWorkflowV3Definition } from "./types";
+import { computeForEachBodyNodeIdsFromV3Edges } from "../editor/for-each-body-membership";
 
 const visualWorkflowV2EdgeSchema = z
   .object({
@@ -35,12 +36,32 @@ const visualWorkflowV2DefinitionSchema = z
   })
   .passthrough();
 
+function withGraphDerivedForEachMembership(
+  definition: VisualWorkflowV3Definition,
+): VisualWorkflowV3Definition {
+  return {
+    ...definition,
+    nodes: definition.nodes.map((node) =>
+      node.type === "logic.for_each"
+        ? {
+            ...node,
+            bodyNodeIds: computeForEachBodyNodeIdsFromV3Edges(node.id, definition.edges),
+          }
+        : node,
+    ),
+  };
+}
+
 export function parseVisualWorkflowV3Definition(value: unknown): VisualWorkflowV3Definition {
   const current = visualWorkflowV3DefinitionSchema.safeParse(value);
-  if (current.success) return current.data;
+
+  if (current.success) {
+    return withGraphDerivedForEachMembership(current.data);
+  }
 
   const legacy = visualWorkflowV2DefinitionSchema.parse(value);
-  return visualWorkflowV3DefinitionSchema.parse({
+
+  const migrated = visualWorkflowV3DefinitionSchema.parse({
     ...legacy,
     schemaVersion: 3,
     edges: legacy.edges.map(({ sourceHandle, targetHandle, ...edge }) => ({
@@ -50,4 +71,6 @@ export function parseVisualWorkflowV3Definition(value: unknown): VisualWorkflowV
       targetPortId: targetHandle ?? "input",
     })),
   });
+
+  return withGraphDerivedForEachMembership(migrated);
 }

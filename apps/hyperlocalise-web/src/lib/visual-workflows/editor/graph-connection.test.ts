@@ -163,6 +163,52 @@ describe("applyVisualWorkflowGraphConnection", () => {
     expect(codes(validateVisualWorkflowDefinition(definition(next)))).toEqual([]);
   });
 
+  it("replaces stale For Each membership with membership derived from execution edges", () => {
+    const nodes = [
+      node("trigger", "trigger.manual"),
+      node("loop", "logic.for_each", {
+        bodyNodeIds: ["stale"],
+      }),
+      node("first", "logic.set"),
+      node("second", "logic.set"),
+    ];
+
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "trigger-loop",
+        source: "trigger",
+        target: "loop",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+      {
+        id: "loop-first",
+        source: "loop",
+        target: "first",
+        sourceHandle: "each",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+    ];
+
+    const result = applyVisualWorkflowGraphConnection(nodes, edges, {
+      source: "first",
+      target: "second",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    expect(result.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual([
+      "first",
+      "second",
+    ]);
+  });
+
   it("preserves HTTP error handles when onError is branch", () => {
     const http = node("http", "action.http", {
       config: {

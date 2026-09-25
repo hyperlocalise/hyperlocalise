@@ -37,6 +37,7 @@ import type {
 
 import { VisualWorkflowCompactNode } from "./nodes/visual-workflow-compact-node";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
+import { deriveForEachLoopRegion } from "@/lib/visual-workflows/editor/for-each-body-membership";
 
 export const VISUAL_WORKFLOW_NODE_TYPES = Object.fromEntries(
   VISUAL_NODE_CATALOG.filter((item) => item.enabled).map((item) => [
@@ -44,6 +45,90 @@ export const VISUAL_WORKFLOW_NODE_TYPES = Object.fromEntries(
     VisualWorkflowCompactNode,
   ]),
 ) as Record<VisualCatalogType, typeof VisualWorkflowCompactNode>;
+
+type ForEachPresentedRegion = {
+  loopId: string;
+  bodyNodeIds: Set<string>;
+  exitNodeIds: Set<string>;
+};
+
+export function presentVisualWorkflowEdges(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfEdge[] {
+  const regions: ForEachPresentedRegion[] = nodes
+    .filter((node) => node.data.catalogType === "logic.for_each")
+    .map((node) => {
+      const region = deriveForEachLoopRegion(node.id, edges);
+
+      return {
+        loopId: node.id,
+        bodyNodeIds: new Set(region.bodyNodeIds),
+        exitNodeIds: new Set(region.exitNodeIds),
+      };
+    });
+
+  return edges.map((edge) => {
+    if (edge.data?.kind === "data") {
+      return {
+        ...edge,
+        label: `${edge.sourceHandle ?? "output"} → ${edge.targetHandle ?? "input"}`,
+        style: {
+          ...edge.style,
+          strokeDasharray: "5 4",
+        },
+      };
+    }
+
+    const belongsToEachRegion = regions.some(
+      (region) =>
+        (edge.source === region.loopId && edge.sourceHandle === "each") ||
+        (region.bodyNodeIds.has(edge.source) && region.bodyNodeIds.has(edge.target)),
+    );
+
+    if (belongsToEachRegion) {
+      return {
+        ...edge,
+        style: {
+          ...edge.style,
+          stroke: "var(--primary)",
+          strokeWidth: 2,
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 16,
+          height: 16,
+          color: "var(--primary)",
+        },
+      };
+    }
+
+    const belongsToDoneRegion = regions.some(
+      (region) =>
+        (edge.source === region.loopId && edge.sourceHandle === "done") ||
+        (region.exitNodeIds.has(edge.source) && region.exitNodeIds.has(edge.target)),
+    );
+
+    if (belongsToDoneRegion) {
+      return {
+        ...edge,
+        style: {
+          ...edge.style,
+          stroke: "var(--muted-foreground)",
+          strokeWidth: 2,
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 16,
+          height: 16,
+          color: "var(--muted-foreground)",
+        },
+      };
+    }
+
+    return edge;
+  });
+}
 
 export function VisualWorkflowCanvas({
   nodes,
@@ -72,18 +157,7 @@ export function VisualWorkflowCanvas({
 }) {
   const reconnectingEdgeIdRef = useRef<string | null>(null);
   const lastConnectionErrorRef = useRef<string | null>(null);
-  const presentedEdges = useMemo(
-    () =>
-      edges.map((edge) => ({
-        ...edge,
-        label:
-          edge.data?.kind === "data"
-            ? `${edge.sourceHandle ?? "output"} → ${edge.targetHandle ?? "input"}`
-            : edge.label,
-        style: edge.data?.kind === "data" ? { ...edge.style, strokeDasharray: "5 4" } : edge.style,
-      })),
-    [edges],
-  );
+  const presentedEdges = useMemo(() => presentVisualWorkflowEdges(nodes, edges), [edges, nodes]);
   const isValidConnection = useCallback(
     (connection: Connection | VisualWorkflowRfEdge) => {
       const result = validateVisualWorkflowConnection({

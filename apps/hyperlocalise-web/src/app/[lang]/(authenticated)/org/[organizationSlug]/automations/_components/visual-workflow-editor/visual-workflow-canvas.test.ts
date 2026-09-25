@@ -14,7 +14,11 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { createDefaultConfig } from "@/lib/visual-workflows/catalog/node-catalog";
 import { applyVisualWorkflowGraphConnection } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
-import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
+import type {
+  VisualWorkflowRfEdge,
+  VisualWorkflowRfNode,
+} from "@/lib/visual-workflows/schema/types";
+import { presentVisualWorkflowEdges } from "./visual-workflow-canvas";
 
 function node(id: string, type: VisualWorkflowRfNode["data"]["catalogType"]): VisualWorkflowRfNode {
   return {
@@ -25,6 +29,24 @@ function node(id: string, type: VisualWorkflowRfNode["data"]["catalogType"]): Vi
       catalogType: type,
       config: createDefaultConfig(type),
       runStatus: "idle",
+    },
+  };
+}
+
+function executionEdge(
+  id: string,
+  source: string,
+  target: string,
+  sourceHandle = "success",
+): VisualWorkflowRfEdge {
+  return {
+    id,
+    source,
+    target,
+    sourceHandle,
+    targetHandle: "input",
+    data: {
+      kind: "execution",
     },
   };
 }
@@ -88,6 +110,77 @@ describe("applyVisualWorkflowGraphConnection edge kinds", () => {
       data: { kind: "data" },
       label: "triggeredAt → url",
       style: { strokeDasharray: "5 4" },
+    });
+  });
+});
+
+describe("presentVisualWorkflowEdges", () => {
+  it("visually distinguishes Each item and Done regions", () => {
+    const loopNodes = [
+      node("trigger", "trigger.manual"),
+      node("loop", "logic.for_each"),
+      node("body", "logic.set"),
+      node("body-end", "logic.set"),
+      node("after", "logic.set"),
+      node("summary", "logic.set"),
+    ];
+
+    const edges = [
+      executionEdge("trigger-loop", "trigger", "loop"),
+      executionEdge("loop-body", "loop", "body", "each"),
+      executionEdge("body-end", "body", "body-end"),
+      executionEdge("loop-after", "loop", "after", "done"),
+      executionEdge("after-summary", "after", "summary"),
+    ];
+
+    const presented = presentVisualWorkflowEdges(loopNodes, edges);
+
+    expect(presented.find((edge) => edge.id === "loop-body")?.style).toMatchObject({
+      stroke: "var(--primary)",
+      strokeWidth: 2,
+    });
+
+    expect(presented.find((edge) => edge.id === "body-end")?.style).toMatchObject({
+      stroke: "var(--primary)",
+      strokeWidth: 2,
+    });
+
+    expect(presented.find((edge) => edge.id === "loop-after")?.style).toMatchObject({
+      stroke: "var(--muted-foreground)",
+      strokeWidth: 2,
+    });
+
+    expect(presented.find((edge) => edge.id === "after-summary")?.style).toMatchObject({
+      stroke: "var(--muted-foreground)",
+      strokeWidth: 2,
+    });
+  });
+
+  it("keeps data edges visually distinct from loop execution regions", () => {
+    const loopNodes = [node("loop", "logic.for_each"), node("body", "logic.set")];
+
+    const edges: VisualWorkflowRfEdge[] = [
+      executionEdge("loop-body", "loop", "body", "each"),
+      {
+        id: "loop-body-data",
+        source: "loop",
+        target: "body",
+        sourceHandle: "item",
+        targetHandle: "value",
+        data: {
+          kind: "data",
+        },
+      },
+    ];
+
+    const presented = presentVisualWorkflowEdges(loopNodes, edges);
+    const data = presented.find((edge) => edge.id === "loop-body-data");
+
+    expect(data).toMatchObject({
+      label: "item → value",
+      style: {
+        strokeDasharray: "5 4",
+      },
     });
   });
 });
