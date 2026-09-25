@@ -824,6 +824,9 @@
   "01u9U8ASiI": {
     "defaultMessage": "Tạo công việc"
   },
+  "02ZUVYObvj": {
+    "defaultMessage": "Được kết nối từ {nodeId} · {path}. Xóa dây dữ liệu để cấu hình đầu vào này theo cách thủ công."
+  },
   "032V4XY9wg": {
     "defaultMessage": "Không có bảng thuật ngữ không gian làm việc"
   },
@@ -2227,6 +2230,9 @@
   },
   "3NyprC4I6O": {
     "defaultMessage": "Mở rộng ý tưởng"
+  },
+  "3OlJR3Fxjp": {
+    "defaultMessage": "Tính thành viên của vòng lặp được suy ra tự động từ các kết nối đi ra từ cổng Each item."
   },
   "3QmQFMO6jX": {
     "defaultMessage": "Ngôn ngữ"
@@ -3944,6 +3950,9 @@
   "7YQmBHx9HV": {
     "defaultMessage": "Đang tải các tích hợp"
   },
+  "7aLZ0dWTTK": {
+    "defaultMessage": "Không thể tải thông tin nhóm."
+  },
   "7aOYNlbDse": {
     "defaultMessage": "Đã sửa đổi từ"
   },
@@ -5267,6 +5276,9 @@
   "AfQNtHreD6": {
     "defaultMessage": "Cách bạn sẽ sử dụng nó"
   },
+  "AfVZqT7lYf": {
+    "defaultMessage": "Đầu ra"
+  },
   "AfaXCvPHA0": {
     "defaultMessage": "Name"
   },
@@ -6401,6 +6413,9 @@
   "DPeiBFpfQD": {
     "defaultMessage": "Sẵn sàng tải lên"
   },
+  "DPjhjRQyDt": {
+    "defaultMessage": "Không thể tạo nhóm."
+  },
   "DQ07Hv8A9f": {
     "defaultMessage": "Dự án này không có ngôn ngữ nguồn."
   },
@@ -6484,6 +6499,9 @@
   },
   "DZ8tm3n3xg": {
     "defaultMessage": "Prompt"
+  },
+  "DZQygr4PBW": {
+    "defaultMessage": "Không thể cập nhật vai trò trong nhóm."
   },
   "DZx5zjElsr": {
     "defaultMessage": "Hỏi bất kỳ điều gì. Nhận ngữ cảnh dựa trên kho mã."
@@ -6772,6 +6790,9 @@
   },
   "ECw5CTvkCi": {
     "defaultMessage": "Cung cấp cho người xem xét cái nhìn rõ ràng về phạm vi ngôn ngữ, các cờ chất lượng và các mục chưa được giải quyết trước khi hợp nhất."
+  },
+  "EE7waUBBeR": {
+    "defaultMessage": "Gemini 3.8 Flash"
   },
   "EFds7VbW/w": {
     "defaultMessage": "95–99%"
@@ -10470,7 +10491,7 @@
     "defaultMessage": "Tất cả ngôn ngữ địa phương"
   },
   "Nf32FGPaYc": {
-    "defaultMessage": "Content Studio"
+    "defaultMessage": "Studio Nội dung"
   },
   "Nf77AX5l7/": {
     "defaultMessage": "Không thể tải các dự án"
@@ -11792,6 +11813,9 @@
   "R+hZLscXuo": {
     "defaultMessage": "Kết nối tài khoản Gemini của bạn"
   },
+  "R+wRT9+VUQ": {
+    "defaultMessage": "Không thể tải các nhóm."
+  },
   "R/LlfIB0DY": {
     "defaultMessage": "Tên hiển thị"
   },
@@ -11983,6 +12007,9 @@
   },
   "RYfCDsRyCY": {
     "defaultMessage": "Chúng tôi đã đạt giới hạn {limit} lượt kiểm tra theo lịch hôm nay. Hãy thử lại vào ngày mai."
+  },
+  "RYlIDTbR9C": {
+    "defaultMessage": "Không thể cập nhật nhóm."
   },
   "RZBs1fe1V3": {
     "defaultMessage": "Siêu bản địa hóa | Nền tảng bản địa hóa cho Kỷ nguyên Agentic"
@@ -12904,6 +12931,9 @@
   },
   "TvKxxMeDL1": {
     "defaultMessage": "Thực thi thuật ngữ, giới hạn ký tự và giọng điệu sản phẩm trước khi bản nháp đến tay người rà soát."
+  },
+  "TvuxI/JPcp": {
+    "defaultMessage": "Gemini 3.5 Flash"
   },
   "TwAHdkAXq8": {
     "defaultMessage": "Không được phép"
@@ -14357,6 +14387,9 @@
   "XYe4THixuv": {
     "defaultMessage": "Không thể tải các dự án"
   },
+  "XaU9VG5iR6": {
+    "defaultMessage": "Không thể thêm thành viên vào nhóm."
+  },
   "XahS11XRb2": {
     "defaultMessage": "Theo dõi những bài viết nào bị thiếu bản dịch hoặc chậm cập nhật so với nguồn tiếng Anh sau khi sản phẩm thay đổi."
   },
@@ -14821,6 +14854,9 @@
   },
   "YlLKVRUEmO": {
     "defaultMessage": "Khám phá tự động ngữ cảnh"
+  },
+  "YlNYKWNMnX": {
+    "defaultMessage": "Gemini 3.6 Flash"
   },
   "YlQ8SQ7Hob": {
     "defaultMessage": "Mở rộng nội dung. Luôn kiểm soát."
@@ -15662,6 +15698,9 @@
   "ambL1h5gLQ": {
     "defaultMessage": "Tôi đăng ký như thế nào?"
   },
+  "amwt3mzL+t": {
+    "defaultMessage": "Không thể xóa nhóm."
+  },
   "anFNHwBPyz": {
     "defaultMessage": "2,4 MB · 12 trang"
   },
@@ -16126,6 +16165,9 @@
   },
   "bwRkCyVWjg": {
     "defaultMessage": "Để nguyên các hướng dẫn ở đó. Cho phép các agent đọc chúng."
+  },
+  "bwRlaW2gsC": {
+    "defaultMessage": "Gemini 3.1 Pro Preview"
   },
   "bwuFPmHIKZ": {
     "defaultMessage": "Đọc công việc"
@@ -19223,6 +19265,9 @@
   "j7qlYfJ6Qt": {
     "defaultMessage": "{kind} · {format}"
   },
+  "j8e6X/c9hq": {
+    "defaultMessage": "Gemini 3.7 Flash"
+  },
   "j8gL5p92ex": {
     "defaultMessage": "Đồng sáng lập"
   },
@@ -21028,6 +21073,9 @@
   },
   "nLGLyaeThi": {
     "defaultMessage": "Locale"
+  },
+  "nMNoXhRMk/": {
+    "defaultMessage": "Không thể xóa thành viên khỏi nhóm."
   },
   "nMgCp4t1y/": {
     "defaultMessage": "Kết nối"
@@ -24167,6 +24215,9 @@
   "uukLNszv2X": {
     "defaultMessage": "Tất cả các loại tài nguyên"
   },
+  "uwi6wLAbuv": {
+    "defaultMessage": "Giá trị này được cung cấp từ một cổng dữ liệu được kết nối. Hãy ngắt kết nối dây dữ liệu để chỉnh sửa tại đây."
+  },
   "uwkiRYaBX+": {
     "defaultMessage": "Áp dụng giọng điệu, bảng thuật ngữ và các rào chắn pháp lý"
   },
@@ -25013,6 +25064,9 @@
   "wqZ58St0W3": {
     "defaultMessage": "Không thể xuất bộ nhớ dịch"
   },
+  "wqkEAl7nY6": {
+    "defaultMessage": "Không thể cập nhật nhóm."
+  },
   "wr3AKpuOi3": {
     "defaultMessage": "Thương hiệu · Hướng dẫn phong cách"
   },
@@ -25288,6 +25342,9 @@
   },
   "xOFZqYtkn0": {
     "defaultMessage": "Một vài việc cần bạn chú ý"
+  },
+  "xOduwNEWmK": {
+    "defaultMessage": "Đầu vào"
   },
   "xOg2DDTtXl": {
     "defaultMessage": "đã ghi nhận một tác vụ thất bại"
@@ -25696,6 +25753,9 @@
   },
   "yIJ8L6HdUp": {
     "defaultMessage": "Dịch bằng tác nhân"
+  },
+  "yIZkW24JC2": {
+    "defaultMessage": "Không có nút nào được kết nối với vùng Mỗi mục."
   },
   "yIpwcI2dct": {
     "defaultMessage": "{selected}/{total} chars"

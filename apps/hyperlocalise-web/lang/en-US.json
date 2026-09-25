@@ -939,6 +939,10 @@
     "defaultMessage": "Context of {source}",
     "description": "Suggested prompt chip for the currently selected CAT segment source string"
   },
+  "02ZUVYObvj": {
+    "defaultMessage": "Connected from {nodeId} · {path}. Remove the data wire to configure this input manually.",
+    "description": "Visual workflow connected data input description"
+  },
   "032V4XY9wg": {
     "defaultMessage": "No workspace glossaries",
     "description": "Empty state title for the workspace glossary section when creation is unavailable"
@@ -2514,6 +2518,10 @@
   "3NyprC4I6O": {
     "defaultMessage": "Expand ideas",
     "description": "Submit seed keywords"
+  },
+  "3OlJR3Fxjp": {
+    "defaultMessage": "Loop membership is derived automatically from connections leaving the Each item port.",
+    "description": "Explanation of graph-derived For Each membership"
   },
   "3QmQFMO6jX": {
     "defaultMessage": "Languages",
@@ -6086,6 +6094,10 @@
   "AfQNtHreD6": {
     "defaultMessage": "How you will use it",
     "description": "Label for a flag kind field"
+  },
+  "AfVZqT7lYf": {
+    "defaultMessage": "Outputs",
+    "description": "Workflow node data output ports heading"
   },
   "AfaXCvPHA0": {
     "defaultMessage": "Name",
@@ -28087,6 +28099,10 @@
     "defaultMessage": "Translation",
     "description": "Column heading for translations in side-by-side CAT view"
   },
+  "uwi6wLAbuv": {
+    "defaultMessage": "This value is supplied by a connected data port. Remove the data wire to edit it here.",
+    "description": "Description for an inline workflow value overridden by a data connection"
+  },
   "uwkiRYaBX+": {
     "defaultMessage": "Apply voice, glossary, and legal guardrails",
     "description": "Workflow step 2 description for the marketing-localisation use case"
@@ -29395,6 +29411,10 @@
     "defaultMessage": "A few things need your attention",
     "description": "Dashboard hero title when pending actions need review"
   },
+  "xOduwNEWmK": {
+    "defaultMessage": "Inputs",
+    "description": "Workflow node data input ports heading"
+  },
   "xOg2DDTtXl": {
     "defaultMessage": "recorded a failed job",
     "description": "Action for job failure"
@@ -29914,6 +29934,10 @@
   "yIJ8L6HdUp": {
     "defaultMessage": "Translate with agent",
     "description": "Context menu action to translate a project file with an agent"
+  },
+  "yIZkW24JC2": {
+    "defaultMessage": "No nodes are connected to the Each item region.",
+    "description": "Empty graph-derived For Each body"
   },
   "yIwRFz93s7": {
     "defaultMessage": "Italian (Italy)",
