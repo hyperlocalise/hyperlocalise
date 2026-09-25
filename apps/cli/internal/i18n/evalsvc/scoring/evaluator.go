@@ -80,11 +80,27 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 	srcTrimmed := strings.TrimSpace(source)
 	translatedTrimmed := strings.TrimSpace(translated)
 	referenceTrimmed := strings.TrimSpace(reference)
+
 	sourceAnalysis := analyzeScoringText(srcTrimmed)
-	translatedAnalysis := analyzeScoringText(translatedTrimmed)
+
+	var translatedAnalysis scoringTextAnalysis
+	if translatedTrimmed == srcTrimmed {
+		// BOLT OPTIMIZATION: Reuse source analysis when translated text is identical to source.
+		translatedAnalysis = sourceAnalysis
+	} else {
+		translatedAnalysis = analyzeScoringText(translatedTrimmed)
+	}
+
 	referenceNormalized := ""
 	if referenceTrimmed != "" {
-		referenceNormalized = normalizeText(referenceTrimmed)
+		// BOLT OPTIMIZATION: Reuse precomputed normalized strings if reference matches source or translated.
+		if referenceTrimmed == translatedTrimmed {
+			referenceNormalized = translatedAnalysis.normalized
+		} else if referenceTrimmed == srcTrimmed {
+			referenceNormalized = sourceAnalysis.normalized
+		} else {
+			referenceNormalized = normalizeText(referenceTrimmed)
+		}
 	}
 	tagFlags := analyzeTags(tags)
 
@@ -377,21 +393,51 @@ func tagTokenCounts(s string) (map[string]int, int) {
 	tokens := make(map[string]int, capEstimate)
 	total := 0
 
-	// Scan tokens iteratively to avoid allocating FindAllStringIndex headers.
-	// Advance to the returned match (or stop) so unmatched signal characters
-	// do not rescan every remaining suffix.
+	// BOLT OPTIMIZATION: Scan tokens iteratively inline to eliminate closure heap allocations.
 	if hasHTML {
-		scanRegexpMatches(s, "<", htmlTagPattern, func(raw string) {
+		for pos := 0; pos < len(s); {
+			idx := strings.IndexByte(s[pos:], '<')
+			if idx == -1 {
+				break
+			}
+			pos += idx
+			loc := htmlTagPattern.FindStringIndex(s[pos:])
+			if loc == nil {
+				break
+			}
+			start := pos + loc[0]
+			end := pos + loc[1]
+			if end <= start {
+				break
+			}
+			raw := s[start:end]
 			tokens[formatHTMLToken(strings.TrimSpace(raw))]++
 			total++
-		})
+			pos = end
+		}
 	}
 
 	if hasMD {
-		scanRegexpMatches(s, "*_~`[#", markdownTokenPattern, func(raw string) {
+		for pos := 0; pos < len(s); {
+			idx := strings.IndexAny(s[pos:], "*_~`[#")
+			if idx == -1 {
+				break
+			}
+			pos += idx
+			loc := markdownTokenPattern.FindStringIndex(s[pos:])
+			if loc == nil {
+				break
+			}
+			start := pos + loc[0]
+			end := pos + loc[1]
+			if end <= start {
+				break
+			}
+			raw := s[start:end]
 			tokens["md:"+strings.TrimSpace(raw)]++
 			total++
-		})
+			pos = end
+		}
 	}
 
 	return tokens, total
@@ -461,7 +507,52 @@ func formatICUBlockToken(block icuparser.BlockSignature) string {
 }
 
 func formatHTMLToken(raw string) string {
-	// BOLT OPTIMIZATION: Fast-path formatting for ASCII HTML tokens using a stack buffer
+	// BOLT OPTIMIZATION: Fast-path static return strings for common HTML tags
+	// to avoid string allocations for standard markup.
+	switch raw {
+	case "<strong>", "<STRONG>":
+		return "html:<strong>"
+	case "</strong>", "</STRONG>":
+		return "html:</strong>"
+	case "<b>", "<B>":
+		return "html:<b>"
+	case "</b>", "</B>":
+		return "html:</b>"
+	case "<em>", "<EM>":
+		return "html:<em>"
+	case "</em>", "</EM>":
+		return "html:</em>"
+	case "<i>", "<I>":
+		return "html:<i>"
+	case "</i>", "</I>":
+		return "html:</i>"
+	case "<span>", "<SPAN>":
+		return "html:<span>"
+	case "</span>", "</SPAN>":
+		return "html:</span>"
+	case "<a>", "<A>":
+		return "html:<a>"
+	case "</a>", "</A>":
+		return "html:</a>"
+	case "<code>", "<CODE>":
+		return "html:<code>"
+	case "</code>", "</CODE>":
+		return "html:</code>"
+	case "<br>", "<BR>":
+		return "html:<br>"
+	case "</br>", "</BR>":
+		return "html:</br>"
+	case "<br/>", "<BR/>":
+		return "html:<br/>"
+	case "<br />", "<BR />":
+		return "html:<br />"
+	case "<p>", "<P>":
+		return "html:<p>"
+	case "</p>", "</P>":
+		return "html:</p>"
+	}
+
+	// Fast-path formatting for ASCII HTML tokens using a stack buffer
 	// [128]byte to eliminate strings.Builder heap slice allocations for common HTML tokens.
 	hasUpper := false
 	hasNonASCII := false
@@ -621,20 +712,35 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 			total++
 		}
 	}
-	// BOLT OPTIMIZATION: Avoid running regex if the signal characters are not present.
+	// BOLT OPTIMIZATION: Avoid running regex or brace scanning if signal characters are not present.
 	if strings.Contains(s, "{") {
-		// BOLT OPTIMIZATION: Replace regex FindAllStringSubmatch with a zero-allocation byte scanner
-		// to extract brace placeholders without intermediate slice/match allocations.
+		// Inline brace scanning loop to avoid closure allocation.
 		scanBracePlaceholders(s, func(name string) {
 			tokens["brace:"+name]++
 			total++
 		})
 	}
 	if strings.Contains(s, "%") {
-		scanRegexpMatches(s, "%", printfPlaceholderPattern, func(match string) {
+		for pos := 0; pos < len(s); {
+			idx := strings.IndexByte(s[pos:], '%')
+			if idx == -1 {
+				break
+			}
+			pos += idx
+			loc := printfPlaceholderPattern.FindStringIndex(s[pos:])
+			if loc == nil {
+				break
+			}
+			start := pos + loc[0]
+			end := pos + loc[1]
+			if end <= start {
+				break
+			}
+			match := s[start:end]
 			tokens["printf:"+match]++
 			total++
-		})
+			pos = end
+		}
 	}
 	return tokens, total
 }
