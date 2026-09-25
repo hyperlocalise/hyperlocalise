@@ -46,6 +46,7 @@ require (
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
+	github.com/ledongthuc/pdf v0.0.0-20260907135840-6c8c28e0e8a0
 	github.com/valkey-io/valkey-go v1.0.78
 )
 
