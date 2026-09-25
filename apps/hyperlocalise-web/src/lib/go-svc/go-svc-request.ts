@@ -87,6 +87,7 @@ export class GoSvcRequest {
       contentType: response.headers.get("content-type"),
       filename: responseFilename(response.headers.get("content-disposition")),
       extension: response.headers.get("x-export-extension"),
+      warningCount: Number(response.headers.get("x-hyperlocalise-export-warning-count") ?? 0),
     };
   }
 
@@ -167,6 +168,14 @@ export function issueSheetPath(
   ...segments: string[]
 ): string {
   return orgPath(organizationSlug, "projects", projectId, "issue-sheet", ...segments);
+}
+
+export function catPath(
+  organizationSlug: string,
+  projectId: string,
+  ...segments: string[]
+): string {
+  return orgPath(organizationSlug, "projects", projectId, "files", "detail", "cat", ...segments);
 }
 
 function normalizeBaseUrl(value: string): string {

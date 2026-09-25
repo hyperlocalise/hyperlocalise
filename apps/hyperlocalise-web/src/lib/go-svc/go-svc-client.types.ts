@@ -29,6 +29,7 @@ export type GoSvcDownload = {
   contentType: string | null;
   filename: string | null;
   extension: string | null;
+  warningCount: number;
 };
 
 export type GoSvcErrorBody = {
@@ -131,6 +132,26 @@ export type GlossaryProject = {
   externalUrl: string | null;
 };
 
+/**
+ * go-svc exports the whole glossary; the filtered/scoped export still lives on
+ * the Hono route, so only `format` is accepted here.
+ */
+export type GlossaryExportQuery = {
+  format?: "csv" | "tbx" | "xlsx";
+};
+
+export type GlossaryConceptPageQuery = {
+  limit?: number;
+  cursor?: string;
+  search?: string;
+};
+
+export type GlossaryTermPageQuery = {
+  limit?: number;
+  cursor?: string;
+  locale?: string;
+};
+
 export type MemoryRecord = {
   id: string;
   organizationId: string;
@@ -191,7 +212,14 @@ export type TeamSummary = Omit<TeamRecord, "organizationId"> & {
 export type IssueSheetListQuery = GoSvcPageQuery & {
   view?: "my_work" | "qa_triage" | "source_context" | "all_open";
   status?: "open" | "in_progress" | "resolved" | "wont_fix" | "all";
-  issueType?: string;
+  issueType?:
+    | "general_question"
+    | "translation_mistake"
+    | "context_request"
+    | "source_mistake"
+    | "glossary_violation"
+    | "qa_failure"
+    | "all";
   priority?: "P0" | "P1" | "P2";
   locale?: string;
   assignee?: string;
