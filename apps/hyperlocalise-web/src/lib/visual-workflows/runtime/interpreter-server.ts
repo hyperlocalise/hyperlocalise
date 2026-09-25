@@ -21,6 +21,7 @@ import {
 } from "./interpreter";
 import type { VisualWorkflowDefinition } from "../schema/types";
 import type { RetryResumeState } from "./retry-delay";
+import type { WaitResumeState } from "./wait-schedule";
 
 export type {
   VisualWorkflowGraphIndex,
@@ -41,6 +42,7 @@ export async function runVisualWorkflowInterpreter(input: {
   shouldCancel?: () => Promise<boolean>;
   mockMode?: boolean;
   retryBackoff?: RetryResumeState | null;
+  waitResume?: WaitResumeState | null;
 }): Promise<VisualWorkflowInterpreterResult> {
   return runVisualWorkflowInterpreterCore({
     ...input,

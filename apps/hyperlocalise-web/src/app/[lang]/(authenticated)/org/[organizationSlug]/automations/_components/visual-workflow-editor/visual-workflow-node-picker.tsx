@@ -166,6 +166,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeLoop;
     case "logic.retry":
       return messages.nodeRetry;
+    case "flow.wait":
+      return messages.nodeWait;
   }
 }
 
@@ -197,6 +199,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeLoopHint;
     case "logic.retry":
       return messages.nodeRetryHint;
+    case "flow.wait":
+      return messages.nodeWaitHint;
   }
 }
 

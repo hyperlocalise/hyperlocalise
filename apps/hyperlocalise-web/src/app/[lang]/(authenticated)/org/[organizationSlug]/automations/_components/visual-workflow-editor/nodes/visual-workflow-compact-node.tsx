@@ -153,7 +153,8 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
     !isIf &&
     !isSwitch &&
     data.catalogType !== "logic.for_each" &&
-    data.catalogType !== "logic.retry";
+    data.catalogType !== "logic.retry" &&
+    data.catalogType !== "flow.wait";
   const title = intl.formatMessage(titleMessage(data.catalogType));
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
   const primaryHandle = getPrimaryExecutionSourceHandle({
@@ -170,7 +171,9 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           ? intl.formatMessage(messages.eachHandle)
           : data.catalogType === "logic.retry"
             ? intl.formatMessage(messages.attemptHandle)
-            : null;
+            : data.catalogType === "flow.wait"
+              ? intl.formatMessage(messages.completedHandle)
+              : null;
 
   const addFromHandle = (handleId?: string) => {
     onAddFromNode({
@@ -272,6 +275,30 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             position={Position.Right}
             type="source"
             aria-label="Exhausted"
+          />
+        </>
+      ) : data.catalogType === "flow.wait" ? (
+        <>
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[28%]!")}
+            id="completed"
+            position={Position.Right}
+            type="source"
+            aria-label="Completed"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[50%]! bg-muted-foreground")}
+            id="timed_out"
+            position={Position.Right}
+            type="source"
+            aria-label="Timed out"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[72%]! bg-destructive")}
+            id="error"
+            position={Position.Right}
+            type="source"
+            aria-label="Error"
           />
         </>
       ) : isSwitch ? (
@@ -423,6 +450,40 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           </span>
         </div>
       ) : null}
+      {data.catalogType === "flow.wait" ? (
+        <div className="pointer-events-none absolute inset-y-0 right-[-5.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+          <span>
+            <FormattedMessage {...messages.completedHandle} />
+          </span>
+
+          <span className="flex items-center gap-1">
+            <FormattedMessage {...messages.timedOutHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="timed_out"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.timedOutHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
+          </span>
+          <span className="flex items-center gap-1 text-destructive">
+            <FormattedMessage {...messages.errorHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="error"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.errorHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
+          </span>
+        </div>
+      ) : null}
       {data.runStatus && data.runStatus !== "idle" ? (
         <p className="mt-2 text-center text-xs text-muted-foreground" role="status">
           {intl.formatMessage(nodeStatusMessages[data.runStatus])}
@@ -446,7 +507,11 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </div>
       ) : null}
 
-      {showErrorHandle && !isIf && !isSwitch && data.catalogType !== "logic.retry" ? (
+      {showErrorHandle &&
+      !isIf &&
+      !isSwitch &&
+      data.catalogType !== "logic.retry" &&
+      data.catalogType !== "flow.wait" ? (
         <div className="pointer-events-none absolute top-[72%] right-[-4.5rem] flex items-center gap-1 text-[10px] font-medium text-destructive">
           <FormattedMessage {...messages.errorHandle} />
           {data.hideAddAction ? null : (
@@ -515,5 +580,7 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeLoop;
     case "logic.retry":
       return messages.nodeRetry;
+    case "flow.wait":
+      return messages.nodeWait;
   }
 }

@@ -84,6 +84,10 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
     portIds.add("error");
   }
 
+  if (node.type === "flow.wait") {
+    return new Set(["completed", "timed_out", "error"]);
+  }
+
   return portIds;
 }
 

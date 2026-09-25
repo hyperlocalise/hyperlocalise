@@ -34,6 +34,8 @@ import {
   updateVisualWorkflow,
   publishVisualWorkflow,
 } from "./visual-workflows";
+import { decryptWorkflowPayload, encryptWorkflowPayload } from "./workflow-credentials";
+import { requestWorkflowCancellation } from "./workflow-recovery";
 
 const fixture = createAuthTestFixture();
 
@@ -61,6 +63,140 @@ function scheduledWorkflowDefinition(name = "Run coverage"): VisualWorkflowDefin
     ],
     edges: [],
     editor: { positions: { t: { x: 0, y: 0 } } },
+  };
+}
+
+function waitWorkflowDefinition(): VisualWorkflowDefinition {
+  return {
+    schemaVersion: 2,
+    name: "Durable Wait",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.scheduled",
+        config: {
+          kind: "trigger.scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 9,
+            timezone: "UTC",
+          },
+        },
+      },
+      {
+        id: "wait",
+        type: "flow.wait",
+        config: {
+          kind: "flow.wait",
+          mode: "timestamp",
+          timestamp: "2099-01-01T00:00:00.000Z",
+        },
+      },
+      {
+        id: "completed",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [
+            {
+              key: "result",
+              value: "completed",
+            },
+          ],
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-wait",
+        source: "trigger",
+        target: "wait",
+        sourceHandle: null,
+        targetHandle: null,
+      },
+      {
+        id: "wait-completed",
+        source: "wait",
+        target: "completed",
+        sourceHandle: "completed",
+        targetHandle: null,
+      },
+    ],
+    editor: {
+      positions: {
+        trigger: { x: 0, y: 0 },
+        wait: { x: 300, y: 0 },
+        completed: { x: 600, y: 0 },
+      },
+    },
+  };
+}
+
+function conditionWaitWorkflowDefinition(): VisualWorkflowDefinition {
+  return {
+    schemaVersion: 2,
+    name: "Condition Wait timeout",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.scheduled",
+        config: {
+          kind: "trigger.scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 9,
+            timezone: "UTC",
+          },
+        },
+      },
+      {
+        id: "wait",
+        type: "flow.wait",
+        config: {
+          kind: "flow.wait",
+          mode: "condition",
+          condition: "false",
+          pollingIntervalMs: 5_000,
+          timeoutMs: 60_000,
+        },
+      },
+      {
+        id: "timed-out",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [
+            {
+              key: "result",
+              value: "timed_out",
+            },
+          ],
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-wait",
+        source: "trigger",
+        target: "wait",
+        sourceHandle: null,
+        targetHandle: null,
+      },
+      {
+        id: "wait-timed-out",
+        source: "wait",
+        target: "timed-out",
+        sourceHandle: "timed_out",
+        targetHandle: null,
+      },
+    ],
+    editor: {
+      positions: {
+        trigger: { x: 0, y: 0 },
+        wait: { x: 300, y: 0 },
+        "timed-out": { x: 600, y: 0 },
+      },
+    },
   };
 }
 
@@ -315,5 +451,226 @@ describe("visual workflow runs", () => {
       limit: 10,
     });
     expect(listed.map((row) => row.id)).toEqual([newer.id, older.id]);
+  });
+
+  it("persists a Wait wakeup and resumes through the completed branch", async () => {
+    const { organizationId, workflow } = await seedWorkflow({
+      definition: waitWorkflowDefinition(),
+    });
+
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "durable-wait-resume",
+    });
+
+    const paused = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(paused?.status).toBe("running");
+    expect(paused?.executionPausedUntil).toBe("2099-01-01T00:00:00.000Z");
+
+    const [stored] = await db
+      .select({
+        encryptedPayload: schema.visualWorkflowRuns.encryptedPayload,
+        leaseExpiresAt: schema.visualWorkflowRuns.leaseExpiresAt,
+      })
+      .from(schema.visualWorkflowRuns)
+      .where(eq(schema.visualWorkflowRuns.id, run.id))
+      .limit(1);
+
+    expect(stored?.encryptedPayload).toBeTruthy();
+    expect(stored?.leaseExpiresAt?.toISOString()).toBe("2099-01-01T00:00:00.000Z");
+
+    const payload = decryptWorkflowPayload(stored!.encryptedPayload!) as Record<string, unknown>;
+
+    expect(payload.waitResume).toMatchObject({
+      waitNodeId: "wait",
+      mode: "timestamp",
+      wakeAt: "2099-01-01T00:00:00.000Z",
+    });
+
+    const waitResume = payload.waitResume as Record<string, unknown>;
+    const resumedPayload = {
+      ...payload,
+      waitResume: {
+        ...waitResume,
+        wakeAt: "2020-01-01T00:00:00.000Z",
+      },
+    };
+
+    // Simulate the durable scheduler waking this run after its persisted time.
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({
+        encryptedPayload: encryptWorkflowPayload(resumedPayload),
+        leaseExpiresAt: new Date("2020-01-01T00:00:00.000Z"),
+      })
+      .where(eq(schema.visualWorkflowRuns.id, run.id));
+
+    const resumed = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(resumed?.status).toBe("succeeded");
+    expect(resumed?.outputSummary).toMatchObject({
+      nodeResults: {
+        wait: {
+          status: "completed",
+          scheduledAt: expect.any(String),
+          resumedAt: expect.any(String),
+        },
+        completed: {
+          result: "completed",
+        },
+      },
+    });
+
+    const [finished] = await db
+      .select({
+        encryptedPayload: schema.visualWorkflowRuns.encryptedPayload,
+      })
+      .from(schema.visualWorkflowRuns)
+      .where(eq(schema.visualWorkflowRuns.id, run.id))
+      .limit(1);
+
+    const finishedPayload = decryptWorkflowPayload(finished!.encryptedPayload!) as Record<
+      string,
+      unknown
+    >;
+
+    expect(finishedPayload.waitResume).toBeUndefined();
+  });
+
+  it("resumes a bounded condition through the timed out branch", async () => {
+    const { organizationId, workflow } = await seedWorkflow({
+      definition: conditionWaitWorkflowDefinition(),
+    });
+
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "condition-wait-timeout",
+    });
+
+    const paused = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(paused?.status).toBe("running");
+    expect(paused?.executionPausedUntil).toEqual(expect.any(String));
+
+    const [stored] = await db
+      .select({
+        encryptedPayload: schema.visualWorkflowRuns.encryptedPayload,
+      })
+      .from(schema.visualWorkflowRuns)
+      .where(eq(schema.visualWorkflowRuns.id, run.id))
+      .limit(1);
+
+    const payload = decryptWorkflowPayload(stored!.encryptedPayload!) as Record<string, unknown>;
+
+    const waitResume = payload.waitResume as Record<string, unknown>;
+
+    expect(waitResume).toMatchObject({
+      waitNodeId: "wait",
+      mode: "condition",
+      timeoutAt: expect.any(String),
+    });
+
+    const expiredAt = "2020-01-01T00:00:00.000Z";
+
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({
+        encryptedPayload: encryptWorkflowPayload({
+          ...payload,
+          waitResume: {
+            ...waitResume,
+            wakeAt: expiredAt,
+            timeoutAt: expiredAt,
+          },
+        }),
+        leaseExpiresAt: new Date(expiredAt),
+      })
+      .where(eq(schema.visualWorkflowRuns.id, run.id));
+
+    const resumed = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(resumed?.status).toBe("succeeded");
+    expect(resumed?.outputSummary).toMatchObject({
+      nodeResults: {
+        wait: {
+          status: "timed_out",
+          scheduledAt: expect.any(String),
+          resumedAt: expect.any(String),
+        },
+        "timed-out": {
+          result: "timed_out",
+        },
+      },
+    });
+  });
+
+  it("cancels a sleeping Wait run without executing its future branch", async () => {
+    const { organizationId, workflow } = await seedWorkflow({
+      definition: waitWorkflowDefinition(),
+    });
+
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "cancel-durable-wait",
+    });
+
+    const paused = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(paused?.status).toBe("running");
+    expect(paused?.executionPausedUntil).toBe("2099-01-01T00:00:00.000Z");
+
+    await requestWorkflowCancellation({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      runId: run.id,
+    });
+
+    const cancelled = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(cancelled?.status).toBe("cancelled");
+
+    const withNodes = await getVisualWorkflowRunById({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      runId: run.id,
+      includeNodeRuns: true,
+    });
+
+    expect(
+      withNodes?.nodeRuns?.some(
+        (nodeRun) => nodeRun.nodeId === "completed" && nodeRun.status === "succeeded",
+      ),
+    ).toBe(false);
   });
 });
