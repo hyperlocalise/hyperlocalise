@@ -1,0 +1,99 @@
+name: Lambda Artifact Upload
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - Makefile
+      - go.mod
+      - go.sum
+      - internal/activitylog/**
+      - apps/activity-log-lambda/**
+      - .github/actions/go-bootstrap/**
+      - .github/actions/upload-lambda-artifact/**
+      - .github/workflows/lambda-artifact-upload.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: lambda-artifact-upload-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+  LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME: /hyperlocalise/prod/artifacts/lambda_bucket_name
+  LAMBDA_ARTIFACT_KEY: activity-log/bootstrap.zip
+
+jobs:
+  publish:
+    name: Build and upload Lambda artifact
+    if: github.ref == 'refs/heads/main'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Bootstrap Go toolchain
+        uses: ./.github/actions/go-bootstrap
+        with:
+          go-version-file: go.mod
+
+      - name: Test activity-log Lambda
+        run: go test ./apps/activity-log-lambda ./internal/activitylog
+
+      - name: Build and package Lambda artifact
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifact_dir="${RUNNER_TEMP}/hyperlocalise-lambda-artifact"
+          artifact_path="${artifact_dir}/bootstrap.zip"
+          mkdir -p "${artifact_dir}"
+
+          make build-activity-log-lambda
+          zip -j "${artifact_path}" dist/activity-log-lambda/bootstrap
+
+          if [[ "$(unzip -Z1 "${artifact_path}" | sort)" != "bootstrap" ]]; then
+            echo "Lambda artifact must contain exactly one root-level bootstrap file" >&2
+            unzip -Z1 "${artifact_path}" >&2
+            exit 1
+          fi
+
+          echo "artifact-path=${artifact_path}" >> "${GITHUB_OUTPUT}"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-lambda-artifact-upload
+
+      - name: Upload Lambda artifact
+        id: upload
+        uses: ./.github/actions/upload-lambda-artifact
+        with:
+          artifact-path: ${{ steps.package.outputs.artifact-path }}
+          bucket-parameter-name: ${{ env.LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME }}
+          s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
+
+      - name: Summarize upload
+        shell: bash
+        env:
+          S3_URI: ${{ steps.upload.outputs.s3-uri }}
+          VERSION_ID: ${{ steps.upload.outputs.version-id }}
+        run: |
+          {
+            echo "## Lambda artifact uploaded"
+            echo
+            echo "- Object: \`${S3_URI}\`"
+            echo "- Version: \`${VERSION_ID}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
