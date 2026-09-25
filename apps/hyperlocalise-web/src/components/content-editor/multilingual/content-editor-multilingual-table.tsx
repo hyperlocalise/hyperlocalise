@@ -262,11 +262,15 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   const [localDrafts] = useState(() => new MultilingualDrafts());
   const drafts = providedDrafts ?? localDrafts;
   const [activeCell, setActiveCell] = useState<{ id: string; locale: string } | null>(null);
-  useEffect(() => reaction(
-    () => [...drafts.cells.values()].map((cell) => [cell.dirty, cell.error]),
-    () => drafts.releaseInactive(activeCell?.id, activeCell?.locale),
-    { fireImmediately: true },
-  ), [drafts, activeCell?.id, activeCell?.locale]);
+  useEffect(
+    () =>
+      reaction(
+        () => [...drafts.cells.values()].map((cell) => [cell.dirty, cell.error]),
+        () => drafts.releaseInactive(activeCell?.id, activeCell?.locale),
+        { fireImmediately: true },
+      ),
+    [drafts, activeCell?.id, activeCell?.locale],
+  );
   const activeRow = segments.findIndex((segment) => segment.id === activeCell?.id);
   const [hiddenLocales, setHiddenLocales] = useState<ReadonlySet<string>>(() => new Set());
   const locales = useMemo(() => [...new Set(config.targetLocales)], [config.targetLocales]);

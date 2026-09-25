@@ -356,7 +356,17 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
         dispose();
         store.serverTargetLookup = undefined;
       };
-    }, [nativeLoader, queryClient, store, organizationSlug, projectId, sourcePath, targetLocale, externalResourceId, resourceType]);
+    }, [
+      nativeLoader,
+      queryClient,
+      store,
+      organizationSlug,
+      projectId,
+      sourcePath,
+      targetLocale,
+      externalResourceId,
+      resourceType,
+    ]);
     const selectedSegmentId = store.selectedSegmentId;
     const isSideBySideView = store.ui.isSideBySideView;
     const loadSideBySideSegmentIds = store.ui.loadSideBySideSegmentIds;

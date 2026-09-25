@@ -203,7 +203,12 @@ export function useContentEditorSegmentQuery(input: {
       return previousData;
     },
     gcTime: CAT_CACHE_GC_TIME,
-    maxPages: input.goSvcClient && !input.externalResourceId && !providerFallback.current.has(input.projectId) ? CAT_QUEUE_MAX_PAGES : undefined,
+    maxPages:
+      input.goSvcClient &&
+      !input.externalResourceId &&
+      !providerFallback.current.has(input.projectId)
+        ? CAT_QUEUE_MAX_PAGES
+        : undefined,
     getPreviousPageParam: (firstPage) =>
       firstPage.provider || !firstPage.pagination?.offset
         ? undefined

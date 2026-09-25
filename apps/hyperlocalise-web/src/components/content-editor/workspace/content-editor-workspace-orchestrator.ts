@@ -659,7 +659,8 @@ export class ContentEditorWorkspaceOrchestrator {
       segments = this.queueSegments.filter((meta) => this.matchesQueueFilter(meta.id, filter));
     }
 
-    if (this.serverTargetLookup && this.queueWindowIds) segments = segments.filter((segment) => this.queueWindowIds!.has(segment.id));
+    if (this.serverTargetLookup && this.queueWindowIds)
+      segments = segments.filter((segment) => this.queueWindowIds!.has(segment.id));
     return orderCatQueueSegmentsSkippedLast(segments, this.queue.sort, (meta) => {
       const draft = this.drafts.get(meta.id);
       return (draft?.status ?? "pending") === "skipped";

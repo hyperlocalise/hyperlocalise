@@ -63,7 +63,10 @@ export function ContentEditorQueueVirtualList({
       }
 
       const lastItem = items.at(-1);
-      if (!lastItem || lastItem.index < Math.max(segments.length - Math.min(10, Math.ceil(segments.length / 3)), 0)) {
+      if (
+        !lastItem ||
+        lastItem.index < Math.max(segments.length - Math.min(10, Math.ceil(segments.length / 3)), 0)
+      ) {
         return;
       }
 
