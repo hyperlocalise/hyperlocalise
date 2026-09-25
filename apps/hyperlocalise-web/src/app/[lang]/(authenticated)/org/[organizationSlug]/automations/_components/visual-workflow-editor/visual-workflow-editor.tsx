@@ -75,7 +75,7 @@ import { visualWorkflowEditorMessages as messages } from "./visual-workflow-edit
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
 import type { VisualWorkflowsApi } from "../visual-workflows-api";
 
-const NODE_GAP_X = 260;
+const NODE_GAP_X = 340;
 const NODE_GAP_Y = 36;
 
 function quickAddOffsetY(handleId: string | undefined, source: VisualWorkflowRfNode): number {

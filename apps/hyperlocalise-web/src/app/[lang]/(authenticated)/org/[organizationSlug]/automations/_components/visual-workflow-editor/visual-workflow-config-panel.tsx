@@ -55,6 +55,7 @@ import type {
 import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
+import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const ERROR_BEHAVIORS: VisualNodeErrorBehavior[] = ["stop", "continue", "branch"];
@@ -87,6 +88,26 @@ export function VisualWorkflowConfigPanel({
   const intl = useIntl();
   const { config } = node.data;
   const isTrigger = isTriggerType(node.data.catalogType);
+  const isInputConnected = (portId: string) =>
+    getVisualWorkflowDataEdgeBinding({
+      nodeId: node.id,
+      portId,
+      edges,
+    }) !== undefined;
+
+  const connectedInputDescription = intl.formatMessage({
+    id: "uwi6wLAbuv",
+    defaultMessage:
+      "This value is supplied by a connected data port. Remove the data wire to edit it here.",
+    description: "Description for an inline workflow value overridden by a data connection",
+  });
+  const connectedInputProps = (portId: string) => {
+    const disabled = isInputConnected(portId);
+    return {
+      disabled,
+      description: disabled ? connectedInputDescription : undefined,
+    };
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -156,6 +177,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-http-url"
               label={intl.formatMessage(messages.httpUrl)}
               value={config.url}
+              {...connectedInputProps("url")}
               onChange={(value) => onChangeConfig({ ...config, url: value })}
               placeholder="https://"
             />
@@ -190,6 +212,7 @@ export function VisualWorkflowConfigPanel({
                 id="vw-http-body"
                 label={intl.formatMessage(messages.httpBody)}
                 value={config.body ?? ""}
+                {...connectedInputProps("body")}
                 onChange={(value) => onChangeConfig({ ...config, body: value })}
                 placeholder='{"key": "{{trigger.id}}"}'
               />
@@ -277,6 +300,7 @@ export function VisualWorkflowConfigPanel({
             id="vw-if-condition"
             label={intl.formatMessage(messages.ifCondition)}
             value={config.condition}
+            {...connectedInputProps("condition")}
             onChange={(value) => onChangeConfig({ ...config, condition: value })}
           />
         ) : null}
@@ -286,6 +310,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-switch-expression"
               label={intl.formatMessage(messages.switchExpression)}
               value={config.expression}
+              {...connectedInputProps("expression")}
               onChange={(value) => onChangeConfig({ ...config, expression: value })}
               placeholder="{{nodes.http.json.status}}"
             />
@@ -358,6 +383,7 @@ export function VisualWorkflowConfigPanel({
             id="vw-for-each-collection"
             label={intl.formatMessage(messages.forEachCollection)}
             value={config.collection}
+            {...connectedInputProps("collection")}
             onChange={(value) => onChangeConfig({ ...config, collection: value })}
             placeholder="{{trigger.items}}"
           />
@@ -368,6 +394,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-retry-max-attempts"
               label={intl.formatMessage(messages.retryMaxAttempts)}
               value={String(config.maxAttempts ?? 3)}
+              {...connectedInputProps("maxAttempts")}
               onChange={(value) =>
                 onChangeConfig({
                   ...config,
@@ -379,6 +406,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-retry-initial-delay"
               label={intl.formatMessage(messages.retryInitialDelay)}
               value={String(config.initialDelayMs ?? 1000)}
+              {...connectedInputProps("initialDelayMs")}
               onChange={(value) =>
                 onChangeConfig({
                   ...config,
@@ -390,6 +418,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-retry-backoff"
               label={intl.formatMessage(messages.retryBackoffMultiplier)}
               value={String(config.backoffMultiplier ?? 2)}
+              {...connectedInputProps("backoffMultiplier")}
               onChange={(value) =>
                 onChangeConfig({
                   ...config,
@@ -420,12 +449,14 @@ export function VisualWorkflowConfigPanel({
               id="vw-slack-channel"
               label={intl.formatMessage(messages.slackChannelId)}
               value={config.channelId}
+              {...connectedInputProps("channelId")}
               onChange={(value) => onChangeConfig({ ...config, channelId: value })}
             />
             <TextAreaField
               id="vw-slack-message"
               label={intl.formatMessage(messages.slackMessage)}
               value={config.message}
+              {...connectedInputProps("message")}
               onChange={(value) => onChangeConfig({ ...config, message: value })}
             />
             <ErrorBehaviorField
@@ -470,6 +501,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-email-from"
               label={intl.formatMessage(messages.emailFrom)}
               value={config.from}
+              {...connectedInputProps("from")}
               onChange={(value) => onChangeConfig({ ...config, from: value })}
               placeholder="notifications@company.com"
             />
@@ -477,6 +509,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-email-recipients"
               label={intl.formatMessage(messages.emailRecipients)}
               value={config.recipients}
+              {...connectedInputProps("recipients")}
               onChange={(value) => onChangeConfig({ ...config, recipients: value })}
               placeholder="ops@company.com, dev@company.com"
             />
@@ -484,12 +517,14 @@ export function VisualWorkflowConfigPanel({
               id="vw-email-subject"
               label={intl.formatMessage(messages.emailSubject)}
               value={config.subject}
+              {...connectedInputProps("subject")}
               onChange={(value) => onChangeConfig({ ...config, subject: value })}
             />
             <TextAreaField
               id="vw-email-message"
               label={intl.formatMessage(messages.emailMessage)}
               value={config.message}
+              {...connectedInputProps("message")}
               onChange={(value) => onChangeConfig({ ...config, message: value })}
             />
             <ErrorBehaviorField
@@ -658,6 +693,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-ai-prompt"
               label={intl.formatMessage(messages.aiPrompt)}
               value={config.prompt}
+              {...connectedInputProps("prompt")}
               onChange={(value) => onChangeConfig({ ...config, prompt: value })}
             />
             <ErrorBehaviorField
@@ -839,12 +875,16 @@ function TextField({
   value,
   onChange,
   placeholder,
+  disabled = false,
+  description,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  disabled?: boolean;
+  description?: string;
 }) {
   return (
     <div className="grid gap-1.5">
@@ -852,9 +892,11 @@ function TextField({
       <Input
         id={id}
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
     </div>
   );
 }
@@ -865,12 +907,16 @@ function TextAreaField({
   value,
   onChange,
   placeholder,
+  disabled = false,
+  description,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  disabled?: boolean;
+  description?: string;
 }) {
   return (
     <div className="grid gap-1.5">
@@ -878,9 +924,11 @@ function TextAreaField({
       <Textarea
         id={id}
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
     </div>
   );
 }

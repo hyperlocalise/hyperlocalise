@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, useEdges, type NodeProps } from "@xyflow/react";
 import { defineMessages, FormattedMessage, useIntl } from "react-intl";
 
 import { Card } from "@/components/ui/card";
@@ -25,11 +25,14 @@ import {
 } from "@/lib/visual-workflows/catalog/node-catalog";
 import { getPrimaryExecutionSourceHandle } from "@/lib/visual-workflows/validation/execution-handles";
 import {
-  getWorkflowOutputFields,
-  NODE_CONTRACTS,
-} from "@/lib/visual-workflows/catalog/node-contracts";
+  getVisualWorkflowDataPorts,
+  type VisualWorkflowDataPort,
+} from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 import { nodeSupportsErrorBranch } from "@/lib/visual-workflows/runtime/node-options";
-import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
+import type {
+  VisualWorkflowRfEdge,
+  VisualWorkflowRfNode,
+} from "@/lib/visual-workflows/schema/types";
 import { cn } from "@/lib/primitives/cn";
 
 import { useVisualWorkflowCanvasActions } from "../visual-workflow-canvas-actions";
@@ -65,24 +68,92 @@ const HANDLE_CLASS = cn(
   "motion-reduce:transition-none",
 );
 
+const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
+  string: "bg-blue-500",
+  number: "bg-amber-500",
+  boolean: "bg-violet-500",
+  object: "bg-emerald-500",
+  array: "bg-pink-500",
+  unknown: "bg-slate-500",
+};
+
+function DataPortLabel({
+  port,
+  direction,
+}: {
+  port: VisualWorkflowDataPort;
+  direction: "input" | "output";
+}) {
+  const connected = port.connectionCount > 0;
+
+  return (
+    <div
+      className={cn(
+        "relative flex min-h-6 items-center gap-1.5 text-[10px]",
+        direction === "output" ? "justify-end text-right" : null,
+      )}
+      title={`${port.label}: ${port.type}${port.optional ? " (optional)" : ""}`}
+    >
+      {direction === "input" ? (
+        <Handle
+          id={port.id}
+          type="target"
+          position={Position.Left}
+          className={cn(
+            HANDLE_CLASS,
+            DATA_TYPE_CLASS[port.type],
+            connected ? "ring-2 ring-primary/30" : null,
+          )}
+          aria-label={`Data input: ${port.label}, ${port.type}${port.optional ? ", optional" : ""}`}
+        />
+      ) : null}
+
+      <span className="min-w-0 truncate font-medium">{port.label}</span>
+      <span className="shrink-0 text-muted-foreground">{port.type}</span>
+
+      {direction === "output" ? (
+        <Handle
+          id={port.id}
+          type="source"
+          position={Position.Right}
+          className={cn(
+            HANDLE_CLASS,
+            DATA_TYPE_CLASS[port.type],
+            connected ? "ring-2 ring-primary/30" : null,
+          )}
+          aria-label={`Data output: ${port.label}, ${port.type}${
+            port.optional ? ", optional" : ""
+          }`}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
+  const edges = useEdges<VisualWorkflowRfEdge>();
   const { onAddFromNode } = useVisualWorkflowCanvasActions();
   const catalog = catalogItemByType(data.catalogType);
   const isTrigger = isTriggerType(data.catalogType);
   const isIf = data.catalogType === "logic.if";
   const isSwitch = data.catalogType === "logic.switch";
   const showErrorHandle = nodeSupportsErrorBranch(data.config);
-  const dataInputs = NODE_CONTRACTS[data.catalogType].inputs;
-  const dataOutputs = getWorkflowOutputFields({
-    id,
-    type: data.catalogType,
-    config: data.config,
-    inputs: data.inputs,
-    outputFields: data.outputFields,
-    bodyNodeIds: data.bodyNodeIds,
-    collect: data.collect,
+  const dataPorts = getVisualWorkflowDataPorts({
+    node: {
+      id,
+      type: data.catalogType,
+      position: { x: 0, y: 0 },
+      data,
+    },
+    edges,
   });
+  const hasDataPorts = dataPorts.inputs.length > 0 || dataPorts.outputs.length > 0;
+  const hasSingleExecutionOutput =
+    !isIf &&
+    !isSwitch &&
+    data.catalogType !== "logic.for_each" &&
+    data.catalogType !== "logic.retry";
   const title = intl.formatMessage(titleMessage(data.catalogType));
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
   const primaryHandle = getPrimaryExecutionSourceHandle({
@@ -123,37 +194,13 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
     <Card
       aria-busy={data.runStatus === "running"}
       className={cn(
-        "relative w-[200px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
+        "relative w-[280px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
         selected ? "ring-2 ring-ring" : null,
         data.runStatus === "running" ? "ring-2 ring-primary/70" : null,
         data.runStatus === "succeeded" ? "border-grove-700/40 bg-grove-100/60" : null,
         data.runStatus === "failed" ? "border-destructive/40 bg-destructive/5" : null,
       )}
     >
-      {dataInputs.map((input, index) => (
-        <Handle
-          key={`data-input-${input.name}`}
-          id={input.name}
-          type="target"
-          position={Position.Top}
-          className={cn(HANDLE_CLASS, "bg-sky-500")}
-          style={{ left: `${((index + 1) / (dataInputs.length + 1)) * 100}%` }}
-          aria-label={`Data input: ${input.name}`}
-          title={input.name}
-        />
-      ))}
-      {dataOutputs.map((output, index) => (
-        <Handle
-          key={`data-output-${output.path}`}
-          id={output.path}
-          type="source"
-          position={Position.Bottom}
-          className={cn(HANDLE_CLASS, "bg-sky-500")}
-          style={{ left: `${((index + 1) / (dataOutputs.length + 1)) * 100}%` }}
-          aria-label={`Data output: ${output.path}`}
-          title={output.path}
-        />
-      ))}
       {isTrigger ? (
         <span
           className="absolute top-2 left-2 text-primary"
@@ -164,7 +211,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : (
         <Handle
           id="input"
-          className={HANDLE_CLASS}
+          className={cn(HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
           position={Position.Left}
           type="target"
           aria-label="Execution input"
@@ -244,7 +291,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         <>
           <Handle
             id="success"
-            className={HANDLE_CLASS}
+            className={cn(HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
             position={Position.Right}
             type="source"
             aria-label="Execution success"
@@ -265,6 +312,42 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         <p className="text-sm font-medium text-foreground">{title}</p>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
+
+      {hasDataPorts ? (
+        <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-2">
+          <div className="min-w-0">
+            <p className="mb-1 text-left text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <FormattedMessage
+                defaultMessage="Inputs"
+                id="xOduwNEWmK"
+                description="Workflow node data input ports heading"
+              />
+            </p>
+
+            <div className="space-y-0.5">
+              {dataPorts.inputs.map((port) => (
+                <DataPortLabel key={`data-input-${port.id}`} port={port} direction="input" />
+              ))}
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <p className="mb-1 text-right text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <FormattedMessage
+                defaultMessage="Outputs"
+                id="AfVZqT7lYf"
+                description="Workflow node data output ports heading"
+              />
+            </p>
+
+            <div className="space-y-0.5">
+              {dataPorts.outputs.map((port) => (
+                <DataPortLabel key={`data-output-${port.id}`} port={port} direction="output" />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isIf ? (
         <div className="pointer-events-none absolute inset-y-0 right-[-4.25rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
@@ -387,7 +470,10 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
 
       {data.hideAddAction ? null : (
         <VisualWorkflowQuickAddButton
-          className="absolute top-1/2 -right-3 -translate-y-1/2"
+          className={cn(
+            "absolute -right-3 -translate-y-1/2",
+            hasDataPorts && hasSingleExecutionOutput ? "top-16" : "top-1/2",
+          )}
           handleId={primaryHandle ?? undefined}
           label={
             primaryHandleLabel
