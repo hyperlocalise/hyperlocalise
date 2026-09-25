@@ -13,7 +13,11 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { ActivityLogEventInput } from "./activity-log-contract";
-import { enqueueActivityLogEvent, enqueueActivityLogEvents } from "./activity-log-writer";
+import {
+  ACTIVITY_LOG_SQS_SEND_TIMEOUT_MS,
+  enqueueActivityLogEvent,
+  enqueueActivityLogEvents,
+} from "./activity-log-writer";
 
 const { sendMock } = vi.hoisted(() => ({
   sendMock: vi.fn(),
@@ -26,8 +30,8 @@ vi.mock("@aws-sdk/client-sqs", () => ({
     }
   },
   SQSClient: class {
-    send(input: unknown) {
-      return sendMock(input);
+    send(input: unknown, options: unknown) {
+      return sendMock(input, options);
     }
   },
 }));
@@ -58,6 +62,7 @@ function projectCreatedEvent(organizationId = "org-1"): ActivityLogEventInput {
 
 describe("enqueueActivityLogEvent", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
@@ -68,10 +73,13 @@ describe("enqueueActivityLogEvent", () => {
 
     expect(result).toMatchObject({ ok: true });
     expect(sendMock).toHaveBeenCalledTimes(1);
-    expect(sendMock).toHaveBeenCalledWith({
-      MessageBody: expect.any(String),
-      QueueUrl: "https://sqs.test.local/queue/activity-log",
-    });
+    expect(sendMock).toHaveBeenCalledWith(
+      {
+        MessageBody: expect.any(String),
+        QueueUrl: "https://sqs.test.local/queue/activity-log",
+      },
+      { abortSignal: expect.any(AbortSignal) },
+    );
     expect(JSON.parse(sendMock.mock.calls[0][0].MessageBody)).toEqual({
       event: expect.objectContaining({
         createdAt: expect.any(String),
@@ -127,6 +135,47 @@ describe("enqueueActivityLogEvent", () => {
       "workspace activity log enqueue failed",
     );
     expect(JSON.stringify(error.mock.calls)).not.toContain("SQS infrastructure failure");
+  });
+
+  it("bounds a stalled SQS send with the default timeout", async () => {
+    vi.useFakeTimers();
+    sendMock.mockImplementation(
+      (_command: unknown, { abortSignal }: { abortSignal: AbortSignal }) =>
+        new Promise((_, reject) => {
+          abortSignal.addEventListener("abort", () => reject(abortSignal.reason), { once: true });
+        }),
+    );
+
+    const resultPromise = enqueueActivityLogEvent(projectCreatedEvent());
+    await vi.advanceTimersByTimeAsync(ACTIVITY_LOG_SQS_SEND_TIMEOUT_MS);
+
+    await expect(resultPromise).resolves.toEqual({
+      ok: false,
+      error: { code: "activity_log_enqueue_failed" },
+    });
+  });
+
+  it("combines the caller signal with the default timeout", async () => {
+    sendMock.mockImplementation(
+      (_command: unknown, { abortSignal }: { abortSignal: AbortSignal }) =>
+        new Promise((_, reject) => {
+          abortSignal.addEventListener("abort", () => reject(abortSignal.reason), { once: true });
+        }),
+    );
+    const controller = new AbortController();
+
+    const resultPromise = enqueueActivityLogEvent(projectCreatedEvent(), {
+      signal: controller.signal,
+    });
+    controller.abort();
+
+    await expect(resultPromise).resolves.toEqual({
+      ok: false,
+      error: { code: "activity_log_enqueue_failed" },
+    });
+    expect(sendMock).toHaveBeenCalledWith(expect.anything(), {
+      abortSignal: expect.any(AbortSignal),
+    });
   });
 
   it("enqueues multiple events with bounded fan-out", async () => {

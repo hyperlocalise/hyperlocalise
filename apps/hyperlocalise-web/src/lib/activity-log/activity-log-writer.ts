@@ -31,12 +31,14 @@ import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 const logger = createLogger("activity-log-writer");
 const sqsClient = new SQSClient({ region: env.AWS_REGION });
+export const ACTIVITY_LOG_SQS_SEND_TIMEOUT_MS = 2_000;
 
 export type ActivityLogWriterLogger = Pick<Logger, "error">;
 
 export type ActivityLogWriterOptions = {
   correlationId?: string;
   logger?: ActivityLogWriterLogger;
+  signal?: AbortSignal;
 };
 
 function logWriteFailure(
@@ -89,11 +91,16 @@ export async function enqueueActivityLogEvent(
       messageType: "activity_log",
       schemaVersion: ACTIVITY_LOG_SQS_SCHEMA_VERSION,
     };
+    const timeoutSignal = AbortSignal.timeout(ACTIVITY_LOG_SQS_SEND_TIMEOUT_MS);
+    const abortSignal = options.signal
+      ? AbortSignal.any([options.signal, timeoutSignal])
+      : timeoutSignal;
     await sqsClient.send(
       new SendMessageCommand({
         MessageBody: JSON.stringify(message),
         QueueUrl: env.ACTIVITY_LOG_SQS_QUEUE_URL,
       }),
+      { abortSignal },
     );
 
     return ok({ createdAt: new Date(event.createdAt), id: event.id });

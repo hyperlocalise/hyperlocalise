@@ -16,7 +16,10 @@ go_library(
 
 go_test(
     name = "activitylog_test",
-    srcs = ["contract_test.go"],
+    srcs = [
+        "contract_test.go",
+        "store_test.go",
+    ],
     embed = [":activitylog"],
     deps = ["@com_github_stretchr_testify//require"],
 )
