@@ -26,8 +26,9 @@ Cancelling the context kills the instance, which bounds pathological documents.
 The embedded module adds about 5.5 MB to binaries that import this package.
 
 Input is untrusted. `Options` bounds upload size, PDF page count and output
-runes (`Result.Truncated` reports truncation). DOCX decompression is bounded to
-prevent zip bombs. Output defaults to 50,000 runes, the canonical guideline
+runes (`Result.Truncated` reports truncation). DOCX decompression stops at
+eight times the uploaded archive, and at eight times `MaxBytes` when that
+ceiling is lower. Output defaults to 50,000 runes, the canonical guideline
 content limit.
 
 Extraction is deterministic for native formats but not for vision. Persist the

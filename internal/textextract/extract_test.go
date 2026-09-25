@@ -236,8 +236,21 @@ func TestExtractDOCX(t *testing.T) {
 func TestExtractDOCXRejectsExpansion(t *testing.T) {
 	body := `<w:document xmlns:w="w"><w:body><w:p><w:r><w:t>` + strings.Repeat("a", 64<<10) + `</w:t></w:r></w:p></w:body></w:document>`
 	data := buildZip(t, map[string]string{docxBodyPath: body})
-	if _, err := extract(t, Options{MaxBytes: int64(len(data)) + 1}, Input{}, data); !errors.Is(err, ErrTooLarge) {
-		t.Fatalf("err = %v", err)
+	if int64(len(body)) <= int64(len(data))*docxMaxExpansion {
+		t.Fatalf("fixture compresses within %dx: archive %d xml %d", docxMaxExpansion, len(data), len(body))
+	}
+	// Default MaxBytes would otherwise allow 256 MiB of XML from this tiny archive.
+	if _, err := extract(t, Options{}, Input{}, data); !errors.Is(err, ErrTooLarge) {
+		t.Fatalf("archive-relative limit err = %v", err)
+	}
+	// The archive itself is within 8× of the XML, so only the MaxBytes ceiling rejects it.
+	plain := `<w:document xmlns:w="w"><w:body><w:p><w:r><w:t>hello</w:t></w:r></w:p></w:body></w:document>`
+	small := buildZip(t, map[string]string{docxBodyPath: plain})
+	if int64(len(plain)) > int64(len(small))*docxMaxExpansion {
+		t.Fatalf("fixture exceeds archive ratio: archive %d xml %d", len(small), len(plain))
+	}
+	if _, err := extractDOCX(small, 1); !errors.Is(err, ErrTooLarge) {
+		t.Fatalf("absolute cap err = %v", err)
 	}
 }
 
@@ -260,5 +273,24 @@ func TestExtractLimits(t *testing.T) {
 	}
 	if got.Text != "héllo" || !got.Truncated {
 		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestTruncateRunesCutsAtRuneBoundary(t *testing.T) {
+	text := "aé😊x"
+	if got, truncated := truncateRunes(text, 1); got != "a" || !truncated {
+		t.Fatalf("before multibyte: %q truncated=%v", got, truncated)
+	}
+	if got, truncated := truncateRunes(text, 2); got != "aé" || !truncated {
+		t.Fatalf("after multibyte: %q truncated=%v", got, truncated)
+	}
+	if got, truncated := truncateRunes(text, 3); got != "aé😊" || !truncated {
+		t.Fatalf("after emoji: %q truncated=%v", got, truncated)
+	}
+	if got, truncated := truncateRunes(text, 4); got != text || truncated {
+		t.Fatalf("exact fit: %q truncated=%v", got, truncated)
+	}
+	if got, truncated := truncateRunes("ab  cd", 4); got != "ab" || !truncated {
+		t.Fatalf("trimmed tail: %q truncated=%v", got, truncated)
 	}
 }

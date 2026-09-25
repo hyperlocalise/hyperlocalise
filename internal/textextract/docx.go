@@ -12,7 +12,7 @@ import (
 
 const (
 	docxBodyPath = "word/document.xml"
-	// Bounds decompressed XML relative to the upload to reject zip bombs.
+	// Bounds decompressed XML relative to the uploaded archive to reject zip bombs.
 	docxMaxExpansion = 8
 )
 
@@ -46,7 +46,8 @@ func extractDOCX(data []byte, maxBytes int64) (string, error) {
 	if body == nil {
 		return "", ErrUnsupportedFormat
 	}
-	limit := maxBytes * docxMaxExpansion
+	// Scale the ratio to the uploaded archive. MaxBytes remains an absolute ceiling.
+	limit := min(int64(len(data)), maxBytes) * docxMaxExpansion
 	if body.UncompressedSize64 > uint64(limit) {
 		return "", ErrTooLarge
 	}

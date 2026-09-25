@@ -250,9 +250,12 @@ func normalize(text string) string {
 }
 
 func truncateRunes(text string, limit int) (string, bool) {
-	if utf8.RuneCountInString(text) <= limit {
-		return text, false
+	n := 0
+	for i := range text {
+		if n == limit {
+			return strings.TrimSpace(text[:i]), true
+		}
+		n++
 	}
-	runes := []rune(text)
-	return strings.TrimSpace(string(runes[:limit])), true
+	return text, false
 }
