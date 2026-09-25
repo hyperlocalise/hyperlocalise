@@ -94,11 +94,12 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 	referenceNormalized := ""
 	if referenceTrimmed != "" {
 		// BOLT OPTIMIZATION: Reuse precomputed normalized strings if reference matches source or translated.
-		if referenceTrimmed == translatedTrimmed {
+		switch referenceTrimmed {
+		case translatedTrimmed:
 			referenceNormalized = translatedAnalysis.normalized
-		} else if referenceTrimmed == srcTrimmed {
+		case srcTrimmed:
 			referenceNormalized = sourceAnalysis.normalized
-		} else {
+		default:
 			referenceNormalized = normalizeText(referenceTrimmed)
 		}
 	}
@@ -743,39 +744,6 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 		}
 	}
 	return tokens, total
-}
-
-// scanRegexpMatches invokes fn for each non-overlapping leftmost match of
-// pattern in s. signals is a set of bytes that every match starts with;
-// IndexByte/IndexAny skips to the next candidate, then FindStringIndex either
-// matches there, jumps to a later hit, or stops when the suffix has no match.
-func scanRegexpMatches(s, signals string, pattern *regexp.Regexp, fn func(match string)) {
-	if signals == "" {
-		return
-	}
-	for pos := 0; pos < len(s); {
-		var idx int
-		if len(signals) == 1 {
-			idx = strings.IndexByte(s[pos:], signals[0])
-		} else {
-			idx = strings.IndexAny(s[pos:], signals)
-		}
-		if idx == -1 {
-			return
-		}
-		pos += idx
-		loc := pattern.FindStringIndex(s[pos:])
-		if loc == nil {
-			return
-		}
-		start := pos + loc[0]
-		end := pos + loc[1]
-		if end <= start {
-			return
-		}
-		fn(s[start:end])
-		pos = end
-	}
 }
 
 func scanBracePlaceholders(s string, fn func(name string)) {
