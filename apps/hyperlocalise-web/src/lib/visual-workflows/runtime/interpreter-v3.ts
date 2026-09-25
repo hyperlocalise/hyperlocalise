@@ -23,6 +23,7 @@ import {
   type VisualWorkflowInterpreterNodeUpdate,
   type VisualWorkflowInterpreterResult,
 } from "./interpreter-server";
+import type { WaitResumeState } from "./wait-schedule";
 
 export async function runVisualWorkflowV3Interpreter(input: {
   definition: VisualWorkflowV3Definition;
@@ -34,6 +35,7 @@ export async function runVisualWorkflowV3Interpreter(input: {
   shouldCancel?: () => Promise<boolean>;
   mockMode?: boolean;
   retryBackoff?: RetryResumeState | null;
+  waitResume?: WaitResumeState | null;
 }): Promise<VisualWorkflowInterpreterResult> {
   const compiled = compileVisualWorkflowV3Definition(input.definition);
 
@@ -65,5 +67,6 @@ export async function runVisualWorkflowV3Interpreter(input: {
     shouldCancel: input.shouldCancel,
     mockMode: input.mockMode,
     retryBackoff: input.retryBackoff,
+    waitResume: input.waitResume,
   });
 }

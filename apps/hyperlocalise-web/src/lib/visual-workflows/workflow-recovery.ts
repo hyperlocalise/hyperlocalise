@@ -19,9 +19,15 @@ import { getVisualWorkflowRunById } from "./visual-workflow-runs";
 const logger = createLogger("visual-workflow-recovery");
 type RunIdentity = { organizationId: string; visualWorkflowId: string; runId: string };
 export async function requestWorkflowCancellation(input: RunIdentity) {
+  const now = new Date();
+
   await db
     .update(schema.visualWorkflowRuns)
-    .set({ cancelRequestedAt: new Date() })
+    .set({
+      cancelRequestedAt: now,
+      leaseExpiresAt: now,
+      updatedAt: now,
+    })
     .where(
       and(
         eq(schema.visualWorkflowRuns.id, input.runId),

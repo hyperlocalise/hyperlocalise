@@ -157,4 +157,16 @@ describe("normalizeExecutionSourceHandle", () => {
       ok: false,
     });
   });
+
+  it("lists Wait completed, timed out, and error handles", () => {
+    expect(getAllowedExecutionSourceHandles(canonical("flow.wait"))).toEqual([
+      "completed",
+      "timed_out",
+      "error",
+    ]);
+  });
+
+  it("uses completed as the primary Wait handle", () => {
+    expect(getPrimaryExecutionSourceHandle(canonical("flow.wait"))).toBe("completed");
+  });
 });

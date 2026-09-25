@@ -12,21 +12,9 @@
  */
 // @vitest-environment happy-dom
 
-/*
- * Copyright (c) 2026 Hyperlocalise Pty Ltd
- *
- * Use of this software is governed by the Business Source License 1.1
- * included in this application's LICENSE file.
- *
- * Change Date: Four years after publication of the applicable version.
- *
- * On the Change Date, in accordance with the Business Source License, use
- * of this software will be governed by the GNU General Public License
- * Version 2.0 or later.
- */
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -71,6 +59,26 @@ function triggerNode(type: VisualWorkflowRfNode["type"] = "trigger.manual"): Vis
     data: {
       catalogType: type,
       config: createDefaultConfig(type),
+      runStatus: "idle",
+    },
+  };
+}
+
+function waitNode(
+  config: Extract<VisualWorkflowRfNode["data"]["config"], { kind: "flow.wait" }> = {
+    kind: "flow.wait",
+    mode: "duration",
+    durationMs: 60_000,
+  },
+): VisualWorkflowRfNode {
+  return {
+    id: "wait",
+    type: "flow.wait",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("flow.wait"),
+    data: {
+      catalogType: "flow.wait",
+      config,
       runStatus: "idle",
     },
   };
@@ -191,5 +199,101 @@ describe("VisualWorkflowConfigPanel", () => {
     expect(screen.getByLabelText("Project folder")).toBeInTheDocument();
     expect(screen.queryByLabelText("GitHub repository ID")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Project ID (optional)")).not.toBeInTheDocument();
+  });
+
+  it("configures a Wait node and changes its mode", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={waitNode()}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Duration (ms)" })).toHaveValue("60000");
+
+    await user.click(screen.getByRole("combobox", { name: "Wait mode" }));
+    await user.click(await screen.findByRole("option", { name: "Until condition" }));
+
+    expect(onChangeConfig).toHaveBeenCalledWith({
+      kind: "flow.wait",
+      mode: "condition",
+      condition: "",
+      pollingIntervalMs: 5_000,
+      timeoutMs: 300_000,
+    });
+  });
+
+  it("edits the bounded condition wait settings", async () => {
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={waitNode({
+          kind: "flow.wait",
+          mode: "condition",
+          condition: "status === 'ready'",
+          pollingIntervalMs: 5_000,
+          timeoutMs: 300_000,
+        })}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Condition" })).toHaveValue("status === 'ready'");
+    expect(screen.getByRole("textbox", { name: "Polling interval (ms)" })).toHaveValue("5000");
+    expect(screen.getByRole("textbox", { name: "Timeout (ms)" })).toHaveValue("300000");
+    const timeout = screen.getByRole("textbox", { name: "Timeout (ms)" });
+    fireEvent.change(timeout, {
+      target: { value: "600000" },
+    });
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      kind: "flow.wait",
+      mode: "condition",
+      condition: "status === 'ready'",
+      pollingIntervalMs: 5_000,
+      timeoutMs: 600_000,
+    });
+  });
+
+  it("edits an absolute Wait timestamp", async () => {
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={waitNode({
+          kind: "flow.wait",
+          mode: "timestamp",
+          timestamp: "2026-10-01T10:00:00.000Z",
+        })}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    const timestamp = screen.getByRole("textbox", { name: "Timestamp" });
+    expect(timestamp).toHaveValue("2026-10-01T10:00:00.000Z");
+
+    fireEvent.change(timestamp, { target: { value: "2026-10-02T12:30:00.000Z" } });
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toEqual({
+      kind: "flow.wait",
+      mode: "timestamp",
+      timestamp: "2026-10-02T12:30:00.000Z",
+    });
   });
 });

@@ -31,6 +31,8 @@ import { WORKFLOW_LIMITS } from "./limits";
 import { runRetryRegion } from "./run-retry-region";
 import type { RetryResumeState } from "./retry-delay";
 import type { RunRetryScopeOptions } from "./run-retry-region";
+import { runWaitNode } from "./run-wait-node";
+import type { WaitResumeState } from "./wait-schedule";
 
 export type VisualWorkflowInterpreterNodeUpdate = {
   nodeId: string;
@@ -72,6 +74,7 @@ export async function runVisualWorkflowInterpreter(input: {
   shouldCancel?: () => Promise<boolean>;
   mockMode?: boolean;
   retryBackoff?: RetryResumeState | null;
+  waitResume?: WaitResumeState | null;
 }): Promise<VisualWorkflowInterpreterResult> {
   const context = createVisualWorkflowExecutionContext({ triggerInput: input.triggerInput });
   const nodeResults: Record<string, Record<string, unknown>> = {};
@@ -147,17 +150,34 @@ export async function runVisualWorkflowInterpreter(input: {
             nodeId: id,
             error: { code: "execution_limit", message: "Workflow execution limit exceeded." },
           };
+        let waitExitHandle: "completed" | "timed_out" | null = null;
         let execution: VisualWorkflowNodeExecutionResult;
         try {
           const resolved = resolveWorkflowNodeInputs(node, context);
-          await emit(node, "running", iteration, { inputSnapshot: { config: resolved.config } });
-          execution = await input.executeNode({
-            node: resolved,
-            context,
-            organizationId: input.organizationId,
-            iteration,
-            signal: input.signal,
+
+          await emit(node, "running", iteration, {
+            inputSnapshot: { config: resolved.config },
           });
+
+          if (resolved.type === "flow.wait") {
+            const waitResult = runWaitNode({
+              node: resolved,
+              context,
+              resume: input.waitResume?.waitNodeId === resolved.id ? input.waitResume : null,
+              mockMode: input.mockMode,
+            });
+
+            execution = waitResult.execution;
+            waitExitHandle = waitResult.exitHandle;
+          } else {
+            execution = await input.executeNode({
+              node: resolved,
+              context,
+              organizationId: input.organizationId,
+              iteration,
+              signal: input.signal,
+            });
+          }
         } catch {
           execution = {
             ok: false,
@@ -188,20 +208,26 @@ export async function runVisualWorkflowInterpreter(input: {
         let errorBranch = false;
         if (!execution.ok) {
           if (
-            ["yield_execution", "needs_attention", "cancelled", "retry_backoff"].includes(
-              execution.error.code ?? "",
-            )
+            [
+              "yield_execution",
+              "needs_attention",
+              "cancelled",
+              "retry_backoff",
+              "wait_suspended",
+            ].includes(execution.error.code ?? "")
           ) {
             if (
               execution.error.code !== "yield_execution" &&
-              execution.error.code !== "retry_backoff"
+              execution.error.code !== "retry_backoff" &&
+              execution.error.code !== "wait_suspended"
             )
               await emit(node, execution.error.code as "needs_attention" | "cancelled", iteration, {
                 error: execution.error,
               });
             return { nodeId: id, error: execution.error };
           }
-          const behavior = resolveNodeErrorBehavior(node.config);
+          const behavior =
+            node.type === "flow.wait" ? "branch" : resolveNodeErrorBehavior(node.config);
           await emit(node, behavior === "stop" ? "failed" : "handled_error", iteration, {
             error: execution.error,
           });
@@ -242,7 +268,8 @@ export async function runVisualWorkflowInterpreter(input: {
               if (failure) {
                 if (
                   failure.error.code !== "yield_execution" &&
-                  failure.error.code !== "retry_backoff"
+                  failure.error.code !== "retry_backoff" &&
+                  failure.error.code !== "wait_suspended"
                 )
                   await emit(node, "failed", iteration, { error: failure.error });
                 return failure;
@@ -307,13 +334,15 @@ export async function runVisualWorkflowInterpreter(input: {
             ? outgoing.filter((edge) => edge.sourceHandle === "done")
             : node.type === "logic.retry" && retryExitHandle
               ? outgoing.filter((edge) => edge.sourceHandle === retryExitHandle)
-              : selectNextEdges({
-                  nodeType: node.type,
-                  branchResult: execution.ok ? (execution.branchResult ?? null) : null,
-                  switchCase: execution.ok ? (execution.switchCase ?? null) : null,
-                  useErrorBranch: errorBranch,
-                  outgoing,
-                });
+              : node.type === "flow.wait" && waitExitHandle
+                ? outgoing.filter((edge) => edge.sourceHandle === waitExitHandle)
+                : selectNextEdges({
+                    nodeType: node.type,
+                    branchResult: execution.ok ? (execution.branchResult ?? null) : null,
+                    switchCase: execution.ok ? (execution.switchCase ?? null) : null,
+                    useErrorBranch: errorBranch,
+                    outgoing,
+                  });
         const selectedIds = new Set(next.map((edge) => edge.id));
         for (const edge of outgoing)
           states.set(edge.id, selectedIds.has(edge.id) ? "selected" : "skipped");
