@@ -88,7 +88,9 @@ var pngHeader = []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\
 func extract(t *testing.T, opts Options, in Input, data []byte) (Result, error) {
 	t.Helper()
 	in.Body = bytes.NewReader(data)
-	return New(opts).Extract(context.Background(), in)
+	extractor := New(opts)
+	t.Cleanup(func() { _ = extractor.Close() })
+	return extractor.Extract(context.Background(), in)
 }
 
 func TestExtractTextFormats(t *testing.T) {
@@ -167,6 +169,38 @@ func TestExtractPDFLimitsAndFailures(t *testing.T) {
 	}
 	if _, err := extract(t, Options{}, Input{}, []byte("%PDF-1.4\nnot really a pdf")); !errors.Is(err, ErrMalformed) {
 		t.Fatalf("malformed err = %v", err)
+	}
+}
+
+func TestExtractPDFConcurrentAndCancelled(t *testing.T) {
+	extractor := New(Options{PDFWorkers: 2})
+	t.Cleanup(func() { _ = extractor.Close() })
+	data := buildPDF("Concurrent extraction must return this sentence.")
+	errs := make(chan error, 6)
+	for range cap(errs) {
+		go func() {
+			got, err := extractor.Extract(context.Background(), Input{Body: bytes.NewReader(data)})
+			if err == nil && !strings.Contains(got.Text, "Concurrent extraction") {
+				err = fmt.Errorf("text = %q", got.Text)
+			}
+			errs <- err
+		}()
+	}
+	for range cap(errs) {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := extractor.Extract(ctx, Input{Body: bytes.NewReader(data)}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled err = %v", err)
+	}
+	if err := extractor.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := extractor.Extract(context.Background(), Input{Body: bytes.NewReader(data)}); err == nil {
+		t.Fatal("expected error after Close")
 	}
 }
 

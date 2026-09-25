@@ -86,21 +86,28 @@ type Options struct {
 	MaxBytes int64
 	MaxRunes int
 	MaxPages int
+	// PDFWorkers bounds concurrent PDF parses; further calls wait for a worker.
+	PDFWorkers int
 	// Vision is optional; without it images and scanned PDFs return ErrNoText.
 	Vision Recognizer
 }
 
-// Extractor is safe for concurrent use.
+// Extractor is safe for concurrent use. Call Close to release PDF workers.
 type Extractor struct {
 	maxBytes int64
 	maxRunes int
 	maxPages int
 	vision   Recognizer
+	pdf      *pdfEngine
 }
 
-// New applies defaults and returns an extractor.
+// New applies defaults and returns an extractor. PDFium starts on the first PDF.
 func New(opts Options) *Extractor {
-	e := &Extractor{maxBytes: opts.MaxBytes, maxRunes: opts.MaxRunes, maxPages: opts.MaxPages, vision: opts.Vision}
+	workers := opts.PDFWorkers
+	if workers <= 0 {
+		workers = DefaultPDFWorkers
+	}
+	e := &Extractor{maxBytes: opts.MaxBytes, maxRunes: opts.MaxRunes, maxPages: opts.MaxPages, vision: opts.Vision, pdf: &pdfEngine{workers: workers}}
 	if e.maxBytes <= 0 {
 		e.maxBytes = DefaultMaxBytes
 	}
@@ -112,6 +119,9 @@ func New(opts Options) *Extractor {
 	}
 	return e
 }
+
+// Close stops PDF workers. Extract fails for PDFs after Close.
+func (e *Extractor) Close() error { return e.pdf.close() }
 
 // Extract reads at most MaxBytes from Body and returns its text.
 func (e *Extractor) Extract(ctx context.Context, in Input) (Result, error) {
@@ -140,7 +150,7 @@ func (e *Extractor) Extract(ctx context.Context, in Input) (Result, error) {
 	case FormatDOCX:
 		text, err = extractDOCX(data, e.maxBytes)
 	case FormatPDF:
-		text, result.Pages, err = extractPDF(data, e.maxPages)
+		text, result.Pages, err = e.pdf.extract(ctx, data, e.maxPages)
 		if err == nil && isScanned(text, result.Pages) {
 			text, err = e.recognize(ctx, in.Filename, mediaType, data)
 			result.Method = MethodVision
