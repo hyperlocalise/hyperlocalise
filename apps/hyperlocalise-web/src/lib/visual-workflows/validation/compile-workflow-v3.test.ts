@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { compileVisualWorkflowV3Definition } from "./compile-workflow-v3";
+import {
+  compileVisualWorkflowV3Definition,
+  toVisualWorkflowExecutionDefinition,
+} from "./compile-workflow-v3";
 import type { VisualWorkflowV3Definition } from "../schema/types";
 
 function definition(edges: VisualWorkflowV3Definition["edges"]): VisualWorkflowV3Definition {
@@ -531,4 +534,89 @@ it("rejects all data edges that target the same input", () => {
   );
 
   expect(result.definition.nodes[1]?.inputs).toBeUndefined();
+});
+
+it("derives For Each execution membership from v3 execution edges", () => {
+  const definition: VisualWorkflowV3Definition = {
+    schemaVersion: 3,
+    name: "Graph-derived loop",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: {
+          kind: "trigger.manual",
+        },
+      },
+      {
+        id: "loop",
+        type: "logic.for_each",
+        config: {
+          kind: "logic.for_each",
+          collection: "[]",
+        },
+        bodyNodeIds: ["stale"],
+      },
+      {
+        id: "body",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+      },
+      {
+        id: "after",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-loop",
+        kind: "execution",
+        source: "trigger",
+        target: "loop",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "loop-body",
+        kind: "execution",
+        source: "loop",
+        target: "body",
+        sourcePortId: "each",
+        targetPortId: "input",
+      },
+      {
+        id: "loop-after",
+        kind: "execution",
+        source: "loop",
+        target: "after",
+        sourcePortId: "done",
+        targetPortId: "input",
+      },
+      {
+        id: "body-after-data",
+        kind: "data",
+        source: "body",
+        target: "after",
+        sourcePortId: "value",
+        targetPortId: "value",
+      },
+    ],
+    editor: {
+      positions: {},
+    },
+  };
+
+  const compiled = compileVisualWorkflowV3Definition(definition);
+  const executionDefinition = toVisualWorkflowExecutionDefinition(compiled);
+
+  expect(executionDefinition.nodes.find((node) => node.id === "loop")?.bodyNodeIds).toEqual([
+    "body",
+  ]);
 });

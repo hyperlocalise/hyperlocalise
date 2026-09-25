@@ -34,6 +34,24 @@ function node(
   };
 }
 
+function executionEdge(
+  id: string,
+  source: string,
+  target: string,
+  sourceHandle = "success",
+): VisualWorkflowRfEdge {
+  return {
+    id,
+    source,
+    target,
+    sourceHandle,
+    targetHandle: "input",
+    data: {
+      kind: "execution",
+    },
+  };
+}
+
 const trigger = node("trigger", "trigger.manual");
 const set = node("set", "logic.set");
 const request = node("request", "action.http");
@@ -449,15 +467,13 @@ it("allows a compatible optional data input", () => {
 });
 
 it("rejects entering a For Each body from outside the loop", () => {
-  const loop = node("loop", "logic.for_each", {
-    bodyNodeIds: ["body"],
-  });
+  const loop = node("loop", "logic.for_each");
   const outside = node("outside", "logic.set");
   const body = node("body", "logic.set");
 
   const result = validateVisualWorkflowConnection({
     nodes: [loop, outside, body],
-    edges: [],
+    edges: [executionEdge("loop-body", "loop", "body", "each")],
     connection: {
       source: "outside",
       target: "body",
@@ -473,15 +489,16 @@ it("rejects entering a For Each body from outside the loop", () => {
 });
 
 it("allows connections between nodes in the same For Each body", () => {
-  const loop = node("loop", "logic.for_each", {
-    bodyNodeIds: ["first", "second"],
-  });
+  const loop = node("loop", "logic.for_each");
   const first = node("first", "logic.set");
   const second = node("second", "logic.set");
 
   const result = validateVisualWorkflowConnection({
     nodes: [loop, first, second],
-    edges: [],
+    edges: [
+      executionEdge("loop-first", "loop", "first", "each"),
+      executionEdge("loop-second", "loop", "second", "each"),
+    ],
     connection: {
       source: "first",
       target: "second",
@@ -497,14 +514,12 @@ it("allows connections between nodes in the same For Each body", () => {
 });
 
 it("rejects connecting a loop body back to its owner", () => {
-  const loop = node("loop", "logic.for_each", {
-    bodyNodeIds: ["body"],
-  });
+  const loop = node("loop", "logic.for_each");
   const body = node("body", "logic.set");
 
   const result = validateVisualWorkflowConnection({
     nodes: [loop, body],
-    edges: [],
+    edges: [executionEdge("loop-body", "loop", "body", "each")],
     connection: {
       source: "body",
       target: "loop",
@@ -541,15 +556,13 @@ it("rejects nested For Each loop regions", () => {
 });
 
 it("rejects a For Each reached from an existing loop body", () => {
-  const outer = node("outer", "logic.for_each", {
-    bodyNodeIds: ["body"],
-  });
+  const outer = node("outer", "logic.for_each");
   const body = node("body", "logic.set");
   const inner = node("inner", "logic.for_each");
 
   const result = validateVisualWorkflowConnection({
     nodes: [outer, body, inner],
-    edges: [],
+    edges: [executionEdge("outer-body", "outer", "body", "each")],
     connection: {
       source: "body",
       target: "inner",

@@ -19,6 +19,7 @@ import type {
   VisualWorkflowDefinition,
 } from "../schema/types";
 import { isTriggerType } from "../catalog/node-catalog";
+import { computeForEachBodyNodeIdsFromV3Edges } from "../editor/for-each-body-membership";
 
 export type VisualWorkflowV3CompilationIssue = {
   code:
@@ -305,7 +306,14 @@ export function toVisualWorkflowExecutionDefinition(
   return {
     schemaVersion: 2,
     name: compiled.definition.name,
-    nodes: compiled.definition.nodes,
+    nodes: compiled.definition.nodes.map((node) =>
+      node.type === "logic.for_each"
+        ? {
+            ...node,
+            bodyNodeIds: computeForEachBodyNodeIdsFromV3Edges(node.id, compiled.definition.edges),
+          }
+        : node,
+    ),
     edges: compiled.executionEdges.map((edge) => ({
       id: edge.id,
       source: edge.source,

@@ -136,12 +136,7 @@ export function validateVisualWorkflowConnection(input: {
     const bodyNodeIdsByLoopId = new Map(
       nodes
         .filter((node) => node.data.catalogType === "logic.for_each")
-        .map((node) => [
-          node.id,
-          input.replacingEdgeId
-            ? computeForEachBodyNodeIds(node.id, existingEdges)
-            : (node.data.bodyNodeIds ?? computeForEachBodyNodeIds(node.id, existingEdges)),
-        ]),
+        .map((node) => [node.id, computeForEachBodyNodeIds(node.id, existingEdges)]),
     );
 
     const sourceLoopOwner = nodes.find(
