@@ -12,9 +12,12 @@
  */
 import type {
   GlossaryConcept,
+  GlossaryConceptPageQuery,
+  GlossaryExportQuery,
   GlossaryProject,
   GlossaryRecord,
   GlossaryTerm,
+  GlossaryTermPageQuery,
   GoSvcPageQuery,
   GoSvcRecord,
   GoSvcRequestOptions,
@@ -91,7 +94,7 @@ export class GoSvcGlossaryApi {
   export(
     organizationSlug: string,
     glossaryId: string,
-    query: { format?: "csv" | "tbx" | "xlsx" } = {},
+    query: GlossaryExportQuery = {},
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.download(orgPath(organizationSlug, "glossaries", glossaryId, "export"), {
@@ -108,6 +111,18 @@ export class GoSvcGlossaryApi {
   ) {
     return this.request.json<GoSvcRecord>(
       orgPath(organizationSlug, "glossaries", glossaryId, "import-reports", reportId),
+      options,
+    );
+  }
+
+  importBackup(
+    organizationSlug: string,
+    glossaryId: string,
+    reportId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.download(
+      orgPath(organizationSlug, "glossaries", glossaryId, "import-reports", reportId, "backup"),
       options,
     );
   }
@@ -210,7 +225,7 @@ export class GoSvcGlossaryConceptsApi {
   page(
     organizationSlug: string,
     glossaryId: string,
-    query: { search?: string; cursor?: string; limit?: number } = {},
+    query: GlossaryConceptPageQuery = {},
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<GoSvcRecord>(
@@ -270,7 +285,7 @@ export class GoSvcGlossaryTermsApi {
     organizationSlug: string,
     glossaryId: string,
     conceptId: string,
-    query: { cursor?: string; limit?: number; locale?: string } = {},
+    query: GlossaryTermPageQuery = {},
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<GoSvcRecord>(

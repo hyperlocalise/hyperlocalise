@@ -911,6 +911,9 @@ export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectProviderBranchesResponse = z.infer<typeof projectProviderBranchesResponseSchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileContentEditorQuery = z.infer<typeof projectFileCatQuerySchema>;
+export type ProjectFileContentEditorActivityLogQuery = z.infer<
+  typeof projectFileCatActivityLogQuerySchema
+>;
 export type ProjectFileContentEditorQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
 export type ProjectFileContentEditorQueueSort = z.infer<typeof projectFileCatQueueSortSchema>;
 export type ProjectFileContentEditorTranslationBody = z.infer<
