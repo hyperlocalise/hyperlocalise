@@ -26,6 +26,7 @@ import {
   jsonResponse,
 } from "@/components/content-editor/shared/content-editor-api.fixture";
 import { ContentEditorTestProviders } from "@/components/content-editor/shared/content-editor-test-utils";
+import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
 
 const {
   contentEditorTranslationsPostMock,
@@ -291,6 +292,51 @@ describe("useContentEditorMutations", () => {
     ).rejects.toThrow("Locked strings can't be edited from the Content Editor.");
     expect(contentEditorTranslationsPostMock).not.toHaveBeenCalled();
     expect(onTranslationSaved).not.toHaveBeenCalled();
+  });
+
+  it("saves a selected segment whose All Files queue page was evicted", async () => {
+    const translation = createCatTranslation();
+    contentEditorTranslationsPostMock.mockResolvedValue(jsonResponse({ translation }));
+
+    const allFilesQueue = {
+      ...createCatFileResponse().contentEditorFile,
+      sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
+      provider: null,
+      // The evicted page no longer carries segment-42.
+      segments: [
+        createCatSegment({ externalStringId: "segment-1", sourcePath: "locales/en.json" }),
+      ],
+    };
+    const retainedSegmentIdentityRef = {
+      current: (externalStringId: string) =>
+        externalStringId === "segment-42" ? { sourcePath: "locales/de.json" } : undefined,
+    };
+
+    const { result } = renderHook(
+      () =>
+        useContentEditorMutations({
+          ...contentEditorApiTestContext,
+          sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
+          contentEditorFile: allFilesQueue,
+          retainedSegmentIdentityRef,
+          invalidateQueue,
+        }),
+      { wrapper: ContentEditorTestProviders },
+    );
+
+    await act(async () => {
+      await result.current.saveTranslation({ externalStringId: "segment-42", text: "Hallo" });
+    });
+
+    expect(contentEditorTranslationsPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          sourcePath: "locales/de.json",
+          externalStringId: "segment-42",
+          text: "Hallo",
+        }),
+      }),
+    );
   });
 
   it("throws when saving with a provider record missing an external resource id", async () => {

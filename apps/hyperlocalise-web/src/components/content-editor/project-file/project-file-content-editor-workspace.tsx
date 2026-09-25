@@ -87,7 +87,10 @@ import {
   useProjectSpellcheckDictionary,
 } from "./spellcheck-dictionary-context";
 import { useCatScanFindings } from "./use-cat-scan-findings";
-import { useContentEditorMutations } from "./use-content-editor-mutations";
+import {
+  useContentEditorMutations,
+  type ContentEditorSegmentFileIdentity,
+} from "./use-content-editor-mutations";
 import { useContentEditorSegmentQuery } from "./use-content-editor-segment-query";
 import { useContentEditorWorkspaceQuerySync } from "./use-content-editor-workspace-query-sync";
 import { downloadProjectFileContentEditorExport } from "./project-file-content-editor-export";
@@ -164,6 +167,9 @@ export function ProjectFileContentEditorWorkspace({
     useState<ContentEditorLinkedIssueSegmentContext | null>(null);
   const internalPageNavigationGuardRef = useRef<ContentEditorPageNavigationGuard | null>(null);
   const resolvedPageNavigationGuardRef = pageNavigationGuardRef ?? internalPageNavigationGuardRef;
+  const retainedSegmentIdentityRef = useRef<
+    ((externalStringId: string) => ContentEditorSegmentFileIdentity | undefined) | null
+  >(null);
   const [pageLimit, setPageLimit] = useState(() =>
     contentEditorPageLimitForViewMode(readCatWorkspaceViewMode()),
   );
@@ -341,6 +347,7 @@ export function ProjectFileContentEditorWorkspace({
     sourcePath,
     targetLocale,
     contentEditorFile,
+    retainedSegmentIdentityRef,
     invalidateQueue,
   });
 
@@ -972,6 +979,7 @@ export function ProjectFileContentEditorWorkspace({
                   externalResourceId,
                   resourceType,
                   contentEditorFile,
+                  retainedSegmentIdentityRef,
                   enabled: Boolean(contentEditorFile),
                 }}
                 className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}

@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 
@@ -24,7 +24,10 @@ import {
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
-import type { ContentEditorIssueType } from "@/components/content-editor/shared/types";
+import type {
+  ContentEditorIssueType,
+  ContentEditorQueueSegment,
+} from "@/components/content-editor/shared/types";
 
 import { requireProviderExternalResourceId } from "./project-file-content-editor-mapper";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
@@ -40,17 +43,33 @@ import { useContentEditorMutationsMessages } from "./use-content-editor-mutation
 
 const INLINE_QUEUE_REFRESH_DELAY_MS = 750;
 
+export type ContentEditorSegmentFileIdentity = Pick<
+  ContentEditorQueueSegment,
+  "sourcePath" | "externalResourceId" | "resourceType"
+>;
+
+/**
+ * Reads identity for segments the workspace still holds after their queue page was
+ * evicted from the bounded page window, so mutations on a retained selection resolve
+ * a real source file instead of the aggregate "all files" path.
+ */
+export type ContentEditorSegmentFileIdentityLookupRef = MutableRefObject<
+  ((externalStringId: string) => ContentEditorSegmentFileIdentity | undefined) | null
+>;
+
 function resolveCatMutationFileIdentity(
   input: {
     sourcePath: string;
     contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+    retainedSegmentIdentityRef?: ContentEditorSegmentFileIdentityLookupRef;
   },
   externalStringId: string,
   intl: IntlShape,
 ) {
-  const segment = input.contentEditorFile?.segments.find(
-    (entry) => entry.externalStringId === externalStringId,
-  );
+  const segment: ContentEditorSegmentFileIdentity | undefined =
+    input.contentEditorFile?.segments.find(
+      (entry) => entry.externalStringId === externalStringId,
+    ) ?? input.retainedSegmentIdentityRef?.current?.(externalStringId);
   const sourcePath =
     segment?.sourcePath?.trim() ||
     (isContentEditorAllFilesSourcePath(input.sourcePath) ? "" : input.sourcePath);
@@ -83,6 +102,7 @@ export function useContentEditorMutations(input: {
   sourcePath: string;
   targetLocale: string;
   contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+  retainedSegmentIdentityRef?: ContentEditorSegmentFileIdentityLookupRef;
   invalidateQueue: () => Promise<void>;
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
 }) {

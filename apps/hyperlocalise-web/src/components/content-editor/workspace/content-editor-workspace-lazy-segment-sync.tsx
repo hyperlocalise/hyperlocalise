@@ -23,6 +23,7 @@ import { observer } from "mobx-react-lite";
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
 
 import { resolveCatFileIdentity } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
+import type { ContentEditorSegmentFileIdentityLookupRef } from "@/components/content-editor/project-file/use-content-editor-mutations";
 import { useContentEditorSegmentComments } from "@/components/content-editor/project-file/use-content-editor-segment-comments";
 import {
   useContentEditorSegmentTarget,
@@ -296,6 +297,7 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
     externalResourceId = null,
     resourceType,
     contentEditorFile,
+    retainedSegmentIdentityRef,
     enabled,
   }: {
     organizationSlug: string;
@@ -305,6 +307,7 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
     contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+    retainedSegmentIdentityRef?: ContentEditorSegmentFileIdentityLookupRef;
     enabled: boolean;
   }) {
     const store = useContentEditorWorkspace();
@@ -312,6 +315,12 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
     const queryClient = useQueryClient();
     useLayoutEffect(() => {
       if (!nativeLoader) return;
+      // The store keeps meta for the selected segment after its queue page is evicted.
+      // Mutations read it from here so they still resolve the segment's real source file.
+      if (retainedSegmentIdentityRef) {
+        retainedSegmentIdentityRef.current = (externalStringId) =>
+          store.segmentMeta.get(externalStringId);
+      }
       store.serverTargetLookup = (externalStringId) => {
         const segment = store.segmentMeta.get(externalStringId);
         return queryClient.getQueryData<ProjectFileContentEditorTranslation | null>(
@@ -355,6 +364,9 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
         unsubscribe();
         dispose();
         store.serverTargetLookup = undefined;
+        if (retainedSegmentIdentityRef) {
+          retainedSegmentIdentityRef.current = null;
+        }
       };
     }, [
       nativeLoader,
@@ -366,6 +378,7 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
       targetLocale,
       externalResourceId,
       resourceType,
+      retainedSegmentIdentityRef,
     ]);
     const selectedSegmentId = store.selectedSegmentId;
     const isSideBySideView = store.ui.isSideBySideView;
