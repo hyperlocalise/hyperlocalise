@@ -31,7 +31,7 @@ import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 const logger = createLogger("activity-log-writer");
 const sqsClient = new SQSClient({ region: env.AWS_REGION });
-export const ACTIVITY_LOG_SQS_SEND_TIMEOUT_MS = 2_000;
+export const ACTIVITY_LOG_SQS_SEND_TIMEOUT_MS = 250;
 
 export type ActivityLogWriterLogger = Pick<Logger, "error">;
 
