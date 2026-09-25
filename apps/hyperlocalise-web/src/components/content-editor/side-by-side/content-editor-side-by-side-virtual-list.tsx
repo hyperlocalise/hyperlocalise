@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useEditorPageWindow } from "../project-file/content-editor-page-window";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef } from "react";
 
@@ -104,7 +105,7 @@ export function ContentEditorSideBySideVirtualList({
   className?: string;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const loadRequestedForLengthRef = useRef<number | null>(null);
+  const loadRequestedForLengthRef = useRef<string | null>(null);
 
   const checkForNearEnd = useCallback(
     (items: Array<{ index: number }>) => {
@@ -113,15 +114,15 @@ export function ContentEditorSideBySideVirtualList({
       }
 
       const lastItem = items.at(-1);
-      if (!lastItem || lastItem.index < Math.max(segments.length - 3, 0)) {
+      if (!lastItem || lastItem.index < Math.max(segments.length - 10, 0)) {
         return;
       }
 
-      if (!hasMore || isLoadingMore || loadRequestedForLengthRef.current === segments.length) {
+      if (!hasMore || isLoadingMore || loadRequestedForLengthRef.current === segments.at(-1)?.id) {
         return;
       }
 
-      loadRequestedForLengthRef.current = segments.length;
+      loadRequestedForLengthRef.current = segments.at(-1)?.id ?? null;
       onNearEnd?.();
     },
     [hasMore, isLoadingMore, onNearEnd, segments.length],
@@ -163,6 +164,8 @@ export function ContentEditorSideBySideVirtualList({
       });
     },
   });
+
+  useEditorPageWindow(segments, parentRef, virtualizer);
 
   useEffect(() => {
     if (previousSelectedId.current === focusedSegmentId) return;

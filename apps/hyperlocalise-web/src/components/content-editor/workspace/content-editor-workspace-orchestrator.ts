@@ -184,6 +184,43 @@ function loadingSegmentIdsEqual(left: ReadonlySet<string>, right: ReadonlySet<st
 }
 
 export class ContentEditorWorkspaceOrchestrator {
+  serverTargetLookup:
+    | ((segmentId: string) => ProjectFileContentEditorTranslation | null | undefined)
+    | undefined;
+  serverTargetVersions = new Map<string, number>();
+  queueWindowIds: Set<string> | undefined;
+
+  targetState(segmentId: string) {
+    const draft = this.drafts.get(segmentId);
+    if (draft) return draft;
+    this.serverTargetVersions.get(segmentId);
+    const target = this.serverTargetLookup?.(segmentId);
+    if (target === undefined) return undefined;
+    return {
+      targetText: target?.text ?? "",
+      savedTargetText: target?.text ?? "",
+      isDirty: false,
+      status:
+        this.localStatusOverrides.get(segmentId) ??
+        segmentStatusFromTarget({ hasOpenIssues: this.segmentHasOpenIssues(segmentId) }, target),
+    };
+  }
+
+  releaseCleanDrafts() {
+    if (!this.serverTargetLookup) return;
+    for (const [id, draft] of this.drafts) {
+      if (
+        !draft.isDirty &&
+        !this.pendingWrites.has(id) &&
+        !hasSaveFailureCheck(this.segmentFormatChecks[id] ?? [])
+      ) {
+        this.drafts.delete(id);
+        this.locallyCommittedTargetTexts.delete(id);
+        this.preSaveTargetTexts.delete(id);
+      }
+    }
+  }
+
   readonly multilingualDrafts = new MultilingualDrafts();
   readonly queue = new ContentEditorQueueStore();
   readonly segments = new ContentEditorSegmentStore();
@@ -250,6 +287,7 @@ export class ContentEditorWorkspaceOrchestrator {
       this,
       {
         queueViewCache: false,
+        serverTargetLookup: false,
         validationSequence: false,
         reviewSequence: false,
         fileScopeGeneration: false,
@@ -562,7 +600,7 @@ export class ContentEditorWorkspaceOrchestrator {
     return composeSegmentView({
       fileContext: this.fileContext,
       meta,
-      draft: this.drafts.get(segmentId),
+      draft: this.targetState(segmentId),
       comments: this.segmentComments.get(segmentId),
       openIssueCount: this.segments.openIssueCounts.get(segmentId),
       intelligence: this.segmentIntelligence[segmentId],
@@ -587,7 +625,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   matchesQueueFilter(segmentId: string, filter: ContentEditorQueueFilter) {
-    const draft = this.drafts.get(segmentId);
+    const draft = this.targetState(segmentId);
     return segmentMatchesQueueFilterFromInput(
       {
         status: draft?.status ?? "pending",
@@ -621,6 +659,7 @@ export class ContentEditorWorkspaceOrchestrator {
       segments = this.queueSegments.filter((meta) => this.matchesQueueFilter(meta.id, filter));
     }
 
+    if (this.serverTargetLookup && this.queueWindowIds) segments = segments.filter((segment) => this.queueWindowIds!.has(segment.id));
     return orderCatQueueSegmentsSkippedLast(segments, this.queue.sort, (meta) => {
       const draft = this.drafts.get(meta.id);
       return (draft?.status ?? "pending") === "skipped";
@@ -648,10 +687,10 @@ export class ContentEditorWorkspaceOrchestrator {
           return workspace.fileContext.targetLocale;
         },
         get targetText() {
-          return workspace.drafts.get(meta.id)?.targetText ?? "";
+          return workspace.targetState(meta.id)?.targetText ?? "";
         },
         get status() {
-          return workspace.drafts.get(meta.id)?.status ?? "pending";
+          return workspace.targetState(meta.id)?.status ?? "pending";
         },
         get comments() {
           return workspace.segmentComments.get(meta.id);
@@ -883,7 +922,8 @@ export class ContentEditorWorkspaceOrchestrator {
       const nextSegmentIds = new Set(normalizedNext.queueSegments.map((segment) => segment.id));
       const selectedDraftIsDirty = Boolean(this.drafts.get(this.selectedSegmentId)?.isDirty);
       const retainedSelectedSegmentId =
-        selectedDraftIsDirty && this.segmentMeta.has(this.selectedSegmentId)
+        (selectedDraftIsDirty || Boolean(this.serverTargetLookup)) &&
+        this.segmentMeta.has(this.selectedSegmentId)
           ? this.selectedSegmentId
           : null;
       const selectedSegmentId = nextSegmentIds.has(this.selectedSegmentId)
@@ -962,6 +1002,12 @@ export class ContentEditorWorkspaceOrchestrator {
     }
 
     const existingDraft = this.drafts.get(segmentId);
+    if (this.serverTargetLookup) {
+      this.serverTargetVersions.set(segmentId, (this.serverTargetVersions.get(segmentId) ?? 0) + 1);
+      existingDraft?.applyServerStatus(status);
+      this.markTargetHydrated(segmentId);
+      return;
+    }
 
     if (existingDraft) {
       if (existingDraft.isDirty) {
@@ -1120,6 +1166,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   private mergeQueueMetaFromSnapshot(nextInitialState: ContentEditorWorkspaceState) {
+    this.queueWindowIds = new Set(nextInitialState.queueSegments.map((segment) => segment.id));
     for (const meta of nextInitialState.queueSegments) {
       this.segmentMeta.set(meta.id, meta);
       const override = this.localStatusOverrides.get(meta.id);
@@ -1141,7 +1188,14 @@ export class ContentEditorWorkspaceOrchestrator {
         const draft = this.drafts.get(segmentId);
         const hasLocalOverride = this.localStatusOverrides.has(segmentId);
         // Keep session-local skipped rows so the Skipped filter can still show them.
-        if (!draft?.isDirty && !hasLocalOverride) {
+        if (
+          !draft?.isDirty &&
+          !hasLocalOverride &&
+          !this.pendingWrites.has(segmentId) &&
+          !hasSaveFailureCheck(this.segmentFormatChecks[segmentId] ?? []) &&
+          !(this.serverTargetLookup && segmentId === this.selectedSegmentId)
+        ) {
+          this.serverTargetVersions.delete(segmentId);
           this.drafts.delete(segmentId);
           this.segmentMeta.delete(segmentId);
           this.segmentComments.delete(segmentId);
@@ -1208,6 +1262,17 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   setTargetText(segmentId: string, value: string) {
+    if (this.serverTargetLookup && !this.drafts.has(segmentId)) {
+      const target = this.targetState(segmentId);
+      this.drafts.set(
+        segmentId,
+        new ContentEditorSegmentDraft(
+          segmentId,
+          target?.targetText ?? "",
+          target?.status ?? "pending",
+        ),
+      );
+    }
     this.segments.setTargetText(segmentId, value, this.segmentMeta.has(segmentId));
   }
 

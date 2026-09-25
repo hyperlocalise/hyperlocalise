@@ -12,7 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useEffect, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { reaction } from "mobx";
+import { useNativeTargetLoader } from "../project-file/content-editor-native-target-context";
+import { projectFileCatSegmentTargetQueryKey } from "../project-file/use-content-editor-segment-target";
+import type { ProjectFileContentEditorTranslation } from "@/api/routes/project/project.schema";
 import { observer } from "mobx-react-lite";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
@@ -303,6 +308,55 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
     enabled: boolean;
   }) {
     const store = useContentEditorWorkspace();
+    const nativeLoader = useNativeTargetLoader();
+    const queryClient = useQueryClient();
+    useLayoutEffect(() => {
+      if (!nativeLoader) return;
+      store.serverTargetLookup = (externalStringId) => {
+        const segment = store.segmentMeta.get(externalStringId);
+        return queryClient.getQueryData<ProjectFileContentEditorTranslation | null>(
+          projectFileCatSegmentTargetQueryKey({
+            organizationSlug,
+            projectId,
+            sourcePath: segment?.sourcePath || sourcePath,
+            targetLocale,
+            externalStringId,
+            externalResourceId,
+            resourceType,
+          }),
+        );
+      };
+      const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+        const key = event.query.queryKey;
+        if (
+          key[0] !== "project-file-content-editor-segment-target" ||
+          key[1] !== organizationSlug ||
+          key[2] !== projectId ||
+          key[6] !== targetLocale
+        )
+          return;
+        const id = String(key[7]);
+        if (
+          event.type === "updated" &&
+          event.query.state.data !== undefined &&
+          store.segmentMeta.has(id)
+        ) {
+          store.applySegmentTarget(
+            id,
+            event.query.state.data as ProjectFileContentEditorTranslation | null,
+          );
+        }
+      });
+      const dispose = reaction(
+        () => [store.pendingWrites.size, store.dirtySegmentIds.size],
+        () => store.releaseCleanDrafts(),
+      );
+      return () => {
+        unsubscribe();
+        dispose();
+        store.serverTargetLookup = undefined;
+      };
+    }, [nativeLoader, queryClient, store, organizationSlug, projectId, sourcePath, targetLocale, externalResourceId, resourceType]);
     const selectedSegmentId = store.selectedSegmentId;
     const isSideBySideView = store.ui.isSideBySideView;
     const loadSideBySideSegmentIds = store.ui.loadSideBySideSegmentIds;

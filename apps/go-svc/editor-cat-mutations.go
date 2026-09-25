@@ -12,6 +12,7 @@ import (
 )
 
 type editorCatTranslation struct {
+	Revision              *string `json:"revision,omitempty"`
 	Text                  string  `json:"text"`
 	ExternalTranslationID *string `json:"externalTranslationId"`
 	IsApproved            bool    `json:"isApproved"`
