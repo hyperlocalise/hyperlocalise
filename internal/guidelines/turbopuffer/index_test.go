@@ -8,11 +8,30 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/embedding"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	"github.com/stretchr/testify/require"
-	tp "github.com/turbopuffer/turbopuffer-go"
-	"github.com/turbopuffer/turbopuffer-go/option"
+	tp "github.com/turbopuffer/turbopuffer-go/v2"
+	"github.com/turbopuffer/turbopuffer-go/v2/option"
 )
+
+func testIndex(serverURL string) *Index {
+	return &Index{client: tp.NewClient(option.WithAPIKey("test-key"), option.WithBaseURL(serverURL), option.WithMaxRetries(0)), prefix: "test-guidelines"}
+}
+
+func TestNewRequiresConfig(t *testing.T) {
+	_, err := New("", "gcp-us-central1", "prefix")
+	require.ErrorIs(t, err, guidelines.ErrInvalidInput)
+	_, err = New("key", "", "prefix")
+	require.ErrorIs(t, err, guidelines.ErrInvalidInput)
+	_, err = New("key", "gcp-us-central1", "")
+	require.ErrorIs(t, err, guidelines.ErrInvalidInput)
+	_, err = New("key", "gcp-us-central1", strings.Repeat("p", 41))
+	require.ErrorIs(t, err, guidelines.ErrInvalidInput)
+	index, err := New("key", "gcp-us-central1", "prefix")
+	require.NoError(t, err)
+	require.NotNil(t, index)
+}
 
 func TestIndexRequestsAreScopedAndRevisionFiltered(t *testing.T) {
 	var bodies []map[string]any
@@ -26,26 +45,58 @@ func TestIndexRequestsAreScopedAndRevisionFiltered(t *testing.T) {
 		bodies = append(bodies, body)
 		paths = append(paths, r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
-		if strings.HasSuffix(r.URL.Path, "/query") {
-			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"rows": []map[string]any{{"id": chunks[0].ID, "document_id": "doc", "revision_id": "rev2"}}}))
-		} else {
-			_, err := io.WriteString(w, `{"rows_affected":2}`)
-			require.NoError(t, err)
+		if _, ok := body["queries"].([]any); ok {
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
+				"results": []map[string]any{
+					{"rows": []map[string]any{
+						{"id": chunks[0].ID, "document_id": "doc", "revision_id": "rev2"},
+						{"id": chunks[1].ID, "document_id": "doc", "revision_id": "rev2"},
+					}},
+				},
+			}))
+			return
 		}
+		_, err := io.WriteString(w, `{"rows_affected":2}`)
+		require.NoError(t, err)
 	}))
 	defer server.Close()
-	index := &Index{client: tp.NewClient(option.WithAPIKey("test-key"), option.WithBaseURL(server.URL), option.WithMaxRetries(0)), prefix: "test-guidelines"}
+	index := testIndex(server.URL)
 	require.NoError(t, index.Upsert(t.Context(), doc))
+	require.Equal(t, "cosine_distance", bodies[0]["distance_metric"])
 	require.Len(t, bodies[0]["upsert_rows"], 2)
+	rows, ok := bodies[0]["upsert_rows"].([]any)
+	require.True(t, ok)
+	first, ok := rows[0].(map[string]any)
+	require.True(t, ok)
+	_, hasVector := first["vector"]
+	require.False(t, hasVector)
+	require.Equal(t, "Keep placeholders.", first["text"])
+	schema, ok := bodies[0]["schema"].(map[string]any)
+	require.True(t, ok)
+	require.NotContains(t, schema, "vector")
+	textSchema, ok := schema["text"].(map[string]any)
+	require.True(t, ok)
+	embed, ok := textSchema["embed"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, embedding.Model, embed["model"])
+	require.Equal(t, float64(embedding.Dimensions), embed["dims"])
 	encoded, err := json.Marshal(bodies[0]["delete_by_filter"])
 	require.NoError(t, err)
 	require.JSONEq(t, `["And",[["document_id","Eq","doc"],["version","Lte",2]]]`, string(encoded))
 	hits, err := index.Search(t.Context(), guidelines.Query{Scope: doc.Scope, Text: "placeholders", Documents: []guidelines.Document{doc}, Limit: 5})
 	require.NoError(t, err)
-	require.Len(t, hits, 1)
+	require.Len(t, hits, 2)
 	require.Equal(t, chunks[0].ID, hits[0].ID)
-	encoded, err = json.Marshal(bodies[1]["filters"])
+	queries, ok := bodies[1]["queries"].([]any)
+	require.True(t, ok)
+	require.Len(t, queries, 2)
+	encoded, err = json.Marshal(bodies[1])
 	require.NoError(t, err)
+	require.Contains(t, string(encoded), `"BM25"`)
+	require.Contains(t, string(encoded), `"ANN"`)
+	require.Contains(t, string(encoded), `"Embed"`)
+	require.Contains(t, string(encoded), `"RRF"`)
+	require.Contains(t, string(encoded), "placeholders")
 	require.Contains(t, string(encoded), "rev2")
 	require.Contains(t, string(encoded), "doc")
 	require.NoError(t, index.DeleteThrough(t.Context(), doc.Scope, doc.ID, 1))
@@ -69,7 +120,7 @@ func TestIndexMissingNamespace(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	defer server.Close()
-	index := &Index{client: tp.NewClient(option.WithAPIKey("test"), option.WithBaseURL(server.URL), option.WithMaxRetries(0)), prefix: "test"}
+	index := testIndex(server.URL)
 	doc := guidelines.Document{ID: "doc", RevisionID: "r1", Version: 1, Scope: guidelines.Scope{OrganizationID: "org"}}
 	hits, err := index.Search(t.Context(), guidelines.Query{Scope: doc.Scope, Text: "query", Documents: []guidelines.Document{doc}, Limit: 5})
 	require.NoError(t, err)

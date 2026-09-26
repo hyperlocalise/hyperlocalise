@@ -28,7 +28,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/subosito/gotenv v1.6.0
 	github.com/tidwall/jsonc v0.3.3
-	github.com/turbopuffer/turbopuffer-go v1.21.0
+	github.com/turbopuffer/turbopuffer-go/v2 v2.7.0
 	github.com/workos/workos-go/v10 v10.3.0
 	github.com/xuri/excelize/v2 v2.11.0
 	github.com/yuin/goldmark/v2 v2.0.1

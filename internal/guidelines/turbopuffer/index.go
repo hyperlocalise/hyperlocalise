@@ -9,10 +9,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/embedding"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
-	tp "github.com/turbopuffer/turbopuffer-go"
-	"github.com/turbopuffer/turbopuffer-go/option"
+	tp "github.com/turbopuffer/turbopuffer-go/v2"
+	"github.com/turbopuffer/turbopuffer-go/v2/option"
 )
+
+const textAttribute = "text"
 
 // Index stores guideline passages in an organization-isolated namespace.
 type Index struct {
@@ -23,6 +26,7 @@ type Index struct {
 var _ guidelines.Index = (*Index)(nil)
 
 // New creates an index using an explicit API key, region, and deployment prefix.
+// Changing the embedding model or dimensions requires a new prefix.
 func New(apiKey, region, prefix string) (*Index, error) {
 	if strings.TrimSpace(apiKey) == "" || strings.TrimSpace(region) == "" || strings.TrimSpace(prefix) == "" || len(prefix) > 40 {
 		return nil, guidelines.ErrInvalidInput
@@ -39,6 +43,21 @@ func documentFilter(id string, version int64) tp.Filter {
 	return tp.NewFilterAnd([]tp.Filter{tp.NewFilterEq("document_id", id), tp.NewFilterLte("version", version)})
 }
 
+func guidelineSchema() map[string]tp.AttributeSchemaConfigParam {
+	return map[string]tp.AttributeSchemaConfigParam{
+		"document_id": {Type: "string"},
+		"revision_id": {Type: "string"},
+		"version":     {Type: "int"},
+		"project_id":  {Type: "string"},
+		"locale":      {Type: "string"},
+		textAttribute: {
+			Type:           "string",
+			FullTextSearch: &tp.FullTextSearchConfigParam{Stemming: tp.Bool(false), RemoveStopwords: tp.Bool(false)},
+			Embed:          tp.AttributeEmbedConfigParam{Model: embedding.Model, Dims: tp.Int(int64(embedding.Dimensions))},
+		},
+	}
+}
+
 // Upsert atomically replaces this revision and removes older chunks. Revision-
 // specific IDs prevent a delayed old write from overwriting newer text.
 func (i *Index) Upsert(ctx context.Context, doc guidelines.Document) error {
@@ -48,20 +67,14 @@ func (i *Index) Upsert(ctx context.Context, doc guidelines.Document) error {
 	chunks := guidelines.Chunks(doc)
 	rows := make([]tp.RowParam, 0, len(chunks))
 	for _, chunk := range chunks {
-		rows = append(rows, tp.RowParam{"id": chunk.ID, "document_id": doc.ID, "revision_id": doc.RevisionID, "version": doc.Version, "project_id": doc.Scope.ProjectID, "locale": doc.Scope.Locale, "text": chunk.Text})
+		rows = append(rows, tp.RowParam{"id": chunk.ID, "document_id": doc.ID, "revision_id": doc.RevisionID, "version": doc.Version, "project_id": doc.Scope.ProjectID, "locale": doc.Scope.Locale, textAttribute: chunk.Text})
 	}
 	ns := i.namespace(doc.Scope.OrganizationID)
 	_, err := ns.Write(ctx, tp.NamespaceWriteParams{
 		DeleteByFilter: documentFilter(doc.ID, doc.Version),
+		DistanceMetric: tp.DistanceMetricCosineDistance,
 		UpsertRows:     rows,
-		Schema: map[string]tp.AttributeSchemaConfigParam{
-			"document_id": {Type: "string"},
-			"revision_id": {Type: "string"},
-			"version":     {Type: "int"},
-			"project_id":  {Type: "string"},
-			"locale":      {Type: "string"},
-			"text":        {Type: "string", FullTextSearch: &tp.FullTextSearchConfigParam{Stemming: tp.Bool(false), RemoveStopwords: tp.Bool(false)}},
-		},
+		Schema:         guidelineSchema(),
 	})
 	if err != nil {
 		return fmt.Errorf("write guideline index: %w", err)
@@ -85,8 +98,22 @@ func (i *Index) DeleteThrough(ctx context.Context, scope guidelines.Scope, docum
 	return nil
 }
 
-// Search uses BM25 over exact current revisions. The interface leaves room for
-// semantic/hybrid ranking without choosing an embedding model for the product.
+func chunksFromRows(rows []tp.Row) []guidelines.Chunk {
+	chunks := make([]guidelines.Chunk, 0, len(rows))
+	for _, row := range rows {
+		id, idOK := row["id"].(string)
+		docID, docOK := row["document_id"].(string)
+		revID, revOK := row["revision_id"].(string)
+		if !idOK || !docOK || !revOK {
+			continue
+		}
+		chunks = append(chunks, guidelines.Chunk{ID: id, DocumentID: docID, RevisionID: revID})
+	}
+	return chunks
+}
+
+// Search ranks current revisions with BM25 and native Gemini Embedding 2 ANN,
+// fused with reciprocal rank fusion.
 func (i *Index) Search(ctx context.Context, query guidelines.Query) ([]guidelines.Chunk, error) {
 	if query.Scope.OrganizationID == "" || query.Limit < 1 || query.Limit > 32 || len(query.Text) > 16000 {
 		return nil, guidelines.ErrInvalidInput
@@ -104,25 +131,28 @@ func (i *Index) Search(ctx context.Context, query guidelines.Query) ([]guideline
 		}
 		revisions = append(revisions, tp.NewFilterAnd([]tp.Filter{tp.NewFilterEq("document_id", doc.ID), tp.NewFilterEq("revision_id", doc.RevisionID)}))
 	}
+	filters := tp.NewFilterOr(revisions)
+	include := tp.IncludeAttributesParam{StringArray: []string{"document_id", "revision_id"}}
+	topK := tp.Int(int64(query.Limit))
 	ns := i.namespace(query.Scope.OrganizationID)
-	out, err := ns.Query(ctx, tp.NamespaceQueryParams{TopK: tp.Int(int64(query.Limit)), RankBy: tp.NewRankByTextBM25("text", query.Text), Filters: tp.NewFilterOr(revisions), IncludeAttributes: tp.IncludeAttributesParam{StringArray: []string{"document_id", "revision_id"}}})
+	out, err := ns.MultiQuery(ctx, tp.NamespaceMultiQueryParams{
+		Queries: []tp.QueryParam{
+			{TopK: topK, RankBy: tp.NewRankByAnnExpr(textAttribute, tp.NewExprEmbed(query.Text)), DistanceMetric: tp.DistanceMetricCosineDistance, Filters: filters, IncludeAttributes: include},
+			{TopK: topK, RankBy: tp.NewRankByTextBM25(textAttribute, query.Text), Filters: filters, IncludeAttributes: include},
+		},
+		RerankBy: tp.NewRerankByRrf(),
+		Limit:    tp.RerankLimitParam{Total: int64(query.Limit)},
+	})
 	if isNotFound(err) {
 		return []guidelines.Chunk{}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("search guideline index: %w", err)
 	}
-	chunks := make([]guidelines.Chunk, 0, len(out.Rows))
-	for _, row := range out.Rows {
-		id, idOK := row["id"].(string)
-		docID, docOK := row["document_id"].(string)
-		revID, revOK := row["revision_id"].(string)
-		if !idOK || !docOK || !revOK {
-			continue
-		}
-		chunks = append(chunks, guidelines.Chunk{ID: id, DocumentID: docID, RevisionID: revID})
+	if len(out.Results) == 0 {
+		return []guidelines.Chunk{}, nil
 	}
-	return chunks, nil
+	return chunksFromRows(out.Results[0].Rows), nil
 }
 
 func isNotFound(err error) bool {
