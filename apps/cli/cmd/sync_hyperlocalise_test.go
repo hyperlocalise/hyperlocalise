@@ -1129,3 +1129,99 @@ func writePushSourceFile(t *testing.T, path string, content string) {
 		t.Fatalf("write source file: %v", err)
 	}
 }
+
+func TestHyperlocaliseCloudAliasRoundTrip(t *testing.T) {
+	for _, extension := range []string{"json", "png"} {
+		t.Run(extension, func(t *testing.T) {
+			root := t.TempDir()
+			source := "apps/web/lang/en." + extension
+			cloud := "lang/en." + extension
+			original := `{"hello":"Hello"}`
+			translated := `{"hello":"Bonjour"}`
+			writePushSourceFile(t, filepath.Join(root, source), original)
+			var uploads, downloads atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPost {
+					if err := r.ParseMultipartForm(1024 * 1024); err != nil {
+						t.Error(err)
+						return
+					}
+					if got := r.FormValue("sourcePath"); got != cloud {
+						t.Errorf("cloud path = %q, want %q", got, cloud)
+					}
+					file, _, err := r.FormFile("file")
+					if err != nil {
+						t.Error(err)
+						return
+					}
+					defer func() { _ = file.Close() }()
+					content, err := io.ReadAll(file)
+					if err != nil || string(content) != original {
+						t.Errorf("uploaded local content = %q, err = %v", content, err)
+					}
+					uploads.Add(1)
+					_, _ = w.Write([]byte(`{"file":{"id":"existing-file"}}`))
+					return
+				}
+				if got := r.URL.Query().Get("sourcePath"); got != cloud {
+					t.Errorf("download cloud path = %q, want %q", got, cloud)
+				}
+				downloads.Add(1)
+				_, _ = w.Write([]byte(translated))
+			}))
+			defer server.Close()
+			rt := newHyperlocalisePushTestRuntime(server, nil)
+			rt.configRoot = root
+			rt.cfg.Buckets["source"] = config.BucketConfig{Files: []config.BucketFileMapping{{
+				From:      "apps/web/lang/{{source}}." + extension,
+				To:        "apps/web/lang/{{target}}." + extension,
+				CloudPath: "lang/{{source}}." + extension,
+			}}}
+			if _, err := runHyperlocalisePush(t.Context(), rt, syncCommonOptions{}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := runHyperlocalisePull(t.Context(), rt, syncCommonOptions{}); err != nil {
+				t.Fatal(err)
+			}
+			content, err := os.ReadFile(filepath.Join(root, "apps/web/lang/fr."+extension))
+			if err != nil || !strings.Contains(string(content), "Bonjour") {
+				t.Fatalf("local translation = %q, err = %v", content, err)
+			}
+			if uploads.Load() != 1 || downloads.Load() != 1 {
+				t.Fatalf("uploads = %d, downloads = %d", uploads.Load(), downloads.Load())
+			}
+		})
+	}
+}
+
+func TestHyperlocaliseCloudAliasPlanning(t *testing.T) {
+	root := t.TempDir()
+	writePushSourceFile(t, filepath.Join(root, "apps/web/_posts/en/nested/post.md"), "# Hello")
+	cfg := &config.I18NConfig{
+		Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+		Buckets: map[string]config.BucketConfig{"blog": {Files: []config.BucketFileMapping{{
+			From: "apps/web/_posts/en/**/*.md", To: "apps/web/_posts/{{target}}/**/*.md", CloudPath: "_posts/en/**/*.md",
+		}}}},
+	}
+	plans, err := planHyperlocaliseFiles(cfg, nil, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plans) != 1 || plans[0].CloudPath != "_posts/en/nested/post.md" || plans[0].TargetPaths["fr"] != "apps/web/_posts/fr/nested/post.md" {
+		t.Fatalf("unexpected plan: %+v", plans)
+	}
+	writePushSourceFile(t, filepath.Join(root, "other.md"), "# Another")
+	cfg.Buckets["other"] = config.BucketConfig{Files: []config.BucketFileMapping{{From: "other.md", To: "fr/other.md", CloudPath: "_posts/en/nested/post.md"}}}
+	if _, err := planHyperlocaliseFiles(cfg, nil, root); err == nil || !strings.Contains(err.Error(), "maps to both") {
+		t.Fatalf("expected collision error, got %v", err)
+	}
+	delete(cfg.Buckets, "other")
+	cfg.Buckets["blog"] = config.BucketConfig{Files: []config.BucketFileMapping{{From: "apps/web/_posts/en/**/*.md", To: "apps/web/_posts/{{target}}/**/*.md"}}}
+	plans, err = planHyperlocaliseFiles(cfg, nil, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plans[0].CloudPath != plans[0].SourcePath {
+		t.Fatalf("default cloud identity changed: %+v", plans[0])
+	}
+}

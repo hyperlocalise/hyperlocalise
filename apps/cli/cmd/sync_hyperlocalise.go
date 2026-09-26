@@ -45,6 +45,7 @@ type hyperlocaliseSyncRuntime struct {
 type hyperlocaliseFilePlan struct {
 	Bucket        string            `json:"bucket"`
 	SourcePath    string            `json:"sourcePath"`
+	CloudPath     string            `json:"cloudPath"`
 	SourceHash    string            `json:"sourceHash"`
 	FileFormat    string            `json:"fileFormat"`
 	SourceLocale  string            `json:"sourceLocale"`
@@ -213,7 +214,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 
 			var content []byte
 			if isHyperlocaliseWholeFileFormat(plan.FileFormat) {
-				content, err = rt.client.downloadFileVariant(ctx, rt.projectID, plan.SourcePath, locale)
+				content, err = rt.client.downloadFileVariant(ctx, rt.projectID, plan.CloudPath, locale)
 				switch {
 				case err == nil:
 					if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
@@ -231,7 +232,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 				}
 			}
 
-			content, err = rt.client.downloadTranslationExport(ctx, rt.projectID, plan.SourcePath, locale)
+			content, err = rt.client.downloadTranslationExport(ctx, rt.projectID, plan.CloudPath, locale)
 			if err != nil {
 				if isHyperlocaliseNotFound(err) {
 					report.Skipped++
@@ -348,9 +349,13 @@ func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []st
 	sort.Strings(bucketNames)
 
 	plans := make([]hyperlocaliseFilePlan, 0)
+	cloudSources := make(map[string]string)
 	for _, bucketName := range bucketNames {
 		bucket := cfg.Buckets[bucketName]
 		for _, mapping := range bucket.Files {
+			if err := config.ValidateCloudPathMapping(mapping); err != nil {
+				return nil, fmt.Errorf("bucket %q cloud_path: %w", bucketName, err)
+			}
 			sourcePattern := pathresolver.ResolveSourcePath(mapping.From, cfg.Locales.Source)
 			sourcePaths, err := resolveSourcePathsForStatus(configRoot, sourcePattern)
 			if err != nil {
@@ -368,6 +373,25 @@ func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []st
 				if err != nil {
 					return nil, fmt.Errorf("relativize source path %q: %w", resolvedSourcePath, err)
 				}
+				cloudPath := sourcePath
+				if mapping.CloudPath != "" {
+					cloudPath = pathresolver.ResolveSourcePath(mapping.CloudPath, cfg.Locales.Source)
+					if strings.ContainsAny(sourcePattern, "*?[") {
+						resolvedPattern, err := resolveConfigRelativePath(configRoot, sourcePattern)
+						if err != nil {
+							return nil, err
+						}
+						relative, err := filepath.Rel(globBaseDirForStatus(resolvedPattern), resolvedSourcePath)
+						if err != nil {
+							return nil, err
+						}
+						cloudPath = filepath.ToSlash(filepath.Join(globBaseDirForStatus(cloudPath), relative))
+					}
+				}
+				if previous, exists := cloudSources[cloudPath]; exists && previous != sourcePath {
+					return nil, fmt.Errorf("cloud path %q maps to both %q and %q", cloudPath, previous, sourcePath)
+				}
+				cloudSources[cloudPath] = sourcePath
 				sourceHash := ""
 				if hashSources {
 					sourceHash, err = sha256File(resolvedSourcePath)
@@ -391,6 +415,7 @@ func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []st
 				plans = append(plans, hyperlocaliseFilePlan{
 					Bucket:        bucketName,
 					SourcePath:    sourcePath,
+					CloudPath:     cloudPath,
 					SourceHash:    sourceHash,
 					FileFormat:    fileFormat,
 					SourceLocale:  cfg.Locales.Source,
@@ -555,7 +580,7 @@ func (c *hyperlocaliseAPIClient) uploadFile(ctx context.Context, projectID, conf
 	if err := writer.WriteField("projectId", projectID); err != nil {
 		return "", err
 	}
-	_ = writer.WriteField("sourcePath", plan.SourcePath)
+	_ = writer.WriteField("sourcePath", plan.CloudPath)
 	_ = writer.WriteField("sourceHash", plan.SourceHash)
 	_ = writer.WriteField("commitSha", os.Getenv("GITHUB_SHA"))
 	_ = writer.WriteField("workflowRunId", os.Getenv("GITHUB_RUN_ID"))

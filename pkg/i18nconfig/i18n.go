@@ -74,6 +74,8 @@ type BucketConfig struct {
 type BucketFileMapping struct {
 	From string `json:"from" jsonschema:"required"`
 	To   string `json:"to" jsonschema:"required"`
+	// CloudPath preserves the Cloud source identity independently of local paths.
+	CloudPath string `json:"cloud_path,omitempty"`
 	// SRX is an optional sentence-segmentation spec for `run`.
 	// Use a built-in template name (default, html, markdown) or a project-relative SRX 2.0 file.
 	SRX string `json:"srx,omitempty"`
@@ -669,6 +671,10 @@ func validateBucket(name string, bucket BucketConfig) error {
 			return fmt.Errorf("buckets.%s.files[%d].to: must not be empty", name, i)
 		}
 
+		if err := ValidateCloudPathMapping(file); err != nil {
+			return fmt.Errorf("buckets.%s.files[%d].cloud_path: %w", name, i, err)
+		}
+
 		fromSuffix := getFileSuffix(file.From)
 		toSuffix := getFileSuffix(file.To)
 		if !containsPlaceholder(fromSuffix) && !containsPlaceholder(toSuffix) && fromSuffix != toSuffix && !isSupportedImageSuffixPair(fromSuffix, toSuffix) {
@@ -975,6 +981,34 @@ func (c I18NConfig) validateCache() error {
 	}
 	if c.Cache.TimeoutSeconds < 0 {
 		return fmt.Errorf("cache.timeout_seconds: must be >= 0")
+	}
+	return nil
+}
+
+// ValidateCloudPathMapping validates a logical Cloud path, without filesystem access.
+func ValidateCloudPathMapping(file BucketFileMapping) error {
+	if file.CloudPath == "" {
+		return nil
+	}
+	pattern := file.CloudPath
+	if strings.TrimSpace(pattern) != pattern || strings.ContainsAny(pattern, "\\:\x00\r\n") {
+		return fmt.Errorf("must be a relative slash-separated path")
+	}
+	for _, segment := range strings.Split(pattern, "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return fmt.Errorf("must not contain empty, dot, or parent segments")
+		}
+	}
+	if strings.ContainsAny(strings.ReplaceAll(pattern, "{{source}}", "en"), "{}") || strings.Contains(pattern, "[locale]") {
+		return fmt.Errorf("only the {{source}} locale placeholder is supported")
+	}
+	fromGlob := strings.IndexAny(file.From, "*?[")
+	cloudGlob := strings.IndexAny(pattern, "*?[")
+	if (fromGlob < 0) != (cloudGlob < 0) || (fromGlob >= 0 && file.From[fromGlob:] != pattern[cloudGlob:]) {
+		return fmt.Errorf("must preserve the source glob suffix")
+	}
+	if getFileSuffix(file.From) != getFileSuffix(pattern) {
+		return fmt.Errorf("must preserve the source file extension")
 	}
 	return nil
 }
