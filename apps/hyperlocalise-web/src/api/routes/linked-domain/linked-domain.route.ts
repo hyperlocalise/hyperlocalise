@@ -202,8 +202,14 @@ export function createLinkedDomainRoutes() {
           return mapLinkedDomainError(c, verification.error);
         }
 
+        const organizationSlug = c.var.auth.organization.slug;
+        if (!organizationSlug) {
+          return serviceUnavailableResponse(c, "organization_slug_missing", "Organization slug is missing.");
+        }
+
         const result = await recommendDomainMarkets({
           domain: linkedDomain.domainKey,
+          organizationSlug,
           cookie: c.req.header("cookie"),
           signal: c.req.raw.signal,
         });

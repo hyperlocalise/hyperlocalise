@@ -26,6 +26,7 @@ func (h *handler) registerDomainResearch(mux *http.ServeMux, verifier SessionVer
 	route("POST "+base+"/serp", read, h.inspectDomainSerp)
 	route("POST "+base+"/ranks", write, h.trackDomainKeywords)
 	route("POST "+base+"/ranks/refresh", write, h.refreshDomainRanks)
+	route("POST "+orgRoutePrefix+"/domains/research/market-visibility", write, h.orgDomainMarketVisibility)
 }
 
 type linkedDomainRecord struct {
@@ -70,6 +71,24 @@ func (h *handler) loadLinkedDomain(ctx context.Context, organizationID, linkedDo
 		return domain, workspaceFailure(400, "linked_domain_not_verified", "Verify the domain before running research.")
 	}
 	return domain, nil
+}
+
+func (h *handler) orgDomainMarketVisibility(r *http.Request, _ workspaceActor) (any, int, error) {
+	var req researchMarketVisibilityRequest
+	if err := decodeWorkspaceBody(r, &req); err != nil {
+		return nil, 0, workspaceFailure(400, "invalid_domain_research_payload", "targetDomain, marketId, locationCode, and languageCode are required.")
+	}
+	if strings.TrimSpace(req.TargetDomain) == "" || strings.TrimSpace(req.MarketID) == "" || req.LocationCode <= 0 || strings.TrimSpace(req.LanguageCode) == "" {
+		return nil, 0, workspaceFailure(400, "provider_validation_failed", "targetDomain, marketId, locationCode, and languageCode are required.")
+	}
+	if h.research == nil {
+		return nil, 0, workspaceFailure(503, "provider_not_configured", "DataForSEO is not configured.")
+	}
+	result, err := h.computeMarketVisibility(r.Context(), req)
+	if err != nil {
+		return nil, 0, researchProviderError(err)
+	}
+	return result, http.StatusOK, nil
 }
 
 func (h *handler) getDomainResearch(r *http.Request, actor workspaceActor) (any, int, error) {
@@ -146,6 +165,9 @@ func (h *handler) saveDomainKeywords(r *http.Request, actor workspaceActor) (any
 	market, ok := researchMarketByID(strings.TrimSpace(body.MarketID))
 	if !ok {
 		return nil, 0, workspaceFailure(400, "market_not_found", "Unknown research market.")
+	}
+	if err := validateResearchKeywordBodies(body.Keywords, 100); err != nil {
+		return nil, 0, err
 	}
 	rows := uniqueResearchKeywords(body.Keywords)
 	if len(rows) == 0 {
@@ -262,6 +284,9 @@ func (h *handler) trackDomainKeywords(r *http.Request, actor workspaceActor) (an
 	device := body.Device
 	if device != "mobile" {
 		device = "desktop"
+	}
+	if err := validateResearchKeywordBodies(body.Keywords, maxRankCheckBatchSize); err != nil {
+		return nil, 0, err
 	}
 	rows := uniqueResearchKeywords(body.Keywords)
 	if len(rows) == 0 {
@@ -523,6 +548,34 @@ func researchProviderError(err error) error {
 		}
 	}
 	return workspaceFailure(503, "provider_unavailable", "The DataForSEO service is unavailable.")
+}
+
+const maxResearchKeywordLength = 200
+
+func validateResearchKeywordBodies(keywords []researchKeywordBody, maxCount int) error {
+	if len(keywords) == 0 {
+		return workspaceFailure(400, "invalid_domain_research_payload", "Keywords to save are invalid.")
+	}
+	if len(keywords) > maxCount {
+		return workspaceFailure(400, "invalid_domain_research_payload", "Keywords to save are invalid.")
+	}
+	for _, keyword := range keywords {
+		trimmed := strings.TrimSpace(keyword.Keyword)
+		if trimmed == "" || len(trimmed) > maxResearchKeywordLength {
+			return workspaceFailure(400, "invalid_domain_research_payload", "Keywords to save are invalid.")
+		}
+		if keyword.Volume < 0 || keyword.KD < 0 || keyword.CPC < 0 {
+			return workspaceFailure(400, "invalid_domain_research_payload", "Keywords to save are invalid.")
+		}
+		if intent := strings.TrimSpace(keyword.Intent); intent != "" {
+			switch intent {
+			case "informational", "commercial", "transactional", "navigational":
+			default:
+				return workspaceFailure(400, "invalid_domain_research_payload", "Keywords to save are invalid.")
+			}
+		}
+	}
+	return nil
 }
 
 func uniqueResearchKeywords(keywords []researchKeywordBody) []researchKeywordBody {

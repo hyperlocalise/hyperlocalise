@@ -278,7 +278,7 @@ func TestRankCheckBatchReturnsResults(t *testing.T) {
 	require.Equal(t, &position, body.Results[0].Position)
 }
 
-func TestProviderProxyRoutesAreNotPublic(t *testing.T) {
+func TestLegacyDomainResearchProxyRoutesAreNotRegistered(t *testing.T) {
 	h := newHandler()
 	h.research = fakeResearch{}
 	mux := http.NewServeMux()
