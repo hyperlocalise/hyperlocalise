@@ -67,7 +67,7 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 
 ## Browser go-svc client
 
-Several Cloud surfaces call the Go service directly from the browser (CAT segment validation, spellcheck dictionaries, teams, QA reports, and related native APIs). Use [`useGoSvcClient`](src/lib/go-svc/use-go-svc-client.ts), which wraps [`GoSvcClient`](src/lib/go-svc/go-svc-client.ts) with the WorkOS session access token from `useAccessToken`.
+Several Cloud surfaces call the Go service directly from the browser (CAT segment validation, spellcheck dictionaries, teams, workspace members, QA reports, and related native APIs). Use [`useGoSvcClient`](src/lib/go-svc/use-go-svc-client.ts), which wraps [`GoSvcClient`](src/lib/go-svc/go-svc-client.ts) with the WorkOS session access token from `useAccessToken`.
 
 - Base URL comes from `NEXT_PUBLIC_API_BASE_URL` (production default: `https://api.hyperlocalise.com`). Local dev should set it to your running `go-svc` origin alongside `GO_SVC_URL` for server-side proxies.
 - Requests use `Authorization: Bearer` and `credentials: "omit"`. Do not send the `wos-session` cookie to `api.hyperlocalise.com`.

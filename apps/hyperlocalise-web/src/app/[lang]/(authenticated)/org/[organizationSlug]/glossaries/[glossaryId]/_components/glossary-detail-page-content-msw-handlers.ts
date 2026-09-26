@@ -135,7 +135,7 @@ export function createGlossaryDetailMswHandlers({
       HttpResponse.json({ projects: attachedProjects }),
     ),
     http.get("/api/orgs/:organizationSlug/projects", () => HttpResponse.json({ projects })),
-    http.get("/api/orgs/:organizationSlug/members", () =>
+    http.get("*/v1/orgs/:organizationSlug/members", () =>
       HttpResponse.json({
         members: [
           {

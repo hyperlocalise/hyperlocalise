@@ -19,8 +19,8 @@ import { toast } from "sonner";
 
 import { hasCapability } from "@/api/auth/policy";
 import { createTeamsApi } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/teams/_components/teams-api";
-import { apiClient } from "@/lib/api-client-instance";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 
@@ -36,20 +36,6 @@ const membersQueryKey = (organizationSlug: string) => ["workspace-members", orga
 const teamsQueryKey = (organizationSlug: string) => ["workspace-teams", organizationSlug];
 function resolveDefaultTeamId(teams: { id: string; slug: string }[]) {
   return teams.find((team) => team.slug === DEFAULT_WORKSPACE_TEAM_SLUG)?.id ?? teams[0]?.id ?? "";
-}
-
-async function readMemberError(response: Response, fallback: string) {
-  const body = await response.json().catch(() => null);
-
-  if (body && typeof body === "object" && "message" in body && body.message) {
-    return String(body.message);
-  }
-
-  if (body && typeof body === "object" && "error" in body) {
-    return String(body.error);
-  }
-
-  return fallback;
 }
 
 export function MembersPageContent({ organizationSlug }: { organizationSlug: string }) {
@@ -72,18 +58,14 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
   const membersQuery = useQuery({
     queryKey: membersQueryKey(organizationSlug),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].members.$get({
-        param: { organizationSlug },
-      });
-      if (!response.ok) {
+      try {
+        return (await goSvcClient.member.list(organizationSlug)) as MembersListResponse;
+      } catch (error) {
         throw new Error(
-          await readMemberError(
-            response,
-            intl.formatMessage(membersPageContentMessages.loadFailed),
-          ),
+          goSvcErrorMessage(error, intl.formatMessage(membersPageContentMessages.loadFailed)),
+          { cause: error },
         );
       }
-      return (await response.json()) as MembersListResponse;
     },
   });
 
@@ -113,19 +95,14 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
       role: OrganizationMembershipRole;
       teamId?: string;
     }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].members.$post({
-        param: { organizationSlug },
-        json: input,
-      });
-      if (!response.ok) {
+      try {
+        return await goSvcClient.member.invite(organizationSlug, input);
+      } catch (error) {
         throw new Error(
-          await readMemberError(
-            response,
-            intl.formatMessage(membersPageContentMessages.inviteFailed),
-          ),
+          goSvcErrorMessage(error, intl.formatMessage(membersPageContentMessages.inviteFailed)),
+          { cause: error },
         );
       }
-      return response.json();
     },
     onSuccess: async () => {
       setInviteEmail("");
@@ -142,21 +119,16 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
 
   const updateRole = useMutation({
     mutationFn: async (input: { workosUserId: string; role: OrganizationMembershipRole }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].members[
-        ":workosUserId"
-      ].$patch({
-        param: { organizationSlug, workosUserId: input.workosUserId },
-        json: { role: input.role },
-      });
-      if (!response.ok) {
+      try {
+        return await goSvcClient.member.update(organizationSlug, input.workosUserId, {
+          role: input.role,
+        });
+      } catch (error) {
         throw new Error(
-          await readMemberError(
-            response,
-            intl.formatMessage(membersPageContentMessages.updateRoleFailed),
-          ),
+          goSvcErrorMessage(error, intl.formatMessage(membersPageContentMessages.updateRoleFailed)),
+          { cause: error },
         );
       }
-      return response.json();
     },
     onSuccess: async () => {
       setEditingMember(null);
@@ -170,17 +142,12 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
 
   const removeMember = useMutation({
     mutationFn: async (workosUserId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].members[
-        ":workosUserId"
-      ].$delete({
-        param: { organizationSlug, workosUserId },
-      });
-      if (response.status !== 204 && !response.ok) {
+      try {
+        await goSvcClient.member.remove(organizationSlug, workosUserId);
+      } catch (error) {
         throw new Error(
-          await readMemberError(
-            response,
-            intl.formatMessage(membersPageContentMessages.removeFailed),
-          ),
+          goSvcErrorMessage(error, intl.formatMessage(membersPageContentMessages.removeFailed)),
+          { cause: error },
         );
       }
     },

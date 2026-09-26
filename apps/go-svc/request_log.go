@@ -212,5 +212,8 @@ func requestLogPath(path string) string {
 	if parts[4] == "qa-reports" {
 		return "/v1/orgs/{organizationSlug}/qa-reports/{resource}"
 	}
+	if parts[4] == "members" {
+		return "/v1/orgs/{organizationSlug}/members/{resource}"
+	}
 	return path
 }
