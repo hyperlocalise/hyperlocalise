@@ -34,6 +34,8 @@ Create `.env` with at least:
 DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise
 ACTIVITY_LOG_SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/000000000000/activity-log-local
 AWS_REGION=us-east-1
+# Production only: IAM role assumed through Vercel OIDC.
+# AWS_ROLE_ARN=arn:aws:iam::123456789012:role/hyperlocalise-web-prod-sqs
 PROVIDER_CREDENTIALS_MASTER_KEY=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 WORKOS_API_KEY=sk_test_placeholder
 WORKOS_CLIENT_ID=client_placeholder
@@ -42,6 +44,17 @@ NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
 WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
 AUTUMN_API_KEY=am_sk_test_placeholder
 ```
+
+Production SQS publishing uses Vercel OIDC credentials. Configure the role to
+allow only `sqs:SendMessage` on the activity-log queue and restrict its trust
+policy to this Vercel project's production environment. Set `AWS_ROLE_ARN`,
+`AWS_REGION`, and `ACTIVITY_LOG_SQS_QUEUE_URL` in the Vercel production
+environment before deploying.
+
+`GET /api/health` includes `checks.oidc` with the selected credential provider
+and status. Production Vercel requests perform a non-mutating AWS STS
+`GetCallerIdentity` check, with a one-second timeout; the response never
+exposes the role ARN or AWS account details.
 
 Apply migrations after Postgres is running:
 

@@ -19,7 +19,8 @@ import {
   enqueueActivityLogEvents,
 } from "./activity-log-writer";
 
-const { sendMock } = vi.hoisted(() => ({
+const { awsCredentialsProviderMock, sendMock } = vi.hoisted(() => ({
+  awsCredentialsProviderMock: vi.fn(() => vi.fn()),
   sendMock: vi.fn(),
 }));
 
@@ -36,10 +37,15 @@ vi.mock("@aws-sdk/client-sqs", () => ({
   },
 }));
 
+vi.mock("@vercel/oidc-aws-credentials-provider", () => ({
+  awsCredentialsProvider: awsCredentialsProviderMock,
+}));
+
 vi.mock("@/lib/env", () => ({
   env: {
     ACTIVITY_LOG_SQS_QUEUE_URL: "https://sqs.test.local/queue/activity-log",
     AWS_REGION: "us-east-1",
+    AWS_ROLE_ARN: "arn:aws:iam::123456789012:role/test-role",
   },
 }));
 
@@ -73,6 +79,10 @@ describe("enqueueActivityLogEvent", () => {
 
     expect(result).toMatchObject({ ok: true });
     expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(awsCredentialsProviderMock).toHaveBeenCalledWith({
+      audience: "sts.amazonaws.com",
+      roleArn: "arn:aws:iam::123456789012:role/test-role",
+    });
     expect(sendMock).toHaveBeenCalledWith(
       {
         MessageBody: expect.any(String),
@@ -117,8 +127,13 @@ describe("enqueueActivityLogEvent", () => {
     expect(JSON.stringify(error.mock.calls)).not.toContain("must-not-leave-the-request");
   });
 
-  it("contains SQS enqueue failures and returns a safe typed error", async () => {
-    sendMock.mockRejectedValue(new Error("SQS infrastructure failure"));
+  it("contains SQS enqueue failures and logs safe diagnostics", async () => {
+    sendMock.mockRejectedValue(
+      Object.assign(new Error("SQS infrastructure failure"), {
+        code: "AccessDenied",
+        $metadata: { requestId: "request-1" },
+      }),
+    );
     const error = vi.fn();
 
     const result = await enqueueActivityLogEvent(projectCreatedEvent(), {
@@ -131,10 +146,12 @@ describe("enqueueActivityLogEvent", () => {
       expect.objectContaining({
         correlationId: "activity-log-test-sqs",
         failure: "sqs_enqueue",
+        error: expect.objectContaining({
+          message: "SQS infrastructure failure",
+        }),
       }),
       "workspace activity log enqueue failed",
     );
-    expect(JSON.stringify(error.mock.calls)).not.toContain("SQS infrastructure failure");
   });
 
   it("bounds a stalled SQS send with the default timeout", async () => {

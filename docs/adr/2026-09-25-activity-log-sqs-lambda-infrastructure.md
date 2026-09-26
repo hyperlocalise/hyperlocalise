@@ -29,13 +29,13 @@ The infrastructure repository provisions and operates:
 - Postgres network access, TLS requirements, subnets/security groups, and any required VPC endpoints.
 - Queue/Lambda encryption, log retention, alarms, dashboards, and DLQ redrive operations.
 
-The infrastructure repository publishes the queue URL, queue ARN, AWS region, and Lambda identifiers through the existing SSM/secret handoff convention. It provides `DATABASE_URL` to Lambda through the approved secret-management system and configures the same region for the web app's SQS client.
+The infrastructure repository publishes the queue URL, queue ARN, AWS region, and Lambda identifiers through the existing SSM/secret handoff convention. It provides `DATABASE_URL` to Lambda through the approved secret-management system and configures the same region for the web app's SQS client. The Vercel web runtime assumes the producer role through Vercel OIDC using `AWS_ROLE_ARN`; it does not receive long-lived AWS access keys.
 
 ## Deployment order
 
 1. Provision the queue, DLQ, Lambda shell, IAM, secrets access, and disabled event mapping.
 2. Deploy the Go Lambda artifact from the application repository.
-3. Configure the web runtime with the queue URL and scoped producer credentials.
+3. Configure the web runtime with the queue URL, region, and `AWS_ROLE_ARN`; configure the producer role's Vercel OIDC trust policy and `sqs:SendMessage` permission.
 4. Enable the event mapping and monitor queue age, Lambda errors, database errors, and DLQ depth.
 
 ## Boundaries

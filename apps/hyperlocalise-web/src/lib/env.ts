@@ -33,6 +33,9 @@ export const env = createEnv({
     /** AWS region used to sign activity-log SQS requests. */
     AWS_REGION: z.string().min(1),
 
+    /** IAM role assumed through Vercel OIDC for activity-log SQS requests. */
+    AWS_ROLE_ARN: z.string().min(1).optional(),
+
     /** OpenAI API key used for CLI sandbox translation. Optional when AI Gateway or that feature is unused. */
     OPENAI_API_KEY: z.string().min(1).optional(),
 
@@ -317,6 +320,7 @@ export const env = createEnv({
       process.env.ACTIVITY_LOG_SQS_QUEUE_URL ??
       (isTestEnv ? "https://sqs.test.local/123456789012/activity-log" : undefined),
     AWS_REGION: process.env.AWS_REGION ?? (isTestEnv ? "us-east-1" : undefined),
+    AWS_ROLE_ARN: process.env.AWS_ROLE_ARN,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? (isTestEnv ? "test-openai-api-key" : undefined),
     AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
     AI_GATEWAY_BASE_URL: process.env.AI_GATEWAY_BASE_URL,
