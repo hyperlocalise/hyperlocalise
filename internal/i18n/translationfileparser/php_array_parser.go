@@ -68,7 +68,9 @@ func (d phpArrayDocument) render(values map[string]string) []byte {
 	}
 
 	var b bytes.Buffer
-	b.Grow(len(d.template))
+	// BOLT OPTIMIZATION: Pre-grow buffer including estimated extra size for translated values
+	// to prevent re-allocations when translated values exceed template length.
+	b.Grow(len(d.template) + len(values)*16)
 	cursor := 0
 
 	// Note: We assume d.entries are ordered by their position in the template
@@ -97,21 +99,19 @@ const (
 )
 
 func phpArrayEntryCapacityHint(content []byte) int {
-	// Delimiter count is often tighter for real locale files, but it also counts
-	// => inside string literals and comments. Cap against a size-based hint so a
-	// single large value cannot drive eager slice/map allocation toward len/2.
+	// BOLT OPTIMIZATION: Use delimiter count ('=>') directly as entry capacity hint.
+	// Cap against a minimum byte ratio (7 bytes per key-value pair) to avoid
+	// over-allocation on malformed input while eliminating slice and map re-allocations
+	// for normal PHP array files.
 	delimiterCount := bytes.Count(content, []byte("=>"))
-	sizeHint := len(content) / 32
-	if sizeHint < phpArrayEntryMinCapacity {
-		sizeHint = phpArrayEntryMinCapacity
-	}
 	if delimiterCount < phpArrayEntryMinCapacity {
 		return phpArrayEntryMinCapacity
 	}
-	if delimiterCount < sizeHint {
-		return delimiterCount
+	maxEntries := len(content) / 7
+	if delimiterCount > maxEntries {
+		return maxEntries
 	}
-	return sizeHint
+	return delimiterCount
 }
 
 func parsePHPArrayDocument(content []byte) (phpArrayDocument, error) {
