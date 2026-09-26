@@ -21,6 +21,19 @@ import { getPrototypeSearchConsoleSnapshot } from "@/lib/gsc/prototype";
 
 import { useDomainSearchConsole } from "./use-domain-search-console";
 
+const getSearchConsole = vi.fn();
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      domains: {
+        getSearchConsole,
+      },
+    },
+    loading: false,
+  }),
+}));
+
 function wrapper({ children }: { children: ReactNode }) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -30,13 +43,10 @@ function wrapper({ children }: { children: ReactNode }) {
 
 describe("useDomainSearchConsole", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
+    getSearchConsole.mockReset();
   });
 
   it("returns sample data for prototype domains without fetching", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
     const { result } = renderHook(
       () =>
         useDomainSearchConsole({
@@ -53,7 +63,7 @@ describe("useDomainSearchConsole", () => {
     });
     expect(result.current.live).toBe(false);
     expect(result.current.data).toEqual(getPrototypeSearchConsoleSnapshot("hyperlocalise.com"));
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(getSearchConsole).not.toHaveBeenCalled();
   });
 
   it("loads Search Console performance for live domains", async () => {
@@ -61,13 +71,7 @@ describe("useDomainSearchConsole", () => {
       ...getPrototypeSearchConsoleSnapshot("example.com"),
       status: "ready" as const,
     };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ searchConsole: snapshot }),
-      }),
-    );
+    getSearchConsole.mockResolvedValue(snapshot);
 
     const { result } = renderHook(
       () =>
@@ -86,8 +90,9 @@ describe("useDomainSearchConsole", () => {
     });
     expect(result.current.live).toBe(true);
     expect(result.current.data?.status).toBe("ready");
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/orgs/acme/linked-domains/11111111-1111-4111-8111-111111111111/search-console?dateRange=last_7_days&locale=france-fr",
-    );
+    expect(getSearchConsole).toHaveBeenCalledWith("acme", "11111111-1111-4111-8111-111111111111", {
+      dateRange: "last_7_days",
+      locale: "france-fr",
+    });
   });
 });

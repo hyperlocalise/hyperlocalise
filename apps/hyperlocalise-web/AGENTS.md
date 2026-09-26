@@ -72,7 +72,7 @@ Several Cloud surfaces call the Go service directly from the browser (CAT segmen
 - Base URL comes from `NEXT_PUBLIC_API_BASE_URL` (production default: `https://api.hyperlocalise.com`). Local dev should set it to your running `go-svc` origin alongside `GO_SVC_URL` for server-side proxies.
 - Requests use `Authorization: Bearer` and `credentials: "omit"`. Do not send the `wos-session` cookie to `api.hyperlocalise.com`.
 - Add new resource methods on dedicated `go-svc-*-api.ts` modules composed by `GoSvcClient`; map failures with `GoSvcClientError` and [`go-svc-error.ts`](src/lib/go-svc/go-svc-error.ts) where transport errors need user-facing copy.
-- Domains research and Search Console stay on Next.js server providers that call `GO_SVC_URL` with the research HMAC header. Do not move those to browser `GoSvcClient` without an ADR.
+- Domains research, Search Console, and Hyperlab use browser `GoSvcClient` on org-scoped `/v1/orgs/{slug}/domains/...` and `/v1/orgs/{slug}/hyperlab/...` routes with the WorkOS session Bearer token. Linked-domain claim, verify, and list management stay on Next.js Hono (`/api/orgs/.../linked-domains`).
 
 See [`docs/adr/2026-09-22-web-go-svc-api-client-design.md`](../../docs/adr/2026-09-22-web-go-svc-api-client-design.md).
 

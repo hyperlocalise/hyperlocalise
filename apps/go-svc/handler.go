@@ -67,6 +67,7 @@ type handler struct {
 	activityLogs  *activityLogAPI
 	contentEditor *editorCatAPI
 	projects      *projectAPI
+	workspace     *workspaceAPI
 	valkey        valkeyHealthClient
 	postgres      healthPinger
 }
@@ -109,6 +110,11 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	if h.projects != nil {
 		h.projects.register(mux, verifier)
 	}
+	if h.workspace != nil {
+		h.registerDomainResearch(mux, verifier)
+		h.registerDomainSearchConsole(mux, verifier)
+		h.registerHyperlab(mux, verifier)
+	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	editorExport := authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
@@ -117,15 +123,6 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	mux.HandleFunc("GET /health", h.health)
 	mux.Handle("POST /v1/validate/segment", validate)
 	mux.Handle("POST /v1/editor-export/filtered/serialize", editorExport)
-	research := serverCallAuthMiddleware(verifier)
-	mux.Handle("POST /v1/domains/research/keywords", research(http.HandlerFunc(h.expandKeywords)))
-	mux.Handle("POST /v1/domains/research/market-visibility", research(http.HandlerFunc(h.marketVisibility)))
-	mux.Handle("POST /v1/domains/research/serp", research(http.HandlerFunc(h.liveSerp)))
-	mux.Handle("POST /v1/domains/research/rank-check", research(http.HandlerFunc(h.rankCheck)))
-	mux.Handle("POST /v1/domains/research/rank-check/batch", research(http.HandlerFunc(h.rankCheckBatch)))
-	mux.Handle("POST /v1/domains/gsc/sites", research(http.HandlerFunc(h.listGscSites)))
-	mux.Handle("POST /v1/domains/gsc/performance", research(http.HandlerFunc(h.queryGscPerformance)))
-	mux.Handle("POST /v1/domains/gsc/inspect", research(http.HandlerFunc(h.inspectGscURL)))
 	for pattern, route := range map[string]http.HandlerFunc{
 		"PUT /v1/storage/object":         h.putObject,
 		"POST /v1/storage/read":          h.getObject,

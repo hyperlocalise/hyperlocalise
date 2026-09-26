@@ -824,6 +824,9 @@
   "01u9U8ASiI": {
     "defaultMessage": "Job erstellen"
   },
+  "02ZUVYObvj": {
+    "defaultMessage": "Verbunden mit {nodeId} · {path}. Entferne die Datenverbindung, um diese Eingabe manuell zu konfigurieren."
+  },
   "032V4XY9wg": {
     "defaultMessage": "Keine Workspace-Glossare"
   },
@@ -2227,6 +2230,9 @@
   },
   "3NyprC4I6O": {
     "defaultMessage": "Ideen erweitern"
+  },
+  "3OlJR3Fxjp": {
+    "defaultMessage": "Die Schleifenzugehörigkeit wird automatisch anhand der Verbindungen ermittelt, die vom Port „Each item“ ausgehen."
   },
   "3QmQFMO6jX": {
     "defaultMessage": "Sprachen"
@@ -3944,6 +3950,9 @@
   "7YQmBHx9HV": {
     "defaultMessage": "Integrationen werden geladen"
   },
+  "7aLZ0dWTTK": {
+    "defaultMessage": "Teamdetails konnten nicht geladen werden."
+  },
   "7aOYNlbDse": {
     "defaultMessage": "Geändert ab"
   },
@@ -5267,6 +5276,9 @@
   "AfQNtHreD6": {
     "defaultMessage": "Wie Sie es verwenden werden"
   },
+  "AfVZqT7lYf": {
+    "defaultMessage": "Ausgaben"
+  },
   "AfaXCvPHA0": {
     "defaultMessage": "Name"
   },
@@ -6401,6 +6413,9 @@
   "DPeiBFpfQD": {
     "defaultMessage": "Bereit zum Hochladen"
   },
+  "DPjhjRQyDt": {
+    "defaultMessage": "Team konnte nicht erstellt werden."
+  },
   "DQ07Hv8A9f": {
     "defaultMessage": "Für dieses Projekt ist kein Ausgangsgebietsschema konfiguriert."
   },
@@ -6484,6 +6499,9 @@
   },
   "DZ8tm3n3xg": {
     "defaultMessage": "Prompt"
+  },
+  "DZQygr4PBW": {
+    "defaultMessage": "Die Teamrolle konnte nicht aktualisiert werden."
   },
   "DZx5zjElsr": {
     "defaultMessage": "Frage nach einem beliebigen String. Erhalte Kontext aus dem Repository."
@@ -6772,6 +6790,9 @@
   },
   "ECw5CTvkCi": {
     "defaultMessage": "Gib Prüfern vor dem Merge einen klaren Überblick über die Lokalisierungsabdeckung, Qualitätskennzeichnungen und offene Punkte."
+  },
+  "EE7waUBBeR": {
+    "defaultMessage": "Gemini 3.8 Flash"
   },
   "EFds7VbW/w": {
     "defaultMessage": "95–99 %"
@@ -11792,6 +11813,9 @@
   "R+hZLscXuo": {
     "defaultMessage": "Verbinde dein Gemini-Konto"
   },
+  "R+wRT9+VUQ": {
+    "defaultMessage": "Teams konnten nicht geladen werden."
+  },
   "R/LlfIB0DY": {
     "defaultMessage": "Anzeigename"
   },
@@ -11983,6 +12007,9 @@
   },
   "RYfCDsRyCY": {
     "defaultMessage": "Wir haben das heutige Limit von {limit} geplanten Audits erreicht. Versuchen Sie es morgen erneut."
+  },
+  "RYlIDTbR9C": {
+    "defaultMessage": "Team konnte nicht aktualisiert werden."
   },
   "RZBs1fe1V3": {
     "defaultMessage": "Hyperlokalisieren | Lokalisierungsplattform für das agentische Zeitalter"
@@ -12904,6 +12931,9 @@
   },
   "TvKxxMeDL1": {
     "defaultMessage": "Terminologie, Zeichenbegrenzungen und die Produktstimme durchsetzen, bevor Entwürfe menschliche Prüfer erreichen."
+  },
+  "TvuxI/JPcp": {
+    "defaultMessage": "Gemini 3.5 Flash"
   },
   "TwAHdkAXq8": {
     "defaultMessage": "Nicht erlaubt"
@@ -14357,6 +14387,9 @@
   "XYe4THixuv": {
     "defaultMessage": "Projekte konnten nicht geladen werden"
   },
+  "XaU9VG5iR6": {
+    "defaultMessage": "Mitglied kann nicht zum Team hinzugefügt werden."
+  },
   "XahS11XRb2": {
     "defaultMessage": "Verfolge, welche Artikel Übersetzungen fehlen oder nach Produktänderungen hinter der englischen Quelle zurückbleiben."
   },
@@ -14821,6 +14854,9 @@
   },
   "YlLKVRUEmO": {
     "defaultMessage": "Kontext-Autoerkennung"
+  },
+  "YlNYKWNMnX": {
+    "defaultMessage": "Gemini 3.6 Flash"
   },
   "YlQ8SQ7Hob": {
     "defaultMessage": "Skalieren Sie Ihre Inhalte. Behalten Sie die Kontrolle."
@@ -15662,6 +15698,9 @@
   "ambL1h5gLQ": {
     "defaultMessage": "Wie kann ich mich bewerben?"
   },
+  "amwt3mzL+t": {
+    "defaultMessage": "Team kann nicht gelöscht werden."
+  },
   "anFNHwBPyz": {
     "defaultMessage": "2,4 MB · 12 Seiten"
   },
@@ -16126,6 +16165,9 @@
   },
   "bwRkCyVWjg": {
     "defaultMessage": "Lassen Sie die Richtlinien dort, wo sie sind. Ermöglichen Sie den Agenten, sie zu lesen."
+  },
+  "bwRlaW2gsC": {
+    "defaultMessage": "Gemini 3.1 Pro Preview"
   },
   "bwuFPmHIKZ": {
     "defaultMessage": "Jobs lesen"
@@ -19223,6 +19265,9 @@
   "j7qlYfJ6Qt": {
     "defaultMessage": "{kind} · {format}"
   },
+  "j8e6X/c9hq": {
+    "defaultMessage": "Gemini 3.7 Flash"
+  },
   "j8gL5p92ex": {
     "defaultMessage": "Mitgründer"
   },
@@ -21028,6 +21073,9 @@
   },
   "nLGLyaeThi": {
     "defaultMessage": "Locale"
+  },
+  "nMNoXhRMk/": {
+    "defaultMessage": "Mitglied konnte nicht aus dem Team entfernt werden."
   },
   "nMgCp4t1y/": {
     "defaultMessage": "Verbinden"
@@ -24167,6 +24215,9 @@
   "uukLNszv2X": {
     "defaultMessage": "Alle Ressourcentypen"
   },
+  "uwi6wLAbuv": {
+    "defaultMessage": "Dieser Wert wird von einem verbundenen Datenport bereitgestellt. Entferne die Datenverbindung, um ihn hier zu bearbeiten."
+  },
   "uwkiRYaBX+": {
     "defaultMessage": "Sprach-, Glossar- und rechtliche Leitplanken anwenden"
   },
@@ -25013,6 +25064,9 @@
   "wqZ58St0W3": {
     "defaultMessage": "Übersetzungsdatenbank konnte nicht exportiert werden"
   },
+  "wqkEAl7nY6": {
+    "defaultMessage": "Team kann nicht aktualisiert werden."
+  },
   "wr3AKpuOi3": {
     "defaultMessage": "Markenstimme · Styleguide"
   },
@@ -25288,6 +25342,9 @@
   },
   "xOFZqYtkn0": {
     "defaultMessage": "Ein paar Dinge erfordern deine Aufmerksamkeit"
+  },
+  "xOduwNEWmK": {
+    "defaultMessage": "Eingaben"
   },
   "xOg2DDTtXl": {
     "defaultMessage": "hat einen fehlgeschlagenen Job aufgezeichnet"
@@ -25696,6 +25753,9 @@
   },
   "yIJ8L6HdUp": {
     "defaultMessage": "Mit Agent übersetzen"
+  },
+  "yIZkW24JC2": {
+    "defaultMessage": "Mit dem Bereich „Für jedes Element“ sind keine Knoten verbunden."
   },
   "yIpwcI2dct": {
     "defaultMessage": "{selected}/{total} Zeichen"

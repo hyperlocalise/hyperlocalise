@@ -27,6 +27,10 @@ build-activity-log-lambda: ## build the activity-log Lambda bootstrap binary
 	@mkdir -p dist/activity-log-lambda
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/activity-log-lambda/bootstrap ./apps/activity-log-lambda
 
+.PHONY: check-build-public-api
+check-build-public-api: ## check standalone public API service build
+	@go build -o /dev/null ./apps/public-api
+
 .PHONY: check-build-go-svc-cgo
 check-build-go-svc-cgo: ## check go-svc build+tests with the real cgo_hunspell provider (requires libhunspell-dev + pkg-config locally; matches Dockerfile.vercel)
 	CGO_ENABLED=1 go build -tags cgo_hunspell -o /dev/null ./apps/go-svc

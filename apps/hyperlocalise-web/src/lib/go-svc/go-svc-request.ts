@@ -58,6 +58,46 @@ export class GoSvcRequest {
     this.fetch = options.fetch ?? globalThis.fetch;
   }
 
+  async response(path: string, request: GoSvcJsonRequest = {}): Promise<Response> {
+    const token = String((await this.getAccessToken()) ?? "").trim();
+    if (!token) {
+      throw new GoSvcClientError({
+        code: "missing_access_token",
+        message: "A WorkOS access token is required",
+      });
+    }
+
+    const headers = new Headers({
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    });
+    let body: BodyInit | undefined;
+    if (request.body !== undefined) {
+      headers.set("Content-Type", "application/json");
+      body = JSON.stringify(request.body);
+    }
+
+    const requestUrl = this.url(path, request.query);
+    try {
+      return await this.fetch(requestUrl, {
+        method: request.method ?? "GET",
+        headers,
+        body,
+        credentials: "omit",
+        signal: request.signal,
+      });
+    } catch (cause) {
+      if (isAbortError(cause)) {
+        throw cause;
+      }
+      throw new GoSvcClientError({
+        code: "network_error",
+        message: "Unable to reach go-svc",
+        cause,
+      });
+    }
+  }
+
   async json<T>(path: string, request: GoSvcJsonRequest = {}): Promise<T> {
     const response = await this.send(path, request);
     if (response.status === 204) {
@@ -87,49 +127,12 @@ export class GoSvcRequest {
       contentType: response.headers.get("content-type"),
       filename: responseFilename(response.headers.get("content-disposition")),
       extension: response.headers.get("x-export-extension"),
+      warningCount: Number(response.headers.get("x-hyperlocalise-export-warning-count") ?? 0),
     };
   }
 
   private async send(path: string, request: GoSvcJsonRequest): Promise<Response> {
-    const token = String((await this.getAccessToken()) ?? "").trim();
-    if (!token) {
-      throw new GoSvcClientError({
-        code: "missing_access_token",
-        message: "A WorkOS access token is required",
-      });
-    }
-
-    const headers = new Headers({
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    });
-    let body: BodyInit | undefined;
-    if (request.body !== undefined) {
-      headers.set("Content-Type", "application/json");
-      body = JSON.stringify(request.body);
-    }
-
-    const requestUrl = this.url(path, request.query);
-    let response: Response;
-    try {
-      response = await this.fetch(requestUrl, {
-        method: request.method ?? "GET",
-        headers,
-        body,
-        credentials: "omit",
-        signal: request.signal,
-      });
-    } catch (cause) {
-      if (isAbortError(cause)) {
-        throw cause;
-      }
-      throw new GoSvcClientError({
-        code: "network_error",
-        message: "Unable to reach go-svc",
-        cause,
-      });
-    }
-
+    const response = await this.response(path, request);
     if (!response.ok) {
       throw await responseError(response);
     }
@@ -167,6 +170,14 @@ export function issueSheetPath(
   ...segments: string[]
 ): string {
   return orgPath(organizationSlug, "projects", projectId, "issue-sheet", ...segments);
+}
+
+export function catPath(
+  organizationSlug: string,
+  projectId: string,
+  ...segments: string[]
+): string {
+  return orgPath(organizationSlug, "projects", projectId, "files", "detail", "cat", ...segments);
 }
 
 function normalizeBaseUrl(value: string): string {

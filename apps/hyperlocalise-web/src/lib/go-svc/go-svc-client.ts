@@ -23,16 +23,21 @@ import {
   GoSvcRequest,
   type GoSvcClientOptions,
 } from "./go-svc-request";
+import { GoSvcDomainsApi } from "./go-svc-domains-api";
+import { createHyperlabGoSvcClient, type HyperlabGoSvcClient } from "./go-svc-hyperlab-client";
 import { GoSvcTeamApi } from "./go-svc-team-api";
 
 export { DEFAULT_GO_SVC_BASE_URL, GoSvcClientError, type GoSvcClientOptions };
+export type { HyperlabGoSvcClient };
 
 export class GoSvcClient {
   readonly baseUrl: string;
   readonly activityLog: GoSvcActivityLogApi;
   readonly cat: GoSvcCatApi;
   readonly dictionary: GoSvcDictionaryApi;
+  readonly domains: GoSvcDomainsApi;
   readonly glossary: GoSvcGlossaryApi;
+  readonly hyperlab: HyperlabGoSvcClient;
   readonly issueSheet: GoSvcIssueSheetApi;
   readonly memory: GoSvcMemoryApi;
   readonly qaReport: GoSvcQaReportApi;
@@ -44,7 +49,9 @@ export class GoSvcClient {
     this.activityLog = new GoSvcActivityLogApi(request);
     this.cat = new GoSvcCatApi(request);
     this.dictionary = new GoSvcDictionaryApi(request);
+    this.domains = new GoSvcDomainsApi(request);
     this.glossary = new GoSvcGlossaryApi(request);
+    this.hyperlab = createHyperlabGoSvcClient(request);
     this.issueSheet = new GoSvcIssueSheetApi(request);
     this.memory = new GoSvcMemoryApi(request);
     this.qaReport = new GoSvcQaReportApi(request);

@@ -97,11 +97,17 @@ func main() {
 		}
 	}
 	var membershipLookup organizationMembershipLookup
+	var workosClient *workos.Client
 	if key := strings.TrimSpace(os.Getenv("WORKOS_API_KEY")); key != "" {
-		client := workos.NewClient(key)
+		workosClient = workos.NewClient(key)
 		membershipLookup = func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
-			return client.OrganizationMembership().Get(ctx, id)
+			return workosClient.OrganizationMembership().Get(ctx, id)
 		}
+	}
+	h.workspace = &workspaceAPI{membership: membershipLookup}
+	if workosClient != nil {
+		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
+		h.workspace.pipes = workosPipeTokens{client: workosClient}
 	}
 
 	if apiKey := strings.TrimSpace(os.Getenv("DATAFORSEO_API_KEY")); apiKey != "" {
@@ -129,6 +135,7 @@ func main() {
 		h.activityLogs.pool = pool
 		h.contentEditor.pool = pool
 		h.projects.pool = pool
+		h.workspace.pool = pool
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure experiment store: %v", err)
@@ -175,6 +182,7 @@ func main() {
 	h.activityLogs.membership = membershipLookup
 	h.contentEditor.membership = membershipLookup
 	h.projects.membership = membershipLookup
+	h.workspace.membership = membershipLookup
 
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, verifier)

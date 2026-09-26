@@ -38,6 +38,8 @@ import {
   type KeywordIdea,
   type SerpResult,
 } from "@/lib/domains/research-prototype";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 import { formatKeywordIntent } from "./domain-research-format";
 import { domainKeywordsViewMessages as shared } from "./domain-keywords-view.messages";
@@ -98,6 +100,7 @@ function KeywordScreen({
   const intl = useIntl();
   const t = intl.formatMessage;
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
 
@@ -144,22 +147,10 @@ function KeywordScreen({
     }
     setSeedPending(true);
     try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/keywords/expand`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ seedKeyword: seed, marketId }),
-        },
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        ideas?: KeywordIdea[];
-        message?: string;
-      };
-      if (!response.ok || !body.ideas) {
-        toast.error(body.message || intl.formatMessage(shared.seedError));
-        return false;
-      }
+      const body = await goSvcClient.domains.expandKeywords(organizationSlug, linkedDomainId, {
+        seedKeyword: seed,
+        marketId,
+      });
       setIdeas(body.ideas);
       setSelected([]);
       setExpandedMarketId(marketId);
@@ -171,6 +162,9 @@ function KeywordScreen({
       }
       toast.success(intl.formatMessage(shared.seedSuccess));
       return true;
+    } catch (error) {
+      toast.error(goSvcErrorMessage(error, intl.formatMessage(shared.seedError)));
+      return false;
     } finally {
       setSeedPending(false);
     }
@@ -193,26 +187,16 @@ function KeywordScreen({
     setSerpPending(true);
     setLiveSerpResults(null);
     try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/serp`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ keyword: keyword.keyword, marketId }),
-        },
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        results?: SerpResult[];
-        message?: string;
-      };
-      if (!response.ok || !body.results) {
-        toast.error(body.message || intl.formatMessage(shared.serpError));
-        return;
-      }
+      const body = await goSvcClient.domains.inspectSerp(organizationSlug, linkedDomainId, {
+        keyword: keyword.keyword,
+        marketId,
+      });
       setLiveSerpResults(body.results);
       await queryClient.invalidateQueries({
         queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
       });
+    } catch (error) {
+      toast.error(goSvcErrorMessage(error, intl.formatMessage(shared.serpError)));
     } finally {
       setSerpPending(false);
     }
@@ -225,33 +209,25 @@ function KeywordScreen({
       return;
     }
     setPersistPending(true);
-    const endpoint =
-      path === "save"
-        ? `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/keywords/save`
-        : `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/ranks`;
+    const payload = {
+      marketId: expandedMarketId ?? market,
+      seedKeyword,
+      keywords: selectedRows.map((row) => ({
+        keyword: row.keyword,
+        volume: row.volume,
+        kd: row.kd,
+        cpc: row.cpc,
+        intent: row.intent,
+      })),
+    };
     try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          marketId: expandedMarketId ?? market,
-          seedKeyword,
-          keywords: selectedRows.map((row) => ({
-            keyword: row.keyword,
-            volume: row.volume,
-            kd: row.kd,
-            cpc: row.cpc,
-            intent: row.intent,
-          })),
-        }),
-      });
-      const body = (await response.json().catch(() => ({}))) as { message?: string };
-      if (!response.ok) {
-        toast.error(
-          body.message ||
-            intl.formatMessage(path === "save" ? shared.saveError : shared.ranksError),
-        );
-        return;
+      if (path === "save") {
+        await goSvcClient.domains.saveKeywords(organizationSlug, linkedDomainId, payload);
+      } else {
+        await goSvcClient.domains.trackRanks(organizationSlug, linkedDomainId, {
+          marketId: payload.marketId,
+          keywords: payload.keywords,
+        });
       }
       setSelected([]);
       setIdeas(null);
@@ -260,6 +236,13 @@ function KeywordScreen({
         queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
       });
       toast.success(intl.formatMessage(path === "save" ? shared.saved : shared.sentToRanks));
+    } catch (error) {
+      toast.error(
+        goSvcErrorMessage(
+          error,
+          intl.formatMessage(path === "save" ? shared.saveError : shared.ranksError),
+        ),
+      );
     } finally {
       setPersistPending(false);
     }

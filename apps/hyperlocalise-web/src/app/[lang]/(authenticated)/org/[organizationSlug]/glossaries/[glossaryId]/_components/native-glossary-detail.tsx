@@ -77,6 +77,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
@@ -232,6 +234,7 @@ export function NativeGlossaryDetail({
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const glossaryHref = `/org/${organizationSlug}/glossaries/${glossaryId}`;
   const conceptHref = (id: string) => `${glossaryHref}/concepts/${id}`;
   const [selectedConceptIds, setSelectedConceptIds] = useState<Set<string>>(new Set());
@@ -310,6 +313,8 @@ export function NativeGlossaryDetail({
     ],
     enabled: true,
     queryFn: async () => {
+      // Stays on Hono: go-svc's concepts/page only honours limit/cursor/search,
+      // so moving this over would silently drop every filter below.
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
       ].concepts.page.$get({
@@ -343,16 +348,14 @@ export function NativeGlossaryDetail({
     queryKey: ["glossary-projects", organizationSlug, glossaryId],
     enabled: true,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].projects.$get({
-        param: { organizationSlug, glossaryId },
-      });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.loadProjectsFailed)),
-        );
-      return (await response.json()).projects as GlossaryProjectRecord[];
+      try {
+        const body = await goSvcClient.glossary.projects.list(organizationSlug, glossaryId);
+        return body.projects as GlossaryProjectRecord[];
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadProjectsFailed)), {
+          cause: error,
+        });
+      }
     },
   });
 
@@ -401,18 +404,15 @@ export function NativeGlossaryDetail({
     queryKey: ["glossary-concepts-authors", organizationSlug, glossaryId],
     enabled: true,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].concepts.authors.$get({
-        param: { organizationSlug, glossaryId },
-      });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.loadAuthorsFailed)),
-        );
-      return (await response.json()) as {
-        authors: Array<{ userId: string; displayName: string }>;
-      };
+      try {
+        return (await goSvcClient.glossary.concepts.authors(organizationSlug, glossaryId)) as {
+          authors: Array<{ userId: string; displayName: string }>;
+        };
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadAuthorsFailed)), {
+          cause: error,
+        });
+      }
     },
     staleTime: 30_000,
     retry: false,
@@ -464,6 +464,8 @@ export function NativeGlossaryDetail({
       const isXlsx = filename.endsWith(".xlsx");
       const format = filename.endsWith(".tbx") ? "tbx" : isXlsx ? "xlsx" : "csv";
       const content = isXlsx ? arrayBufferToBase64(await file.arrayBuffer()) : await file.text();
+      // Stays on Hono until go-svc import matches interchange parity: XLSX is 501,
+      // CSV/TBX drop gender/term type/URLs/metadata/review/flags, and there is no backup.
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
       ].concepts["import"].$post({
@@ -578,6 +580,8 @@ export function NativeGlossaryDetail({
         if (input.gender) params.set("gender", input.gender);
         if (input.createdByUserId) params.set("createdByUserId", input.createdByUserId);
       }
+      // Stays on Hono: go-svc's export only honours `format` and always emits the
+      // complete glossary, so `scope=filtered` has no equivalent there yet.
       const response = await fetch(
         `/api/orgs/${encodeURIComponent(organizationSlug)}/glossaries/${encodeURIComponent(glossaryId)}/export?${params.toString()}`,
         { credentials: "include" },
@@ -611,17 +615,15 @@ export function NativeGlossaryDetail({
 
   const updateGlossaryName = useMutation({
     mutationFn: async (name: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].$patch({
-        param: { organizationSlug, glossaryId },
-        json: { name },
-      });
-      if (!response.ok)
+      try {
+        const body = await goSvcClient.glossary.update(organizationSlug, glossaryId, { name });
+        return body.glossary as GlossaryRecord;
+      } catch (error) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(messages.updateGlossaryNameFailed)),
+          goSvcErrorMessage(error, intl.formatMessage(messages.updateGlossaryNameFailed)),
+          { cause: error },
         );
-      return (await response.json()).glossary as GlossaryRecord;
+      }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({
@@ -633,14 +635,12 @@ export function NativeGlossaryDetail({
 
   const deleteGlossary = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].$delete({
-        param: { organizationSlug, glossaryId },
-      });
-      if (!response.ok) {
+      try {
+        await goSvcClient.glossary.delete(organizationSlug, glossaryId);
+      } catch (error) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(messages.deleteGlossaryFailed)),
+          goSvcErrorMessage(error, intl.formatMessage(messages.deleteGlossaryFailed)),
+          { cause: error },
         );
       }
     },
@@ -676,16 +676,17 @@ export function NativeGlossaryDetail({
 
   const attachProject = useMutation({
     mutationFn: async (projectId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].projects.$post({
-        param: { organizationSlug, glossaryId },
-        json: { projectId, priority: 0 },
-      });
-      if (!response.ok)
+      try {
+        await goSvcClient.glossary.projects.attach(organizationSlug, glossaryId, {
+          projectId,
+          priority: 0,
+        });
+      } catch (error) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(messages.assignProjectFailed)),
+          goSvcErrorMessage(error, intl.formatMessage(messages.assignProjectFailed)),
+          { cause: error },
         );
+      }
     },
     onSuccess: async () => {
       await invalidateProjects();
@@ -697,15 +698,14 @@ export function NativeGlossaryDetail({
 
   const detachProject = useMutation({
     mutationFn: async (projectId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].projects[":projectId"].$delete({
-        param: { organizationSlug, glossaryId, projectId },
-      });
-      if (!response.ok)
+      try {
+        await goSvcClient.glossary.projects.detach(organizationSlug, glossaryId, projectId);
+      } catch (error) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(messages.removeProjectFailed)),
+          goSvcErrorMessage(error, intl.formatMessage(messages.removeProjectFailed)),
+          { cause: error },
         );
+      }
     },
     onSuccess: async () => {
       await invalidateProjects();

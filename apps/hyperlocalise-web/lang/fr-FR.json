@@ -824,6 +824,9 @@
   "01u9U8ASiI": {
     "defaultMessage": "Créer une tâche"
   },
+  "02ZUVYObvj": {
+    "defaultMessage": "Connecté depuis {nodeId} · {path}. Supprimez le câble de données pour configurer cette entrée manuellement."
+  },
   "032V4XY9wg": {
     "defaultMessage": "Aucun glossaire d’espace de travail"
   },
@@ -2227,6 +2230,9 @@
   },
   "3NyprC4I6O": {
     "defaultMessage": "Développer des idées"
+  },
+  "3OlJR3Fxjp": {
+    "defaultMessage": "L’appartenance à la boucle est déterminée automatiquement à partir des connexions partant du port Each item."
   },
   "3QmQFMO6jX": {
     "defaultMessage": "Langues"
@@ -3944,6 +3950,9 @@
   "7YQmBHx9HV": {
     "defaultMessage": "Chargement des intégrations"
   },
+  "7aLZ0dWTTK": {
+    "defaultMessage": "Impossible de charger les détails de l’équipe."
+  },
   "7aOYNlbDse": {
     "defaultMessage": "Modifié à partir de"
   },
@@ -5267,6 +5276,9 @@
   "AfQNtHreD6": {
     "defaultMessage": "Comment vous allez l’utiliser"
   },
+  "AfVZqT7lYf": {
+    "defaultMessage": "Sorties"
+  },
   "AfaXCvPHA0": {
     "defaultMessage": "Name"
   },
@@ -6401,6 +6413,9 @@
   "DPeiBFpfQD": {
     "defaultMessage": "Prêt à être téléversé"
   },
+  "DPjhjRQyDt": {
+    "defaultMessage": "Impossible de créer l’équipe."
+  },
   "DQ07Hv8A9f": {
     "defaultMessage": "Ce projet n’a pas de langue source configurée."
   },
@@ -6484,6 +6499,9 @@
   },
   "DZ8tm3n3xg": {
     "defaultMessage": "Prompt"
+  },
+  "DZQygr4PBW": {
+    "defaultMessage": "Impossible de mettre à jour le rôle de l’équipe."
   },
   "DZx5zjElsr": {
     "defaultMessage": "Posez n’importe quelle question. Obtenez un contexte issu du dépôt."
@@ -6772,6 +6790,9 @@
   },
   "ECw5CTvkCi": {
     "defaultMessage": "Donnez aux relecteurs une vue claire de la couverture des paramètres régionaux, des indicateurs de qualité et des éléments non résolus avant la fusion."
+  },
+  "EE7waUBBeR": {
+    "defaultMessage": "Gemini 3.8 Flash"
   },
   "EFds7VbW/w": {
     "defaultMessage": "95–99 %"
@@ -11792,6 +11813,9 @@
   "R+hZLscXuo": {
     "defaultMessage": "Connectez votre compte Gemini"
   },
+  "R+wRT9+VUQ": {
+    "defaultMessage": "Impossible de charger les équipes."
+  },
   "R/LlfIB0DY": {
     "defaultMessage": "Nom d’affichage"
   },
@@ -11983,6 +12007,9 @@
   },
   "RYfCDsRyCY": {
     "defaultMessage": "Nous avons atteint la limite de {limit} audits planifiés pour aujourd’hui. Réessayez demain."
+  },
+  "RYlIDTbR9C": {
+    "defaultMessage": "Impossible de mettre à jour l’équipe."
   },
   "RZBs1fe1V3": {
     "defaultMessage": "Hyperlocaliser | Plateforme de localisation pour l’ère agentique"
@@ -12904,6 +12931,9 @@
   },
   "TvKxxMeDL1": {
     "defaultMessage": "Appliquer la terminologie, les limites de caractères et la voix du produit avant que les brouillons n’arrivent aux réviseurs humains."
+  },
+  "TvuxI/JPcp": {
+    "defaultMessage": "Gemini 3.5 Flash"
   },
   "TwAHdkAXq8": {
     "defaultMessage": "Non autorisé"
@@ -14357,6 +14387,9 @@
   "XYe4THixuv": {
     "defaultMessage": "Impossible de charger les projets"
   },
+  "XaU9VG5iR6": {
+    "defaultMessage": "Impossible d’ajouter le membre à l’équipe."
+  },
   "XahS11XRb2": {
     "defaultMessage": "Suivez quels articles n’ont pas de traductions ou accusent un retard par rapport à la source anglaise après des modifications du produit."
   },
@@ -14822,6 +14855,9 @@
   "YlLKVRUEmO": {
     "defaultMessage": "Découverte automatique du contexte"
   },
+  "YlNYKWNMnX": {
+    "defaultMessage": "Gemini 3.6 Flash"
+  },
   "YlQ8SQ7Hob": {
     "defaultMessage": "Développez votre contenu. Gardez le contrôle."
   },
@@ -15246,7 +15282,7 @@
     "defaultMessage": "Acme · Lancement web · Éditeur"
   },
   "ZpIy+48cVo": {
-    "defaultMessage": "Acme Corp"
+    "defaultMessage": "Acme Corp."
   },
   "Zq6yckXsZ1": {
     "defaultMessage": "Rechercher des dépôts"
@@ -15661,6 +15697,9 @@
   },
   "ambL1h5gLQ": {
     "defaultMessage": "Comment puis-je postuler ?"
+  },
+  "amwt3mzL+t": {
+    "defaultMessage": "Impossible de supprimer l’équipe."
   },
   "anFNHwBPyz": {
     "defaultMessage": "2,4 Mo · 12 pages"
@@ -16126,6 +16165,9 @@
   },
   "bwRkCyVWjg": {
     "defaultMessage": "Laissez les directives là où elles sont. Permettez aux agents de les lire."
+  },
+  "bwRlaW2gsC": {
+    "defaultMessage": "Gemini 3.1 Pro Preview"
   },
   "bwuFPmHIKZ": {
     "defaultMessage": "Lire les tâches"
@@ -19223,6 +19265,9 @@
   "j7qlYfJ6Qt": {
     "defaultMessage": "{kind} · {format}"
   },
+  "j8e6X/c9hq": {
+    "defaultMessage": "Gemini 3.7 Flash"
+  },
   "j8gL5p92ex": {
     "defaultMessage": "Cofondateur"
   },
@@ -21028,6 +21073,9 @@
   },
   "nLGLyaeThi": {
     "defaultMessage": "Locale"
+  },
+  "nMNoXhRMk/": {
+    "defaultMessage": "Impossible de retirer le membre de l’équipe."
   },
   "nMgCp4t1y/": {
     "defaultMessage": "Connecter"
@@ -24167,6 +24215,9 @@
   "uukLNszv2X": {
     "defaultMessage": "Tous les types de ressources"
   },
+  "uwi6wLAbuv": {
+    "defaultMessage": "Cette valeur est fournie par un port de données connecté. Supprimez le câble de données pour la modifier ici."
+  },
   "uwkiRYaBX+": {
     "defaultMessage": "Appliquer la voix, le glossaire et les garde-fous juridiques"
   },
@@ -25013,6 +25064,9 @@
   "wqZ58St0W3": {
     "defaultMessage": "Impossible d’exporter la mémoire de traduction"
   },
+  "wqkEAl7nY6": {
+    "defaultMessage": "Impossible de mettre à jour l’équipe."
+  },
   "wr3AKpuOi3": {
     "defaultMessage": "Voix de marque · Guide de style"
   },
@@ -25288,6 +25342,9 @@
   },
   "xOFZqYtkn0": {
     "defaultMessage": "Quelques éléments nécessitent votre attention"
+  },
+  "xOduwNEWmK": {
+    "defaultMessage": "Entrées"
   },
   "xOg2DDTtXl": {
     "defaultMessage": "a enregistré un échec de tâche"
@@ -25696,6 +25753,9 @@
   },
   "yIJ8L6HdUp": {
     "defaultMessage": "Traduire avec un agent"
+  },
+  "yIZkW24JC2": {
+    "defaultMessage": "Aucun nœud n’est connecté à la région « Chaque élément »."
   },
   "yIpwcI2dct": {
     "defaultMessage": "{selected}/{total} chars"

@@ -47,7 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabAudience,
@@ -75,7 +75,7 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const defaultZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Australia/Sydney";
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -330,7 +330,7 @@ export function HyperlabCreateFlagDialog({ organizationSlug }: { organizationSlu
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const [open, setOpen] = useState(false);
   const [key, setKey] = useState("");
   const [kind, setKind] = useState<"experiment" | "config">("experiment");
@@ -461,7 +461,7 @@ export function HyperlabCreateAudienceDialog({ organizationSlug }: { organizatio
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -562,7 +562,7 @@ export function HyperlabCreateKeyDialog({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
 
