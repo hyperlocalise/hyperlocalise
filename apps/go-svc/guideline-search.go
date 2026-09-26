@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hyperlocalise/hyperlocalise/internal/embedding"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	guidelinepg "github.com/hyperlocalise/hyperlocalise/internal/guidelines/postgres"
 	guidelineindex "github.com/hyperlocalise/hyperlocalise/internal/guidelines/turbopuffer"
@@ -66,15 +65,7 @@ func configureGuidelineSearch(ctx context.Context) (*guidelines.Service, func(),
 	if os.Getenv("DATABASE_URL") == "" {
 		return nil, nil, errors.New("DATABASE_URL is required for guideline retrieval")
 	}
-	embedKey := strings.TrimSpace(os.Getenv("AI_GATEWAY_API_KEY"))
-	if embedKey == "" {
-		return nil, nil, errors.New("AI_GATEWAY_API_KEY is required for guideline retrieval")
-	}
-	embedder, err := embedding.New(embedding.Config{APIKey: embedKey, BaseURL: os.Getenv("AI_GATEWAY_BASE_URL")})
-	if err != nil {
-		return nil, nil, errors.New("invalid embedding configuration")
-	}
-	index, err := guidelineindex.New(indexKey, os.Getenv("TURBOPUFFER_REGION"), os.Getenv("TURBOPUFFER_GUIDELINES_PREFIX"), guidelineindex.ClientEmbedder{Client: embedder})
+	index, err := guidelineindex.New(indexKey, os.Getenv("TURBOPUFFER_REGION"), os.Getenv("TURBOPUFFER_GUIDELINES_PREFIX"))
 	if err != nil {
 		return nil, nil, errors.New("invalid turbopuffer configuration")
 	}

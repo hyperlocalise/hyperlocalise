@@ -3,9 +3,9 @@
 PostgreSQL owns guideline content and revision identity. `Source` loads current
 canonical documents for an application-authorized scope. `Index` owns derived
 passages and can be rebuilt. The turbopuffer adapter stores chunk text for BM25
-and a 1536-dimension Gemini Embedding 2 vector from `internal/embedding`. Search
-runs both rankings and fuses them with reciprocal rank fusion. Changing the
-embedding model or dimensions requires a new turbopuffer deployment prefix.
+and native `google/gemini-embedding-2` vectors at 1536 dimensions. Search runs
+both rankings and fuses them with server-side reciprocal rank fusion. Changing
+the embedding model or dimensions requires a new turbopuffer deployment prefix.
 
 `Service.Sync` indexes the current workspace/project revisions. The turbopuffer
 adapter uses deterministic revision-specific chunk IDs, replaces same/older

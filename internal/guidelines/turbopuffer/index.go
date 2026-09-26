@@ -2,83 +2,36 @@
 package turbopuffer
 
 import (
-	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/embedding"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
-	tp "github.com/turbopuffer/turbopuffer-go"
-	"github.com/turbopuffer/turbopuffer-go/option"
-	"golang.org/x/sync/errgroup"
+	tp "github.com/turbopuffer/turbopuffer-go/v2"
+	"github.com/turbopuffer/turbopuffer-go/v2/option"
 )
 
-const (
-	vectorAttribute  = "vector"
-	textAttribute    = "text"
-	rrfK             = 60
-	embedConcurrency = 8
-)
-
-var vectorSchemaType = fmt.Sprintf("[%d]f32", embedding.Dimensions)
-
-// Embedder produces Gemini Embedding 2 vectors for hybrid retrieval.
-type Embedder interface {
-	EmbedQuery(context.Context, string) ([]float32, error)
-	EmbedDocument(context.Context, string) ([]float32, error)
-}
-
-// ClientEmbedder adapts an AI Gateway embedding client.
-type ClientEmbedder struct {
-	Client *embedding.Client
-}
-
-// EmbedQuery embeds a retrieval query.
-func (e ClientEmbedder) EmbedQuery(ctx context.Context, text string) ([]float32, error) {
-	if e.Client == nil {
-		return nil, guidelines.ErrInvalidInput
-	}
-	result, err := e.Client.EmbedQuery(ctx, text)
-	if err != nil {
-		return nil, err
-	}
-	return result.Vector, nil
-}
-
-// EmbedDocument embeds one guideline passage.
-func (e ClientEmbedder) EmbedDocument(ctx context.Context, text string) ([]float32, error) {
-	if e.Client == nil {
-		return nil, guidelines.ErrInvalidInput
-	}
-	result, err := e.Client.EmbedDocument(ctx, embedding.Document{Text: text})
-	if err != nil {
-		return nil, err
-	}
-	return result.Vector, nil
-}
+const textAttribute = "text"
 
 // Index stores guideline passages in an organization-isolated namespace.
 type Index struct {
-	client   tp.Client
-	embedder Embedder
-	prefix   string
+	client tp.Client
+	prefix string
 }
 
 var _ guidelines.Index = (*Index)(nil)
 
-// New creates an index using an explicit API key, region, deployment prefix,
-// and embedding client. Changing the embedding model or dimensions requires a
-// new prefix.
-func New(apiKey, region, prefix string, embedder Embedder) (*Index, error) {
-	if strings.TrimSpace(apiKey) == "" || strings.TrimSpace(region) == "" || strings.TrimSpace(prefix) == "" || len(prefix) > 40 || embedder == nil {
+// New creates an index using an explicit API key, region, and deployment prefix.
+// Changing the embedding model or dimensions requires a new prefix.
+func New(apiKey, region, prefix string) (*Index, error) {
+	if strings.TrimSpace(apiKey) == "" || strings.TrimSpace(region) == "" || strings.TrimSpace(prefix) == "" || len(prefix) > 40 {
 		return nil, guidelines.ErrInvalidInput
 	}
-	return &Index{client: tp.NewClient(option.WithAPIKey(apiKey), option.WithRegion(region), option.WithMaxRetries(2)), embedder: embedder, prefix: prefix}, nil
+	return &Index{client: tp.NewClient(option.WithAPIKey(apiKey), option.WithRegion(region), option.WithMaxRetries(2)), prefix: prefix}, nil
 }
 
 func (i *Index) namespace(organizationID string) tp.Namespace {
@@ -92,49 +45,17 @@ func documentFilter(id string, version int64) tp.Filter {
 
 func guidelineSchema() map[string]tp.AttributeSchemaConfigParam {
 	return map[string]tp.AttributeSchemaConfigParam{
-		"document_id":   {Type: "string"},
-		"revision_id":   {Type: "string"},
-		"version":       {Type: "int"},
-		"project_id":    {Type: "string"},
-		"locale":        {Type: "string"},
-		textAttribute:   {Type: "string", FullTextSearch: &tp.FullTextSearchConfigParam{Stemming: tp.Bool(false), RemoveStopwords: tp.Bool(false)}},
-		vectorAttribute: {Type: vectorSchemaType, Ann: tp.AttributeSchemaConfigAnnParam{DistanceMetric: tp.DistanceMetricCosineDistance}},
+		"document_id": {Type: "string"},
+		"revision_id": {Type: "string"},
+		"version":     {Type: "int"},
+		"project_id":  {Type: "string"},
+		"locale":      {Type: "string"},
+		textAttribute: {
+			Type:           "string",
+			FullTextSearch: &tp.FullTextSearchConfigParam{Stemming: tp.Bool(false), RemoveStopwords: tp.Bool(false)},
+			Embed:          tp.AttributeEmbedConfigParam{Model: embedding.Model, Dims: tp.Int(int64(embedding.Dimensions))},
+		},
 	}
-}
-
-func copyVector(vector []float32) ([]float32, error) {
-	if len(vector) != embedding.Dimensions {
-		return nil, embedding.ErrInvalidResponse
-	}
-	return append([]float32(nil), vector...), nil
-}
-
-func (i *Index) embedChunks(ctx context.Context, chunks []guidelines.Chunk) ([][]float32, error) {
-	if i.embedder == nil {
-		return nil, guidelines.ErrInvalidInput
-	}
-	vectors := make([][]float32, len(chunks))
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(embedConcurrency)
-	for idx, chunk := range chunks {
-		idx, chunk := idx, chunk
-		group.Go(func() error {
-			vector, err := i.embedder.EmbedDocument(groupCtx, chunk.Text)
-			if err != nil {
-				return err
-			}
-			copied, err := copyVector(vector)
-			if err != nil {
-				return err
-			}
-			vectors[idx] = copied
-			return nil
-		})
-	}
-	if err := group.Wait(); err != nil {
-		return nil, fmt.Errorf("embed guideline chunk: %w", err)
-	}
-	return vectors, nil
 }
 
 // Upsert atomically replaces this revision and removes older chunks. Revision-
@@ -145,18 +66,13 @@ func (i *Index) Upsert(ctx context.Context, doc guidelines.Document) error {
 	}
 	chunks := guidelines.Chunks(doc)
 	rows := make([]tp.RowParam, 0, len(chunks))
-	if len(chunks) > 0 {
-		vectors, err := i.embedChunks(ctx, chunks)
-		if err != nil {
-			return err
-		}
-		for idx, chunk := range chunks {
-			rows = append(rows, tp.RowParam{"id": chunk.ID, "document_id": doc.ID, "revision_id": doc.RevisionID, "version": doc.Version, "project_id": doc.Scope.ProjectID, "locale": doc.Scope.Locale, textAttribute: chunk.Text, vectorAttribute: vectors[idx]})
-		}
+	for _, chunk := range chunks {
+		rows = append(rows, tp.RowParam{"id": chunk.ID, "document_id": doc.ID, "revision_id": doc.RevisionID, "version": doc.Version, "project_id": doc.Scope.ProjectID, "locale": doc.Scope.Locale, textAttribute: chunk.Text})
 	}
 	ns := i.namespace(doc.Scope.OrganizationID)
 	_, err := ns.Write(ctx, tp.NamespaceWriteParams{
 		DeleteByFilter: documentFilter(doc.ID, doc.Version),
+		DistanceMetric: tp.DistanceMetricCosineDistance,
 		UpsertRows:     rows,
 		Schema:         guidelineSchema(),
 	})
@@ -196,40 +112,10 @@ func chunksFromRows(rows []tp.Row) []guidelines.Chunk {
 	return chunks
 }
 
-func fuseRanks(lists [][]guidelines.Chunk, limit int) []guidelines.Chunk {
-	scores := make(map[string]float64)
-	byID := make(map[string]guidelines.Chunk)
-	for _, list := range lists {
-		for rank, chunk := range list {
-			scores[chunk.ID] += 1 / float64(rrfK+rank+1)
-			if _, ok := byID[chunk.ID]; !ok {
-				byID[chunk.ID] = chunk
-			}
-		}
-	}
-	ids := make([]string, 0, len(scores))
-	for id := range scores {
-		ids = append(ids, id)
-	}
-	slices.SortFunc(ids, func(left, right string) int {
-		if scores[left] != scores[right] {
-			return cmp.Compare(scores[right], scores[left])
-		}
-		return strings.Compare(left, right)
-	})
-	if len(ids) > limit {
-		ids = ids[:limit]
-	}
-	chunks := make([]guidelines.Chunk, 0, len(ids))
-	for _, id := range ids {
-		chunks = append(chunks, byID[id])
-	}
-	return chunks
-}
-
-// Search ranks current revisions with BM25 and cosine ANN, then fuses the lists.
+// Search ranks current revisions with BM25 and native Gemini Embedding 2 ANN,
+// fused with reciprocal rank fusion.
 func (i *Index) Search(ctx context.Context, query guidelines.Query) ([]guidelines.Chunk, error) {
-	if i.embedder == nil || query.Scope.OrganizationID == "" || query.Limit < 1 || query.Limit > 32 || len(query.Text) > 16000 {
+	if query.Scope.OrganizationID == "" || query.Limit < 1 || query.Limit > 32 || len(query.Text) > 16000 {
 		return nil, guidelines.ErrInvalidInput
 	}
 	if len(query.Documents) == 0 || strings.TrimSpace(query.Text) == "" {
@@ -245,23 +131,17 @@ func (i *Index) Search(ctx context.Context, query guidelines.Query) ([]guideline
 		}
 		revisions = append(revisions, tp.NewFilterAnd([]tp.Filter{tp.NewFilterEq("document_id", doc.ID), tp.NewFilterEq("revision_id", doc.RevisionID)}))
 	}
-	vector, err := i.embedder.EmbedQuery(ctx, query.Text)
-	if err != nil {
-		return nil, fmt.Errorf("embed guideline query: %w", err)
-	}
-	copied, err := copyVector(vector)
-	if err != nil {
-		return nil, fmt.Errorf("embed guideline query: %w", err)
-	}
 	filters := tp.NewFilterOr(revisions)
 	include := tp.IncludeAttributesParam{StringArray: []string{"document_id", "revision_id"}}
 	topK := tp.Int(int64(query.Limit))
 	ns := i.namespace(query.Scope.OrganizationID)
 	out, err := ns.MultiQuery(ctx, tp.NamespaceMultiQueryParams{
 		Queries: []tp.QueryParam{
+			{TopK: topK, RankBy: tp.NewRankByAnnExpr(textAttribute, tp.NewExprEmbed(query.Text)), DistanceMetric: tp.DistanceMetricCosineDistance, Filters: filters, IncludeAttributes: include},
 			{TopK: topK, RankBy: tp.NewRankByTextBM25(textAttribute, query.Text), Filters: filters, IncludeAttributes: include},
-			{TopK: topK, RankBy: tp.NewRankByVector(vectorAttribute, copied), DistanceMetric: tp.DistanceMetricCosineDistance, Filters: filters, IncludeAttributes: include},
 		},
+		RerankBy: tp.NewRerankByRrf(),
+		Limit:    tp.RerankLimitParam{Total: int64(query.Limit)},
 	})
 	if isNotFound(err) {
 		return []guidelines.Chunk{}, nil
@@ -269,11 +149,10 @@ func (i *Index) Search(ctx context.Context, query guidelines.Query) ([]guideline
 	if err != nil {
 		return nil, fmt.Errorf("search guideline index: %w", err)
 	}
-	lists := make([][]guidelines.Chunk, 0, len(out.Results))
-	for _, result := range out.Results {
-		lists = append(lists, chunksFromRows(result.Rows))
+	if len(out.Results) == 0 {
+		return []guidelines.Chunk{}, nil
 	}
-	return fuseRanks(lists, query.Limit), nil
+	return chunksFromRows(out.Results[0].Rows), nil
 }
 
 func isNotFound(err error) bool {

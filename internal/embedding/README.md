@@ -15,6 +15,7 @@ The package reads no environment variables. Callers pass an API key and
 optional base URL. Office formats are unsupported. Gemini Embedding 2 accepts
 at most one PDF of six pages; the provider rejects larger documents.
 
-The guideline turbopuffer adapter uses this client to embed chunk text on
-upsert and queries on search. Keep `internal/textextract` where the product
+Guideline retrieval uses turbopuffer native embeddings with the same model and
+dimensions. Keep this client for PNG, JPEG, and PDF inputs that native
+embeddings do not yet handle. Keep `internal/textextract` where the product
 still needs plain text.
