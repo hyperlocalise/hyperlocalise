@@ -24,12 +24,13 @@ describe("root layout cacheComponents boundary", () => {
     expect(source).not.toMatch(/\bheaders\s*\(|\bcookies\s*\(/);
   });
 
-  it("uses a static document lang in the root html shell", () => {
+  it("resolves document lang from the request locale in the root html shell", () => {
     const source = readFileSync(path.join(import.meta.dirname, "root-html.tsx"), "utf8");
 
-    expect(source).toMatch(/\bDEFAULT_APP_LOCALE\b/);
-    expect(source).toMatch(/<html lang=\{DEFAULT_APP_LOCALE\}/);
-    expect(source).not.toMatch(/\bgetAppLocale\b/);
+    expect(source).toMatch(/\bgetAppLocale\b/);
+    expect(source).toMatch(/\bappLocaleToBcp47Tag\b/);
+    expect(source).toMatch(/<html lang=\{htmlLang\}/);
+    expect(source).not.toMatch(/<html lang=\{DEFAULT_APP_LOCALE\}/);
   });
 
   it("resolves request locale inside the root Suspense boundary", () => {

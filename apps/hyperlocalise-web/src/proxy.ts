@@ -255,14 +255,9 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
     return new NextResponse(null, { status: 404 });
   }
 
-  const { locale, pathnameWithoutLocale } = splitLocalePath(pathname);
+  const { locale } = splitLocalePath(pathname);
 
-  if (locale && isPublicLocalizedPath(pathnameWithoutLocale)) {
-    const response = await maybeWorkosProxy(request, event);
-    return applyLocaleToResponse(response, locale);
-  }
-
-  if (locale && isProtectedLocalizedPath(pathnameWithoutLocale)) {
+  if (locale) {
     const response = await maybeWorkosProxy(request, event);
     return applyLocaleToResponse(response, locale);
   }
