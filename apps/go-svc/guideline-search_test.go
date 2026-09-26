@@ -17,4 +17,9 @@ func TestConfigureGuidelineSearchIsOptIn(t *testing.T) {
 	t.Setenv("DATABASE_URL", "")
 	_, _, err = configureGuidelineSearch(t.Context())
 	require.ErrorContains(t, err, "DATABASE_URL")
+
+	t.Setenv("DATABASE_URL", "postgres://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise")
+	t.Setenv("AI_GATEWAY_API_KEY", "")
+	_, _, err = configureGuidelineSearch(t.Context())
+	require.ErrorContains(t, err, "AI_GATEWAY_API_KEY")
 }

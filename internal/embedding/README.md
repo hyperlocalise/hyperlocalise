@@ -15,5 +15,6 @@ The package reads no environment variables. Callers pass an API key and
 optional base URL. Office formats are unsupported. Gemini Embedding 2 accepts
 at most one PDF of six pages; the provider rejects larger documents.
 
-Use this client when indexing files into turbopuffer by embedding them
-directly. Keep `internal/textextract` where the product still needs plain text.
+The guideline turbopuffer adapter uses this client to embed chunk text on
+upsert and queries on search. Keep `internal/textextract` where the product
+still needs plain text.

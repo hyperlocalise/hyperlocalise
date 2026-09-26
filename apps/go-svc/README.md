@@ -328,15 +328,17 @@ URLs. Verify direct uploads before creating their final file records. The
 manifest written last; release-channel APIs and CDN setup are future work.
 
 To enable guideline search, set `DATABASE_URL`, `TURBOPUFFER_API_KEY`,
-`TURBOPUFFER_REGION`, and a deployment-specific `TURBOPUFFER_GUIDELINES_PREFIX`.
-The prefix keeps development/staging/production indexes separate. The PostgreSQL
-source reads the existing workspace/project guideline tables without a migration.
+`TURBOPUFFER_REGION`, a deployment-specific `TURBOPUFFER_GUIDELINES_PREFIX`,
+and `AI_GATEWAY_API_KEY` (optional `AI_GATEWAY_BASE_URL`). The prefix keeps
+development/staging/production indexes separate and must change if the
+embedding model or vector size changes. The PostgreSQL source reads the
+existing workspace/project guideline tables without a migration.
 
 - `POST /v1/guidelines/sync`: `{organizationId, projectId?, locale?}`.
   Reindexes current canonical revisions. Call explicitly during adoption/rebuilds.
 - `POST /v1/guidelines/search`: `{scope: {organizationId, projectId?, locale?}, query, limit}`.
   Limit is 1–32. Returns mandatory canonical documents, verified passages, and
-  `searchAvailable`. Search is BM25 initially; indexing and retrieval are separate.
+  `searchAvailable`. Search is hybrid BM25 plus Gemini Embedding 2; indexing and retrieval are separate.
 
 The app's existing lexical guideline selection is unchanged. Transactional outbox
 integration and deletion-event delivery remain application adoption work. An index
