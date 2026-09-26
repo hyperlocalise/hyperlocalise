@@ -44,11 +44,13 @@ export function IssueDetailPageContent({
   projectId,
   issueId,
   detailScope = "project",
+  canDelete = false,
 }: {
   organizationSlug: string;
   projectId?: string;
   issueId: string;
   detailScope?: IssueDetailHrefScope;
+  canDelete?: boolean;
 }) {
   const intl = useIntl();
   const router = useRouter();
@@ -106,6 +108,7 @@ export function IssueDetailPageContent({
               organizationSlug={organizationSlug}
               projectId={resolvedProjectId}
               issueId={issueId}
+              canDelete={canDelete}
               onDirtyChange={setIsDraftDirty}
               onDeleted={() => {
                 router.push(

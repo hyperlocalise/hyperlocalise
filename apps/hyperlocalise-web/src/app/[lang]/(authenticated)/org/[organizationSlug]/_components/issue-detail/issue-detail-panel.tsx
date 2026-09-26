@@ -236,6 +236,7 @@ export const IssueDetailPanel = forwardRef<
     issueId: string;
     onDirtyChange?: (dirty: boolean) => void;
     onDeleted?: () => void;
+    canDelete?: boolean;
     defaultSidebarOpen?: boolean;
     sidebarStorageScope?: IssueDetailSidebarScope;
   }
@@ -246,6 +247,7 @@ export const IssueDetailPanel = forwardRef<
     issueId,
     onDirtyChange,
     onDeleted,
+    canDelete = false,
     defaultSidebarOpen = true,
     sidebarStorageScope = "issue-detail",
   },
@@ -681,34 +683,36 @@ export const IssueDetailPanel = forwardRef<
             >
               {issue.identifier}
             </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label={intl.formatMessage(messages.queryActions)}
-                    disabled={isSaving}
-                  />
-                }
-              >
-                <HugeiconsIcon
-                  icon={MoreHorizontalCircle01Icon}
-                  strokeWidth={1.8}
-                  className="size-4"
-                />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-40">
-                <DropdownMenuItem
-                  variant="destructive"
-                  disabled={isSaving}
-                  onClick={() => setIsDeleteOpen(true)}
+            {canDelete ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={intl.formatMessage(messages.queryActions)}
+                      disabled={isSaving}
+                    />
+                  }
                 >
-                  <FormattedMessage {...messages.deleteQuery} />
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <HugeiconsIcon
+                    icon={MoreHorizontalCircle01Icon}
+                    strokeWidth={1.8}
+                    className="size-4"
+                  />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-40">
+                  <DropdownMenuItem
+                    variant="destructive"
+                    disabled={isSaving}
+                    onClick={() => setIsDeleteOpen(true)}
+                  >
+                    <FormattedMessage {...messages.deleteQuery} />
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
           </div>
           <Textarea
             value={titleDraft}
@@ -1338,7 +1342,7 @@ export const IssueDetailPanel = forwardRef<
         </Collapsible>
       </div>
       <AlertDialog
-        open={isDeleteOpen}
+        open={canDelete && isDeleteOpen}
         onOpenChange={(open) => {
           if (deleteIssue.isPending) {
             return;

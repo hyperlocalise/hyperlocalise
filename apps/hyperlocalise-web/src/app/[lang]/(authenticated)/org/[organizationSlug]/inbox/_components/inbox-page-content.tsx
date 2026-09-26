@@ -60,11 +60,13 @@ function notificationDetailQueryKey(organizationSlug: string, notificationId: st
 export const InboxPageContent = observer(function InboxPageContent({
   currentUser,
   organizationSlug,
+  canDeleteQueries = false,
   inboxApi: injectedInboxApi = inboxApi,
   notificationsApi: injectedNotificationsApi = notificationsApi,
 }: {
   currentUser: InboxCurrentUser;
   organizationSlug: string;
+  canDeleteQueries?: boolean;
   inboxApi?: InboxApi;
   notificationsApi?: InboxNotificationsApi;
 }) {
@@ -356,6 +358,7 @@ export const InboxPageContent = observer(function InboxPageContent({
       onSelectConversation={onSelectConversation}
       onSelectNotification={onSelectNotification}
       onDeletedQuery={onDeletedQuery}
+      canDeleteQueries={canDeleteQueries}
       onSendMessage={onSendMessage}
       organizationSlug={organizationSlug}
       selectedConversation={selectedConversation}

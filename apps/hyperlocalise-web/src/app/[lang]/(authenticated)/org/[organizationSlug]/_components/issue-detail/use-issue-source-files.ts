@@ -21,14 +21,42 @@ export type IssueSourceFile = {
   filename: string;
 };
 
+export const ISSUE_SOURCE_FILES_PAGE_SIZE = 500;
+export const ISSUE_SOURCE_FILES_MAX_PAGES = 20;
+export const ISSUE_SOURCE_PROVIDER_FILES_LIMIT = 1_000;
+
 export function issueSourceFilesQueryKey(organizationSlug: string, projectId: string) {
   return ["issue-source-files", organizationSlug, projectId] as const;
 }
 
-async function loadNativeIssueSourceFiles(organizationSlug: string, projectId: string) {
+export async function collectIssueSourceFilePages(
+  fetchPage: (
+    offset: number,
+    limit: number,
+  ) => Promise<Array<{ sourcePath: string; filename?: string }>>,
+  pageSize = ISSUE_SOURCE_FILES_PAGE_SIZE,
+  maxPages = ISSUE_SOURCE_FILES_MAX_PAGES,
+) {
+  const files: Array<{ sourcePath: string; filename?: string }> = [];
+  for (let page = 0; page < maxPages; page += 1) {
+    const batch = await fetchPage(page * pageSize, pageSize);
+    files.push(...batch);
+    if (batch.length < pageSize) {
+      break;
+    }
+  }
+  return files;
+}
+
+async function loadNativeIssueSourceFilePage(
+  organizationSlug: string,
+  projectId: string,
+  offset: number,
+  limit: number,
+) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files.$get({
     param: { organizationSlug, projectId },
-    query: { limit: "500" },
+    query: { limit: String(limit), offset },
   });
   if (!response.ok) {
     throw await readApiResponseError(response, "Failed to load project files");
@@ -37,6 +65,12 @@ async function loadNativeIssueSourceFiles(organizationSlug: string, projectId: s
     files: Array<{ sourcePath: string; filename?: string }>;
   };
   return body.files;
+}
+
+async function loadNativeIssueSourceFiles(organizationSlug: string, projectId: string) {
+  return collectIssueSourceFilePages((offset, limit) =>
+    loadNativeIssueSourceFilePage(organizationSlug, projectId, offset, limit),
+  );
 }
 
 async function loadProviderIssueSourceFiles(organizationSlug: string, projectId: string) {
@@ -52,7 +86,7 @@ async function loadProviderIssueSourceFiles(organizationSlug: string, projectId:
       organizationSlug,
       externalProjectId: encoded.externalProjectId,
     },
-    query: { limit: "500" },
+    query: { limit: String(ISSUE_SOURCE_PROVIDER_FILES_LIMIT) },
   });
   if (!response.ok) {
     throw await readApiResponseError(response, "Failed to load project files");

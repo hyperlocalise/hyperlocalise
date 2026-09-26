@@ -106,28 +106,46 @@ export function IssueSourcePathPicker({
               </CommandItem>
             </CommandGroup>
             <CommandSeparator />
-            <CommandGroup heading={intl.formatMessage(messages.filesGroup)}>
-              {options.map((file) => (
-                <CommandItem
-                  key={file.sourcePath}
-                  value={`${file.sourcePath} ${file.filename}`}
-                  data-checked={value === file.sourcePath || undefined}
-                  onSelect={() => {
-                    onChange(file.sourcePath);
-                    setOpen(false);
+            {filesQuery.isError ? (
+              <div className="grid justify-items-center gap-2 px-3 py-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  <FormattedMessage {...messages.loadError} />
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    void filesQuery.refetch();
                   }}
                 >
-                  <span className="min-w-0 flex-1 truncate">
-                    <span className="block truncate">{file.filename}</span>
-                    {file.filename !== file.sourcePath ? (
-                      <span className="block truncate font-mono text-xs text-muted-foreground">
-                        {file.sourcePath}
-                      </span>
-                    ) : null}
-                  </span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+                  <FormattedMessage {...messages.retry} />
+                </Button>
+              </div>
+            ) : (
+              <CommandGroup heading={intl.formatMessage(messages.filesGroup)}>
+                {options.map((file) => (
+                  <CommandItem
+                    key={file.sourcePath}
+                    value={`${file.sourcePath} ${file.filename}`}
+                    data-checked={value === file.sourcePath || undefined}
+                    onSelect={() => {
+                      onChange(file.sourcePath);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="block truncate">{file.filename}</span>
+                      {file.filename !== file.sourcePath ? (
+                        <span className="block truncate font-mono text-xs text-muted-foreground">
+                          {file.sourcePath}
+                        </span>
+                      ) : null}
+                    </span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

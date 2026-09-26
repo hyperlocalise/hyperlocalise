@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability } from "@/api/auth/policy";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { requireAutumnWorkspaceBooleanFeature } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
@@ -48,6 +49,7 @@ async function OrganizationIssueDetailPageLoader({
       organizationSlug={organizationSlug}
       issueId={issueId}
       detailScope="organization"
+      canDelete={hasCapability(auth.membership.role, "write_back:translation")}
     />
   );
 }

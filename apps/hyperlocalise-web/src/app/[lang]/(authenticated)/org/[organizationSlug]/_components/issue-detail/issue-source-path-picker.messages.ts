@@ -1,3 +1,5 @@
+"use client";
+
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -42,5 +44,15 @@ export const issueSourcePathPickerMessages = defineMessages({
     defaultMessage: "Select source file",
     id: "pQQEeDnNjz",
     description: "Accessible label for the source path picker trigger",
+  },
+  loadError: {
+    defaultMessage: "Could not load files.",
+    id: "dwwAnbuf/E",
+    description: "Error when the source path file list fails to load",
+  },
+  retry: {
+    defaultMessage: "Retry",
+    id: "fITJU4tvCM",
+    description: "Retry loading source path files after a failure",
   },
 });

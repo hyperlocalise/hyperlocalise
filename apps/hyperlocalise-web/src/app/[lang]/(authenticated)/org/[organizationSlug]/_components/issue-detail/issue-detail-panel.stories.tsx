@@ -56,6 +56,7 @@ const meta = {
     organizationSlug: issueSheetOrganizationSlug,
     projectId: issueSheetProjectId,
     issueId: issue.id,
+    canDelete: true,
   },
 } satisfies Meta<typeof IssueDetailPanel>;
 

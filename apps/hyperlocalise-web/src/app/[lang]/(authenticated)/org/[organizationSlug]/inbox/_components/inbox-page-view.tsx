@@ -56,6 +56,7 @@ export function InboxPageView({
   onSelectConversation,
   onSelectNotification,
   onDeletedQuery,
+  canDeleteQueries = false,
   onSendMessage,
   organizationSlug,
   selectedConversation,
@@ -88,6 +89,7 @@ export function InboxPageView({
   onSelectConversation: (conversationId: string) => void;
   onSelectNotification: (notificationId: string) => void;
   onDeletedQuery?: () => void;
+  canDeleteQueries?: boolean;
   onSendMessage: (
     text: string,
     files: File[],
@@ -152,6 +154,7 @@ export function InboxPageView({
               organizationSlug={organizationSlug}
               projectId={selectedNotification.projectId}
               issueId={selectedNotification.issueId}
+              canDelete={canDeleteQueries}
               onDeleted={onDeletedQuery}
             />
           ) : selectedNotificationIsLoading ? (
