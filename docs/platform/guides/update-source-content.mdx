@@ -1,0 +1,31 @@
+---
+title: "Update source content safely"
+description: "Keep source paths stable and review changed content without losing track of approved translations."
+---
+
+Treat an updated source file as a complete snapshot of that file. Keep its path stable, then inspect changed, added, and removed strings before delivering new translations.
+
+## Before replacing a source
+
+Download the target files you need to retain, record the release or source revision, and identify any active upload automations. For repositories, commit the source change so you can compare or restore it later.
+
+## Update and inspect
+
+1. Upload the revised file to the same project and source path, or use your existing [GitHub sync](/platform/automation/content-sync) or [CLI push](/platform/cli) mapping.
+2. Wait for source processing to finish.
+3. Open the file and confirm the current key list and source wording.
+4. Check added strings and strings whose meaning changed.
+5. Start the required translation work, or follow the upload-triggered automation.
+6. Review and download the result for each target locale.
+
+The current source snapshot determines the active keys. Removing a key from the file removes it from the reconciled source key set; uploading only a partial file is not a safe way to request a partial update.
+
+## Recheck approved wording
+
+Generation preserves existing approved translations instead of automatically overwriting them. That protects review work, but it also means you must inspect previously approved wording when the source meaning changes. Do not assume a successful rerun replaced every old target.
+
+For example, changing a button from “Start trial” to “Buy now” needs a fresh review even if its key is still `checkout.action`.
+
+## Validate delivery
+
+Compare target keys and placeholders with the latest source. Test the downloaded file in its destination. For local CLI generation that specifically selects source changes using lockfiles, use [Translate changed strings](/cli/workflows/translate-changed-strings); Cloud upload reconciliation is a separate workflow.

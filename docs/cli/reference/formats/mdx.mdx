@@ -1,0 +1,70 @@
+---
+title: "MDX"
+description: "Translate MDX prose while preserving component structure and expressions."
+---
+
+Supported extensions: `.mdx`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.mdx`.
+
+```mdx
+# Welcome
+
+<Callout type="info">
+    Read the setup guide before translating.
+</Callout>
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.mdx
+              to: locales/{{target}}/messages.mdx
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Uses the MDX parser to translate prose while preserving JSX structure and expressions.
+
+- Frontmatter and fenced code blocks stay unchanged. Keep executable content in expressions or code blocks.
+
+- Review rendered output after translating pages with custom components. Support for MDX does not mean arbitrary component properties are translation messages.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

@@ -1,0 +1,32 @@
+---
+title: "Fix automation and sync problems"
+description: "Find why a trigger did not start, a run failed, or content did not move."
+---
+
+Open the automation’s **Run History** first. No run usually points to trigger configuration; a failed run points to an execution problem.
+
+## No run started
+
+- Confirm the automation is active rather than paused.
+- For a schedule, check cadence and **Schedule timezone**.
+- For GitHub, check installation access, repository enablement, event type, and branch patterns.
+- For source uploads, check the selected project and confirm the upload completed.
+- For Contentful, check the configured webhook event and delivery in Contentful.
+
+Test a single matching event after correcting the configuration. See [Create an automation](/platform/automation/create-automation).
+
+## A run failed
+
+Inspect the failed step, input, and error. Confirm its connection, project access, language resources, and usage limits. Fix missing inputs or expired credentials before retrying.
+
+For a visual workflow, inspect the executed version. Editing a draft does not change the published version used by automatic runs. Publish the corrected version for future runs.
+
+## Content sync did not translate anything
+
+Sync moves sources and existing ready translations. It does not generate target text. Add a translation step and review the result. GitHub currently supports executable content sync; other provider setup choices do not imply available file movers.
+
+## A run needs attention
+
+Check the external service to determine whether an uncertain action completed before retrying. Pause prevents new automatic runs; it does not cancel existing runs. See [workflow retry and recovery guidance](/platform/guides/workflow-data-and-retries).
+
+If the cause remains unclear, send the automation and run links to [support](/platform/help/contact-support).

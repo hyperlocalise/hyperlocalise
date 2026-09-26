@@ -1,0 +1,84 @@
+---
+title: "Apple plural dictionaries"
+description: "Translate Apple plural dictionaries while preserving substitution metadata."
+---
+
+Supported extensions: `.stringsdict`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.stringsdict`.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+    <dict>
+        <key>items</key>
+        <dict>
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@count@</string>
+            <key>count</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>d</string>
+                <key>one</key><string>%d item</string>
+                <key>other</key><string>%d items</string>
+            </dict>
+        </dict>
+    </dict>
+</plist>
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.stringsdict
+              to: locales/{{target}}/messages.stringsdict
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Translatable string leaves become dotted keys such as `items.count.one`. Plural category names remain part of the key.
+
+- `NSString*` fields are structural metadata and are excluded from translation.
+
+- Each `%#@token@` must match a sibling substitution dictionary. Writeback preserves XML layout and replaces message text.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

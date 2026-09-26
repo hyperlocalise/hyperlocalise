@@ -1,0 +1,74 @@
+---
+title: "Markdown"
+description: "Translate Markdown prose while preserving frontmatter, code, and links."
+---
+
+Supported extensions: `.md`, `.markdown`, `.mdown`, `.mkdn`, `.mdwn`, `.mkd`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.md`.
+
+```markdown
+---
+title: Product guide
+---
+
+# Welcome
+
+Read the [setup guide](./setup.md) to get started.
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.md
+              to: locales/{{target}}/messages.md
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Translates prose while retaining Markdown structure and link destinations.
+
+- Frontmatter and fenced code blocks stay unchanged. Translate frontmatter separately if you need localized metadata.
+
+- Segments use sequential keys such as `md.0001`. Review generated files when restructuring source content.
+
+- Set `srx: markdown` on a file mapping if you need sentence segmentation. See [configuration](/cli/configuration/i18n-config).
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

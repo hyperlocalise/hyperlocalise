@@ -1,0 +1,28 @@
+---
+title: "Connect design tools"
+description: "Use Canva connections and Figma personal tokens for design translation workflows."
+---
+
+Design tools use a personal access token to work with Cloud files and translation jobs. Your token inherits your workspace role and project access; selecting scopes does not grant permissions your account lacks.
+
+## Canva
+
+1. Create a [personal access token](/platform/settings#personal-access-tokens) with `files:read`, `files:write`, `jobs:read`, and `jobs:write`.
+2. Open **Integrations** → **Canva** and create a connection.
+3. Select the token, default project, and locales.
+4. Copy the connection token shown once after creation.
+5. In the Hyperlocalise Canva app, enter the connection token and any project or locale overrides.
+
+The app uploads design text, runs a file translation job, and brings completed translations into selected pages. Inspect layout after applying another language, especially for longer text.
+
+## Figma
+
+If your team has access to the Hyperlocalise Figma plugin, create a personal token with `files:read` and `jobs:read`. Add `files:write` and `jobs:write` to create translation work.
+
+Enter the token in the plugin, select a native project, and use its extraction, job creation, generation, and pull workflow. Review the result on the target page after completion.
+
+Plugin installation depends on how it is distributed to your team. If you do not have the plugin, [contact support](/platform/help/contact-support) for availability and installation guidance.
+
+## Resolve access or job failures
+
+Check the selected workspace/project, token scopes, account role, and job status. If you lost a one-time secret, replace it rather than expecting to reveal it again. Revoke old credentials when replacing a connection. See [Connection troubleshooting](/platform/help/connections).

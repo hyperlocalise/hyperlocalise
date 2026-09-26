@@ -1,0 +1,28 @@
+---
+title: "Connect GitHub"
+description: "Give Cloud access to selected repositories and choose how to use the connection."
+---
+
+Connect the GitHub App to use repository context, GitHub-triggered automations, and content sync. You need authority to install or approve the app for the relevant GitHub account.
+
+## Connect and enable repositories
+
+1. Open workspace **Integrations**, find **GitHub**, and select **Connect**.
+2. Complete installation or authorization on GitHub for the intended account and repositories.
+3. Return to Cloud and confirm **Connected as**.
+4. Select **Enable** for the repositories Cloud should use, or **Enable all** if appropriate.
+5. Use **Refresh repo list** after changing available repositories or their default branches.
+
+Refreshing the list reloads repository information. It does not upload sources, generate translations, or pull target files.
+
+## Choose what happens next
+
+- For recurring file movement, configure [GitHub content sync](/platform/automation/content-sync).
+- For an agent to respond to repository events, configure a [GitHub automation trigger](/platform/automation/create-automation).
+- For a workflow controlled by your CI configuration, follow the [GitHub localization tutorial](/platform/tutorials/github-localisation-workflow).
+
+## Change or remove access
+
+Select **Manage access on GitHub** to change installation permissions, then refresh and enable the intended repository in Cloud. **Disconnect** unlinks the installation from this workspace; inspect affected automations before disconnecting it.
+
+If a repository is missing, confirm the GitHub account, app installation scope, and Cloud enablement. See [Connection troubleshooting](/platform/help/connections).

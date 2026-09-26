@@ -1,0 +1,175 @@
+---
+title: "Fix ICU and placeholder errors in translations"
+sidebarTitle: "ICU and placeholder errors"
+description: "Diagnose placeholder_mismatch and icu_shape_mismatch, repair translated arguments and plural branches, and validate the result."
+---
+
+To fix a placeholder error, compare the source and target message for the reported
+key. Restore missing or renamed arguments and repair malformed ICU syntax. Keep
+translated prose, then rerun `hyperlocalise check` on that locale and key.
+
+An `icu_shape_mismatch` can also reflect the CLI's strict branch-parity rules,
+not just an invalid message. See [locale-specific plurals](#what-if-the-target-language-needs-different-plural-categories)
+below before changing a linguistically correct translation.
+
+## Find the failing message
+
+From a configured project, run:
+
+```bash
+hyperlocalise check --format json --json-report check-report.json
+```
+
+The report identifies the finding, locale, file, and message key. Narrow the check
+using that key and locale. This guide's examples use `es-ES`:
+
+```bash
+hyperlocalise check --locale es-ES --key home.greeting
+```
+
+`--file`, when needed, selects the configured source file path. See
+[`check`](/cli/commands/check) for all scope filters.
+
+## Understand the finding
+
+| Finding | Meaning | First check |
+| --- | --- | --- |
+| `placeholder_mismatch` | Source and target placeholders differ | Missing, extra, or renamed arguments |
+| `icu_shape_mismatch` | ICU parsing or structural comparison failed | Braces, argument names, block types, offsets, and branch labels |
+| `html_tag_mismatch` | Recognized HTML tag names differ in sequence | Missing or changed inline tags |
+| `not_localized` | A target entry is absent or empty | Generate or supply a translation first |
+
+One message can produce multiple findings. Fix the underlying message before
+changing validation settings.
+
+## Restore a renamed argument
+
+Source JSON:
+
+```json
+{
+    "home.greeting": "Hello, {name}!"
+}
+```
+
+Broken Spanish target:
+
+```json
+{
+    "home.greeting": "¡Hola, {nombre}!"
+}
+```
+
+The app supplies `name`, so renaming it to `nombre` breaks the contract. Keep the
+argument name in the translated message:
+
+```json
+{
+    "home.greeting": "¡Hola, {name}!"
+}
+```
+
+Argument position can change to fit the sentence. Argument names must match the
+source. In a [FormatJS catalog](/cli/reference/formats/formatjs), edit the entry's
+`defaultMessage` rather than replacing the descriptor object.
+
+## Restore a missing plural branch
+
+Source:
+
+```json
+{
+    "cart.items": "{count, plural, one {# item} other {# items}}"
+}
+```
+
+Broken target with the `one` branch removed:
+
+```json
+{
+    "cart.items": "{count, plural, other {# artículos}}"
+}
+```
+
+For this English-to-Spanish example, restore the branch and translate its text:
+
+```json
+{
+    "cart.items": "{count, plural, one {# artículo} other {# artículos}}"
+}
+```
+
+Retain the argument `count`, the `plural` type, and the structural tokens. Review
+`offset:` values and exact-number branches such as `=0` when present. ICU keywords
+are syntax, not text to translate. See the [FormatJS ICU syntax guide](https://formatjs.github.io/docs/core-concepts/icu-syntax/).
+
+The CLI also flags duplicate `#` tokens within a plural/selectordinal branch.
+That is a CLI validation constraint, not a claim that every repeated number is
+invalid ICU.
+
+## Repair malformed ICU syntax
+
+An unmatched brace or missing required `other` branch can make a message fail to
+parse. Compare the whole source and target expression, including nested branches.
+
+Check the source too. The current parity comparison cannot reliably diagnose all
+cases when the source itself fails ICU parsing. A clean CLI check is not a substitute
+for parsing and rendering messages in your application's i18n runtime.
+
+For rich-text messages, preserve the tags and values your React Intl components
+expect. A tag check can catch structural changes, but it cannot prove that your app
+supplies every required rendering function.
+
+## Validate the repaired message
+
+```bash
+hyperlocalise check --locale es-ES --key home.greeting
+hyperlocalise check --locale es-ES --key cart.items
+hyperlocalise check --locale es-ES
+```
+
+A clean run exits successfully. Review any other reported findings instead of
+assuming a structural repair also resolves missing translations or warnings.
+Render the messages in the app: test names containing punctuation, plural counts
+such as `0`, `1`, and `2`, and any exact-number or nested select branches you use.
+
+## Can the CLI repair the translation?
+
+`check --fix` retranslates fixable entries using your configured provider. Preview
+one key first:
+
+```bash
+hyperlocalise check --locale es-ES --key cart.items --fix --fix-dry-run
+```
+
+Then, with provider credentials configured, request the repair:
+
+```bash
+hyperlocalise check --locale es-ES --key cart.items --fix
+hyperlocalise check --locale es-ES --key cart.items
+```
+
+The preview makes no translation API calls and writes no target files. The actual
+repair can incur provider charges and replace reviewed text. Review the diff and
+validate again. Missing files and orphaned keys are not repaired by `--fix`.
+
+## What if the target language needs different plural categories?
+
+Plural categories depend on the locale. A target may legitimately need branches
+that differ from the source. The current CLI compares branch sets, argument names,
+block types, and offsets, so it can flag a valid locale-specific difference.
+
+Do not remove a needed grammatical form just to satisfy parity. Review the case
+with a speaker of the target language and test it in your runtime. If you must
+exclude `icu_shape_mismatch`, use a narrowly scoped check and keep explicit runtime
+tests for the affected messages. Other checks, including placeholder checks, remain
+necessary. The CLI does not currently provide a per-message parity allowlist.
+
+## Prevent repeat failures
+
+- Add descriptions explaining what argument values represent.
+- Keep source ICU expressions valid and test their branches.
+- Review both language quality and runtime behavior after translation.
+- Add [GitHub Actions validation](/cli/workflows/github-action-drift-check) to catch regressions.
+
+For the complete app workflow, see [Translate React Intl messages](/cli/guides/react-intl).

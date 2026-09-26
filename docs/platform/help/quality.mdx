@@ -1,0 +1,31 @@
+---
+title: "Improve translation quality"
+description: "Diagnose terminology, style, placeholder, and translation-memory problems."
+---
+
+Fix the affected translation, then improve the resource or instruction that caused the problem. A successful generation job does not establish that the wording is ready for publication.
+
+| Symptom | What to inspect |
+| --- | --- |
+| Wrong product term | Glossary term, locale, project link, and forbidden alternatives. |
+| Wrong tone or regional wording | Guideline audience, market, examples, and contradictory instructions. |
+| Repeated outdated phrase | Translation-memory source/target pair and its suitability for the current context. |
+| Broken variables or plurals | Exact placeholder names and ICU syntax. |
+| Text is too long | Length checks and the actual destination layout. |
+| Old approved wording survives generation | Source meaning changes and the existing approval. |
+
+## Correct and verify
+
+1. Open the affected segment in the [Content Editor](/platform/cat).
+2. Compare the source, target, glossary hits, and memory suggestions.
+3. Correct the target and resolve visible checks.
+4. Approve with an authorized reviewer.
+5. Search for other affected occurrences.
+
+A glossary is for terms; a guideline is for instructions; a translation memory is for reusable sentence pairs. Use the appropriate [language resource](/platform/knowledge) rather than placing every rule in one document.
+
+## Test the improvement
+
+Run a small representative translation request with the updated resources and review its output. Updating resources does not retroactively rewrite existing translations. Include ambiguous wording, plural messages, and short labels in the sample when those caused the original issue.
+
+For concrete placeholder examples, see [ICU troubleshooting](/cli/troubleshooting/icu-placeholders). For a review process across many files, see [Prepare a review handoff](/platform/guides/review-handoff).

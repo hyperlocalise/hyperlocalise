@@ -1,112 +1,43 @@
 ---
-title: "Getting started"
-description: "Stand up Hyperlocalise Cloud, then work in the UI or connect the CLI."
+title: "Your first translation"
+description: "Create a Cloud project and take one source file through translation, review, and download."
 ---
 
-Hyperlocalise Cloud is infrastructure for multilingual content operations. Create a project, then either work in the workspace or connect git and CI.
+Start with a small source file and one target language. This walkthrough uses a native Hyperlocalise project, where Cloud stores your files and translations. Files and languages in a connected TMS project are managed by that provider.
 
-<CardGroup cols={2}>
-  <Card title="Cloud workspace" icon="cloud" href="#cloud-workspace">
-    Sign in, create a project, and add source content.
-  </Card>
-  <Card title="CLI and CI" icon="terminal" href="#cli-and-ci">
-    Install the CLI, store an API key, and sync the repo.
-  </Card>
-</CardGroup>
+## 1. Sign in and choose a workspace
 
-## Cloud workspace
+Open [Hyperlocalise](https://www.hyperlocalise.com), sign in, and select your organization. If a teammate invited you, accept the invitation using the invited email address. Ask an administrator for project access if the workspace is empty.
 
-### Sign in
+## 2. Create a project
 
-1. Go to [hyperlocalise.com](https://www.hyperlocalise.com).
-2. Sign in with the identity provider your team uses.
-3. Select an organization, or create one if you are the first member.
+Open **Projects**, create a project, enter a recognizable name, and choose the source and target locales. Select **Save project**. See [Create a project](/platform/projects/create-project) for language and access details.
 
-### Create a project
+## 3. Upload a source file
 
-1. Open **Projects** in the sidebar.
-2. Create a project and give it a name your team will recognize.
-3. Choose the source locale and the target locales you need now. You can add more later.
+Open the project’s **Files**, select **Add files**, choose your file, then select **Upload**. Wait for the upload to finish and confirm that the file appears. Uploading makes the source available; generation is a separate step.
 
-### Add source content
+## 4. Request a translation
 
-In the project, open **Files**. For a native Hyperlocalise project:
+Open **New Request** under **Agents**. Specify the project, source path, and target locale. For example:
 
-1. Click **Add files**.
-2. Stage JSON, YAML, XLIFF, PO, images, Office files, or other supported formats.
-3. Click **Upload**.
-
-To pull files from GitHub instead, connect the GitHub App under **Integrations**. See [Integrations](/platform/integrations).
-
-### Review
-
-Open a file from **Files** to enter the Content Editor, or use **Content Editor** in the project sidebar when the project supports an all-files queue. See [Content Editor](/platform/cat).
-
-## CLI and CI
-
-Use this path when source files already live in a repository.
-
-1. [Install the CLI](/cli/getting-started/install).
-2. In Cloud, create the project as above, then copy the **Project ID** from project **Settings** → **Connect CLI & CI**.
-3. Create an organization key under **Settings** → **API Keys**. Copy it once. You will not see it again.
-4. Add a `hyperlocalise` block to `i18n.yml` and set `HYPERLOCALISE_API_KEY` in the environment.
-
-```yaml
-hyperlocalise:
-  project_id: project_123
-  api_base_url: https://hyperlocalise.com/api
-  api_key_env: HYPERLOCALISE_API_KEY
-  timeout_seconds: 1200
+```text
+Translate checkout.json in the Checkout project from en to fr.
+Use the project guideline and glossary. Leave the translations for review.
 ```
 
-5. Preview, then upload sources:
+Check the selected project and tools before proceeding with the request. Follow the work in **My Jobs** or the project’s jobs. See [Start a translation](/platform/translation/start) if generation is unavailable or fails.
 
-```bash
-hyperlocalise sync push --dry-run
-hyperlocalise sync push
-```
+## 5. Review the result
 
-`sync push` uploads sources only. It does not create translation jobs. Add a **Source upload** automation in Cloud, or start work from **New Request**, when you want generation after upload.
+Open the source file in **Files**, choose the target locale, and review it in the [Content Editor](/platform/cat). Check terminology, placeholders, and context before approving. A completed generation job does not mean a reviewer has approved every translation.
 
-6. After translations exist in the project, write them back to local paths:
+## 6. Download translations
 
-```bash
-hyperlocalise sync pull --dry-run
-hyperlocalise sync pull
-```
+Open **Download translations** from the project’s files view. Select your source file and target locale, then select **Download**. Check the resulting file in your application before publishing it.
 
-The full key, config, and CI notes are in [Connect the CLI](/platform/cli).
+The editor’s queue download exports a filtered segment list. Use [Download translations](/platform/translation/download) when you need the translated source-file format.
 
-## Continue with your stack
+## Next steps
 
-Choose the tutorial that matches the source files in your repository.
-
-<CardGroup cols={3}>
-  <Card title="GitHub workflow" icon="github" href="/platform/tutorials/github-localisation-workflow">
-    Automate source upload and translation pull requests.
-  </Card>
-  <Card title="React Intl" icon="code" href="/platform/tutorials/react-intl-icu">
-    Extract and review FormatJS and ICU messages.
-  </Card>
-  <Card title="Vue" icon="layer-group" href="/platform/tutorials/vue-i18n">
-    Sync vue-i18n JSON catalogs and review target locales.
-  </Card>
-  <Card title="iOS Strings" icon="mobile" href="/platform/tutorials/ios-strings">
-    Localise Swift apps with .strings files.
-  </Card>
-  <Card title="Android" icon="mobile-screen" href="/platform/tutorials/android-string-resources">
-    Localise strings.xml and plural resources.
-  </Card>
-  <Card title="Gettext" icon="server" href="/platform/tutorials/gettext-pot-po">
-    Connect POT extraction to reviewed PO catalogs.
-  </Card>
-  <Card title="XLIFF" icon="file-code" href="/platform/tutorials/xliff">
-    Sync XLIFF interchange files by locale.
-  </Card>
-</CardGroup>
-
-## Next
-
-- [Content Editor](/platform/cat)
-- [Automations](/platform/automations)
-- [Public API](/platform/api)
+Add [language resources](/platform/knowledge), invite [reviewers](/platform/workspace/members), or [automate the next upload](/platform/automation/create-automation).

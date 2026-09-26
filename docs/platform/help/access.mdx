@@ -1,0 +1,28 @@
+---
+title: "Fix workspace and project access"
+description: "Resolve invitations, missing projects, read-only resources, and unavailable actions."
+---
+
+Access depends on your signed-in account, workspace membership, role, team, and project. Check them in that order.
+
+## I cannot find my workspace
+
+Confirm you signed in with the email address that received the invitation. Accept the invitation first, then select the intended organization. Ask an administrator to check whether your invitation is pending, revoked, or already accepted under another account.
+
+## I can enter the workspace but cannot see a project
+
+Ask an administrator or localization manager to check your team membership and that team’s project access. Seeing the workspace does not automatically mean you can access every project.
+
+## I can read translations but cannot approve
+
+Check [Roles and permissions](/platform/workspace/roles). Translators can draft; reviewers, localization managers, and administrators can approve within their access scope. Developers and members do not have translation approval permission.
+
+If the content belongs to a connected TMS, check the provider’s permissions and whether the resource is read-only in Cloud.
+
+## I cannot change billing or credentials
+
+Billing changes require an administrator. Organization API-key management requires an administrator or localization manager. Active members can create personal tokens within their own permitted scopes; those tokens cannot expand their role.
+
+## A feature is absent
+
+Some features depend on workspace availability. Confirm you opened the correct workspace and ask your administrator or [support](/platform/help/contact-support) about availability. Do not change unrelated permissions just to make a missing navigation item appear.

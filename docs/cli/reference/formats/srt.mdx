@@ -1,0 +1,74 @@
+---
+title: "SubRip subtitles"
+description: "Translate SubRip cue text while preserving subtitle numbers and timing."
+---
+
+Supported extensions: `.srt`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.srt`.
+
+```text
+1
+00:00:01,000 --> 00:00:04,000
+Welcome to the product tour.
+
+2
+00:00:05,000 --> 00:00:08,000
+Open your project to begin.
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.srt
+              to: locales/{{target}}/messages.srt
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Each cue is one translation unit, including multiline text. Keys are sequential, such as `srt.0001`.
+
+- Cue numbers, timestamps, and positioning remain unchanged. Timing is supplied as translation context.
+
+- Writeback replaces cue text. Extra keys are ignored, and blank lines inside translated text are removed to avoid creating new cues.
+
+- Review subtitle length and reading speed separately; translation does not retime your video.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

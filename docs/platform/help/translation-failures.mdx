@@ -1,0 +1,33 @@
+---
+title: "Fix failed or missing translations"
+description: "Check the job, language, source content, and workspace limits before retrying generation."
+---
+
+First confirm that a translation job exists. Uploading a source file alone does not generate translations.
+
+## No job was created
+
+Check **My Jobs**, the project’s job list, and the originating request or automation run. Confirm it targeted the correct project and locale. If only the upload completed, [start a translation](/platform/translation/start).
+
+## The job failed
+
+Open the job and read the error. Check these causes in order:
+
+1. The source file exists and finished processing.
+2. The requested target locale belongs to the project.
+3. Your account or connection can access the project and perform the action.
+4. Required provider connections are still valid.
+5. Workspace [usage and limits](/platform/workspace/billing) allow the operation.
+6. Source syntax and placeholders are valid for the format.
+
+Fix the cause before selecting **Retry job** where available. Record the job link if the same error returns.
+
+## The job stays active
+
+Inspect progress and any requested review. Avoid launching the same translation repeatedly. If you decide to stop an active native job, use **Cancel job**. See [Track and recover jobs](/platform/translation/jobs) for eligibility and the separate **Mark as failed** action.
+
+## The job succeeded but text looks unchanged
+
+Confirm the source path and target locale in the editor and download. Existing approved translations are protected from automatic generation overwrites; inspect them when source meaning has changed. Also check untranslated segments instead of relying on job status alone.
+
+For repeated failures, [contact support](/platform/help/contact-support) with the job link, timestamp, locale, and error.

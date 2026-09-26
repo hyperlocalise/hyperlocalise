@@ -1,0 +1,73 @@
+---
+title: "JavaScript and TypeScript"
+description: "Translate static JavaScript and TypeScript locale modules without executing code."
+---
+
+Supported extensions: `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.ts`.
+
+```typescript
+export default {
+    home: {
+        title: "Welcome",
+        greeting: "Hello, {name}!",
+    },
+} as const;
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.ts
+              to: locales/{{target}}/messages.ts
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Supports static locale objects exported with `export default`, `export const`, or `module.exports`, including a static variable followed by a default export.
+
+- Nested objects and string arrays are supported. Strict FormatJS message objects can include `defaultMessage` and `description`.
+
+- Imports, comments, export syntax, and unrelated module text are preserved. Only message string literals are replaced.
+
+- Dynamic values, computed keys, spreads, multiple exported locale objects, and interpolated template literals are rejected. These are locale modules, not arbitrary application source files.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

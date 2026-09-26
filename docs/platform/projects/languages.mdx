@@ -1,0 +1,27 @@
+---
+title: "Manage project languages"
+description: "Set source and target locales and diagnose a missing language in the editor."
+---
+
+Project locales determine which languages you can select for translation and download. A locale can include a region, such as `pt-BR`; choose the locale your application or publishing workflow expects.
+
+## Change locales
+
+1. Open the project’s **Settings**.
+2. Find **Locales**.
+3. Check the source locale and add or adjust target locales.
+4. Select **Save settings**.
+
+Native projects let you edit locales in Cloud. If the section says the connected TMS manages locales, update them in that provider instead.
+
+Adding a target language makes it selectable. It does not create translated text. [Start a translation](/platform/translation/start) for the files you need in the new locale.
+
+## Plan a source-language change
+
+The source locale describes the existing source text; changing its label does not translate that text. Before changing it, download the content you need to retain and check file paths, automation targets, and connected CLI configuration. For a separate source-language corpus, consider a separate project.
+
+## A language is missing
+
+Confirm you are in the intended project, then check its target locales. If the locale exists but the editor has no target text, inspect the translation job and verify that it used that locale. In a provider-backed project, check both provider configuration and your provider access.
+
+See [Download translations](/platform/translation/download) and [access troubleshooting](/platform/help/access).

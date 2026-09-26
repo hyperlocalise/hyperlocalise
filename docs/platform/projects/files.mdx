@@ -1,0 +1,32 @@
+---
+title: "Upload and organize source files"
+description: "Add source content to a native project and understand upload and editor availability."
+---
+
+Upload source files to make them available for translation and review. The native project upload screen accepts up to **10 files per batch**.
+
+## Upload files
+
+1. Open **Projects**, select your project, and open **Files**.
+2. Select **Add files** and choose the source files.
+3. Review **Ready to upload**. Remove anything you selected by mistake.
+4. Select **Upload** and wait for completion.
+5. Confirm the expected file appears, then open it with a target locale.
+
+Cloud supports content such as JSON, YAML, XLIFF, PO, images, and Office documents. Processing and editing capabilities vary by format. A file appearing in the list does not guarantee that it can open in the text Content Editor.
+
+The [CLI format guides](/cli/reference/formats/overview) describe CLI parsing and configuration. They are not a guarantee that every CLI format has the same Cloud editor experience.
+
+## Keep paths stable
+
+Use a consistent source path for content you update regularly. Repository and CLI workflows should keep the same path mapping between uploads. Review [Update source content](/platform/guides/update-source-content) before replacing an existing source snapshot.
+
+## Connected TMS projects
+
+Provider-backed projects browse files from the connected TMS. Upload or organize provider-owned files in that system. For GitHub sources in a native project, configure [content sync](/platform/automation/content-sync) after connecting the repository.
+
+## After upload
+
+Upload does not automatically generate translations unless a matching automation is active. [Start a translation](/platform/translation/start) or configure a [Source upload trigger](/platform/automation/create-automation).
+
+If a file is missing or cannot open, follow [Upload troubleshooting](/platform/help/uploads).

@@ -1,0 +1,80 @@
+---
+title: "Apple string catalogs"
+description: "Translate Xcode string catalogs, plural variants, and device-specific messages."
+---
+
+Supported extensions: `.xcstrings`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.xcstrings`.
+
+```json
+{
+    "sourceLanguage": "en-US",
+    "strings": {
+        "welcome": {
+            "localizations": {
+                "en-US": {
+                    "stringUnit": { "state": "translated", "value": "Welcome" }
+                }
+            }
+        }
+    },
+    "version": "1.0"
+}
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.xcstrings
+              to: locales/{{target}}/messages.xcstrings
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Reads source text from the source-language localization. Simple entries without one fall back to the catalog key.
+
+- Plural, device, and substitution variants use stable `::` paths. Variants require a source localization.
+
+- Writes translations under `localizations[targetLocale]`, preserving catalog metadata and other localizations. JSON whitespace and ordering are normalized.
+
+- The example writes a separate catalog per target locale. The catalog format itself can contain multiple locales.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

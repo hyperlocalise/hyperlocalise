@@ -1,0 +1,78 @@
+---
+title: "XLIFF"
+description: "Translate XLIFF 1.2 and 2.x files with documented target and segment behavior."
+---
+
+Supported extensions: `.xlf`, `.xlif`, `.xliff`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.xlf`.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+    <file source-language="en-US" target-language="es-ES" datatype="plaintext" original="messages">
+        <body>
+            <trans-unit id="welcome">
+                <source>Welcome</source>
+                <target></target>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.xlf
+              to: locales/{{target}}/messages.xlf
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Supports XLIFF 1.2 `trans-unit` and 2.x `unit` elements. Keys prefer `id`, then `name`, then `resname`.
+
+- Parsing reads a non-empty target before falling back to source. Use source catalogs with empty targets for a first translation.
+
+- Writeback updates existing targets and target-language metadata. If a unit has no target element, it replaces source text; include target elements to retain the source.
+
+- Use one segment per XLIFF 2.x unit. Multiple segments in one unit are not independently translated and may receive the same combined value.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

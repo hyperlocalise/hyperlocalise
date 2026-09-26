@@ -1,0 +1,68 @@
+---
+title: "Apple strings"
+description: "Translate Apple strings files while retaining comments and printf placeholders."
+---
+
+Supported extensions: `.strings`.
+
+## Source file
+
+Save this example as `locales/en-US.lproj/Localizable.strings`.
+
+```text
+/* Home screen */
+"welcome" = "Welcome";
+"greeting" = "Hello, %@!";
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US.lproj/Localizable.strings
+              to: locales/{{target}}.lproj/Localizable.strings
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Parses quoted `"key" = "value";` entries, including escaped characters, Unicode escapes, and multiline values.
+
+- Writeback preserves template comments, layout, and spacing while replacing value literals.
+
+- Leading comments can supply a character limit, for example `hl:max-length=40`. Keep printf placeholders intact.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).
