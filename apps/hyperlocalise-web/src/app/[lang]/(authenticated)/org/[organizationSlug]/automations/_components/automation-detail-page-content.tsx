@@ -43,6 +43,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
+import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { readApiResponseError } from "@/lib/api-error";
@@ -113,6 +114,14 @@ export function AutomationDetailPageContent({
 
   const automation = automationQuery.data?.automation;
   const recentRuns = automationQuery.data?.recentRuns ?? [];
+  const automationTitle = automation?.name.trim();
+
+  useAppShellBreadcrumbAppend({
+    id: "automation-detail",
+    label: automationTitle,
+    title: automationTitle,
+    isLoading: automationQuery.isLoading && !automationTitle,
+  });
   const [form, setForm] = useState<ReturnType<
     typeof createWorkspaceAutomationFormStateFromRecord
   > | null>(null);
@@ -346,14 +355,102 @@ export function AutomationDetailPageContent({
 
   const savedForm = createWorkspaceAutomationFormStateFromRecord(automation);
   const hasChanges = workspaceAutomationFormHasChanges(form, savedForm);
+  const isContentSync = form.kind === "content_sync";
   const showRunButton =
-    workspaceAutomationFormSupportsOnDemandRun(form.triggerMode) &&
-    workspaceAutomationFormSupportsOnDemandRun(savedForm.triggerMode);
+    isContentSync ||
+    (workspaceAutomationFormSupportsOnDemandRun(form.triggerMode) &&
+      workspaceAutomationFormSupportsOnDemandRun(savedForm.triggerMode));
   const showSourceFileRunButton =
     form.triggerMode === "source_upload" && savedForm.triggerMode === "source_upload";
   const saveInFlight = saveMutation.isPending;
   const deleteInFlight = deleteMutation.isPending;
   const writeInFlight = saveInFlight || deleteInFlight;
+
+  const editorActions = (
+    <div className="flex gap-2">
+      <Button
+        variant="outline"
+        onClick={() => {
+          if (writeInFlight) {
+            return;
+          }
+          setDeleteDialogOpen(true);
+        }}
+        disabled={writeInFlight}
+      >
+        <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
+        <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
+      </Button>
+      {form.triggerMode === "web_chat" ? (
+        <>
+          <div className="hidden min-w-0 max-w-xs md:block">
+            <WebChatUrlCopyField automationId={automationId} organizationSlug={organizationSlug} />
+          </div>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={
+              <Link
+                href={buildWorkspaceAutomationWebChatHref({
+                  organizationSlug,
+                  automationId,
+                  locale: intl.locale,
+                })}
+                target="_blank"
+                rel="noreferrer"
+              />
+            }
+            disabled={automation.status !== "active"}
+          >
+            <FormattedMessage {...automationDetailPageContentMessages.openChat} />
+          </Button>
+        </>
+      ) : showRunButton || showSourceFileRunButton ? (
+        <Button
+          variant="outline"
+          onClick={() => {
+            if (showSourceFileRunButton) {
+              setSourceFileDialogOpen(true);
+              return;
+            }
+            runMutation.mutate();
+          }}
+          disabled={
+            runMutation.isPending ||
+            sourceFileRunMutation.isPending ||
+            automation.status !== "active"
+          }
+        >
+          {runMutation.isPending || sourceFileRunMutation.isPending ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <HugeiconsIcon icon={PlayIcon} strokeWidth={1.8} data-icon="inline-start" />
+          )}
+          <FormattedMessage {...automationDetailPageContentMessages.runNow} />
+        </Button>
+      ) : null}
+      <Button
+        onClick={() => {
+          if (deleteInFlight) {
+            return;
+          }
+          saveMutation.mutate();
+        }}
+        disabled={writeInFlight || !hasChanges}
+      >
+        {saveInFlight ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
+        )}
+        {saveInFlight ? (
+          <FormattedMessage {...automationDetailPageContentMessages.saving} />
+        ) : (
+          <FormattedMessage {...automationDetailPageContentMessages.saveChanges} />
+        )}
+      </Button>
+    </div>
+  );
 
   return (
     <WorkspacePageShell className="max-w-5xl">
@@ -367,94 +464,7 @@ export function AutomationDetailPageContent({
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         onChange={setForm}
         runHistory={recentRuns}
-        actions={
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (writeInFlight) {
-                  return;
-                }
-                setDeleteDialogOpen(true);
-              }}
-              disabled={writeInFlight}
-            >
-              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
-              <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
-            </Button>
-            {form.triggerMode === "web_chat" ? (
-              <>
-                <div className="hidden min-w-0 max-w-xs md:block">
-                  <WebChatUrlCopyField
-                    automationId={automationId}
-                    organizationSlug={organizationSlug}
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  nativeButton={false}
-                  render={
-                    <Link
-                      href={buildWorkspaceAutomationWebChatHref({
-                        organizationSlug,
-                        automationId,
-                        locale: intl.locale,
-                      })}
-                      target="_blank"
-                      rel="noreferrer"
-                    />
-                  }
-                  disabled={automation.status !== "active"}
-                >
-                  <FormattedMessage {...automationDetailPageContentMessages.openChat} />
-                </Button>
-              </>
-            ) : showRunButton || showSourceFileRunButton ? (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (showSourceFileRunButton) {
-                    setSourceFileDialogOpen(true);
-                    return;
-                  }
-                  runMutation.mutate();
-                }}
-                disabled={
-                  runMutation.isPending ||
-                  sourceFileRunMutation.isPending ||
-                  automation.status !== "active"
-                }
-              >
-                {runMutation.isPending || sourceFileRunMutation.isPending ? (
-                  <Spinner data-icon="inline-start" />
-                ) : (
-                  <HugeiconsIcon icon={PlayIcon} strokeWidth={1.8} data-icon="inline-start" />
-                )}
-                <FormattedMessage {...automationDetailPageContentMessages.runNow} />
-              </Button>
-            ) : null}
-            <Button
-              onClick={() => {
-                if (deleteInFlight) {
-                  return;
-                }
-                saveMutation.mutate();
-              }}
-              disabled={writeInFlight || !hasChanges}
-            >
-              {saveInFlight ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
-              )}
-              {saveInFlight ? (
-                <FormattedMessage {...automationDetailPageContentMessages.saving} />
-              ) : (
-                <FormattedMessage {...automationDetailPageContentMessages.saveChanges} />
-              )}
-            </Button>
-          </div>
-        }
+        actions={editorActions}
       />
 
       <Dialog

@@ -57,6 +57,7 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
     case "github-comment":
     case "push-source":
     case "pull-translations":
+    case "push-translations":
       return "github";
     case "validation":
       return "validation";
@@ -73,6 +74,8 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
     case "knowledge-files":
       return "web-chat";
     case "source-upload":
+    case "content-sync":
+    case "pull-source":
       return "upload";
     case "create-job":
       return "job";

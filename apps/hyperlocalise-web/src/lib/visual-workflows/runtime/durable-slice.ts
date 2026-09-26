@@ -183,6 +183,8 @@ export async function executeDurableWorkflowSlice(input: {
           ...args,
           node: { ...args.node, config: config as typeof args.node.config },
           inputsResolved: true,
+          visualWorkflowId: input.run.visualWorkflowId,
+          visualWorkflowRunId: input.run.id,
           idempotencyKey: buildVisualWorkflowNodeIdempotencyKey({
             runId: input.run.id,
             nodeId: args.node.id,

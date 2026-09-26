@@ -14,6 +14,7 @@ import type { CanonicalVisualWorkflowNode, VisualCatalogType } from "../schema/t
 
 const EXTERNAL_TYPES: ReadonlySet<VisualCatalogType> = new Set([
   "action.http",
+  "action.content_sync",
   "action.notify_slack",
   "action.notify_email",
   "ai.agent",

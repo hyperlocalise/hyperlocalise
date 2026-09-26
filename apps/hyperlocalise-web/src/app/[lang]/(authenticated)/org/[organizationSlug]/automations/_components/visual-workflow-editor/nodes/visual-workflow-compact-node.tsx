@@ -499,6 +499,8 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeSourceUploadTrigger;
     case "action.http":
       return messages.nodeHttp;
+    case "action.content_sync":
+      return messages.nodeContentSync;
     case "action.notify_slack":
       return messages.nodeNotifySlack;
     case "action.notify_email":

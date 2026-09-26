@@ -61,6 +61,9 @@ export function AutomationsNewPageContent({
       }
 
       const payload = formStateToWorkspaceAutomationPayload(form);
+      if (payload.kind === "content_sync") {
+        throw new Error("validation_failed");
+      }
       const response = await apiClient.api.orgs[":organizationSlug"].automations.$post({
         param: { organizationSlug },
         json: payload,
@@ -93,6 +96,25 @@ export function AutomationsNewPageContent({
     },
   });
 
+  const actions = (
+    <>
+      <Button
+        variant="outline"
+        nativeButton={false}
+        render={<OrgNavLink href={automationsBasePath} />}
+      >
+        <FormattedMessage {...automationsNewPageContentMessages.cancel} />
+      </Button>
+      <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+        {createMutation.isPending ? (
+          <FormattedMessage {...automationsNewPageContentMessages.creating} />
+        ) : (
+          <FormattedMessage {...automationsNewPageContentMessages.createAutomation} />
+        )}
+      </Button>
+    </>
+  );
+
   return (
     <WorkspacePageShell className="max-w-5xl">
       <WorkspaceAutomationEditor
@@ -103,24 +125,7 @@ export function AutomationsNewPageContent({
         knowledgeAvailable={knowledgeAvailable}
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         onChange={setForm}
-        actions={
-          <>
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<OrgNavLink href={automationsBasePath} />}
-            >
-              <FormattedMessage {...automationsNewPageContentMessages.cancel} />
-            </Button>
-            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-              {createMutation.isPending ? (
-                <FormattedMessage {...automationsNewPageContentMessages.creating} />
-              ) : (
-                <FormattedMessage {...automationsNewPageContentMessages.createAutomation} />
-              )}
-            </Button>
-          </>
-        }
+        actions={actions}
       />
     </WorkspacePageShell>
   );

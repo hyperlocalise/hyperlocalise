@@ -64,6 +64,19 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     mock: { status: 200, ok: true, headers: {}, body: '{"items":[]}', json: { items: [] } },
   },
+  "action.content_sync": {
+    inputs: [
+      field("projectId"),
+      field("connectionId"),
+      field("resourceKey"),
+      field("projectFolder"),
+    ],
+    outputs: [output("pulled", "object"), output("pushed", "object")],
+    mock: {
+      pulled: { uploaded: 1, skipped: 0, failed: 0 },
+      pushed: { written: 1 },
+    },
+  },
   "action.notify_slack": {
     inputs: [field("channelId"), field("message")],
     outputs: [output("sent", "boolean"), output("channelId")],

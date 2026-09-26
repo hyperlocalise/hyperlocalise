@@ -150,6 +150,28 @@ describe("visual workflow node execution edges", () => {
     expect(withPublicHttpFetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects incomplete content sync config before calling the provider", async () => {
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "sync",
+        type: "action.content_sync",
+        config: createDefaultConfig("action.content_sync"),
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "missing_content_sync_config",
+        message: "Choose a project, source, and project folder before syncing.",
+      },
+    });
+  });
+
   it("maps SSRF-blocked HTTP URLs to http_request_failed", async () => {
     withPublicHttpFetchMock.mockRejectedValue(new Error("Blocked host is not allowed."));
     const { executeVisualWorkflowNode } = await import("./execute-node");

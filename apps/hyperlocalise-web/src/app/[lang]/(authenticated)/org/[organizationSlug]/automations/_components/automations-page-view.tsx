@@ -49,7 +49,6 @@ import {
   resolveTemplateCategoryTabs,
   resolveVisibleAutomations,
 } from "./automations-page-view-model";
-import { ContentSyncCard } from "./content-sync-card";
 import { GithubAutoReviewCard } from "./github-auto-review-card";
 
 const AUTOMATION_LIST_GRID_CLASS =
@@ -325,12 +324,6 @@ export function AutomationsPageView({
         </Card>
       </section>
 
-      <ContentSyncCard
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        automations={automations}
-      />
-
       {projectId ? null : (
         <GithubAutoReviewCard
           organizationSlug={organizationSlug}
@@ -391,7 +384,11 @@ export function AutomationsPageView({
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{automation.name}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {resolveAutomationTriggerLabel(intl, automation.triggerConfig)}
+                          {resolveAutomationTriggerLabel(
+                            intl,
+                            automation.triggerConfig,
+                            automation,
+                          )}
                         </p>
                       </div>
                       <AutomationToolsSummary automation={automation} />

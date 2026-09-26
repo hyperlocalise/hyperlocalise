@@ -281,6 +281,58 @@ describe("getAppShellBreadcrumbs", () => {
     ]);
   });
 
+  it("links Automations when viewing a workspace automation detail URL", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/automations", intl)).toEqual([
+      { label: "Automations" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/automations/auto_1", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+    ]);
+    expect(getAppShellBreadcrumbs("/en/org/acme/automations/auto_1", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+    ]);
+  });
+
+  it("returns New automation breadcrumbs for the compose pages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/automations/new", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+      { label: "New automation" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/automations/new", intl, {
+        projectName: "Checkout",
+      }),
+    ).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "Checkout", href: "/org/acme/projects/proj_1" },
+      { label: "Automations", href: "/org/acme/projects/proj_1/automations" },
+      { label: "New automation" },
+    ]);
+  });
+
+  it("links Automations when viewing visual workflows", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/automations/visual-workflows", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+      { label: "Visual workflows" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/automations/visual-workflows/wf_1", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+      { label: "Visual workflows", href: "/org/acme/automations/visual-workflows" },
+    ]);
+  });
+
+  it("links Automations when viewing a project automation detail URL", () => {
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/automations/auto_1", intl, {
+        projectName: "Checkout",
+      }),
+    ).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "Checkout", href: "/org/acme/projects/proj_1" },
+      { label: "Automations", href: "/org/acme/projects/proj_1/automations" },
+    ]);
+  });
+
   it("returns project overview breadcrumbs without a section crumb", () => {
     expect(
       getAppShellBreadcrumbs("/org/acme/projects/proj_1", intl, { projectName: "Checkout" }),
