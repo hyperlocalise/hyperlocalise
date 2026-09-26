@@ -24,6 +24,7 @@ description: "Concise reference for the hyperlocalise i18n config schema."
 
 - map of bucket name -> bucket definition
 - `files` array with `from` and `to` templates, and optional `srx` (`default` | `html` | `markdown` | project-relative SRX 2.0 file)
+- Optional `files[].cloud_path` preserves the Cloud source identity for `sync push` and `sync pull` independently of local paths. It accepts `{{source}}` and the same glob suffix as `from`; omission uses the config-relative source path.
 
 ## `groups`
 

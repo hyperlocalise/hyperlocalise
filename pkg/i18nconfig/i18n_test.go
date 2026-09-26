@@ -1507,3 +1507,74 @@ func writeConfigFileNamed(t *testing.T, name, content string) string {
 
 	return path
 }
+
+func TestCloudSourcePathLengthValidation(t *testing.T) {
+	short := strings.Repeat("a", MaxCloudSourcePathLength)
+	if err := ValidateCloudSourcePathLength(short); err != nil {
+		t.Fatal(err)
+	}
+	long := short + "b"
+	longErr := ValidateCloudSourcePathLength(long)
+	if longErr == nil {
+		t.Fatal("expected length error")
+	}
+	if !strings.Contains(longErr.Error(), "2048") {
+		t.Fatalf("unexpected error: %v", longErr)
+	}
+}
+
+func TestCloudPathMappingValidation(t *testing.T) {
+	for _, cloud := range []string{"../en.json", "/en.json", "C:/en.json", `lang\en.json`, "lang//en.json", "./en.json", "lang/{{target}}.json", "lang/[locale].json", "lang/{{unknown}}.json", "lang/en.md", "lang/*.json", " "} {
+		t.Run(cloud, func(t *testing.T) {
+			if err := ValidateCloudPathMapping(BucketFileMapping{From: "apps/web/en.json", CloudPath: cloud}); err == nil {
+				t.Fatalf("accepted invalid cloud path %q", cloud)
+			}
+		})
+	}
+	for _, mapping := range []BucketFileMapping{
+		{From: "apps/web/en.json"},
+		{From: "apps/web/en.json", CloudPath: "lang/{{source}}.json"},
+		{From: "apps/web/blog/**/*.md", CloudPath: "blog/**/*.md"},
+	} {
+		if err := ValidateCloudPathMapping(mapping); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestLoadCloudPathAlias(t *testing.T) {
+	root := t.TempDir()
+	configPath := filepath.Join(root, "i18n.yml")
+	content := `locales:
+  source: en
+  targets: [fr]
+buckets:
+  web:
+    files:
+      - from: apps/web/lang/en.json
+        to: apps/web/lang/{{target}}.json
+        cloud_path: lang/{{source}}.json
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: test
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Buckets["web"].Files[0].CloudPath; got != "lang/{{source}}.json" {
+		t.Fatalf("cloud_path = %q", got)
+	}
+	schema, err := JSONSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(schema), `"cloud_path"`) {
+		t.Fatal("schema missing cloud_path")
+	}
+}
