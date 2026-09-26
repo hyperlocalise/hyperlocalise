@@ -51,25 +51,26 @@ type validateSegmentResponse struct {
 }
 
 type handler struct {
-	validate      func(segmentvalidate.Request) []segmentvalidate.Check
-	spellChecker  SpellChecker
-	ofrep         *experiment.OFREPHandler
-	research      researchService
-	gsc           gscService
-	objects       *objectstore.Registry
-	guidelines    *guidelines.Service
-	dictionaries  *dictionaryAPI
-	glossaries    *glossaryAPI
-	memories      *memoryAPI
-	qaReports     *qaReportAPI
-	teams         *teamAPI
-	issueSheets   *issueSheetAPI
-	activityLogs  *activityLogAPI
-	contentEditor *editorCatAPI
-	projects      *projectAPI
-	workspace     *workspaceAPI
-	valkey        valkeyHealthClient
-	postgres      healthPinger
+	validate          func(segmentvalidate.Request) []segmentvalidate.Check
+	spellChecker      SpellChecker
+	ofrep             *experiment.OFREPHandler
+	research          researchService
+	gsc               gscService
+	objects           *objectstore.Registry
+	guidelines        *guidelines.Service
+	dictionaries      *dictionaryAPI
+	glossaries        *glossaryAPI
+	memories          *memoryAPI
+	qaReports         *qaReportAPI
+	teams             *teamAPI
+	issueSheets       *issueSheetAPI
+	activityLogs      *activityLogAPI
+	contentEditor     *editorCatAPI
+	projects          *projectAPI
+	workspace         *workspaceAPI
+	knowledgeMemories *knowledgeMemoryAPI
+	valkey            valkeyHealthClient
+	postgres          healthPinger
 }
 
 func newHandler() *handler {
@@ -112,6 +113,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		h.registerDomainResearch(mux, verifier)
 		h.registerDomainSearchConsole(mux, verifier)
 		h.registerHyperlab(mux, verifier)
+	}
+	if h.knowledgeMemories != nil {
+		h.knowledgeMemories.register(mux, verifier)
 	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	editorExport := authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

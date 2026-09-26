@@ -456,6 +456,40 @@ merging at 100, 5,000, and 20,000 unique words.
 
 ## Glossaries and translation memories
 
+### Knowledge memory
+
+go-svc mirrors the workspace and project knowledge-memory APIs with direct
+Postgres reads and writes. Every route requires an authenticated organization
+member and the WorkOS `workspace-knowledge` feature flag. Writes require the
+`workspace:update` capability; project routes also enforce organization and
+team access using persisted project rows. The Go service does not resolve live
+provider projects or decrypt credentials.
+
+Updates and restores require an `If-Match` ETag from the current read (for an
+empty memory, use `"0"`). A stale ETag returns `412` with the current memory and
+ETag. Content is normalized and versioned in Postgres, no-op updates retain the
+current revision, and revision history supports cursor pagination and restore.
+Preview uses the Go retrieval implementation and applies the same payload and
+selected-context size limits as the web API.
+
+All paths below are relative to `/v1/orgs/{organizationSlug}`:
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET, PUT | `/knowledge-memory` | Read or update workspace memory |
+| POST | `/knowledge-memory/preview` | Preview selected workspace context |
+| GET | `/knowledge-memory/revisions` | List workspace revisions |
+| GET | `/knowledge-memory/revisions/{revisionId}` | Read a revision and its predecessor |
+| POST | `/knowledge-memory/revisions/{revisionId}/restore` | Restore a workspace revision |
+| GET, PUT | `/projects/{projectId}/knowledge-memory` | Read or update project memory |
+| POST | `/projects/{projectId}/knowledge-memory/preview` | Preview selected project context |
+| GET | `/projects/{projectId}/knowledge-memory/revisions` | List project revisions |
+| GET | `/projects/{projectId}/knowledge-memory/revisions/{revisionId}` | Read a project revision and its predecessor |
+| POST | `/projects/{projectId}/knowledge-memory/revisions/{revisionId}/restore` | Restore a project revision |
+
+These routes are covered by the `knowledge-memory` handler, revision, conflict,
+authorization, project-access, and selection tests in `apps/go-svc`.
+
 The browser can call `/api/go-svc/v1/orgs/{organizationSlug}/glossaries` and
 `/api/go-svc/v1/orgs/{organizationSlug}/translation-memories` for native library
 CRUD, project attachments, glossary concepts/terms, memory entries, and

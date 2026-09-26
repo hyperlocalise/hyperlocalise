@@ -105,6 +105,7 @@ func main() {
 		}
 	}
 	h.workspace = &workspaceAPI{membership: membershipLookup}
+	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
 		h.workspace.pipes = workosPipeTokens{client: workosClient}
