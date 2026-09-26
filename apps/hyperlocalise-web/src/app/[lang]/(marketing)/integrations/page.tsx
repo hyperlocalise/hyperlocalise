@@ -19,7 +19,7 @@ import {
 } from "@/components/marketing/integrations/integrations-page-content";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { getIntegrationsRouteMetadata } from "./integrations-route-metadata";
 
@@ -37,11 +37,11 @@ export async function generateMetadata({ params }: IntegrationsRouteProps): Prom
     title: metadata.title,
     description: metadata.description,
     alternates: getLocalizedAlternates({ locale, path: "/integrations" }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, "/integrations", {
       title: metadata.title,
       description: metadata.description,
       type: "website",
-    },
+    }),
   };
 }
 

@@ -76,6 +76,18 @@ export function getLocalizedAlternates({
   };
 }
 
+/** Open Graph fields with `url` set to the localized canonical page URL. */
+export function localizedOpenGraph(
+  locale: AppLocale,
+  path: string,
+  openGraph: Omit<NonNullable<Metadata["openGraph"]>, "url">,
+): NonNullable<Metadata["openGraph"]> {
+  return {
+    ...openGraph,
+    url: getLocalizedAbsoluteUrl(locale, path),
+  };
+}
+
 /**
  * Language alternate map for a sitemap entry (`alternates.languages`).
  * Same shape as metadata hreflang, including `x-default`.

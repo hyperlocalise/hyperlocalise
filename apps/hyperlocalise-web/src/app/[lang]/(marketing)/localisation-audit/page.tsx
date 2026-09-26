@@ -16,7 +16,7 @@ import { LocalisationAuditPage } from "@/components/marketing/localisation-audit
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { listLocalisationAuditLeaderboard } from "@/lib/localisation-audit/store";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { getLocalisationAuditRouteMetadata } from "./localisation-audit-route-metadata";
 
@@ -34,11 +34,11 @@ export async function generateMetadata({ params }: LocalisationAuditRouteProps):
     title: metadata.title,
     description: metadata.description,
     alternates: getLocalizedAlternates({ locale, path: "/localisation-audit" }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, "/localisation-audit", {
       title: metadata.title,
       description: metadata.description,
       type: "website",
-    },
+    }),
   };
 }
 
