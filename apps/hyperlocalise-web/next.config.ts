@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   // Keep the tracer and the dependencies whose load hooks provide the spans we
   // rely on as native Node.js modules instead of folding them into route bundles.
-  serverExternalPackages: ["dd-trace", "pg", "undici"],
+  serverExternalPackages: ["ai", "dd-trace", "pg", "undici"],
   typescript: {
     // Exclude tests and typed-app.ts so next build does not instantiate AppType (TS2589).
     tsconfigPath: "tsconfig.build.json",
@@ -48,7 +48,12 @@ const nextConfig: NextConfig = {
   // View transitions work without config in Next.js 16.3+ (experimental.viewTransition removed).
   // Agent prompts load from src/agents/**/*.md at runtime via process.cwd() (see paths.ts).
   outputFileTracingIncludes: {
-    "/*": [AGENT_MARKDOWN_TRACE_GLOB, "_posts/**/*.md", "datadog-init.mjs"],
+    "/*": [
+      AGENT_MARKDOWN_TRACE_GLOB,
+      "_posts/**/*.md",
+      "datadog-content-policy.mjs",
+      "datadog-init.mjs",
+    ],
   },
   // Crowdin App frame-ancestors CSP is set at runtime in `src/proxy.ts`
   // (defaults ∪ CROWDIN_APP_FRAME_ANCESTORS). Do not also set CSP here —

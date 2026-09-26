@@ -44,6 +44,7 @@ import { bufferFromStream } from "@/lib/primitives/streams";
 import { eq } from "drizzle-orm";
 
 import { createRecallKnowledgeFilesTool } from "../tools/recall_knowledge_files";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 function textFromParts(parts: UIMessage["parts"]) {
   return parts
@@ -234,6 +235,7 @@ export function createWebChatAgentUIStreamResponse(input: {
       }
 
       const agent = new ToolLoopAgent({
+        telemetry: createAiTelemetry("web-chat-agent"),
         model: getHyperlocaliseAgentModel(),
         instructions,
         tools,

@@ -22,6 +22,7 @@ import {
   SUBAGENT_TIMEOUT,
 } from "@/lib/agent-runtime/subagents/constants";
 import type { SubagentCallOptions } from "@/lib/agent-runtime/subagents/types";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 const callOptionsSchema = z.object({
   toolContext: z.custom<SubagentCallOptions["toolContext"]>(),
@@ -40,6 +41,7 @@ ${SUBAGENT_NO_QUESTIONS_RULES}`;
 export const REPOSITORY_SYSTEM_PROMPT = buildRepositorySystemPrompt();
 
 export const repositorySubagent = new ToolLoopAgent({
+  telemetry: createAiTelemetry("repository-agent"),
   model: getHyperlocaliseAgentModel(),
   instructions: REPOSITORY_SYSTEM_PROMPT,
   stopWhen: isStepCount(SUBAGENT_STEP_LIMIT),

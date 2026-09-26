@@ -16,6 +16,7 @@ import {
   runWorkspaceAutomationEmailNotificationTool,
   runWorkspaceAutomationSlackNotificationTool,
 } from "@/lib/agents/workspace-automation/notification-tools";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 
@@ -296,6 +297,7 @@ export async function executeVisualWorkflowNode(input: {
           node.outputFields?.some((field) => field.path.startsWith("json.")) ?? false;
         const result = await generateText({
           model,
+          telemetry: createAiTelemetry("visual-workflow-execution"),
           prompt,
           maxRetries: 0,
           ...(structured

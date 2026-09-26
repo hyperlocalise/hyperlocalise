@@ -16,6 +16,7 @@ import type {
   RepositoryAgentGitHubContext,
   RepositoryAgentTask,
 } from "@/lib/agents/repository-agent-task";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 export type RepositoryWorkflowResult = {
   ok: boolean;
@@ -90,6 +91,7 @@ async function runRepositoryAgentStep(input: {
   ensureAgentSession(toolContext);
   const tools = filterToolSetByNames(buildTools(toolContext), [...repositoryWorkspaceToolNames]);
   const agent = new ToolLoopAgent({
+    telemetry: createAiTelemetry("repository-agent"),
     model: getHyperlocaliseAgentModel(),
     tools,
     stopWhen: [(step) => step.steps.length >= agentStepLimit],

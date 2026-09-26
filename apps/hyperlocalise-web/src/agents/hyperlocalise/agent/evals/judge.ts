@@ -13,6 +13,8 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
+
 /**
  * Judge model deliberately defaults to a different model family than the
  * system under test to reduce self-preference bias.
@@ -36,6 +38,7 @@ export async function judgeRubric(input: {
 }): Promise<JudgeVerdict> {
   const { output } = await generateText({
     model: evalJudgeModel,
+    telemetry: createAiTelemetry("evaluation-judge"),
     temperature: 0,
     output: Output.object({ schema: judgeVerdictSchema }),
     instructions:

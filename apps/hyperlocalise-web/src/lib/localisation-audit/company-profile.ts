@@ -15,6 +15,7 @@ import { z } from "zod";
 
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import { createLogger } from "@/lib/log";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 import type { LocalisationAuditCompanyProfile, LocalisationAuditCrawledPage } from "./types";
 import { emptyCrawledPage } from "./types";
@@ -195,6 +196,7 @@ export async function inferCompanyProfileWithLuna(
   try {
     const { output } = await generateText({
       model: getHyperlocaliseAgentModel(),
+      telemetry: createAiTelemetry("localisation-audit"),
       output: Output.object({ schema: companyProfileOutputSchema }),
       prompt: [
         "Infer a concise company profile for a localisation audit report cover.",
