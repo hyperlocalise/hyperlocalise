@@ -87,6 +87,7 @@ func (api *issueSheetAPI) lookupAccessibleRelatedIssue(
 	accessSQL := formatQaProjectTeamAccessSQL(3, 4, 1)
 	// Identifiers such as PROJECT-42 are not UUIDs. Comparing them to i.id
 	// makes Postgres reject the query before the identifier lookup can run.
+	// Qualify the match: this query joins projects, which also has identifier.
 	matchSQL, matchArg := issueIDMatchSQL(relatedRef, 2)
 	if isLegacyIssueUUID(relatedRef) {
 		err = api.pool.QueryRow(ctx, `
@@ -117,7 +118,7 @@ func (api *issueSheetAPI) lookupAccessibleRelatedIssue(
         from issue_sheet_issues i
         join projects p on p.id = i.project_id
         where i.organization_id = $1
-          and `+matchSQL+`
+          and i.`+matchSQL+`
           and `+accessSQL+`
         limit 1`,
 			actor.organizationID, matchArg, actor.canWriteProjectTeam(), actor.userID,
