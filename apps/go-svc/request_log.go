@@ -73,25 +73,28 @@ func requestLogMiddleware(next http.Handler) http.Handler {
 		}
 
 		state := &requestLogState{}
-		r = r.WithContext(context.WithValue(r.Context(), requestLogStateKey{}, state))
+		logged := r.WithContext(context.WithValue(r.Context(), requestLogStateKey{}, state))
 		started := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: 0}
-		next.ServeHTTP(rec, r)
+		next.ServeHTTP(rec, logged)
+		// ServeMux writes Pattern on the Request it served. Copy it back onto
+		// the outer pointer so tracingMiddleware can name the span.
+		r.Pattern = logged.Pattern
 
 		status := rec.status
 		if status == 0 {
 			status = http.StatusOK
 		}
-		route := requestRoute(r)
+		route := requestRoute(logged)
 		duration := time.Since(started)
 		attrs := []any{
-			"method", r.Method,
-			"path", requestLogPath(r.URL.Path),
+			"method", logged.Method,
+			"path", requestLogPath(logged.URL.Path),
 			"route", route,
 			"status", status,
 			"duration_ms", duration.Milliseconds(),
 		}
-		if id := requestID(r); id != "" {
+		if id := requestID(logged); id != "" {
 			attrs = append(attrs, "request_id", id)
 		}
 		if state.failure != nil {
@@ -99,7 +102,7 @@ func requestLogMiddleware(next http.Handler) http.Handler {
 			attrs = appendNewAttrs(attrs, []any{"event", state.failure.event})
 		}
 		attrs = appendNewAttrs(attrs, state.notes)
-		slog.Log(r.Context(), outcomeLogLevel(status), requestAccessMessage(r.Method, route, status, duration, state), attrs...)
+		slog.Log(logged.Context(), outcomeLogLevel(status), requestAccessMessage(logged.Method, route, status, duration, state), attrs...)
 	})
 }
 

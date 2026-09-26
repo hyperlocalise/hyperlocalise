@@ -59,6 +59,8 @@ func TestRequestAccessLogCorrelatesWithRecordedSpan(t *testing.T) {
 
 	spans := rec.Ended()
 	require.Len(t, spans, 1)
+	require.Equal(t, "POST /v1/validate/segment", spans[0].Name())
+	require.Equal(t, "/v1/validate/segment", requireSpanStringAttr(t, spans[0], "http.route"))
 	wantTraceID := spans[0].SpanContext().TraceID().String()
 	wantSpanID := spans[0].SpanContext().SpanID().String()
 
@@ -123,6 +125,23 @@ func TestRequestAccessLogPathBounding(t *testing.T) {
 			require.Equal(t, wantSpanID, entry["dd.span_id"])
 		})
 	}
+}
+
+func TestRequestLogMiddlewarePreservesMuxPatternForTracing(t *testing.T) {
+	rec := withTestSpanRecorder(t)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v1/validate/segment", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	handler := tracingMiddleware(requestLogMiddleware(corsMiddleware(mux)))
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", nil)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	spans := rec.Ended()
+	require.Len(t, spans, 1)
+	require.Equal(t, "POST /v1/validate/segment", spans[0].Name())
+	require.Equal(t, "/v1/validate/segment", requireSpanStringAttr(t, spans[0], "http.route"))
 }
 
 func TestRequestLogMiddlewareSkipsHealth(t *testing.T) {

@@ -189,7 +189,8 @@ func main() {
 	registerRoutes(mux, h, verifier)
 
 	addr := ":" + port
-	// Keep request logging inside tracing without breaking tracing's access to mux-populated r.Pattern.
+	// Keep request logging inside tracing. requestLogMiddleware copies the mux
+	// Pattern back onto the outer request so spans keep the matched route.
 	server := newHTTPServer(addr, tracingMiddleware(requestLogMiddleware(corsMiddleware(mux))))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

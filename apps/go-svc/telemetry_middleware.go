@@ -46,7 +46,8 @@ func httpRequestMethodAttrs(method string) []attribute.KeyValue {
 	return []attribute.KeyValue{semconv.HTTPRequestMethodOther, semconv.HTTPRequestMethodOriginal(method)}
 }
 
-// Must wrap ServeMux directly so tracing observes the request with Pattern populated.
+// tracingMiddleware reads r.Pattern after next returns. Inner middleware that
+// calls Request.WithContext must copy Pattern back onto this request.
 func tracingMiddleware(next http.Handler) http.Handler {
 	tracer := otel.Tracer(otelInstrumentation)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

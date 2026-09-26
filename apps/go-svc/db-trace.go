@@ -12,6 +12,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+const MAX_SQL_LOG = 1500
+
 // dbError attaches the query call site to a database failure. Argument values
 // stay out of the error so logs do not include customer text.
 type dbError struct {
@@ -98,11 +100,10 @@ func sqlPlaceholderCount(sql string) int {
 
 func compactSQL(sql string) string {
 	compact := strings.Join(strings.Fields(sql), " ")
-	const maxSQLLog = 1500
-	if len(compact) <= maxSQLLog {
+	if len(compact) <= MAX_SQL_LOG {
 		return compact
 	}
-	return compact[:maxSQLLog] + "…"
+	return compact[:MAX_SQL_LOG] + "…"
 }
 
 // tracedPool records which query failed. pgx's own "expected N arguments, got M"
