@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -279,52 +278,28 @@ func TestRankCheckBatchReturnsResults(t *testing.T) {
 	require.Equal(t, &position, body.Results[0].Position)
 }
 
-func TestExpandKeywordsUnauthorizedOnRegisteredRoute(t *testing.T) {
-	h := newHandler()
-	h.research = fakeResearch{}
-	mux := http.NewServeMux()
-	registerRoutes(mux, h, mockSessionVerifier{err: errors.New("nope")})
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/keywords", bytes.NewBufferString(`{}`))
-	mux.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusUnauthorized, rec.Code)
-}
-
-func TestResearchRegisteredRouteRequiresServiceToken(t *testing.T) {
+func TestProviderProxyRoutesAreNotPublic(t *testing.T) {
 	h := newHandler()
 	h.research = fakeResearch{}
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/keywords", bytes.NewBufferString(`{
-		"keyword":"seo","locationCode":2840,"languageCode":"en"
-	}`))
-	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
-	mux.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusUnauthorized, rec.Code)
-	require.Contains(t, rec.Body.String(), "missing server call token")
-}
-
-func TestResearchRegisteredRouteAcceptsServiceToken(t *testing.T) {
-	h := newHandler()
-	h.research = fakeResearch{
-		ideas: dataforseo.TaskResponse[[]dataforseo.KeywordDataItem]{
-			Data: []dataforseo.KeywordDataItem{{"keyword": "seo tools"}},
-		},
+	for _, path := range []string{
+		"/v1/domains/research/keywords",
+		"/v1/domains/research/market-visibility",
+		"/v1/domains/research/serp",
+		"/v1/domains/research/rank-check",
+		"/v1/domains/research/rank-check/batch",
+		"/v1/domains/gsc/sites",
+		"/v1/domains/gsc/performance",
+		"/v1/domains/gsc/inspect",
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{}`))
+		req.Header.Set(serverCallTokenHeader, serverCallToken())
+		mux.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusNotFound, rec.Code, path)
 	}
-	mux := http.NewServeMux()
-	registerRoutes(mux, h, mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/keywords", bytes.NewBufferString(`{
-		"keyword":"seo","locationCode":2840,"languageCode":"en"
-	}`))
-	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
-	req.Header.Set(serverCallTokenHeader, serverCallToken())
-	mux.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestRankCheckBatchUsesBoundedConcurrency(t *testing.T) {
