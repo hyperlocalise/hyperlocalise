@@ -26,6 +26,10 @@ function searchConsolePath(organizationSlug: string, linkedDomainId: string, ...
   return orgPath(organizationSlug, "domains", linkedDomainId, "search-console", ...rest);
 }
 
+function linkedDomainsPath(organizationSlug: string, ...rest: string[]) {
+  return orgPath(organizationSlug, "domains", "linked-domains", ...rest);
+}
+
 async function readJsonBody<T>(response: Response): Promise<T> {
   try {
     return (await response.json()) as T;
@@ -55,6 +59,143 @@ async function ensureOk(response: Response, body: { message?: string; error?: st
 
 export class GoSvcDomainsApi {
   constructor(private readonly request: GoSvcRequest) {}
+
+  listLinkedDomains(organizationSlug: string, options: GoSvcRequestOptions = {}) {
+    return this.request.json<{ linkedDomains: LinkedDomainPublic[] }>(
+      linkedDomainsPath(organizationSlug),
+      options,
+    );
+  }
+
+  getLinkedDomain(
+    organizationSlug: string,
+    linkedDomainId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ linkedDomain: LinkedDomainPublic }>(
+      linkedDomainsPath(organizationSlug, linkedDomainId),
+      options,
+    );
+  }
+
+  getLinkedDomainAudit(
+    organizationSlug: string,
+    linkedDomainId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{
+      audit: import("@/lib/linked-domains/types").LinkedDomainAuditDetail;
+    }>(linkedDomainsPath(organizationSlug, linkedDomainId, "audit"), options);
+  }
+
+  createLinkedDomain(
+    organizationSlug: string,
+    body: { domain?: string; domainSlug?: string; marketIds: string[] },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ linkedDomain: LinkedDomainPublic }>(
+      linkedDomainsPath(organizationSlug),
+      {
+        method: "POST",
+        body,
+        ...options,
+      },
+    );
+  }
+
+  verifyLinkedDomain(
+    organizationSlug: string,
+    linkedDomainId: string,
+    body: {
+      method: "dns_txt" | "html_file" | "meta_tag";
+      projectId?: string;
+      createProject?: boolean;
+      marketIds?: string[];
+    },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ linkedDomain: LinkedDomainPublic }>(
+      linkedDomainsPath(organizationSlug, linkedDomainId, "verify"),
+      {
+        method: "POST",
+        body,
+        ...options,
+      },
+    );
+  }
+
+  recommendLinkedDomainMarkets(
+    organizationSlug: string,
+    linkedDomainId: string,
+    body: { method: "dns_txt" | "html_file" | "meta_tag" },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{
+      marketRecommendations: {
+        candidates: Array<{
+          marketId: string;
+          organicCount: number;
+          organicEtv: number;
+          top10Count: number;
+          hasOrganicVisibility: boolean;
+        }>;
+        recommended: Array<{
+          marketId: string;
+          organicCount: number;
+          organicEtv: number;
+          top10Count: number;
+          hasOrganicVisibility: boolean;
+        }>;
+      };
+    }>(linkedDomainsPath(organizationSlug, linkedDomainId, "market-recommendations"), {
+      method: "POST",
+      body,
+      ...options,
+    });
+  }
+
+  updateLinkedDomainMarkets(
+    organizationSlug: string,
+    linkedDomainId: string,
+    body: { marketIds: string[] },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ linkedDomain: LinkedDomainPublic }>(
+      linkedDomainsPath(organizationSlug, linkedDomainId, "markets"),
+      {
+        method: "PATCH",
+        body,
+        ...options,
+      },
+    );
+  }
+
+  updateLinkedDomainProject(
+    organizationSlug: string,
+    linkedDomainId: string,
+    body: { projectId: string | null },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ linkedDomain: LinkedDomainPublic }>(
+      linkedDomainsPath(organizationSlug, linkedDomainId, "project"),
+      {
+        method: "PATCH",
+        body,
+        ...options,
+      },
+    );
+  }
+
+  cancelLinkedDomainClaim(
+    organizationSlug: string,
+    linkedDomainId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.empty(linkedDomainsPath(organizationSlug, linkedDomainId), {
+      method: "DELETE",
+      ...options,
+    });
+  }
 
   async getResearch(
     organizationSlug: string,

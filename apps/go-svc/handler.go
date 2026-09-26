@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
@@ -68,6 +69,7 @@ type handler struct {
 	contentEditor     *editorCatAPI
 	projects          *projectAPI
 	workspace         *workspaceAPI
+	autumn            *autumn.Client
 	knowledgeMemories *knowledgeMemoryAPI
 	valkey            valkeyHealthClient
 	postgres          healthPinger
@@ -113,6 +115,7 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		h.registerDomainResearch(mux, verifier)
 		h.registerDomainSearchConsole(mux, verifier)
 		h.registerHyperlab(mux, verifier)
+		(&linkedDomainAPI{workspace: h.workspace, research: h.research, autumn: h.autumn}).register(mux, verifier)
 	}
 	if h.knowledgeMemories != nil {
 		h.knowledgeMemories.register(mux, verifier)

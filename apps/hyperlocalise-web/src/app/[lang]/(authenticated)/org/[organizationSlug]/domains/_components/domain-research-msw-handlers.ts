@@ -156,14 +156,14 @@ export function domainResearchMswHandlers() {
         linkedDomain: linkedDomainPublic(domain),
       });
     }),
-    http.get("*/api/orgs/:organizationSlug/linked-domains/:linkedDomainId", ({ params }) => {
+    http.get("*/v1/orgs/:organizationSlug/domains/linked-domains/:linkedDomainId", ({ params }) => {
       const domain = getResearchPrototypeDomain(String(params.linkedDomainId));
       if (!domain) {
         return HttpResponse.json({ error: "linked_domain_not_found" }, { status: 404 });
       }
       return HttpResponse.json({ linkedDomain: linkedDomainPublic(domain) });
     }),
-    http.get("*/api/orgs/:organizationSlug/linked-domains", () =>
+    http.get("*/v1/orgs/:organizationSlug/domains/linked-domains", () =>
       HttpResponse.json({
         linkedDomains: listResearchPrototypeDomains().map(linkedDomainPublic),
       }),
@@ -173,7 +173,7 @@ export function domainResearchMswHandlers() {
 
 export function emptyLinkedDomainsMswHandlers() {
   return [
-    http.get("*/api/orgs/:organizationSlug/linked-domains", () =>
+    http.get("*/v1/orgs/:organizationSlug/domains/linked-domains", () =>
       HttpResponse.json({ linkedDomains: [] }),
     ),
   ];

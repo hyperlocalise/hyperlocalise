@@ -33,7 +33,6 @@ import { createConversationRoutes } from "./routes/conversation/conversation.rou
 import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
-import { createLinkedDomainRoutes } from "./routes/linked-domain/linked-domain.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
@@ -164,7 +163,6 @@ export function createOrgIntegrationsRoutes() {
   return new Hono()
     .route("/contentful-connections", createContentfulConnectionRoutes())
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
-    .route("/linked-domains", createLinkedDomainRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
     .route("/zernio-connections", createZernioConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())

@@ -46,6 +46,9 @@ import the composer without a barrel file.
 No existing caller, singleton, environment variable, or AuthKit integration
 will change in this work.
 
+The linked-domain lifecycle is covered by the follow-on decision in
+[`2026-09-27-linked-domain-go-svc-design.md`](2026-09-27-linked-domain-go-svc-design.md).
+
 ## Error handling
 
 For a non-success HTTP response, the client reads the standard go-svc

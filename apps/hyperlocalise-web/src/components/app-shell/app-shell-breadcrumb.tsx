@@ -29,7 +29,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
 import { cn } from "@/lib/primitives/cn";
 
@@ -295,20 +294,10 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
       Boolean(domainRoute?.linkedDomainId) &&
       isLiveDomainResearchId(domainRoute?.linkedDomainId ?? ""),
     queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(resolvedOrganizationSlug)}/linked-domains/${encodeURIComponent(domainRoute!.linkedDomainId)}`,
+      const body = await goSvcClient.domains.getLinkedDomain(
+        resolvedOrganizationSlug,
+        domainRoute!.linkedDomainId,
       );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.message || body.error || "Failed to load domain");
-      }
-      if (!body.linkedDomain) {
-        throw new Error("Failed to load domain");
-      }
       return body.linkedDomain;
     },
   });

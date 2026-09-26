@@ -46,7 +46,7 @@ import {
   DOMAIN_RESEARCH_MARKETS,
   type DomainResearchDomain,
 } from "@/lib/domains/research-prototype";
-import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { LinkedDomainVerificationMethod } from "@/lib/database/schema/linked-domains";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import { cn } from "@/lib/primitives/cn";
@@ -63,12 +63,6 @@ type MarketRecommendation = {
   hasOrganicVisibility: boolean;
 };
 type MarketTier = "strong" | "emerging" | "discovery";
-type ApiErrorBody = { error?: string; message?: string };
-
-function getApiErrorMessage(body: ApiErrorBody, fallback: string) {
-  return body.message || body.error || fallback;
-}
-
 function getMarketTier(market: MarketRecommendation): MarketTier {
   if (market.top10Count >= 10) return "strong";
   if (market.organicCount > 0 || market.organicEtv > 0 || market.hasOrganicVisibility) {
@@ -124,6 +118,7 @@ export function AddDomainDialog({
   onVerified?: (domain: LinkedDomainPublic) => void;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const domainId = useId();
   const [step, setStep] = useState<Step>(initialStep);
   const [domain, setDomain] = useState(initialLinkedDomain?.domainKey ?? "");
@@ -195,18 +190,10 @@ export function AddDomainDialog({
     setPending(true);
     setError(null);
     try {
-      const response = await apiClient.api.orgs[":organizationSlug"]["linked-domains"].$post({
-        param: { organizationSlug },
-        json: {
-          ...(input.domainSlug ? { domainSlug: input.domainSlug } : { domain: normalized }),
-          marketIds: [],
-        },
+      const body = await goSvcClient.domains.createLinkedDomain(organizationSlug, {
+        ...(input.domainSlug ? { domainSlug: input.domainSlug } : { domain: normalized }),
+        marketIds: [],
       });
-      if (response.status !== 201) {
-        const body = await response.json();
-        throw new Error(getApiErrorMessage(body, intl.formatMessage(messages.startError)));
-      }
-      const body = await response.json();
       setDomain(body.linkedDomain.domainKey);
       setLinkedDomain(body.linkedDomain);
       if (body.linkedDomain.status === "verified") {
@@ -249,21 +236,11 @@ export function AddDomainDialog({
     setPending(true);
     setError(null);
     try {
-      const response = await apiClient.api.orgs[":organizationSlug"]["linked-domains"][
-        ":linkedDomainId"
-      ]["market-recommendations"].$post({
-        param: { organizationSlug, linkedDomainId: linkedDomain.id },
-        json: { method },
-      });
-      if (response.status !== 200) {
-        const body = await response.json();
-        setRecommendations(supportedMarketRecommendations);
-        setStep("markets");
-        throw new Error(
-          getApiErrorMessage(body, intl.formatMessage(messages.recommendationsError)),
-        );
-      }
-      const body = await response.json();
+      const body = await goSvcClient.domains.recommendLinkedDomainMarkets(
+        organizationSlug,
+        linkedDomain.id,
+        { method },
+      );
       setStep("markets");
       const candidates = body.marketRecommendations.candidates ?? [];
       const candidatesById = new Map(candidates.map((market) => [market.marketId, market]));
@@ -279,6 +256,7 @@ export function AddDomainDialog({
       setRecommendations((current) =>
         current.length > 0 ? current : supportedMarketRecommendations,
       );
+      setStep("markets");
       setError(
         reason instanceof Error
           ? reason.message
@@ -299,17 +277,11 @@ export function AddDomainDialog({
     setError(null);
     try {
       if (mode === "edit") {
-        const response = await apiClient.api.orgs[":organizationSlug"]["linked-domains"][
-          ":linkedDomainId"
-        ].markets.$patch({
-          param: { organizationSlug, linkedDomainId: linkedDomain.id },
-          json: { marketIds: selectedMarketIds },
-        });
-        if (response.status !== 200) {
-          const body = await response.json();
-          throw new Error(getApiErrorMessage(body, intl.formatMessage(messages.saveMarketsError)));
-        }
-        const body = await response.json();
+        const body = await goSvcClient.domains.updateLinkedDomainMarkets(
+          organizationSlug,
+          linkedDomain.id,
+          { marketIds: selectedMarketIds },
+        );
         onComplete?.(body.linkedDomain);
         onOpenChange(false);
         return;
@@ -326,21 +298,11 @@ export function AddDomainDialog({
         createProject = false;
       }
 
-      const response = await apiClient.api.orgs[":organizationSlug"]["linked-domains"][
-        ":linkedDomainId"
-      ].verify.$post({
-        param: { organizationSlug, linkedDomainId: linkedDomain.id },
-        json: {
-          method,
-          ...(selectedProjectId ? { projectId: selectedProjectId } : { createProject }),
-          marketIds: selectedMarketIds,
-        },
+      const body = await goSvcClient.domains.verifyLinkedDomain(organizationSlug, linkedDomain.id, {
+        method,
+        ...(selectedProjectId ? { projectId: selectedProjectId } : { createProject }),
+        marketIds: selectedMarketIds,
       });
-      if (response.status !== 200) {
-        const body = await response.json();
-        throw new Error(getApiErrorMessage(body, intl.formatMessage(messages.verifyError)));
-      }
-      const body = await response.json();
       onComplete?.(body.linkedDomain);
       onOpenChange(false);
     } catch (reason) {

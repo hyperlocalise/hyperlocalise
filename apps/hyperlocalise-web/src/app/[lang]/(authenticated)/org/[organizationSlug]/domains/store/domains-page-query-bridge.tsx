@@ -15,44 +15,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { runInAction } from "mobx";
 import { useLayoutEffect } from "react";
-import { useIntl } from "react-intl";
 
-import {
-  linkedDomainToResearchDomain,
-  type DomainResearchDomain,
-} from "@/lib/domains/research-prototype";
-import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { linkedDomainToResearchDomain } from "@/lib/domains/research-prototype";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
-import { domainsPageContentMessages as messages } from "../_components/domains-page-content.messages";
 import { useDomainsPageStore } from "./domains-store-context";
 
 export function linkedDomainsQueryKey(organizationSlug: string) {
   return ["linked-domains", organizationSlug] as const;
 }
 
-async function fetchLinkedDomains(
-  organizationSlug: string,
-  loadErrorMessage: string,
-): Promise<DomainResearchDomain[]> {
-  const response = await fetch(`/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains`);
-  const body = (await response.json().catch(() => ({}))) as {
-    linkedDomains?: LinkedDomainPublic[];
-    message?: string;
-    error?: string;
-  };
-  if (!response.ok) {
-    throw new Error(body.message || body.error || loadErrorMessage);
-  }
-  return (body.linkedDomains ?? []).map((domain) => linkedDomainToResearchDomain(domain));
-}
-
 export function DomainsPageQueryBridge() {
-  const intl = useIntl();
   const store = useDomainsPageStore();
+  const { client: goSvcClient } = useGoSvcClient();
   const linkedDomainsQuery = useQuery({
     queryKey: linkedDomainsQueryKey(store.organizationSlug),
-    queryFn: () =>
-      fetchLinkedDomains(store.organizationSlug, intl.formatMessage(messages.loadError)),
+    queryFn: async () => {
+      const { linkedDomains } = await goSvcClient.domains.listLinkedDomains(store.organizationSlug);
+      return linkedDomains.map((domain) => linkedDomainToResearchDomain(domain));
+    },
   });
 
   useLayoutEffect(() => {
