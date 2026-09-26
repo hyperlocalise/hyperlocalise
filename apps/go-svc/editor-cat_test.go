@@ -14,11 +14,9 @@ import (
 )
 
 const (
-	testEditorCatProjectID     = "project_native_1"
-	testEditorCatSourceFileID  = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-	testEditorCatKeyID         = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-	testEditorCatTranslationID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
-	testEditorCatCommentID     = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+	testEditorCatProjectID    = "project_native_1"
+	testEditorCatSourceFileID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	testEditorCatKeyID        = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 )
 
 func editorCatPath(suffix string) string {
@@ -620,17 +618,10 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 }
 
 func TestEditorCatQueueDefaultFilter(t *testing.T) {
-	steps := []dictionaryDBStep{
-		editorCatProjectStep("native"),
-		dictionaryRowStep("from repository_source_files", testEditorCatSourceFileID),
-		dictionaryRowStep("select count(*) from project_translation_keys", 1),
-		{kind: "query", sql: "from project_translation_keys k", values: [][]any{{
-			testEditorCatKeyID, "hello", "Hello", (*string)(nil), (*string)(nil), (*int)(nil), []byte(`{}`), false,
-		}}},
-	}
-	steps = append(steps, editorCatQueueContextSteps()...)
-	api := editorCatTestAPI(t, "translator", steps...)
-	rec := editorCatRequest(api, http.MethodGet, editorCatPath("/files/detail/cat/queue?sourcePath=lang%2Fen-US.json&targetLocale=de-DE&search=&queueFilter=all&queueSort=file_order&limit=20&offset=0"), "")
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "lang/en-US.json")
+	mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=lang%2Fen-US.json&targetLocale=de-DE&search=&queueFilter=all&queueSort=file_order&limit=20&offset=0"), "")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	var body struct {
 		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
@@ -642,16 +633,14 @@ func TestEditorCatQueueDefaultFilter(t *testing.T) {
 }
 
 func TestEditorCatQueueUntranslatedFirstBindsLocale(t *testing.T) {
-	steps := []dictionaryDBStep{
-		editorCatProjectStep("native"),
-		dictionaryRowStep("from repository_source_files", testEditorCatSourceFileID),
-		dictionaryRowStep("select count(*) from project_translation_keys", 1),
-		{kind: "query", sql: "from project_translation_keys k", values: [][]any{{
-			testEditorCatKeyID, "hello", "Hello", (*string)(nil), (*string)(nil), (*int)(nil), []byte(`{}`), false,
-		}}},
-	}
-	steps = append(steps, editorCatQueueContextSteps()...)
-	api := editorCatTestAPI(t, "translator", steps...)
-	rec := editorCatRequest(api, http.MethodGet, editorCatPath("/files/detail/cat/queue?sourcePath=lang/en-US.json&targetLocale=de-DE&queueFilter=untranslated&queueSort=untranslated_first"), "")
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "lang/en-US.json")
+	mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=lang/en-US.json&targetLocale=de-DE&queueFilter=untranslated&queueSort=untranslated_first"), "")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.ContentEditorQueue.Segments, 1)
 }
