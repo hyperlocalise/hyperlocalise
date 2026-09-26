@@ -32,6 +32,7 @@ import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 const {
   contentEditorTranslationsPostMock,
   contentEditorTranslationsReportingCapturePostMock,
+  contentEditorCommentsProductUsageCapturePostMock,
   contentEditorCommentsPostMock,
   contentEditorCommentResolvePatchMock,
   contentEditorStringsHiddenPostMock,
@@ -42,6 +43,7 @@ const {
 } = vi.hoisted(() => ({
   contentEditorTranslationsPostMock: vi.fn(),
   contentEditorTranslationsReportingCapturePostMock: vi.fn().mockResolvedValue({ status: 204 }),
+  contentEditorCommentsProductUsageCapturePostMock: vi.fn().mockResolvedValue({ status: 204 }),
   contentEditorCommentsPostMock: vi.fn(),
   contentEditorCommentResolvePatchMock: vi.fn(),
   contentEditorStringsHiddenPostMock: vi.fn(),
@@ -78,6 +80,10 @@ vi.mock("@/lib/api-client-instance", () => ({
                     },
                     comments: {
                       $post: (...args: unknown[]) => contentEditorCommentsPostMock(...args),
+                      "product-usage-capture": {
+                        $post: (...args: unknown[]) =>
+                          contentEditorCommentsProductUsageCapturePostMock(...args),
+                      },
                       ":commentId": {
                         resolve: {
                           $patch: (...args: unknown[]) =>

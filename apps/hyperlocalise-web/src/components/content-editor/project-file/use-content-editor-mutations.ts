@@ -105,7 +105,7 @@ function prefersGoSvcCat(input: {
   return Boolean(input.goSvcClient) && !input.contentEditorFile?.provider;
 }
 
-async function captureNativeCatTranslationReportingViaApp(input: {
+async function captureNativeCatTranslationSideEffectsViaApp(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
@@ -131,7 +131,37 @@ async function captureNativeCatTranslationReportingViaApp(input: {
       },
     });
   } catch {
-    // Reporting capture is best-effort and must not block CAT saves.
+    // Reporting and product analytics capture are best-effort and must not block CAT saves.
+  }
+}
+
+async function captureNativeCatCommentProductUsageViaApp(input: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  externalStringId: string;
+  text: string;
+  type?: "comment" | "issue";
+}) {
+  try {
+    await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files.detail.cat.comments[
+      "product-usage-capture"
+    ].$post({
+      param: {
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+      },
+      json: {
+        sourcePath: input.sourcePath,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+        type: input.type,
+      },
+    });
+  } catch {
+    // Product analytics capture is best-effort and must not block CAT comments.
   }
 }
 
@@ -230,7 +260,7 @@ export function useContentEditorMutations(input: {
               approve: mutationInput.approve,
             },
           );
-          await captureNativeCatTranslationReportingViaApp({
+          await captureNativeCatTranslationSideEffectsViaApp({
             organizationSlug: input.organizationSlug,
             projectId: input.projectId,
             sourcePath,
@@ -333,6 +363,15 @@ export function useContentEditorMutations(input: {
               issueType: mutationInput.issueType,
             },
           );
+          await captureNativeCatCommentProductUsageViaApp({
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+            sourcePath,
+            targetLocale: input.targetLocale,
+            externalStringId: mutationInput.externalStringId,
+            text: mutationInput.text,
+            type: mutationInput.type,
+          });
           return body.comment;
         },
         async () => {
