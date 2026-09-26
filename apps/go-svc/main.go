@@ -85,7 +85,10 @@ func main() {
 	h.memories = &memoryAPI{}
 	h.qaReports = &qaReportAPI{}
 	h.teams = &teamAPI{}
-	h.members = &memberAPI{seats: fallbackMemberSeats{limit: localSeatFallbackLimit}}
+	h.members = &memberAPI{
+		seats:     fallbackMemberSeats{limit: localSeatFallbackLimit},
+		analytics: newGAProductUsageTrackerFromEnv(),
+	}
 	h.issueSheets = &issueSheetAPI{}
 	h.activityLogs = &activityLogAPI{}
 	h.contentEditor = &editorCatAPI{}

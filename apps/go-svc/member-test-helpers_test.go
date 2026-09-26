@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,23 +14,72 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type productUsageEvent struct {
+	name       string
+	properties map[string]string
+}
+
+type recordingMemberAnalytics struct {
+	mu     sync.Mutex
+	events []productUsageEvent
+}
+
+func (r *recordingMemberAnalytics) Track(_ context.Context, name string, properties map[string]string) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	r.events = append(r.events, productUsageEvent{name: name, properties: maps.Clone(properties)})
+	r.mu.Unlock()
+}
+
+func (r *recordingMemberAnalytics) snapshot() []productUsageEvent {
+	if r == nil {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]productUsageEvent, len(r.events))
+	copy(out, r.events)
+	return out
+}
+
+func memberTestAnalytics(api *memberAPI) *recordingMemberAnalytics {
+	rec, _ := api.analytics.(*recordingMemberAnalytics)
+	return rec
+}
+
+func requireSeatAddedEvents(t *testing.T, api *memberAPI, count int) {
+	t.Helper()
+	events := memberTestAnalytics(api).snapshot()
+	require.Len(t, events, count)
+	for _, event := range events {
+		require.Equal(t, productUsageSeatAddedEvent, event.name)
+		require.Equal(t, map[string]string{
+			"status": productUsageSeatAddedStatus,
+			"source": workspaceResourceSeatsFeatureID,
+		}, event.properties)
+	}
+}
+
 type stubMemberWorkos struct {
 	mu sync.Mutex
 
-	sendErr    error
-	sendRetry  error
-	sendCalls  int
-	resendErr  error
-	resendID   string
-	revokeErr  error
-	revokeID   string
-	pendingID  string
-	findErr    error
-	updateErr  error
-	updateID   string
-	updateRole string
-	deleteErr  error
-	deleteID   string
+	sendErr     error
+	sendRetry   error
+	sendCalls   int
+	resendErr   error
+	resendID    string
+	revokeErr   error
+	revokeID    string
+	pendingID   string
+	findErr     error
+	updateErr   error
+	updateID    string
+	updateRole  string
+	deleteErr   error
+	deleteID    string
+	afterDelete func()
 }
 
 func (s *stubMemberWorkos) SendInvitation(_ context.Context, _ memberInvitationInput) error {
@@ -81,9 +131,14 @@ func (s *stubMemberWorkos) UpdateOrganizationMembershipRole(_ context.Context, m
 
 func (s *stubMemberWorkos) DeleteOrganizationMembership(_ context.Context, membershipID string) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.deleteID = membershipID
-	return s.deleteErr
+	afterDelete := s.afterDelete
+	err := s.deleteErr
+	s.mu.Unlock()
+	if afterDelete != nil {
+		afterDelete()
+	}
+	return err
 }
 
 func memberTestAPI(t *testing.T, role string) (*memberAPI, *testenv.Scope, *stubMemberWorkos) {
@@ -95,6 +150,7 @@ func memberTestAPI(t *testing.T, role string) (*memberAPI, *testenv.Scope, *stub
 		membership: scope.Membership(role),
 		workos:     workos,
 		seats:      allowMemberSeats{},
+		analytics:  &recordingMemberAnalytics{},
 	}, scope, workos
 }
 

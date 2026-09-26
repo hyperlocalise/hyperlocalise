@@ -2,7 +2,59 @@ package main
 
 import (
 	"context"
+	"log/slog"
 )
+
+const (
+	patRevokedAuditAction            = "pat.revoked"
+	patRevokedAuditTarget            = "personal_access_token"
+	patRevokedAuditSeverity          = "high"
+	patRevokeReasonMembershipRemoved = "membership_removed"
+	patRevokedAuditSchemaVersion     = 1
+)
+
+type patRevokedAuditInput struct {
+	actorUserID, ownerUserID, organizationID, tokenID, keyPrefix, reason string
+}
+
+func emitPatRevoked(ctx context.Context, input patRevokedAuditInput) {
+	slog.InfoContext(ctx, patRevokedAuditAction,
+		slog.Group("audit",
+			slog.String("action", patRevokedAuditAction),
+			slog.String("severity", patRevokedAuditSeverity),
+			slog.Group("actor",
+				slog.String("type", "user"),
+				slog.String("id", input.actorUserID),
+			),
+			slog.Group("target",
+				slog.String("type", patRevokedAuditTarget),
+				slog.String("id", input.tokenID),
+				slog.String("organizationId", input.organizationID),
+				slog.String("ownerUserId", input.ownerUserID),
+				slog.String("keyPrefix", input.keyPrefix),
+			),
+			slog.String("outcome", "success"),
+			slog.String("reason", input.reason),
+			slog.Int("version", patRevokedAuditSchemaVersion),
+		),
+	)
+}
+
+func (api *memberAPI) reconcileRevokedMembership(ctx context.Context, actor memberActor, member organizationMember) error {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), memberRevokeReconcileTimeout)
+	defer cancel()
+	if err := api.revokeOrganizationMembershipAccess(cleanupCtx, actor, member); err != nil {
+		return err
+	}
+	if shouldCleanupPlaceholderUserOnMemberRemoval(member.workosUserID) {
+		api.cleanupInvitedPlaceholderUser(cleanupCtx, member.localUserID)
+	}
+	api.enqueueMemberActivity(cleanupCtx, actor, "member_removed", "membership", member.membershipID, map[string]any{
+		"memberUserId": member.localUserID,
+		"membershipId": member.membershipID,
+	})
+	return nil
+}
 
 func (api *memberAPI) revokeOrganizationMembershipAccess(ctx context.Context, actor memberActor, member organizationMember) error {
 	tx, err := api.pool.Begin(ctx)
@@ -71,9 +123,17 @@ func (api *memberAPI) revokeOrganizationMembershipAccess(ctx context.Context, ac
 	}
 
 	for _, key := range revoked {
+		emitPatRevoked(ctx, patRevokedAuditInput{
+			actorUserID:    actor.userID,
+			ownerUserID:    member.localUserID,
+			organizationID: actor.organizationID,
+			tokenID:        key.id,
+			keyPrefix:      key.keyPrefix,
+			reason:         patRevokeReasonMembershipRemoved,
+		})
 		api.enqueueMemberActivity(ctx, actor, "personal_access_token_revoked", "personal_access_token", key.id, map[string]any{
 			"keyPrefix": key.keyPrefix,
-			"reason":    "membership_removed",
+			"reason":    patRevokeReasonMembershipRemoved,
 			"tokenId":   key.id,
 		})
 	}

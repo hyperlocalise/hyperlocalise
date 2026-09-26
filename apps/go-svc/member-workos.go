@@ -46,6 +46,19 @@ func isWorkosInvitationRevokedNotDeliveredError(err error) bool {
 	return errors.As(err, &target)
 }
 
+type workosHTTPError struct {
+	status int
+}
+
+func (e *workosHTTPError) Error() string {
+	return fmt.Sprintf("workos: HTTP %d", e.status)
+}
+
+func isWorkosNotFoundError(err error) bool {
+	var httpErr *workosHTTPError
+	return errors.As(err, &httpErr) && httpErr.status == http.StatusNotFound
+}
+
 type liveMemberWorkos struct {
 	apiKey  string
 	baseURL string
@@ -146,7 +159,7 @@ func (c *liveMemberWorkos) doJSON(ctx context.Context, method, path string, payl
 		return err
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return fmt.Errorf("workos: HTTP %d", res.StatusCode)
+		return &workosHTTPError{status: res.StatusCode}
 	}
 	if out == nil || len(raw) == 0 {
 		return nil

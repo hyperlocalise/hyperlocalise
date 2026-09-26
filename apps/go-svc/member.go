@@ -13,6 +13,7 @@ import (
 const (
 	memberBodyLimit                 = 64 << 10
 	memberRequestTimeout            = 30 * time.Second
+	memberRevokeReconcileTimeout    = 15 * time.Second
 	invitedWorkosUserIDPrefix       = "invited_user_"
 	replacingWorkosMembershipID     = "replacing"
 	defaultWorkspaceTeamSlug        = "default"
@@ -28,6 +29,7 @@ type memberAPI struct {
 	membership organizationMembershipLookup
 	workos     memberWorkos
 	seats      memberSeatChecker
+	analytics  memberProductUsageTracker
 }
 
 type memberActor struct {

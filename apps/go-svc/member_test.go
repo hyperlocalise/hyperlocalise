@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -70,6 +73,7 @@ func TestMemberListAndInvite(t *testing.T) {
 	err = scope.Pool.QueryRow(t.Context(), `select role from team_memberships where team_id=$1 and user_id=$2`, teamID, invitedUserID).Scan(&teamRole)
 	require.NoError(t, err)
 	require.Equal(t, "member", teamRole)
+	requireSeatAddedEvents(t, api, 1)
 }
 
 func TestMemberInviteOperatorSkipsDefaultTeam(t *testing.T) {
@@ -105,6 +109,7 @@ func TestMemberInviteResendAndRoleChange(t *testing.T) {
 	api, scope, workos := memberTestAPI(t, "admin")
 	first := memberRequest(api, scope, http.MethodPost, scope.OrgPath("/members"), `{"email":"resend@example.com","role":"member"}`)
 	require.Equal(t, 201, first.Code, first.Body.String())
+	requireSeatAddedEvents(t, api, 1)
 	workos.pendingID = "invitation_pending"
 	workos.sendCalls = 0
 
@@ -112,12 +117,14 @@ func TestMemberInviteResendAndRoleChange(t *testing.T) {
 	require.Equal(t, 200, resend.Code, resend.Body.String())
 	require.Equal(t, "invitation_pending", workos.resendID)
 	require.Equal(t, 0, workos.sendCalls)
+	requireSeatAddedEvents(t, api, 1)
 
 	workos.pendingID = "invitation_stale"
 	roleChange := memberRequest(api, scope, http.MethodPost, scope.OrgPath("/members"), `{"email":"resend@example.com","role":"developer"}`)
 	require.Equal(t, 200, roleChange.Code, roleChange.Body.String())
 	require.Equal(t, "invitation_stale", workos.revokeID)
 	require.Equal(t, 1, workos.sendCalls)
+	requireSeatAddedEvents(t, api, 1)
 }
 
 func TestMemberInviteWorkosUnavailable(t *testing.T) {
@@ -139,6 +146,16 @@ func TestMemberInviteRollbackOnDeliveryFailure(t *testing.T) {
 	err := scope.Pool.QueryRow(t.Context(), `select count(*)::int from users where email='rollback@example.com'`).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
+	requireSeatAddedEvents(t, api, 1)
+}
+
+func TestMemberInviteSeatLimitDoesNotTrack(t *testing.T) {
+	api, scope, _ := memberTestAPI(t, "admin")
+	api.seats = fallbackMemberSeats{limit: 1}
+	rec := memberRequest(api, scope, http.MethodPost, scope.OrgPath("/members"), `{"email":"limited@example.com","role":"member"}`)
+	require.Equal(t, 409, rec.Code)
+	require.Contains(t, rec.Body.String(), `"workspace_resource_limit_reached"`)
+	requireSeatAddedEvents(t, api, 0)
 }
 
 func TestMemberInviteRevokedNotDelivered(t *testing.T) {
@@ -183,6 +200,45 @@ func TestMemberRemovePlaceholderUser(t *testing.T) {
 	require.Equal(t, 0, remaining)
 }
 
+func TestMemberRemoveEmitsPatRevokedAudit(t *testing.T) {
+	var buf bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	api, scope, _ := memberTestAPI(t, "admin")
+	userID, workosUserID, _ := mustActiveMember(t, scope, uniqueTestEmail("pat-owner"), "member")
+	var tokenID string
+	err := scope.Pool.QueryRow(t.Context(), `
+        insert into organization_api_keys (organization_id, name, key_hash, key_prefix, created_by_user_id)
+        values ($1, 'Owner PAT', $2, 'hl_AbCd', $3)
+        returning id`,
+		scope.OrganizationID, "hash_"+userID, userID).Scan(&tokenID)
+	require.NoError(t, err)
+
+	rec := memberRequest(api, scope, http.MethodDelete, scope.OrgPath("/members/"+workosUserID), "")
+	require.Equal(t, 204, rec.Code, rec.Body.String())
+
+	var revokedAt *string
+	err = scope.Pool.QueryRow(t.Context(), `select revoked_at::text from organization_api_keys where id=$1`, tokenID).Scan(&revokedAt)
+	require.NoError(t, err)
+	require.NotNil(t, revokedAt)
+
+	var activity int
+	err = scope.Pool.QueryRow(t.Context(), `
+        select count(*)::int from organization_activity_events
+        where organization_id=$1 and event_type='personal_access_token_revoked' and target_id=$2`,
+		scope.OrganizationID, tokenID).Scan(&activity)
+	require.NoError(t, err)
+	require.Equal(t, 1, activity)
+
+	require.Contains(t, buf.String(), `"action":"pat.revoked"`)
+	require.Contains(t, buf.String(), `"severity":"high"`)
+	require.Contains(t, buf.String(), `"reason":"membership_removed"`)
+	require.Contains(t, buf.String(), tokenID)
+	require.NotContains(t, buf.String(), "hash_"+userID)
+}
+
 func TestMemberRemoveCleansTeamAndMcp(t *testing.T) {
 	api, scope, _ := memberTestAPI(t, "admin")
 	userID, workosUserID, _ := mustActiveMember(t, scope, "cleanup@example.com", "member")
@@ -219,6 +275,48 @@ func TestMemberRoleSyncRollback(t *testing.T) {
 	err := scope.Pool.QueryRow(t.Context(), `select m.role from organization_memberships m join users u on u.id=m.user_id where u.workos_user_id=$1`, workosUserID).Scan(&role)
 	require.NoError(t, err)
 	require.Equal(t, "member", role)
+}
+
+func TestMemberRemovalTreatsMissingWorkosMembershipAsSuccess(t *testing.T) {
+	api, scope, workos := memberTestAPI(t, "admin")
+	userID, workosUserID, _ := mustActiveMember(t, scope, uniqueTestEmail("already-gone"), "member")
+	teamID := scope.MustTeam(t, "gone-team", "Gone", "")
+	_, err := scope.Pool.Exec(t.Context(), `insert into team_memberships (team_id, user_id, role) values ($1, $2, 'member')`, teamID, userID)
+	require.NoError(t, err)
+	workos.deleteErr = &workosHTTPError{status: http.StatusNotFound}
+
+	rec := memberRequest(api, scope, http.MethodDelete, scope.OrgPath("/members/"+workosUserID), "")
+	require.Equal(t, 204, rec.Code, rec.Body.String())
+
+	var remaining int
+	err = scope.Pool.QueryRow(t.Context(), `select count(*)::int from organization_memberships m join users u on u.id=m.user_id where u.workos_user_id=$1`, workosUserID).Scan(&remaining)
+	require.NoError(t, err)
+	require.Equal(t, 0, remaining)
+	err = scope.Pool.QueryRow(t.Context(), `select count(*)::int from team_memberships where team_id=$1 and user_id=$2`, teamID, userID).Scan(&remaining)
+	require.NoError(t, err)
+	require.Equal(t, 0, remaining)
+}
+
+func TestMemberRemovalReconcilesAfterCanceledRequest(t *testing.T) {
+	api, scope, workos := memberTestAPI(t, "admin")
+	_, workosUserID, _ := mustActiveMember(t, scope, uniqueTestEmail("deadline"), "member")
+	ctx, cancel := context.WithCancel(t.Context())
+	workos.afterDelete = cancel
+
+	status, err := api.deleteMember(ctx, memberActor{
+		userID:               scope.UserID,
+		organizationID:       scope.OrganizationID,
+		workosOrganizationID: scope.WorkOSOrganizationID,
+		role:                 "admin",
+		workosUserID:         scope.WorkOSUserID,
+	}, workosUserID)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusNoContent, status)
+
+	var remaining int
+	err = scope.Pool.QueryRow(t.Context(), `select count(*)::int from organization_memberships m join users u on u.id=m.user_id where u.workos_user_id=$1`, workosUserID).Scan(&remaining)
+	require.NoError(t, err)
+	require.Equal(t, 0, remaining)
 }
 
 func TestMemberRemovalPreservesLocalDataWhenWorkosFails(t *testing.T) {

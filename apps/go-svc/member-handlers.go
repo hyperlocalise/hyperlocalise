@@ -340,7 +340,7 @@ func (api *memberAPI) deleteMember(ctx context.Context, actor memberActor, worko
 	}
 
 	if shouldSyncMembershipToWorkos(api.workos, member.workosMembershipID) {
-		if err := api.workos.DeleteOrganizationMembership(ctx, derefString(member.workosMembershipID)); err != nil {
+		if err := api.workos.DeleteOrganizationMembership(ctx, derefString(member.workosMembershipID)); err != nil && !isWorkosNotFoundError(err) {
 			slog.ErrorContext(ctx, "workspace member removal sync failed",
 				"organization_id", actor.organizationID,
 				"membership_id", member.membershipID,
@@ -362,16 +362,9 @@ func (api *memberAPI) deleteMember(ctx context.Context, actor memberActor, worko
 		}
 	}
 
-	if err := api.revokeOrganizationMembershipAccess(ctx, actor, member); err != nil {
+	if err := api.reconcileRevokedMembership(ctx, actor, member); err != nil {
 		return 0, err
 	}
-	if shouldCleanupPlaceholderUserOnMemberRemoval(member.workosUserID) {
-		api.cleanupInvitedPlaceholderUser(ctx, member.localUserID)
-	}
-	api.enqueueMemberActivity(ctx, actor, "member_removed", "membership", member.membershipID, map[string]any{
-		"memberUserId": member.localUserID,
-		"membershipId": member.membershipID,
-	})
 	return http.StatusNoContent, nil
 }
 

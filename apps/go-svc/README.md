@@ -40,6 +40,7 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `VALKEY_USERNAME` | _(unset)_ | Optional username overlaid on `VALKEY_URL` or used with `VALKEY_ADDR`. |
 | `VALKEY_PASSWORD` | _(unset)_ | Optional password overlaid on `VALKEY_URL` or used with `VALKEY_ADDR`. |
 | `AUTUMN_API_KEY` | _(unset)_ | Autumn secret key. Required for issue-sheet routes (`queries-board` gate). Fail-closed when unset. |
+| `GA_MEASUREMENT_PROTOCOL_API_SECRET` | _(unset)_ | GA4 Measurement Protocol secret. When set, new seat creation emits `seat_added` after the membership transaction commits. No-ops when unset. |
 
 Example Go usage:
 
