@@ -85,7 +85,11 @@ func (api *issueSheetAPI) lookupAccessibleRelatedIssue(
 	relatedRef string,
 ) (id, projectID, title, status string, err error) {
 	accessSQL := formatQaProjectTeamAccessSQL(3, 4, 1)
-	err = api.pool.QueryRow(ctx, `
+	// Identifiers such as PROJECT-42 are not UUIDs. Comparing them to i.id
+	// makes Postgres reject the query before the identifier lookup can run.
+	matchSQL, matchArg := issueIDMatchSQL(relatedRef, 2)
+	if isLegacyIssueUUID(relatedRef) {
+		err = api.pool.QueryRow(ctx, `
         select i.id, i.project_id, i.title, i.status
         from issue_sheet_issues i
         join projects p on p.id = i.project_id
@@ -93,10 +97,10 @@ func (api *issueSheetAPI) lookupAccessibleRelatedIssue(
           and i.id = $2
           and `+accessSQL+`
         limit 1`,
-		actor.organizationID, relatedRef, actor.canWriteProjectTeam(), actor.userID,
-	).Scan(&id, &projectID, &title, &status)
-	if errors.Is(err, pgx.ErrNoRows) {
-		err = api.pool.QueryRow(ctx, `
+			actor.organizationID, relatedRef, actor.canWriteProjectTeam(), actor.userID,
+		).Scan(&id, &projectID, &title, &status)
+		if errors.Is(err, pgx.ErrNoRows) {
+			err = api.pool.QueryRow(ctx, `
             select i.id, i.project_id, i.title, i.status
             from issue_sheet_issues i
             join projects p on p.id = i.project_id
@@ -104,7 +108,19 @@ func (api *issueSheetAPI) lookupAccessibleRelatedIssue(
               and i.identifier = $2
               and `+accessSQL+`
             limit 1`,
-			actor.organizationID, relatedRef, actor.canWriteProjectTeam(), actor.userID,
+				actor.organizationID, relatedRef, actor.canWriteProjectTeam(), actor.userID,
+			).Scan(&id, &projectID, &title, &status)
+		}
+	} else {
+		err = api.pool.QueryRow(ctx, `
+        select i.id, i.project_id, i.title, i.status
+        from issue_sheet_issues i
+        join projects p on p.id = i.project_id
+        where i.organization_id = $1
+          and `+matchSQL+`
+          and `+accessSQL+`
+        limit 1`,
+			actor.organizationID, matchArg, actor.canWriteProjectTeam(), actor.userID,
 		).Scan(&id, &projectID, &title, &status)
 	}
 	if errors.Is(err, pgx.ErrNoRows) {

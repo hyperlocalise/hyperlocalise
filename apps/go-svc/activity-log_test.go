@@ -403,7 +403,7 @@ func TestActivityLogGlossaryMemoryAutomationAndOrgJobTargets(t *testing.T) {
 		{
 			name:       "glossary",
 			targetKind: "glossary",
-			eventType:  "glossary_updated",
+			eventType:  "glossary_created",
 			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
 				id := scope.MustGlossary(t, "", "Product terms", "en-US")
 				return id, "Product terms", "/org/" + scope.Slug + "/glossaries/" + id
@@ -412,7 +412,7 @@ func TestActivityLogGlossaryMemoryAutomationAndOrgJobTargets(t *testing.T) {
 		{
 			name:       "translation_memory",
 			targetKind: "translation_memory",
-			eventType:  "translation_memory_updated",
+			eventType:  "translation_memory_created",
 			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
 				id := scope.MustMemory(t, "", "Brand TM")
 				return id, "Brand TM", "/org/" + scope.Slug + "/translation-memories/" + id
@@ -421,7 +421,7 @@ func TestActivityLogGlossaryMemoryAutomationAndOrgJobTargets(t *testing.T) {
 		{
 			name:       "automation",
 			targetKind: "automation",
-			eventType:  "automation_updated",
+			eventType:  "automation_enabled",
 			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
 				id := uuid.NewString()
 				_, err := scope.Pool.Exec(t.Context(), `
@@ -468,7 +468,7 @@ func TestActivityLogGlossaryMemoryAutomationAndOrgJobTargets(t *testing.T) {
 func TestActivityLogStringSegmentAllFilesSourcePathOmitsHref(t *testing.T) {
 	api, scope := activityLogTestAPI(t, "admin")
 	payload := []byte(`{"fileName":"batch","projectId":"` + scope.ProjectID + `","sourcePath":"*"}`)
-	mustActivityEvent(t, scope, "system", "string_segment_updated", "string_segment", testActivityTargetID, payload, testActivityTime, nil)
+	mustActivityEvent(t, scope, "system", "string_segment_status_changed", "string_segment", testActivityTargetID, payload, testActivityTime, nil)
 	rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 

@@ -171,6 +171,7 @@ func TestDictionaryReadUpdateDelete(t *testing.T) {
 
 func TestDictionaryListPagination(t *testing.T) {
 	api, scope := dictionaryTestAPI(t, "member")
+	scope.MustTeam(t, "default", "Default", "member")
 	first := scope.MustDictionary(t, "", "Alpha")
 	second := scope.MustDictionary(t, "", "Beta")
 	scope.MustDictionaryWord(t, first, "en-US", "AuthKit")
@@ -303,6 +304,17 @@ func TestDictionaryResolvedWordPriorityAndCaps(t *testing.T) {
 	}
 	require.Equal(t, []string{"AuthKit", "Hyperlocalise", "Zed"}, mergeDictionaryWords(rows))
 	require.Empty(t, mergeDictionaryWords(nil))
+
+	priority0 := 0
+	priority10 := 10
+	attached := []dictionaryRecord{
+		{ID: "a", WordsVersion: 1, Priority: &priority0},
+		{ID: "b", WordsVersion: 1, Priority: &priority10},
+		{ID: "empty", WordsVersion: 1},
+	}
+	selected, resolved := selectResolvedDictionaries(attached, rows[:2])
+	require.Equal(t, []string{"AuthKit"}, resolved)
+	require.Equal(t, []string{"a", "empty"}, dictionaryIDsForTest(selected))
 	words := make([]string, 6000)
 	for i := range words {
 		words[i] = "word"
@@ -319,6 +331,14 @@ func TestDictionaryResolvedWordPriorityAndCaps(t *testing.T) {
 	next, err := json.Marshal(append(capped, words[0]))
 	require.NoError(t, err)
 	require.Greater(t, len(next), dictionaryMaxResolvedBytes)
+}
+
+func dictionaryIDsForTest(dictionaries []dictionaryRecord) []string {
+	ids := make([]string, len(dictionaries))
+	for i, d := range dictionaries {
+		ids[i] = d.ID
+	}
+	return ids
 }
 
 func TestDictionaryLogPathsHideCustomerIdentifiers(t *testing.T) {

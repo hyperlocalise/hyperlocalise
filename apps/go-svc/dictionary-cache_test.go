@@ -14,6 +14,7 @@ import (
 func seedResolvedRoute(t *testing.T, withWord bool) (*dictionaryAPI, string, string) {
 	t.Helper()
 	api, scope := dictionaryTestAPI(t, "member")
+	scope.MustTeam(t, "default", "Default", "member")
 	projectID := scope.MustProject(t, scope.ProjectID, "Project")
 	dictID := scope.MustDictionary(t, "", "Brands")
 	if withWord {

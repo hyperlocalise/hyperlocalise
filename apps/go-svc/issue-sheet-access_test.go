@@ -56,6 +56,7 @@ func TestAssertTranslationKeyInProject(t *testing.T) {
 func TestLookupAccessibleRelatedIssue(t *testing.T) {
 	t.Run("resolves by identifier after uuid miss", func(t *testing.T) {
 		_, scope := issueSheetTestAPI(t, true)
+		scope.MustTeam(t, "default", "Default", "member")
 		id, identifier := mustIssueSheetIssue(t, scope, 42, "Broken copy")
 		api := &issueSheetAPI{pool: scope.Pool}
 		actor := issueSheetActor{userID: scope.UserID, organizationID: scope.OrganizationID, role: "translator"}

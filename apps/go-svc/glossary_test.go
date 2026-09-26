@@ -113,11 +113,11 @@ func TestGlossaryCreateListGet(t *testing.T) {
 		external := scope.MustGlossary(t, "", "External", "en-US")
 		_, err := scope.Pool.Exec(t.Context(), `update glossaries set source='external_tms' where id=$1`, external)
 		require.NoError(t, err)
-		scope.MustProject(t, scope.ProjectID, "Project")
+		firstProject := scope.MustProject(t, scope.ProjectID, "Project")
 		secondProject := "proj2_" + strings.ReplaceAll(uuid.NewString()[:8], "-", "")
 		scope.MustProject(t, secondProject, "Second")
-		mustAttachGlossary(t, scope, scope.ProjectID, second)
-		mustAttachGlossary(t, scope, scope.ProjectID, external)
+		mustAttachGlossary(t, scope, firstProject, second)
+		mustAttachGlossary(t, scope, firstProject, external)
 		mustAttachGlossary(t, scope, secondProject, external)
 		concept := mustGlossaryConcept(t, scope, first, "A", "", "")
 		mustGlossaryTerm(t, scope, first, concept, "en-US", "One")
@@ -294,7 +294,7 @@ func TestGlossaryCreateUsesTransactionConnection(t *testing.T) {
 	}{
 		{name: "manager attaches project", role: "admin", member: true, wantStatus: 201},
 		{name: "translator checks team membership", role: "translator", member: true, wantStatus: 201},
-		{name: "translator outside team remains forbidden", role: "translator", member: false, wantStatus: 403},
+		{name: "translator outside team cannot see project", role: "translator", member: false, wantStatus: 404},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			api, scope := glossaryTestAPI(t, tc.role)
@@ -315,7 +315,7 @@ func TestGlossaryCreateUsesTransactionConnection(t *testing.T) {
 			if tc.wantStatus == 201 {
 				require.Contains(t, rec.Body.String(), `"projectCount":1`)
 			} else {
-				require.Contains(t, rec.Body.String(), `"error":"forbidden"`)
+				require.Contains(t, rec.Body.String(), `"project_not_found"`)
 			}
 		})
 	}

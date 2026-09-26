@@ -222,8 +222,17 @@ func (api *memoryAPI) createMemoryEntry(r *http.Request, actor memoryActor, m me
 	if err != nil {
 		return nil, 0, err
 	}
-	// Simple created audit event; skip if the table is unavailable in older environments.
-	_, _ = tx.Exec(ctx, `insert into memory_entry_events (memory_entry_id, memory_id, event_type, actor_kind, actor_user_id, version, changed_fields, attributes) values ($1,$2,'created','user',$3,$4,'["sourceLocale","targetLocale","sourceText","targetText"]'::jsonb, jsonb_build_object('provenance','manual','reviewStatus',$5))`, entry.ID, m.ID, actor.userID, entry.Version, entry.ReviewStatus)
+	// Audit is best-effort. A failed statement aborts the transaction, so roll
+	// back to a savepoint when the events table is missing in older databases.
+	if _, err := tx.Exec(ctx, "savepoint memory_entry_created_event"); err != nil {
+		return nil, 0, err
+	}
+	_, eventErr := tx.Exec(ctx, `insert into memory_entry_events (memory_entry_id, memory_id, event_type, actor_kind, actor_user_id, version, changed_fields, attributes) values ($1,$2,'created','user',$3,$4,'["sourceLocale","targetLocale","sourceText","targetText"]'::jsonb, jsonb_build_object('provenance','manual','reviewStatus',$5))`, entry.ID, m.ID, actor.userID, entry.Version, entry.ReviewStatus)
+	if eventErr != nil {
+		if _, err := tx.Exec(ctx, "rollback to savepoint memory_entry_created_event"); err != nil {
+			return nil, 0, err
+		}
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, 0, err
 	}
