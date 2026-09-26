@@ -1,7 +1,10 @@
 ---
-title: "YAML"
+title: "Translate YAML localization files with Hyperlocalise"
+sidebarTitle: "YAML"
 description: "Configure YAML locale files, string values, and nested message paths."
 ---
+
+YAML represents structured data with indentation and is used for application locale catalogs. Hyperlocalise translates string leaves in supported mappings and sequences; anchors and aliases are not supported.
 
 Supported extensions: `.yaml`, `.yml`.
 
@@ -70,3 +73,8 @@ configured target path and updates the lockfile.
 - [Check translations](/cli/commands/check) before committing generated files.
 - [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
 - [Browse all file formats](/cli/reference/formats/overview).
+
+## Related formats
+
+- [JSON localization](/cli/reference/formats/json)
+- [Java .properties](/cli/reference/formats/java-properties)

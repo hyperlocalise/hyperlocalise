@@ -1,7 +1,10 @@
 ---
-title: "SubRip subtitles"
+title: "Translate SRT subtitle files with Hyperlocalise"
+sidebarTitle: "SubRip subtitles"
 description: "Translate SubRip cue text while preserving subtitle numbers and timing."
 ---
+
+SubRip (SRT) subtitle files contain numbered cues with timestamps and text. Hyperlocalise translates cue text while retaining timings; it does not retime subtitles for a different reading speed.
 
 Supported extensions: `.srt`.
 
@@ -72,3 +75,7 @@ configured target path and updates the lockfile.
 - [Check translations](/cli/commands/check) before committing generated files.
 - [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
 - [Browse all file formats](/cli/reference/formats/overview).
+
+## Related formats
+
+- [WebVTT subtitle](/cli/reference/formats/webvtt)

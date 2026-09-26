@@ -1,0 +1,75 @@
+---
+title: "TMS-agnostic localization with Hyperlocalise Platform"
+sidebarTitle: "TMS integrations"
+description: "Work with Crowdin, Lokalise, Phrase Strings, or Smartling in Hyperlocalise Platform. Compare connected and native projects, ownership, and review capabilities."
+---
+
+Hyperlocalise Platform is infrastructure for multilingual content operations.
+Use native projects for content you manage in Hyperlocalise, or connect a supported
+translation management system for provider-backed workflows. Your team can choose
+its TMS while using Platform for the supported workspace operations.
+
+## What does TMS-agnostic mean here?
+
+You can work with several supported TMS providers instead of moving every project
+to a single vendor. It does not mean every provider exposes the same review,
+automation, or editing features. Provider accounts, permissions, and project
+settings still apply.
+
+## Connected providers
+
+| Provider | Project/content connection | Content Editor | Notable boundary | Command-line workflows |
+| --- | --- | --- | --- | --- |
+| Crowdin | Supported | Supported | Actions depend on project access and provider permissions | [Crowdin CLI](/cli/commands/crowdin) |
+| Lokalise | Supported | Supported | Source writeback through this connector is unsupported | [Lokalise CLI](/cli/commands/lokalise) |
+| Phrase Strings | Supported | Supported | Source writeback and automated comment push are unsupported | [Phrase Strings CLI](/cli/commands/phrase) |
+| Smartling | Supported | Not supported by the current connector | Task creation and user-scoped authentication are unsupported | [Smartling CLI](/cli/commands/smartling) |
+
+This is a workspace overview, not a guarantee of every provider API operation.
+For example, a file API may be available even when the connector does not expose
+a Content Editor. POEditor and LILT AI have experimental
+[CLI entry-sync adapters](/cli/storage/overview); that does not establish Platform
+project connections for them.
+
+## Native vs connected projects
+
+| Decision | Native project | Connected TMS project |
+| --- | --- | --- |
+| Source files | Upload and manage in Platform | Browse provider-owned files; manage source content in that provider's workflow |
+| Languages | Configure the project in Platform | Follow provider-owned language settings |
+| Review | Use the available native file or segment view | Use supported connector actions; otherwise review in the provider |
+| Translation writeback | Saved in the native project | Supported actions write to the connected provider |
+| Delivery | Download files, use the public API, or CLI sync | Use provider exports or the relevant CLI command family |
+
+Check **Settings** → **Source connection** to identify your project type.
+Connecting a provider does not automatically migrate projects or start translation.
+
+## Connect and verify a workflow
+
+1. Open **Integrations**, choose the provider, and complete its available connection flow.
+2. Verify that the intended provider account and project are accessible.
+3. Open the connected project and inspect its files and languages.
+4. Review one target locale using the available connector actions.
+5. Verify any saved changes in the provider before expanding the workflow.
+
+If a project or action is missing, check [connection troubleshooting](/platform/help/connections)
+and [workspace roles](/platform/workspace/roles). Credentials that can list projects
+may not have permission to change translations.
+
+## One CLI for your TMS workflows
+
+The [all-in-one Hyperlocalise CLI](/cli) brings provider file commands, local AI
+translation, and checks into your repository or CI. Use `hyperlocalise crowdin`,
+`lokalise`, `phrase`, or `smartling` for the documented provider workflows.
+Use [Platform file sync](/platform/cli) for native projects. Provider command
+credentials are separate from a Platform API key.
+
+## Can I switch TMS without changing my content workflow?
+
+You can keep local CLI translation and checks, but must remap provider projects,
+locales, credentials, and delivery behavior. Test a small file before switching
+production automation. Glossary and translation-memory exchange do not migrate
+all tasks, permissions, history, or review state.
+
+Continue with [Platform file formats](/platform/file-formats),
+[connected tools](/platform/integrations), or [CLI compatibility](/cli/storage/overview).

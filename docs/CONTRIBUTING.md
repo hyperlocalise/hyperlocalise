@@ -1,6 +1,6 @@
 # Contribute to the Documentation
 
-Thanks for improving the Hyperlocalise docs. These docs explain Cloud and the
+Thanks for improving the Hyperlocalise docs. These docs explain Platform and the
 CLI, plus how to contribute to the project.
 
 ## What to Edit

@@ -1,6 +1,6 @@
 ---
 title: "MCP server"
-description: "Connect coding agents to Hyperlocalise Cloud over the Model Context Protocol."
+description: "Connect coding agents to Hyperlocalise Platform over the Model Context Protocol."
 ---
 
 Hyperlocalise hosts an MCP (Model Context Protocol) server so agents such as Claude Code, Codex, and Cursor can read projects, source files, translation keys, glossaries, jobs, and Board items from your workspace.
@@ -17,7 +17,7 @@ Open your workspace **Overview**. The **Connect your agent** card shows setup sn
 | **Codex**       | `codex mcp add hyperlocalise --url https://hyperlocalise.com/mcp`                        |
 | **Cursor**      | Add an HTTP MCP server named `hyperlocalise` pointing at `https://hyperlocalise.com/mcp` |
 
-Replace the host with your Cloud origin when developing locally, for example `http://localhost:3000/mcp`.
+Replace the host with your Platform origin when developing locally, for example `http://localhost:3000/mcp`.
 
 The first connection opens a browser sign-in and consent flow. Pick the organization the agent should use. Codex may also require `codex mcp login hyperlocalise` after adding the server.
 
@@ -179,13 +179,13 @@ Project reads use the authenticated member's normal project access. Missing or i
 | `list_jobs`    | Recent translation jobs (`projectId`, `sourcePath`, `status`, `limit` default 20 max 50, `offset`) |
 | `get_job`      | Job status by `jobId`. Poll after `run_workflow` until the job is terminal.                        |
 
-`run_workflow` starts durable Cloud translation work and returns without waiting for translation to finish. Use `type: "string"` with `sourceText`, or `type: "file"` with exactly one of `sourceFileId` and `sourcePath` plus `fileFormat`. Both variants require `projectId`, the project's `sourceLocale`, and one or more configured `targetLocales`. String jobs also accept optional `context` and `maxLength`; both variants accept optional `metadata`.
+`run_workflow` starts durable Platform translation work and returns without waiting for translation to finish. Use `type: "string"` with `sourceText`, or `type: "file"` with exactly one of `sourceFileId` and `sourcePath` plus `fileFormat`. Both variants require `projectId`, the project's `sourceLocale`, and one or more configured `targetLocales`. String jobs also accept optional `context` and `maxLength`; both variants accept optional `metadata`.
 
 The response contains `jobId`, `type`, `status` (`queued` or `enqueued`), and `workflowRunIds` when the queue provides them. Poll `get_job` with the returned `jobId` for completion. For file jobs, use `list_files` to discover a source id or path first.
 
 Pass an optional `idempotencyKey` when a client may retry the same request. Reusing the key for the same organization, project, and payload returns the existing job instead of creating another one. Reusing it with a different payload returns `idempotency_conflict`. If a prior attempt committed the job but stopped before submitting it to the workflow queue, a retry submits that queued job.
 
-Creating jobs requires the same job-creation permission and AI feature availability as Cloud Jobs. Project and file lookups are scoped to the authenticated organization and project. Locale mismatches return `invalid_job_payload`; missing files return `file_not_found`. Usage or organization budget failures retain their existing billing error codes. Queue failures return `job_queue_unavailable`.
+Creating jobs requires the same job-creation permission and AI feature availability as Platform Jobs. Project and file lookups are scoped to the authenticated organization and project. Locale mismatches return `invalid_job_payload`; missing files return `file_not_found`. Usage or organization budget failures retain their existing billing error codes. Queue failures return `job_queue_unavailable`.
 
 `list_jobs` finds recent translation jobs so you can call `get_job` without already knowing a job id. It defaults to `kind = translation`. Optional filters:
 
@@ -260,7 +260,7 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `translation_locked`                           | The requested translation segment is locked in the Content Editor                                                                    |
 | `invalid_translation`                          | Target text has a blocking placeholder or ICU validation error                                                                       |
 | `provider_cat_unsupported`                     | The requested operation targets a provider-only live CAT string without a supported native overlay                                   |
-| Agent cannot reach local Cloud                 | Use `http://localhost:3000/mcp` and ensure the dev server is running                                                                 |
+| Agent cannot reach local Platform                 | Use `http://localhost:3000/mcp` and ensure the dev server is running                                                                 |
 | `invalid_file_payload`                         | Upload content is missing, malformed, oversized, or contains conflicting input fields                                                |
 | `unsupported_file`                             | The uploaded source path uses an unsupported translation file format                                                                 |
 | `source_upload_failed`                         | The native or external TMS source upload failed                                                                                      |

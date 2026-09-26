@@ -1,9 +1,56 @@
 ---
-title: "phrase"
-description: "Phrase Strings file workflow commands powered by .phrase.yml."
+title: "Phrase Strings CLI workflows with Hyperlocalise"
+sidebarTitle: "Phrase Strings"
+description: "Reuse .phrase.yml to push sources and pull translations with Hyperlocalise. Compare Phrase Strings CLI compatibility, wait for uploads, and automate localization."
 ---
 
-## Usage
+Use `hyperlocalise phrase` to push source files, wait for uploads, and pull
+translations from Phrase Strings using supported `.phrase.yml` settings. Phrase
+Strings workflows share one executable with local AI translation, checks, and
+other TMS commands in the [all-in-one localization CLI](/cli).
+
+This command family targets Phrase Strings. It does not establish compatibility
+with Phrase TMS projects or every product in the Phrase suite.
+
+## Start with a Phrase Strings push and pull
+
+[Install Hyperlocalise](/cli/getting-started/install), set `PHRASE_ACCESS_TOKEN`
+in your shell or CI secret manager, and prepare `.phrase.yml` with source and
+target mappings. Replace a literal `access_token` secret in the config with
+`$PHRASE_ACCESS_TOKEN`. Use a project where your token can upload and download files.
+
+```bash
+hyperlocalise phrase config validate --config .phrase.yml
+hyperlocalise phrase push --config .phrase.yml --wait
+# Translate the target locales in Phrase Strings before pulling.
+hyperlocalise phrase pull --config .phrase.yml
+```
+
+Push waits for the upload to finish processing, not for translations to be
+completed. Pull writes the configured target files. Review the output before
+committing. Follow [reuse an existing .phrase.yml](/cli/guides/phrase-existing-config)
+for a complete configuration and compatibility checks.
+
+## Hyperlocalise vs the official Phrase Strings CLI
+
+Hyperlocalise is a Phrase Strings CLI alternative for supported file workflows.
+Both use `push` and `pull` with `.phrase.yml`; Hyperlocalise adds other TMS commands
+and local translation under one executable. Supported configuration is a subset,
+so validate behavior as well as syntax when migrating.
+
+| Task | Official Phrase Strings CLI | Hyperlocalise |
+| --- | --- | --- |
+| Push configured files | `phrase push` | `hyperlocalise phrase push` |
+| Wait for processing | `phrase push --wait` | `hyperlocalise phrase push --wait` |
+| Pull configured files | `phrase pull` | `hyperlocalise phrase pull` |
+| List project locales | `phrase locales list` | `hyperlocalise phrase locales list` |
+| Full API commands and automatic cleanup | Consult the official command/config reference | See the gap inventory below; automatic push cleanup is unsupported |
+
+See [official Phrase Strings CLI documentation](https://support.phrase.com/hc/en-us/articles/5808300599068-Using-the-CLI-Strings)
+for operations outside this command family.
+
+
+## Command reference
 
 ```bash
 hyperlocalise phrase init [--project-id <id>] [--format <format>] [--file <path>] [--host <url>] [--source-locale <id>] [--token-env <name>] [--force]
@@ -25,7 +72,7 @@ hyperlocalise phrase tm download --tm-id <id> --source-language <code> --target-
 
 These commands operate on Phrase Strings file mode with `.phrase.yml` (or explicit flags).
 
-They are separate from Hyperlocalise native `i18n.yml` and `sync push` / `sync pull` workflows. Use native sync when you want Hyperlocalise-managed entry sync through the [Phrase adapter](/cli/storage/phrase). Use this surface when you want a closer replacement for Phrase Strings CLI file workflows.
+They are separate from Hyperlocalise native `i18n.yml` and `sync push` / `sync pull` workflows. Use shared TMS sync when you want Hyperlocalise-managed entry sync through the [Phrase adapter](/cli/storage/phrase). Use this surface when you want a closer replacement for Phrase Strings CLI file workflows.
 
 Use them for:
 
@@ -270,3 +317,10 @@ go run ./apps/cli phrase uploads cleanup --id <upload_id> --dry-run
 ```
 
 Do not commit `.phrase.yml`. Official `phrase` CLI is optional for comparison (`phrase push --wait`); Hyperlocalise’s commands are `go run ./apps/cli phrase ...`.
+
+## Related workflows
+
+- [One CLI for your TMS workflows](/cli/storage/overview)
+- [Local AI translation](/cli/workflows/local-generation)
+- [Localization file formats](/cli/reference/formats/overview)
+- [Hyperlocalise Platform integration with Phrase Strings](https://www.hyperlocalise.com/en/integrations/phrase)

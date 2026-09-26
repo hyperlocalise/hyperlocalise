@@ -1,9 +1,9 @@
 ---
 title: "iOS Strings"
-description: "Localise a Swift app with Localizable.strings, Cloud review, and locale-specific lproj folders."
+description: "Localise a Swift app with Localizable.strings, Platform review, and locale-specific lproj folders."
 ---
 
-This tutorial connects a Swift app's `Localizable.strings` files to Hyperlocalise Cloud. The CLI preserves keys, comments, and file formatting while replacing translated values.
+This tutorial connects a Swift app's `Localizable.strings` files to Hyperlocalise Platform. The CLI preserves keys, comments, and file formatting while replacing translated values.
 
 ## Prerequisites
 
@@ -11,7 +11,7 @@ You need:
 
 - an iOS project that uses `.strings` resources;
 - the [Hyperlocalise CLI](/cli/getting-started/install);
-- a Cloud project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
+- a Platform project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
 - `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
 
 The example uses:
@@ -103,9 +103,9 @@ After the source pull request merges:
 hl sync push
 ```
 
-The command uploads `en-US.lproj/Localizable.strings`. It does not start translation. Use a **Source upload** automation or create a request in Cloud.
+The command uploads `en-US.lproj/Localizable.strings`. It does not start translation. Use a **Source upload** automation or create a request in Platform.
 
-## 5. Review iOS strings in Cloud
+## 5. Review iOS strings in Platform
 
 In **Content Editor**, check:
 
@@ -192,7 +192,7 @@ Restore the source placeholder names and positions in the target value. Position
 
 ### Pull skips a locale
 
-Confirm that locale has translations in the selected Cloud project. Run `hl sync pull --dry-run` and compare the resolved path with the Xcode localization folder.
+Confirm that locale has translations in the selected Platform project. Run `hl sync pull --dry-run` and compare the resolved path with the Xcode localization folder.
 
 ## Next
 

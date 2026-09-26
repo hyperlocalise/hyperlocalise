@@ -1,9 +1,9 @@
 ---
 title: "Connect the CLI"
-description: "Connect git and CI to Hyperlocalise Cloud with an API key."
+description: "Connect git and CI to Hyperlocalise Platform with an API key."
 ---
 
-The CLI is the repository and CI edge of Hyperlocalise Cloud. It talks to Cloud over the [public API](/platform/api). There is no `hyperlocalise login` command. You create an API key in Cloud and inject it at runtime.
+The all-in-one Hyperlocalise CLI connects repositories and CI to Platform, and also provides [commands for Crowdin, Lokalise, Phrase Strings, and Smartling](/cli/storage/overview). It talks to Platform over the [public API](/platform/api). There is no `hyperlocalise login` command. You create an API key in Platform and inject it at runtime.
 
 ## Create an API key
 
@@ -11,7 +11,7 @@ The CLI is the repository and CI edge of Hyperlocalise Cloud. It talks to Cloud 
 2. Click **Create API key**.
 3. Enter a **Key name** such as `Production CI`.
 4. Click **Create key**.
-5. Click **Copy**. Cloud shows the secret once.
+5. Click **Copy**. Platform shows the secret once.
 
 Treat the key like a password. Do not commit it to git. Revoke it from the same page if it leaks.
 
@@ -31,12 +31,15 @@ hyperlocalise:
 
 You can set `project_id_env` instead of `project_id` when the id should come from the environment. Field details are in [i18n config](/cli/configuration/i18n-config).
 
-`sync push` and `sync pull` use this top-level `hyperlocalise` block. They do not use the `storage` TMS adapter block.
+For the Platform workflow on this page, `sync push` and `sync pull` use the top-level
+`hyperlocalise` block. When that block is absent, the same commands can use
+`storage.adapter` for [TMS entry sync](/cli/storage/overview). If both blocks are
+present, Platform takes precedence.
 
 Set the env var named in `api_key_env` (default `HYPERLOCALISE_API_KEY`) in your shell or CI secrets. The CLI sends it as the `x-api-key` header to `api_base_url`.
 
 <Note>
-The sample config in Cloud uses `https://hyperlocalise.com/api`. Requests then hit `/v1/...` on that host, for example `POST https://hyperlocalise.com/api/v1/files`.
+The sample config in Platform uses `https://hyperlocalise.com/api`. Requests then hit `/v1/...` on that host, for example `POST https://hyperlocalise.com/api/v1/files`.
 </Note>
 
 ## Push sources
@@ -46,7 +49,7 @@ hyperlocalise sync push --dry-run
 hyperlocalise sync push
 ```
 
-During a real push, the CLI reads source files from `i18n.yml` buckets and uploads each file. It does not enqueue translation jobs. Configure a **Source upload** automation, or start a run from **New Request**, when you want Cloud to translate after upload.
+During a real push, the CLI reads source files from `i18n.yml` buckets and uploads each file. It does not enqueue translation jobs. Configure a **Source upload** automation, or start a run from **New Request**, when you want Platform to translate after upload.
 
 See [sync push](/cli/commands/sync-push).
 
@@ -80,8 +83,8 @@ Install the binary with the [GitHub Action](/cli/workflows/ci-automation):
 
 ## What the CLI does not do here
 
-- It does not replace CAT review. Reviewers still work in Cloud.
-- Provider commands such as `crowdin` and `phrase` keep their own config. Those are TMS adapters, not Cloud native sync.
+- It does not replace CAT review. Reviewers still work in Platform.
+- Provider commands such as `crowdin` and `phrase` keep their own config. Those are TMS adapters, not Platform native sync.
 - Local `run` / `eval` still use LLM provider credentials from `i18n.yml`. See the [CLI docs](/cli).
 
 ## Next

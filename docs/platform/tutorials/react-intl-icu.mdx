@@ -1,9 +1,9 @@
 ---
 title: "React Intl and ICU"
-description: "Extract React Intl messages, review ICU translations in Cloud, and return runtime catalogs to your app."
+description: "Extract React Intl messages, review ICU translations in Platform, and return runtime catalogs to your app."
 ---
 
-This tutorial connects React Intl message descriptors to Hyperlocalise Cloud. You will extract a stable FormatJS catalog, protect ICU structure, review translations, and load the returned catalogs in React.
+This tutorial connects React Intl message descriptors to Hyperlocalise Platform. You will extract a stable FormatJS catalog, protect ICU structure, review translations, and load the returned catalogs in React.
 
 ## Prerequisites
 
@@ -11,7 +11,7 @@ You need:
 
 - a React app using `react-intl`;
 - the [Hyperlocalise CLI](/cli/getting-started/install);
-- a Cloud project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
+- a Platform project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
 - `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
 
 The example uses this layout:
@@ -109,7 +109,7 @@ The catalog contains one entry per descriptor:
 }
 ```
 
-Commit `lang/en-US.json` with the code change. This makes catalog drift visible in pull requests and gives Cloud a file to sync.
+Commit `lang/en-US.json` with the code change. This makes catalog drift visible in pull requests and gives Platform a file to sync.
 
 <Note>
 If you omit an `id`, `hl extract` generates a FormatJS-compatible hash. Explicit IDs produce easier diffs and more recognizable entries in review.
@@ -140,7 +140,7 @@ Re-run extraction in the source pull request and fail when it changes the commit
     HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
-This gate catches a changed `defaultMessage` without an updated catalog. The dry run confirms that the catalog maps to the expected Cloud project.
+This gate catches a changed `defaultMessage` without an updated catalog. The dry run confirms that the catalog maps to the expected Platform project.
 
 ## 5. Push and review the catalog
 
@@ -150,7 +150,7 @@ After the source pull request merges:
 hl sync push
 ```
 
-In Cloud, start generation through a **Source upload** automation or **New Request**. In **Content Editor**, review:
+In Platform, start generation through a **Source upload** automation or **New Request**. In **Content Editor**, review:
 
 - every required plural category for the target locale;
 - unchanged argument names such as `{count}`;
@@ -224,7 +224,7 @@ Run `hl extract` with the same paths and ignore patterns as CI, then commit `lan
 
 ### `icu_shape_mismatch` appears
 
-Compare argument names and ICU branches with the source. Fix the target in Cloud and approve the new revision. Do not suppress a real ICU mismatch.
+Compare argument names and ICU branches with the source. Fix the target in Platform and approve the new revision. Do not suppress a real ICU mismatch.
 
 ### React shows `MISSING_TRANSLATION`
 

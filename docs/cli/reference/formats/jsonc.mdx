@@ -1,7 +1,10 @@
 ---
-title: "JSON with comments"
+title: "Translate JSONC localization files with Hyperlocalise"
+sidebarTitle: "JSON with comments"
 description: "Translate JSON with comments and understand canonical JSON writeback."
 ---
+
+JSONC adds comments and trailing commas to JSON. Use this guide for message catalogs with that syntax; Hyperlocalise can read them, but its JSON writeback does not preserve comments or trailing commas.
 
 Supported extensions: `.jsonc`.
 
@@ -67,3 +70,8 @@ configured target path and updates the lockfile.
 - [Check translations](/cli/commands/check) before committing generated files.
 - [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
 - [Browse all file formats](/cli/reference/formats/overview).
+
+## Related formats
+
+- [JSON localization](/cli/reference/formats/json)
+- [JavaScript and TypeScript locale](/cli/reference/formats/javascript-typescript)

@@ -1,9 +1,9 @@
 ---
 title: "Gettext POT and PO"
-description: "Extract backend messages to a POT template, maintain PO catalogs, and review translations in Cloud."
+description: "Extract backend messages to a POT template, maintain PO catalogs, and review translations in Platform."
 ---
 
-This tutorial connects a Gettext-based backend to Hyperlocalise Cloud. Your extraction tool remains responsible for code scanning and the `.pot` template. Hyperlocalise syncs the resulting `.po` catalogs for translation and review.
+This tutorial connects a Gettext-based backend to Hyperlocalise Platform. Your extraction tool remains responsible for code scanning and the `.pot` template. Hyperlocalise syncs the resulting `.po` catalogs for translation and review.
 
 <Warning>
 The current Hyperlocalise PO parser is best suited to singular, context-free messages. It keys entries by `msgid`, ignores `msgctxt`, and writes only `msgstr` or `msgstr[0]`. Do not use this workflow for catalogs that depend on context-disambiguated duplicate `msgid` values or full Gettext plural arrays.
@@ -16,7 +16,7 @@ You need:
 - a backend that uses GNU Gettext-compatible catalogs;
 - `xgettext`, `msginit`, and `msgmerge`;
 - the [Hyperlocalise CLI](/cli/getting-started/install);
-- a Cloud project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
+- a Platform project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
 - `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
 
 The example uses:

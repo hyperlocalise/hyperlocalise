@@ -1,11 +1,11 @@
 ---
 title: "Sync content with GitHub"
-description: "Move source files into Cloud and return ready translations to a GitHub repository."
+description: "Move source files into Platform and return ready translations to a GitHub repository."
 ---
 
 Content sync moves files between a connected source and a native project. **GitHub is the executable content-sync provider currently supported.** Other provider choices may appear in setup, but their content movers are not available yet.
 
-Connecting GitHub gives Cloud access to repositories. It does not start a file sync or generate translations.
+Connecting GitHub gives Platform access to repositories. It does not start a file sync or generate translations.
 
 ## Configure content sync
 
@@ -26,6 +26,6 @@ Use a small test file to verify the full sequence: source arrives, translation r
 
 ## Avoid duplicate delivery
 
-Decide whether Cloud content sync or your CLI/CI workflow owns a given source-to-target mapping. Running both for the same paths can produce competing updates. Keep the repository branch and locale paths consistent across the chosen workflow.
+Decide whether Platform content sync or your CLI/CI workflow owns a given source-to-target mapping. Running both for the same paths can produce competing updates. Keep the repository branch and locale paths consistent across the chosen workflow.
 
 For troubleshooting, distinguish connection access, sync errors, generation errors, and review readiness. See [Automation troubleshooting](/platform/help/automations) and the [GitHub workflow tutorial](/platform/tutorials/github-localisation-workflow).

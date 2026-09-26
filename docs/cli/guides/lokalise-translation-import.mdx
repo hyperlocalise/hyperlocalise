@@ -1,0 +1,74 @@
+---
+title: "Upload Lokalise translations and wait for processing"
+sidebarTitle: "Wait for Lokalise imports"
+description: "Import translated locale files into Lokalise with Hyperlocalise, wait for queued processing, and control replacement of modified translations."
+---
+
+Use `hyperlocalise lokalise upload translations --poll` to import an existing
+locale file and wait for Lokalise to finish processing it. Without `--poll`, a
+successful command means the import was queued, not completed.
+
+## Before you start
+
+[Install Hyperlocalise](/cli/getting-started/install) and set
+`LOKALISE_API_TOKEN` for a token with project access. Use a project with the source
+file already uploaded and a French target locale. Prepare `locales/fr.json` with
+translated values. Replace `your-project-id` below with the real project ID.
+
+```bash
+hyperlocalise lokalise locales list --project-id your-project-id
+hyperlocalise lokalise files list --project-id your-project-id
+```
+
+Use the returned language `iso` value as `--target-locale`. Lokalise matches files
+by name: use the same naming pattern as the source. A completely different name
+can create a second file.
+
+## Preview, then import
+
+```bash
+hyperlocalise lokalise upload translations \
+    --project-id your-project-id --target-locale fr \
+    --file ./locales/fr.json --format json --dry-run
+```
+
+The dry run checks local files and flags without queuing or polling an import.
+Run the upload after checking the plan:
+
+```bash
+hyperlocalise lokalise upload translations \
+    --project-id your-project-id --target-locale fr \
+    --file ./locales/fr.json --format json --poll --poll-timeout 10m
+```
+
+The command waits for the process to reach `finished`. The default poll timeout is
+30 seconds; `10m` gives CI more time. A timeout does not establish that the remote
+import was cancelled. Check the process in Lokalise before retrying an upload.
+
+## Will this replace existing translations?
+
+By default, `--replace-modified` is off, preserving translations that Lokalise
+classifies as modified. This is not a promise that every existing key stays
+unchanged. Add `--replace-modified` only when you intend to replace those modified
+translations with values from the uploaded file.
+
+The command reports `modified_translations=preserved` or
+`modified_translations=replaced`. Waiting with `--poll` changes completion timing,
+not this replacement policy.
+
+## Verify the import
+
+Review the imported locale in Lokalise. You can also export it to a new file:
+
+```bash
+hyperlocalise lokalise download translations \
+    --project-id your-project-id --target-locale fr \
+    --format json --output ./locales/fr-import-review.json
+```
+
+Compare the export with the intended translations. `--target-locale` determines
+the import language even when the filename suggests another locale. Run a separate
+upload for each target language; repeat `--file` for multiple files in one language.
+
+See [Lokalise CLI workflows](/cli/commands/lokalise) for comparison with `lokalise2`
+and [JSON translation](/cli/reference/formats/json) to generate drafts locally.
