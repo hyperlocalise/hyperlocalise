@@ -16,7 +16,7 @@ import { buildOrganizationJsonLd } from "./organization-json-ld";
 
 describe("buildOrganizationJsonLd", () => {
   it("describes Hyperlocalise and its public company profiles", () => {
-    expect(buildOrganizationJsonLd("en")).toMatchObject({
+    expect(buildOrganizationJsonLd()).toMatchObject({
       "@context": "https://schema.org",
       "@type": "Organization",
       "@id": "https://www.hyperlocalise.com/#organization",
@@ -47,11 +47,6 @@ describe("buildOrganizationJsonLd", () => {
         contactType: "sales",
         email: "minh@hyperlocalise.com",
       },
-      inLanguage: "en",
     });
-  });
-
-  it("sets inLanguage from the page locale", () => {
-    expect(buildOrganizationJsonLd("fr-FR")).toMatchObject({ inLanguage: "fr-FR" });
   });
 });
