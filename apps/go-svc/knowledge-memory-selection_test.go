@@ -105,4 +105,86 @@ func TestSelectKnowledgeMemoryContextKeepsMatchedRuleUnderBudget(t *testing.T) {
 	require.LessOrEqual(t, preview.Metrics.SelectedMemoryChars, 256)
 }
 
+func TestSelectKnowledgeMemoryContextIgnoresFencedHeadingsAndSubstringLocales(t *testing.T) {
+	lines := []string{
+		"# Memory.md",
+		"",
+		"## Locale notes",
+		"",
+		"### fr-FR",
+		"",
+		"Use idiomatic French for checkout confirmations.",
+		"",
+		"## Examples",
+		"",
+		"```markdown",
+		"# Fake heading",
+		"",
+		"## fr-FR",
+		"",
+		"Do not treat fenced headings as locale segments.",
+		"```",
+		"",
+		"## Brand franchise",
+		"",
+		"Franchise partners keep English brand names.",
+		"",
+	}
+	for i := 0; i < 70; i++ {
+		lines = append(lines, fmt.Sprintf("## Operations note %d", i+1), "", fmt.Sprintf("Archive internal process note %d.", i+1), "")
+	}
+	content := strings.Join(lines, "\n")
+	require.Greater(t, utf16Length(content), knowledgeMemorySmallLimit)
+
+	segments, headings := parseKnowledgeMemorySegments(normalizeKnowledgeMemoryForSelection(content))
+	for _, heading := range headings {
+		require.NotEqual(t, "Fake heading", heading.Text)
+	}
+	for _, segment := range segments {
+		require.NotContains(t, segment.HeadingPath, "Fake heading")
+	}
+	joined := ""
+	for _, segment := range segments {
+		joined += segment.Text + "\n"
+	}
+	require.Contains(t, joined, "```markdown")
+	require.Contains(t, joined, "# Fake heading")
+	require.Contains(t, joined, "Do not treat fenced headings")
+
+	preview := selectKnowledgeMemoryContext(content, knowledgeMemoryPreviewPayload{
+		TargetLocale: stringPointer("fr-FR"),
+		SourceText:   stringPointer("checkout confirmations"),
+		MaxChars:     intPointer(700),
+	})
+	require.Equal(t, "selective", preview.Metrics.FallbackMode)
+	require.Contains(t, preview.CompactText, "idiomatic French")
+	require.NotContains(t, preview.CompactText, "Franchise partners")
+	matchedPaths := strings.Join(preview.Metrics.MatchedHeadingPaths, "\n")
+	require.Contains(t, matchedPaths, "fr-FR")
+	require.NotContains(t, matchedPaths, "Fake heading")
+}
+
+func TestSelectKnowledgeMemoryContextTruncatesAroundEmojiUTF16Budget(t *testing.T) {
+	emoji := "🙂"
+	require.Equal(t, 2, utf16Length(emoji))
+	longRule := strings.Repeat(emoji, 40) + " KEEP_TOKEN_42 must stay visible " + strings.Repeat(emoji, 40)
+	content := "# Memory.md\n\n## Tokens\n\n" + longRule
+	preview := selectKnowledgeMemoryContext(content, knowledgeMemoryPreviewPayload{
+		SourceText: stringPointer("KEEP_TOKEN_42"),
+		MaxChars:   intPointer(48),
+	})
+	require.Equal(t, "selective", preview.Metrics.FallbackMode)
+	require.Contains(t, preview.CompactText, "KEEP_TOKEN_42")
+	require.LessOrEqual(t, preview.Metrics.SelectedMemoryChars, 48)
+	require.LessOrEqual(t, utf16Length(preview.CompactText), 48)
+}
+
+func TestIncludesKnowledgeMemoryMarkerRejectsSubstringLocales(t *testing.T) {
+	require.True(t, includesKnowledgeMemoryMarker("notes for fr-fr checkout", "fr-fr", false))
+	require.False(t, includesKnowledgeMemoryMarker("franchise partners", "fr", true))
+	require.False(t, includesKnowledgeMemoryMarker("prefer french tone", "fr", true))
+	require.True(t, includesKnowledgeMemoryMarker("locale fr notes", "fr", true))
+	require.True(t, includesKnowledgeMemoryMarker("fr:", "fr", true))
+}
+
 func intPointer(value int) *int { return &value }
