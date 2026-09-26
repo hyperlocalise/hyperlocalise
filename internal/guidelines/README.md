@@ -3,7 +3,8 @@
 PostgreSQL owns guideline content and revision identity. `Source` loads current
 canonical documents for an application-authorized scope. `Index` owns derived
 passages and can be rebuilt. Its turbopuffer implementation starts with BM25
-full-text search; no embedding provider or model is chosen implicitly.
+full-text search. `internal/embedding` can produce Gemini Embedding 2 vectors
+through AI Gateway; the index does not call it yet.
 
 `Service.Sync` indexes the current workspace/project revisions. The turbopuffer
 adapter uses deterministic revision-specific chunk IDs, replaces same/older
