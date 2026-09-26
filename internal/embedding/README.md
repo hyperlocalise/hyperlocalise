@@ -8,7 +8,8 @@ dimensions are package constants so every caller writes the same vector space.
 | --- | --- |
 | Query text | `input` with `task: search result \| query: …` |
 | Document text | `input` with `title: … \| text: …` |
-| PNG, JPEG, PDF | `providerOptions.google.content` `inlineData` |
+| Text plus PNG, JPEG, or PDF | prefixed `input` plus `inlineData` |
+| PNG, JPEG, or PDF only | placeholder `input` plus `inlineData` |
 
 The package reads no environment variables. Callers pass an API key and
 optional base URL. Office formats are unsupported. Gemini Embedding 2 accepts

@@ -27,8 +27,12 @@ either constant requires a new turbopuffer deployment prefix.
 
 `EmbedQuery` prefixes text with Gemini Embedding 2’s retrieval query form
 (`task: search result | query: …`). `EmbedDocument` prefixes text with
-`title: … | text: …` (title `none` when omitted). File-only documents send no
-task prefix.
+`title: … | text: …` (title `none` when omitted), including when a file is
+attached. File-only documents send a placeholder `input` and no task prefix.
+
+`MaxBytes` bounds query text and the combined document title, text, and file
+bytes. Transient `429` and `5xx` responses retry with `Retry-After` when
+present, otherwise exponential backoff.
 
 Accepted document bytes: PNG, JPEG, and PDF. The client sends those through
 `providerOptions.google.content` as `inlineData`. One file per call. DOCX and

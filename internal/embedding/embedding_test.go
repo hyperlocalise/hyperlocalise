@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 var pngHeader = []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00")
@@ -55,6 +56,7 @@ func newTestClient(t *testing.T, baseURL string) *Client {
 	if err != nil {
 		t.Fatal(err)
 	}
+	client.retryBase = time.Nanosecond
 	return client
 }
 
@@ -115,10 +117,10 @@ func TestEmbedDocumentSendsPDFInlineData(t *testing.T) {
 	var captured capturedRequest
 	server := embeddingServer(t, testVector(), &captured)
 	data := []byte("%PDF-1.4 hello")
-	if _, err := newTestClient(t, server.URL).EmbedDocument(context.Background(), Document{Data: data, Text: "Cover sheet"}); err != nil {
+	if _, err := newTestClient(t, server.URL).EmbedDocument(context.Background(), Document{Title: "Spec", Data: data, Text: "Cover sheet"}); err != nil {
 		t.Fatal(err)
 	}
-	if captured.Input != "Cover sheet" {
+	if captured.Input != "title: Spec | text: Cover sheet" {
 		t.Fatalf("input = %q", captured.Input)
 	}
 	encoded := base64.StdEncoding.EncodeToString(data)
@@ -165,8 +167,20 @@ func TestEmbedValidation(t *testing.T) {
 	}{
 		{name: "empty query", fn: func() error { _, err := client.EmbedQuery(context.Background(), "  "); return err }, want: ErrInvalidInput},
 		{name: "empty document", fn: func() error { _, err := client.EmbedDocument(context.Background(), Document{}); return err }, want: ErrInvalidInput},
-		{name: "too large", fn: func() error {
+		{name: "too large file", fn: func() error {
 			_, err := client.EmbedDocument(context.Background(), Document{Data: append(pngHeader, make([]byte, 2<<10)...)})
+			return err
+		}, want: ErrTooLarge},
+		{name: "too large text", fn: func() error {
+			_, err := client.EmbedDocument(context.Background(), Document{Text: strings.Repeat("a", 2<<10)})
+			return err
+		}, want: ErrTooLarge},
+		{name: "too large text with file", fn: func() error {
+			_, err := client.EmbedDocument(context.Background(), Document{Text: strings.Repeat("a", 1<<10), Data: pngHeader})
+			return err
+		}, want: ErrTooLarge},
+		{name: "too large query", fn: func() error {
+			_, err := client.EmbedQuery(context.Background(), strings.Repeat("q", 2<<10))
 			return err
 		}, want: ErrTooLarge},
 	}
@@ -209,6 +223,21 @@ func TestEmbedRetriesTransientStatus(t *testing.T) {
 	}
 	if calls != 2 || result.Tokens != 2 {
 		t.Fatalf("calls=%d result=%+v", calls, result)
+	}
+}
+
+func TestRetryDelayUsesRetryAfterAndBackoff(t *testing.T) {
+	after := retryDelay(1, time.Millisecond, &httpError{status: 429, retryAfter: 3 * time.Second})
+	if after != 3*time.Second {
+		t.Fatalf("retry-after = %s", after)
+	}
+	if got := parseRetryAfter(http.Header{"Retry-After": []string{"999"}}); got != maxRetryAfter {
+		t.Fatalf("capped retry-after = %s", got)
+	}
+	first := retryDelay(1, 200*time.Millisecond, &httpError{status: 502})
+	second := retryDelay(2, 200*time.Millisecond, &httpError{status: 502})
+	if first != 200*time.Millisecond || second != 400*time.Millisecond {
+		t.Fatalf("backoff %s %s", first, second)
 	}
 }
 

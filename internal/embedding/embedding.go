@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -32,6 +33,8 @@ const (
 	defaultBaseURL    = "https://ai-gateway.vercel.sh/v1"
 	defaultTimeout    = 60 * time.Second
 	defaultMaxRetries = 2
+	defaultRetryBase  = 200 * time.Millisecond
+	maxRetryAfter     = 30 * time.Second
 	maxResponseBytes  = 1 << 20
 	embeddingsPath    = "/embeddings"
 	queryPrefix       = "task: search result | query: "
@@ -81,6 +84,7 @@ type Client struct {
 	maxBytes   int64
 	httpClient *http.Client
 	maxRetries int
+	retryBase  time.Duration
 }
 
 // New validates explicit configuration.
@@ -100,7 +104,7 @@ func New(cfg Config) (*Client, error) {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: defaultTimeout}
 	}
-	return &Client{baseURL: baseURL, apiKey: strings.TrimSpace(cfg.APIKey), maxBytes: maxBytes, httpClient: httpClient, maxRetries: defaultMaxRetries}, nil
+	return &Client{baseURL: baseURL, apiKey: strings.TrimSpace(cfg.APIKey), maxBytes: maxBytes, httpClient: httpClient, maxRetries: defaultMaxRetries, retryBase: defaultRetryBase}, nil
 }
 
 // EmbedQuery embeds a retrieval query.
@@ -109,20 +113,24 @@ func (c *Client) EmbedQuery(ctx context.Context, text string) (Result, error) {
 	if text == "" || !utf8.ValidString(text) {
 		return Result{}, ErrInvalidInput
 	}
+	if int64(len(text)) > c.maxBytes {
+		return Result{}, ErrTooLarge
+	}
 	return c.embed(ctx, request{input: queryPrefix + text})
 }
 
 // EmbedDocument embeds document text and optional PNG, JPEG, or PDF bytes.
 func (c *Client) EmbedDocument(ctx context.Context, doc Document) (Result, error) {
 	text := strings.TrimSpace(doc.Text)
+	title := strings.TrimSpace(doc.Title)
 	if text != "" && !utf8.ValidString(text) {
 		return Result{}, ErrInvalidInput
 	}
+	if int64(len(title))+int64(len(text))+int64(len(doc.Data)) > c.maxBytes {
+		return Result{}, ErrTooLarge
+	}
 	var mediaType string
 	if len(doc.Data) > 0 {
-		if int64(len(doc.Data)) > c.maxBytes {
-			return Result{}, ErrTooLarge
-		}
 		detected, err := detectMedia(doc.Data)
 		if err != nil {
 			return Result{}, err
@@ -132,7 +140,7 @@ func (c *Client) EmbedDocument(ctx context.Context, doc Document) (Result, error
 	if text == "" && mediaType == "" {
 		return Result{}, ErrInvalidInput
 	}
-	req := request{input: formatDocumentInput(doc.Title, text, mediaType != "")}
+	req := request{input: formatDocumentInput(title, text)}
 	if mediaType != "" {
 		req.content = []map[string]any{inlineDataPart(mediaType, doc.Data)}
 	}
@@ -187,6 +195,9 @@ func (c *Client) embed(ctx context.Context, req request) (Result, error) {
 		if attempt == attempts || !isTransient(err) {
 			break
 		}
+		if err := sleepWithContext(ctx, retryDelay(attempt, c.retryBase, err)); err != nil {
+			return Result{}, err
+		}
 	}
 	if attempt <= 1 {
 		return Result{}, lastErr
@@ -214,7 +225,7 @@ func (c *Client) doEmbed(ctx context.Context, payload []byte) (Result, error) {
 		return Result{}, ErrInvalidResponse
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return Result{}, &httpError{status: resp.StatusCode, body: strings.TrimSpace(string(responseBody))}
+		return Result{}, &httpError{status: resp.StatusCode, body: strings.TrimSpace(string(responseBody)), retryAfter: parseRetryAfter(resp.Header)}
 	}
 	var parsed embeddingResponseBody
 	if err := json.Unmarshal(responseBody, &parsed); err != nil {
@@ -231,8 +242,9 @@ func (c *Client) doEmbed(ctx context.Context, payload []byte) (Result, error) {
 }
 
 type httpError struct {
-	status int
-	body   string
+	status     int
+	body       string
+	retryAfter time.Duration
 }
 
 func (e *httpError) Error() string {
@@ -256,18 +268,56 @@ func isTransient(err error) bool {
 	return true
 }
 
-func formatDocumentInput(title, text string, hasFile bool) string {
+func formatDocumentInput(title, text string) string {
 	if text == "" {
 		return fileOnlyInput
 	}
-	if hasFile {
-		return text
+	if title == "" {
+		title = documentTitleNone
 	}
-	trimmedTitle := strings.TrimSpace(title)
-	if trimmedTitle == "" {
-		trimmedTitle = documentTitleNone
+	return "title: " + title + " | text: " + text
+}
+
+func parseRetryAfter(header http.Header) time.Duration {
+	raw := strings.TrimSpace(header.Get("Retry-After"))
+	seconds, err := strconv.Atoi(raw)
+	if err != nil || seconds <= 0 {
+		return 0
 	}
-	return "title: " + trimmedTitle + " | text: " + text
+	delay := time.Duration(seconds) * time.Second
+	if delay > maxRetryAfter {
+		return maxRetryAfter
+	}
+	return delay
+}
+
+func retryDelay(attempt int, base time.Duration, err error) time.Duration {
+	var upstream *httpError
+	if errors.As(err, &upstream) && upstream.retryAfter > 0 {
+		return upstream.retryAfter
+	}
+	if base <= 0 {
+		base = defaultRetryBase
+	}
+	delay := base
+	for i := 1; i < attempt; i++ {
+		delay *= 2
+	}
+	return delay
+}
+
+func sleepWithContext(ctx context.Context, delay time.Duration) error {
+	if delay <= 0 {
+		return ctx.Err()
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func inlineDataPart(mediaType string, data []byte) map[string]any {
