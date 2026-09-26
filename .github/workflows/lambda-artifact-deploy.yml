@@ -1,0 +1,79 @@
+name: Lambda Artifact Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - Makefile
+      - go.mod
+      - go.sum
+      - internal/activitylog/**
+      - apps/activity-log-lambda/**
+      - .github/actions/go-bootstrap/**
+      - .github/actions/upload-lambda-artifact/**
+      - .github/workflows/lambda-artifact-deploy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: lambda-artifact-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+  LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME: /hyperlocalise/prod/artifacts/lambda_bucket_name
+  LAMBDA_ARTIFACT_KEY: activity-log/bootstrap.zip
+
+jobs:
+  publish:
+    name: Build and upload Lambda artifact
+    if: github.ref == 'refs/heads/main'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Bootstrap Go toolchain
+        uses: ./.github/actions/go-bootstrap
+        with:
+          go-version-file: go.mod
+
+      - name: Test activity-log Lambda
+        run: go test ./apps/activity-log-lambda ./internal/activitylog
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-lambda-artifact-deploy
+
+      - name: Build and upload Lambda artifact
+        id: upload
+        uses: ./.github/actions/upload-lambda-artifact
+        with:
+          bucket-parameter-name: ${{ env.LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME }}
+          build-command: make build-activity-log-lambda
+          binary-path: dist/activity-log-lambda/bootstrap
+          s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
+
+      - name: Summarize upload
+        shell: bash
+        env:
+          S3_URI: ${{ steps.upload.outputs.s3-uri }}
+          VERSION_ID: ${{ steps.upload.outputs.version-id }}
+        run: |
+          {
+            echo "## Lambda artifact uploaded"
+            echo
+            echo "- Object: \`${S3_URI}\`"
+            echo "- Version: \`${VERSION_ID}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

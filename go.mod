@@ -44,6 +44,7 @@ require (
 )
 
 require (
+	github.com/aws/aws-lambda-go v1.13.3
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/klippa-app/go-pdfium v1.21.0

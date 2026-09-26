@@ -22,6 +22,11 @@ check-build: ## check golang build
 check-build-go-svc: ## check go-svc container service build
 	@go build -o /dev/null ./apps/go-svc
 
+.PHONY: build-activity-log-lambda
+build-activity-log-lambda: ## build the activity-log Lambda bootstrap binary
+	@mkdir -p dist/activity-log-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/activity-log-lambda/bootstrap ./apps/activity-log-lambda
+
 .PHONY: check-build-public-api
 check-build-public-api: ## check standalone public API service build
 	@go build -o /dev/null ./apps/public-api

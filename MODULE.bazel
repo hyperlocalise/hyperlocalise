@@ -16,6 +16,7 @@ use_repo(
     "cc_mvdan_gofumpt",
     "co_honnef_go_tools",
     "com_github_antihax_optional",
+    "com_github_aws_aws_lambda_go",
     "com_github_crowdin_crowdin_api_client_go",
     "com_github_daixiang0_gci",
     "com_github_go_critic_go_critic",
