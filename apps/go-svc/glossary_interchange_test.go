@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -164,11 +163,10 @@ func TestApplyGlossaryImportLocaleOptions(t *testing.T) {
 }
 
 func TestGlossaryImportReplaceRejectsParserErrors(t *testing.T) {
-	insertRun := dictionaryRowStep("insert into glossary_import_runs", "ffffffff-ffff-4fff-8fff-ffffffffffff")
-	insertEntry := dictionaryDBStep{kind: "exec", sql: "insert into glossary_import_report_entries", affected: 1}
-	api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), insertRun, insertEntry)
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
 	body := `{"format":"csv","content":"conceptId,locale,term\n,,","mode":"replace"}`
-	rec := glossaryRequestForTest(api, "POST", testGlossaryBase+"/"+testGlossaryID+"/concepts/import", body)
+	rec := glossaryRequest(api, scope, "POST", scope.OrgPath("/glossaries/"+id+"/concepts/import"), body)
 	require.Equal(t, 400, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"diagnostics"`)
 	require.Contains(t, rec.Body.String(), "invalid_csv_row")
@@ -176,18 +174,11 @@ func TestGlossaryImportReplaceRejectsParserErrors(t *testing.T) {
 }
 
 func TestGlossaryExportTBXHTTP(t *testing.T) {
-	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-	termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
-	concepts := dictionaryDBStep{kind: "query", sql: "from glossary_concepts c where c.glossary_id=$1", values: [][]any{{
-		conceptID, "Checkout", "Commerce", "Payment step", true, "", nil, nil, testGlossaryTime, testGlossaryTime,
-	}}}
-	concepts.args = []any{testGlossaryID}
-	terms := dictionaryDBStep{kind: "query", sql: "from glossary_terms t where t.glossary_id=$1", values: [][]any{{
-		termID, conceptID, "en-US", "Checkout", "", "", "", nil, nil, nil, nil, "preferred", false, false, "manual", "approved", testGlossaryTime, testGlossaryTime,
-	}}}
-	terms.args = []any{testGlossaryID, []string{conceptID}}
-	api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), concepts, terms)
-	rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/export?format=tbx", "")
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	concept := mustGlossaryConcept(t, scope, id, "Checkout", "Commerce", "Payment step")
+	mustGlossaryTerm(t, scope, id, concept, "en-US", "Checkout")
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/export?format=tbx"), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Header().Get("Content-Type"), "xml")
 	require.Contains(t, rec.Body.String(), "<tbx")
@@ -195,53 +186,47 @@ func TestGlossaryExportTBXHTTP(t *testing.T) {
 }
 
 func TestGlossaryExportXLSXHTTP(t *testing.T) {
-	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-	termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
-	concepts := dictionaryDBStep{kind: "query", sql: "from glossary_concepts c where c.glossary_id=$1", values: [][]any{{
-		conceptID, "Checkout", "Commerce", "Payment", true, "", nil, nil, testGlossaryTime, testGlossaryTime,
-	}}}
-	concepts.args = []any{testGlossaryID}
-	terms := dictionaryDBStep{kind: "query", sql: "from glossary_terms t where t.glossary_id=$1", values: [][]any{{
-		termID, conceptID, "en-US", "Checkout", "", "", "", nil, nil, nil, nil, "preferred", false, false, "manual", "approved", testGlossaryTime, testGlossaryTime,
-	}}}
-	terms.args = []any{testGlossaryID, []string{conceptID}}
-	api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), concepts, terms)
-	rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/export?format=xlsx", "")
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	concept := mustGlossaryConcept(t, scope, id, "Checkout", "Commerce", "Payment")
+	mustGlossaryTerm(t, scope, id, concept, "en-US", "Checkout")
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/export?format=xlsx"), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Header().Get("Content-Type"), "spreadsheetml")
 	require.Greater(t, rec.Body.Len(), 100)
 }
 
 func TestGlossaryImportXLSXStill501(t *testing.T) {
-	api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep())
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
 	body := `{"format":"xlsx","content":"AAAA","mode":"preview"}`
-	rec := glossaryRequestForTest(api, "POST", testGlossaryBase+"/"+testGlossaryID+"/concepts/import", body)
+	rec := glossaryRequest(api, scope, "POST", scope.OrgPath("/glossaries/"+id+"/concepts/import"), body)
 	require.Equal(t, 501, rec.Code)
 	require.Contains(t, rec.Body.String(), "not_implemented")
 }
 
 func TestGlossaryAuthorsAndHistory(t *testing.T) {
 	t.Run("authors", func(t *testing.T) {
-		authors := dictionaryDBStep{kind: "query", sql: "from users u where u.id in", values: [][]any{{
-			testGlossaryUserID, "Ada Lovelace",
-		}}}
-		authors.args = []any{testGlossaryID}
-		api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), authors)
-		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/concepts/authors", "")
+		api, scope := glossaryTestAPI(t, "admin")
+		_, err := scope.Pool.Exec(t.Context(), `update users set first_name='Ada', last_name='Lovelace' where id=$1`, scope.UserID)
+		require.NoError(t, err)
+		id := scope.MustGlossary(t, "", "Product terms", "en-US")
+		mustGlossaryConcept(t, scope, id, "Checkout", "Commerce", "Payment")
+		rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/concepts/authors"), "")
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"authors"`)
 		require.Contains(t, rec.Body.String(), "Ada Lovelace")
 	})
 	t.Run("history", func(t *testing.T) {
-		eventID := "ffffffff-ffff-4fff-8fff-ffffffffffff"
-		userID := testGlossaryUserID
-		list := dictionaryDBStep{kind: "query", sql: "from glossary_history_events e", values: [][]any{{
-			eventID, nil, nil, "concept_created", "user", &userID, nil, 1, nil,
-			[]byte(`[]`), []byte(`[]`), []byte(`{}`), testGlossaryTime, strPtr("Ada"),
-		}}}
-		list.args = []any{testGlossaryID, 51}
-		api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), list)
-		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/concepts/history", "")
+		api, scope := glossaryTestAPI(t, "admin")
+		id := scope.MustGlossary(t, "", "Product terms", "en-US")
+		_, err := scope.Pool.Exec(t.Context(), `
+            insert into glossary_history_events (
+                organization_id, glossary_id, event_type, actor_kind, actor_user_id
+            ) values ($1, $2, 'concept_created', 'user', $3)`,
+			scope.OrganizationID, id, scope.UserID)
+		require.NoError(t, err)
+		rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/concepts/history"), "")
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"events"`)
 		require.Contains(t, rec.Body.String(), "concept_created")
@@ -249,26 +234,25 @@ func TestGlossaryAuthorsAndHistory(t *testing.T) {
 }
 
 func TestGlossaryImportReportGet(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
 	reportID := "ffffffff-ffff-4fff-8fff-ffffffffffff"
-	userID := testGlossaryUserID
-	completed := testGlossaryTime
-	run := dictionaryRowStep("from glossary_import_runs where id=$1",
-		reportID, testGlossaryOrgID, testGlossaryID, &userID, "csv", "preview", "completed",
-		nil, nil, []byte(`{}`), []byte(`{}`), []byte(`{"skipped":0}`), nil, testGlossaryTime, &completed,
-	)
-	run.args = []any{reportID, testGlossaryID, testGlossaryOrgID}
-	entries := dictionaryDBStep{kind: "query", sql: "from glossary_import_report_entries", values: [][]any{}}
-	entries.args = []any{reportID}
-	api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), run, entries)
-	rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/import-reports/"+reportID, "")
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into glossary_import_runs (
+            id, organization_id, glossary_id, created_by_user_id, format, mode, status, counts, completed_at
+        ) values ($1, $2, $3, $4, 'csv', 'preview', 'completed', '{"skipped":0}'::jsonb, now())`,
+		reportID, scope.OrganizationID, id, scope.UserID)
+	require.NoError(t, err)
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports/"+reportID), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"report"`)
 	require.Contains(t, rec.Body.String(), reportID)
 }
 
 func TestGlossaryInvalidExportFormat(t *testing.T) {
-	api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep())
-	rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/export?format=pdf", "")
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/export?format=pdf"), "")
 	require.Equal(t, 400, rec.Code)
 }
 
@@ -291,73 +275,53 @@ func TestSampleExportConceptIDsAreStableShape(t *testing.T) {
 }
 
 func TestLookupImportGlossaryTermPrefersStableID(t *testing.T) {
-	termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
-	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-	byID := dictionaryRowStep("glossary_id=$1 and concept_id=$2 and id=$3", termID)
-	byID.args = []any{testGlossaryID, conceptID, termID}
-	db := newDictionaryTestDB(t, byID)
-	found, matchedByID, err := lookupImportGlossaryTerm(t.Context(), db, testGlossaryID, conceptID, termID, "en-US", "Changed text")
+	_, scope := glossaryTestAPI(t, "admin")
+	glossaryID := scope.MustGlossary(t, "", "Product terms", "en-US")
+	conceptID := mustGlossaryConcept(t, scope, glossaryID, "Checkout", "", "")
+	termID := mustGlossaryTerm(t, scope, glossaryID, conceptID, "en-US", "Checkout")
+	found, matchedByID, err := lookupImportGlossaryTerm(t.Context(), scope.Pool, glossaryID, conceptID, termID, "en-US", "Changed text")
 	require.NoError(t, err)
 	require.True(t, matchedByID)
 	require.Equal(t, termID, found)
 }
 
 func TestLookupImportGlossaryTermFallsBackToLocaleText(t *testing.T) {
-	termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
-	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-	byID := dictionaryRowStep("glossary_id=$1 and concept_id=$2 and id=$3")
-	byID.err = pgx.ErrNoRows
-	byID.args = []any{testGlossaryID, conceptID, termID}
-	conflict := dictionaryRowStep("glossary_id=$1 and id=$2")
-	conflict.err = pgx.ErrNoRows
-	conflict.args = []any{testGlossaryID, termID}
-	byText := dictionaryRowStep("locale=$3 and lower(term)=lower($4)", termID)
-	byText.args = []any{testGlossaryID, conceptID, "en-US", "Checkout"}
-	db := newDictionaryTestDB(t, byID, conflict, byText)
-	found, matchedByID, err := lookupImportGlossaryTerm(t.Context(), db, testGlossaryID, conceptID, termID, "en-US", "Checkout")
+	_, scope := glossaryTestAPI(t, "admin")
+	glossaryID := scope.MustGlossary(t, "", "Product terms", "en-US")
+	conceptID := mustGlossaryConcept(t, scope, glossaryID, "Checkout", "", "")
+	termID := mustGlossaryTerm(t, scope, glossaryID, conceptID, "en-US", "Checkout")
+	missingID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+	found, matchedByID, err := lookupImportGlossaryTerm(t.Context(), scope.Pool, glossaryID, conceptID, missingID, "en-US", "Checkout")
 	require.NoError(t, err)
 	require.False(t, matchedByID)
 	require.Equal(t, termID, found)
 }
 
 func TestLookupImportGlossaryTermDetectsCrossConceptConflict(t *testing.T) {
-	termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
-	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-	otherConcept := "ffffffff-ffff-4fff-8fff-ffffffffffff"
-	byID := dictionaryRowStep("glossary_id=$1 and concept_id=$2 and id=$3")
-	byID.err = pgx.ErrNoRows
-	byID.args = []any{testGlossaryID, conceptID, termID}
-	conflict := dictionaryRowStep("glossary_id=$1 and id=$2", otherConcept)
-	conflict.args = []any{testGlossaryID, termID}
-	db := newDictionaryTestDB(t, byID, conflict)
-	_, _, err := lookupImportGlossaryTerm(t.Context(), db, testGlossaryID, conceptID, termID, "en-US", "Checkout")
+	_, scope := glossaryTestAPI(t, "admin")
+	glossaryID := scope.MustGlossary(t, "", "Product terms", "en-US")
+	conceptID := mustGlossaryConcept(t, scope, glossaryID, "Checkout", "", "")
+	other := mustGlossaryConcept(t, scope, glossaryID, "Other", "", "")
+	termID := mustGlossaryTerm(t, scope, glossaryID, other, "en-US", "Checkout")
+	_, _, err := lookupImportGlossaryTerm(t.Context(), scope.Pool, glossaryID, conceptID, termID, "en-US", "Checkout")
 	require.Error(t, err)
 	require.True(t, isGlossaryImportTermConflict(err))
 }
 
 func TestCreateGlossaryTermRequiresOwnedConcept(t *testing.T) {
-	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-	missing := dictionaryRowStep("from glossary_concepts where id=$1")
-	missing.err = pgx.ErrNoRows
-	missing.args = []any{conceptID, testGlossaryID}
-	api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), missing)
-	rec := glossaryRequestForTest(api, "POST", testGlossaryBase+"/"+testGlossaryID+"/concepts/"+conceptID+"/terms", `{"locale":"en-US","term":"Checkout"}`)
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	rec := glossaryRequest(api, scope, "POST", scope.OrgPath("/glossaries/"+id+"/concepts/"+testGlossaryConceptID+"/terms"), `{"locale":"en-US","term":"Checkout"}`)
 	require.Equal(t, 404, rec.Code, rec.Body.String())
 }
 
 func TestGlossaryTermPageTotalRespectsLocaleFilter(t *testing.T) {
-	conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-	termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
-	exists := dictionaryRowStep("from glossary_concepts where id=$1", conceptID)
-	exists.args = []any{conceptID, testGlossaryID}
-	terms := dictionaryDBStep{kind: "query", sql: "from glossary_terms t where", values: [][]any{{
-		termID, testGlossaryID, conceptID, "fr-FR", "Paiement", "", "", "", nil, nil, nil, nil, "draft", false, false, "manual", "proposed", testGlossaryTime, testGlossaryTime,
-	}}}
-	terms.args = []any{testGlossaryID, conceptID, "fr-FR", 51}
-	total := dictionaryRowStep("select count(*) from glossary_terms t where", 1)
-	total.args = []any{testGlossaryID, conceptID, "fr-FR"}
-	api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), exists, terms, total)
-	rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/concepts/"+conceptID+"/terms/page?locale=fr-FR", "")
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	concept := mustGlossaryConcept(t, scope, id, "Checkout", "", "")
+	mustGlossaryTerm(t, scope, id, concept, "fr-FR", "Paiement")
+	mustGlossaryTerm(t, scope, id, concept, "en-US", "Checkout")
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/concepts/"+concept+"/terms/page?locale=fr-FR"), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"total":1`)
 	require.Contains(t, rec.Body.String(), "Paiement")

@@ -64,6 +64,12 @@ test-workspace: clean ## run workspace tests
 	go test -cover -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out | sort -rnk3
 
+.PHONY: test-go-svc
+test-go-svc: ## run go-svc tests against live Postgres and Valkey (DATABASE_URL + VALKEY_URL)
+	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL is required for go-svc integration tests" >&2 && exit 1)
+	@test -n "$(VALKEY_URL)" || (echo "VALKEY_URL is required for go-svc integration tests" >&2 && exit 1)
+	GO_SVC_INTEGRATION=1 go test -race ./apps/go-svc/...
+
 .PHONY: test
 test: test-workspace ## run workspace-wide tests
 

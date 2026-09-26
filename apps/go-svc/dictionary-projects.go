@@ -230,11 +230,11 @@ func (api *dictionaryAPI) resolvedWords(ctx context.Context, actor dictionaryAct
 	if api.wordsCache != nil {
 		return api.cachedResolvedWords(ctx, actor, projectID, locale, dictionaries)
 	}
-	words, err := loadResolvedDictionaryWords(ctx, api.pool, actor, projectID, locale)
+	selected, words, err := loadResolvedDictionarySelection(ctx, api.pool, actor, projectID, locale, dictionaries)
 	if err != nil {
 		return nil, 0, err
 	}
-	return resolvedDictionaryResponse(locale, dictionaries, words), 200, nil
+	return resolvedDictionaryResponse(locale, selected, words), 200, nil
 }
 
 func resolvedDictionaryResponse(locale string, dictionaries []dictionaryRecord, words []string) map[string]any {
@@ -249,24 +249,66 @@ func resolvedDictionaryResponse(locale string, dictionaries []dictionaryRecord, 
 	return map[string]any{"locale": locale, "words": words, "wordsVersion": strings.Join(versions, ","), "dictionaryIds": ids}
 }
 
-func loadResolvedDictionaryWords(ctx context.Context, db dictionaryDB, actor dictionaryActor, projectID, locale string) ([]string, error) {
+func loadResolvedDictionarySelection(ctx context.Context, db dictionaryDB, actor dictionaryActor, projectID, locale string, dictionaries []dictionaryRecord) ([]dictionaryRecord, []string, error) {
 	rows, err := db.Query(ctx, `select w.word,w.word_normalized,a.priority,a.created_at,a.library_id from project_spellcheck_word_libraries a join spellcheck_word_libraries d on d.id=a.library_id join spellcheck_word_library_words w on w.library_id=d.id where a.project_id=$1 and a.organization_id=$2 and d.organization_id=$2 and d.status='active' and w.locale=$3 order by a.priority,a.created_at,a.library_id`, projectID, actor.organizationID, locale)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 	wordRows := []dictionaryResolvedWord{}
 	for rows.Next() {
 		var row dictionaryResolvedWord
 		if err := rows.Scan(&row.word, &row.folded, &row.priority, &row.createdAt, &row.dictionaryID); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		wordRows = append(wordRows, row)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return mergeDictionaryWords(wordRows), nil
+	selected, words := selectResolvedDictionaries(dictionaries, wordRows)
+	return selected, words, nil
+}
+
+// selectResolvedDictionaries keeps libraries that still contribute a winning
+// word. A library whose tokens all lose to a higher-priority library is omitted
+// from dictionaryIds and wordsVersion. Libraries with no tokens for this locale
+// stay, so an empty attachment still identifies itself.
+func selectResolvedDictionaries(dictionaries []dictionaryRecord, rows []dictionaryResolvedWord) ([]dictionaryRecord, []string) {
+	words := mergeDictionaryWords(rows)
+	appeared := map[string]struct{}{}
+	winners := map[string]dictionaryResolvedWord{}
+	for _, row := range rows {
+		appeared[row.dictionaryID] = struct{}{}
+		existing, ok := winners[row.folded]
+		if !ok || dictionaryWordWins(row, existing) {
+			winners[row.folded] = row
+		}
+	}
+	keptWords := map[string]struct{}{}
+	for _, word := range words {
+		keptWords[word] = struct{}{}
+	}
+	winnerIDs := map[string]struct{}{}
+	for _, row := range winners {
+		if _, ok := keptWords[row.word]; ok {
+			winnerIDs[row.dictionaryID] = struct{}{}
+		}
+	}
+	selected := make([]dictionaryRecord, 0, len(dictionaries))
+	for _, d := range dictionaries {
+		if _, seen := appeared[d.ID]; !seen {
+			selected = append(selected, d)
+			continue
+		}
+		if _, won := winnerIDs[d.ID]; won {
+			selected = append(selected, d)
+		}
+	}
+	if words == nil {
+		words = []string{}
+	}
+	return selected, words
 }
 
 type dictionaryResolvedWord struct {

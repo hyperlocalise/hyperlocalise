@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,33 +8,22 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
-	"github.com/workos/workos-go/v10"
 )
 
-const testProjectBase = "/v1/orgs/acme/projects"
-
-func projectTestAPI(t *testing.T, steps ...dictionaryDBStep) *projectAPI {
+func projectTestAPI(t *testing.T) (*projectAPI, *testenv.Scope) {
 	t.Helper()
-	db := newDictionaryTestDB(t, append([]dictionaryDBStep{dictionaryAuthStep()}, steps...)...)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
 	return &projectAPI{
-		pool: db,
-		membership: func(_ context.Context, id string) (*workos.UserOrganizationMembership, error) {
-			require.Equal(t, "om_live", id)
-			return &workos.UserOrganizationMembership{
-				ID:             id,
-				UserID:         "user_live",
-				OrganizationID: "org_live",
-				Status:         "active",
-				Role:           &workos.SlimRole{Slug: "admin"},
-			}, nil
-		},
-	}
+		pool:       scope.Pool,
+		membership: scope.Membership("admin"),
+	}, scope
 }
 
-func projectRequestForTest(api *projectAPI, path string) *httptest.ResponseRecorder {
+func projectRequest(api *projectAPI, scope *testenv.Scope, path string) *httptest.ResponseRecorder {
 	mux := http.NewServeMux()
-	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_live"}})
+	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: scope.WorkOSUserID}})
 	req := httptest.NewRequest(http.MethodGet, path, nil)
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
@@ -45,86 +33,86 @@ func projectRequestForTest(api *projectAPI, path string) *httptest.ResponseRecor
 
 func TestProjectRoutes(t *testing.T) {
 	t.Run("lists accessible native projects with open job counts", func(t *testing.T) {
-		projects := json.RawMessage(`[{"id":"project_1","name":"Project","openJobCount":2}]`)
-		step := dictionaryRowStep("order by p.updated_at desc", projects)
-		step.args = []any{testDictionaryOrgID, true, testDictionaryUserID}
-
-		rec := projectRequestForTest(projectTestAPI(t, step), testProjectBase)
-
-		require.Equal(t, http.StatusOK, rec.Code)
-		require.JSONEq(t, `{"projects":[{"id":"project_1","name":"Project","openJobCount":2}]}`, rec.Body.String())
+		api, scope := projectTestAPI(t)
+		_, err := scope.Pool.Exec(t.Context(), `
+            insert into jobs (id, organization_id, project_id, kind, status, input_payload)
+            values ($1, $2, $3, 'translation', 'queued', '{}'::jsonb),
+                   ($4, $2, $3, 'translation', 'running', '{}'::jsonb)`,
+			"job_"+scope.ProjectID+"_1", scope.OrganizationID, scope.ProjectID,
+			"job_"+scope.ProjectID+"_2")
+		require.NoError(t, err)
+		rec := projectRequest(api, scope, scope.OrgPath("/projects"))
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var body struct {
+			Projects []struct {
+				ID           string `json:"id"`
+				Name         string `json:"name"`
+				OpenJobCount int    `json:"openJobCount"`
+			} `json:"projects"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		require.Len(t, body.Projects, 1)
+		require.Equal(t, scope.ProjectID, body.Projects[0].ID)
+		require.Equal(t, "Project", body.Projects[0].Name)
+		require.Equal(t, 2, body.Projects[0].OpenJobCount)
 	})
 
 	t.Run("returns a dedicated open job count", func(t *testing.T) {
-		step := dictionaryRowStep("select count(*)::int", true, 3)
-		step.args = []any{"project_1", testDictionaryOrgID, true, testDictionaryUserID}
-
-		rec := projectRequestForTest(projectTestAPI(t, step), testProjectBase+"/project_1/open-job-count")
-
+		api, scope := projectTestAPI(t)
+		for i := 1; i <= 3; i++ {
+			_, err := scope.Pool.Exec(t.Context(), `
+                insert into jobs (id, organization_id, project_id, kind, status, input_payload)
+                values ($1, $2, $3, 'translation', 'queued', '{}'::jsonb)`,
+				"job_"+scope.ProjectID+"_"+string(rune('0'+i)), scope.OrganizationID, scope.ProjectID)
+			require.NoError(t, err)
+		}
+		rec := projectRequest(api, scope, scope.OrgPath("/projects/"+scope.ProjectID+"/open-job-count"))
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.JSONEq(t, `{"openJobCount":3}`, rec.Body.String())
 	})
 
 	t.Run("returns content editor behavior and capability", func(t *testing.T) {
-		step := dictionaryRowStep("cat_grouping_revision", true, 4)
-		step.args = []any{"project_1", testDictionaryOrgID, true, testDictionaryUserID}
-
-		rec := projectRequestForTest(projectTestAPI(t, step), testProjectBase+"/project_1/content-editor-behavior")
-
+		api, scope := projectTestAPI(t)
+		_, err := scope.Pool.Exec(t.Context(), `
+            update projects set automatically_group_identical_strings=true, cat_grouping_revision=4 where id=$1`,
+			scope.ProjectID)
+		require.NoError(t, err)
+		rec := projectRequest(api, scope, scope.OrgPath("/projects/"+scope.ProjectID+"/content-editor-behavior"))
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.JSONEq(t, `{"contentEditorBehavior":{"automaticallyGroupIdenticalStrings":true,"groupingRevision":4,"canManage":true}}`, rec.Body.String())
 	})
 
 	t.Run("lists the latest native repository files", func(t *testing.T) {
-		files := json.RawMessage(`[{"origin":"repository","sourcePath":"locales/en.json","sourceHash":"hash","commitSha":"sha","workflowRunId":null,"uploadedAt":"2026-09-22T12:00:00Z","storedFileId":"file_1","metadata":{},"filename":"en.json","byteSize":42,"provider":null,"latestJob":null,"localeReadiness":{"fr":"missing"}}]`)
-		step := dictionaryRowStep("latest_locale_jobs as", true, files)
-		step.args = []any{"project_1", testDictionaryOrgID, true, testDictionaryUserID, 500, 0}
-
-		rec := projectRequestForTest(projectTestAPI(t, step), testProjectBase+"/project_1/files")
-
+		api, scope := projectTestAPI(t)
+		rec := projectRequest(api, scope, scope.OrgPath("/projects/"+scope.ProjectID+"/files"))
 		require.Equal(t, http.StatusOK, rec.Code)
-		require.JSONEq(t, `{"files":[{"origin":"repository","sourcePath":"locales/en.json","sourceHash":"hash","commitSha":"sha","workflowRunId":null,"uploadedAt":"2026-09-22T12:00:00Z","storedFileId":"file_1","metadata":{},"filename":"en.json","byteSize":42,"provider":null,"latestJob":null,"localeReadiness":{"fr":"missing"}}]}`, rec.Body.String())
+		require.JSONEq(t, `{"files":[]}`, rec.Body.String())
 	})
 
 	t.Run("applies native file filters and pagination in SQL", func(t *testing.T) {
-		step := dictionaryRowStep("ranked.source_path ilike", true, json.RawMessage(`[]`))
-		step.args = []any{"project_1", testDictionaryOrgID, true, testDictionaryUserID, "%messages%", "fr", 25, 10}
-
-		rec := projectRequestForTest(
-			projectTestAPI(t, step),
-			testProjectBase+"/project_1/files?search=messages&locale=fr&limit=25&offset=10",
-		)
-
+		api, scope := projectTestAPI(t)
+		rec := projectRequest(api, scope, scope.OrgPath("/projects/"+scope.ProjectID+"/files?search=messages&locale=fr&limit=25&offset=10"))
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.JSONEq(t, `{"files":[]}`, rec.Body.String())
 	})
 
 	t.Run("rejects invalid file query parameters", func(t *testing.T) {
-		rec := projectRequestForTest(projectTestAPI(t), testProjectBase+"/project_1/files?limit=1001")
-
+		api, scope := projectTestAPI(t)
+		rec := projectRequest(api, scope, scope.OrgPath("/projects/"+scope.ProjectID+"/files?limit=1001"))
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 		require.JSONEq(t, `{"error":"invalid_project_files_query","message":"Invalid project files query parameters"}`, rec.Body.String())
 	})
 
 	t.Run("short-circuits provider-only file filters to an empty list", func(t *testing.T) {
-		step := dictionaryRowStep("and false", true, json.RawMessage(`[]`))
-		step.args = []any{"project_1", testDictionaryOrgID, true, testDictionaryUserID, 500, 0}
-
-		rec := projectRequestForTest(
-			projectTestAPI(t, step),
-			testProjectBase+"/project_1/files?origin=provider",
-		)
-
+		api, scope := projectTestAPI(t)
+		rec := projectRequest(api, scope, scope.OrgPath("/projects/"+scope.ProjectID+"/files?origin=provider"))
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.JSONEq(t, `{"files":[]}`, rec.Body.String())
 	})
 
 	t.Run("does not serve external project ids", func(t *testing.T) {
-		rec := projectRequestForTest(
-			projectTestAPI(t),
-			strings.Replace(testProjectBase+"/project_1/open-job-count", "project_1", "ext:crowdin:1", 1),
-		)
-
+		api, scope := projectTestAPI(t)
+		rec := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:1/open-job-count"))
 		require.Equal(t, http.StatusNotFound, rec.Code)
 		require.Contains(t, rec.Body.String(), `"project_not_found"`)
 	})

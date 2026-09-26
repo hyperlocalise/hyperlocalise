@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,8 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
-	"github.com/workos/workos-go/v10"
 )
 
 const (
@@ -18,30 +18,30 @@ const (
 	testActivityEventID   = "55555555-5555-4555-8555-555555555555"
 	testActivityProjectID = "66666666-6666-4666-8666-666666666666"
 	testActivityTargetID  = "77777777-7777-4777-8777-777777777777"
-	testActivityActorUser = testDictionaryUserID
+	testActivityActorUser = "33333333-3333-4333-8333-333333333333"
 )
 
-func activityLogAuthStep() dictionaryDBStep {
-	return dictionaryAuthStep()
+var testActivityTime = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+func activityLogTestAPI(t *testing.T, role string) (*activityLogAPI, *testenv.Scope) {
+	t.Helper()
+	scope := testenv.Seed(t, testenv.Options{Role: role, WithProject: true})
+	_, err := scope.Pool.Exec(t.Context(), `update users set first_name='Ada', last_name='Lovelace' where id=$1`, scope.UserID)
+	require.NoError(t, err)
+	return &activityLogAPI{
+		pool:       scope.Pool,
+		membership: scope.Membership(role),
+	}, scope
 }
 
-func activityLogTestAPI(t *testing.T, role string, steps ...dictionaryDBStep) (*activityLogAPI, *dictionaryTestDB) {
-	t.Helper()
-	db := newDictionaryTestDB(t, append([]dictionaryDBStep{activityLogAuthStep()}, steps...)...)
-	api := &activityLogAPI{
-		pool: db,
-		membership: func(_ context.Context, id string) (*workos.UserOrganizationMembership, error) {
-			require.Equal(t, "om_live", id)
-			return &workos.UserOrganizationMembership{
-				ID:             id,
-				UserID:         "user_live",
-				OrganizationID: "org_live",
-				Status:         "active",
-				Role:           &workos.SlimRole{Slug: role},
-			}, nil
-		},
-	}
-	return api, db
+func activityLogRequest(api *activityLogAPI, scope *testenv.Scope, method, path string) *httptest.ResponseRecorder {
+	mux := http.NewServeMux()
+	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: scope.WorkOSUserID}})
+	req := httptest.NewRequest(method, path, nil)
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
 }
 
 func activityLogRequestForTest(api *activityLogAPI, method, path string) *httptest.ResponseRecorder {
@@ -54,6 +54,21 @@ func activityLogRequestForTest(api *activityLogAPI, method, path string) *httpte
 	return rec
 }
 
+func mustActivityEvent(t *testing.T, scope *testenv.Scope, actorKind, eventType, targetKind, targetID string, payload []byte, createdAt time.Time, actorUserID *string) string {
+	t.Helper()
+	id := uuid.NewString()
+	if payload == nil {
+		payload = []byte(`{}`)
+	}
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into organization_activity_events (
+            id, organization_id, actor_kind, actor_user_id, event_type, target_kind, target_id, payload, created_at
+        ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)`,
+		id, scope.OrganizationID, actorKind, actorUserID, eventType, targetKind, targetID, payload, createdAt)
+	require.NoError(t, err)
+	return id
+}
+
 func TestActivityLogRoutesRequireDatabase(t *testing.T) {
 	api := &activityLogAPI{}
 	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
@@ -64,8 +79,8 @@ func TestActivityLogRoutesRequireDatabase(t *testing.T) {
 func TestActivityLogReadForbiddenForNonOperators(t *testing.T) {
 	for _, role := range []string{"member", "developer", "translator", "reviewer"} {
 		t.Run(role, func(t *testing.T) {
-			api, _ := activityLogTestAPI(t, role)
-			rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+			api, scope := activityLogTestAPI(t, role)
+			rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
 			require.Equal(t, 403, rec.Code)
 			require.Contains(t, rec.Body.String(), `"activity_logs_read_forbidden"`)
 		})
@@ -82,8 +97,8 @@ func TestActivityLogInvalidQuery(t *testing.T) {
 		"?eventTypes=not_a_real_event",
 	} {
 		t.Run(raw, func(t *testing.T) {
-			api, _ := activityLogTestAPI(t, "admin")
-			rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase+raw)
+			api, scope := activityLogTestAPI(t, "admin")
+			rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs")+raw)
 			require.Equal(t, 400, rec.Code)
 			require.Contains(t, rec.Body.String(), `"invalid_activity_log_query"`)
 		})
@@ -91,11 +106,8 @@ func TestActivityLogInvalidQuery(t *testing.T) {
 }
 
 func TestActivityLogEmptyList(t *testing.T) {
-	api, _ := activityLogTestAPI(t, "admin",
-		dictionaryDBStep{kind: "query", sql: "from organization_activity_events e", values: [][]any{}},
-		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-	)
-	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+	api, scope := activityLogTestAPI(t, "admin")
+	rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Equal(t, "no-store", rec.Header().Get("Cache-Control"))
 
@@ -107,38 +119,10 @@ func TestActivityLogEmptyList(t *testing.T) {
 }
 
 func TestActivityLogListSuccess(t *testing.T) {
-	createdAt := testDictionaryTime
+	api, scope := activityLogTestAPI(t, "localization_manager")
 	payload := []byte(`{"name":"Acme App"}`)
-	firstName := "Ada"
-	lastName := "Lovelace"
-	actorUserID := testActivityActorUser
-	projectID := "project_native_1"
-	api, _ := activityLogTestAPI(t, "localization_manager",
-		dictionaryDBStep{
-			kind: "query",
-			sql:  "from organization_activity_events e",
-			values: [][]any{{
-				nil, "user", &actorUserID, createdAt, "project_created", testActivityEventID,
-				payload, projectID, "project", &firstName, &lastName,
-			}},
-		},
-		dictionaryDBStep{
-			kind: "query",
-			sql:  "e.actor_kind = 'user'",
-			values: [][]any{{
-				testActivityActorUser, &firstName, &lastName,
-			}},
-		},
-		dictionaryDBStep{
-			kind: "query",
-			sql:  "id = any($2::text[])",
-			args: []any{testDictionaryOrgID, []string{projectID}},
-			values: [][]any{{
-				projectID, "Acme App",
-			}},
-		},
-	)
-	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+	mustActivityEvent(t, scope, "user", "project_created", "project", scope.ProjectID, payload, testActivityTime, &scope.UserID)
+	rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 
 	var body activityLogListResult
@@ -146,57 +130,42 @@ func TestActivityLogListSuccess(t *testing.T) {
 	require.Len(t, body.ActivityLogs, 1)
 	require.Equal(t, "project_created", body.ActivityLogs[0].EventType)
 	require.Equal(t, "Ada Lovelace", body.ActivityLogs[0].Actor.DisplayName)
-	require.Equal(t, "Acme App", *body.ActivityLogs[0].Target.DisplayName)
-	require.Equal(t, "/org/acme/projects/"+projectID, *body.ActivityLogs[0].Target.Href)
+	require.Equal(t, "Project", *body.ActivityLogs[0].Target.DisplayName)
+	require.Equal(t, "/org/"+scope.Slug+"/projects/"+scope.ProjectID, *body.ActivityLogs[0].Target.Href)
 	require.Len(t, body.Actors, 1)
 	require.Equal(t, "Ada Lovelace", body.Actors[0].DisplayName)
 	require.Nil(t, body.NextCursor)
 }
 
 func TestActivityLogJobTargetUsesTextIDs(t *testing.T) {
-	createdAt := testDictionaryTime
+	api, scope := activityLogTestAPI(t, "admin")
 	jobID := "job_abc123"
-	projectID := "project_native_1"
-	payload := []byte(`{}`)
-	api, _ := activityLogTestAPI(t, "admin",
-		dictionaryDBStep{
-			kind: "query",
-			sql:  "from organization_activity_events e",
-			values: [][]any{{
-				nil, "system", nil, createdAt, "job_created", testActivityEventID,
-				payload, jobID, "job", nil, nil,
-			}},
-		},
-		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-		dictionaryDBStep{
-			kind: "query",
-			sql:  "from jobs",
-			args: []any{testDictionaryOrgID, []string{jobID}},
-			values: [][]any{{
-				jobID, "translate", &projectID,
-			}},
-		},
-	)
-	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into jobs (id, organization_id, project_id, kind, status, input_payload)
+        values ($1, $2, $3, 'translation', 'queued', '{}'::jsonb)`,
+		jobID, scope.OrganizationID, scope.ProjectID)
+	require.NoError(t, err)
+	mustActivityEvent(t, scope, "system", "job_created", "job", jobID, []byte(`{}`), testActivityTime, nil)
+	rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 
 	var body activityLogListResult
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Len(t, body.ActivityLogs, 1)
-	require.Equal(t, "translate", *body.ActivityLogs[0].Target.DisplayName)
-	require.Equal(t, "/org/acme/projects/"+projectID+"/jobs/"+jobID, *body.ActivityLogs[0].Target.Href)
+	require.Equal(t, "translation", *body.ActivityLogs[0].Target.DisplayName)
+	require.Equal(t, "/org/"+scope.Slug+"/projects/"+scope.ProjectID+"/jobs/"+jobID, *body.ActivityLogs[0].Target.Href)
 }
 
 func TestActivityLogInvalidCursorFingerprint(t *testing.T) {
 	fingerprint, err := activityLogFilterFingerprint(activityLogQuery{eventTypes: []string{}, limit: 50, rangeKey: "all"})
 	require.NoError(t, err)
 	badCursor := encodeActivityLogCursor(activityLogCursor{
-		createdAt: testDictionaryTime,
+		createdAt: testActivityTime,
 		id:        testActivityEventID,
 	}, "not-"+fingerprint)
 
-	api, _ := activityLogTestAPI(t, "admin")
-	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase+"?cursor="+url.QueryEscape(badCursor))
+	api, scope := activityLogTestAPI(t, "admin")
+	rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs")+"?cursor="+url.QueryEscape(badCursor))
 	require.Equal(t, 400, rec.Code)
 	require.Contains(t, rec.Body.String(), `"invalid_activity_log_cursor"`)
 }
@@ -216,20 +185,10 @@ func TestActivityLogCursorRoundTrip(t *testing.T) {
 }
 
 func TestActivityLogPayloadFallbackTarget(t *testing.T) {
-	createdAt := testDictionaryTime
-	payload := []byte(`{"fileName":"locales/en.json","projectId":"` + testActivityProjectID + `","sourcePath":"locales/en.json"}`)
-	api, _ := activityLogTestAPI(t, "admin",
-		dictionaryDBStep{
-			kind: "query",
-			sql:  "from organization_activity_events e",
-			values: [][]any{{
-				nil, "system", nil, createdAt, "file_uploaded", testActivityEventID,
-				payload, testActivityTargetID, "file", nil, nil,
-			}},
-		},
-		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-	)
-	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+	api, scope := activityLogTestAPI(t, "admin")
+	payload := []byte(`{"fileName":"locales/en.json","projectId":"` + scope.ProjectID + `","sourcePath":"locales/en.json"}`)
+	mustActivityEvent(t, scope, "system", "file_uploaded", "file", testActivityTargetID, payload, testActivityTime, nil)
+	rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 
 	var body activityLogListResult
@@ -266,20 +225,20 @@ func TestActivityLogFilterFingerprintStable(t *testing.T) {
 }
 
 func TestActivityLogRequiresSession(t *testing.T) {
-	api := &activityLogAPI{pool: newDictionaryTestDB(t)}
+	api, scope := activityLogTestAPI(t, "admin")
 	mux := http.NewServeMux()
-	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_live"}})
-	req := httptest.NewRequest(http.MethodGet, testActivityLogBase, nil)
+	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: scope.WorkOSUserID}})
+	req := httptest.NewRequest(http.MethodGet, scope.OrgPath("/activity-logs"), nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	require.Equal(t, 401, rec.Code)
 }
 
 func TestActivityLogRejectsNonGet(t *testing.T) {
-	api := &activityLogAPI{pool: newDictionaryTestDB(t)}
+	api, scope := activityLogTestAPI(t, "admin")
 	mux := http.NewServeMux()
-	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_live"}})
-	req := httptest.NewRequest(http.MethodPost, testActivityLogBase, nil)
+	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: scope.WorkOSUserID}})
+	req := httptest.NewRequest(http.MethodPost, scope.OrgPath("/activity-logs"), nil)
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
@@ -287,33 +246,17 @@ func TestActivityLogRejectsNonGet(t *testing.T) {
 }
 
 func TestActivityLogAllowsAdmin(t *testing.T) {
-	api, _ := activityLogTestAPI(t, "admin",
-		dictionaryDBStep{kind: "query", sql: "from organization_activity_events e", values: [][]any{}},
-		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-	)
-	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+	api, scope := activityLogTestAPI(t, "admin")
+	rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 }
 
 func TestActivityLogPaginationCursor(t *testing.T) {
-	createdAt := testDictionaryTime
-	older := createdAt.Add(-time.Hour)
-	firstID := testActivityEventID
-	secondID := "88888888-8888-4888-8888-888888888888"
+	api, scope := activityLogTestAPI(t, "admin")
 	payload := []byte(`{"name":"Gone"}`)
-	api, _ := activityLogTestAPI(t, "admin",
-		dictionaryDBStep{
-			kind: "query",
-			sql:  "from organization_activity_events e",
-			values: [][]any{
-				{nil, "system", nil, createdAt, "project_deleted", firstID, payload, testActivityProjectID, "project", nil, nil},
-				{nil, "system", nil, older, "project_deleted", secondID, payload, testActivityProjectID, "project", nil, nil},
-			},
-		},
-		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-		dictionaryDBStep{kind: "query", sql: "id = any($2::text[])", values: [][]any{}},
-	)
-	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase+"?limit=1")
+	firstID := mustActivityEvent(t, scope, "system", "project_deleted", "project", testActivityProjectID, payload, testActivityTime, nil)
+	mustActivityEvent(t, scope, "system", "project_deleted", "project", testActivityProjectID, payload, testActivityTime.Add(-time.Hour), nil)
+	rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs")+"?limit=1")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 
 	var body activityLogListResult
@@ -334,64 +277,40 @@ func TestActivityLogPaginationCursor(t *testing.T) {
 }
 
 func TestActivityLogActorAndRangeFilters(t *testing.T) {
-	api, db := activityLogTestAPI(t, "admin",
-		dictionaryDBStep{kind: "query", sql: "from organization_activity_events e", values: [][]any{}},
-		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-	)
-	rec := activityLogRequestForTest(api, http.MethodGet,
-		testActivityLogBase+"?actor=system&range=24h&eventTypes=project_created&eventTypes=project_deleted&limit=10")
+	api, scope := activityLogTestAPI(t, "admin")
+	rec := activityLogRequest(api, scope, http.MethodGet,
+		scope.OrgPath("/activity-logs")+"?actor=system&range=24h&eventTypes=project_created&eventTypes=project_deleted&limit=10")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
-	require.Empty(t, db.steps)
 }
 
 func TestActivityLogUserActorFilter(t *testing.T) {
-	api, db := activityLogTestAPI(t, "admin",
-		dictionaryDBStep{kind: "query", sql: "from organization_activity_events e", values: [][]any{}},
-		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-	)
-	rec := activityLogRequestForTest(api, http.MethodGet,
-		testActivityLogBase+"?actor=user:"+testActivityActorUser)
+	api, scope := activityLogTestAPI(t, "admin")
+	rec := activityLogRequest(api, scope, http.MethodGet,
+		scope.OrgPath("/activity-logs")+"?actor=user:"+scope.UserID)
 	require.Equal(t, 200, rec.Code, rec.Body.String())
-	require.Empty(t, db.steps)
 }
 
 func TestActivityLogMembershipPayloadFallback(t *testing.T) {
-	createdAt := testDictionaryTime
-	memberUserID := "99999999-9999-4999-8999-999999999999"
+	api, scope := activityLogTestAPI(t, "admin")
+	memberUserID := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into users (id, workos_user_id, email, first_name, last_name)
+        values ($1, $2, $3, 'Grace', 'Hopper')`,
+		memberUserID, "user_"+memberUserID, memberUserID+"@example.com")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, memberUserID)
+	})
 	payload := []byte(`{"memberUserId":"` + memberUserID + `"}`)
-	firstName := "Grace"
-	lastName := "Hopper"
-	api, _ := activityLogTestAPI(t, "admin",
-		dictionaryDBStep{
-			kind: "query",
-			sql:  "from organization_activity_events e",
-			values: [][]any{{
-				nil, "system", nil, createdAt, "member_removed", testActivityEventID,
-				payload, testActivityTargetID, "membership", nil, nil,
-			}},
-		},
-		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-		dictionaryDBStep{
-			kind:   "query",
-			sql:    "from organization_memberships m",
-			values: [][]any{},
-		},
-		dictionaryDBStep{
-			kind: "query",
-			sql:  "from users where id = any",
-			values: [][]any{{
-				memberUserID, &firstName, &lastName,
-			}},
-		},
-	)
-	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+	mustActivityEvent(t, scope, "system", "member_removed", "membership", testActivityTargetID, payload, testActivityTime, nil)
+	rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 
 	var body activityLogListResult
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Len(t, body.ActivityLogs, 1)
 	require.Equal(t, "Grace Hopper", *body.ActivityLogs[0].Target.DisplayName)
-	require.Equal(t, "/org/acme/settings/members", *body.ActivityLogs[0].Target.Href)
+	require.Equal(t, "/org/"+scope.Slug+"/settings/members", *body.ActivityLogs[0].Target.Href)
 }
 
 func TestActivityLogActorDisplayNames(t *testing.T) {
@@ -417,7 +336,7 @@ func TestDecodeActivityLogCursorRejectsBadInput(t *testing.T) {
 	fingerprint := mustActivityLogFingerprint(t, activityLogQuery{eventTypes: []string{}, limit: 50, rangeKey: "all"})
 	for _, raw := range []string{
 		"not-base64",
-		encodeActivityLogCursor(activityLogCursor{createdAt: testDictionaryTime, id: "not-a-uuid"}, fingerprint),
+		encodeActivityLogCursor(activityLogCursor{createdAt: testActivityTime, id: "not-a-uuid"}, fingerprint),
 	} {
 		_, err := decodeActivityLogCursor(raw, fingerprint)
 		require.Error(t, err)
@@ -457,22 +376,12 @@ func TestActivityLogPayloadUUID(t *testing.T) {
 }
 
 func TestActivityLogAllFilesSourcePathOmitsHref(t *testing.T) {
-	createdAt := testDictionaryTime
 	for _, sourcePath := range []string{"*", "  "} {
 		t.Run(sourcePath, func(t *testing.T) {
-			payload := []byte(`{"fileName":"all files","projectId":"` + testActivityProjectID + `","sourcePath":"` + sourcePath + `"}`)
-			api, _ := activityLogTestAPI(t, "admin",
-				dictionaryDBStep{
-					kind: "query",
-					sql:  "from organization_activity_events e",
-					values: [][]any{{
-						nil, "system", nil, createdAt, "file_uploaded", testActivityEventID,
-						payload, testActivityTargetID, "file", nil, nil,
-					}},
-				},
-				dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-			)
-			rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+			api, scope := activityLogTestAPI(t, "admin")
+			payload := []byte(`{"fileName":"all files","projectId":"` + scope.ProjectID + `","sourcePath":"` + sourcePath + `"}`)
+			mustActivityEvent(t, scope, "system", "file_uploaded", "file", testActivityTargetID, payload, testActivityTime, nil)
+			rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
 			require.Equal(t, 200, rec.Code, rec.Body.String())
 
 			var body activityLogListResult
@@ -485,111 +394,82 @@ func TestActivityLogAllFilesSourcePathOmitsHref(t *testing.T) {
 }
 
 func TestActivityLogGlossaryMemoryAutomationAndOrgJobTargets(t *testing.T) {
-	createdAt := testDictionaryTime
-	glossaryID := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-	memoryID := "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-	automationID := "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
-	jobID := "job_org_only"
-
 	cases := []struct {
 		name       string
 		targetKind string
-		targetID   string
 		eventType  string
-		lookupSQL  string
-		lookupRow  []any
-		wantName   string
-		wantHref   string
+		seed       func(*testing.T, *testenv.Scope) (targetID, wantName, wantHref string)
 	}{
 		{
 			name:       "glossary",
 			targetKind: "glossary",
-			targetID:   glossaryID,
-			eventType:  "glossary_updated",
-			lookupSQL:  "from glossaries",
-			lookupRow:  []any{glossaryID, "Product terms"},
-			wantName:   "Product terms",
-			wantHref:   "/org/acme/glossaries/" + glossaryID,
+			eventType:  "glossary_created",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := scope.MustGlossary(t, "", "Product terms", "en-US")
+				return id, "Product terms", "/org/" + scope.Slug + "/glossaries/" + id
+			},
 		},
 		{
 			name:       "translation_memory",
 			targetKind: "translation_memory",
-			targetID:   memoryID,
-			eventType:  "translation_memory_updated",
-			lookupSQL:  "from memories",
-			lookupRow:  []any{memoryID, "Brand TM"},
-			wantName:   "Brand TM",
-			wantHref:   "/org/acme/translation-memories/" + memoryID,
+			eventType:  "translation_memory_created",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := scope.MustMemory(t, "", "Brand TM")
+				return id, "Brand TM", "/org/" + scope.Slug + "/translation-memories/" + id
+			},
 		},
 		{
 			name:       "automation",
 			targetKind: "automation",
-			targetID:   automationID,
-			eventType:  "automation_updated",
-			lookupSQL:  "from workspace_automations",
-			lookupRow:  []any{automationID, "Nightly sync"},
-			wantName:   "Nightly sync",
-			wantHref:   "/org/acme/automations/" + automationID,
+			eventType:  "automation_enabled",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := uuid.NewString()
+				_, err := scope.Pool.Exec(t.Context(), `
+                    insert into workspace_automations (id, organization_id, name, instructions)
+                    values ($1, $2, 'Nightly sync', 'sync')`,
+					id, scope.OrganizationID)
+				require.NoError(t, err)
+				return id, "Nightly sync", "/org/" + scope.Slug + "/automations/" + id
+			},
 		},
 		{
 			name:       "org-scoped job",
 			targetKind: "job",
-			targetID:   jobID,
 			eventType:  "job_created",
-			lookupSQL:  "from jobs",
-			lookupRow:  []any{jobID, "export", (*string)(nil)},
-			wantName:   "export",
-			wantHref:   "/org/acme/jobs",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := "job_org_only"
+				_, err := scope.Pool.Exec(t.Context(), `
+                    insert into jobs (id, organization_id, kind, status, input_payload)
+                    values ($1, $2, 'sync', 'queued', '{}'::jsonb)`,
+					id, scope.OrganizationID)
+				require.NoError(t, err)
+				return id, "sync", "/org/" + scope.Slug + "/jobs"
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			payload := []byte(`{}`)
-			api, _ := activityLogTestAPI(t, "admin",
-				dictionaryDBStep{
-					kind: "query",
-					sql:  "from organization_activity_events e",
-					values: [][]any{{
-						nil, "system", nil, createdAt, tc.eventType, testActivityEventID,
-						payload, tc.targetID, tc.targetKind, nil, nil,
-					}},
-				},
-				dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-				dictionaryDBStep{
-					kind:   "query",
-					sql:    tc.lookupSQL,
-					args:   []any{testDictionaryOrgID, []string{tc.targetID}},
-					values: [][]any{tc.lookupRow},
-				},
-			)
-			rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+			api, scope := activityLogTestAPI(t, "admin")
+			targetID, wantName, wantHref := tc.seed(t, scope)
+			mustActivityEvent(t, scope, "system", tc.eventType, tc.targetKind, targetID, []byte(`{}`), testActivityTime, nil)
+			rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
 			require.Equal(t, 200, rec.Code, rec.Body.String())
 
 			var body activityLogListResult
 			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 			require.Len(t, body.ActivityLogs, 1)
-			require.Equal(t, tc.wantName, *body.ActivityLogs[0].Target.DisplayName)
-			require.Equal(t, tc.wantHref, *body.ActivityLogs[0].Target.Href)
+			require.Equal(t, wantName, *body.ActivityLogs[0].Target.DisplayName)
+			require.Equal(t, wantHref, *body.ActivityLogs[0].Target.Href)
 		})
 	}
 }
 
 func TestActivityLogStringSegmentAllFilesSourcePathOmitsHref(t *testing.T) {
-	createdAt := testDictionaryTime
-	payload := []byte(`{"fileName":"batch","projectId":"` + testActivityProjectID + `","sourcePath":"*"}`)
-	api, _ := activityLogTestAPI(t, "admin",
-		dictionaryDBStep{
-			kind: "query",
-			sql:  "from organization_activity_events e",
-			values: [][]any{{
-				nil, "system", nil, createdAt, "string_segment_updated", testActivityEventID,
-				payload, testActivityTargetID, "string_segment", nil, nil,
-			}},
-		},
-		dictionaryDBStep{kind: "query", sql: "e.actor_kind = 'user'", values: [][]any{}},
-	)
-	rec := activityLogRequestForTest(api, http.MethodGet, testActivityLogBase)
+	api, scope := activityLogTestAPI(t, "admin")
+	payload := []byte(`{"fileName":"batch","projectId":"` + scope.ProjectID + `","sourcePath":"*"}`)
+	mustActivityEvent(t, scope, "system", "string_segment_status_changed", "string_segment", testActivityTargetID, payload, testActivityTime, nil)
+	rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 
 	var body activityLogListResult

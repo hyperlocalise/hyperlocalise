@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/hyperlocalise/hyperlocalise/internal/gsc"
 	"github.com/stretchr/testify/require"
-	"github.com/workos/workos-go/v10"
 )
 
 func TestCalculateAllocationRangesMatchesBuckets(t *testing.T) {
@@ -62,31 +62,29 @@ func TestSearchConsolePipesErrorsBecomeSnapshots(t *testing.T) {
 }
 
 func TestWorkspaceFeatureFlagFailsClosed(t *testing.T) {
-	db := newDictionaryTestDB(t, dictionaryAuthStep(), dictionaryRowStep("workos_organization_id", "org_live"))
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
 	h := newHandler()
 	h.workspace = &workspaceAPI{
-		pool: db,
-		membership: func(_ context.Context, id string) (*workos.UserOrganizationMembership, error) {
-			return &workos.UserOrganizationMembership{ID: id, UserID: "user_live", OrganizationID: "org_live", Status: "active", Role: &workos.SlimRole{Slug: "admin"}}, nil
-		},
+		pool:       scope.Pool,
+		membership: scope.Membership("admin"),
 	}
-	rec := workspaceRequest(t, h, http.MethodGet, "/v1/orgs/acme/hyperlab/flags", "")
+	rec := workspaceRequest(t, h, scope, http.MethodGet, scope.OrgPath("/hyperlab/flags"), "")
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "feature_unavailable")
 }
 
 func TestHyperlabWriteRequiresExperimentsCapability(t *testing.T) {
-	db := newDictionaryTestDB(t, dictionaryAuthStep(), dictionaryRowStep("workos_organization_id", "org_live"))
-	h := workspaceHandler(db, "member", stubWorkspaceFlags{enabled: true})
-	rec := workspaceRequest(t, h, http.MethodPost, "/v1/orgs/acme/hyperlab/flags", `{"key":"checkout"}`)
+	scope := testenv.Seed(t, testenv.Options{Role: "member"})
+	h := workspaceHandler(scope, "member", stubWorkspaceFlags{enabled: true})
+	rec := workspaceRequest(t, h, scope, http.MethodPost, scope.OrgPath("/hyperlab/flags"), `{"key":"checkout"}`)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "Missing experiments:write")
 }
 
 func TestHyperlabRejectsInvalidFlagKey(t *testing.T) {
-	db := newDictionaryTestDB(t, dictionaryAuthStep(), dictionaryRowStep("workos_organization_id", "org_live"))
-	h := workspaceHandler(db, "admin", stubWorkspaceFlags{enabled: true})
-	rec := workspaceRequest(t, h, http.MethodPost, "/v1/orgs/acme/hyperlab/flags", `{"key":"Not A Key"}`)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	h := workspaceHandler(scope, "admin", stubWorkspaceFlags{enabled: true})
+	rec := workspaceRequest(t, h, scope, http.MethodPost, scope.OrgPath("/hyperlab/flags"), `{"key":"Not A Key"}`)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "invalid_flag_payload")
 }
@@ -97,22 +95,20 @@ func (s stubWorkspaceFlags) Enabled(context.Context, string, string, string) (bo
 	return s.enabled, nil
 }
 
-func workspaceHandler(db *dictionaryTestDB, role string, flags workspaceFlagChecker) *handler {
+func workspaceHandler(scope *testenv.Scope, role string, flags workspaceFlagChecker) *handler {
 	h := newHandler()
 	h.workspace = &workspaceAPI{
-		pool:  db,
-		flags: flags,
-		membership: func(_ context.Context, id string) (*workos.UserOrganizationMembership, error) {
-			return &workos.UserOrganizationMembership{ID: id, UserID: "user_live", OrganizationID: "org_live", Status: "active", Role: &workos.SlimRole{Slug: role}}, nil
-		},
+		pool:       scope.Pool,
+		flags:      flags,
+		membership: scope.Membership(role),
 	}
 	return h
 }
 
-func workspaceRequest(t *testing.T, h *handler, method, path, body string) *httptest.ResponseRecorder {
+func workspaceRequest(t *testing.T, h *handler, scope *testenv.Scope, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	mux := http.NewServeMux()
-	registerRoutes(mux, h, stubSessionVerifier{claims: AuthClaims{UserID: "user_live"}})
+	registerRoutes(mux, h, stubSessionVerifier{claims: AuthClaims{UserID: scope.WorkOSUserID}})
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", "http://127.0.0.1")

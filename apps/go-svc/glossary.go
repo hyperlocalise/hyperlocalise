@@ -280,8 +280,18 @@ func glossaryLanguages(g glossaryRecord) []glossaryLanguage {
 
 // glossaryAccessPredicate expects $org and $user as the organization and user bind
 // positions (1-based). Managers ignore the user predicate via $manager.
+// Team glossaries stay hidden from their creator unless that user is on the
+// glossary team or can see an attached project. Authorship alone is not access.
 func glossaryAccessPredicate(alias string, org, user, manager int) string {
-	return alias + `.organization_id=$` + itoa(org) + ` and ($` + itoa(manager) + ` or ` + alias + `.created_by_user_id=$` + itoa(user) + ` or ` + alias + `.control_level='org' or exists(select 1 from project_glossaries pg join projects p on p.id=pg.project_id where pg.glossary_id=` + alias + `.id and pg.organization_id=$` + itoa(org) + ` and p.organization_id=$` + itoa(org) + ` and exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$` + itoa(user) + ` and t.organization_id=$` + itoa(org) + ` and (t.id=p.team_id or (p.team_id is null and t.slug='default')))))`
+	o, u, m := itoa(org), itoa(user), itoa(manager)
+	return alias + `.organization_id=$` + o + ` and ($` + m +
+		` or ` + alias + `.control_level='org'` +
+		` or exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$` + u +
+		` and t.organization_id=$` + o + ` and t.id=` + alias + `.team_id)` +
+		` or exists(select 1 from project_glossaries pg join projects p on p.id=pg.project_id where pg.glossary_id=` + alias + `.id and pg.organization_id=$` + o +
+		` and p.organization_id=$` + o +
+		` and exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$` + u +
+		` and t.organization_id=$` + o + ` and (t.id=p.team_id or (p.team_id is null and t.slug='default')))))`
 }
 
 func itoa(n int) string {

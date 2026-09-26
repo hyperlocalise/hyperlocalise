@@ -9,51 +9,39 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
-	"github.com/workos/workos-go/v10"
 )
 
 const (
-	testGlossaryID     = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-	testGlossaryOrgID  = "22222222-2222-4222-8222-222222222222"
-	testGlossaryUserID = "33333333-3333-4333-8333-333333333333"
-	testGlossaryBase   = "/v1/orgs/acme/glossaries"
+	testGlossaryID   = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	testGlossaryBase = "/v1/orgs/acme/glossaries"
 )
 
 var testGlossaryTime = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-func glossaryRecordValues() []any {
-	userID := testGlossaryUserID
-	coverage := []byte(`[]`)
-	caps := []byte(`{}`)
-	return []any{
-		testGlossaryID, testGlossaryOrgID, &userID, "Product terms", "desc", "en-US", nil,
-		"active", "native", "org", nil, nil, nil, nil, nil, coverage, nil, nil, caps, nil,
-		nil, nil, nil, testGlossaryTime, testGlossaryTime,
-	}
-}
-
-func glossaryAuthStep() dictionaryDBStep {
-	step := dictionaryRowStep("m.workos_membership_id not in ('', 'replacing')", testGlossaryUserID, testGlossaryOrgID, "om_live", "org_live")
-	step.args = []any{"user_live", "acme"}
-	return step
-}
-
-func glossaryOwnedStep() dictionaryDBStep {
-	step := dictionaryRowStep("g.id=$1 and", glossaryRecordValues()...)
-	step.args = []any{testGlossaryID, testGlossaryOrgID, testGlossaryUserID, true}
-	return step
-}
-
-func glossaryTestAPI(t *testing.T, role string, steps ...dictionaryDBStep) (*glossaryAPI, *dictionaryTestDB) {
+func glossaryTestAPI(t *testing.T, role string) (*glossaryAPI, *testenv.Scope) {
 	t.Helper()
-	db := newDictionaryTestDB(t, append([]dictionaryDBStep{glossaryAuthStep()}, steps...)...)
-	api := &glossaryAPI{pool: db, membership: func(_ context.Context, id string) (*workos.UserOrganizationMembership, error) {
-		require.Equal(t, "om_live", id)
-		return &workos.UserOrganizationMembership{ID: id, UserID: "user_live", OrganizationID: "org_live", Status: "active", Role: &workos.SlimRole{Slug: role}}, nil
-	}}
-	return api, db
+	scope := testenv.Seed(t, testenv.Options{Role: role})
+	return &glossaryAPI{
+		pool:       scope.Pool,
+		membership: scope.Membership(role),
+		readCache:  scope.Valkey,
+	}, scope
+}
+
+func glossaryRequest(api *glossaryAPI, scope *testenv.Scope, method, path, body string) *httptest.ResponseRecorder {
+	mux := http.NewServeMux()
+	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: scope.WorkOSUserID}})
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
 }
 
 func glossaryRequestForTest(api *glossaryAPI, method, path, body string) *httptest.ResponseRecorder {
@@ -67,52 +55,79 @@ func glossaryRequestForTest(api *glossaryAPI, method, path, body string) *httpte
 	return rec
 }
 
+func mustAttachGlossary(t *testing.T, scope *testenv.Scope, projectID, glossaryID string) {
+	t.Helper()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into project_glossaries (organization_id, project_id, glossary_id, priority)
+        values ($1, $2, $3, 0)`,
+		scope.OrganizationID, projectID, glossaryID)
+	require.NoError(t, err)
+}
+
+func mustGlossaryConcept(t *testing.T, scope *testenv.Scope, glossaryID, primary, subject, definition string) string {
+	t.Helper()
+	id := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into glossary_concepts (id, glossary_id, primary_term, subject, definition, translatable, note, created_by_user_id)
+        values ($1, $2, $3, $4, $5, true, '', $6)`,
+		id, glossaryID, primary, subject, definition, scope.UserID)
+	require.NoError(t, err)
+	return id
+}
+
+func mustGlossaryTerm(t *testing.T, scope *testenv.Scope, glossaryID, conceptID, locale, term string) string {
+	t.Helper()
+	id := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into glossary_terms (
+            id, glossary_id, concept_id, locale, term, source_term, target_term, status, provenance, review_status
+        ) values ($1, $2, $3, $4, $5, $5, $5, 'preferred', 'manual', 'approved')`,
+		id, glossaryID, conceptID, locale, term)
+	require.NoError(t, err)
+	return id
+}
+
+func TestGlossaryUnavailableWithoutPool(t *testing.T) {
+	rec := glossaryRequestForTest(&glossaryAPI{}, http.MethodGet, testGlossaryBase, "")
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	require.Contains(t, rec.Body.String(), "glossary_unavailable")
+}
+
 func TestGlossaryCreateListGet(t *testing.T) {
 	t.Run("create org glossary", func(t *testing.T) {
-		var nilTeamID *string
-		step := dictionaryRowStep("insert into glossaries", glossaryRecordValues()...)
-		step.args = []any{testGlossaryOrgID, testGlossaryUserID, "Product terms", "", "en-US", "org", nilTeamID}
-		api, db := glossaryTestAPI(t, "admin",
-			dictionaryDBStep{kind: "begin"},
-			step,
-			dictionaryDBStep{kind: "commit"},
-		)
-		rec := glossaryRequestForTest(api, "POST", testGlossaryBase, `{"name":"Product terms","sourceLocale":"en-US"}`)
+		api, scope := glossaryTestAPI(t, "admin")
+		rec := glossaryRequest(api, scope, "POST", scope.OrgPath("/glossaries"), `{"name":"Product terms","sourceLocale":"en-US"}`)
 		require.Equal(t, 201, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"glossary"`)
 		require.Equal(t, "no-store", rec.Header().Get("Cache-Control"))
-		require.True(t, db.committed)
 	})
 	t.Run("translator cannot create org glossary", func(t *testing.T) {
-		api, _ := glossaryTestAPI(t, "translator")
-		rec := glossaryRequestForTest(api, "POST", testGlossaryBase, `{"name":"Team terms","sourceLocale":"en-US","controlLevel":"org"}`)
+		api, scope := glossaryTestAPI(t, "translator")
+		rec := glossaryRequest(api, scope, "POST", scope.OrgPath("/glossaries"), `{"name":"Team terms","sourceLocale":"en-US","controlLevel":"org"}`)
 		require.Equal(t, 403, rec.Code)
 	})
 	t.Run("list glossaries", func(t *testing.T) {
-		secondID := "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
-		externalID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-		second := glossaryRecordValues()
-		second[0] = secondID
-		external := glossaryRecordValues()
-		external[0] = externalID
-		external[8] = "external_tms"
-		listStep := dictionaryDBStep{kind: "query", sql: "from glossaries g where", values: [][]any{glossaryRecordValues(), second, external}}
-		listStep.args = []any{testGlossaryOrgID, testGlossaryUserID, true, 50, 0}
-		countStep := dictionaryRowStep("select count(*) from glossaries g where", 3)
-		countStep.args = []any{testGlossaryOrgID, testGlossaryUserID, true}
-		projectCount := dictionaryDBStep{kind: "query", sql: "from project_glossaries a join projects", values: [][]any{
-			{testGlossaryID, 0},
-			{secondID, 1},
-			{externalID, 2},
-		}}
-		projectCount.args = []any{[]string{testGlossaryID, secondID, externalID}, testGlossaryOrgID, true, testGlossaryUserID}
-		termCount := dictionaryDBStep{kind: "query", sql: "from glossary_terms where glossary_id=any", values: [][]any{
-			{testGlossaryID, 2},
-			{secondID, 4},
-		}}
-		termCount.args = []any{[]string{testGlossaryID, secondID}}
-		api, _ := glossaryTestAPI(t, "admin", listStep, countStep, projectCount, termCount)
-		rec := glossaryRequestForTest(api, "GET", testGlossaryBase, "")
+		api, scope := glossaryTestAPI(t, "admin")
+		first := scope.MustGlossary(t, "", "Product terms", "en-US")
+		second := scope.MustGlossary(t, "", "Second", "en-US")
+		external := scope.MustGlossary(t, "", "External", "en-US")
+		_, err := scope.Pool.Exec(t.Context(), `update glossaries set source='external_tms' where id=$1`, external)
+		require.NoError(t, err)
+		firstProject := scope.MustProject(t, scope.ProjectID, "Project")
+		secondProject := "proj2_" + strings.ReplaceAll(uuid.NewString()[:8], "-", "")
+		scope.MustProject(t, secondProject, "Second")
+		mustAttachGlossary(t, scope, firstProject, second)
+		mustAttachGlossary(t, scope, firstProject, external)
+		mustAttachGlossary(t, scope, secondProject, external)
+		concept := mustGlossaryConcept(t, scope, first, "A", "", "")
+		mustGlossaryTerm(t, scope, first, concept, "en-US", "One")
+		mustGlossaryTerm(t, scope, first, concept, "fr-FR", "Deux")
+		c2 := mustGlossaryConcept(t, scope, second, "B", "", "")
+		mustGlossaryTerm(t, scope, second, c2, "en-US", "Alpha")
+		mustGlossaryTerm(t, scope, second, c2, "fr-FR", "Beta")
+		mustGlossaryTerm(t, scope, second, c2, "de-DE", "Gamma")
+		mustGlossaryTerm(t, scope, second, c2, "es-ES", "Delta")
+		rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries"), "")
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"glossaries"`)
 		require.Contains(t, rec.Body.String(), `"total":3`)
@@ -123,69 +138,58 @@ func TestGlossaryCreateListGet(t *testing.T) {
 		require.Contains(t, rec.Body.String(), `"termCount":4`)
 	})
 	t.Run("get glossary", func(t *testing.T) {
-		projectCount := dictionaryRowStep("from project_glossaries a join projects", 1)
-		projectCount.args = []any{testGlossaryID, testGlossaryOrgID, true, testGlossaryUserID}
-		termCount := dictionaryRowStep("from glossary_terms where glossary_id=$1", 3)
-		termCount.args = []any{testGlossaryID}
-		api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), projectCount, termCount)
-		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID, "")
+		api, scope := glossaryTestAPI(t, "admin")
+		id := scope.MustGlossary(t, "", "Product terms", "en-US")
+		scope.MustProject(t, scope.ProjectID, "Project")
+		mustAttachGlossary(t, scope, scope.ProjectID, id)
+		concept := mustGlossaryConcept(t, scope, id, "Checkout", "Commerce", "Payment")
+		mustGlossaryTerm(t, scope, id, concept, "en-US", "Checkout")
+		mustGlossaryTerm(t, scope, id, concept, "fr-FR", "Paiement")
+		mustGlossaryTerm(t, scope, id, concept, "de-DE", "Kasse")
+		rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id), "")
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"canContribute":true`)
 		require.Contains(t, rec.Body.String(), `"termCount":3`)
 	})
 	t.Run("export returns csv", func(t *testing.T) {
-		conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-		termID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
-		concepts := dictionaryDBStep{kind: "query", sql: "from glossary_concepts c where c.glossary_id=$1", values: [][]any{{
-			conceptID, "Checkout", "Commerce", "Payment step", true, "", nil, nil, testGlossaryTime, testGlossaryTime,
-		}}}
-		concepts.args = []any{testGlossaryID}
-		terms := dictionaryDBStep{kind: "query", sql: "from glossary_terms t where t.glossary_id=$1", values: [][]any{{
-			termID, conceptID, "en-US", "Checkout", "", "", "", nil, nil, nil, nil, "preferred", false, false, "manual", "approved", testGlossaryTime, testGlossaryTime,
-		}}}
-		terms.args = []any{testGlossaryID, []string{conceptID}}
-		api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), concepts, terms)
-		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/export?format=csv", "")
+		api, scope := glossaryTestAPI(t, "admin")
+		id := scope.MustGlossary(t, "", "Product terms", "en-US")
+		concept := mustGlossaryConcept(t, scope, id, "Checkout", "Commerce", "Payment step")
+		mustGlossaryTerm(t, scope, id, concept, "en-US", "Checkout")
+		rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/export?format=csv"), "")
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Header().Get("Content-Type"), "text/csv")
 		require.Contains(t, rec.Body.String(), "Checkout")
 		require.Contains(t, rec.Header().Get("Content-Disposition"), "attachment")
 	})
 	t.Run("import backup still 501", func(t *testing.T) {
-		reportID := "ffffffff-ffff-4fff-8fff-ffffffffffff"
-		api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep())
-		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/import-reports/"+reportID+"/backup", "")
+		api, scope := glossaryTestAPI(t, "admin")
+		id := scope.MustGlossary(t, "", "Product terms", "en-US")
+		rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports/"+uuid.NewString()+"/backup"), "")
 		require.Equal(t, 501, rec.Code)
 		require.Contains(t, rec.Body.String(), "not_implemented")
 	})
 	t.Run("concepts page returns envelope", func(t *testing.T) {
-		conceptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-		list := dictionaryDBStep{kind: "query", sql: "from glossary_concepts c where", values: [][]any{{
-			conceptID, testGlossaryID, "Checkout", "Commerce", "Payment", "approved", testGlossaryTime, testGlossaryTime,
-		}}}
-		list.args = []any{testGlossaryID, 51}
-		counts := dictionaryDBStep{kind: "query", sql: "from glossary_terms where concept_id = any", values: [][]any{{conceptID, 1, 1}}}
-		counts.args = []any{[]string{conceptID}}
-		total := dictionaryRowStep("select count(*) from glossary_concepts c where", 1)
-		total.args = []any{testGlossaryID}
-		api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), list, counts, total)
-		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/concepts/page", "")
+		api, scope := glossaryTestAPI(t, "admin")
+		id := scope.MustGlossary(t, "", "Product terms", "en-US")
+		mustGlossaryConcept(t, scope, id, "Checkout", "Commerce", "Payment")
+		rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/concepts/page"), "")
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"concepts"`)
 		require.Contains(t, rec.Body.String(), `"pagination"`)
 	})
 	t.Run("import dry preview", func(t *testing.T) {
-		insertRun := dictionaryRowStep("insert into glossary_import_runs", "ffffffff-ffff-4fff-8fff-ffffffffffff")
-		api, _ := glossaryTestAPI(t, "admin", glossaryOwnedStep(), insertRun)
+		api, scope := glossaryTestAPI(t, "admin")
+		id := scope.MustGlossary(t, "", "Product terms", "en-US")
 		body := `{"format":"csv","content":"conceptId,locale,term\nc1,en-US,Hello","mode":"preview"}`
-		rec := glossaryRequestForTest(api, "POST", testGlossaryBase+"/"+testGlossaryID+"/concepts/import", body)
+		rec := glossaryRequest(api, scope, "POST", scope.OrgPath("/glossaries/"+id+"/concepts/import"), body)
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"planned"`)
 		require.Contains(t, rec.Body.String(), `"reportId"`)
 	})
 	t.Run("malformed id never queries", func(t *testing.T) {
-		api, _ := glossaryTestAPI(t, "member")
-		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/not-a-uuid", "")
+		api, scope := glossaryTestAPI(t, "member")
+		rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/not-a-uuid"), "")
 		require.Equal(t, 404, rec.Code)
 	})
 }
@@ -225,58 +229,64 @@ func TestGlossaryActorCanContribute(t *testing.T) {
 }
 
 func TestGlossaryTeamPrivateAccessDenied(t *testing.T) {
-	// Translators without team/project membership must not learn that a
-	// team-private glossary exists via GET or history (same class as #2378).
-	denied := dictionaryDBStep{
-		kind: "row",
-		sql:  "g.id=$1 and",
-		args: []any{testGlossaryID, testGlossaryOrgID, testGlossaryUserID, false},
-		err:  pgx.ErrNoRows,
-	}
-
 	t.Run("get glossary", func(t *testing.T) {
-		api, _ := glossaryTestAPI(t, "translator", denied)
-		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID, "")
+		api, scope := glossaryTestAPI(t, "translator")
+		teamID := scope.MustTeam(t, "platform", "Platform", "")
+		id := uuid.NewString()
+		_, err := scope.Pool.Exec(t.Context(), `
+            insert into glossaries (
+                id, organization_id, created_by_user_id, name, source_locale, status, source, control_level, team_id
+            ) values ($1, $2, $3, 'Private', 'en-US', 'active', 'native', 'team', $4)`,
+			id, scope.OrganizationID, scope.UserID, teamID)
+		require.NoError(t, err)
+		rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id), "")
 		require.Equal(t, 404, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"glossary_not_found"`)
 	})
 
 	t.Run("concepts history", func(t *testing.T) {
-		api, _ := glossaryTestAPI(t, "translator", denied)
-		rec := glossaryRequestForTest(api, "GET", testGlossaryBase+"/"+testGlossaryID+"/concepts/history", "")
+		api, scope := glossaryTestAPI(t, "translator")
+		teamID := scope.MustTeam(t, "platform", "Platform", "")
+		id := uuid.NewString()
+		_, err := scope.Pool.Exec(t.Context(), `
+            insert into glossaries (
+                id, organization_id, created_by_user_id, name, source_locale, status, source, control_level, team_id
+            ) values ($1, $2, $3, 'Private', 'en-US', 'active', 'native', 'team', $4)`,
+			id, scope.OrganizationID, scope.UserID, teamID)
+		require.NoError(t, err)
+		rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/concepts/history"), "")
 		require.Equal(t, 404, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"glossary_not_found"`)
 	})
 }
 
-// Model a pool whose last connection is held by the transaction. A pool-level
-// query would wait until its context expires; fail immediately to keep this
-// regression test deterministic. Transaction queries use the underlying DB.
 type glossarySingleConnectionPool struct {
-	dictionaryPool
+	*pgxpool.Pool
 	inTransaction bool
 	extraAcquires int
 }
 
 func (p *glossarySingleConnectionPool) Begin(ctx context.Context) (pgx.Tx, error) {
-	tx, err := p.dictionaryPool.Begin(ctx)
+	tx, err := p.Pool.Begin(ctx)
 	if err == nil {
 		p.inTransaction = true
 	}
 	return tx, err
 }
 
+type deadlineRow struct{}
+
+func (deadlineRow) Scan(...any) error { return context.DeadlineExceeded }
+
 func (p *glossarySingleConnectionPool) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
 	if p.inTransaction {
 		p.extraAcquires++
-		return dictionaryTestRow{err: context.DeadlineExceeded}
+		return deadlineRow{}
 	}
-	return p.dictionaryPool.QueryRow(ctx, sql, args...)
+	return p.Pool.QueryRow(ctx, sql, args...)
 }
 
 func TestGlossaryCreateUsesTransactionConnection(t *testing.T) {
-	const projectID = "project-one"
-	const teamID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 	for _, tc := range []struct {
 		name, role string
 		member     bool
@@ -284,46 +294,28 @@ func TestGlossaryCreateUsesTransactionConnection(t *testing.T) {
 	}{
 		{name: "manager attaches project", role: "admin", member: true, wantStatus: 201},
 		{name: "translator checks team membership", role: "translator", member: true, wantStatus: 201},
-		{name: "translator outside team remains forbidden", role: "translator", member: false, wantStatus: 403},
+		{name: "translator outside team cannot see project", role: "translator", member: false, wantStatus: 404},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			project := dictionaryRowStep("select p.id from projects p where", projectID)
-			project.args = []any{projectID, testGlossaryOrgID, tc.role == "admin", testGlossaryUserID}
-			lock := dictionaryRowStep("for update", projectID, "native", strPtr("en-US"), strPtr(teamID))
-			lock.args = []any{projectID, testGlossaryOrgID}
-			team := dictionaryRowStep("select id from teams where", teamID)
-			team.args = []any{teamID, testGlossaryOrgID}
-			steps := []dictionaryDBStep{{kind: "begin"}, project, lock, team}
-			if tc.role == "translator" {
-				membership := dictionaryRowStep("select t.id from teams t join team_memberships", teamID)
-				membership.args = []any{teamID, testGlossaryOrgID, testGlossaryUserID}
-				if !tc.member {
-					membership.err = pgx.ErrNoRows
-				}
-				steps = append(steps, membership)
+			api, scope := glossaryTestAPI(t, tc.role)
+			teamRole := ""
+			if tc.member {
+				teamRole = "member"
 			}
-			if tc.wantStatus == 201 {
-				values := glossaryRecordValues()
-				values[9], values[10] = "team", strPtr(teamID)
-				insert := dictionaryRowStep("insert into glossaries", values...)
-				insert.args = []any{testGlossaryOrgID, testGlossaryUserID, "Team terms", "", "en-US", "team", strPtr(teamID)}
-				steps = append(steps, insert,
-					dictionaryDBStep{kind: "exec", sql: "insert into project_glossaries", args: []any{testGlossaryOrgID, projectID, testGlossaryID}, affected: 1},
-					dictionaryDBStep{kind: "commit"})
-			}
-			api, db := glossaryTestAPI(t, tc.role, steps...)
-			pool := &glossarySingleConnectionPool{dictionaryPool: db}
+			teamID := scope.MustTeam(t, "platform", "Platform", teamRole)
+			scope.MustProject(t, scope.ProjectID, "Project")
+			_, err := scope.Pool.Exec(t.Context(), `update projects set team_id=$1, source_locale='en-US' where id=$2`, teamID, scope.ProjectID)
+			require.NoError(t, err)
+			pool := &glossarySingleConnectionPool{Pool: scope.Pool}
 			api.pool = pool
-			rec := glossaryRequestForTest(api, "POST", testGlossaryBase,
-				`{"name":"Team terms","sourceLocale":"en-US","controlLevel":"team","projectIds":["project-one"]}`)
+			rec := glossaryRequest(api, scope, "POST", scope.OrgPath("/glossaries"),
+				`{"name":"Team terms","sourceLocale":"en-US","controlLevel":"team","projectIds":["`+scope.ProjectID+`"]}`)
 			require.Equal(t, tc.wantStatus, rec.Code, rec.Body.String())
 			require.Zero(t, pool.extraAcquires, "creation must not acquire another connection while holding a transaction")
-			require.Equal(t, tc.wantStatus == 201, db.committed)
-			require.Equal(t, 1, db.rollbacks, "transaction cleanup must run on success and failure")
 			if tc.wantStatus == 201 {
 				require.Contains(t, rec.Body.String(), `"projectCount":1`)
 			} else {
-				require.Contains(t, rec.Body.String(), `"error":"forbidden"`)
+				require.Contains(t, rec.Body.String(), `"project_not_found"`)
 			}
 		})
 	}

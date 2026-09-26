@@ -37,15 +37,20 @@ func resolvedDictionaryCacheKey(organizationID, projectID, locale string, dictio
 	return "go-svc:dictionary-words:v1:" + hex.EncodeToString(digest[:])
 }
 
+type resolvedWordsCachePayload struct {
+	Words         []string `json:"words"`
+	DictionaryIDs []string `json:"dictionaryIds"`
+}
+
 func (api *dictionaryAPI) cachedResolvedWords(ctx context.Context, actor dictionaryActor, projectID, locale string, dictionaries []dictionaryRecord) (any, int, error) {
 	key := resolvedDictionaryCacheKey(actor.organizationID, projectID, locale, dictionaries)
 	cacheCtx, cancel := context.WithTimeout(ctx, DICTIONARY_WORDS_CACHE_TIMEOUT)
 	raw, err := api.wordsCache.Get(cacheCtx, key)
 	cancel()
 	if err == nil && len(raw) <= DICTIONARY_WORDS_CACHE_MAX_BYTES {
-		var words []string
-		if json.Unmarshal([]byte(raw), &words) == nil && words != nil && len(words) <= dictionaryMaxResolvedWords {
-			return resolvedDictionaryResponse(locale, dictionaries, words), 200, nil
+		var cached resolvedWordsCachePayload
+		if json.Unmarshal([]byte(raw), &cached) == nil && cached.Words != nil && cached.DictionaryIDs != nil && len(cached.Words) <= dictionaryMaxResolvedWords {
+			return resolvedDictionaryResponse(locale, filterDictionariesByID(dictionaries, cached.DictionaryIDs), cached.Words), 200, nil
 		}
 	}
 
@@ -63,7 +68,7 @@ func (api *dictionaryAPI) cachedResolvedWords(ctx context.Context, actor diction
 	if err != nil {
 		return nil, 0, err
 	}
-	words, err := loadResolvedDictionaryWords(ctx, tx, actor, projectID, locale)
+	selected, words, err := loadResolvedDictionarySelection(ctx, tx, actor, projectID, locale, dictionaries)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -71,7 +76,14 @@ func (api *dictionaryAPI) cachedResolvedWords(ctx context.Context, actor diction
 		return nil, 0, err
 	}
 	key = resolvedDictionaryCacheKey(actor.organizationID, projectID, locale, dictionaries)
-	payload, err := json.Marshal(words)
+	if words == nil {
+		words = []string{}
+	}
+	ids := make([]string, len(selected))
+	for i, d := range selected {
+		ids[i] = d.ID
+	}
+	payload, err := json.Marshal(resolvedWordsCachePayload{Words: words, DictionaryIDs: ids})
 	if err == nil && len(payload) <= DICTIONARY_WORDS_CACHE_MAX_BYTES {
 		cacheCtx, cancel := context.WithTimeout(ctx, DICTIONARY_WORDS_CACHE_TIMEOUT)
 		if err := api.wordsCache.Set(cacheCtx, key, string(payload), DICTIONARY_WORDS_CACHE_TTL); err != nil {
@@ -80,5 +92,22 @@ func (api *dictionaryAPI) cachedResolvedWords(ctx context.Context, actor diction
 		}
 		cancel()
 	}
-	return resolvedDictionaryResponse(locale, dictionaries, words), 200, nil
+	return resolvedDictionaryResponse(locale, selected, words), 200, nil
+}
+
+func filterDictionariesByID(dictionaries []dictionaryRecord, ids []string) []dictionaryRecord {
+	if len(ids) == 0 {
+		return []dictionaryRecord{}
+	}
+	allow := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		allow[id] = struct{}{}
+	}
+	selected := make([]dictionaryRecord, 0, len(ids))
+	for _, d := range dictionaries {
+		if _, ok := allow[d.ID]; ok {
+			selected = append(selected, d)
+		}
+	}
+	return selected
 }

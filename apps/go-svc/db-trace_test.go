@@ -6,14 +6,37 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 )
 
+// errorPool is a dictionaryPool whose QueryRow scan fails with a fixed error.
+type errorPool struct{ err error }
+
+func (p errorPool) Query(context.Context, string, ...any) (pgx.Rows, error) {
+	return nil, p.err
+}
+
+func (p errorPool) QueryRow(context.Context, string, ...any) pgx.Row {
+	return errorRow(p)
+}
+
+func (p errorPool) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, p.err
+}
+
+func (p errorPool) Begin(context.Context) (pgx.Tx, error) {
+	return nil, p.err
+}
+
+type errorRow struct{ err error }
+
+func (r errorRow) Scan(...any) error { return r.err }
+
 func TestTracedPoolAnnotatesQueryError(t *testing.T) {
 	inner := errors.New("expected 3 arguments, got 4")
-	db := newDictionaryTestDB(t, dictionaryDBStep{kind: "row", sql: "select $1", err: inner})
 	var n int
-	err := (tracedPool{inner: db}).QueryRow(context.Background(), "select $1", 1).Scan(&n)
+	err := (tracedPool{inner: errorPool{err: inner}}).QueryRow(context.Background(), "select $1", 1).Scan(&n)
 	var traced *dbError
 	require.ErrorAs(t, err, &traced)
 	require.ErrorIs(t, err, inner)
@@ -25,9 +48,8 @@ func TestTracedPoolAnnotatesQueryError(t *testing.T) {
 }
 
 func TestTracedPoolLeavesNoRowsAlone(t *testing.T) {
-	db := newDictionaryTestDB(t, dictionaryDBStep{kind: "row", sql: "select $1", err: pgx.ErrNoRows})
 	var n int
-	err := (tracedPool{inner: db}).QueryRow(context.Background(), "select $1", 1).Scan(&n)
+	err := (tracedPool{inner: errorPool{err: pgx.ErrNoRows}}).QueryRow(context.Background(), "select $1", 1).Scan(&n)
 	require.ErrorIs(t, err, pgx.ErrNoRows)
 	var traced *dbError
 	require.NotErrorAs(t, err, &traced)

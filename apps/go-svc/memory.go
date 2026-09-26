@@ -327,7 +327,15 @@ func scanMemory(row pgx.Row, actor memoryActor) (memoryRecord, error) {
 
 func memoryAccessPredicate(alias string, org, user, manager int) string {
 	o, u, m := strconv.Itoa(org), strconv.Itoa(user), strconv.Itoa(manager)
-	return alias + `.organization_id=$` + o + ` and ($` + m + ` or exists(select 1 from project_memories pm join projects p on p.id=pm.project_id where pm.memory_id=` + alias + `.id and pm.organization_id=$` + o + ` and p.organization_id=$` + o + ` and exists(select 1 from team_memberships tm join teams t on t.id=tm.team_id where tm.user_id=$` + u + ` and t.organization_id=$` + o + ` and (t.id=p.team_id or (p.team_id is null and t.slug='default')))))`
+	// Unattached memories are org libraries: every member can read them, and
+	// write routes return forbidden. Attachment limits visibility to managers
+	// and members of a project team.
+	return alias + `.organization_id=$` + o + ` and ($` + m +
+		` or not exists(select 1 from project_memories pm0 where pm0.memory_id=` + alias + `.id and pm0.organization_id=$` + o + `)` +
+		` or exists(select 1 from project_memories pm join projects p on p.id=pm.project_id where pm.memory_id=` + alias + `.id and pm.organization_id=$` + o +
+		` and p.organization_id=$` + o +
+		` and exists(select 1 from team_memberships tm join teams t on t.id=tm.team_id where tm.user_id=$` + u +
+		` and t.organization_id=$` + o + ` and (t.id=p.team_id or (p.team_id is null and t.slug='default')))))`
 }
 
 func ownedMemory(ctx context.Context, db dictionaryDB, actor memoryActor, id string) (memoryRecord, error) {

@@ -6,11 +6,13 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/workos/workos-go/v10"
 )
@@ -30,16 +32,7 @@ func TestDictionarySessionAndOrigin(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			api := &dictionaryAPI{}
-			mux := http.NewServeMux()
-			api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_live"}})
-			req := httptest.NewRequest("POST", "/v1/orgs/acme/dictionaries", strings.NewReader(`{"name":"Brand"}`))
-			if tc.cookie != "" {
-				req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: tc.cookie})
-			}
-			req.Header.Set("Origin", tc.origin)
-			req.Header.Set("Sec-Fetch-Site", tc.site)
-			rec := httptest.NewRecorder()
-			mux.ServeHTTP(rec, req)
+			rec := sessionRequest(api, "user_live", "POST", "/v1/orgs/acme/dictionaries", `{"name":"Brand"}`, tc.cookie, tc.origin, tc.site)
 			require.Equal(t, tc.status, rec.Code)
 		})
 	}
@@ -63,27 +56,31 @@ func TestDictionaryMembershipFailsClosed(t *testing.T) {
 		{name: "removed membership", err: &workos.APIError{StatusCode: 404}, status: 403},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			api, _ := dictionaryTestAPI(t, "admin")
+			api, scope := dictionaryTestAPI(t, "admin")
 			api.membership = func(context.Context, string) (*workos.UserOrganizationMembership, error) {
-				m := &workos.UserOrganizationMembership{ID: "om_live", UserID: "user_live", OrganizationID: "org_live", Status: "active", Role: &workos.SlimRole{Slug: "admin"}}
+				m := &workos.UserOrganizationMembership{
+					ID:             scope.WorkOSMembershipID,
+					UserID:         scope.WorkOSUserID,
+					OrganizationID: scope.WorkOSOrganizationID,
+					Status:         "active",
+					Role:           &workos.SlimRole{Slug: "admin"},
+				}
 				if tc.modify != nil {
 					tc.modify(m)
 				}
 				return m, tc.err
 			}
-			rec := dictionaryRequestForTest(api, "POST", testDictionaryBase, `{"name":"Brand"}`)
+			rec := dictionaryRequest(api, scope, "POST", scope.OrgPath("/dictionaries"), `{"name":"Brand"}`)
 			require.Equal(t, tc.status, rec.Code, rec.Body.String())
 		})
 	}
 	t.Run("local membership absent", func(t *testing.T) {
-		step := dictionaryAuthStep()
-		step.err = pgx.ErrNoRows
-		api := &dictionaryAPI{pool: newDictionaryTestDB(t, step)}
-		rec := dictionaryRequestForTest(api, "GET", testDictionaryBase, "")
+		api, scope := dictionaryTestAPI(t, "admin")
+		rec := dictionaryRequest(api, scope, "GET", "/v1/orgs/missing-slug/dictionaries", "")
 		require.Equal(t, 403, rec.Code)
 	})
 	t.Run("placeholder never queries database", func(t *testing.T) {
-		api := &dictionaryAPI{pool: newDictionaryTestDB(t)}
+		api := &dictionaryAPI{}
 		_, err := api.actor(t.Context(), AuthClaims{UserID: "invited_user_123"}, "acme")
 		require.EqualError(t, err, "organization_access_denied")
 	})
@@ -92,8 +89,8 @@ func TestDictionaryMembershipFailsClosed(t *testing.T) {
 func TestDictionaryWriteRoles(t *testing.T) {
 	for _, role := range []string{"member", "developer", "translator", "reviewer"} {
 		t.Run(role+"/POST", func(t *testing.T) {
-			api, _ := dictionaryTestAPI(t, role)
-			rec := dictionaryRequestForTest(api, "POST", testDictionaryBase, `{"name":"Brand"}`)
+			api, scope := dictionaryTestAPI(t, role)
+			rec := dictionaryRequest(api, scope, "POST", scope.OrgPath("/dictionaries"), `{"name":"Brand"}`)
 			require.Equal(t, 403, rec.Code)
 		})
 	}
@@ -106,13 +103,12 @@ func TestDictionaryWriteRoles(t *testing.T) {
 	})
 	for _, role := range []string{"admin", "localization_manager"} {
 		t.Run(role, func(t *testing.T) {
-			step := dictionaryRowStep("insert into spellcheck_word_libraries", dictionaryRecordValues()...)
-			step.args = []any{testDictionaryOrgID, testDictionaryUserID, "Brand", ""}
-			api, _ := dictionaryTestAPI(t, role, step)
-			rec := dictionaryRequestForTest(api, "POST", testDictionaryBase, `{"name":"  Brand  "}`)
+			api, scope := dictionaryTestAPI(t, role)
+			rec := dictionaryRequest(api, scope, "POST", scope.OrgPath("/dictionaries"), `{"name":"  Brand  "}`)
 			require.Equal(t, 201, rec.Code, rec.Body.String())
 			require.Contains(t, rec.Body.String(), `"dictionary"`)
-			require.Contains(t, rec.Body.String(), `"createdAt":"2026-01-01T00:00:00.000Z"`)
+			require.Contains(t, rec.Body.String(), `"name":"Brand"`)
+			require.Contains(t, rec.Body.String(), `"createdAt":`)
 			require.Equal(t, "no-store", rec.Header().Get("Cache-Control"))
 		})
 	}
@@ -120,89 +116,100 @@ func TestDictionaryWriteRoles(t *testing.T) {
 
 func TestDictionaryReadUpdateDelete(t *testing.T) {
 	t.Run("read includes word count", func(t *testing.T) {
-		api, _ := dictionaryTestAPI(t, "member", dictionaryOwnedStep(), dictionaryRowStep("count(*)", 12))
-		rec := dictionaryRequestForTest(api, "GET", testDictionaryBase+"/"+testDictionaryID, "")
+		api, scope := dictionaryTestAPI(t, "member")
+		id := scope.MustDictionary(t, "", "Brand names")
+		for i := 0; i < 3; i++ {
+			scope.MustDictionaryWord(t, id, "en-US", "Word"+strings.Repeat("x", i+1))
+		}
+		rec := dictionaryRequest(api, scope, "GET", scope.OrgPath("/dictionaries/"+id), "")
 		require.Equal(t, 200, rec.Code)
-		require.Contains(t, rec.Body.String(), `"wordCount":12`)
+		require.Contains(t, rec.Body.String(), `"wordCount":3`)
 	})
 	t.Run("update preserves omitted fields", func(t *testing.T) {
-		values := dictionaryRecordValues()
-		values[3] = "Renamed"
-		api, _ := dictionaryTestAPI(t, "admin", dictionaryOwnedStep(), dictionaryRowStep("status=coalesce($5::asset_status,status)", values...), dictionaryRowStep("count(*)", 2))
-		rec := dictionaryRequestForTest(api, "PATCH", testDictionaryBase+"/"+testDictionaryID, `{"name":"Renamed"}`)
+		api, scope := dictionaryTestAPI(t, "admin")
+		id := scope.MustDictionary(t, "", "Brand names")
+		rec := dictionaryRequest(api, scope, "PATCH", scope.OrgPath("/dictionaries/"+id), `{"name":"Renamed"}`)
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"name":"Renamed"`)
+		require.Contains(t, rec.Body.String(), `"status":"active"`)
 	})
 	t.Run("delete returns no body", func(t *testing.T) {
-		api, _ := dictionaryTestAPI(t, "admin", dictionaryOwnedStep(), dictionaryDBStep{kind: "exec", sql: "delete from spellcheck_word_libraries where id=$1 and organization_id=$2", args: []any{testDictionaryID, testDictionaryOrgID}, affected: 1})
-		rec := dictionaryRequestForTest(api, "DELETE", testDictionaryBase+"/"+testDictionaryID, "")
+		api, scope := dictionaryTestAPI(t, "admin")
+		id := scope.MustDictionary(t, "", "Brand names")
+		rec := dictionaryRequest(api, scope, "DELETE", scope.OrgPath("/dictionaries/"+id), "")
 		require.Equal(t, 204, rec.Code)
 		require.Empty(t, rec.Body.String())
+		var n int
+		require.NoError(t, scope.Pool.QueryRow(t.Context(), `select count(*) from spellcheck_word_libraries where id=$1`, id).Scan(&n))
+		require.Zero(t, n)
 	})
 	t.Run("other tenant is not found", func(t *testing.T) {
-		step := dictionaryOwnedStep()
-		step.err = pgx.ErrNoRows
-		api, _ := dictionaryTestAPI(t, "member", step)
-		rec := dictionaryRequestForTest(api, "GET", testDictionaryBase+"/"+testDictionaryID, "")
+		api, scope := dictionaryTestAPI(t, "member")
+		other := testenv.Seed(t, testenv.Options{Role: "admin"})
+		id := other.MustDictionary(t, "", "Other")
+		rec := dictionaryRequest(api, scope, "GET", scope.OrgPath("/dictionaries/"+id), "")
 		require.Equal(t, 404, rec.Code)
 		require.Contains(t, rec.Body.String(), "dictionary_not_found")
 	})
 	t.Run("malformed identifier never reaches SQL", func(t *testing.T) {
-		api, _ := dictionaryTestAPI(t, "member")
-		rec := dictionaryRequestForTest(api, "GET", testDictionaryBase+"/not-a-uuid", "")
+		api, scope := dictionaryTestAPI(t, "member")
+		rec := dictionaryRequest(api, scope, "GET", scope.OrgPath("/dictionaries/not-a-uuid"), "")
 		require.Equal(t, 404, rec.Code)
 	})
 	t.Run("database errors hide details", func(t *testing.T) {
-		step := dictionaryOwnedStep()
-		step.err = errors.New("sensitive connection details")
-		api, _ := dictionaryTestAPI(t, "member", step)
-		rec := dictionaryRequestForTest(api, "GET", testDictionaryBase+"/"+testDictionaryID, "")
+		api, scope := dictionaryTestAPI(t, "member")
+		id := scope.MustDictionary(t, "", "Brand names")
+		closed, err := pgxpool.New(t.Context(), os.Getenv(testenv.EnvDatabaseURL))
+		require.NoError(t, err)
+		closed.Close()
+		api.pool = closed
+		rec := dictionaryRequest(api, scope, "GET", scope.OrgPath("/dictionaries/"+id), "")
 		require.Equal(t, 500, rec.Code)
-		require.NotContains(t, rec.Body.String(), "sensitive")
+		require.NotContains(t, rec.Body.String(), "connection")
 	})
 }
 
 func TestDictionaryListPagination(t *testing.T) {
-	for _, tc := range []struct {
-		name, query   string
-		limit, offset int
-		projectID     string
-	}{
-		{"defaults", "", 50, 0, ""},
-		{"filter", "?limit=10&offset=20&projectId=project_1", 10, 20, "project_1"},
-		{"invalid resets entire query", "?limit=999&offset=20&projectId=project_1", 50, 0, ""},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			steps := []dictionaryDBStep{}
-			if tc.projectID != "" {
-				steps = append(steps, dictionaryRowStep("from projects p", "project_1"))
-			}
-			steps = append(steps,
-				dictionaryDBStep{kind: "query", sql: "order by d.created_at desc limit $3 offset $4", args: []any{testDictionaryOrgID, tc.projectID, tc.limit, tc.offset}, values: [][]any{dictionaryRecordValues()}},
-				dictionaryDBStep{kind: "query", sql: "group by library_id", values: [][]any{{testDictionaryID, 7}}},
-				dictionaryRowStep("select count(*)", 23),
-			)
-			api, _ := dictionaryTestAPI(t, "member", steps...)
-			rec := dictionaryRequestForTest(api, "GET", testDictionaryBase+tc.query, "")
-			require.Equal(t, 200, rec.Code, rec.Body.String())
-			require.Contains(t, rec.Body.String(), `"total":23`)
-			require.Contains(t, rec.Body.String(), `"wordCount":7`)
-		})
-	}
+	api, scope := dictionaryTestAPI(t, "member")
+	scope.MustTeam(t, "default", "Default", "member")
+	first := scope.MustDictionary(t, "", "Alpha")
+	second := scope.MustDictionary(t, "", "Beta")
+	scope.MustDictionaryWord(t, first, "en-US", "AuthKit")
+	scope.MustProject(t, scope.ProjectID, "Project")
+	scope.MustAttachDictionary(t, scope.ProjectID, first, 0)
+
+	list := dictionaryRequest(api, scope, "GET", scope.OrgPath("/dictionaries"), "")
+	require.Equal(t, 200, list.Code, list.Body.String())
+	require.Contains(t, list.Body.String(), `"total":2`)
+	require.Contains(t, list.Body.String(), first)
+	require.Contains(t, list.Body.String(), second)
+
+	paged := dictionaryRequest(api, scope, "GET", scope.OrgPath("/dictionaries?limit=1&offset=0"), "")
+	require.Equal(t, 200, paged.Code, paged.Body.String())
+	require.Contains(t, paged.Body.String(), `"total":2`)
+
+	filtered := dictionaryRequest(api, scope, "GET", scope.OrgPath("/dictionaries?projectId="+scope.ProjectID), "")
+	require.Equal(t, 200, filtered.Code, filtered.Body.String())
+	require.Contains(t, filtered.Body.String(), first)
+	require.NotContains(t, filtered.Body.String(), second)
+
+	invalid := dictionaryRequest(api, scope, "GET", scope.OrgPath("/dictionaries?limit=999&offset=20&projectId="+scope.ProjectID), "")
+	require.Equal(t, 200, invalid.Code, invalid.Body.String())
+	require.Contains(t, invalid.Body.String(), `"total":2`)
 }
 
 func TestDictionaryPayloadValidation(t *testing.T) {
+	api, scope := dictionaryTestAPI(t, "admin")
 	for _, body := range []string{`null`, `[]`, `{`, `{} {}`, `{"Name":"Wrong case"}`, `{"name":null}`, `{"name":123}`, `{"name":" "}`, `{"name":"` + strings.Repeat("x", 201) + `"}`, `{"name":"ok","description":null}`} {
 		t.Run(body[:min(len(body), 35)], func(t *testing.T) {
-			api, _ := dictionaryTestAPI(t, "admin")
-			rec := dictionaryRequestForTest(api, "POST", testDictionaryBase, body)
+			rec := dictionaryRequest(api, scope, "POST", scope.OrgPath("/dictionaries"), body)
 			require.Equal(t, 400, rec.Code, rec.Body.String())
 		})
 	}
+	id := scope.MustDictionary(t, "", "Brand names")
 	for _, body := range []string{`{}`, `{"unknown":true}`, `{"status":"deleted"}`, `{"description":null}`} {
 		t.Run("patch/"+body, func(t *testing.T) {
-			api, _ := dictionaryTestAPI(t, "admin", dictionaryOwnedStep())
-			rec := dictionaryRequestForTest(api, "PATCH", testDictionaryBase+"/"+testDictionaryID, body)
+			rec := dictionaryRequest(api, scope, "PATCH", scope.OrgPath("/dictionaries/"+id), body)
 			require.Equal(t, 400, rec.Code)
 		})
 	}
@@ -297,6 +304,17 @@ func TestDictionaryResolvedWordPriorityAndCaps(t *testing.T) {
 	}
 	require.Equal(t, []string{"AuthKit", "Hyperlocalise", "Zed"}, mergeDictionaryWords(rows))
 	require.Empty(t, mergeDictionaryWords(nil))
+
+	priority0 := 0
+	priority10 := 10
+	attached := []dictionaryRecord{
+		{ID: "a", WordsVersion: 1, Priority: &priority0},
+		{ID: "b", WordsVersion: 1, Priority: &priority10},
+		{ID: "empty", WordsVersion: 1},
+	}
+	selected, resolved := selectResolvedDictionaries(attached, rows[:2])
+	require.Equal(t, []string{"AuthKit"}, resolved)
+	require.Equal(t, []string{"a", "empty"}, dictionaryIDsForTest(selected))
 	words := make([]string, 6000)
 	for i := range words {
 		words[i] = "word"
@@ -315,6 +333,14 @@ func TestDictionaryResolvedWordPriorityAndCaps(t *testing.T) {
 	require.Greater(t, len(next), dictionaryMaxResolvedBytes)
 }
 
+func dictionaryIDsForTest(dictionaries []dictionaryRecord) []string {
+	ids := make([]string, len(dictionaries))
+	for i, d := range dictionaries {
+		ids[i] = d.ID
+	}
+	return ids
+}
+
 func TestDictionaryLogPathsHideCustomerIdentifiers(t *testing.T) {
 	for _, path := range []string{
 		"/v1/orgs/customer-name/dictionaries/111/words/222",
@@ -325,4 +351,48 @@ func TestDictionaryLogPathsHideCustomerIdentifiers(t *testing.T) {
 		require.NotContains(t, safe, "private-project")
 		require.NotContains(t, safe, "111")
 	}
+}
+
+func TestDictionaryPostgresLifecycle(t *testing.T) {
+	api, scope := dictionaryTestAPI(t, "admin")
+	scope.MustProject(t, scope.ProjectID, "Project")
+	created := dictionaryRequest(api, scope, "POST", scope.OrgPath("/dictionaries"), `{"name":"Brands"}`)
+	require.Equal(t, 201, created.Code, created.Body.String())
+	var body struct {
+		Dictionary dictionaryRecord `json:"dictionary"`
+	}
+	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &body))
+	path := scope.OrgPath("/dictionaries/" + body.Dictionary.ID)
+	for _, tc := range []struct {
+		method, path, payload string
+		status                int
+	}{
+		{"PATCH", path, `{"name":"Brand names","status":"draft"}`, 200},
+		{"PATCH", path, `{"status":"active"}`, 200},
+		{"GET", scope.OrgPath("/dictionaries?limit=1"), "", 200},
+		{"POST", path + "/words", `{"locale":"en_us","word":"AuthKit"}`, 201},
+		{"POST", path + "/words", `{"locale":"en-US","word":"authkit"}`, 409},
+		{"POST", path + "/words/import", `{"locale":"en-US","content":"AuthKit\nHyperlocalise\ninvalid phrase"}`, 200},
+		{"GET", path + "/words?locale=en-US", "", 200},
+		{"POST", path + "/projects", `{"projectId":"` + scope.ProjectID + `"}`, 200},
+		{"POST", scope.OrgPath("/projects/" + scope.ProjectID + "/dictionaries"), `{"dictionaryId":"` + body.Dictionary.ID + `"}`, 200},
+		{"GET", scope.OrgPath("/projects/" + scope.ProjectID + "/dictionaries/resolved?locale=en-US"), "", 200},
+		{"GET", scope.OrgPath("/projects/" + scope.ProjectID + "/dictionaries"), "", 200},
+	} {
+		rec := dictionaryRequest(api, scope, tc.method, tc.path, tc.payload)
+		require.Equal(t, tc.status, rec.Code, rec.Body.String())
+	}
+	export := dictionaryRequest(api, scope, "GET", path+"/words/export?locale=en-US", "")
+	require.Equal(t, "AuthKit\nHyperlocalise\n", export.Body.String())
+	detail := dictionaryRequest(api, scope, "GET", path, "")
+	require.NoError(t, json.Unmarshal(detail.Body.Bytes(), &body))
+	require.Equal(t, 2, body.Dictionary.WordCount)
+	require.Equal(t, 3, body.Dictionary.WordsVersion)
+	deleted := dictionaryRequest(api, scope, "DELETE", path, "")
+	require.Equal(t, 204, deleted.Code)
+	var words, attachments int
+	require.NoError(t, api.pool.QueryRow(t.Context(), `select count(*) from spellcheck_word_library_words where library_id=$1`, body.Dictionary.ID).Scan(&words))
+	require.NoError(t, api.pool.QueryRow(t.Context(), `select count(*) from project_spellcheck_word_libraries where library_id=$1`, body.Dictionary.ID).Scan(&attachments))
+	require.Zero(t, words)
+	require.Zero(t, attachments)
 }

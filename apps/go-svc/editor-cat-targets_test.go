@@ -11,29 +11,26 @@ import (
 )
 
 func TestEditorCatTargetsRectangle(t *testing.T) {
-	id, text, status, revision := testEditorCatTranslationID, "Bonjour", "approved", "2026-09-25 00:00:00+00"
-	api := editorCatTestAPI(t, "translator", editorCatProjectStep("native"), dictionaryDBStep{
-		kind: "query", sql: "with requested as", values: [][]any{
-			{1, "fr", &id, &text, &status, "text", (*string)(nil), &revision},
-			{1, "de", (*string)(nil), (*string)(nil), (*string)(nil), "text", (*string)(nil), (*string)(nil)},
-		},
-	})
-	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/detail/cat/targets"),
-		`{"segments":[{"externalStringId":"`+testEditorCatKeyID+`","sourcePath":"a.json"}],"targetLocales":["fr","de"]}`)
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	keyID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	mustEditorCatTranslation(t, scope, keyID, "fr", "Bonjour", "approved")
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/targets"),
+		`{"segments":[{"externalStringId":"`+keyID+`","sourcePath":"a.json"}],"targetLocales":["fr","de"]}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	var body struct {
 		Targets []editorCatTargetRow `json:"targets"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Len(t, body.Targets, 1)
-	require.Equal(t, text, body.Targets[0].Targets["fr"].Text)
+	require.Equal(t, "Bonjour", body.Targets[0].Targets["fr"].Text)
 	require.True(t, body.Targets[0].Targets["fr"].IsApproved)
 	require.Nil(t, body.Targets[0].Targets["de"])
 }
 
 func TestEditorCatTargetsInaccessibleKey(t *testing.T) {
-	api := editorCatTestAPI(t, "member", editorCatProjectStep("native"), dictionaryDBStep{kind: "query", sql: "with requested as", values: [][]any{}})
-	rec := editorCatRequest(api, http.MethodPost, editorCatPath("/files/detail/cat/targets"),
+	api, scope := editorCatTestAPI(t, "member")
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/targets"),
 		`{"segments":[{"externalStringId":"`+testEditorCatKeyID+`","sourcePath":"a.json"}],"targetLocales":["fr"]}`)
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
