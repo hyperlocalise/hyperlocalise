@@ -29,7 +29,7 @@ describe("buildOrganizationJsonLd", () => {
       description:
         "Agentic localisation platform that connects product change signals, AI translation, human review, and release workflows.",
       foundingDate: "2026",
-      founders: [
+      founder: [
         {
           "@type": "Person",
           name: "Minh Cung",
