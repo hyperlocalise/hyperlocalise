@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { captureAnalysis, captureCompletions } from "@/lib/reporting/capture";
+import { captureNativeCatTranslationReporting } from "@/lib/projects/content-editor/native-cat-reporting-capture";
 import { and, eq } from "drizzle-orm";
 
 import type {
@@ -771,19 +771,16 @@ export class NativeContentEditorService extends ProjectServiceBase {
       )
       .limit(1);
     const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
-    const [project] = await this.database
-      .select({ sourceLocale: schema.projects.sourceLocale })
-      .from(schema.projects)
-      .where(eq(schema.projects.id, input.projectId));
-    await captureAnalysis({
+    await captureNativeCatTranslationReporting({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      jobId: sourceJobId,
-      sourceLocale: project?.sourceLocale ?? "en",
+      sourcePath: input.sourcePath,
+      translationKeyId: key.id,
       targetLocale: input.targetLocale,
-      sourceEntries: { [key.id]: key.sourceText },
-      billable: (input.provenance ?? "manual") === "manual",
-      step: input.approve ? "review" : "translation",
+      text: input.text,
+      approve: input.approve,
+      provenance: input.provenance,
+      sourceJobId,
     });
     const status = input.approve ? "approved" : "draft";
     const provenance = input.provenance ?? "manual";
@@ -839,16 +836,6 @@ export class NativeContentEditorService extends ProjectServiceBase {
       },
       "saved native CAT translation",
     );
-
-    if (input.text.trim())
-      await captureCompletions({
-        organizationId: input.organizationId,
-        jobId: sourceJobId,
-        targetLocale: input.targetLocale,
-        sourceEntries: { [key.id]: key.sourceText },
-        provenance: (input.provenance ?? "manual") === "manual" ? "human" : "automated",
-        step: input.approve ? "review" : "translation",
-      });
 
     return {
       ...toCatTranslation(saved),

@@ -107,6 +107,7 @@ import {
   setNativeProjectContentEditorKeyMaxLength,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/content-editor/native-content-editor-service";
+import { captureNativeCatTranslationReporting } from "@/lib/projects/content-editor/native-cat-reporting-capture";
 import {
   enrichExternalContentEditorFileImageFields,
   enrichExternalContentEditorTranslationImageFields,
@@ -1388,6 +1389,45 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/translations/reporting-capture",
+      validateProjectParams,
+      validateProjectFileContentEditorTranslationBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_deferred",
+            "Reporting capture applies to native CAT only",
+          );
+        }
+
+        const captured = await captureNativeCatTranslationReporting({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+          translationKeyId: body.externalStringId,
+          targetLocale: body.targetLocale,
+          text: body.text,
+          approve: body.approve,
+        });
+        if (!captured) {
+          return badRequestResponse(c, "translation_key_not_found", "Translation key not found");
+        }
+
+        return c.body(null, 204);
       },
     )
     .post(

@@ -31,6 +31,7 @@ import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 
 const {
   contentEditorTranslationsPostMock,
+  contentEditorTranslationsReportingCapturePostMock,
   contentEditorCommentsPostMock,
   contentEditorCommentResolvePatchMock,
   contentEditorStringsHiddenPostMock,
@@ -40,6 +41,7 @@ const {
   invalidateSegmentCommentsMock,
 } = vi.hoisted(() => ({
   contentEditorTranslationsPostMock: vi.fn(),
+  contentEditorTranslationsReportingCapturePostMock: vi.fn().mockResolvedValue({ status: 204 }),
   contentEditorCommentsPostMock: vi.fn(),
   contentEditorCommentResolvePatchMock: vi.fn(),
   contentEditorStringsHiddenPostMock: vi.fn(),
@@ -61,6 +63,10 @@ vi.mock("@/lib/api-client-instance", () => ({
                   cat: {
                     translations: {
                       $post: (...args: unknown[]) => contentEditorTranslationsPostMock(...args),
+                      "reporting-capture": {
+                        $post: (...args: unknown[]) =>
+                          contentEditorTranslationsReportingCapturePostMock(...args),
+                      },
                     },
                     strings: {
                       hidden: {
@@ -216,6 +222,15 @@ describe("useContentEditorMutations", () => {
         sourcePath: contentEditorApiTestContext.sourcePath,
         text: "Bonjour",
         approve: true,
+      }),
+    );
+    expect(contentEditorTranslationsReportingCapturePostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          externalStringId: "segment-1",
+          text: "Bonjour",
+          approve: true,
+        }),
       }),
     );
     expect(contentEditorTranslationsPostMock).not.toHaveBeenCalled();

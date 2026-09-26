@@ -718,21 +718,6 @@ export function ProjectFileContentEditorWorkspace({
       const concordanceFallback = intl.formatMessage(
         projectFileCatWorkspaceMessages.failedToSearchConcordance,
       );
-      if (isNativeProject) {
-        try {
-          const body = await goSvcClient.cat.concordance(organizationSlug, projectId, {
-            sourceLocale: segment.sourceLocale,
-            targetLocale: segment.targetLocale,
-            sourceText: segment.sourceText,
-          });
-          return body.concordance;
-        } catch (error) {
-          if (!isCatDeferredToApp(error)) {
-            throw new Error(goSvcErrorMessage(error, concordanceFallback));
-          }
-        }
-      }
-
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
       ].files.detail.cat.concordance.$post({
@@ -751,7 +736,7 @@ export function ProjectFileContentEditorWorkspace({
       const body = await response.json();
       return body.concordance;
     },
-    [goSvcClient, intl, isNativeProject, organizationSlug, projectId],
+    [intl, organizationSlug, projectId],
   );
 
   const lookupSegmentVisualContext = useCallback(

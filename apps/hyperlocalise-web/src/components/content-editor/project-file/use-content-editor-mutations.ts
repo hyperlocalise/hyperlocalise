@@ -105,6 +105,36 @@ function prefersGoSvcCat(input: {
   return Boolean(input.goSvcClient) && !input.contentEditorFile?.provider;
 }
 
+async function captureNativeCatTranslationReportingViaApp(input: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  externalStringId: string;
+  text: string;
+  approve?: boolean;
+}) {
+  try {
+    await apiClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations["reporting-capture"].$post({
+      param: {
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+      },
+      json: {
+        sourcePath: input.sourcePath,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+        approve: input.approve,
+      },
+    });
+  } catch {
+    // Reporting capture is best-effort and must not block CAT saves.
+  }
+}
+
 async function runNativeCat<T>(
   preferGoSvc: boolean,
   goSvc: () => Promise<T>,
@@ -200,6 +230,15 @@ export function useContentEditorMutations(input: {
               approve: mutationInput.approve,
             },
           );
+          await captureNativeCatTranslationReportingViaApp({
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+            sourcePath,
+            targetLocale: mutationInput.targetLocale ?? input.targetLocale,
+            externalStringId: mutationInput.externalStringId,
+            text: mutationInput.text,
+            approve: mutationInput.approve,
+          });
           return body.translation;
         },
         async () => {

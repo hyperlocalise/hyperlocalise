@@ -1,11 +1,19 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
+
+func projectFileStringSourceTextHash(text string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(text)))
+	return hex.EncodeToString(sum[:])
+}
 
 func (api *editorCatAPI) skipVisualContext(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
 	return nil, 0, editorCatVercelDeferred(
@@ -63,22 +71,27 @@ func (api *editorCatAPI) stringContext(r *http.Request, actor editorCatActor, pr
 	if sourcePath == "" || key == "" {
 		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
+	requestedHash := projectFileStringSourceTextHash(body.Text)
 	args := []any{actor.organizationID, project.ID, sourcePath, key}
 	sql := `
-        select summary from project_file_string_repository_contexts
+        select source_text_hash, summary from project_file_string_repository_contexts
         where organization_id=$1 and project_id=$2 and source_path=$3 and string_key=$4`
 	if body.RepositoryFullName != nil && trimEditorCat(*body.RepositoryFullName) != "" {
 		args = append(args, trimEditorCat(*body.RepositoryFullName))
 		sql += ` and repository_full_name=$5`
 	}
 	sql += ` order by updated_at desc limit 1`
+	var storedHash string
 	var summary *string
-	err := api.pool.QueryRow(r.Context(), sql, args...).Scan(&summary)
+	err := api.pool.QueryRow(r.Context(), sql, args...).Scan(&storedHash, &summary)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return map[string]any{"stringContext": map[string]any{"summary": nil, "cached": true}}, 200, nil
 	}
 	if err != nil {
 		return nil, 0, err
+	}
+	if storedHash != requestedHash {
+		return map[string]any{"stringContext": map[string]any{"summary": nil, "cached": true}}, 200, nil
 	}
 	return map[string]any{"stringContext": map[string]any{"summary": summary, "cached": true}}, 200, nil
 }
