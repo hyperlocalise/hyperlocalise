@@ -174,12 +174,25 @@ func TestEditorCatCachedStringContext(t *testing.T) {
 	_, err := scope.Pool.Exec(t.Context(), `
         insert into project_file_string_repository_contexts (
             organization_id, project_id, source_path, string_key, repository_full_name, source_text_hash, summary
-        ) values ($1, $2, 'a.json', 'hello', 'acme/app', 'hash', 'Looks up the repository key.')`,
-		scope.OrganizationID, scope.ProjectID)
+        ) values ($1, $2, 'a.json', 'hello', 'acme/app', $3, 'Looks up the repository key.')`,
+		scope.OrganizationID, scope.ProjectID, projectFileStringSourceTextHash("Hello"))
 	require.NoError(t, err)
 	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/string-context"), `{"sourcePath":"a.json","key":"hello","text":"Hello","context":null,"cachedOnly":true}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), "Looks up the repository key.")
+}
+
+func TestEditorCatCachedStringContextRejectsStaleHash(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into project_file_string_repository_contexts (
+            organization_id, project_id, source_path, string_key, repository_full_name, source_text_hash, summary
+        ) values ($1, $2, 'a.json', 'hello', 'acme/app', $3, 'Looks up the repository key.')`,
+		scope.OrganizationID, scope.ProjectID, projectFileStringSourceTextHash("Hello"))
+	require.NoError(t, err)
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/string-context"), `{"sourcePath":"a.json","key":"hello","text":"Hello world","context":null,"cachedOnly":true}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"summary":null`)
 }
 
 func TestEditorCatCachedStringContextMiss(t *testing.T) {

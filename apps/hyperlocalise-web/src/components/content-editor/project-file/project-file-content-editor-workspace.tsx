@@ -38,6 +38,7 @@ import { AiFeaturesUpgradeHrefProvider } from "@/lib/billing/ai-features-upgrade
 import { buildAvailablePlansHref } from "@/lib/billing/plan-usage";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -345,6 +346,7 @@ export function ProjectFileContentEditorWorkspace({
     contentEditorFile,
     retainedSegmentIdentityRef,
     invalidateQueue,
+    goSvcClient,
   });
 
   const workspaceState = useMemo(() => {
@@ -434,6 +436,26 @@ export function ProjectFileContentEditorWorkspace({
         segment?.contentKind === "office_file" ||
         segment?.contentKind === "document"
       ) {
+        const statusFallback = intl.formatMessage(
+          segment?.contentKind === "video_file"
+            ? projectFileCatWorkspaceMessages.failedToApproveVideo
+            : projectFileCatWorkspaceMessages.failedToApproveImage,
+        );
+        if (isNativeProject) {
+          try {
+            await goSvcClient.cat.updateImageStatus(organizationSlug, projectId, {
+              sourcePath,
+              targetLocale,
+              status: "approved",
+            });
+            return "reviewed" as const;
+          } catch (error) {
+            if (!isCatDeferredToApp(error)) {
+              throw new Error(goSvcErrorMessage(error, statusFallback));
+            }
+          }
+        }
+
         const response = await apiClient.api.orgs[":organizationSlug"].projects[
           ":projectId"
         ].files.detail.cat.images.status.$patch({
@@ -445,16 +467,7 @@ export function ProjectFileContentEditorWorkspace({
           },
         });
         if (response.status !== 200) {
-          throw new Error(
-            await readApiError(
-              response,
-              intl.formatMessage(
-                segment?.contentKind === "video_file"
-                  ? projectFileCatWorkspaceMessages.failedToApproveVideo
-                  : projectFileCatWorkspaceMessages.failedToApproveImage,
-              ),
-            ),
-          );
+          throw new Error(await readApiError(response, statusFallback));
         }
         return "reviewed" as const;
       }
@@ -477,6 +490,7 @@ export function ProjectFileContentEditorWorkspace({
       saveTranslation,
       sourcePath,
       targetLocale,
+      goSvcClient,
     ],
   );
 
@@ -645,6 +659,27 @@ export function ProjectFileContentEditorWorkspace({
       segment: ContentEditorSegment,
       options?: { cachedOnly?: boolean; forceRefresh?: boolean },
     ): Promise<string | null> => {
+      const contextFallback = intl.formatMessage(
+        projectFileCatWorkspaceMessages.failedToLookUpContext,
+      );
+      if (options?.cachedOnly && !options.forceRefresh && isNativeProject) {
+        try {
+          const body = await goSvcClient.cat.stringContext(organizationSlug, projectId, {
+            sourcePath,
+            ...(repositoryFullName ? { repositoryFullName } : {}),
+            key: segment.key,
+            text: segment.sourceText,
+            context: segment.contextLabel ?? null,
+            cachedOnly: true,
+          });
+          return body.stringContext.summary;
+        } catch (error) {
+          if (!isCatDeferredToApp(error)) {
+            throw new Error(goSvcErrorMessage(error, contextFallback));
+          }
+        }
+      }
+
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files[
         "string-context"
       ].$post({
@@ -661,22 +696,28 @@ export function ProjectFileContentEditorWorkspace({
       });
 
       if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(projectFileCatWorkspaceMessages.failedToLookUpContext),
-          ),
-        );
+        throw new Error(await readApiError(response, contextFallback));
       }
 
       const body = await response.json();
       return body.stringContext.summary;
     },
-    [intl, organizationSlug, projectId, repositoryFullName, sourcePath],
+    [
+      goSvcClient,
+      intl,
+      isNativeProject,
+      organizationSlug,
+      projectId,
+      repositoryFullName,
+      sourcePath,
+    ],
   );
 
   const lookupSegmentConcordance = useCallback(
     async (segment: ContentEditorSegment) => {
+      const concordanceFallback = intl.formatMessage(
+        projectFileCatWorkspaceMessages.failedToSearchConcordance,
+      );
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
       ].files.detail.cat.concordance.$post({
@@ -689,12 +730,7 @@ export function ProjectFileContentEditorWorkspace({
       });
 
       if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(projectFileCatWorkspaceMessages.failedToSearchConcordance),
-          ),
-        );
+        throw new Error(await readApiError(response, concordanceFallback));
       }
 
       const body = await response.json();

@@ -14,6 +14,13 @@ import { GoSvcClientError } from "./go-svc-client";
 
 const TRANSPORT_ERROR_CODES = new Set(["network_error", "missing_access_token"]);
 
+/** go-svc answers these when the route still belongs on the Next.js app. */
+const CAT_DEFERRED_TO_APP = new Set(["provider_cat_deferred", "string_context_deferred"]);
+
+export function isCatDeferredToApp(error: unknown): boolean {
+  return error instanceof GoSvcClientError && CAT_DEFERRED_TO_APP.has(error.code);
+}
+
 export function goSvcErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof GoSvcClientError && TRANSPORT_ERROR_CODES.has(error.code)) {
     console.warn("[go-svc] browser request failed", error);

@@ -107,6 +107,11 @@ import {
   setNativeProjectContentEditorKeyMaxLength,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/content-editor/native-content-editor-service";
+import { captureNativeCatTranslationReporting } from "@/lib/projects/content-editor/native-cat-reporting-capture";
+import {
+  trackNativeCatCommentProductUsage,
+  trackNativeCatTranslationProductUsage,
+} from "@/lib/projects/content-editor/native-cat-product-analytics";
 import {
   enrichExternalContentEditorFileImageFields,
   enrichExternalContentEditorTranslationImageFields,
@@ -1391,6 +1396,82 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       },
     )
     .post(
+      "/:projectId/files/detail/cat/translations/reporting-capture",
+      validateProjectParams,
+      validateProjectFileContentEditorTranslationBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_deferred",
+            "Reporting capture applies to native CAT only",
+          );
+        }
+
+        const captured = await captureNativeCatTranslationReporting({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+          translationKeyId: body.externalStringId,
+          targetLocale: body.targetLocale,
+          text: body.text,
+          approve: body.approve,
+        });
+        if (!captured) {
+          return badRequestResponse(c, "translation_key_not_found", "Translation key not found");
+        }
+
+        trackNativeCatTranslationProductUsage({ approve: body.approve });
+
+        return c.body(null, 204);
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/comments/product-usage-capture",
+      validateProjectParams,
+      validateProjectFileContentEditorCommentBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_deferred",
+            "Product usage capture applies to native CAT only",
+          );
+        }
+        if (body.type === "issue") {
+          return badRequestResponse(
+            c,
+            "native_cat_issue_unsupported",
+            "Native CAT issues are tracked in Issues.",
+          );
+        }
+
+        trackNativeCatCommentProductUsage({ type: body.type });
+
+        return c.body(null, 204);
+      },
+    )
+    .post(
       "/:projectId/files/detail/cat/translations",
       validateProjectParams,
       validateProjectFileContentEditorTranslationBody,
@@ -1451,15 +1532,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return badRequestResponse(c, "translation_key_not_found", "Translation key not found");
           }
 
-          serverAnalytics.track(
-            body.approve
-              ? PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorSegmentApproved
-              : PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorSegmentDraftSaved,
-            {
-              source: "native",
-              status: body.approve ? "approved" : "draft",
-            },
-          );
+          trackNativeCatTranslationProductUsage({ approve: body.approve });
 
           if (body.approve) {
             await enqueueStringSegmentApprovedActivity({
@@ -1568,10 +1641,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             );
           }
 
-          serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorCommentCreated, {
-            source: "native",
-            feature: "comment",
-          });
+          trackNativeCatCommentProductUsage({ type: body.type });
 
           await enqueueStringSegmentCommentedActivity({
             ...sessionActivityActor(c.var.auth.user.localUserId),

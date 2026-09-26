@@ -13,7 +13,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { GoSvcClientError } from "./go-svc-client";
-import { goSvcErrorMessage } from "./go-svc-error";
+import { goSvcErrorMessage, isCatDeferredToApp } from "./go-svc-error";
 
 describe("goSvcErrorMessage", () => {
   it("maps transport failures to the localized fallback and logs them", () => {
@@ -50,6 +50,36 @@ describe("goSvcErrorMessage", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+
+  it("recognizes CAT routes that stay on the app", () => {
+    expect(
+      isCatDeferredToApp(
+        new GoSvcClientError({
+          code: "provider_cat_deferred",
+          message: "Connected TMS CAT remains on the app",
+          status: 501,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isCatDeferredToApp(
+        new GoSvcClientError({
+          code: "string_context_deferred",
+          message: "Fresh string context stays on the app",
+          status: 501,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isCatDeferredToApp(
+        new GoSvcClientError({
+          code: "forbidden",
+          message: "Insufficient permissions",
+          status: 403,
+        }),
+      ),
+    ).toBe(false);
   });
 
   it("preserves generic Error messages and falls back for unknown values", () => {
