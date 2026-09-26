@@ -232,10 +232,6 @@ export function ProjectFileContentEditorWorkspace({
     initialSearch,
     pageLimit,
     goSvcClient,
-    initialTargetLocales:
-      readCatWorkspaceViewMode() === "multilingual"
-        ? [...new Set([targetLocale, ...(targetLocales ?? [])])].slice(0, 4)
-        : [targetLocale],
     sourcePaths: sourcePathsFilter,
   });
 

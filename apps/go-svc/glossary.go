@@ -75,10 +75,10 @@ func glossaryJSON(w http.ResponseWriter, status int, value any) {
 func writeGlossaryError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *glossaryError
 	if !errors.As(err, &failure) {
-		slog.Error("glossary_request_failed", "phase", phase, "path", requestLogPath(r.URL.Path), "error", err.Error())
+		logRequestFailure(r, "glossary_request_failed", phase, err)
 		failure = &glossaryError{500, "internal_error", "Internal server error"}
-	} else if failure.status >= 500 {
-		slog.Error("glossary_request_failed", "phase", phase, "path", requestLogPath(r.URL.Path), "code", failure.code)
+	} else {
+		logRequestFailure(r, "glossary_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
 	glossaryJSON(w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
 }

@@ -184,11 +184,12 @@ func checkDependencyHealth(parent context.Context, pinger healthPinger) dependen
 func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
+		noteRequest(r, "code", "method_not_allowed")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	if denyBrowserMutation(r) {
-		writeForbidden(w, "Cross-origin request denied")
+		writeForbidden(w, r, "Cross-origin request denied")
 		return
 	}
 
@@ -196,10 +197,10 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxValidateSegmentBodyBytes))
 	if err := decoder.Decode(&req); err != nil {
 		if isRequestBodyTooLarge(err) {
-			writePayloadTooLarge(w)
+			writePayloadTooLarge(w, r)
 			return
 		}
-		writeBadRequest(w, "invalid JSON body")
+		writeBadRequest(w, r, "invalid JSON body")
 		return
 	}
 
@@ -210,7 +211,7 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 		var err error
 		targetLocale, err = validateTargetLocale(req.TargetLocale)
 		if err != nil {
-			writeBadRequest(w, err.Error())
+			writeBadRequest(w, r, err.Error())
 			return
 		}
 	}
@@ -245,7 +246,8 @@ func validateTargetLocale(raw string) (string, error) {
 	return trimmed, nil
 }
 
-func writeForbidden(w http.ResponseWriter, message string) {
+func writeForbidden(w http.ResponseWriter, r *http.Request, message string) {
+	noteRequest(r, "code", "forbidden", "reason", message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusForbidden)
 	_ = json.NewEncoder(w).Encode(map[string]string{
@@ -254,7 +256,8 @@ func writeForbidden(w http.ResponseWriter, message string) {
 	})
 }
 
-func writeBadRequest(w http.ResponseWriter, message string) {
+func writeBadRequest(w http.ResponseWriter, r *http.Request, message string) {
+	noteRequest(r, "code", "bad_request", "reason", message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
 	_ = json.NewEncoder(w).Encode(map[string]string{
@@ -263,7 +266,8 @@ func writeBadRequest(w http.ResponseWriter, message string) {
 	})
 }
 
-func writePayloadTooLarge(w http.ResponseWriter) {
+func writePayloadTooLarge(w http.ResponseWriter, r *http.Request) {
+	noteRequest(r, "code", "payload_too_large")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusRequestEntityTooLarge)
 	_ = json.NewEncoder(w).Encode(map[string]string{

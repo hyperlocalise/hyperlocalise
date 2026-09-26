@@ -76,6 +76,15 @@ func (api *editorCatAPI) getSegmentTargets(r *http.Request, actor editorCatActor
 	if err != nil {
 		return nil, 0, err
 	}
+	filled := 0
+	for _, row := range targets {
+		for _, translation := range row.Targets {
+			if translation != nil {
+				filled++
+			}
+		}
+	}
+	noteRequest(r, "segments", len(body.Segments), "locales", len(body.TargetLocales), "targets_filled", filled)
 	return map[string]any{"targets": targets}, http.StatusOK, nil
 }
 

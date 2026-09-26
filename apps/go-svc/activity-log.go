@@ -111,10 +111,10 @@ func activityLogJSON(ctx context.Context, w http.ResponseWriter, status int, val
 func writeActivityLogError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *activityLogError
 	if !errors.As(err, &failure) {
-		slog.ErrorContext(r.Context(), "activity_log_request_failed", "phase", phase, "path", r.URL.Path, "error", err.Error())
+		logRequestFailure(r, "activity_log_request_failed", phase, err)
 		failure = &activityLogError{500, "internal_error", "Internal server error"}
-	} else if failure.status >= 500 {
-		slog.ErrorContext(r.Context(), "activity_log_request_failed", "phase", phase, "path", r.URL.Path, "code", failure.code)
+	} else {
+		logRequestFailure(r, "activity_log_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
 	activityLogJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
 }

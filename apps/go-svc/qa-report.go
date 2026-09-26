@@ -82,10 +82,10 @@ func qaReportJSON(ctx context.Context, w http.ResponseWriter, status int, value 
 func writeQaReportError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *qaReportError
 	if !errors.As(err, &failure) {
-		slog.ErrorContext(r.Context(), "qa_report_request_failed", "phase", phase, "path", r.URL.Path)
+		logRequestFailure(r, "qa_report_request_failed", phase, err)
 		failure = &qaReportError{500, "internal_error", "Internal server error"}
-	} else if failure.status >= 500 {
-		slog.ErrorContext(r.Context(), "qa_report_request_failed", "phase", phase, "path", r.URL.Path, "error", failure.code)
+	} else {
+		logRequestFailure(r, "qa_report_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
 	qaReportJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
 }

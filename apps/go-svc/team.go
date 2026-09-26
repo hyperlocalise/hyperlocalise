@@ -53,10 +53,10 @@ func teamJSON(ctx context.Context, w http.ResponseWriter, status int, value any)
 func writeTeamError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *teamError
 	if !errors.As(err, &failure) {
-		slog.ErrorContext(r.Context(), "team_request_failed", "phase", phase, "path", r.URL.Path, "error", err.Error())
+		logRequestFailure(r, "team_request_failed", phase, err)
 		failure = &teamError{500, "internal_error"}
-	} else if failure.status >= 500 {
-		slog.ErrorContext(r.Context(), "team_request_failed", "phase", phase, "path", r.URL.Path, "code", failure.code)
+	} else {
+		logRequestFailure(r, "team_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
 	teamJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code})
 }

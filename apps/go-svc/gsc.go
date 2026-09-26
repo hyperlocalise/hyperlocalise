@@ -116,14 +116,14 @@ func (h *handler) listGscSites(w http.ResponseWriter, r *http.Request) {
 	if !decodeGscBody(w, r, &req) {
 		return
 	}
-	accessToken, ok := requireGscAccessToken(w, req.AccessToken)
+	accessToken, ok := requireGscAccessToken(w, r, req.AccessToken)
 	if !ok {
 		return
 	}
 
 	sites, err := h.gsc.ListSites(r.Context(), accessToken)
 	if err != nil {
-		writeGscError(w, err)
+		writeGscError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, gscSitesResponse{Sites: sites})
@@ -134,13 +134,13 @@ func (h *handler) queryGscPerformance(w http.ResponseWriter, r *http.Request) {
 	if !decodeGscBody(w, r, &req) {
 		return
 	}
-	accessToken, ok := requireGscAccessToken(w, req.AccessToken)
+	accessToken, ok := requireGscAccessToken(w, r, req.AccessToken)
 	if !ok {
 		return
 	}
 	siteURL := strings.TrimSpace(req.SiteURL)
 	if siteURL == "" {
-		writeBadRequest(w, "siteUrl is required")
+		writeBadRequest(w, r, "siteUrl is required")
 		return
 	}
 
@@ -166,7 +166,7 @@ func (h *handler) queryGscPerformance(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.gsc.QuerySearchAnalytics(r.Context(), accessToken, siteURL, request)
 	if err != nil {
-		writeGscError(w, err)
+		writeGscError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, gscPerformanceResponse{
@@ -181,7 +181,7 @@ func (h *handler) inspectGscURL(w http.ResponseWriter, r *http.Request) {
 	if !decodeGscBody(w, r, &req) {
 		return
 	}
-	accessToken, ok := requireGscAccessToken(w, req.AccessToken)
+	accessToken, ok := requireGscAccessToken(w, r, req.AccessToken)
 	if !ok {
 		return
 	}
@@ -194,7 +194,7 @@ func (h *handler) inspectGscURL(w http.ResponseWriter, r *http.Request) {
 		req.LanguageCode,
 	)
 	if err != nil {
-		writeGscError(w, err)
+		writeGscError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, gscInspectResponse{Inspection: inspection})
@@ -204,25 +204,25 @@ func decodeGscBody(w http.ResponseWriter, r *http.Request, dest any) bool {
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxGscBodyBytes))
 	if err := decoder.Decode(dest); err != nil {
 		if isRequestBodyTooLarge(err) {
-			writePayloadTooLarge(w)
+			writePayloadTooLarge(w, r)
 			return false
 		}
-		writeBadRequest(w, "invalid JSON body")
+		writeBadRequest(w, r, "invalid JSON body")
 		return false
 	}
 	return true
 }
 
-func requireGscAccessToken(w http.ResponseWriter, accessToken string) (string, bool) {
+func requireGscAccessToken(w http.ResponseWriter, r *http.Request, accessToken string) (string, bool) {
 	trimmed := strings.TrimSpace(accessToken)
 	if trimmed == "" {
-		writeBadRequest(w, "accessToken is required")
+		writeBadRequest(w, r, "accessToken is required")
 		return "", false
 	}
 	return trimmed, true
 }
 
-func writeGscError(w http.ResponseWriter, err error) {
+func writeGscError(w http.ResponseWriter, r *http.Request, err error) {
 	status := http.StatusBadGateway
 	code := "gsc_upstream_unavailable"
 	message := "Search Console request failed"
@@ -242,6 +242,7 @@ func writeGscError(w http.ResponseWriter, err error) {
 			status = http.StatusNotFound
 		}
 	}
+	noteRequest(r, "code", code)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{

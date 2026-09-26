@@ -113,10 +113,10 @@ func issueSheetJSON(ctx context.Context, w http.ResponseWriter, status int, valu
 func writeIssueSheetError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *issueSheetError
 	if !errors.As(err, &failure) {
-		slog.ErrorContext(r.Context(), "issue_sheet_request_failed", "phase", phase, "path", requestLogPath(r.URL.Path), "error", err.Error())
+		logRequestFailure(r, "issue_sheet_request_failed", phase, err)
 		failure = &issueSheetError{500, "internal_error", "Internal server error"}
-	} else if failure.status >= 500 {
-		slog.ErrorContext(r.Context(), "issue_sheet_request_failed", "phase", phase, "path", requestLogPath(r.URL.Path), "code", failure.code)
+	} else {
+		logRequestFailure(r, "issue_sheet_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
 	issueSheetJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
 }
