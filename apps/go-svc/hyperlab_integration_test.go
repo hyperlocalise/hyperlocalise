@@ -121,7 +121,8 @@ func TestHyperlabLifecycle(t *testing.T) {
 	rec = workspaceRequest(t, h, scope, http.MethodDelete, base+"/audiences/"+audienceID, "")
 	require.Equal(t, http.StatusNoContent, rec.Code)
 	rec = workspaceRequest(t, h, scope, http.MethodDelete, base+"/keys/"+keyID, "")
-	require.Equal(t, http.StatusNoContent, rec.Code)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"revokedAt"`)
 
 	rec = workspaceRequest(t, h, scope, http.MethodGet, base+"/flags/"+uuid.NewString(), "")
 	require.Equal(t, http.StatusNotFound, rec.Code)

@@ -131,6 +131,9 @@ func TestIssueSheetRelationshipsLifecycle(t *testing.T) {
 	rec = issueSheetGet(t, api, scope, idB+"/relationships")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"presentedKind":"blocked_by"`)
+
+	rec = issueSheetGet(t, api, scope, idC+"/relationships")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"presentedKind":"duplicate"`)
 
 	rec = issueSheetDelete(t, api, scope, idA+"/relationships/"+relID)

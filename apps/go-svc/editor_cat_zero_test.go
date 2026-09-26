@@ -59,7 +59,7 @@ func TestStringContext(t *testing.T) {
 	require.EqualError(t, err, "invalid_project_payload")
 
 	summary := "nearby copy"
-	api.pool = &scriptPool{steps: []dbStep{{op: opQueryRow, scan: []any{&summary}}}}
+	api.pool = &scriptPool{steps: []dbStep{{op: opQueryRow, scan: []any{projectFileStringSourceTextHash(""), &summary}}}}
 	body, status, err := api.stringContext(catReq(http.MethodPost, "/", `{"cachedOnly":true,"sourcePath":"a.json","key":"hello","repositoryFullName":"acme/app"}`), admin, project)
 	require.NoError(t, err)
 	require.Equal(t, 200, status)

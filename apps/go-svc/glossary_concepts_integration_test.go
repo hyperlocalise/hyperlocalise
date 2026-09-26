@@ -68,7 +68,8 @@ func TestGlossaryConceptValidationAndExternal(t *testing.T) {
 	require.Contains(t, rec.Body.String(), `"total":0`)
 
 	rec = glossaryRequest(api, scope, http.MethodPost, base, `{"primaryTerm":"Term"}`)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	require.Contains(t, rec.Body.String(), "external_tms_glossary_immutable")
 
 	rec = glossaryRequest(api, scope, http.MethodGet, base+"/not-a-valid-id", "")
 	require.Equal(t, http.StatusNotFound, rec.Code)
