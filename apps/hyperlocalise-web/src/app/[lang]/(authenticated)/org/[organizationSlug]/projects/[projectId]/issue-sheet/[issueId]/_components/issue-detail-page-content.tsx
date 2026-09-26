@@ -13,19 +13,26 @@
  * Version 2.0 or later.
  */
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { TypographyP } from "@/components/ui/typography";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { cn } from "@/lib/primitives/cn";
 
+import { IssueDetailLinkScopeProvider } from "../../../../../_components/issue-detail/issue-detail-link-scope";
 import { IssueDetailNavigationGuard } from "../../../../../_components/issue-detail/issue-detail-navigation-guard";
 import {
   IssueDetailPanel,
   type IssueDetailPanelHandle,
 } from "../../../../../_components/issue-detail/issue-detail-panel";
-import { truncateIssueTitleForBreadcrumb } from "../../../../../_components/issue-detail/issue-detail-utils";
+import {
+  buildIssueListHref,
+  truncateIssueTitleForBreadcrumb,
+  type IssueDetailHrefScope,
+} from "../../../../../_components/issue-detail/issue-detail-utils";
 import { useIssueDetailQuery } from "../../../../../_components/issue-detail/use-issue-detail-query";
+import { useOrganizationIssueQuery } from "../../../../../_components/issue-detail/use-organization-issue-query";
 import { issueDetailPageContentMessages as messages } from "./issue-detail-page-content.messages";
 
 const pageShellClassName = cn(
@@ -36,17 +43,40 @@ export function IssueDetailPageContent({
   organizationSlug,
   projectId,
   issueId,
+  detailScope = "project",
+  canDelete = false,
 }: {
   organizationSlug: string;
-  projectId: string;
+  projectId?: string;
   issueId: string;
+  detailScope?: IssueDetailHrefScope;
+  canDelete?: boolean;
 }) {
   const intl = useIntl();
+  const router = useRouter();
   const panelRef = useRef<IssueDetailPanelHandle>(null);
   const [isDraftDirty, setIsDraftDirty] = useState(false);
-  const issueQuery = useIssueDetailQuery({ organizationSlug, projectId, issueId });
+  const organizationIssueQuery = useOrganizationIssueQuery({
+    organizationSlug,
+    issueId,
+    enabled: !projectId,
+  });
+  const resolvedProjectId = projectId ?? organizationIssueQuery.data?.projectId;
+  const issueQuery = useIssueDetailQuery({
+    organizationSlug,
+    projectId: resolvedProjectId,
+    issueId,
+  });
 
-  const issueTitle = issueQuery.data?.title?.trim();
+  const issueTitle = issueQuery.data?.title?.trim() ?? organizationIssueQuery.data?.title?.trim();
+  const isResolvingProject = !projectId && organizationIssueQuery.isLoading;
+  const isLoading = isResolvingProject || issueQuery.isLoading;
+  const isMissing =
+    (!projectId &&
+      (organizationIssueQuery.isError ||
+        (!organizationIssueQuery.isLoading && !organizationIssueQuery.data))) ||
+    issueQuery.isError ||
+    (!isLoading && !issueQuery.data);
 
   useAppShellBreadcrumbAppend({
     id: "issue-detail",
@@ -54,7 +84,7 @@ export function IssueDetailPageContent({
     title: issueTitle,
   });
 
-  if (issueQuery.isError || (!issueQuery.isLoading && !issueQuery.data)) {
+  if (isMissing) {
     return (
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-3 py-16">
         <TypographyP className="text-center" tone="subtle">
@@ -67,18 +97,32 @@ export function IssueDetailPageContent({
   return (
     <main
       className={pageShellClassName}
-      aria-busy={issueQuery.isLoading}
-      aria-label={issueQuery.isLoading ? intl.formatMessage(messages.loadingAria) : undefined}
+      aria-busy={isLoading}
+      aria-label={isLoading ? intl.formatMessage(messages.loadingAria) : undefined}
     >
-      <IssueDetailNavigationGuard panelRef={panelRef} isDirty={isDraftDirty}>
-        <IssueDetailPanel
-          ref={panelRef}
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          issueId={issueId}
-          onDirtyChange={setIsDraftDirty}
-        />
-      </IssueDetailNavigationGuard>
+      <IssueDetailLinkScopeProvider scope={detailScope}>
+        <IssueDetailNavigationGuard panelRef={panelRef} isDirty={isDraftDirty}>
+          {resolvedProjectId ? (
+            <IssueDetailPanel
+              ref={panelRef}
+              organizationSlug={organizationSlug}
+              projectId={resolvedProjectId}
+              issueId={issueId}
+              canDelete={canDelete}
+              onDirtyChange={setIsDraftDirty}
+              onDeleted={() => {
+                router.push(
+                  buildIssueListHref({
+                    organizationSlug,
+                    projectId: resolvedProjectId,
+                    scope: detailScope,
+                  }),
+                );
+              }}
+            />
+          ) : null}
+        </IssueDetailNavigationGuard>
+      </IssueDetailLinkScopeProvider>
     </main>
   );
 }

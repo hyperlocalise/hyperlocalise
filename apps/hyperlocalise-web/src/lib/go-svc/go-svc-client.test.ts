@@ -348,6 +348,20 @@ describe("GoSvcClient", () => {
     await expect(request.json("/v1/orgs/acme/teams")).rejects.toBe(abortError);
   });
 
+  it("deletes an issue-sheet query over DELETE", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    const client = clientWith(fetchMock);
+
+    await client.issueSheet.delete("acme / eu", "project/1", "WEB-1");
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/issue-sheet/WEB-1`,
+    );
+    expect(init.method).toBe("DELETE");
+  });
+
   it("encodes organization and issue-sheet path segments", () => {
     expect(orgPath("acme / eu", "dictionaries", "dict/1")).toBe(
       "/v1/orgs/acme%20%2F%20eu/dictionaries/dict%2F1",

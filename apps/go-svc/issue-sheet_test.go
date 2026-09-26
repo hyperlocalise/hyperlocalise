@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 	"github.com/workos/workos-go/v10"
 )
@@ -118,6 +119,45 @@ func TestIssueSheetCrossSiteFetchGuard(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := issueSheetServe(api, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestIssueSheetMemberCannotDelete(t *testing.T) {
+	api, _ := issueSheetTestAPIRole(t, true, "member",
+		dictionaryRowStep("from projects p", "proj_1", "HL"),
+	)
+	req := issueSheetAuthedRequest(http.MethodDelete, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1", "")
+	rec := issueSheetServe(api, req)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	require.Contains(t, rec.Body.String(), "forbidden")
+}
+
+func TestIssueSheetDeleteIssue(t *testing.T) {
+	issueID := "11111111-1111-4111-8111-111111111111"
+	api, _ := issueSheetTestAPI(t, true,
+		dictionaryRowStep("from projects p", "proj_1", "HL"),
+		dictionaryRowStep("select id from issue_sheet_issues", issueID),
+		dictionaryDBStep{
+			kind:     "exec",
+			sql:      "delete from issue_sheet_issues",
+			args:     []any{testDictionaryOrgID, "proj_1", issueID},
+			affected: 1,
+		},
+	)
+	req := issueSheetAuthedRequest(http.MethodDelete, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1", "")
+	rec := issueSheetServe(api, req)
+	require.Equal(t, http.StatusNoContent, rec.Code)
+	require.Empty(t, rec.Body.String())
+}
+
+func TestIssueSheetDeleteIssueMissing(t *testing.T) {
+	api, _ := issueSheetTestAPI(t, true,
+		dictionaryRowStep("from projects p", "proj_1", "HL"),
+		dictionaryDBStep{kind: "row", sql: "select id from issue_sheet_issues", err: pgx.ErrNoRows},
+	)
+	req := issueSheetAuthedRequest(http.MethodDelete, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/HL-999", "")
+	rec := issueSheetServe(api, req)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+	require.Contains(t, rec.Body.String(), "issue_not_found")
 }
 
 func TestIssueSheetMemberCannotCreate(t *testing.T) {

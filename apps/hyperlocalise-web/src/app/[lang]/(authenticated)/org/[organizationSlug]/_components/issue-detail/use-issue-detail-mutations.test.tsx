@@ -17,9 +17,25 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { DEFAULT_GO_SVC_BASE_URL, GoSvcClient } from "@/lib/go-svc/go-svc-client";
+
 import { type IssueDetailIssue } from "./issue-detail-utils";
 import { issueDetailQueryKey } from "./use-issue-detail-query";
 import { useIssueDetailMutations } from "./use-issue-detail-mutations";
+
+const { goSvcFetchMock } = vi.hoisted(() => ({
+  goSvcFetchMock: vi.fn(async () => new Response(null, { status: 204 })),
+}));
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: new GoSvcClient({
+      getAccessToken: () => "access-token",
+      fetch: goSvcFetchMock as unknown as typeof fetch,
+    }),
+    loading: false,
+  }),
+}));
 
 const organizationSlug = "acme";
 const projectId = "00000000-0000-4000-8000-000000000010";
@@ -273,5 +289,43 @@ describe("useIssueDetailMutations", () => {
     });
 
     expect(titleSignalRef.current?.aborted).toBe(true);
+  });
+
+  it("deletes the issue and notifies the caller", async () => {
+    goSvcFetchMock.mockClear();
+    goSvcFetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    const onDeleted = vi.fn();
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        mutations: { retry: false },
+        queries: { retry: false },
+      },
+    });
+    const queryKey = issueDetailQueryKey(organizationSlug, projectId, issue.identifier);
+    queryClient.setQueryData(queryKey, issue);
+
+    const { result } = renderHook(
+      () =>
+        useIssueDetailMutations({
+          organizationSlug,
+          projectId,
+          issueId: issue.identifier,
+          onDeleted,
+        }),
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    await act(async () => {
+      await result.current.deleteIssue.mutateAsync();
+    });
+
+    expect(goSvcFetchMock).toHaveBeenCalledTimes(1);
+    expect(goSvcFetchMock).toHaveBeenCalledWith(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/${organizationSlug}/projects/${projectId}/issue-sheet/${issue.identifier}`,
+      expect.objectContaining({ method: "DELETE" }),
+    );
+    expect(queryClient.getQueryData(queryKey)).toBeUndefined();
+    expect(onDeleted).toHaveBeenCalledTimes(1);
   });
 });

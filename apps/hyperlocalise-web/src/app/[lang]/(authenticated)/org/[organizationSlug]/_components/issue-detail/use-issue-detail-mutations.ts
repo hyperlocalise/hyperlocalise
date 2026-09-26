@@ -19,6 +19,8 @@ import { toast } from "sonner";
 
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
 import { type IssueDetailIssue, isIssueDetailIssue } from "./issue-detail-utils";
@@ -72,16 +74,20 @@ export function useIssueDetailMutations({
   issueId,
   actorUserId,
   onSaved,
+  onDeleted,
 }: {
   organizationSlug: string;
   projectId: string;
   issueId: string;
   actorUserId?: string;
   onSaved?: () => void;
+  onDeleted?: () => void;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const requestFailed = intl.formatMessage(messages.updateFailed);
+  const deleteFailed = intl.formatMessage(messages.deleteFailed);
   const updateAbortControllersRef = useRef<Set<AbortController>>(new Set());
   const setValueAbortControllersRef = useRef<Set<AbortController>>(new Set());
 
@@ -201,6 +207,38 @@ export function useIssueDetailMutations({
     },
   });
 
+  const deleteIssue = useMutation({
+    mutationFn: async () => {
+      try {
+        await goSvcClient.issueSheet.delete(organizationSlug, projectId, issueId);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, deleteFailed));
+      }
+    },
+    onSuccess: async () => {
+      queryClient.removeQueries({
+        queryKey: issueDetailQueryKey(organizationSlug, projectId, issueId),
+      });
+      queryClient.removeQueries({
+        queryKey: ["organization-issue", organizationSlug, issueId],
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["issue-sheet", organizationSlug, projectId] }),
+        queryClient.invalidateQueries({ queryKey: ["organization-issues", organizationSlug] }),
+        queryClient.invalidateQueries({ queryKey: ["issue-notifications", organizationSlug] }),
+        queryClient.invalidateQueries({
+          queryKey: ["issue-notifications-unread-count", organizationSlug],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["issue-notification", organizationSlug] }),
+      ]);
+      toast.success(intl.formatMessage(messages.deleted));
+      onDeleted?.();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : deleteFailed);
+    },
+  });
+
   const cancelPending = () => {
     for (const controller of updateAbortControllersRef.current) {
       controller.abort();
@@ -214,5 +252,5 @@ export function useIssueDetailMutations({
     setValue.reset();
   };
 
-  return { updateIssue, setValue, cancelPending };
+  return { updateIssue, setValue, deleteIssue, cancelPending };
 }

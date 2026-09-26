@@ -24,6 +24,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/dashboard", "Overview"],
     ["/org/acme/inbox", "Inbox"],
     ["/org/acme/issues", "Queries"],
+    ["/org/acme/issues/WEB-1", "Queries"],
     ["/org/acme/inbox/new", "New Request"],
     ["/org/acme/projects", "Projects"],
     ["/org/acme/projects/proj_1", "proj_1"],
@@ -267,6 +268,16 @@ describe("getAppShellBreadcrumbs", () => {
       { label: "Projects", href: "/org/acme/projects" },
       { label: "Checkout", href: "/org/acme/projects/proj_1" },
       { label: "Queries", href: "/org/acme/projects/proj_1/issue-sheet" },
+    ]);
+  });
+
+  it("links workspace Queries when viewing an organization query detail URL", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/issues", intl)).toEqual([{ label: "Queries" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/issues/WEB-1", intl)).toEqual([
+      { label: "Queries", href: "/org/acme/issues" },
+    ]);
+    expect(getAppShellBreadcrumbs("/en/org/acme/issues/WEB-1", intl)).toEqual([
+      { label: "Queries", href: "/org/acme/issues" },
     ]);
   });
 

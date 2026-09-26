@@ -103,6 +103,13 @@ func (api *issueSheetAPI) updateIssueHandler(r *http.Request, actor issueSheetAc
 	return api.updateIssue(r.Context(), actor, project, r.PathValue("issueId"), r)
 }
 
+func (api *issueSheetAPI) deleteIssueHandler(r *http.Request, actor issueSheetActor, project issueSheetProject) (any, int, error) {
+	if !actor.canMutateIssues() {
+		return nil, 0, issueSheetFailure(403, "forbidden", "Forbidden")
+	}
+	return api.deleteIssue(r.Context(), actor, project, r.PathValue("issueId"))
+}
+
 func (api *issueSheetAPI) listFeedHandler(r *http.Request, actor issueSheetActor, project issueSheetProject) (any, int, error) {
 	return api.listFeed(r.Context(), actor, project, r.PathValue("issueId"), r)
 }

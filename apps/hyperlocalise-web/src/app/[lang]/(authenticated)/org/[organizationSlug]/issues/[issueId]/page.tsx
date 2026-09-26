@@ -11,48 +11,45 @@
  * Version 2.0 or later.
  */
 import { hasCapability } from "@/api/auth/policy";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { requireAutumnWorkspaceBooleanFeature } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { InboxPageContent } from "../_components/inbox-page-content";
+import { IssueDetailPageContent } from "../../projects/[projectId]/issue-sheet/[issueId]/_components/issue-detail-page-content";
 import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
-  return generateAuthenticatedPageMetadata(params, "inboxNew");
+  return generateAuthenticatedPageMetadata(params, "queryDetail");
 }
 
-export default function InboxNewRequestPage({
+export default function OrganizationIssueDetailPage({
   params,
 }: {
-  params: Promise<{ organizationSlug: string }>;
+  params: Promise<{ organizationSlug: string; issueId: string }>;
 }) {
   return (
     <OrgPageSuspense>
-      <InboxNewRequestPageLoader params={params} />
+      <OrganizationIssueDetailPageLoader params={params} />
     </OrgPageSuspense>
   );
 }
 
-async function InboxNewRequestPageLoader({
+async function OrganizationIssueDetailPageLoader({
   params,
 }: {
-  params: Promise<{ organizationSlug: string }>;
+  params: Promise<{ organizationSlug: string; issueId: string }>;
 }) {
-  const { organizationSlug } = await params;
+  const { organizationSlug, issueId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  const currentUserName =
-    [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
-    auth.sessionUser.email;
+  await requireAutumnWorkspaceBooleanFeature(autumnFeatureIds.queriesBoard, auth);
 
   return (
-    <InboxPageContent
-      currentUser={{
-        avatarUrl: auth.sessionUser.profilePictureUrl ?? null,
-        email: auth.sessionUser.email,
-        name: currentUserName,
-      }}
+    <IssueDetailPageContent
       organizationSlug={organizationSlug}
-      canDeleteQueries={hasCapability(auth.membership.role, "write_back:translation")}
+      issueId={issueId}
+      detailScope="organization"
+      canDelete={hasCapability(auth.membership.role, "write_back:translation")}
     />
   );
 }
