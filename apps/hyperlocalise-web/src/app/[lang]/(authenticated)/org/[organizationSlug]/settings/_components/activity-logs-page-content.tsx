@@ -17,7 +17,8 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { type ImplementedActivityEventType } from "@/lib/activity-log/activity-log-contract";
-import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -49,6 +50,7 @@ const activityLogsQueryKey = (
 
 export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const [eventTypes, setEventTypes] = useState<ImplementedActivityEventType[]>([]);
   const [actor, setActor] = useState("");
   const [actorLabels, setActorLabels] = useState<Record<string, string>>({});
@@ -59,20 +61,17 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
     queryKey: activityLogsQueryKey(organizationSlug, eventTypes, actor, range),
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["activity-logs"].$get({
-        param: { organizationSlug },
-        query: {
+      try {
+        return (await goSvcClient.activityLog.list(organizationSlug, {
           actor: actor || undefined,
           cursor: pageParam,
-          eventTypes: eventTypes.length ? eventTypes : [],
-          limit: "50",
+          eventTypes: eventTypes.length ? eventTypes : undefined,
+          limit: 50,
           range,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.loadErrorFallback));
+        })) as ActivityLogResponse;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadErrorFallback)));
       }
-      return (await response.json()) as ActivityLogResponse;
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });

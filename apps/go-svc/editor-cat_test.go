@@ -23,7 +23,7 @@ const (
 )
 
 func editorCatPath(suffix string) string {
-	return "/api/go-svc/v1/orgs/acme/projects/" + testEditorCatProjectID + suffix
+	return "/v1/orgs/acme/projects/" + testEditorCatProjectID + suffix
 }
 
 func editorCatQueueContextSteps() []dictionaryDBStep {
@@ -69,7 +69,7 @@ func editorCatRequest(api *editorCatAPI, method, path, body string) *httptest.Re
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
-	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+	mux.ServeHTTP(rec, req)
 	return rec
 }
 

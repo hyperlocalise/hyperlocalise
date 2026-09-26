@@ -150,28 +150,24 @@ func TestValidateSegmentOriginGuard(t *testing.T) {
 	require.Equal(t, http.StatusOK, allowed.Code)
 }
 
-func TestRegisterRoutesServesStrippedPaths(t *testing.T) {
+func TestRegisterRoutesServesNativePaths(t *testing.T) {
 	h := newHandler()
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})
-	handler := withOptionalPrefix(publicPathPrefix, mux)
+	handler := mux
 
-	for _, path := range []string{"/health", publicPathPrefix + "/health"} {
-		healthRec := httptest.NewRecorder()
-		healthReq := httptest.NewRequest(http.MethodGet, path, nil)
-		handler.ServeHTTP(healthRec, healthReq)
-		require.Equal(t, http.StatusOK, healthRec.Code, path)
-		require.JSONEq(t, `{"status":"ok","valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}`, healthRec.Body.String())
-	}
+	healthRec := httptest.NewRecorder()
+	healthReq := httptest.NewRequest(http.MethodGet, "/health", nil)
+	handler.ServeHTTP(healthRec, healthReq)
+	require.Equal(t, http.StatusOK, healthRec.Code)
+	require.JSONEq(t, `{"status":"ok","valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}`, healthRec.Body.String())
 
 	payload := `{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json"}`
-	for _, path := range []string{"/v1/validate/segment", publicPathPrefix + "/v1/validate/segment"} {
-		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(payload))
-		req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
-		handler.ServeHTTP(rec, req)
-		require.Equal(t, http.StatusOK, rec.Code, path)
-	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(payload))
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestValidateSegmentSuccess(t *testing.T) {

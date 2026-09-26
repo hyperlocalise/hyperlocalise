@@ -88,14 +88,7 @@ function createOrgSlugClient(origin: string) {
       "github-installation",
       "gitlab",
     ]),
-    ...pickClientPaths(workspace, [
-      "members",
-      "workspace",
-      "billing",
-      "api-keys",
-      "activity-logs",
-      "overview",
-    ]),
+    ...pickClientPaths(workspace, ["members", "workspace", "billing", "api-keys", "overview"]),
   };
 }
 

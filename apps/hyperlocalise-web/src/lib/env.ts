@@ -283,9 +283,8 @@ export const env = createEnv({
     E2E_BASE_URL: z.url().optional(),
 
     /**
-     * Origin of go-svc for server-side DataForSEO research calls.
-     * Vercel injects this via the `go_svc` service binding. Local default is
-     * `http://127.0.0.1:8080`.
+     * Origin of go-svc for server-side domains research and Search Console calls.
+     * Production: `https://api.hyperlocalise.com`. Local default is `http://127.0.0.1:8080`.
      */
     GO_SVC_URL: z.url().optional(),
   },

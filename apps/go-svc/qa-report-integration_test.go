@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	testQaReportBase      = "/api/go-svc/v1/orgs/acme/qa-reports"
+	testQaReportBase      = "/v1/orgs/acme/qa-reports"
 	testQaNativeProjectID = "project_native_qa"
 	testQaProviderProject = "project_provider_qa"
 )
@@ -201,7 +201,7 @@ func qaReportRequestForTest(api *qaReportAPI, method, path, body string) *httpte
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
-	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+	mux.ServeHTTP(rec, req)
 	return rec
 }
 

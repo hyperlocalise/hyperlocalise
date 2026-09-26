@@ -80,8 +80,6 @@ func newHandler() *handler {
 	}
 }
 
-const publicPathPrefix = "/api/go-svc"
-
 func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	if h.dictionaries != nil {
 		h.dictionaries.register(mux, verifier)
@@ -141,22 +139,6 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	if h.ofrep != nil {
 		h.ofrep.Register(mux)
 	}
-}
-
-// withOptionalPrefix serves next at both its native paths and under prefix.
-// Vercel Services forwards the public path unchanged, so production calls
-// arrive as /api/go-svc/v1/validate/segment while local and binding calls
-// use /v1/validate/segment.
-func withOptionalPrefix(prefix string, next http.Handler) http.Handler {
-	stripped := http.StripPrefix(prefix, next)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == prefix || strings.HasPrefix(r.URL.Path, prefix+"/") {
-			r = r.WithContext(withPublicPath(r.Context(), r.URL.Path))
-			stripped.ServeHTTP(w, r)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }
 
 func (h *handler) checkSpelling(ctx context.Context, locale, text string, acceptedWords []string) ([]SpellingIssue, error) {

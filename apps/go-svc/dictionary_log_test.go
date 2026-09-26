@@ -19,7 +19,7 @@ func TestRecordDictionaryFailureLogsInternalError(t *testing.T) {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
 	t.Cleanup(func() { slog.SetDefault(previous) })
 
-	req := httptest.NewRequest(http.MethodGet, "/api/go-svc/v1/orgs/acme/dictionaries", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/orgs/acme/dictionaries", nil)
 	req.Header.Set("X-Vercel-Id", "syd1::req-1")
 	req = req.WithContext(context.WithValue(req.Context(), authContextKey{}, AuthClaims{UserID: "user_01"}))
 

@@ -1,23 +1,11 @@
 package main
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 )
-
-type publicPathContextKey struct{}
-
-func withPublicPath(ctx context.Context, path string) context.Context {
-	return context.WithValue(ctx, publicPathContextKey{}, path)
-}
-
-func publicPathFromContext(ctx context.Context) (string, bool) {
-	path, ok := ctx.Value(publicPathContextKey{}).(string)
-	return path, ok
-}
 
 type statusRecorder struct {
 	http.ResponseWriter
@@ -37,7 +25,7 @@ func requestID(r *http.Request) string {
 }
 
 func isHealthPath(path string) bool {
-	return path == "/health" || path == publicPathPrefix+"/health"
+	return path == "/health"
 }
 
 func requestLogMiddleware(next http.Handler) http.Handler {
@@ -55,13 +43,9 @@ func requestLogMiddleware(next http.Handler) http.Handler {
 		if status == 0 {
 			status = http.StatusOK
 		}
-		loggedPath := r.URL.Path
-		if original, ok := publicPathFromContext(r.Context()); ok {
-			loggedPath = original
-		}
 		attrs := []any{
 			"method", r.Method,
-			"path", requestLogPath(loggedPath),
+			"path", requestLogPath(r.URL.Path),
 			"status", status,
 			"duration_ms", time.Since(started).Milliseconds(),
 		}
@@ -75,36 +59,30 @@ func requestLogMiddleware(next http.Handler) http.Handler {
 // Dictionary paths include organization slugs and external project identifiers.
 // Log route shapes instead of customer-provided path segments.
 func requestLogPath(path string) string {
-	prefix := ""
-	native := path
-	if strings.HasPrefix(path, publicPathPrefix+"/") {
-		prefix = publicPathPrefix
-		native = strings.TrimPrefix(path, publicPathPrefix)
-	}
-	parts := strings.Split(native, "/")
+	parts := strings.Split(path, "/")
 	if len(parts) < 5 || parts[1] != "v1" || parts[2] != "orgs" {
 		return path
 	}
 	if parts[4] == "dictionaries" {
-		return prefix + "/v1/orgs/{organizationSlug}/dictionaries/{resource}"
+		return "/v1/orgs/{organizationSlug}/dictionaries/{resource}"
 	}
 	if parts[4] == "glossaries" {
-		return prefix + "/v1/orgs/{organizationSlug}/glossaries/{resource}"
+		return "/v1/orgs/{organizationSlug}/glossaries/{resource}"
 	}
 	if parts[4] == "translation-memories" {
-		return prefix + "/v1/orgs/{organizationSlug}/translation-memories/{resource}"
+		return "/v1/orgs/{organizationSlug}/translation-memories/{resource}"
 	}
 	if len(parts) >= 7 && parts[4] == "projects" && parts[6] == "dictionaries" {
-		return prefix + "/v1/orgs/{organizationSlug}/projects/{projectId}/dictionaries/{resource}"
+		return "/v1/orgs/{organizationSlug}/projects/{projectId}/dictionaries/{resource}"
 	}
 	if len(parts) >= 7 && parts[4] == "projects" && parts[6] == "qa-reports" {
-		return prefix + "/v1/orgs/{organizationSlug}/projects/{projectId}/qa-reports/{resource}"
+		return "/v1/orgs/{organizationSlug}/projects/{projectId}/qa-reports/{resource}"
 	}
 	if len(parts) >= 7 && parts[4] == "projects" && parts[6] == "issue-sheet" {
-		return prefix + "/v1/orgs/{organizationSlug}/projects/{projectId}/issue-sheet/{resource}"
+		return "/v1/orgs/{organizationSlug}/projects/{projectId}/issue-sheet/{resource}"
 	}
 	if parts[4] == "qa-reports" {
-		return prefix + "/v1/orgs/{organizationSlug}/qa-reports/{resource}"
+		return "/v1/orgs/{organizationSlug}/qa-reports/{resource}"
 	}
 	return path
 }

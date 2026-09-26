@@ -41,7 +41,6 @@ import {
   workspaceResourceLimitErrorDetails,
   workspaceResourceLimitMessage,
 } from "@/lib/billing/workspace-resource-limits";
-import { FILE_SEGMENT_ACTIVITY_EVENT_TYPES } from "@/lib/activity-log/activity-log-contract";
 import {
   enqueueFileUploadedActivity,
   enqueueStringSegmentApprovedActivity,
@@ -51,10 +50,6 @@ import {
   enqueueStringSegmentStatusChangedActivity,
   sessionActivityActor,
 } from "@/lib/activity-log/file-segment-events";
-import {
-  InvalidActivityLogCursorError,
-  listActivityLogEvents,
-} from "@/lib/activity-log/activity-log-reader";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { Project } from "@/lib/database/types";
@@ -187,7 +182,6 @@ import {
   projectFileCatSegmentParamsSchema,
   projectFileCatSegmentQuerySchema,
   projectFileCatQuerySchema,
-  projectFileCatActivityLogQuerySchema,
   projectFileCatConcordanceBodySchema,
   projectFileCatCommentBodySchema,
   projectFileCatCommentResolveBodySchema,
@@ -679,16 +673,6 @@ const validateProjectFileContentEditorSegmentQuery = validator("query", (value, 
 
 const validateProjectFileContentEditorQuery = validator("query", (value, c) => {
   const parsed = projectFileCatQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateProjectFileContentEditorActivityLogQuery = validator("query", (value, c) => {
-  const parsed = projectFileCatActivityLogQuerySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -1240,50 +1224,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         return c.json({ contentEditorQueue: result.contentEditorQueue }, 200);
-      },
-    )
-    .get(
-      "/:projectId/files/detail/cat/activity-logs",
-      validateProjectParams,
-      validateProjectFileContentEditorActivityLogQuery,
-      async (c) => {
-        const params = c.req.valid("param");
-        const query = c.req.valid("query");
-        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-        if (target.kind === "provider_unavailable") {
-          return providerProjectUnavailableResponse(c, target);
-        }
-
-        const project = await getOwnedProject(c.var.auth, params.projectId);
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-
-        try {
-          const { activityLogs, nextCursor } = await listActivityLogEvents({
-            includeActors: false,
-            organizationId: c.var.auth.organization.localOrganizationId,
-            organizationSlug: c.req.param("organizationSlug") ?? "",
-            query: {
-              eventTypes: [...FILE_SEGMENT_ACTIVITY_EVENT_TYPES],
-              limit: query.limit,
-              projectId: params.projectId,
-              range: "all",
-              sourcePath: query.sourcePath,
-              cursor: query.cursor,
-            },
-          });
-          return c.json({ activityLogs, nextCursor }, 200);
-        } catch (error) {
-          if (error instanceof InvalidActivityLogCursorError) {
-            return badRequestResponse(
-              c,
-              "invalid_activity_log_cursor",
-              "Activity log cursor is invalid",
-            );
-          }
-          throw error;
-        }
       },
     )
     .get(
