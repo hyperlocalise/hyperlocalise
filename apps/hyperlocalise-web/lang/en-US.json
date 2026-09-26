@@ -15,6 +15,10 @@
     "defaultMessage": "Select a valid part of speech for every term before saving.",
     "description": "Validation error when a glossary term is missing a valid part of speech"
   },
+  "+04m/XO8wC": {
+    "defaultMessage": "This permanently deletes the query and its comments. This cannot be undone.",
+    "description": "Description for query delete confirmation"
+  },
   "+0IukqAGBP": {
     "defaultMessage": "Automations",
     "description": "Overview section label for recent automation runs"
@@ -263,10 +267,6 @@
     "defaultMessage": "Open chat",
     "description": "Button to open the public web chat for this automation"
   },
-  "+YoX875s0d": {
-    "defaultMessage": "Sync now",
-    "description": "Manual content sync action"
-  },
   "+aLhmpE/3m": {
     "defaultMessage": "Type",
     "description": "Sidebar heading for integration type on the detail page"
@@ -454,6 +454,10 @@
   "/+sp7OInTO": {
     "defaultMessage": "Failed to load project members",
     "description": "Fallback error when Crowdin project members fail to load"
+  },
+  "//TpvvzaTN": {
+    "defaultMessage": "Active",
+    "description": "Visual workflow list status when the workflow is live"
   },
   "//aw3pq5aP": {
     "defaultMessage": "Cell update failed",
@@ -842,10 +846,6 @@
   "/o1j6afCQe": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in the project dialog footer"
-  },
-  "/ocvKucgs3": {
-    "defaultMessage": "Last sync failed",
-    "description": "Failed last-run badge"
   },
   "/ptCxvciMe": {
     "defaultMessage": "Blocks",
@@ -2447,10 +2447,6 @@
     "defaultMessage": "Failed to load provider credentials ({status})",
     "description": "Error when TMS provider credentials fail to load"
   },
-  "3CMhz0O70x": {
-    "defaultMessage": "Content sync",
-    "description": "Content sync card title on Automations"
-  },
   "3CTikplBoF": {
     "defaultMessage": "Select a run to inspect node-level status.",
     "description": "Prompt when no run is selected in the executions tab"
@@ -3935,6 +3931,10 @@
     "defaultMessage": "Someone",
     "description": "Fallback actor name when notification actor is missing"
   },
+  "6NDLX93t5d": {
+    "defaultMessage": "Content sync",
+    "description": "Trigger label for a content sync automation in the list"
+  },
   "6NGN+mn8CD": {
     "defaultMessage": "No projects yet. Create a project to get started.",
     "description": "Empty state when there are no workspace projects"
@@ -4543,10 +4543,6 @@
     "defaultMessage": "Lokalise",
     "description": "Lokalise TMS integration name on the integrations page"
   },
-  "7bzkQaXdN3": {
-    "defaultMessage": "Updated",
-    "description": "Label for issue updated timestamp"
-  },
   "7cvqogiF4e": {
     "defaultMessage": "{count, plural, one {# missing} other {# missing}}",
     "description": "Locale readiness summary segment for missing or stale locales"
@@ -4959,6 +4955,10 @@
     "defaultMessage": "Hindi (India)",
     "description": "Display name for BCP-47 locale hi-IN"
   },
+  "8R777UILAL": {
+    "defaultMessage": "Project folder",
+    "description": "Folder inside the Hyperlocalise project for content sync"
+  },
   "8RC2xeVGMi": {
     "defaultMessage": "Enter a branch pattern.",
     "description": "Validation error when adding an empty branch pattern"
@@ -5026,6 +5026,10 @@
   "8akVFVMFrZ": {
     "defaultMessage": "Expand Sidebar",
     "description": "Label and tooltip when the sidebar is collapsed and can be expanded"
+  },
+  "8aspU1tGYY": {
+    "defaultMessage": "No file",
+    "description": "Option to clear the issue source path"
   },
   "8bSWL8zHiO": {
     "defaultMessage": "Review & approval",
@@ -5174,10 +5178,6 @@
   "8r7uZX8bHZ": {
     "defaultMessage": "This automation runs every time code is pushed to main — no manual intervention needed.",
     "description": "Step 2 description"
-  },
-  "8roD8NwsMT": {
-    "defaultMessage": "Created",
-    "description": "Label for issue created timestamp"
   },
   "8rom3KX2rX": {
     "defaultMessage": "Send email",
@@ -6843,6 +6843,10 @@
     "defaultMessage": "Retrying…",
     "description": "Button label while retrying a localisation audit"
   },
+  "CBccpuuEIS": {
+    "defaultMessage": "Pull source files into a project and push ready translations back.",
+    "description": "Catalog description for the content sync action node"
+  },
   "CCFKG/rZtI": {
     "defaultMessage": "No dictionaries match your search.",
     "description": "Empty search state for dictionaries"
@@ -7047,6 +7051,10 @@
     "defaultMessage": "Crowdin glossaries",
     "description": "Heading for live Crowdin glossaries"
   },
+  "Ccr0NcCtO0": {
+    "defaultMessage": "Contentful",
+    "description": "Tool badge when a content sync uses Contentful"
+  },
   "CdzuFVCOvh": {
     "defaultMessage": "Unable to load projects",
     "description": "Fallback error when projects fail to load on the translation memory detail page"
@@ -7142,10 +7150,6 @@
   "Cp1xBabTj3": {
     "defaultMessage": "All domains",
     "description": "Sidebar link to return from a domain to the domains list"
-  },
-  "Cp3xy0MA7p": {
-    "defaultMessage": "Reporter",
-    "description": "Label for issue reporter field"
   },
   "Cpqhu+50JL": {
     "defaultMessage": "Source text as written",
@@ -9483,10 +9487,6 @@
     "defaultMessage": "You do not have permission to view billing for this workspace.",
     "description": "Error when the user cannot read billing"
   },
-  "HmDnokfJEK": {
-    "defaultMessage": "Resolved",
-    "description": "Label for issue resolved timestamp"
-  },
   "Hmzt+zT6qT": {
     "defaultMessage": "Persian (Iran)",
     "description": "Display name for BCP-47 locale fa-IR"
@@ -9666,6 +9666,10 @@
   "IBYpVWNrJA": {
     "defaultMessage": "Document properties",
     "description": "Heading for YAML metadata fields at the top of a Markdown/MDX document in CAT file view"
+  },
+  "IC/L6/ETfl": {
+    "defaultMessage": "GitHub",
+    "description": "GitHub provider label on the content sync action"
   },
   "IC06cS9nUd": {
     "defaultMessage": "Agent fixing",
@@ -9854,10 +9858,6 @@
   "IeIy523DjY": {
     "defaultMessage": "Chaque lumière raconte une histoire. Découvrez les lieux, les personnes et les instants du quotidien qui nous relient.",
     "description": "French sample article intro in the Domains live preview"
-  },
-  "IeNzfp4aLj": {
-    "defaultMessage": "Project content syncs move files between a connected source and one Hyperlocalise project.",
-    "description": "Content sync card description on the org automations page"
   },
   "If/xnDCxst": {
     "defaultMessage": "Configure",
@@ -10106,6 +10106,10 @@
   "J7hBoTRR5O": {
     "defaultMessage": "Improve SEO and AEO discoverability across markets",
     "description": "Feature teaser benefit for domains"
+  },
+  "J7oMEhiIoO": {
+    "defaultMessage": "Could not delete this query.",
+    "description": "Toast when query delete fails"
   },
   "J8xBi9C1wa": {
     "defaultMessage": "Domains",
@@ -10447,6 +10451,10 @@
     "defaultMessage": "Request a demo from this page. On the call we review your stage, product workflow, and localisation needs, then confirm whether startup pricing applies.",
     "description": "Startups FAQ answer about how to apply"
   },
+  "K+mXcYVMPy": {
+    "defaultMessage": "Project",
+    "description": "Project picker label for the source upload trigger"
+  },
   "K/Rmat/d9W": {
     "defaultMessage": "Could not load or save credentials. Try again.",
     "description": "Workflow credential error"
@@ -10482,10 +10490,6 @@
   "K3dTcxv8UP": {
     "defaultMessage": "This role can inspect strings but cannot write translations back.",
     "description": "Reviewer preference note when the user cannot edit translations"
-  },
-  "K4+ynunWBF": {
-    "defaultMessage": "GitLab",
-    "description": "GitLab provider label"
   },
   "K4A2HqIbMM": {
     "defaultMessage": "Support content goes stale the moment it ships in English",
@@ -10983,6 +10987,10 @@
     "defaultMessage": "Pro · 12k strings remaining",
     "description": "Footer plan summary in marketing app shell mock"
   },
+  "LH5KuNV+zy": {
+    "defaultMessage": "Files",
+    "description": "Group label for selectable project files"
+  },
   "LHjP+HTMcQ": {
     "defaultMessage": "Locales",
     "description": "Project card metadata label for locales"
@@ -11246,6 +11254,10 @@
   "LskMKNMd3j": {
     "defaultMessage": "No TMS projects found",
     "description": "Title when the TMS projects list is empty"
+  },
+  "Lti2GaN1c6": {
+    "defaultMessage": "Source",
+    "description": "Provider picker label on the content sync action"
   },
   "LuycP96soI": {
     "defaultMessage": "Could not start domain setup.",
@@ -11963,9 +11975,17 @@
     "defaultMessage": "Zoom in",
     "description": "Accessible label for zooming in within the image lightbox"
   },
+  "NEzvK9axzr": {
+    "defaultMessage": "Query deleted",
+    "description": "Toast after a query is deleted"
+  },
   "NFSiCA4x/F": {
     "defaultMessage": "On error",
     "description": "Label for node error behavior select"
+  },
+  "NGl2apEpYb": {
+    "defaultMessage": "Intercom",
+    "description": "Tool badge when a content sync uses Intercom"
   },
   "NGsHVcOyFb": {
     "defaultMessage": "Message",
@@ -12227,6 +12247,10 @@
     "defaultMessage": "Secret field",
     "description": "Workflow secret destination label"
   },
+  "NkvC0geGcc": {
+    "defaultMessage": "Select a source",
+    "description": "Placeholder when no content sync provider is selected"
+  },
   "NkvwsDHwcu": {
     "defaultMessage": "Create team",
     "description": "Submit button to create a team"
@@ -12474,10 +12498,6 @@
   "OJm01EvxZW": {
     "defaultMessage": "Failed to create Crowdin jobs",
     "description": "Fallback error when Crowdin job creation fails without a server message"
-  },
-  "OL7E13SfCy": {
-    "defaultMessage": "Source",
-    "description": "Provider field label"
   },
   "OLljhH3V9D": {
     "defaultMessage": "Hyperlocalise jobs and live TMS jobs tracked across the workspace.",
@@ -13531,6 +13551,10 @@
     "defaultMessage": "Each workspace member connects their own {providerName} account. Projects, jobs, glossaries, and translation memories load live from {providerName} when you open those pages.",
     "description": "Status description when a TMS provider is connected with OAuth"
   },
+  "Qfog4jJ47y": {
+    "defaultMessage": "Visual workflows",
+    "description": "App shell breadcrumb title for the visual workflows page"
+  },
   "Qg9jUhHjfz": {
     "defaultMessage": "Enabled",
     "description": "Badge shown when an Intercom connection is enabled"
@@ -13638,10 +13662,6 @@
   "Qov7AjZh9+": {
     "defaultMessage": "A pricing page refactor opens a pull request on Tuesday",
     "description": "Scenario section title for the github-release-localisation use case"
-  },
-  "QpmZurrWHD": {
-    "defaultMessage": "GitHub",
-    "description": "GitHub provider label"
   },
   "QqEr64QiAA": {
     "defaultMessage": "Brand",
@@ -14279,10 +14299,6 @@
     "defaultMessage": "Completed",
     "description": "Run history column header for completion time"
   },
-  "SLGNO7qFzS": {
-    "defaultMessage": "Sync queued",
-    "description": "Toast after Sync now"
-  },
   "SLg8IXCI6V": {
     "defaultMessage": "Small teams cannot afford a new process for every country. You need a way to scale market launches without drowning the product team.",
     "description": "Story beat body: scale without burying the product team"
@@ -14411,6 +14427,10 @@
     "defaultMessage": "Test in one market.\nCount what happens.",
     "description": "Title for the Hyperlab experiments solution panel"
   },
+  "SgSG4ibcXn": {
+    "defaultMessage": "Any project",
+    "description": "Option that matches source uploads from every project"
+  },
   "SgbEZXiCwZ": {
     "defaultMessage": "Japan can try a new checkout while France keeps the original. Learn what works in one country before every market sees it.",
     "description": "Body copy for the Hyperlab solutions section"
@@ -14534,6 +14554,10 @@
   "Sx9RV1pKpJ": {
     "defaultMessage": "Save version",
     "description": "Button that saves a new global guidance version"
+  },
+  "SxwdCDaQLJ": {
+    "defaultMessage": "Provider folder",
+    "description": "Folder on the connected source for content sync"
   },
   "SxxEV+oz+y": {
     "defaultMessage": "Import glossary",
@@ -14971,6 +14995,10 @@
     "defaultMessage": "Copy code",
     "description": "Tooltip and aria label for the copy code button"
   },
+  "TosoMhOGUj": {
+    "defaultMessage": "Content sync",
+    "description": "Catalog title for the content sync action node"
+  },
   "TotmChYda4": {
     "defaultMessage": "Details",
     "description": "Button or link to open the job detail page"
@@ -15114,6 +15142,10 @@
   "U4v7cQLBDc": {
     "defaultMessage": "{count, plural, one {# locale} other {# locales}}",
     "description": "Fallback locale readiness summary when only a total locale count is available"
+  },
+  "U6xvadCYhH": {
+    "defaultMessage": "Select a repository",
+    "description": "Placeholder when no GitHub repository is selected"
   },
   "U76tWGMJVU": {
     "defaultMessage": "started an automation run",
@@ -15566,6 +15598,10 @@
   "V07ogo2dQf": {
     "defaultMessage": "Create reviewer tasks",
     "description": "Automation product visual agent task item"
+  },
+  "V0L6vHYKYa": {
+    "defaultMessage": "GitLab",
+    "description": "GitLab provider label on the content sync action"
   },
   "V0ZxKR31oY": {
     "defaultMessage": "Open in {providerName}",
@@ -16463,6 +16499,10 @@
     "defaultMessage": "It lands back in your tools",
     "description": "Proof point 3 title for the agents automation product page"
   },
+  "X0ufvWkg5R": {
+    "defaultMessage": "Intercom",
+    "description": "Intercom provider label on the content sync action"
+  },
   "X1JobycgOR": {
     "defaultMessage": "All",
     "description": "Translation reporting label"
@@ -16506,6 +16546,10 @@
   "X7qkN/IoEW": {
     "defaultMessage": "How can I help you today?",
     "description": "Empty-state heading inside the marketing chat dock mock"
+  },
+  "X7vOeOtWkz": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button on query delete confirmation"
   },
   "X8XWn3q89C": {
     "defaultMessage": "Content Editor failed to load",
@@ -16675,6 +16719,10 @@
     "defaultMessage": "Team slug must be 120 characters or fewer.",
     "description": "Validation error when the team slug exceeds 120 characters"
   },
+  "XVyJ8t4WfM": {
+    "defaultMessage": "Draft",
+    "description": "Visual workflow list status for unpublished drafts"
+  },
   "XX0l5kWHfE": {
     "defaultMessage": "Search history",
     "description": "Glossary history search input label"
@@ -16782,6 +16830,10 @@
   "XifoTZH6H7": {
     "defaultMessage": "Release gates depend on manual TMS checks that block deploys unpredictably.",
     "description": "Problem pain point 4 for the github-release-localisation use case"
+  },
+  "XkO72fy/02": {
+    "defaultMessage": "No files found.",
+    "description": "Empty state when source path search has no matches"
   },
   "Xkbjlp0OXt": {
     "defaultMessage": "Custom break rules",
@@ -17251,6 +17303,10 @@
     "defaultMessage": "Scale your content. Keep control.",
     "description": "Title for the homepage trust and control section"
   },
+  "YlkCv2/Rn6": {
+    "defaultMessage": "Delete this query?",
+    "description": "Title for query delete confirmation"
+  },
   "YnIu9s0qeQ": {
     "defaultMessage": "Use a Content Management API personal access token from Contentful Settings → Content management tokens. Do not use Content Delivery or Preview API keys — those are read-only and cannot write draft translations or register webhooks.",
     "description": "Guidance for choosing a Contentful Management API token"
@@ -17706,6 +17762,10 @@
   "Zm6E60imOZ": {
     "defaultMessage": "Paused",
     "description": "Status toggle label when the automation is paused"
+  },
+  "ZmIJvp0JMb": {
+    "defaultMessage": "Resource",
+    "description": "Repository or CMS space picker on the content sync action"
   },
   "ZmMPE/eod1": {
     "defaultMessage": "Connected",
@@ -18487,10 +18547,6 @@
     "defaultMessage": "Unable to load memory",
     "description": "Fallback error when a translation memory fails to load"
   },
-  "bM4iJBgaAJ": {
-    "defaultMessage": "Resource",
-    "description": "Repo or space picker label"
-  },
   "bMFBHYX/jE": {
     "defaultMessage": "Leave a comment… Use @ to mention",
     "description": "Placeholder for the issue comment markdown composer"
@@ -18558,6 +18614,10 @@
   "bWKdTq2/9D": {
     "defaultMessage": "When enabled, rules are evaluated top to bottom and later rules can override earlier ones.",
     "description": "Help text for SRX cascade"
+  },
+  "bWR03+Qpir": {
+    "defaultMessage": "Contentful",
+    "description": "Contentful provider label on the content sync action"
   },
   "bWmtHKaMZX": {
     "defaultMessage": "Status",
@@ -19042,10 +19102,6 @@
   "cZBJLZRh+f": {
     "defaultMessage": "The job will move to cancelled and stop running. You can create a new job if you need the work again.",
     "description": "Description in the cancel job confirmation dialog"
-  },
-  "cZWsBhk2ee": {
-    "defaultMessage": "Connect a source in Integrations first.",
-    "description": "Empty state when no GitHub or CMS connection exists"
   },
   "cZaYlDA8+F": {
     "defaultMessage": "Yes — keep it direct and confident. The approved FR launch copy uses active verbs and avoids literal calques from English.",
@@ -19759,6 +19815,10 @@
     "defaultMessage": "Profile",
     "description": "Section heading for the signed-in user profile on account settings"
   },
+  "dwwAnbuf/E": {
+    "defaultMessage": "Could not load files.",
+    "description": "Error when the source path file list fails to load"
+  },
   "dx3e9pudVb": {
     "defaultMessage": "A localisation manager receives intake from a product release, a marketing campaign, twelve updated help articles, and a vendor translation batch. Hyperlocalise structures each stream with the right context and glossary rules, assigns product strings to an LLM agent with human review, routes marketing copy through legal approval, sends vendor work to the TMS with quality gates, and surfaces a single dashboard showing locale coverage, review backlog, and blocked releases across all four streams.",
     "description": "Scenario narrative for the localisation-operations use case"
@@ -20467,6 +20527,10 @@
     "defaultMessage": "You",
     "description": "Label for visitor messages in public web chat"
   },
+  "fITJU4tvCM": {
+    "defaultMessage": "Retry",
+    "description": "Retry loading source path files after a failure"
+  },
   "fIcVSh09FH": {
     "defaultMessage": "Words to do",
     "description": "Detail row label for remaining words to translate"
@@ -20638,6 +20702,10 @@
   "fi/3cd111E": {
     "defaultMessage": "Forecast warning",
     "description": "Translation reporting label"
+  },
+  "fi4BYzKe5I": {
+    "defaultMessage": "GitHub repository",
+    "description": "Label for the GitHub repository picker on the trigger node"
   },
   "fiJRizjueJ": {
     "defaultMessage": "Could not load this linked domain.",
@@ -21415,6 +21483,10 @@
     "defaultMessage": "Workspace keys for jobs and resources. Rotate regularly and keep them out of source control.",
     "description": "API keys settings page description"
   },
+  "h7fFvoKQMq": {
+    "defaultMessage": "New automation",
+    "description": "App shell breadcrumb title for the new automation page"
+  },
   "h7r8uM5Rio": {
     "defaultMessage": "DNS changes can take a few minutes to propagate.",
     "description": "DNS help"
@@ -21454,6 +21526,10 @@
   "hDNxzYjQkl": {
     "defaultMessage": "Keep tone and terminology guidance for the next job.",
     "description": "AI feature capability body: organization memory"
+  },
+  "hE2eacuTWG": {
+    "defaultMessage": "Query actions",
+    "description": "Aria label for the query detail overflow menu"
   },
   "hEICju0qcP": {
     "defaultMessage": "Request early access to Hyperlocalise.",
@@ -22747,10 +22823,6 @@
     "defaultMessage": "Navigational",
     "description": "Navigational keyword intent"
   },
-  "jvxijlYLgS": {
-    "defaultMessage": "Could not save content sync",
-    "description": "Toast after create failure"
-  },
   "jwBq0AHFrW": {
     "defaultMessage": "Localization",
     "description": "Placeholder for the team name field"
@@ -23127,10 +23199,6 @@
     "defaultMessage": "Agents",
     "description": "Knowledge product visual memory node label"
   },
-  "kaCV+wVrsO": {
-    "defaultMessage": "Add content sync",
-    "description": "Open the add content sync sheet"
-  },
   "kbpV8xkMoq": {
     "defaultMessage": "Comments",
     "description": "Section title for issue discussion comments"
@@ -23266,6 +23334,10 @@
   "krFfWnDVQ0": {
     "defaultMessage": "Create a library of accepted words, then attach it to projects so CAT and hl check skip those tokens.",
     "description": "Empty state description for dictionaries"
+  },
+  "ksFVpxkIyn": {
+    "defaultMessage": "Paused",
+    "description": "Visual workflow list status when the workflow is paused"
   },
   "kscww+zSt8": {
     "defaultMessage": "Scroll to start",
@@ -23634,10 +23706,6 @@
   "liO7uk+9UW": {
     "defaultMessage": "From one market to the version you keep.",
     "description": "Caption under the Hyperlab preview"
-  },
-  "liYAGLhQLJ": {
-    "defaultMessage": "Sync content",
-    "description": "Enable switch label"
   },
   "liYuh2p3oY": {
     "defaultMessage": "Add connection",
@@ -24267,6 +24335,10 @@
     "defaultMessage": "Translations are read from this project before opening the pull request.",
     "description": "Description for the pull translations project select field"
   },
+  "n+ysONBMTA": {
+    "defaultMessage": "Delete",
+    "description": "Confirm button to delete a query"
+  },
   "n+zGp2MRqD": {
     "defaultMessage": "Hand an API key to whoever plugs Hyperlab into your website",
     "description": "Feature teaser benefit for Hyperlab"
@@ -24439,10 +24511,6 @@
     "defaultMessage": "Unable to remove member from team.",
     "description": "Error removing a member from a team"
   },
-  "nMgCp4t1y/": {
-    "defaultMessage": "Connect",
-    "description": "Link to Integrations"
-  },
   "nOCS+qmeJF": {
     "defaultMessage": "Member",
     "description": "Organization membership role label for members"
@@ -24591,6 +24659,10 @@
     "defaultMessage": "No comments yet.",
     "description": "Empty state when a task has no comments"
   },
+  "nefEZhjUv2": {
+    "defaultMessage": "Project",
+    "description": "Project picker label on the content sync action"
+  },
   "nf1dYK5Obp": {
     "defaultMessage": "Diagnostics are no longer available",
     "description": "Expired import diagnostics title"
@@ -24626,6 +24698,10 @@
   "nhcw8sOpqz": {
     "defaultMessage": "Loading workspace overview",
     "description": "Accessible label while the dashboard overview is loading"
+  },
+  "nhtRMCbbPU": {
+    "defaultMessage": "Loading files…",
+    "description": "Loading state for source path file picker"
   },
   "niVQ/efJm6": {
     "defaultMessage": "Glossary Created",
@@ -24782,10 +24858,6 @@
   "o1Kg4Vat6I": {
     "defaultMessage": "Loading automations",
     "description": "Accessible label while the automations list is loading"
-  },
-  "o1TJSGdz7j": {
-    "defaultMessage": "No content syncs yet. Add one to keep a folder or CMS in this project.",
-    "description": "Empty content sync list"
   },
   "o2H4QOFat9": {
     "defaultMessage": "Run glossary, drift, and coverage checks",
@@ -25215,6 +25287,10 @@
     "defaultMessage": "Last 7 days",
     "description": "Search Console last 7 days range"
   },
+  "ovGZxV6gQB": {
+    "defaultMessage": "Archived",
+    "description": "Visual workflow list status when the workflow is archived"
+  },
   "ovj4Hc0MYp": {
     "defaultMessage": "From social posts to campaigns",
     "description": "Supporting link line for the images format panel"
@@ -25443,10 +25519,6 @@
     "defaultMessage": "Members",
     "description": "Group label for assignable workspace members"
   },
-  "pLLlDE7N69": {
-    "defaultMessage": "Could not start sync",
-    "description": "Toast after Sync now failure"
-  },
   "pM8pgX4u47": {
     "defaultMessage": "This removes the saved encrypted provider credentials. Reconnecting this provider will require entering the secret again.",
     "description": "Description for the external TMS disconnect confirmation dialog"
@@ -25494,6 +25566,10 @@
   "pQMEgwhvGA": {
     "defaultMessage": "Indexing",
     "description": "URL inspection indexing label"
+  },
+  "pQQEeDnNjz": {
+    "defaultMessage": "Select source file",
+    "description": "Accessible label for the source path picker trigger"
   },
   "pQttDyq4Mr": {
     "defaultMessage": "Close glossary guidance",
@@ -25659,10 +25735,6 @@
     "defaultMessage": "Explore",
     "description": "Category heading above resource links in the marketing navbar mega-menu"
   },
-  "pgT61uv1SZ": {
-    "defaultMessage": "Content sync saved",
-    "description": "Toast after creating a content sync"
-  },
   "pgj0hoaJ/o": {
     "defaultMessage": "Coverage",
     "description": "URL inspection coverage label"
@@ -25726,6 +25798,10 @@
   "pnu3HTxKQF": {
     "defaultMessage": "Name it, pick a type, and set when it should run.",
     "description": "Dialog description for creating an experiment"
+  },
+  "poLxV0+BEN": {
+    "defaultMessage": "Search files…",
+    "description": "Placeholder for source path file picker search"
   },
   "pp9OzwrBNo": {
     "defaultMessage": "Delete",
@@ -26571,6 +26647,10 @@
     "defaultMessage": "Automations",
     "description": "Eyebrow for the Guidelines daily-audit section"
   },
+  "rXuCG4x28U": {
+    "defaultMessage": "Select a resource",
+    "description": "Placeholder when no repository or CMS space is selected"
+  },
   "rYXZcW+sgJ": {
     "defaultMessage": "Enable Slack agent",
     "description": "Aria label for the Slack agent enable switch"
@@ -26682,10 +26762,6 @@
   "rqH4qSNbvK": {
     "defaultMessage": "Connected as {accountLogin}. {repoSummary}",
     "description": "GitHub integration description when connected with a known account login"
-  },
-  "rqKQ19f7kE": {
-    "defaultMessage": "Move source files into this project and write ready translations back. No prompt required.",
-    "description": "Content sync card description"
   },
   "rqW//zBYSL": {
     "defaultMessage": "String changes hide in large pull requests without clear localisation impact.",
@@ -26983,10 +27059,6 @@
     "defaultMessage": "Remember your rules",
     "description": "AI feature capability title: organization memory"
   },
-  "sVrz//onkQ": {
-    "defaultMessage": "Contentful",
-    "description": "Contentful provider label"
-  },
   "sWeXphmV4h": {
     "defaultMessage": "Column deleted",
     "description": "Toast after deleting an issue column"
@@ -27122,10 +27194,6 @@
   "sp82GiYbAh": {
     "defaultMessage": "Off",
     "description": "Trigger mode option when automation triggers are disabled"
-  },
-  "spDKNrzwQo": {
-    "defaultMessage": "Project folder",
-    "description": "Folder inside the Hyperlocalise project"
   },
   "spGomVccm5": {
     "defaultMessage": "No description",
@@ -28279,6 +28347,10 @@
     "defaultMessage": "Built for localisation operations at scale",
     "description": "Differentiator point 5 for the localisation-operations use case"
   },
+  "vFjxVFIzmT": {
+    "defaultMessage": "Select a project",
+    "description": "Placeholder when no project is selected for content sync"
+  },
   "vGGfZ3wAHV": {
     "defaultMessage": "Loading projects",
     "description": "Accessible label while project cards are loading"
@@ -28586,6 +28658,10 @@
   "vt4od28KGt": {
     "defaultMessage": "Recommended",
     "description": "Recommended badge"
+  },
+  "vtHGSYCgki": {
+    "defaultMessage": "Delete",
+    "description": "Menu item to delete the current query"
   },
   "vtUkybE5qg": {
     "defaultMessage": "is",
@@ -28914,10 +28990,6 @@
   "wVJMgYMlXo": {
     "defaultMessage": "Live run",
     "description": "Live execution panel label in content ops agent mock"
-  },
-  "wVlAdEk4ZC": {
-    "defaultMessage": "Provider folder",
-    "description": "Folder on GitHub/GitLab"
   },
   "wXVgCxM5O7": {
     "defaultMessage": "Target term",
@@ -29318,10 +29390,6 @@
   "xAF/zzu4cl": {
     "defaultMessage": "Key",
     "description": "Keys table column for the key prefix"
-  },
-  "xBKYTJYExq": {
-    "defaultMessage": "Intercom",
-    "description": "Intercom provider label"
   },
   "xC7u8V65Ad": {
     "defaultMessage": "All Files",
