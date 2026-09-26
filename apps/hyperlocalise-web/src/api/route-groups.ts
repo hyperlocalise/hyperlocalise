@@ -68,7 +68,6 @@ import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/
 import { createMemberRoutes } from "./routes/member/member.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
-import { createHyperlabRoutes } from "./routes/hyperlab/hyperlab.route";
 import { createReportsRoutes } from "./routes/reports/reports.route";
 import { createActivityLogRoutes } from "./routes/activity-log/activity-log.route";
 import { createOverviewRoutes } from "./routes/overview/overview.route";
@@ -192,7 +191,6 @@ export function createOrgWorkspaceRoutes() {
     .route("/api-keys", createApiKeyRoutes())
     .route("/activity-logs", createActivityLogRoutes())
     .route("/reports", createReportsRoutes())
-    .route("/hyperlab", createHyperlabRoutes())
     .route("/overview", createOverviewRoutes());
 }
 

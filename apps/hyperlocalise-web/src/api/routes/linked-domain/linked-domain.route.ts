@@ -42,8 +42,6 @@ import { verifyLinkedDomainChallenge } from "@/lib/linked-domains/verify";
 import type { LinkedDomainError } from "@/lib/linked-domains/types";
 import { isErr } from "@/lib/primitives/result/results";
 
-import { createDomainResearchRoutes } from "../domain-research/domain-research.route";
-import { createDomainSearchConsoleRoutes } from "../domain-search-console/domain-search-console.route";
 import {
   createLinkedDomainBodySchema,
   marketRecommendationsBodySchema,
@@ -204,8 +202,18 @@ export function createLinkedDomainRoutes() {
           return mapLinkedDomainError(c, verification.error);
         }
 
+        const organizationSlug = c.var.auth.organization.slug;
+        if (!organizationSlug) {
+          return serviceUnavailableResponse(
+            c,
+            "organization_slug_missing",
+            "Organization slug is missing.",
+          );
+        }
+
         const result = await recommendDomainMarkets({
           domain: linkedDomain.domainKey,
+          organizationSlug,
           cookie: c.req.header("cookie"),
           signal: c.req.raw.signal,
         });
@@ -386,7 +394,5 @@ export function createLinkedDomainRoutes() {
       }
 
       return c.body(null, 204);
-    })
-    .route("/:linkedDomainId/research", createDomainResearchRoutes())
-    .route("/:linkedDomainId/search-console", createDomainSearchConsoleRoutes());
+    });
 }

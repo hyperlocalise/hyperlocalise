@@ -163,7 +163,19 @@ func (h *handler) marketVisibility(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := h.research.DomainRankOverview(r.Context(), dataforseo.DomainRankOverviewInput{
+	result, err := h.computeMarketVisibility(r.Context(), req)
+	if err != nil {
+		writeResearchError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *handler) computeMarketVisibility(
+	ctx context.Context,
+	req researchMarketVisibilityRequest,
+) (researchMarketVisibilityResponse, error) {
+	response, err := h.research.DomainRankOverview(ctx, dataforseo.DomainRankOverviewInput{
 		Target: strings.TrimSpace(req.TargetDomain),
 		Market: dataforseo.MarketScope{
 			LocationCode: req.LocationCode,
@@ -171,12 +183,11 @@ func (h *handler) marketVisibility(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
-		writeResearchError(w, err)
-		return
+		return researchMarketVisibilityResponse{}, err
 	}
 
 	organicCount, organicETV, top10Count := marketOrganicMetrics(response.Data)
-	writeJSON(w, http.StatusOK, researchMarketVisibilityResponse{
+	return researchMarketVisibilityResponse{
 		MarketID:             req.MarketID,
 		LocationCode:         req.LocationCode,
 		LanguageCode:         strings.TrimSpace(req.LanguageCode),
@@ -185,7 +196,7 @@ func (h *handler) marketVisibility(w http.ResponseWriter, r *http.Request) {
 		Top10Count:           top10Count,
 		HasOrganicVisibility: organicCount > 0 || organicETV > 0 || top10Count > 0,
 		Billing:              response.Billing,
-	})
+	}, nil
 }
 
 func marketOrganicMetrics(items []dataforseo.DomainRankOverviewItem) (int, float64, int) {

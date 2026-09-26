@@ -27,7 +27,7 @@ import { TypographyP } from "@/components/ui/typography";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabAudience,
@@ -58,7 +58,7 @@ export function HyperlabOverview({ organizationSlug }: { organizationSlug: strin
   const intl = useIntl();
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const baseUrl = `${origin}/api/go-svc`;
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
 
   const experimentsQuery = useQuery({
     queryKey: hyperlabQueryKeys.experiments(organizationSlug),

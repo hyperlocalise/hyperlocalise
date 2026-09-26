@@ -14,10 +14,12 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
 import { GSC_DEFAULT_DATE_RANGE, type GscDateRange } from "@/lib/gsc/constants";
 import { getPrototypeSearchConsoleSnapshot } from "@/lib/gsc/prototype";
 import type { GscPerformanceSnapshot } from "@/lib/gsc/types";
-import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 export function domainSearchConsoleQueryKey(
   organizationSlug: string,
@@ -41,6 +43,7 @@ export function useDomainSearchConsole({
   localeId: string | null;
   dateRange?: GscDateRange;
 }) {
+  const { client } = useGoSvcClient();
   const live = Boolean(organizationSlug && isLiveDomainResearchId(linkedDomainId));
 
   return {
@@ -53,22 +56,14 @@ export function useDomainSearchConsole({
           return getPrototypeSearchConsoleSnapshot(domainKey!);
         }
 
-        const params = new URLSearchParams({ dateRange });
-        if (localeId) {
-          params.set("locale", localeId);
+        try {
+          return await client.domains.getSearchConsole(organizationSlug, linkedDomainId, {
+            dateRange,
+            locale: localeId,
+          });
+        } catch (error) {
+          throw new Error(goSvcErrorMessage(error, "Failed to load Search Console."));
         }
-        const response = await fetch(
-          `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/search-console?${params}`,
-        );
-        const body = (await response.json().catch(() => ({}))) as {
-          searchConsole?: GscPerformanceSnapshot;
-          message?: string;
-          error?: string;
-        };
-        if (!response.ok || !body.searchConsole) {
-          throw new Error(body.message || body.error || "Failed to load Search Console.");
-        }
-        return body.searchConsole;
       },
     }),
   };

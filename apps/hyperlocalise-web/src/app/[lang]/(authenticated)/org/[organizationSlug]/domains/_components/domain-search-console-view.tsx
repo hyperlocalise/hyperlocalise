@@ -45,6 +45,8 @@ import type {
   GscPerformanceSnapshot,
   GscQueryRow,
 } from "@/lib/gsc/types";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 
 import { useDomainResearchShellStore } from "../store/domains-store-context";
@@ -86,6 +88,7 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
   canManageConnection: boolean;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const store = useDomainResearchShellStore();
   const dateRangeId = useId();
   const inspectId = useId();
@@ -119,23 +122,14 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
     }
     setInspecting(true);
     try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/search-console/inspect`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: inspectUrl }),
-        },
+      const body = await goSvcClient.domains.inspectSearchConsole(
+        organizationSlug,
+        linkedDomainId,
+        { url: inspectUrl },
       );
-      const body = (await response.json().catch(() => ({}))) as {
-        inspection?: GscInspection;
-        message?: string;
-      };
-      if (!response.ok || !body.inspection) {
-        toast.error(body.message || intl.formatMessage(messages.inspectError));
-        return;
-      }
       setInspection(body.inspection);
+    } catch (error) {
+      toast.error(goSvcErrorMessage(error, intl.formatMessage(messages.inspectError)));
     } finally {
       setInspecting(false);
     }

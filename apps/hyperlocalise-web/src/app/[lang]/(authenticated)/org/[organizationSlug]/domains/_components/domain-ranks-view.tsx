@@ -22,6 +22,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useDomainResearchCatalog } from "./domain-research-context";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 
 import { DomainResearchEmpty } from "./domain-research-empty";
@@ -54,6 +56,7 @@ export function DomainRanksView({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const catalog = useDomainResearchCatalog(linkedDomainId);
   const liveResearch = useLiveDomainResearch(organizationSlug, linkedDomainId);
   const [addOpen, setAddOpen] = useState(false);
@@ -78,24 +81,18 @@ export function DomainRanksView({
     }
     setAddPending(true);
     try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/ranks`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ marketId, keywords }),
-        },
-      );
-      const body = (await response.json().catch(() => ({}))) as { message?: string };
-      if (!response.ok) {
-        toast.error(body.message || intl.formatMessage(messages.addError));
-        return false;
-      }
+      await goSvcClient.domains.trackRanks(organizationSlug, linkedDomainId, {
+        marketId,
+        keywords,
+      });
       await queryClient.invalidateQueries({
         queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
       });
       toast.success(intl.formatMessage(messages.addSuccess));
       return true;
+    } catch (error) {
+      toast.error(goSvcErrorMessage(error, intl.formatMessage(messages.addError)));
+      return false;
     } finally {
       setAddPending(false);
     }
@@ -107,19 +104,13 @@ export function DomainRanksView({
     }
     setRefreshPending(true);
     try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/ranks/refresh`,
-        { method: "POST" },
-      );
-      const body = (await response.json().catch(() => ({}))) as { message?: string };
-      if (!response.ok) {
-        toast.error(body.message || intl.formatMessage(messages.refreshError));
-        return;
-      }
+      await goSvcClient.domains.refreshRanks(organizationSlug, linkedDomainId);
       await queryClient.invalidateQueries({
         queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
       });
       toast.success(intl.formatMessage(messages.refreshSuccess));
+    } catch (error) {
+      toast.error(goSvcErrorMessage(error, intl.formatMessage(messages.refreshError)));
     } finally {
       setRefreshPending(false);
     }

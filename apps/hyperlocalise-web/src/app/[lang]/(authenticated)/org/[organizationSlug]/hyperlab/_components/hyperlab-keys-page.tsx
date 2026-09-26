@@ -30,7 +30,7 @@ import {
 } from "../store/hyperlab-workspace-context";
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabClientKey,
@@ -69,7 +69,7 @@ const HyperlabKeysPageConnected = observer(function HyperlabKeysPageConnected({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const { ui: uiStore } = useHyperlabWorkspace();
   const keysQuery = useQuery({
     queryKey: hyperlabQueryKeys.keys(organizationSlug),

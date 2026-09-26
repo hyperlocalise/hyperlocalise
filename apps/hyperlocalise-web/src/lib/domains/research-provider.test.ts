@@ -15,7 +15,6 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 vi.mock("@/lib/env", () => ({
   env: {
     GO_SVC_URL: "http://127.0.0.1:8080",
-    WORKOS_COOKIE_PASSWORD: "test-cookie-password-at-least-32-characters",
   },
 }));
 
@@ -67,6 +66,7 @@ describe("createGoSvcDomainResearchProvider error mapping", () => {
       );
 
       const result = await createGoSvcDomainResearchProvider().marketVisibility({
+        organizationSlug: "acme",
         targetDomain: "example.com",
         marketId: "france-fr",
         locationCode: 2250,

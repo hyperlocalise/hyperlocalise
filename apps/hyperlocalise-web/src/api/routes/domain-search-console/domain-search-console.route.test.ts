@@ -46,15 +46,26 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   };
 });
 
-import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
+import { evlog } from "evlog/hono";
+import { Hono } from "hono";
+
+import { handleUnexpectedError } from "@/api/errors";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { resetGscProviderForTests, setGscProviderForTests } from "@/lib/gsc/provider";
 import { hostnameToDomainSlug } from "@/lib/localisation-audit/domain-slug";
 import { err, ok } from "@/lib/primitives/result/results";
 
-const client = testClient<AppType>(createApp());
+import { createDomainSearchConsoleRoutes } from "./domain-search-console.route";
+
+const searchConsoleApp = new Hono()
+  .use("*", evlog())
+  .onError(handleUnexpectedError)
+  .route(
+    "/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/search-console",
+    createDomainSearchConsoleRoutes(),
+  );
+const client = testClient<typeof searchConsoleApp>(searchConsoleApp);
 const fixture = createAuthTestFixture();
 
 async function insertVerifiedDomain(organizationId: string, userId: string) {

@@ -105,63 +105,57 @@ export function mergedResearchCatalog(linkedDomainId: string): DomainResearchCat
 
 export function domainResearchMswHandlers() {
   return [
-    http.get(
-      "*/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/research",
-      ({ params }) => {
-        const linkedDomainId = String(params.linkedDomainId);
-        const catalog = mergedResearchCatalog(linkedDomainId);
-        if (!catalog) {
-          return HttpResponse.json({ error: "linked_domain_not_found" }, { status: 404 });
-        }
-        return HttpResponse.json({
-          catalog,
-          linkedDomain: linkedDomainPublic(catalog.domain),
-        });
-      },
-    ),
-    http.get(
-      "*/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/search-console",
-      ({ params }) => {
-        const domain = getResearchPrototypeDomain(String(params.linkedDomainId));
-        if (!domain) {
-          return HttpResponse.json({ error: "linked_domain_not_found" }, { status: 404 });
-        }
-        return HttpResponse.json({
-          searchConsole: {
-            status: "sample",
-            connection: {
-              connected: true,
-              needsReauthorization: false,
-            },
-            siteUrl: `sc-domain:${domain.domainKey}`,
-            startDate: "2026-08-17",
-            endDate: "2026-09-13",
-            dateRange: "last_28_days",
-            totals: { clicks: 421, impressions: 9450, ctr: 0.0446, position: 11.4 },
-            series: [],
-            queries: [
-              {
-                query: "traduction automatique",
-                clicks: 86,
-                impressions: 1900,
-                ctr: 0.045,
-                position: 18.2,
-              },
-            ],
-            pages: [
-              {
-                page: `https://${domain.domainKey}/fr`,
-                clicks: 148,
-                impressions: 3200,
-                ctr: 0.046,
-                position: 9.4,
-              },
-            ],
+    http.get("*/v1/orgs/:organizationSlug/domains/:linkedDomainId/research", ({ params }) => {
+      const linkedDomainId = String(params.linkedDomainId);
+      const catalog = mergedResearchCatalog(linkedDomainId);
+      if (!catalog) {
+        return HttpResponse.json({ error: "linked_domain_not_found" }, { status: 404 });
+      }
+      return HttpResponse.json({
+        catalog,
+        linkedDomain: linkedDomainPublic(catalog.domain),
+      });
+    }),
+    http.get("*/v1/orgs/:organizationSlug/domains/:linkedDomainId/search-console", ({ params }) => {
+      const domain = getResearchPrototypeDomain(String(params.linkedDomainId));
+      if (!domain) {
+        return HttpResponse.json({ error: "linked_domain_not_found" }, { status: 404 });
+      }
+      return HttpResponse.json({
+        searchConsole: {
+          status: "sample",
+          connection: {
+            connected: true,
+            needsReauthorization: false,
           },
-          linkedDomain: linkedDomainPublic(domain),
-        });
-      },
-    ),
+          siteUrl: `sc-domain:${domain.domainKey}`,
+          startDate: "2026-08-17",
+          endDate: "2026-09-13",
+          dateRange: "last_28_days",
+          totals: { clicks: 421, impressions: 9450, ctr: 0.0446, position: 11.4 },
+          series: [],
+          queries: [
+            {
+              query: "traduction automatique",
+              clicks: 86,
+              impressions: 1900,
+              ctr: 0.045,
+              position: 18.2,
+            },
+          ],
+          pages: [
+            {
+              page: `https://${domain.domainKey}/fr`,
+              clicks: 148,
+              impressions: 3200,
+              ctr: 0.046,
+              position: 9.4,
+            },
+          ],
+        },
+        linkedDomain: linkedDomainPublic(domain),
+      });
+    }),
     http.get("*/api/orgs/:organizationSlug/linked-domains/:linkedDomainId", ({ params }) => {
       const domain = getResearchPrototypeDomain(String(params.linkedDomainId));
       if (!domain) {

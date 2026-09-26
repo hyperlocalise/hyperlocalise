@@ -10,8 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createHmac } from "node:crypto";
-
 import { env } from "@/lib/env";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -62,6 +60,7 @@ export type DomainResearchProvider = {
     signal?: AbortSignal;
   }): Promise<Result<DomainResearchIdea[], DomainResearchProviderError>>;
   marketVisibility(input: {
+    organizationSlug: string;
     targetDomain: string;
     marketId: string;
     locationCode: number;
@@ -109,7 +108,11 @@ function goSvcBaseUrl() {
 }
 
 function mapProviderError(status: number, body: GoSvcErrorBody): DomainResearchProviderError {
-  if (status === 503 || body.error === "dataforseo_not_configured") {
+  if (
+    status === 503 ||
+    body.error === "dataforseo_not_configured" ||
+    body.error === "provider_not_configured"
+  ) {
     return {
       code: "provider_not_configured",
       message: body.message || "DataForSEO is not configured.",
@@ -121,7 +124,11 @@ function mapProviderError(status: number, body: GoSvcErrorBody): DomainResearchP
       message: body.message || "DataForSEO rate limited the request.",
     };
   }
-  if (status === 400 || body.error === "dataforseo_validation_error") {
+  if (
+    status === 400 ||
+    body.error === "dataforseo_validation_error" ||
+    body.error === "provider_validation_failed"
+  ) {
     return {
       code: "provider_validation_failed",
       message: body.message || "DataForSEO rejected the request.",
@@ -131,12 +138,6 @@ function mapProviderError(status: number, body: GoSvcErrorBody): DomainResearchP
     code: "provider_failed",
     message: body.message || "DataForSEO request failed.",
   };
-}
-
-function goSvcResearchToken() {
-  return createHmac("sha256", env.WORKOS_COOKIE_PASSWORD ?? "")
-    .update("go-svc-research")
-    .digest("hex");
 }
 
 async function postGoSvc<T>(
@@ -149,7 +150,6 @@ async function postGoSvc<T>(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Go-Svc-Research-Token": goSvcResearchToken(),
         ...(options.cookie ? { cookie: options.cookie } : {}),
       },
       body: JSON.stringify(body),
@@ -219,8 +219,9 @@ export function createGoSvcDomainResearchProvider(): DomainResearchProvider {
       );
     },
     async marketVisibility(input) {
+      const slug = encodeURIComponent(input.organizationSlug);
       const result = await postGoSvc<DomainMarketVisibility>(
-        "/v1/domains/research/market-visibility",
+        `/v1/orgs/${slug}/domains/research/market-visibility`,
         {
           targetDomain: input.targetDomain,
           marketId: input.marketId,
