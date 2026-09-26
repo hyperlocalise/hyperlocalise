@@ -169,6 +169,11 @@ func TestEditorCatMemberCannotMutate(t *testing.T) {
 	}
 }
 
+func TestProjectFileStringSourceTextHashTrimsWhitespace(t *testing.T) {
+	require.Equal(t, projectFileStringSourceTextHash("Hello"), projectFileStringSourceTextHash("  Hello \n"))
+	require.NotEqual(t, projectFileStringSourceTextHash("Hello"), projectFileStringSourceTextHash("Hello world"))
+}
+
 func TestEditorCatCachedStringContext(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	_, err := scope.Pool.Exec(t.Context(), `

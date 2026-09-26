@@ -127,3 +127,36 @@ func TestIndexMissingNamespace(t *testing.T) {
 	require.Empty(t, hits)
 	require.NoError(t, index.DeleteThrough(t.Context(), doc.Scope, doc.ID, 1))
 }
+
+func TestIndexSearchSkipsMalformedRowsAndEmptyResults(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		calls++
+		if calls == 1 {
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"results": []any{}}))
+			return
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
+			"results": []map[string]any{
+				{"rows": []map[string]any{
+					{"id": "ok", "document_id": "doc", "revision_id": "rev"},
+					{"id": "missing-doc", "revision_id": "rev"},
+					{"id": 12, "document_id": "doc", "revision_id": "rev"},
+					{"document_id": "doc", "revision_id": "rev"},
+				}},
+			},
+		}))
+	}))
+	defer server.Close()
+
+	index := testIndex(server.URL)
+	doc := guidelines.Document{ID: "doc", RevisionID: "rev", Version: 1, Scope: guidelines.Scope{OrganizationID: "org"}}
+	empty, err := index.Search(t.Context(), guidelines.Query{Scope: doc.Scope, Text: "query", Documents: []guidelines.Document{doc}, Limit: 5})
+	require.NoError(t, err)
+	require.Empty(t, empty)
+
+	hits, err := index.Search(t.Context(), guidelines.Query{Scope: doc.Scope, Text: "query", Documents: []guidelines.Document{doc}, Limit: 5})
+	require.NoError(t, err)
+	require.Equal(t, []guidelines.Chunk{{ID: "ok", DocumentID: "doc", RevisionID: "rev"}}, hits)
+}
