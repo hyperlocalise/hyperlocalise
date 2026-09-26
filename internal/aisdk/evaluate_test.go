@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestExperimentalEvaluateSendsGatewayProtocolAndParsesJevAnswers(t *testing.T) {
@@ -361,6 +362,29 @@ func TestExperimentalEvaluateAcceptsStructStateAndInstructions(t *testing.T) {
 	instructions, ok := question["instructions"].(map[string]any)
 	if !ok || instructions["question"] != "Was a refund issued?" {
 		t.Fatalf("instructions = %#v", question["instructions"])
+	}
+}
+
+func TestClientOptionsApplyHTTPClientAndHeaders(t *testing.T) {
+	httpClient := &http.Client{Timeout: time.Second}
+	headers := map[string]string{"X-Test": "1"}
+	client, err := NewClient(WithAPIKey("key"), WithHTTPClient(httpClient), WithHeaders(headers))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if client.httpClient != httpClient {
+		t.Fatal("http client was not applied")
+	}
+	if client.headers["X-Test"] != "1" {
+		t.Fatalf("headers = %#v", client.headers)
+	}
+}
+
+func TestExperimentalEvaluateRequiresAPIKey(t *testing.T) {
+	t.Setenv(defaultAPIKeyEnv, "")
+	_, err := ExperimentalEvaluate(context.Background(), EvaluateRequest{})
+	if err == nil {
+		t.Fatal("expected error")
 	}
 }
 
