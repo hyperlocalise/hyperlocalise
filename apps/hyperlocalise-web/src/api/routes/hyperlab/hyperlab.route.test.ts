@@ -42,13 +42,19 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   };
 });
 
-import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
+import { Hono } from "hono";
+
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { hashExperimentClientKey } from "@/lib/experiments/client-keys";
 
-const client = testClient<AppType>(createApp());
+import { createHyperlabRoutes } from "./hyperlab.route";
+
+const hyperlabApp = new Hono().route(
+  "/api/orgs/:organizationSlug/hyperlab",
+  createHyperlabRoutes(),
+);
+const client = testClient<typeof hyperlabApp>(hyperlabApp);
 const fixture = createAuthTestFixture();
 
 function hyperlab() {

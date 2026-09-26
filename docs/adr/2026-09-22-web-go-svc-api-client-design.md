@@ -34,10 +34,10 @@ The client:
 - supports JSON, empty, text, and binary responses.
 
 The first version covers dictionaries, glossaries, translation memories, teams,
-issue sheets, QA reports, activity logs, segment validation, and filtered editor
-exports. It excludes Domains research, Google Search Console, object storage,
-guidelines, and OFREP because those routes use service credentials or a separate
-authentication contract.
+issue sheets, QA reports, activity logs, segment validation, filtered editor
+exports, workspace domains research, Google Search Console, and Hyperlab admin.
+It excludes object storage, guidelines, and OFREP because those routes use
+service credentials or a separate authentication contract.
 
 `GoSvcClient` is a thin composer. Transport lives in `GoSvcRequest`. Each
 resource owns its own file (`go-svc-glossary-api.ts`, and so on) so callers

@@ -21,7 +21,7 @@ import { TypographyP } from "@/components/ui/typography";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabExperiment,
@@ -47,7 +47,7 @@ export function HyperlabExperimentsPage({
   canWrite: boolean;
 }) {
   const intl = useIntl();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const experimentsQuery = useQuery({
     queryKey: hyperlabQueryKeys.experiments(organizationSlug),
     queryFn: async () => {

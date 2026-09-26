@@ -42,8 +42,8 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   };
 });
 
-import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
+import { Hono } from "hono";
+
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import {
@@ -53,7 +53,13 @@ import {
 import { hostnameToDomainSlug } from "@/lib/localisation-audit/domain-slug";
 import { err, ok } from "@/lib/primitives/result/results";
 
-const client = testClient<AppType>(createApp());
+import { createDomainResearchRoutes } from "./domain-research.route";
+
+const researchApp = new Hono().route(
+  "/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/research",
+  createDomainResearchRoutes(),
+);
+const client = testClient<typeof researchApp>(researchApp);
 const fixture = createAuthTestFixture();
 
 async function insertSucceededAudit(domainKey: string) {

@@ -42,8 +42,6 @@ import { verifyLinkedDomainChallenge } from "@/lib/linked-domains/verify";
 import type { LinkedDomainError } from "@/lib/linked-domains/types";
 import { isErr } from "@/lib/primitives/result/results";
 
-import { createDomainResearchRoutes } from "../domain-research/domain-research.route";
-import { createDomainSearchConsoleRoutes } from "../domain-search-console/domain-search-console.route";
 import {
   createLinkedDomainBodySchema,
   marketRecommendationsBodySchema,
@@ -386,7 +384,5 @@ export function createLinkedDomainRoutes() {
       }
 
       return c.body(null, 204);
-    })
-    .route("/:linkedDomainId/research", createDomainResearchRoutes())
-    .route("/:linkedDomainId/search-console", createDomainSearchConsoleRoutes());
+    });
 }
