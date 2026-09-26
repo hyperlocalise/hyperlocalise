@@ -13,7 +13,7 @@
 import { randomUUID } from "node:crypto";
 import { captureAiUsage } from "@/lib/reporting/ai-cost";
 import { generateText, Output, type LanguageModel } from "ai";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
@@ -362,7 +362,7 @@ function normalizeAiSdkTokenUsage(
 export { resolveProviderLanguageModel } from "@/lib/providers/language-model";
 
 export class OrganizationModelResolver {
-  async resolve(projectId: string) {
+  async resolve(projectId: string, organizationId?: string) {
     const [project] = await db
       .select({
         name: schema.projects.name,
@@ -370,7 +370,14 @@ export class OrganizationModelResolver {
         organizationId: schema.projects.organizationId,
       })
       .from(schema.projects)
-      .where(eq(schema.projects.id, projectId))
+      .where(
+        organizationId
+          ? and(
+              eq(schema.projects.id, projectId),
+              eq(schema.projects.organizationId, organizationId),
+            )
+          : eq(schema.projects.id, projectId),
+      )
       .limit(1);
 
     if (!project) {
@@ -635,8 +642,11 @@ export const translateStringJobWithOpenAI: StringTranslationGenerator = async (i
 
 const defaultModelResolver = new OrganizationModelResolver();
 
-export async function loadOrganizationTranslationGenerator(projectId: string) {
-  const setup = await defaultModelResolver.resolve(projectId);
+export async function loadOrganizationTranslationGenerator(
+  projectId: string,
+  organizationId?: string,
+) {
+  const setup = await defaultModelResolver.resolve(projectId, organizationId);
   if (!setup.ok) {
     return setup;
   }

@@ -14,6 +14,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { hasCapability } from "@/api/auth/policy";
+import { canAccessProject } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { createWorkspaceFeatureFlagMiddleware } from "@/api/middleware/workspace-feature-flag";
 import {
@@ -167,7 +168,7 @@ export function createLinkedDomainRoutes() {
       }
 
       const linkedDomains = await listLinkedDomains({
-        organizationId: c.var.auth.organization.localOrganizationId,
+        auth: c.var.auth,
       });
 
       return c.json({ linkedDomains }, 200);
@@ -184,7 +185,7 @@ export function createLinkedDomainRoutes() {
         const { linkedDomainId } = c.req.valid("param");
         const { method } = c.req.valid("json");
         const linkedDomain = await getLinkedDomain({
-          organizationId: c.var.auth.organization.localOrganizationId,
+          auth: c.var.auth,
           linkedDomainId,
         });
         if (!linkedDomain) return notFoundResponse(c, "linked_domain_not_found");
@@ -274,7 +275,7 @@ export function createLinkedDomainRoutes() {
 
       const { linkedDomainId } = c.req.valid("param");
       const linkedDomain = await getLinkedDomain({
-        organizationId: c.var.auth.organization.localOrganizationId,
+        auth: c.var.auth,
         linkedDomainId,
       });
 
@@ -291,7 +292,7 @@ export function createLinkedDomainRoutes() {
 
       const { linkedDomainId } = c.req.valid("param");
       const result = await getLinkedDomainAudit({
-        organizationId: c.var.auth.organization.localOrganizationId,
+        auth: c.var.auth,
         linkedDomainId,
       });
 
@@ -308,6 +309,12 @@ export function createLinkedDomainRoutes() {
 
       const { linkedDomainId } = c.req.valid("param");
       const body = c.req.valid("json");
+      if (!(await getLinkedDomain({ auth: c.var.auth, linkedDomainId }))) {
+        return notFoundResponse(c, "linked_domain_not_found");
+      }
+      if (body.projectId && !(await canAccessProject(c.var.auth, body.projectId))) {
+        return notFoundResponse(c, "project_not_found");
+      }
       const result = await verifyAndClaimLinkedDomain({
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
@@ -345,6 +352,9 @@ export function createLinkedDomainRoutes() {
         }
         const { linkedDomainId } = c.req.valid("param");
         const body = c.req.valid("json");
+        if (!(await getLinkedDomain({ auth: c.var.auth, linkedDomainId }))) {
+          return notFoundResponse(c, "linked_domain_not_found");
+        }
         const result = await updateLinkedDomainMarkets({
           organizationId: c.var.auth.organization.localOrganizationId,
           linkedDomainId,
@@ -365,6 +375,12 @@ export function createLinkedDomainRoutes() {
 
         const { linkedDomainId } = c.req.valid("param");
         const body = c.req.valid("json");
+        if (!(await getLinkedDomain({ auth: c.var.auth, linkedDomainId }))) {
+          return notFoundResponse(c, "linked_domain_not_found");
+        }
+        if (body.projectId && !(await canAccessProject(c.var.auth, body.projectId))) {
+          return notFoundResponse(c, "project_not_found");
+        }
         const result = await updateLinkedDomainProject({
           organizationId: c.var.auth.organization.localOrganizationId,
           linkedDomainId,
@@ -384,6 +400,9 @@ export function createLinkedDomainRoutes() {
       }
 
       const { linkedDomainId } = c.req.valid("param");
+      if (!(await getLinkedDomain({ auth: c.var.auth, linkedDomainId }))) {
+        return notFoundResponse(c, "linked_domain_not_found");
+      }
       const result = await cancelPendingLinkedDomainClaim({
         organizationId: c.var.auth.organization.localOrganizationId,
         linkedDomainId,

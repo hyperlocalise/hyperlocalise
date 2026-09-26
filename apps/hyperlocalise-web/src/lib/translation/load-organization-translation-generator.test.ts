@@ -105,4 +105,16 @@ describe("loadOrganizationTranslationGenerator", () => {
       message: expect.stringContaining("was not found"),
     });
   });
+
+  it("does not load another organization's project or BYOK", async () => {
+    const { project } = await projectFixture.createStoredProjectFixture();
+
+    const result = await loadOrganizationTranslationGenerator(project.id, randomUUID());
+
+    expect(result).toEqual({
+      ok: false,
+      code: "translation_project_not_found",
+      message: expect.stringContaining("was not found"),
+    });
+  });
 });
