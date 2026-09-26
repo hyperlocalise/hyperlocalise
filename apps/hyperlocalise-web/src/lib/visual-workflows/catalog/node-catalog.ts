@@ -15,6 +15,7 @@ import {
   Clock01Icon,
   FlashIcon,
   GitBranchIcon,
+  Folder01Icon,
   Globe02Icon,
   Mail01Icon,
   ReloadIcon,
@@ -70,6 +71,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "action",
     enabled: true,
     icon: Globe02Icon,
+  },
+  {
+    type: "action.content_sync",
+    category: "action",
+    enabled: true,
+    icon: Folder01Icon,
   },
   {
     type: "action.notify_slack",
@@ -162,6 +169,17 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         failOnHttpError: true,
         onError: "stop",
       };
+    case "action.content_sync":
+      return {
+        kind: "action.content_sync",
+        projectId: "",
+        provider: "github",
+        connectionId: "",
+        resourceKey: "",
+        providerFolder: "locales",
+        projectFolder: "",
+        onError: "stop",
+      };
     case "action.notify_slack":
       return { kind: "action.notify_slack", channelId: "", message: "", onError: "stop" };
     case "action.notify_email":
@@ -251,6 +269,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.projectId ? "Project upload" : "Any project";
     case "action.http":
       return config.method;
+    case "action.content_sync":
+      return config.resourceKey.trim() || config.provider;
     case "action.notify_slack":
       return config.channelId ? "Slack" : "Slack channel";
     case "action.notify_email":

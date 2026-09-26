@@ -28,6 +28,7 @@ const ENABLED_TYPES = new Set<VisualCatalogType>([
   "trigger.github",
   "trigger.source_upload",
   "action.http",
+  "action.content_sync",
   "action.notify_slack",
   "action.notify_email",
   "logic.if",

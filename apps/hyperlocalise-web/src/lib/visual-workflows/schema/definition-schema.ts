@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 
+import { contentSyncProviderSchema } from "@/lib/agents/content-sync/content-sync-types";
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION, VISUAL_WORKFLOW_SCHEMA_V3_VERSION } from "./types";
 
@@ -51,6 +52,7 @@ const visualCatalogTypeSchema = z.enum([
   "trigger.github",
   "trigger.source_upload",
   "action.http",
+  "action.content_sync",
   "action.notify_slack",
   "action.notify_email",
   "logic.if",
@@ -97,6 +99,24 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     auth: httpAuthSchema.optional(),
     parseJsonBody: z.boolean().optional(),
     failOnHttpError: z.boolean().optional(),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.content_sync"),
+    projectId: z.string().trim().max(128),
+    provider: contentSyncProviderSchema,
+    connectionId: z.string().trim().max(256),
+    resourceKey: z.string().trim().max(512),
+    providerFolder: z
+      .string()
+      .trim()
+      .max(512)
+      .regex(/^[^\\:*?"<>|]*$/, "invalid_folder_path"),
+    projectFolder: z
+      .string()
+      .trim()
+      .max(512)
+      .regex(/^[^\\:*?"<>|]*$/, "invalid_folder_path"),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({

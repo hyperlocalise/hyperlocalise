@@ -19,6 +19,7 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
 import {
@@ -103,7 +104,9 @@ function renderPage(automationRecord = automation) {
   return render(
     <IntlProvider locale="en" messages={{}}>
       <QueryClientProvider client={queryClient}>
-        <AutomationDetailPageContent organizationSlug="acme" automationId={automationRecord.id} />
+        <AppShellStoreProvider defaultNavigationGroups={[]}>
+          <AutomationDetailPageContent organizationSlug="acme" automationId={automationRecord.id} />
+        </AppShellStoreProvider>
       </QueryClientProvider>
     </IntlProvider>,
   );

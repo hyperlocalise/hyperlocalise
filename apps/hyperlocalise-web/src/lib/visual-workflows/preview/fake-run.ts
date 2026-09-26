@@ -22,6 +22,14 @@ export function nodeFailsInFakeRun(node: VisualWorkflowRfNode): boolean {
   if (config.kind === "action.http") {
     return config.url.trim().length === 0;
   }
+  if (config.kind === "action.content_sync") {
+    return (
+      config.projectId.trim().length === 0 ||
+      config.connectionId.trim().length === 0 ||
+      config.resourceKey.trim().length === 0 ||
+      config.projectFolder.trim().length === 0
+    );
+  }
   if (config.kind === "logic.if") {
     return config.condition.trim().length === 0;
   }

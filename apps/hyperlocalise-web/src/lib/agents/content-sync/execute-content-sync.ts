@@ -19,6 +19,7 @@ import {
 } from "@/lib/agents/workspace-automations";
 import { isContentSyncAutomation } from "@/lib/agents/workspace-automation-types";
 
+import type { ContentSyncConfig } from "./content-sync-types";
 import { executeGithubContentSync, type ContentSyncSummary } from "./execute-github-content-sync";
 
 const logger = createLogger("content-sync");
@@ -147,12 +148,28 @@ export async function executeContentSyncRun(input: {
   }
 }
 
+export async function executeContentSyncConfig(input: {
+  organizationId: string;
+  projectId: string;
+  workflowId: string;
+  runId: string;
+  syncConfig: ContentSyncConfig | null;
+}): Promise<Result<ContentSyncSummary, { code: string; message: string }>> {
+  return runContentSyncProvider({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    automationId: input.workflowId,
+    runId: input.runId,
+    syncConfig: input.syncConfig,
+  });
+}
+
 async function runContentSyncProvider(input: {
   organizationId: string;
   projectId: string;
   automationId: string;
   runId: string;
-  syncConfig: NonNullable<Awaited<ReturnType<typeof getWorkspaceAutomationById>>>["syncConfig"];
+  syncConfig: ContentSyncConfig | null;
 }): Promise<Result<ContentSyncSummary, { code: string; message: string }>> {
   if (!input.syncConfig) {
     return err({

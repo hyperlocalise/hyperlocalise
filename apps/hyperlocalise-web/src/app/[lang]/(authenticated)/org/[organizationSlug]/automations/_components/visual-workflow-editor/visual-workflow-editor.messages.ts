@@ -200,6 +200,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "0ZtcHWwaTp",
     description: "Catalog description for the HTTP request node",
   },
+  nodeContentSync: {
+    defaultMessage: "Content sync",
+    id: "TosoMhOGUj",
+    description: "Catalog title for the content sync action node",
+  },
+  nodeContentSyncHint: {
+    defaultMessage: "Pull source files into a project and push ready translations back.",
+    id: "CBccpuuEIS",
+    description: "Catalog description for the content sync action node",
+  },
   nodeIf: {
     defaultMessage: "If",
     id: "5ECVkGCnpd",
@@ -760,6 +770,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "jApfF7IUNd",
     description: "Label for message body on notify email node",
   },
+  githubRepository: {
+    defaultMessage: "GitHub repository",
+    id: "fi4BYzKe5I",
+    description: "Label for the GitHub repository picker on the trigger node",
+  },
+  selectRepository: {
+    defaultMessage: "Select a repository",
+    id: "U6xvadCYhH",
+    description: "Placeholder when no GitHub repository is selected",
+  },
   githubRepositoryId: {
     defaultMessage: "GitHub repository ID",
     id: "a1/Cklodwn",
@@ -855,10 +875,80 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "yN3IaRAmIM",
     description: "Saturday option for weekly schedule",
   },
+  sourceUploadProject: {
+    defaultMessage: "Project",
+    id: "K+mXcYVMPy",
+    description: "Project picker label for the source upload trigger",
+  },
+  anyProject: {
+    defaultMessage: "Any project",
+    id: "SgSG4ibcXn",
+    description: "Option that matches source uploads from every project",
+  },
   sourceUploadProjectId: {
     defaultMessage: "Project ID (optional)",
     id: "ImtoSoLxJY",
     description: "Optional project filter for source upload trigger",
+  },
+  contentSyncProject: {
+    defaultMessage: "Project",
+    id: "nefEZhjUv2",
+    description: "Project picker label on the content sync action",
+  },
+  contentSyncProvider: {
+    defaultMessage: "Source",
+    id: "Lti2GaN1c6",
+    description: "Provider picker label on the content sync action",
+  },
+  contentSyncResource: {
+    defaultMessage: "Resource",
+    id: "ZmIJvp0JMb",
+    description: "Repository or CMS space picker on the content sync action",
+  },
+  contentSyncProviderFolder: {
+    defaultMessage: "Provider folder",
+    id: "SxwdCDaQLJ",
+    description: "Folder on the connected source for content sync",
+  },
+  contentSyncProjectFolder: {
+    defaultMessage: "Project folder",
+    id: "8R777UILAL",
+    description: "Folder inside the Hyperlocalise project for content sync",
+  },
+  selectProject: {
+    defaultMessage: "Select a project",
+    id: "vFjxVFIzmT",
+    description: "Placeholder when no project is selected for content sync",
+  },
+  selectProvider: {
+    defaultMessage: "Select a source",
+    id: "NkvC0geGcc",
+    description: "Placeholder when no content sync provider is selected",
+  },
+  selectResource: {
+    defaultMessage: "Select a resource",
+    id: "rXuCG4x28U",
+    description: "Placeholder when no repository or CMS space is selected",
+  },
+  providerGithub: {
+    defaultMessage: "GitHub",
+    id: "IC/L6/ETfl",
+    description: "GitHub provider label on the content sync action",
+  },
+  providerGitlab: {
+    defaultMessage: "GitLab",
+    id: "V0L6vHYKYa",
+    description: "GitLab provider label on the content sync action",
+  },
+  providerContentful: {
+    defaultMessage: "Contentful",
+    id: "bWR03+Qpir",
+    description: "Contentful provider label on the content sync action",
+  },
+  providerIntercom: {
+    defaultMessage: "Intercom",
+    id: "X0ufvWkg5R",
+    description: "Intercom provider label on the content sync action",
   },
   triggerBadge: {
     defaultMessage: "Trigger",

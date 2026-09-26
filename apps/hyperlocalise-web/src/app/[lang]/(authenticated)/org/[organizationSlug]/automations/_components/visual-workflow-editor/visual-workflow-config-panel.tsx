@@ -54,8 +54,23 @@ import type {
 } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
+import {
+  contentSyncNeedsProviderFolder,
+  defaultContentSyncProjectFolder,
+  type ContentSyncProvider,
+} from "@/lib/agents/content-sync/content-sync-types";
+
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
+import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-options";
+
+const ANY_PROJECT_VALUE = "__any_project__";
+const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = [
+  "github",
+  "gitlab",
+  "contentful",
+  "intercom",
+];
 
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const ERROR_BEHAVIORS: VisualNodeErrorBehavior[] = ["stop", "continue", "branch"];
@@ -87,6 +102,7 @@ export function VisualWorkflowConfigPanel({
 }) {
   const intl = useIntl();
   const { config } = node.data;
+  const resources = useVisualWorkflowResourceOptions(organizationSlug);
   const isTrigger = isTriggerType(node.data.catalogType);
   const isInputConnected = (portId: string) =>
     getVisualWorkflowDataEdgeBinding({
@@ -535,16 +551,24 @@ export function VisualWorkflowConfigPanel({
         ) : null}
         {config.kind === "trigger.github" ? (
           <>
-            <TextField
+            <SelectField
               id="vw-github-repo"
-              label={intl.formatMessage(messages.githubRepositoryId)}
+              label={intl.formatMessage(messages.githubRepository)}
               value={config.githubInstallationRepositoryId}
-              onChange={(value) =>
+              placeholder={intl.formatMessage(messages.selectRepository)}
+              items={resources.repositories.map((repository) => ({
+                value: repository.id,
+                label: repository.fullName,
+              }))}
+              onValueChange={(value) => {
+                if (!value) {
+                  return;
+                }
                 onChangeConfig({
                   ...config,
                   githubInstallationRepositoryId: value,
-                })
-              }
+                });
+              }}
             />
             <TextField
               id="vw-github-branches"
@@ -675,16 +699,36 @@ export function VisualWorkflowConfigPanel({
           </>
         ) : null}
         {config.kind === "trigger.source_upload" ? (
-          <TextField
+          <SelectField
             id="vw-source-project"
-            label={intl.formatMessage(messages.sourceUploadProjectId)}
-            value={config.projectId ?? ""}
-            onChange={(value) =>
+            label={intl.formatMessage(messages.sourceUploadProject)}
+            value={config.projectId ?? ANY_PROJECT_VALUE}
+            items={[
+              {
+                value: ANY_PROJECT_VALUE,
+                label: intl.formatMessage(messages.anyProject),
+              },
+              ...resources.projects.map((project) => ({
+                value: project.id,
+                label: project.name,
+              })),
+            ]}
+            onValueChange={(value) => {
+              if (!value) {
+                return;
+              }
               onChangeConfig({
                 ...config,
-                projectId: value.trim() || undefined,
-              })
-            }
+                projectId: value === ANY_PROJECT_VALUE ? undefined : value,
+              });
+            }}
+          />
+        ) : null}
+        {config.kind === "action.content_sync" ? (
+          <ContentSyncConfigFields
+            config={config}
+            organizationSlug={organizationSlug}
+            onChangeConfig={onChangeConfig}
           />
         ) : null}
         {config.kind === "ai.agent" ? (
@@ -836,26 +880,154 @@ function ErrorBehaviorField({
   );
 }
 
+function ContentSyncConfigFields({
+  config,
+  organizationSlug,
+  onChangeConfig,
+}: {
+  config: Extract<VisualNodeConfig, { kind: "action.content_sync" }>;
+  organizationSlug?: string;
+  onChangeConfig: (config: VisualNodeConfig) => void;
+}) {
+  const intl = useIntl();
+  const resources = useVisualWorkflowResourceOptions(organizationSlug);
+  const resourceOptions = resources.resourceOptionsFor(config.provider);
+  const selectedResource =
+    resourceOptions.find((option) => option.id === config.connectionId) ?? resourceOptions[0];
+  const projectFolderValue =
+    config.projectFolder ||
+    (selectedResource
+      ? defaultContentSyncProjectFolder({
+          provider: config.provider,
+          resourceKey: selectedResource.resourceKey,
+        })
+      : "");
+
+  function applyResource(next: {
+    provider: ContentSyncProvider;
+    connectionId: string;
+    resourceKey: string;
+  }) {
+    onChangeConfig({
+      ...config,
+      provider: next.provider,
+      connectionId: next.connectionId,
+      resourceKey: next.resourceKey,
+      projectFolder:
+        config.projectFolder ||
+        defaultContentSyncProjectFolder({
+          provider: next.provider,
+          resourceKey: next.resourceKey,
+        }),
+    });
+  }
+
+  return (
+    <>
+      <SelectField
+        id="vw-content-sync-project"
+        label={intl.formatMessage(messages.contentSyncProject)}
+        value={config.projectId}
+        placeholder={intl.formatMessage(messages.selectProject)}
+        items={resources.projects.map((project) => ({
+          value: project.id,
+          label: project.name,
+        }))}
+        onValueChange={(value) => {
+          if (!value) {
+            return;
+          }
+          onChangeConfig({ ...config, projectId: value });
+        }}
+      />
+      <SelectField
+        id="vw-content-sync-provider"
+        label={intl.formatMessage(messages.contentSyncProvider)}
+        value={config.provider}
+        placeholder={intl.formatMessage(messages.selectProvider)}
+        items={(resources.availableProviders.length > 0
+          ? resources.availableProviders
+          : CONTENT_SYNC_PROVIDERS
+        ).map((provider) => ({
+          value: provider,
+          label: intl.formatMessage(contentSyncProviderMessage(provider)),
+        }))}
+        onValueChange={(value) => {
+          if (!value || !isContentSyncProvider(value)) {
+            return;
+          }
+          applyResource({
+            provider: value,
+            connectionId: "",
+            resourceKey: "",
+          });
+        }}
+      />
+      <SelectField
+        id="vw-content-sync-resource"
+        label={intl.formatMessage(messages.contentSyncResource)}
+        value={selectedResource?.id ?? ""}
+        placeholder={intl.formatMessage(messages.selectResource)}
+        items={resourceOptions.map((option) => ({
+          value: option.id,
+          label: option.label,
+        }))}
+        onValueChange={(value) => {
+          const option = resourceOptions.find((entry) => entry.id === value);
+          if (!option) {
+            return;
+          }
+          applyResource({
+            provider: config.provider,
+            connectionId: option.id,
+            resourceKey: option.resourceKey,
+          });
+        }}
+      />
+      {contentSyncNeedsProviderFolder(config.provider) ? (
+        <TextField
+          id="vw-content-sync-provider-folder"
+          label={intl.formatMessage(messages.contentSyncProviderFolder)}
+          value={config.providerFolder}
+          onChange={(value) => onChangeConfig({ ...config, providerFolder: value })}
+        />
+      ) : null}
+      <TextField
+        id="vw-content-sync-project-folder"
+        label={intl.formatMessage(messages.contentSyncProjectFolder)}
+        value={projectFolderValue}
+        onChange={(value) => onChangeConfig({ ...config, projectFolder: value })}
+      />
+      <ErrorBehaviorField
+        value={config.onError ?? "stop"}
+        onChange={(onError) => onChangeConfig({ ...config, onError })}
+      />
+    </>
+  );
+}
+
 function SelectField({
   id,
   label,
   value,
   items,
   onValueChange,
+  placeholder,
 }: {
   id: string;
   label: string;
   value: string;
   items: { value: string; label: string }[];
   onValueChange: (value: string | null) => void;
+  placeholder?: string;
 }) {
   const selected = items.find((item) => item.value === value);
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Select value={value} items={items} onValueChange={onValueChange}>
+      <Select value={value || null} items={items} onValueChange={onValueChange}>
         <SelectTrigger id={id} className="w-full">
-          <SelectValue>{selected?.label ?? value}</SelectValue>
+          <SelectValue placeholder={placeholder}>{selected?.label ?? value}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {items.map((item) => (
@@ -966,6 +1138,23 @@ function isHttpAuthType(value: string): value is HttpAuthType {
 
 function isErrorBehavior(value: string): value is VisualNodeErrorBehavior {
   return ERROR_BEHAVIORS.includes(value as VisualNodeErrorBehavior);
+}
+
+function isContentSyncProvider(value: string): value is ContentSyncProvider {
+  return CONTENT_SYNC_PROVIDERS.includes(value as ContentSyncProvider);
+}
+
+function contentSyncProviderMessage(provider: ContentSyncProvider) {
+  switch (provider) {
+    case "github":
+      return messages.providerGithub;
+    case "gitlab":
+      return messages.providerGitlab;
+    case "contentful":
+      return messages.providerContentful;
+    case "intercom":
+      return messages.providerIntercom;
+  }
 }
 
 function errorBehaviorMessage(behavior: VisualNodeErrorBehavior) {

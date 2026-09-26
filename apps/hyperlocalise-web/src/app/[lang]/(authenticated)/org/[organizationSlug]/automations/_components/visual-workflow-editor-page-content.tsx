@@ -20,6 +20,7 @@ import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { fromVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
@@ -51,6 +52,12 @@ export function VisualWorkflowEditorPageContent({
   const revision = useRef(workflow.revision);
   const orgRouter = useOrgRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const workflowTitle = workflow.name.trim();
+  useAppShellBreadcrumbAppend({
+    id: "visual-workflow-detail",
+    label: workflowTitle || undefined,
+    title: workflowTitle || undefined,
+  });
   useAppShellSidebar({ forceCollapsed: true });
   const editorState = fromVisualWorkflowV3Definition({
     ...workflow.definition,

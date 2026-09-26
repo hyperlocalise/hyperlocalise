@@ -12,6 +12,9 @@
  */
 import { generateText, Output } from "ai";
 
+import { contentSyncConfigSchema } from "@/lib/agents/content-sync/content-sync-types";
+import { executeContentSyncConfig } from "@/lib/agents/content-sync/execute-content-sync";
+import { isErr } from "@/lib/primitives/result/results";
 import {
   runWorkspaceAutomationEmailNotificationTool,
   runWorkspaceAutomationSlackNotificationTool,
@@ -43,6 +46,8 @@ export async function executeVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
   context: VisualWorkflowExecutionContext;
   organizationId: string;
+  visualWorkflowId?: string;
+  visualWorkflowRunId?: string;
   signal?: AbortSignal;
   inputsResolved?: boolean;
   idempotencyKey?: string;
@@ -163,6 +168,57 @@ export async function executeVisualWorkflowNode(input: {
           },
         };
       }
+    }
+    case "action.content_sync": {
+      const projectId = text(node.config.projectId).trim();
+      const connectionId = text(node.config.connectionId).trim();
+      const resourceKey = text(node.config.resourceKey).trim();
+      const projectFolder = text(node.config.projectFolder).trim();
+      if (!projectId || !connectionId || !resourceKey || !projectFolder) {
+        return {
+          ok: false,
+          error: {
+            code: "missing_content_sync_config",
+            message: "Choose a project, source, and project folder before syncing.",
+          },
+        };
+      }
+
+      const parsed = contentSyncConfigSchema.safeParse({
+        provider: node.config.provider,
+        connectionId,
+        resourceKey,
+        providerFolder: text(node.config.providerFolder).trim(),
+        projectFolder,
+      });
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: "invalid_content_sync_config",
+            message: "Content sync settings are incomplete or invalid.",
+          },
+        };
+      }
+
+      const result = await executeContentSyncConfig({
+        organizationId: input.organizationId,
+        projectId,
+        workflowId: input.visualWorkflowId ?? input.organizationId,
+        runId: input.visualWorkflowRunId ?? input.idempotencyKey ?? crypto.randomUUID(),
+        syncConfig: parsed.data,
+      });
+      if (isErr(result)) {
+        return {
+          ok: false,
+          error: {
+            code: result.error.code,
+            message: result.error.message,
+          },
+        };
+      }
+
+      return { ok: true, output: result.value };
     }
     case "action.notify_slack": {
       const channelId = text(node.config.channelId).trim();

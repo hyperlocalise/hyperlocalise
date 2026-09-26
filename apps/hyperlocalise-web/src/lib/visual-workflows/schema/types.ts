@@ -23,6 +23,7 @@ export type VisualCatalogType =
   | "trigger.github"
   | "trigger.source_upload"
   | "action.http"
+  | "action.content_sync"
   | "action.notify_slack"
   | "action.notify_email"
   | "logic.if"
@@ -110,6 +111,16 @@ export type VisualNodeConfig =
       };
       parseJsonBody?: boolean;
       failOnHttpError?: boolean;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.content_sync";
+      projectId: string;
+      provider: "github" | "gitlab" | "contentful" | "intercom";
+      connectionId: string;
+      resourceKey: string;
+      providerFolder: string;
+      projectFolder: string;
       onError?: VisualNodeErrorBehavior;
     }
   | {

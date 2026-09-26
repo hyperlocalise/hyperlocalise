@@ -24,6 +24,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
@@ -36,6 +38,17 @@ import {
 import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
 
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
+
+function renderPanel(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <IntlProvider locale="en" messages={{}}>
+      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+    </IntlProvider>,
+  );
+}
 
 function triggerNode(type: VisualWorkflowRfNode["type"] = "trigger.manual"): VisualWorkflowRfNode {
   return {
@@ -57,17 +70,15 @@ describe("VisualWorkflowConfigPanel", () => {
     const onChangeNodeType = vi.fn();
     const onDeleteNode = vi.fn();
 
-    render(
-      <IntlProvider locale="en" messages={{}}>
-        <VisualWorkflowConfigPanel
-          node={triggerNode()}
-          issues={[]}
-          onBack={vi.fn()}
-          onChangeConfig={vi.fn()}
-          onChangeNodeType={onChangeNodeType}
-          onDeleteNode={onDeleteNode}
-        />
-      </IntlProvider>,
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={triggerNode()}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={onChangeNodeType}
+        onDeleteNode={onDeleteNode}
+      />,
     );
 
     await user.click(screen.getByRole("combobox", { name: "Trigger" }));
@@ -100,17 +111,15 @@ describe("VisualWorkflowConfigPanel", () => {
       },
     };
 
-    render(
-      <IntlProvider locale="en" messages={{}}>
-        <VisualWorkflowConfigPanel
-          node={node}
-          issues={[]}
-          onBack={vi.fn()}
-          onChangeConfig={onChangeConfig}
-          onChangeNodeType={vi.fn()}
-          onDeleteNode={vi.fn()}
-        />
-      </IntlProvider>,
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
     );
 
     await user.type(screen.getByPlaceholderText("Case 1"), "x");
@@ -123,5 +132,25 @@ describe("VisualWorkflowConfigPanel", () => {
         { id: "case-ready", value: "ready" },
       ],
     });
+  });
+
+  it("shows labeled pickers for content sync instead of raw ids", () => {
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={triggerNode("action.content_sync")}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Project" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Source" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Resource" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Project folder")).toBeInTheDocument();
+    expect(screen.queryByLabelText("GitHub repository ID")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Project ID (optional)")).not.toBeInTheDocument();
   });
 });

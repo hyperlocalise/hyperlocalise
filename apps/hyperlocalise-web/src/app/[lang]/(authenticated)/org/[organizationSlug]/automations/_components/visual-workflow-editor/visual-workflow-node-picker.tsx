@@ -150,6 +150,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeSourceUploadTrigger;
     case "action.http":
       return messages.nodeHttp;
+    case "action.content_sync":
+      return messages.nodeContentSync;
     case "action.notify_slack":
       return messages.nodeNotifySlack;
     case "action.notify_email":
@@ -181,6 +183,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeSourceUploadTriggerHint;
     case "action.http":
       return messages.nodeHttpHint;
+    case "action.content_sync":
+      return messages.nodeContentSyncHint;
     case "action.notify_slack":
       return messages.nodeNotifySlackHint;
     case "action.notify_email":

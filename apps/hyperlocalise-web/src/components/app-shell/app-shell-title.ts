@@ -460,6 +460,22 @@ function formatProjectSectionTitle(intl: IntlShape, key: ProjectSectionKey): str
   return formatRouteTitle(intl, key);
 }
 
+function formatNewAutomationTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "New automation",
+    id: "h7fFvoKQMq",
+    description: "App shell breadcrumb title for the new automation page",
+  });
+}
+
+function formatVisualWorkflowsTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Visual workflows",
+    id: "Qfog4jJ47y",
+    description: "App shell breadcrumb title for the visual workflows page",
+  });
+}
+
 export function getAppShellBreadcrumbs(
   pathname: string | null,
   intl: IntlShape,
@@ -573,6 +589,47 @@ export function getAppShellBreadcrumbs(
     ];
   }
 
+  if (section === "automations") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "automations") }];
+    }
+
+    const automationsHref = buildOrgPath(organizationSlug, "automations");
+
+    if (subsection === "visual-workflows") {
+      const crumbs: AppShellBreadcrumb[] = [
+        {
+          label: formatRouteTitle(intl, "automations"),
+          href: automationsHref,
+        },
+        {
+          label: formatVisualWorkflowsTitle(intl),
+          ...(projectSection
+            ? { href: buildOrgPath(organizationSlug, "automations", "visual-workflows") }
+            : {}),
+        },
+      ];
+      return crumbs;
+    }
+
+    if (subsection === "new") {
+      return [
+        {
+          label: formatRouteTitle(intl, "automations"),
+          href: automationsHref,
+        },
+        { label: formatNewAutomationTitle(intl) },
+      ];
+    }
+
+    return [
+      {
+        label: formatRouteTitle(intl, "automations"),
+        href: automationsHref,
+      },
+    ];
+  }
+
   if (section === "members") {
     if (!subsection) {
       return [{ label: formatRouteTitle(intl, "members") }];
@@ -601,7 +658,7 @@ export function getAppShellBreadcrumbs(
 
     if (projectSection && isProjectSectionKey(projectSection)) {
       const sectionHref = buildOrgPath(organizationSlug, "projects", subsection, projectSection);
-      return [
+      const crumbs: AppShellBreadcrumb[] = [
         {
           label: formatRouteTitle(intl, "projects"),
           href: buildOrgPath(organizationSlug, "projects"),
@@ -612,6 +669,12 @@ export function getAppShellBreadcrumbs(
           href: issueIdSegment ? sectionHref : undefined,
         },
       ];
+
+      if (projectSection === "automations" && issueIdSegment === "new") {
+        crumbs.push({ label: formatNewAutomationTitle(intl) });
+      }
+
+      return crumbs;
     }
 
     return [
