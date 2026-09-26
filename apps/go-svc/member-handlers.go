@@ -193,12 +193,7 @@ func (api *memberAPI) inviteMember(ctx context.Context, actor memberActor, r *ht
 			"is_resend", pending.resend,
 			"role_changed", pending.roleChanged,
 		)
-		if !pending.resend {
-			api.rollbackPendingInvite(ctx, pending)
-		} else if pending.roleChanged {
-			_, _ = api.pool.Exec(ctx, `update organization_memberships set role=$2 where id=$1`, pending.membershipID, pending.previousRole)
-		}
-		api.rollbackCreatedTeamMembership(ctx, pending.createdTeamMembership)
+		api.rollbackFailedInvitation(ctx, pending)
 		if isWorkosInvitationRevokedNotDeliveredError(err) {
 			return nil, 0, memberFailure(500, "member_invite_revoked_not_delivered", "The previous invitation was revoked but a new one could not be sent. Invite this member again.")
 		}

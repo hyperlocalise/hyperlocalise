@@ -149,6 +149,37 @@ func TestMemberInviteRollbackOnDeliveryFailure(t *testing.T) {
 	requireSeatAddedEvents(t, api, 1)
 }
 
+func TestMemberInviteRollbackAfterCanceledRequest(t *testing.T) {
+	api, scope, workos := memberTestAPI(t, "admin")
+	email := uniqueTestEmail("invite-deadline")
+	ctx, cancel := context.WithCancel(t.Context())
+	workos.afterSend = cancel
+
+	req := httptest.NewRequest(http.MethodPost, scope.OrgPath("/members"), bytes.NewBufferString(`{"email":"`+email+`","role":"member"}`))
+	req.Header.Set("Content-Type", "application/json")
+	_, _, err := api.inviteMember(ctx, memberActor{
+		userID:               scope.UserID,
+		organizationID:       scope.OrganizationID,
+		workosOrganizationID: scope.WorkOSOrganizationID,
+		role:                 "admin",
+		workosUserID:         scope.WorkOSUserID,
+	}, req)
+	var failed *memberError
+	require.ErrorAs(t, err, &failed)
+	require.Equal(t, "member_invite_failed", failed.code)
+
+	var count int
+	err = scope.Pool.QueryRow(t.Context(), `select count(*)::int from users where email=$1`, email).Scan(&count)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+	err = scope.Pool.QueryRow(t.Context(), `
+        select count(*)::int from organization_memberships m
+        join users u on u.id=m.user_id
+        where m.organization_id=$1 and u.email=$2`, scope.OrganizationID, email).Scan(&count)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+}
+
 func TestMemberInviteSeatLimitDoesNotTrack(t *testing.T) {
 	api, scope, _ := memberTestAPI(t, "admin")
 	api.seats = fallbackMemberSeats{limit: 1}

@@ -80,19 +80,27 @@ type stubMemberWorkos struct {
 	deleteErr   error
 	deleteID    string
 	afterDelete func()
+	afterSend   func()
 }
 
-func (s *stubMemberWorkos) SendInvitation(_ context.Context, _ memberInvitationInput) error {
+func (s *stubMemberWorkos) SendInvitation(ctx context.Context, _ memberInvitationInput) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.sendCalls++
+	afterSend := s.afterSend
+	var err error
 	if s.sendCalls == 1 && s.sendErr != nil {
-		return s.sendErr
+		err = s.sendErr
+	} else if s.sendCalls > 1 && s.sendRetry != nil {
+		err = s.sendRetry
 	}
-	if s.sendCalls > 1 && s.sendRetry != nil {
-		return s.sendRetry
+	s.mu.Unlock()
+	if afterSend != nil {
+		afterSend()
 	}
-	return nil
+	if err != nil {
+		return err
+	}
+	return ctx.Err()
 }
 
 func (s *stubMemberWorkos) ResendInvitation(_ context.Context, invitationID string) error {

@@ -235,6 +235,17 @@ func (api *memberAPI) ensureDefaultWorkspaceTeam(ctx context.Context, db diction
 	return teamID, nil
 }
 
+func (api *memberAPI) rollbackFailedInvitation(ctx context.Context, pending invitedOrganizationMember) {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), memberInviteRollbackTimeout)
+	defer cancel()
+	if !pending.resend {
+		api.rollbackPendingInvite(cleanupCtx, pending)
+	} else if pending.roleChanged {
+		_, _ = api.pool.Exec(cleanupCtx, `update organization_memberships set role=$2 where id=$1`, pending.membershipID, pending.previousRole)
+	}
+	api.rollbackCreatedTeamMembership(cleanupCtx, pending.createdTeamMembership)
+}
+
 func (api *memberAPI) rollbackCreatedTeamMembership(ctx context.Context, created *createdTeamMembership) {
 	if created == nil {
 		return
