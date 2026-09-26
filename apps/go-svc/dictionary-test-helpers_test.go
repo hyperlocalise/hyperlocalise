@@ -57,6 +57,11 @@ func (db *dictionaryTestDB) next(kind, sql string, args []any) dictionaryDBStep 
 	db.steps = db.steps[1:]
 	require.Equal(db.t, step.kind, kind)
 	require.Contains(db.t, sql, step.sql)
+	if kind == "row" || kind == "query" || kind == "exec" {
+		if got, want := len(args), sqlPlaceholderCount(sql); got != want {
+			db.t.Fatalf("%s argument count: expected %d arguments, got %d\n%s", kind, want, got, sql)
+		}
+	}
 	if step.args != nil {
 		require.Equal(db.t, step.args, args)
 	}

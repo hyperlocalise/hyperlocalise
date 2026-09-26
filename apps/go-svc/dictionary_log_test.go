@@ -35,7 +35,7 @@ func TestRecordDictionaryFailureLogsInternalError(t *testing.T) {
 	require.Contains(t, entry["error"], "spellcheck_word_libraries")
 }
 
-func TestRecordDictionaryFailureSkipsClientErrors(t *testing.T) {
+func TestRecordDictionaryFailureLogsClientErrors(t *testing.T) {
 	var buf bytes.Buffer
 	previous := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
@@ -43,5 +43,12 @@ func TestRecordDictionaryFailureSkipsClientErrors(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/orgs/acme/dictionaries", nil)
 	recordDictionaryFailure(req, "resolve_actor", dictionaryFailure(403, "organization_access_denied", "Organization access denied"))
-	require.Empty(t, buf.String())
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+	require.Equal(t, "dictionary_request_failed", entry["msg"])
+	require.Equal(t, "resolve_actor", entry["phase"])
+	require.Equal(t, "organization_access_denied", entry["code"])
+	require.Equal(t, "WARN", entry["level"])
+	require.NotContains(t, buf.String(), "acme")
 }

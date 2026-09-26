@@ -302,6 +302,7 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 			targetLocale: targetLocale,
 		})
 	}
+	noteRequest(r, "target_locale", targetLocale, "translation_status", savedStatus)
 	return map[string]any{"translation": editorCatTranslation{
 		Text:                  text,
 		ExternalTranslationID: &id,
@@ -377,6 +378,7 @@ func (api *editorCatAPI) updateTranslationStatus(r *http.Request, actor editorCa
 			extra:        map[string]any{"nextStatus": status},
 		})
 	}
+	noteRequest(r, "target_locale", targetLocale, "translation_status", status)
 	return map[string]any{"translation": editorCatTranslation{
 		Text:                  text,
 		ExternalTranslationID: &id,

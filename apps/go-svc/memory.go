@@ -80,10 +80,10 @@ func memoryJSON(w http.ResponseWriter, status int, value any) {
 func writeMemoryError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *memoryError
 	if !errors.As(err, &failure) {
-		slog.Error("memory_request_failed", "phase", phase, "path", requestLogPath(r.URL.Path), "error", err.Error())
+		logRequestFailure(r, "memory_request_failed", phase, err)
 		failure = &memoryError{status: 500, code: "internal_error", message: "Internal server error"}
-	} else if failure.status >= 500 {
-		slog.Error("memory_request_failed", "phase", phase, "path", requestLogPath(r.URL.Path), "code", failure.code)
+	} else {
+		logRequestFailure(r, "memory_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
 	payload := map[string]any{"error": failure.code, "message": failure.message}
 	if failure.details != nil {

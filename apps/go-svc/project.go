@@ -64,10 +64,10 @@ func projectJSON(ctx context.Context, w http.ResponseWriter, status int, value a
 func writeProjectError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *projectError
 	if !errors.As(err, &failure) {
-		slog.ErrorContext(r.Context(), "project_request_failed", "phase", phase, "path", requestLogPath(r.URL.Path), "error", err.Error())
+		logRequestFailure(r, "project_request_failed", phase, err)
 		failure = &projectError{status: 500, code: "internal_error", message: "Internal server error"}
-	} else if failure.status >= 500 {
-		slog.ErrorContext(r.Context(), "project_request_failed", "phase", phase, "path", requestLogPath(r.URL.Path), "code", failure.code)
+	} else {
+		logRequestFailure(r, "project_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
 	projectJSON(r.Context(), w, failure.status, map[string]string{
 		"error":   failure.code,

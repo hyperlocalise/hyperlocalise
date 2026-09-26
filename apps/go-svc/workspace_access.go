@@ -114,11 +114,11 @@ func (h *handler) workspaceHandle(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if denyBrowserMutation(r) {
-			writeWorkspaceError(w, workspaceFailure(403, "forbidden", "Cross-origin request denied"))
+			writeWorkspaceError(w, r, workspaceFailure(403, "forbidden", "Cross-origin request denied"))
 			return
 		}
 		if h.workspace == nil || h.workspace.pool == nil {
-			writeWorkspaceError(w, workspaceFailure(503, "service_unavailable", "Workspace service unavailable"))
+			writeWorkspaceError(w, r, workspaceFailure(503, "service_unavailable", "Workspace service unavailable"))
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
@@ -126,26 +126,26 @@ func (h *handler) workspaceHandle(
 		r = r.WithContext(ctx)
 		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
 		if !ok {
-			writeWorkspaceError(w, workspaceFailure(401, "unauthorized", "Authentication required"))
+			writeWorkspaceError(w, r, workspaceFailure(401, "unauthorized", "Authentication required"))
 			return
 		}
 		actor, err := h.workspace.actor(ctx, claims, r.PathValue("organizationSlug"))
 		if err != nil {
-			writeWorkspaceError(w, err)
+			writeWorkspaceError(w, r, err)
 			return
 		}
 		if err := h.workspace.requireFlag(ctx, actor, flagSlug, flagMessage); err != nil {
-			writeWorkspaceError(w, err)
+			writeWorkspaceError(w, r, err)
 			return
 		}
 		if !allow(actor) {
-			writeWorkspaceError(w, workspaceFailure(403, "forbidden", deniedMessage))
+			writeWorkspaceError(w, r, workspaceFailure(403, "forbidden", deniedMessage))
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, workspaceBodyLimit)
 		value, status, err := fn(r, actor)
 		if err != nil {
-			writeWorkspaceError(w, err)
+			writeWorkspaceError(w, r, err)
 			return
 		}
 		if status == http.StatusNoContent {
@@ -156,10 +156,13 @@ func (h *handler) workspaceHandle(
 	})
 }
 
-func writeWorkspaceError(w http.ResponseWriter, err error) {
+func writeWorkspaceError(w http.ResponseWriter, r *http.Request, err error) {
 	var failure *workspaceError
 	if !errors.As(err, &failure) {
+		logRequestFailure(r, "workspace_request_failed", "handle", err)
 		failure = &workspaceError{500, "internal_error", "Internal server error"}
+	} else {
+		logRequestFailure(r, "workspace_request_failed", "handle", err, "status", failure.status, "code", failure.code)
 	}
 	writeJSON(w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
 }

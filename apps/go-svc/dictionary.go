@@ -83,45 +83,14 @@ func dictionaryJSON(ctx context.Context, w http.ResponseWriter, status int, valu
 	}
 }
 
-func dictionaryLogAttrs(r *http.Request, phase string) []any {
-	attrs := []any{
-		"phase", phase,
-		"path", requestLogPath(r.URL.Path),
-	}
-	if id := requestID(r); id != "" {
-		attrs = append(attrs, "request_id", id)
-	}
-	if claims, ok := r.Context().Value(authContextKey{}).(AuthClaims); ok && claims.UserID != "" {
-		attrs = append(attrs, "user_id", claims.UserID)
-	}
-	return attrs
-}
-
-func appendDictionaryErrorDetail(attrs []any, err error) []any {
-	if err == nil {
-		return attrs
-	}
-	attrs = append(attrs, "error", err.Error())
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		attrs = append(attrs, "pg_code", pgErr.Code)
-	}
-	return attrs
-}
-
-// recordDictionaryFailure logs enough context to debug 5xx responses in production.
+// recordDictionaryFailure logs the handled outcome, including client errors.
 func recordDictionaryFailure(r *http.Request, phase string, err error) {
 	var failure *dictionaryError
 	if errors.As(err, &failure) {
-		attrs := dictionaryLogAttrs(r, phase)
-		attrs = append(attrs, "status", failure.status, "code", failure.code)
-		if failure.status >= 500 {
-			slog.ErrorContext(r.Context(), "dictionary_request_failed", attrs...)
-		}
+		logRequestFailure(r, "dictionary_request_failed", phase, err, "status", failure.status, "code", failure.code)
 		return
 	}
-	attrs := appendDictionaryErrorDetail(dictionaryLogAttrs(r, phase), err)
-	slog.ErrorContext(r.Context(), "dictionary_request_failed", attrs...)
+	logRequestFailure(r, "dictionary_request_failed", phase, err)
 }
 
 func writeDictionaryError(w http.ResponseWriter, r *http.Request, phase string, err error) {
@@ -129,7 +98,7 @@ func writeDictionaryError(w http.ResponseWriter, r *http.Request, phase string, 
 	if !errors.As(err, &failure) {
 		recordDictionaryFailure(r, phase, err)
 		failure = &dictionaryError{500, "internal_error", "Internal server error"}
-	} else if failure.status >= 500 {
+	} else {
 		recordDictionaryFailure(r, phase, failure)
 	}
 	dictionaryJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code, "message": failure.message})

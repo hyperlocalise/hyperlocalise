@@ -126,16 +126,17 @@ func main() {
 		}
 		defer pool.Close()
 		h.postgres = pool
-		h.dictionaries.pool = pool
-		h.glossaries.pool = pool
-		h.memories.pool = pool
-		h.qaReports.pool = pool
-		h.issueSheets.pool = pool
-		h.teams.pool = pool
-		h.activityLogs.pool = pool
-		h.contentEditor.pool = pool
-		h.projects.pool = pool
-		h.workspace.pool = pool
+		traced := tracedPool{inner: pool}
+		h.dictionaries.pool = traced
+		h.glossaries.pool = traced
+		h.memories.pool = traced
+		h.qaReports.pool = traced
+		h.issueSheets.pool = traced
+		h.teams.pool = traced
+		h.activityLogs.pool = traced
+		h.contentEditor.pool = traced
+		h.projects.pool = traced
+		h.workspace.pool = traced
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure experiment store: %v", err)
@@ -188,7 +189,8 @@ func main() {
 	registerRoutes(mux, h, verifier)
 
 	addr := ":" + port
-	// Keep request logging inside tracing without breaking tracing's access to mux-populated r.Pattern.
+	// Keep request logging inside tracing. requestLogMiddleware copies the mux
+	// Pattern back onto the outer request so spans keep the matched route.
 	server := newHTTPServer(addr, tracingMiddleware(requestLogMiddleware(corsMiddleware(mux))))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

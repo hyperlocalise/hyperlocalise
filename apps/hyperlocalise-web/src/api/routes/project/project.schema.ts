@@ -305,7 +305,6 @@ export const projectFileCatQuerySchema = z.object({
   /** Use `"*"` to load strings across every file in scope. */
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
-  initialTargetLocales: z.string().max(264).optional(),
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   resourceType: z.enum(["file", "key"]).optional(),
   repositoryFullName: z.string().trim().min(1).max(256).optional(),
@@ -879,7 +878,6 @@ export const projectFileCatResponseSchema = z.object({
     teamName: z.string().optional(),
     projectTeamSlug: z.string().optional(),
     segments: z.array(projectFileCatSegmentSchema),
-    initialTargets: z.array(projectFileCatTargetRowSchema).optional(),
     pagination: projectFileCatPaginationSchema.optional(),
   }),
 });

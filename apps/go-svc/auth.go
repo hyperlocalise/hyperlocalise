@@ -408,19 +408,23 @@ func authMiddleware(verifier SessionVerifier) func(http.Handler) http.Handler {
 }
 
 func logAuthRejected(r *http.Request, reason string) {
-	attrs := []any{"reason", reason}
+	route := requestRoute(r)
+	noteRequest(r, "auth", reason)
+	attrs := []any{"reason", reason, "method", r.Method, "route", route}
 	if id := requestID(r); id != "" {
 		attrs = append(attrs, "request_id", id)
 	}
-	slog.InfoContext(r.Context(), "auth rejected", attrs...)
+	slog.InfoContext(r.Context(), "auth rejected "+r.Method+" "+route, attrs...)
 }
 
 func logAuthOK(r *http.Request, userID string) {
-	attrs := []any{"user_id", userID}
+	route := requestRoute(r)
+	noteRequest(r, "user_id", userID)
+	attrs := []any{"user_id", userID, "method", r.Method, "route", route}
 	if id := requestID(r); id != "" {
 		attrs = append(attrs, "request_id", id)
 	}
-	slog.InfoContext(r.Context(), "auth ok", attrs...)
+	slog.InfoContext(r.Context(), "auth ok "+r.Method+" "+route, attrs...)
 }
 
 func writeUnauthorized(w http.ResponseWriter, message string) {

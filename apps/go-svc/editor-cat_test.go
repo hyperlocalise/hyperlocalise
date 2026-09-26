@@ -680,4 +680,46 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	require.Contains(t, hasIssues, "i.target_locale=$4")
 
 	require.Equal(t, " and k.is_hidden = true", editorCatQueueFilterSQL("hidden", orgN, projectN, localeN))
+	require.True(t, editorCatQueueFilterBindsLocale("untranslated"))
+	require.True(t, editorCatQueueFilterBindsLocale("has_issues"))
+	require.False(t, editorCatQueueFilterBindsLocale("all"))
+	require.False(t, editorCatQueueFilterBindsLocale("hidden"))
+	require.False(t, editorCatQueueFilterBindsLocale("qa_issues"))
+}
+
+func TestEditorCatQueueDefaultFilter(t *testing.T) {
+	steps := []dictionaryDBStep{
+		editorCatProjectStep("native"),
+		dictionaryRowStep("from repository_source_files", testEditorCatSourceFileID),
+		dictionaryRowStep("select count(*) from project_translation_keys", 1),
+		{kind: "query", sql: "from project_translation_keys k", values: [][]any{{
+			testEditorCatKeyID, "hello", "Hello", (*string)(nil), (*string)(nil), (*int)(nil), []byte(`{}`), false,
+		}}},
+	}
+	steps = append(steps, editorCatQueueContextSteps()...)
+	api := editorCatTestAPI(t, "translator", steps...)
+	rec := editorCatRequest(api, http.MethodGet, editorCatPath("/files/detail/cat/queue?sourcePath=lang%2Fen-US.json&targetLocale=de-DE&search=&queueFilter=all&queueSort=file_order&limit=20&offset=0"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "lang/en-US.json", body.ContentEditorQueue.SourcePath)
+	require.Len(t, body.ContentEditorQueue.Segments, 1)
+	require.NotContains(t, rec.Body.String(), "initialTargets")
+}
+
+func TestEditorCatQueueUntranslatedFirstBindsLocale(t *testing.T) {
+	steps := []dictionaryDBStep{
+		editorCatProjectStep("native"),
+		dictionaryRowStep("from repository_source_files", testEditorCatSourceFileID),
+		dictionaryRowStep("select count(*) from project_translation_keys", 1),
+		{kind: "query", sql: "from project_translation_keys k", values: [][]any{{
+			testEditorCatKeyID, "hello", "Hello", (*string)(nil), (*string)(nil), (*int)(nil), []byte(`{}`), false,
+		}}},
+	}
+	steps = append(steps, editorCatQueueContextSteps()...)
+	api := editorCatTestAPI(t, "translator", steps...)
+	rec := editorCatRequest(api, http.MethodGet, editorCatPath("/files/detail/cat/queue?sourcePath=lang/en-US.json&targetLocale=de-DE&queueFilter=untranslated&queueSort=untranslated_first"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 }

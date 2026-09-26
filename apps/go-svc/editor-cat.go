@@ -114,13 +114,35 @@ func editorJSON(ctx context.Context, w http.ResponseWriter, status int, value an
 	}
 }
 
+func editorCatFailureAttrs(r *http.Request) []any {
+	query := r.URL.Query()
+	attrs := make([]any, 0, 10)
+	if filter := trimEditorCat(query.Get("queueFilter")); filter != "" {
+		attrs = append(attrs, "queue_filter", filter)
+	}
+	if sort := trimEditorCat(query.Get("queueSort")); sort != "" {
+		attrs = append(attrs, "queue_sort", sort)
+	}
+	if locale := trimEditorCat(query.Get("targetLocale")); locale != "" {
+		attrs = append(attrs, "target_locale", locale)
+	}
+	if limit := trimEditorCat(query.Get("limit")); limit != "" {
+		attrs = append(attrs, "limit", limit)
+	}
+	if offset := trimEditorCat(query.Get("offset")); offset != "" {
+		attrs = append(attrs, "offset", offset)
+	}
+	return attrs
+}
+
 func writeEditorCatError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *editorCatError
 	if !errors.As(err, &failure) {
-		slog.ErrorContext(r.Context(), "editor_cat_request_failed", "phase", phase, "path", requestLogPath(r.URL.Path), "error", err.Error())
+		logRequestFailure(r, "editor_cat_request_failed", phase, err, editorCatFailureAttrs(r)...)
 		failure = &editorCatError{500, "internal_error", "Internal server error"}
-	} else if failure.status >= 500 && failure.status != 501 {
-		slog.ErrorContext(r.Context(), "editor_cat_request_failed", "phase", phase, "path", requestLogPath(r.URL.Path), "code", failure.code)
+	} else {
+		attrs := append(editorCatFailureAttrs(r), "status", failure.status, "code", failure.code)
+		logRequestFailure(r, "editor_cat_request_failed", phase, err, attrs...)
 	}
 	editorJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
 }
@@ -223,6 +245,7 @@ func (api *editorCatAPI) handle(fn func(*http.Request, editorCatActor, editorCat
 			writeEditorCatError(w, r, "resolve_actor", err)
 			return
 		}
+		noteRequest(r, "role", actor.role, "user_id", actor.userID)
 		if !actor.canRead() {
 			writeEditorCatError(w, r, "role", editorCatFailure(403, "forbidden", "Insufficient permissions"))
 			return
@@ -232,6 +255,7 @@ func (api *editorCatAPI) handle(fn func(*http.Request, editorCatActor, editorCat
 			writeEditorCatError(w, r, "resolve_project", err)
 			return
 		}
+		noteRequest(r, "project_source", project.Source)
 		r.Body = http.MaxBytesReader(w, r.Body, editorCatBodyLimit)
 		value, status, err := fn(r, actor, project)
 		if err != nil {

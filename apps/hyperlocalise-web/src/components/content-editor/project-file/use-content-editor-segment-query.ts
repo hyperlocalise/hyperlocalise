@@ -14,7 +14,6 @@
  */
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
-import { projectFileCatSegmentTargetQueryKey } from "./use-content-editor-segment-target";
 import {
   CAT_CACHE_GC_TIME,
   CAT_QUEUE_MAX_PAGES,
@@ -107,7 +106,6 @@ export function useContentEditorSegmentQuery(input: {
   pageLimit?: number;
   sourcePaths?: string | null;
   goSvcClient?: GoSvcClient;
-  initialTargetLocales?: string[];
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -229,7 +227,6 @@ export function useContentEditorSegmentQuery(input: {
       };
     },
     queryFn: async ({ pageParam, signal }) => {
-      const requestedAt = Date.now();
       const query = {
         sourcePath: input.sourcePath,
         targetLocale: input.targetLocale,
@@ -239,9 +236,6 @@ export function useContentEditorSegmentQuery(input: {
         limit,
         offset: pageParam.offset,
         ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
-        initialTargetLocales: [...new Set(input.initialTargetLocales ?? [input.targetLocale])]
-          .slice(0, 8)
-          .join(","),
       };
       if (
         input.goSvcClient &&
@@ -256,16 +250,7 @@ export function useContentEditorSegmentQuery(input: {
             { signal },
           );
           signal.throwIfAborted();
-          for (const row of page.initialTargets ?? []) {
-            for (const [targetLocale, target] of Object.entries(row.targets)) {
-              const key = projectFileCatSegmentTargetQueryKey({ ...input, ...row, targetLocale });
-              if ((queryClient.getQueryState(key)?.dataUpdatedAt ?? 0) < requestedAt)
-                queryClient.setQueryData(key, target);
-            }
-          }
-          // Server targets have one owner: individual cells in the shared query cache.
-          const { initialTargets: _initialTargets, ...sourcePage } = page;
-          return sourcePage;
+          return page;
         } catch (error) {
           if (!(error instanceof GoSvcClientError) || error.code !== "provider_cat_deferred")
             throw error;
