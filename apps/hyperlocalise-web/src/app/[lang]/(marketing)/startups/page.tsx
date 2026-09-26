@@ -15,7 +15,7 @@ import type { Metadata } from "next";
 import { StartupsPage } from "@/components/marketing/startups/startups-page";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { getStartupsRouteMetadata } from "./startups-route-metadata";
 
@@ -33,11 +33,11 @@ export async function generateMetadata({ params }: StartupsRouteProps): Promise<
     title: metadata.title,
     description: metadata.description,
     alternates: getLocalizedAlternates({ locale, path: "/startups" }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, "/startups", {
       title: metadata.title,
       description: metadata.description,
       type: "website",
-    },
+    }),
   };
 }
 

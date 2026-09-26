@@ -30,7 +30,7 @@ import {
   normalizeAppLocale,
   SUPPORTED_APP_LOCALES,
 } from "@/lib/app-i18n/locales";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { getProductRouteMetadata } from "./product-route-metadata";
 
@@ -74,11 +74,11 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
     description,
     keywords: content.metadata.keywords,
     alternates: getLocalizedAlternates({ locale, path: `/product/${slug}` }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, `/product/${slug}`, {
       title,
       description,
       type: "website",
-    },
+    }),
   };
 }
 

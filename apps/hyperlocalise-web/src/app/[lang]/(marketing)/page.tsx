@@ -37,7 +37,7 @@ import { PricingPlansSection } from "@/components/marketing/pricing/pricing-plan
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale, type AppLocale } from "@/lib/app-i18n/locales";
 import { getAllPosts } from "@/lib/blog/blog-post";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const metadataKeywords = [
@@ -88,11 +88,11 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
     description,
     keywords: [...metadataKeywords],
     alternates: getLocalizedAlternates({ locale, path: "/" }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, "/", {
       title,
       description: openGraphDescription,
       type: "website",
-    },
+    }),
   };
 }
 

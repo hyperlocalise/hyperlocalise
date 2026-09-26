@@ -15,6 +15,7 @@ import type { MetadataRoute } from "next";
 
 import { DEFAULT_APP_LOCALE, SUPPORTED_APP_LOCALES, type AppLocale } from "@/lib/app-i18n/locales";
 
+import { appLocaleToBcp47Tag } from "./bcp47-locale";
 import { SITE_URL } from "./site-url";
 
 function normalizeLocalizedPath(path: string): string {
@@ -51,7 +52,7 @@ function buildLanguageMap(path: string, locales: readonly AppLocale[]): Record<s
   const languages: Record<string, string> = {};
 
   for (const appLocale of locales) {
-    languages[appLocale] = getLocalizedAbsoluteUrl(appLocale, path);
+    languages[appLocaleToBcp47Tag(appLocale)] = getLocalizedAbsoluteUrl(appLocale, path);
   }
 
   if (locales.includes(DEFAULT_APP_LOCALE)) {
@@ -73,6 +74,18 @@ export function getLocalizedAlternates({
   return {
     canonical: getLocalizedAbsoluteUrl(locale, path),
     languages: buildLanguageMap(path, locales),
+  };
+}
+
+/** Open Graph fields with `url` set to the localized canonical page URL. */
+export function localizedOpenGraph(
+  locale: AppLocale,
+  path: string,
+  openGraph: NonNullable<Metadata["openGraph"]>,
+): NonNullable<Metadata["openGraph"]> {
+  return {
+    ...openGraph,
+    url: getLocalizedAbsoluteUrl(locale, path),
   };
 }
 

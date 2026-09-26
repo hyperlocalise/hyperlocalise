@@ -14,6 +14,8 @@ import "server-only";
 
 import { cookies, headers } from "next/headers";
 
+import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
+
 import {
   APP_LOCALE_COOKIE_NAME,
   APP_LOCALE_HEADER_NAME,
@@ -22,10 +24,28 @@ import {
   type AppLocale,
 } from "./locales";
 
-export async function getAppLocale(): Promise<AppLocale> {
-  const headerList = await headers();
-  const headerLocale =
-    headerList.get(APP_LOCALE_HEADER_NAME.toLowerCase()) ?? headerList.get(APP_LOCALE_HEADER_NAME);
+function readRequestHeader(headerList: Headers, name: string): string | null {
+  return headerList.get(name.toLowerCase()) ?? headerList.get(name);
+}
+
+function getAppLocaleFromRequestUrl(requestUrl: string): AppLocale | null {
+  try {
+    const firstSegment = new URL(requestUrl).pathname.split("/").filter(Boolean)[0];
+    if (!firstSegment) {
+      return null;
+    }
+    return normalizeAppLocale(firstSegment);
+  } catch {
+    return null;
+  }
+}
+
+/** Resolves the active app locale from proxy headers, the request URL, then cookies. */
+export function resolveAppLocaleFromHeaders(
+  headerList: Headers,
+  cookieLocale: string | undefined,
+): AppLocale {
+  const headerLocale = readRequestHeader(headerList, APP_LOCALE_HEADER_NAME);
   if (headerLocale) {
     const normalized = normalizeAppLocale(headerLocale);
     if (normalized) {
@@ -33,8 +53,14 @@ export async function getAppLocale(): Promise<AppLocale> {
     }
   }
 
-  const cookieStore = await cookies();
-  const cookieLocale = cookieStore.get(APP_LOCALE_COOKIE_NAME)?.value;
+  const requestUrl = readRequestHeader(headerList, REQUEST_URL_HEADER);
+  if (requestUrl) {
+    const fromPath = getAppLocaleFromRequestUrl(requestUrl);
+    if (fromPath) {
+      return fromPath;
+    }
+  }
+
   if (cookieLocale) {
     const normalized = normalizeAppLocale(cookieLocale);
     if (normalized) {
@@ -43,4 +69,10 @@ export async function getAppLocale(): Promise<AppLocale> {
   }
 
   return DEFAULT_APP_LOCALE;
+}
+
+export async function getAppLocale(): Promise<AppLocale> {
+  const headerList = await headers();
+  const cookieStore = await cookies();
+  return resolveAppLocaleFromHeaders(headerList, cookieStore.get(APP_LOCALE_COOKIE_NAME)?.value);
 }

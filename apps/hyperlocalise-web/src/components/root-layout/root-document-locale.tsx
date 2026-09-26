@@ -16,6 +16,7 @@ import { usePathname } from "next/navigation";
 import { Suspense, useLayoutEffect } from "react";
 
 import { normalizeAppLocale, type AppLocale } from "@/lib/app-i18n/locales";
+import { appLocaleToBcp47Tag } from "@/lib/seo/bcp47-locale";
 
 type RootDocumentLocaleProps = {
   locale: AppLocale;
@@ -35,7 +36,7 @@ function RootDocumentLocaleInner({ locale }: RootDocumentLocaleProps) {
   const documentLocale = pathLocale ?? locale;
 
   useLayoutEffect(() => {
-    document.documentElement.lang = documentLocale;
+    document.documentElement.lang = appLocaleToBcp47Tag(documentLocale);
   }, [documentLocale]);
 
   return null;

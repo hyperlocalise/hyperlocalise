@@ -16,7 +16,7 @@ import { buildOrganizationJsonLd } from "./organization-json-ld";
 
 describe("buildOrganizationJsonLd", () => {
   it("describes Hyperlocalise and its public company profiles", () => {
-    expect(buildOrganizationJsonLd("en")).toMatchObject({
+    expect(buildOrganizationJsonLd()).toMatchObject({
       "@context": "https://schema.org",
       "@type": "Organization",
       "@id": "https://www.hyperlocalise.com/#organization",
@@ -29,7 +29,7 @@ describe("buildOrganizationJsonLd", () => {
       description:
         "Agentic localisation platform that connects product change signals, AI translation, human review, and release workflows.",
       foundingDate: "2026",
-      founders: [
+      founder: [
         {
           "@type": "Person",
           name: "Minh Cung",
@@ -47,11 +47,6 @@ describe("buildOrganizationJsonLd", () => {
         contactType: "sales",
         email: "minh@hyperlocalise.com",
       },
-      inLanguage: "en",
     });
-  });
-
-  it("sets inLanguage from the page locale", () => {
-    expect(buildOrganizationJsonLd("fr-FR")).toMatchObject({ inLanguage: "fr-FR" });
   });
 });

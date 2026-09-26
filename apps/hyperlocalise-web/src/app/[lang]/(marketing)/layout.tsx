@@ -15,11 +15,7 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
 import { buildOrganizationJsonLd } from "@/components/seo/organization-json-ld";
 import { BrandThemeProvider } from "@/components/ui/brand-theme";
-import {
-  DEFAULT_APP_LOCALE,
-  normalizeAppLocale,
-  SUPPORTED_APP_LOCALES,
-} from "@/lib/app-i18n/locales";
+import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
 import { INDEXABLE_ROBOTS } from "@/lib/seo/robots-metadata";
 
 import Navbar from "./_components/navbar";
@@ -34,13 +30,10 @@ export function generateStaticParams() {
 
 type MarketingLayoutProps = {
   children: React.ReactNode;
-  params: Promise<{ lang: string }>;
 };
 
-export default async function MarketingLayout({ children, params }: MarketingLayoutProps) {
-  const { lang } = await params;
-  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
-  const organizationJsonLd = buildOrganizationJsonLd(locale);
+export default async function MarketingLayout({ children }: MarketingLayoutProps) {
+  const organizationJsonLd = buildOrganizationJsonLd();
 
   return (
     <BrandThemeProvider theme="marketing">
