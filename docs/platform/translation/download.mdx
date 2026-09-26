@@ -1,0 +1,35 @@
+---
+title: "Download translated files"
+description: "Choose between complete translated files and filtered segment exports."
+---
+
+Use **Download translations** to get target files for your product. Use the Content Editor’s queue **Download** to hand off a filtered list of segments for review.
+
+| Download | Result | Best for |
+| --- | --- | --- |
+| Project **Download translations** | Translated content for selected source files and one target locale | Application or publishing files |
+| Content Editor queue **Download** | Matching segments as CSV, TMX, XLF/XLIFF, or XLSX | Review, spreadsheets, or terminology work |
+
+## Download target files
+
+1. Open the project’s files view and select **Download translations**.
+2. Select one or more **Source files**.
+3. Choose a **Target locale**.
+4. Select **Download** and check each file’s result.
+
+You need source files and at least one target locale. Check the generated files in the destination application, including placeholders and formatting, before publishing them. A downloadable file is not a guarantee that every segment has been reviewed.
+
+## Export a filtered queue
+
+1. Open the [Content Editor](/platform/cat).
+2. Set **Filter queue** and search to select the intended segments.
+3. Open the queue toolbar’s **Download** and choose a format.
+4. Verify the locale, keys, and row count in the exported file.
+
+Queue exports contain up to **5,000 matching segments** in queue order. Split larger handoffs by source file or narrower search/filter criteria. An empty filter result cannot be exported.
+
+## Missing or incorrect output
+
+Check the source path and target locale first. If text is missing, inspect untranslated segments and the generation job. If a queue export has fewer rows than expected, clear filters or check the 5,000-segment limit.
+
+For repositories, use [CLI sync pull](/platform/cli) or [GitHub content sync](/platform/automation/content-sync) to deliver existing translations.

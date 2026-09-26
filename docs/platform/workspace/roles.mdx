@@ -1,0 +1,27 @@
+---
+title: "Roles and permissions"
+description: "Choose a workspace role for administration, development, translation, or review."
+---
+
+Your workspace role controls permitted actions. Team and project access determine where you can perform those actions. Organization-wide roles can have broader access; other members are limited to their permitted projects.
+
+| Role | Intended responsibilities |
+| --- | --- |
+| Admin | Full workspace administration, including billing and organization settings. |
+| Localization manager | Manage projects, connections, credentials, teams, and guidelines; approve and write back translations. |
+| Developer | Work on projects and technical jobs, sync, and repositories; no translation approval or organization administration. |
+| Reviewer | Work on jobs and AI actions; approve and write back translations; no organization administration. |
+| Translator | Work on assigned jobs and draft translations; no approval or administration. |
+| Member | Read permitted workspace, project, team, glossary, memory, and job information. |
+
+Open **Members** → **Role permissions** for the permissions shown in your workspace. An administrator can update a member’s role.
+
+## Choose roles for a translation team
+
+Use translators for drafting and reviewers for final approval. Give localization managers responsibility for project setup and shared language resources. Reserve admin access for people who manage the workspace and billing.
+
+## A button is unavailable
+
+Check the action’s role requirement, your team’s access to the project, and whether the resource belongs to an external TMS. Provider-owned resources can be read-only even when you can edit native resources.
+
+Tokens inherit their owner’s current access and permitted scopes. Creating a token does not bypass role or project restrictions. See [Credentials](/platform/settings#api-keys) and [Access troubleshooting](/platform/help/access).

@@ -1,0 +1,26 @@
+---
+title: "Fix connection and token problems"
+description: "Restore access to repositories, external tools, and token-authenticated clients."
+---
+
+Check the account and workspace attached to a connection before reconnecting it. A connected account may still lack access to the specific resource you need.
+
+## A GitHub repository is missing
+
+Open **Integrations** → **GitHub** and confirm **Connected as**. Use **Manage access on GitHub** to inspect the installation’s repository permissions, then **Refresh repo list** in Cloud. Enable the intended repository. Refreshing this list does not sync files.
+
+## A token stops working
+
+Confirm the token belongs to the intended workspace, has the required scopes, and has not been revoked. Its owner must remain an active member with access to the project. Do not send the token to support or paste it into an issue.
+
+Secrets are shown once. If you lost one, create a replacement, update the client that uses it, verify the connection, then revoke the old credential when appropriate. See [API keys and personal tokens](/platform/settings).
+
+## An external service asks to reconnect
+
+Reconnect the intended provider account from **Integrations** and inspect the permissions granted. Check whether the automation depends on a particular user’s connection. After reconnecting, test one small read or task before resuming a large batch.
+
+## Connected, but no files moved
+
+Connection establishes access. File movement requires a configured and supported [content sync](/platform/automation/content-sync) or a CLI/API workflow. A provider appearing in the connections catalog is not a guarantee of automatic import and export.
+
+For remote MCP tools, verify the endpoint, transport, authentication, and validation result. Distinguish an outbound MCP connection from the [hosted MCP server](/platform/mcp) used by agents connecting to Cloud.

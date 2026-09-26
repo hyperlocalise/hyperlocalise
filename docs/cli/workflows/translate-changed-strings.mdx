@@ -1,0 +1,131 @@
+---
+title: "Translate only new and changed strings"
+sidebarTitle: "Translate changed strings"
+description: "Use the Hyperlocalise lockfile to skip completed translations, preview incremental updates, and scope reruns by file or locale."
+---
+
+Run `hyperlocalise run` with your existing `.hyperlocalise.lock.json` to skip
+completed tasks whose fingerprints still match. New messages and changed
+translation inputs are eligible to run again. Preview the selection with
+`--dry-run` before generating translations.
+
+This uses translation checkpoints, not Git's changed-line list. There is no
+`run --diff-stdin` flag; [`check --diff-stdin`](/cli/commands/check) validates changed
+keys but does not generate translations.
+
+## Before you start
+
+Complete the [quickstart](/cli/getting-started/quickstart), review the generated
+translations, and keep its lockfile. The example below uses one source file,
+`locales/en-US.json`, and one target locale, `es-ES`.
+
+For [React Intl](/cli/guides/react-intl), rerun extraction first so the source
+catalog includes your latest message descriptors.
+
+## 1. Change one message and add another
+
+After the first successful translation, replace the source file with:
+
+```json
+{
+    "welcome": "Welcome back",
+    "greeting": "Hello, {name}!",
+    "checkout": "Continue to checkout"
+}
+```
+
+Compared with the quickstart, `welcome` changed, `checkout` is new, and `greeting`
+is unchanged.
+
+## 2. Inspect the incremental plan
+
+```bash
+hyperlocalise run --dry-run
+```
+
+With the same configuration, an intact checkpoint, and no other sources or target
+locales, expect two executable tasks and one skipped task:
+
+| Summary field | Expected value | Meaning |
+| --- | --- | --- |
+| `planned_total` | `3` | Candidate message-to-locale tasks |
+| `skipped_by_lock` | `1` | The completed greeting still matches |
+| `executable_total` | `2` | The changed welcome and new checkout message |
+
+These counts describe tasks, not files. Adding target locales increases the number
+of tasks. Other reuse mechanisms or unfinished runs can also affect the plan.
+
+## 3. Translate and review
+
+```bash
+hyperlocalise run
+hyperlocalise check
+```
+
+Review the target diff. The unchanged greeting should keep its existing translation,
+while the changed and new messages receive output. Commit the updated source,
+reviewed target, and lockfile together.
+
+Rerun the dry run to confirm no unexpected work remains. A lockfile skip does not
+prove a target file is complete or correct; use `check` and review the actual files.
+
+## Why did an unchanged string run again?
+
+Task fingerprints include more than visible source text. Model, prompt, context,
+and other translation settings can change the work the CLI considers complete.
+
+| Situation | What to check |
+| --- | --- |
+| Many tasks run again | Model, prompt, context, file mappings, and lockfile changes |
+| A new locale needs translation | It has its own target tasks and completion state |
+| All tasks are executable | A missing lockfile or use of `--force` |
+| Some work remains after a run | Failed tasks and interrupted execution |
+| No translation runs but output is missing | Target file integrity; run `check` before trusting the checkpoint |
+
+See the [lockfile contract](/cli/reference/lockfile-contract) for fingerprint and
+checkpoint details. Avoid deleting the lockfile as a routine update step.
+
+## Limit work to a file or locale
+
+Keep the same scope for preview and execution:
+
+```bash
+hyperlocalise run --file locales/en-US.json --locale es-ES --dry-run
+hyperlocalise run --file locales/en-US.json --locale es-ES
+```
+
+`--file` selects a configured source path. It does not identify individual changed
+keys. You can also select a [bucket or group](/cli/commands/run).
+
+## Request a deliberate rerun
+
+To ignore completion state for a selected file and locale:
+
+```bash
+hyperlocalise run --file locales/en-US.json --locale es-ES --force --dry-run
+hyperlocalise run --file locales/en-US.json --locale es-ES --force
+```
+
+This selects every task in that scope, including unchanged messages. It can replace
+reviewed translations. `--force` bypasses lockfile skipping; it is not a promise to
+bypass every provider or remote cache. See the [`run` prompt contract](/cli/commands/run#prompt-contract-for-run)
+when changing prompt behavior.
+
+## Remove deleted source keys
+
+Source deletions are a separate operation. Preview pruning before applying it:
+
+```bash
+hyperlocalise run --prune --dry-run
+hyperlocalise run --prune
+```
+
+Pruning removes stale target keys where supported. The run can also execute pending
+translations. Review the planned deletions and generation tasks together; use
+[`run` reference](/cli/commands/run) for the deletion limit and scope controls.
+
+## Next steps
+
+- [Validate pull requests in GitHub Actions](/cli/workflows/github-action-drift-check).
+- [Fix ICU and placeholder errors](/cli/troubleshooting/icu-placeholders).
+- [Understand local generation](/cli/workflows/local-generation).

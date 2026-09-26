@@ -1,73 +1,31 @@
 ---
-title: "Automations"
-description: "Playbooks that run multilingual content operations on schedule, GitHub, or upload."
+title: "Automate your work"
+description: "Choose a saved automation, content sync, or visual workflow for repeatable work."
 ---
 
-Automations are the playbooks that run content operations after you set them once.
+Automations run repeatable tasks with your connected tools and language resources. Choose the workflow that matches the outcome you need.
 
-Create an automation, choose a trigger, and let Cloud generate or review when source files change.
-
-**Automations** is a Beta item under the **Agents** group in the organization sidebar. It also appears on each project. Workflows respond to schedules and GitHub pushes.
-
-## Where automations live
-
-| Location | Scope |
+| I need to… | Use |
 | --- | --- |
-| Organization **Automations** | Can run across **Projects** |
-| Project **Automations** | Stays on that project |
+| Translate or review after an event or on a schedule | [Create an automation](/platform/automation/create-automation) |
+| Move source files and ready translations between GitHub and Cloud | [Content sync](/platform/automation/content-sync) |
+| Define fixed steps, typed inputs, branches, and retries | [Visual workflows](/platform/visual-workflows) |
+| Perform a single task | **New Request** or **Inbox** |
 
-The list shows **Total automations**, **Active**, and **Paused**, plus columns for **Automation**, **Tools**, **Status**, and **Creator**. Open **Run History** on an automation to inspect past runs.
+## Where to work
+
+Open workspace **Automations** for tasks that can span projects, or a project’s **Automations** for work scoped to that project. The list shows active and paused automations. Open **Run History** to inspect what happened in a particular run.
+
+Before activating a workflow, check its project, target locales, tools, knowledge, and connected accounts. Test a small example and inspect the result.
 
 ## Content sync
 
-On a project **Automations** page, **Content sync** moves files between a connected source and that project. Integrations only connects the account.
-
-1. Connect GitHub, GitLab, Contentful, or Intercom under **Integrations**.
-2. Open the project **Automations** page.
-3. Click **Add content sync**, choose the resource and folders, then enable **Sync content**.
-
-Pull copies source into the project folder. Push writes translations that are already ready back to the provider (a pull request for git, drafts for a CMS). Content sync does not create translation jobs and does not use an agent prompt.
-
-GitHub is the first executable provider. Contentful, GitLab, and Intercom share the same setup; their movers follow.
-
-## Create an automation
-
-1. Click **New Automation**.
-2. Add **Triggers**.
-3. Attach tools and knowledge the agent should use (glossaries, memories, guideline).
-4. Save. Pause later from the same page if you need to stop it.
-
-### Triggers
-
-| Trigger | Runs when |
-| --- | --- |
-| **Manual run** | A teammate queues a run from this automation |
-| **Scheduled** | The cadence you set (**Hour**, day, or week) in **Schedule timezone** |
-| **GitHub push** | A matching **Push** and/or **Pull request opened** on the selected **Repository** and **Branch patterns** |
-| **Source upload** | A source file is uploaded to the selected project (UI upload or CLI `sync push`) |
-| **Contentful webhook** | Contentful sends a matching entry create or update webhook |
-
-GitHub triggers need the GitHub App connected first. The UI shows **Connect first** until **Integrations** → **GitHub** is linked. See [Integrations](/platform/integrations).
-
-**Source upload** is the Cloud-side counterpart to [CLI sync push](/platform/cli): the CLI uploads files; this trigger starts translation.
+Content sync pulls sources into a project and pushes existing ready translations to the destination. It does not generate translations. GitHub is currently the executable provider; other provider movers are not yet available.
 
 ## Visual workflows
 
-When the `automation_workflow` Autumn feature is enabled, organization **Automations** also shows **Visual workflows**. These are deterministic graphs (manual trigger, HTTP requests, if/else branching, and AI steps) rather than LLM-orchestrated playbooks.
+If **Visual workflows** is available in your workspace, use it to define explicit step order and failure handling. Test a draft, inspect its outputs, then publish a version for automatic runs. See the [advanced bindings and retry guide](/platform/guides/workflow-data-and-retries).
 
-Use them for fixed step order and explicit branches. Keep using agent automations for schedule/GitHub/upload triggers and multi-tool orchestration.
+## Monitor and recover
 
-See [Visual workflows](/platform/visual-workflows).
-
-## One-off work
-
-For a single agent session instead of a saved automation, use **New Request** (under **Agents**) or **Inbox**. Track your own runs in **My Jobs**.
-
-Workspace **AI Engine** chooses the model provider agents use.
-
-## Next
-
-- [Visual workflows](/platform/visual-workflows)
-- [Knowledge](/platform/knowledge)
-- [Connect the CLI](/platform/cli)
-- [Getting started](/platform/getting-started)
+Use **My Jobs** for your own work and automation **Run History** for recurring tasks. Pause an automation to stop new automatic work, then inspect active runs separately. Follow [Automation troubleshooting](/platform/help/automations) when a trigger or step does not behave as expected.

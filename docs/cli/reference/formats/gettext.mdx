@@ -1,0 +1,72 @@
+---
+title: "Gettext PO"
+description: "Translate gettext PO messages and understand context and plural limitations."
+---
+
+Supported extensions: `.po`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.po`.
+
+```text
+msgid "Welcome"
+msgstr "Welcome"
+
+msgid "Open your project"
+msgstr "Open your project"
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.po
+              to: locales/{{target}}/messages.po
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Uses `msgid` as the entry key and `msgstr` as its value; multiline quoted continuations are supported.
+
+- Use a source-language PO with populated `msgstr` values for generation, as shown here. `.pot` is not a registered translation file extension.
+
+- The header entry is skipped. Context (`msgctxt`) does not distinguish keys, so avoid duplicate IDs distinguished only by context.
+
+- Plural handling maps only `msgstr[0]`; this is not full locale-specific plural generation. Writeback preserves PO structure and replaces mapped values.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

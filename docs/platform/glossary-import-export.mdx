@@ -1,9 +1,9 @@
 ---
 title: "Glossary import and export"
-description: "File formats, Cloud UI flows, and API endpoints for moving native workspace glossaries in and out of Hyperlocalise."
+description: "Import and export workspace terms as TBX, CSV, or XLSX, and understand provider restrictions."
 ---
 
-Native workspace **glossaries** support interchange through the Cloud UI and authenticated API. Provider-linked glossaries are read-only in Cloud and follow different rules.
+Native workspace **glossaries** support interchange through Cloud. Provider-linked glossaries are read-only in Cloud and follow different rules.
 
 ## Supported formats
 
@@ -25,34 +25,18 @@ Provider-backed glossaries cannot be imported through this UI. Manage terms in t
 
 ## Export in Cloud
 
-1. Open a native glossary, or a **mirrored** provider glossary stored in Hyperlocalise (UUID glossary id with synced concepts).
+1. Open a native glossary, or a **mirrored** provider glossary stored in Hyperlocalise (a synced copy stored in Cloud).
 2. Open the actions menu (**⋯**) → **Export**.
 3. Pick **TBX**, **CSV**, or **XLSX** for the full glossary, or use **Export filtered glossary** when the concept list is filtered by search or locale.
 
-Live Crowdin glossary ids (`crowdin:glossary:…`) are read-only in Cloud and cannot be exported from the UI.
-
-## API
-
-Complete export:
-
-```http
-GET /api/orgs/{organizationSlug}/glossaries/{glossaryId}/export?format=tbx|csv|xlsx&scope=complete
-```
-
-Filtered export (locale list and optional search):
-
-```http
-GET /api/orgs/{organizationSlug}/glossaries/{glossaryId}/export?format=tbx|csv|xlsx&scope=filtered&locales={locale}&search={optional}
-```
-
-Import uses the glossary import endpoints documented in the API reference; payloads support preview and merge modes before apply.
+Live Crowdin glossaries are read-only in Cloud and cannot be exported from the UI.
 
 ## Provider glossaries
 
 | Glossary type | Export | Import |
 | ------------- | ------ | ------ |
-| Live provider id (`crowdin:glossary:…`) | Not available | Not available |
-| Mirrored in Hyperlocalise (UUID) | TBX, CSV, XLSX (from synced rows) | Not available |
+| Live provider glossary | Not available | Not available |
+| Synced copy in Hyperlocalise | TBX, CSV, XLSX (from synced rows) | Not available |
 
 Use your TMS or the Hyperlocalise **CLI** for provider-native glossary downloads where supported. CLI glossary CSV is often a Hyperlocalise-shaped export and may not round-trip into every TMS upload endpoint.
 
@@ -61,6 +45,10 @@ Use your TMS or the Hyperlocalise **CLI** for provider-native glossary downloads
 - **TBX** is the best interchange with other terminology tools.
 - **XLSX** is easiest for manual review and bulk edits in a spreadsheet.
 - **CSV** works well for scripts and narrow column-based tooling.
+
+## Check the result
+
+Inspect the reported counts, locales, and representative entries after import. Keep an export before a bulk replacement. If terms or suggestions are missing, confirm that the resource is linked to the intended project and uses the expected locales. See [Translation quality](/platform/help/quality).
 
 ## Related
 

@@ -1,0 +1,33 @@
+---
+title: "File formats"
+description: "Find supported translation file types, configure source and target paths, and understand format limitations."
+---
+
+Choose your source format below. Each guide includes a source example, a complete
+configuration, and the behavior to expect when the CLI writes translations.
+
+## How file detection works
+
+The CLI selects a parser from the file extension. Android XML also requires an
+Android resource path. You do not need to declare a format for each bucket.
+Use matching source and target formats unless a workflow explicitly documents a
+conversion.
+
+File support describes local translation with `run`. Cloud uploads, TMS entry sync,
+and provider-specific file commands have their own contracts; check the relevant
+[integration guide](/cli/storage/overview) before syncing.
+
+## Before you translate
+
+1. [Install the CLI](/cli/getting-started/install) and configure [provider credentials](/cli/configuration/provider-credentials).
+2. Choose a format below and map its source and target paths in `i18n.yml`.
+3. Preview with `hyperlocalise run --dry-run`, then generate with `hyperlocalise run`.
+4. Review the output diff and run [translation checks](/cli/commands/check).
+
+Writers may reuse an existing target as a template when it is compatible with the
+source. Otherwise they use the source template. Preservation guarantees apply to
+the selected template; each guide describes format-specific exceptions.
+
+For text, CSV, or JSON printed by CLI commands, see [Command output](/cli/reference/output-formats).
+
+## Choose a format

@@ -1,0 +1,72 @@
+---
+title: "YAML"
+description: "Configure YAML locale files, string values, and nested message paths."
+---
+
+Supported extensions: `.yaml`, `.yml`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.yaml`.
+
+```yaml
+home:
+    title: Welcome
+    steps:
+        - Open your project
+        - Start translating
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.yaml
+              to: locales/{{target}}/messages.yaml
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- The root must be a mapping. Nested mappings use dotted keys; sequences use indexed paths.
+
+- Quote values that YAML could interpret as numbers, booleans, nulls, or timestamps. Non-string leaves, anchors, and aliases are rejected.
+
+- Mapping keys cannot contain `.`, `[` or `]`, which are reserved for flattened paths.
+
+- Writeback preserves key order and comments where possible. Formatting and scalar styles may be normalized.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

@@ -1,0 +1,74 @@
+---
+title: "RESX"
+description: "Translate text resources in .NET RESX files while preserving XML metadata."
+---
+
+Supported extensions: `.resx`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.resx`.
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <data name="home.title" xml:space="preserve">
+        <value>Welcome</value>
+        <comment>Home screen heading</comment>
+    </data>
+</root>
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.resx
+              to: locales/{{target}}/messages.resx
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Uses the generic XML parser for text resources: `data` names identify their `value` text.
+
+- Comments, attributes, `metadata`, and `resheader` elements are preserved.
+
+- Use text-only resources. Mixed-content XML is unsupported; do not treat support for text RESX as support for arbitrary serialized .NET objects.
+
+- Changed CDATA values are written as escaped text. See [XML](/cli/reference/formats/xml) for shared behavior.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

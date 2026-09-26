@@ -96,7 +96,7 @@ buckets:
 
 Supported PHP locale files must begin with `<?php` and return a static `[...]` or `array(...)` literal. Hyperlocalise translates string leaves, flattens nested keys with dotted paths, and preserves comments, ordering, and array syntax when writing. Dynamic PHP such as variables, function calls, constants, `declare(...)`, or interpolated double-quoted strings is intentionally rejected.
 
-Supported locale file extensions include `.json`, `.jsonc`, `.yaml`, `.yml`, `.php`, `.xml`, `.resx`, `.arb`, `.xlf`, `.xlif`, `.xliff`, `.po`, `.html`, `.liquid`, `.md`, `.mdx`, `.strings`, `.stringsdict`, `.csv`, `.srt`, and `.vtt`.
+See [File formats](/cli/reference/formats/overview) for the complete list of supported extensions, source examples, and writeback limitations.
 
 YAML/YML locale files should be mapping-shaped files with string leaves. Nested mappings become dotted keys, sequences become `[index]` keys, and writeback rewrites existing string leaves while preserving key order/comments where possible. Mapping keys cannot contain `.`, `[`, or `]` because those characters are reserved for flattened paths. Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected to avoid silently corrupting metadata.
 

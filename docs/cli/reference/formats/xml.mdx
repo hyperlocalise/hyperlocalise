@@ -1,0 +1,71 @@
+---
+title: "XML"
+description: "Translate text-only XML resources with keyed or nested messages."
+---
+
+Supported extensions: `.xml`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.xml`.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<messages xml:lang="en-US">
+    <message key="home.title">Welcome</message>
+</messages>
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.xml
+              to: locales/{{target}}/messages.xml
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Text-only leaves use `key`, `id`, or `name` attributes as keys. Unkeyed nested leaves use dotted element paths.
+
+- Comments, attributes, and metadata elements are retained. Matching root locale attributes are updated for the target locale.
+
+- Mixed-content values and Android, XLIFF, or plist roots are rejected by this parser. Use their dedicated formats.
+
+- CDATA is readable, but changed values are written as escaped XML text. Whitespace inside values may change with translated text.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

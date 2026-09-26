@@ -1,45 +1,31 @@
 ---
-title: "Commands overview"
-description: "Top-level command map with links to task-focused command docs."
+title: "Command reference"
+description: "Find the CLI command for setup, translation, validation, sync, or maintenance."
 ---
 
-## CLI shape
+Run commands from the directory containing `i18n.yml`:
 
 ```bash
 hyperlocalise [command]
 ```
 
-Main commands:
+New to the CLI? Start with the [quickstart](/cli/getting-started/quickstart).
+The reference below groups commands by task.
 
-- `init`
-- `crowdin`
-- `phrase`
-- `smartling`
-- `lokalise`
-- `run`
-- `extract`
-- `pack`
-- `check`
-- `eval`
-- `status`
-- `sync pull`
-- `sync push`
-- `version`
-- `update`
-- `completion`
+## Common tasks
 
-## Start points by task
+| Task | Command |
+| --- | --- |
+| Create a configuration | [`init`](/cli/commands/init) |
+| Preview or generate translations | [`run`](/cli/commands/run) |
+| Extract React Intl messages | [`extract`](/cli/commands/extract) |
+| Prepare translation JSON | [`pack`](/cli/commands/pack) |
+| Validate translation integrity | [`check`](/cli/commands/check) |
+| Report translation progress | [`status`](/cli/commands/status) |
+| Compare translation quality | [`eval`](/cli/commands/eval) |
+| Upload local changes | [`sync push`](/cli/commands/sync-push) |
+| Download remote translations | [`sync pull`](/cli/commands/sync-pull) |
 
-- First setup: [init](/cli/commands/init)
-- Crowdin file workflow: [crowdin](/cli/commands/crowdin)
-- Phrase file workflow: [phrase](/cli/commands/phrase)
-- Smartling file workflow: [smartling](/cli/commands/smartling)
-- Lokalise file workflow: [lokalise](/cli/commands/lokalise)
-- Local draft generation: [run](/cli/commands/run)
-- Extract React Intl catalogs: [extract](/cli/commands/extract)
-- Prepare translation JSON: [pack](/cli/commands/pack)
-- Translation integrity checks: [check](/cli/commands/check)
-- Quality experiments and gating: [eval](/cli/commands/eval)
-- Reporting progress: [status](/cli/commands/status)
-- Pull curated translations: [sync pull](/cli/commands/sync-pull)
-- Push local changes: [sync push](/cli/commands/sync-push)
+Provider-specific file operations live under `crowdin`, `phrase`, `smartling`, and
+`lokalise`. Check the relevant integration before choosing between those commands
+and entry-based `sync`. Use the sections below for flags and examples.

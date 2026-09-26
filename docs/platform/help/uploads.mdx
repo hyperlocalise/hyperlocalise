@@ -1,0 +1,29 @@
+---
+title: "Fix upload and file problems"
+description: "Diagnose missing source files, rejected uploads, and unavailable editor views."
+---
+
+If a file does not appear after upload, check the selected project and upload result before uploading it again.
+
+## The file never appeared
+
+1. Confirm you selected **Upload** after staging files with **Add files**.
+2. Check the upload result for that file; a selected file is not yet uploaded.
+3. Keep batches to ten files or fewer.
+4. Confirm the project and source path, then reload the files view after processing completes.
+
+If the upload reports a format or parsing error, validate the original file in its own tooling. Check syntax, encoding, and duplicate or blank translation keys. Correct the file and retry a small batch.
+
+## The file appears but cannot open
+
+The text Content Editor is not available for every uploaded format. Confirm you selected a target locale and that the project has target locales configured. For a provider-backed file, check provider access as well as Cloud access.
+
+If a supported text file still fails, keep its path and the error message and [contact support](/platform/help/contact-support).
+
+## Upload succeeded but nothing translated
+
+Upload stores and processes source content. It does not request generation unless a matching automation is active. [Start a translation](/platform/translation/start), or check the [Source upload trigger](/platform/help/automations).
+
+## Existing strings disappeared
+
+An updated file is a complete source snapshot. Keys removed from that snapshot no longer belong to the current source key set. Confirm you did not upload a partial file or use the wrong path. See [Update source content safely](/platform/guides/update-source-content).

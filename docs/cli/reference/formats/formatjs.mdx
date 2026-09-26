@@ -1,0 +1,78 @@
+---
+title: "FormatJS / React Intl"
+description: "Translate React Intl catalogs with message descriptions and ICU arguments."
+---
+
+Supported extensions: `.json`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.json`.
+
+```json
+{
+    "home.greeting": {
+        "defaultMessage": "Hello, {name}!",
+        "description": "Greeting on the home screen"
+    }
+}
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.json
+              to: locales/{{target}}/messages.json
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Every top-level entry must be a message object with a string `defaultMessage` for strict catalog detection.
+
+- `description` supplies translation context. Writeback updates `defaultMessage` while retaining catalog metadata.
+
+- Preserve ICU arguments and plural/select syntax in messages. Review generated translations with [`check`](/cli/commands/check).
+
+- Use [`extract`](/cli/commands/extract) to create a catalog from React Intl source. Static [JS/TS catalogs](/cli/reference/formats/javascript-typescript) are supported too.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).
+
+## Related guides
+
+- [Translate React Intl messages end to end](/cli/guides/react-intl).
+- [Fix ICU and placeholder errors](/cli/troubleshooting/icu-placeholders).

@@ -1,0 +1,195 @@
+---
+title: "Translate React Intl messages with the CLI"
+sidebarTitle: "React Intl"
+description: "Extract React Intl messages, translate FormatJS catalogs, validate ICU placeholders, and load translations into your React app."
+---
+
+To translate a React Intl app, extract its message descriptors into a FormatJS
+catalog, translate that catalog with `hyperlocalise run`, and pass an ID-to-string
+map to `IntlProvider`. This guide keeps the workflow in your repository.
+
+For shared review in Cloud, use the [Cloud React Intl tutorial](/platform/tutorials/react-intl-icu).
+
+## Before you start
+
+You need a React app with `react-intl`, the [Hyperlocalise CLI](/cli/getting-started/install),
+and an [AI provider credential](/cli/configuration/provider-credentials).
+This example uses TypeScript, JSON imports, OpenAI, and Spanish as the target language.
+
+## 1. Define messages with stable IDs
+
+Create `src/messages.ts`:
+
+```typescript
+import { defineMessages } from "react-intl";
+
+export const messages = defineMessages({
+    greeting: {
+        id: "home.greeting",
+        defaultMessage: "Hello, {name}!",
+        description: "Greeting shown to a signed-in user on the home screen",
+    },
+    items: {
+        id: "cart.items",
+        defaultMessage: "{count, plural, one {# item} other {# items}}",
+        description: "Number of items in the shopping cart",
+    },
+});
+```
+
+Keep IDs stable when editing the wording. Descriptions give the translation model
+context without becoming visible UI text.
+
+## 2. Extract the source catalog
+
+Run from your project root:
+
+```bash
+mkdir -p lang
+hyperlocalise extract src --out-file lang/en-US.json
+```
+
+The output contains message objects, including translator descriptions:
+
+```json
+{
+    "home.greeting": {
+        "defaultMessage": "Hello, {name}!",
+        "description": "Greeting shown to a signed-in user on the home screen"
+    },
+    "cart.items": {
+        "defaultMessage": "{count, plural, one {# item} other {# items}}",
+        "description": "Number of items in the shopping cart"
+    }
+}
+```
+
+The extractor scans `.ts` and `.tsx` files for `defineMessage`, `defineMessages`,
+`intl.formatMessage`, and `FormattedMessage`. It does not extract arbitrary string
+literals. See [`extract`](/cli/commands/extract) for ignore patterns and generated IDs.
+
+## 3. Map the catalog to a target locale
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    app:
+        files:
+            - from: lang/{{source}}.json
+              to: lang/{{target}}.json
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+Set `OPENAI_API_KEY` in your shell or an untracked `.env.local` file.
+The CLI automatically recognizes the [FormatJS catalog shape](/cli/reference/formats/formatjs).
+It translates `defaultMessage` and retains metadata.
+
+## 4. Translate and check the result
+
+```bash
+hyperlocalise run --bucket app --dry-run
+hyperlocalise run --bucket app
+hyperlocalise check --bucket app --locale es-ES
+```
+
+Review `lang/es-ES.json`. A translated entry might look like this:
+
+```json
+{
+    "home.greeting": {
+        "defaultMessage": "¡Hola, {name}!",
+        "description": "Greeting shown to a signed-in user on the home screen"
+    }
+}
+```
+
+The wording may vary. Message IDs and argument names must still match the app.
+Use [ICU troubleshooting](/cli/troubleshooting/icu-placeholders) if validation
+reports placeholder or plural-structure errors.
+
+## 5. Load translations into React Intl
+
+React Intl accepts strings or compiled message ASTs in `IntlProvider.messages`.
+Convert this guide's descriptor catalog to strings before passing it to the
+provider. See the [IntlProvider reference](https://formatjs.github.io/docs/react-intl/components/#intlprovider).
+
+In `src/app.tsx`:
+
+```tsx
+import { FormattedMessage, IntlProvider } from "react-intl";
+import spanishCatalog from "../lang/es-ES.json";
+import { messages } from "./messages";
+
+function toMessages(
+    catalog: Record<string, { defaultMessage: string }>,
+): Record<string, string> {
+    return Object.fromEntries(
+        Object.entries(catalog).map(([id, entry]) => [id, entry.defaultMessage]),
+    );
+}
+
+const spanishMessages = toMessages(spanishCatalog);
+
+export default function App() {
+    return (
+        <IntlProvider
+            locale="es-ES"
+            defaultLocale="en-US"
+            messages={spanishMessages}
+        >
+            <h1>
+                <FormattedMessage {...messages.greeting} values={{ name: "Ana" }} />
+            </h1>
+            <p>
+                <FormattedMessage {...messages.items} values={{ count: 2 }} />
+            </p>
+        </IntlProvider>
+    );
+}
+```
+
+With the example greeting, the heading renders `¡Hola, Ana!`. Test the plural
+message with `count` set to `1` and `2`, and confirm the singular and plural text
+in your generated catalog renders correctly.
+
+This example assumes your TypeScript and bundler setup supports JSON imports.
+Use your app's locale loader when adding language switching.
+
+## Do I need to run pack?
+
+No. The conversion above works with the translated catalog directly. If you want
+to strip descriptions from a separate build artifact, you can run:
+
+```bash
+hyperlocalise pack lang/es-ES.json --out-file lang/es-ES.packed.json
+```
+
+[`pack`](/cli/commands/pack) still retains `defaultMessage` objects for FormatJS
+input. Apply the same conversion if you import the packed file. Keep the original
+catalog available for translation context and review.
+
+## Keep translations up to date
+
+After editing descriptors, rerun extraction before translation:
+
+```bash
+hyperlocalise extract src --out-file lang/en-US.json
+hyperlocalise run --bucket app --dry-run
+hyperlocalise run --bucket app
+hyperlocalise check --bucket app
+```
+
+Commit the extracted catalog, reviewed targets, configuration, and lockfile.
+Follow [changed-string translation](/cli/workflows/translate-changed-strings) to
+understand which messages run again, then add [GitHub Actions validation](/cli/workflows/github-action-drift-check).

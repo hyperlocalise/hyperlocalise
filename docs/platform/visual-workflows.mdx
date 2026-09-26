@@ -3,7 +3,7 @@ title: "Visual workflows"
 description: "Connect typed data between workflow nodes, test drafts safely, and publish automation versions."
 ---
 
-Visual workflows compose fixed automation steps on a canvas. Your organization must have the `automation_workflow` Autumn feature enabled. Open **Automations → Visual workflows** to create or inspect a workflow.
+Visual workflows compose fixed automation steps on a canvas. Open **Automations → Visual workflows** to create or inspect a workflow. If it is unavailable, ask your administrator or [support](/platform/help/contact-support) about workspace access.
 
 ## Build and connect data
 
@@ -37,7 +37,7 @@ Select **live** explicitly to test real integrations. Live testing can send noti
 
 ## Credentials
 
-Create or select an organization credential for HTTP authentication. Sensitive header and body fields can reference a credential using a destination such as `headers.X-API-Key` or `body.token`. Credential APIs and the editor return metadata only. Do not place credentials in URLs or literal authentication fields. Slack and email use the existing organization connections.
+Create or select an organization credential for HTTP authentication. Sensitive header and body fields can reference a credential using a destination such as `headers.X-API-Key` or `body.token`. Do not place credentials in URLs or literal authentication fields. Slack and email use the existing organization connections.
 
 ## Inspect and recover runs
 
@@ -49,21 +49,10 @@ Cancel stops further steps and supported requests. An external action may alread
 
 A workflow supports 200 nodes, 400 connections, 100 loop items, and 1,000 execution steps. HTTP requests time out after 30 seconds, AI requests after 120 seconds, and a run after 15 minutes. HTTP responses must fit the shared security size limit and contain valid JSON when declared as JSON.
 
-Old definition formats must be recreated or explicitly converted before execution. New integrations, arbitrary code nodes, nested loops, and nested retry regions are outside this release.
+Arbitrary code nodes, nested loops, and nested retry regions are not supported.
 
-## Organization API
 
-All routes use `/api/orgs/{slug}/visual-workflows` and require organization operator access and the feature flag.
+## Related guides
 
-| Operation | Method and suffix |
-| --- | --- |
-| Create or list | `POST /`, `GET /` |
-| Read or save draft | `GET /{id}`, `PATCH /{id}` with `expectedRevision` |
-| Publish | `POST /{id}/publish` with `expectedRevision` |
-| Test draft | `POST /{id}/test` with definition, payload, mode, mock outputs, and idempotency key |
-| Run published version | `POST /{id}/runs` with idempotency key |
-| Inspect history | `GET /{id}/runs`, `GET /{id}/runs/{runId}` |
-| Cancel or retry | `POST /{id}/runs/{runId}/cancel`, `POST /{id}/runs/{runId}/retry` |
-| Credential metadata/create | `GET /credentials`, `POST /credentials` |
-
-Responses use resource-keyed envelopes. Reusing a run idempotency key returns the existing run. A stale draft revision returns HTTP 409.
+- [Build reliable branches and retries](/platform/guides/workflow-data-and-retries)
+- [Fix automation problems](/platform/help/automations)

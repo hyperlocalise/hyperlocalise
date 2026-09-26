@@ -1,67 +1,30 @@
 ---
-title: "Hyperlocalise Cloud"
-description: "Infrastructure for multilingual content operations — Cloud, CLI, and API."
+title: "Hyperlocalise Cloud help"
+description: "Translate content, review quality, connect your tools, and manage your workspace."
 ---
 
-Hyperlocalise is infrastructure for multilingual content operations.
-
-Use Cloud to take work from intake through generation, review, and release. Connect the CLI or API when source files already live in git or a pipeline.
+Use Hyperlocalise Cloud to bring source content, translations, reviewers, and automations into one workspace. Start with one file and one target language, then connect the workflow your team uses every day.
 
 <CardGroup cols={2}>
-  <Card title="Start in Cloud" icon="cloud" href="/platform/getting-started">
-    Open the workspace, create a project, and run content through review.
-  </Card>
-  <Card title="Start with the CLI" icon="terminal" href="/platform/cli">
-    Connect git and CI so source and translated files move with every release.
-  </Card>
+  <Card title="Your first translation" icon="rocket" href="/platform/getting-started">Create a project, upload a file, generate translations, and download the result.</Card>
+  <Card title="Review translations" icon="check" href="/platform/cat">Find untranslated strings, fix issues, and approve work in the Content Editor.</Card>
+  <Card title="Automate your work" icon="bolt" href="/platform/automations">Run repeatable tasks after uploads, on a schedule, or from GitHub.</Card>
+  <Card title="Get help" icon="circle-question" href="/platform/help/overview">Resolve upload, job, connection, and access problems.</Card>
 </CardGroup>
 
-## Choose a path
+## Find the right workflow
 
-Both paths use the same Cloud project. Content operations stay in one place. Git stays the source of truth when you want it.
-
-| If you… | Start here |
+| I want to… | Start here |
 | --- | --- |
-| Run launches, review, and automations in the workspace | [Getting started](/platform/getting-started) |
-| Move files with git and CI | [Connect the CLI](/platform/cli) |
-| Drive the same pipeline from your own systems | [Public API](/platform/api) |
+| Add files or change project languages | [Projects and files](/platform/projects/create-project) |
+| Keep terminology and tone consistent | [Language resources](/platform/knowledge) |
+| Move translations back into my product | [Download translations](/platform/translation/download) |
+| Connect GitHub or other tools | [Integrations](/platform/integrations) |
+| Invite reviewers or manage billing | [Workspace administration](/platform/settings) |
+| Build with the CLI, API, or an AI agent | [Developer integrations](/platform/developers/overview) |
 
-## Follow a tutorial
+## How the pieces fit together
 
-Start with the files and framework already in your repository.
+A workspace contains your team, projects, connections, and shared language resources. A project holds source files and language settings. Translation jobs generate content; the Content Editor lets your team review it. Downloads and sync move the result to its destination.
 
-<CardGroup cols={3}>
-  <Card title="GitHub workflow" icon="github" href="/platform/tutorials/github-localisation-workflow">
-    Move source files through review and return approved translations in a pull request.
-  </Card>
-  <Card title="React Intl and ICU" icon="code" href="/platform/tutorials/react-intl-icu">
-    Extract FormatJS catalogs and protect ICU plurals and placeholders.
-  </Card>
-  <Card title="Vue and vue-i18n" icon="layer-group" href="/platform/tutorials/vue-i18n">
-    Sync nested JSON catalogs and review vue-i18n plurals in Cloud.
-  </Card>
-  <Card title="iOS Strings" icon="mobile" href="/platform/tutorials/ios-strings">
-    Sync Swift string resources in locale-specific lproj folders.
-  </Card>
-  <Card title="Android resources" icon="mobile-screen" href="/platform/tutorials/android-string-resources">
-    Translate strings.xml values, plurals, and Android placeholders.
-  </Card>
-  <Card title="Gettext POT and PO" icon="server" href="/platform/tutorials/gettext-pot-po">
-    Extract backend messages and review PO catalogs.
-  </Card>
-  <Card title="XLIFF" icon="file-code" href="/platform/tutorials/xliff">
-    Use XLIFF as the localisation boundary for a backend or content pipeline.
-  </Card>
-</CardGroup>
-
-## Cloud surfaces
-
-These are parts of the same operations layer, not separate products.
-
-1. [Content Editor](/platform/cat) — review multilingual content in context
-2. [Automations](/platform/automations) — playbooks on schedule, GitHub, or upload
-3. [Knowledge](/platform/knowledge) — guideline, glossaries, and translation memory
-
-Connect GitHub, a TMS, or keys from [Integrations](/platform/integrations) and [Settings](/platform/settings).
-
-Local generation, eval, and TMS adapters live in the [CLI docs](/cli).
+Uploading a source file does not by itself request a translation. Set up a [source-upload automation](/platform/automation/create-automation) when you want those steps connected.

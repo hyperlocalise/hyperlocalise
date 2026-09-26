@@ -1,0 +1,69 @@
+---
+title: "JSON with comments"
+description: "Translate JSON with comments and understand canonical JSON writeback."
+---
+
+Supported extensions: `.jsonc`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.jsonc`.
+
+```jsonc
+{
+    // Home screen
+    "title": "Welcome",
+}
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.jsonc
+              to: locales/{{target}}/messages.jsonc
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Accepts line comments, block comments, and trailing commas. Message extraction follows the JSON rules.
+
+- Translation leaves must be strings, including values inside nested objects and arrays.
+
+- Writeback uses the JSON output path. Do not rely on comments, trailing commas, or original formatting being preserved.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

@@ -1,9 +1,9 @@
 ---
-title: "Content Editor"
+title: "Review translations"
 description: "Review multilingual content in context in the Cloud workspace."
 ---
 
-The Content Editor is the review surface of Hyperlocalise Cloud. Open a file, edit segments, and save reviewed translations with product context attached.
+Use the Content Editor to inspect source and target text, correct translations, and approve content for a locale. Generation and approval are separate steps: review completed job output before delivering it.
 
 ## Open the Content Editor
 
@@ -33,7 +33,7 @@ Select a row in **Queue** or click a string in the preview. The Content Editor l
 
 On a native project, **Approve** saves the current target text. On a TMS-backed project, **Save to provider** (or **Approve**) writes the target back to the provider.
 
-Some roles can inspect strings but cannot write translations back.
+Translators can prepare drafts; approval requires a reviewer, localization manager, or administrator with project access. See [Roles and permissions](/platform/workspace/roles).
 
 Format checks on the segment include **Placeholders & ICU** and **Length**. Fix those before you approve.
 
@@ -76,13 +76,13 @@ Exports include up to **5,000** matching segments. If more segments match your f
 
 If nothing matches the current filters, download fails with a message that no segments match.
 
-This export is separate from [API](/platform/api) or [MCP](/platform/mcp) **download translations**, which reconstruct a full target file for one `sourcePath` and locale. Use **Download filtered view** when you need only the filtered queue (for example untranslated strings in one locale).
+For complete target files, use the project’s **Download translations** action. See [Download translated files](/platform/translation/download) to choose the correct export.
 
 ## Board
 
 Open **Board** in the project or workspace sidebar when a segment needs a tracker item instead of an in-line comment. Filter the queue with **Has issues** to find those strings.
 
-Create, list, read, and update Board items from coding agents through the hosted [MCP server](/platform/mcp) (`list_issues`, `get_issue`, `create_issue`, `update_issue`). Issue writes require a role that can write translations back to the project.
+Include the file, key, locale, and decision needed in the issue. See [Resolve translation issues](/platform/translation/issues). Issue writes require a role that can write translations back to the project.
 
 ## Content Editor behavior
 
@@ -92,3 +92,6 @@ Project **Settings** → **Translation & Content Editor behavior** controls how 
 
 - [Knowledge](/platform/knowledge)
 - [Automations](/platform/automations)
+
+- [Prepare a review handoff](/platform/guides/review-handoff)
+- [Translation quality troubleshooting](/platform/help/quality)

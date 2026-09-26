@@ -1,0 +1,76 @@
+---
+title: "Android XML"
+description: "Translate Android string resources and plural entries in resource directories."
+---
+
+Supported extensions: `.xml`.
+
+## Source file
+
+Save this example as `app/src/main/res/values/strings.xml`.
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="welcome">Welcome</string>
+    <string name="brand" translatable="false">Hyperlocalise</string>
+    <plurals name="items">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+</resources>
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: app/src/main/res/values/strings.xml
+              to: app/src/main/res/values-es/strings.xml
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Android parsing requires a path matching `**/res/values*/strings.xml`. Other XML paths use the generic XML parser.
+
+- String resource names become keys. Plural quantities become dotted keys such as `items.one`.
+
+- Resources marked `translatable="false"` are skipped. Comments, attributes, namespaces, and printf placeholders are preserved.
+
+- Translatable `<string-array>` resources are unsupported. Use Android resource qualifiers in target paths; the example maps Spanish explicitly.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

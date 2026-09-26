@@ -1,0 +1,70 @@
+---
+title: "CSV"
+description: "Translate key-value CSV files and locale-column tables."
+---
+
+Supported extensions: `.csv`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.csv`.
+
+```csv
+key,value
+home.title,Welcome
+home.greeting,"Hello, {name}!"
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.csv
+              to: locales/{{target}}/messages.csv
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- The example uses a header row with `key` and `value`. CSV quoting handles commas and multiline values.
+
+- Locale-column layouts are also supported. Source and target locales select the corresponding columns.
+
+- Existing rows retain their order; newly appended keys are sorted. CSV quoting and line endings may be normalized.
+
+- This page covers translation files. For `status --output csv`, see [Command output](/cli/reference/output-formats).
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

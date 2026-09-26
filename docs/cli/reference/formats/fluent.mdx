@@ -1,0 +1,70 @@
+---
+title: "Fluent"
+description: "Translate Fluent messages and attributes, with explicit limits on terms."
+---
+
+Supported extensions: `.ftl`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.ftl`.
+
+```text
+welcome = Welcome, { $name }!
+login = Sign in
+    .title = Open your account
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.ftl
+              to: locales/{{target}}/messages.ftl
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Message IDs become keys; attributes become dotted keys such as `login.title`.
+
+- Multiline messages and select/plural patterns remain one value per message or attribute.
+
+- Comments, blank lines, and ordering are preserved in the selected template. Missing top-level messages are appended in sorted order.
+
+- Term definitions such as `-brand` and term references are unsupported and rejected. New attributes cannot be appended to a parent already present in the template.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

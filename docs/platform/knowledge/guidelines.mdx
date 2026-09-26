@@ -1,0 +1,36 @@
+---
+title: "Add translation guidelines"
+description: "Give translators and agents the tone, audience, and product context they need."
+---
+
+Use **Guideline** for instructions that cannot be expressed as a term pair: audience, voice, product context, market preferences, and examples. Put required term translations in a glossary and reusable sentence pairs in a translation memory.
+
+## Upload a guideline
+
+1. Open workspace **Guideline** for shared context, or the project’s **Guideline** for project-specific context.
+2. Select **Upload guideline**.
+3. Choose a supported file and upload it. Upload one file at a time.
+4. Confirm it appears before referencing it in a request or automation.
+
+Supported uploads include CSV, JSON, PDF, XLSX, XLS, TXT, Markdown, DOCX, and PPTX. Options marked **Coming soon**, such as connector-based imports, are not available upload paths.
+
+## What to include
+
+Use a short document with concrete examples:
+
+```text
+Audience: people buying their first subscription.
+Tone: clear, warm, and direct. Avoid slang.
+Product names: keep Hyperlocalise unchanged.
+French: use “vous” consistently.
+Buttons: prefer a short action verb.
+Preserve variables, URLs, and ICU message structure.
+```
+
+Add the approved wording and a counterexample when a rule could be ambiguous. State the market explicitly when regional usage matters.
+
+## Use it in translation
+
+Attach the relevant knowledge when configuring an [automation](/platform/automation/create-automation), and name it in one-off requests. Review a representative sample to confirm the instruction has the intended effect. Updating a guideline does not retroactively rewrite or approve existing translations.
+
+Keep a clear owner for the document so project and workspace guidance do not give conflicting instructions. See [Language resources](/platform/knowledge).

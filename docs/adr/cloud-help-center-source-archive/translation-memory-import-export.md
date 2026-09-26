@@ -1,0 +1,68 @@
+<!-- Historical reference, not current product documentation. -->
+---
+title: "Translation memory import and export"
+description: "File formats, Cloud UI flows, and API endpoints for moving native translation memories in and out of Hyperlocalise."
+---
+
+Native workspace **translation memories** support interchange through the Cloud UI and authenticated API. External TMS memories follow different rules when they are not mirrored locally.
+
+## Supported formats
+
+| Format | Import | Export |
+| ------ | ------ | ------ |
+| **TMX** | Yes | Yes |
+| **CSV** | Yes | Yes |
+
+**TMX** is TMX 1.4 with inline codes, `tuid` upsert, and locale-pair variants. **CSV** uses a Hyperlocalise row layout (header row with `source_locale`, `target_locale`, `source_text`, `target_text`, `match_score`). The importer also accepts Crowdin-style locale-matrix CSV (locale codes as column headers).
+
+## Import in Cloud
+
+You can upload a **TMX** or **CSV** file when you create a workspace memory, or import into an existing memory you can edit.
+
+1. Open **Translation Memories**.
+2. Choose **Import TMX or CSV** (or **Create memory** and attach a file), or open a memory and choose **Import**.
+3. Review the import preview when you import into an existing memory, then confirm. Large files are bounded by documented size and unit limits; oversize imports fail with an explicit error.
+
+## Export in Cloud
+
+1. Open the memory and choose **Export**.
+2. Select **TMX** or **CSV**.
+3. Either download **all locales** or pick a **source** and **target** locale pair to filter the file.
+
+## API
+
+Export:
+
+```http
+GET /api/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/export?format=tmx|csv&sourceLocale={optional}&targetLocale={optional}
+```
+
+Import (preview with `dryRun: true`):
+
+```http
+POST /api/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/import
+```
+
+Body includes `format` (`csv` or `tmx`), `content`, and optional `dryRun: true` for preview.
+
+## External TMS memories
+
+| Asset | Cloud export | Cloud import |
+| ----- | ------------ | ------------ |
+| External TMS memory (no mirror) | Not available | Not available |
+| Synced TMS memory | TMX or CSV from mirrored entries | Use native memory import on a workspace memory you edit |
+
+Use your TMS or the Hyperlocalise **CLI** for provider-native TM download shapes where supported (`csv` or `tmx` depending on provider). CLI CSV is often Hyperlocalise-shaped and may not match every TMS upload format.
+
+## Tips
+
+- Prefer **TMX** when moving segments with inline tags or stable `tuid` values between memories.
+- Prefer **CSV** for spreadsheets, quick edits, or scripts.
+- Re-importing an exported **TMX** from Hyperlocalise is supported; treat **CSV** as the canonical flat row format for native memories.
+
+## Related
+
+- [Knowledge](/platform/knowledge)
+- [Glossary import and export](/platform/glossary-import-export)
+- [CLI](/platform/cli)
+- [API](/platform/api)

@@ -1,0 +1,43 @@
+---
+title: "Create a translation automation"
+description: "Configure triggers, tools, and language resources for repeatable translation work."
+---
+
+Create an automation when the same translation task should run more than once. Begin in a project’s **Automations** for project-scoped work, or workspace **Automations** for broader tasks.
+
+## Set up the automation
+
+1. Select **New Automation**.
+2. Describe the task, source scope, target locales, and expected output.
+3. Add **Triggers** from the supported choices below.
+4. Attach the tools and knowledge the task needs.
+5. Save, then test with a small, recognizable source change.
+6. Open **Run History** and inspect the output before relying on the automation.
+
+| Trigger | Configure |
+| --- | --- |
+| Manual run | Run the saved task on demand. |
+| Scheduled | Cadence and **Schedule timezone**. |
+| GitHub push | Repository, branch patterns, and push or pull-request-opened events. |
+| Source upload | The project whose uploads should start work. |
+| Contentful webhook | The matching entry create or update event. |
+
+GitHub triggers require a connected and enabled repository. A Contentful event trigger does not imply that Contentful file sync is available.
+
+## Example: translate after upload
+
+Choose **Source upload** for the project and describe the intended task:
+
+```text
+Translate uploaded source content into the project's target locales.
+Use the linked glossary and project guideline.
+Preserve placeholders and leave the output for human review.
+```
+
+Upload a small file through Cloud or [CLI sync push](/platform/cli), then confirm the matching run and translation output. Make the scope narrower if the task should cover only selected content.
+
+## Pause or change the automation
+
+Pause the automation when new events should stop starting work. Inspect already-started runs separately. Review triggers after changing repository access, branch names, project locales, or language resources.
+
+If no run starts, follow [Automation troubleshooting](/platform/help/automations). For fixed execution order and explicit branches, use [Visual workflows](/platform/visual-workflows).

@@ -1,0 +1,72 @@
+---
+title: "WebVTT subtitles"
+description: "Translate WebVTT captions while retaining cue settings and metadata blocks."
+---
+
+Supported extensions: `.vtt`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.vtt`.
+
+```text
+WEBVTT
+
+intro
+00:00:01.000 --> 00:00:04.000
+Welcome to the product tour.
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.vtt
+              to: locales/{{target}}/messages.vtt
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Each cue is one translation unit with a sequential key such as `vtt.0001`.
+
+- Cue identifiers, timing, positioning, and settings are preserved. Timestamps and named cue identifiers supply context.
+
+- `WEBVTT` headers and `NOTE`, `STYLE`, and `REGION` blocks remain unchanged.
+
+- Writeback keeps cue counts aligned with the template. Review reading speed and line length separately.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).

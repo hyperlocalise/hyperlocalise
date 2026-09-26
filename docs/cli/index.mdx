@@ -1,68 +1,53 @@
 ---
-title: "What is the Hyperlocalise CLI?"
-description: "CLI localization workflows for AI draft generation, optional TMS curation sync, and status reporting."
+title: "CLI overview"
+description: "Translate files in your repository, review changes, and automate localization with the Hyperlocalise CLI."
 ---
 
-The `hyperlocalise` CLI generates local translation drafts, optionally syncs with Cloud or your TMS, and tracks what still needs review.
+The Hyperlocalise CLI translates files in your repository using your chosen AI
+provider. Preview the work, generate translations, and review the changes before
+releasing. Connect to Cloud or a TMS when you need a shared review workflow.
 
-For the Cloud workspace — infrastructure for multilingual content operations — see [Hyperlocalise Cloud](/).
+## Start translating
 
-## CLI focus
+<CardGroup cols={2}>
+    <Card title="Install the CLI" icon="terminal" href="/cli/getting-started/install">
+        Install Hyperlocalise and verify your setup.
+    </Card>
+    <Card title="Translate your first file" icon="language" href="/cli/getting-started/quickstart">
+        Follow one complete example from source file to translated output.
+    </Card>
+    <Card title="Find your file format" icon="file-code" href="/cli/reference/formats/overview">
+        Browse configuration examples and limitations for each supported format.
+    </Card>
+    <Card title="Configure your project" icon="sliders" href="/cli/configuration/i18n-config">
+        Set locales, file mappings, and translation providers.
+    </Card>
+</CardGroup>
 
-- LLM provider layer: OpenAI, Azure OpenAI, Gemini, Anthropic, AWS Bedrock, LM Studio, Groq, Ollama
-- TMS adapters (experimental): Crowdin, LILT AI, Lokalise, Phrase, POEditor, Smartling
-- Eval framework (experimental): quality + regression checks across locales/models
-- CI-ready status labels (experimental): `ready` / `needs review` / `missing`
-- Plan-first + lockfile: deterministic runs and reviewable diffs
+## The everyday workflow
 
-## Feature graph
+1. Map source files to target paths in `i18n.yml`.
+2. Preview the translation plan with `hyperlocalise run --dry-run`.
+3. Generate translations with `hyperlocalise run`.
+4. Review the diff and run `hyperlocalise check`.
+5. Commit the translated files and `.hyperlocalise.lock.json`.
 
-```mermaid
-flowchart LR
-  A["Source files in repo"] --> B["run (plan-first, lockfile)"]
-  B --> C["Local drafts"]
-  C --> D{"Workflow choice"}
-  D --> E["Local-only release"]
-  D --> F["sync push (experimental)"]
-  F --> G["TMS curation"]
-  G --> H["sync pull (experimental)"]
-  H --> I["status labels for CI"]
-  C --> J["eval (experimental)"]
-  J --> I
-```
+The lockfile records translation progress so later runs can skip completed work.
+See [local translation](/cli/workflows/local-generation) for the full workflow.
 
-## Who this is for
+## Choose your next step
 
-Use this CLI if you:
+| Your goal | Where to go |
+| --- | --- |
+| Understand the files in a project | [Project layout](/cli/getting-started/first-project) |
+| Translate a React Intl app | [React Intl tutorial](/cli/guides/react-intl) |
+| Update existing translations | [Translate changed strings](/cli/workflows/translate-changed-strings) |
+| Choose a hosted or local model | [AI providers](/cli/providers/overview) |
+| Share files with your Cloud workspace | [Connect the CLI to Cloud](/platform/cli) |
+| Review translations in a TMS | [TMS curation workflow](/cli/workflows/tms-curation-loop) |
+| Run localization in CI | [CI automation](/cli/workflows/ci-automation) |
+| Look up a command | [Command reference](/cli/commands/overview) |
+| Resolve a failed run | [Common errors](/cli/troubleshooting/common-errors) |
 
-- keep translation files in your repository,
-- want AI-generated drafts as a starting point,
-- want to choose between zero-human workflows and optional human curation in your TMS.
-
-## Core workflow
-
-| Stage | Action | Why it matters |
-| --- | --- | --- |
-| 1 | [`init`](/cli/commands/init) | Scaffold `i18n.yml` and bootstrap defaults. |
-| 2 | Configure [`i18n config`](/cli/configuration/i18n-config) | Define locales, buckets, and LLM/storage settings. |
-| 3 | [`run --dry-run`](/cli/commands/run) | Validate plan and detect issues before writing drafts. |
-| 4 | [`run`](/cli/commands/run) | Generate local draft translations. |
-| 5 | [Release from local repo](/cli/commands/run) | Zero-human path when your process allows direct publish from generated outputs. |
-| 6 (optional) | [`sync push` (experimental)](/cli/commands/sync-push) | Upload local changes to your TMS for curation workflows. |
-| 7 (optional) | Curate in TMS | Human review and correction in your translation platform. |
-| 8 (optional) | [`sync pull` (experimental)](/cli/commands/sync-pull) | Bring curated translations back into the repository. |
-| 9 | [`status`](/cli/commands/status) | Measure completion and unresolved work in either workflow path. |
-
-## Start in 10 minutes
-
-1. [Installation](/cli/getting-started/install).
-2. [Run quickstart](/cli/getting-started/quickstart).
-3. [Set up your i18n config](/cli/configuration/i18n-config).
-
-## Common next steps
-
-- Sync a repo with Cloud: [Connect the CLI](/platform/cli).
-- Learn command behavior in [commands overview](/cli/commands/overview).
-- Configure provider credentials in [provider credentials](/cli/configuration/provider-credentials).
-- Understand TMS adapter sync in [storage overview](/cli/storage/overview).
-- Review feature maturity in the [stability matrix](/cli/reference/stability-matrix).
+Check the [stability matrix](/cli/reference/stability-matrix) before adopting
+experimental sync or evaluation workflows in production.
