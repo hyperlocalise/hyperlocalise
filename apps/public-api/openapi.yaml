@@ -1,0 +1,297 @@
+openapi: 3.1.0
+info:
+  title: Hyperlocalise Public API
+  version: 1.0.0
+  description: Read projects and Queries from a Hyperlocalise workspace.
+servers:
+  - url: https://api.hyperlocalise.com
+security:
+  - personalAccessToken: []
+tags:
+  - name: Identity
+  - name: Projects
+  - name: Queries
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      security: []
+      summary: Check process health
+      responses:
+        "200":
+          description: The service process is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+  /v1/me:
+    get:
+      operationId: getCurrentPrincipal
+      tags: [Identity]
+      summary: Get the current token principal
+      responses:
+        "200":
+          description: Authenticated token identity and effective access.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrincipalResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects:
+    get:
+      operationId: listProjects
+      tags: [Projects]
+      summary: List accessible projects
+      description: Requires `projects:read`. Results include organization-wide projects for workspace operators and team-owned projects for other members.
+      parameters:
+        - $ref: "#/components/parameters/Limit25"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Accessible projects.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projects, pagination]
+                properties:
+                  projects:
+                    type: array
+                    items: { $ref: "#/components/schemas/Project" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}:
+    get:
+      operationId: getProject
+      tags: [Projects]
+      summary: Get an accessible project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string, maxLength: 128 }
+      responses:
+        "200":
+          description: Project detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project: { $ref: "#/components/schemas/Project" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/queries:
+    get:
+      operationId: listQueries
+      tags: [Queries]
+      summary: List accessible Queries
+      description: Requires `queries:read` and the Queries workspace entitlement.
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: string, maxLength: 128 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [all, open, in_progress, resolved, wont_fix] }
+        - name: issueType
+          in: query
+          schema: { type: string, enum: [all, general_question, translation_mistake, context_request, source_mistake, glossary_violation, qa_failure] }
+        - name: priority
+          in: query
+          schema: { type: string, enum: [P0, P1, P2] }
+        - name: locale
+          in: query
+          schema: { type: string, maxLength: 32 }
+        - name: assignee
+          in: query
+          description: A user UUID, `me`, or `unassigned`.
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 200 }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [updated_at, created_at, priority, status], default: status }
+        - name: sortDir
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Accessible Queries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queries, pagination]
+                properties:
+                  queries:
+                    type: array
+                    items: { $ref: "#/components/schemas/Query" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/queries/{queryId}:
+    get:
+      operationId: getQuery
+      tags: [Queries]
+      summary: Get an accessible Query
+      parameters:
+        - name: queryId
+          in: path
+          required: true
+          description: Query UUID or human-readable identifier such as `HL-123`.
+          schema: { type: string, maxLength: 128 }
+      responses:
+        "200":
+          description: Query detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [query]
+                properties:
+                  query: { $ref: "#/components/schemas/Query" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+components:
+  securitySchemes:
+    personalAccessToken:
+      type: apiKey
+      in: header
+      name: x-api-key
+  parameters:
+    Limit25:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    Limit50:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
+  schemas:
+    PrincipalResponse:
+      type: object
+      required: [principal]
+      properties:
+        principal:
+          type: object
+          required: [tokenId, userId, organizationId, permissions, entitlements]
+          properties:
+            tokenId: { type: string }
+            userId: { type: string, format: uuid }
+            organizationId: { type: string, format: uuid }
+            permissions:
+              type: array
+              items: { type: string }
+            entitlements:
+              type: object
+              required: [queries]
+              properties:
+                queries: { type: boolean }
+    Pagination:
+      type: object
+      required: [offset, limit, total]
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+    Project:
+      type: object
+      required: [id, name, identifier, description, source, targetLocales, active, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        identifier: { type: string }
+        description: { type: string }
+        source: { type: string, enum: [native, external_tms] }
+        externalProviderKind: { type: [string, "null"], enum: [crowdin, smartling, phrase, lokalise, null] }
+        externalProjectId: { type: [string, "null"] }
+        sourceLocale: { type: [string, "null"] }
+        targetLocales:
+          type: array
+          items: { type: string }
+        externalProjectUrl: { type: [string, "null"], format: uri }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Query:
+      type: object
+      required: [id, identifier, number, projectId, projectName, title, description, issueType, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        identifier: { type: string }
+        number: { type: integer, minimum: 1 }
+        projectId: { type: string }
+        projectName: { type: string }
+        title: { type: string }
+        description: { type: string }
+        issueType: { type: string }
+        status: { type: string, enum: [open, in_progress, resolved, wont_fix] }
+        targetLocale: { type: [string, "null"] }
+        sourcePath: { type: [string, "null"] }
+        segmentId: { type: [string, "null"] }
+        linkKind: { type: [string, "null"] }
+        linkLabel: { type: [string, "null"] }
+        linkUrl: { type: [string, "null"], format: uri }
+        templateKey: { type: [string, "null"] }
+        assigneeUserId: { type: [string, "null"], format: uuid }
+        key: { type: [string, "null"] }
+        sourceText: { type: [string, "null"] }
+        priority: { type: [string, "null"], enum: [P0, P1, P2, null] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        resolvedAt: { type: [string, "null"], format: date-time }
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error: { type: string }
+        message: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid query parameters.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: The personal access token is missing or invalid.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: The token lacks the required scope or workspace access.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: The resource is missing or inaccessible.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unavailable:
+      description: Authentication or resource storage is temporarily unavailable.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }

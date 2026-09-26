@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -34,10 +36,19 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	auth, err := newPlatformAuthenticator(os.Getenv("PUBLIC_API_PLATFORM_URL"), os.Getenv("PUBLIC_API_SERVICE_SECRET"))
-	if err != nil {
-		return err
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		return errors.New("DATABASE_URL is required")
 	}
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer pool.Close()
+	if err := pool.Ping(ctx); err != nil {
+		return fmt.Errorf("connect database: %w", err)
+	}
+	auth := newPostgresAuthenticator(pool, autumnClientFromEnv(os.Getenv("AUTUMN_API_KEY")))
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
@@ -48,7 +59,7 @@ func run(ctx context.Context) error {
 	}
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           newHandler(auth),
+		Handler:           newHandler(auth, &postgresStore{pool: pool}),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,

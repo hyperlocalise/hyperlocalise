@@ -22,7 +22,7 @@ func TestRoutes(t *testing.T) {
 		status                    int
 		calls                     int
 	}{
-		{"health", "GET", "/healthz", "", nil, 200, 0},
+		{"health", "GET", "/health", "", nil, 200, 0},
 		{"missing token", "GET", "/v1/me", "", nil, 401, 0},
 		{"valid token", "GET", "/v1/me", "hl_test", nil, 200, 1},
 		{"revoked token", "GET", "/v1/me", "hl_test", errUnauthorized, 401, 1},
@@ -38,7 +38,7 @@ func TestRoutes(t *testing.T) {
 			h := newHandler(authFunc(func(_ context.Context, token string) (principal, error) {
 				calls++
 				require.Equal(t, tt.token, token)
-				return principal{"t", "u", "o", []string{"files:read"}}, tt.authErr
+				return principal{TokenID: "t", UserID: "u", OrganizationID: "o", Permissions: []string{"files:read"}}, tt.authErr
 			}))
 			r := httptest.NewRequest(tt.method, tt.path, nil)
 			if tt.token != "" {
@@ -55,33 +55,6 @@ func TestRoutes(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestIntrospectionDoesNotForwardClientIdentity(t *testing.T) {
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer "+testServiceSecret || r.Header.Get("X-Api-Key") != "hl_test" {
-			t.Error("unexpected credentials")
-		}
-		for _, header := range []string{"Cookie", "X-Organization-Id", "X-User-Id"} {
-			if r.Header.Get(header) != "" {
-				t.Errorf("client header forwarded: %s", header)
-			}
-		}
-		_, _ = w.Write([]byte(validPrincipalJSON))
-	}))
-	defer upstream.Close()
-	auth, err := newPlatformAuthenticator(upstream.URL, testServiceSecret)
-	require.NoError(t, err)
-	r := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
-	r.Header.Set("X-Api-Key", "hl_test")
-	r.Header.Set("Authorization", "Bearer client-credential")
-	r.Header.Set("Cookie", "session=client-cookie")
-	r.Header.Set("X-Organization-Id", "other-org")
-	r.Header.Set("X-User-Id", "other-user")
-	w := httptest.NewRecorder()
-	newHandler(auth).ServeHTTP(w, r)
-	require.Equal(t, http.StatusOK, w.Code)
-	require.JSONEq(t, validPrincipalJSON, w.Body.String())
 }
 
 func TestDuplicateTokensRejected(t *testing.T) {
