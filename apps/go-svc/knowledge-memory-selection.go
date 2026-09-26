@@ -310,7 +310,7 @@ func equalKnowledgeMemoryPath(left, right []string) bool {
 }
 
 func knowledgeMemoryQuery(input knowledgeMemoryPreviewPayload) (map[string]struct{}, []string) {
-	parts := make([]string, 0, len(input.TargetLocales)+10+len(input.Metadata))
+	parts := make([]string, 0, len(input.TargetLocales))
 	if input.TargetLocale != nil {
 		parts = append(parts, *input.TargetLocale)
 	}
@@ -506,7 +506,7 @@ func selectKnowledgeMemoryTargetSegments(ranked []rankedKnowledgeMemorySegment, 
 }
 
 func requestedKnowledgeMemoryTargetLocales(input knowledgeMemoryPreviewPayload) []string {
-	values := make([]string, 0, len(input.TargetLocales)+1)
+	values := make([]string, 0, len(input.TargetLocales))
 	if input.TargetLocale != nil {
 		values = append(values, *input.TargetLocale)
 	}
