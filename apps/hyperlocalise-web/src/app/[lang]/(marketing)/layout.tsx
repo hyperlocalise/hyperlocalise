@@ -15,7 +15,11 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
 import { buildOrganizationJsonLd } from "@/components/seo/organization-json-ld";
 import { BrandThemeProvider } from "@/components/ui/brand-theme";
-import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
+import {
+  DEFAULT_APP_LOCALE,
+  normalizeAppLocale,
+  SUPPORTED_APP_LOCALES,
+} from "@/lib/app-i18n/locales";
 import { INDEXABLE_ROBOTS } from "@/lib/seo/robots-metadata";
 
 import Navbar from "./_components/navbar";
@@ -23,6 +27,10 @@ import Navbar from "./_components/navbar";
 export const metadata: Metadata = {
   robots: INDEXABLE_ROBOTS,
 };
+
+export function generateStaticParams() {
+  return SUPPORTED_APP_LOCALES.map((lang) => ({ lang }));
+}
 
 type MarketingLayoutProps = {
   children: React.ReactNode;
