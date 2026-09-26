@@ -382,20 +382,13 @@ export function NativeGlossaryDetail({
     queryKey: ["org-members", organizationSlug, "glossary-authors"],
     enabled: true,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].members.$get({
-        param: { organizationSlug },
-      });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.loadAuthorsFailed)),
-        );
-      return (await response.json()) as {
-        members: Array<{
-          userId: string;
-          displayName: string;
-          status: string;
-        }>;
-      };
+      try {
+        return await goSvcClient.member.list(organizationSlug);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadAuthorsFailed)), {
+          cause: error,
+        });
+      }
     },
     retry: false,
   });

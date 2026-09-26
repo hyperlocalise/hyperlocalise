@@ -65,7 +65,6 @@ import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms
 import { createTmsProviderRoutes } from "./routes/tms-provider/tms-provider.route";
 import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
-import { createMemberRoutes } from "./routes/member/member.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createReportsRoutes } from "./routes/reports/reports.route";
@@ -184,7 +183,6 @@ export function createOrgAgentsRoutes() {
 
 export function createOrgWorkspaceRoutes() {
   return new Hono()
-    .route("/members", createMemberRoutes())
     .route("/workspace", createWorkspaceRoutes())
     .route("/billing", createBillingRoutes())
     .route("/api-keys", createApiKeyRoutes())

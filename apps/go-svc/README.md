@@ -31,7 +31,7 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `WORKOS_API_HOSTNAME` | `api.workos.com` | WorkOS API host used for session refresh and JWKS (`/sso/jwks/{client_id}`). Point at the WorkOS emulator in local e2e. |
 | `WORKOS_API_HTTPS` | `true` | Set `false` for the local emulator. |
 | `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
-| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, issue-sheet, and Hyperlab OFREP evaluate routes. |
+| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, member, issue-sheet, and Hyperlab OFREP evaluate routes. |
 | `VALKEY_ENDPOINT` | _(unset)_ | Valkey hostname. When set without `VALKEY_URL`, go-svc builds a URL from this endpoint, `VALKEY_PORT`, and `VALKEY_TLS`. |
 | `VALKEY_PORT` | `6379` | Valkey port used with `VALKEY_ENDPOINT`. |
 | `VALKEY_TLS` | _(unset)_ | Set to `required`, `true`, or `enabled` to use `rediss://` with `VALKEY_ENDPOINT`; other values use `redis://`. |
@@ -40,6 +40,7 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `VALKEY_USERNAME` | _(unset)_ | Optional username overlaid on `VALKEY_URL` or used with `VALKEY_ADDR`. |
 | `VALKEY_PASSWORD` | _(unset)_ | Optional password overlaid on `VALKEY_URL` or used with `VALKEY_ADDR`. |
 | `AUTUMN_API_KEY` | _(unset)_ | Autumn secret key. Required for issue-sheet routes (`queries-board` gate). Fail-closed when unset. |
+| `GA_MEASUREMENT_PROTOCOL_API_SECRET` | _(unset)_ | GA4 Measurement Protocol secret. When set, new seat creation emits `seat_added` after the membership transaction commits. No-ops when unset. |
 
 Example Go usage:
 
@@ -357,6 +358,28 @@ Read API for the workspace settings activity log at
 Query parameters match Hono: `actor`, `cursor`, `eventTypes`, `limit` (1–100,
 default 50), `range` (`24h` \| `7d` \| `30d` \| `all`). Response:
 `{ activityLogs, actors, nextCursor }`.
+
+## Members
+
+The browser calls `/v1/orgs/{organizationSlug}/members` on the Go service origin
+(typically `https://api.hyperlocalise.com` via `GoSvcClient`; the same paths also
+work under `/api/go-svc/...` on the web host). The former Hono member handlers
+are removed. Go accepts the WorkOS session access token or `wos-session` cookie,
+live WorkOS membership verification, and `DATABASE_URL` as dictionary routes.
+Listing requires `workspace:read`. Invites, role updates, and removals require
+`members:invite` (`admin` or `localization_manager`). Localization managers
+cannot assign or manage the `admin` role. New invites check Autumn `seats` when
+`AUTUMN_API_KEY` is set, otherwise the local fallback of 1 seat.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET, POST | `/members` | List members or invite a member |
+| PATCH, DELETE | `/members/{workosUserId}` | Update a member role or remove a member |
+
+Invite and pending-role updates send WorkOS invitations. Active memberships
+sync role and removal through WorkOS organization memberships. Successful
+mutations write `member_invited`, `member_invite_resent`, `member_role_changed`,
+and `member_removed` events to `organization_activity_events`.
 
 ## Teams
 

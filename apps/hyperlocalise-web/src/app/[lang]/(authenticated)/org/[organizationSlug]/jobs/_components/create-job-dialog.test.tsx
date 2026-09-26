@@ -25,7 +25,7 @@ import { CreateJobDialog } from "./create-job-dialog";
 
 const apiMocks = vi.hoisted(() => ({
   nativeFilesGet: vi.fn(),
-  nativeMembersGet: vi.fn(),
+  nativeMembersList: vi.fn(),
   nativeJobsPost: vi.fn(),
   providerFilesGet: vi.fn(),
   providerMembersGet: vi.fn(),
@@ -46,7 +46,6 @@ vi.mock("@/lib/api-client-instance", () => ({
               jobs: { $post: apiMocks.nativeJobsPost },
             },
           },
-          members: { $get: apiMocks.nativeMembersGet },
           "tms-provider": {
             projects: {
               ":externalProjectId": {
@@ -60,6 +59,17 @@ vi.mock("@/lib/api-client-instance", () => ({
       },
     },
   },
+}));
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      member: {
+        list: apiMocks.nativeMembersList,
+      },
+    },
+    loading: false,
+  }),
 }));
 
 vi.mock("@/components/markdown-editor/markdown-editor", () => ({
@@ -168,7 +178,7 @@ function renderDialog({
 describe("CreateJobDialog", () => {
   beforeEach(() => {
     apiMocks.nativeFilesGet.mockResolvedValue(jsonResponse({ files: nativeFiles }));
-    apiMocks.nativeMembersGet.mockResolvedValue(jsonResponse({ members: nativeMembers }));
+    apiMocks.nativeMembersList.mockResolvedValue({ members: nativeMembers });
     apiMocks.nativeJobsPost.mockResolvedValue(jsonResponse({ job: { id: "job_native_1" } }, 201));
     apiMocks.providerFilesGet.mockResolvedValue(jsonResponse({ files: providerFiles }));
     apiMocks.providerMembersGet.mockResolvedValue(jsonResponse({ members: providerMembers }));

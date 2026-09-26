@@ -53,7 +53,7 @@ Users without an active WorkOS membership after reconcile are routed to `/auth/o
 It runs:
 
 1. During session bootstrap (`resolveApiAuthContextFromSession`) before loading active memberships
-2. After admin member role updates and removals (`member.route`)
+2. After admin member role updates and removals. `go-svc` `/v1/orgs/{slug}/members` writes the local membership and the matching WorkOS membership or invitation directly.
 3. Via WorkOS webhooks for incremental updates (with live membership verification on create events)
 
 `user.created` also sends a one-time getting-started email after the local user

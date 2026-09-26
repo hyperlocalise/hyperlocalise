@@ -56,6 +56,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   formatLocaleDisplayName,
   formatLocaleOptionLabel,
@@ -270,6 +272,7 @@ export function CreateJobDialog({
 }: CreateJobDialogProps) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const parsedProviderProject = parseProviderProjectId(projectId);
   const isProviderProject = Boolean(parsedProviderProject);
 
@@ -350,24 +353,15 @@ export function CreateJobDialog({
     queryKey: ["org-members", organizationSlug, "create-job"],
     enabled: open && !isProviderProject,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].members.$get({
-        param: { organizationSlug },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(createJobDialogMessages.loadMembersFailed),
+      try {
+        const body = await goSvcClient.member.list(organizationSlug);
+        return body.members.filter((member) => member.status === "active");
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(createJobDialogMessages.loadMembersFailed)),
+          { cause: error },
         );
       }
-      const body = (await response.json()) as {
-        members: Array<{
-          workosUserId: string;
-          displayName: string;
-          email: string;
-          status: string;
-        }>;
-      };
-      return body.members.filter((member) => member.status === "active");
     },
   });
 

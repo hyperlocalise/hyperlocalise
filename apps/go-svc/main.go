@@ -85,6 +85,10 @@ func main() {
 	h.memories = &memoryAPI{}
 	h.qaReports = &qaReportAPI{}
 	h.teams = &teamAPI{}
+	h.members = &memberAPI{
+		seats:     fallbackMemberSeats{limit: localSeatFallbackLimit},
+		analytics: newGAProductUsageTrackerFromEnv(),
+	}
 	h.issueSheets = &issueSheetAPI{}
 	h.activityLogs = &activityLogAPI{}
 	h.contentEditor = &editorCatAPI{}
@@ -94,6 +98,7 @@ func main() {
 			log.Printf("configure autumn: %v", err)
 		} else {
 			h.issueSheets.autumn = autumnClientChecker{client: client}
+			h.members.seats = autumnMemberSeats{client: client}
 		}
 	}
 	var membershipLookup organizationMembershipLookup
@@ -103,6 +108,7 @@ func main() {
 		membershipLookup = func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
 			return workosClient.OrganizationMembership().Get(ctx, id)
 		}
+		h.members.workos = newLiveMemberWorkos(key, workosAPIBaseURL())
 	}
 	h.workspace = &workspaceAPI{membership: membershipLookup}
 	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
@@ -134,6 +140,7 @@ func main() {
 		h.qaReports.pool = traced
 		h.issueSheets.pool = traced
 		h.teams.pool = traced
+		h.members.pool = traced
 		h.activityLogs.pool = traced
 		h.contentEditor.pool = traced
 		h.projects.pool = traced
@@ -180,6 +187,7 @@ func main() {
 	h.memories.membership = membershipLookup
 	h.qaReports.membership = membershipLookup
 	h.teams.membership = membershipLookup
+	h.members.membership = membershipLookup
 	h.issueSheets.membership = membershipLookup
 	h.activityLogs.membership = membershipLookup
 	h.contentEditor.membership = membershipLookup

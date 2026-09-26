@@ -51,7 +51,6 @@ describe("createApiClient", () => {
     expect(typeof org["slack-connect"].$get).toBe("function");
     expect(typeof org["github-installation"].$get).toBe("function");
     expect(typeof org.gitlab.projects.$get).toBe("function");
-    expect(typeof org.members.$get).toBe("function");
     expect(typeof org.workspace.$get).toBe("function");
     expect(typeof org.billing["resource-usage"].$get).toBe("function");
     expect(typeof org["api-keys"].$get).toBe("function");

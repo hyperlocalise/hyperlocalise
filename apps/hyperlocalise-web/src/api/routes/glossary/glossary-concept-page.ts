@@ -31,7 +31,7 @@ import {
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { buildTranslationMemoryTsQuery } from "@/lib/translation/translation-memory-ts-query";
-import { formatMemberDisplayName } from "../member/member.shared";
+import { formatMemberDisplayName } from "@/lib/members/member-management";
 
 import type { GlossaryConceptPageQuery } from "./glossary.schema";
 

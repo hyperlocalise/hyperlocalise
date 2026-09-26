@@ -209,6 +209,40 @@ export type TeamSummary = Omit<TeamRecord, "organizationId"> & {
   currentUserRole: TeamMember["role"] | null;
 };
 
+export type MemberRole =
+  | "admin"
+  | "localization_manager"
+  | "developer"
+  | "reviewer"
+  | "translator"
+  | "member";
+
+export type MemberRecord = {
+  userId: string;
+  workosUserId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string;
+  avatarUrl: string | null;
+  role: MemberRole;
+  isCurrentUser: boolean;
+  createdAt: string;
+  status: "active" | "invited";
+  canUpdateRole?: boolean;
+  canRemove?: boolean;
+};
+
+export type MemberManagement = {
+  canInvite: boolean;
+  assignableRoles: MemberRole[];
+};
+
+export type MembersResponse = {
+  members: MemberRecord[];
+  memberManagement?: MemberManagement;
+};
+
 export type IssueSheetListQuery = GoSvcPageQuery & {
   view?: "my_work" | "qa_triage" | "source_context" | "all_open";
   status?: "open" | "in_progress" | "resolved" | "wont_fix" | "all";
