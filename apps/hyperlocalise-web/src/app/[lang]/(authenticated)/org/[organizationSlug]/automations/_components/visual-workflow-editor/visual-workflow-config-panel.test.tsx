@@ -39,6 +39,18 @@ import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
 
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
 
+const resourceOptionsMock = vi.hoisted(() => ({
+  resourceOptionsFor: vi.fn(() => [{ id: "repo-1", label: "acme/web", resourceKey: "acme/web" }]),
+}));
+
+vi.mock("./visual-workflow-resource-options", () => ({
+  useVisualWorkflowResourceOptions: () => ({
+    projects: [{ id: "project-1", name: "Acme" }],
+    availableProviders: ["github"],
+    resourceOptionsFor: resourceOptionsMock.resourceOptionsFor,
+  }),
+}));
+
 function renderPanel(ui: ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -134,10 +146,37 @@ describe("VisualWorkflowConfigPanel", () => {
     });
   });
 
+  it("persists default content sync resource options into node config", async () => {
+    const onChangeConfig = vi.fn();
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={triggerNode("action.content_sync")}
+        organizationSlug="acme"
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    await vi.waitFor(() => {
+      expect(onChangeConfig).toHaveBeenCalled();
+    });
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      kind: "action.content_sync",
+      connectionId: "repo-1",
+      resourceKey: "acme/web",
+      projectFolder: "github/acme/web",
+    });
+  });
+
   it("shows labeled pickers for content sync instead of raw ids", () => {
     renderPanel(
       <VisualWorkflowConfigPanel
         node={triggerNode("action.content_sync")}
+        organizationSlug="acme"
         issues={[]}
         onBack={vi.fn()}
         onChangeConfig={vi.fn()}

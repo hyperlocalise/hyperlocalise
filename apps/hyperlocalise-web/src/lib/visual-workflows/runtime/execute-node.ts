@@ -12,8 +12,9 @@
  */
 import { generateText, Output } from "ai";
 
-import { contentSyncConfigSchema } from "@/lib/agents/content-sync/content-sync-types";
+import { validateContentSyncConfig } from "@/lib/agents/content-sync/content-sync-config";
 import { executeContentSyncConfig } from "@/lib/agents/content-sync/execute-content-sync";
+import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   runWorkspaceAutomationEmailNotificationTool,
@@ -37,6 +38,7 @@ import {
 
 export type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { WORKFLOW_LIMITS } from "./limits";
 import { workflowStructuredOutputSchema } from "./structured-output";
@@ -184,19 +186,39 @@ export async function executeVisualWorkflowNode(input: {
         };
       }
 
-      const parsed = contentSyncConfigSchema.safeParse({
+      const syncValidation = validateContentSyncConfig({
         provider: node.config.provider,
         connectionId,
         resourceKey,
         providerFolder: text(node.config.providerFolder).trim(),
         projectFolder,
       });
-      if (!parsed.success) {
+      if (isErr(syncValidation)) {
         return {
           ok: false,
           error: {
-            code: "invalid_content_sync_config",
-            message: "Content sync settings are incomplete or invalid.",
+            code: syncValidation.error.code,
+            message: syncValidation.error.message,
+          },
+        };
+      }
+
+      const [scopedProject] = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+      if (!scopedProject) {
+        return {
+          ok: false,
+          error: {
+            code: "project_not_found",
+            message: "Choose a project in this organization.",
           },
         };
       }
@@ -206,7 +228,7 @@ export async function executeVisualWorkflowNode(input: {
         projectId,
         workflowId: input.visualWorkflowId ?? input.organizationId,
         runId: input.visualWorkflowRunId ?? input.idempotencyKey ?? crypto.randomUUID(),
-        syncConfig: parsed.data,
+        syncConfig: syncValidation.value,
       });
       if (isErr(result)) {
         return {

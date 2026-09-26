@@ -12,6 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useEffect } from "react";
+
 import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
 import type {
@@ -892,16 +894,48 @@ function ContentSyncConfigFields({
   const intl = useIntl();
   const resources = useVisualWorkflowResourceOptions(organizationSlug);
   const resourceOptions = resources.resourceOptionsFor(config.provider);
-  const selectedResource =
-    resourceOptions.find((option) => option.id === config.connectionId) ?? resourceOptions[0];
-  const projectFolderValue =
-    config.projectFolder ||
-    (selectedResource
-      ? defaultContentSyncProjectFolder({
+  const selectedResource = resourceOptions.find((option) => option.id === config.connectionId);
+
+  useEffect(() => {
+    const firstResource = resourceOptions[0];
+    if (!firstResource) {
+      return;
+    }
+
+    const hasResource = config.connectionId.trim() && config.resourceKey.trim();
+    if (hasResource) {
+      if (config.projectFolder.trim()) {
+        return;
+      }
+      onChangeConfig({
+        ...config,
+        projectFolder: defaultContentSyncProjectFolder({
           provider: config.provider,
-          resourceKey: selectedResource.resourceKey,
-        })
-      : "");
+          resourceKey: config.resourceKey.trim(),
+        }),
+      });
+      return;
+    }
+
+    onChangeConfig({
+      ...config,
+      connectionId: firstResource.id,
+      resourceKey: firstResource.resourceKey,
+      projectFolder:
+        config.projectFolder.trim() ||
+        defaultContentSyncProjectFolder({
+          provider: config.provider,
+          resourceKey: firstResource.resourceKey,
+        }),
+    });
+  }, [
+    config.connectionId,
+    config.projectFolder,
+    config.provider,
+    config.resourceKey,
+    onChangeConfig,
+    resourceOptions,
+  ]);
 
   function applyResource(next: {
     provider: ContentSyncProvider;
@@ -995,7 +1029,7 @@ function ContentSyncConfigFields({
       <TextField
         id="vw-content-sync-project-folder"
         label={intl.formatMessage(messages.contentSyncProjectFolder)}
-        value={projectFolderValue}
+        value={config.projectFolder}
         onChange={(value) => onChangeConfig({ ...config, projectFolder: value })}
       />
       <ErrorBehaviorField
