@@ -209,8 +209,26 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 	if hasNext {
 		page = events[:limit]
 	}
+	targetInputs := make([]activityLogTargetInput, 0, len(page))
+	for _, row := range page {
+		targetInputs = append(targetInputs, activityLogTargetInput{
+			targetID:   row.targetID,
+			targetKind: row.targetKind,
+			payload:    row.payload,
+		})
+	}
+	targets, err := loadActivityLogTargetViews(r.Context(), api.pool, actor.organizationID, actor.organizationSlug, targetInputs)
+	if err != nil {
+		return nil, 0, err
+	}
+
 	items := make([]activityLogListItem, 0, len(page))
 	for _, row := range page {
+		key := activityLogTargetKey(row.targetKind, row.targetID)
+		target, ok := targets[key]
+		if !ok {
+			target = activityLogTargetView{ID: row.targetID, Kind: row.targetKind}
+		}
 		items = append(items, activityLogListItem{
 			Actor: activityLogActorView{
 				CredentialID: row.actorCredentialID,
@@ -222,7 +240,7 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 			EventType: row.eventType,
 			ID:        row.id,
 			Payload:   row.payload,
-			Target:    activityLogTargetView{ID: row.targetID, Kind: row.targetKind},
+			Target:    target,
 		})
 	}
 	var nextCursor *string

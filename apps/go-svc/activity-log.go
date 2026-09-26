@@ -551,7 +551,7 @@ func (api *activityLogAPI) listEvents(ctx context.Context, actor activityLogActo
 			payload:    row.payload,
 		})
 	}
-	targets, err := api.loadTargetViews(ctx, actor.organizationID, actor.organizationSlug, targetInputs)
+	targets, err := loadActivityLogTargetViews(ctx, api.pool, actor.organizationID, actor.organizationSlug, targetInputs)
 	if err != nil {
 		return nil, 0, err
 	}

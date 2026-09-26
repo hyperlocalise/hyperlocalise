@@ -53,8 +53,9 @@ func stringPtr(value string) *string {
 	return &value
 }
 
-func (api *activityLogAPI) loadTargetViews(
+func loadActivityLogTargetViews(
 	ctx context.Context,
+	pool dictionaryPool,
 	organizationID, organizationSlug string,
 	rows []activityLogTargetInput,
 ) (map[string]activityLogTargetView, error) {
@@ -103,7 +104,7 @@ func (api *activityLogAPI) loadTargetViews(
 	}
 
 	if len(projectIDs) > 0 {
-		queryRows, err := api.pool.Query(ctx, `
+		queryRows, err := pool.Query(ctx, `
             select id, name from projects
             where organization_id = $1 and id = any($2::text[])`, organizationID, projectIDs)
 		if err != nil {
@@ -130,7 +131,7 @@ func (api *activityLogAPI) loadTargetViews(
 	}
 
 	if len(glossaryIDs) > 0 {
-		queryRows, err := api.pool.Query(ctx, `
+		queryRows, err := pool.Query(ctx, `
             select id, name from glossaries
             where organization_id = $1 and id = any($2::uuid[])`, organizationID, glossaryIDs)
 		if err != nil {
@@ -157,7 +158,7 @@ func (api *activityLogAPI) loadTargetViews(
 	}
 
 	if len(memoryIDs) > 0 {
-		queryRows, err := api.pool.Query(ctx, `
+		queryRows, err := pool.Query(ctx, `
             select id, name from memories
             where organization_id = $1 and id = any($2::uuid[])`, organizationID, memoryIDs)
 		if err != nil {
@@ -184,7 +185,7 @@ func (api *activityLogAPI) loadTargetViews(
 	}
 
 	if len(jobIDs) > 0 {
-		queryRows, err := api.pool.Query(ctx, `
+		queryRows, err := pool.Query(ctx, `
             select id, kind, project_id from jobs
             where organization_id = $1 and id = any($2::text[])`, organizationID, jobIDs)
 		if err != nil {
@@ -216,7 +217,7 @@ func (api *activityLogAPI) loadTargetViews(
 	}
 
 	if len(automationIDs) > 0 {
-		queryRows, err := api.pool.Query(ctx, `
+		queryRows, err := pool.Query(ctx, `
             select id, name from workspace_automations
             where organization_id = $1 and id = any($2::uuid[])`, organizationID, automationIDs)
 		if err != nil {
@@ -243,7 +244,7 @@ func (api *activityLogAPI) loadTargetViews(
 	}
 
 	if len(membershipIDs) > 0 {
-		queryRows, err := api.pool.Query(ctx, `
+		queryRows, err := pool.Query(ctx, `
             select m.id, u.first_name, u.last_name
             from organization_memberships m
             left join users u on u.id = m.user_id
@@ -275,7 +276,7 @@ func (api *activityLogAPI) loadTargetViews(
 
 	payloadMembers := map[string]struct{ firstName, lastName *string }{}
 	if len(payloadMemberUserIDs) > 0 {
-		queryRows, err := api.pool.Query(ctx, `
+		queryRows, err := pool.Query(ctx, `
             select id, first_name, last_name from users where id = any($1::uuid[])`, payloadMemberUserIDs)
 		if err != nil {
 			return nil, err
