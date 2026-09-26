@@ -27,6 +27,7 @@ import {
 } from "@/components/content-editor/shared/content-editor-api.fixture";
 import { ContentEditorTestProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 
 const {
   contentEditorTranslationsPostMock,
@@ -106,7 +107,10 @@ const onTranslationSaved = vi.fn();
 
 syncSegmentTargetAfterSaveMock.mockResolvedValue(undefined);
 
-function renderCatMutations(contentEditorFile = createCatFileResponse().contentEditorFile) {
+function renderCatMutations(
+  contentEditorFile = createCatFileResponse().contentEditorFile,
+  goSvcClient?: GoSvcClient,
+) {
   return renderHook(
     () =>
       useContentEditorMutations({
@@ -114,6 +118,7 @@ function renderCatMutations(contentEditorFile = createCatFileResponse().contentE
         contentEditorFile,
         invalidateQueue,
         onTranslationSaved,
+        goSvcClient,
       }),
     { wrapper: ContentEditorTestProviders },
   );
@@ -183,6 +188,37 @@ describe("useContentEditorMutations", () => {
       translation,
     );
     expect(invalidateQueue).not.toHaveBeenCalled();
+  });
+
+  it("saves native translations through go-svc", async () => {
+    const translation = createCatTranslation({ isApproved: true });
+    const saveTranslation = vi.fn().mockResolvedValue({ translation });
+    const goSvcClient = { cat: { saveTranslation } } as unknown as GoSvcClient;
+    const { result } = renderCatMutations(
+      createCatFileResponse({ provider: undefined }).contentEditorFile,
+      goSvcClient,
+    );
+
+    await act(async () => {
+      const saved = await result.current.saveTranslation({
+        externalStringId: "segment-1",
+        text: "Bonjour",
+        approve: true,
+      });
+      expect(saved).toEqual(translation);
+    });
+
+    expect(saveTranslation).toHaveBeenCalledWith(
+      "acme",
+      "project_1",
+      expect.objectContaining({
+        externalStringId: "segment-1",
+        sourcePath: contentEditorApiTestContext.sourcePath,
+        text: "Bonjour",
+        approve: true,
+      }),
+    );
+    expect(contentEditorTranslationsPostMock).not.toHaveBeenCalled();
   });
 
   it("coalesces rapid inline saves into one queue refresh", async () => {

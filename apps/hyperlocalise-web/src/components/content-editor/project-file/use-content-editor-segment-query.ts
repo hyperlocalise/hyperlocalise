@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
-import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import { isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 import {
   CAT_CACHE_GC_TIME,
   CAT_QUEUE_MAX_PAGES,
@@ -252,8 +252,7 @@ export function useContentEditorSegmentQuery(input: {
           signal.throwIfAborted();
           return page;
         } catch (error) {
-          if (!(error instanceof GoSvcClientError) || error.code !== "provider_cat_deferred")
-            throw error;
+          if (!isCatDeferredToApp(error)) throw error;
           providerFallback.current.add(input.projectId);
         }
       }

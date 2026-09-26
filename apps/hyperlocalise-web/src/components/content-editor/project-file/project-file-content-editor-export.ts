@@ -57,6 +57,7 @@ export async function downloadProjectFileContentEditorExport(input: {
     resourceType: input.resourceType,
     sourcePaths: input.sourcePaths,
     intl: input.intl,
+    goSvcClient: input.goSvcClient,
   });
 
   if (collected.kind === "empty") {
