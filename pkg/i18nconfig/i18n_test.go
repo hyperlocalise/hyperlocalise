@@ -1508,6 +1508,21 @@ func writeConfigFileNamed(t *testing.T, name, content string) string {
 	return path
 }
 
+func TestCloudSourcePathLengthValidation(t *testing.T) {
+	short := strings.Repeat("a", MaxCloudSourcePathLength)
+	if err := ValidateCloudSourcePathLength(short); err != nil {
+		t.Fatal(err)
+	}
+	long := short + "b"
+	longErr := ValidateCloudSourcePathLength(long)
+	if longErr == nil {
+		t.Fatal("expected length error")
+	}
+	if !strings.Contains(longErr.Error(), "2048") {
+		t.Fatalf("unexpected error: %v", longErr)
+	}
+}
+
 func TestCloudPathMappingValidation(t *testing.T) {
 	for _, cloud := range []string{"../en.json", "/en.json", "C:/en.json", `lang\en.json`, "lang//en.json", "./en.json", "lang/{{target}}.json", "lang/[locale].json", "lang/{{unknown}}.json", "lang/en.md", "lang/*.json", " "} {
 		t.Run(cloud, func(t *testing.T) {

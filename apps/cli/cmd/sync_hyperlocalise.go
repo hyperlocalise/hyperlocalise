@@ -388,6 +388,9 @@ func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []st
 						cloudPath = filepath.ToSlash(filepath.Join(globBaseDirForStatus(cloudPath), relative))
 					}
 				}
+				if err := config.ValidateCloudSourcePathLength(cloudPath); err != nil {
+					return nil, fmt.Errorf("bucket %q cloud path %q: %w", bucketName, cloudPath, err)
+				}
 				if previous, exists := cloudSources[cloudPath]; exists && previous != sourcePath {
 					return nil, fmt.Errorf("cloud path %q maps to both %q and %q", cloudPath, previous, sourcePath)
 				}

@@ -70,6 +70,9 @@ type BucketConfig struct {
 	Files []BucketFileMapping `json:"files" jsonschema:"required"`
 }
 
+// MaxCloudSourcePathLength matches the Hyperlocalise API sourcePath limit on upload and download.
+const MaxCloudSourcePathLength = 2048
+
 // BucketFileMapping defines source/target file paths for a bucket.
 type BucketFileMapping struct {
 	From string `json:"from" jsonschema:"required"`
@@ -1009,6 +1012,14 @@ func ValidateCloudPathMapping(file BucketFileMapping) error {
 	}
 	if getFileSuffix(file.From) != getFileSuffix(pattern) {
 		return fmt.Errorf("must preserve the source file extension")
+	}
+	return nil
+}
+
+// ValidateCloudSourcePathLength rejects resolved Cloud identities longer than the API allows.
+func ValidateCloudSourcePathLength(path string) error {
+	if len(path) > MaxCloudSourcePathLength {
+		return fmt.Errorf("exceeds %d characters (got %d)", MaxCloudSourcePathLength, len(path))
 	}
 	return nil
 }

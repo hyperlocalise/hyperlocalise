@@ -1225,3 +1225,22 @@ func TestHyperlocaliseCloudAliasPlanning(t *testing.T) {
 		t.Fatalf("default cloud identity changed: %+v", plans[0])
 	}
 }
+
+func TestHyperlocaliseCloudPathRejectsAPILengthLimit(t *testing.T) {
+	root := t.TempDir()
+	writePushSourceFile(t, filepath.Join(root, "apps/web/en.json"), `{"hello":"Hello"}`)
+	longCloud := strings.Repeat("a", config.MaxCloudSourcePathLength-4) + ".json"
+	cfg := &config.I18NConfig{
+		Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+		Buckets: map[string]config.BucketConfig{"web": {Files: []config.BucketFileMapping{{
+			From: "apps/web/en.json", To: "apps/web/{{target}}.json", CloudPath: longCloud,
+		}}}},
+	}
+	if err := config.ValidateCloudPathMapping(cfg.Buckets["web"].Files[0]); err != nil {
+		t.Fatalf("pattern validation: %v", err)
+	}
+	_, err := planHyperlocaliseFiles(cfg, nil, root)
+	if err == nil || !strings.Contains(err.Error(), "exceeds 2048 characters") {
+		t.Fatalf("expected planning length error, got %v", err)
+	}
+}
