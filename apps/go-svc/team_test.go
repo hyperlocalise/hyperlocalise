@@ -285,10 +285,12 @@ func TestTeamMembershipMutations(t *testing.T) {
 	t.Run("add member success", func(t *testing.T) {
 		api, scope := teamTestAPI(t, "admin")
 		id := scope.MustTeam(t, "platform", "Platform", "manager")
-		mustOrgTeammate(t, scope, "teammate_live", "teammate@example.com", "member")
-		rec := teamRequest(api, scope, http.MethodPost, scope.OrgPath("/teams/"+id+"/members"), `{"workosUserId":"teammate_live","role":"member"}`)
+		email := uniqueTestEmail("teammate")
+		workosUserID := "teammate_" + uuid.NewString()
+		mustOrgTeammate(t, scope, workosUserID, email, "member")
+		rec := teamRequest(api, scope, http.MethodPost, scope.OrgPath("/teams/"+id+"/members"), `{"workosUserId":"`+workosUserID+`","role":"member"}`)
 		require.Equal(t, 201, rec.Code)
-		require.Contains(t, rec.Body.String(), `"teammate@example.com"`)
+		require.Contains(t, rec.Body.String(), `"`+email+`"`)
 	})
 	t.Run("remove unknown user is noop", func(t *testing.T) {
 		api, scope := teamTestAPI(t, "admin")

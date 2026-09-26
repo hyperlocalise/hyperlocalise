@@ -290,7 +290,7 @@ func TestMemberDeleteMissingIsIdempotent(t *testing.T) {
 
 func TestMemberListCapabilities(t *testing.T) {
 	api, scope, _ := memberTestAPI(t, "admin")
-	_, _, _ = mustActiveMember(t, scope, "teammate@example.com", "member")
+	_, _, _ = mustActiveMember(t, scope, uniqueTestEmail("list-member"), "member")
 	rec := memberRequest(api, scope, http.MethodGet, scope.OrgPath("/members"), "")
 	require.Equal(t, 200, rec.Code)
 	var body struct {
