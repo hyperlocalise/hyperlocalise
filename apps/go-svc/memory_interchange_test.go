@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,12 +68,10 @@ func TestParseMemoryImportDispatch(t *testing.T) {
 }
 
 func TestMemoryExportCSVHTTP(t *testing.T) {
-	entries := dictionaryDBStep{kind: "query", sql: "from memory_entries where", values: [][]any{{
-		"en-US", "fr-FR", "Hello", "Bonjour", 100, nil,
-	}}}
-	entries.args = []any{testMemoryID}
-	api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), entries)
-	rec := memoryRequestForTest(api, "GET", testMemoryBase+"/"+testMemoryID+"/entries/export?format=csv", "")
+	api, scope := memoryTestAPI(t, "admin")
+	id := scope.MustMemory(t, "", "Product TM")
+	mustMemoryEntry(t, scope, id, "en-US", "fr-FR", "Hello", "Bonjour")
+	rec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+id+"/entries/export?format=csv"), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Header().Get("Content-Type"), "text/csv")
 	require.Contains(t, rec.Body.String(), "source_locale")
@@ -81,12 +79,10 @@ func TestMemoryExportCSVHTTP(t *testing.T) {
 }
 
 func TestMemoryExportCSVEscapesFormulas(t *testing.T) {
-	entries := dictionaryDBStep{kind: "query", sql: "from memory_entries where", values: [][]any{{
-		"en-US", "fr-FR", "=1+1", "@SUM(A1)", 100, nil,
-	}}}
-	entries.args = []any{testMemoryID}
-	api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), entries)
-	rec := memoryRequestForTest(api, "GET", testMemoryBase+"/"+testMemoryID+"/entries/export?format=csv", "")
+	api, scope := memoryTestAPI(t, "admin")
+	id := scope.MustMemory(t, "", "Product TM")
+	mustMemoryEntry(t, scope, id, "en-US", "fr-FR", "=1+1", "@SUM(A1)")
+	rec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+id+"/entries/export?format=csv"), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	body := rec.Body.String()
 	require.Contains(t, body, glossaryCSVFormulaEscapePrefix+"=1+1")
@@ -98,50 +94,37 @@ func TestMemoryExportCSVEscapesFormulas(t *testing.T) {
 }
 
 func TestMemoryImportApply(t *testing.T) {
-	dupCheck := dictionaryRowStep("select id from memory_entries where memory_id=$1")
-	dupCheck.err = pgx.ErrNoRows
-	dupCheck.args = []any{testMemoryID, "en-US", "fr-FR", "hello"}
-	insert := dictionaryRowStep("insert into memory_entries as e", memoryEntryValues()...)
-	attempt := dictionaryRowStep("insert into memory_import_attempts", "dddddddd-dddd-4ddd-8ddd-dddddddddddd")
-	api, db := memoryTestAPI(t, "admin", memoryOwnedStep(),
-		dictionaryDBStep{kind: "begin"},
-		dupCheck, insert, attempt,
-		dictionaryDBStep{kind: "commit"},
-	)
+	api, scope := memoryTestAPI(t, "admin")
+	id := scope.MustMemory(t, "", "Product TM")
 	body := `{"format":"csv","content":"source_locale,target_locale,source_text,target_text\nen-US,fr-FR,Hello,Bonjour"}`
-	rec := memoryRequestForTest(api, "POST", testMemoryBase+"/"+testMemoryID+"/entries/import", body)
+	rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), body)
 	require.Equal(t, 201, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"imported":1`)
 	require.Contains(t, rec.Body.String(), `"importAttemptId"`)
-	require.True(t, db.committed)
 }
 
 func TestMemoryImportAttemptReport(t *testing.T) {
-	attemptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-	userID := testMemoryUserID
-	completed := testMemoryTime
-	attempt := dictionaryRowStep("from memory_import_attempts a left join users",
-		attemptID, testMemoryOrgID, testMemoryID, &userID, "completed", "csv",
-		[]byte(`{}`), nil, nil, "abc", []byte(`{"imported":1}`), nil, false, "available", nil, nil, testMemoryTime, &completed, strPtr("Ada"),
-	)
-	attempt.args = []any{attemptID, testMemoryID, testMemoryOrgID}
-	diags := dictionaryDBStep{kind: "query", sql: "from memory_import_attempt_diagnostics", values: [][]any{{
-		"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", "warning", "skipped_unit", "skipped", nil, nil, testMemoryTime,
-	}}}
-	diags.args = []any{attemptID}
-	api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), attempt, diags)
-	rec := memoryRequestForTest(api, "GET", testMemoryBase+"/"+testMemoryID+"/import-attempts/"+attemptID+"/report", "")
+	api, scope := memoryTestAPI(t, "admin")
+	id := scope.MustMemory(t, "", "Product TM")
+	body := `{"format":"csv","content":"source_locale,target_locale,source_text,target_text\nen-US,fr-FR,Hello,Bonjour"}`
+	importRec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), body)
+	require.Equal(t, 201, importRec.Code, importRec.Body.String())
+	var payload struct {
+		ImportAttemptID string `json:"importAttemptId"`
+	}
+	require.NoError(t, json.Unmarshal(importRec.Body.Bytes(), &payload))
+	require.NotEmpty(t, payload.ImportAttemptID)
+	rec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+id+"/import-attempts/"+payload.ImportAttemptID+"/report"), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Header().Get("Content-Type"), "json")
 	require.Contains(t, rec.Header().Get("Content-Disposition"), "attachment")
-	require.Contains(t, rec.Body.String(), attemptID)
+	require.Contains(t, rec.Body.String(), payload.ImportAttemptID)
 }
 
 func TestMemoryImportForbiddenForMember(t *testing.T) {
-	owned := dictionaryRowStep("m.id=$1 and", memoryRecordValues()...)
-	owned.args = []any{testMemoryID, testMemoryOrgID, testMemoryUserID, false}
-	api, _ := memoryTestAPI(t, "member", owned)
+	api, scope := memoryTestAPI(t, "member")
+	id := scope.MustMemory(t, "", "Product TM")
 	body := `{"format":"csv","content":"source_locale,target_locale,source_text,target_text\nen-US,fr-FR,Hello,Bonjour"}`
-	rec := memoryRequestForTest(api, "POST", testMemoryBase+"/"+testMemoryID+"/entries/import", body)
+	rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), body)
 	require.Equal(t, 403, rec.Code)
 }

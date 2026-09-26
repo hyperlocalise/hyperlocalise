@@ -1,16 +1,14 @@
 package main
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
-	"github.com/workos/workos-go/v10"
 )
 
 const (
@@ -21,48 +19,24 @@ const (
 	testMemoryBase   = "/v1/orgs/acme/translation-memories"
 )
 
-var testMemoryTime = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-
-func memoryRecordValues() []any {
-	userID := testMemoryUserID
-	coverage := []byte(`[]`)
-	caps := []byte(`{}`)
-	return []any{
-		testMemoryID, testMemoryOrgID, &userID, "Product TM", "desc", "active", "native",
-		nil, nil, nil, coverage, nil, nil, nil, caps, nil, nil, nil, nil,
-		testMemoryTime, testMemoryTime,
-	}
-}
-
-func memoryEntryValues() []any {
-	userID := testMemoryUserID
-	meta := []byte(`{}`)
-	return []any{
-		testMemoryEntry, testMemoryID, "en-US", "fr-FR", "Hello", "Bonjour", 100, "manual", "approved", 1,
-		nil, &userID, nil, nil, nil, meta, testMemoryTime, testMemoryTime, nil,
-	}
-}
-
-func memoryAuthStep() dictionaryDBStep {
-	step := dictionaryRowStep("m.workos_membership_id not in ('', 'replacing')", testMemoryUserID, testMemoryOrgID, "om_live", "org_live")
-	step.args = []any{"user_live", "acme"}
-	return step
-}
-
-func memoryOwnedStep() dictionaryDBStep {
-	step := dictionaryRowStep("m.id=$1 and", memoryRecordValues()...)
-	step.args = []any{testMemoryID, testMemoryOrgID, testMemoryUserID, true}
-	return step
-}
-
-func memoryTestAPI(t *testing.T, role string, steps ...dictionaryDBStep) (*memoryAPI, *dictionaryTestDB) {
+func memoryTestAPI(t *testing.T, role string) (*memoryAPI, *testenv.Scope) {
 	t.Helper()
-	db := newDictionaryTestDB(t, append([]dictionaryDBStep{memoryAuthStep()}, steps...)...)
-	api := &memoryAPI{pool: db, membership: func(_ context.Context, id string) (*workos.UserOrganizationMembership, error) {
-		require.Equal(t, "om_live", id)
-		return &workos.UserOrganizationMembership{ID: id, UserID: "user_live", OrganizationID: "org_live", Status: "active", Role: &workos.SlimRole{Slug: role}}, nil
-	}}
-	return api, db
+	scope := testenv.Seed(t, testenv.Options{Role: role})
+	return &memoryAPI{
+		pool:       scope.Pool,
+		membership: scope.Membership(role),
+	}, scope
+}
+
+func memoryRequest(api *memoryAPI, scope *testenv.Scope, method, path, body string) *httptest.ResponseRecorder {
+	mux := http.NewServeMux()
+	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: scope.WorkOSUserID}})
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
 }
 
 func memoryRequestForTest(api *memoryAPI, method, path, body string) *httptest.ResponseRecorder {
@@ -76,149 +50,147 @@ func memoryRequestForTest(api *memoryAPI, method, path, body string) *httptest.R
 	return rec
 }
 
+func mustMemoryEntry(t *testing.T, scope *testenv.Scope, memoryID, sourceLocale, targetLocale, sourceText, targetText string) string {
+	t.Helper()
+	id := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into memory_entries (
+            id, memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, match_score, provenance, created_by_user_id
+        ) values ($1, $2, $3, $4, $5, $6, $7, 100, 'manual', $8)`,
+		id, memoryID, sourceLocale, targetLocale, sourceText, normalizeMemorySourceText(sourceText), targetText, scope.UserID)
+	require.NoError(t, err)
+	return id
+}
+
+func mustAttachMemory(t *testing.T, scope *testenv.Scope, projectID, memoryID string) {
+	t.Helper()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into project_memories (organization_id, project_id, memory_id, priority)
+        values ($1, $2, $3, 0)`,
+		scope.OrganizationID, projectID, memoryID)
+	require.NoError(t, err)
+}
+
+func TestMemoryUnavailableWithoutPool(t *testing.T) {
+	rec := memoryRequestForTest(&memoryAPI{}, http.MethodGet, testMemoryBase, "")
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	require.Contains(t, rec.Body.String(), "memory_unavailable")
+}
+
 func TestMemoryCreateListEntryConflict(t *testing.T) {
 	t.Run("create memory", func(t *testing.T) {
-		step := dictionaryRowStep("insert into memories", memoryRecordValues()...)
-		step.args = []any{testMemoryOrgID, testMemoryUserID, "Product TM", ""}
-		api, _ := memoryTestAPI(t, "admin", step)
-		rec := memoryRequestForTest(api, "POST", testMemoryBase, `{"name":"Product TM"}`)
+		api, scope := memoryTestAPI(t, "admin")
+		rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories"), `{"name":"Product TM"}`)
 		require.Equal(t, 201, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"memory"`)
 		require.Contains(t, rec.Body.String(), `"resourceKind":"native"`)
 		require.Equal(t, "no-store", rec.Header().Get("Cache-Control"))
 	})
 	t.Run("member cannot create", func(t *testing.T) {
-		api, _ := memoryTestAPI(t, "member")
-		rec := memoryRequestForTest(api, "POST", testMemoryBase, `{"name":"Product TM"}`)
+		api, scope := memoryTestAPI(t, "member")
+		rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories"), `{"name":"Product TM"}`)
 		require.Equal(t, 403, rec.Code)
 	})
 	t.Run("list memories", func(t *testing.T) {
-		listStep := dictionaryDBStep{kind: "query", sql: "from memories m where", values: [][]any{memoryRecordValues()}}
-		listStep.args = []any{testMemoryOrgID, testMemoryUserID, true, 50, 0}
-		countStep := dictionaryRowStep("select count(*) from memories m where", 1)
-		countStep.args = []any{testMemoryOrgID, testMemoryUserID, true}
-		api, _ := memoryTestAPI(t, "admin", listStep, countStep)
-		rec := memoryRequestForTest(api, "GET", testMemoryBase, "")
+		api, scope := memoryTestAPI(t, "admin")
+		scope.MustMemory(t, "", "Product TM")
+		rec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories"), "")
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"memories"`)
 		require.Contains(t, rec.Body.String(), `"total":1`)
 	})
 	t.Run("entry version conflict", func(t *testing.T) {
-		current := memoryEntryValues()
-		currentStep := dictionaryRowStep("from memory_entries e where e.id=$1", current...)
-		currentStep.args = []any{testMemoryEntry, testMemoryID}
-		staleUpdate := dictionaryRowStep("update memory_entries")
-		staleUpdate.err = pgx.ErrNoRows
-		latest := dictionaryRowStep("from memory_entries e where e.id=$1", current...)
-		latest.args = []any{testMemoryEntry, testMemoryID}
-		api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), currentStep, staleUpdate, latest)
-		rec := memoryRequestForTest(api, "PATCH", testMemoryBase+"/"+testMemoryID+"/entries/"+testMemoryEntry, `{"targetText":"Salut","expectedVersion":1}`)
+		api, scope := memoryTestAPI(t, "admin")
+		id := scope.MustMemory(t, "", "Product TM")
+		entryID := mustMemoryEntry(t, scope, id, "en-US", "fr-FR", "Hello", "Bonjour")
+		rec := memoryRequest(api, scope, "PATCH", scope.OrgPath("/translation-memories/"+id+"/entries/"+entryID), `{"targetText":"Salut","expectedVersion":2}`)
 		require.Equal(t, 409, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), "stale_memory_entry")
 		require.Contains(t, rec.Body.String(), `"memoryEntry"`)
 	})
 	t.Run("entry patch rejects blank source text", func(t *testing.T) {
-		current := memoryEntryValues()
-		currentStep := dictionaryRowStep("from memory_entries e where e.id=$1", current...)
-		currentStep.args = []any{testMemoryEntry, testMemoryID}
-		api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), currentStep)
-		rec := memoryRequestForTest(api, "PATCH", testMemoryBase+"/"+testMemoryID+"/entries/"+testMemoryEntry, `{"sourceText":"","expectedVersion":1}`)
+		api, scope := memoryTestAPI(t, "admin")
+		id := scope.MustMemory(t, "", "Product TM")
+		entryID := mustMemoryEntry(t, scope, id, "en-US", "fr-FR", "Hello", "Bonjour")
+		rec := memoryRequest(api, scope, "PATCH", scope.OrgPath("/translation-memories/"+id+"/entries/"+entryID), `{"sourceText":"","expectedVersion":1}`)
 		require.Equal(t, 400, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), "invalid_memory_payload")
 	})
 	t.Run("detach requires native memory", func(t *testing.T) {
-		external := memoryRecordValues()
-		external[6] = "external_tms"
-		owned := dictionaryRowStep("m.id=$1 and", external...)
-		owned.args = []any{testMemoryID, testMemoryOrgID, testMemoryUserID, true}
-		api, _ := memoryTestAPI(t, "admin", owned)
-		rec := memoryRequestForTest(api, "DELETE", testMemoryBase+"/"+testMemoryID+"/projects/99999999-9999-4999-8999-999999999999", "")
+		api, scope := memoryTestAPI(t, "admin")
+		id := scope.MustMemory(t, "", "Product TM")
+		_, err := scope.Pool.Exec(t.Context(), `update memories set source='external_tms' where id=$1`, id)
+		require.NoError(t, err)
+		rec := memoryRequest(api, scope, "DELETE", scope.OrgPath("/translation-memories/"+id+"/projects/"+uuid.NewString()), "")
 		require.Equal(t, 403, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), "external_tms_memory_immutable")
 	})
 	t.Run("delete rejects archived memory", func(t *testing.T) {
-		archived := memoryRecordValues()
-		archived[5] = "archived"
-		owned := dictionaryRowStep("m.id=$1 and", archived...)
-		owned.args = []any{testMemoryID, testMemoryOrgID, testMemoryUserID, true}
-		api, _ := memoryTestAPI(t, "admin", owned)
-		rec := memoryRequestForTest(api, "DELETE", testMemoryBase+"/"+testMemoryID, "")
+		api, scope := memoryTestAPI(t, "admin")
+		id := scope.MustMemory(t, "", "Product TM")
+		_, err := scope.Pool.Exec(t.Context(), `update memories set status='archived' where id=$1`, id)
+		require.NoError(t, err)
+		rec := memoryRequest(api, scope, "DELETE", scope.OrgPath("/translation-memories/"+id), "")
 		require.Equal(t, 403, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), "memory_action_archived")
 	})
 	t.Run("import dry run", func(t *testing.T) {
-		dupCheck := dictionaryRowStep("select id from memory_entries where memory_id=$1")
-		dupCheck.err = pgx.ErrNoRows
-		dupCheck.args = []any{testMemoryID, "en-US", "fr-FR", "hello"}
-		api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), dupCheck)
+		api, scope := memoryTestAPI(t, "admin")
+		id := scope.MustMemory(t, "", "Product TM")
 		body := `{"format":"csv","content":"source_locale,target_locale,source_text,target_text\nen-US,fr-FR,Hello,Bonjour","dryRun":true}`
-		rec := memoryRequestForTest(api, "POST", testMemoryBase+"/"+testMemoryID+"/entries/import", body)
+		rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), body)
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"dryRun":true`)
 		require.Contains(t, rec.Body.String(), `"preview"`)
 	})
 	t.Run("export tmx content type", func(t *testing.T) {
-		entries := dictionaryDBStep{kind: "query", sql: "from memory_entries where", values: [][]any{{
-			"en-US", "fr-FR", "Hello", "Bonjour", 100, nil,
-		}}}
-		entries.args = []any{testMemoryID}
-		api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), entries)
-		rec := memoryRequestForTest(api, "GET", testMemoryBase+"/"+testMemoryID+"/entries/export?format=tmx", "")
+		api, scope := memoryTestAPI(t, "admin")
+		id := scope.MustMemory(t, "", "Product TM")
+		mustMemoryEntry(t, scope, id, "en-US", "fr-FR", "Hello", "Bonjour")
+		rec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+id+"/entries/export?format=tmx"), "")
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Header().Get("Content-Type"), "tmx")
 		require.Contains(t, rec.Body.String(), "<tmx")
 	})
 	t.Run("promote from project", func(t *testing.T) {
-		projectID := "99999999-9999-4999-8999-999999999999"
-		ownedProject := dictionaryRowStep("from projects p where p.id=$1", projectID)
-		ownedProject.args = []any{projectID, testMemoryOrgID, true, testMemoryUserID}
-		attached := dictionaryRowStep("from project_memories where project_id=$1", testMemoryID)
-		attached.args = []any{projectID, testMemoryID, testMemoryOrgID}
-		translations := dictionaryDBStep{kind: "query", sql: "from project_translations t join project_translation_keys", values: [][]any{{
-			"greeting", "Hello", "fr-FR", "Bonjour", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", nil,
-		}}}
-		translations.args = []any{testMemoryOrgID, projectID}
-		upsert := dictionaryDBStep{kind: "exec", sql: "insert into memory_entries", affected: 1}
-		api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), ownedProject, attached, translations, upsert)
+		api, scope := memoryTestAPI(t, "admin")
+		id := scope.MustMemory(t, "", "Product TM")
+		projectID := scope.MustProject(t, scope.ProjectID, "Project")
+		mustAttachMemory(t, scope, projectID, id)
+		keyID := uuid.NewString()
+		_, err := scope.Pool.Exec(t.Context(), `
+            insert into project_translation_keys (
+                id, organization_id, project_id, key, source_text, normalized_source_text
+            ) values ($1, $2, $3, 'greeting', 'Hello', 'hello')`,
+			keyID, scope.OrganizationID, projectID)
+		require.NoError(t, err)
+		_, err = scope.Pool.Exec(t.Context(), `
+            insert into project_translations (
+                organization_id, project_id, translation_key_id, target_locale, text, status
+            ) values ($1, $2, $3, 'fr-FR', 'Bonjour', 'approved')`,
+			scope.OrganizationID, projectID, keyID)
+		require.NoError(t, err)
 		body := `{"projectId":"` + projectID + `","sourceLocale":"en-US"}`
-		rec := memoryRequestForTest(api, "POST", testMemoryBase+"/"+testMemoryID+"/entries/promote-from-project", body)
+		rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/promote-from-project"), body)
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"promoted":1`)
 	})
 	t.Run("list import attempts", func(t *testing.T) {
-		attemptID := "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
-		userID := testMemoryUserID
-		completed := testMemoryTime
-		list := dictionaryDBStep{kind: "query", sql: "from memory_import_attempts a", values: [][]any{{
-			attemptID, testMemoryOrgID, testMemoryID, &userID, "completed", "csv",
-			[]byte(`{}`), nil, nil, "abc", []byte(`{}`), nil, false, "available", nil, nil, testMemoryTime, &completed, strPtr("Ada"),
-		}}}
-		list.args = []any{testMemoryID, testMemoryOrgID, 51}
-		total := dictionaryRowStep("select count(*) from memory_import_attempts a where", 1)
-		total.args = []any{testMemoryID, testMemoryOrgID}
-		api, _ := memoryTestAPI(t, "admin", memoryOwnedStep(), list, total)
-		rec := memoryRequestForTest(api, "GET", testMemoryBase+"/"+testMemoryID+"/import-attempts", "")
+		api, scope := memoryTestAPI(t, "admin")
+		id := scope.MustMemory(t, "", "Product TM")
+		body := `{"format":"csv","content":"source_locale,target_locale,source_text,target_text\nen-US,fr-FR,Hello,Bonjour"}`
+		importRec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), body)
+		require.Equal(t, 201, importRec.Code, importRec.Body.String())
+		rec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+id+"/import-attempts"), "")
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"memoryImportAttempts"`)
 	})
 	t.Run("create entry", func(t *testing.T) {
-		dupCheck := dictionaryRowStep("select id from memory_entries where memory_id=$1")
-		dupCheck.err = pgx.ErrNoRows
-		dupCheck.args = []any{testMemoryID, "en-US", "fr-FR", "hello"}
-		insert := dictionaryRowStep("insert into memory_entries", memoryEntryValues()...)
-		insert.args = []any{testMemoryID, "en-US", "fr-FR", "Hello", "hello", "Bonjour", 100, testMemoryUserID}
-		event := dictionaryDBStep{kind: "exec", sql: "insert into memory_entry_events", affected: 1}
-		api, db := memoryTestAPI(t, "admin", memoryOwnedStep(),
-			dictionaryDBStep{kind: "begin"},
-			dupCheck,
-			insert,
-			event,
-			dictionaryDBStep{kind: "commit"},
-		)
-		rec := memoryRequestForTest(api, "POST", testMemoryBase+"/"+testMemoryID+"/entries", `{"sourceLocale":"en-US","targetLocale":"fr-FR","sourceText":"Hello","targetText":"Bonjour"}`)
+		api, scope := memoryTestAPI(t, "admin")
+		id := scope.MustMemory(t, "", "Product TM")
+		rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries"), `{"sourceLocale":"en-US","targetLocale":"fr-FR","sourceText":"Hello","targetText":"Bonjour"}`)
 		require.Equal(t, 201, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"memoryEntry"`)
-		require.True(t, db.committed)
 	})
 }
 

@@ -416,23 +416,43 @@ novel words within the 20,000-word library limit, and retain the existing import
 response envelope. Resolved lists preserve priority, creation-time and dictionary-ID
 tie breaking, with 5,000-word and 256 KiB JSON limits.
 
-### Dictionary tests and benchmarks
+### Tests
 
-These commands do not require Docker or PostgreSQL:
+HTTP, SQL, and cache suites share `internal/testenv`. That harness seeds a unique
+org/user/membership (and optional project) into the same Drizzle-migrated Postgres
+schema the web app uses, then talks to live Valkey. Cleanup deletes the seeded org
+(cascades) and user.
+
+Required for integration tests:
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Postgres URL after `vp run db:migrate` from `apps/hyperlocalise-web`. |
+| `VALKEY_URL` | Valkey/Redis URL (`redis://127.0.0.1:6379` locally). |
+| `GO_SVC_INTEGRATION` | Set to `1` in CI / `make test-go-svc` so missing deps fail instead of skip. |
+
+Local loop with Compose:
 
 ```bash
-go test -race ./apps/go-svc -run '^TestDictionary'
+docker compose up -d
+(cd apps/hyperlocalise-web && vp run db:migrate)
+export DATABASE_URL='postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable'
+export VALKEY_URL='redis://127.0.0.1:6379'
+make test-go-svc
+```
+
+Without those URLs, `go test ./apps/go-svc/...` still runs unit tests and skips
+the live suites. CI's `go-test` job starts Postgres 18 and Valkey 8, migrates,
+then runs `make test-workspace` with `GO_SVC_INTEGRATION=1`.
+
+Benchmarks stay in-process (no Docker):
+
+```bash
 go test ./apps/go-svc -run '^$' -bench '^BenchmarkDictionary' -benchmem
 ```
 
-Benchmarks measure normalization, duplicate-heavy import parsing, and resolved-word
-merging at 100, 5,000, and 20,000 unique words. They exclude database/network latency.
-
-To additionally exercise real SQL, foreign-key cascades, and concurrent capacity
-limits, set `DICTIONARY_TEST_DATABASE_URL` to an explicit test PostgreSQL database
-and run `go test -race ./apps/go-svc -run '^TestDictionaryPostgres'`. The suite creates
-and removes a unique schema per test. Without that variable, these integration
-tests are skipped; it never starts a database or reads `DATABASE_URL` implicitly.
+They measure normalization, duplicate-heavy import parsing, and resolved-word
+merging at 100, 5,000, and 20,000 unique words.
 
 ## Glossaries and translation memories
 
@@ -452,16 +472,16 @@ Concept page cursors are opaque base64 of `updatedAt|id` (no HMAC). Treat
 
 ### Glossary / TM tests and benchmarks
 
-These commands do not require Docker or PostgreSQL:
+Glossary and memory HTTP tests use the same `internal/testenv` harness as
+dictionaries (live Postgres + Valkey). Interchange parse/serialize benchmarks
+stay in-process:
 
 ```bash
-go test -race ./apps/go-svc -run 'Glossary|Memory'
 go test ./apps/go-svc -run '^$' -bench 'BenchmarkGlossary|BenchmarkMemory|BenchmarkNormalizeMemory' -benchmem
 ```
 
-Benchmarks cover CSV/TBX/XLSX serialize and parse, TMX/CSV memory interchange,
-source-text normalization, and page-cursor decode at 100–5,000 units. They exclude
-database and network latency.
+They cover CSV/TBX/XLSX serialize and parse, TMX/CSV memory interchange,
+source-text normalization, and page-cursor decode at 100–5,000 units.
 
 All paths below are relative to `/v1/orgs/{organizationSlug}`:
 

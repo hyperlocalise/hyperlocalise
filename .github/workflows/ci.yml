@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - apps/hyperlocalise-web/**
+      - "!apps/hyperlocalise-web/drizzle/**"
       - .github/workflows/web.yml
 
 permissions:
@@ -129,14 +130,55 @@ jobs:
       - name: Bazel test
         run: bazel test --config=ci //apps/cli/cmd:cmd_test
 
-  go-quality:
-    name: Go Quality
+  go-test:
+    name: Go Test/Build
     if: github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
-
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: hyperlocalise
+          POSTGRES_USER: hyperlocalise
+          POSTGRES_PASSWORD: hyperlocalise
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hyperlocalise -d hyperlocalise"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      valkey:
+        image: valkey/valkey:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
+      VALKEY_URL: redis://127.0.0.1:6379
+      GO_SVC_INTEGRATION: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          working-directory: apps/hyperlocalise-web
+          cache: true
+          run-install: false
+
+      - name: Install hyperlocalise-web dependencies
+        working-directory: apps/hyperlocalise-web
+        run: vp install --frozen-lockfile
+
+      - name: Migrate hyperlocalise-web database
+        working-directory: apps/hyperlocalise-web
+        run: vp run db:migrate
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap

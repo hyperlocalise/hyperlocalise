@@ -1,78 +1,62 @@
 package main
 
 import (
-	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
-	"github.com/workos/workos-go/v10"
 )
 
-const testTeamID = testDictionaryID
-
-func teamAuthStep() dictionaryDBStep {
-	return dictionaryAuthStep()
-}
-
-func teamRecordValues() []any {
-	return []any{testTeamID, testDictionaryOrgID, "platform", "Platform", testDictionaryTime, testDictionaryTime}
-}
-
-func teamOwnedRowStep() dictionaryDBStep {
-	step := dictionaryRowStep("from teams where id=$1 and organization_id=$2", teamRecordValues()...)
-	step.args = []any{testTeamID, testDictionaryOrgID}
-	return step
-}
-
-func teamCreateSteps() []dictionaryDBStep {
-	return []dictionaryDBStep{
-		{kind: "begin"},
-		{
-			kind:   "row",
-			sql:    "insert into teams",
-			values: [][]any{teamRecordValues()},
-		},
-		{kind: "exec", sql: "insert into team_memberships"},
-		{kind: "commit"},
-	}
-}
-
-func teamListIDSteps(ids ...string) []dictionaryDBStep {
-	rows := make([][]any, len(ids))
-	for i, id := range ids {
-		rows[i] = []any{id}
-	}
-	return []dictionaryDBStep{
-		{kind: "query", sql: "select id from teams where organization_id", values: rows},
-		{
-			kind: "query",
-			sql:  "member_count",
-			values: [][]any{{
-				testTeamID, "platform", "Platform", testDictionaryTime, testDictionaryTime, 1, ptrString("manager"),
-			}},
-		},
-	}
-}
-
-func ptrString(value string) *string {
-	return &value
-}
-
-func teamTestAPI(t *testing.T, role string, steps ...dictionaryDBStep) (*teamAPI, *dictionaryTestDB) {
+func teamTestAPI(t *testing.T, role string) (*teamAPI, *testenv.Scope) {
 	t.Helper()
-	db := newDictionaryTestDB(t, append([]dictionaryDBStep{teamAuthStep()}, steps...)...)
-	api := &teamAPI{
-		pool: db,
-		membership: func(_ context.Context, id string) (*workos.UserOrganizationMembership, error) {
-			require.Equal(t, "om_live", id)
-			return &workos.UserOrganizationMembership{
-				ID:             id,
-				UserID:         "user_live",
-				OrganizationID: "org_live",
-				Status:         "active",
-				Role:           &workos.SlimRole{Slug: role},
-			}, nil
-		},
-	}
-	return api, db
+	scope := testenv.Seed(t, testenv.Options{Role: role})
+	return &teamAPI{
+		pool:       scope.Pool,
+		membership: scope.Membership(role),
+	}, scope
+}
+
+func teamRequest(api *teamAPI, scope *testenv.Scope, method, path, body string) *httptest.ResponseRecorder {
+	mux := http.NewServeMux()
+	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: scope.WorkOSUserID}})
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+func teamRequestForTest(api *teamAPI, method, path, body string) *httptest.ResponseRecorder {
+	mux := http.NewServeMux()
+	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_live"}})
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+func mustOrgTeammate(t *testing.T, scope *testenv.Scope, workosUserID, email, role string) string {
+	t.Helper()
+	userID := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into users (id, workos_user_id, email)
+        values ($1, $2, $3)`,
+		userID, workosUserID, email)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into organization_memberships (organization_id, user_id, workos_membership_id, role)
+        values ($1, $2, $3, $4)`,
+		scope.OrganizationID, userID, "om_"+uuid.NewString(), role)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, userID)
+	})
+	return userID
 }

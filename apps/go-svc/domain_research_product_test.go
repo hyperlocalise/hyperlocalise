@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
+	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,19 +52,18 @@ func TestValidateResearchKeywordBodies(t *testing.T) {
 }
 
 func TestDomainResearchExpandRejectsUnknownMarket(t *testing.T) {
-	const linkedDomainID = "55555555-5555-4555-8555-555555555555"
-	db := newDictionaryTestDB(t,
-		dictionaryAuthStep(),
-		dictionaryRowStep("workos_organization_id", "org_live"),
-		dictionaryRowStep("from linked_domains d",
-			linkedDomainID, testDictionaryOrgID, "example.com", "example-com", "https://example.com/", []string{}, "verified",
-			nil, nil, nil, nil, nil, time.Now(), time.Now(), "token", nil,
-		),
-	)
-	h := workspaceHandler(db, "admin", stubWorkspaceFlags{enabled: true})
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	linkedDomainID := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into linked_domains (
+            id, organization_id, created_by_user_id, domain_key, domain_slug, source_url, status, verification_token
+        ) values ($1, $2, $3, 'example.com', 'example-com', 'https://example.com/', 'verified', 'token')`,
+		linkedDomainID, scope.OrganizationID, scope.UserID)
+	require.NoError(t, err)
+	h := workspaceHandler(scope, "admin", stubWorkspaceFlags{enabled: true})
 	h.research = fakeResearch{}
-	path := "/v1/orgs/acme/domains/" + linkedDomainID + "/research/keywords/expand"
-	rec := workspaceRequest(t, h, http.MethodPost, path, `{"seedKeyword":"seo","marketId":"unknown"}`)
+	path := scope.OrgPath("/domains/" + linkedDomainID + "/research/keywords/expand")
+	rec := workspaceRequest(t, h, scope, http.MethodPost, path, `{"seedKeyword":"seo","marketId":"unknown"}`)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "market_not_found")
 }

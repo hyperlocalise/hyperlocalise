@@ -1,25 +1,20 @@
-package valkey
+package valkey_test
 
 import (
-	"os"
 	"testing"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/valkey"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCacheCommands(t *testing.T) {
-	url := os.Getenv("VALKEY_TEST_URL")
-	if url == "" {
-		t.Skip("set VALKEY_TEST_URL to run cache command integration tests")
-	}
-	client, err := NewClient(Config{URL: url})
-	require.NoError(t, err)
-	t.Cleanup(client.Close)
+	_, client := testenv.Open(t)
 	key := "go-svc:test:cache:" + t.Name() + time.Now().Format("150405.000000000")
 	ctx := t.Context()
-	_, err = client.Get(ctx, key)
-	require.ErrorIs(t, err, ErrNil)
+	_, err := client.Get(ctx, key)
+	require.ErrorIs(t, err, valkey.ErrNil)
 	require.NoError(t, client.Set(ctx, key, `["AuthKit"]`, time.Minute))
 	value, err := client.Get(ctx, key)
 	require.NoError(t, err)
@@ -30,8 +25,8 @@ func TestCacheCommands(t *testing.T) {
 	require.LessOrEqual(t, ttl, time.Minute.Milliseconds())
 	require.NoError(t, client.Set(ctx, key, `[]`, 10*time.Millisecond))
 	require.Eventually(t, func() bool {
-		_, err := client.Get(ctx, key)
-		return err != nil
+		_, getErr := client.Get(ctx, key)
+		return getErr != nil
 	}, time.Second, 10*time.Millisecond)
 	revKey := key + ":rev"
 	first, err := client.Incr(ctx, revKey)

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
-	"github.com/workos/workos-go/v10"
 )
 
 type stubAutumnChecker struct {
@@ -22,32 +22,20 @@ func (s stubAutumnChecker) BooleanFeatureEnabled(context.Context, string, string
 	return s.allowed
 }
 
-func issueSheetTestAPI(t *testing.T, autumnAllow bool, steps ...dictionaryDBStep) (*issueSheetAPI, *dictionaryTestDB) {
+func issueSheetTestAPI(t *testing.T, autumnAllow bool) (*issueSheetAPI, *testenv.Scope) {
 	t.Helper()
-	return issueSheetTestAPIRole(t, autumnAllow, "admin", steps...)
+	return issueSheetTestAPIRole(t, autumnAllow, "admin")
 }
 
-func issueSheetTestAPIRole(t *testing.T, autumnAllow bool, role string, steps ...dictionaryDBStep) (*issueSheetAPI, *dictionaryTestDB) {
+func issueSheetTestAPIRole(t *testing.T, autumnAllow bool, role string) (*issueSheetAPI, *testenv.Scope) {
 	t.Helper()
-	db := newDictionaryTestDB(t, append([]dictionaryDBStep{
-		{kind: "row", sql: "from users u join organization_memberships", values: [][]any{{
-			testDictionaryUserID, testDictionaryOrgID, "acme", "mem_1", "org_workos",
-		}}},
-	}, steps...)...)
+	scope := testenv.Seed(t, testenv.Options{Role: role, WithProject: true})
 	api := &issueSheetAPI{
-		pool: db,
-		membership: func(_ context.Context, id string) (*workos.UserOrganizationMembership, error) {
-			return &workos.UserOrganizationMembership{
-				ID:             id,
-				UserID:         "user_123",
-				OrganizationID: "org_workos",
-				Status:         "active",
-				Role:           &workos.SlimRole{Slug: role},
-			}, nil
-		},
-		autumn: stubAutumnChecker{allowed: autumnAllow},
+		pool:       scope.Pool,
+		membership: scope.Membership(role),
+		autumn:     stubAutumnChecker{allowed: autumnAllow},
 	}
-	return api, db
+	return api, scope
 }
 
 func issueSheetAuthedRequest(method, path, body string) *http.Request {
@@ -59,27 +47,54 @@ func issueSheetAuthedRequest(method, path, body string) *http.Request {
 	return req
 }
 
-func issueSheetServe(api *issueSheetAPI, req *http.Request) *httptest.ResponseRecorder {
+func issueSheetServe(api *issueSheetAPI, userID string, req *http.Request) *httptest.ResponseRecorder {
 	mux := http.NewServeMux()
-	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_123"}})
+	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: userID}})
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	return rec
 }
 
+func issueSheetPath(scope *testenv.Scope, suffix string) string {
+	base := scope.OrgPath("/projects/" + scope.ProjectID + "/issue-sheet")
+	if suffix == "" {
+		return base
+	}
+	if !strings.HasPrefix(suffix, "/") {
+		suffix = "/" + suffix
+	}
+	return base + suffix
+}
+
+func mustIssueSheetIssue(t *testing.T, scope *testenv.Scope, number int, title string) (id, identifier string) {
+	t.Helper()
+	id = uuid.NewString()
+	var prefix string
+	err := scope.Pool.QueryRow(t.Context(), `select identifier from projects where id=$1`, scope.ProjectID).Scan(&prefix)
+	require.NoError(t, err)
+	identifier = fmt.Sprintf("%s-%d", prefix, number)
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into issue_sheet_issues (
+            id, organization_id, project_id, number, identifier, title, reporter_user_id
+        ) values ($1, $2, $3, $4, $5, $6, $7)`,
+		id, scope.OrganizationID, scope.ProjectID, number, identifier, title, scope.UserID)
+	require.NoError(t, err)
+	return id, identifier
+}
+
 func TestIssueSheetAutumnDeny(t *testing.T) {
-	api, _ := issueSheetTestAPI(t, false)
-	req := issueSheetAuthedRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/issue-sheet", "")
-	rec := issueSheetServe(api, req)
+	api, scope := issueSheetTestAPI(t, false)
+	req := issueSheetAuthedRequest(http.MethodGet, issueSheetPath(scope, ""), "")
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "feature_unavailable")
 }
 
 func TestIssueSheetAutumnNilChecker(t *testing.T) {
-	api, _ := issueSheetTestAPI(t, true)
+	api, scope := issueSheetTestAPI(t, true)
 	api.autumn = nil
-	req := issueSheetAuthedRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/issue-sheet", "")
-	rec := issueSheetServe(api, req)
+	req := issueSheetAuthedRequest(http.MethodGet, issueSheetPath(scope, ""), "")
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "feature_unavailable")
 }
@@ -87,115 +102,100 @@ func TestIssueSheetAutumnNilChecker(t *testing.T) {
 func TestIssueSheetUnavailableWithoutPool(t *testing.T) {
 	api := &issueSheetAPI{autumn: stubAutumnChecker{allowed: true}}
 	req := issueSheetAuthedRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/issue-sheet", "")
-	rec := issueSheetServe(api, req)
+	rec := issueSheetServe(api, "user_live", req)
 	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	require.Contains(t, rec.Body.String(), "issue_sheet_unavailable")
 }
 
 func TestIssueSheetUnauthorized(t *testing.T) {
-	api := &issueSheetAPI{pool: newDictionaryTestDB(t), autumn: stubAutumnChecker{allowed: true}}
-	req := httptest.NewRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/issue-sheet", nil)
-	rec := issueSheetServe(api, req)
+	api, scope := issueSheetTestAPI(t, true)
+	req := httptest.NewRequest(http.MethodGet, issueSheetPath(scope, ""), nil)
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
 	require.Contains(t, rec.Body.String(), "unauthorized")
 }
 
 func TestIssueSheetOriginGuard(t *testing.T) {
-	api := &issueSheetAPI{pool: newDictionaryTestDB(t), autumn: stubAutumnChecker{allowed: true}}
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet", strings.NewReader(`{}`))
+	api, scope := issueSheetTestAPI(t, true)
+	req := httptest.NewRequest(http.MethodPost, "http://localhost"+issueSheetPath(scope, ""), strings.NewReader(`{}`))
 	req.Header.Set("Origin", "https://evil.example")
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
-	rec := issueSheetServe(api, req)
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "forbidden")
 }
 
 func TestIssueSheetCrossSiteFetchGuard(t *testing.T) {
-	api := &issueSheetAPI{pool: newDictionaryTestDB(t), autumn: stubAutumnChecker{allowed: true}}
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet", strings.NewReader(`{}`))
+	api, scope := issueSheetTestAPI(t, true)
+	req := httptest.NewRequest(http.MethodPost, "http://localhost"+issueSheetPath(scope, ""), strings.NewReader(`{}`))
 	req.Header.Set("Sec-Fetch-Site", "cross-site")
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
-	rec := issueSheetServe(api, req)
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 }
 
 func TestIssueSheetMemberCannotDelete(t *testing.T) {
-	api, _ := issueSheetTestAPIRole(t, true, "member",
-		dictionaryRowStep("from projects p", "proj_1", "HL"),
-	)
-	req := issueSheetAuthedRequest(http.MethodDelete, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1", "")
-	rec := issueSheetServe(api, req)
+	api, scope := issueSheetTestAPIRole(t, true, "member")
+	scope.MustTeam(t, "default", "Default", "member")
+	_, identifier := mustIssueSheetIssue(t, scope, 1, "Broken")
+	req := issueSheetAuthedRequest(http.MethodDelete, "http://localhost"+issueSheetPath(scope, identifier), "")
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "forbidden")
 }
 
 func TestIssueSheetDeleteIssue(t *testing.T) {
-	issueID := "11111111-1111-4111-8111-111111111111"
-	api, _ := issueSheetTestAPI(t, true,
-		dictionaryRowStep("from projects p", "proj_1", "HL"),
-		dictionaryRowStep("select id from issue_sheet_issues", issueID),
-		dictionaryDBStep{
-			kind:     "exec",
-			sql:      "delete from issue_sheet_issues",
-			args:     []any{testDictionaryOrgID, "proj_1", issueID},
-			affected: 1,
-		},
-	)
-	req := issueSheetAuthedRequest(http.MethodDelete, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1", "")
-	rec := issueSheetServe(api, req)
+	api, scope := issueSheetTestAPI(t, true)
+	_, identifier := mustIssueSheetIssue(t, scope, 1, "Broken")
+	req := issueSheetAuthedRequest(http.MethodDelete, "http://localhost"+issueSheetPath(scope, identifier), "")
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusNoContent, rec.Code)
 	require.Empty(t, rec.Body.String())
 }
 
 func TestIssueSheetDeleteIssueMissing(t *testing.T) {
-	api, _ := issueSheetTestAPI(t, true,
-		dictionaryRowStep("from projects p", "proj_1", "HL"),
-		dictionaryDBStep{kind: "row", sql: "select id from issue_sheet_issues", err: pgx.ErrNoRows},
-	)
-	req := issueSheetAuthedRequest(http.MethodDelete, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/HL-999", "")
-	rec := issueSheetServe(api, req)
+	api, scope := issueSheetTestAPI(t, true)
+	req := issueSheetAuthedRequest(http.MethodDelete, "http://localhost"+issueSheetPath(scope, "HL-999"), "")
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusNotFound, rec.Code)
 	require.Contains(t, rec.Body.String(), "issue_not_found")
 }
 
 func TestIssueSheetMemberCannotCreate(t *testing.T) {
-	api, _ := issueSheetTestAPIRole(t, true, "member",
-		dictionaryRowStep("from projects p", "proj_1", "HL"),
-	)
-	req := issueSheetAuthedRequest(http.MethodPost, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet", `{"title":"x"}`)
-	rec := issueSheetServe(api, req)
+	api, scope := issueSheetTestAPIRole(t, true, "member")
+	scope.MustTeam(t, "default", "Default", "member")
+	req := issueSheetAuthedRequest(http.MethodPost, "http://localhost"+issueSheetPath(scope, ""), `{"title":"x"}`)
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "forbidden")
 }
 
 func TestIssueSheetMemberCannotManageColumns(t *testing.T) {
-	api, _ := issueSheetTestAPIRole(t, true, "member",
-		dictionaryRowStep("from projects p", "proj_1", "HL"),
-	)
-	req := issueSheetAuthedRequest(http.MethodPost, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/columns", `{"key":"note","label":"Note","type":"text"}`)
-	rec := issueSheetServe(api, req)
+	api, scope := issueSheetTestAPIRole(t, true, "member")
+	scope.MustTeam(t, "default", "Default", "member")
+	req := issueSheetAuthedRequest(http.MethodPost, "http://localhost"+issueSheetPath(scope, "columns"), `{"key":"note","label":"Note","type":"text"}`)
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 }
 
 func TestIssueSheetUnknownRoute(t *testing.T) {
 	api := &issueSheetAPI{autumn: stubAutumnChecker{allowed: true}}
 	req := issueSheetAuthedRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/unknown", "")
-	rec := issueSheetServe(api, req)
+	rec := issueSheetServe(api, "user_live", req)
 	require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 }
 
 func TestIssueSheetInvalidRelationshipKind(t *testing.T) {
-	api, _ := issueSheetTestAPI(t, true,
-		dictionaryRowStep("from projects p", "proj_1", "HL"),
-	)
+	api, scope := issueSheetTestAPI(t, true)
+	_, identifier := mustIssueSheetIssue(t, scope, 1, "Broken")
 	req := issueSheetAuthedRequest(
 		http.MethodPost,
-		"http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/relationships",
+		"http://localhost"+issueSheetPath(scope, identifier+"/relationships"),
 		`{"relatedIssueId":"HL-2","kind":"depends_on"}`,
 	)
-	rec := issueSheetServe(api, req)
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "invalid_issue_relationship_payload")
 }
@@ -219,16 +219,14 @@ func TestIssueSheetProtectedColumnDelete(t *testing.T) {
 }
 
 func TestIssueSheetSelfRelationshipRejected(t *testing.T) {
-	api, _ := issueSheetTestAPI(t, true,
-		dictionaryRowStep("from projects p", "proj_1", "HL"),
-		dictionaryRowStep("from issue_sheet_issues", "issue-1"),
-	)
+	api, scope := issueSheetTestAPI(t, true)
+	_, identifier := mustIssueSheetIssue(t, scope, 1, "Broken")
 	req := issueSheetAuthedRequest(
 		http.MethodPost,
-		"http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/relationships",
-		`{"relatedIssueId":"HL-1","kind":"related"}`,
+		"http://localhost"+issueSheetPath(scope, identifier+"/relationships"),
+		`{"relatedIssueId":"`+identifier+`","kind":"related"}`,
 	)
-	rec := issueSheetServe(api, req)
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "relationship_target_is_self")
 }
