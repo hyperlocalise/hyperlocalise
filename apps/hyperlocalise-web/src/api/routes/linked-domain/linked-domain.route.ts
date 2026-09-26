@@ -316,6 +316,7 @@ export function createLinkedDomainRoutes() {
         return notFoundResponse(c, "project_not_found");
       }
       const result = await verifyAndClaimLinkedDomain({
+        auth: c.var.auth,
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
         linkedDomainId,
@@ -356,7 +357,7 @@ export function createLinkedDomainRoutes() {
           return notFoundResponse(c, "linked_domain_not_found");
         }
         const result = await updateLinkedDomainMarkets({
-          organizationId: c.var.auth.organization.localOrganizationId,
+          auth: c.var.auth,
           linkedDomainId,
           marketIds: body.marketIds,
         });
@@ -382,7 +383,7 @@ export function createLinkedDomainRoutes() {
           return notFoundResponse(c, "project_not_found");
         }
         const result = await updateLinkedDomainProject({
-          organizationId: c.var.auth.organization.localOrganizationId,
+          auth: c.var.auth,
           linkedDomainId,
           projectId: body.projectId,
         });
@@ -404,7 +405,7 @@ export function createLinkedDomainRoutes() {
         return notFoundResponse(c, "linked_domain_not_found");
       }
       const result = await cancelPendingLinkedDomainClaim({
-        organizationId: c.var.auth.organization.localOrganizationId,
+        auth: c.var.auth,
         linkedDomainId,
       });
 

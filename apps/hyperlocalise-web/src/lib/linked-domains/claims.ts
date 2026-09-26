@@ -46,14 +46,14 @@ import { verifyLinkedDomainChallenge, type PublicFetchFn, type ResolveTxtFn } fr
 
 export type LinkedDomainRow = typeof schema.linkedDomains.$inferSelect;
 
-async function accessibleLinkedDomainsWhere(auth: ApiAuthContext) {
+async function accessibleLinkedDomainsWhere(auth: ApiAuthContext, database: DatabaseClient = db) {
   const organizationScope = eq(
     schema.linkedDomains.organizationId,
     auth.organization.localOrganizationId,
   );
   if (hasOrganizationWideProjectAccess(auth)) return organizationScope;
 
-  const accessibleProjects = db
+  const accessibleProjects = database
     .select({ id: schema.projects.id })
     .from(schema.projects)
     .where(await buildAccessibleProjectsWhere(auth));
@@ -227,7 +227,7 @@ export async function getLinkedDomainAudit(input: {
 }
 
 export async function updateLinkedDomainProject(input: {
-  organizationId: string;
+  auth: ApiAuthContext;
   linkedDomainId: string;
   projectId: string | null;
   database?: DatabaseClient;
@@ -239,7 +239,7 @@ export async function updateLinkedDomainProject(input: {
     .where(
       and(
         eq(schema.linkedDomains.id, input.linkedDomainId),
-        eq(schema.linkedDomains.organizationId, input.organizationId),
+        await accessibleLinkedDomainsWhere(input.auth, database),
       ),
     )
     .limit(1);
@@ -262,7 +262,7 @@ export async function updateLinkedDomainProject(input: {
       .where(
         and(
           eq(schema.projects.id, input.projectId),
-          eq(schema.projects.organizationId, input.organizationId),
+          eq(schema.projects.organizationId, input.auth.organization.localOrganizationId),
         ),
       )
       .limit(1);
@@ -277,7 +277,12 @@ export async function updateLinkedDomainProject(input: {
   const [updated] = await database
     .update(schema.linkedDomains)
     .set({ projectId: input.projectId })
-    .where(eq(schema.linkedDomains.id, row.id))
+    .where(
+      and(
+        eq(schema.linkedDomains.id, row.id),
+        await accessibleLinkedDomainsWhere(input.auth, database),
+      ),
+    )
     .returning();
 
   if (!updated) {
@@ -294,7 +299,7 @@ export async function updateLinkedDomainProject(input: {
 }
 
 export async function updateLinkedDomainMarkets(input: {
-  organizationId: string;
+  auth: ApiAuthContext;
   linkedDomainId: string;
   marketIds: string[];
   database?: DatabaseClient;
@@ -306,7 +311,7 @@ export async function updateLinkedDomainMarkets(input: {
     .where(
       and(
         eq(schema.linkedDomains.id, input.linkedDomainId),
-        eq(schema.linkedDomains.organizationId, input.organizationId),
+        await accessibleLinkedDomainsWhere(input.auth, database),
       ),
     )
     .limit(1);
@@ -333,7 +338,12 @@ export async function updateLinkedDomainMarkets(input: {
   const [updated] = await database
     .update(schema.linkedDomains)
     .set({ marketIds })
-    .where(eq(schema.linkedDomains.id, row.id))
+    .where(
+      and(
+        eq(schema.linkedDomains.id, row.id),
+        await accessibleLinkedDomainsWhere(input.auth, database),
+      ),
+    )
     .returning();
   if (!updated) {
     return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
@@ -585,7 +595,7 @@ export async function startDirectLinkedDomainClaim(input: {
 }
 
 export async function cancelPendingLinkedDomainClaim(input: {
-  organizationId: string;
+  auth: ApiAuthContext;
   linkedDomainId: string;
   database?: DatabaseClient;
 }): Promise<Result<true, LinkedDomainError>> {
@@ -596,7 +606,7 @@ export async function cancelPendingLinkedDomainClaim(input: {
     .where(
       and(
         eq(schema.linkedDomains.id, input.linkedDomainId),
-        eq(schema.linkedDomains.organizationId, input.organizationId),
+        await accessibleLinkedDomainsWhere(input.auth, database),
       ),
     )
     .limit(1);
@@ -612,11 +622,24 @@ export async function cancelPendingLinkedDomainClaim(input: {
     });
   }
 
-  await database.delete(schema.linkedDomains).where(eq(schema.linkedDomains.id, row.id));
+  const deleted = await database
+    .delete(schema.linkedDomains)
+    .where(
+      and(
+        eq(schema.linkedDomains.id, row.id),
+        await accessibleLinkedDomainsWhere(input.auth, database),
+        eq(schema.linkedDomains.status, "pending_verification"),
+      ),
+    )
+    .returning({ id: schema.linkedDomains.id });
+  if (deleted.length === 0) {
+    return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
   return ok(true);
 }
 
 export async function verifyAndClaimLinkedDomain(input: {
+  auth: ApiAuthContext;
   organizationId: string;
   userId: string;
   linkedDomainId: string;
@@ -646,7 +669,7 @@ export async function verifyAndClaimLinkedDomain(input: {
     .where(
       and(
         eq(schema.linkedDomains.id, input.linkedDomainId),
-        eq(schema.linkedDomains.organizationId, input.organizationId),
+        await accessibleLinkedDomainsWhere(input.auth, database),
       ),
     )
     .limit(1);
@@ -705,10 +728,19 @@ export async function verifyAndClaimLinkedDomain(input: {
     }
   }
 
-  await database
+  const [prepared] = await database
     .update(schema.linkedDomains)
     .set({ preferredMethod: input.method })
-    .where(eq(schema.linkedDomains.id, row.id));
+    .where(
+      and(
+        eq(schema.linkedDomains.id, row.id),
+        await accessibleLinkedDomainsWhere(input.auth, database),
+      ),
+    )
+    .returning({ id: schema.linkedDomains.id });
+  if (!prepared) {
+    return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
 
   const check = await verifyLinkedDomainChallenge({
     method: input.method,
@@ -730,6 +762,7 @@ export async function verifyAndClaimLinkedDomain(input: {
       .where(
         and(
           eq(schema.linkedDomains.id, row.id),
+          await accessibleLinkedDomainsWhere(input.auth, database),
           inArray(schema.linkedDomains.status, ["pending_verification", "failed"]),
         ),
       );
@@ -834,6 +867,7 @@ export async function verifyAndClaimLinkedDomain(input: {
         .where(
           and(
             eq(schema.linkedDomains.id, row.id),
+            await accessibleLinkedDomainsWhere(input.auth, tx),
             inArray(schema.linkedDomains.status, ["pending_verification", "failed"]),
           ),
         )
