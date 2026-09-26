@@ -46,8 +46,10 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   };
 });
 
+import { evlog } from "evlog/hono";
 import { Hono } from "hono";
 
+import { handleUnexpectedError } from "@/api/errors";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { resetGscProviderForTests, setGscProviderForTests } from "@/lib/gsc/provider";
@@ -56,10 +58,13 @@ import { err, ok } from "@/lib/primitives/result/results";
 
 import { createDomainSearchConsoleRoutes } from "./domain-search-console.route";
 
-const searchConsoleApp = new Hono().route(
-  "/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/search-console",
-  createDomainSearchConsoleRoutes(),
-);
+const searchConsoleApp = new Hono()
+  .use("*", evlog())
+  .onError(handleUnexpectedError)
+  .route(
+    "/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/search-console",
+    createDomainSearchConsoleRoutes(),
+  );
 const client = testClient<typeof searchConsoleApp>(searchConsoleApp);
 const fixture = createAuthTestFixture();
 
