@@ -102,7 +102,10 @@ describe("recommendDomainMarkets", () => {
   });
 
   it("rejects invalid domains before fetching", async () => {
-    const result = await recommendDomainMarkets({ domain: "not a domain", organizationSlug: "acme" });
+    const result = await recommendDomainMarkets({
+      domain: "not a domain",
+      organizationSlug: "acme",
+    });
 
     expect(result).toMatchObject({
       ok: false,
@@ -129,7 +132,10 @@ describe("recommendDomainMarkets", () => {
       }),
     });
 
-    const result = await recommendDomainMarkets({ domain: "example.com", organizationSlug: "acme" });
+    const result = await recommendDomainMarkets({
+      domain: "example.com",
+      organizationSlug: "acme",
+    });
 
     expect(result.ok).toBe(true);
     if (!result.ok) {
@@ -180,7 +186,10 @@ describe("recommendDomainMarkets", () => {
       }),
     });
 
-    const result = await recommendDomainMarkets({ domain: "example.com", organizationSlug: "acme" });
+    const result = await recommendDomainMarkets({
+      domain: "example.com",
+      organizationSlug: "acme",
+    });
 
     expect(result.ok).toBe(true);
     if (!result.ok) {
@@ -205,7 +214,10 @@ describe("recommendDomainMarkets", () => {
       error: { code: "provider_rate_limited", message: "Slow down." },
     });
 
-    const result = await recommendDomainMarkets({ domain: "example.com", organizationSlug: "acme" });
+    const result = await recommendDomainMarkets({
+      domain: "example.com",
+      organizationSlug: "acme",
+    });
 
     expect(result).toMatchObject({
       ok: false,

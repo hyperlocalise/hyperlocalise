@@ -204,7 +204,11 @@ export function createLinkedDomainRoutes() {
 
         const organizationSlug = c.var.auth.organization.slug;
         if (!organizationSlug) {
-          return serviceUnavailableResponse(c, "organization_slug_missing", "Organization slug is missing.");
+          return serviceUnavailableResponse(
+            c,
+            "organization_slug_missing",
+            "Organization slug is missing.",
+          );
         }
 
         const result = await recommendDomainMarkets({

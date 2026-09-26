@@ -108,7 +108,11 @@ function goSvcBaseUrl() {
 }
 
 function mapProviderError(status: number, body: GoSvcErrorBody): DomainResearchProviderError {
-  if (status === 503 || body.error === "dataforseo_not_configured" || body.error === "provider_not_configured") {
+  if (
+    status === 503 ||
+    body.error === "dataforseo_not_configured" ||
+    body.error === "provider_not_configured"
+  ) {
     return {
       code: "provider_not_configured",
       message: body.message || "DataForSEO is not configured.",
