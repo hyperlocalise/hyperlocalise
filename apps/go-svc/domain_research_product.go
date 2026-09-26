@@ -48,7 +48,7 @@ type linkedDomainRecord struct {
 	AuditScore          *int
 }
 
-func (h *handler) loadLinkedDomain(ctx context.Context, organizationID, linkedDomainID string, verified bool) (linkedDomainRecord, error) {
+func (h *handler) loadLinkedDomain(ctx context.Context, actor workspaceActor, linkedDomainID string, verified bool) (linkedDomainRecord, error) {
 	var domain linkedDomainRecord
 	err := h.workspace.pool.QueryRow(ctx, `
 		select d.id, d.organization_id, d.domain_key, d.domain_slug, d.source_url, d.market_ids, d.status,
@@ -56,7 +56,14 @@ func (h *handler) loadLinkedDomain(ctx context.Context, organizationID, linkedDo
 			d.created_at, d.updated_at, d.verification_token, a.score
 		from linked_domains d
 		left join localisation_audits a on a.id = d.localisation_audit_id
-		where d.id = $1 and d.organization_id = $2`, linkedDomainID, organizationID).Scan(
+		where d.id = $1 and d.organization_id = $2 and (
+			$3 or (d.project_id is null and d.created_by_user_id = $4) or exists (
+				select 1 from projects p join team_memberships m on m.user_id = $4
+				join teams t on t.id = m.team_id
+				where p.id = d.project_id and p.organization_id = $2 and t.organization_id = $2
+				and (t.id = p.team_id or (p.team_id is null and t.slug = 'default'))
+			)
+		)`, linkedDomainID, actor.organizationID, actor.role == "admin" || actor.role == "localization_manager", actor.userID).Scan(
 		&domain.ID, &domain.OrganizationID, &domain.DomainKey, &domain.DomainSlug, &domain.SourceURL, &domain.MarketIDs, &domain.Status,
 		&domain.PreferredMethod, &domain.VerifiedMethod, &domain.VerifiedAt, &domain.LocalisationAuditID, &domain.ProjectID,
 		&domain.CreatedAt, &domain.UpdatedAt, &domain.VerificationToken, &domain.AuditScore,
@@ -92,7 +99,7 @@ func (h *handler) orgDomainMarketVisibility(r *http.Request, _ workspaceActor) (
 }
 
 func (h *handler) getDomainResearch(r *http.Request, actor workspaceActor) (any, int, error) {
-	catalog, domain, err := h.loadResearchCatalog(r.Context(), actor.organizationID, r.PathValue("linkedDomainId"))
+	catalog, domain, err := h.loadResearchCatalog(r.Context(), actor, r.PathValue("linkedDomainId"))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -117,7 +124,7 @@ func (h *handler) expandDomainKeywords(r *http.Request, actor workspaceActor) (a
 	if err := decodeWorkspaceBody(r, &body); err != nil {
 		return nil, 0, workspaceFailure(400, "invalid_domain_research_payload", "Seed keyword and market are required.")
 	}
-	domain, err := h.loadLinkedDomain(r.Context(), actor.organizationID, r.PathValue("linkedDomainId"), true)
+	domain, err := h.loadLinkedDomain(r.Context(), actor, r.PathValue("linkedDomainId"), true)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -159,7 +166,7 @@ func (h *handler) saveDomainKeywords(r *http.Request, actor workspaceActor) (any
 	if err := decodeWorkspaceBody(r, &body); err != nil {
 		return nil, 0, workspaceFailure(400, "invalid_domain_research_payload", "Keywords to save are invalid.")
 	}
-	if _, err := h.loadLinkedDomain(r.Context(), actor.organizationID, r.PathValue("linkedDomainId"), true); err != nil {
+	if _, err := h.loadLinkedDomain(r.Context(), actor, r.PathValue("linkedDomainId"), true); err != nil {
 		return nil, 0, err
 	}
 	market, ok := researchMarketByID(strings.TrimSpace(body.MarketID))
@@ -201,7 +208,7 @@ func (h *handler) saveDomainKeywords(r *http.Request, actor workspaceActor) (any
 	if err := tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
 	}
-	catalog, _, err := h.loadResearchCatalog(r.Context(), actor.organizationID, r.PathValue("linkedDomainId"))
+	catalog, _, err := h.loadResearchCatalog(r.Context(), actor, r.PathValue("linkedDomainId"))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -218,7 +225,7 @@ func (h *handler) inspectDomainSerp(r *http.Request, actor workspaceActor) (any,
 	if err := decodeWorkspaceBody(r, &body); err != nil || strings.TrimSpace(body.Keyword) == "" {
 		return nil, 0, workspaceFailure(400, "invalid_domain_research_payload", "Keyword and market are required.")
 	}
-	domain, err := h.loadLinkedDomain(r.Context(), actor.organizationID, r.PathValue("linkedDomainId"), true)
+	domain, err := h.loadLinkedDomain(r.Context(), actor, r.PathValue("linkedDomainId"), true)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -273,7 +280,7 @@ func (h *handler) trackDomainKeywords(r *http.Request, actor workspaceActor) (an
 	if err := decodeWorkspaceBody(r, &body); err != nil {
 		return nil, 0, workspaceFailure(400, "invalid_domain_research_payload", "Keywords to track are invalid.")
 	}
-	domain, err := h.loadLinkedDomain(r.Context(), actor.organizationID, r.PathValue("linkedDomainId"), true)
+	domain, err := h.loadLinkedDomain(r.Context(), actor, r.PathValue("linkedDomainId"), true)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -290,7 +297,7 @@ func (h *handler) trackDomainKeywords(r *http.Request, actor workspaceActor) (an
 	}
 	rows := uniqueResearchKeywords(body.Keywords)
 	if len(rows) == 0 {
-		catalog, _, err := h.loadResearchCatalog(r.Context(), actor.organizationID, domain.ID)
+		catalog, _, err := h.loadResearchCatalog(r.Context(), actor, domain.ID)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -354,7 +361,7 @@ func (h *handler) trackDomainKeywords(r *http.Request, actor workspaceActor) (an
 	if err := tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
 	}
-	catalog, _, err := h.loadResearchCatalog(r.Context(), actor.organizationID, domain.ID)
+	catalog, _, err := h.loadResearchCatalog(r.Context(), actor, domain.ID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -362,7 +369,7 @@ func (h *handler) trackDomainKeywords(r *http.Request, actor workspaceActor) (an
 }
 
 func (h *handler) refreshDomainRanks(r *http.Request, actor workspaceActor) (any, int, error) {
-	domain, err := h.loadLinkedDomain(r.Context(), actor.organizationID, r.PathValue("linkedDomainId"), true)
+	domain, err := h.loadLinkedDomain(r.Context(), actor, r.PathValue("linkedDomainId"), true)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -429,7 +436,7 @@ func (h *handler) refreshDomainRanks(r *http.Request, actor workspaceActor) (any
 	if err := h.applyRankChecks(r.Context(), checks, true); err != nil {
 		return nil, 0, err
 	}
-	catalog, _, err := h.loadResearchCatalog(r.Context(), actor.organizationID, domain.ID)
+	catalog, _, err := h.loadResearchCatalog(r.Context(), actor, domain.ID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -623,8 +630,8 @@ func nullableString(value *string) any {
 	return *value
 }
 
-func (h *handler) loadResearchCatalog(ctx context.Context, organizationID, linkedDomainID string) (map[string]any, linkedDomainRecord, error) {
-	domain, err := h.loadLinkedDomain(ctx, organizationID, linkedDomainID, false)
+func (h *handler) loadResearchCatalog(ctx context.Context, actor workspaceActor, linkedDomainID string) (map[string]any, linkedDomainRecord, error) {
+	domain, err := h.loadLinkedDomain(ctx, actor, linkedDomainID, false)
 	if err != nil {
 		return nil, domain, err
 	}

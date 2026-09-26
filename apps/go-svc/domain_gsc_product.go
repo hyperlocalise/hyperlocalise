@@ -35,7 +35,7 @@ func (h *handler) getDomainSearchConsole(r *http.Request, actor workspaceActor) 
 		return nil, 0, workspaceFailure(400, "invalid_search_console_query", "Date range is invalid.")
 	}
 	locale := strings.TrimSpace(r.URL.Query().Get("locale"))
-	domain, err := h.loadLinkedDomain(r.Context(), actor.organizationID, r.PathValue("linkedDomainId"), false)
+	domain, err := h.loadLinkedDomain(r.Context(), actor, r.PathValue("linkedDomainId"), false)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -133,7 +133,7 @@ func (h *handler) inspectDomainSearchConsole(r *http.Request, actor workspaceAct
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
 		return nil, 0, workspaceFailure(400, "invalid_search_console_inspect_payload", "A valid URL is required.")
 	}
-	domain, err := h.loadLinkedDomain(r.Context(), actor.organizationID, r.PathValue("linkedDomainId"), false)
+	domain, err := h.loadLinkedDomain(r.Context(), actor, r.PathValue("linkedDomainId"), false)
 	if err != nil {
 		return nil, 0, err
 	}

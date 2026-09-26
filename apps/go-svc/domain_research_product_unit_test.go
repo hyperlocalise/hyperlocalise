@@ -36,13 +36,13 @@ func TestLoadLinkedDomainAndCatalog(t *testing.T) {
 	h := newHandler()
 	h.workspace = &workspaceAPI{pool: pool}
 
-	domain, err := h.loadLinkedDomain(context.Background(), orgID, linkedID, true)
+	domain, err := h.loadLinkedDomain(context.Background(), workspaceActor{organizationID: orgID, role: "admin"}, linkedID, true)
 	require.NoError(t, err)
 	require.Equal(t, "verified", domain.Status)
 
 	pool = &scriptPool{steps: []dbStep{{op: opQueryRow, err: pgx.ErrNoRows}}}
 	h.workspace.pool = pool
-	_, err = h.loadLinkedDomain(context.Background(), orgID, linkedID, false)
+	_, err = h.loadLinkedDomain(context.Background(), workspaceActor{organizationID: orgID, role: "admin"}, linkedID, false)
 	require.EqualError(t, err, "linked_domain_not_found")
 
 	pool = &scriptPool{steps: []dbStep{
