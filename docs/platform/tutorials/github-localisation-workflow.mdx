@@ -1,9 +1,9 @@
 ---
 title: "GitHub localisation workflow"
-description: "Move source files from a pull request through Cloud review and return approved translations to git."
+description: "Move source files from a pull request through Platform review and return approved translations to git."
 ---
 
-This tutorial connects a GitHub repository to Hyperlocalise Cloud. Engineers keep source content in git, reviewers approve language in Cloud, and approved translations return through a pull request.
+This tutorial connects a GitHub repository to Hyperlocalise Platform. Engineers keep source content in git, reviewers approve language in Platform, and approved translations return through a pull request.
 
 By the end, your repository will:
 
@@ -120,7 +120,7 @@ jobs:
           HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
-The dry run validates configuration and shows which source files the merge would upload. It does not change Cloud.
+The dry run validates configuration and shows which source files the merge would upload. It does not change Platform.
 
 Add your framework's extraction or source-file validation before this step. For example, a React app should verify that its extracted FormatJS catalog matches the code.
 
@@ -149,9 +149,9 @@ Add this job to the same workflow:
           HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
-`sync push` uploads source files only. It does not start a translation job. In Cloud, add a **Source upload** automation or create a request after the upload.
+`sync push` uploads source files only. It does not start a translation job. In Platform, add a **Source upload** automation or create a request after the upload.
 
-## 5. Review and approve in Cloud
+## 5. Review and approve in Platform
 
 Open the project after the source job completes:
 

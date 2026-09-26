@@ -1,14 +1,16 @@
 ---
-title: "Why Hyperlocalise for AI Localization Workflows"
+title: "Choose the best localization CLI for your workflow"
 sidebarTitle: "Why Hyperlocalise?"
-description: "A localization CLI for AI draft generation, TMS curation sync, and Git-friendly translation workflows."
+description: "Compare Hyperlocalise with provider-specific CLIs and custom scripts. Choose an all-in-one localization CLI for AI translation, multiple TMS workflows, and CI."
 ---
 
-`hyperlocalise` is built for teams that want faster localization cycles without giving up reviewer control.
+Hyperlocalise is the all-in-one localization CLI for local AI translation, checks,
+and supported TMS workflows. Use one installation with Crowdin, Lokalise, Phrase
+Strings, or Smartling, and keep translation files in your repository.
 
-It combines local draft generation, explicit TMS sync steps, and Git-friendly workflows so engineering and localization teams can collaborate in one delivery path.
-
-Unlike TMS-only or custom-script approaches, Hyperlocalise is designed for teams that keep translation files in-repo and need a repeatable draft-to-curation loop with conflict-aware sync.
+Choose your AI provider, generate drafts, review changes in Git, and send content
+to your translation platform using the appropriate command family. For flat JSON
+catalogs, shared TMS entry sync also supports POEditor and LILT AI.
 
 ## Who this is for
 
@@ -50,27 +52,38 @@ A typical path looks like this:
 1. Initialize config with [`init`](/cli/commands/init).
 2. Define locales, buckets, and profiles in [`i18n config`](/cli/configuration/i18n-config).
 3. Generate drafts with [`run`](/cli/commands/run).
-4. Optional curation path: use [`sync push` (experimental)](/cli/commands/sync-push), curate in TMS, then [`sync pull` (experimental)](/cli/commands/sync-pull).
+4. Optional curation path: choose [provider file commands or shared TMS entry sync](/cli/storage/overview), send content, curate in your TMS, and retrieve the result.
 5. Verify progress with [`status`](/cli/commands/status) before release.
 
 For a full curation sequence, see [TMS curation loop (experimental)](/cli/workflows/tms-curation-loop).
 
 ## When the CLI is not the best fit
 
-Use [Hyperlocalise Cloud](/) when your team wants infrastructure for multilingual content operations without running the CLI.
+Use [Hyperlocalise Platform](/) when your team wants infrastructure for multilingual content operations without running the CLI.
 
 The CLI is a poor fit if you:
 
 - cannot run repository-based workflows in developer or CI environments,
 - need every localization operation to stay inside a hosted UI with no local files.
 
-## Quick comparison
+## Which localization CLI is best for your team?
 
-| Approach | Setup effort | Review control | CI/Git workflow fit | Vendor lock-in risk |
-| --- | --- | --- | --- | --- |
-| Manual scripts | 🟡 Medium to high (build and maintain yourself) | 🟢 High (fully custom) | 🟡 Medium (depends on script quality and standards) | 🟢 Low |
-| TMS-only workflow | 🟢 Low to medium | 🟡 Medium to high in TMS, lower in Git-based review | 🟡 Low to medium for in-repo workflows | 🟠 Medium to high |
-| Hyperlocalise | 🟢 Low (single CLI with straightforward config) | 🟢 High (AI draft + optional human curation loop) | 🟢 High (explicit dry-run, sync, status flow) | 🟢 Low (multi-provider and multi-adapter support) |
+Choose by the operations you need, the files you maintain, and the review process
+you already trust. Hyperlocalise is an all-in-one option for teams combining local
+AI translation, Git-based review, and supported TMS commands.
+
+| Requirement | Hyperlocalise | Provider-specific CLI | Custom scripts |
+| --- | --- | --- | --- |
+| Several TMS providers in one executable | Four provider file command families and six experimental entry-sync adapters | Usually focused on its own provider | Depends on integrations you implement |
+| Local AI translation | `run` with a configured AI provider | Check the vendor's documented capabilities | Build and maintain generation logic |
+| Existing provider configuration | Supported Crowdin and Phrase settings; other file commands use flags | Best starting point for exact vendor configuration behavior | You own parsing and compatibility |
+| Full provider API coverage | Limited to documented operations | Check the official command reference | Implement the endpoints you need |
+| Git/CI delivery | Local files, explicit commands, and reviewable output | Depends on the command and workflow | You maintain retries, outputs, and delivery |
+
+Read the [Crowdin](/cli/commands/crowdin), [Lokalise](/cli/commands/lokalise),
+[Phrase Strings](/cli/commands/phrase), and [Smartling](/cli/commands/smartling)
+comparisons before replacing scripts. The best choice may differ by project;
+Hyperlocalise does not require every team to migrate every operation at once.
 
 ## FAQ
 
@@ -86,9 +99,11 @@ Yes. Hyperlocalise supports multiple TMS adapters, including Crowdin, Lokalise, 
 
 Yes. Teams commonly run planning, generation, and reporting commands in CI to keep localization changes visible in standard release workflows.
 
-### Does Hyperlocalise publish machine translations directly to production?
+### Can I use generated translations without TMS review?
 
-Yes, it can. TMS curation is optional, and teams can choose a zero-human-review path when that matches their risk tolerance and release process.
+Yes. Local generation writes translated files for your own delivery workflow.
+TMS curation is optional. Review and publish those files through your application's
+release process; running `run` alone does not deploy your application.
 
 ## Next steps
 
@@ -96,6 +111,6 @@ New user path: [Install](/cli/getting-started/install) -> [Quickstart](/cli/gett
 
 Evaluation path: [Quickstart](/cli/getting-started/quickstart) -> [`eval` (experimental)](/cli/commands/eval) -> [`status`](/cli/commands/status)
 
-TMS curation path: [Storage overview](/cli/storage/overview) -> [`sync push` (experimental)](/cli/commands/sync-push) -> [TMS curation loop (experimental)](/cli/workflows/tms-curation-loop) -> [`sync pull` (experimental)](/cli/commands/sync-pull)
+TMS curation path: [TMS integrations](/cli/storage/overview) -> [`sync push` (experimental)](/cli/commands/sync-push) -> [TMS curation loop (experimental)](/cli/workflows/tms-curation-loop) -> [`sync pull` (experimental)](/cli/commands/sync-pull)
 
 Decision support: [Stability matrix](/cli/reference/stability-matrix)

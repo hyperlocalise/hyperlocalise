@@ -1,9 +1,61 @@
 ---
-title: "crowdin"
-description: "Crowdin-compatible file workflow commands powered by crowdin.yml."
+title: "Crowdin CLI workflows with Hyperlocalise"
+sidebarTitle: "Crowdin"
+description: "Upload sources, download approved translations, and manage Crowdin files, branches, glossaries, and translation memory with the all-in-one Hyperlocalise CLI."
 ---
 
-## Usage
+Use `hyperlocalise crowdin` to upload source files, retrieve approved translations,
+and manage supported Crowdin resources from your terminal. Crowdin workflows live
+alongside local AI translation, checks, and other TMS commands in the
+[all-in-one localization CLI](/cli).
+
+## Start with a Crowdin upload and download
+
+[Install Hyperlocalise](/cli/getting-started/install). Use an existing Crowdin
+project with a French target language, a source file at `locales/en.json`, and a
+personal token with access to the project. Set `CROWDIN_PERSONAL_TOKEN` in your
+shell or CI secret manager. Replace the project ID in `crowdin.yml`:
+
+```yaml
+project_id: "your-project-id"
+api_token_env: CROWDIN_PERSONAL_TOKEN
+files:
+    - source: /locales/en.json
+      translation: /locales/%two_letters_code%.json
+```
+
+```bash
+hyperlocalise crowdin config validate
+hyperlocalise crowdin upload sources
+# Translate and approve the French strings in Crowdin before downloading.
+hyperlocalise crowdin download translations --language fr --export-only-approved
+```
+
+The upload sends the configured source file to Crowdin. The download writes the
+French export to `locales/fr.json`. Review the file before committing it. For
+partial approved exports, use the [JSON merge guide](/cli/guides/crowdin-approved-translations).
+To automate this workflow, see [Crowdin in GitHub Actions](/cli/guides/crowdin-github-actions).
+
+## Hyperlocalise vs the official Crowdin CLI
+
+Hyperlocalise is a Crowdin CLI alternative for the file and resource operations
+listed on this page. It reuses supported Crowdin configuration fields, while adding
+local AI translation and other TMS command families in the same executable.
+
+| Task | Official Crowdin CLI workflow | Hyperlocalise |
+| --- | --- | --- |
+| Upload configured sources | `crowdin upload sources` | `hyperlocalise crowdin upload sources` |
+| Download translations | `crowdin download translations` | `hyperlocalise crowdin download translations` |
+| Inspect progress | `crowdin status` | `hyperlocalise crowdin status` |
+| Reuse configuration | `crowdin.yml` | Supported fields apply; some are accepted but ignored |
+| Manage screenshots, tasks, or distributions | Use the official tool for its supported operations | Not available in this command family |
+
+Compare your script with the supported fields and gaps below before switching.
+See the [official Crowdin CLI documentation](https://crowdin.github.io/crowdin-cli/)
+for the vendor's full command surface.
+
+
+## Command reference
 
 ```bash
 hyperlocalise crowdin init
@@ -234,3 +286,11 @@ Pre-translate with translation memory (v1 is TM only). `pre-translate` is an ali
 hyperlocalise crowdin auto-translate --language fr --file messages.json
 hyperlocalise crowdin pre-translate --language fr --branch feature/login
 ```
+
+## Related workflows
+
+- [One CLI for your TMS workflows](/cli/storage/overview)
+- [Local AI translation](/cli/workflows/local-generation)
+- [Localization file formats](/cli/reference/formats/overview)
+- [Export Crowdin translation memory as TMX](/cli/guides/crowdin-tmx-export)
+- [Hyperlocalise Platform integration with Crowdin](https://www.hyperlocalise.com/en/integrations/crowdin)

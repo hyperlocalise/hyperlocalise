@@ -1,7 +1,10 @@
 ---
-title: "Gettext PO"
+title: "Translate gettext PO files with Hyperlocalise"
+sidebarTitle: "Gettext PO"
 description: "Translate gettext PO messages and understand context and plural limitations."
 ---
+
+gettext uses POT files as source message templates and PO files as locale catalogs. These catalogs can include message context and plural forms. For CLI generation, prepare a source-language `.po` with populated `msgstr` values. Direct `.pot` translation is not supported.
 
 Supported extensions: `.po`.
 
@@ -70,3 +73,8 @@ configured target path and updates the lockfile.
 - [Check translations](/cli/commands/check) before committing generated files.
 - [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
 - [Browse all file formats](/cli/reference/formats/overview).
+
+## Related formats
+
+- [XLIFF translation](/cli/reference/formats/xliff)
+- [Java .properties](/cli/reference/formats/java-properties)

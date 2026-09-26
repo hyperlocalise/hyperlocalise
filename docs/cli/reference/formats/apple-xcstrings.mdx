@@ -1,7 +1,10 @@
 ---
-title: "Apple string catalogs"
+title: "Translate Apple String Catalogs with Hyperlocalise"
+sidebarTitle: "Apple string catalogs"
 description: "Translate Xcode string catalogs, plural variants, and device-specific messages."
 ---
+
+Xcode String Catalogs store source strings and locale translations in .xcstrings JSON files. Hyperlocalise has a dedicated catalog parser; follow its locale and variation limits below instead of treating the catalog as generic JSON.
 
 Supported extensions: `.xcstrings`.
 
@@ -78,3 +81,9 @@ configured target path and updates the lockfile.
 - [Check translations](/cli/commands/check) before committing generated files.
 - [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
 - [Browse all file formats](/cli/reference/formats/overview).
+
+## Related formats
+
+- [Apple .strings](/cli/reference/formats/apple-strings)
+- [Apple .stringsdict](/cli/reference/formats/apple-stringsdict)
+- [JSON localization](/cli/reference/formats/json)

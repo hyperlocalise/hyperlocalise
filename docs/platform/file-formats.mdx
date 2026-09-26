@@ -1,0 +1,80 @@
+---
+title: "Supported file formats in Hyperlocalise Platform"
+sidebarTitle: "File formats"
+description: "Compare localization file upload, translation, review, and export in Hyperlocalise Platform, including JSON, XLIFF, Markdown, images, video, and Office files."
+---
+
+Hyperlocalise Platform brings multilingual content into one workspace. Native
+projects accept application resource files, documents, images, video, and Office
+files, but translation and editing differ by format. Upload support alone does
+not mean a file supports automatic translation or segment editing.
+
+## Native project file support
+
+The table describes the native source-upload and file workflow. Connected TMS
+projects follow the [provider's capabilities](/platform/tms).
+
+| File family | Source upload extensions | Translation path | Review | Target export |
+| --- | --- | --- | --- | --- |
+| Application messages | `.json`, `.jsonc`, `.yaml`, `.yml`, `.arb`, `.strings`, `.stringsdict`, `.xcstrings` | File translation jobs | Segment views | Reconstructed target file |
+| Exchange and tabular catalogs | `.xlf`, `.xlif`, `.xliff`, `.po`, `.csv` | File translation jobs | Segment views | Reconstructed target file |
+| Web content | `.html` | File translation jobs | Segment views; preview where available | Reconstructed target file |
+| Documentation | `.md`, `.mdx` | Document translation | File view | Stored target document |
+| Subtitles | `.srt`, `.vtt` | File translation jobs | Segment views | Reconstructed subtitle file |
+| Images | `.png`, `.jpg`, `.jpeg`, `.webp` | Image translation workflow | Image file view | Stored target image |
+| Video | `.mp4` | Video translation workflow | Video file view | Stored target video |
+| Office documents | `.docx`, `.xlsx`, `.xls`, `.pptx` | Manual localization in File view | Upload or edit translated file | Stored target file when available |
+
+Office files are not handled by automatic file translation jobs. Open File view
+and upload or edit the translated file there. Other translation workflows require
+an enabled provider and the relevant workspace access. A listed extension still
+needs valid content for its parser or viewer.
+
+## Choose a format guide
+
+For a complete Platform workflow, start with one of these tutorials:
+
+- [React Intl and ICU messages](/platform/tutorials/react-intl-icu)
+- [Vue i18n messages](/platform/tutorials/vue-i18n)
+- [iOS strings](/platform/tutorials/ios-strings)
+- [Android string resources](/platform/tutorials/android-string-resources)
+- [XLIFF](/platform/tutorials/xliff)
+- [gettext POT and PO](/platform/tutorials/gettext-pot-po)
+
+Some tutorials use repository preprocessing or CLI translation. In particular,
+Android `.xml` and gettext `.pot` are not listed in the native source-upload
+extension set above. Follow each tutorial's preparation and delivery path rather
+than assuming a CLI-supported extension can be uploaded directly.
+
+For local translation, the [all-in-one Hyperlocalise CLI](/cli) has its own
+[file-format guides](/cli/reference/formats/overview), including additional formats
+such as Java properties, PHP, Fluent, and RESX.
+
+## Upload, translate, review, and export
+
+1. [Create a project](/platform/projects/create-project) and choose source and target locales.
+2. [Upload your files](/platform/projects/files). The native upload screen accepts up to 10 files per batch.
+3. [Start translation](/platform/translation/start), or use the manual Office workflow above.
+4. [Review the result](/platform/cat) in the view available for that file family.
+5. [Download translated files](/platform/translation/download) and check them in the consuming application.
+
+Uploading alone does not start translation unless you configure a matching
+[source-upload automation](/platform/automation/create-automation).
+
+## Is a queue export the same as a translated file?
+
+No. A Content Editor queue export contains filtered segments as CSV, TMX,
+XLF/XLIFF, or XLSX, up to 5,000 matching segments. It is useful for review and
+handoff. Use the project's **Download translations** action for complete target
+files. Document, image, video, and Office file views work with stored files rather
+than a segment queue.
+
+## Does Platform support every CLI or TMS file format?
+
+No. Local CLI parsing, native Platform uploads, and provider imports are separate
+contracts. Use the table above for native uploads, the provider's import rules for
+connected projects, and the [CLI format overview](/cli/reference/formats/overview)
+for local translation. Supporting an export format does not imply a matching
+source-upload format.
+
+If an accepted file cannot open, check [upload troubleshooting](/platform/help/uploads).

@@ -1,11 +1,32 @@
 ---
-title: "CLI overview"
-description: "Translate files in your repository, review changes, and automate localization with the Hyperlocalise CLI."
+title: "Hyperlocalise: the all-in-one localization CLI"
+sidebarTitle: "CLI overview"
+description: "One CLI for Crowdin, Lokalise, Phrase Strings, Smartling, and local AI translation. Upload sources, download translations, check files, and automate CI."
 ---
 
-The Hyperlocalise CLI translates files in your repository using your chosen AI
-provider. Preview the work, generate translations, and review the changes before
-releasing. Connect to Cloud or a TMS when you need a shared review workflow.
+One CLI for your localization stack. Hyperlocalise combines local AI translation,
+translation checks, and commands for Crowdin, Lokalise, Phrase Strings, and
+Smartling in one installation. Work in your repository, automate CI, and connect
+to Hyperlocalise Platform when you need a shared workspace.
+
+## One CLI for your TMS workflows
+
+Use the command family for your provider. Each has its own authentication,
+configuration, and supported operations.
+
+| Your platform | What you can do | Start here |
+| --- | --- | --- |
+| Crowdin | Upload sources, download approved translations, manage branches, and exchange glossary/TM files | [Crowdin CLI workflows](/cli/commands/crowdin) |
+| Lokalise | Upload locale files, wait for imports, and download translations | [Lokalise CLI workflows](/cli/commands/lokalise) |
+| Phrase Strings | Reuse supported `.phrase.yml` settings to push sources and pull translations | [Phrase Strings CLI workflows](/cli/commands/phrase) |
+| Smartling | Upload sources, inspect file status, and download published translations | [Smartling CLI workflows](/cli/commands/smartling) |
+| POEditor or LILT AI | Sync flat JSON translation entries through an experimental adapter | [TMS integrations](/cli/storage/overview) |
+| Hyperlocalise Platform | Upload source files and retrieve existing project translations | [Connect the CLI](/platform/cli) |
+
+You can use local translation without a TMS or Platform account. Choose an
+[AI provider](/cli/providers/overview) independently of your translation platform.
+See the [compatibility matrix](/cli/storage/overview) before moving an existing
+script: one CLI does not mean every provider has identical commands or features.
 
 ## Start translating
 
@@ -43,7 +64,7 @@ See [local translation](/cli/workflows/local-generation) for the full workflow.
 | Translate a React Intl app | [React Intl tutorial](/cli/guides/react-intl) |
 | Update existing translations | [Translate changed strings](/cli/workflows/translate-changed-strings) |
 | Choose a hosted or local model | [AI providers](/cli/providers/overview) |
-| Share files with your Cloud workspace | [Connect the CLI to Cloud](/platform/cli) |
+| Share files with your Platform workspace | [Connect the CLI to Platform](/platform/cli) |
 | Review translations in a TMS | [TMS curation workflow](/cli/workflows/tms-curation-loop) |
 | Run localization in CI | [CI automation](/cli/workflows/ci-automation) |
 | Look up a command | [Command reference](/cli/commands/overview) |
@@ -51,3 +72,18 @@ See [local translation](/cli/workflows/local-generation) for the full workflow.
 
 Check the [stability matrix](/cli/reference/stability-matrix) before adopting
 experimental sync or evaluation workflows in production.
+
+## Is Hyperlocalise the best localization CLI for your team?
+
+Choose Hyperlocalise when you want local AI translation, Git-based review, and
+multiple TMS command families in one tool. Compare the supported operations with
+your actual scripts: a provider's official CLI may be a better fit when you need
+its full API surface or exact flag compatibility. See [why Hyperlocalise](/cli/getting-started/why-hyperlocalise)
+for selection criteria and [TMS integrations](/cli/storage/overview) for limits.
+
+## Can I use one CLI with every TMS?
+
+Hyperlocalise supports the providers listed above. It does not include an adapter
+for every TMS, and file workflows differ from entry sync. For an unlisted provider,
+use its own supported import/export workflow; local translation support alone does
+not establish a direct integration.

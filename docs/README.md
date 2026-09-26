@@ -1,13 +1,13 @@
 # Hyperlocalise Docs
 
 This directory contains the Mintlify documentation site for Hyperlocalise. The
-site covers Hyperlocalise Cloud and the CLI, plus contributor guides.
+site covers Hyperlocalise Platform and the CLI, plus contributor guides.
 
 ## Structure
 
 - `docs.json`: Mintlify site configuration and navigation
-- `index.mdx`: Cloud landing page
-- `platform/`: Cloud guides
+- `index.mdx`: Platform landing page
+- `platform/`: Platform guides
 - `cli/`: CLI, configuration, commands, providers, and TMS adapters
 - `contributing/`: contributor and maintainer documentation
 - `zh-CN/` and `vi-VN/`: localized documentation with the same folders

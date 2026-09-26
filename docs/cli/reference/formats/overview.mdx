@@ -1,10 +1,12 @@
 ---
-title: "File formats"
-description: "Find supported translation file types, configure source and target paths, and understand format limitations."
+title: "Localization file formats supported by Hyperlocalise CLI"
+sidebarTitle: "File formats"
+description: "Translate JSON, YAML, Flutter ARB, Android XML, Apple strings, XLIFF, gettext, Markdown, subtitles, and more with one localization CLI."
 ---
 
-Choose your source format below. Each guide includes a source example, a complete
-configuration, and the behavior to expect when the CLI writes translations.
+The all-in-one Hyperlocalise localization CLI translates application resources,
+translation catalogs, documentation, and subtitles. Choose your source format
+below for a runnable example, configuration, and format-specific limitations.
 
 ## How file detection works
 
@@ -13,7 +15,7 @@ Android resource path. You do not need to declare a format for each bucket.
 Use matching source and target formats unless a workflow explicitly documents a
 conversion.
 
-File support describes local translation with `run`. Cloud uploads, TMS entry sync,
+File support describes local translation with `run`. Platform uploads, TMS entry sync,
 and provider-specific file commands have their own contracts; check the relevant
 [integration guide](/cli/storage/overview) before syncing.
 
@@ -31,3 +33,69 @@ the selected template; each guide describes format-specific exceptions.
 For text, CSV, or JSON printed by CLI commands, see [Command output](/cli/reference/output-formats).
 
 ## Choose a format
+
+### Application resources
+
+| Format | Extensions | Guide |
+| --- | --- | --- |
+| JSON localization | `.json` | [Translate JSON localization](/cli/reference/formats/json) |
+| JSONC localization | `.jsonc` | [Translate JSONC localization](/cli/reference/formats/jsonc) |
+| YAML localization | `.yaml`, `.yml` | [Translate YAML localization](/cli/reference/formats/yaml) |
+| Flutter ARB | `.arb` | [Translate Flutter ARB](/cli/reference/formats/arb) |
+| Android XML string resources | `.xml` | [Translate Android XML string resources](/cli/reference/formats/android-xml) |
+| Apple .strings | `.strings` | [Translate Apple .strings](/cli/reference/formats/apple-strings) |
+| Apple .stringsdict | `.stringsdict` | [Translate Apple .stringsdict](/cli/reference/formats/apple-stringsdict) |
+| Apple String Catalog (.xcstrings) | `.xcstrings` | [Translate Apple String Catalog (.xcstrings)](/cli/reference/formats/apple-xcstrings) |
+| FormatJS and React Intl catalogs | `.json` | [Translate FormatJS and React Intl catalogs](/cli/reference/formats/formatjs) |
+| JavaScript and TypeScript locale | `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts` | [Translate JavaScript and TypeScript locale](/cli/reference/formats/javascript-typescript) |
+| Java .properties | `.properties` | [Translate Java .properties](/cli/reference/formats/java-properties) |
+| .NET RESX resource | `.resx` | [Translate .NET RESX resource](/cli/reference/formats/resx) |
+| PHP localization | `.php` | [Translate PHP localization](/cli/reference/formats/php) |
+| Fluent localization | `.ftl` | [Translate Fluent localization](/cli/reference/formats/fluent) |
+| XML localization | `.xml` | [Translate XML localization](/cli/reference/formats/xml) |
+| CSV localization | `.csv` | [Translate CSV localization](/cli/reference/formats/csv) |
+
+### Translation exchange
+
+| Format | Extensions | Guide |
+| --- | --- | --- |
+| XLIFF | `.xlf`, `.xlif`, `.xliff` | [Translate XLIFF](/cli/reference/formats/xliff) |
+| gettext PO | `.po` | [Translate gettext PO](/cli/reference/formats/gettext) |
+
+### Content and documentation
+
+| Format | Extensions | Guide |
+| --- | --- | --- |
+| Markdown | `.md`, `.markdown`, `.mdown`, `.mkdn`, `.mdwn`, `.mkd` | [Translate Markdown](/cli/reference/formats/markdown) |
+| MDX | `.mdx` | [Translate MDX](/cli/reference/formats/mdx) |
+| HTML | `.html`, `.htm` | [Translate HTML](/cli/reference/formats/html) |
+| Liquid template | `.liquid` | [Translate Liquid template](/cli/reference/formats/liquid) |
+
+### Subtitles and captions
+
+| Format | Extensions | Guide |
+| --- | --- | --- |
+| SRT subtitle | `.srt` | [Translate SRT subtitle](/cli/reference/formats/srt) |
+| WebVTT subtitle | `.vtt` | [Translate WebVTT subtitle](/cli/reference/formats/webvtt) |
+
+## Are placeholders, plurals, and comments preserved?
+
+Behavior depends on the parser and selected source or target template. For example,
+ARB keeps message metadata, SRT retains timestamps, and JSONC writeback does not
+retain comments. Read each format's limitations and run [translation checks](/cli/commands/check).
+Use the [ICU and placeholder guide](/cli/troubleshooting/icu-placeholders) for
+validation failures. Review plural variants in the consuming application.
+
+## Can I convert between localization formats?
+
+Use matching source and target formats unless a workflow explicitly documents a
+conversion. Supporting two parsers does not establish lossless conversion between
+them: context, plural forms, comments, and metadata can differ.
+
+## Do all formats work with every TMS and Platform?
+
+Local translation, provider file commands, TMS entry sync, and Platform uploads have
+separate support boundaries. Shared TMS entry sync currently requires flat JSON;
+provider file commands follow the provider's import/export contract. Consult
+[TMS integrations](/cli/storage/overview) or [Platform file formats](/platform/file-formats)
+for the destination you use.
