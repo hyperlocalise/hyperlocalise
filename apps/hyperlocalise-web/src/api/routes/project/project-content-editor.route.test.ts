@@ -46,6 +46,8 @@ import type {
 } from "./project.schema";
 
 const {
+  enqueueActivityLogEventMock,
+  enqueueActivityLogEventsMock,
   getTmsProviderConnectionMock,
   getTmsProviderLiveCatFileMock,
   getTmsProviderLiveContentEditorAllFilesMock,
@@ -66,6 +68,11 @@ const {
   enqueueStringSegmentLockedActivityMock,
   enqueueStringSegmentStatusChangedActivityMock,
 } = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
+  enqueueActivityLogEventsMock: vi.fn().mockResolvedValue([]),
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
   getTmsProviderLiveContentEditorAllFilesMock: vi.fn(),
@@ -85,6 +92,11 @@ const {
   enqueueStringSegmentHiddenActivityMock: vi.fn(),
   enqueueStringSegmentLockedActivityMock: vi.fn(),
   enqueueStringSegmentStatusChangedActivityMock: vi.fn(),
+}));
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: enqueueActivityLogEventsMock,
 }));
 
 vi.mock("@/lib/activity-log/file-segment-events", async (importOriginal) => {
