@@ -78,6 +78,18 @@ export class GoSvcIssueSheetApi {
     );
   }
 
+  delete(
+    organizationSlug: string,
+    projectId: string,
+    issueId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.empty(issueSheetPath(organizationSlug, projectId, issueId), {
+      method: "DELETE",
+      ...options,
+    });
+  }
+
   setValue(
     organizationSlug: string,
     projectId: string,

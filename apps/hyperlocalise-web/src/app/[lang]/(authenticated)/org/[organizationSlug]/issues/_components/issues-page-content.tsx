@@ -161,8 +161,8 @@ export function IssuesPageContent({
     router.push(
       buildIssueDetailHref({
         organizationSlug,
-        projectId: issue.projectId,
         issueId: issue.identifier,
+        scope: "organization",
       }),
     );
   };

@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
 
+import { useIssueDetailLinkScope } from "./issue-detail-link-scope";
 import { buildIssueDetailHref } from "./issue-detail-utils";
 import { IssueRelationshipKindIcon, relationshipKindLabel } from "./issue-relationship-kind";
 import { issueRelationshipSectionMessages as messages } from "./issue-relationship-section.messages";
@@ -64,6 +65,7 @@ function RelationshipRow({
   disabled: boolean;
 }) {
   const intl = useIntl();
+  const detailScope = useIssueDetailLinkScope();
   return (
     <div className="group flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-muted/40">
       <IssueStatusIcon status={relationship.otherIssue.status} />
@@ -72,6 +74,7 @@ function RelationshipRow({
           organizationSlug,
           projectId: relationship.otherIssue.projectId,
           issueId: relationship.otherIssue.issueId,
+          scope: detailScope,
         })}
         className="min-w-0 flex-1 truncate text-sm text-foreground hover:underline"
       >

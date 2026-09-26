@@ -51,6 +51,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "inboxNotification",
   "integrations",
   "issues",
+  "queryDetail",
   "jobs",
   "layout",
   "members",
@@ -555,6 +556,18 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Questions and issues across this workspace.",
       id: "VL6HN9WE3P",
       description: "Document description for the workspace Queries page",
+    },
+  },
+  queryDetail: {
+    title: {
+      defaultMessage: "Query",
+      id: "qD7tL2nR8w",
+      description: "Document title for a workspace query page",
+    },
+    description: {
+      defaultMessage: "A workspace query.",
+      id: "rE8uM3oS9x",
+      description: "Document description for a workspace query page",
     },
   },
   jobs: {

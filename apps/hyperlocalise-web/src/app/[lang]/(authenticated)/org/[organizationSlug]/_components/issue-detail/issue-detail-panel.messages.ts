@@ -80,11 +80,6 @@ export const issueDetailPanelMessages = defineMessages({
     id: "UfX+B2NG5i",
     description: "Option for clearing issue assignee",
   },
-  fieldReporter: {
-    defaultMessage: "Reporter",
-    id: "Cp3xy0MA7p",
-    description: "Label for issue reporter field",
-  },
   fieldTemplate: {
     defaultMessage: "Template",
     id: "nBWhU6jbvc",
@@ -99,21 +94,6 @@ export const issueDetailPanelMessages = defineMessages({
     defaultMessage: "Source path",
     id: "lEtyUUSw7r",
     description: "Label for issue source path field",
-  },
-  fieldCreatedAt: {
-    defaultMessage: "Created",
-    id: "8roD8NwsMT",
-    description: "Label for issue created timestamp",
-  },
-  fieldUpdatedAt: {
-    defaultMessage: "Updated",
-    id: "7bzkQaXdN3",
-    description: "Label for issue updated timestamp",
-  },
-  fieldResolvedAt: {
-    defaultMessage: "Resolved",
-    id: "HmDnokfJEK",
-    description: "Label for issue resolved timestamp",
   },
   linkedContext: {
     defaultMessage: "Linked string",
@@ -230,5 +210,45 @@ export const issueDetailPanelMessages = defineMessages({
     defaultMessage: "Expand properties",
     id: "a59gdX+rmW",
     description: "Aria label to expand the issue detail properties sidebar",
+  },
+  queryActions: {
+    defaultMessage: "Query actions",
+    id: "hE2eacuTWG",
+    description: "Aria label for the query detail overflow menu",
+  },
+  deleteQuery: {
+    defaultMessage: "Delete",
+    id: "vtHGSYCgki",
+    description: "Menu item to delete the current query",
+  },
+  deleteConfirmTitle: {
+    defaultMessage: "Delete this query?",
+    id: "YlkCv2/Rn6",
+    description: "Title for query delete confirmation",
+  },
+  deleteConfirmDescription: {
+    defaultMessage: "This permanently deletes the query and its comments. This cannot be undone.",
+    id: "+04m/XO8wC",
+    description: "Description for query delete confirmation",
+  },
+  deleteConfirmAction: {
+    defaultMessage: "Delete",
+    id: "n+ysONBMTA",
+    description: "Confirm button to delete a query",
+  },
+  deleteCancel: {
+    defaultMessage: "Cancel",
+    id: "X7vOeOtWkz",
+    description: "Cancel button on query delete confirmation",
+  },
+  deleteFailed: {
+    defaultMessage: "Could not delete this query.",
+    id: "J7oMEhiIoO",
+    description: "Toast when query delete fails",
+  },
+  deleted: {
+    defaultMessage: "Query deleted",
+    id: "NEzvK9axzr",
+    description: "Toast after a query is deleted",
   },
 });

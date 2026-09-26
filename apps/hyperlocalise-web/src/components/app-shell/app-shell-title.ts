@@ -560,6 +560,19 @@ export function getAppShellBreadcrumbs(
     return crumbs;
   }
 
+  if (section === "issues") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "issues") }];
+    }
+
+    return [
+      {
+        label: formatRouteTitle(intl, "issues"),
+        href: buildOrgPath(organizationSlug, "issues"),
+      },
+    ];
+  }
+
   if (section === "members") {
     if (!subsection) {
       return [{ label: formatRouteTitle(intl, "members") }];

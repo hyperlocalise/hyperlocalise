@@ -610,6 +610,24 @@ func (api *issueSheetAPI) getIssue(ctx context.Context, actor issueSheetActor, p
 	return map[string]any{"issue": issue}, 200, nil
 }
 
+func (api *issueSheetAPI) deleteIssue(ctx context.Context, actor issueSheetActor, project issueSheetProject, issueRef string) (any, int, error) {
+	issueID, err := api.resolveIssueID(ctx, actor.organizationID, project.ID, issueRef)
+	if err != nil {
+		return nil, 0, err
+	}
+	tag, err := api.pool.Exec(ctx, `
+        delete from issue_sheet_issues
+        where organization_id = $1 and project_id = $2 and id = $3`,
+		actor.organizationID, project.ID, issueID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, 0, missingIssueSheetIssue()
+	}
+	return nil, http.StatusNoContent, nil
+}
+
 func (api *issueSheetAPI) loadIssue(ctx context.Context, actor issueSheetActor, project issueSheetProject, issueRef string) (map[string]any, error) {
 	var sql string
 	if isLegacyIssueUUID(issueRef) {

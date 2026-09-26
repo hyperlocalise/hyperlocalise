@@ -272,6 +272,10 @@ export const InboxPageContent = observer(function InboxPageContent({
     [router, organizationSlug, notifications, markReadMutation],
   );
 
+  const onDeletedQuery = useCallback(() => {
+    router.push(`/org/${organizationSlug}/inbox`);
+  }, [router, organizationSlug]);
+
   const onMarkAllRead = useCallback(() => {
     markAllReadMutation.mutate();
   }, [markAllReadMutation]);
@@ -351,6 +355,7 @@ export const InboxPageContent = observer(function InboxPageContent({
       onMarkAllRead={onMarkAllRead}
       onSelectConversation={onSelectConversation}
       onSelectNotification={onSelectNotification}
+      onDeletedQuery={onDeletedQuery}
       onSendMessage={onSendMessage}
       organizationSlug={organizationSlug}
       selectedConversation={selectedConversation}

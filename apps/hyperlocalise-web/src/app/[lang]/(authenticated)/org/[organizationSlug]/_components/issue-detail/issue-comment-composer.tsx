@@ -32,6 +32,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { issueCommentMessages as messages } from "./issue-comment.messages";
 import { useIssueDetailGuardedNavigate } from "./issue-detail-navigation-guard";
+import { useIssueDetailLinkScope } from "./issue-detail-link-scope";
 import { buildIssueDetailHref } from "./issue-detail-utils";
 
 type IssueCommentComposerProps = {
@@ -75,6 +76,7 @@ export function IssueCommentComposer({
   const intl = useIntl();
   const { user } = useAuth();
   const navigateGuarded = useIssueDetailGuardedNavigate();
+  const detailScope = useIssueDetailLinkScope();
   const [value, setValue] = useState("");
   const [editorKey, setEditorKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,13 +94,14 @@ export function IssueCommentComposer({
             organizationSlug,
             projectId: mention.projectId,
             issueId: mention.id,
+            scope: detailScope,
           }),
         );
         return;
       }
       navigateGuarded(`/org/${encodeURIComponent(organizationSlug)}/members`);
     },
-    [navigateGuarded, organizationSlug],
+    [detailScope, navigateGuarded, organizationSlug],
   );
 
   const mentionConfig = useMemo<MarkdownMentionConfig>(

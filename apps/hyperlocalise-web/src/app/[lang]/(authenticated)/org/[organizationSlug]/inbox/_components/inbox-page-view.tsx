@@ -55,6 +55,7 @@ export function InboxPageView({
   onMarkAllRead,
   onSelectConversation,
   onSelectNotification,
+  onDeletedQuery,
   onSendMessage,
   organizationSlug,
   selectedConversation,
@@ -86,6 +87,7 @@ export function InboxPageView({
   onMarkAllRead: () => void;
   onSelectConversation: (conversationId: string) => void;
   onSelectNotification: (notificationId: string) => void;
+  onDeletedQuery?: () => void;
   onSendMessage: (
     text: string,
     files: File[],
@@ -150,6 +152,7 @@ export function InboxPageView({
               organizationSlug={organizationSlug}
               projectId={selectedNotification.projectId}
               issueId={selectedNotification.issueId}
+              onDeleted={onDeletedQuery}
             />
           ) : selectedNotificationIsLoading ? (
             <Box

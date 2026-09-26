@@ -76,5 +76,13 @@ describe("issue-list-url-state", () => {
         issueId: "WEB-1",
       }),
     ).toBe("/org/acme/projects/project_website/issue-sheet/WEB-1");
+
+    expect(
+      buildIssueDetailHref({
+        organizationSlug: "acme",
+        issueId: "WEB-1",
+        scope: "organization",
+      }),
+    ).toBe("/org/acme/issues/WEB-1");
   });
 });

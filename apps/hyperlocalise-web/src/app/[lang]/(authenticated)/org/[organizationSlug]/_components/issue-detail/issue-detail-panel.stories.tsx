@@ -92,6 +92,7 @@ export const Default: Story = {
     await expect(
       await canvas.findByRole("button", { name: "Collapse properties" }),
     ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Query actions" })).toBeInTheDocument();
   },
 };
 
@@ -149,12 +150,18 @@ export const MinimizedSidebar: Story = {
     await expect(canvas.getByRole("combobox", { name: "Type" })).toBeInTheDocument();
     await expect(canvas.getByRole("combobox", { name: "Priority" })).toBeInTheDocument();
     await expect(canvas.queryByText("Reporter")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Created")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Updated")).not.toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole("button", { name: "Expand properties" }));
     await expect(
       await canvas.findByRole("button", { name: "Collapse properties" }),
     ).toBeInTheDocument();
-    await expect(await canvas.findByText("Reporter")).toBeInTheDocument();
+    await expect(await canvas.findByText("Assignee")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Select source file" })).toBeInTheDocument();
+    await expect(canvas.queryByText("Reporter")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Created")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Updated")).not.toBeInTheDocument();
   },
 };
 
