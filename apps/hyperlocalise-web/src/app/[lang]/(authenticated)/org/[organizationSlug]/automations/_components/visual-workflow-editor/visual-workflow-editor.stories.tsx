@@ -19,6 +19,7 @@ import {
   visualWorkflowQuickAddDraft,
   visualWorkflowRetryDraft,
   visualWorkflowSwitchDeleteDraft,
+  visualWorkflowWaitDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
 
@@ -315,5 +316,74 @@ export const RetryAttemptWiring: Story = {
       await canvas.findByTestId(/visual-workflow-edge-retry-.+-succeeded$/),
     ).toBeInTheDocument();
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+  },
+};
+
+export const WaitBranches: Story = {
+  name: "Wait duration and branches",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Shows a durable Wait node with Completed, Timed out, and Error execution branches, typed data ports, and duration configuration.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowWaitDraft.name,
+    initialNodes: visualWorkflowWaitDraft.nodes,
+    initialEdges: visualWorkflowWaitDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Completed", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Timed out")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Error")).toBeInTheDocument();
+
+    await expect(
+      canvas.getByLabelText("Data input: durationMs, number, optional"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data input: timestamp, string, optional"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data input: condition, unknown, optional"),
+    ).toBeInTheDocument();
+
+    await expect(canvas.getByLabelText("Data output: status, string")).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data output: resumedAt, string, optional"),
+    ).toBeInTheDocument();
+
+    await expect(
+      canvas.getByTestId("visual-workflow-edge-wait-completed-completed"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByTestId("visual-workflow-edge-wait-timed-out-timed_out"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByTestId("visual-workflow-edge-wait-error-error")).toBeInTheDocument();
+
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+
+    const waitNode = canvas
+      .getByLabelText("Data input: durationMs, number, optional")
+      .closest(".react-flow__node");
+
+    await expect(waitNode).not.toBeNull();
+    await userEvent.click(waitNode!);
+
+    await expect(
+      await canvas.findByRole("combobox", {
+        name: "Wait mode",
+      }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("textbox", {
+        name: "Duration (ms)",
+      }),
+    ).toHaveValue("60000");
   },
 };

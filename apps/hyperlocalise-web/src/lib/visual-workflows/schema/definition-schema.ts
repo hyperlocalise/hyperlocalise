@@ -59,6 +59,7 @@ const visualCatalogTypeSchema = z.enum([
   "ai.agent",
   "logic.for_each",
   "logic.retry",
+  "flow.wait",
 ]);
 
 const visualNodeConfigSchema = z.discriminatedUnion("kind", [
@@ -172,6 +173,59 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     retryableErrorCodes: z.array(z.string().trim().min(1).max(64)).max(32).optional(),
     acknowledgeDuplicateRisk: z.boolean().optional(),
   }),
+  z
+    .object({
+      kind: z.literal("flow.wait"),
+      mode: z.enum(["duration", "timestamp", "condition"]),
+      durationMs: z.number().int().min(0).max(31_536_000_000).optional(),
+      timestamp: z.string().datetime({ offset: true }).optional(),
+      condition: z.string().trim().min(1).max(2_000).optional(),
+      pollingIntervalMs: z.number().int().min(1_000).max(3_600_000).optional(),
+      timeoutMs: z.number().int().min(1_000).max(31_536_000_000).optional(),
+    })
+    .superRefine((config, context) => {
+      if (config.mode === "duration" && config.durationMs === undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["durationMs"],
+          message: "Duration is required when wait mode is duration.",
+        });
+      }
+
+      if (config.mode === "timestamp" && config.timestamp === undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["timestamp"],
+          message: "Timestamp is required when wait mode is timestamp.",
+        });
+      }
+
+      if (config.mode === "condition") {
+        if (config.condition === undefined) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["condition"],
+            message: "Condition is required when wait mode is condition.",
+          });
+        }
+
+        if (config.pollingIntervalMs === undefined) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["pollingIntervalMs"],
+            message: "Polling interval is required when wait mode is condition.",
+          });
+        }
+
+        if (config.timeoutMs === undefined) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["timeoutMs"],
+            message: "Timeout is required when wait mode is condition.",
+          });
+        }
+      }
+    }),
 ]);
 
 export const workflowBindingSchema = z.intersection(

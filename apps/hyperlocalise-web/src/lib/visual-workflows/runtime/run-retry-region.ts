@@ -123,7 +123,10 @@ export async function runRetryRegion(input: {
         },
       };
     }
-    if (failureCode && ["needs_attention", "cancelled", "retry_backoff"].includes(failureCode)) {
+    if (
+      failureCode &&
+      ["needs_attention", "cancelled", "retry_backoff", "wait_suspended"].includes(failureCode)
+    ) {
       return { ok: false, error: failure.error };
     }
 

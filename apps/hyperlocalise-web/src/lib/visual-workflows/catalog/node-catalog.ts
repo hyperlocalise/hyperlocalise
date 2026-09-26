@@ -119,6 +119,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     enabled: true,
     icon: ReloadIcon,
   },
+  {
+    type: "flow.wait",
+    category: "flow",
+    enabled: true,
+    icon: Clock01Icon,
+  },
 ];
 
 export const VISUAL_CATALOG_CATEGORY_ORDER: readonly VisualCatalogCategory[] = [
@@ -200,6 +206,12 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         jitter: true,
         acknowledgeDuplicateRisk: false,
       };
+    case "flow.wait":
+      return {
+        kind: "flow.wait",
+        mode: "duration",
+        durationMs: 60_000,
+      };
     default:
       return assertNever(type);
   }
@@ -223,6 +235,9 @@ export function getVisualNodeDimensions(type: VisualCatalogType): {
   }
   if (type.startsWith("trigger.")) {
     return { width: 280, height: 120 };
+  }
+  if (type === "flow.wait") {
+    return { width: 280, height: 140 };
   }
   return { width: 280, height: 104 };
 }
@@ -269,6 +284,16 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return "For each item";
     case "logic.retry":
       return config.maxAttempts ? `${config.maxAttempts} attempts` : "Retry policy";
+    case "flow.wait":
+      if (config.mode === "duration") {
+        return `${config.durationMs ?? 0} ms`;
+      }
+
+      if (config.mode === "timestamp") {
+        return config.timestamp ?? "Wait until timestamp";
+      }
+
+      return "Wait until condition";
     default:
       return assertNever(config);
   }

@@ -114,6 +114,25 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     mock: { attemptNumber: 1, exhausted: false },
   },
+  "flow.wait": {
+    inputs: [
+      field("durationMs", "number", false),
+      field("timestamp", "string", false),
+      field("condition", "unknown", false),
+      field("pollingIntervalMs", "number", false),
+      field("timeoutMs", "number", false),
+    ],
+    outputs: [
+      output("status"),
+      output("scheduledAt", "string"),
+      output("resumedAt", "string", true),
+    ],
+    mock: {
+      status: "completed",
+      scheduledAt: "2026-01-01T00:00:00.000Z",
+      resumedAt: "2026-01-01T00:01:00.000Z",
+    },
+  },
 };
 export function matchesWorkflowType(value: unknown, type: WorkflowValueType): boolean {
   if (type === "unknown") return true;

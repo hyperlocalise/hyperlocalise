@@ -460,6 +460,71 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "2RORR1xT6r",
     description: "Retry policy node title",
   },
+  nodeWait: {
+    defaultMessage: "Wait",
+    id: "nncYBDQUwE",
+    description: "Wait node title",
+  },
+  nodeWaitHint: {
+    defaultMessage: "Pause until a duration, timestamp, or condition",
+    id: "5ZZS0Al3rv",
+    description: "Wait node picker hint",
+  },
+  completedHandle: {
+    defaultMessage: "Completed",
+    id: "w2tot+OYiM",
+    description: "Wait completion output",
+  },
+  timedOutHandle: {
+    defaultMessage: "Timed out",
+    id: "1XJEkWqFT6",
+    description: "Wait timeout output",
+  },
+  waitMode: {
+    defaultMessage: "Wait mode",
+    id: "bUh5gPU+mn",
+    description: "Wait node mode field",
+  },
+  waitModeDuration: {
+    defaultMessage: "Duration",
+    id: "CPWLg67zI3",
+    description: "Wait for a duration mode",
+  },
+  waitModeTimestamp: {
+    defaultMessage: "Until timestamp",
+    id: "EgoeBfG+CV",
+    description: "Wait until a timestamp mode",
+  },
+  waitModeCondition: {
+    defaultMessage: "Until condition",
+    id: "4B/yIypHTz",
+    description: "Wait until a condition mode",
+  },
+  waitDurationMs: {
+    defaultMessage: "Duration (ms)",
+    id: "m4Ahgxr1sR",
+    description: "Wait duration in milliseconds",
+  },
+  waitTimestamp: {
+    defaultMessage: "Timestamp",
+    id: "bxWXLOi+RW",
+    description: "Absolute timestamp to resume a workflow",
+  },
+  waitCondition: {
+    defaultMessage: "Condition",
+    id: "v1chSgy0BK",
+    description: "Condition polled by a Wait node",
+  },
+  waitPollingIntervalMs: {
+    defaultMessage: "Polling interval (ms)",
+    id: "r3XB1uKkxA",
+    description: "Wait condition polling interval",
+  },
+  waitTimeoutMs: {
+    defaultMessage: "Timeout (ms)",
+    id: "ivmGcv+k23",
+    description: "Maximum condition wait duration",
+  },
   nodeRetryHint: {
     defaultMessage: "Re-run a body region with backoff",
     id: "L+aQftO9Id",

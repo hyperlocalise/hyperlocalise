@@ -443,6 +443,138 @@ export function VisualWorkflowConfigPanel({
             </div>
           </>
         ) : null}
+        {config.kind === "flow.wait" ? (
+          <>
+            <SelectField
+              id="vw-wait-mode"
+              label={intl.formatMessage(messages.waitMode)}
+              value={config.mode}
+              items={[
+                {
+                  value: "duration",
+                  label: intl.formatMessage(messages.waitModeDuration),
+                },
+                {
+                  value: "timestamp",
+                  label: intl.formatMessage(messages.waitModeTimestamp),
+                },
+                {
+                  value: "condition",
+                  label: intl.formatMessage(messages.waitModeCondition),
+                },
+              ]}
+              onValueChange={(value) => {
+                if (value === "duration") {
+                  onChangeConfig({
+                    kind: "flow.wait",
+                    mode: "duration",
+                    durationMs: config.mode === "duration" ? (config.durationMs ?? 60_000) : 60_000,
+                  });
+                  return;
+                }
+
+                if (value === "timestamp") {
+                  onChangeConfig({
+                    kind: "flow.wait",
+                    mode: "timestamp",
+                    timestamp:
+                      config.mode === "timestamp"
+                        ? config.timestamp
+                        : new Date(Date.now() + 3_600_000).toISOString(),
+                  });
+                  return;
+                }
+
+                if (value === "condition") {
+                  onChangeConfig({
+                    kind: "flow.wait",
+                    mode: "condition",
+                    condition: config.mode === "condition" ? (config.condition ?? "") : "",
+                    pollingIntervalMs:
+                      config.mode === "condition" ? (config.pollingIntervalMs ?? 5_000) : 5_000,
+                    timeoutMs:
+                      config.mode === "condition" ? (config.timeoutMs ?? 300_000) : 300_000,
+                  });
+                }
+              }}
+            />
+
+            {config.mode === "duration" ? (
+              <TextField
+                id="vw-wait-duration"
+                label={intl.formatMessage(messages.waitDurationMs)}
+                value={String(config.durationMs ?? 60_000)}
+                {...connectedInputProps("durationMs")}
+                onChange={(value) =>
+                  onChangeConfig({
+                    ...config,
+                    durationMs: Number.parseInt(value, 10) || 0,
+                  })
+                }
+              />
+            ) : null}
+
+            {config.mode === "timestamp" ? (
+              <TextField
+                id="vw-wait-timestamp"
+                label={intl.formatMessage(messages.waitTimestamp)}
+                value={config.timestamp ?? ""}
+                {...connectedInputProps("timestamp")}
+                onChange={(value) =>
+                  onChangeConfig({
+                    ...config,
+                    timestamp: value,
+                  })
+                }
+                placeholder="2026-10-01T10:00:00.000Z"
+              />
+            ) : null}
+
+            {config.mode === "condition" ? (
+              <>
+                <TextAreaField
+                  id="vw-wait-condition"
+                  label={intl.formatMessage(messages.waitCondition)}
+                  value={config.condition ?? ""}
+                  {...connectedInputProps("condition")}
+                  onChange={(value) =>
+                    onChangeConfig({
+                      ...config,
+                      condition: value,
+                    })
+                  }
+                  placeholder="{{nodes.http.json.status}} === 'ready'"
+                />
+
+                <TextField
+                  id="vw-wait-polling-interval"
+                  label={intl.formatMessage(messages.waitPollingIntervalMs)}
+                  value={String(config.pollingIntervalMs ?? 5_000)}
+                  {...connectedInputProps("pollingIntervalMs")}
+                  onChange={(value) =>
+                    onChangeConfig({
+                      ...config,
+                      pollingIntervalMs: Number.parseInt(value, 10) || 0,
+                    })
+                  }
+                />
+
+                <TextField
+                  id="vw-wait-timeout"
+                  label={intl.formatMessage(messages.waitTimeoutMs)}
+                  value={String(config.timeoutMs ?? 300_000)}
+                  {...connectedInputProps("timeoutMs")}
+                  onChange={(value) =>
+                    onChangeConfig({
+                      ...config,
+                      timeoutMs: Number.parseInt(value, 10) || 0,
+                    })
+                  }
+                />
+              </>
+            ) : null}
+          </>
+        ) : null}
         {config.kind === "action.notify_slack" ? (
           <>
             <TextField
