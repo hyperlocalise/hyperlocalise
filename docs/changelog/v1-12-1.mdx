@@ -1,0 +1,41 @@
+---
+title: "v1.12.1"
+description: "Go CLI release notes for v1.12.1."
+---
+
+`hl run` records MT work in lock and cache identity, and writes character usage, request counts, and duration into the `--output` JSON report. `entries --srx` splits string values with the same SRX 2.0 templates as `run`. Starter `i18n.yml` and CLI docs cover Google and DeepL routing. Planning and parsers are faster for multi-locale runs, plain ICU text, Liquid files, and segment validation.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.12.1) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.12.0...v1.12.1)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Track [MT identity in lock and remote-cache keys](https://github.com/hyperlocalise/hyperlocalise/pull/2408) (translation type, MT provider, and profile), with backward-compatible matching for existing LLM lock entries. MT tasks that still have a type-less 1.12.0 lock hash are re-run so LLM and MT work cannot collide.
+- Add [MT usage to `--output` JSON](https://github.com/hyperlocalise/hyperlocalise/pull/2408): `sourceChars`, `translatedChars`, `requestCount`, and `durationMs` at run, locale (`localeMTUsage`), and profile (`mtUsageByProfile`) levels, plus `translationType` on failures and batches. Character usage is JSON-only (not the stdout summary). Tracing includes translation type and provider.
+- Document [MT configuration and routing](https://github.com/hyperlocalise/hyperlocalise/pull/2441) (Google/DeepL credentials, `llm.rules` → `translation.rules` migration, batching, retries, reporting, and LLM-only features). The starter `i18n.yml` from `hyperlocalise init` stays LLM-only, with commented `mt` / `translation` examples.
+- Add [`entries --srx`](https://github.com/hyperlocalise/hyperlocalise/pull/2405) (`default`, `html`, `markdown`, or an SRX file path) so `hl entries` can split string values with SRX 2.0 the same way `hl run` does, including Markdown/MDX documents. Already-segmented formats such as strict FormatJS `defaultMessage` objects stay unsplit.
+
+## Fixes
+
+None.
+
+## Performance
+
+- Task planning [reuses precomputed source-text and source-context hashes](https://github.com/hyperlocalise/hyperlocalise/pull/2416) instead of recomputing SHA-512 once per target locale.
+- ICU [`ParseInvariant`](https://github.com/hyperlocalise/hyperlocalise/pull/2403) skips AST work for plain text with no `{#<}'}` signals; placeholder-name checks use an ASCII fast path (~112 ns, 0 allocs).
+- [Liquid parsing](https://github.com/hyperlocalise/hyperlocalise/pull/2419) is about 12–23% faster (~3.0–3.5 ms/op → ~2.64 ms/op) by avoiding placeholder-token heap allocs and skipping sentinel regex when none are present.
+- [Segment validation](https://github.com/hyperlocalise/hyperlocalise/pull/2436) is about 17–34% faster on common paths (424.5 ns → 353.2 ns/op plain; 733.5 ns → 486.3 ns/op QA) with 46–79% less heap and fewer allocs.
+
+## Tests
+
+- MT lock migration, mixed LLM/MT runs, JSON report aggregates, tracing, and secret redaction.
+- Command-level MT-only and mixed MT/LLM runs, including lock reuse, missing credentials, DeepL URL validation, and legacy LLM-only compatibility.
+- `entries --srx` for JSON, FormatJS skip, and Markdown documents.
+- Cache-hash reuse during task planning and ICU plain-text invariant fast-path regressions.
+
+## Maintenance
+
+- Drop protobuf scaffolding from the Go module and simplify `make fmt`.

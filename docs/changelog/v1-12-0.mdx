@@ -1,0 +1,48 @@
+---
+title: "v1.12.0"
+description: "Go CLI release notes for v1.12.0."
+---
+
+Phrase, Smartling, and Lokalise CLIs reach file-mode and discovery parity with Crowdin for many workflows. `hl run` can route strings through Google or DeepL MT profiles, segment text with SRX 2.0, and execute MT in bounded batches. `sync push` and `sync pull` honor `storage.adapter` in `i18n.yml`, and `hl check` warns on escaped-character regressions plus optional per-locale spellcheck allow-lists.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.12.0) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.11.0...v1.12.0)
+
+## Breaking changes
+
+- Configs that define both `translation` (including `translation.rules`) and legacy `llm.rules` fail validation. Move routing rules to `translation.rules` before enabling MT routing. ([#2294](https://github.com/hyperlocalise/hyperlocalise/pull/2294))
+- TMS `sync pull` and `sync push` through storage adapters treat locale files without provenance metadata (flat JSON with no `.meta.json` sidecar, `origin=unknown`) as conflicts (`unknown_provenance_mismatch`) instead of silently overwriting local or remote values. Use `--force-conflicts` on push when you intend to override. ([#2385](https://github.com/hyperlocalise/hyperlocalise/pull/2385))
+
+## Features
+
+- Add [Phrase file-mode parity](https://github.com/hyperlocalise/hyperlocalise/pull/2237): `phrase init`, `phrase push` / `phrase pull`, `phrase locales list`, upload `--wait` with terminal-state polling, and `phrase uploads cleanup --id` for unmentioned keys.
+- Expand [`hyperlocalise smartling`](https://github.com/hyperlocalise/hyperlocalise/pull/2239) with translation file import (`upload translations`), discovery (`files list` / `status`, `locales list`, `projects list` / `info`), file rename/delete, `download sources|translations --all` with official `name_locale.ext` paths, optional download locales, retrieval type (`pending` / `published` / `pseudo`), upload directives, and glossary list/create/import/download. ([#2248](https://github.com/hyperlocalise/hyperlocalise/pull/2248), [#2264](https://github.com/hyperlocalise/hyperlocalise/pull/2264), [#2274](https://github.com/hyperlocalise/hyperlocalise/pull/2274))
+- Add [`hyperlocalise lokalise`](https://github.com/hyperlocalise/hyperlocalise/pull/2291): `upload translations` (requires `--target-locale`), `locales list`, `files list`, and `--poll` / `--poll-timeout` on uploads to wait for Lokalise process completion. ([#2330](https://github.com/hyperlocalise/hyperlocalise/pull/2330))
+- Route [`sync push` / `sync pull`](https://github.com/hyperlocalise/hyperlocalise/pull/2365) through `storage.adapter` when Hyperlocalise Cloud sync is not configured; native Hyperlocalise sync still wins when both blocks are present.
+- Add [translation routing and typed `mt.profiles`](https://github.com/hyperlocalise/hyperlocalise/pull/2294) so `hl run` can select LLM or MT engines per group; MT image tasks are rejected at planning time.
+- Add an [MT engine factory for Google Translate and DeepL](https://github.com/hyperlocalise/hyperlocalise/pull/2363) (credentials from configured environment variables) and [bounded MT batch execution](https://github.com/hyperlocalise/hyperlocalise/pull/2383) with retries, cancellation, and partial-success behavior aligned with the existing LLM worker path.
+- Add [native SRX 2.0 segmentation](https://github.com/hyperlocalise/hyperlocalise/pull/2372) for `hl run` via `buckets.*.files[].srx` or `run --srx`, with span keys, lock fingerprints, and skips for already-segmented formats and ICU/printf/Fluent placeholders.
+- Add [`escaped_char_mismatch` warnings](https://github.com/hyperlocalise/hyperlocalise/pull/2304) to `hl check` when translations introduce literal escapes or decoded control characters not present in the source; supports `--quiet`, `--fix`, and `--diff-stdin`.
+- Add [`spellcheck.dictionary_dir`](https://github.com/hyperlocalise/hyperlocalise/pull/2388) in `i18n.yml` and `hl check --dictionary-dir` for per-locale Hunspell allow-list files (`{locale}.txt`).
+
+## Fixes
+
+- Lokalise entry sync [chunks `Keys.Create` / `Keys.BulkUpdate` at 500 keys](https://github.com/hyperlocalise/hyperlocalise/pull/2364), maps hyphen/underscore locale codes, and hardens pull locale resolution for adapter-only configs.
+
+## Performance
+
+- [Java Properties parsing](https://github.com/hyperlocalise/hyperlocalise/pull/2242) is about 28% faster (632 µs → 453 µs/op) with allocations dropping from 2,044 to 19 allocs/op when escapes are absent.
+- [Eval scoring token counting](https://github.com/hyperlocalise/hyperlocalise/pull/2255) is about 2.3× faster (41.5 µs → 18.0 µs/op) with lower heap use in `BenchmarkEvaluatorEvaluate`.
+- [Scoring evaluator tag analysis](https://github.com/hyperlocalise/hyperlocalise/pull/2324) avoids `strings.ToLower` and `strings.Builder` allocations for typical HTML/ICU tokens.
+- [Android XML parsing](https://github.com/hyperlocalise/hyperlocalise/pull/2282) is about 7–8% faster by lazily computing line numbers only for errors and `<plurals>` metadata.
+- [JSONC comment parsing](https://github.com/hyperlocalise/hyperlocalise/pull/2357) is about 10% faster (874 µs → 788 µs/op) with 301 fewer allocations per operation.
+
+## Tests
+
+- Phrase init/push/pull/wait/cleanup, Smartling import/discovery/download-all/glossary flows, and Lokalise upload/list/poll command suites.
+- Storage-adapter `sync push` / `sync pull`, unknown-provenance conflict regressions, and Lokalise adapter live/httptest paths.
+- MT profile validation, engine factory credential errors, bounded MT batch execution, and SRX segmentation/join round-trips.
+- `escaped_char_mismatch` and spellcheck dictionary directory resolution for `hl check`.
+
+## Maintenance
+
+- Bump `google.golang.org/grpc` from v1.83.1 to v1.83.2. ([#2306](https://github.com/hyperlocalise/hyperlocalise/pull/2306))

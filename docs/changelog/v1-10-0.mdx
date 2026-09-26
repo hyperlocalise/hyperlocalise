@@ -1,0 +1,40 @@
+---
+title: "v1.10.0"
+description: "Go CLI release notes for v1.10.0."
+---
+
+`crowdin status` now reports translation and approval progress for local and CI workflows. This release also treats Markdown and MDX as whole-file documents during Cloud sync, imports character limits from Apple localization files, and speeds up several parsers.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.10.0) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.9.1...v1.10.0)
+
+## Breaking changes
+
+- `hyperlocalise entries` now emits an object containing `text` and its metadata for Markdown, MDX, and entries with imported constraints. Consumers that assume every value is a string must accept both strings and objects. Entries without metadata remain plain strings. ([#2102](https://github.com/hyperlocalise/hyperlocalise/pull/2102), [#2035](https://github.com/hyperlocalise/hyperlocalise/pull/2035))
+
+## Features
+
+- Add `hyperlocalise crowdin status` with per-language translation and approval progress. Filter by branch or language, choose text or JSON output, and use `--fail-if-incomplete` to gate CI until every requested language reaches 100% translation and approval. ([#2083](https://github.com/hyperlocalise/hyperlocalise/pull/2083))
+- Treat Markdown and MDX as structured whole-file documents. `entries --source` aligns translated documents with stable source slots, while Hyperlocalise Cloud `sync pull` downloads the complete edited file instead of reconstructing it from string exports. ([#2102](https://github.com/hyperlocalise/hyperlocalise/pull/2102))
+- Import maximum-length constraints from Apple `.strings` comments and `.xcstrings` metadata. `entries` includes `{ text, maxLength }` when a source entry defines a limit. Supported comment forms include `hl:max-length=`, `max.length:`, `max length:`, and `character limit:`. ([#2035](https://github.com/hyperlocalise/hyperlocalise/pull/2035))
+
+## Fixes
+
+None.
+
+## Performance
+
+- HTML tag parity checks are about 17% faster and allocate no heap memory in the benchmark (1,596 ns/op → 1,326 ns/op; 2 allocs / 320 B → 0). ([#2068](https://github.com/hyperlocalise/hyperlocalise/pull/2068))
+- Subtitle parsing is about 25% faster with 49% fewer allocations; marshaling is about 21% faster with 39% fewer allocations. A second pass removes another 1,000 marshal allocations per operation and saves about 15 KB. ([#2001](https://github.com/hyperlocalise/hyperlocalise/pull/2001), [#2049](https://github.com/hyperlocalise/hyperlocalise/pull/2049))
+- PHP array parsing is about 27% faster with 22% fewer allocations; marshaling is about 29% faster with 27% fewer allocations. ([#2019](https://github.com/hyperlocalise/hyperlocalise/pull/2019))
+- JSONC comment parsing now uses direct byte checks to avoid intermediate allocations. ([#2031](https://github.com/hyperlocalise/hyperlocalise/pull/2031))
+
+## Tests
+
+- Crowdin status output, language filtering, branch progress, pagination, and incomplete CI gates.
+- Markdown and MDX document metadata, whole-file Cloud sync, and source-slot alignment.
+- Character-limit imports, Flutter ARB and Apple `.xcstrings` parser edges, eval-set validation, Hyperlocalise sync helpers, and local JSON storage.
+
+## Maintenance
+
+- Bump Go dependencies, including Bubble Tea v2.0.9, OpenAI Go v3.52.0, and Testify v1.12.1; remove the unused WorkOS v9 dependency. ([#2005](https://github.com/hyperlocalise/hyperlocalise/pull/2005), [#1985](https://github.com/hyperlocalise/hyperlocalise/pull/1985))
+- Update the Go build image to 1.27, `rules_go` to v0.63.0, and Gazelle to v0.53.0. ([#1988](https://github.com/hyperlocalise/hyperlocalise/pull/1988), [#2047](https://github.com/hyperlocalise/hyperlocalise/pull/2047), [#2046](https://github.com/hyperlocalise/hyperlocalise/pull/2046))
