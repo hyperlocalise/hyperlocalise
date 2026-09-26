@@ -20,7 +20,7 @@ const (
 	testDictionaryOrgID  = "22222222-2222-4222-8222-222222222222"
 	testDictionaryUserID = "33333333-3333-4333-8333-333333333333"
 	testDictionaryWordID = "44444444-4444-4444-8444-444444444444"
-	testDictionaryBase   = "/api/go-svc/v1/orgs/acme/dictionaries"
+	testDictionaryBase   = "/v1/orgs/acme/dictionaries"
 )
 
 var testDictionaryTime = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -174,7 +174,7 @@ func dictionaryRequestForTest(api *dictionaryAPI, method, path, body string) *ht
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
-	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+	mux.ServeHTTP(rec, req)
 	return rec
 }
 

@@ -317,7 +317,7 @@ func TestDictionaryResolvedWordPriorityAndCaps(t *testing.T) {
 
 func TestDictionaryLogPathsHideCustomerIdentifiers(t *testing.T) {
 	for _, path := range []string{
-		"/api/go-svc/v1/orgs/customer-name/dictionaries/111/words/222",
+		"/v1/orgs/customer-name/dictionaries/111/words/222",
 		"/v1/orgs/customer-name/projects/private-project/dictionaries/resolved",
 	} {
 		safe := requestLogPath(path)

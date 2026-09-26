@@ -55,7 +55,7 @@ func startTestServer(t *testing.T, h *handler) (baseURL string, server *http.Ser
 
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})
-	rootHandler := requestLogMiddleware(withOptionalPrefix(publicPathPrefix, mux))
+	rootHandler := requestLogMiddleware(mux)
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)

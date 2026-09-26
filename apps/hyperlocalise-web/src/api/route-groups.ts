@@ -69,7 +69,6 @@ import { createMemberRoutes } from "./routes/member/member.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createReportsRoutes } from "./routes/reports/reports.route";
-import { createActivityLogRoutes } from "./routes/activity-log/activity-log.route";
 import { createOverviewRoutes } from "./routes/overview/overview.route";
 
 export type OrgScopedRouteOptions = {
@@ -189,7 +188,6 @@ export function createOrgWorkspaceRoutes() {
     .route("/workspace", createWorkspaceRoutes())
     .route("/billing", createBillingRoutes())
     .route("/api-keys", createApiKeyRoutes())
-    .route("/activity-logs", createActivityLogRoutes())
     .route("/reports", createReportsRoutes())
     .route("/overview", createOverviewRoutes());
 }

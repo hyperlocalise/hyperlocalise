@@ -13,7 +13,7 @@ import (
 	"github.com/workos/workos-go/v10"
 )
 
-const testProjectBase = "/api/go-svc/v1/orgs/acme/projects"
+const testProjectBase = "/v1/orgs/acme/projects"
 
 func projectTestAPI(t *testing.T, steps ...dictionaryDBStep) *projectAPI {
 	t.Helper()
@@ -39,7 +39,7 @@ func projectRequestForTest(api *projectAPI, path string) *httptest.ResponseRecor
 	req := httptest.NewRequest(http.MethodGet, path, nil)
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
-	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+	mux.ServeHTTP(rec, req)
 	return rec
 }
 

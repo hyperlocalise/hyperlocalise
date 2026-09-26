@@ -189,7 +189,7 @@ func main() {
 
 	addr := ":" + port
 	// Keep request logging inside tracing without breaking tracing's access to mux-populated r.Pattern.
-	server := newHTTPServer(addr, withOptionalPrefix(publicPathPrefix, tracingMiddleware(requestLogMiddleware(corsMiddleware(mux)))))
+	server := newHTTPServer(addr, tracingMiddleware(requestLogMiddleware(corsMiddleware(mux))))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

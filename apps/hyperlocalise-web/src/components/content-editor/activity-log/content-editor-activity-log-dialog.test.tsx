@@ -20,50 +20,34 @@ import { renderWithContentEditorProviders } from "@/components/content-editor/sh
 
 import { ContentEditorActivityLogButton } from "./content-editor-activity-log-dialog";
 
-const activityLogsGetMock = vi.hoisted(() => vi.fn());
+const activityLogsMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/api-client-instance", () => ({
-  apiClient: {
-    api: {
-      orgs: {
-        ":organizationSlug": {
-          projects: {
-            ":projectId": {
-              files: {
-                detail: {
-                  cat: {
-                    "activity-logs": {
-                      $get: (...args: unknown[]) => activityLogsGetMock(...args),
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      cat: {
+        activityLogs: (...args: unknown[]) => activityLogsMock(...args),
       },
     },
-  },
+    loading: false,
+  }),
 }));
 
 describe("ContentEditorActivityLogButton", () => {
   it("opens a dialog of file and string activity", async () => {
     const user = userEvent.setup();
-    activityLogsGetMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        activityLogs: [
-          {
-            actor: { displayName: "Ada Lovelace", kind: "user", userId: "user-1" },
-            createdAt: "2026-09-08T10:00:00.000Z",
-            eventType: "string_segment_approved",
-            id: "activity-1",
-            payload: { fileName: "en.json", name: "en.json" },
-            target: { displayName: "en.json", href: null, kind: "string_segment" },
-          },
-        ],
-        nextCursor: null,
-      }),
+    activityLogsMock.mockResolvedValue({
+      activityLogs: [
+        {
+          actor: { displayName: "Ada Lovelace", kind: "user", userId: "user-1" },
+          createdAt: "2026-09-08T10:00:00.000Z",
+          eventType: "string_segment_approved",
+          id: "activity-1",
+          payload: { fileName: "en.json", name: "en.json" },
+          target: { displayName: "en.json", href: null, kind: "string_segment" },
+        },
+      ],
+      nextCursor: null,
     });
 
     renderWithContentEditorProviders(
@@ -78,13 +62,10 @@ describe("ContentEditorActivityLogButton", () => {
 
     expect(await screen.findByRole("heading", { name: "Activity" })).toBeInTheDocument();
     expect(screen.getByText(/approved a string/)).toBeInTheDocument();
-    expect(activityLogsGetMock).toHaveBeenCalledWith({
-      param: { organizationSlug: "acme", projectId: "project-1" },
-      query: {
-        sourcePath: "locales/en.json",
-        cursor: undefined,
-        limit: "50",
-      },
+    expect(activityLogsMock).toHaveBeenCalledWith("acme", "project-1", {
+      sourcePath: "locales/en.json",
+      cursor: undefined,
+      limit: 50,
     });
   });
 });

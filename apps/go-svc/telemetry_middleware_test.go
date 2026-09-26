@@ -56,7 +56,6 @@ func spanAttrKeys(span sdktrace.ReadOnlySpan) []string {
 	return keys
 }
 
-// Keep tracing inside withOptionalPrefix so it observes the request whose Pattern is set by ServeMux.
 func tracedTestMux(routes map[string]http.HandlerFunc) http.Handler {
 	mux := http.NewServeMux()
 	for pattern, handler := range routes {
@@ -65,7 +64,7 @@ func tracedTestMux(routes map[string]http.HandlerFunc) http.Handler {
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	return withOptionalPrefix(publicPathPrefix, tracingMiddleware(mux))
+	return tracingMiddleware(mux)
 }
 
 func TestTracingMiddlewarePropagatesIncomingTraceContext(t *testing.T) {
@@ -128,7 +127,7 @@ func TestTracingMiddlewareUsesRegisteredDictionaryEndpoint(t *testing.T) {
 	mux := http.NewServeMux()
 	api := &dictionaryAPI{}
 	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_live"}})
-	handler := withOptionalPrefix(publicPathPrefix, tracingMiddleware(mux))
+	handler := tracingMiddleware(mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/orgs/acme-corp/dictionaries", nil)
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
@@ -169,19 +168,16 @@ func TestTracingMiddlewareUsesBoundedRouteTemplate(t *testing.T) {
 		pattern: func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) },
 	})
 
-	for _, path := range []string{"/v1/orgs/acme-corp/dictionaries", publicPathPrefix + "/v1/orgs/acme-corp/dictionaries"} {
-		req := httptest.NewRequest(http.MethodGet, path, nil)
-		handler.ServeHTTP(httptest.NewRecorder(), req)
-	}
+	req := httptest.NewRequest(http.MethodGet, "/v1/orgs/acme-corp/dictionaries", nil)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
 
 	spans := rec.Ended()
-	require.Len(t, spans, 2)
-	for _, span := range spans {
-		require.Equal(t, "GET "+pattern, span.Name())
-		require.Equal(t, pattern, requireSpanStringAttr(t, span, "http.route"))
-		require.NotContains(t, span.Name(), "acme-corp")
-		require.NotContains(t, requireSpanStringAttr(t, span, "http.route"), "acme-corp")
-	}
+	require.Len(t, spans, 1)
+	span := spans[0]
+	require.Equal(t, "GET "+pattern, span.Name())
+	require.Equal(t, pattern, requireSpanStringAttr(t, span, "http.route"))
+	require.NotContains(t, span.Name(), "acme-corp")
+	require.NotContains(t, requireSpanStringAttr(t, span, "http.route"), "acme-corp")
 }
 
 func TestTracingMiddlewareUnmatchedRouteDoesNotLeakPath(t *testing.T) {
@@ -259,12 +255,10 @@ func TestTracingMiddlewareSkipsHealthCheck(t *testing.T) {
 	rec := withTestSpanRecorder(t)
 	handler := tracedTestMux(nil)
 
-	for _, path := range []string{"/health", publicPathPrefix + "/health"} {
-		req := httptest.NewRequest(http.MethodGet, path, nil)
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, req)
-		require.Equal(t, http.StatusOK, w.Code, path)
-	}
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
 
 	require.Empty(t, rec.Ended(), "health checks must not produce spans")
 }
@@ -273,15 +267,13 @@ func TestTracingMiddlewareTracesNonGetHealth(t *testing.T) {
 	rec := withTestSpanRecorder(t)
 	handler := tracedTestMux(nil)
 
-	for _, path := range []string{"/health", publicPathPrefix + "/health"} {
-		req := httptest.NewRequest(http.MethodPost, path, nil)
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, req)
-		require.Equal(t, http.StatusMethodNotAllowed, w.Code, path)
-	}
+	req := httptest.NewRequest(http.MethodPost, "/health", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusMethodNotAllowed, w.Code)
 
 	spans := rec.Ended()
-	require.Len(t, spans, 2)
+	require.Len(t, spans, 1)
 	for _, span := range spans {
 		require.Equal(t, "POST unmatched", span.Name())
 		require.Equal(t, "unmatched", requireSpanStringAttr(t, span, "http.route"))

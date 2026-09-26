@@ -62,13 +62,13 @@ func issueSheetServe(api *issueSheetAPI, req *http.Request) *httptest.ResponseRe
 	mux := http.NewServeMux()
 	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_123"}})
 	rec := httptest.NewRecorder()
-	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+	mux.ServeHTTP(rec, req)
 	return rec
 }
 
 func TestIssueSheetAutumnDeny(t *testing.T) {
 	api, _ := issueSheetTestAPI(t, false)
-	req := issueSheetAuthedRequest(http.MethodGet, "/api/go-svc/v1/orgs/acme/projects/proj_1/issue-sheet", "")
+	req := issueSheetAuthedRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/issue-sheet", "")
 	rec := issueSheetServe(api, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "feature_unavailable")
@@ -77,7 +77,7 @@ func TestIssueSheetAutumnDeny(t *testing.T) {
 func TestIssueSheetAutumnNilChecker(t *testing.T) {
 	api, _ := issueSheetTestAPI(t, true)
 	api.autumn = nil
-	req := issueSheetAuthedRequest(http.MethodGet, "/api/go-svc/v1/orgs/acme/projects/proj_1/issue-sheet", "")
+	req := issueSheetAuthedRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/issue-sheet", "")
 	rec := issueSheetServe(api, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "feature_unavailable")
@@ -85,7 +85,7 @@ func TestIssueSheetAutumnNilChecker(t *testing.T) {
 
 func TestIssueSheetUnavailableWithoutPool(t *testing.T) {
 	api := &issueSheetAPI{autumn: stubAutumnChecker{allowed: true}}
-	req := issueSheetAuthedRequest(http.MethodGet, "/api/go-svc/v1/orgs/acme/projects/proj_1/issue-sheet", "")
+	req := issueSheetAuthedRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/issue-sheet", "")
 	rec := issueSheetServe(api, req)
 	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	require.Contains(t, rec.Body.String(), "issue_sheet_unavailable")
@@ -93,7 +93,7 @@ func TestIssueSheetUnavailableWithoutPool(t *testing.T) {
 
 func TestIssueSheetUnauthorized(t *testing.T) {
 	api := &issueSheetAPI{pool: newDictionaryTestDB(t), autumn: stubAutumnChecker{allowed: true}}
-	req := httptest.NewRequest(http.MethodGet, "/api/go-svc/v1/orgs/acme/projects/proj_1/issue-sheet", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/issue-sheet", nil)
 	rec := issueSheetServe(api, req)
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
 	require.Contains(t, rec.Body.String(), "unauthorized")
@@ -101,7 +101,7 @@ func TestIssueSheetUnauthorized(t *testing.T) {
 
 func TestIssueSheetOriginGuard(t *testing.T) {
 	api := &issueSheetAPI{pool: newDictionaryTestDB(t), autumn: stubAutumnChecker{allowed: true}}
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/api/go-svc/v1/orgs/acme/projects/proj_1/issue-sheet", strings.NewReader(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet", strings.NewReader(`{}`))
 	req.Header.Set("Origin", "https://evil.example")
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
@@ -112,7 +112,7 @@ func TestIssueSheetOriginGuard(t *testing.T) {
 
 func TestIssueSheetCrossSiteFetchGuard(t *testing.T) {
 	api := &issueSheetAPI{pool: newDictionaryTestDB(t), autumn: stubAutumnChecker{allowed: true}}
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/api/go-svc/v1/orgs/acme/projects/proj_1/issue-sheet", strings.NewReader(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet", strings.NewReader(`{}`))
 	req.Header.Set("Sec-Fetch-Site", "cross-site")
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
@@ -124,7 +124,7 @@ func TestIssueSheetMemberCannotCreate(t *testing.T) {
 	api, _ := issueSheetTestAPIRole(t, true, "member",
 		dictionaryRowStep("from projects p", "proj_1", "HL"),
 	)
-	req := issueSheetAuthedRequest(http.MethodPost, "http://localhost/api/go-svc/v1/orgs/acme/projects/proj_1/issue-sheet", `{"title":"x"}`)
+	req := issueSheetAuthedRequest(http.MethodPost, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet", `{"title":"x"}`)
 	rec := issueSheetServe(api, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "forbidden")
@@ -134,14 +134,14 @@ func TestIssueSheetMemberCannotManageColumns(t *testing.T) {
 	api, _ := issueSheetTestAPIRole(t, true, "member",
 		dictionaryRowStep("from projects p", "proj_1", "HL"),
 	)
-	req := issueSheetAuthedRequest(http.MethodPost, "http://localhost/api/go-svc/v1/orgs/acme/projects/proj_1/issue-sheet/columns", `{"key":"note","label":"Note","type":"text"}`)
+	req := issueSheetAuthedRequest(http.MethodPost, "http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/columns", `{"key":"note","label":"Note","type":"text"}`)
 	rec := issueSheetServe(api, req)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 }
 
 func TestIssueSheetUnknownRoute(t *testing.T) {
 	api := &issueSheetAPI{autumn: stubAutumnChecker{allowed: true}}
-	req := issueSheetAuthedRequest(http.MethodGet, "/api/go-svc/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/unknown", "")
+	req := issueSheetAuthedRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/unknown", "")
 	rec := issueSheetServe(api, req)
 	require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 }
@@ -152,7 +152,7 @@ func TestIssueSheetInvalidRelationshipKind(t *testing.T) {
 	)
 	req := issueSheetAuthedRequest(
 		http.MethodPost,
-		"http://localhost/api/go-svc/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/relationships",
+		"http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/relationships",
 		`{"relatedIssueId":"HL-2","kind":"depends_on"}`,
 	)
 	rec := issueSheetServe(api, req)
@@ -185,7 +185,7 @@ func TestIssueSheetSelfRelationshipRejected(t *testing.T) {
 	)
 	req := issueSheetAuthedRequest(
 		http.MethodPost,
-		"http://localhost/api/go-svc/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/relationships",
+		"http://localhost/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/relationships",
 		`{"relatedIssueId":"HL-1","kind":"related"}`,
 	)
 	rec := issueSheetServe(api, req)
@@ -198,12 +198,12 @@ func TestRequestLogPathIssueSheet(t *testing.T) {
 		path, want string
 	}{
 		{
-			publicPathPrefix + "/v1/orgs/acme/projects/proj_1/issue-sheet",
-			publicPathPrefix + "/v1/orgs/{organizationSlug}/projects/{projectId}/issue-sheet/{resource}",
+			"/v1/orgs/acme/projects/proj_1/issue-sheet",
+			"/v1/orgs/{organizationSlug}/projects/{projectId}/issue-sheet/{resource}",
 		},
 		{
-			publicPathPrefix + "/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/comments",
-			publicPathPrefix + "/v1/orgs/{organizationSlug}/projects/{projectId}/issue-sheet/{resource}",
+			"/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/comments",
+			"/v1/orgs/{organizationSlug}/projects/{projectId}/issue-sheet/{resource}",
 		},
 		{
 			"/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/relationships/rel_1",

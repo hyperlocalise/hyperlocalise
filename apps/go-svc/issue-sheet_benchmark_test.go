@@ -77,7 +77,7 @@ func BenchmarkCanDeleteIssueSheetColumn(b *testing.B) {
 }
 
 func BenchmarkRequestLogPathIssueSheet(b *testing.B) {
-	path := publicPathPrefix + "/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/comments/cmt_1"
+	path := "/v1/orgs/acme/projects/proj_1/issue-sheet/HL-1/comments/cmt_1"
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = requestLogPath(path)

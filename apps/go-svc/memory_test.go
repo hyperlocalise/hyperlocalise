@@ -18,7 +18,7 @@ const (
 	testMemoryOrgID  = "22222222-2222-4222-8222-222222222222"
 	testMemoryUserID = "33333333-3333-4333-8333-333333333333"
 	testMemoryEntry  = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
-	testMemoryBase   = "/api/go-svc/v1/orgs/acme/translation-memories"
+	testMemoryBase   = "/v1/orgs/acme/translation-memories"
 )
 
 var testMemoryTime = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -72,7 +72,7 @@ func memoryRequestForTest(api *memoryAPI, method, path, body string) *httptest.R
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
-	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+	mux.ServeHTTP(rec, req)
 	return rec
 }
 
@@ -223,8 +223,8 @@ func TestMemoryCreateListEntryConflict(t *testing.T) {
 }
 
 func TestMemoryRequestLogPath(t *testing.T) {
-	path := publicPathPrefix + "/v1/orgs/acme/translation-memories/" + testMemoryID + "/entries"
-	require.Equal(t, publicPathPrefix+"/v1/orgs/{organizationSlug}/translation-memories/{resource}", requestLogPath(path))
+	path := "/v1/orgs/acme/translation-memories/" + testMemoryID + "/entries"
+	require.Equal(t, "/v1/orgs/{organizationSlug}/translation-memories/{resource}", requestLogPath(path))
 }
 
 func TestMemoryActorPermissions(t *testing.T) {

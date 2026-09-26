@@ -24,6 +24,7 @@ import { Column } from "@/components/ui/layout/column";
 import { Columns } from "@/components/ui/layout/columns";
 import { Rows } from "@/components/ui/layout/rows";
 import { TypographyP } from "@/components/ui/typography";
+import { env } from "@/lib/env";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
@@ -56,8 +57,7 @@ function countLabel(
 
 export function HyperlabOverview({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
-  const origin = typeof window === "undefined" ? "" : window.location.origin;
-  const baseUrl = `${origin}/api/go-svc`;
+  const baseUrl = env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.hyperlocalise.com";
   const client = useHyperlabClient();
 
   const experimentsQuery = useQuery({
@@ -99,7 +99,7 @@ import { OFREPProvider } from "@openfeature/ofrep-provider";
 
 OpenFeature.setProvider(
   new OFREPProvider({
-    baseUrl: "${baseUrl || "https://app.example.com/api/go-svc"}",
+    baseUrl: "${baseUrl || "https://api.hyperlocalise.com"}",
     headers: [["X-API-Key", "hlk_..."]],
   }),
 );`;
@@ -232,7 +232,7 @@ OpenFeature.setProvider(
                       paddingX="1.5u"
                       paddingY="1u"
                     >
-                      <code className="text-sm">{baseUrl || "/api/go-svc"}</code>
+                      <code className="text-sm">{baseUrl || "https://api.hyperlocalise.com"}</code>
                     </Box>
                   </Rows>
                 </Column>

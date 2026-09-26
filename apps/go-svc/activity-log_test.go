@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	testActivityLogBase   = "/api/go-svc/v1/orgs/acme/activity-logs"
+	testActivityLogBase   = "/v1/orgs/acme/activity-logs"
 	testActivityEventID   = "55555555-5555-4555-8555-555555555555"
 	testActivityProjectID = "66666666-6666-4666-8666-666666666666"
 	testActivityTargetID  = "77777777-7777-4777-8777-777777777777"
@@ -50,7 +50,7 @@ func activityLogRequestForTest(api *activityLogAPI, method, path string) *httpte
 	req := httptest.NewRequest(method, path, nil)
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
-	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+	mux.ServeHTTP(rec, req)
 	return rec
 }
 
@@ -271,7 +271,7 @@ func TestActivityLogRequiresSession(t *testing.T) {
 	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_live"}})
 	req := httptest.NewRequest(http.MethodGet, testActivityLogBase, nil)
 	rec := httptest.NewRecorder()
-	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+	mux.ServeHTTP(rec, req)
 	require.Equal(t, 401, rec.Code)
 }
 
@@ -282,7 +282,7 @@ func TestActivityLogRejectsNonGet(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, testActivityLogBase, nil)
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
-	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+	mux.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 }
 

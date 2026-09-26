@@ -2,7 +2,7 @@
 
 Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs (parallel to Hono), and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
-Public routes are served at `/api/go-svc/...` in production (Vercel rewrite), at `https://api.hyperlocalise.com/v1/...` from browser `GoSvcClient` callers (Bearer token, CORS), and at `/v1/...` or `/ofrep/...` when called directly via the `GO_SVC_URL` binding from the Next.js server.
+Public browser routes are served at `https://api.hyperlocalise.com/v1/...` from `GoSvcClient` callers (Bearer token, CORS). The Next.js server calls `/v1/...` or `/ofrep/...` at the same origin via `GO_SVC_URL` (typically `https://api.hyperlocalise.com` in production).
 
 ## Environment variables
 
@@ -173,7 +173,7 @@ When configured, Valkey and PostgreSQL health objects report `status` as
 dependency is not configured, its status is `disabled` and no timing is
 reported. The endpoint remains an HTTP 200 liveness check.
 
-The web app reaches go-svc through `GO_SVC_URL` (set automatically on Vercel via the service binding). Domains research is **not** available on the public `/api/go-svc` rewrite: handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js org API computes and sends that header server-side.
+The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header.
 
 ## Docker / Vercel
 
@@ -344,10 +344,8 @@ must never be the only retained copy of guideline content.
 
 ## Activity logs
 
-Parallel read API for the workspace settings activity log. The Hono route at
-`/api/orgs/{organizationSlug}/activity-logs` remains the live browser path.
-go-svc exposes the same contract at `/api/go-svc/v1/orgs/{organizationSlug}/activity-logs`
-for parity and a later cutover. Requires `activity_logs:read` (`admin` or
+Read API for the workspace settings activity log at
+`/v1/orgs/{organizationSlug}/activity-logs`. Requires `activity_logs:read` (`admin` or
 `localization_manager`), WorkOS session auth, and `DATABASE_URL`.
 
 | Method | Path | Operation |

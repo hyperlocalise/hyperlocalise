@@ -14,7 +14,7 @@ import (
 	"github.com/workos/workos-go/v10"
 )
 
-const testTeamBase = "/api/go-svc/v1/orgs/acme/teams"
+const testTeamBase = "/v1/orgs/acme/teams"
 
 func teamRequestForTest(api *teamAPI, method, path, body string) *httptest.ResponseRecorder {
 	mux := http.NewServeMux()
@@ -23,7 +23,7 @@ func teamRequestForTest(api *teamAPI, method, path, body string) *httptest.Respo
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
-	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+	mux.ServeHTTP(rec, req)
 	return rec
 }
 
@@ -65,7 +65,7 @@ func TestTeamSessionAndOrigin(t *testing.T) {
 			req.Header.Set("Origin", tc.origin)
 			req.Header.Set("Sec-Fetch-Site", tc.site)
 			rec := httptest.NewRecorder()
-			withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+			mux.ServeHTTP(rec, req)
 			require.Equal(t, tc.status, rec.Code, rec.Body.String())
 		})
 	}

@@ -51,7 +51,7 @@ func TestRequestAccessLogCorrelatesWithRecordedSpan(t *testing.T) {
 	mux.HandleFunc("POST /v1/validate/segment", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := withOptionalPrefix(publicPathPrefix, tracingMiddleware(requestLogMiddleware(mux)))
+	handler := tracingMiddleware(requestLogMiddleware(mux))
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", nil)
 	handler.ServeHTTP(httptest.NewRecorder(), req)
@@ -67,7 +67,7 @@ func TestRequestAccessLogCorrelatesWithRecordedSpan(t *testing.T) {
 	require.Equal(t, "go-svc", entry["dd.service"])
 }
 
-func TestRequestAccessLogPreservesPublicPathPrefix(t *testing.T) {
+func TestRequestAccessLogPathBounding(t *testing.T) {
 	tests := []struct {
 		name       string
 		method     string
@@ -77,14 +77,14 @@ func TestRequestAccessLogPreservesPublicPathPrefix(t *testing.T) {
 		{
 			name:       "unbounded route keeps full public path",
 			method:     http.MethodPost,
-			path:       publicPathPrefix + "/v1/validate/segment",
-			wantLogged: publicPathPrefix + "/v1/validate/segment",
+			path:       "/v1/validate/segment",
+			wantLogged: "/v1/validate/segment",
 		},
 		{
 			name:       "bounded org route keeps prefix and bounding",
 			method:     http.MethodGet,
-			path:       publicPathPrefix + "/v1/orgs/acme-corp/dictionaries",
-			wantLogged: publicPathPrefix + "/v1/orgs/{organizationSlug}/dictionaries/{resource}",
+			path:       "/v1/orgs/acme-corp/dictionaries",
+			wantLogged: "/v1/orgs/{organizationSlug}/dictionaries/{resource}",
 		},
 	}
 
@@ -104,7 +104,7 @@ func TestRequestAccessLogPreservesPublicPathPrefix(t *testing.T) {
 			mux.HandleFunc("GET /v1/orgs/{organizationSlug}/dictionaries", func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			})
-			handler := withOptionalPrefix(publicPathPrefix, tracingMiddleware(requestLogMiddleware(mux)))
+			handler := tracingMiddleware(requestLogMiddleware(mux))
 
 			req := httptest.NewRequest(tc.method, tc.path, nil)
 			handler.ServeHTTP(httptest.NewRecorder(), req)

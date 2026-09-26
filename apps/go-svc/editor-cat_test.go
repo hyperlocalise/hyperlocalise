@@ -23,7 +23,7 @@ const (
 )
 
 func editorCatPath(suffix string) string {
-	return "/api/go-svc/v1/orgs/acme/projects/" + testEditorCatProjectID + suffix
+	return "/v1/orgs/acme/projects/" + testEditorCatProjectID + suffix
 }
 
 func editorCatQueueContextSteps() []dictionaryDBStep {
@@ -69,7 +69,7 @@ func editorCatRequest(api *editorCatAPI, method, path, body string) *httptest.Re
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
-	withOptionalPrefix(publicPathPrefix, mux).ServeHTTP(rec, req)
+	mux.ServeHTTP(rec, req)
 	return rec
 }
 
@@ -600,7 +600,7 @@ func TestEditorCatActivityLogs(t *testing.T) {
 	actorUserID := testDictionaryUserID
 	first := "Ada"
 	last := "Lovelace"
-	payload := []byte(`{"sourcePath":"a.json"}`)
+	payload := []byte(`{"fileName":"a.json","name":"a.json","projectId":"` + testEditorCatProjectID + `","sourcePath":"a.json"}`)
 	api := editorCatTestAPI(t, "translator",
 		editorCatProjectStep("native"),
 		dictionaryDBStep{
@@ -608,7 +608,7 @@ func TestEditorCatActivityLogs(t *testing.T) {
 			sql:  "from organization_activity_events e",
 			values: [][]any{{
 				nil, "user", &actorUserID, created, "string_segment_commented", testEditorCatCommentID,
-				payload, testEditorCatProjectID, "project", &first, &last,
+				payload, testEditorCatProjectID + ":a.json", "file", &first, &last,
 			}},
 		},
 	)
@@ -621,6 +621,10 @@ func TestEditorCatActivityLogs(t *testing.T) {
 	require.Len(t, body.ActivityLogs, 1)
 	require.Equal(t, "string_segment_commented", body.ActivityLogs[0].EventType)
 	require.Equal(t, "Ada Lovelace", body.ActivityLogs[0].Actor.DisplayName)
+	require.NotNil(t, body.ActivityLogs[0].Target.DisplayName)
+	require.Equal(t, "a.json", *body.ActivityLogs[0].Target.DisplayName)
+	require.NotNil(t, body.ActivityLogs[0].Target.Href)
+	require.Contains(t, *body.ActivityLogs[0].Target.Href, "/files/content-editor?sourcePath=")
 }
 
 func TestEditorCatActivityLogsInvalidCursor(t *testing.T) {
