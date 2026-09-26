@@ -182,6 +182,7 @@ func main() {
 	h.activityLogs.membership = membershipLookup
 	h.contentEditor.membership = membershipLookup
 	h.projects.membership = membershipLookup
+	h.workspace.membership = membershipLookup
 
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, verifier)
