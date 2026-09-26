@@ -22,6 +22,10 @@ check-build: ## check golang build
 check-build-go-svc: ## check go-svc container service build
 	@go build -o /dev/null ./apps/go-svc
 
+.PHONY: check-build-public-api
+check-build-public-api: ## check standalone public API service build
+	@go build -o /dev/null ./apps/public-api
+
 .PHONY: check-build-go-svc-cgo
 check-build-go-svc-cgo: ## check go-svc build+tests with the real cgo_hunspell provider (requires libhunspell-dev + pkg-config locally; matches Dockerfile.vercel)
 	CGO_ENABLED=1 go build -tags cgo_hunspell -o /dev/null ./apps/go-svc
