@@ -42,6 +42,8 @@ type batchResponse struct {
 	BatchItemFailures []batchItemFailure `json:"batchItemFailures"`
 }
 
+const databaseConnectionTimeout = 5 * time.Second
+
 func (h *activityLogHandler) Handle(ctx context.Context, event events.SQSEvent) (batchResponse, error) {
 	store, err := h.currentStore(ctx)
 	if err != nil {
@@ -91,16 +93,22 @@ func (d *databaseConnection) currentStore(ctx context.Context) (*activitylog.Sto
 		return nil, fmt.Errorf("invalid database URL: %w", err)
 	}
 	poolConfig.MaxConns = 2
+	poolConfig.ConnConfig.ConnectTimeout = databaseConnectionTimeout
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("create database connection pool: %w", err)
 	}
 
-	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, databaseConnectionTimeout)
 	defer cancel()
 	if err := pool.Ping(pingCtx); err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("database connection failed: %w", err)
+		return nil, fmt.Errorf(
+			"database connection failed (host=%s port=%d): %w",
+			poolConfig.ConnConfig.Host,
+			poolConfig.ConnConfig.Port,
+			err,
+		)
 	}
 
 	oldPool := d.pool
