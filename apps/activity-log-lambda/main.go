@@ -177,8 +177,10 @@ func newSecretBackedHandler(ctx context.Context, provider interface {
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	logger.Info("activity_log_initialization_started")
+	logger.Info("activity_log_secret_configuration_load_started")
 	secretConfig, err := secretstore.ConfigFromEnv()
 	if err != nil {
+		logger.Error("activity_log_secret_configuration_load_failed", "error", err)
 		log.Fatal(err)
 	}
 	logger.Info("activity_log_secret_configuration_loaded", "secret_arn", secretConfig.ARN, "secret_key", secretConfig.Key)
