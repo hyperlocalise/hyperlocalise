@@ -2,6 +2,7 @@ package secretsmanager
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -51,6 +52,22 @@ func TestLoaderRefreshesAfterTTL(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "postgres://two", value)
+	require.Equal(t, 2, client.calls)
+}
+
+func TestLoaderUsesCachedSecretWhenRefreshFails(t *testing.T) {
+	client := &fakeAPI{secret: `{"DATABASE_URL":"postgres://one"}`}
+	loader, err := NewLoader(client, Config{ARN: "arn:secret", Key: "DATABASE_URL", CacheTTL: 0})
+	require.NoError(t, err)
+
+	value, err := loader.Load(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "postgres://one", value)
+
+	client.err = errors.New("secrets manager unavailable")
+	value, err = loader.Load(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "postgres://one", value)
 	require.Equal(t, 2, client.calls)
 }
 

@@ -95,29 +95,41 @@ func (l *Loader) Load(ctx context.Context) (string, error) {
 		SecretId: awssdk.String(l.config.ARN),
 	})
 	if err != nil {
-		return "", fmt.Errorf("get secret value: %w", err)
+		return l.cachedValueOrError(now, fmt.Errorf("get secret value: %w", err))
 	}
 	if output == nil || output.SecretString == nil {
-		return "", errors.New("secret does not contain SecretString")
+		return l.cachedValueOrError(now, errors.New("secret does not contain SecretString"))
 	}
 
 	values := map[string]json.RawMessage{}
 	if err := json.Unmarshal([]byte(*output.SecretString), &values); err != nil {
-		return "", fmt.Errorf("parse secret JSON: %w", err)
+		return l.cachedValueOrError(now, fmt.Errorf("parse secret JSON: %w", err))
 	}
 	value, ok := values[l.config.Key]
 	if !ok {
-		return "", fmt.Errorf("secret field %q is missing", l.config.Key)
+		return l.cachedValueOrError(now, fmt.Errorf("secret field %q is missing", l.config.Key))
 	}
 	var secretValue string
 	if err := json.Unmarshal(value, &secretValue); err != nil {
-		return "", fmt.Errorf("secret field %q is not a string", l.config.Key)
+		return l.cachedValueOrError(now, fmt.Errorf("secret field %q is not a string", l.config.Key))
 	}
 	if strings.TrimSpace(secretValue) == "" {
-		return "", fmt.Errorf("secret field %q is empty", l.config.Key)
+		return l.cachedValueOrError(now, fmt.Errorf("secret field %q is empty", l.config.Key))
 	}
 
 	l.cachedURL = secretValue
 	l.cacheUntil = now.Add(l.config.CacheTTL)
 	return secretValue, nil
+}
+
+func (l *Loader) cachedValueOrError(now time.Time, err error) (string, error) {
+	if l.cachedURL == "" {
+		return "", err
+	}
+
+	// Keep the last known-good value usable during a transient refresh failure.
+	// Retry after another cache interval so an outage does not cause a Secrets
+	// Manager request and SQS batch failure on every invocation.
+	l.cacheUntil = now.Add(l.config.CacheTTL)
+	return l.cachedURL, nil
 }
