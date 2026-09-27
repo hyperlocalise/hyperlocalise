@@ -205,6 +205,47 @@ For tracing, set `OTEL_EXPORTER_OTLP_ENDPOINT` in the `go_svc` service environme
 | `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 
+## Projects
+
+The Go service exposes native project reads under
+`/v1/orgs/{organizationSlug}/...` (typically on `https://api.hyperlocalise.com`;
+the same paths also work under `/api/go-svc/...` on the web host). Go accepts
+the WorkOS session access token or `wos-session` cookie and performs live
+WorkOS membership verification using the existing membership cache.
+
+Any organization member with team visibility into a project may read it. The
+content editor grouping preview additionally requires `admin` or
+`localization_manager`.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/projects` | List accessible native projects with open job counts |
+| GET | `/projects/{projectId}` | Project detail with open job count |
+| GET | `/projects/{projectId}/locale-progress` | Per-locale word/phrase translation and approval progress |
+| GET | `/projects/{projectId}/open-job-count` | Open job count only |
+| GET | `/projects/{projectId}/content-editor-behavior` | Identical-string grouping setting |
+| GET | `/projects/{projectId}/content-editor-behavior/preview` | Preview of identical-string grouping (`admin`/`localization_manager` only) |
+| GET | `/projects/{projectId}/files` | Native repository files for one project |
+| GET | `/workspace-files` | Native repository files across every accessible project |
+
+**Native projects only.** Every route above filters to `projects.source = 'native'`
+and returns `project_not_found` for anything else, including a materialized
+`external_tms` project reached by its plain (non-`ext:`-prefixed) id. This is
+deliberately stricter than the equivalent Hono routes, which do not filter by
+`source` for these lookups. These go-svc routes never load or decrypt provider
+credentials; encoded/live provider project ids (`ext:{provider}:{id}`) and
+connected-TMS projects remain on Hono.
+
+**Locale-progress word counts are approximate.** `locale-progress` uses a small,
+dependency-free Go word counter rather than Hono's ICU-backed
+`Intl.Segmenter`. It preserves literal text from common ICU plural/select
+messages, but segmentation can still differ from Hono, particularly for
+source languages that do not use whitespace as a reliable word boundary.
+Chinese, Japanese, and Korean text is approximated per character, while
+Thai, Lao, Khmer, and Myanmar text may be under-counted. As a result,
+`translationProgress` and `approvalProgress` may differ from Hono for these
+source locales.
+
 ## Content editor (CAT)
 
 Parallel native CAT API. Hono routes under `/api/orgs/{organizationSlug}/projects/{projectId}/files/detail/cat` remain the live browser path. go-svc exposes the same JSON contracts at `/api/go-svc/v1/orgs/{organizationSlug}/projects/{projectId}/files/detail/cat` for a later cutover. Auth matches dictionary routes. Native projects only; connected TMS CAT stays on Hono (`501 provider_cat_deferred`).

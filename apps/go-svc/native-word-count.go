@@ -8,7 +8,7 @@ import (
 var (
 	nativeWordCountHTMLTagPattern     = regexp.MustCompile(`<[^>]*>`)
 	nativeWordCountPlaceholderPattern = regexp.MustCompile(`\{\{[^}]*\}\}|%\d*\$?[sdif]|\$\{[^}]*\}`)
-	nativeWordLikePattern = regexp.MustCompile(`\p{Han}|\p{Hiragana}|\p{Katakana}|\p{Hangul}|[\p{L}\p{N}][\p{L}\p{M}\p{N}'’-]*`)
+	nativeWordLikePattern             = regexp.MustCompile(`\p{Han}|\p{Hiragana}|\p{Katakana}|\p{Hangul}|[\p{L}\p{N}][\p{L}\p{M}\p{N}'’-]*`)
 )
 
 func countNativeSourceWords(sourceText string) int {

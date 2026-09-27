@@ -92,6 +92,7 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).contentEditorBehaviorHandler))
 	route("GET "+project+"/content-editor-behavior/preview", bindActor(api, (*projectAPI).contentEditorBehaviorPreviewHandler))
 	route("GET "+project+"/files", bindActor(api, (*projectAPI).filesHandler))
+	route("GET "+orgRoutePrefix+"/workspace-files", bindActor(api, (*projectAPI).workspaceFilesHandler))
 }
 
 func (api *projectAPI) actor(ctx context.Context, claims AuthClaims, slug string) (projectActor, error) {
