@@ -19,11 +19,25 @@ import type { GoSvcRequestOptions } from "./go-svc-client.types";
 import { GoSvcClientError, orgPath, type GoSvcRequest } from "./go-svc-request";
 
 function researchPath(organizationSlug: string, linkedDomainId: string, ...rest: string[]) {
-  return orgPath(organizationSlug, "domains", linkedDomainId, "research", ...rest);
+  return orgPath(
+    organizationSlug,
+    "domains",
+    "linked-domains",
+    linkedDomainId,
+    "research",
+    ...rest,
+  );
 }
 
 function searchConsolePath(organizationSlug: string, linkedDomainId: string, ...rest: string[]) {
-  return orgPath(organizationSlug, "domains", linkedDomainId, "search-console", ...rest);
+  return orgPath(
+    organizationSlug,
+    "domains",
+    "linked-domains",
+    linkedDomainId,
+    "search-console",
+    ...rest,
+  );
 }
 
 function linkedDomainsPath(organizationSlug: string, ...rest: string[]) {
