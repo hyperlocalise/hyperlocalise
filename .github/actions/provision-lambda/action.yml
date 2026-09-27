@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-action.json
-name: Deploy Lambda
+name: Provision Lambda
 description: Update an existing ZIP-based Lambda function from a versioned S3 artifact
 inputs:
   function-parameter-name:
@@ -45,7 +45,7 @@ runs:
         echo "Resolved Lambda function from ${FUNCTION_PARAMETER_NAME}"
         echo "function-name=${function_name}" >> "${GITHUB_OUTPUT}"
 
-    - name: Deploy Lambda artifact
+    - name: Provision Lambda from artifact
       id: deploy
       shell: bash
       env:

@@ -13,7 +13,7 @@ on:
       - internal/secretsmanager/**
       - apps/activity-log-lambda/**
       - .github/actions/go-bootstrap/**
-      - .github/actions/deploy-lambda/**
+      - .github/actions/provision-lambda/**
       - .github/actions/upload-lambda-artifact/**
       - .github/workflows/lambda-deploy.yml
   workflow_dispatch:
@@ -34,8 +34,8 @@ env:
   LAMBDA_ARTIFACT_KEY: activity-log/bootstrap.zip
 
 jobs:
-  deploy:
-    name: Build and deploy activity-log Lambda
+  upload:
+    name: Build and upload activity-log artifact
     if: github.ref == 'refs/heads/main'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
@@ -57,7 +57,7 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-actions-lambda-deploy
+          role-session-name: github-actions-lambda-upload
 
       - name: Build and upload Lambda artifact
         id: upload
@@ -68,22 +68,45 @@ jobs:
           binary-path: dist/activity-log-lambda/bootstrap
           s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
 
-      - name: Deploy Lambda artifact
-        id: deploy
-        uses: ./.github/actions/deploy-lambda
+    outputs:
+      bucket: ${{ steps.upload.outputs.bucket }}
+      s3-uri: ${{ steps.upload.outputs.s3-uri }}
+      version-id: ${{ steps.upload.outputs.version-id }}
+
+  provision:
+    name: Provision activity-log Lambda code
+    needs: upload
+    if: github.ref == 'refs/heads/main'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-lambda-provision
+
+      - name: Provision Lambda from uploaded artifact
+        id: provision
+        uses: ./.github/actions/provision-lambda
         with:
           function-parameter-name: ${{ env.LAMBDA_FUNCTION_PARAMETER_NAME }}
-          bucket: ${{ steps.upload.outputs.bucket }}
+          bucket: ${{ needs.upload.outputs.bucket }}
           s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
-          version-id: ${{ steps.upload.outputs.version-id }}
+          version-id: ${{ needs.upload.outputs.version-id }}
 
       - name: Summarize deployment
         shell: bash
         env:
-          S3_URI: ${{ steps.upload.outputs.s3-uri }}
-          VERSION_ID: ${{ steps.upload.outputs.version-id }}
-          FUNCTION_NAME: ${{ steps.deploy.outputs.function-name }}
-          UPDATE: ${{ steps.deploy.outputs.update }}
+          S3_URI: ${{ needs.upload.outputs.s3-uri }}
+          VERSION_ID: ${{ needs.upload.outputs.version-id }}
+          FUNCTION_NAME: ${{ steps.provision.outputs.function-name }}
+          UPDATE: ${{ steps.provision.outputs.update }}
         run: |
           {
             echo "## Lambda deployed"
