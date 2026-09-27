@@ -73,7 +73,6 @@ function createOrgSlugClient(origin: string) {
     ...pickClientPaths(integrations, [
       "contentful-connections",
       "mcp-server-connections",
-      "linked-domains",
       "semrush-connections",
       "zernio-connections",
       "ahrefs-connections",

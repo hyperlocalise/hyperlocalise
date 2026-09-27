@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 import { getAppLocaleFromPathname } from "@/lib/app-i18n/rewrite-app-locale-path";
 import { DOMAIN_RESEARCH_MARKETS } from "@/lib/domains/research-prototype";
-import type { LinkedDomainAuditDetail, LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { PageHeader, WorkspacePageShell } from "../../../_components/workspace-resource-shared";
 
@@ -44,24 +44,12 @@ export function DomainDetailPageContent({
   const pathname = usePathname();
   const locale = getAppLocaleFromPathname(pathname ?? "/");
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
 
   const domainQuery = useQuery({
     queryKey: ["linked-domain", organizationSlug, linkedDomainId],
     queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}`,
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.message || body.error || intl.formatMessage(messages.loadError));
-      }
-      if (!body.linkedDomain) {
-        throw new Error(intl.formatMessage(messages.loadError));
-      }
+      const body = await goSvcClient.domains.getLinkedDomain(organizationSlug, linkedDomainId);
       return body.linkedDomain;
     },
   });
@@ -71,20 +59,7 @@ export function DomainDetailPageContent({
     enabled:
       Boolean(domainQuery.data?.localisationAuditId) && domainQuery.data?.status === "verified",
     queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/audit`,
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        audit?: LinkedDomainAuditDetail;
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.message || body.error || intl.formatMessage(messages.auditLoadError));
-      }
-      if (!body.audit) {
-        throw new Error(intl.formatMessage(messages.auditLoadError));
-      }
+      const body = await goSvcClient.domains.getLinkedDomainAudit(organizationSlug, linkedDomainId);
       return body.audit;
     },
   });
@@ -115,21 +90,11 @@ export function DomainDetailPageContent({
   const projectMutation = useMutation({
     mutationFn: async (projectId: string | null) => {
       if (!linkedDomain) throw new Error("linked_domain_not_found");
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomain.id)}/project`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId }),
-        },
+      const body = await goSvcClient.domains.updateLinkedDomainProject(
+        organizationSlug,
+        linkedDomain.id,
+        { projectId },
       );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-      };
-      if (!response.ok || !body.linkedDomain) {
-        throw new Error(body.message || intl.formatMessage(messages.projectUpdateError));
-      }
       return body.linkedDomain;
     },
     onSuccess: (updated) => {

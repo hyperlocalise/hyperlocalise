@@ -14,7 +14,7 @@ import (
 )
 
 func (h *handler) registerDomainResearch(mux *http.ServeMux, verifier SessionVerifier) {
-	base := orgRoutePrefix + "/domains/{linkedDomainId}/research"
+	base := orgRoutePrefix + "/domains/linked-domains/{linkedDomainId}/research"
 	read := func(actor workspaceActor) bool { return actor.canReadProjects() }
 	write := func(actor workspaceActor) bool { return actor.canWriteProjects() }
 	route := func(pattern string, allow func(workspaceActor) bool, fn func(*http.Request, workspaceActor) (any, int, error)) {

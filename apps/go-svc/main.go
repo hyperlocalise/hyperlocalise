@@ -97,6 +97,7 @@ func main() {
 		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
 			log.Printf("configure autumn: %v", err)
 		} else {
+			h.autumn = client
 			h.issueSheets.autumn = autumnClientChecker{client: client}
 			h.members.seats = autumnMemberSeats{client: client}
 		}

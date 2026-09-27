@@ -141,20 +141,21 @@ Research routes require both a signed-in WorkOS session cookie and the server-on
 
 ## API (organization scope)
 
-Authenticated org routes live under `/api/orgs/{organizationSlug}/linked-domains`. All routes require the `workspace-domains` flag.
+Authenticated org routes live under `/v1/orgs/{organizationSlug}/domains/linked-domains` in go-svc. All routes require the `workspace-domains` flag and use WorkOS Bearer access tokens.
 
 ### Linked domains
 
 | Method | Path | Capability | Description |
 | --- | --- | --- | --- |
-| `GET` | `/linked-domains` | `projects:read` | List linked domains |
-| `POST` | `/linked-domains` | `projects:create` | Start a claim (`{ domainSlug }`) |
-| `GET` | `/linked-domains/{id}` | `projects:read` | Fetch one domain |
-| `GET` | `/linked-domains/{id}/audit` | `projects:read` | Localization audit snapshot |
-| `POST` | `/linked-domains/{id}/verify` | `projects:create` | Run verification |
-| `POST` | `/linked-domains/{id}/market-recommendations` | `projects:write` | Recommend markets after verification; one DataForSEO request per market |
-| `PATCH` | `/linked-domains/{id}/markets` | `projects:write` | Save the user’s selected market IDs after verification |
-| `DELETE` | `/linked-domains/{id}` | `projects:create` | Cancel a pending claim |
+| `GET` | `/domains/linked-domains` | `projects:read` | List linked domains |
+| `POST` | `/domains/linked-domains` | `projects:create` | Start a claim (`{ domainSlug }` or `{ domain }`) |
+| `GET` | `/domains/linked-domains/{id}` | `projects:read` | Fetch one domain |
+| `GET` | `/domains/linked-domains/{id}/audit` | `projects:read` | Localization audit snapshot |
+| `POST` | `/domains/linked-domains/{id}/verify` | `projects:create` | Run verification |
+| `POST` | `/domains/linked-domains/{id}/market-recommendations` | `projects:create` | Recommend markets after verification; one DataForSEO request per market |
+| `PATCH` | `/domains/linked-domains/{id}/markets` | `projects:create` | Save the user’s selected market IDs after verification |
+| `PATCH` | `/domains/linked-domains/{id}/project` | `projects:create` | Update project assignment |
+| `DELETE` | `/domains/linked-domains/{id}` | `projects:create` | Cancel a pending claim |
 
 ### Research
 

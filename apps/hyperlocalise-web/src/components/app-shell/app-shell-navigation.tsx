@@ -48,7 +48,7 @@ import {
 import { formatInboxUnreadBadgeLabel, inboxUnreadBadgeClassName } from "./inbox-unread-badge";
 
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
-import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import {
   buildDomainNavigationItems,
@@ -318,25 +318,13 @@ function DomainNavigation({
   items?: readonly NavigationItem[];
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const searchParams = useSearchParams();
   const domainQuery = useQuery({
     queryKey: ["linked-domain", organizationSlug, linkedDomainId],
     enabled: !domainName && !items && isLiveDomainResearchId(linkedDomainId),
     queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}`,
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.message || body.error || "Failed to load domain");
-      }
-      if (!body.linkedDomain) {
-        throw new Error("Failed to load domain");
-      }
+      const body = await goSvcClient.domains.getLinkedDomain(organizationSlug, linkedDomainId);
       return body.linkedDomain;
     },
   });

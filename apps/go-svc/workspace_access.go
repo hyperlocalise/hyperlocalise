@@ -76,6 +76,10 @@ func (a workspaceActor) canReadExperiments() bool { return a.canReadProjects() }
 
 func (a workspaceActor) canWriteExperiments() bool { return a.canWriteProjects() }
 
+func (a workspaceActor) orgWideProjectAccess() bool {
+	return a.role == "admin" || a.role == "localization_manager"
+}
+
 func (api *workspaceAPI) actor(ctx context.Context, claims AuthClaims, slug string) (workspaceActor, error) {
 	resolved, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, slug)
 	if err != nil {
