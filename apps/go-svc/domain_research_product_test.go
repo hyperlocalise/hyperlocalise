@@ -92,7 +92,7 @@ func TestDomainResearchProductLifecycle(t *testing.T) {
 			}
 		}(),
 	}
-	base := scope.OrgPath("/domains/" + linkedDomainID + "/research")
+	base := scope.OrgPath("/domains/linked-domains/" + linkedDomainID + "/research")
 
 	rec := workspaceRequest(t, h, scope, http.MethodGet, base, "")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -123,14 +123,14 @@ func TestDomainResearchProductLifecycle(t *testing.T) {
 	_, err := scope.Pool.Exec(t.Context(), `
         insert into linked_domains (
             id, organization_id, created_by_user_id, domain_key, domain_slug, source_url, status, verification_token
-        ) values ($1, $2, $3, 'pending.com', 'pending-com', 'https://pending.com/', 'pending', 'token')`,
+        ) values ($1, $2, $3, 'pending.com', 'pending-com', 'https://pending.com/', 'pending_verification', 'token')`,
 		pendingID, scope.OrganizationID, scope.UserID)
 	require.NoError(t, err)
-	rec = workspaceRequest(t, h, scope, http.MethodPost, scope.OrgPath("/domains/"+pendingID+"/research/keywords/expand"), `{"seedKeyword":"seo","marketId":"france-fr"}`)
+	rec = workspaceRequest(t, h, scope, http.MethodPost, scope.OrgPath("/domains/linked-domains/"+pendingID+"/research/keywords/expand"), `{"seedKeyword":"seo","marketId":"france-fr"}`)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "linked_domain_not_verified")
 
-	rec = workspaceRequest(t, h, scope, http.MethodGet, scope.OrgPath("/domains/"+uuid.NewString()+"/research"), "")
+	rec = workspaceRequest(t, h, scope, http.MethodGet, scope.OrgPath("/domains/linked-domains/"+uuid.NewString()+"/research"), "")
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
 
@@ -145,7 +145,7 @@ func TestDomainResearchExpandRejectsUnknownMarket(t *testing.T) {
 	require.NoError(t, err)
 	h := workspaceHandler(scope, "admin", stubWorkspaceFlags{enabled: true})
 	h.research = fakeResearch{}
-	path := scope.OrgPath("/domains/" + linkedDomainID + "/research/keywords/expand")
+	path := scope.OrgPath("/domains/linked-domains/" + linkedDomainID + "/research/keywords/expand")
 	rec := workspaceRequest(t, h, scope, http.MethodPost, path, `{"seedKeyword":"seo","marketId":"unknown"}`)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "market_not_found")

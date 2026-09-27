@@ -12,7 +12,7 @@ import (
 )
 
 func (h *handler) registerDomainSearchConsole(mux *http.ServeMux, verifier SessionVerifier) {
-	base := orgRoutePrefix + "/domains/{linkedDomainId}/search-console"
+	base := orgRoutePrefix + "/domains/linked-domains/{linkedDomainId}/search-console"
 	read := func(actor workspaceActor) bool { return actor.canReadProjects() }
 	route := func(pattern string, fn func(*http.Request, workspaceActor) (any, int, error)) {
 		registerAuthenticated(mux, verifier, pattern, h.workspaceHandle(

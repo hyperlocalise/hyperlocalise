@@ -417,6 +417,7 @@ func (api *linkedDomainAPI) verify(r *http.Request, a workspaceActor) (any, int,
 	}
 	projectID := body.ProjectID
 	createProject := (body.CreateProject == nil && projectID == nil) || (body.CreateProject != nil && *body.CreateProject)
+	autoCreatedProjectID := ""
 	tx, err := api.workspace.pool.Begin(r.Context())
 	if err != nil {
 		return nil, 0, err
@@ -445,13 +446,11 @@ func (api *linkedDomainAPI) verify(r *http.Request, a workspaceActor) (any, int,
 		if err != nil {
 			return nil, 0, err
 		}
-	} else if projectID != nil {
-		var found string
-		err = tx.QueryRow(r.Context(), `select id from projects where id=$1 and organization_id=$2`, *projectID, a.organizationID).Scan(&found)
-		if isNoRows(err) {
-			return nil, 0, workspaceFailure(404, "project_not_found", "Selected project was not found in this workspace.")
+		if projectID != nil {
+			autoCreatedProjectID = *projectID
 		}
-		if err != nil {
+	} else if projectID != nil {
+		if err := api.assertAccessibleProject(r.Context(), tx, a, *projectID); err != nil {
 			return nil, 0, err
 		}
 	}
@@ -475,6 +474,9 @@ func (api *linkedDomainAPI) verify(r *http.Request, a workspaceActor) (any, int,
 	}
 	if err = tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
+	}
+	if autoCreatedProjectID != "" {
+		api.recordProjectCreated(r.Context(), a, autoCreatedProjectID, d.DomainKey)
 	}
 	updated, err := api.load(r.Context(), a, id)
 	if err != nil {
@@ -579,6 +581,100 @@ func fetchVerifiedPublicHTML(ctx context.Context, raw string) (string, error) {
 	return body, err
 }
 
+func (api *linkedDomainAPI) assertAccessibleProject(ctx context.Context, db dictionaryDB, a workspaceActor, projectID string) error {
+	var found string
+	err := db.QueryRow(ctx, `
+		select p.id from projects p
+		where p.id=$1 and p.organization_id=$2 and `+formatQaProjectTeamAccessSQL(3, 4, 2),
+		projectID, a.organizationID, a.orgWideProjectAccess(), a.userID,
+	).Scan(&found)
+	if isNoRows(err) {
+		return workspaceFailure(404, "project_not_found", "Selected project was not found in this workspace.")
+	}
+	return err
+}
+
+func loadTakenProjectIdentifiers(ctx context.Context, db dictionaryDB, organizationID string) (map[string]struct{}, error) {
+	taken := map[string]struct{}{}
+	rows, err := db.Query(ctx, `select identifier from projects where organization_id=$1`, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var identifier string
+		if err := rows.Scan(&identifier); err != nil {
+			return nil, err
+		}
+		taken[strings.ToUpper(strings.TrimSpace(identifier))] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	prefixRows, err := db.Query(ctx, `
+		select distinct split_part(identifier, '-', 1) as prefix
+		from issue_sheet_issues
+		where organization_id=$1`, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer prefixRows.Close()
+	for prefixRows.Next() {
+		var prefix string
+		if err := prefixRows.Scan(&prefix); err != nil {
+			return nil, err
+		}
+		prefix = strings.ToUpper(strings.TrimSpace(prefix))
+		if prefix != "" {
+			taken[prefix] = struct{}{}
+		}
+	}
+	return taken, prefixRows.Err()
+}
+
+func linkedDomainProjectIdentifierCandidate(attempt int, base string) string {
+	if attempt <= 1 {
+		return base
+	}
+	suffix := fmt.Sprint(attempt)
+	maxBase := 10 - len(suffix)
+	if maxBase < 1 {
+		maxBase = 1
+	}
+	if len(base) > maxBase {
+		base = base[:maxBase]
+	}
+	return base + suffix
+}
+
+func deriveLinkedDomainProjectIdentifier(domainKey string) string {
+	words := regexp.MustCompile(`[A-Za-z0-9]+`).FindAllString(domainKey, -1)
+	identifier := "PROJ"
+	if len(words) > 1 {
+		identifier = strings.ToUpper(string(words[0][0]) + string(words[1][0]))
+	} else if len(words) == 1 {
+		identifier = strings.ToUpper(words[0][:min(3, len(words[0]))])
+	}
+	return identifier
+}
+
+func (api *linkedDomainAPI) recordProjectCreated(ctx context.Context, a workspaceActor, projectID, name string) {
+	payload, err := json.Marshal(map[string]any{
+		"name":       name,
+		"resourceId": projectID,
+		"source":     "native",
+	})
+	if err != nil {
+		return
+	}
+	_, _ = api.workspace.pool.Exec(ctx, `
+		insert into organization_activity_events (
+			organization_id, actor_kind, actor_user_id, event_type, target_kind, target_id, payload
+		) values ($1,'user',$2,'project_created','project',$3,$4::jsonb)`,
+		a.organizationID, a.userID, projectID, payload,
+	)
+}
+
 func (api *linkedDomainAPI) createLinkedDomainProject(ctx context.Context, tx dictionaryDB, a workspaceActor, d linkedDomainRow) (*string, error) {
 	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, "workspace_resource_limit:"+a.organizationID+":projects"); err != nil {
 		return nil, workspaceFailure(503, "project_limit_check_failed", "Unable to verify project limits. Try again later.")
@@ -611,20 +707,17 @@ func (api *linkedDomainAPI) createLinkedDomainProject(ctx context.Context, tx di
 			return nil, err
 		}
 	}
-	words := regexp.MustCompile(`[A-Za-z0-9]+`).FindAllString(d.DomainKey, -1)
-	identifier := "PROJ"
-	if len(words) > 1 {
-		identifier = strings.ToUpper(string(words[0][0]) + string(words[1][0]))
-	} else if len(words) == 1 {
-		identifier = strings.ToUpper(words[0][:min(3, len(words[0]))])
+	taken, err := loadTakenProjectIdentifiers(ctx, tx, a.organizationID)
+	if err != nil {
+		return nil, err
 	}
+	baseIdentifier := deriveLinkedDomainProjectIdentifier(d.DomainKey)
 	projectID := "project_" + uuid.NewString()
 	var createdID string
 	for attempt := 1; attempt <= 100; attempt++ {
-		candidate := identifier
-		if attempt > 1 {
-			suffix := fmt.Sprint(attempt)
-			candidate = identifier[:min(len(identifier), 10-len(suffix))] + suffix
+		candidate := linkedDomainProjectIdentifierCandidate(attempt, baseIdentifier)
+		if _, exists := taken[candidate]; exists {
+			continue
 		}
 		err = tx.QueryRow(ctx, `insert into projects(id,organization_id,team_id,created_by_user_id,name,identifier,description,source,source_locale,target_locales) values($1,$2,$3,$4,$5,$6,$7,'native','en-US','{}') on conflict(organization_id,identifier) do nothing returning id`, projectID, a.organizationID, teamID, a.userID, d.DomainKey, candidate, "Linked from localisation audit for "+d.DomainKey).Scan(&createdID)
 		if err == nil {
@@ -633,6 +726,7 @@ func (api *linkedDomainAPI) createLinkedDomainProject(ctx context.Context, tx di
 		if !isNoRows(err) {
 			return nil, err
 		}
+		taken[candidate] = struct{}{}
 	}
 	if createdID == "" {
 		return nil, workspaceFailure(503, "project_create_failed", "Could not create the workspace project for this domain.")
@@ -704,12 +798,7 @@ func (api *linkedDomainAPI) updateProject(r *http.Request, a workspaceActor) (an
 		return nil, 0, workspaceFailure(400, "linked_domain_not_verified", "Only verified domains can update their project assignment.")
 	}
 	if body.ProjectID != nil {
-		var found string
-		err = api.workspace.pool.QueryRow(r.Context(), `select id from projects where id=$1 and organization_id=$2`, *body.ProjectID, a.organizationID).Scan(&found)
-		if isNoRows(err) {
-			return nil, 0, workspaceFailure(404, "project_not_found", "Selected project was not found in this workspace.")
-		}
-		if err != nil {
+		if err := api.assertAccessibleProject(r.Context(), api.workspace.pool, a, *body.ProjectID); err != nil {
 			return nil, 0, err
 		}
 	}
