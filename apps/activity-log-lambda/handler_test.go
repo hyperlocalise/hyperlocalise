@@ -54,3 +54,9 @@ func TestActivityLogHandlerReturnsPartialFailures(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []batchItemFailure{{ItemIdentifier: "message-1"}}, response.BatchItemFailures)
 }
+
+func TestSummarizeDatabaseURLDoesNotExposeCredentialsOrQuery(t *testing.T) {
+	raw := "postgres://db-user:db-password@us-east-2.pg.psdb.cloud:6432/hyperlocalise?sslmode=verify-full"
+
+	require.Equal(t, "postgres://us-east-2.pg.psdb.cloud:6432/hyperlocalise", summarizeDatabaseURL(raw))
+}
