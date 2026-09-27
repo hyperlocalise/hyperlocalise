@@ -171,6 +171,20 @@ func (api *memberAPI) inviteMember(ctx context.Context, actor memberActor, r *ht
 			return nil, 0, err
 		}
 	} else {
+		existing, findErr := api.findMembershipByEmail(ctx, api.pool, actor.organizationID, email)
+		if findErr != nil {
+			return nil, 0, findErr
+		}
+		if existing != nil {
+			if isActiveOrganizationMembership(existing.workosMembershipID) {
+				return nil, 0, memberFailure(409, "member_already_exists", "This user is already a workspace member")
+			}
+			// Resend/role-change must not manage targets the actor cannot assign
+			// (e.g. localization_manager demoting a pending admin invite).
+			if !canActorManageTarget(actor.role, existing.role, &body.Role) {
+				return nil, 0, memberFailure(403, "forbidden", "Insufficient permissions")
+			}
+		}
 		pending, err = api.inviteOrganizationMember(ctx, api.pool, actor.organizationID, email, body.Role, teamID, placeholder)
 		if err != nil {
 			return nil, 0, err

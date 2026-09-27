@@ -295,7 +295,17 @@ func (api *linkedDomainAPI) create(r *http.Request, a workspaceActor) (any, int,
 	var current linkedDomainRow
 	err = api.workspace.pool.QueryRow(r.Context(), `select id,organization_id,domain_key,domain_slug,source_url,market_ids,status,preferred_method,verified_method,verified_at,localisation_audit_id,project_id,created_at,updated_at,verification_token from linked_domains where organization_id=$1 and domain_key=$2 limit 1`, a.organizationID, domainKey).Scan(&current.ID, &current.OrganizationID, &current.DomainKey, &current.DomainSlug, &current.SourceURL, &current.MarketIDs, &current.Status, &current.PreferredMethod, &current.VerifiedMethod, &current.VerifiedAt, &current.LocalisationAuditID, &current.ProjectID, &current.CreatedAt, &current.UpdatedAt, &current.VerificationToken)
 	if err == nil && (current.Status == "pending_verification" || current.Status == "verified") {
-		return map[string]any{"linkedDomain": current.public()}, 201, nil
+		// Idempotent create must still enforce team-scoped access; never return
+		// verification challenges for domains the actor cannot load.
+		accessible, loadErr := api.load(r.Context(), a, current.ID)
+		if loadErr != nil {
+			var we *workspaceError
+			if errors.As(loadErr, &we) && we.status == http.StatusNotFound {
+				return nil, 0, workspaceFailure(409, "claim_pending_exists", "A claim for this domain already exists.")
+			}
+			return nil, 0, loadErr
+		}
+		return map[string]any{"linkedDomain": accessible.public()}, 201, nil
 	}
 	if err != nil && !isNoRows(err) {
 		return nil, 0, err
