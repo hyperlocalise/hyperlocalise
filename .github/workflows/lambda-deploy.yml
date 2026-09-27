@@ -1,4 +1,4 @@
-name: Lambda Artifact Deploy
+name: Lambda Deploy
 
 on:
   push:
@@ -8,11 +8,14 @@ on:
       - Makefile
       - go.mod
       - go.sum
+      - MODULE.bazel
       - internal/activitylog/**
+      - internal/secretsmanager/**
       - apps/activity-log-lambda/**
       - .github/actions/go-bootstrap/**
+      - .github/actions/deploy-lambda/**
       - .github/actions/upload-lambda-artifact/**
-      - .github/workflows/lambda-artifact-deploy.yml
+      - .github/workflows/lambda-deploy.yml
   workflow_dispatch:
 
 permissions:
@@ -20,18 +23,19 @@ permissions:
   id-token: write
 
 concurrency:
-  group: lambda-artifact-deploy-${{ github.ref }}
+  group: lambda-deploy-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
   LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME: /hyperlocalise/prod/artifacts/lambda_bucket_name
+  LAMBDA_FUNCTION_PARAMETER_NAME: /hyperlocalise/prod/lambda/activity-log/function_name
   LAMBDA_ARTIFACT_KEY: activity-log/bootstrap.zip
 
 jobs:
-  publish:
-    name: Build and upload Lambda artifact
+  deploy:
+    name: Build and deploy activity-log Lambda
     if: github.ref == 'refs/heads/main'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
@@ -53,7 +57,7 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-actions-lambda-artifact-deploy
+          role-session-name: github-actions-lambda-deploy
 
       - name: Build and upload Lambda artifact
         id: upload
@@ -64,16 +68,29 @@ jobs:
           binary-path: dist/activity-log-lambda/bootstrap
           s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
 
-      - name: Summarize upload
+      - name: Deploy Lambda artifact
+        id: deploy
+        uses: ./.github/actions/deploy-lambda
+        with:
+          function-parameter-name: ${{ env.LAMBDA_FUNCTION_PARAMETER_NAME }}
+          bucket: ${{ steps.upload.outputs.bucket }}
+          s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
+          version-id: ${{ steps.upload.outputs.version-id }}
+
+      - name: Summarize deployment
         shell: bash
         env:
           S3_URI: ${{ steps.upload.outputs.s3-uri }}
           VERSION_ID: ${{ steps.upload.outputs.version-id }}
+          FUNCTION_NAME: ${{ steps.deploy.outputs.function-name }}
+          UPDATE: ${{ steps.deploy.outputs.update }}
         run: |
           {
-            echo "## Lambda artifact uploaded"
+            echo "## Lambda deployed"
             echo
+            echo "- Function: \`${FUNCTION_NAME}\`"
             echo "- Object: \`${S3_URI}\`"
             echo "- Version: \`${VERSION_ID}\`"
+            echo "- Update: \`${UPDATE}\`"
             echo "- Commit: \`${GITHUB_SHA}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
