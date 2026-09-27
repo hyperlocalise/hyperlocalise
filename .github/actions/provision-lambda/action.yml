@@ -62,7 +62,7 @@ runs:
           --s3-key "${S3_KEY}" \
           --s3-object-version "${VERSION_ID}" \
           --query '{version:Version,codeSha256:CodeSha256,lastModified:LastModified}' \
-          --output json)"
+          --output json | jq -c .)"
 
         aws lambda wait function-updated-v2 \
           --function-name "${FUNCTION_NAME}"
