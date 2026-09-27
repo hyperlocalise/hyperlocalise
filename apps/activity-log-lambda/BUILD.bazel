@@ -7,6 +7,9 @@ go_binary(
     visibility = ["//visibility:public"],
     deps = [
         "//internal/activitylog",
+        "//internal/secretsmanager",
+        "@com_github_aws_aws_sdk_go_v2//config",
+        "@com_github_aws_aws_sdk_go_v2//service/secretsmanager",
         "@com_github_aws_aws_lambda_go//events",
         "@com_github_aws_aws_lambda_go//lambda",
         "@com_github_jackc_pgx_v5//pgxpool",
