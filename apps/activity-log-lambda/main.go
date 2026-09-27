@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -80,7 +80,7 @@ func (d *databaseConnection) currentStore(ctx context.Context) (*activitylog.Sto
 
 	databaseURL, err := d.provider.Load(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load database URL: %w", err)
 	}
 	if d.store != nil && databaseURL == d.databaseURL {
 		return d.store, nil
@@ -88,19 +88,19 @@ func (d *databaseConnection) currentStore(ctx context.Context) (*activitylog.Sto
 
 	poolConfig, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
-		return nil, errors.New("invalid database URL")
+		return nil, fmt.Errorf("invalid database URL: %w", err)
 	}
 	poolConfig.MaxConns = 2
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
-		return nil, errors.New("create database connection pool")
+		return nil, fmt.Errorf("create database connection pool: %w", err)
 	}
 
 	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err := pool.Ping(pingCtx); err != nil {
 		pool.Close()
-		return nil, errors.New("database connection failed")
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
 	oldPool := d.pool
@@ -147,7 +147,7 @@ func main() {
 
 	handler, closePool, err := newSecretBackedHandler(context.Background(), secretLoader, logger)
 	if err != nil {
-		log.Fatal("configure activity log database")
+		log.Fatalf("configure activity log database: %v", err)
 	}
 	defer closePool()
 
