@@ -87,6 +87,7 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	}
 	route("GET "+projects, bindActor(api, (*projectAPI).listHandler))
 	route("GET "+project, bindActor(api, (*projectAPI).getHandler))
+	route("GET "+project+"/locale-progress", bindActor(api, (*projectAPI).localeProgressHandler))
 	route("GET "+project+"/open-job-count", bindActor(api, (*projectAPI).openJobCountHandler))
 	route("GET "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).contentEditorBehaviorHandler))
 	route("GET "+project+"/content-editor-behavior/preview", bindActor(api, (*projectAPI).contentEditorBehaviorPreviewHandler))
