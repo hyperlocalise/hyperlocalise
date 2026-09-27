@@ -35,8 +35,8 @@ env:
   ECS_SERVICE_PARAMETER_NAME: /hyperlocalise/prod/ecs/go-svc/service_name
 
 jobs:
-  build-and-deploy:
-    name: Build and deploy go-svc
+  build-and-push:
+    name: Build and push go-svc image
     if: github.ref == 'refs/heads/main'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
@@ -70,10 +70,33 @@ jobs:
           tag: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           dockerfile: ./apps/go-svc/Dockerfile.ecs
 
+    outputs:
+      ecs-cluster: ${{ steps.params.outputs.ecs-cluster }}
+      ecs-service: ${{ steps.params.outputs.ecs-service }}
+      image: ${{ steps.build.outputs.image }}
+
+  deploy:
+    name: Deploy go-svc image to ECS
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Authenticate with AWS
+        uses: ./.github/actions/aws-auth
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-go-svc-deploy
+
       - name: Deploy new image to ECS
         uses: ./.github/actions/ecs-deploy
         with:
-          ecs-service: ${{ steps.params.outputs.ecs-service }}
-          ecs-cluster: ${{ steps.params.outputs.ecs-cluster }}
-          image: ${{ steps.build.outputs.image }}
+          ecs-service: ${{ needs.build-and-push.outputs.ecs-service }}
+          ecs-cluster: ${{ needs.build-and-push.outputs.ecs-cluster }}
+          image: ${{ needs.build-and-push.outputs.image }}
           container-name: go-svc
