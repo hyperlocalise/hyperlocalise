@@ -38,6 +38,9 @@ import {
 } from "../validation/retry-idempotency";
 import { isLogicRetryConfig } from "../schema/retry-policy";
 import { parseRetryResumeState } from "./retry-delay";
+import { parseWaitResumeState } from "./wait-schedule";
+import { collectWaitConditionProbeNodeIds } from "./wait-condition-probes";
+
 const logger = createLogger("visual-workflow-node");
 export async function executeDurableWorkflowSlice(input: {
   run: VisualWorkflowRunRecord;
@@ -59,6 +62,8 @@ export async function executeDurableWorkflowSlice(input: {
   const key = (id: string, iteration = -1) => JSON.stringify([id, iteration]);
   const retryBodyNodeIds = collectRetryBodyNodeIds(input.definition);
   const retryBackoff = parseRetryResumeState(input.payload.retryBackoff);
+  const waitResume = parseWaitResumeState(input.payload.waitResume);
+  const waitConditionProbeNodeIds = collectWaitConditionProbeNodeIds(input.definition, waitResume);
   const resumeAttempt = retryBackoff?.nextAttempt ?? null;
   const resumedRetryBodyNodeIds =
     retryBackoff != null
@@ -69,6 +74,7 @@ export async function executeDurableWorkflowSlice(input: {
       .filter(
         (record) =>
           record.encryptedOutput &&
+          !waitConditionProbeNodeIds.has(record.nodeId) &&
           ["succeeded", "handled_error"].includes(record.status) &&
           shouldReuseCompletedNodeRun({
             nodeId: record.nodeId,
@@ -125,6 +131,7 @@ export async function executeDurableWorkflowSlice(input: {
                 "triggeredAt",
                 "executionPlanVersion",
                 "retryBackoff",
+                "waitResume",
               ].includes(name),
           ),
         ),
@@ -133,6 +140,7 @@ export async function executeDurableWorkflowSlice(input: {
       shouldCancel: isCancelled,
       mockMode: input.run.mode === "mock",
       retryBackoff: retryBackoff ?? null,
+      waitResume,
       executeNode: async (args) => {
         const id = key(args.node.id, args.iteration);
         const isExternal = args.node.type.startsWith("action.") || args.node.type === "ai.agent";

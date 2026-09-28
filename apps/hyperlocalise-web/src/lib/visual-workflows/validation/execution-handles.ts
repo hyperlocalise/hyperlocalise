@@ -32,6 +32,9 @@ export function getAllowedExecutionSourceHandles(
   if (node.type === "logic.retry") {
     return ["attempt", "succeeded", "exhausted"];
   }
+  if (node.type === "flow.wait") {
+    return ["completed", "timed_out", "error"];
+  }
   return [
     null,
     "success",
@@ -51,6 +54,9 @@ export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource
   }
   if (node.type === "logic.retry") {
     return "attempt";
+  }
+  if (node.type === "flow.wait") {
+    return "completed";
   }
   return null;
 }

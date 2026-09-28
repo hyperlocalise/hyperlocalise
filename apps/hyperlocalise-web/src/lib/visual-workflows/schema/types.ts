@@ -31,7 +31,8 @@ export type VisualCatalogType =
   | "logic.set"
   | "ai.agent"
   | "logic.for_each"
-  | "logic.retry";
+  | "logic.retry"
+  | "flow.wait";
 
 export type VisualCatalogCategory = "trigger" | "action" | "logic" | "ai" | "flow";
 
@@ -159,6 +160,15 @@ export type VisualNodeConfig =
       jitter?: boolean;
       retryableErrorCodes?: string[];
       acknowledgeDuplicateRisk?: boolean;
+    }
+  | {
+      kind: "flow.wait";
+      mode: "duration" | "timestamp" | "condition";
+      durationMs?: number;
+      timestamp?: string;
+      condition?: string;
+      pollingIntervalMs?: number;
+      timeoutMs?: number;
     };
 
 export type VisualWorkflowNodeData = WorkflowNodeContract & {
