@@ -176,7 +176,7 @@ When configured, Valkey and PostgreSQL health objects report `status` as
 dependency is not configured, its status is `disabled` and no timing is
 reported. The endpoint remains an HTTP 200 liveness check.
 
-The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects `ACTIVITY_LOG_QUEUE_URL` from the activity-log consumer queue output; the service does not resolve the SSM parameter itself. `ACTIVITY_LOG_SQS_QUEUE_URL` is also accepted as a fallback for environments that share the web app's queue variable.
+The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects `ACTIVITY_LOG_QUEUE_URL` from the activity-log consumer queue output; the service does not resolve the SSM parameter itself.
 
 ## Docker / Vercel
 

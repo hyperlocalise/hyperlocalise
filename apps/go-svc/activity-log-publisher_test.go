@@ -35,29 +35,6 @@ func (p *deadlineActivityLogPublisher) Publish(ctx context.Context, _ activityLo
 
 func (*deadlineActivityLogPublisher) Ping(context.Context) error { return nil }
 
-func TestActivityLogQueueURLFromEnv(t *testing.T) {
-	t.Run("prefers go-svc variable", func(t *testing.T) {
-		t.Setenv(activityLogQueueURLEnv, "https://sqs.example/go-svc")
-		t.Setenv(activityLogSQSQueueURLEnv, "https://sqs.example/shared")
-
-		require.Equal(t, "https://sqs.example/go-svc", activityLogQueueURLFromEnv())
-	})
-
-	t.Run("falls back to shared web variable", func(t *testing.T) {
-		t.Setenv(activityLogQueueURLEnv, "")
-		t.Setenv(activityLogSQSQueueURLEnv, "https://sqs.example/shared")
-
-		require.Equal(t, "https://sqs.example/shared", activityLogQueueURLFromEnv())
-	})
-
-	t.Run("returns empty when neither variable is configured", func(t *testing.T) {
-		t.Setenv(activityLogQueueURLEnv, "")
-		t.Setenv(activityLogSQSQueueURLEnv, "")
-
-		require.Empty(t, activityLogQueueURLFromEnv())
-	})
-}
-
 func (f *fakeActivityLogSQSClient) SendMessage(_ context.Context, input *sqs.SendMessageInput, _ ...func(*sqs.Options)) (*sqs.SendMessageOutput, error) {
 	f.sendInput = input
 	return &sqs.SendMessageOutput{}, f.sendErr

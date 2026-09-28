@@ -20,7 +20,6 @@ import (
 
 const (
 	activityLogQueueURLEnv    = "ACTIVITY_LOG_QUEUE_URL"
-	activityLogSQSQueueURLEnv = "ACTIVITY_LOG_SQS_QUEUE_URL"
 	activityLogPublishTimeout = 2 * time.Second
 )
 
@@ -51,15 +50,8 @@ type sqsActivityLogPublisher struct {
 	newEventID func() string
 }
 
-func activityLogQueueURLFromEnv() string {
-	if queueURL := strings.TrimSpace(os.Getenv(activityLogQueueURLEnv)); queueURL != "" {
-		return queueURL
-	}
-	return strings.TrimSpace(os.Getenv(activityLogSQSQueueURLEnv))
-}
-
 func newActivityLogPublisher(ctx context.Context) (*sqsActivityLogPublisher, error) {
-	queueURL := activityLogQueueURLFromEnv()
+	queueURL := strings.TrimSpace(os.Getenv(activityLogQueueURLEnv))
 	if queueURL == "" {
 		return nil, nil
 	}
