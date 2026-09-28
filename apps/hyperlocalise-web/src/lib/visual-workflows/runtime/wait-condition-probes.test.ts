@@ -13,7 +13,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import type { VisualWorkflowV3Definition } from "../schema/types";
-import { collectWaitConditionProbeNodeIds } from "./wait-condition-probes";
+import {
+  collectWaitConditionProbeNodeIds,
+  resolveActiveWaitConditionProbeNodeIds,
+} from "./wait-condition-probes";
 
 const resume = {
   waitNodeId: "wait",
@@ -102,5 +105,37 @@ describe("collectWaitConditionProbeNodeIds", () => {
         mode: "duration",
       }),
     ).toEqual(new Set());
+  });
+});
+
+describe("resolveActiveWaitConditionProbeNodeIds", () => {
+  it("refreshes probes while the wait is still outstanding", () => {
+    expect(
+      resolveActiveWaitConditionProbeNodeIds({
+        definition: definition("{{nodes.probe.json.status}} === ready"),
+        waitResume: resume,
+        nodeRuns: [],
+      }),
+    ).toEqual(new Set(["probe"]));
+  });
+
+  it("stops refreshing probes after the wait has settled", () => {
+    expect(
+      resolveActiveWaitConditionProbeNodeIds({
+        definition: definition("{{nodes.probe.json.status}} === ready"),
+        waitResume: resume,
+        nodeRuns: [{ nodeId: "wait", iteration: -1, status: "succeeded" }],
+      }),
+    ).toEqual(new Set());
+  });
+
+  it("keeps refreshing when a different wait iteration settled", () => {
+    expect(
+      resolveActiveWaitConditionProbeNodeIds({
+        definition: definition("{{nodes.probe.json.status}} === ready"),
+        waitResume: { ...resume, iteration: 2 },
+        nodeRuns: [{ nodeId: "wait", iteration: 1, status: "succeeded" }],
+      }),
+    ).toEqual(new Set(["probe"]));
   });
 });

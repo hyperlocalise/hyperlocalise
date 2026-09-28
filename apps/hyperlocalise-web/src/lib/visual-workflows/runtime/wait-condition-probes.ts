@@ -45,3 +45,23 @@ export function collectWaitConditionProbeNodeIds(
 
   return probeIds;
 }
+
+/** Probe refresh is only active while the durable wait has not settled yet. */
+export function resolveActiveWaitConditionProbeNodeIds(input: {
+  definition: VisualWorkflowV3Definition;
+  waitResume: WaitResumeState | null;
+  nodeRuns: Array<{ nodeId: string; iteration: number; status: string }>;
+}): Set<string> {
+  if (!input.waitResume) return new Set();
+
+  const waitAlreadySettled = input.nodeRuns.some(
+    (record) =>
+      record.nodeId === input.waitResume!.waitNodeId &&
+      record.iteration === input.waitResume!.iteration &&
+      record.status === "succeeded",
+  );
+
+  if (waitAlreadySettled) return new Set();
+
+  return collectWaitConditionProbeNodeIds(input.definition, input.waitResume);
+}
