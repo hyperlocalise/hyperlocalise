@@ -22,6 +22,15 @@ func (f fakeActivityLogExecutor) Exec(context.Context, string, ...any) (pgconn.C
 	return pgconn.CommandTag{}, f.err
 }
 
+type deadlineCheckingActivityLogExecutor struct {
+	deadlineSeen bool
+}
+
+func (e *deadlineCheckingActivityLogExecutor) Exec(ctx context.Context, _ string, _ ...any) (pgconn.CommandTag, error) {
+	_, e.deadlineSeen = ctx.Deadline()
+	return pgconn.CommandTag{}, context.DeadlineExceeded
+}
+
 func validMessage(t *testing.T) activitylog.Message {
 	t.Helper()
 	return activitylog.Message{
@@ -52,6 +61,25 @@ func TestActivityLogHandlerReturnsPartialFailures(t *testing.T) {
 
 	response, err := handler.Handle(context.Background(), events.SQSEvent{Records: []events.SQSMessage{{MessageId: "message-1", Body: string(body)}}})
 	require.NoError(t, err)
+	require.Equal(t, []batchItemFailure{{ItemIdentifier: "message-1"}}, response.BatchItemFailures)
+}
+
+func TestActivityLogHandlerBoundsDatabaseWrites(t *testing.T) {
+	executor := &deadlineCheckingActivityLogExecutor{}
+	message := validMessage(t)
+	body, err := json.Marshal(message)
+	require.NoError(t, err)
+
+	handler := &activityLogHandler{
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		store:  activitylog.NewStore(executor),
+	}
+
+	response, err := handler.Handle(context.Background(), events.SQSEvent{
+		Records: []events.SQSMessage{{MessageId: "message-1", Body: string(body)}},
+	})
+	require.NoError(t, err)
+	require.True(t, executor.deadlineSeen)
 	require.Equal(t, []batchItemFailure{{ItemIdentifier: "message-1"}}, response.BatchItemFailures)
 }
 

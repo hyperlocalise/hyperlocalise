@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -48,30 +49,100 @@ type batchResponse struct {
 const (
 	databaseConnectionTimeout     = 5 * time.Second
 	databaseInitializationTimeout = 10 * time.Second
+	databaseWriteTimeout          = 5 * time.Second
 )
 
 func (h *activityLogHandler) Handle(ctx context.Context, event events.SQSEvent) (batchResponse, error) {
+	batchStartedAt := time.Now()
+	h.logger.InfoContext(ctx, "activity_log_batch_started",
+		"record_count", len(event.Records),
+		"remaining_ms", contextRemainingMillis(ctx),
+	)
+
 	store, err := h.currentStore(ctx)
 	if err != nil {
-		h.logger.ErrorContext(ctx, "activity_log_database_configuration_failed")
+		h.logger.ErrorContext(ctx, "activity_log_database_configuration_failed",
+			"error", err,
+			"elapsed_ms", time.Since(batchStartedAt).Milliseconds(),
+		)
 		return batchResponse{}, err
 	}
 
 	failed := make([]batchItemFailure, 0)
 	for _, record := range event.Records {
+		recordStartedAt := time.Now()
+		h.logger.InfoContext(ctx, "activity_log_record_started",
+			"message_id", record.MessageId,
+			"body_bytes", len(record.Body),
+			"remaining_ms", contextRemainingMillis(ctx),
+		)
+
 		message, err := activitylog.DecodeMessage([]byte(record.Body))
 		if err != nil {
-			h.logger.ErrorContext(ctx, "activity_log_message_rejected", "message_id", record.MessageId, "failure", "invalid_message")
+			h.logger.ErrorContext(ctx, "activity_log_message_rejected",
+				"message_id", record.MessageId,
+				"failure", "invalid_message",
+				"error", err,
+				"elapsed_ms", time.Since(recordStartedAt).Milliseconds(),
+			)
 			failed = append(failed, batchItemFailure{ItemIdentifier: record.MessageId})
 			continue
 		}
 
-		if err := store.Insert(ctx, message.Event); err != nil {
-			h.logger.ErrorContext(ctx, "activity_log_persistence_failed", "event_id", message.Event.ID, "event_type", message.Event.EventType, "failure", "database_write")
+		h.logger.InfoContext(ctx, "activity_log_message_decoded",
+			"message_id", record.MessageId,
+			"event_id", message.Event.ID,
+			"event_type", message.Event.EventType,
+			"remaining_ms", contextRemainingMillis(ctx),
+		)
+
+		insertStartedAt := time.Now()
+		h.logger.InfoContext(ctx, "activity_log_insert_started",
+			"message_id", record.MessageId,
+			"event_id", message.Event.ID,
+			"event_type", message.Event.EventType,
+			"write_timeout_ms", databaseWriteTimeout.Milliseconds(),
+			"remaining_ms", contextRemainingMillis(ctx),
+		)
+		insertCtx, cancel := context.WithTimeout(ctx, databaseWriteTimeout)
+		err = store.Insert(insertCtx, message.Event)
+		cancel()
+		if err != nil {
+			h.logger.ErrorContext(ctx, "activity_log_persistence_failed",
+				"message_id", record.MessageId,
+				"event_id", message.Event.ID,
+				"event_type", message.Event.EventType,
+				"failure", "database_write",
+				"timed_out", errors.Is(err, context.DeadlineExceeded),
+				"error", err,
+				"elapsed_ms", time.Since(insertStartedAt).Milliseconds(),
+				"remaining_ms", contextRemainingMillis(ctx),
+			)
 			failed = append(failed, batchItemFailure{ItemIdentifier: record.MessageId})
+			continue
 		}
+
+		h.logger.InfoContext(ctx, "activity_log_insert_completed",
+			"message_id", record.MessageId,
+			"event_id", message.Event.ID,
+			"event_type", message.Event.EventType,
+			"elapsed_ms", time.Since(insertStartedAt).Milliseconds(),
+			"remaining_ms", contextRemainingMillis(ctx),
+		)
+		h.logger.InfoContext(ctx, "activity_log_record_completed",
+			"message_id", record.MessageId,
+			"event_id", message.Event.ID,
+			"elapsed_ms", time.Since(recordStartedAt).Milliseconds(),
+			"remaining_ms", contextRemainingMillis(ctx),
+		)
 	}
 
+	h.logger.InfoContext(ctx, "activity_log_batch_completed",
+		"record_count", len(event.Records),
+		"failure_count", len(failed),
+		"elapsed_ms", time.Since(batchStartedAt).Milliseconds(),
+		"remaining_ms", contextRemainingMillis(ctx),
+	)
 	return batchResponse{BatchItemFailures: failed}, nil
 }
 
@@ -85,16 +156,24 @@ func (h *activityLogHandler) currentStore(ctx context.Context) (*activitylog.Sto
 func (d *databaseConnection) currentStore(ctx context.Context) (*activitylog.Store, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	startedAt := time.Now()
 
 	d.log(ctx, "activity_log_database_url_fetch_started")
 	databaseURL, err := d.provider.Load(ctx)
 	if err != nil {
-		d.log(ctx, "activity_log_database_url_fetch_failed", "error", err)
+		d.log(ctx, "activity_log_database_url_fetch_failed", "error", err, "elapsed_ms", time.Since(startedAt).Milliseconds())
 		return nil, fmt.Errorf("load database URL: %w", err)
 	}
 	d.log(ctx, "activity_log_database_url_fetched", "database_url_target", summarizeDatabaseURL(databaseURL))
 	if d.store != nil && databaseURL == d.databaseURL {
-		d.log(ctx, "activity_log_database_pool_reused")
+		stat := d.pool.Stat()
+		d.log(ctx, "activity_log_database_pool_reused",
+			"total_conns", stat.TotalConns(),
+			"idle_conns", stat.IdleConns(),
+			"acquired_conns", stat.AcquiredConns(),
+			"max_conns", stat.MaxConns(),
+			"elapsed_ms", time.Since(startedAt).Milliseconds(),
+		)
 		return d.store, nil
 	}
 
@@ -134,8 +213,25 @@ func (d *databaseConnection) currentStore(ctx context.Context) (*activitylog.Sto
 	if oldPool != nil {
 		oldPool.Close()
 	}
-	d.log(ctx, "activity_log_database_connected", "host", poolConfig.ConnConfig.Host, "port", poolConfig.ConnConfig.Port, "database", poolConfig.ConnConfig.Database)
+	d.log(ctx, "activity_log_database_connected",
+		"host", poolConfig.ConnConfig.Host,
+		"port", poolConfig.ConnConfig.Port,
+		"database", poolConfig.ConnConfig.Database,
+		"elapsed_ms", time.Since(startedAt).Milliseconds(),
+	)
 	return d.store, nil
+}
+
+func contextRemainingMillis(ctx context.Context) int64 {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return -1
+	}
+	remaining := time.Until(deadline).Milliseconds()
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
 }
 
 func (d *databaseConnection) log(ctx context.Context, message string, args ...any) {
