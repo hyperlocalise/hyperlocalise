@@ -159,6 +159,8 @@ make check-build-go-svc-cgo
 export WORKOS_COOKIE_PASSWORD='this-is-a-test-cookie-password-at-least-32-characters'
 export WORKOS_API_KEY='sk_test_...'
 export WORKOS_CLIENT_ID='client_...'
+# Optional: publishes glossary activity events and checks the queue in /health.
+export ACTIVITY_LOG_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../activity-log'
 go run ./apps/go-svc
 ```
 
@@ -166,7 +168,7 @@ Health check:
 
 ```bash
 curl http://localhost:8080/health
-# {"status":"ok","valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}
+# {"status":"ok","activity_log":{"status":"disabled"},"valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}
 ```
 
 When configured, Valkey and PostgreSQL health objects report `status` as
@@ -174,7 +176,7 @@ When configured, Valkey and PostgreSQL health objects report `status` as
 dependency is not configured, its status is `disabled` and no timing is
 reported. The endpoint remains an HTTP 200 liveness check.
 
-The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header.
+The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects `ACTIVITY_LOG_QUEUE_URL` from the activity-log consumer queue output; the service does not resolve the SSM parameter itself.
 
 ## Docker / Vercel
 
@@ -192,7 +194,7 @@ For tracing, set `OTEL_EXPORTER_OTLP_ENDPOINT` in the `go_svc` service environme
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/health` | No | Liveness probe with Valkey and PostgreSQL connectivity status and round-trip times |
+| `GET` | `/health` | No | Liveness probe with activity-log queue, Valkey, and PostgreSQL connectivity status and round-trip times |
 | `POST` | `/v1/validate/segment` | WorkOS session cookie or Bearer access token | Validate a CAT segment (format, length, spelling) |
 | `POST` | `/v1/domains/research/keywords` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Expand a seed keyword + market through DataForSEO Labs |
 | `POST` | `/v1/domains/research/market-visibility` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Check one domain market through DataForSEO Labs; one market per request |

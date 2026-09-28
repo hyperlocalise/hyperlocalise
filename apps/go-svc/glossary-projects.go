@@ -130,6 +130,17 @@ func (api *glossaryAPI) attachGlossaryProject(r *http.Request, actor glossaryAct
 	if err != nil {
 		return nil, 0, err
 	}
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "glossary_project_attached",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"projectId":  projectID,
+			"resourceId": g.ID,
+		},
+		TargetID:   projectID,
+		TargetKind: "project",
+	})
 	return api.listGlossaryProjects(r, actor, g)
 }
 
@@ -160,6 +171,22 @@ func (api *glossaryAPI) detachGlossaryProject(r *http.Request, actor glossaryAct
 			return nil, 0, glossaryFailure(403, "glossary_team_project_required", "Team glossaries must attach at least one accessible project")
 		}
 	}
-	_, err = api.pool.Exec(ctx, `delete from project_glossaries where glossary_id=$1 and project_id=$2 and organization_id=$3`, g.ID, projectID, actor.organizationID)
-	return nil, 204, err
+	tag, err := api.pool.Exec(ctx, `delete from project_glossaries where glossary_id=$1 and project_id=$2 and organization_id=$3`, g.ID, projectID, actor.organizationID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if tag.RowsAffected() > 0 {
+		api.publishActivity(ctx, activityLogEventInput{
+			ActorUserID:    actor.userID,
+			EventType:      "glossary_project_detached",
+			OrganizationID: actor.organizationID,
+			Payload: map[string]any{
+				"projectId":  projectID,
+				"resourceId": g.ID,
+			},
+			TargetID:   projectID,
+			TargetKind: "project",
+		})
+	}
+	return nil, 204, nil
 }

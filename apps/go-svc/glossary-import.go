@@ -59,7 +59,18 @@ type glossaryImportDiagnostic struct {
 }
 
 func (api *glossaryAPI) exportGlossaryHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
-	return api.exportGlossary(r, g)
+	value, status, err := api.exportGlossary(r, g)
+	if err == nil {
+		api.publishActivity(r.Context(), activityLogEventInput{
+			ActorUserID:    actor.userID,
+			EventType:      "glossary_exported",
+			OrganizationID: actor.organizationID,
+			Payload:        map[string]any{"resourceId": g.ID},
+			TargetID:       g.ID,
+			TargetKind:     "glossary",
+		})
+	}
+	return value, status, err
 }
 
 func (api *glossaryAPI) getGlossaryImportReportHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
@@ -213,6 +224,18 @@ func (api *glossaryAPI) importGlossaryConcepts(r *http.Request, actor glossaryAc
 	}
 	api.bumpGlossaryCache(r.Context(), actor, g.ID)
 	diagnostics = append(diagnostics, applyDiagnostics...)
+	api.publishActivity(r.Context(), activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "glossary_imported",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"batchId":    reportID,
+			"itemCount":  countImportTerms(concepts),
+			"resourceId": g.ID,
+		},
+		TargetID:   g.ID,
+		TargetKind: "glossary",
+	})
 	return map[string]any{
 		"reportId":     reportID,
 		"concepts":     applied,

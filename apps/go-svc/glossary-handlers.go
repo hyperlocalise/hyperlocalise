@@ -368,6 +368,18 @@ func (api *glossaryAPI) createGlossary(r *http.Request, actor glossaryActor) (an
 	g.ProjectCount = len(projects)
 	zero := 0
 	g.TermCount = &zero
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "glossary_created",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"name":       g.Name,
+			"resourceId": g.ID,
+			"source":     g.Source,
+		},
+		TargetID:   g.ID,
+		TargetKind: "glossary",
+	})
 	return map[string]any{"glossary": g}, 201, nil
 }
 
@@ -449,5 +461,16 @@ func (api *glossaryAPI) deleteGlossary(ctx context.Context, actor glossaryActor,
 		return nil, 0, err
 	}
 	api.bumpGlossaryCache(ctx, actor, g.ID)
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "glossary_deleted",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"name":       g.Name,
+			"resourceId": g.ID,
+		},
+		TargetID:   g.ID,
+		TargetKind: "glossary",
+	})
 	return nil, 204, nil
 }
