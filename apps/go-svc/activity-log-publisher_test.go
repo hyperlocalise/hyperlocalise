@@ -24,6 +24,17 @@ type fakeActivityLogSQSClient struct {
 	attrsErr   error
 }
 
+type deadlineActivityLogPublisher struct {
+	deadline time.Time
+}
+
+func (p *deadlineActivityLogPublisher) Publish(ctx context.Context, _ activityLogEventInput) error {
+	p.deadline, _ = ctx.Deadline()
+	return errors.New("publish failed")
+}
+
+func (*deadlineActivityLogPublisher) Ping(context.Context) error { return nil }
+
 func (f *fakeActivityLogSQSClient) SendMessage(_ context.Context, input *sqs.SendMessageInput, _ ...func(*sqs.Options)) (*sqs.SendMessageOutput, error) {
 	f.sendInput = input
 	return &sqs.SendMessageOutput{}, f.sendErr
@@ -107,4 +118,14 @@ func TestHealthActivityLog(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	activityLog := dependencyStatus(t, rec.Body.Bytes(), "activity_log")
 	require.Equal(t, "unavailable", activityLog["status"])
+}
+
+func TestPublishActivityUsesBoundedTimeout(t *testing.T) {
+	publisher := &deadlineActivityLogPublisher{}
+	api := &glossaryAPI{activityLog: publisher}
+	started := time.Now()
+
+	api.publishActivity(context.Background(), activityLogEventInput{})
+
+	require.WithinDuration(t, started.Add(activityLogPublishTimeout), publisher.deadline, 100*time.Millisecond)
 }

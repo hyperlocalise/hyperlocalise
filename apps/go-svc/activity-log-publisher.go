@@ -18,7 +18,10 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/activitylog"
 )
 
-const activityLogSQSQueueURLEnv = "ACTIVITY_LOG_QUEUE_URL"
+const (
+	activityLogSQSQueueURLEnv = "ACTIVITY_LOG_QUEUE_URL"
+	activityLogPublishTimeout = 2 * time.Second
+)
 
 type activityLogEventInput struct {
 	ActorUserID    string
@@ -150,7 +153,9 @@ func (api *glossaryAPI) publishActivity(ctx context.Context, input activityLogEv
 	if api.activityLog == nil {
 		return
 	}
-	if err := api.activityLog.Publish(ctx, input); err != nil {
+	publishCtx, cancel := context.WithTimeout(ctx, activityLogPublishTimeout)
+	defer cancel()
+	if err := api.activityLog.Publish(publishCtx, input); err != nil {
 		slog.ErrorContext(ctx, "glossary_activity_log_publish_failed",
 			"event_type", input.EventType,
 			"organization_id", input.OrganizationID,
