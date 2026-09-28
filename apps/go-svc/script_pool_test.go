@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
 )
 
@@ -171,6 +172,8 @@ func (r *scriptRows) Values() ([]any, error) {
 func (r *scriptRows) RawValues() [][]byte { return nil }
 
 func (r *scriptRows) Conn() *pgx.Conn { return nil }
+
+func (r *scriptRows) TypeMap() *pgtype.Map { return pgtype.NewMap() }
 
 func assignScan(dest []any, values []any) error {
 	if len(dest) != len(values) {
