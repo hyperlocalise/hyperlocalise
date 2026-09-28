@@ -169,4 +169,18 @@ describe("normalizeExecutionSourceHandle", () => {
   it("uses completed as the primary Wait handle", () => {
     expect(getPrimaryExecutionSourceHandle(canonical("flow.wait"))).toBe("completed");
   });
+
+  it("exposes Merge completion handles", () => {
+    const node = canonical("logic.merge", {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "email", name: "Email" },
+        { id: "slack", name: "Slack" },
+      ],
+    });
+
+    expect(getAllowedExecutionSourceHandles(node)).toEqual(["completed", "timed_out", "error"]);
+    expect(getPrimaryExecutionSourceHandle(node)).toBe("completed");
+  });
 });

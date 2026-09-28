@@ -620,3 +620,116 @@ it("derives For Each execution membership from v3 execution edges", () => {
     "body",
   ]);
 });
+
+it("accepts stable Merge execution target ports", () => {
+  const input = definition([
+    {
+      id: "trigger-merge",
+      kind: "execution",
+      source: "trigger",
+      target: "merge",
+      sourcePortId: "success",
+      targetPortId: "email",
+    },
+  ]);
+
+  input.nodes[1] = {
+    id: "merge",
+    type: "logic.merge",
+    config: {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "email", name: "Email" },
+        { id: "slack", name: "Slack" },
+      ],
+    },
+  };
+
+  input.editor.positions.merge = { x: 240, y: 0 };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toEqual([]);
+  expect(result.executionEdges).toEqual(input.edges);
+});
+
+it("rejects removed Merge execution target ports", () => {
+  const input = definition([
+    {
+      id: "trigger-merge",
+      kind: "execution",
+      source: "trigger",
+      target: "merge",
+      sourcePortId: "success",
+      targetPortId: "removed-input",
+    },
+  ]);
+
+  input.nodes[1] = {
+    id: "merge",
+    type: "logic.merge",
+    config: {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "email", name: "Email" },
+        { id: "slack", name: "Slack" },
+      ],
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toContainEqual({
+    code: "invalid_target_port",
+    edgeId: "trigger-merge",
+    nodeId: "merge",
+  });
+});
+
+it("compiles optional Merge data values by stable input ID", () => {
+  const input = definition([
+    {
+      id: "trigger-merge",
+      kind: "execution",
+      source: "trigger",
+      target: "merge",
+      sourcePortId: "success",
+      targetPortId: "email",
+    },
+    {
+      id: "triggered-at-value",
+      kind: "data",
+      source: "trigger",
+      target: "merge",
+      sourcePortId: "triggeredAt",
+      targetPortId: "value.email",
+    },
+  ]);
+
+  input.nodes[1] = {
+    id: "merge",
+    type: "logic.merge",
+    config: {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "email", name: "Email" },
+        { id: "slack", name: "Slack" },
+      ],
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toEqual([]);
+  expect(result.definition.nodes.find((node) => node.id === "merge")?.inputs).toEqual({
+    "value.email": {
+      kind: "reference",
+      nodeId: "trigger",
+      path: ["triggeredAt"],
+      optional: true,
+    },
+  });
+});

@@ -73,6 +73,37 @@ export function isVisualTriggerCatalogType(type: string): type is VisualCatalogT
   return (VISUAL_TRIGGER_TYPES as readonly string[]).includes(type);
 }
 
+function collectRemovedMergeInputIds(
+  currentInputs: readonly { id: string }[],
+  nextInputs: readonly { id: string }[],
+): Set<string> {
+  const nextIds = new Set(nextInputs.map((input) => input.id));
+
+  return new Set(currentInputs.map((input) => input.id).filter((inputId) => !nextIds.has(inputId)));
+}
+
+function pruneMergeInputEdges(
+  edges: readonly VisualWorkflowRfEdge[],
+  nodeId: string,
+  removedInputIds: ReadonlySet<string>,
+): VisualWorkflowRfEdge[] {
+  if (removedInputIds.size === 0) {
+    return [...edges];
+  }
+
+  return edges.filter((edge) => {
+    if (edge.target !== nodeId || !edge.targetHandle) {
+      return true;
+    }
+
+    const inputId = edge.targetHandle.startsWith("value.")
+      ? edge.targetHandle.slice("value.".length)
+      : edge.targetHandle;
+
+    return !removedInputIds.has(inputId);
+  });
+}
+
 function asMutableGraph(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
@@ -158,6 +189,16 @@ export function applyNodeConfigUpdate(
         edges,
         nodeId,
         collectRemovedSwitchCaseIds(current.data.config.cases, nextConfig.cases),
+      ),
+    };
+  }
+  if (current?.data.config.kind === "logic.merge" && nextConfig.kind === "logic.merge") {
+    return {
+      nodes: nextNodes,
+      edges: pruneMergeInputEdges(
+        edges,
+        nodeId,
+        collectRemovedMergeInputIds(current.data.config.inputs, nextConfig.inputs),
       ),
     };
   }

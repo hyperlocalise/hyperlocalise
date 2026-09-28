@@ -509,4 +509,96 @@ describe("reconnectVisualWorkflowGraphConnection", () => {
     );
     expect(result.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual([]);
   });
+
+  it("keeps Merge edges when inputs are renamed or reordered", () => {
+    const merge = node("merge", "logic.merge", {
+      config: {
+        kind: "logic.merge",
+        mode: "all",
+        inputs: [
+          { id: "email", name: "Email" },
+          { id: "slack", name: "Slack" },
+        ],
+      },
+    });
+
+    const edges = [
+      {
+        id: "email-edge",
+        source: "source",
+        target: "merge",
+        sourceHandle: "success",
+        targetHandle: "email",
+        data: { kind: "execution" as const },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate([node("source", "logic.set"), merge], edges, "merge", {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "slack", name: "Team Slack" },
+        { id: "email", name: "Customer email" },
+      ],
+    });
+
+    expect(result.edges).toEqual(edges);
+  });
+
+  it("removes edges for deleted Merge inputs", () => {
+    const merge = node("merge", "logic.merge", {
+      config: {
+        kind: "logic.merge",
+        mode: "all",
+        inputs: [
+          { id: "email", name: "Email" },
+          { id: "slack", name: "Slack" },
+          { id: "audit", name: "Audit" },
+        ],
+      },
+    });
+
+    const edges = [
+      {
+        id: "email-edge",
+        source: "source",
+        target: "merge",
+        sourceHandle: "success",
+        targetHandle: "email",
+        data: { kind: "execution" as const },
+      },
+      {
+        id: "audit-edge",
+        source: "audit",
+        target: "merge",
+        sourceHandle: "success",
+        targetHandle: "audit",
+        data: { kind: "execution" as const },
+      },
+      {
+        id: "audit-value-edge",
+        source: "audit",
+        target: "merge",
+        sourceHandle: "value",
+        targetHandle: "value.audit",
+        data: { kind: "data" as const },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), node("audit", "logic.set"), merge],
+      edges,
+      "merge",
+      {
+        kind: "logic.merge",
+        mode: "all",
+        inputs: [
+          { id: "email", name: "Email" },
+          { id: "slack", name: "Slack" },
+        ],
+      },
+    );
+
+    expect(result.edges).toEqual([edges[0]]);
+  });
 });

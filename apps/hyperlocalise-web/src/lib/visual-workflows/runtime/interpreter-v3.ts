@@ -24,6 +24,7 @@ import {
   type VisualWorkflowInterpreterResult,
 } from "./interpreter-server";
 import type { WaitResumeState } from "./wait-schedule";
+import type { MergeResumeState } from "./merge-timeout";
 
 export async function runVisualWorkflowV3Interpreter(input: {
   definition: VisualWorkflowV3Definition;
@@ -36,6 +37,7 @@ export async function runVisualWorkflowV3Interpreter(input: {
   mockMode?: boolean;
   retryBackoff?: RetryResumeState | null;
   waitResume?: WaitResumeState | null;
+  mergeResume?: MergeResumeState | null;
 }): Promise<VisualWorkflowInterpreterResult> {
   const compiled = compileVisualWorkflowV3Definition(input.definition);
 
@@ -68,5 +70,6 @@ export async function runVisualWorkflowV3Interpreter(input: {
     mockMode: input.mockMode,
     retryBackoff: input.retryBackoff,
     waitResume: input.waitResume,
+    mergeResume: input.mergeResume,
   });
 }

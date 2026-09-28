@@ -84,6 +84,27 @@ function waitNode(
   };
 }
 
+function mergeNode(): VisualWorkflowRfNode {
+  return {
+    id: "merge",
+    type: "logic.merge",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("logic.merge"),
+    data: {
+      catalogType: "logic.merge",
+      config: {
+        kind: "logic.merge",
+        mode: "all",
+        inputs: [
+          { id: "email", name: "Email" },
+          { id: "slack", name: "Slack" },
+        ],
+      },
+      runStatus: "idle",
+    },
+  };
+}
+
 describe("VisualWorkflowConfigPanel", () => {
   it("lets operators change the trigger type and delete the step", async () => {
     const user = userEvent.setup();
@@ -294,6 +315,46 @@ describe("VisualWorkflowConfigPanel", () => {
       kind: "flow.wait",
       mode: "timestamp",
       timestamp: "2026-10-02T12:30:00.000Z",
+    });
+  });
+
+  it("renames a Merge input without changing its stable ID", () => {
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={mergeNode()}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByRole("textbox", {
+        name: "Input 1",
+      }),
+      {
+        target: {
+          value: "Customer email",
+        },
+      },
+    );
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      kind: "logic.merge",
+      inputs: [
+        {
+          id: "email",
+          name: "Customer email",
+        },
+        {
+          id: "slack",
+          name: "Slack",
+        },
+      ],
     });
   });
 });

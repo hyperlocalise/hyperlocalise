@@ -74,6 +74,7 @@ export function resolveWorkflowNodeInputs(
     if (
       !field &&
       node.type !== "logic.set" &&
+      !(node.type === "logic.merge" && name.startsWith("value.")) &&
       !(node.type === "action.http" && /^(headers|body)\./.test(name))
     )
       throw new Error("unknown_workflow_input");

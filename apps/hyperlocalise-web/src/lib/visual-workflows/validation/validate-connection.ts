@@ -16,6 +16,7 @@ import { computeForEachBodyNodeIds } from "../editor/for-each-body-membership";
 import { toVisualWorkflowV3Definition } from "../schema/serializers";
 import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "../schema/types";
 import { compileVisualWorkflowV3Definition } from "./compile-workflow-v3";
+import { getAllowedExecutionSourceHandles } from "./execution-handles";
 
 const CANDIDATE_EDGE_ID = "__connection_candidate__";
 
@@ -65,6 +66,26 @@ function invalidResult(
   };
 }
 
+function targetsMergeExecutionPort(input: {
+  sourceNode: VisualWorkflowRfNode;
+  targetNode: VisualWorkflowRfNode;
+  sourcePortId: string | null;
+  targetPortId: string | null;
+}): boolean {
+  const { sourceNode, targetNode, sourcePortId, targetPortId } = input;
+
+  if (targetNode.data.config.kind !== "logic.merge" || targetPortId === null) {
+    return false;
+  }
+
+  const normalizedSourcePortId = sourcePortId ?? "success";
+
+  return getAllowedExecutionSourceHandles({
+    type: sourceNode.data.catalogType,
+    config: sourceNode.data.config,
+  }).includes(normalizedSourcePortId);
+}
+
 export function validateVisualWorkflowConnection(input: {
   nodes: readonly VisualWorkflowRfNode[];
   edges: readonly VisualWorkflowRfEdge[];
@@ -105,12 +126,27 @@ export function validateVisualWorkflowConnection(input: {
     );
   }
 
-  const edgeKind = targetPortId !== null && targetPortId !== "input" ? "data" : "execution";
+  const mergeExecutionTarget = targetsMergeExecutionPort({
+    sourceNode,
+    targetNode,
+    sourcePortId,
+    targetPortId,
+  });
+
+  const edgeKind =
+    targetPortId === null || targetPortId === "input" || mergeExecutionTarget
+      ? "execution"
+      : "data";
 
   const normalizedSourcePortId =
     edgeKind === "execution" ? (sourcePortId ?? "success") : sourcePortId;
 
-  const normalizedTargetPortId = edgeKind === "execution" ? "input" : targetPortId;
+  const normalizedTargetPortId =
+    edgeKind === "execution"
+      ? targetNode.data.config.kind === "logic.merge" && targetPortId !== null
+        ? targetPortId
+        : "input"
+      : targetPortId;
 
   if (!normalizedSourcePortId) {
     return invalidResult(
@@ -131,6 +167,24 @@ export function validateVisualWorkflowConnection(input: {
   }
 
   const existingEdges = input.edges.filter((edge) => edge.id !== input.replacingEdgeId);
+
+  if (
+    edgeKind === "execution" &&
+    targetNode.data.config.kind === "logic.merge" &&
+    existingEdges.some(
+      (edge) =>
+        edge.data?.kind !== "data" &&
+        edge.target === connection.target &&
+        edge.targetHandle === normalizedTargetPortId,
+    )
+  ) {
+    return invalidResult(
+      "target_already_connected",
+      normalizedSourcePortId,
+      normalizedTargetPortId,
+      `Merge input "${normalizedTargetPortId}" already has an execution source.`,
+    );
+  }
 
   if (edgeKind === "execution") {
     const bodyNodeIdsByLoopId = new Map(

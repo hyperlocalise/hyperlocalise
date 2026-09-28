@@ -20,7 +20,13 @@ import type {
   WorkflowNodeContract,
   VisualWorkflowRfEdge,
 } from "@/lib/visual-workflows/schema/types";
-import { ArrowLeft01Icon, Delete02Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
+import {
+  ArrowDown01Icon,
+  ArrowLeft01Icon,
+  ArrowUp01Icon,
+  Delete02Icon,
+  PlusSignIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -37,7 +43,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
-import { isTriggerType } from "@/lib/visual-workflows/catalog/node-catalog";
+import { createMergeInputId, isTriggerType } from "@/lib/visual-workflows/catalog/node-catalog";
 import { createSwitchCaseId } from "@/lib/visual-workflows/schema/switch-cases";
 import {
   isVisualTriggerCatalogType,
@@ -385,6 +391,167 @@ export function VisualWorkflowConfigPanel({
                 <FormattedMessage {...messages.addSwitchCase} />
               </Button>
             </div>
+          </>
+        ) : null}
+        {config.kind === "logic.merge" ? (
+          <>
+            <SelectField
+              id="vw-merge-mode"
+              label={intl.formatMessage(messages.mergeMode)}
+              value={config.mode}
+              items={[
+                {
+                  value: "all",
+                  label: intl.formatMessage(messages.mergeModeAll),
+                },
+                {
+                  value: "any",
+                  label: intl.formatMessage(messages.mergeModeAny),
+                },
+                {
+                  value: "first_success",
+                  label: intl.formatMessage(messages.mergeModeFirstSuccess),
+                },
+              ]}
+              onValueChange={(value) => {
+                if (value === "all" || value === "any" || value === "first_success") {
+                  onChangeConfig({
+                    ...config,
+                    mode: value,
+                  });
+                }
+              }}
+            />
+
+            <div className="grid gap-2">
+              <Label>
+                <FormattedMessage {...messages.mergeInputs} />
+              </Label>
+
+              {config.inputs.map((input, index) => (
+                <div key={input.id} className="flex items-center gap-2">
+                  <Input
+                    aria-label={intl.formatMessage(messages.mergeInputName, {
+                      index: index + 1,
+                    })}
+                    value={input.name}
+                    placeholder={intl.formatMessage(messages.mergeInputName, {
+                      index: index + 1,
+                    })}
+                    onChange={(event) => {
+                      const inputs = config.inputs.map((entry, inputIndex) =>
+                        inputIndex === index
+                          ? {
+                              ...entry,
+                              name: event.target.value,
+                            }
+                          : entry,
+                      );
+
+                      onChangeConfig({
+                        ...config,
+                        inputs,
+                      });
+                    }}
+                  />
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={index === 0}
+                    aria-label={intl.formatMessage(messages.moveMergeInputUp, {
+                      index: index + 1,
+                    })}
+                    onClick={() => {
+                      const inputs = [...config.inputs];
+                      [inputs[index - 1], inputs[index]] = [inputs[index]!, inputs[index - 1]!];
+
+                      onChangeConfig({
+                        ...config,
+                        inputs,
+                      });
+                    }}
+                  >
+                    <HugeiconsIcon icon={ArrowUp01Icon} className="size-4" strokeWidth={2} />
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={index === config.inputs.length - 1}
+                    aria-label={intl.formatMessage(messages.moveMergeInputDown, {
+                      index: index + 1,
+                    })}
+                    onClick={() => {
+                      const inputs = [...config.inputs];
+                      [inputs[index], inputs[index + 1]] = [inputs[index + 1]!, inputs[index]!];
+
+                      onChangeConfig({
+                        ...config,
+                        inputs,
+                      });
+                    }}
+                  >
+                    <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" strokeWidth={2} />
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={config.inputs.length <= 2}
+                    aria-label={intl.formatMessage(messages.removeMergeInput, {
+                      index: index + 1,
+                    })}
+                    onClick={() =>
+                      onChangeConfig({
+                        ...config,
+                        inputs: config.inputs.filter((_, inputIndex) => inputIndex !== index),
+                      })
+                    }
+                  >
+                    <HugeiconsIcon icon={Delete02Icon} className="size-4" strokeWidth={2} />
+                  </Button>
+                </div>
+              ))}
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={config.inputs.length >= 32}
+                onClick={() =>
+                  onChangeConfig({
+                    ...config,
+                    inputs: [
+                      ...config.inputs,
+                      {
+                        id: createMergeInputId(),
+                        name: `Input ${config.inputs.length + 1}`,
+                      },
+                    ],
+                  })
+                }
+              >
+                <HugeiconsIcon icon={PlusSignIcon} className="size-4" strokeWidth={2} />
+                <FormattedMessage {...messages.addMergeInput} />
+              </Button>
+            </div>
+
+            <TextField
+              id="vw-merge-timeout"
+              label={intl.formatMessage(messages.mergeTimeoutMs)}
+              value={config.timeoutMs === undefined ? "" : String(config.timeoutMs)}
+              onChange={(value) =>
+                onChangeConfig({
+                  ...config,
+                  timeoutMs:
+                    value.trim() === "" ? undefined : Number.parseInt(value, 10) || undefined,
+                })
+              }
+            />
           </>
         ) : null}
         {config.kind === "logic.set" ? (

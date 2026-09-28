@@ -480,6 +480,71 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "5ZZS0Al3rv",
     description: "Wait node picker hint",
   },
+  nodeMerge: {
+    defaultMessage: "Merge",
+    id: "c0/sujExf3",
+    description: "Merge node title",
+  },
+  nodeMergeHint: {
+    defaultMessage: "Coordinate multiple incoming execution paths.",
+    id: "xwmJvqOv1C",
+    description: "Merge node picker hint",
+  },
+  mergeMode: {
+    defaultMessage: "Merge mode",
+    id: "GafA21RnmS",
+    description: "Merge node mode field",
+  },
+  mergeModeAll: {
+    defaultMessage: "All selected paths",
+    id: "JmHjqkDgSi",
+    description: "Wait for all selected Merge inputs",
+  },
+  mergeModeAny: {
+    defaultMessage: "Any selected path",
+    id: "CVYpUuUKdZ",
+    description: "Continue after any selected Merge input",
+  },
+  mergeModeFirstSuccess: {
+    defaultMessage: "First successful path",
+    id: "r9FOHZyK+0",
+    description: "Continue after the first successful Merge input",
+  },
+  mergeInputs: {
+    defaultMessage: "Execution inputs",
+    id: "KZhZYT6je6",
+    description: "Merge execution input list",
+  },
+  mergeInputName: {
+    defaultMessage: "Input {index}",
+    id: "bL+wwPFNwO",
+    description: "Merge execution input name placeholder",
+  },
+  addMergeInput: {
+    defaultMessage: "Add input",
+    id: "rKDq5xVpUS",
+    description: "Add a Merge execution input",
+  },
+  removeMergeInput: {
+    defaultMessage: "Remove input {index}",
+    id: "FdmB8M+qZc",
+    description: "Remove a Merge execution input",
+  },
+  moveMergeInputUp: {
+    defaultMessage: "Move input {index} up",
+    id: "V99Pmv6BsN",
+    description: "Move a Merge input upward",
+  },
+  moveMergeInputDown: {
+    defaultMessage: "Move input {index} down",
+    id: "QugOsjCCw4",
+    description: "Move a Merge input downward",
+  },
+  mergeTimeoutMs: {
+    defaultMessage: "Timeout (ms, optional)",
+    id: "M1ITBSXE+Q",
+    description: "Optional Merge timeout",
+  },
   completedHandle: {
     defaultMessage: "Completed",
     id: "w2tot+OYiM",

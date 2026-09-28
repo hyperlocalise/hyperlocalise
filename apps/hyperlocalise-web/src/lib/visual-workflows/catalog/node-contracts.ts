@@ -146,6 +146,18 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       resumedAt: "2026-01-01T00:01:00.000Z",
     },
   },
+  "logic.merge": {
+    inputs: [],
+    outputs: [
+      output("status"),
+      output("selectedInputId", "string", true),
+      output("values", "object"),
+    ],
+    mock: {
+      status: "completed",
+      values: {},
+    },
+  },
 };
 export function matchesWorkflowType(value: unknown, type: WorkflowValueType): boolean {
   if (type === "unknown") return true;
