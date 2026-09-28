@@ -19,11 +19,12 @@ func NewStore(db Executor) *Store {
 }
 
 func (s *Store) Insert(ctx context.Context, event Event) error {
-	if _, err := event.CreatedTime(); err != nil {
+	createdAt, err := event.CreatedTime()
+	if err != nil {
 		return err
 	}
 
-	_, err := s.db.Exec(ctx, `
+	_, err = s.db.Exec(ctx, `
 		insert into organization_activity_events (
 			actor_credential_id,
 			actor_kind,
@@ -35,11 +36,12 @@ func (s *Store) Insert(ctx context.Context, event Event) error {
 			payload,
 			target_id,
 			target_kind
-		) values ($1,$2,$3,clock_timestamp(),$4,$5,$6,$7,$8,$9)
+		) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 		on conflict (id) do nothing`,
 		event.ActorCredentialID,
 		event.ActorKind,
 		event.ActorUserID,
+		createdAt,
 		event.EventType,
 		event.ID,
 		event.OrganizationID,

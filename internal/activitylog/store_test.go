@@ -23,22 +23,26 @@ func TestStoreInsertUsesIdempotentActivityEventWrite(t *testing.T) {
 	executor := &recordingExecutor{}
 	store := NewStore(executor)
 	event := validMessage().Event
+	createdAt, err := event.CreatedTime()
+	require.NoError(t, err)
 
 	require.NoError(t, store.Insert(context.Background(), event))
-	require.Contains(t, executor.sql, "clock_timestamp()")
 	require.Contains(t, executor.sql, "on conflict (id) do nothing")
-	require.Equal(t, event.ID, executor.args[4])
-	require.Equal(t, event.OrganizationID, executor.args[5])
-	require.Equal(t, event.Payload, executor.args[6])
-	require.Len(t, executor.args, 9)
+	require.Equal(t, createdAt, executor.args[3])
+	require.Equal(t, event.ID, executor.args[5])
+	require.Equal(t, event.OrganizationID, executor.args[6])
+	require.Equal(t, event.Payload, executor.args[7])
+	require.Len(t, executor.args, 10)
 }
 
-func TestStoreInsertDoesNotUseProducerTimestampForPersistence(t *testing.T) {
+func TestStoreInsertPersistsProducerTimestamp(t *testing.T) {
 	executor := &recordingExecutor{}
 	store := NewStore(executor)
 	event := validMessage().Event
 	event.CreatedAt = "2099-01-01T00:00:00.000Z"
+	createdAt, err := event.CreatedTime()
+	require.NoError(t, err)
 
 	require.NoError(t, store.Insert(context.Background(), event))
-	require.NotContains(t, executor.args, event.CreatedAt)
+	require.Equal(t, createdAt, executor.args[3])
 }
