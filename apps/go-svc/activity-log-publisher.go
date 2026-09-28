@@ -50,7 +50,7 @@ type sqsActivityLogPublisher struct {
 	newEventID func() string
 }
 
-func newActivityLogPublisher(ctx context.Context) (*sqsActivityLogPublisher, error) {
+func newActivityLogPublisher(ctx context.Context) (activityLogPublisher, error) {
 	queueURL := strings.TrimSpace(os.Getenv(activityLogQueueURLEnv))
 	if queueURL == "" {
 		slog.Warn(

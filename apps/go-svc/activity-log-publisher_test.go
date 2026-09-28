@@ -24,6 +24,15 @@ type fakeActivityLogSQSClient struct {
 	attrsErr   error
 }
 
+func TestNewActivityLogPublisherDisabledWithoutQueueURL(t *testing.T) {
+	t.Setenv(activityLogQueueURLEnv, "")
+
+	publisher, err := newActivityLogPublisher(context.Background())
+
+	require.NoError(t, err)
+	require.Nil(t, publisher)
+}
+
 type deadlineActivityLogPublisher struct {
 	deadline time.Time
 }
