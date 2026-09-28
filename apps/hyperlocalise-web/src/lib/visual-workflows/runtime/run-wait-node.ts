@@ -25,6 +25,7 @@ export function runWaitNode(input: {
   node: CanonicalVisualWorkflowNode;
   context: VisualWorkflowExecutionContext;
   resume?: WaitResumeState | null;
+  iteration?: number;
   mockMode?: boolean;
   nowMs?: number;
 }): WaitExecutionResult {
@@ -71,6 +72,7 @@ export function runWaitNode(input: {
 
   const result = resolveWaitSchedule({
     waitNodeId: input.node.id,
+    iteration: input.iteration,
     mode: config.mode,
     durationMs: config.durationMs,
     timestamp: config.timestamp,

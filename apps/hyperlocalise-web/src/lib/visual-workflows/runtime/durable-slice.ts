@@ -39,6 +39,7 @@ import {
 import { isLogicRetryConfig } from "../schema/retry-policy";
 import { parseRetryResumeState } from "./retry-delay";
 import { parseWaitResumeState } from "./wait-schedule";
+import { collectWaitConditionProbeNodeIds } from "./wait-condition-probes";
 
 const logger = createLogger("visual-workflow-node");
 export async function executeDurableWorkflowSlice(input: {
@@ -62,6 +63,7 @@ export async function executeDurableWorkflowSlice(input: {
   const retryBodyNodeIds = collectRetryBodyNodeIds(input.definition);
   const retryBackoff = parseRetryResumeState(input.payload.retryBackoff);
   const waitResume = parseWaitResumeState(input.payload.waitResume);
+  const waitConditionProbeNodeIds = collectWaitConditionProbeNodeIds(input.definition, waitResume);
   const resumeAttempt = retryBackoff?.nextAttempt ?? null;
   const resumedRetryBodyNodeIds =
     retryBackoff != null
@@ -72,6 +74,7 @@ export async function executeDurableWorkflowSlice(input: {
       .filter(
         (record) =>
           record.encryptedOutput &&
+          !waitConditionProbeNodeIds.has(record.nodeId) &&
           ["succeeded", "handled_error"].includes(record.status) &&
           shouldReuseCompletedNodeRun({
             nodeId: record.nodeId,

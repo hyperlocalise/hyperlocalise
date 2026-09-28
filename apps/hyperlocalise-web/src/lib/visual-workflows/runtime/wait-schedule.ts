@@ -12,6 +12,7 @@
  */
 export type WaitResumeState = {
   waitNodeId: string;
+  iteration: number;
   mode: "duration" | "timestamp" | "condition";
   scheduledAt: string;
   wakeAt: string;
@@ -68,9 +69,14 @@ export function parseWaitResumeState(value: unknown): WaitResumeState | null {
     typeof record.timeoutAt === "string" && Number.isFinite(Date.parse(record.timeoutAt))
       ? record.timeoutAt
       : undefined;
+  const iteration =
+    typeof record.iteration === "number" && Number.isInteger(record.iteration)
+      ? record.iteration
+      : -1;
 
   return {
     waitNodeId: record.waitNodeId,
+    iteration,
     mode: record.mode,
     scheduledAt: record.scheduledAt,
     wakeAt: record.wakeAt,
@@ -92,6 +98,7 @@ export function isWaitWakePending(
 
 export function resolveWaitSchedule(input: {
   waitNodeId: string;
+  iteration?: number;
   mode: "duration" | "timestamp" | "condition";
   durationMs?: number;
   timestamp?: string;
@@ -103,14 +110,15 @@ export function resolveWaitSchedule(input: {
 }): WaitScheduleResult {
   const nowMs = input.nowMs ?? Date.now();
   const now = new Date(nowMs).toISOString();
+  const iteration = input.iteration ?? -1;
 
   if (input.previous) {
-    if (input.previous.waitNodeId !== input.waitNodeId) {
+    if (input.previous.waitNodeId !== input.waitNodeId || input.previous.iteration !== iteration) {
       return {
         status: "invalid",
         error: {
           code: "invalid_wait",
-          message: "Wait resume state belongs to another node.",
+          message: "Wait resume state belongs to another wait invocation.",
         },
       };
     }
@@ -160,6 +168,7 @@ export function resolveWaitSchedule(input: {
       status: "waiting",
       resume: {
         waitNodeId: input.waitNodeId,
+        iteration,
         mode: "duration",
         scheduledAt: now,
         wakeAt: new Date(nowMs + input.durationMs).toISOString(),
@@ -187,6 +196,7 @@ export function resolveWaitSchedule(input: {
       status: "waiting",
       resume: {
         waitNodeId: input.waitNodeId,
+        iteration,
         mode: "timestamp",
         scheduledAt: now,
         wakeAt: new Date(wakeMs).toISOString(),
@@ -233,6 +243,7 @@ export function resolveWaitSchedule(input: {
     status: "waiting",
     resume: {
       waitNodeId: input.waitNodeId,
+      iteration,
       mode: "condition",
       scheduledAt,
       wakeAt: new Date(Math.min(nowMs + pollingIntervalMs, Date.parse(timeoutAt))).toISOString(),

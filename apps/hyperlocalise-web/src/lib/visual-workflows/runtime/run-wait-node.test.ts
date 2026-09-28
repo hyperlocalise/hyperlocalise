@@ -53,6 +53,7 @@ describe("runWaitNode", () => {
       context: createVisualWorkflowExecutionContext({}),
       resume: {
         waitNodeId: "wait",
+        iteration: -1,
         mode: "duration",
         scheduledAt: "2026-10-01T10:00:00.000Z",
         wakeAt: "2026-10-01T10:01:00.000Z",

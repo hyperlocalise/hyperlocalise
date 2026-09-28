@@ -160,10 +160,16 @@ export async function runVisualWorkflowInterpreter(input: {
           });
 
           if (resolved.type === "flow.wait") {
+            const waitIteration = iteration ?? -1;
             const waitResult = runWaitNode({
               node: resolved,
               context,
-              resume: input.waitResume?.waitNodeId === resolved.id ? input.waitResume : null,
+              resume:
+                input.waitResume?.waitNodeId === resolved.id &&
+                input.waitResume.iteration === waitIteration
+                  ? input.waitResume
+                  : null,
+              iteration,
               mockMode: input.mockMode,
             });
 
@@ -365,7 +371,12 @@ export async function runVisualWorkflowInterpreter(input: {
     new Set(definition.nodes.filter((node) => !bodyIds.has(node.id)).map((node) => node.id)),
     new Set([graph.triggerNodeId]),
   );
-  if (failure && failure.error.code !== "yield_execution" && failure.error.code !== "retry_backoff")
+  if (
+    failure &&
+    failure.error.code !== "yield_execution" &&
+    failure.error.code !== "retry_backoff" &&
+    failure.error.code !== "wait_suspended"
+  )
     for (const node of definition.nodes)
       if (!settledIds.has(node.id))
         await emit(node, failure.error.code === "cancelled" ? "cancelled" : "blocked");

@@ -561,7 +561,7 @@ export function VisualWorkflowConfigPanel({
                       condition: value,
                     })
                   }
-                  placeholder="{{nodes.http.json.status}} === 'ready'"
+                  placeholder="{{nodes.http.json.status}} === ready"
                 />
 
                 <TextField

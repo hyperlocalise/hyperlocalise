@@ -29,6 +29,7 @@ describe("resolveWaitSchedule", () => {
       status: "waiting",
       resume: {
         waitNodeId: "wait",
+        iteration: -1,
         mode: "duration",
         scheduledAt: "2026-10-01T10:00:00.000Z",
         wakeAt: "2026-10-01T10:01:00.000Z",
@@ -39,6 +40,7 @@ describe("resolveWaitSchedule", () => {
   it("completes a duration idempotently after its wake time", () => {
     const previous = {
       waitNodeId: "wait",
+      iteration: -1,
       mode: "duration" as const,
       scheduledAt: "2026-10-01T10:00:00.000Z",
       wakeAt: "2026-10-01T10:01:00.000Z",
@@ -88,6 +90,7 @@ describe("resolveWaitSchedule", () => {
       status: "waiting",
       resume: {
         waitNodeId: "wait",
+        iteration: -1,
         mode: "condition",
         scheduledAt: "2026-10-01T10:00:00.000Z",
         wakeAt: "2026-10-01T10:00:05.000Z",
@@ -99,6 +102,7 @@ describe("resolveWaitSchedule", () => {
   it("routes a bounded condition to timed out", () => {
     const previous = {
       waitNodeId: "wait",
+      iteration: -1,
       mode: "condition" as const,
       scheduledAt: "2026-10-01T10:00:00.000Z",
       wakeAt: "2026-10-01T10:00:55.000Z",
@@ -133,6 +137,28 @@ describe("resolveWaitSchedule", () => {
         nowMs: NOW,
       }).status,
     ).toBe("completed");
+  });
+
+  it("does not reuse a wakeup from another loop iteration", () => {
+    expect(
+      resolveWaitSchedule({
+        waitNodeId: "wait",
+        iteration: 2,
+        mode: "duration",
+        durationMs: 60_000,
+        previous: {
+          waitNodeId: "wait",
+          iteration: 1,
+          mode: "duration",
+          scheduledAt: "2026-10-01T09:59:00.000Z",
+          wakeAt: "2026-10-01T10:00:00.000Z",
+        },
+        nowMs: NOW,
+      }),
+    ).toMatchObject({
+      status: "invalid",
+      error: { code: "invalid_wait" },
+    });
   });
 });
 
