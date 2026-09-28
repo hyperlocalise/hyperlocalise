@@ -79,9 +79,14 @@ func main() {
 	}()
 
 	h := newHandler()
+	activityLogPublisher, activityLogErr := newActivityLogPublisher(context.Background())
+	if activityLogErr != nil {
+		log.Printf("configure activity log publisher: %v", activityLogErr)
+	}
+	h.activityLog = activityLogPublisher
 	h.spellChecker = spellChecker
 	h.dictionaries = &dictionaryAPI{}
-	h.glossaries = &glossaryAPI{}
+	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher}
 	h.memories = &memoryAPI{}
 	h.qaReports = &qaReportAPI{}
 	h.teams = &teamAPI{}

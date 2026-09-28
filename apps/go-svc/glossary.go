@@ -19,9 +19,10 @@ const (
 )
 
 type glossaryAPI struct {
-	pool       dictionaryPool
-	membership organizationMembershipLookup
-	readCache  glossaryReadCache
+	pool        dictionaryPool
+	membership  organizationMembershipLookup
+	readCache   glossaryReadCache
+	activityLog activityLogPublisher
 }
 
 type glossaryActor struct{ userID, organizationID, role string }

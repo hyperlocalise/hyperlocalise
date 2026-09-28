@@ -46,6 +46,7 @@ require (
 require (
 	github.com/aws/aws-lambda-go v1.55.1
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.1
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/klippa-app/go-pdfium v1.21.0

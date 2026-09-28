@@ -67,6 +67,7 @@ type handler struct {
 	members           *memberAPI
 	issueSheets       *issueSheetAPI
 	activityLogs      *activityLogAPI
+	activityLog       activityLogPublisher
 	contentEditor     *editorCatAPI
 	projects          *projectAPI
 	workspace         *workspaceAPI
@@ -164,13 +165,15 @@ func (h *handler) checkSpelling(ctx context.Context, locale, text string, accept
 func (h *handler) health(w http.ResponseWriter, r *http.Request) {
 	valkey := checkDependencyHealth(r.Context(), h.valkey)
 	postgres := checkDependencyHealth(r.Context(), h.postgres)
+	activityLog := checkDependencyHealth(r.Context(), h.activityLog)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"status":   "ok",
-		"valkey":   valkey,
-		"postgres": postgres,
+		"status":       "ok",
+		"activity_log": activityLog,
+		"valkey":       valkey,
+		"postgres":     postgres,
 	})
 }
 
