@@ -53,6 +53,10 @@ func projectNotFound() error {
 	return projectFailure(http.StatusNotFound, "project_not_found", "Project not found")
 }
 
+func projectForbidden() error {
+	return projectFailure(http.StatusForbidden, "forbidden", "Insufficient permissions")
+}
+
 func projectJSON(ctx context.Context, w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -82,9 +86,13 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
 	}
 	route("GET "+projects, bindActor(api, (*projectAPI).listHandler))
+	route("GET "+project, bindActor(api, (*projectAPI).getHandler))
+	route("GET "+project+"/locale-progress", bindActor(api, (*projectAPI).localeProgressHandler))
 	route("GET "+project+"/open-job-count", bindActor(api, (*projectAPI).openJobCountHandler))
 	route("GET "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).contentEditorBehaviorHandler))
+	route("GET "+project+"/content-editor-behavior/preview", bindActor(api, (*projectAPI).contentEditorBehaviorPreviewHandler))
 	route("GET "+project+"/files", bindActor(api, (*projectAPI).filesHandler))
+	route("GET "+orgRoutePrefix+"/workspace-files", bindActor(api, (*projectAPI).workspaceFilesHandler))
 }
 
 func (api *projectAPI) actor(ctx context.Context, claims AuthClaims, slug string) (projectActor, error) {
