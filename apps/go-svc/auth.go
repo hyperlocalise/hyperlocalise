@@ -219,7 +219,11 @@ func (v *WorkOSSessionVerifier) refreshWithWorkOS(ctx context.Context, refreshTo
 }
 
 func (v *WorkOSSessionVerifier) verifyGoSDK(ctx context.Context, sealedSession string) (SessionResult, error) {
-	result, err := workos.AuthenticateSession(sealedSession, v.cookiePassword)
+	if v.apiKey == "" || v.clientID == "" {
+		return SessionResult{}, newAuthError("invalid_session_cookie", "invalid session: invalid_session_cookie")
+	}
+	client := workos.NewClient(v.apiKey, workos.WithClientID(v.clientID), workos.WithBaseURL(v.apiBaseURL))
+	result, err := client.AuthenticateSession(ctx, sealedSession, v.cookiePassword)
 	if err != nil {
 		return SessionResult{}, newAuthError("invalid_session_cookie", "invalid session: invalid_session_cookie")
 	}
