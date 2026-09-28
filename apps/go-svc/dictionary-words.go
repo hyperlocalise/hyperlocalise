@@ -294,15 +294,35 @@ func (api *dictionaryAPI) writeDictionaryWords(r *http.Request, actor dictionary
 	return map[string]any{"word": created}, 201, err
 }
 
+// BOLT OPTIMIZATION: Check if string is simple ASCII with no JSON special characters
+// or HTML characters (<, >, &) that require escaping by Go's json.Marshal.
+func isSimpleASCIIJSON(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c < 0x20 || c > 0x7e || c == '"' || c == '\\' || c == '<' || c == '>' || c == '&' {
+			return false
+		}
+	}
+	return true
+}
+
 func capDictionaryWords(words []string) []string {
-	result := []string{}
+	// BOLT OPTIMIZATION: Pre-allocate result slice capacity up to max resolved words.
+	result := make([]string, 0, min(len(words), dictionaryMaxResolvedWords))
 	bytes := 2
 	for _, word := range words {
-		encoded, err := json.Marshal(word)
-		if err != nil {
-			break
-		} // Strings always marshal successfully.
-		extra := len(encoded)
+		var extra int
+		// BOLT OPTIMIZATION: Use zero-allocation length calculation for simple ASCII words
+		// instead of invoking json.Marshal for thousands of dictionary entries.
+		if isSimpleASCIIJSON(word) {
+			extra = len(word) + 2
+		} else {
+			encoded, err := json.Marshal(word)
+			if err != nil {
+				break
+			}
+			extra = len(encoded)
+		}
 		if len(result) > 0 {
 			extra++
 		}
