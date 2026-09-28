@@ -266,6 +266,41 @@ function retryResumeFromError(error: Record<string, unknown>): RetryResumeState 
   };
 }
 
+function waitResumeSettledInNodeResults(
+  resume: WaitResumeState | null | undefined,
+  nodeResults: Record<string, Record<string, unknown>> | undefined,
+): boolean {
+  if (!resume || !nodeResults) return false;
+  const output = nodeResults[resume.waitNodeId];
+  const status = output?.status;
+  return status === "completed" || status === "timed_out";
+}
+
+async function clearRunWaitResume(input: {
+  leaseToken: string;
+  runId: string;
+  organizationId: string;
+  payload: Record<string, unknown>;
+}): Promise<Record<string, unknown>> {
+  if (!input.payload.waitResume) return input.payload;
+
+  const { waitResume: _removedWait, ...payloadWithoutWait } = input.payload;
+  await db
+    .update(schema.visualWorkflowRuns)
+    .set({
+      encryptedPayload: encryptWorkflowPayload(payloadWithoutWait),
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, input.runId),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowRuns.leaseToken, input.leaseToken),
+      ),
+    );
+  return payloadWithoutWait;
+}
+
 async function persistRunWaitResume(input: {
   leaseToken: string;
   runId: string;
@@ -1070,6 +1105,18 @@ export async function executeVisualWorkflowRun(input: {
       visualWorkflowId: input.visualWorkflowId,
       runId: run.id,
     });
+  if (
+    waitResume &&
+    (result.ok || result.error.code !== "wait_suspended") &&
+    waitResumeSettledInNodeResults(waitResume, result.nodeResults)
+  ) {
+    payload = await clearRunWaitResume({
+      leaseToken,
+      runId: run.id,
+      organizationId: input.organizationId,
+      payload,
+    });
+  }
   if (!result.ok && result.error.code === "wait_suspended") {
     const resume = parseWaitResumeState(result.error);
 
