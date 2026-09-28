@@ -120,7 +120,7 @@
     "defaultMessage": "Rester"
   },
   "+FX267AAXq": {
-    "defaultMessage": "SERP · {keyword}"
+    "defaultMessage": "Résultats de recherche · {keyword}"
   },
   "+FuW5t+7ZR": {
     "defaultMessage": "Échec de la publication du commentaire"
@@ -1454,6 +1454,9 @@
   "1X7DOlRyIy": {
     "defaultMessage": "Corrigé et validé sur cette branche."
   },
+  "1XJEkWqFT6": {
+    "defaultMessage": "Délai d’attente dépassé."
+  },
   "1XNL0pGEyo": {
     "defaultMessage": "Lorsqu’il s’exécute"
   },
@@ -2597,6 +2600,9 @@
   "4AlCRwOS/3": {
     "defaultMessage": "Créez votre espace de travail"
   },
+  "4B/yIypHTz": {
+    "defaultMessage": "Jusqu'à ce que la condition soit remplie"
+  },
   "4B3q4D8+NF": {
     "defaultMessage": "Chargement du fichier…"
   },
@@ -3139,6 +3145,9 @@
   },
   "5ZQ992jk22": {
     "defaultMessage": "Réessayez de charger l’historique du glossaire le plus récent."
+  },
+  "5ZZS0Al3rv": {
+    "defaultMessage": "Attendez une durée, une heure ou une condition."
   },
   "5a+z7ec3fj": {
     "defaultMessage": "Voir le rapport"
@@ -5999,6 +6008,9 @@
   "CPVePRU7tR": {
     "defaultMessage": "Connecté via les intégrations"
   },
+  "CPWLg67zI3": {
+    "defaultMessage": "Durée"
+  },
   "CPX3MSYhG+": {
     "defaultMessage": "Chaîne liée"
   },
@@ -7024,6 +7036,9 @@
   },
   "EgJBlBjf3r": {
     "defaultMessage": "Importez les directives de marque et les documents de style depuis Google Drive."
+  },
+  "EgoeBfG+CV": {
+    "defaultMessage": "Jusqu’à l’horodatage"
   },
   "Ehcjh40kDc": {
     "defaultMessage": "Connaissances"
@@ -16052,6 +16067,9 @@
   "bUBd4XGtBI": {
     "defaultMessage": "Fonctionnalités d’IA"
   },
+  "bUh5gPU+mn": {
+    "defaultMessage": "Mode d’attente"
+  },
   "bUrzfKsGhW": {
     "defaultMessage": "À propos de Hyperlocalise | Création de la plateforme de localisation agentique"
   },
@@ -16251,10 +16269,13 @@
     "defaultMessage": "Laissez les directives là où elles sont. Permettez aux agents de les lire."
   },
   "bwRlaW2gsC": {
-    "defaultMessage": "Gemini 3.1 Pro Preview"
+    "defaultMessage": "Aperçu de Gemini 3.1 Pro"
   },
   "bwuFPmHIKZ": {
     "defaultMessage": "Lire les tâches"
+  },
+  "bxWXLOi+RW": {
+    "defaultMessage": "Horodatage"
   },
   "bxdlmS/zEn": {
     "defaultMessage": "à"
@@ -19298,6 +19319,9 @@
   "ivdHFzfBNo": {
     "defaultMessage": "Le terme interdit « {term} » apparaît dans la traduction cible."
   },
+  "ivmGcv+k23": {
+    "defaultMessage": "Délai d’attente (ms)"
+  },
   "iwQ9dbHG3A": {
     "defaultMessage": "Échec de l’ajout à la feuille des problèmes"
   },
@@ -20612,6 +20636,9 @@
   "m3woOgoczi": {
     "defaultMessage": "Il y a 3 h"
   },
+  "m4Ahgxr1sR": {
+    "defaultMessage": "Durée (ms)"
+  },
   "m4IcL4/sul": {
     "defaultMessage": "Human reviewed"
   },
@@ -21415,6 +21442,9 @@
   },
   "nnXWSAtR1P": {
     "defaultMessage": "Store organization-wide localization guidance as one flexible markdown memory."
+  },
+  "nncYBDQUwE": {
+    "defaultMessage": "Attendre"
   },
   "nnkQAnt0DC": {
     "defaultMessage": "Exécution de l’agent mise en file d’attente"
@@ -22804,6 +22834,9 @@
   },
   "r3TGVfZPDe": {
     "defaultMessage": "Experiments"
+  },
+  "r3XB1uKkxA": {
+    "defaultMessage": "Interval de vérification (ms)"
   },
   "r3j9bzJdAk": {
     "defaultMessage": "Impossible de charger les relations"
@@ -24395,6 +24428,9 @@
   "v17o/esQXS": {
     "defaultMessage": "Ajouter un outil"
   },
+  "v1chSgy0BK": {
+    "defaultMessage": "Condition"
+  },
   "v1ru55p+vf": {
     "defaultMessage": "Annuler"
   },
@@ -24877,6 +24913,9 @@
   },
   "w2b0cdIV3S": {
     "defaultMessage": "Posez des questions sur les chaînes, le contexte ou quoi que ce soit d’autre"
+  },
+  "w2tot+OYiM": {
+    "defaultMessage": "Terminé"
   },
   "w4kK/l0YhQ": {
     "defaultMessage": "Chargement du forfait"

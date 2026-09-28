@@ -1454,6 +1454,9 @@
   "1X7DOlRyIy": {
     "defaultMessage": "Đã sửa và commit vào nhánh này."
   },
+  "1XJEkWqFT6": {
+    "defaultMessage": "Đã hết thời gian chờ."
+  },
   "1XNL0pGEyo": {
     "defaultMessage": "Khi nó chạy"
   },
@@ -2597,6 +2600,9 @@
   "4AlCRwOS/3": {
     "defaultMessage": "Tạo không gian làm việc của bạn"
   },
+  "4B/yIypHTz": {
+    "defaultMessage": "Cho đến khi điều kiện được đáp ứng"
+  },
   "4B3q4D8+NF": {
     "defaultMessage": "Đang tải tệp…"
   },
@@ -3139,6 +3145,9 @@
   },
   "5ZQ992jk22": {
     "defaultMessage": "Hãy thử tải lại lịch sử thuật ngữ mới nhất."
+  },
+  "5ZZS0Al3rv": {
+    "defaultMessage": "Tạm dừng cho đến khi hết thời lượng, đến mốc thời gian hoặc khi điều kiện được đáp ứng."
   },
   "5a+z7ec3fj": {
     "defaultMessage": "Xem báo cáo"
@@ -5999,6 +6008,9 @@
   "CPVePRU7tR": {
     "defaultMessage": "Đã kết nối thông qua Tích hợp"
   },
+  "CPWLg67zI3": {
+    "defaultMessage": "Thời lượng"
+  },
   "CPX3MSYhG+": {
     "defaultMessage": "Chuỗi được liên kết"
   },
@@ -7024,6 +7036,9 @@
   },
   "EgJBlBjf3r": {
     "defaultMessage": "Nhập hướng dẫn thương hiệu và tài liệu phong cách từ Google Drive."
+  },
+  "EgoeBfG+CV": {
+    "defaultMessage": "Cho đến dấu thời gian"
   },
   "Ehcjh40kDc": {
     "defaultMessage": "Knowledge"
@@ -16052,6 +16067,9 @@
   "bUBd4XGtBI": {
     "defaultMessage": "Tính năng AI"
   },
+  "bUh5gPU+mn": {
+    "defaultMessage": "Chế độ chờ"
+  },
   "bUrzfKsGhW": {
     "defaultMessage": "Giới thiệu về Hyperlocalise | Xây dựng nền tảng bản địa hóa tác tử"
   },
@@ -16255,6 +16273,9 @@
   },
   "bwuFPmHIKZ": {
     "defaultMessage": "Đọc công việc"
+  },
+  "bxWXLOi+RW": {
+    "defaultMessage": "Dấu thời gian"
   },
   "bxdlmS/zEn": {
     "defaultMessage": "at"
@@ -16518,7 +16539,7 @@
     "defaultMessage": "Xóa tệp"
   },
   "cb/1dHJtyC": {
-    "defaultMessage": "Search Console"
+    "defaultMessage": "Bảng điều khiển tìm kiếm"
   },
   "cbNqGo9VKV": {
     "defaultMessage": "Thử lại"
@@ -19298,6 +19319,9 @@
   "ivdHFzfBNo": {
     "defaultMessage": "Thuật ngữ bị cấm \"{term}\" xuất hiện trong bản dịch đích."
   },
+  "ivmGcv+k23": {
+    "defaultMessage": "Thời gian chờ (ms)"
+  },
   "iwQ9dbHG3A": {
     "defaultMessage": "Không thể thêm vào Bảng vấn đề"
   },
@@ -20612,6 +20636,9 @@
   "m3woOgoczi": {
     "defaultMessage": "3 giờ trước"
   },
+  "m4Ahgxr1sR": {
+    "defaultMessage": "Thời lượng (ms)"
+  },
   "m4IcL4/sul": {
     "defaultMessage": "Human reviewed"
   },
@@ -21415,6 +21442,9 @@
   },
   "nnXWSAtR1P": {
     "defaultMessage": "Store organization-wide localization guidance as one flexible markdown memory."
+  },
+  "nncYBDQUwE": {
+    "defaultMessage": "Chờ"
   },
   "nnkQAnt0DC": {
     "defaultMessage": "Đã xếp hàng chạy tác vụ của agent"
@@ -22804,6 +22834,9 @@
   },
   "r3TGVfZPDe": {
     "defaultMessage": "Experiments"
+  },
+  "r3XB1uKkxA": {
+    "defaultMessage": "Khoảng thời gian thăm dò (ms)"
   },
   "r3j9bzJdAk": {
     "defaultMessage": "Không thể tải các mối quan hệ"
@@ -24395,6 +24428,9 @@
   "v17o/esQXS": {
     "defaultMessage": "Thêm công cụ"
   },
+  "v1chSgy0BK": {
+    "defaultMessage": "Condition"
+  },
   "v1ru55p+vf": {
     "defaultMessage": "Cancel"
   },
@@ -24877,6 +24913,9 @@
   },
   "w2b0cdIV3S": {
     "defaultMessage": "Hãy hỏi về các chuỗi, ngữ cảnh hoặc bất kỳ điều gì khác."
+  },
+  "w2tot+OYiM": {
+    "defaultMessage": "Đã hoàn tất"
   },
   "w4kK/l0YhQ": {
     "defaultMessage": "Đang tải gói cước"

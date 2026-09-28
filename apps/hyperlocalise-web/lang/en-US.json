@@ -1639,6 +1639,10 @@
     "defaultMessage": "Fixed and committed to this branch.",
     "description": "Success title after the agent commits the PR fix"
   },
+  "1XJEkWqFT6": {
+    "defaultMessage": "Timed out",
+    "description": "Wait timeout output"
+  },
   "1XNL0pGEyo": {
     "defaultMessage": "When it runs",
     "description": "Experiments table column for the schedule"
@@ -2943,6 +2947,10 @@
     "defaultMessage": "Create your workspace",
     "description": "Onboarding page heading for creating a new workspace"
   },
+  "4B/yIypHTz": {
+    "defaultMessage": "Until condition",
+    "description": "Wait until a condition mode"
+  },
   "4B3q4D8+NF": {
     "defaultMessage": "Loading file…",
     "description": "Loading state while project file details are fetched"
@@ -3566,6 +3574,10 @@
   "5ZQ992jk22": {
     "defaultMessage": "Try again to load the latest glossary history.",
     "description": "Glossary history error state description"
+  },
+  "5ZZS0Al3rv": {
+    "defaultMessage": "Pause until a duration, timestamp, or condition",
+    "description": "Wait node picker hint"
   },
   "5a+z7ec3fj": {
     "defaultMessage": "View report",
@@ -6951,6 +6963,10 @@
     "defaultMessage": "Connected through Integrations",
     "description": "Label when Search Console is connected through WorkOS Pipes"
   },
+  "CPWLg67zI3": {
+    "defaultMessage": "Duration",
+    "description": "Wait for a duration mode"
+  },
   "CPX3MSYhG+": {
     "defaultMessage": "Linked string",
     "description": "Section heading for the translation string linked to an issue"
@@ -8138,6 +8154,10 @@
   "EgJBlBjf3r": {
     "defaultMessage": "Import brand guidelines and style docs from Google Drive.",
     "description": "Google Drive integration description on the integrations page"
+  },
+  "EgoeBfG+CV": {
+    "defaultMessage": "Until timestamp",
+    "description": "Wait until a timestamp mode"
   },
   "Ehcjh40kDc": {
     "defaultMessage": "Knowledge",
@@ -18587,6 +18607,10 @@
     "defaultMessage": "AI features",
     "description": "Pricing matrix row label for AI features"
   },
+  "bUh5gPU+mn": {
+    "defaultMessage": "Wait mode",
+    "description": "Wait node mode field"
+  },
   "bUrzfKsGhW": {
     "defaultMessage": "About Hyperlocalise | Building the Agentic Localisation Platform",
     "description": "Meta title for the marketing company page"
@@ -18818,6 +18842,10 @@
   "bwRlaW2gsC": {
     "defaultMessage": "Gemini 3.1 Pro Preview",
     "description": "Label for the Google Gemini 3.1 Pro Preview automation model"
+  },
+  "bxWXLOi+RW": {
+    "defaultMessage": "Timestamp",
+    "description": "Absolute timestamp to resume a workflow"
   },
   "bxdlmS/zEn": {
     "defaultMessage": "at",
@@ -22371,6 +22399,10 @@
     "defaultMessage": "Forbidden term \"{term}\" appears in the target translation.",
     "description": "CAT format check message when a forbidden glossary term appears in the target"
   },
+  "ivmGcv+k23": {
+    "defaultMessage": "Timeout (ms)",
+    "description": "Maximum condition wait duration"
+  },
   "iy6eNjNsls": {
     "defaultMessage": "API keys",
     "description": "API keys settings link in the user menu"
@@ -23847,6 +23879,10 @@
     "defaultMessage": "3h ago",
     "description": "Knowledge mock UI relative timestamp"
   },
+  "m4Ahgxr1sR": {
+    "defaultMessage": "Duration (ms)",
+    "description": "Wait duration in milliseconds"
+  },
   "m4T47CFq5h": {
     "defaultMessage": "Started {date}",
     "description": "Timestamp line for when an agent run started"
@@ -24766,6 +24802,10 @@
   "nnCxP1Ix40": {
     "defaultMessage": "Connect your tools",
     "description": "Step 4 title"
+  },
+  "nncYBDQUwE": {
+    "defaultMessage": "Wait",
+    "description": "Wait node title"
   },
   "no/lSfBlo9": {
     "defaultMessage": "Layer {index}",
@@ -26418,6 +26458,10 @@
   "r3TGVfZPDe": {
     "defaultMessage": "Experiments",
     "description": "Hyperlab mock UI nav tab"
+  },
+  "r3XB1uKkxA": {
+    "defaultMessage": "Polling interval (ms)",
+    "description": "Wait condition polling interval"
   },
   "r3j9bzJdAk": {
     "defaultMessage": "Could not load relationships",
@@ -28227,6 +28271,10 @@
     "defaultMessage": "Add Tool",
     "description": "Add tool button label in the marketing automation editor mock"
   },
+  "v1chSgy0BK": {
+    "defaultMessage": "Condition",
+    "description": "Condition polled by a Wait node"
+  },
   "v1ru55p+vf": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in the create translation job dialog footer"
@@ -28766,6 +28814,10 @@
   "w29ko2pN3n": {
     "defaultMessage": "Remove Create job",
     "description": "Accessible label to remove the Create job tool"
+  },
+  "w2tot+OYiM": {
+    "defaultMessage": "Completed",
+    "description": "Wait completion output"
   },
   "w4kK/l0YhQ": {
     "defaultMessage": "Loading plan",
