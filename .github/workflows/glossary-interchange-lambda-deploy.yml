@@ -1,0 +1,77 @@
+name: Glossary Interchange Lambda Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Makefile
+      - go.mod
+      - go.sum
+      - apps/go-svc/**
+      - internal/objectstore/**
+      - internal/secretsmanager/**
+      - .github/actions/go-bootstrap/**
+      - .github/actions/provision-lambda/**
+      - .github/actions/upload-lambda-artifact/**
+      - .github/workflows/glossary-interchange-lambda-deploy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: glossary-interchange-lambda-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+  LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME: /hyperlocalise/prod/artifacts/lambda_bucket_name
+  LAMBDA_FUNCTION_PARAMETER_NAME: /hyperlocalise/prod/lambda/glossary-interchange/function_name
+  LAMBDA_ARTIFACT_KEY: glossary-interchange/bootstrap.zip
+
+jobs:
+  upload:
+    if: github.ref == 'refs/heads/main'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./.github/actions/go-bootstrap
+        with:
+          go-version-file: go.mod
+      - name: Test Go service and worker
+        run: go test ./apps/go-svc ./internal/objectstore ./internal/secretsmanager
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-glossary-interchange-upload
+      - id: upload
+        uses: ./.github/actions/upload-lambda-artifact
+        with:
+          bucket-parameter-name: ${{ env.LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME }}
+          build-command: make build-glossary-interchange-lambda
+          binary-path: dist/glossary-interchange-lambda/bootstrap
+          s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
+    outputs:
+      bucket: ${{ steps.upload.outputs.bucket }}
+      version-id: ${{ steps.upload.outputs.version-id }}
+
+  provision:
+    needs: upload
+    if: github.ref == 'refs/heads/main'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-glossary-interchange-provision
+      - uses: ./.github/actions/provision-lambda
+        with:
+          function-parameter-name: ${{ env.LAMBDA_FUNCTION_PARAMETER_NAME }}
+          bucket: ${{ needs.upload.outputs.bucket }}
+          s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
+          version-id: ${{ needs.upload.outputs.version-id }}

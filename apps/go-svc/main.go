@@ -43,6 +43,10 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 }
 
 func main() {
+	if os.Getenv("GLOSSARY_INTERCHANGE_LAMBDA") == "1" {
+		runGlossaryInterchangeLambda()
+		return
+	}
 	slog.SetDefault(slog.New(newDatadogLogHandler(slog.NewJSONHandler(os.Stdout, nil))))
 
 	shutdownTelemetry, err := initTelemetry(context.Background())
@@ -86,7 +90,11 @@ func main() {
 	h.activityLog = activityLogPublisher
 	h.spellChecker = spellChecker
 	h.dictionaries = &dictionaryAPI{}
-	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher}
+	interchangeQueue, interchangeQueueErr := newGlossaryInterchangeQueue(context.Background())
+	if interchangeQueueErr != nil {
+		log.Printf("configure glossary interchange queue: %v", interchangeQueueErr)
+	}
+	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangeQueue}
 	h.memories = &memoryAPI{}
 	h.qaReports = &qaReportAPI{}
 	h.teams = &teamAPI{}
@@ -165,6 +173,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("configure object storage: %v", err)
 	}
+	h.glossaries.objects = h.objects
 
 	guidelinesCtx, cancelGuidelines := context.WithTimeout(context.Background(), 15*time.Second)
 	guidelineSearch, closeGuidelines, err := configureGuidelineSearch(guidelinesCtx)

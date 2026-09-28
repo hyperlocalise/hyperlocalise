@@ -14,6 +14,8 @@ import type {
   GlossaryConcept,
   GlossaryConceptPageQuery,
   GlossaryExportQuery,
+  GlossaryArtifactUpload,
+  GlossaryInterchangeJob,
   GlossaryProject,
   GlossaryRecord,
   GlossaryTerm,
@@ -98,9 +100,92 @@ export class GoSvcGlossaryApi {
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.download(orgPath(organizationSlug, "glossaries", glossaryId, "export"), {
-      query,
+      query: { format: query.format },
       ...options,
     });
+  }
+
+  enqueueExport(
+    organizationSlug: string,
+    glossaryId: string,
+    body: GlossaryExportQuery,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ jobId: string; status: string }>(
+      orgPath(organizationSlug, "glossaries", glossaryId, "export"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  createArtifactUpload(
+    organizationSlug: string,
+    glossaryId: string,
+    body: { filename: string; contentType: string; byteSize: number; sha256: string },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<GlossaryArtifactUpload>(
+      orgPath(organizationSlug, "glossaries", glossaryId, "interchange", "uploads"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  completeArtifactUpload(
+    organizationSlug: string,
+    glossaryId: string,
+    fileId: string,
+    ref: { locationId: string; key: string },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ fileId: string }>(
+      orgPath(
+        organizationSlug,
+        "glossaries",
+        glossaryId,
+        "interchange",
+        "uploads",
+        fileId,
+        "complete",
+      ),
+      { method: "POST", body: ref, ...options },
+    );
+  }
+
+  enqueueImport(
+    organizationSlug: string,
+    glossaryId: string,
+    body: GoSvcRecord,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ jobId: string; status: string }>(
+      orgPath(organizationSlug, "glossaries", glossaryId, "concepts", "import", "jobs"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  interchangeJob(
+    organizationSlug: string,
+    glossaryId: string,
+    jobId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<GlossaryInterchangeJob>(
+      orgPath(organizationSlug, "glossaries", glossaryId, "interchange-jobs", jobId),
+      options,
+    );
+  }
+
+  interchangeDownload(
+    organizationSlug: string,
+    glossaryId: string,
+    jobId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{
+      download: { url: string; headers: Record<string, string[]>; expiresAt: string };
+    }>(
+      orgPath(organizationSlug, "glossaries", glossaryId, "interchange-jobs", jobId, "download"),
+      options,
+    );
   }
 
   importReport(

@@ -84,16 +84,6 @@ import { cn } from "@/lib/primitives/cn";
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 import { useGlossary } from "./use-glossary";
 
-function arrayBufferToBase64(value: ArrayBuffer) {
-  const bytes = new Uint8Array(value);
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
-  }
-  return btoa(binary);
-}
-
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
@@ -456,29 +446,51 @@ export function NativeGlossaryDetail({
       const filename = file.name.toLowerCase();
       const isXlsx = filename.endsWith(".xlsx");
       const format = filename.endsWith(".tbx") ? "tbx" : isXlsx ? "xlsx" : "csv";
-      const content = isXlsx ? arrayBufferToBase64(await file.arrayBuffer()) : await file.text();
-      // Stays on Hono until go-svc import matches interchange parity: XLSX is 501,
-      // CSV/TBX drop gender/term type/URLs/metadata/review/flags, and there is no backup.
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].concepts["import"].$post({
-        param: { organizationSlug, glossaryId },
-        json: {
-          format,
-          content,
-          sourceFilename: file.name,
-          contentEncoding: isXlsx ? "base64" : "utf8",
-          mode: "merge",
-          previewForMode: "merge",
-          strictLocale: true,
-          localeMapping: {},
-        },
+      const bytes = await file.arrayBuffer();
+      const digest = await crypto.subtle.digest("SHA-256", bytes);
+      const sha256 = Array.from(new Uint8Array(digest), (byte) =>
+        byte.toString(16).padStart(2, "0"),
+      ).join("");
+      const upload = await goSvcClient.glossary.createArtifactUpload(organizationSlug, glossaryId, {
+        filename: file.name,
+        contentType: file.type || "application/octet-stream",
+        byteSize: file.size,
+        sha256,
       });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.importTermsFailed)),
+      const uploadHeaders = new Headers();
+      for (const [name, values] of Object.entries(upload.upload.headers))
+        uploadHeaders.set(name, values.join(","));
+      const uploaded = await fetch(upload.upload.url, {
+        method: upload.upload.method,
+        headers: uploadHeaders,
+        body: bytes,
+      });
+      if (!uploaded.ok) throw new Error(intl.formatMessage(messages.importTermsFailed));
+      await goSvcClient.glossary.completeArtifactUpload(
+        organizationSlug,
+        glossaryId,
+        upload.fileId,
+        upload.ref,
+      );
+      const queued = await goSvcClient.glossary.enqueueImport(organizationSlug, glossaryId, {
+        operation: "import",
+        format,
+        mode: "merge",
+        artifactFileId: upload.fileId,
+        artifactRef: upload.ref,
+        sourceFilename: file.name,
+      });
+      for (;;) {
+        const job = await goSvcClient.glossary.interchangeJob(
+          organizationSlug,
+          glossaryId,
+          queued.jobId,
         );
-      return response.json();
+        if (job.status === "succeeded") return job;
+        if (job.status === "failed")
+          throw new Error(job.lastError ?? intl.formatMessage(messages.importTermsFailed));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     },
     onSuccess: async (body) => {
       await invalidateConcepts();
@@ -561,6 +573,41 @@ export function NativeGlossaryDetail({
       gender?: string;
       createdByUserId?: string;
     }) => {
+      if (input.scope === "complete") {
+        const queued = await goSvcClient.glossary.enqueueExport(organizationSlug, glossaryId, {
+          format: input.format,
+        });
+        let job;
+        for (;;) {
+          job = await goSvcClient.glossary.interchangeJob(
+            organizationSlug,
+            glossaryId,
+            queued.jobId,
+          );
+          if (job.status === "succeeded" || job.status === "failed") break;
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        if (job.status === "failed")
+          throw new Error(job.lastError ?? intl.formatMessage(messages.exportFailed));
+        const signed = await goSvcClient.glossary.interchangeDownload(
+          organizationSlug,
+          glossaryId,
+          queued.jobId,
+        );
+        const downloadHeaders = new Headers();
+        for (const [name, values] of Object.entries(signed.download.headers))
+          downloadHeaders.set(name, values.join(","));
+        const response = await fetch(signed.download.url, { headers: downloadHeaders });
+        if (!response.ok) throw new Error(intl.formatMessage(messages.exportFailed));
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `glossary.${input.format}`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        return 0;
+      }
       const params = new URLSearchParams({ format: input.format, scope: input.scope });
       if (input.scope === "filtered") {
         for (const locale of input.locales ?? []) params.append("locales", locale);

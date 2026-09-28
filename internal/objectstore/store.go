@@ -100,6 +100,9 @@ type Registry struct {
 	defaultID string
 }
 
+// DefaultID returns the stable location used for new objects.
+func (r *Registry) DefaultID() string { return r.defaultID }
+
 // NewRegistry copies the configured locations and validates the write default.
 func NewRegistry(defaultID string, locations map[string]Store) (*Registry, error) {
 	copied := make(map[string]Store, len(locations))

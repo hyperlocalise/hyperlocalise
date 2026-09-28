@@ -132,12 +132,33 @@ export type GlossaryProject = {
   externalUrl: string | null;
 };
 
-/**
- * go-svc exports the whole glossary; the filtered/scoped export still lives on
- * the Hono route, so only `format` is accepted here.
- */
 export type GlossaryExportQuery = {
   format?: "csv" | "tbx" | "xlsx";
+  scope?: "complete" | "filtered";
+  locales?: string[];
+  search?: string;
+  modifiedFrom?: string;
+  linguisticStatus?: string;
+  partOfSpeech?: string;
+  termType?: string;
+  gender?: string;
+  createdByUserId?: string;
+};
+
+export type GlossaryInterchangeJob = {
+  id: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  inputPayload?: GoSvcRecord;
+  outcomePayload?: GoSvcRecord | null;
+  lastError?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type GlossaryArtifactUpload = {
+  fileId: string;
+  ref: { locationId: string; key: string };
+  upload: { url: string; method: string; headers: Record<string, string[]>; expiresAt: string };
 };
 
 export type GlossaryConceptPageQuery = {
