@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	activityLogSQSQueueURLEnv = "ACTIVITY_LOG_QUEUE_URL"
+	activityLogQueueURLEnv    = "ACTIVITY_LOG_QUEUE_URL"
 	activityLogPublishTimeout = 2 * time.Second
 )
 
@@ -51,19 +51,36 @@ type sqsActivityLogPublisher struct {
 }
 
 func newActivityLogPublisher(ctx context.Context) (*sqsActivityLogPublisher, error) {
-	queueURL := strings.TrimSpace(os.Getenv(activityLogSQSQueueURLEnv))
+	queueURL := strings.TrimSpace(os.Getenv(activityLogQueueURLEnv))
 	if queueURL == "" {
+		slog.Warn(
+			"activity_log_publisher_disabled",
+			"reason", "missing_queue_url",
+			"environment_variable", activityLogQueueURLEnv,
+		)
 		return nil, nil
 	}
 
 	region := strings.TrimSpace(os.Getenv("AWS_REGION"))
 	config, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
 	if err != nil {
+		slog.Error(
+			"activity_log_publisher_configuration_failed",
+			"reason", "load_aws_config",
+			"environment_variable", activityLogQueueURLEnv,
+			"aws_region", region,
+			"error", err,
+		)
 		publisher := newSQSActivityLogPublisher(nil, queueURL)
 		publisher.initErr = fmt.Errorf("load AWS configuration: %w", err)
 		return publisher, publisher.initErr
 	}
 
+	slog.Info(
+		"activity_log_publisher_configured",
+		"environment_variable", activityLogQueueURLEnv,
+		"aws_region", region,
+	)
 	return newSQSActivityLogPublisher(sqs.NewFromConfig(config), queueURL), nil
 }
 
@@ -86,9 +103,23 @@ func (p *sqsActivityLogPublisher) Publish(ctx context.Context, input activityLog
 	if p.client == nil {
 		return errors.New("activity log SQS client is unavailable")
 	}
+	slog.InfoContext(ctx, "activity_log_publish_started",
+		"event_type", input.EventType,
+		"organization_id", input.OrganizationID,
+		"target_id", input.TargetID,
+		"target_kind", input.TargetKind,
+	)
 
 	payload, err := json.Marshal(input.Payload)
 	if err != nil {
+		slog.ErrorContext(ctx, "activity_log_publish_failed",
+			"phase", "marshal_payload",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
 		return fmt.Errorf("marshal activity log payload: %w", err)
 	}
 
@@ -109,20 +140,55 @@ func (p *sqsActivityLogPublisher) Publish(ctx context.Context, input activityLog
 		SchemaVersion: activitylog.SchemaVersion,
 	}
 	if err := activitylog.ValidateMessage(message); err != nil {
+		slog.ErrorContext(ctx, "activity_log_publish_failed",
+			"phase", "validate_message",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
 		return fmt.Errorf("validate activity log message: %w", err)
 	}
 	body, err := json.Marshal(message)
 	if err != nil {
+		slog.ErrorContext(ctx, "activity_log_publish_failed",
+			"phase", "marshal_message",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
 		return fmt.Errorf("marshal activity log message: %w", err)
 	}
 
-	_, err = p.client.SendMessage(ctx, &sqs.SendMessageInput{
+	output, err := p.client.SendMessage(ctx, &sqs.SendMessageInput{
 		MessageBody: aws.String(string(body)),
 		QueueUrl:    aws.String(p.queueURL),
 	})
 	if err != nil {
+		slog.ErrorContext(ctx, "activity_log_publish_failed",
+			"phase", "send_sqs_message",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
 		return fmt.Errorf("send activity log message: %w", err)
 	}
+	messageID := ""
+	if output != nil {
+		messageID = aws.ToString(output.MessageId)
+	}
+	slog.InfoContext(ctx, "activity_log_publish_succeeded",
+		"event_type", input.EventType,
+		"organization_id", input.OrganizationID,
+		"target_id", input.TargetID,
+		"target_kind", input.TargetKind,
+		"message_id", messageID,
+	)
 	return nil
 }
 
@@ -136,6 +202,7 @@ func (p *sqsActivityLogPublisher) Ping(ctx context.Context) error {
 	if p.client == nil {
 		return errors.New("activity log SQS client is unavailable")
 	}
+	slog.InfoContext(ctx, "activity_log_health_check_started")
 
 	_, err := p.client.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{
 		QueueUrl: aws.String(p.queueURL),
@@ -144,15 +211,31 @@ func (p *sqsActivityLogPublisher) Ping(ctx context.Context) error {
 		},
 	})
 	if err != nil {
+		slog.ErrorContext(ctx, "activity_log_health_check_failed", "error", err)
 		return fmt.Errorf("get activity log queue attributes: %w", err)
 	}
+	slog.InfoContext(ctx, "activity_log_health_check_succeeded")
 	return nil
 }
 
 func (api *glossaryAPI) publishActivity(ctx context.Context, input activityLogEventInput) {
 	if api.activityLog == nil {
+		slog.WarnContext(ctx, "glossary_activity_log_publish_skipped",
+			"reason", "publisher_disabled",
+			"environment_variable", activityLogQueueURLEnv,
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+		)
 		return
 	}
+	slog.InfoContext(ctx, "glossary_activity_log_publish_requested",
+		"event_type", input.EventType,
+		"organization_id", input.OrganizationID,
+		"target_id", input.TargetID,
+		"target_kind", input.TargetKind,
+	)
 	publishCtx, cancel := context.WithTimeout(ctx, activityLogPublishTimeout)
 	defer cancel()
 	if err := api.activityLog.Publish(publishCtx, input); err != nil {
