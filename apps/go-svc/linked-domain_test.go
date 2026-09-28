@@ -167,6 +167,12 @@ func TestLinkedDomainTeamAccessAndProjectAssignment(t *testing.T) {
 	require.Equal(t, http.StatusOK, listHidden.Code, listHidden.Body.String())
 	require.NotContains(t, listHidden.Body.String(), created.LinkedDomain.ID)
 
+	createLeak := workspaceRequest(t, developer, scope, http.MethodPost, scope.OrgPath("/domains/linked-domains"), `{"domain":"`+domain+`","marketIds":["france-fr"]}`)
+	require.Equal(t, http.StatusConflict, createLeak.Code, createLeak.Body.String())
+	require.Contains(t, createLeak.Body.String(), `"claim_pending_exists"`)
+	require.NotContains(t, createLeak.Body.String(), `"challenges"`)
+	require.NotContains(t, createLeak.Body.String(), created.LinkedDomain.ID)
+
 	_, err = scope.Pool.Exec(t.Context(), `update projects set team_id=$1 where id=$2`, defaultTeamID, scope.ProjectID)
 	require.NoError(t, err)
 	visible := workspaceRequest(t, developer, scope, http.MethodGet, scope.OrgPath("/domains/linked-domains/"+created.LinkedDomain.ID), "")

@@ -392,6 +392,35 @@ func TestMemberAuthorization(t *testing.T) {
 	require.Equal(t, 403, adminInvite.Code)
 }
 
+func TestMemberInviteCannotDemotePendingAdmin(t *testing.T) {
+	adminAPI, scope, _ := memberTestAPI(t, "admin")
+	email := uniqueTestEmail("pending-admin")
+	first := memberRequest(adminAPI, scope, http.MethodPost, scope.OrgPath("/members"), `{"email":"`+email+`","role":"admin"}`)
+	require.Equal(t, 201, first.Code, first.Body.String())
+
+	managerWorkos := &stubMemberWorkos{}
+	managerAPI := &memberAPI{
+		pool:       scope.Pool,
+		membership: scope.Membership("localization_manager"),
+		workos:     managerWorkos,
+		seats:      allowMemberSeats{},
+		analytics:  &recordingMemberAnalytics{},
+	}
+	demote := memberRequest(managerAPI, scope, http.MethodPost, scope.OrgPath("/members"), `{"email":"`+email+`","role":"developer"}`)
+	require.Equal(t, 403, demote.Code, demote.Body.String())
+	require.Contains(t, demote.Body.String(), `"forbidden"`)
+	require.Equal(t, 0, managerWorkos.sendCalls)
+
+	var role string
+	err := scope.Pool.QueryRow(t.Context(), `
+        select m.role
+        from organization_memberships m
+        join users u on u.id=m.user_id
+        where m.organization_id=$1 and lower(u.email)=$2`, scope.OrganizationID, email).Scan(&role)
+	require.NoError(t, err)
+	require.Equal(t, "admin", role)
+}
+
 func TestMemberInviteAlreadyExists(t *testing.T) {
 	api, scope, _ := memberTestAPI(t, "admin")
 	_, _, _ = mustActiveMember(t, scope, "exists@example.com", "member")
