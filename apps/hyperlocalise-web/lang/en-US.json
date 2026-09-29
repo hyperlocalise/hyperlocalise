@@ -7011,6 +7011,10 @@
     "defaultMessage": "How it works",
     "description": "Use case page workflow section label"
   },
+  "CVYpUuUKdZ": {
+    "defaultMessage": "Any selected path",
+    "description": "Continue after any selected Merge input"
+  },
   "CWXh32oIoB": {
     "defaultMessage": "{prefix}••••••••",
     "description": "Masked API key prefix shown in the keys list"
@@ -8607,6 +8611,10 @@
     "defaultMessage": "Review queue",
     "description": "Segment context label for the review queue in the CAT mock"
   },
+  "FdmB8M+qZc": {
+    "defaultMessage": "Remove input {index}",
+    "description": "Remove a Merge execution input"
+  },
   "Fe3r00g1BD": {
     "defaultMessage": "Leave unassigned",
     "description": "Project option"
@@ -8998,6 +9006,10 @@
   "Gab1SK2EhW": {
     "defaultMessage": "Could not save research markets.",
     "description": "Market save error"
+  },
+  "GafA21RnmS": {
+    "defaultMessage": "Merge mode",
+    "description": "Merge node mode field"
   },
   "GausSgRE+l": {
     "defaultMessage": "Combining credits into the four module scores.",
@@ -10395,6 +10407,10 @@
     "defaultMessage": "Select a project",
     "description": "Placeholder for the project select in the create issue dialog"
   },
+  "JmHjqkDgSi": {
+    "defaultMessage": "All selected paths",
+    "description": "Wait for all selected Merge inputs"
+  },
   "JmNB19hrDA": {
     "defaultMessage": "• {cost}",
     "description": "Suffix showing estimated cost next to a token count"
@@ -10698,6 +10714,10 @@
   "KZCeYDEUrd": {
     "defaultMessage": "Project Deleted",
     "description": "Activity log event type label for project deletion"
+  },
+  "KZhZYT6je6": {
+    "defaultMessage": "Execution inputs",
+    "description": "Merge execution input list"
   },
   "Ka+KmK/Z9+": {
     "defaultMessage": "Connect Crowdin in <link>Integrations</link> to use this tool.",
@@ -11362,6 +11382,10 @@
   "M0znNdV8EN": {
     "defaultMessage": "AI search has no FAQ block to quote from this page.",
     "description": "Highlight copy for an AEO issue on the live preview"
+  },
+  "M1ITBSXE+Q": {
+    "defaultMessage": "Timeout (ms, optional)",
+    "description": "Optional Merge timeout"
   },
   "M1acCMedpF": {
     "defaultMessage": "Overview",
@@ -13703,6 +13727,10 @@
     "defaultMessage": "Ask Hyperlocalise…",
     "description": "Default placeholder for the inbox reply composer textarea"
   },
+  "QugOsjCCw4": {
+    "defaultMessage": "Move input {index} down",
+    "description": "Move a Merge input downward"
+  },
   "QvT2rHSxpM": {
     "defaultMessage": "Layers saved",
     "description": "Image viewer: saved"
@@ -15674,6 +15702,10 @@
   "V8i8Y0KnvL": {
     "defaultMessage": "Adapt text, documents, slides, imagery, and video using the language, culture, terminology, and context of each audience.",
     "description": "Capability carousel card 04 body"
+  },
+  "V99Pmv6BsN": {
+    "defaultMessage": "Move input {index} up",
+    "description": "Move a Merge input upward"
   },
   "V9EOgHjiEJ": {
     "defaultMessage": "Translation Memory Action Rejected",
@@ -18559,6 +18591,10 @@
     "defaultMessage": "Checklist",
     "description": "Slash menu item for a task checklist"
   },
+  "bL+wwPFNwO": {
+    "defaultMessage": "Input {index}",
+    "description": "Merge execution input name placeholder"
+  },
   "bL4rc4u2xS": {
     "defaultMessage": "Link your Crowdin account under Integrations in Hyperlocalise, then reopen this tab.",
     "description": "Body when Crowdin user is not linked in Hyperlocalise"
@@ -18862,6 +18898,10 @@
   "c/AGJRFp4G": {
     "defaultMessage": "Enter valid JSON.",
     "description": "Visual workflow editor control"
+  },
+  "c0/sujExf3": {
+    "defaultMessage": "Merge",
+    "description": "Merge node title"
   },
   "c0YVbiffzK": {
     "defaultMessage": "No target locale is available for this task file.",
@@ -26503,6 +26543,10 @@
     "defaultMessage": "Connect GitHub and Slack to let the agent validate changes and notify your team automatically.",
     "description": "Step 4 description"
   },
+  "r9FOHZyK+0": {
+    "defaultMessage": "First successful path",
+    "description": "Continue after the first successful Merge input"
+  },
   "r9cem/tyVw": {
     "defaultMessage": "Succeeded",
     "description": "Retry success exit"
@@ -26586,6 +26630,10 @@
   "rJRBMWgpmE": {
     "defaultMessage": "From address",
     "description": "Label for the sender email address field"
+  },
+  "rKDq5xVpUS": {
+    "defaultMessage": "Add input",
+    "description": "Add a Merge execution input"
   },
   "rLDtsiqRXk": {
     "defaultMessage": "Checked before global campaign goes live",
@@ -29826,6 +29874,10 @@
   "xvA/BI5vJc": {
     "defaultMessage": "Go to dashboard",
     "description": "Primary call-to-action on the marketing homepage hero when the user is signed in"
+  },
+  "xwmJvqOv1C": {
+    "defaultMessage": "Coordinate multiple incoming execution paths.",
+    "description": "Merge node picker hint"
   },
   "xwmd6KI0M4": {
     "defaultMessage": "Completed",
