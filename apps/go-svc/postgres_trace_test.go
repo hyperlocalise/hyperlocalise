@@ -51,7 +51,9 @@ func TestEditorCatQuerySpansAreChildrenOfHTTPSpan(t *testing.T) {
 	for _, span := range spans {
 		if strings.HasPrefix(span.Name(), "GET /v1/orgs/{organizationSlug}/projects/{projectId}/files/detail/cat") {
 			httpSpan = span
-		} else if span.SpanKind() == trace.SpanKindClient && requireSpanStringAttrIfPresent(span, "db.system.name") == "postgresql" {
+		} else if span.SpanKind() == trace.SpanKindClient &&
+			requireSpanStringAttrIfPresent(span, "db.system.name") == "postgresql" &&
+			requireSpanStringAttrIfPresent(span, "db.query.summary") != "" {
 			querySpans = append(querySpans, span)
 			if queryText, ok := spanStringAttr(span, "db.query.text"); ok {
 				queryLabels[queryText] = struct{}{}
