@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "postgres",
+    srcs = ["pool.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/postgres",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_exaring_otelpgx//:otelpgx",
+        "@com_github_jackc_pgx_v5//pgxpool",
+    ],
+)
+
+go_test(
+    name = "postgres_test",
+    srcs = ["pool_test.go"],
+    embed = [":postgres"],
+    deps = ["@com_github_stretchr_testify//require"],
+)

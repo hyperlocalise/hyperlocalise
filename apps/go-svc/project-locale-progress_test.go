@@ -159,6 +159,52 @@ func TestCountNativeSourceWordsCJKApproximation(t *testing.T) {
 	require.Equal(t, 4, countNativeSourceWords("你好世界"))
 }
 
+func TestProgressPercent(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		completed, total int
+		want             int
+	}{
+		{name: "zero total", completed: 5, total: 0, want: 0},
+		{name: "negative total", completed: 5, total: -1, want: 0},
+		{name: "empty progress", completed: 0, total: 10, want: 0},
+		{name: "half rounds nearest", completed: 1, total: 2, want: 50},
+		{name: "one third rounds nearest", completed: 1, total: 3, want: 33},
+		{name: "two thirds rounds nearest", completed: 2, total: 3, want: 67},
+		{name: "complete", completed: 10, total: 10, want: 100},
+		{name: "over complete clamps", completed: 15, total: 10, want: 100},
+		{name: "negative completed clamps", completed: -3, total: 10, want: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, progressPercent(tc.completed, tc.total))
+		})
+	}
+}
+
+func TestBuildLocaleProgressRowUsesWordTotals(t *testing.T) {
+	at := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
+	row := buildLocaleProgressRow("fr-FR", &localeProgressStats{
+		translatedWords:   1,
+		approvedWords:     2,
+		translatedPhrases: 3,
+		approvedPhrases:   4,
+		lastActivityAt:    &at,
+	}, 3, 10)
+
+	require.Equal(t, "fr-FR", row.Locale)
+	require.Equal(t, localeProgressCounts{Total: 3, Translated: 1, Approved: 2}, row.Words)
+	require.Equal(t, localeProgressCounts{Total: 10, Translated: 3, Approved: 4}, row.Phrases)
+	require.Equal(t, 33, row.TranslationProgress)
+	require.Equal(t, 67, row.ApprovalProgress)
+	require.NotNil(t, row.LastActivityAt)
+	require.Equal(t, "2026-09-28T12:00:00.000Z", *row.LastActivityAt)
+
+	empty := buildLocaleProgressRow("de-DE", nil, 0, 0)
+	require.Equal(t, 0, empty.TranslationProgress)
+	require.Equal(t, 0, empty.ApprovalProgress)
+	require.Nil(t, empty.LastActivityAt)
+}
+
 func unmarshalBody(body []byte, target any) error {
 	return json.Unmarshal(body, target)
 }

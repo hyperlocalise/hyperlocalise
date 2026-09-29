@@ -15,7 +15,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
 	"github.com/workos/workos-go/v10"
 )
 
@@ -141,7 +141,7 @@ func main() {
 	}
 
 	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
-		pool, err := pgxpool.New(context.Background(), databaseURL)
+		pool, err := postgres.NewPool(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure dictionary store: %v", err)
 		}

@@ -1454,6 +1454,9 @@
   "1X7DOlRyIy": {
     "defaultMessage": "Behoben und in diesen Branch committed."
   },
+  "1XJEkWqFT6": {
+    "defaultMessage": "Zeitüberschreitung."
+  },
   "1XNL0pGEyo": {
     "defaultMessage": "Wenn es ausgeführt wird"
   },
@@ -2597,6 +2600,9 @@
   "4AlCRwOS/3": {
     "defaultMessage": "Erstellen Sie Ihren Arbeitsbereich"
   },
+  "4B/yIypHTz": {
+    "defaultMessage": "Bis die Bedingung erfüllt ist"
+  },
   "4B3q4D8+NF": {
     "defaultMessage": "Datei wird geladen…"
   },
@@ -3139,6 +3145,9 @@
   },
   "5ZQ992jk22": {
     "defaultMessage": "Versuche erneut, den neuesten Glossarverlauf zu laden."
+  },
+  "5ZZS0Al3rv": {
+    "defaultMessage": "Bis zu einer Dauer, einem Zeitstempel oder einer Bedingung pausieren"
   },
   "5a+z7ec3fj": {
     "defaultMessage": "Bericht anzeigen"
@@ -5999,6 +6008,9 @@
   "CPVePRU7tR": {
     "defaultMessage": "Über Integrationen verbunden"
   },
+  "CPWLg67zI3": {
+    "defaultMessage": "Dauer"
+  },
   "CPX3MSYhG+": {
     "defaultMessage": "Verknüpfte Zeichenfolge"
   },
@@ -7024,6 +7036,9 @@
   },
   "EgJBlBjf3r": {
     "defaultMessage": "Importieren Sie Markenrichtlinien und Stildokumente aus Google Drive."
+  },
+  "EgoeBfG+CV": {
+    "defaultMessage": "Bis zum Zeitstempel"
   },
   "Ehcjh40kDc": {
     "defaultMessage": "Wissen"
@@ -16052,6 +16067,9 @@
   "bUBd4XGtBI": {
     "defaultMessage": "KI-Funktionen"
   },
+  "bUh5gPU+mn": {
+    "defaultMessage": "Wartemodus"
+  },
   "bUrzfKsGhW": {
     "defaultMessage": "Über Hyperlocalise | Entwicklung der agentischen Lokalisierungsplattform"
   },
@@ -16255,6 +16273,9 @@
   },
   "bwuFPmHIKZ": {
     "defaultMessage": "Jobs lesen"
+  },
+  "bxWXLOi+RW": {
+    "defaultMessage": "Zeitstempel"
   },
   "bxdlmS/zEn": {
     "defaultMessage": "at"
@@ -19298,6 +19319,9 @@
   "ivdHFzfBNo": {
     "defaultMessage": "Der verbotene Begriff „{term}“ erscheint in der Zielübersetzung."
   },
+  "ivmGcv+k23": {
+    "defaultMessage": "Zeitüberschreitung (ms)"
+  },
   "iwQ9dbHG3A": {
     "defaultMessage": "Konnte nicht zum Issue Sheet hinzugefügt werden"
   },
@@ -20612,6 +20636,9 @@
   "m3woOgoczi": {
     "defaultMessage": "vor 3 Std."
   },
+  "m4Ahgxr1sR": {
+    "defaultMessage": "Dauer (ms)"
+  },
   "m4IcL4/sul": {
     "defaultMessage": "Von Menschen geprüft"
   },
@@ -21415,6 +21442,9 @@
   },
   "nnXWSAtR1P": {
     "defaultMessage": "Speichern Sie organisationsweite Lokalisierungsrichtlinien als einen flexiblen Markdown-Speicher."
+  },
+  "nncYBDQUwE": {
+    "defaultMessage": "Warten"
   },
   "nnkQAnt0DC": {
     "defaultMessage": "Agentenlauf in die Warteschlange eingereiht"
@@ -22804,6 +22834,9 @@
   },
   "r3TGVfZPDe": {
     "defaultMessage": "Experimente"
+  },
+  "r3XB1uKkxA": {
+    "defaultMessage": "Abfrageintervall (ms)"
   },
   "r3j9bzJdAk": {
     "defaultMessage": "Beziehungen konnten nicht geladen werden"
@@ -24395,6 +24428,9 @@
   "v17o/esQXS": {
     "defaultMessage": "Tool hinzufügen"
   },
+  "v1chSgy0BK": {
+    "defaultMessage": "Bedingung"
+  },
   "v1ru55p+vf": {
     "defaultMessage": "Abbrechen"
   },
@@ -24877,6 +24913,9 @@
   },
   "w2b0cdIV3S": {
     "defaultMessage": "Frage nach Strings, Kontext oder allem anderen"
+  },
+  "w2tot+OYiM": {
+    "defaultMessage": "Abgeschlossen"
   },
   "w4kK/l0YhQ": {
     "defaultMessage": "Tarif wird geladen"

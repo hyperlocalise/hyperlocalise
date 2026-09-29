@@ -333,6 +333,94 @@ func TestDictionaryResolvedWordPriorityAndCaps(t *testing.T) {
 	require.Greater(t, len(next), dictionaryMaxResolvedBytes)
 }
 
+func TestIsSimpleASCIIJSON(t *testing.T) {
+	for _, word := range []string{"", "AuthKit", "word-1", "A Z", "~!@#$%^*()", "0123456789"} {
+		require.True(t, isSimpleASCIIJSON(word), word)
+		encoded, err := json.Marshal(word)
+		require.NoError(t, err)
+		require.Equal(t, len(word)+2, len(encoded), "fast-path length must match json.Marshal for %q", word)
+	}
+
+	for _, word := range []string{
+		`quote"here`,
+		`back\slash`,
+		"a&b",
+		"a<b",
+		"a>b",
+		"line\nbreak",
+		"tab\there",
+		"hi\x1f",
+		string([]byte{0x00}),
+	} {
+		require.False(t, isSimpleASCIIJSON(word), word)
+		encoded, err := json.Marshal(word)
+		require.NoError(t, err)
+		require.NotEqual(t, len(word)+2, len(encoded), "escaped JSON length must differ from raw+2 for %q", word)
+	}
+
+	for _, word := range []string{"café", "你好", "\x7f"} {
+		// Reject non-simple input even when marshaled length happens to equal len+2.
+		require.False(t, isSimpleASCIIJSON(word), word)
+	}
+}
+
+func TestCapDictionaryWordsFastPathMatchesMarshalBudget(t *testing.T) {
+	referenceCap := func(words []string) []string {
+		result := make([]string, 0, min(len(words), dictionaryMaxResolvedWords))
+		bytes := 2
+		for _, word := range words {
+			encoded, err := json.Marshal(word)
+			if err != nil {
+				break
+			}
+			extra := len(encoded)
+			if len(result) > 0 {
+				extra++
+			}
+			if len(result) >= dictionaryMaxResolvedWords || bytes+extra > dictionaryMaxResolvedBytes {
+				break
+			}
+			result = append(result, word)
+			bytes += extra
+		}
+		return result
+	}
+
+	t.Run("simple ascii only", func(t *testing.T) {
+		words := make([]string, 100)
+		for i := range words {
+			words[i] = "Brand" + strings.Repeat("x", i%8)
+		}
+		require.Equal(t, referenceCap(words), capDictionaryWords(words))
+	})
+
+	t.Run("html and quote escapes near byte budget", func(t *testing.T) {
+		// Escaped forms are longer than len(word)+2; misclassifying them as
+		// simple ASCII would over-fill the resolved dictionary payload.
+		filler := strings.Repeat("w", 200)
+		words := []string{}
+		for len(words) < 2000 {
+			words = append(words, filler, `a&b`, `a<b`, `a>b`, `say"hi`, `path\ok`, "café")
+		}
+		got := capDictionaryWords(words)
+		want := referenceCap(words)
+		require.Equal(t, want, got)
+		encoded, err := json.Marshal(got)
+		require.NoError(t, err)
+		require.LessOrEqual(t, len(encoded), dictionaryMaxResolvedBytes)
+		if len(got) < len(words) {
+			next, err := json.Marshal(append(got, words[len(got)]))
+			require.NoError(t, err)
+			require.Greater(t, len(next), dictionaryMaxResolvedBytes)
+		}
+	})
+
+	t.Run("control characters use marshal path", func(t *testing.T) {
+		words := []string{"ok", "bad\x00", "also\x1f", "fine"}
+		require.Equal(t, referenceCap(words), capDictionaryWords(words))
+	})
+}
+
 func dictionaryIDsForTest(dictionaries []dictionaryRecord) []string {
 	ids := make([]string, len(dictionaries))
 	for i, d := range dictionaries {

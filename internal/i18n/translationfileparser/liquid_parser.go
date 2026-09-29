@@ -194,8 +194,7 @@ func maskLiquidSyntax(filePath string, content []byte) ([]byte, map[string]strin
 				return nil, nil, &LiquidParseError{FilePath: filePath, Offset: i, Message: "unclosed liquid tag delimiter"}
 			}
 			tag := content[i:end]
-			tagName := liquidTagName(tag)
-			if isLiquidSkippedBlockStart(tagName) {
+			if tagName := liquidSkippedBlockName(tag); tagName != "" {
 				blockEnd, ok := findLiquidSkippedBlockEnd(content, end, tagName)
 				if !ok {
 					return nil, nil, &LiquidParseError{FilePath: filePath, Offset: i, Message: "unclosed liquid " + tagName + " block"}
@@ -347,9 +346,9 @@ func findLiquidDelimiterEnd(input []byte, start int, close []byte) (int, bool) {
 	return 0, false
 }
 
-func liquidTagName(tag []byte) string {
-	// BOLT OPTIMIZATION: Avoid multiple strings.Trim* and strings.Fields calls
-	// by manually scanning for the tag name in the []byte.
+// BOLT OPTIMIZATION: liquidSkippedBlockName inspects tag bytes directly and matches
+// skipped block names without heap string allocations or strings.ToLower calls.
+func liquidSkippedBlockName(tag []byte) string {
 	s := tag
 	if bytes.HasPrefix(s, []byte("{%")) {
 		s = s[2:]
@@ -363,26 +362,58 @@ func liquidTagName(tag []byte) string {
 		return ""
 	}
 
-	// Find the first word
 	end := 0
 	for end < len(s) && !isSpace(s[end]) {
 		end++
 	}
+	name := s[:end]
 
-	return strings.ToLower(string(s[:end]))
+	switch len(name) {
+	case 3:
+		if equalFoldASCIIBytes(name, "raw") {
+			return "raw"
+		}
+	case 6:
+		if equalFoldASCIIBytes(name, "schema") {
+			return "schema"
+		}
+	case 7:
+		if equalFoldASCIIBytes(name, "comment") {
+			return "comment"
+		}
+	case 10:
+		if equalFoldASCIIBytes(name, "javascript") {
+			return "javascript"
+		}
+		if equalFoldASCIIBytes(name, "stylesheet") {
+			return "stylesheet"
+		}
+	}
+	return ""
+}
+
+func equalFoldASCIIBytes(b []byte, s string) bool {
+	if len(b) != len(s) {
+		return false
+	}
+	for i := 0; i < len(b); i++ {
+		c1 := b[i]
+		c2 := s[i]
+		if c1 >= 'A' && c1 <= 'Z' {
+			c1 += 'a' - 'A'
+		}
+		if c2 >= 'A' && c2 <= 'Z' {
+			c2 += 'a' - 'A'
+		}
+		if c1 != c2 {
+			return false
+		}
+	}
+	return true
 }
 
 func isSpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
-}
-
-func isLiquidSkippedBlockStart(tagName string) bool {
-	switch tagName {
-	case "raw", "comment", "schema", "javascript", "stylesheet":
-		return true
-	default:
-		return false
-	}
 }
 
 var liquidSkippedBlockEndPatterns = map[string]*regexp.Regexp{
@@ -578,6 +609,11 @@ func LiquidInternalPlaceholderTokens(s string) []string {
 }
 
 func liquidSyntaxPlaceholderTokens(s string) []string {
+	// BOLT OPTIMIZATION: Fast path to bypass LiquidInternalPlaceholderTokens regex scanning,
+	// slice allocation, and sorting when no Liquid sentinel placeholders are present.
+	if !strings.Contains(s, "HLLQPH_") {
+		return nil
+	}
 	tokens := LiquidInternalPlaceholderTokens(s)
 	out := tokens[:0]
 	for _, token := range tokens {

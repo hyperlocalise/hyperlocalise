@@ -161,20 +161,39 @@ export async function runVisualWorkflowInterpreter(input: {
 
           if (resolved.type === "flow.wait") {
             const waitIteration = iteration ?? -1;
-            const waitResult = runWaitNode({
+            // Prefer a durable cached completion so later slices can clear waitResume
+            // without re-scheduling the same wait.
+            const cached = await input.executeNode({
               node: resolved,
               context,
-              resume:
-                input.waitResume?.waitNodeId === resolved.id &&
-                input.waitResume.iteration === waitIteration
-                  ? input.waitResume
-                  : null,
+              organizationId: input.organizationId,
               iteration,
-              mockMode: input.mockMode,
+              signal: input.signal,
             });
+            const cachedStatus =
+              cached.ok && cached.output && typeof cached.output === "object"
+                ? (cached.output as Record<string, unknown>).status
+                : null;
 
-            execution = waitResult.execution;
-            waitExitHandle = waitResult.exitHandle;
+            if (cachedStatus === "completed" || cachedStatus === "timed_out") {
+              execution = cached;
+              waitExitHandle = cachedStatus === "timed_out" ? "timed_out" : "completed";
+            } else {
+              const waitResult = runWaitNode({
+                node: resolved,
+                context,
+                resume:
+                  input.waitResume?.waitNodeId === resolved.id &&
+                  input.waitResume.iteration === waitIteration
+                    ? input.waitResume
+                    : null,
+                iteration,
+                mockMode: input.mockMode,
+              });
+
+              execution = waitResult.execution;
+              waitExitHandle = waitResult.exitHandle;
+            }
           } else {
             execution = await input.executeNode({
               node: resolved,
