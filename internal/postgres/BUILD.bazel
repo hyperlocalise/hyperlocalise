@@ -6,7 +6,6 @@ go_library(
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/postgres",
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_exaring_otelpgx//:otelpgx",
         "@com_github_jackc_pgx_v5//pgxpool",
     ],
 )
