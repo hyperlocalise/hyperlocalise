@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Deploy Lambda artifact
+description: Build, upload, and update a versioned Lambda artifact
+inputs:
+  build-command:
+    description: Shell command used to build the Lambda executable
+    required: true
+  binary-path:
+    description: Path to the Lambda executable produced by the build command
+    required: true
+  s3-key:
+    description: S3 object key for the Lambda artifact
+    required: true
+  bucket-parameter-name:
+    description: SSM parameter containing the artifact bucket name
+    required: true
+  function-parameter-name:
+    description: SSM parameter containing the Lambda function name or ARN
+    required: true
+outputs:
+  bucket:
+    description: Resolved S3 artifact bucket name
+    value: ${{ steps.upload.outputs.bucket }}
+  s3-uri:
+    description: S3 URI of the uploaded artifact
+    value: ${{ steps.upload.outputs.s3-uri }}
+  version-id:
+    description: S3 object version ID of the uploaded artifact
+    value: ${{ steps.upload.outputs.version-id }}
+  function-name:
+    description: Resolved Lambda function name or ARN
+    value: ${{ steps.provision.outputs.function-name }}
+  update:
+    description: Lambda update summary
+    value: ${{ steps.provision.outputs.update }}
+runs:
+  using: composite
+  steps:
+    - name: Upload Lambda artifact
+      id: upload
+      uses: ./.github/actions/upload-lambda-artifact
+      with:
+        build-command: ${{ inputs.build-command }}
+        binary-path: ${{ inputs.binary-path }}
+        s3-key: ${{ inputs.s3-key }}
+        bucket-parameter-name: ${{ inputs.bucket-parameter-name }}
+
+    - name: Update Lambda code
+      id: provision
+      uses: ./.github/actions/provision-lambda
+      with:
+        function-parameter-name: ${{ inputs.function-parameter-name }}
+        bucket: ${{ steps.upload.outputs.bucket }}
+        s3-key: ${{ inputs.s3-key }}
+        version-id: ${{ steps.upload.outputs.version-id }}

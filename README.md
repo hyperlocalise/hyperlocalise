@@ -117,6 +117,20 @@ jobs:
 
 Example: `drift` mode in reporting-only mode
 
+## SQS Lambda workers
+
+Use the `create-sqs-lambda-worker` skill in `.agents/skills/` when adding a
+Go-first SQS-triggered Lambda. It scaffolds the handler contract, partial batch
+failure tests, shared Secrets Manager metadata, build target, and deployment
+handoff. The infrastructure repository provides the matching
+`add-sqs-lambda-worker` skill and reusable OpenTofu module.
+
+The standard deployment action is
+`.github/actions/deploy-lambda-artifact`. It builds a root-level `bootstrap`,
+uploads a versioned S3 artifact, and updates the function named by SSM. Secret
+values stay in Secrets Manager; Lambda receives only ARN, JSON-key, and cache
+metadata through environment variables.
+
 ```yaml
 jobs:
   localization-drift:

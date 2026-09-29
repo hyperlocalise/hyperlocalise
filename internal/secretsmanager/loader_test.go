@@ -89,3 +89,38 @@ func TestConfigFromEnvUsesConfiguredTTL(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 42*time.Second, config.CacheTTL)
 }
+
+func TestConfigsFromEnvReadsNamedReferences(t *testing.T) {
+	t.Setenv("HYPERLOCALISE_SECRET_DATABASE_ARN", "arn:database")
+	t.Setenv("HYPERLOCALISE_SECRET_DATABASE_KEY", "DATABASE_URL")
+	t.Setenv("HYPERLOCALISE_SECRET_DATABASE_CACHE_TTL_SECONDS", "42")
+	t.Setenv("HYPERLOCALISE_SECRET_PROVIDER_ARN", "arn:provider")
+	t.Setenv("HYPERLOCALISE_SECRET_PROVIDER_KEY", "API_KEY")
+
+	configs, err := ConfigsFromEnv()
+	require.NoError(t, err)
+	require.Equal(t, Config{ARN: "arn:database", Key: "DATABASE_URL", CacheTTL: 42 * time.Second}, configs["DATABASE"])
+	require.Equal(t, Config{ARN: "arn:provider", Key: "API_KEY", CacheTTL: DefaultCacheTTL}, configs["PROVIDER"])
+}
+
+func TestConfigsFromEnvRequiresKey(t *testing.T) {
+	t.Setenv("HYPERLOCALISE_SECRET_DATABASE_ARN", "arn:database")
+	t.Setenv("HYPERLOCALISE_SECRET_DATABASE_KEY", "")
+
+	_, err := ConfigsFromEnv()
+	require.EqualError(t, err, "HYPERLOCALISE_SECRET_DATABASE_KEY is required")
+}
+
+func TestCollectionLoadsNamedReferences(t *testing.T) {
+	client := &fakeAPI{secret: `{"DATABASE_URL":"postgres://example"}`}
+	collection, err := NewCollection(client, map[string]Config{
+		"DATABASE": {ARN: "arn:database", Key: "DATABASE_URL", CacheTTL: time.Minute},
+	})
+	require.NoError(t, err)
+
+	value, err := collection.Load(context.Background(), "DATABASE")
+	require.NoError(t, err)
+	require.Equal(t, "postgres://example", value)
+	_, err = collection.Load(context.Background(), "MISSING")
+	require.EqualError(t, err, `secret reference "MISSING" is not configured`)
+}

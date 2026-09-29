@@ -15,6 +15,7 @@ on:
       - .github/actions/go-bootstrap/**
       - .github/actions/provision-lambda/**
       - .github/actions/upload-lambda-artifact/**
+      - .github/actions/deploy-lambda-artifact/**
       - .github/workflows/lambda-deploy.yml
   workflow_dispatch:
 
@@ -34,7 +35,7 @@ env:
   LAMBDA_ARTIFACT_KEY: activity-log/bootstrap.zip
 
 jobs:
-  upload:
+  activity_log_upload:
     name: Build and upload activity-log artifact
     if: github.ref == 'refs/heads/main'
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -59,7 +60,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: github-actions-lambda-upload
 
-      - name: Build and upload Lambda artifact
+      - name: Build and upload activity-log Lambda artifact
         id: upload
         uses: ./.github/actions/upload-lambda-artifact
         with:
@@ -73,9 +74,9 @@ jobs:
       s3-uri: ${{ steps.upload.outputs.s3-uri }}
       version-id: ${{ steps.upload.outputs.version-id }}
 
-  provision:
+  activity_log_provision:
     name: Provision activity-log Lambda code
-    needs: upload
+    needs: activity_log_upload
     if: github.ref == 'refs/heads/main'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
@@ -91,25 +92,25 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: github-actions-lambda-provision
 
-      - name: Provision Lambda from uploaded artifact
+      - name: Provision activity-log Lambda from artifact
         id: provision
         uses: ./.github/actions/provision-lambda
         with:
           function-parameter-name: ${{ env.LAMBDA_FUNCTION_PARAMETER_NAME }}
-          bucket: ${{ needs.upload.outputs.bucket }}
+          bucket: ${{ needs.activity_log_upload.outputs.bucket }}
           s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
-          version-id: ${{ needs.upload.outputs.version-id }}
+          version-id: ${{ needs.activity_log_upload.outputs.version-id }}
 
-      - name: Summarize deployment
+      - name: Summarize activity-log deployment
         shell: bash
         env:
-          S3_URI: ${{ needs.upload.outputs.s3-uri }}
-          VERSION_ID: ${{ needs.upload.outputs.version-id }}
+          S3_URI: ${{ needs.activity_log_upload.outputs.s3-uri }}
+          VERSION_ID: ${{ needs.activity_log_upload.outputs.version-id }}
           FUNCTION_NAME: ${{ steps.provision.outputs.function-name }}
           UPDATE: ${{ steps.provision.outputs.update }}
         run: |
           {
-            echo "## Lambda deployed"
+            echo "## Activity-log Lambda deployed"
             echo
             echo "- Function: \`${FUNCTION_NAME}\`"
             echo "- Object: \`${S3_URI}\`"
