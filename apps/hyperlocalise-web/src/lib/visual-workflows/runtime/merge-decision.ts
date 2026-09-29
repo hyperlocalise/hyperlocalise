@@ -38,15 +38,15 @@ export function decideMerge(input: {
 }): MergeDecision {
   const { mode, inputIds, settlements } = input;
 
-  const settledInputIds = inputIds.filter((inputId) => settlements.has(inputId));
-
-  const succeededInputIds = inputIds.filter((inputId) => settlements.get(inputId) === "succeeded");
-
-  const arrivedInputIds = inputIds.filter((inputId) => {
-    const settlement = settlements.get(inputId);
-
-    return settlement === "succeeded" || settlement === "failed";
-  });
+  const configuredInputIds = new Set(inputIds);
+  const settlementEntries = [...settlements].filter(([inputId]) => configuredInputIds.has(inputId));
+  const settledInputIds = settlementEntries.map(([inputId]) => inputId);
+  const succeededInputIds = settlementEntries
+    .filter(([, settlement]) => settlement === "succeeded")
+    .map(([inputId]) => inputId);
+  const arrivedInputIds = settlementEntries
+    .filter(([, settlement]) => settlement === "succeeded" || settlement === "failed")
+    .map(([inputId]) => inputId);
 
   const allSettled = settledInputIds.length === inputIds.length;
 

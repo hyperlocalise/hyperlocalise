@@ -83,6 +83,26 @@ describe("decideMerge", () => {
     });
   });
 
+  it.each(["any", "first_success"] as const)(
+    "selects the first settlement rather than the first configured input in %s mode",
+    (mode) => {
+      expect(
+        decideMerge({
+          mode,
+          inputIds,
+          settlements: settlements([
+            ["slack", "succeeded"],
+            ["email", "succeeded"],
+          ]),
+        }),
+      ).toMatchObject({
+        state: "completed",
+        selectedInputId: "slack",
+        arrivedInputIds: ["slack", "email"],
+      });
+    },
+  );
+
   it("waits for a successful input in first-success mode", () => {
     expect(
       decideMerge({

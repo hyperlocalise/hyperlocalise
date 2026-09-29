@@ -167,10 +167,44 @@ export async function runVisualWorkflowInterpreter(input: {
   ): Promise<{ nodeId: string; error: Record<string, unknown> } | null> => {
     const states = new Map<string, MergeInputSettlement>();
     const completed = new Set<string>();
+    const mergeResumes = new Map<string, MergeResumeState>();
+    const mergeResumeFor = (node: CanonicalVisualWorkflowNode): MergeResumeState | null => {
+      const current = mergeResumes.get(node.id);
+      if (current) return current;
+      const mergeIteration = iteration ?? -1;
+      return input.mergeResume?.mergeNodeId === node.id &&
+        input.mergeResume.iteration === mergeIteration
+        ? input.mergeResume
+        : null;
+    };
+    const armMergeTimeout = (node: CanonicalVisualWorkflowNode): MergeResumeState | null => {
+      if (node.config.kind !== "logic.merge" || !node.config.timeoutMs) return null;
+      const timeout = resolveMergeTimeout({
+        mergeNodeId: node.id,
+        iteration,
+        timeoutMs: node.config.timeoutMs,
+        previous: mergeResumeFor(node),
+      });
+      if (timeout.status === "timed_out") return null;
+      mergeResumes.set(node.id, timeout.resume);
+      return timeout.resume;
+    };
+    const earliestMergeResume = (): MergeResumeState | null =>
+      [...mergeResumes.values()].sort(
+        (left, right) => Date.parse(left.wakeAt) - Date.parse(right.wakeAt),
+      )[0] ?? null;
     while (completed.size < ids.size) {
       let progressed = false;
       const pendingMerges: CanonicalVisualWorkflowNode[] = [];
-      for (const id of ids) {
+      const expiredMergeId =
+        input.mergeResume && Date.now() >= Date.parse(input.mergeResume.wakeAt)
+          ? input.mergeResume.mergeNodeId
+          : null;
+      const orderedIds = expiredMergeId
+        ? [expiredMergeId, ...[...ids].filter((id) => id !== expiredMergeId)]
+        : [...ids];
+      for (const id of orderedIds) {
+        if (!ids.has(id)) continue;
         if (completed.has(id)) continue;
         const node = graph.nodesById.get(id)!;
         const incoming = definition.edges.filter(
@@ -185,12 +219,10 @@ export async function runVisualWorkflowInterpreter(input: {
 
           const settlements = new Map<string, MergeInputSettlement>();
 
-          for (const edge of incoming) {
-            const settlement = states.get(edge.id);
-
-            if (settlement) {
-              settlements.set(edge.targetHandle ?? "input", settlement);
-            }
+          const incomingById = new Map(incoming.map((edge) => [edge.id, edge]));
+          for (const [edgeId, settlement] of states) {
+            const edge = incomingById.get(edgeId);
+            if (edge) settlements.set(edge.targetHandle ?? "input", settlement);
           }
 
           mergeDecision = decideMerge({
@@ -199,26 +231,23 @@ export async function runVisualWorkflowInterpreter(input: {
             settlements,
           });
 
-          if (mergeDecision.state === "pending") {
-            const mergeIteration = iteration ?? -1;
-            const resume =
-              input.mergeResume?.mergeNodeId === node.id &&
-              input.mergeResume.iteration === mergeIteration
-                ? input.mergeResume
-                : null;
-            if (node.config.timeoutMs && resume) {
-              mergeTimedOut =
-                resolveMergeTimeout({
-                  mergeNodeId: node.id,
-                  iteration,
-                  timeoutMs: node.config.timeoutMs,
-                  previous: resume,
-                }).status === "timed_out";
+          const resume = mergeResumeFor(node);
+          if (node.config.timeoutMs && resume) {
+            mergeTimedOut =
+              resolveMergeTimeout({
+                mergeNodeId: node.id,
+                iteration,
+                timeoutMs: node.config.timeoutMs,
+                previous: resume,
+              }).status === "timed_out";
+          }
+
+          if (mergeDecision.state === "pending" && !mergeTimedOut) {
+            if (node.config.timeoutMs) {
+              armMergeTimeout(node);
+              pendingMerges.push(node);
             }
-            if (!mergeTimedOut) {
-              if (node.config.timeoutMs) pendingMerges.push(node);
-              continue;
-            }
+            continue;
           }
         } else if (incoming.some((edge) => !states.has(edge.id))) {
           continue;
@@ -230,13 +259,18 @@ export async function runVisualWorkflowInterpreter(input: {
             ? mergeDecision.state !== "skipped"
             : incoming.some((edge) => states.get(edge.id) !== "skipped"));
         completed.add(id);
+        mergeResumes.delete(id);
         progressed = true;
         const outgoing = (graph.outgoingByNodeId.get(id) ?? []).filter((edge) =>
           ids.has(edge.target),
         );
         if (!selected) {
           await emit(node, "skipped", iteration);
-          for (const edge of outgoing) states.set(edge.id, "skipped");
+          for (const edge of outgoing) {
+            states.set(edge.id, "skipped");
+            const target = graph.nodesById.get(edge.target);
+            if (target?.config.kind === "logic.merge") armMergeTimeout(target);
+          }
           continue;
         }
         if (input.signal?.aborted || (await input.shouldCancel?.())) {
@@ -364,6 +398,10 @@ export async function runVisualWorkflowInterpreter(input: {
               "merge_suspended",
             ].includes(execution.error.code ?? "")
           ) {
+            for (const edge of outgoing) {
+              const target = graph.nodesById.get(edge.target);
+              if (target?.config.kind === "logic.merge") armMergeTimeout(target);
+            }
             if (
               execution.error.code !== "yield_execution" &&
               execution.error.code !== "retry_backoff" &&
@@ -373,7 +411,11 @@ export async function runVisualWorkflowInterpreter(input: {
               await emit(node, execution.error.code as "needs_attention" | "cancelled", iteration, {
                 error: execution.error,
               });
-            return { nodeId: id, error: execution.error };
+            const mergeResume = earliestMergeResume();
+            return {
+              nodeId: id,
+              error: mergeResume ? { ...execution.error, mergeResume } : execution.error,
+            };
           }
           const behavior =
             node.type === "flow.wait" ? "branch" : resolveNodeErrorBehavior(node.config);
@@ -503,14 +545,15 @@ export async function runVisualWorkflowInterpreter(input: {
             continue;
           }
 
-          states.set(
-            edge.id,
-            selectedEdgeSettlement({
-              sourceHandle: edge.sourceHandle,
-              executionSucceeded: execution.ok,
-            }),
-          );
+          const settlement = selectedEdgeSettlement({
+            sourceHandle: edge.sourceHandle,
+            executionSucceeded: execution.ok,
+          });
+          states.set(edge.id, settlement);
+          const target = graph.nodesById.get(edge.target);
+          if (target?.config.kind === "logic.merge") armMergeTimeout(target);
         }
+        if (expiredMergeId && id !== expiredMergeId) break;
       }
       if (!progressed) {
         const pendingMerge = pendingMerges[0];
@@ -519,7 +562,7 @@ export async function runVisualWorkflowInterpreter(input: {
             mergeNodeId: pendingMerge.id,
             iteration,
             timeoutMs: pendingMerge.config.timeoutMs,
-            previous: input.mergeResume,
+            previous: mergeResumeFor(pendingMerge),
           });
           if (timeout.status === "waiting") {
             return {

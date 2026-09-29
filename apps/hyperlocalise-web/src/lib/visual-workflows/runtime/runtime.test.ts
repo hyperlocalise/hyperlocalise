@@ -1379,6 +1379,106 @@ describe("visual workflow interpreter", () => {
     }
   });
 
+  it("selects the branch that actually settled first", async () => {
+    const definition = createMergeDefinition("any");
+    const byId = new Map(definition.nodes.map((node) => [node.id, node]));
+    definition.nodes = [
+      byId.get("trigger")!,
+      byId.get("slack")!,
+      byId.get("email")!,
+      byId.get("merge")!,
+    ];
+
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.nodeResults.merge).toMatchObject({ selectedInputId: "slack-input" });
+    }
+  });
+
+  it("arms a Merge timeout when its first input settles", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-01-01T00:00:00.000Z");
+    try {
+      const definition = createMergeDefinition("all");
+      const merge = definition.nodes.find((node) => node.id === "merge")!;
+      if (merge.config.kind !== "logic.merge") throw new Error("expected Merge");
+      merge.config.timeoutMs = 1_000;
+      definition.nodes.push({
+        id: "timed-out",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      });
+      definition.edges.push({
+        id: "merge-timed-out-real",
+        source: "merge",
+        target: "timed-out",
+        sourceHandle: "timed_out",
+        targetHandle: null,
+      });
+
+      const result = await runVisualWorkflowInterpreter({
+        definition,
+        organizationId: "00000000-0000-4000-8000-000000000001",
+        onNodeUpdate: (update) => {
+          if (update.nodeId === "slack" && update.status === "running") {
+            vi.setSystemTime("2026-01-01T00:00:02.000Z");
+          }
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.nodeResults.merge).toMatchObject({ status: "timed_out" });
+        expect(result.nodeResults["timed-out"]).toBeDefined();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("carries an armed Merge timeout across a durable Wait suspension", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-01-01T00:00:00.000Z");
+    try {
+      const definition = createMergeDefinition("all");
+      const wait = definition.nodes.find((node) => node.id === "slack")!;
+      wait.type = "flow.wait";
+      wait.config = { kind: "flow.wait", mode: "duration", durationMs: 60_000 };
+      const merge = definition.nodes.find((node) => node.id === "merge")!;
+      if (merge.config.kind !== "logic.merge") throw new Error("expected Merge");
+      merge.config.timeoutMs = 5_000;
+      if (merge.inputs) delete merge.inputs["value.slack-input"];
+      const waitEdge = definition.edges.find((edge) => edge.id === "slack-merge")!;
+      waitEdge.sourceHandle = "completed";
+      const byId = new Map(definition.nodes.map((node) => [node.id, node]));
+      definition.nodes = [byId.get("trigger")!, wait, byId.get("email")!, merge];
+
+      const result = await runVisualWorkflowInterpreter({
+        definition,
+        organizationId: "00000000-0000-4000-8000-000000000001",
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toMatchObject({
+          code: "wait_suspended",
+          mergeResume: {
+            mergeNodeId: "merge",
+            iteration: -1,
+            wakeAt: "2026-01-01T00:00:05.000Z",
+          },
+        });
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("resumes an expired Merge through the timed out branch", async () => {
     const definition = createMergeDefinition("all");
     const merge = definition.nodes.find((node) => node.id === "merge")!;

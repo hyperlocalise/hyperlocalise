@@ -277,16 +277,22 @@ async function persistRunWaitResume(input: {
   organizationId: string;
   payload: Record<string, unknown>;
   resume: WaitResumeState;
+  mergeResume?: MergeResumeState | null;
 }): Promise<void> {
   const nextPayload = {
     ...input.payload,
     waitResume: input.resume,
+    ...(input.mergeResume ? { mergeResume: input.mergeResume } : {}),
   };
+  const wakeAt =
+    input.mergeResume && Date.parse(input.mergeResume.wakeAt) < Date.parse(input.resume.wakeAt)
+      ? input.mergeResume.wakeAt
+      : input.resume.wakeAt;
 
   await db
     .update(schema.visualWorkflowRuns)
     .set({
-      leaseExpiresAt: new Date(input.resume.wakeAt),
+      leaseExpiresAt: new Date(wakeAt),
       encryptedPayload: encryptWorkflowPayload(nextPayload),
       updatedAt: new Date(),
     })
@@ -1039,7 +1045,12 @@ export async function executeVisualWorkflowRun(input: {
     return current ? { ...current, executionPausedUntil: wakeAt, executionLeaseBusy: false } : null;
   }
   const { executeDurableWorkflowSlice } = await import("./runtime/durable-slice");
-  if (isWaitWakePending(waitResume)) {
+  const waitWakePending = isWaitWakePending(waitResume);
+  const mergeWakePending = isMergeWakePending(mergeResume);
+  if (
+    waitWakePending &&
+    (!mergeWakePending || Date.parse(waitResume!.wakeAt) <= Date.parse(mergeResume!.wakeAt))
+  ) {
     const wakeAt = waitResume!.wakeAt;
 
     await db
@@ -1069,7 +1080,7 @@ export async function executeVisualWorkflowRun(input: {
         }
       : null;
   }
-  if (isMergeWakePending(mergeResume)) {
+  if (mergeWakePending) {
     const wakeAt = mergeResume!.wakeAt;
     await db
       .update(schema.visualWorkflowRuns)
@@ -1125,6 +1136,7 @@ export async function executeVisualWorkflowRun(input: {
     });
   if (!result.ok && result.error.code === "wait_suspended") {
     const resume = parseWaitResumeState(result.error);
+    const pendingMergeResume = parseMergeResumeState(result.error.mergeResume);
 
     if (!resume) {
       return finishVisualWorkflowRun({
@@ -1149,6 +1161,7 @@ export async function executeVisualWorkflowRun(input: {
       organizationId: input.organizationId,
       payload,
       resume,
+      mergeResume: pendingMergeResume,
     });
 
     const current = await getVisualWorkflowRunById({
@@ -1160,7 +1173,10 @@ export async function executeVisualWorkflowRun(input: {
     return current
       ? {
           ...current,
-          executionPausedUntil: resume.wakeAt,
+          executionPausedUntil:
+            pendingMergeResume && Date.parse(pendingMergeResume.wakeAt) < Date.parse(resume.wakeAt)
+              ? pendingMergeResume.wakeAt
+              : resume.wakeAt,
           executionLeaseBusy: false,
         }
       : null;
