@@ -89,15 +89,11 @@ func parseDictionaryWords(content string) []normalizedDictionaryWord {
 }
 
 func dictionaryLocale(raw string) (string, error) {
-	locale := strings.ReplaceAll(trimDictionaryInput(raw), "_", "-")
-	if locale == "" || utf16Length(locale) > 50 {
+	canonical, ok := parseCanonicalLocale(raw)
+	if !ok {
 		return "", invalidDictionary()
 	}
-	tag, err := language.Parse(locale)
-	if err != nil {
-		return "", invalidDictionary()
-	}
-	return tag.String(), nil
+	return canonical, nil
 }
 
 type dictionaryWordRecord struct {

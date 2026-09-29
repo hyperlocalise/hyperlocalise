@@ -209,44 +209,58 @@ For tracing, set `OTEL_EXPORTER_OTLP_ENDPOINT` in the `go_svc` service environme
 
 ## Projects
 
-The Go service exposes native project reads under
+The Go service exposes native project reads and mutations under
 `/v1/orgs/{organizationSlug}/...` (typically on `https://api.hyperlocalise.com`;
 the same paths also work under `/api/go-svc/...` on the web host). Go accepts
 the WorkOS session access token or `wos-session` cookie and performs live
 WorkOS membership verification using the existing membership cache.
 
-Any organization member with team visibility into a project may read it. The
-content editor grouping preview additionally requires `admin` or
-`localization_manager`.
+Any organization member with team visibility into a project may read it.
+Creating, updating, and deleting a project requires `admin`,
+`localization_manager`, or `developer`. Updating the content-editor grouping
+setting requires `admin` or `localization_manager` only, matching its
+read-side preview.
 
 | Method | Path | Operation |
 |--------|------|-----------|
 | GET | `/projects` | List accessible native projects with open job counts |
+| POST | `/projects` | Create a native project (`admin`/`localization_manager`/`developer`) |
 | GET | `/projects/{projectId}` | Project detail with open job count |
+| PATCH | `/projects/{projectId}` | Update project settings (`admin`/`localization_manager`/`developer`) |
+| DELETE | `/projects/{projectId}` | Delete a native project (`admin`/`localization_manager`/`developer`) |
 | GET | `/projects/{projectId}/locale-progress` | Per-locale word/phrase translation and approval progress |
 | GET | `/projects/{projectId}/open-job-count` | Open job count only |
 | GET | `/projects/{projectId}/content-editor-behavior` | Identical-string grouping setting |
+| PATCH | `/projects/{projectId}/content-editor-behavior` | Toggle identical-string grouping (`admin`/`localization_manager` only) |
 | GET | `/projects/{projectId}/content-editor-behavior/preview` | Preview of identical-string grouping (`admin`/`localization_manager` only) |
 | GET | `/projects/{projectId}/files` | Native repository files for one project |
 | GET | `/workspace-files` | Native repository files across every accessible project |
 
 **Native projects only.** Every route above filters to `projects.source = 'native'`
 and returns `project_not_found` for anything else, including a materialized
-`external_tms` project reached by its plain (non-`ext:`-prefixed) id. This is
-deliberately stricter than the equivalent Hono routes, which do not filter by
-`source` for these lookups. These go-svc routes never load or decrypt provider
-credentials; encoded/live provider project ids (`ext:{provider}:{id}`) and
-connected-TMS projects remain on Hono.
+`external_tms` project reached by its plain (non-`ext:`-prefixed) id. These
+go-svc routes never load or decrypt provider credentials; encoded/live provider
+project ids (`ext:{provider}:{id}`), connected-TMS projects, and all
+provider-backed project mutation remain on Hono.
+
+**Mutation semantics.** Creation enforces the per-organization project limit,
+allocates a unique issue prefix, and creates a default native translation
+memory. Settings updates preserve identifier uniqueness and guard source-locale
+changes against incompatible attached glossaries. Deletion refuses to remove a
+project that is the last native project attached to a team-controlled glossary.
+Content-editor grouping updates increment the grouping revision only when the
+value changes, use no client-supplied revision/CAS field, and publish no
+activity-log event. Project creation, settings updates, and deletion publish
+`project_created`, `project_settings_changed`, and `project_deleted`
+respectively.
 
 **Locale-progress word counts are approximate.** `locale-progress` uses a small,
-dependency-free Go word counter rather than Hono's ICU-backed
-`Intl.Segmenter`. It preserves literal text from common ICU plural/select
-messages, but segmentation can still differ from Hono, particularly for
-source languages that do not use whitespace as a reliable word boundary.
-Chinese, Japanese, and Korean text is approximated per character, while
-Thai, Lao, Khmer, and Myanmar text may be under-counted. As a result,
-`translationProgress` and `approvalProgress` may differ from Hono for these
-source locales.
+dependency-free Go word counter. It preserves literal text from common ICU
+plural/select messages, but segmentation varies by source language. Chinese,
+Japanese, and Korean text is approximated per character, while Thai, Lao,
+Khmer, and Myanmar text may be under-counted. As a result,
+`translationProgress` and `approvalProgress` should be treated as approximate
+for these source locales.
 
 ## Content editor (CAT)
 

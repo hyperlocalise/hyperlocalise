@@ -272,6 +272,17 @@ func (s *Scope) MustAttachDictionary(t *testing.T, projectID, dictionaryID strin
 	require.NoError(t, err)
 }
 
+// MustAttachGlossaryToProject attaches a glossary to a project.
+func (s *Scope) MustAttachGlossaryToProject(t *testing.T, projectID, glossaryID string, priority int) {
+	t.Helper()
+	_, err := s.Pool.Exec(t.Context(), `
+        insert into project_glossaries (
+            organization_id, project_id, glossary_id, priority
+        ) values ($1, $2, $3, $4)`,
+		s.OrganizationID, projectID, glossaryID, priority)
+	require.NoError(t, err)
+}
+
 // MustTeam inserts a team and optional membership for the seeded user.
 func (s *Scope) MustTeam(t *testing.T, slug, name, memberRole string) string {
 	t.Helper()
@@ -306,6 +317,27 @@ func (s *Scope) MustGlossary(t *testing.T, id, name, sourceLocale string) string
             id, organization_id, created_by_user_id, name, description, source_locale, status, source, control_level
         ) values ($1, $2, $3, $4, '', $5, 'active', 'native', 'org')`,
 		id, s.OrganizationID, s.UserID, name, sourceLocale)
+	require.NoError(t, err)
+	return id
+}
+
+// MustTeamGlossary inserts a native team-controlled glossary owned by teamID.
+func (s *Scope) MustTeamGlossary(t *testing.T, id, name, sourceLocale, teamID string) string {
+	t.Helper()
+	if id == "" {
+		id = uuid.NewString()
+	}
+	if name == "" {
+		name = "Team Glossary"
+	}
+	if sourceLocale == "" {
+		sourceLocale = "en"
+	}
+	_, err := s.Pool.Exec(t.Context(), `
+        insert into glossaries (
+            id, organization_id, created_by_user_id, name, description, source_locale, status, source, control_level, team_id
+        ) values ($1, $2, $3, $4, '', $5, 'active', 'native', 'team', $6)`,
+		id, s.OrganizationID, s.UserID, name, sourceLocale, teamID)
 	require.NoError(t, err)
 	return id
 }
