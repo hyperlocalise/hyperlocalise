@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	projectIdentifierMaxLength = 10
-	projectIdentifierFallback  = "PROJ"
+	projectIdentifierMaxLength      = 10
+	projectIdentifierFallback       = "PROJ"
 	projectIdentifierInsertAttempts = 10_000
 )
 
@@ -124,4 +124,36 @@ func insertProjectWithAllocatedIdentifier(
 		taken[identifier] = struct{}{}
 	}
 	return "", projectFailure(503, "project_identifier_exhausted", "Could not allocate a unique project identifier")
+}
+
+func normalizeProjectIdentifierInput(raw string) (string, bool) {
+	trimmed := strings.ToUpper(strings.TrimSpace(raw))
+	if !projectIdentifierPattern.MatchString(trimmed) {
+		return "", false
+	}
+	return trimmed, true
+}
+
+func isProjectIdentifierTaken(ctx context.Context, db dictionaryDB, organizationID, identifier, excludeProjectID string) (bool, error) {
+	var found string
+	err := db.QueryRow(ctx, `
+		select id from projects where organization_id=$1 and identifier=$2 and id<>$3 limit 1`,
+		organizationID, identifier, excludeProjectID).Scan(&found)
+	if err == nil {
+		return true, nil
+	}
+	if !isNoRows(err) {
+		return false, err
+	}
+	err = db.QueryRow(ctx, `
+		select id from issue_sheet_issues
+		where organization_id=$1 and identifier like $2 and project_id<>$3 limit 1`,
+		organizationID, identifier+"-%", excludeProjectID).Scan(&found)
+	if err == nil {
+		return true, nil
+	}
+	if isNoRows(err) {
+		return false, nil
+	}
+	return false, err
 }

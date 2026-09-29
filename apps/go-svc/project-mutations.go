@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -360,4 +361,313 @@ func (api *projectAPI) createHandler(r *http.Request, actor projectActor) (any, 
 		return nil, 0, err
 	}
 	return map[string]json.RawMessage{"project": project}, http.StatusCreated, nil
+}
+
+const nativeProjectOwnedWhere = `p.id=$1 and p.organization_id=$2 and p.source='native' and `
+
+type existingProjectSettings struct {
+	identifier    string
+	sourceLocale  string
+	targetLocales []string
+}
+
+func (api *projectAPI) loadOwnedNativeProjectSettings(ctx context.Context, actor projectActor, projectID string) (existingProjectSettings, error) {
+	var settings existingProjectSettings
+	var sourceLocale *string
+	var targets []byte
+	err := api.pool.QueryRow(ctx, `
+		select p.identifier, p.source_locale, p.target_locales
+		from projects p
+		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(3, 4, 2),
+		projectID, actor.organizationID, actor.canReadAllTeams(), actor.userID,
+	).Scan(&settings.identifier, &sourceLocale, &targets)
+	if isNoRows(err) {
+		return existingProjectSettings{}, projectNotFound()
+	}
+	if err != nil {
+		return existingProjectSettings{}, err
+	}
+	if sourceLocale != nil {
+		settings.sourceLocale = *sourceLocale
+	}
+	settings.targetLocales = []string{}
+	if len(targets) > 0 {
+		_ = json.Unmarshal(targets, &settings.targetLocales)
+	}
+	return settings, nil
+}
+
+func (api *projectAPI) lockOwnedNativeProject(ctx context.Context, tx dictionaryDB, actor projectActor, projectID string) error {
+	var id string
+	err := tx.QueryRow(ctx, `
+		select p.id from projects p
+		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(3, 4, 2)+`
+		for update`,
+		projectID, actor.organizationID, actor.canReadAllTeams(), actor.userID,
+	).Scan(&id)
+	if isNoRows(err) {
+		return projectNotFound()
+	}
+	return err
+}
+
+func projectSourceLocaleAttachedGlossaries() error {
+	return projectFailure(400, "project_source_locale_attached_glossaries",
+		"Cannot change the project source locale while attached glossaries use a different source locale")
+}
+
+func hasAttachedGlossarySourceLocaleConflict(ctx context.Context, db dictionaryDB, projectID, sourceLocale string) (bool, error) {
+	var found string
+	err := db.QueryRow(ctx, `
+		select g.id from project_glossaries pg
+		join glossaries g on g.id = pg.glossary_id
+		where pg.project_id=$1 and g.source_locale<>$2
+		limit 1`,
+		projectID, sourceLocale).Scan(&found)
+	if err == nil {
+		return true, nil
+	}
+	if isNoRows(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+func identifierTaken() error {
+	return projectFailure(409, "identifier_taken", "This project identifier is already in use")
+}
+
+func invalidProjectIdentifier() error {
+	return projectFailure(400, "invalid_identifier", "Invalid project identifier")
+}
+
+type updateProjectRequest struct {
+	name               *string
+	description        *string
+	translationContext *string
+	teamID             *string
+	sourceLocale       *string
+	targetLocales      *[]string
+	identifier         *string
+}
+
+func decodeUpdateProjectRequest(r *http.Request) (updateProjectRequest, []string, error) {
+	var fields map[string]json.RawMessage
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&fields); err != nil || fields == nil {
+		return updateProjectRequest{}, nil, invalidProjectPayload()
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return updateProjectRequest{}, nil, invalidProjectPayload()
+	}
+
+	var req updateProjectRequest
+	var changed []string
+
+	if raw, ok := fields["name"]; ok {
+		var v string
+		if err := json.Unmarshal(raw, &v); err != nil {
+			return updateProjectRequest{}, nil, invalidProjectPayload()
+		}
+		req.name = &v
+		changed = append(changed, "name")
+	}
+	if raw, ok := fields["description"]; ok {
+		var v string
+		if err := json.Unmarshal(raw, &v); err != nil {
+			return updateProjectRequest{}, nil, invalidProjectPayload()
+		}
+		req.description = &v
+		changed = append(changed, "description")
+	}
+	if raw, ok := fields["translationContext"]; ok {
+		var v string
+		if err := json.Unmarshal(raw, &v); err != nil {
+			return updateProjectRequest{}, nil, invalidProjectPayload()
+		}
+		req.translationContext = &v
+		changed = append(changed, "translationContext")
+	}
+	if raw, ok := fields["teamId"]; ok {
+		var v string
+		if err := json.Unmarshal(raw, &v); err != nil {
+			return updateProjectRequest{}, nil, invalidProjectPayload()
+		}
+		if _, err := uuid.Parse(strings.TrimSpace(v)); err != nil {
+			return updateProjectRequest{}, nil, invalidProjectPayload()
+		}
+		req.teamID = &v
+		changed = append(changed, "teamId")
+	}
+	if raw, ok := fields["sourceLocale"]; ok {
+		var v string
+		if err := json.Unmarshal(raw, &v); err != nil {
+			return updateProjectRequest{}, nil, invalidProjectPayload()
+		}
+		req.sourceLocale = &v
+		changed = append(changed, "sourceLocale")
+	}
+	if raw, ok := fields["targetLocales"]; ok {
+		var v []string
+		if err := json.Unmarshal(raw, &v); err != nil {
+			return updateProjectRequest{}, nil, invalidProjectPayload()
+		}
+		req.targetLocales = &v
+		changed = append(changed, "targetLocales")
+	}
+	if raw, ok := fields["identifier"]; ok {
+		var v string
+		if err := json.Unmarshal(raw, &v); err != nil {
+			return updateProjectRequest{}, nil, invalidProjectPayload()
+		}
+		req.identifier = &v
+		changed = append(changed, "identifier")
+	}
+
+	if len(changed) == 0 {
+		return updateProjectRequest{}, nil, invalidProjectPayload()
+	}
+	return req, changed, nil
+}
+
+func (api *projectAPI) updateHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if !actor.canMutateProjects() {
+		return nil, 0, projectForbidden()
+	}
+	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	req, changedFields, err := decodeUpdateProjectRequest(r)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	ctx := r.Context()
+	existing, err := api.loadOwnedNativeProjectSettings(ctx, actor, projectID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var args []any
+	arg := func(v any) string {
+		args = append(args, v)
+		return fmt.Sprintf("$%d", len(args))
+	}
+	var sets []string
+
+	if req.name != nil {
+		name := trimDictionaryInput(*req.name)
+		if name == "" || utf16Length(name) > maxProjectNameLength {
+			return nil, 0, invalidProjectPayload()
+		}
+		sets = append(sets, "name="+arg(name))
+	}
+	if req.description != nil {
+		if utf16Length(*req.description) > maxProjectDescriptionLength {
+			return nil, 0, invalidProjectPayload()
+		}
+		sets = append(sets, "description="+arg(*req.description))
+	}
+	if req.translationContext != nil {
+		if utf16Length(*req.translationContext) > maxProjectTranslationContextLength {
+			return nil, 0, invalidProjectPayload()
+		}
+		sets = append(sets, "translation_context="+arg(*req.translationContext))
+	}
+	if req.identifier != nil {
+		normalized, ok := normalizeProjectIdentifierInput(*req.identifier)
+		if !ok {
+			return nil, 0, invalidProjectIdentifier()
+		}
+		if normalized != existing.identifier {
+			taken, err := isProjectIdentifierTaken(ctx, api.pool, actor.organizationID, normalized, projectID)
+			if err != nil {
+				return nil, 0, err
+			}
+			if taken {
+				return nil, 0, identifierTaken()
+			}
+		}
+		sets = append(sets, "identifier="+arg(normalized))
+	}
+	if req.teamID != nil {
+		teamID, err := resolveProjectTeam(ctx, api.pool, actor, req.teamID)
+		if err != nil {
+			return nil, 0, err
+		}
+		sets = append(sets, "team_id="+arg(teamID))
+	}
+
+	patch, err := normalizeProjectLocalePatch(existing.sourceLocale, existing.targetLocales, req.sourceLocale, req.targetLocales)
+	if err != nil {
+		return nil, 0, err
+	}
+	if patch.sourceLocale != nil {
+		sets = append(sets, "source_locale="+arg(*patch.sourceLocale))
+	}
+	if patch.targetLocales != nil {
+		targetLocalesJSON, jsonErr := json.Marshal(*patch.targetLocales)
+		if jsonErr != nil {
+			return nil, 0, jsonErr
+		}
+		sets = append(sets, "target_locales="+arg(targetLocalesJSON)+"::jsonb")
+	}
+
+	sourceLocaleChanging := patch.sourceLocale != nil
+	sets = append(sets, "updated_at=now()")
+	setClause := strings.Join(sets, ", ")
+
+	if sourceLocaleChanging {
+		tx, err := api.pool.Begin(ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+		defer func() { _ = tx.Rollback(ctx) }()
+
+		if err := api.lockOwnedNativeProject(ctx, tx, actor, projectID); err != nil {
+			return nil, 0, err
+		}
+		conflict, err := hasAttachedGlossarySourceLocaleConflict(ctx, tx, projectID, *patch.sourceLocale)
+		if err != nil {
+			return nil, 0, err
+		}
+		if conflict {
+			return nil, 0, projectSourceLocaleAttachedGlossaries()
+		}
+		idArg := arg(projectID)
+		orgArg := arg(actor.organizationID)
+		if _, err := tx.Exec(ctx, `update projects set `+setClause+` where id=`+idArg+` and organization_id=`+orgArg, args...); err != nil {
+			return nil, 0, err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return nil, 0, err
+		}
+	} else {
+		idArg := arg(projectID)
+		orgArg := arg(actor.organizationID)
+		if _, err := api.pool.Exec(ctx, `update projects set `+setClause+` where id=`+idArg+` and organization_id=`+orgArg, args...); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "project_settings_changed",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"changedFields": changedFields,
+			"projectId":     projectID,
+		},
+		TargetID:   projectID,
+		TargetKind: "project",
+	})
+
+	project, err := api.fetchProjectResponse(ctx, actor.organizationID, projectID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return map[string]json.RawMessage{"project": project}, http.StatusOK, nil
 }

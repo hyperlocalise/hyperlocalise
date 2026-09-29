@@ -272,6 +272,17 @@ func (s *Scope) MustAttachDictionary(t *testing.T, projectID, dictionaryID strin
 	require.NoError(t, err)
 }
 
+// MustAttachGlossaryToProject attaches a glossary to a project.
+func (s *Scope) MustAttachGlossaryToProject(t *testing.T, projectID, glossaryID string, priority int) {
+	t.Helper()
+	_, err := s.Pool.Exec(t.Context(), `
+        insert into project_glossaries (
+            organization_id, project_id, glossary_id, priority
+        ) values ($1, $2, $3, $4)`,
+		s.OrganizationID, projectID, glossaryID, priority)
+	require.NoError(t, err)
+}
+
 // MustTeam inserts a team and optional membership for the seeded user.
 func (s *Scope) MustTeam(t *testing.T, slug, name, memberRole string) string {
 	t.Helper()

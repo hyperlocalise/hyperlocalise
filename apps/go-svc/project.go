@@ -41,6 +41,10 @@ func (a projectActor) canCreateProjects() bool {
 	return a.role == "admin" || a.role == "localization_manager" || a.role == "developer"
 }
 
+func (a projectActor) canMutateProjects() bool {
+	return a.canCreateProjects()
+}
+
 func (a projectActor) canManageContentEditorBehavior() bool {
 	return a.role == "admin" || a.role == "localization_manager"
 }
@@ -95,6 +99,7 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+projects, bindActor(api, (*projectAPI).listHandler))
 	route("POST "+projects, bindActor(api, (*projectAPI).createHandler))
 	route("GET "+project, bindActor(api, (*projectAPI).getHandler))
+	route("PATCH "+project, bindActor(api, (*projectAPI).updateHandler))
 	route("GET "+project+"/locale-progress", bindActor(api, (*projectAPI).localeProgressHandler))
 	route("GET "+project+"/open-job-count", bindActor(api, (*projectAPI).openJobCountHandler))
 	route("GET "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).contentEditorBehaviorHandler))
