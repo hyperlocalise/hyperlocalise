@@ -440,6 +440,47 @@ func (api *projectAPI) lockOwnedNativeProject(ctx context.Context, tx dictionary
 	return err
 }
 
+func (api *projectAPI) lockAndLoadProjectLocales(ctx context.Context, tx dictionaryDB, actor projectActor, projectID string) (string, []string, error) {
+	var sourceLocale *string
+	var targets []byte
+	err := tx.QueryRow(ctx, `
+		select p.source_locale, p.target_locales
+		from projects p
+		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(3, 4, 2)+`
+		for update`,
+		projectID, actor.organizationID, actor.canReadAllTeams(), actor.userID,
+	).Scan(&sourceLocale, &targets)
+	if isNoRows(err) {
+		return "", nil, projectNotFound()
+	}
+	if err != nil {
+		return "", nil, err
+	}
+	resolvedSource := ""
+	if sourceLocale != nil {
+		resolvedSource = *sourceLocale
+	}
+	resolvedTargets := []string{}
+	if len(targets) > 0 {
+		_ = json.Unmarshal(targets, &resolvedTargets)
+	}
+	return resolvedSource, resolvedTargets, nil
+}
+
+func appendProjectWriteWhere(args []any, projectID string, actor projectActor) ([]any, string) {
+	args = append(args, projectID)
+	idIdx := len(args)
+	args = append(args, actor.organizationID)
+	orgIdx := len(args)
+	args = append(args, actor.canReadAllTeams())
+	orgWideIdx := len(args)
+	args = append(args, actor.userID)
+	userIdx := len(args)
+	whereClause := fmt.Sprintf("p.id=$%d and p.organization_id=$%d and p.source='native' and ", idIdx, orgIdx) +
+		formatQaProjectTeamAccessSQL(orgWideIdx, userIdx, orgIdx)
+	return args, whereClause
+}
+
 func projectSourceLocaleAttachedGlossaries() error {
 	return projectFailure(400, "project_source_locale_attached_glossaries",
 		"Cannot change the project source locale while attached glossaries use a different source locale")
@@ -639,58 +680,55 @@ func (api *projectAPI) updateHandler(r *http.Request, actor projectActor) (any, 
 		sets = append(sets, "team_id="+arg(teamID))
 	}
 
-	patch, err := normalizeProjectLocalePatch(existing.sourceLocale, existing.targetLocales, req.sourceLocale, req.targetLocales)
-	if err != nil {
-		return nil, 0, err
-	}
-	if patch.sourceLocale != nil {
-		sets = append(sets, "source_locale="+arg(*patch.sourceLocale))
-	}
-	if patch.targetLocales != nil {
-		targetLocalesJSON, jsonErr := json.Marshal(*patch.targetLocales)
-		if jsonErr != nil {
-			return nil, 0, jsonErr
-		}
-		sets = append(sets, "target_locales="+arg(targetLocalesJSON)+"::jsonb")
-	}
-
-	sourceLocaleChanging := patch.sourceLocale != nil
-	sets = append(sets, "updated_at=now()")
-	setClause := strings.Join(sets, ", ")
-
-	args = append(args, projectID)
-	idIdx := len(args)
-	args = append(args, actor.organizationID)
-	orgIdx := len(args)
-	args = append(args, actor.canReadAllTeams())
-	orgWideIdx := len(args)
-	args = append(args, actor.userID)
-	userIdx := len(args)
-	whereClause := fmt.Sprintf("p.id=$%d and p.organization_id=$%d and p.source='native' and ", idIdx, orgIdx) +
-		formatQaProjectTeamAccessSQL(orgWideIdx, userIdx, orgIdx)
-
-	if api.testBeforeUpdateWrite != nil {
-		api.testBeforeUpdateWrite()
-	}
+	localeChanging := req.sourceLocale != nil || req.targetLocales != nil
 
 	var rowsAffected int64
-	if sourceLocaleChanging {
+	if localeChanging {
 		tx, err := api.pool.Begin(ctx)
 		if err != nil {
 			return nil, 0, err
 		}
 		defer func() { _ = tx.Rollback(ctx) }()
 
-		if err := api.lockOwnedNativeProject(ctx, tx, actor, projectID); err != nil {
-			return nil, 0, err
+		if api.testBeforeLocaleLock != nil {
+			api.testBeforeLocaleLock()
 		}
-		conflict, err := hasAttachedGlossarySourceLocaleConflict(ctx, tx, projectID, *patch.sourceLocale)
+
+		lockedSourceLocale, lockedTargetLocales, err := api.lockAndLoadProjectLocales(ctx, tx, actor, projectID)
 		if err != nil {
 			return nil, 0, err
 		}
-		if conflict {
-			return nil, 0, projectSourceLocaleAttachedGlossaries()
+		patch, err := normalizeProjectLocalePatch(lockedSourceLocale, lockedTargetLocales, req.sourceLocale, req.targetLocales)
+		if err != nil {
+			return nil, 0, err
 		}
+		if patch.sourceLocale != nil {
+			sets = append(sets, "source_locale="+arg(*patch.sourceLocale))
+			conflict, err := hasAttachedGlossarySourceLocaleConflict(ctx, tx, projectID, *patch.sourceLocale)
+			if err != nil {
+				return nil, 0, err
+			}
+			if conflict {
+				return nil, 0, projectSourceLocaleAttachedGlossaries()
+			}
+		}
+		if patch.targetLocales != nil {
+			targetLocalesJSON, jsonErr := json.Marshal(*patch.targetLocales)
+			if jsonErr != nil {
+				return nil, 0, jsonErr
+			}
+			sets = append(sets, "target_locales="+arg(targetLocalesJSON)+"::jsonb")
+		}
+
+		sets = append(sets, "updated_at=now()")
+		setClause := strings.Join(sets, ", ")
+		var whereClause string
+		args, whereClause = appendProjectWriteWhere(args, projectID, actor)
+
+		if api.testBeforeUpdateWrite != nil {
+			api.testBeforeUpdateWrite()
+		}
+
 		tag, err := tx.Exec(ctx, `update projects p set `+setClause+` where `+whereClause, args...)
 		if err != nil {
 			if isUniqueViolation(err) {
@@ -705,6 +743,15 @@ func (api *projectAPI) updateHandler(r *http.Request, actor projectActor) (any, 
 			}
 		}
 	} else {
+		sets = append(sets, "updated_at=now()")
+		setClause := strings.Join(sets, ", ")
+		var whereClause string
+		args, whereClause = appendProjectWriteWhere(args, projectID, actor)
+
+		if api.testBeforeUpdateWrite != nil {
+			api.testBeforeUpdateWrite()
+		}
+
 		tag, err := api.pool.Exec(ctx, `update projects p set `+setClause+` where `+whereClause, args...)
 		if err != nil {
 			if isUniqueViolation(err) {
@@ -779,6 +826,10 @@ func (api *projectAPI) deleteHandler(r *http.Request, actor projectActor) (any, 
 			return nil, 0, err
 		}
 		lockRows.Close()
+
+		if api.testAfterGlossaryLock != nil {
+			api.testAfterGlossaryLock()
+		}
 
 		for _, glossaryID := range glossaryIDs {
 			var nativeCount int

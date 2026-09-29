@@ -156,26 +156,47 @@ func (api *glossaryAPI) detachGlossaryProject(r *http.Request, actor glossaryAct
 	if err != nil {
 		return nil, 0, err
 	}
+
+	var detached bool
 	if g.ControlLevel == "team" {
-		var nativeCount int
-		err := api.pool.QueryRow(ctx, `select count(*) from project_glossaries a join projects p on p.id=a.project_id where a.glossary_id=$1 and p.source='native'`, g.ID).Scan(&nativeCount)
+		tx, err := api.pool.Begin(ctx)
 		if err != nil {
 			return nil, 0, err
 		}
+		defer func() { _ = tx.Rollback(ctx) }()
+
+		var locked string
+		if err := tx.QueryRow(ctx, `select id from glossaries where id=$1 for update`, g.ID).Scan(&locked); err != nil {
+			return nil, 0, err
+		}
+		var nativeCount int
+		if err := tx.QueryRow(ctx, `select count(*) from project_glossaries a join projects p on p.id=a.project_id where a.glossary_id=$1 and p.source='native'`, g.ID).Scan(&nativeCount); err != nil {
+			return nil, 0, err
+		}
 		var detachingNative bool
-		err = api.pool.QueryRow(ctx, `select p.source='native' from projects p where p.id=$1`, projectID).Scan(&detachingNative)
-		if err != nil {
+		if err := tx.QueryRow(ctx, `select p.source='native' from projects p where p.id=$1`, projectID).Scan(&detachingNative); err != nil {
 			return nil, 0, err
 		}
 		if detachingNative && nativeCount <= 1 {
 			return nil, 0, glossaryFailure(403, "glossary_team_project_required", "Team glossaries must attach at least one accessible project")
 		}
+		tag, err := tx.Exec(ctx, `delete from project_glossaries where glossary_id=$1 and project_id=$2 and organization_id=$3`, g.ID, projectID, actor.organizationID)
+		if err != nil {
+			return nil, 0, err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return nil, 0, err
+		}
+		detached = tag.RowsAffected() > 0
+	} else {
+		tag, err := api.pool.Exec(ctx, `delete from project_glossaries where glossary_id=$1 and project_id=$2 and organization_id=$3`, g.ID, projectID, actor.organizationID)
+		if err != nil {
+			return nil, 0, err
+		}
+		detached = tag.RowsAffected() > 0
 	}
-	tag, err := api.pool.Exec(ctx, `delete from project_glossaries where glossary_id=$1 and project_id=$2 and organization_id=$3`, g.ID, projectID, actor.organizationID)
-	if err != nil {
-		return nil, 0, err
-	}
-	if tag.RowsAffected() > 0 {
+
+	if detached {
 		api.publishActivity(ctx, activityLogEventInput{
 			ActorUserID:    actor.userID,
 			EventType:      "glossary_project_detached",

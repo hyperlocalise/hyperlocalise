@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -87,4 +88,54 @@ func TestUpdateProjectIdentifierRaceMapsToConflict(t *testing.T) {
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select identifier from projects where id=$1`, scope.ProjectID).Scan(&storedIdentifier))
 	require.Equal(t, originalIdentifier, storedIdentifier, "the identifier must not have partially applied")
 	require.Empty(t, publisher.recorded(), "no activity may be published for a write that hit a unique violation")
+}
+
+func TestUpdateProjectSourcePatchRevalidatesAgainstConcurrentTargetChange(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	seedNativeProjectWithLocales(t, scope, scope.ProjectID, "en", []string{"fr"})
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+	api.testBeforeLocaleLock = func() {
+		_, hookErr := scope.Pool.Exec(context.Background(), `update projects set target_locales='["de"]'::jsonb where id=$1`, scope.ProjectID)
+		require.NoError(t, hookErr)
+	}
+
+	rec := projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/projects/"+scope.ProjectID), map[string]any{
+		"sourceLocale": "de",
+	})
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"source_in_targets"`)
+
+	var sourceLocale string
+	var targetLocalesJSON []byte
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select source_locale, target_locales from projects where id=$1`, scope.ProjectID).Scan(&sourceLocale, &targetLocalesJSON))
+	require.Equal(t, "en", sourceLocale, "the rejected sourceLocale patch must not have applied")
+	var targetLocales []string
+	require.NoError(t, json.Unmarshal(targetLocalesJSON, &targetLocales))
+	require.Equal(t, []string{"de"}, targetLocales, "the concurrently-committed target change must be preserved")
+}
+
+func TestUpdateProjectTargetPatchRevalidatesAgainstConcurrentSourceChange(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	seedNativeProjectWithLocales(t, scope, scope.ProjectID, "en", []string{"fr"})
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+	api.testBeforeLocaleLock = func() {
+		_, hookErr := scope.Pool.Exec(context.Background(), `update projects set source_locale='de' where id=$1`, scope.ProjectID)
+		require.NoError(t, hookErr)
+	}
+
+	rec := projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/projects/"+scope.ProjectID), map[string]any{
+		"targetLocales": []string{"de"},
+	})
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"source_in_targets"`)
+
+	var sourceLocale string
+	var targetLocalesJSON []byte
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select source_locale, target_locales from projects where id=$1`, scope.ProjectID).Scan(&sourceLocale, &targetLocalesJSON))
+	require.Equal(t, "de", sourceLocale, "the concurrently-committed source change must be preserved")
+	var targetLocales []string
+	require.NoError(t, json.Unmarshal(targetLocalesJSON, &targetLocales))
+	require.Equal(t, []string{"fr"}, targetLocales, "the rejected targetLocales patch must not have applied")
 }

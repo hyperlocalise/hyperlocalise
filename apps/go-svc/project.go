@@ -29,6 +29,8 @@ type projectAPI struct {
 	activityLog activityLogPublisher
 
 	testBeforeUpdateWrite func()
+	testBeforeLocaleLock  func()
+	testAfterGlossaryLock func()
 }
 
 type projectActor struct {
