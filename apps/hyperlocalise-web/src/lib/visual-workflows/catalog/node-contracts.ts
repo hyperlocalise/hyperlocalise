@@ -158,6 +158,11 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       values: {},
     },
   },
+  "logic.sequence": {
+    inputs: [],
+    outputs: [],
+    mock: {},
+  },
 };
 export function matchesWorkflowType(value: unknown, type: WorkflowValueType): boolean {
   if (type === "unknown") return true;

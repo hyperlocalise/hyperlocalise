@@ -733,3 +733,65 @@ it("compiles optional Merge data values by stable input ID", () => {
     },
   });
 });
+
+it("accepts configured Sequence execution output IDs", () => {
+  const input = definition([
+    {
+      id: "sequence-set",
+      kind: "execution",
+      source: "sequence",
+      target: "set",
+      sourcePortId: "notify",
+      targetPortId: "input",
+    },
+  ]);
+
+  input.nodes[0] = {
+    id: "sequence",
+    type: "logic.sequence",
+    config: {
+      kind: "logic.sequence",
+      outputs: [
+        { id: "prepare", label: "Prepare" },
+        { id: "notify", label: "Notify" },
+      ],
+    },
+  };
+  input.editor.positions.sequence = { x: 0, y: 0 };
+  delete input.editor.positions.trigger;
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toEqual([]);
+  expect(result.executionEdges).toEqual(input.edges);
+});
+
+it("rejects removed Sequence execution output IDs", () => {
+  const input = definition([
+    {
+      id: "sequence-set",
+      kind: "execution",
+      source: "sequence",
+      target: "set",
+      sourcePortId: "removed",
+      targetPortId: "input",
+    },
+  ]);
+
+  input.nodes[0] = {
+    id: "sequence",
+    type: "logic.sequence",
+    config: {
+      kind: "logic.sequence",
+      outputs: [{ id: "notify", label: "Notify" }],
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toContainEqual({
+    code: "invalid_source_port",
+    edgeId: "sequence-set",
+    nodeId: "sequence",
+  });
+});

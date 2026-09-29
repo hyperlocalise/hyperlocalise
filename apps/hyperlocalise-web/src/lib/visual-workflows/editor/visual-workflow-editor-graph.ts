@@ -151,6 +151,32 @@ function reconcileBodyMembershipForType(
   return changed ? next : (nodes as VisualWorkflowRfNode[]);
 }
 
+function collectRemovedSequenceOutputIds(
+  currentOutputs: readonly { id: string }[],
+  nextOutputs: readonly { id: string }[],
+): Set<string> {
+  const nextIds = new Set(nextOutputs.map((output) => output.id));
+
+  return new Set(
+    currentOutputs.map((output) => output.id).filter((outputId) => !nextIds.has(outputId)),
+  );
+}
+
+function pruneSequenceOutputEdges(
+  edges: readonly VisualWorkflowRfEdge[],
+  nodeId: string,
+  removedOutputIds: ReadonlySet<string>,
+): VisualWorkflowRfEdge[] {
+  if (removedOutputIds.size === 0) {
+    return [...edges];
+  }
+
+  return edges.filter(
+    (edge) =>
+      edge.source !== nodeId || !edge.sourceHandle || !removedOutputIds.has(edge.sourceHandle),
+  );
+}
+
 export function reconcileForEachBodyMembership(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
@@ -200,6 +226,17 @@ export function applyNodeConfigUpdate(
         nodeId,
         collectRemovedMergeInputIds(current.data.config.inputs, nextConfig.inputs),
       ),
+    };
+  }
+  if (current?.data.config.kind === "logic.sequence" && nextConfig.kind === "logic.sequence") {
+    const removedOutputIds = collectRemovedSequenceOutputIds(
+      current.data.config.outputs,
+      nextConfig.outputs,
+    );
+
+    return {
+      nodes: nextNodes,
+      edges: pruneSequenceOutputEdges(edges, nodeId, removedOutputIds),
     };
   }
   return { nodes: nextNodes, edges: [...edges] };

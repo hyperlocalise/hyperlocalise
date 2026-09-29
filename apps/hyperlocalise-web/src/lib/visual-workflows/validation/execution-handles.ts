@@ -38,6 +38,9 @@ export function getAllowedExecutionSourceHandles(
   if (node.type === "logic.merge") {
     return ["completed", "timed_out", "error"];
   }
+  if (node.config.kind === "logic.sequence") {
+    return node.config.outputs.map((output) => output.id);
+  }
   return [
     null,
     "success",
@@ -63,6 +66,9 @@ export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource
   }
   if (node.type === "logic.merge") {
     return "completed";
+  }
+  if (node.config.kind === "logic.sequence") {
+    return node.config.outputs[0]?.id ?? null;
   }
   return null;
 }

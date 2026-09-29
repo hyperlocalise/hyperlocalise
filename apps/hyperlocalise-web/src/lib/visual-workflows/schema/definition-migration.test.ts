@@ -112,6 +112,57 @@ describe("parseVisualWorkflowV3Definition", () => {
     ]);
     expect(definition.nodes[1]?.inputs).toEqual(nodes[1]?.inputs);
   });
+
+  it("migrates Sequence output handles without changing stable IDs or order", () => {
+    const definition = parseVisualWorkflowV3Definition({
+      schemaVersion: 2,
+      name: "Legacy Sequence",
+      nodes: [
+        {
+          id: "sequence",
+          type: "logic.sequence",
+          config: {
+            kind: "logic.sequence",
+            outputs: [
+              { id: "notify", label: "Notify" },
+              { id: "audit", label: "Audit" },
+            ],
+          },
+        },
+        {
+          id: "target",
+          type: "logic.set",
+          config: { kind: "logic.set", assignments: [] },
+        },
+      ],
+      edges: [
+        {
+          id: "sequence-target",
+          source: "sequence",
+          target: "target",
+          sourceHandle: "audit",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    });
+
+    expect(definition.nodes[0]?.config).toEqual({
+      kind: "logic.sequence",
+      outputs: [
+        { id: "notify", label: "Notify" },
+        { id: "audit", label: "Audit" },
+      ],
+    });
+    expect(definition.edges[0]).toEqual({
+      id: "sequence-target",
+      kind: "execution",
+      source: "sequence",
+      target: "target",
+      sourcePortId: "audit",
+      targetPortId: "input",
+    });
+  });
 });
 
 it("returns an existing v3 definition without changing its edge kinds", () => {

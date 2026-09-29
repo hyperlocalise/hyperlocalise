@@ -1515,4 +1515,166 @@ describe("visual workflow interpreter", () => {
       expect(result.nodeResults["timed-out"]).toBeDefined();
     }
   });
+  it("returns the configured Sequence dispatch order", async () => {
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({
+      triggerInput: {},
+    });
+
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "sequence",
+        type: "logic.sequence",
+        config: {
+          kind: "logic.sequence",
+          outputs: [
+            { id: "slack", label: "Slack" },
+            { id: "email", label: "Email" },
+          ],
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      output: {
+        dispatchedOutputIds: ["slack", "email"],
+      },
+    });
+  });
+
+  it("dispatches Sequence outputs exactly once in configured order", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Sequence order",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual",
+          config: createDefaultConfig("trigger.manual"),
+        },
+        {
+          id: "sequence",
+          type: "logic.sequence",
+          config: {
+            kind: "logic.sequence",
+            outputs: [
+              { id: "second-output", label: "Second node first" },
+              { id: "first-output", label: "First node second" },
+            ],
+          },
+        },
+
+        // Cố tình đặt first trước second trong node list.
+        {
+          id: "first",
+          type: "logic.set",
+          config: {
+            kind: "logic.set",
+            assignments: [{ key: "value", value: "first" }],
+          },
+        },
+        {
+          id: "second",
+          type: "logic.set",
+          config: {
+            kind: "logic.set",
+            assignments: [{ key: "value", value: "second" }],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "trigger-sequence",
+          source: "trigger",
+          target: "sequence",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+        {
+          id: "sequence-first",
+          source: "sequence",
+          target: "first",
+          sourceHandle: "first-output",
+          targetHandle: null,
+        },
+        {
+          id: "sequence-second",
+          source: "sequence",
+          target: "second",
+          sourceHandle: "second-output",
+          targetHandle: null,
+        },
+      ],
+      editor: {
+        positions: {},
+      },
+    };
+
+    const succeeded: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "succeeded") {
+          succeeded.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(succeeded).toEqual(["trigger", "sequence", "second", "first"]);
+    expect(result.nodeResults.sequence).toEqual({
+      dispatchedOutputIds: ["second-output", "first-output"],
+    });
+
+    expect(succeeded.filter((nodeId) => nodeId === "second")).toHaveLength(1);
+    expect(succeeded.filter((nodeId) => nodeId === "first")).toHaveLength(1);
+  });
+
+  it("allows a Sequence with no outputs to complete", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Empty Sequence",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual",
+          config: createDefaultConfig("trigger.manual"),
+        },
+        {
+          id: "sequence",
+          type: "logic.sequence",
+          config: {
+            kind: "logic.sequence",
+            outputs: [],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "trigger-sequence",
+          source: "trigger",
+          target: "sequence",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+      ],
+      editor: {
+        positions: {},
+      },
+    };
+
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.nodeResults.sequence).toEqual({
+      dispatchedOutputIds: [],
+    });
+  });
 });

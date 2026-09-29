@@ -33,7 +33,8 @@ export type VisualCatalogType =
   | "logic.for_each"
   | "logic.retry"
   | "flow.wait"
-  | "logic.merge";
+  | "logic.merge"
+  | "logic.sequence";
 
 export type VisualCatalogCategory = "trigger" | "action" | "logic" | "ai" | "flow";
 
@@ -176,6 +177,10 @@ export type VisualNodeConfig =
       mode: VisualMergeMode;
       inputs: VisualMergeInput[];
       timeoutMs?: number;
+    }
+  | {
+      kind: "logic.sequence";
+      outputs: VisualSequenceOutput[];
     };
 
 export type VisualWorkflowNodeData = WorkflowNodeContract & {
@@ -280,4 +285,9 @@ export type VisualMergeMode = "all" | "any" | "first_success";
 export type VisualMergeInput = {
   id: string;
   name: string;
+};
+
+export type VisualSequenceOutput = {
+  id: string;
+  label: string;
 };

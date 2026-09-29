@@ -21,6 +21,7 @@ import {
   visualWorkflowSwitchDeleteDraft,
   visualWorkflowWaitDraft,
   visualWorkflowMergeDraft,
+  visualWorkflowSequenceDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
 
@@ -429,5 +430,45 @@ export const MergeBranches: Story = {
     await expect(canvas.getByRole("textbox", { name: "Merge input 1" })).toHaveValue("Email");
     await expect(canvas.getByRole("textbox", { name: "Merge input 2" })).toHaveValue("Slack");
     await expect(canvas.getByRole("textbox", { name: "Timeout (ms)" })).toHaveValue("60000");
+  },
+};
+
+export const SequenceOutputs: Story = {
+  name: "Sequence ordered outputs",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Shows a Sequence node with stable, user-configurable execution outputs dispatched in order.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowSequenceDraft.name,
+    initialNodes: visualWorkflowSequenceDraft.nodes,
+    initialEdges: visualWorkflowSequenceDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const prepareHandle = await canvas.findByLabelText(
+      "Sequence output: Prepare",
+      {},
+      { timeout: 10_000 },
+    );
+    await expect(prepareHandle).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Sequence output: Notify")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Sequence output: Audit")).toBeInTheDocument();
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+
+    const sequenceNode = prepareHandle.closest(".react-flow__node");
+    await expect(sequenceNode).not.toBeNull();
+    await userEvent.click(sequenceNode!);
+
+    await expect(await canvas.findByRole("textbox", { name: "Output 1" })).toHaveValue("Prepare");
+    await expect(canvas.getByRole("textbox", { name: "Output 2" })).toHaveValue("Notify");
+    await expect(canvas.getByRole("textbox", { name: "Output 3" })).toHaveValue("Audit");
+    await expect(canvas.getByRole("button", { name: "Move output 2 up" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Add output" })).toBeEnabled();
   },
 };
