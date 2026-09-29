@@ -21,7 +21,7 @@ import {
 } from "./pricing-page-content";
 
 describe("pricing page content", () => {
-  it("exposes four plans with coming-soon CTAs except Enterprise demo", () => {
+  it("exposes four plans with signup CTAs except Enterprise demo", () => {
     const plans = getPricingPlans("en");
 
     expect(plans.map((plan) => plan.id)).toEqual([...pricingPlanOrder]);
@@ -51,7 +51,18 @@ describe("pricing page content", () => {
       "Queries Board",
       "$2,000 per month AI credit",
     ]);
-    expect(plans.filter((plan) => plan.cta.kind === "coming_soon")).toHaveLength(3);
+    expect(plans.find((plan) => plan.id === "free")?.cta).toEqual({
+      kind: "signup",
+      label: "Start for free",
+    });
+    expect(plans.find((plan) => plan.id === "starter")?.cta).toEqual({
+      kind: "signup",
+      label: "Get started",
+    });
+    expect(plans.find((plan) => plan.id === "growth")?.cta).toEqual({
+      kind: "signup",
+      label: "Get started",
+    });
     expect(plans.find((plan) => plan.id === "enterprise")?.cta).toEqual({
       kind: "demo",
       label: "Contact Sales",
