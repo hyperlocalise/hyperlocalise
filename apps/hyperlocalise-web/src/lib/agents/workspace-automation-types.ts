@@ -13,6 +13,7 @@
 import { z } from "zod";
 
 import { matchVercelAiGatewayModelId } from "@/lib/providers/shared/vercel-ai-gateway-model-id";
+import { OPENAI_WORKSPACE_AUTOMATION_GATEWAY_MODELS } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
 
 import {
   contentSyncConfigSchema,
@@ -38,11 +39,7 @@ export {
 export const workspaceAutomationStatusSchema = z.enum(["active", "paused", "archived"]);
 
 export const WORKSPACE_AUTOMATION_MODELS = [
-  "openai/gpt-6-luna",
-  "openai/gpt-6-astra",
-  "openai/gpt-6-sol",
-  "openai/gpt-5.6-terra",
-  "openai/gpt-5.6-sol",
+  ...OPENAI_WORKSPACE_AUTOMATION_GATEWAY_MODELS,
   "anthropic/claude-sonnet-5",
   "anthropic/claude-opus-5.5",
   "anthropic/claude-opus-5",

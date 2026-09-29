@@ -13,6 +13,7 @@
 import { z } from "zod";
 
 import type { LlmProvider } from "@/lib/database/types";
+import { curatedOpenAiNativeModels } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
 
 export const curatedLlmProviders = [
   "openai",
@@ -27,20 +28,7 @@ export const llmProviderSchema = z.enum(curatedLlmProviders);
 export const llmProviderContentEditoralog = {
   openai: {
     label: "OpenAI",
-    models: [
-      "gpt-6-luna",
-      "gpt-6-astra",
-      "gpt-6-sol",
-      "gpt-5.6-sol",
-      "gpt-5.6-terra",
-      "gpt-6-luna",
-      "gpt-5.5",
-      "gpt-5.5-pro",
-      "gpt-5.4",
-      "gpt-5.4-mini",
-      "gpt-5.4-nano",
-      "gpt-5.4-pro",
-    ],
+    models: curatedOpenAiNativeModels,
   },
   anthropic: {
     label: "Anthropic",
