@@ -46,18 +46,14 @@ export type VisualWorkflowResourceOption = {
 
 export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
   const enabled = Boolean(organizationSlug);
-  const { client: goSvcClient } = useGoSvcClient();
+  const { client: goSvcClient, loading: accessTokenLoading } = useGoSvcClient();
 
   const projectsQuery = useQuery({
     queryKey: ["projects", organizationSlug],
-    enabled,
+    enabled: enabled && !accessTokenLoading,
     queryFn: async () => {
-      try {
-        const body = await goSvcClient.project.list(organizationSlug!);
-        return (body.projects ?? []) as VisualWorkflowProjectOption[];
-      } catch {
-        return [] as VisualWorkflowProjectOption[];
-      }
+      const body = await goSvcClient.project.list(organizationSlug!);
+      return (body.projects ?? []) as VisualWorkflowProjectOption[];
     },
   });
 
