@@ -13,8 +13,15 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
+import { buildCuratedOpenAiNativeModelsForTest } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
 
 describe("llmProviderContentEditoralog", () => {
+  it("uses OpenAI native model IDs for BYOK validation", () => {
+    expect(llmProviderContentEditoralog.openai.models).toEqual(
+      buildCuratedOpenAiNativeModelsForTest(),
+    );
+  });
+
   it("uses Anthropic native model IDs for BYOK validation", () => {
     expect(llmProviderContentEditoralog.anthropic.models).toEqual([
       "claude-opus-5-5",
