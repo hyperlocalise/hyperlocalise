@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	projectBodyLimit = 64 << 10
+	projectBodyLimit = 256 << 10
 
 	projectLocalFallbackLimit = 1
 
@@ -30,7 +30,11 @@ func invalidProjectPayload() error {
 }
 
 func invalidProjectTeam() error {
-	return projectFailure(400, "invalid_project_team", "Invalid team for this project")
+	return projectFailure(400, "invalid_project_payload", "Invalid project payload")
+}
+
+func projectPayloadTooLarge() error {
+	return projectFailure(http.StatusRequestEntityTooLarge, "payload_too_large", "Request body exceeds maximum allowed size")
 }
 
 func workspaceResourceLimitReached() error {
@@ -44,10 +48,16 @@ func workspaceResourceLimitCheckFailed() error {
 func decodeProjectBody(r *http.Request, target any) error {
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(target); err != nil {
+		if isRequestBodyTooLarge(err) {
+			return projectPayloadTooLarge()
+		}
 		return invalidProjectPayload()
 	}
 	var extra any
 	if err := decoder.Decode(&extra); err != io.EOF {
+		if isRequestBodyTooLarge(err) {
+			return projectPayloadTooLarge()
+		}
 		return invalidProjectPayload()
 	}
 	return nil
@@ -148,8 +158,27 @@ func resolveProjectTeam(ctx context.Context, tx dictionaryDB, actor projectActor
 		return found, nil
 	}
 
+	var activeTeamID string
+	var err error
+	if actor.canReadAllTeams() {
+		err = tx.QueryRow(ctx, `select id from teams where organization_id=$1 order by slug limit 1`,
+			actor.organizationID).Scan(&activeTeamID)
+	} else {
+		err = tx.QueryRow(ctx, `
+			select t.id from teams t join team_memberships m on m.team_id=t.id
+			where t.organization_id=$1 and m.user_id=$2
+			order by t.slug limit 1`,
+			actor.organizationID, actor.userID).Scan(&activeTeamID)
+	}
+	if err == nil {
+		return activeTeamID, nil
+	}
+	if !isNoRows(err) {
+		return "", err
+	}
+
 	var defaultTeamID string
-	err := tx.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		insert into teams(organization_id,slug,name) values($1,'default','Default team')
 		on conflict(organization_id,slug) do update set slug=excluded.slug
 		returning id`,
@@ -454,11 +483,20 @@ type updateProjectRequest struct {
 func decodeUpdateProjectRequest(r *http.Request) (updateProjectRequest, []string, error) {
 	var fields map[string]json.RawMessage
 	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&fields); err != nil || fields == nil {
+	if err := decoder.Decode(&fields); err != nil {
+		if isRequestBodyTooLarge(err) {
+			return updateProjectRequest{}, nil, projectPayloadTooLarge()
+		}
+		return updateProjectRequest{}, nil, invalidProjectPayload()
+	}
+	if fields == nil {
 		return updateProjectRequest{}, nil, invalidProjectPayload()
 	}
 	var extra any
 	if err := decoder.Decode(&extra); err != io.EOF {
+		if isRequestBodyTooLarge(err) {
+			return updateProjectRequest{}, nil, projectPayloadTooLarge()
+		}
 		return updateProjectRequest{}, nil, invalidProjectPayload()
 	}
 
@@ -620,6 +658,22 @@ func (api *projectAPI) updateHandler(r *http.Request, actor projectActor) (any, 
 	sets = append(sets, "updated_at=now()")
 	setClause := strings.Join(sets, ", ")
 
+	args = append(args, projectID)
+	idIdx := len(args)
+	args = append(args, actor.organizationID)
+	orgIdx := len(args)
+	args = append(args, actor.canReadAllTeams())
+	orgWideIdx := len(args)
+	args = append(args, actor.userID)
+	userIdx := len(args)
+	whereClause := fmt.Sprintf("p.id=$%d and p.organization_id=$%d and p.source='native' and ", idIdx, orgIdx) +
+		formatQaProjectTeamAccessSQL(orgWideIdx, userIdx, orgIdx)
+
+	if api.testBeforeUpdateWrite != nil {
+		api.testBeforeUpdateWrite()
+	}
+
+	var rowsAffected int64
 	if sourceLocaleChanging {
 		tx, err := api.pool.Begin(ctx)
 		if err != nil {
@@ -637,20 +691,36 @@ func (api *projectAPI) updateHandler(r *http.Request, actor projectActor) (any, 
 		if conflict {
 			return nil, 0, projectSourceLocaleAttachedGlossaries()
 		}
-		idArg := arg(projectID)
-		orgArg := arg(actor.organizationID)
-		if _, err := tx.Exec(ctx, `update projects set `+setClause+` where id=`+idArg+` and organization_id=`+orgArg, args...); err != nil {
+		tag, err := tx.Exec(ctx, `update projects p set `+setClause+` where `+whereClause, args...)
+		if err != nil {
+			if isUniqueViolation(err) {
+				return nil, 0, identifierTaken()
+			}
 			return nil, 0, err
 		}
-		if err := tx.Commit(ctx); err != nil {
-			return nil, 0, err
+		rowsAffected = tag.RowsAffected()
+		if rowsAffected > 0 {
+			if err := tx.Commit(ctx); err != nil {
+				return nil, 0, err
+			}
 		}
 	} else {
-		idArg := arg(projectID)
-		orgArg := arg(actor.organizationID)
-		if _, err := api.pool.Exec(ctx, `update projects set `+setClause+` where id=`+idArg+` and organization_id=`+orgArg, args...); err != nil {
+		tag, err := api.pool.Exec(ctx, `update projects p set `+setClause+` where `+whereClause, args...)
+		if err != nil {
+			if isUniqueViolation(err) {
+				return nil, 0, identifierTaken()
+			}
 			return nil, 0, err
 		}
+		rowsAffected = tag.RowsAffected()
+	}
+	if rowsAffected == 0 {
+		return nil, 0, projectNotFound()
+	}
+
+	project, err := api.fetchProjectResponse(ctx, actor.organizationID, projectID)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	api.publishActivity(ctx, activityLogEventInput{
@@ -665,10 +735,6 @@ func (api *projectAPI) updateHandler(r *http.Request, actor projectActor) (any, 
 		TargetKind: "project",
 	})
 
-	project, err := api.fetchProjectResponse(ctx, actor.organizationID, projectID)
-	if err != nil {
-		return nil, 0, err
-	}
 	return map[string]json.RawMessage{"project": project}, http.StatusOK, nil
 }
 

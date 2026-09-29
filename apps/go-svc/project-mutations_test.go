@@ -198,7 +198,7 @@ func TestCreateProjectInvalidTeam(t *testing.T) {
 		"teamId":        otherTeamID,
 	})
 	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
-	require.Contains(t, rec.Body.String(), `"invalid_project_team"`)
+	require.Contains(t, rec.Body.String(), `"invalid_project_payload"`)
 }
 
 func TestCreateProjectLimitReachedLocalFallback(t *testing.T) {
@@ -284,4 +284,149 @@ func TestConcurrentProjectCreateIdentifierAllocation(t *testing.T) {
 		select count(distinct identifier) from projects where organization_id=$1`,
 		scope.OrganizationID).Scan(&distinctCount))
 	require.Equal(t, concurrency, distinctCount)
+}
+
+func TestCreateProjectWithExplicitTeamID(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+	teamID := scope.MustTeam(t, "explicit-team", "Explicit Team", "")
+
+	rec := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects"), map[string]any{
+		"name":          "Explicit Team Project",
+		"sourceLocale":  "en",
+		"targetLocales": []string{"fr"},
+		"teamId":        teamID,
+	})
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	var resp projectResponseBody
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.NotNil(t, resp.Project.TeamID)
+	require.Equal(t, teamID, *resp.Project.TeamID)
+}
+
+func TestCreateProjectOmittedTeamIDUsesExistingVisibleTeam(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "developer"})
+	teamID := scope.MustTeam(t, "marketing", "Marketing", "member")
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("developer")}
+
+	rec := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects"), map[string]any{
+		"name":          "No Team Given",
+		"sourceLocale":  "en",
+		"targetLocales": []string{"fr"},
+	})
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	var resp projectResponseBody
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.NotNil(t, resp.Project.TeamID)
+	require.Equal(t, teamID, *resp.Project.TeamID, "an existing visible team must be preferred over auto-creating default")
+
+	var defaultTeamCount int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
+		select count(*) from teams where organization_id=$1 and slug='default'`,
+		scope.OrganizationID).Scan(&defaultTeamCount))
+	require.Equal(t, 0, defaultTeamCount, "no default team should have been created")
+}
+
+func TestCreateProjectOmittedTeamIDFallsBackToDefault(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+
+	rec := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects"), map[string]any{
+		"name":          "Fresh Org No Teams",
+		"sourceLocale":  "en",
+		"targetLocales": []string{"fr"},
+	})
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	var resp projectResponseBody
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.NotNil(t, resp.Project.TeamID)
+
+	var slug string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select slug from teams where id=$1`, *resp.Project.TeamID).Scan(&slug))
+	require.Equal(t, "default", slug)
+}
+
+func TestCreateProjectBodyWithinNewLimit(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+
+	description := strings.Repeat("字", 10_000)
+	translationContext := strings.Repeat("字", 20_000)
+
+	rec := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects"), map[string]any{
+		"name":               "Large Payload Project",
+		"description":        description,
+		"translationContext": translationContext,
+		"sourceLocale":       "en",
+		"targetLocales":      manyTestLocales(50),
+	})
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+}
+
+func TestCreateProjectIdentifierAvoidsIssuePrefixCollision(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
+	_, err := scope.Pool.Exec(t.Context(), `
+		insert into issue_sheet_issues (organization_id, project_id, identifier, number, title, status, issue_type)
+		values ($1, $2, 'TAKEN-1', 1, 'Issue', 'open', 'bug')`,
+		scope.OrganizationID, scope.ProjectID)
+	require.NoError(t, err)
+
+	client, err := autumn.NewClient(autumn.Config{SecretKey: "test", HTTPClient: alwaysAllowAutumn{}})
+	require.NoError(t, err)
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin"), autumn: client}
+	// Word initials Tom/Acme/Kilo/Echo/November derive candidate "TAKEN".
+	rec := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects"), map[string]any{
+		"name":          "Tom Acme Kilo Echo November",
+		"sourceLocale":  "en",
+		"targetLocales": []string{"fr"},
+	})
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	var resp projectResponseBody
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, "TAKEN2", resp.Project.Identifier, "the derived candidate collides with an existing issue prefix, so the allocator must uniquify past it")
+}
+
+type alwaysDenyAutumn struct{}
+
+func (alwaysDenyAutumn) Do(*http.Request) (*http.Response, error) {
+	body := `{"allowed":false,"customer_id":"test"}`
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Header:     make(http.Header),
+	}, nil
+}
+
+func TestCreateProjectAutumnDeny(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	client, err := autumn.NewClient(autumn.Config{SecretKey: "test", HTTPClient: alwaysDenyAutumn{}})
+	require.NoError(t, err)
+	publisher := &recordingActivityLogPublisher{}
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin"), autumn: client, activityLog: publisher}
+
+	rec := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects"), map[string]any{
+		"name":          "Denied Project",
+		"sourceLocale":  "en",
+		"targetLocales": []string{"fr"},
+	})
+	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"workspace_resource_limit_reached"`)
+
+	var projectCount int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select count(*) from projects where organization_id=$1`,
+		scope.OrganizationID).Scan(&projectCount))
+	require.Equal(t, 0, projectCount, "no project row may exist after a denied limit check")
+
+	var memoryCount int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select count(*) from memories where organization_id=$1`,
+		scope.OrganizationID).Scan(&memoryCount))
+	require.Equal(t, 0, memoryCount, "no default TM may exist after a denied limit check")
+
+	require.Empty(t, publisher.recorded(), "no activity may be published after a denied limit check")
 }

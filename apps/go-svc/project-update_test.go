@@ -207,7 +207,7 @@ func TestUpdateProjectInvalidTeam(t *testing.T) {
 		"teamId": otherTeamID,
 	})
 	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
-	require.Contains(t, rec.Body.String(), `"invalid_project_team"`)
+	require.Contains(t, rec.Body.String(), `"invalid_project_payload"`)
 }
 
 func TestUpdateProjectSourceLocaleAttachedGlossaryConflict(t *testing.T) {

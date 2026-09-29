@@ -27,6 +27,8 @@ type projectAPI struct {
 	membership  organizationMembershipLookup
 	autumn      *autumn.Client
 	activityLog activityLogPublisher
+
+	testBeforeUpdateWrite func()
 }
 
 type projectActor struct {
