@@ -15,8 +15,11 @@
 import { useEffect, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 import { apiClient } from "@/lib/api-client-instance";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import {
   PageHeader,
@@ -32,18 +35,28 @@ export function useProjectPageQuery(
   projectId: string,
   options?: { enabled?: boolean },
 ) {
+  const { client: goSvcClient } = useGoSvcClient();
   const query = useQuery({
     queryKey: ["translation-project", organizationSlug, projectId],
     enabled: options?.enabled ?? true,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-        param: { organizationSlug, projectId },
-      });
-      if (response.status !== 200) {
-        throw new Error(`Failed to load project (${response.status})`);
+      if (parseProviderProjectId(projectId)) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
+          param: { organizationSlug, projectId },
+        });
+        if (response.status !== 200) {
+          throw new Error(`Failed to load project (${response.status})`);
+        }
+        const body = await response.json();
+        return mapProjectToListRow(body.project);
       }
-      const body = await response.json();
-      return mapProjectToListRow(body.project);
+
+      try {
+        const body = await goSvcClient.project.get(organizationSlug, projectId);
+        return mapProjectToListRow(body.project);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load project"), { cause: error });
+      }
     },
   });
 

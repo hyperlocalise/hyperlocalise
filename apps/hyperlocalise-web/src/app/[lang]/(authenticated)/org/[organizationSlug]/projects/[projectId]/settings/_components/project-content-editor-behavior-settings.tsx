@@ -30,7 +30,8 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { projectContentEditorBehaviorMessages } from "./project-content-editor-behavior-settings.messages";
@@ -54,6 +55,7 @@ export function ProjectContentEditorBehaviorSettings({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [confirmation, setConfirmation] = useState<{
     nextValue: boolean;
     preview?: Preview;
@@ -62,22 +64,37 @@ export function ProjectContentEditorBehaviorSettings({
   const behaviorQuery = useQuery({
     queryKey,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "content-editor-behavior"
-      ].$get({ param: { organizationSlug, projectId } });
-      if (!response.ok)
-        throw new Error(intl.formatMessage(projectContentEditorBehaviorMessages.loadError));
-      return (await response.json()).contentEditorBehavior as ContentEditorBehavior;
+      try {
+        const body = await goSvcClient.project.contentEditorBehavior(organizationSlug, projectId);
+        return body.contentEditorBehavior as ContentEditorBehavior;
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(projectContentEditorBehaviorMessages.loadError),
+          ),
+          { cause: error },
+        );
+      }
     },
   });
   const previewMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "content-editor-behavior"
-      ].preview.$get({ param: { organizationSlug, projectId } });
-      if (!response.ok)
-        throw new Error(intl.formatMessage(projectContentEditorBehaviorMessages.loadError));
-      return (await response.json()).preview as Preview;
+      try {
+        const body = await goSvcClient.project.previewContentEditorBehavior(
+          organizationSlug,
+          projectId,
+        );
+        return body.preview as Preview;
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(projectContentEditorBehaviorMessages.loadError),
+          ),
+          { cause: error },
+        );
+      }
     },
     onSuccess: (preview) => setConfirmation({ nextValue: true, preview }),
     onError: (error) =>
@@ -89,15 +106,22 @@ export function ProjectContentEditorBehaviorSettings({
   });
   const updateMutation = useMutation({
     mutationFn: async (nextValue: boolean) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "content-editor-behavior"
-      ].$patch({
-        param: { organizationSlug, projectId },
-        json: { automaticallyGroupIdenticalStrings: nextValue },
-      });
-      if (!response.ok)
-        throw new Error(intl.formatMessage(projectContentEditorBehaviorMessages.updateError));
-      return (await response.json()).contentEditorBehavior as ContentEditorBehavior;
+      try {
+        const body = await goSvcClient.project.updateContentEditorBehavior(
+          organizationSlug,
+          projectId,
+          { automaticallyGroupIdenticalStrings: nextValue },
+        );
+        return body.contentEditorBehavior as ContentEditorBehavior;
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(projectContentEditorBehaviorMessages.updateError),
+          ),
+          { cause: error },
+        );
+      }
     },
     onSuccess: (contentEditorBehavior) => {
       queryClient.setQueryData(queryKey, contentEditorBehavior);

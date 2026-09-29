@@ -19,8 +19,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { readApiError, readApiResponseError } from "@/lib/api-error";
+import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   memoryImportFormatFromFilename,
   readMemoryImportFile,
@@ -157,6 +159,7 @@ export function TranslationMemoriesPageContent({
   const [selectedExternalProjectId, setSelectedExternalProjectId] = useState("");
   const [projectFilter, setProjectFilter] = useState("all");
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
+  const { client: goSvcClient } = useGoSvcClient();
   const useLiveProviderMemories = Boolean(activeTmsProvider);
   const allowCreateMemories = canCreateMemories && !useLiveProviderMemories;
 
@@ -164,19 +167,18 @@ export function TranslationMemoriesPageContent({
     queryKey: projectsQueryKey(organizationSlug),
     enabled: !useLiveProviderMemories,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(translationMemoriesPageContentMessages.loadProjectsFailed),
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects;
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.loadProjectsFailed),
+          ),
+          { cause: error },
         );
       }
-
-      const body = await response.json();
-      return body.projects;
     },
   });
 

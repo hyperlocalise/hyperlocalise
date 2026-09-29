@@ -299,20 +299,15 @@ export function CreateJobDialog({
     queryKey: ["project-files", organizationSlug, projectId, "create-job"],
     enabled: open && !isProviderProject,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.$get({
-        param: { organizationSlug, projectId },
-        query: { limit: "500" },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(createJobDialogMessages.loadFilesFailed),
+      try {
+        const body = await goSvcClient.project.files(organizationSlug, projectId, { limit: 500 });
+        return body.files as ProjectFileRecord[];
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(createJobDialogMessages.loadFilesFailed)),
+          { cause: error },
         );
       }
-      const body = (await response.json()) as { files: ProjectFileRecord[] };
-      return body.files;
     },
   });
 

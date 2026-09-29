@@ -96,7 +96,19 @@ export const issueSheetMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
     HttpResponse.json({ project: issueSheetProjectFixture }),
   ),
+  http.get("*/v1/orgs/:organizationSlug/projects/:projectId", () =>
+    HttpResponse.json({ project: issueSheetProjectFixture }),
+  ),
   http.get("/api/orgs/:organizationSlug/projects/:projectId/files", () =>
+    HttpResponse.json({
+      files: [
+        { sourcePath: "messages/home.json", filename: "home.json" },
+        { sourcePath: "messages/checkout.json", filename: "checkout.json" },
+        { sourcePath: "mobile/onboarding.json", filename: "onboarding.json" },
+      ],
+    }),
+  ),
+  http.get("*/v1/orgs/:organizationSlug/projects/:projectId/files", () =>
     HttpResponse.json({
       files: [
         { sourcePath: "messages/home.json", filename: "home.json" },
@@ -288,6 +300,9 @@ export const issueSheetEmptyMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
     HttpResponse.json({ project: issueSheetProjectFixture }),
   ),
+  http.get("*/v1/orgs/:organizationSlug/projects/:projectId", () =>
+    HttpResponse.json({ project: issueSheetProjectFixture }),
+  ),
   http.get(issueSheetBasePath, () =>
     HttpResponse.json({
       issues: [],
@@ -310,6 +325,10 @@ export const issueSheetLoadingMswHandlers = [
     await delay("infinite");
     return HttpResponse.json({ project: issueSheetProjectFixture });
   }),
+  http.get("*/v1/orgs/:organizationSlug/projects/:projectId", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ project: issueSheetProjectFixture });
+  }),
   http.get(issueSheetBasePath, async () => {
     await delay("infinite");
     return HttpResponse.json(issueSheetResponseFixture);
@@ -321,6 +340,9 @@ export const issueSheetErrorMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
     HttpResponse.json({ project: issueSheetProjectFixture }),
   ),
+  http.get("*/v1/orgs/:organizationSlug/projects/:projectId", () =>
+    HttpResponse.json({ project: issueSheetProjectFixture }),
+  ),
   http.get(issueSheetBasePath, () =>
     HttpResponse.json({ error: "issue_sheet_load_failed" }, { status: 500 }),
   ),
@@ -329,6 +351,9 @@ export const issueSheetErrorMswHandlers = [
 
 export const issueDetailColumnsErrorMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
+    HttpResponse.json({ project: issueSheetProjectFixture }),
+  ),
+  http.get("*/v1/orgs/:organizationSlug/projects/:projectId", () =>
     HttpResponse.json({ project: issueSheetProjectFixture }),
   ),
   http.get(`${issueSheetBasePath}/columns`, () =>
@@ -356,6 +381,10 @@ export const issueDetailLoadingMswHandlers = [
     await delay("infinite");
     return HttpResponse.json({ project: issueSheetProjectFixture });
   }),
+  http.get("*/v1/orgs/:organizationSlug/projects/:projectId", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ project: issueSheetProjectFixture });
+  }),
   http.get(`${issueSheetBasePath}/columns`, async () => {
     await delay("infinite");
     return HttpResponse.json({ columns: issueSheetResponseFixture.columns });
@@ -377,6 +406,9 @@ export const issueDetailLoadingMswHandlers = [
 
 export const issueDetailNotFoundMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
+    HttpResponse.json({ project: issueSheetProjectFixture }),
+  ),
+  http.get("*/v1/orgs/:organizationSlug/projects/:projectId", () =>
     HttpResponse.json({ project: issueSheetProjectFixture }),
   ),
   http.get(`${issueSheetBasePath}/columns`, () =>

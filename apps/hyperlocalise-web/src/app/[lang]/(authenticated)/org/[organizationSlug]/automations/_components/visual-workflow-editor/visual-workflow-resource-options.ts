@@ -15,6 +15,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { createApiClient } from "@/lib/api-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { ContentSyncProvider } from "@/lib/agents/content-sync/content-sync-types";
 
 const api = createApiClient();
@@ -45,18 +46,18 @@ export type VisualWorkflowResourceOption = {
 
 export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
   const enabled = Boolean(organizationSlug);
+  const { client: goSvcClient } = useGoSvcClient();
 
   const projectsQuery = useQuery({
     queryKey: ["projects", organizationSlug],
     enabled,
     queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug: organizationSlug! },
-      });
-      if (response.status !== 200) {
+      try {
+        const body = await goSvcClient.project.list(organizationSlug!);
+        return (body.projects ?? []) as VisualWorkflowProjectOption[];
+      } catch {
         return [] as VisualWorkflowProjectOption[];
       }
-      return ((await response.json()).projects ?? []) as VisualWorkflowProjectOption[];
     },
   });
 

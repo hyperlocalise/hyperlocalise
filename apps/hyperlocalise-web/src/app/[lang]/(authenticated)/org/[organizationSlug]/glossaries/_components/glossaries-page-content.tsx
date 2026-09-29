@@ -18,7 +18,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { readApiError, readApiResponseError } from "@/lib/api-error";
+import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { GoSvcClientError, type GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
@@ -203,19 +203,18 @@ export function GlossariesPageContent({
     queryKey: projectsQueryKey(organizationSlug),
     enabled: allowCreateGlossaries,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(glossariesPageContentMessages.loadProjectsFailed),
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects;
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(glossariesPageContentMessages.loadProjectsFailed),
+          ),
+          { cause: error },
         );
       }
-
-      const body = await response.json();
-      return body.projects;
     },
   });
 

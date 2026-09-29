@@ -301,3 +301,108 @@ export type EditorExportBody = {
   rows: GoSvcRecord[];
   [key: string]: unknown;
 };
+
+export type ProjectRecord = {
+  id: string;
+  organizationId: string;
+  teamId: string | null;
+  createdByUserId: string | null;
+  name: string;
+  identifier: string;
+  description: string;
+  translationContext: string;
+  source: "native" | "external_tms";
+  externalProviderKind: "crowdin" | "smartling" | "phrase" | "lokalise" | null;
+  externalProjectId: string | null;
+  sourceLocale: string | null;
+  targetLocales: string[];
+  externalProjectUrl: string | null;
+  isActive: boolean;
+  lastSyncedAt: string | null;
+  lastSyncErrorAt: string | null;
+  lastSyncErrorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  openJobCount: number;
+} & GoSvcRecord;
+
+export type CreateProjectBody = {
+  name: string;
+  description?: string;
+  translationContext?: string;
+  teamId?: string;
+  sourceLocale: string;
+  targetLocales: string[];
+};
+
+export type UpdateProjectBody = {
+  name?: string;
+  description?: string;
+  translationContext?: string;
+  teamId?: string;
+  sourceLocale?: string;
+  targetLocales?: string[];
+  identifier?: string;
+};
+
+export type ProjectLocaleProgressCounts = {
+  total: number;
+  translated: number;
+  approved: number;
+};
+
+export type ProjectLocaleProgressRow = {
+  locale: string;
+  translationProgress: number;
+  approvalProgress: number;
+  words: ProjectLocaleProgressCounts;
+  phrases: ProjectLocaleProgressCounts;
+  lastActivityAt: string | null;
+};
+
+export type ProjectContentEditorBehavior = {
+  automaticallyGroupIdenticalStrings: boolean;
+  groupingRevision: number;
+  canManage: boolean;
+};
+
+export type ProjectContentEditorBehaviorPreview = {
+  affectedOccurrences: number;
+  groups: number;
+};
+
+export type ProjectFilesQuery = {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  origin?: "all" | "repository" | "provider";
+  resourceType?: "all" | "file" | "key";
+  providerKind?: "all" | "crowdin" | "smartling" | "phrase" | "lokalise";
+  locale?: string;
+  syncState?: string;
+  branch?: string;
+};
+
+export type WorkspaceFilesQuery = ProjectFilesQuery & {
+  projectId?: string;
+};
+
+export type ProjectFileRecord = {
+  origin: "repository" | "provider" | "combined";
+  sourcePath: string;
+  sourceHash: string | null;
+  commitSha: string | null;
+  workflowRunId: string | null;
+  uploadedAt: string;
+  storedFileId: string | null;
+  metadata: GoSvcRecord;
+  filename: string;
+  byteSize: number | null;
+  provider: GoSvcRecord | null;
+  latestJob: GoSvcRecord | null;
+} & GoSvcRecord;
+
+export type WorkspaceFileRecord = ProjectFileRecord & {
+  projectId: string;
+  projectName: string;
+};

@@ -88,6 +88,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
 import { createApiClient } from "@/lib/api-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   AUTOMATION_WEEKDAY_OPTIONS,
   addBranchPattern,
@@ -3379,17 +3380,12 @@ export function WorkspaceAutomationEditor({
 }) {
   const intl = useIntl();
   const [activeTab, setActiveTab] = useState<AutomationEditorTab>("settings");
+  const { client: goSvcClient } = useGoSvcClient();
 
   const projectsQuery = useQuery({
     queryKey: ["projects", organizationSlug],
     queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-      if (response.status !== 200) {
-        throw new Error("Failed to load projects");
-      }
-      const body = await response.json();
+      const body = await goSvcClient.project.list(organizationSlug);
       return body.projects;
     },
   });
