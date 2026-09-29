@@ -33,6 +33,7 @@ import {
 } from "@/components/content-editor/workspace/content-editor-page-navigation-guard";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { supportsProviderContentEditorFile } from "@/lib/providers/capabilities/provider-content-editor-capabilities";
 import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
 import {
@@ -145,6 +146,7 @@ function ProjectFileContentEditorPageContentInner({
   const router = useRouter();
   const pageNavigationGuardRef = useRef<ContentEditorPageNavigationGuardRef["current"]>(null);
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const hasFileReference = Boolean(sourcePath) || allFiles;
   const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
     enabled: hasFileReference,
@@ -175,6 +177,7 @@ function ProjectFileContentEditorPageContentInner({
     queryKey: projectFilesQueryKey(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
     queryFn: () =>
       fetchProjectFiles(
+        goSvcClient,
         organizationSlug,
         projectId,
         PROJECT_FILES_MAX_LIMIT,

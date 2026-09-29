@@ -28,6 +28,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { isEncodedProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 import { useAppShellHeaderAction } from "@/components/app-shell/store/use-app-shell-header-action";
@@ -224,6 +226,7 @@ export function ProjectSettingsPageContent({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const project = projectQuery.data;
   const formRef = useRef<HTMLFormElement>(null);
@@ -252,13 +255,25 @@ export function ProjectSettingsPageContent({
         throw new Error("Project is not loaded yet");
       }
 
+      const payload = toProjectPayload(nextValues, {
+        mode: "edit",
+        includeLocales: project.source === "native",
+        includeMetadata: project.source === "native",
+      });
+
+      if (project.source === "native") {
+        try {
+          return await goSvcClient.project.update(organizationSlug, projectId, payload);
+        } catch (error) {
+          throw new Error(goSvcErrorMessage(error, "Unable to update project settings"), {
+            cause: error,
+          });
+        }
+      }
+
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$patch({
         param: { organizationSlug, projectId },
-        json: toProjectPayload(nextValues, {
-          mode: "edit",
-          includeLocales: project.source === "native",
-          includeMetadata: project.source === "native",
-        }),
+        json: payload,
       });
 
       if (!response.ok) {

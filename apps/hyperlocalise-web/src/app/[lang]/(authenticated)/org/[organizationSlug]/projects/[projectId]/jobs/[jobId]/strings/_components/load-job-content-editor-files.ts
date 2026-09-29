@@ -15,6 +15,8 @@ import type {
   ProjectFileRecord,
 } from "@/api/routes/project/project.schema";
 import { apiClient } from "@/lib/api-client-instance";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import {
   parseProviderJobId,
   parseProviderProjectId,
@@ -60,24 +62,39 @@ function projectFileDetailToRecord(
 }
 
 async function fetchProjectFiles(input: {
+  goSvcClient: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   origin?: "all" | "repository" | "provider";
 }) {
-  const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files.$get({
-    param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
-    query: {
-      limit: String(PROJECT_FILES_FETCH_LIMIT),
-      ...(input.origin ? { origin: input.origin } : {}),
-    },
-  });
+  if (parseProviderProjectId(input.projectId)) {
+    const response = await apiClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.$get({
+      param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
+      query: {
+        limit: String(PROJECT_FILES_FETCH_LIMIT),
+        ...(input.origin ? { origin: input.origin } : {}),
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to load task files (${response.status})`);
+    if (!response.ok) {
+      throw new Error(`Failed to load task files (${response.status})`);
+    }
+
+    const body = (await response.json()) as { files: ProjectFileRecord[] };
+    return body.files;
   }
 
-  const body = (await response.json()) as { files: ProjectFileRecord[] };
-  return body.files;
+  try {
+    const body = await input.goSvcClient.project.files(input.organizationSlug, input.projectId, {
+      limit: PROJECT_FILES_FETCH_LIMIT,
+      ...(input.origin ? { origin: input.origin } : {}),
+    });
+    return body.files as ProjectFileRecord[];
+  } catch (error) {
+    throw new Error(goSvcErrorMessage(error, "Failed to load task files"), { cause: error });
+  }
 }
 
 export function resolveJobContentEditorTargetFromStoredFileId(
@@ -102,6 +119,7 @@ export function resolveJobContentEditorTargetFromStoredFileId(
 }
 
 export async function loadJobContentEditorTargetFile(input: {
+  goSvcClient: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   sourcePath: string | null;
@@ -128,6 +146,7 @@ export async function loadJobContentEditorTargetFile(input: {
 
   if (input.storedFileId) {
     const files = await fetchProjectFiles({
+      goSvcClient: input.goSvcClient,
       organizationSlug: input.organizationSlug,
       projectId: input.projectId,
     });

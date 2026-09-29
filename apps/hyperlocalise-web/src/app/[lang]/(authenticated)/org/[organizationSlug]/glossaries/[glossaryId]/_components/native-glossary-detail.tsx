@@ -363,18 +363,18 @@ export function NativeGlossaryDetail({
     queryKey: ["translation-projects", organizationSlug],
     enabled: true,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.loadProjectsFailed)),
-        );
-      return (await response.json()).projects as Array<{
-        id: string;
-        name: string;
-        sourceLocale: string;
-      }>;
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects as Array<{
+          id: string;
+          name: string;
+          sourceLocale: string;
+        }>;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadProjectsFailed)), {
+          cause: error,
+        });
+      }
     },
   });
 

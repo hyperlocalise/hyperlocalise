@@ -26,8 +26,10 @@ import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
-import { readApiError, readApiResponseError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
+import { readApiError } from "@/lib/api-error";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { excerptGuidelineText } from "@/lib/knowledge-memory/knowledge-guideline-excerpt";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
@@ -47,18 +49,17 @@ type ProjectGuidelineRow = {
 
 const PROJECT_GUIDELINE_MEMORY_CONCURRENCY = 5;
 
-async function loadProjectGuidelineRows(organizationSlug: string): Promise<ProjectGuidelineRow[]> {
-  const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-    param: { organizationSlug },
-  });
-  if (response.status !== 200) {
-    throw await readApiResponseError(response, "Failed to load projects");
+async function loadProjectGuidelineRows(
+  goSvcClient: GoSvcClient,
+  organizationSlug: string,
+): Promise<ProjectGuidelineRow[]> {
+  let nativeProjects;
+  try {
+    const body = await goSvcClient.project.list(organizationSlug);
+    nativeProjects = (body.projects as ApiProject[]).map((project) => mapProjectToListRow(project));
+  } catch (error) {
+    throw new Error(goSvcErrorMessage(error, "Failed to load projects"), { cause: error });
   }
-
-  const body = await response.json();
-  const nativeProjects = (body.projects as ApiProject[]).map((project) =>
-    mapProjectToListRow(project),
-  );
 
   const tmsConnection = await fetchActiveTmsProviderConnection(organizationSlug);
   const tmsProjects = tmsConnection
@@ -112,9 +113,10 @@ async function loadProjectGuidelineRows(organizationSlug: string): Promise<Proje
 }
 
 export function KnowledgeProjectsSection({ organizationSlug }: { organizationSlug: string }) {
+  const { client: goSvcClient } = useGoSvcClient();
   const projectsQuery = useQuery({
     queryKey: ["knowledge-projects-section", organizationSlug],
-    queryFn: () => loadProjectGuidelineRows(organizationSlug),
+    queryFn: () => loadProjectGuidelineRows(goSvcClient, organizationSlug),
   });
 
   const rows = projectsQuery.data ?? [];

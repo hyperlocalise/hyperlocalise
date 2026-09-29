@@ -39,6 +39,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createApiClient } from "@/lib/api-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { CanvaConnectionSummary } from "@/lib/canva/types";
 
 import { canvaConnectionPanelMessages } from "./canva-connection-panel.messages";
@@ -102,6 +104,7 @@ export function CanvaConnectionPanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const connectionsQuery = useCanvaConnections(organizationSlug);
   const [expanded, setExpanded] = useState(Boolean(claimId));
   const [adding, setAdding] = useState(false);
@@ -133,17 +136,18 @@ export function CanvaConnectionPanel({
   const projectsQuery = useQuery({
     queryKey: ["org-projects", organizationSlug],
     queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(canvaConnectionPanelMessages.fetchFailed));
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects.map((project) => ({
+          id: project.id,
+          name: project.name,
+        }));
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(canvaConnectionPanelMessages.fetchFailed)),
+          { cause: error },
+        );
       }
-      const body = await response.json();
-      return body.projects.map((project: { id: string; name: string }) => ({
-        id: project.id,
-        name: project.name,
-      }));
     },
     enabled: expanded,
   });

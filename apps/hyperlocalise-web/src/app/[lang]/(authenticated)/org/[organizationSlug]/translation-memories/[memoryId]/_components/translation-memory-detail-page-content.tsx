@@ -55,6 +55,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { TmEntryExplorer } from "./tm-entry-explorer";
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
@@ -88,6 +90,7 @@ export function TranslationMemoryDetailPageContent({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [entryForm, setEntryForm] = useState<EntryForm>(emptyEntryForm);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [addEntryOpen, setAddEntryOpen] = useState(false);
@@ -129,15 +132,14 @@ export function TranslationMemoryDetailPageContent({
   const projectsQuery = useQuery({
     queryKey: ["translation-projects", organizationSlug],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-      if (response.status !== 200)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.loadProjectsFailed)),
-        );
-      const body = await response.json();
-      return body.projects;
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadProjectsFailed)), {
+          cause: error,
+        });
+      }
     },
   });
 

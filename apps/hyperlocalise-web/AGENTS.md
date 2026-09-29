@@ -67,11 +67,12 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 
 ## Browser go-svc client
 
-Several Cloud surfaces call the Go service directly from the browser (CAT segment validation, spellcheck dictionaries, teams, workspace members, QA reports, and related native APIs). Use [`useGoSvcClient`](src/lib/go-svc/use-go-svc-client.ts), which wraps [`GoSvcClient`](src/lib/go-svc/go-svc-client.ts) with the WorkOS session access token from `useAccessToken`.
+Several Cloud surfaces call the Go service directly from the browser (CAT segment validation, spellcheck dictionaries, teams, workspace members, native projects, QA reports, and related native APIs). Use [`useGoSvcClient`](src/lib/go-svc/use-go-svc-client.ts), which wraps [`GoSvcClient`](src/lib/go-svc/go-svc-client.ts) with the WorkOS session access token from `useAccessToken`.
 
 - Base URL comes from `NEXT_PUBLIC_API_BASE_URL` (production default: `https://api.hyperlocalise.com`). Local dev should set it to your running `go-svc` origin alongside `GO_SVC_URL` for server-side proxies.
 - Requests use `Authorization: Bearer` and `credentials: "omit"`. Do not send the `wos-session` cookie to `api.hyperlocalise.com`.
 - Add new resource methods on dedicated `go-svc-*-api.ts` modules composed by `GoSvcClient`; map failures with `GoSvcClientError` and [`go-svc-error.ts`](src/lib/go-svc/go-svc-error.ts) where transport errors need user-facing copy.
+- Native project list, create, detail, update, delete, locale progress, open-job count, content-editor behavior, and native file list use browser `GoSvcClient` on `/v1/orgs/{slug}/projects...`. Encoded TMS project IDs stay on Hono.
 - Domains research, Search Console, linked-domain lifecycle management, and Hyperlab use browser `GoSvcClient` on org-scoped `/v1/orgs/{slug}/domains/...` and `/v1/orgs/{slug}/hyperlab/...` routes with the WorkOS session Bearer token. Linked-domain management uses `/domains/linked-domains`.
 
 See [`docs/adr/2026-09-22-web-go-svc-api-client-design.md`](../../docs/adr/2026-09-22-web-go-svc-api-client-design.md).

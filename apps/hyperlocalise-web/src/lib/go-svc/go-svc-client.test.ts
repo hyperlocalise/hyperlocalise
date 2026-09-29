@@ -99,6 +99,86 @@ describe("GoSvcClient", () => {
     expect(init.body).toBe('{"name":"Reviewers","slug":"reviewers"}');
   });
 
+  it("lists, creates, reads, updates, and deletes native projects", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ projects: [] }))
+      .mockResolvedValueOnce(Response.json({ project: { id: "project-1", name: "Website" } }))
+      .mockResolvedValueOnce(Response.json({ project: { id: "project-1", name: "Website" } }))
+      .mockResolvedValueOnce(Response.json({ project: { id: "project-1", name: "Docs" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(Response.json({ locales: [] }))
+      .mockResolvedValueOnce(Response.json({ openJobCount: 2 }))
+      .mockResolvedValueOnce(
+        Response.json({
+          contentEditorBehavior: {
+            automaticallyGroupIdenticalStrings: false,
+            groupingRevision: 0,
+            canManage: true,
+          },
+        }),
+      )
+      .mockResolvedValueOnce(Response.json({ preview: { affectedOccurrences: 3, groups: 1 } }))
+      .mockResolvedValueOnce(
+        Response.json({
+          contentEditorBehavior: {
+            automaticallyGroupIdenticalStrings: true,
+            groupingRevision: 1,
+            canManage: true,
+          },
+        }),
+      )
+      .mockResolvedValueOnce(Response.json({ files: [] }))
+      .mockResolvedValueOnce(Response.json({ files: [] }));
+    const client = clientWith(fetchMock);
+
+    await client.project.list("acme");
+    await client.project.create("acme", {
+      name: "Website",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
+    await client.project.get("acme", "project/1");
+    await client.project.update("acme", "project/1", { name: "Docs" });
+    await client.project.delete("acme", "project/1");
+    await client.project.localeProgress("acme", "project/1");
+    await client.project.openJobCount("acme", "project/1");
+    await client.project.contentEditorBehavior("acme", "project/1");
+    await client.project.previewContentEditorBehavior("acme", "project/1");
+    await client.project.updateContentEditorBehavior("acme", "project/1", {
+      automaticallyGroupIdenticalStrings: true,
+    });
+    await client.project.files("acme", "project/1", { limit: 500, search: "home" });
+    await client.project.workspaceFiles("acme", { limit: 100 });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects`);
+    expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe("POST");
+    expect(fetchMock.mock.calls[2][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/project%2F1`,
+    );
+    expect((fetchMock.mock.calls[3][1] as RequestInit).method).toBe("PATCH");
+    expect((fetchMock.mock.calls[4][1] as RequestInit).method).toBe("DELETE");
+    expect(fetchMock.mock.calls[5][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/project%2F1/locale-progress`,
+    );
+    expect(fetchMock.mock.calls[6][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/project%2F1/open-job-count`,
+    );
+    expect(fetchMock.mock.calls[7][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/project%2F1/content-editor-behavior`,
+    );
+    expect(fetchMock.mock.calls[8][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/project%2F1/content-editor-behavior/preview`,
+    );
+    expect((fetchMock.mock.calls[9][1] as RequestInit).method).toBe("PATCH");
+    expect(fetchMock.mock.calls[10][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/project%2F1/files?limit=500&search=home`,
+    );
+    expect(fetchMock.mock.calls[11][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/workspace-files?limit=100`,
+    );
+  });
+
   it("lists, invites, updates, and removes workspace members", async () => {
     const fetchMock = vi
       .fn()

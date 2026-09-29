@@ -30,6 +30,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -265,16 +266,22 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
     queryKey: ["translation-project", resolvedOrganizationSlug, projectRoute?.projectId],
     enabled: Boolean(projectRoute?.projectId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-        param: {
-          organizationSlug: resolvedOrganizationSlug,
-          projectId: projectRoute!.projectId,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to load project (${response.status})`);
+      const projectId = projectRoute!.projectId;
+      if (parseProviderProjectId(projectId)) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
+          param: {
+            organizationSlug: resolvedOrganizationSlug,
+            projectId,
+          },
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to load project (${response.status})`);
+        }
+        const body = (await response.json()) as { project: { name: string } };
+        return body.project;
       }
-      const body = (await response.json()) as { project: { name: string } };
+
+      const body = await goSvcClient.project.get(resolvedOrganizationSlug, projectId);
       return body.project;
     },
   });

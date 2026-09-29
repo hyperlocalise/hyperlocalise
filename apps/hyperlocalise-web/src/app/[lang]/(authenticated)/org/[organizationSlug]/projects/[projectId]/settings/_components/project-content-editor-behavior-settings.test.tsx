@@ -20,44 +20,45 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { ProjectContentEditorBehaviorSettings } from "./project-content-editor-behavior-settings";
 
+const apiMocks = vi.hoisted(() => ({
+  contentEditorBehavior: vi.fn(),
+  previewContentEditorBehavior: vi.fn(),
+  updateContentEditorBehavior: vi.fn(),
+}));
+
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      project: {
+        contentEditorBehavior: apiMocks.contentEditorBehavior,
+        previewContentEditorBehavior: apiMocks.previewContentEditorBehavior,
+        updateContentEditorBehavior: apiMocks.updateContentEditorBehavior,
+      },
+    },
+    loading: false,
+  }),
+}));
+
 function renderSettings(canManage = true) {
-  const requests: Array<{ url: string; init?: RequestInit }> = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      requests.push({ url, init });
-      if (url.endsWith("/preview")) {
-        return new Response(JSON.stringify({ preview: { affectedOccurrences: 7, groups: 3 } }), {
-          status: 200,
-        });
-      }
-      if (init?.method === "PATCH") {
-        return new Response(
-          JSON.stringify({
-            contentEditorBehavior: {
-              automaticallyGroupIdenticalStrings: true,
-              groupingRevision: 1,
-              canManage: true,
-            },
-          }),
-          { status: 200 },
-        );
-      }
-      return new Response(
-        JSON.stringify({
-          contentEditorBehavior: {
-            automaticallyGroupIdenticalStrings: false,
-            groupingRevision: 0,
-            canManage,
-          },
-        }),
-        { status: 200 },
-      );
-    }),
-  );
+  apiMocks.contentEditorBehavior.mockResolvedValue({
+    contentEditorBehavior: {
+      automaticallyGroupIdenticalStrings: false,
+      groupingRevision: 0,
+      canManage,
+    },
+  });
+  apiMocks.previewContentEditorBehavior.mockResolvedValue({
+    preview: { affectedOccurrences: 7, groups: 3 },
+  });
+  apiMocks.updateContentEditorBehavior.mockResolvedValue({
+    contentEditorBehavior: {
+      automaticallyGroupIdenticalStrings: true,
+      groupingRevision: 1,
+      canManage: true,
+    },
+  });
   render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
@@ -71,18 +72,16 @@ function renderSettings(canManage = true) {
       </IntlProvider>
     </QueryClientProvider>,
   );
-  return requests;
 }
 
 afterEach(() => {
   vi.restoreAllMocks();
-  vi.unstubAllGlobals();
 });
 
 describe("ProjectContentEditorBehaviorSettings", () => {
   it("previews impact and promises translations remain unchanged before enabling", async () => {
     const user = userEvent.setup();
-    const requests = renderSettings();
+    renderSettings();
     const setting = await screen.findByRole("switch", {
       name: "Automatically group identical strings",
     });
@@ -91,7 +90,7 @@ describe("ProjectContentEditorBehaviorSettings", () => {
 
     expect(await screen.findByText(/7 occurrences into 3 groups/)).toBeInTheDocument();
     expect(screen.getByText(/Existing translations will not be changed/)).toBeInTheDocument();
-    expect(requests.some(({ url }) => url.endsWith("/preview"))).toBe(true);
+    expect(apiMocks.previewContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1");
   });
 
   it("keeps the setting read-only for non-managers", async () => {

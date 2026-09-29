@@ -15,8 +15,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { BreadcrumbCrumbSelector } from "./breadcrumb-crumb-selector";
@@ -43,22 +43,21 @@ export function ProjectBreadcrumbSelector({
 }: ProjectBreadcrumbSelectorProps) {
   const intl = useIntl();
   const router = useOrgRouter();
+  const { client: goSvcClient } = useGoSvcClient();
   const projectsQuery = useQuery({
     queryKey: organizationProjectsQueryKey(organizationSlug),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, intl.formatMessage(messages.projectsLoadError));
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects.map((project) => ({
+          value: project.id,
+          label: project.name,
+        }));
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.projectsLoadError)), {
+          cause: error,
+        });
       }
-
-      const body = await response.json();
-      return body.projects.map((project) => ({
-        value: project.id,
-        label: project.name,
-      }));
     },
   });
 

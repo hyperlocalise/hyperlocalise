@@ -14,6 +14,9 @@ import { useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export type IssueSourceFile = {
@@ -49,27 +52,27 @@ export async function collectIssueSourceFilePages(
 }
 
 async function loadNativeIssueSourceFilePage(
+  goSvcClient: GoSvcClient,
   organizationSlug: string,
   projectId: string,
   offset: number,
   limit: number,
 ) {
-  const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files.$get({
-    param: { organizationSlug, projectId },
-    query: { limit: String(limit), offset },
-  });
-  if (!response.ok) {
-    throw await readApiResponseError(response, "Failed to load project files");
+  try {
+    const body = await goSvcClient.project.files(organizationSlug, projectId, { limit, offset });
+    return body.files;
+  } catch (error) {
+    throw new Error(goSvcErrorMessage(error, "Failed to load project files"), { cause: error });
   }
-  const body = (await response.json()) as {
-    files: Array<{ sourcePath: string; filename?: string }>;
-  };
-  return body.files;
 }
 
-async function loadNativeIssueSourceFiles(organizationSlug: string, projectId: string) {
+async function loadNativeIssueSourceFiles(
+  goSvcClient: GoSvcClient,
+  organizationSlug: string,
+  projectId: string,
+) {
   return collectIssueSourceFilePages((offset, limit) =>
-    loadNativeIssueSourceFilePage(organizationSlug, projectId, offset, limit),
+    loadNativeIssueSourceFilePage(goSvcClient, organizationSlug, projectId, offset, limit),
   );
 }
 
@@ -106,13 +109,14 @@ export function useIssueSourceFilesQuery({
   projectId: string;
   enabled?: boolean;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
   return useQuery({
     queryKey: issueSourceFilesQueryKey(organizationSlug, projectId),
     enabled: Boolean(organizationSlug && projectId && enabled),
     queryFn: async (): Promise<IssueSourceFile[]> => {
       const files = parseProviderProjectId(projectId)
         ? await loadProviderIssueSourceFiles(organizationSlug, projectId)
-        : await loadNativeIssueSourceFiles(organizationSlug, projectId);
+        : await loadNativeIssueSourceFiles(goSvcClient, organizationSlug, projectId);
 
       return files.map((file) => ({
         sourcePath: file.sourcePath,

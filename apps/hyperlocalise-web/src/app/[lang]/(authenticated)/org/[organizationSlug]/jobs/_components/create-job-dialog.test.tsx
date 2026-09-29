@@ -42,7 +42,6 @@ vi.mock("@/lib/api-client-instance", () => ({
         ":organizationSlug": {
           projects: {
             ":projectId": {
-              files: { $get: apiMocks.nativeFilesGet },
               jobs: { $post: apiMocks.nativeJobsPost },
             },
           },
@@ -66,6 +65,9 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
     client: {
       member: {
         list: apiMocks.nativeMembersList,
+      },
+      project: {
+        files: apiMocks.nativeFilesGet,
       },
     },
     loading: false,
@@ -177,7 +179,7 @@ function renderDialog({
 
 describe("CreateJobDialog", () => {
   beforeEach(() => {
-    apiMocks.nativeFilesGet.mockResolvedValue(jsonResponse({ files: nativeFiles }));
+    apiMocks.nativeFilesGet.mockResolvedValue({ files: nativeFiles });
     apiMocks.nativeMembersList.mockResolvedValue({ members: nativeMembers });
     apiMocks.nativeJobsPost.mockResolvedValue(jsonResponse({ job: { id: "job_native_1" } }, 201));
     apiMocks.providerFilesGet.mockResolvedValue(jsonResponse({ files: providerFiles }));
