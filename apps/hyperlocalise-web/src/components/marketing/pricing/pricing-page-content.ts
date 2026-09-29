@@ -16,7 +16,7 @@ export type PricingPlanId = "free" | "starter" | "growth" | "enterprise";
 
 export type PricingPlanCta = {
   label: string;
-  kind: "coming_soon" | "demo";
+  kind: "signup" | "demo";
 };
 
 export type PricingPlan = {
@@ -62,10 +62,15 @@ export const pricingPlanOrder: readonly PricingPlanId[] = [
 
 export function getPricingPlans(locale: string): PricingPlan[] {
   const intl = getIntlShape(locale);
-  const comingSoon = intl.formatMessage({
-    defaultMessage: "Coming soon",
-    id: "DwOm/o1t0O",
-    description: "Disabled CTA label on Free, Starter, and Growth pricing cards",
+  const startForFree = intl.formatMessage({
+    defaultMessage: "Start for free",
+    id: "+FcGOPQu9Z",
+    description: "Free plan CTA label on the pricing page",
+  });
+  const getStarted = intl.formatMessage({
+    defaultMessage: "Get started",
+    id: "8Oyr38Aj4F",
+    description: "Paid self-serve plan CTA label on the pricing page",
   });
   const perMonth = intl.formatMessage({
     defaultMessage: "/mo.",
@@ -111,7 +116,7 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Free plan feature: seat limit",
         }),
       ],
-      cta: { label: comingSoon, kind: "coming_soon" },
+      cta: { label: startForFree, kind: "signup" },
     },
     {
       id: "starter",
@@ -170,7 +175,7 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Starter plan feature: included monthly AI credit",
         }),
       ],
-      cta: { label: comingSoon, kind: "coming_soon" },
+      cta: { label: getStarted, kind: "signup" },
     },
     {
       id: "growth",
@@ -249,7 +254,7 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Growth plan feature: included monthly AI credit",
         }),
       ],
-      cta: { label: comingSoon, kind: "coming_soon" },
+      cta: { label: getStarted, kind: "signup" },
     },
     {
       id: "enterprise",
