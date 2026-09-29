@@ -154,7 +154,8 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
     !isSwitch &&
     data.catalogType !== "logic.for_each" &&
     data.catalogType !== "logic.retry" &&
-    data.catalogType !== "flow.wait";
+    data.catalogType !== "flow.wait" &&
+    data.catalogType !== "logic.merge";
   const title = intl.formatMessage(titleMessage(data.catalogType));
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
   const primaryHandle = getPrimaryExecutionSourceHandle({
@@ -193,6 +194,8 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         ]
       : [];
 
+  const mergeInputs = data.config.kind === "logic.merge" ? data.config.inputs : [];
+
   return (
     <Card
       aria-busy={data.runStatus === "running"}
@@ -211,6 +214,20 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         >
           <HugeiconsIcon icon={TRIGGER_BADGE_ICON} className="size-3.5" strokeWidth={2} />
         </span>
+      ) : data.config.kind === "logic.merge" ? (
+        mergeInputs.map((input, index) => (
+          <Handle
+            key={input.id}
+            id={input.id}
+            className={HANDLE_CLASS}
+            position={Position.Left}
+            type="target"
+            aria-label={`Merge input: ${input.name}`}
+            style={{
+              top: `${((index + 1) / (mergeInputs.length + 1)) * 100}%`,
+            }}
+          />
+        ))
       ) : (
         <Handle
           id="input"
@@ -278,6 +295,30 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           />
         </>
       ) : data.catalogType === "flow.wait" ? (
+        <>
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[28%]!")}
+            id="completed"
+            position={Position.Right}
+            type="source"
+            aria-label="Completed"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[50%]! bg-muted-foreground")}
+            id="timed_out"
+            position={Position.Right}
+            type="source"
+            aria-label="Timed out"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[72%]! bg-destructive")}
+            id="error"
+            position={Position.Right}
+            type="source"
+            aria-label="Error"
+          />
+        </>
+      ) : data.catalogType === "logic.merge" ? (
         <>
           <Handle
             className={cn(HANDLE_CLASS, "top-[28%]!")}
@@ -584,5 +625,7 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeRetry;
     case "flow.wait":
       return messages.nodeWait;
+    case "logic.merge":
+      return messages.nodeMerge;
   }
 }

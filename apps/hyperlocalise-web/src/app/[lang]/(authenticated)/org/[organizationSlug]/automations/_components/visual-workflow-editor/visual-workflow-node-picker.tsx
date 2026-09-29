@@ -170,6 +170,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeRetry;
     case "flow.wait":
       return messages.nodeWait;
+    case "logic.merge":
+      return messages.nodeMerge;
   }
 }
 
@@ -205,6 +207,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeRetryHint;
     case "flow.wait":
       return messages.nodeWaitHint;
+    case "logic.merge":
+      return messages.nodeMergeHint;
   }
 }
 

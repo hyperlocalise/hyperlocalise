@@ -35,6 +35,9 @@ export function getAllowedExecutionSourceHandles(
   if (node.type === "flow.wait") {
     return ["completed", "timed_out", "error"];
   }
+  if (node.type === "logic.merge") {
+    return ["completed", "timed_out", "error"];
+  }
   return [
     null,
     "success",
@@ -56,6 +59,9 @@ export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource
     return "attempt";
   }
   if (node.type === "flow.wait") {
+    return "completed";
+  }
+  if (node.type === "logic.merge") {
     return "completed";
   }
   return null;

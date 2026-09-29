@@ -622,3 +622,105 @@ it.each([
     targetPortId: "url",
   });
 });
+
+it("preserves a Merge stable execution input ID", () => {
+  const source = node("source", "logic.set");
+  const merge = node("merge", "logic.merge", {
+    config: {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "email", name: "Email" },
+        { id: "slack", name: "Slack" },
+      ],
+    },
+  });
+
+  const result = validateVisualWorkflowConnection({
+    nodes: [source, merge],
+    edges: [],
+    connection: {
+      source: "source",
+      target: "merge",
+      sourceHandle: "success",
+      targetHandle: "email",
+    },
+  });
+
+  expect(result).toEqual({
+    valid: true,
+    edgeKind: "execution",
+    sourcePortId: "success",
+    targetPortId: "email",
+  });
+});
+
+it("rejects an unknown Merge execution input ID", () => {
+  const source = node("source", "logic.set");
+  const merge = node("merge", "logic.merge", {
+    config: {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "email", name: "Email" },
+        { id: "slack", name: "Slack" },
+      ],
+    },
+  });
+
+  const result = validateVisualWorkflowConnection({
+    nodes: [source, merge],
+    edges: [],
+    connection: {
+      source: "source",
+      target: "merge",
+      sourceHandle: "success",
+      targetHandle: "removed-input",
+    },
+  });
+
+  expect(result).toMatchObject({
+    valid: false,
+    code: "invalid_target_port",
+  });
+});
+
+it("rejects a second execution edge to the same Merge input", () => {
+  const first = node("first", "logic.set");
+  const second = node("second", "logic.set");
+  const merge = node("merge", "logic.merge", {
+    config: {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "email", name: "Email" },
+        { id: "slack", name: "Slack" },
+      ],
+    },
+  });
+
+  const result = validateVisualWorkflowConnection({
+    nodes: [first, second, merge],
+    edges: [
+      {
+        id: "first-email",
+        source: "first",
+        target: "merge",
+        sourceHandle: "success",
+        targetHandle: "email",
+        data: { kind: "execution" },
+      },
+    ],
+    connection: {
+      source: "second",
+      target: "merge",
+      sourceHandle: "success",
+      targetHandle: "email",
+    },
+  });
+
+  expect(result).toMatchObject({
+    valid: false,
+    code: "target_already_connected",
+  });
+});

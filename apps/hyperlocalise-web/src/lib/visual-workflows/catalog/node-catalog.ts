@@ -23,6 +23,7 @@ import {
   Task01Icon,
   Upload04Icon,
   VariableIcon,
+  GitMergeIcon,
 } from "@hugeicons/core-free-icons";
 import type { ComponentProps } from "react";
 import type { HugeiconsIcon } from "@hugeicons/react";
@@ -132,6 +133,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     enabled: true,
     icon: Clock01Icon,
   },
+  {
+    type: "logic.merge",
+    category: "logic",
+    enabled: true,
+    icon: GitMergeIcon,
+  },
 ];
 
 export const VISUAL_CATALOG_CATEGORY_ORDER: readonly VisualCatalogCategory[] = [
@@ -230,6 +237,15 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         mode: "duration",
         durationMs: 60_000,
       };
+    case "logic.merge":
+      return {
+        kind: "logic.merge",
+        mode: "all",
+        inputs: [
+          { id: createMergeInputId(), name: "Input 1" },
+          { id: createMergeInputId(), name: "Input 2" },
+        ],
+      };
     default:
       return assertNever(type);
   }
@@ -255,6 +271,9 @@ export function getVisualNodeDimensions(type: VisualCatalogType): {
     return { width: 280, height: 120 };
   }
   if (type === "flow.wait") {
+    return { width: 280, height: 140 };
+  }
+  if (type === "logic.merge") {
     return { width: 280, height: 140 };
   }
   return { width: 280, height: 104 };
@@ -314,7 +333,13 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       }
 
       return "Wait until condition";
+    case "logic.merge":
+      return `${config.inputs.length} inputs · ${config.mode.replace("_", " ")}`;
     default:
       return assertNever(config);
   }
+}
+
+export function createMergeInputId(): string {
+  return crypto.randomUUID();
 }

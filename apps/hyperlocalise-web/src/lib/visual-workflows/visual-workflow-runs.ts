@@ -41,6 +41,11 @@ import {
   parseWaitResumeState,
   type WaitResumeState,
 } from "./runtime/wait-schedule";
+import {
+  isMergeWakePending,
+  parseMergeResumeState,
+  type MergeResumeState,
+} from "./runtime/merge-timeout";
 
 export type VisualWorkflowRunExecutionView = VisualWorkflowRunRecord & {
   executionLeaseBusy?: boolean;
@@ -307,12 +312,42 @@ async function persistRunWaitResume(input: {
   organizationId: string;
   payload: Record<string, unknown>;
   resume: WaitResumeState;
+  mergeResume?: MergeResumeState | null;
 }): Promise<void> {
   const nextPayload = {
     ...input.payload,
     waitResume: input.resume,
+    ...(input.mergeResume ? { mergeResume: input.mergeResume } : {}),
   };
+  const wakeAt =
+    input.mergeResume && Date.parse(input.mergeResume.wakeAt) < Date.parse(input.resume.wakeAt)
+      ? input.mergeResume.wakeAt
+      : input.resume.wakeAt;
 
+  await db
+    .update(schema.visualWorkflowRuns)
+    .set({
+      leaseExpiresAt: new Date(wakeAt),
+      encryptedPayload: encryptWorkflowPayload(nextPayload),
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, input.runId),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowRuns.leaseToken, input.leaseToken),
+      ),
+    );
+}
+
+async function persistRunMergeResume(input: {
+  leaseToken: string;
+  runId: string;
+  organizationId: string;
+  payload: Record<string, unknown>;
+  resume: MergeResumeState;
+}): Promise<void> {
+  const nextPayload = { ...input.payload, mergeResume: input.resume };
   await db
     .update(schema.visualWorkflowRuns)
     .set({
@@ -965,6 +1000,7 @@ export async function executeVisualWorkflowRun(input: {
     : run.inputSnapshot;
   let retryResume = parseRetryResumeState(payload.retryBackoff);
   const waitResume = parseWaitResumeState(payload.waitResume);
+  const mergeResume = parseMergeResumeState(payload.mergeResume);
   if (retryResume?.wakeAt && !isRetryWakePending(retryResume)) {
     const { wakeAt: _wakeAt, ...withoutWake } = retryResume;
     retryResume = withoutWake;
@@ -1012,7 +1048,12 @@ export async function executeVisualWorkflowRun(input: {
       completedAt: new Date(),
     });
   }
-  if (!waitResume && run.startedAt && Date.now() - Date.parse(run.startedAt) > 900000)
+  if (
+    !waitResume &&
+    !mergeResume &&
+    run.startedAt &&
+    Date.now() - Date.parse(run.startedAt) > 900000
+  )
     return finishVisualWorkflowRun({
       leaseToken,
       runId: run.id,
@@ -1039,7 +1080,12 @@ export async function executeVisualWorkflowRun(input: {
     return current ? { ...current, executionPausedUntil: wakeAt, executionLeaseBusy: false } : null;
   }
   const { executeDurableWorkflowSlice } = await import("./runtime/durable-slice");
-  if (isWaitWakePending(waitResume)) {
+  const waitWakePending = isWaitWakePending(waitResume);
+  const mergeWakePending = isMergeWakePending(mergeResume);
+  if (
+    waitWakePending &&
+    (!mergeWakePending || Date.parse(waitResume!.wakeAt) <= Date.parse(mergeResume!.wakeAt))
+  ) {
     const wakeAt = waitResume!.wakeAt;
 
     await db
@@ -1068,6 +1114,24 @@ export async function executeVisualWorkflowRun(input: {
           executionLeaseBusy: false,
         }
       : null;
+  }
+  if (mergeWakePending) {
+    const wakeAt = mergeResume!.wakeAt;
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({ leaseExpiresAt: new Date(wakeAt), updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.id, run.id),
+          eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
+        ),
+      );
+    const current = await getVisualWorkflowRunById({
+      organizationId: input.organizationId,
+      visualWorkflowId: input.visualWorkflowId,
+      runId: run.id,
+    });
+    return current ? { ...current, executionPausedUntil: wakeAt, executionLeaseBusy: false } : null;
   }
   const result = await executeDurableWorkflowSlice({
     leaseToken,
@@ -1119,6 +1183,7 @@ export async function executeVisualWorkflowRun(input: {
   }
   if (!result.ok && result.error.code === "wait_suspended") {
     const resume = parseWaitResumeState(result.error);
+    const pendingMergeResume = parseMergeResumeState(result.error.mergeResume);
 
     if (!resume) {
       return finishVisualWorkflowRun({
@@ -1143,6 +1208,7 @@ export async function executeVisualWorkflowRun(input: {
       organizationId: input.organizationId,
       payload,
       resume,
+      mergeResume: pendingMergeResume,
     });
 
     const current = await getVisualWorkflowRunById({
@@ -1154,9 +1220,40 @@ export async function executeVisualWorkflowRun(input: {
     return current
       ? {
           ...current,
-          executionPausedUntil: resume.wakeAt,
+          executionPausedUntil:
+            pendingMergeResume && Date.parse(pendingMergeResume.wakeAt) < Date.parse(resume.wakeAt)
+              ? pendingMergeResume.wakeAt
+              : resume.wakeAt,
           executionLeaseBusy: false,
         }
+      : null;
+  }
+  if (!result.ok && result.error.code === "merge_suspended") {
+    const resume = parseMergeResumeState(result.error);
+    if (!resume) {
+      return finishVisualWorkflowRun({
+        leaseToken,
+        runId: run.id,
+        organizationId: input.organizationId,
+        status: "failed",
+        error: { code: "invalid_merge", message: "Merge returned invalid resume state." },
+        outputSummaryPatch: { nodeResults: result.nodeResults },
+      });
+    }
+    await persistRunMergeResume({
+      leaseToken,
+      runId: run.id,
+      organizationId: input.organizationId,
+      payload,
+      resume,
+    });
+    const current = await getVisualWorkflowRunById({
+      organizationId: input.organizationId,
+      visualWorkflowId: input.visualWorkflowId,
+      runId: run.id,
+    });
+    return current
+      ? { ...current, executionPausedUntil: resume.wakeAt, executionLeaseBusy: false }
       : null;
   }
   if (!result.ok && result.error.code === "retry_backoff") {
@@ -1237,10 +1334,11 @@ export async function executeVisualWorkflowRun(input: {
     });
   }
 
-  if (payload.retryBackoff || payload.waitResume) {
+  if (payload.retryBackoff || payload.waitResume || payload.mergeResume) {
     const {
       retryBackoff: _removedRetry,
       waitResume: _removedWait,
+      mergeResume: _removedMerge,
       ...payloadWithoutResume
     } = payload;
 

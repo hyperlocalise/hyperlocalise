@@ -54,6 +54,11 @@ function hasDataTargetPort(node: CanonicalVisualWorkflowNode, portId: string): b
     return false;
   }
 
+  if (node.config.kind === "logic.merge" && portId.startsWith("value.")) {
+    const inputId = portId.slice("value.".length);
+    return node.config.inputs.some((input) => input.id === inputId);
+  }
+
   if (NODE_CONTRACTS[node.type].inputs.some((field) => field.name === portId)) {
     return true;
   }
@@ -78,6 +83,10 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
     return new Set(["each", "done"]);
   }
 
+  if (node.type === "logic.merge") {
+    return new Set(["completed", "timed_out", "error"]);
+  }
+
   const portIds = new Set(["success"]);
 
   if ("onError" in node.config && node.config.onError === "branch") {
@@ -89,6 +98,14 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
   }
 
   return portIds;
+}
+
+function executionTargetPortIds(node: CanonicalVisualWorkflowNode): Set<string> {
+  if (node.config.kind === "logic.merge") {
+    return new Set(node.config.inputs.map((input) => input.id));
+  }
+
+  return new Set(["input"]);
 }
 
 function hasExecutionCycle(
@@ -190,7 +207,7 @@ export function compileVisualWorkflowV3Definition(
       continue;
     }
 
-    if (edge.targetPortId !== "input" || isTriggerType(target.type)) {
+    if (isTriggerType(target.type) || !executionTargetPortIds(target).has(edge.targetPortId)) {
       issues.push({
         code: "invalid_target_port",
         edgeId: edge.id,
@@ -289,6 +306,7 @@ export function compileVisualWorkflowV3Definition(
       kind: "reference",
       nodeId: source.id,
       path: edge.sourcePortId.split("."),
+      ...(target.config.kind === "logic.merge" ? { optional: true } : {}),
     };
 
     target.inputs = inputs;

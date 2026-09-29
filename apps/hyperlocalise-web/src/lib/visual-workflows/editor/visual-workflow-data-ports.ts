@@ -32,6 +32,14 @@ export type VisualWorkflowDataPorts = {
 };
 
 function getInputFields(node: VisualWorkflowRfNode) {
+  if (node.data.config.kind === "logic.merge") {
+    return node.data.config.inputs.map((input) => ({
+      name: `value.${input.id}`,
+      type: "unknown" as const,
+      required: false,
+    }));
+  }
+
   if (node.data.config.kind !== "logic.set") {
     return NODE_CONTRACTS[node.data.catalogType].inputs;
   }

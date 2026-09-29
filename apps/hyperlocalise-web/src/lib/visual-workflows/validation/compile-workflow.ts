@@ -61,11 +61,11 @@ export function compileWorkflowIssues(
     if (!source || !target) continue;
     incoming.set(target.id, incoming.get(target.id)! + 1);
     const allowed = getAllowedExecutionSourceHandles(source);
-    if (
-      !allowed.includes(edge.sourceHandle) ||
-      ![null, "input"].includes(edge.targetHandle) ||
-      isTriggerType(target.type)
-    )
+    const targetHandleAllowed =
+      target.config.kind === "logic.merge"
+        ? target.config.inputs.some((input) => input.id === edge.targetHandle)
+        : [null, "input"].includes(edge.targetHandle);
+    if (!allowed.includes(edge.sourceHandle) || !targetHandleAllowed || isTriggerType(target.type))
       add("invalid_handle", undefined, edge.id);
   }
   const queue = [...incoming].filter(([, count]) => count === 0).map(([id]) => id);
@@ -252,6 +252,7 @@ export function compileWorkflowIssues(
       let invalid =
         !field &&
         node.type !== "logic.set" &&
+        !(node.type === "logic.merge" && name.startsWith("value.")) &&
         !(node.type === "action.http" && /^(headers|body)\./.test(name));
       if (
         /^(headers\.(authorization|x-api-key|cookie)|body\..*(token|password|secret))$/i.test(

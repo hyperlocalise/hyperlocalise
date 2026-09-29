@@ -37,6 +37,7 @@ const ENABLED_TYPES = new Set<VisualCatalogType>([
   "ai.agent",
   "logic.for_each",
   "flow.wait",
+  "logic.merge",
 ]);
 
 function deriveFlowBodyMembership(

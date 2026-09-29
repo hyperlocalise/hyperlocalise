@@ -20,6 +20,7 @@ import {
   visualWorkflowRetryDraft,
   visualWorkflowSwitchDeleteDraft,
   visualWorkflowWaitDraft,
+  visualWorkflowMergeDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
 
@@ -385,5 +386,48 @@ export const WaitBranches: Story = {
         name: "Duration (ms)",
       }),
     ).toHaveValue("60000");
+  },
+};
+
+export const MergeBranches: Story = {
+  name: "Merge inputs and branches",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Shows stable named Merge inputs, optional aggregated values, and Completed, Timed out, and Error branches.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowMergeDraft.name,
+    initialNodes: visualWorkflowMergeDraft.nodes,
+    initialEdges: visualWorkflowMergeDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Merge input: Email", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Merge input: Slack")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Completed")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Timed out")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Error")).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data input: value.email-input, unknown, optional"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data input: value.slack-input, unknown, optional"),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+
+    const mergeNode = canvas.getByLabelText("Merge input: Email").closest(".react-flow__node");
+    await expect(mergeNode).not.toBeNull();
+    await userEvent.click(mergeNode!);
+    await expect(await canvas.findByRole("combobox", { name: "Merge mode" })).toBeInTheDocument();
+    await expect(canvas.getByRole("textbox", { name: "Merge input 1" })).toHaveValue("Email");
+    await expect(canvas.getByRole("textbox", { name: "Merge input 2" })).toHaveValue("Slack");
+    await expect(canvas.getByRole("textbox", { name: "Timeout (ms)" })).toHaveValue("60000");
   },
 };

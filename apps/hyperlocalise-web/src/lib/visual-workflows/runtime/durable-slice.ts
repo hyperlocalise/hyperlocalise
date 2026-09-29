@@ -39,6 +39,7 @@ import {
 import { isLogicRetryConfig } from "../schema/retry-policy";
 import { parseRetryResumeState } from "./retry-delay";
 import { parseWaitResumeState } from "./wait-schedule";
+import { parseMergeResumeState } from "./merge-timeout";
 import { resolveActiveWaitConditionProbeNodeIds } from "./wait-condition-probes";
 
 const logger = createLogger("visual-workflow-node");
@@ -63,6 +64,7 @@ export async function executeDurableWorkflowSlice(input: {
   const retryBodyNodeIds = collectRetryBodyNodeIds(input.definition);
   const retryBackoff = parseRetryResumeState(input.payload.retryBackoff);
   const waitResume = parseWaitResumeState(input.payload.waitResume);
+  const mergeResume = parseMergeResumeState(input.payload.mergeResume);
   const waitConditionProbeNodeIds = resolveActiveWaitConditionProbeNodeIds({
     definition: input.definition,
     waitResume,
@@ -136,6 +138,7 @@ export async function executeDurableWorkflowSlice(input: {
                 "executionPlanVersion",
                 "retryBackoff",
                 "waitResume",
+                "mergeResume",
               ].includes(name),
           ),
         ),
@@ -145,6 +148,7 @@ export async function executeDurableWorkflowSlice(input: {
       mockMode: input.run.mode === "mock",
       retryBackoff: retryBackoff ?? null,
       waitResume,
+      mergeResume,
       executeNode: async (args) => {
         const id = key(args.node.id, args.iteration);
         const isExternal = args.node.type.startsWith("action.") || args.node.type === "ai.agent";

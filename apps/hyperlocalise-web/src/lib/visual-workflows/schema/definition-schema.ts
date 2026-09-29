@@ -62,6 +62,7 @@ const visualCatalogTypeSchema = z.enum([
   "logic.for_each",
   "logic.retry",
   "flow.wait",
+  "logic.merge",
 ]);
 
 const visualNodeConfigSchema = z.discriminatedUnion("kind", [
@@ -246,6 +247,35 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
         }
       }
     }),
+  z.object({
+    kind: z.literal("logic.merge"),
+    mode: z.enum(["all", "any", "first_success"]),
+    inputs: z
+      .array(
+        z.object({
+          id: z.string().trim().min(1).max(128),
+          name: z.string().trim().min(1).max(128),
+        }),
+      )
+      .min(2)
+      .max(32)
+      .superRefine((inputs, context) => {
+        const ids = new Set<string>();
+
+        for (const [index, input] of inputs.entries()) {
+          if (ids.has(input.id)) {
+            context.addIssue({
+              code: "custom",
+              path: [index, "id"],
+              message: "duplicate_merge_input_id",
+            });
+          }
+
+          ids.add(input.id);
+        }
+      }),
+    timeoutMs: z.number().int().positive().max(86_400_000).optional(),
+  }),
 ]);
 
 export const workflowBindingSchema = z.intersection(
