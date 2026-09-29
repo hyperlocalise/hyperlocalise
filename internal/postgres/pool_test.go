@@ -51,7 +51,8 @@ func TestInspectQueryFallsBackForUnsafeSQL(t *testing.T) {
 		{name: "literal", sql: "SELECT id FROM glossary_terms WHERE term = 'secret'", want: "SELECT glossary_terms"},
 		{name: "comment", sql: "SELECT id FROM glossary_terms -- secret", want: "SELECT glossary_terms"},
 		{name: "multiple statements", sql: "SELECT id FROM glossary_terms; DELETE FROM users", want: "SELECT"},
-		{name: "dynamic operation", sql: "WITH terms AS (SELECT id FROM glossary_terms) SELECT id FROM terms", want: "WITH"},
+		{name: "dynamic operation", sql: "WITH terms AS (SELECT id FROM glossary_terms) SELECT id FROM terms", want: "UNKNOWN"},
+		{name: "leading comment", sql: "/*tenant=customer-secret*/ SELECT id FROM glossary_terms WHERE id = $1", want: "UNKNOWN"},
 	}
 
 	for _, tt := range tests {
@@ -61,6 +62,12 @@ func TestInspectQueryFallsBackForUnsafeSQL(t *testing.T) {
 			require.Empty(t, details.normalized)
 		})
 	}
+}
+
+func TestInspectQueryKeepsSingleInsertTableWithColumnList(t *testing.T) {
+	details := inspectQuery("INSERT INTO organization_activity_events (organization_id, actor_kind) VALUES ($1, $2)")
+
+	require.Equal(t, "INSERT organization_activity_events", details.summary)
 }
 
 func TestQueryTracerDistinguishesSafeQueriesWithoutParameterValues(t *testing.T) {

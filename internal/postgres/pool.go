@@ -54,8 +54,9 @@ func (t *queryTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data 
 
 func inspectQuery(sql string) queryDetails {
 	operation, table := queryOperationAndTable(sql)
-	if operation == "" {
+	if !isSQLOperation(operation) {
 		operation = "UNKNOWN"
+		table = ""
 	}
 	summary := operation
 	if table != "" {
@@ -163,16 +164,43 @@ func queryOperationAndTable(sql string) (string, string) {
 			if table == "" {
 				return operation, ""
 			}
-			for _, rest := range fields[i+2:] {
-				if strings.Contains(rest, ",") || strings.EqualFold(strings.Trim(rest, "(),"), "JOIN") {
-					return operation, ""
-				}
+			rest := strings.Join(fields[i+2:], " ")
+			if hasTopLevelComma(rest) || hasSQLKeyword(rest, "JOIN") || hasSQLKeyword(rest, "USING") {
+				return operation, ""
 			}
 			return operation, table
 		}
 	}
 
 	return operation, ""
+}
+
+func hasTopLevelComma(sql string) bool {
+	depth := 0
+	for _, ch := range sql {
+		switch ch {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasSQLKeyword(sql, keyword string) bool {
+	for _, field := range strings.Fields(sql) {
+		if strings.EqualFold(strings.Trim(field, "(),"), keyword) {
+			return true
+		}
+	}
+	return false
 }
 
 func isSQLOperation(operation string) bool {
