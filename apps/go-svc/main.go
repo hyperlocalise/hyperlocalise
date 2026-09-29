@@ -97,7 +97,7 @@ func main() {
 	h.issueSheets = &issueSheetAPI{}
 	h.activityLogs = &activityLogAPI{}
 	h.contentEditor = &editorCatAPI{}
-	h.projects = &projectAPI{}
+	h.projects = &projectAPI{activityLog: activityLogPublisher}
 	if autumnKey := strings.TrimSpace(os.Getenv("AUTUMN_API_KEY")); autumnKey != "" {
 		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
 			log.Printf("configure autumn: %v", err)
@@ -105,6 +105,7 @@ func main() {
 			h.autumn = client
 			h.issueSheets.autumn = autumnClientChecker{client: client}
 			h.members.seats = autumnMemberSeats{client: client}
+			h.projects.autumn = client
 		}
 	}
 	var membershipLookup organizationMembershipLookup

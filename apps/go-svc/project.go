@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -22,8 +23,10 @@ const (
 )
 
 type projectAPI struct {
-	pool       dictionaryPool
-	membership organizationMembershipLookup
+	pool        dictionaryPool
+	membership  organizationMembershipLookup
+	autumn      *autumn.Client
+	activityLog activityLogPublisher
 }
 
 type projectActor struct {
@@ -32,6 +35,10 @@ type projectActor struct {
 
 func (a projectActor) canReadAllTeams() bool {
 	return a.role == "admin" || a.role == "localization_manager"
+}
+
+func (a projectActor) canCreateProjects() bool {
+	return a.role == "admin" || a.role == "localization_manager" || a.role == "developer"
 }
 
 func (a projectActor) canManageContentEditorBehavior() bool {
@@ -86,6 +93,7 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
 	}
 	route("GET "+projects, bindActor(api, (*projectAPI).listHandler))
+	route("POST "+projects, bindActor(api, (*projectAPI).createHandler))
 	route("GET "+project, bindActor(api, (*projectAPI).getHandler))
 	route("GET "+project+"/locale-progress", bindActor(api, (*projectAPI).localeProgressHandler))
 	route("GET "+project+"/open-job-count", bindActor(api, (*projectAPI).openJobCountHandler))
@@ -106,6 +114,10 @@ func (api *projectAPI) actor(ctx context.Context, claims AuthClaims, slug string
 func (api *projectAPI) handle(fn func(*http.Request, projectActor) (any, int, error)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
+		if denyBrowserMutation(r) {
+			writeProjectError(w, r, "origin_guard", projectFailure(403, "forbidden", "Cross-origin request denied"))
+			return
+		}
 		if api.pool == nil {
 			writeProjectError(w, r, "availability", projectFailure(503, "projects_unavailable", "Projects are unavailable"))
 			return
@@ -123,9 +135,14 @@ func (api *projectAPI) handle(fn func(*http.Request, projectActor) (any, int, er
 			writeProjectError(w, r, "resolve_actor", err)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, projectBodyLimit)
 		value, status, err := fn(r, actor)
 		if err != nil {
 			writeProjectError(w, r, "handle", err)
+			return
+		}
+		if status == http.StatusNoContent {
+			w.WriteHeader(status)
 			return
 		}
 		projectJSON(ctx, w, status, value)
