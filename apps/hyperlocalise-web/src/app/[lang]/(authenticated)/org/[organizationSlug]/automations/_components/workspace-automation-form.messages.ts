@@ -1030,27 +1030,27 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   modelGpt61Sol: {
     defaultMessage: "GPT-6.1 Sol",
-    id: 'nn5/Lv4WBX',
+    id: "nn5/Lv4WBX",
     description: "Label for the OpenAI GPT-6.1 Sol automation model",
   },
   modelGpt61SolFast: {
     defaultMessage: "GPT-6.1 Sol (Fast)",
-    id: 'zN4XlAxGFa',
+    id: "zN4XlAxGFa",
     description: "Label for the OpenAI GPT-6.1 Sol fast automation model",
   },
   modelGpt6LunaFast: {
     defaultMessage: "GPT-6 Luna (Fast)",
-    id: 'XTQH6Cl2jC',
+    id: "XTQH6Cl2jC",
     description: "Label for the OpenAI GPT-6 Luna fast automation model",
   },
   modelGpt6AstraFast: {
     defaultMessage: "GPT-6 Astra (Fast)",
-    id: 'XcFjhy5gkF',
+    id: "XcFjhy5gkF",
     description: "Label for the OpenAI GPT-6 Astra fast automation model",
   },
   modelGpt6SolFast: {
     defaultMessage: "GPT-6 Sol (Fast)",
-    id: 'dO1TC3x3LJ',
+    id: "dO1TC3x3LJ",
     description: "Label for the OpenAI GPT-6 Sol fast automation model",
   },
   modelGpt56Luna: {
@@ -1070,12 +1070,12 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   modelGpt56TerraFast: {
     defaultMessage: "GPT-5.6 Terra (Fast)",
-    id: 'cAyguvo6I8',
+    id: "cAyguvo6I8",
     description: "Label for the OpenAI GPT-5.6 Terra fast automation model",
   },
   modelGpt56SolFast: {
     defaultMessage: "GPT-5.6 Sol (Fast)",
-    id: '29NlUC9+y8',
+    id: "29NlUC9+y8",
     description: "Label for the OpenAI GPT-5.6 Sol fast automation model",
   },
   modelClaudeSonnet5: {
