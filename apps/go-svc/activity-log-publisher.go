@@ -202,8 +202,6 @@ func (p *sqsActivityLogPublisher) Ping(ctx context.Context) error {
 	if p.client == nil {
 		return errors.New("activity log SQS client is unavailable")
 	}
-	slog.InfoContext(ctx, "activity_log_health_check_started")
-
 	_, err := p.client.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{
 		QueueUrl: aws.String(p.queueURL),
 		AttributeNames: []types.QueueAttributeName{
@@ -211,10 +209,8 @@ func (p *sqsActivityLogPublisher) Ping(ctx context.Context) error {
 		},
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "activity_log_health_check_failed", "error", err)
 		return fmt.Errorf("get activity log queue attributes: %w", err)
 	}
-	slog.InfoContext(ctx, "activity_log_health_check_succeeded")
 	return nil
 }
 

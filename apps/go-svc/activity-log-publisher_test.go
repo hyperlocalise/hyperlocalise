@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -88,12 +90,18 @@ func TestSQSActivityLogPublisherPublish(t *testing.T) {
 }
 
 func TestSQSActivityLogPublisherPing(t *testing.T) {
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
 	client := &fakeActivityLogSQSClient{}
 	publisher := newSQSActivityLogPublisher(client, "https://sqs.example/queue")
 
 	require.NoError(t, publisher.Ping(context.Background()))
 	require.Equal(t, "https://sqs.example/queue", aws.ToString(client.attrsInput.QueueUrl))
 	require.Equal(t, []types.QueueAttributeName{types.QueueAttributeNameQueueArn}, client.attrsInput.AttributeNames)
+	require.Empty(t, logs.String())
 }
 
 func TestSQSActivityLogPublisherErrors(t *testing.T) {
@@ -111,8 +119,14 @@ func TestSQSActivityLogPublisherErrors(t *testing.T) {
 	})
 
 	t.Run("ping", func(t *testing.T) {
+		var logs bytes.Buffer
+		previous := slog.Default()
+		slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
+		t.Cleanup(func() { slog.SetDefault(previous) })
+
 		publisher := newSQSActivityLogPublisher(&fakeActivityLogSQSClient{attrsErr: errors.New("denied")}, "queue")
 		require.ErrorContains(t, publisher.Ping(context.Background()), "get activity log queue attributes")
+		require.Empty(t, logs.String())
 	})
 }
 
