@@ -7,7 +7,10 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_exaring_otelpgx//:otelpgx",
+        "@com_github_jackc_pgx_v5//:pgx",
         "@com_github_jackc_pgx_v5//pgxpool",
+        "@io_opentelemetry_go_otel//attribute:attribute",
+        "@io_opentelemetry_go_otel_trace//:trace",
     ],
 )
 
@@ -15,5 +18,13 @@ go_test(
     name = "postgres_test",
     srcs = ["pool_test.go"],
     embed = [":postgres"],
-    deps = ["@com_github_stretchr_testify//require"],
+    deps = [
+        "@com_github_exaring_otelpgx//:otelpgx",
+        "@com_github_jackc_pgx_v5//:pgx",
+        "@com_github_stretchr_testify//require",
+        "@io_opentelemetry_go_otel//:otel",
+        "@io_opentelemetry_go_otel_sdk//trace:trace",
+        "@io_opentelemetry_go_otel_sdk//trace/tracetest:tracetest",
+        "@io_opentelemetry_go_otel_trace//:trace",
+    ],
 )

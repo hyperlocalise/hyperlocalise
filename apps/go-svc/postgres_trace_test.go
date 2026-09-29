@@ -47,15 +47,22 @@ func TestEditorCatQuerySpansAreChildrenOfHTTPSpan(t *testing.T) {
 	spans := recorder.Ended()
 	var httpSpan sdktrace.ReadOnlySpan
 	var querySpans []sdktrace.ReadOnlySpan
+	queryLabels := make(map[string]struct{})
 	for _, span := range spans {
 		if strings.HasPrefix(span.Name(), "GET /v1/orgs/{organizationSlug}/projects/{projectId}/files/detail/cat") {
 			httpSpan = span
-		} else if span.SpanKind() == trace.SpanKindClient && span.Name() == "postgres.query" {
+		} else if span.SpanKind() == trace.SpanKindClient && requireSpanStringAttrIfPresent(span, "db.system.name") == "postgresql" {
 			querySpans = append(querySpans, span)
+			if queryText, ok := spanStringAttr(span, "db.query.text"); ok {
+				queryLabels[queryText] = struct{}{}
+			} else if summary, ok := spanStringAttr(span, "db.query.summary"); ok {
+				queryLabels[summary] = struct{}{}
+			}
 		}
 	}
 	require.NotNil(t, httpSpan, "spans=%v", spans)
 	require.NotEmpty(t, querySpans, "spans=%v", spans)
+	require.GreaterOrEqual(t, len(queryLabels), 2, "query spans should be distinguishable; spans=%v", querySpans)
 	spansByID := make(map[trace.SpanID]sdktrace.ReadOnlySpan, len(spans))
 	for _, span := range spans {
 		spansByID[span.SpanContext().SpanID()] = span
@@ -82,9 +89,8 @@ func TestEditorCatQuerySpansAreChildrenOfHTTPSpan(t *testing.T) {
 			parentID = parent.Parent().SpanID()
 		}
 		require.True(t, descendsFromHTTP, "query span %q must descend from HTTP span; spans=%v", querySpan.Name(), spans)
-		require.Equal(t, "postgres.query", querySpan.Name())
+		require.NotEqual(t, "postgres.query", querySpan.Name())
 		for _, key := range []string{
-			"db.query.text",
 			"db.statement",
 			"pgx.query.parameters",
 			"server.address",
@@ -96,5 +102,16 @@ func TestEditorCatQuerySpansAreChildrenOfHTTPSpan(t *testing.T) {
 			_, ok := spanStringAttr(querySpan, key)
 			require.False(t, ok, "query span %q must not contain %q", querySpan.Name(), key)
 		}
+		if queryText, ok := spanStringAttr(querySpan, "db.query.text"); ok {
+			require.NotContains(t, queryText, "customer")
+			require.NotContains(t, queryText, "secret")
+		} else {
+			require.NotEmpty(t, requireSpanStringAttr(t, querySpan, "db.query.summary"))
+		}
 	}
+}
+
+func requireSpanStringAttrIfPresent(span sdktrace.ReadOnlySpan, key string) string {
+	value, _ := spanStringAttr(span, key)
+	return value
 }
