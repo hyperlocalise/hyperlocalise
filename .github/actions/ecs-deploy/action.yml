@@ -11,6 +11,9 @@ inputs:
   image:
     description: Fully-qualified container image URI to deploy
     required: true
+  version:
+    description: Immutable application image tag used for Datadog and OpenTelemetry version metadata
+    required: true
   container-name:
     description: Container name inside the task definition to update
     required: true
@@ -72,6 +75,64 @@ runs:
             delete taskDefinition[key];
           }
           require('fs').writeFileSync(process.env.TASK_DEFINITION_FILE, `${JSON.stringify(taskDefinition)}\n`);
+
+    - name: Set deployed observability version
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      env:
+        TASK_DEFINITION_FILE: ${{ inputs.task-definition-file }}
+        CONTAINER_NAME: ${{ inputs.container-name }}
+        VERSION: ${{ inputs.version }}
+      with:
+        script: |
+          const fs = require('fs');
+          const file = process.env.TASK_DEFINITION_FILE;
+          const taskDefinition = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const application = (taskDefinition.containerDefinitions ?? []).find(
+            (container) => container.name === process.env.CONTAINER_NAME,
+          );
+          if (!application) {
+            core.setFailed(`Container ${process.env.CONTAINER_NAME} not found in task definition`);
+            return;
+          }
+
+          const setEnvironment = (container, name, value) => {
+            container.environment ??= [];
+            const existing = container.environment.find((entry) => entry.name === name);
+            if (existing) {
+              existing.value = value;
+            } else {
+              container.environment.push({ name, value });
+            }
+          };
+
+          const removeEnvironment = (container, name) => {
+            container.environment = (container.environment ?? []).filter(
+              (entry) => entry.name !== name,
+            );
+          };
+
+          const setTagVersion = (tags) => {
+            const versionTag = `version:${process.env.VERSION}`;
+            const values = (tags ?? '').split(',').map((value) => value.trim()).filter(Boolean);
+            const withoutVersion = values.filter((value) => !value.startsWith('version:'));
+            return [...withoutVersion, versionTag].join(',');
+          };
+
+          setEnvironment(application, 'DD_VERSION', process.env.VERSION);
+          removeEnvironment(application, 'OTEL_RESOURCE_ATTRIBUTES');
+
+          for (const container of taskDefinition.containerDefinitions ?? []) {
+            const tags = (container.environment ?? []).find((entry) => entry.name === 'DD_TAGS');
+            if (tags) {
+              tags.value = setTagVersion(tags.value);
+            }
+            const options = container.logConfiguration?.options;
+            if (options?.dd_tags) {
+              options.dd_tags = setTagVersion(options.dd_tags);
+            }
+          }
+
+          fs.writeFileSync(file, `${JSON.stringify(taskDefinition)}\n`);
 
     - name: Render task definition with new image
       id: render

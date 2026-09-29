@@ -39,8 +39,8 @@ type serviceResourceInfo struct {
 func loadServiceResourceInfo() serviceResourceInfo {
 	return serviceResourceInfo{
 		name:    otelServiceName,
-		version: strings.TrimSpace(os.Getenv("VERCEL_GIT_COMMIT_SHA")),
-		env:     strings.TrimSpace(os.Getenv("VERCEL_ENV")),
+		version: strings.TrimSpace(os.Getenv("DD_VERSION")),
+		env:     strings.TrimSpace(os.Getenv("DD_ENV")),
 	}
 }
 

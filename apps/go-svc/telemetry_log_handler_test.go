@@ -294,8 +294,8 @@ func TestDatadogLogHandlerWithGroupKeepsCorrelationAttrsTopLevel(t *testing.T) {
 }
 
 func TestNewDatadogLogHandlerOmitsUnsetServiceAttrs(t *testing.T) {
-	t.Setenv("VERCEL_ENV", "")
-	t.Setenv("VERCEL_GIT_COMMIT_SHA", "")
+	t.Setenv("DD_ENV", "")
+	t.Setenv("DD_VERSION", "")
 
 	var buf bytes.Buffer
 	logger := slog.New(newDatadogLogHandler(slog.NewJSONHandler(&buf, nil)))
@@ -309,8 +309,8 @@ func TestNewDatadogLogHandlerOmitsUnsetServiceAttrs(t *testing.T) {
 }
 
 func TestNewDatadogLogHandlerIncludesConfiguredServiceAttrs(t *testing.T) {
-	t.Setenv("VERCEL_ENV", "preview")
-	t.Setenv("VERCEL_GIT_COMMIT_SHA", "abc123def")
+	t.Setenv("DD_ENV", "production")
+	t.Setenv("DD_VERSION", "abc123def-42-1")
 
 	var buf bytes.Buffer
 	logger := slog.New(newDatadogLogHandler(slog.NewJSONHandler(&buf, nil)))
@@ -319,6 +319,6 @@ func TestNewDatadogLogHandlerIncludesConfiguredServiceAttrs(t *testing.T) {
 
 	entry := decodeLogLine(t, &buf)
 	require.Equal(t, otelServiceName, entry["dd.service"])
-	require.Equal(t, "preview", entry["dd.env"])
-	require.Equal(t, "abc123def", entry["dd.version"])
+	require.Equal(t, "production", entry["dd.env"])
+	require.Equal(t, "abc123def-42-1", entry["dd.version"])
 }

@@ -30,6 +30,7 @@ concurrency:
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+  GO_SVC_IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
   ECR_REPOSITORY_PARAMETER_NAME: /hyperlocalise/prod/ecr/go-svc/repository_name
   ECS_CLUSTER_PARAMETER_NAME: /hyperlocalise/prod/ecs/cluster_name
   ECS_SERVICE_PARAMETER_NAME: /hyperlocalise/prod/ecs/go-svc/service_name
@@ -67,7 +68,7 @@ jobs:
         with:
           registry: ${{ steps.auth.outputs.registry }}
           repository: ${{ steps.params.outputs.ecr-repository }}
-          tag: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          tag: ${{ env.GO_SVC_IMAGE_TAG }}
           dockerfile: ./apps/go-svc/Dockerfile.ecs
 
     outputs:
@@ -99,4 +100,5 @@ jobs:
           ecs-service: ${{ needs.build-and-push.outputs.ecs-service }}
           ecs-cluster: ${{ needs.build-and-push.outputs.ecs-cluster }}
           image: ${{ needs.build-and-push.outputs.image }}
+          version: ${{ env.GO_SVC_IMAGE_TAG }}
           container-name: go-svc

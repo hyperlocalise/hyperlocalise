@@ -61,18 +61,18 @@ func TestInitTelemetryWhenEnabled(t *testing.T) {
 	t.Setenv("OTEL_SERVICE_NAME", "")
 
 	tests := []struct {
-		name      string
-		commitSHA string
-		vercelEnv string
+		name    string
+		version string
+		env     string
 	}{
 		{name: "required resource attributes only"},
-		{name: "vercel version and environment", commitSHA: "abc123def", vercelEnv: "preview"},
+		{name: "ecs version and environment", version: "abc123def-42-1", env: "production"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("VERCEL_GIT_COMMIT_SHA", tc.commitSHA)
-			t.Setenv("VERCEL_ENV", tc.vercelEnv)
+			t.Setenv("DD_VERSION", tc.version)
+			t.Setenv("DD_ENV", tc.env)
 
 			prevProvider := otel.GetTracerProvider()
 			prevPropagator := otel.GetTextMapPropagator()
@@ -91,15 +91,15 @@ func TestInitTelemetryWhenEnabled(t *testing.T) {
 			_, span := otel.Tracer(otelInstrumentation).Start(context.Background(), "init-probe")
 			res := spanResource(t, span)
 			requireResourceAttr(t, res, semconv.ServiceNameKey, otelServiceName)
-			if tc.commitSHA == "" {
+			if tc.version == "" {
 				requireNoResourceAttr(t, res, semconv.ServiceVersionKey)
 			} else {
-				requireResourceAttr(t, res, semconv.ServiceVersionKey, tc.commitSHA)
+				requireResourceAttr(t, res, semconv.ServiceVersionKey, tc.version)
 			}
-			if tc.vercelEnv == "" {
+			if tc.env == "" {
 				requireNoResourceAttr(t, res, semconv.DeploymentEnvironmentNameKey)
 			} else {
-				requireResourceAttr(t, res, semconv.DeploymentEnvironmentNameKey, tc.vercelEnv)
+				requireResourceAttr(t, res, semconv.DeploymentEnvironmentNameKey, tc.env)
 			}
 
 			const incomingTraceID = "4bf92f3577b34da6a3ce929d0e0e4736"
