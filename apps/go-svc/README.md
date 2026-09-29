@@ -110,15 +110,15 @@ go-svc instruments inbound HTTP requests with OpenTelemetry and exports spans ov
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | _(unset)_ | Traces-specific OTLP endpoint, if it differs from the base endpoint above. |
 | `OTEL_SDK_DISABLED` | _(unset)_ | Set to `true` to force tracing off even if an endpoint is configured. |
 
-Unlike the CLI, there is no separate app-specific opt-in flag: go-svc traces whenever an OTLP endpoint is present. `service.version` and `deployment.environment.name` are read from Vercel's own system environment variables:
+Unlike the CLI, there is no separate app-specific opt-in flag: go-svc traces whenever an OTLP endpoint is present. `service.version` and `deployment.environment.name` are read from the ECS/Datadog environment variables:
 
 | Resource attribute | Source | Behavior when unset |
 |---|---|---|
 | `service.name` | Hardcoded to `go-svc` | n/a |
-| `service.version` | `VERCEL_GIT_COMMIT_SHA` | Attribute omitted (not sent as `"unknown"`) |
-| `deployment.environment.name` | `VERCEL_ENV` | Attribute omitted (not sent as `"unknown"`) |
+| `service.version` | `DD_VERSION` | Attribute omitted (not sent as `"unknown"`) |
+| `deployment.environment.name` | `DD_ENV` | Attribute omitted (not sent as `"unknown"`) |
 
-**Deployment prerequisite**: `VERCEL_GIT_COMMIT_SHA` and `VERCEL_ENV` only reach the container if the `go_svc` Vercel project has **"Automatically expose System Environment Variables"** enabled in its project settings. This is a Vercel dashboard setting outside this repository — verify it's on for `go_svc` specifically; it already is for the `web` service (see `apps/hyperlocalise-web/src/lib/workos/api-hostname.ts`), but the container runtime is configured separately.
+**Deployment prerequisite**: the ECS task definition must set `DD_VERSION` to the exact immutable image tag and `DD_ENV` to the deployment environment. The ECS deployment workflow updates `DD_VERSION` whenever it replaces the application image.
 
 **Datadog Agent / Collector setup**: point `OTEL_EXPORTER_OTLP_ENDPOINT` at the Datadog Agent's native OTLP/HTTP receiver (default `http://<agent-host>:4318`) or at an OpenTelemetry Collector configured with a Datadog exporter. go-svc only speaks OTLP/HTTP, matching the CLI's exporter choice — there is no gRPC exporter in this repo.
 
@@ -140,8 +140,8 @@ Every log record written while a request span is active carries five top-level s
 | `dd.trace_id` | Active span's `SpanContext.TraceID()` (32-char lowercase hex) | A valid span is active in the logging call's context |
 | `dd.span_id` | Active span's `SpanContext.SpanID()` (16-char lowercase hex) | Same as above |
 | `dd.service` | Hardcoded `"go-svc"` — the same constant as `service.name` above | Always |
-| `dd.env` | `VERCEL_ENV` — the same source as `deployment.environment.name` above | `VERCEL_ENV` is set |
-| `dd.version` | `VERCEL_GIT_COMMIT_SHA` — the same source as `service.version` above | `VERCEL_GIT_COMMIT_SHA` is set |
+| `dd.env` | `DD_ENV` — the same source as `deployment.environment.name` above | `DD_ENV` is set |
+| `dd.version` | `DD_VERSION` — the same source as `service.version` above | `DD_VERSION` is set |
 
 Enrichment happens in one `slog.Handler` wrapper (`telemetry_log_handler.go`) installed as the default logger in `main.go`. It reads `dd.service`/`dd.env`/`dd.version` from the same `loadServiceResourceInfo()` helper `initTelemetry` uses for the trace Resource (`telemetry.go`), so the log fields and the trace's resource attributes can never diverge. `dd.trace_id`/`dd.span_id` are added only when the log call's `context.Context` carries a valid span — startup/background logs never get fabricated IDs, and the existing JSON shape, redaction-by-omission behavior, and bounded-route (`requestLogPath`) handling are unchanged; the handler only adds fields, never removes or rewrites existing ones.
 
@@ -178,17 +178,17 @@ reported. The endpoint remains an HTTP 200 liveness check.
 
 The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects `ACTIVITY_LOG_QUEUE_URL` from the activity-log consumer queue output; the service does not resolve the SSM parameter itself.
 
-## Docker / Vercel
+## Docker / ECS
 
-Production builds use `Dockerfile.vercel` at the repository root. The image:
+Production ECS builds use `apps/go-svc/Dockerfile.ecs`. The image:
 
 - Compiles with `cgo_hunspell` for spelling checks
 - Bundles Hunspell dictionaries under `/usr/share/hunspell`
 - Listens on `PORT` (default `8080`)
 
-Set the required WorkOS variables in the Vercel `go_svc` service environment. Use the same `WORKOS_COOKIE_PASSWORD` as `hyperlocalise-web`.
+Set the required WorkOS variables in the ECS task's runtime secret. Use the same `WORKOS_COOKIE_PASSWORD` as `hyperlocalise-web`.
 
-For tracing, set `OTEL_EXPORTER_OTLP_ENDPOINT` in the `go_svc` service environment and confirm "Automatically expose System Environment Variables" is enabled for that service so `service.version`/`deployment.environment.name` are populated (see [OpenTelemetry / Tracing](#opentelemetry--tracing) above).
+For tracing, the ECS task definition sets `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `DD_VERSION`, and `DD_ENV`. The ECS deployment workflow updates `DD_VERSION` to the exact immutable image tag for each release (see [OpenTelemetry / Tracing](#opentelemetry--tracing) above).
 
 ## API
 

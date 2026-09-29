@@ -17,7 +17,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.4
 	github.com/aws/smithy-go v1.28.2
 	github.com/crowdin/crowdin-api-client-go v0.18.0
-	github.com/exaring/otelpgx v0.12.0
 	github.com/gobwas/glob v1.0.0
 	github.com/invopop/jsonschema v0.14.0
 	github.com/jackc/pgx/v5 v5.11.0

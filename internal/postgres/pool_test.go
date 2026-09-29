@@ -19,7 +19,7 @@ func TestNewPoolPreservesParsedConnectionSettings(t *testing.T) {
 	require.Equal(t, "dbuser", config.ConnConfig.User)
 	require.Equal(t, "app", config.ConnConfig.Database)
 	require.EqualValues(t, 7, config.MaxConns)
-	require.NotNil(t, config.ConnConfig.Tracer)
+	require.Nil(t, config.ConnConfig.Tracer)
 }
 
 func TestNewPoolRejectsInvalidURL(t *testing.T) {

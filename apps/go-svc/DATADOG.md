@@ -11,14 +11,14 @@ Controlled here:
 
 External to this repo — there is no Terraform, Kubernetes, or Datadog pipeline configuration checked in anywhere in this monorepo:
 
-- The actual value of `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, set as a Vercel project environment variable, pointing at a Datadog Agent's OTLP/HTTP receiver or a Collector with a Datadog exporter.
+- The actual value of `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, set in the ECS task definition, pointing at a Datadog Agent's OTLP/HTTP receiver or a Collector with a Datadog exporter.
 - Whether that Agent/Collector is configured to ingest OTel-native IDs (128-bit hex trace ID, 64-bit hex span ID) for both traces and log correlation, as opposed to legacy 64-bit decimal APM ingestion. Datadog's current documentation states native OTel hex IDs are supported for log-trace correlation, but this repo has no visibility into, or control over, how the receiving end is actually configured — confirm this post-deploy (see Verification below), don't assume it from the docs alone.
 - Any Datadog-side log pipeline, remapper, or facet configuration for the `dd.*` attributes — none of it is repo-managed; it lives entirely in the Datadog UI.
-- Whether `VERCEL_GIT_COMMIT_SHA` / `VERCEL_ENV` reach the container at all, which depends on the `go_svc` Vercel project's **"Automatically expose System Environment Variables"** setting (see README) — a Vercel dashboard setting outside this repository.
+- Whether the ECS deployment task definition receives the exact immutable image tag as `DD_VERSION` and the deployment environment as `DD_ENV` — these values are owned by the infrastructure repository and deployment workflow.
 
-## Vercel enablement
+## ECS enablement
 
-Enable **Automatically expose System Environment Variables** on the `go_svc` Vercel project, for both Preview and Production, so `VERCEL_ENV` / `VERCEL_GIT_COMMIT_SHA` populate `dd.env` / `dd.version` and the matching OTel resource attributes (`deployment.environment.name` / `service.version`).
+The ECS task definition sets `DD_ENV` and `DD_VERSION`. The deployment workflow updates `DD_VERSION` to the exact immutable image tag whenever a new image is deployed, so the application logs and OTel resource attributes identify the running image.
 
 Set `OTEL_EXPORTER_OTLP_ENDPOINT` (or the traces-specific `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) to the Datadog Agent's or Collector's OTLP/HTTP receiver. Tracing — and therefore log correlation, since `dd.trace_id` / `dd.span_id` only ever appear on a log record when a span is active — is a complete no-op until one of these is set.
 
