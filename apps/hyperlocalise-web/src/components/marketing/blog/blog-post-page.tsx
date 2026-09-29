@@ -45,11 +45,11 @@ export function BlogPostPage({ post, lang, htmlContent, relatedPosts }: BlogPost
 
   return (
     <Box background="canvas" width="full">
-      <main className="mx-auto min-h-screen max-w-7xl text-foreground">
+      <main className="mx-auto min-h-screen w-full min-w-0 max-w-7xl text-foreground">
         <Rows spacing="0">
           <Box paddingX="3u" paddingTop="6u" paddingBottom="8u">
-            <article className="mx-auto max-w-3xl">
-              <Rows spacing="4u" align="center">
+            <article className="mx-auto w-full min-w-0 max-w-3xl">
+              <Rows spacing="4u">
                 <Rows spacing="2u" align="center">
                   <TypographyH1 className="text-center text-3xl sm:text-4xl lg:text-5xl">
                     {post.title}

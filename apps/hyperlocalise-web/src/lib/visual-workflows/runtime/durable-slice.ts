@@ -40,7 +40,7 @@ import { isLogicRetryConfig } from "../schema/retry-policy";
 import { parseRetryResumeState } from "./retry-delay";
 import { parseWaitResumeState } from "./wait-schedule";
 import { parseMergeResumeState } from "./merge-timeout";
-import { collectWaitConditionProbeNodeIds } from "./wait-condition-probes";
+import { resolveActiveWaitConditionProbeNodeIds } from "./wait-condition-probes";
 
 const logger = createLogger("visual-workflow-node");
 export async function executeDurableWorkflowSlice(input: {
@@ -65,7 +65,11 @@ export async function executeDurableWorkflowSlice(input: {
   const retryBackoff = parseRetryResumeState(input.payload.retryBackoff);
   const waitResume = parseWaitResumeState(input.payload.waitResume);
   const mergeResume = parseMergeResumeState(input.payload.mergeResume);
-  const waitConditionProbeNodeIds = collectWaitConditionProbeNodeIds(input.definition, waitResume);
+  const waitConditionProbeNodeIds = resolveActiveWaitConditionProbeNodeIds({
+    definition: input.definition,
+    waitResume,
+    nodeRuns: records,
+  });
   const resumeAttempt = retryBackoff?.nextAttempt ?? null;
   const resumedRetryBodyNodeIds =
     retryBackoff != null
@@ -148,13 +152,27 @@ export async function executeDurableWorkflowSlice(input: {
       executeNode: async (args) => {
         const id = key(args.node.id, args.iteration);
         const isExternal = args.node.type.startsWith("action.") || args.node.type === "ai.agent";
+        // Condition probes must all refresh in the same slice before the wait
+        // re-evaluates; they must not consume the single post-wait external slot.
+        const isWaitConditionProbe = waitConditionProbeNodeIds.has(args.node.id);
         if (
           args.node.type !== "logic.for_each" &&
           args.node.type !== "logic.retry" &&
           completed.has(id)
         )
           return completed.get(id)!;
-        if (isExternal && externalExecuted)
+        // Wait nodes are scheduled by the interpreter; the durable layer only
+        // supplies cached completions from prior slices.
+        if (args.node.type === "flow.wait") {
+          return {
+            ok: false,
+            error: {
+              code: "wait_evaluate",
+              message: "Wait schedule must be evaluated by the interpreter.",
+            },
+          };
+        }
+        if (isExternal && externalExecuted && !isWaitConditionProbe)
           return {
             ok: false,
             error: { code: "yield_execution", message: "Continue in the next durable step." },
@@ -174,7 +192,7 @@ export async function executeDurableWorkflowSlice(input: {
                 "The previous action outcome is unknown. Inspect the provider before retrying.",
             },
           };
-        if (isExternal) externalExecuted = true;
+        if (isExternal && !isWaitConditionProbe) externalExecuted = true;
         let config = { ...args.node.config } as Record<string, unknown>;
         if (input.run.mode !== "mock") {
           const resolvedSecrets = await resolveSelectedNodeCredentials({
@@ -320,6 +338,14 @@ export async function executeDurableWorkflowSlice(input: {
           return;
         }
         const execution = pending.get(id);
+        const waitExecution =
+          !execution &&
+          update.nodeType === "flow.wait" &&
+          update.status === "succeeded" &&
+          update.outputSnapshot
+            ? ({ ok: true, output: update.outputSnapshot } as VisualWorkflowNodeExecutionResult)
+            : null;
+        const recorded = execution ?? waitExecution;
         await upsertVisualWorkflowNodeRun({
           leaseToken: input.leaseToken,
           runId: input.run.id,
@@ -341,7 +367,7 @@ export async function executeDurableWorkflowSlice(input: {
             string,
             unknown
           > | null,
-          encryptedOutput: execution ? encryptWorkflowPayload(execution) : undefined,
+          encryptedOutput: recorded ? encryptWorkflowPayload(recorded) : undefined,
           finishedAt: new Date(),
         });
       },

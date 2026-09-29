@@ -1454,6 +1454,9 @@
   "1X7DOlRyIy": {
     "defaultMessage": "已修复并提交到此分支。"
   },
+  "1XJEkWqFT6": {
+    "defaultMessage": "已超时。"
+  },
   "1XNL0pGEyo": {
     "defaultMessage": "运行时间"
   },
@@ -2597,6 +2600,9 @@
   "4AlCRwOS/3": {
     "defaultMessage": "创建你的工作区"
   },
+  "4B/yIypHTz": {
+    "defaultMessage": "直到条件"
+  },
   "4B3q4D8+NF": {
     "defaultMessage": "正在加载文件…"
   },
@@ -3139,6 +3145,9 @@
   },
   "5ZQ992jk22": {
     "defaultMessage": "请重试以加载最新的术语表历史记录。"
+  },
+  "5ZZS0Al3rv": {
+    "defaultMessage": "暂停，直到指定时长、时间戳或条件满足"
   },
   "5a+z7ec3fj": {
     "defaultMessage": "查看报告"
@@ -5999,6 +6008,9 @@
   "CPVePRU7tR": {
     "defaultMessage": "已通过集成连接"
   },
+  "CPWLg67zI3": {
+    "defaultMessage": "时长"
+  },
   "CPX3MSYhG+": {
     "defaultMessage": "关联字符串"
   },
@@ -7025,6 +7037,9 @@
   "EgJBlBjf3r": {
     "defaultMessage": "从 Google Drive 导入品牌指南和风格文档。"
   },
+  "EgoeBfG+CV": {
+    "defaultMessage": "直到时间戳"
+  },
   "Ehcjh40kDc": {
     "defaultMessage": "Knowledge"
   },
@@ -7353,7 +7368,7 @@
     "defaultMessage": "04 — 超级实验室"
   },
   "FVe674aA/n": {
-    "defaultMessage": "Heidi Health"
+    "defaultMessage": "海蒂健康"
   },
   "FXDqvAOc70": {
     "defaultMessage": "已创建"
@@ -16052,6 +16067,9 @@
   "bUBd4XGtBI": {
     "defaultMessage": "AI 功能"
   },
+  "bUh5gPU+mn": {
+    "defaultMessage": "等待模式"
+  },
   "bUrzfKsGhW": {
     "defaultMessage": "关于 Hyperlocalise｜构建智能代理本地化平台"
   },
@@ -16255,6 +16273,9 @@
   },
   "bwuFPmHIKZ": {
     "defaultMessage": "读取作业"
+  },
+  "bxWXLOi+RW": {
+    "defaultMessage": "时间戳"
   },
   "bxdlmS/zEn": {
     "defaultMessage": "at"
@@ -19298,6 +19319,9 @@
   "ivdHFzfBNo": {
     "defaultMessage": "目标译文中出现了禁用术语“{term}”。"
   },
+  "ivmGcv+k23": {
+    "defaultMessage": "超时（毫秒）"
+  },
   "iwQ9dbHG3A": {
     "defaultMessage": "添加到问题表失败"
   },
@@ -20612,6 +20636,9 @@
   "m3woOgoczi": {
     "defaultMessage": "3小时前"
   },
+  "m4Ahgxr1sR": {
+    "defaultMessage": "持续时间（毫秒）"
+  },
   "m4IcL4/sul": {
     "defaultMessage": "Human reviewed"
   },
@@ -21415,6 +21442,9 @@
   },
   "nnXWSAtR1P": {
     "defaultMessage": "Store organization-wide localization guidance as one flexible markdown memory."
+  },
+  "nncYBDQUwE": {
+    "defaultMessage": "等待"
   },
   "nnkQAnt0DC": {
     "defaultMessage": "代理运行已排队"
@@ -22804,6 +22834,9 @@
   },
   "r3TGVfZPDe": {
     "defaultMessage": "Experiments"
+  },
+  "r3XB1uKkxA": {
+    "defaultMessage": "轮询间隔（毫秒）"
   },
   "r3j9bzJdAk": {
     "defaultMessage": "无法加载关系列表"
@@ -24395,6 +24428,9 @@
   "v17o/esQXS": {
     "defaultMessage": "添加工具"
   },
+  "v1chSgy0BK": {
+    "defaultMessage": "Condition"
+  },
   "v1ru55p+vf": {
     "defaultMessage": "Cancel"
   },
@@ -24877,6 +24913,9 @@
   },
   "w2b0cdIV3S": {
     "defaultMessage": "询问字符串、上下文或其他任何内容"
+  },
+  "w2tot+OYiM": {
+    "defaultMessage": "已完成"
   },
   "w4kK/l0YhQ": {
     "defaultMessage": "正在加载套餐"
