@@ -126,7 +126,7 @@ func (api *glossaryAPI) pageGlossaryHistoryHandler(r *http.Request, actor glossa
 }
 
 func (api *glossaryAPI) importGlossaryConceptsHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
-	return api.importGlossaryConcepts(r, actor, g)
+	return api.importGlossaryConceptsAsync(r, actor, g)
 }
 
 func (api *glossaryAPI) getConceptHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {

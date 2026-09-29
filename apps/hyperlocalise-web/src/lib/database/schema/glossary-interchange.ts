@@ -26,6 +26,7 @@ export const glossaryImportRuns = pgTable(
     glossaryId: uuid("glossary_id")
       .notNull()
       .references(() => glossaries.id, { onDelete: "cascade" }),
+    operation: text("operation").notNull().default("import"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -47,6 +48,16 @@ export const glossaryImportRuns = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     backupFileId: text("backup_file_id"),
+    sourceObjectLocation: text("source_object_location"),
+    sourceObjectKey: text("source_object_key"),
+    resultObjectLocation: text("result_object_location"),
+    resultObjectKey: text("result_object_key"),
+    resultFilename: text("result_filename"),
+    resultContentType: text("result_content_type"),
+    backupObjectLocation: text("backup_object_location"),
+    backupObjectKey: text("backup_object_key"),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },

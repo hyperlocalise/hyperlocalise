@@ -21,6 +21,7 @@ import (
 type glossaryImportPayload struct {
 	Format          string            `json:"format"`
 	Content         string            `json:"content"`
+	ReportID        *string           `json:"reportId,omitempty"`
 	ContentEncoding *string           `json:"contentEncoding"`
 	SourceFilename  *string           `json:"sourceFilename"`
 	Mode            *string           `json:"mode"`
@@ -90,15 +91,20 @@ func (api *glossaryAPI) getGlossaryImportBackupHandler(r *http.Request, actor gl
 
 func (api *glossaryAPI) getGlossaryImportReport(ctx context.Context, actor glossaryActor, g glossaryRecord, reportID string) (any, int, error) {
 	var (
-		id, orgID, glossaryID, format, mode, status string
-		createdBy                                   *string
-		sourceFilename, sourceSha, backupFileID     *string
-		options, sourceTotals, counts               []byte
-		createdAt                                   time.Time
-		completedAt                                 *time.Time
+		id, orgID, glossaryID, operation, format, mode, status string
+		createdBy                                              *string
+		sourceFilename, sourceSha, backupFileID                *string
+		sourceObjectLocation, sourceObjectKey                  *string
+		resultObjectLocation, resultObjectKey                  *string
+		resultFilename, resultContentType                      *string
+		backupObjectLocation, backupObjectKey                  *string
+		errorCode, errorMessage                                *string
+		options, sourceTotals, counts                          []byte
+		createdAt                                              time.Time
+		completedAt                                            *time.Time
 	)
-	err := api.pool.QueryRow(ctx, `select id, organization_id, glossary_id, created_by_user_id, format, mode, status, source_filename, source_sha256, options, source_totals, counts, backup_file_id, created_at, completed_at from glossary_import_runs where id=$1 and glossary_id=$2 and organization_id=$3`, reportID, g.ID, actor.organizationID).Scan(
-		&id, &orgID, &glossaryID, &createdBy, &format, &mode, &status, &sourceFilename, &sourceSha, &options, &sourceTotals, &counts, &backupFileID, &createdAt, &completedAt,
+	err := api.pool.QueryRow(ctx, `select id, organization_id, glossary_id, operation, created_by_user_id, format, mode, status, source_filename, source_sha256, options, source_totals, counts, backup_file_id, source_object_location, source_object_key, result_object_location, result_object_key, result_filename, result_content_type, backup_object_location, backup_object_key, error_code, error_message, created_at, completed_at from glossary_import_runs where id=$1 and glossary_id=$2 and organization_id=$3`, reportID, g.ID, actor.organizationID).Scan(
+		&id, &orgID, &glossaryID, &operation, &createdBy, &format, &mode, &status, &sourceFilename, &sourceSha, &options, &sourceTotals, &counts, &backupFileID, &sourceObjectLocation, &sourceObjectKey, &resultObjectLocation, &resultObjectKey, &resultFilename, &resultContentType, &backupObjectLocation, &backupObjectKey, &errorCode, &errorMessage, &createdAt, &completedAt,
 	)
 	if errorsIsNoRows(err) {
 		return nil, 0, missingGlossary()
@@ -129,11 +135,19 @@ func (api *glossaryAPI) getGlossaryImportReport(ctx context.Context, actor gloss
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
+	_ = sourceObjectLocation
+	_ = sourceObjectKey
+	_ = resultObjectLocation
+	_ = backupObjectLocation
+	_ = backupObjectKey
 	report := map[string]any{
-		"id": id, "organizationId": orgID, "glossaryId": glossaryID, "createdByUserId": createdBy,
+		"id": id, "organizationId": orgID, "glossaryId": glossaryID, "operation": operation, "createdByUserId": createdBy,
 		"format": format, "mode": mode, "status": status, "sourceFilename": sourceFilename,
 		"sourceSha256": sourceSha, "options": jsonObjectOrEmpty(options), "sourceTotals": jsonObjectOrEmpty(sourceTotals),
 		"counts": jsonObjectOrEmpty(counts), "backupFileId": backupFileID,
+		"resultFilename": resultFilename, "resultContentType": resultContentType,
+		"resultReady": resultObjectKey != nil && *resultObjectKey != "",
+		"errorCode":   errorCode, "errorMessage": errorMessage,
 		"createdAt": formatGlossaryTime(createdAt), "completedAt": formatGlossaryTimePtr(completedAt),
 	}
 	return map[string]any{"report": report, "entries": entries}, 200, nil
@@ -150,6 +164,7 @@ func jsonObjectOrEmpty(raw []byte) json.RawMessage {
 	return json.RawMessage(raw)
 }
 
+//nolint:unused // Retained for the legacy synchronous report implementation during migration.
 func (api *glossaryAPI) importGlossaryConcepts(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
 	if err := api.requireConceptWrite(r.Context(), actor, g); err != nil {
 		return nil, 0, err
@@ -248,6 +263,7 @@ func (api *glossaryAPI) importGlossaryConcepts(r *http.Request, actor glossaryAc
 	}, 201, nil
 }
 
+//nolint:unused // Used by the legacy synchronous implementation retained for compatibility.
 func glossaryImportHasErrors(diagnostics []glossaryImportDiagnostic) bool {
 	for _, d := range diagnostics {
 		if d.Severity == "error" {
@@ -342,6 +358,7 @@ func glossaryImportCounts(concepts []glossaryImportConcept, diagnostics []glossa
 	return counts
 }
 
+//nolint:unused // Parser helpers remain covered by interchange unit tests during the async migration.
 func parseGlossaryImport(format, content string) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
 	if format == "tbx" {
 		return parseGlossaryTBX(content)
@@ -570,6 +587,7 @@ func lookupImportGlossaryTerm(ctx context.Context, db dictionaryDB, glossaryID, 
 	return "", false, err
 }
 
+//nolint:unused // Retained for the legacy synchronous report implementation during migration.
 func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryActor, g glossaryRecord, payload glossaryImportPayload, mode string, concepts []glossaryImportConcept, parseDiagnostics []glossaryImportDiagnostic) ([]glossaryConceptRecord, map[string]int, []glossaryImportDiagnostic, string, error) {
 	counts := glossaryImportCounts(concepts, parseDiagnostics)
 	diagnostics := []glossaryImportDiagnostic{}
@@ -713,6 +731,7 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 	return applied, counts, diagnostics, reportID, nil
 }
 
+//nolint:unused // Retained for the legacy synchronous report implementation during migration.
 func (api *glossaryAPI) persistGlossaryImportRun(ctx context.Context, db dictionaryDB, actor glossaryActor, g glossaryRecord, payload glossaryImportPayload, mode, status string, concepts []glossaryImportConcept, counts map[string]int, diagnostics []glossaryImportDiagnostic, backupFileID *string) (string, error) {
 	options, _ := json.Marshal(map[string]any{
 		"strictLocale":  payload.StrictLocale == nil || *payload.StrictLocale,
@@ -723,11 +742,22 @@ func (api *glossaryAPI) persistGlossaryImportRun(ctx context.Context, db diction
 	sum := sha256.Sum256([]byte(payload.Content))
 	sha := hex.EncodeToString(sum[:])
 	var reportID string
-	err := db.QueryRow(ctx, `insert into glossary_import_runs (organization_id, glossary_id, created_by_user_id, format, mode, status, source_filename, source_sha256, options, source_totals, counts, backup_file_id, completed_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12,now()) returning id`,
-		actor.organizationID, g.ID, actor.userID, strings.ToLower(payload.Format), mode, status, payload.SourceFilename, sha, options, sourceTotals, countsJSON, backupFileID,
-	).Scan(&reportID)
-	if err != nil {
-		return "", err
+	if payload.ReportID != nil && *payload.ReportID != "" {
+		reportID = *payload.ReportID
+		_, err := db.Exec(ctx, `update glossary_import_runs set format=$2, mode=$3, status=$4, source_filename=$5, source_sha256=$6, options=$7::jsonb, source_totals=$8::jsonb, counts=$9::jsonb, backup_file_id=$10, error_code=null, error_message=null, completed_at=now() where id=$1 and organization_id=$11 and glossary_id=$12`, reportID, strings.ToLower(payload.Format), mode, status, payload.SourceFilename, sha, options, sourceTotals, countsJSON, backupFileID, actor.organizationID, g.ID)
+		if err != nil {
+			return "", err
+		}
+		if _, err := db.Exec(ctx, `delete from glossary_import_report_entries where run_id=$1`, reportID); err != nil {
+			return "", err
+		}
+	} else {
+		err := db.QueryRow(ctx, `insert into glossary_import_runs (organization_id, glossary_id, created_by_user_id, operation, format, mode, status, source_filename, source_sha256, options, source_totals, counts, backup_file_id, completed_at) values ($1,$2,$3,'import',$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12,now()) returning id`,
+			actor.organizationID, g.ID, actor.userID, strings.ToLower(payload.Format), mode, status, payload.SourceFilename, sha, options, sourceTotals, countsJSON, backupFileID,
+		).Scan(&reportID)
+		if err != nil {
+			return "", err
+		}
 	}
 	for _, d := range diagnostics {
 		if _, err := db.Exec(ctx, `insert into glossary_import_report_entries (run_id, severity, code, message, source_row, concept_id, term_id, field) values ($1,$2,$3,$4,$5,$6,$7,$8)`,

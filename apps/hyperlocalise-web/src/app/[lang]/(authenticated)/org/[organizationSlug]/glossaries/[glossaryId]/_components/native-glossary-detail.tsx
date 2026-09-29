@@ -84,16 +84,6 @@ import { cn } from "@/lib/primitives/cn";
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 import { useGlossary } from "./use-glossary";
 
-function arrayBufferToBase64(value: ArrayBuffer) {
-  const bytes = new Uint8Array(value);
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
-  }
-  return btoa(binary);
-}
-
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
@@ -456,50 +446,58 @@ export function NativeGlossaryDetail({
       const filename = file.name.toLowerCase();
       const isXlsx = filename.endsWith(".xlsx");
       const format = filename.endsWith(".tbx") ? "tbx" : isXlsx ? "xlsx" : "csv";
-      const content = isXlsx ? arrayBufferToBase64(await file.arrayBuffer()) : await file.text();
-      // Stays on Hono until go-svc import matches interchange parity: XLSX is 501,
-      // CSV/TBX drop gender/term type/URLs/metadata/review/flags, and there is no backup.
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].concepts["import"].$post({
-        param: { organizationSlug, glossaryId },
-        json: {
-          format,
-          content,
-          sourceFilename: file.name,
-          contentEncoding: isXlsx ? "base64" : "utf8",
-          mode: "merge",
-          previewForMode: "merge",
-          strictLocale: true,
-          localeMapping: {},
-        },
+      const upload = await goSvcClient.glossary.importUpload(organizationSlug, glossaryId, {
+        format,
+        sourceFilename: file.name,
+        contentType: file.type || "application/octet-stream",
       });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.importTermsFailed)),
+      const headers = new Headers();
+      for (const [name, values] of Object.entries(upload.upload.headers)) {
+        headers.set(name, values.join(","));
+      }
+      const uploadResponse = await fetch(upload.upload.url, {
+        method: upload.upload.method,
+        headers,
+        body: file,
+      });
+      if (!uploadResponse.ok) throw new Error(intl.formatMessage(messages.importTermsFailed));
+      await goSvcClient.glossary.importFinalize(organizationSlug, glossaryId, {
+        reportId: upload.reportId,
+        mode: "merge",
+        previewForMode: "merge",
+        strictLocale: true,
+        localeMapping: {},
+      });
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        const report = await goSvcClient.glossary.report(
+          organizationSlug,
+          glossaryId,
+          upload.reportId,
         );
-      return response.json();
+        if (["completed", "failed", "preview"].includes(report.report.status)) return report;
+        await new Promise((resolve) => setTimeout(resolve, Math.min(2_000, 400 + attempt * 100)));
+      }
+      throw new Error(intl.formatMessage(messages.importTermsFailed));
     },
     onSuccess: async (body) => {
+      if (body.report.status === "failed") {
+        const errorDiagnostics = body.entries.filter((entry) => entry.severity === "error");
+        setImportDiagnostics(errorDiagnostics.slice(0, 10));
+        toast.error(
+          intl.formatMessage(messages.termsImportBlocked, { count: errorDiagnostics.length }),
+        );
+        return;
+      }
       await invalidateConcepts();
-      // The import endpoint returns a union of preview and applied shapes;
-      // this mutation always uses mode:"merge", so read the applied counters
-      // defensively.
-      const result = body as {
-        imported?: number;
-        updated?: number;
-        merged?: number;
-        diagnostics?: Array<{ severity: string; code: string; message: string }>;
-      };
-      const errorDiagnostics = (result.diagnostics ?? []).filter(
-        (entry) => entry.severity === "error",
-      );
+      const errorDiagnostics = body.entries.filter((entry) => entry.severity === "error");
       // A strict-locale import can legitimately apply zero new terms (for example
       // when every row targets an unconfigured locale). Keep the dialog open
       // and show why instead of a misleading "Imported 0 terms" success — but
       // only when nothing was applied at all, since merge/update imports
       // report applied work via `updated`/`merged` rather than `imported`.
-      const applied = (result.imported ?? 0) + (result.updated ?? 0) + (result.merged ?? 0);
+      const counts = body.report.counts;
+      const applied =
+        Number(counts.created ?? 0) + Number(counts.updated ?? 0) + Number(counts.merged ?? 0);
       if (applied === 0 && errorDiagnostics.length > 0) {
         setImportDiagnostics(errorDiagnostics.slice(0, 10));
         // Reset the native input so selecting the same (corrected) file still
@@ -515,7 +513,7 @@ export function NativeGlossaryDetail({
       setImportDiagnostics([]);
       setImportDialogOpen(false);
       setImportFile(null);
-      toast.success(intl.formatMessage(messages.termsImported, { count: result.imported ?? 0 }));
+      toast.success(intl.formatMessage(messages.termsImported, { count: applied }));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -561,33 +559,36 @@ export function NativeGlossaryDetail({
       gender?: string;
       createdByUserId?: string;
     }) => {
-      const params = new URLSearchParams({ format: input.format, scope: input.scope });
-      if (input.scope === "filtered") {
-        for (const locale of input.locales ?? []) params.append("locales", locale);
-        const search = input.search?.trim();
-        if (search) params.set("search", search);
-        if (input.modifiedFrom) params.set("modifiedFrom", input.modifiedFrom);
-        if (input.linguisticStatus) params.set("linguisticStatus", input.linguisticStatus);
-        if (input.partOfSpeech) params.set("partOfSpeech", input.partOfSpeech);
-        if (input.termType) params.set("termType", input.termType);
-        if (input.gender) params.set("gender", input.gender);
-        if (input.createdByUserId) params.set("createdByUserId", input.createdByUserId);
+      const job = await goSvcClient.glossary.createExport(organizationSlug, glossaryId, {
+        format: input.format,
+        scope: input.scope,
+        locales: input.locales,
+        search: input.search,
+        modifiedFrom: input.modifiedFrom,
+        linguisticStatus: input.linguisticStatus,
+        partOfSpeech: input.partOfSpeech,
+        termType: input.termType,
+        gender: input.gender,
+        createdByUserId: input.createdByUserId,
+      });
+      let report;
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        report = await goSvcClient.glossary.report(organizationSlug, glossaryId, job.reportId);
+        if (["completed", "failed"].includes(report.report.status)) break;
+        await new Promise((resolve) => setTimeout(resolve, Math.min(2_000, 400 + attempt * 100)));
       }
-      // Stays on Hono: go-svc's export only honours `format` and always emits the
-      // complete glossary, so `scope=filtered` has no equivalent there yet.
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/glossaries/${encodeURIComponent(glossaryId)}/export?${params.toString()}`,
-        { credentials: "include" },
+      if (!report || report.report.status !== "completed") {
+        throw new Error(intl.formatMessage(messages.exportFailed));
+      }
+      const download = await goSvcClient.glossary.downloadUrl(
+        organizationSlug,
+        glossaryId,
+        job.reportId,
       );
-      if (!response.ok) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.exportFailed)));
-      }
+      const response = await fetch(download.url);
+      if (!response.ok) throw new Error(intl.formatMessage(messages.exportFailed));
       const blob = await response.blob();
-      const disposition = response.headers.get("content-disposition") ?? "";
-      const encodedFilename = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
-      const filename = encodedFilename
-        ? decodeURIComponent(encodedFilename)
-        : `glossary.${input.format}`;
+      const filename = download.filename ?? `glossary.${input.format}`;
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;

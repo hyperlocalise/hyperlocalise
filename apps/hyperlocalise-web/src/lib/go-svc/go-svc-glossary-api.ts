@@ -14,6 +14,8 @@ import type {
   GlossaryConcept,
   GlossaryConceptPageQuery,
   GlossaryExportQuery,
+  GlossaryInterchangeReport,
+  GlossaryUploadSession,
   GlossaryProject,
   GlossaryRecord,
   GlossaryTerm,
@@ -103,13 +105,96 @@ export class GoSvcGlossaryApi {
     });
   }
 
+  createExport(
+    organizationSlug: string,
+    glossaryId: string,
+    query: GlossaryExportQuery = {},
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ reportId: string; operation: "export"; status: string }>(
+      orgPath(organizationSlug, "glossaries", glossaryId, "export"),
+      { method: "POST", query, ...options },
+    );
+  }
+
+  report(
+    organizationSlug: string,
+    glossaryId: string,
+    reportId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<GlossaryInterchangeReport>(
+      orgPath(organizationSlug, "glossaries", glossaryId, "import-reports", reportId),
+      options,
+    );
+  }
+
+  downloadUrl(
+    organizationSlug: string,
+    glossaryId: string,
+    reportId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{
+      url: string;
+      method: "GET";
+      expiresAt: string;
+      filename?: string | null;
+    }>(
+      orgPath(organizationSlug, "glossaries", glossaryId, "import-reports", reportId, "download"),
+      options,
+    );
+  }
+
+  importUpload(
+    organizationSlug: string,
+    glossaryId: string,
+    body: { format: "csv" | "tbx" | "xlsx"; sourceFilename: string; contentType: string },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<GlossaryUploadSession>(
+      orgPath(organizationSlug, "glossaries", glossaryId, "concepts", "import", "uploads"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  importFinalize(
+    organizationSlug: string,
+    glossaryId: string,
+    body: {
+      reportId: string;
+      mode?: "preview" | "create" | "update" | "merge" | "replace";
+      previewForMode?: "create" | "update" | "merge" | "replace";
+      strictLocale?: boolean;
+      localeMapping?: Record<string, string>;
+    },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ reportId: string; operation: "import"; status: string }>(
+      orgPath(organizationSlug, "glossaries", glossaryId, "concepts", "import"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  legacyDownload(
+    organizationSlug: string,
+    glossaryId: string,
+    query: GlossaryExportQuery = {},
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.download(orgPath(organizationSlug, "glossaries", glossaryId, "export"), {
+      query,
+      ...options,
+    });
+  }
+
   importReport(
     organizationSlug: string,
     glossaryId: string,
     reportId: string,
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<GoSvcRecord>(
+    return this.request.json<GlossaryInterchangeReport>(
       orgPath(organizationSlug, "glossaries", glossaryId, "import-reports", reportId),
       options,
     );
