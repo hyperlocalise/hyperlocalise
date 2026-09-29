@@ -671,3 +671,112 @@ func (api *projectAPI) updateHandler(r *http.Request, actor projectActor) (any, 
 	}
 	return map[string]json.RawMessage{"project": project}, http.StatusOK, nil
 }
+
+func glossaryTeamProjectRequired() error {
+	return projectFailure(403, "glossary_team_project_required", "Team glossaries must attach at least one accessible project")
+}
+
+func (api *projectAPI) deleteHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if !actor.canMutateProjects() {
+		return nil, 0, projectForbidden()
+	}
+	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	ctx := r.Context()
+	tx, err := api.pool.Begin(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := api.lockOwnedNativeProject(ctx, tx, actor, projectID); err != nil {
+		return nil, 0, err
+	}
+
+	glossaryIDs, err := teamGlossariesAttachedToProject(ctx, tx, actor.organizationID, projectID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if len(glossaryIDs) > 0 {
+		lockRows, err := tx.Query(ctx, `select id from glossaries where id=any($1) for update`, glossaryIDs)
+		if err != nil {
+			return nil, 0, err
+		}
+		for lockRows.Next() {
+		}
+		if err := lockRows.Err(); err != nil {
+			lockRows.Close()
+			return nil, 0, err
+		}
+		lockRows.Close()
+
+		for _, glossaryID := range glossaryIDs {
+			var nativeCount int
+			if err := tx.QueryRow(ctx, `
+				select count(*) from project_glossaries pg
+				join projects p on p.id = pg.project_id
+				where pg.glossary_id=$1 and p.source='native'`,
+				glossaryID).Scan(&nativeCount); err != nil {
+				return nil, 0, err
+			}
+			if nativeCount <= 1 {
+				return nil, 0, glossaryTeamProjectRequired()
+			}
+		}
+	}
+
+	tag, err := tx.Exec(ctx, `
+		delete from projects p
+		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(3, 4, 2),
+		projectID, actor.organizationID, actor.canReadAllTeams(), actor.userID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, 0, projectNotFound()
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, 0, err
+	}
+
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "project_deleted",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"resourceId": projectID,
+		},
+		TargetID:   projectID,
+		TargetKind: "project",
+	})
+
+	return nil, http.StatusNoContent, nil
+}
+
+func teamGlossariesAttachedToProject(ctx context.Context, db dictionaryDB, organizationID, projectID string) ([]string, error) {
+	rows, err := db.Query(ctx, `
+		select distinct g.id
+		from glossaries g
+		join project_glossaries pg on pg.glossary_id = g.id
+		join projects p on p.id = pg.project_id
+		where pg.project_id=$1 and pg.organization_id=$2
+			and g.organization_id=$2 and g.control_level='team' and p.source='native'`,
+		projectID, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}

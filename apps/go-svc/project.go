@@ -100,6 +100,7 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("POST "+projects, bindActor(api, (*projectAPI).createHandler))
 	route("GET "+project, bindActor(api, (*projectAPI).getHandler))
 	route("PATCH "+project, bindActor(api, (*projectAPI).updateHandler))
+	route("DELETE "+project, bindActor(api, (*projectAPI).deleteHandler))
 	route("GET "+project+"/locale-progress", bindActor(api, (*projectAPI).localeProgressHandler))
 	route("GET "+project+"/open-job-count", bindActor(api, (*projectAPI).openJobCountHandler))
 	route("GET "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).contentEditorBehaviorHandler))
