@@ -36,16 +36,9 @@ import {
   parseRetryResumeState,
   type RetryResumeState,
 } from "./runtime/retry-delay";
-import {
-  isWaitWakePending,
-  parseWaitResumeState,
-  type WaitResumeState,
-} from "./runtime/wait-schedule";
-import {
-  isMergeWakePending,
-  parseMergeResumeState,
-  type MergeResumeState,
-} from "./runtime/merge-timeout";
+import { parseWaitResumeState, type WaitResumeState } from "./runtime/wait-schedule";
+import { parseMergeResumeState, type MergeResumeState } from "./runtime/merge-timeout";
+import { resolveDurableWaitMergeWake } from "./runtime/durable-resume-wake";
 
 export type VisualWorkflowRunExecutionView = VisualWorkflowRunRecord & {
   executionLeaseBusy?: boolean;
@@ -281,6 +274,16 @@ function waitResumeSettledInNodeResults(
   return status === "completed" || status === "timed_out";
 }
 
+function mergeResumeSettledInNodeResults(
+  resume: MergeResumeState | null | undefined,
+  nodeResults: Record<string, Record<string, unknown>> | undefined,
+): boolean {
+  if (!resume || !nodeResults) return false;
+  const output = nodeResults[resume.mergeNodeId];
+  const status = output?.status;
+  return status === "completed" || status === "timed_out" || status === "error";
+}
+
 async function clearRunWaitResume(input: {
   leaseToken: string;
   runId: string;
@@ -304,6 +307,31 @@ async function clearRunWaitResume(input: {
       ),
     );
   return payloadWithoutWait;
+}
+
+async function clearRunMergeResume(input: {
+  leaseToken: string;
+  runId: string;
+  organizationId: string;
+  payload: Record<string, unknown>;
+}): Promise<Record<string, unknown>> {
+  if (!input.payload.mergeResume) return input.payload;
+
+  const { mergeResume: _removedMerge, ...payloadWithoutMerge } = input.payload;
+  await db
+    .update(schema.visualWorkflowRuns)
+    .set({
+      encryptedPayload: encryptWorkflowPayload(payloadWithoutMerge),
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, input.runId),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowRuns.leaseToken, input.leaseToken),
+      ),
+    );
+  return payloadWithoutMerge;
 }
 
 async function persistRunWaitResume(input: {
@@ -1080,13 +1108,9 @@ export async function executeVisualWorkflowRun(input: {
     return current ? { ...current, executionPausedUntil: wakeAt, executionLeaseBusy: false } : null;
   }
   const { executeDurableWorkflowSlice } = await import("./runtime/durable-slice");
-  const waitWakePending = isWaitWakePending(waitResume);
-  const mergeWakePending = isMergeWakePending(mergeResume);
-  if (
-    waitWakePending &&
-    (!mergeWakePending || Date.parse(waitResume!.wakeAt) <= Date.parse(mergeResume!.wakeAt))
-  ) {
-    const wakeAt = waitResume!.wakeAt;
+  const wakeDecision = resolveDurableWaitMergeWake({ waitResume, mergeResume });
+  if (wakeDecision.action === "sleep") {
+    const wakeAt = wakeDecision.wakeAt;
 
     await db
       .update(schema.visualWorkflowRuns)
@@ -1114,24 +1138,6 @@ export async function executeVisualWorkflowRun(input: {
           executionLeaseBusy: false,
         }
       : null;
-  }
-  if (mergeWakePending) {
-    const wakeAt = mergeResume!.wakeAt;
-    await db
-      .update(schema.visualWorkflowRuns)
-      .set({ leaseExpiresAt: new Date(wakeAt), updatedAt: new Date() })
-      .where(
-        and(
-          eq(schema.visualWorkflowRuns.id, run.id),
-          eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
-        ),
-      );
-    const current = await getVisualWorkflowRunById({
-      organizationId: input.organizationId,
-      visualWorkflowId: input.visualWorkflowId,
-      runId: run.id,
-    });
-    return current ? { ...current, executionPausedUntil: wakeAt, executionLeaseBusy: false } : null;
   }
   const result = await executeDurableWorkflowSlice({
     leaseToken,
@@ -1175,6 +1181,18 @@ export async function executeVisualWorkflowRun(input: {
     waitResumeSettledInNodeResults(waitResume, result.nodeResults)
   ) {
     payload = await clearRunWaitResume({
+      leaseToken,
+      runId: run.id,
+      organizationId: input.organizationId,
+      payload,
+    });
+  }
+  if (
+    mergeResume &&
+    (result.ok || result.error.code !== "merge_suspended") &&
+    mergeResumeSettledInNodeResults(mergeResume, result.nodeResults)
+  ) {
+    payload = await clearRunMergeResume({
       leaseToken,
       runId: run.id,
       organizationId: input.organizationId,

@@ -673,4 +673,174 @@ describe("visual workflow runs", () => {
       ),
     ).toBe(false);
   });
+
+  it("resumes a due Wait under an armed Merge timeout without forcing timed_out", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Wait under Merge timeout",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.scheduled",
+          config: {
+            kind: "trigger.scheduled",
+            schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+          },
+        },
+        {
+          id: "email",
+          type: "logic.set",
+          config: {
+            kind: "logic.set",
+            assignments: [{ key: "result", value: "sent" }],
+          },
+        },
+        {
+          id: "wait",
+          type: "flow.wait",
+          config: {
+            kind: "flow.wait",
+            mode: "timestamp",
+            timestamp: "2099-01-01T00:00:00.000Z",
+          },
+        },
+        {
+          id: "merge",
+          type: "logic.merge",
+          config: {
+            kind: "logic.merge",
+            mode: "all",
+            timeoutMs: 3_600_000,
+            inputs: [
+              { id: "email-input", name: "Email" },
+              { id: "wait-input", name: "Wait" },
+            ],
+          },
+        },
+        {
+          id: "done",
+          type: "logic.set",
+          config: {
+            kind: "logic.set",
+            assignments: [{ key: "result", value: "merged" }],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "trigger-email",
+          source: "trigger",
+          target: "email",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+        {
+          id: "trigger-wait",
+          source: "trigger",
+          target: "wait",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+        {
+          id: "email-merge",
+          source: "email",
+          target: "merge",
+          sourceHandle: null,
+          targetHandle: "email-input",
+        },
+        {
+          id: "wait-merge",
+          source: "wait",
+          target: "merge",
+          sourceHandle: "completed",
+          targetHandle: "wait-input",
+        },
+        {
+          id: "merge-done",
+          source: "merge",
+          target: "done",
+          sourceHandle: "completed",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const { organizationId, workflow } = await seedWorkflow({ definition });
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "wait-under-merge-timeout",
+    });
+
+    const paused = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(paused?.status).toBe("running");
+
+    const [stored] = await db
+      .select({ encryptedPayload: schema.visualWorkflowRuns.encryptedPayload })
+      .from(schema.visualWorkflowRuns)
+      .where(eq(schema.visualWorkflowRuns.id, run.id))
+      .limit(1);
+
+    const payload = decryptWorkflowPayload(stored!.encryptedPayload!) as Record<string, unknown>;
+    expect(payload.waitResume).toMatchObject({ waitNodeId: "wait" });
+    expect(payload.mergeResume).toMatchObject({ mergeNodeId: "merge" });
+
+    const waitResume = payload.waitResume as Record<string, unknown>;
+    const mergeResume = payload.mergeResume as Record<string, unknown>;
+
+    // Wait is due now; Merge timeout remains far in the future. The scheduler must
+    // execute (not sleep until merge timeout), and Merge must complete.
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({
+        encryptedPayload: encryptWorkflowPayload({
+          ...payload,
+          waitResume: {
+            ...waitResume,
+            wakeAt: "2020-01-01T00:00:00.000Z",
+          },
+          mergeResume: {
+            ...mergeResume,
+            wakeAt: "2099-06-01T00:00:00.000Z",
+          },
+        }),
+        leaseExpiresAt: new Date("2020-01-01T00:00:00.000Z"),
+      })
+      .where(eq(schema.visualWorkflowRuns.id, run.id));
+
+    const resumed = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(resumed?.status).toBe("succeeded");
+    expect(resumed?.outputSummary).toMatchObject({
+      nodeResults: {
+        wait: { status: "completed" },
+        merge: { status: "completed" },
+        done: { result: "merged" },
+      },
+    });
+
+    const [finished] = await db
+      .select({ encryptedPayload: schema.visualWorkflowRuns.encryptedPayload })
+      .from(schema.visualWorkflowRuns)
+      .where(eq(schema.visualWorkflowRuns.id, run.id))
+      .limit(1);
+
+    const finishedPayload = decryptWorkflowPayload(finished!.encryptedPayload!) as Record<
+      string,
+      unknown
+    >;
+    expect(finishedPayload.waitResume).toBeUndefined();
+    expect(finishedPayload.mergeResume).toBeUndefined();
+  });
 });

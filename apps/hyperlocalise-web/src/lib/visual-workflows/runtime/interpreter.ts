@@ -293,7 +293,28 @@ export async function runVisualWorkflowInterpreter(input: {
           });
 
           if (resolved.type === "logic.merge") {
-            if (mergeTimedOut) {
+            // Prefer a durable cached completion so later slices can clear
+            // mergeResume without re-timing-out a Merge that already settled.
+            const cached = await input.executeNode({
+              node: resolved,
+              context,
+              organizationId: input.organizationId,
+              iteration,
+              signal: input.signal,
+            });
+            const cachedStatus =
+              cached.ok && cached.output && typeof cached.output === "object"
+                ? (cached.output as Record<string, unknown>).status
+                : null;
+
+            if (
+              cachedStatus === "completed" ||
+              cachedStatus === "timed_out" ||
+              cachedStatus === "error"
+            ) {
+              execution = cached;
+              mergeExitHandle = cachedStatus;
+            } else if (mergeTimedOut) {
               execution = {
                 ok: true,
                 output: {
