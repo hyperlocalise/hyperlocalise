@@ -780,3 +780,62 @@ func teamGlossariesAttachedToProject(ctx context.Context, db dictionaryDB, organ
 	}
 	return ids, rows.Err()
 }
+
+type updateContentEditorBehaviorRequest struct {
+	AutomaticallyGroupIdenticalStrings *bool `json:"automaticallyGroupIdenticalStrings"`
+}
+
+func (api *projectAPI) updateContentEditorBehaviorHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if !actor.canManageContentEditorBehavior() {
+		return nil, 0, projectForbidden()
+	}
+	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
+	}
+	var req updateContentEditorBehaviorRequest
+	if err := decodeProjectBody(r, &req); err != nil {
+		return nil, 0, err
+	}
+	if req.AutomaticallyGroupIdenticalStrings == nil {
+		return nil, 0, invalidProjectPayload()
+	}
+
+	ctx := r.Context()
+	var automaticallyGroupIdenticalStrings bool
+	var groupingRevision int
+	err = api.pool.QueryRow(ctx, `
+		update projects p
+		set automatically_group_identical_strings=$3,
+			cat_grouping_revision=cat_grouping_revision+1,
+			updated_by_user_id=$4,
+			updated_at=now()
+		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(5, 6, 2)+`
+			and p.automatically_group_identical_strings is distinct from $3
+		returning p.automatically_group_identical_strings, p.cat_grouping_revision`,
+		projectID, actor.organizationID, *req.AutomaticallyGroupIdenticalStrings, actor.userID,
+		actor.canReadAllTeams(), actor.userID,
+	).Scan(&automaticallyGroupIdenticalStrings, &groupingRevision)
+	if isNoRows(err) {
+		err = api.pool.QueryRow(ctx, `
+			select p.automatically_group_identical_strings, p.cat_grouping_revision
+			from projects p
+			where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(3, 4, 2),
+			projectID, actor.organizationID, actor.canReadAllTeams(), actor.userID,
+		).Scan(&automaticallyGroupIdenticalStrings, &groupingRevision)
+		if isNoRows(err) {
+			return nil, 0, projectNotFound()
+		}
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return map[string]any{
+		"contentEditorBehavior": map[string]any{
+			"automaticallyGroupIdenticalStrings": automaticallyGroupIdenticalStrings,
+			"groupingRevision":                   groupingRevision,
+			"canManage":                          true,
+		},
+	}, http.StatusOK, nil
+}
