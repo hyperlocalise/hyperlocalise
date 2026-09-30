@@ -707,6 +707,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onNext={navigation.onNextSegment}
           hasPreviousSegment={hasPreviousSegment}
           hasNextSegment={hasNextSegment}
+          showKeyboardHints={isAdaptiveEnabled && store.ui.isTranslatorPersona}
         />
       </ContentEditorPanelErrorBoundary>
     );
@@ -785,6 +786,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               : undefined
           }
           onGlossaryTermAdded={() => onReloadConcordance?.(editorSegment.id)}
+          scrollToTm={isAdaptiveEnabled && store.ui.isTranslatorPersona}
         />
       </ContentEditorPanelErrorBoundary>
     );

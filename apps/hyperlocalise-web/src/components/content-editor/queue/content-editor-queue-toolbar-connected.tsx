@@ -155,6 +155,7 @@ export const ContentEditorQueueToolbarConnected = observer(
         onDownloadFilteredView={onDownloadFilteredView}
         isDownloadingFilteredView={isDownloadingFilteredView}
         adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
+        resolvedPersona={adaptiveWorkspaceEnabled ? store.ui.resolvedPersona : undefined}
       />
     );
 
