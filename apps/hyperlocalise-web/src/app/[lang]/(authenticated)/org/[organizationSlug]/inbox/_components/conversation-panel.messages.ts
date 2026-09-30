@@ -22,7 +22,7 @@ export const conversationPanelMessages = defineMessages({
   },
   loadingConversation: {
     defaultMessage: "Loading conversation",
-    id: "q8nK2pLw0R",
+    id: "3knVI+YndO",
     description: "Aria label while the selected inbox conversation is loading",
   },
   newRequestTitle: {

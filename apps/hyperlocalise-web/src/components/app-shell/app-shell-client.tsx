@@ -118,107 +118,109 @@ export function AppShellClient({
         defaultNavigationGroups={navigationGroups}
         workspaceFeatureFlags={workspaceFeatureFlags}
       >
-      <TmsUserOAuthErrorToast />
-      <SidebarProvider
-        defaultOpen
-        style={
-          {
-            "--app-shell-content-height":
-              "calc(100svh - var(--app-shell-header-height) - var(--app-shell-footer-height))",
-            "--app-shell-plan-footer-height": "calc(3rem + env(safe-area-inset-bottom))",
-            "--app-shell-footer-height":
-              "calc(var(--app-shell-plan-footer-height) + var(--app-shell-dock-height, 0px))",
-            "--sidebar-width": "15rem",
-          } as CSSProperties
-        }
-        className="min-h-svh bg-background text-foreground"
-      >
-        <SidebarStoreBridge />
-        <Sidebar
-          variant="sidebar"
-          collapsible="icon"
-          style={{ viewTransitionName: "app-shell-sidebar" }}
+        <TmsUserOAuthErrorToast />
+        <SidebarProvider
+          defaultOpen
+          style={
+            {
+              "--app-shell-content-height":
+                "calc(100svh - var(--app-shell-header-height) - var(--app-shell-footer-height))",
+              "--app-shell-plan-footer-height": "calc(3rem + env(safe-area-inset-bottom))",
+              "--app-shell-footer-height":
+                "calc(var(--app-shell-plan-footer-height) + var(--app-shell-dock-height, 0px))",
+              "--sidebar-width": "15rem",
+            } as CSSProperties
+          }
+          className="min-h-svh bg-background text-foreground"
         >
-          <SidebarHeader className="gap-3 border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
-            <div className="rounded-xl px-1 py-1 group-data-[collapsible=icon]:px-0">
-              <BrandLockup
-                logoAlt={intl.formatMessage(appShellClientMessages.logoAlt)}
-                markClassName="size-7"
-                typClassName="group-data-[collapsible=icon]:hidden"
-                className="group-data-[collapsible=icon]:justify-center"
-              />
-            </div>
-          </SidebarHeader>
-
-          <SidebarContent className="gap-0 px-2 pt-2 pb-[var(--app-shell-footer-height)]">
-            <AppShellNavigation organizationSlug={organizationSlug} />
-          </SidebarContent>
-
-          <SidebarRail />
-        </Sidebar>
-
-        <SidebarInset className="h-svh max-h-svh min-h-0 overflow-hidden bg-background pb-[var(--app-shell-footer-height)]">
-          <div
-            className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/96 backdrop-blur"
-            style={{ viewTransitionName: "app-shell-header" }}
+          <SidebarStoreBridge />
+          <Sidebar
+            variant="sidebar"
+            collapsible="icon"
+            style={{ viewTransitionName: "app-shell-sidebar" }}
           >
-            <div className="flex h-(--app-shell-header-height) items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-              <div className="flex min-w-0 items-center gap-3">
-                <SidebarTrigger className="-ms-1" />
-                <Separator
-                  orientation="vertical"
-                  className="me-2 data-vertical:h-4 data-vertical:self-auto"
+            <SidebarHeader className="gap-3 border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
+              <div className="rounded-xl px-1 py-1 group-data-[collapsible=icon]:px-0">
+                <BrandLockup
+                  logoAlt={intl.formatMessage(appShellClientMessages.logoAlt)}
+                  markClassName="size-7"
+                  typClassName="group-data-[collapsible=icon]:hidden"
+                  className="group-data-[collapsible=icon]:justify-center"
                 />
-                <AppShellBreadcrumb organizationSlug={organizationSlug} />
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <AppShellHeaderActions />
-                {resolvedTmsUserConnectCta.showConnectCta && organizationSlug ? (
-                  <TmsUserConnectButton
-                    organizationSlug={organizationSlug}
-                    providerKind={resolvedTmsUserConnectCta.providerKind}
-                    providerDisplayName={resolvedTmsUserConnectCta.providerDisplayName}
-                    connectMethod={resolvedTmsUserConnectCta.connectMethod}
+            </SidebarHeader>
+
+            <SidebarContent className="gap-0 px-2 pt-2 pb-[var(--app-shell-footer-height)]">
+              <AppShellNavigation organizationSlug={organizationSlug} />
+            </SidebarContent>
+
+            <SidebarRail />
+          </Sidebar>
+
+          <SidebarInset className="h-svh max-h-svh min-h-0 overflow-hidden bg-background pb-[var(--app-shell-footer-height)]">
+            <div
+              className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/96 backdrop-blur"
+              style={{ viewTransitionName: "app-shell-header" }}
+            >
+              <div className="flex h-(--app-shell-header-height) items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+                <div className="flex min-w-0 items-center gap-3">
+                  <SidebarTrigger className="-ms-1" />
+                  <Separator
+                    orientation="vertical"
+                    className="me-2 data-vertical:h-4 data-vertical:self-auto"
                   />
-                ) : null}
-                <NavUser
-                  organizationSlug={activeOrganization.slug ?? ""}
-                  organizations={organizations}
-                  showApiKeysLink={showApiKeysLink}
-                  showBillingLink={showBillingLink}
-                  showMembersLink={showMembersLink}
-                  user={{
-                    name: user.name,
-                    email: user.email,
-                    avatar: user.avatarUrl ?? "",
-                  }}
-                />
+                  <AppShellBreadcrumb organizationSlug={organizationSlug} />
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <AppShellHeaderActions />
+                  {resolvedTmsUserConnectCta.showConnectCta && organizationSlug ? (
+                    <TmsUserConnectButton
+                      organizationSlug={organizationSlug}
+                      providerKind={resolvedTmsUserConnectCta.providerKind}
+                      providerDisplayName={resolvedTmsUserConnectCta.providerDisplayName}
+                      connectMethod={resolvedTmsUserConnectCta.connectMethod}
+                    />
+                  ) : null}
+                  <NavUser
+                    organizationSlug={activeOrganization.slug ?? ""}
+                    organizations={organizations}
+                    showApiKeysLink={showApiKeysLink}
+                    showBillingLink={showBillingLink}
+                    showMembersLink={showMembersLink}
+                    user={{
+                      name: user.name,
+                      email: user.email,
+                      avatar: user.avatarUrl ?? "",
+                    }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div
-            className={cn(
-              "flex min-h-0 flex-1 flex-col",
-              isOrgSettingsRoute ? "overflow-hidden" : "overflow-y-auto px-4 py-4 sm:px-6 lg:px-8",
-            )}
-          >
-            {children}
-          </div>
-        </SidebarInset>
+            <div
+              className={cn(
+                "flex min-h-0 flex-1 flex-col",
+                isOrgSettingsRoute
+                  ? "overflow-hidden"
+                  : "overflow-y-auto px-4 py-4 sm:px-6 lg:px-8",
+              )}
+            >
+              {children}
+            </div>
+          </SidebarInset>
 
-        <AppShellFooter
-          organizationSlug={organizationSlug}
-          projectId={projectRoute?.projectId ?? null}
-          showPlan={showBillingLink && autumnConfigured}
-          showGlossaryGuidance={isContentEditorWorkspaceRoute}
-          showIssueGuidance={isContentEditorWorkspaceRoute}
-          showGuideline={knowledgeEnabled && isContentEditorWorkspaceRoute}
-          showStyleGuide={!knowledgeEnabled && isContentEditorWorkspaceRoute}
-          canWriteProjects={canWriteProjects}
-          currentUser={organizationSlug ? currentUser : undefined}
-        />
-      </SidebarProvider>
+          <AppShellFooter
+            organizationSlug={organizationSlug}
+            projectId={projectRoute?.projectId ?? null}
+            showPlan={showBillingLink && autumnConfigured}
+            showGlossaryGuidance={isContentEditorWorkspaceRoute}
+            showIssueGuidance={isContentEditorWorkspaceRoute}
+            showGuideline={knowledgeEnabled && isContentEditorWorkspaceRoute}
+            showStyleGuide={!knowledgeEnabled && isContentEditorWorkspaceRoute}
+            canWriteProjects={canWriteProjects}
+            currentUser={organizationSlug ? currentUser : undefined}
+          />
+        </SidebarProvider>
       </AppShellStoreProvider>
     </AppShellSessionProvider>
   );

@@ -99,13 +99,19 @@ export function inboxSelectionsEqual(left: InboxSelection, right: InboxSelection
   if (left === right) {
     return true;
   }
-  if (!left || !right || left.kind !== right.kind) {
+  if (!left || !right) {
     return false;
   }
-  if (left.kind === "new") {
+  if (left.kind === "new" && right.kind === "new") {
     return true;
   }
-  return left.id === right.id;
+  if (left.kind === "conversation" && right.kind === "conversation") {
+    return left.id === right.id;
+  }
+  if (left.kind === "notification" && right.kind === "notification") {
+    return left.id === right.id;
+  }
+  return false;
 }
 
 /** Plain-text secondary line for notification rows (strips mention markdown etc.). */

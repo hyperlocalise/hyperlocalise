@@ -103,13 +103,22 @@ describe("resolveInboxSelection", () => {
 describe("inboxSelectionsEqual", () => {
   it("matches conversation and notification ids independently", () => {
     expect(
-      inboxSelectionsEqual({ kind: "conversation", id: "c-1" }, { kind: "conversation", id: "c-1" }),
+      inboxSelectionsEqual(
+        { kind: "conversation", id: "c-1" },
+        { kind: "conversation", id: "c-1" },
+      ),
     ).toBe(true);
     expect(
-      inboxSelectionsEqual({ kind: "conversation", id: "c-1" }, { kind: "conversation", id: "c-2" }),
+      inboxSelectionsEqual(
+        { kind: "conversation", id: "c-1" },
+        { kind: "conversation", id: "c-2" },
+      ),
     ).toBe(false);
     expect(
-      inboxSelectionsEqual({ kind: "notification", id: "n-1" }, { kind: "conversation", id: "n-1" }),
+      inboxSelectionsEqual(
+        { kind: "notification", id: "n-1" },
+        { kind: "conversation", id: "n-1" },
+      ),
     ).toBe(false);
     expect(inboxSelectionsEqual({ kind: "new" }, { kind: "new" })).toBe(true);
     expect(inboxSelectionsEqual(null, null)).toBe(true);
