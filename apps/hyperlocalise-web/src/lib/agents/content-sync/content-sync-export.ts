@@ -19,6 +19,10 @@ export function isContentSyncJsonCompatiblePath(path: string): boolean {
   return format !== null && JSON_COMPATIBLE_EXPORT_FORMATS.has(format);
 }
 
+export function isContentSyncLottieCompatiblePath(path: string): boolean {
+  return inferSupportedTranslationFileFormat(path) === "lottie";
+}
+
 export function buildContentSyncLocalePath(providerPath: string, locale: string): string {
   const extensionIndex = providerPath.lastIndexOf(".");
   if (extensionIndex > 0) {
@@ -53,5 +57,23 @@ export function buildContentSyncPushCandidate(input: {
   return {
     targetPath: buildContentSyncLocalePath(input.providerPath, input.locale),
     content: serializeContentSyncJsonExport(input.prefilled),
+  };
+}
+
+/** Target path for dotLottie exports; binary content is built separately. */
+export function buildContentSyncLottiePushTarget(input: {
+  providerPath: string;
+  locale: string;
+  translatedKeyCount: number;
+  prefilled: Record<string, string>;
+}): { targetPath: string } | null {
+  if (!isContentSyncLottieCompatiblePath(input.providerPath)) {
+    return null;
+  }
+  if (!shouldExportContentSyncTranslations(input)) {
+    return null;
+  }
+  return {
+    targetPath: buildContentSyncLocalePath(input.providerPath, input.locale),
   };
 }

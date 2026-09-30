@@ -487,6 +487,9 @@ importers:
       jwks-rsa:
         specifier: ^4.1.0
         version: 4.1.0(supports-color@8.1.1)
+      lottie-web:
+        specifier: ^5.13.0
+        version: 5.13.0
       mammoth:
         specifier: ^1.12.3
         version: 1.12.3
@@ -8718,6 +8721,9 @@ packages:
 
   lop@0.4.2:
     resolution: {integrity: sha512-RefILVDQ4DKoRZsJ4Pj22TxE3omDO47yFpkIBoDKzkqPRISs5U1cnAdg/5583YPkWPaLIYHOKRMQSvjFsO26cw==}
+
+  lottie-web@5.13.0:
+    resolution: {integrity: sha512-+gfBXl6sxXMPe8tKQm7qzLnUy5DUPJPKIyRHwtpCpyUEYjHYRJC/5gjUvdkuO2c3JllrPtHXH5UJJK8LRYl5yQ==}
 
   loupe@3.2.1:
     resolution: {integrity: sha512-CdzqowRJCeLU72bHvWqwRBBlLcMEtIvGrlvef74kMnV2AolS9Y8xUv1I0U/MNAWMhBlKIoyuEgoJ0t/bbwHbLQ==}
@@ -19236,6 +19242,8 @@ snapshots:
       duck: 0.1.12
       option: 0.2.4
       underscore: 1.13.8
+
+  lottie-web@5.13.0: {}
 
   loupe@3.2.1: {}
 

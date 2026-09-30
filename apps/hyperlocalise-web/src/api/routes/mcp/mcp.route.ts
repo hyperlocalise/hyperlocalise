@@ -2580,7 +2580,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     "download_translations",
     {
       description:
-        "Download a reconstructed UTF-8 target translation file from an accessible Hyperlocalise project.",
+        "Download a reconstructed target translation file from an accessible Hyperlocalise project. JSON-compatible sources return UTF-8 text; dotLottie sources return base64-encoded archive bytes in `content` with `contentEncoding` set to `base64`.",
       inputSchema: mcpDownloadTranslationsInputSchema,
     },
     async ({ projectId, sourcePath, locale }) => {
@@ -2626,6 +2626,12 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
             return mcpToolError(
               "unsupported_binary_download",
               "The reconstructed translation file is not supported as UTF-8 text",
+            );
+
+          case "lottie_export_failed":
+            return mcpToolError(
+              "lottie_export_failed",
+              "Could not write translations into the Lottie animation",
             );
 
           default:

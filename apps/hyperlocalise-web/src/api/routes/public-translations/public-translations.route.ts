@@ -17,10 +17,13 @@ import { validator } from "hono/validator";
 import { requireApiKeyPermission, type ApiKeyAuthVariables } from "@/api/auth/api-key";
 import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
 import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
+import { internalErrorResponse } from "@/api/response.schema";
+import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
 } from "@/lib/projects/translations/project-translation-service";
+import { isErr } from "@/lib/primitives/result/results";
 
 import {
   downloadPublicTranslationsQuerySchema,
@@ -103,12 +106,34 @@ export function createPublicTranslationRoutes() {
           return translationsNotFoundResponse(c);
         }
 
-        const content = JSON.stringify(result.prefilled, null, 2) + "\n";
         const filename = downloadFilename(query.sourcePath, query.locale);
+        const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
+
+        const lottieDownload = await loadProjectLottieTranslationDownload({
+          organizationId,
+          projectId: project.id,
+          sourcePath: query.sourcePath,
+          prefilled: result.prefilled,
+        });
+        if (isErr(lottieDownload)) {
+          return internalErrorResponse(
+            c,
+            "lottie_export_failed",
+            "Could not write translations into the Lottie animation.",
+          );
+        }
+        if (lottieDownload.value) {
+          return c.body(new Uint8Array(lottieDownload.value.content), 200, {
+            "Content-Type": lottieDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+          });
+        }
+
+        const content = JSON.stringify(result.prefilled, null, 2) + "\n";
 
         return c.body(content, 200, {
           "Content-Type": "application/json; charset=utf-8",
-          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+          "Content-Disposition": contentDisposition,
         });
       },
     );

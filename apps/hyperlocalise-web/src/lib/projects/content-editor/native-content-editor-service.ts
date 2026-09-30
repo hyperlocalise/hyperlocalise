@@ -53,6 +53,7 @@ import {
   looksLikeImageUrl,
   looksLikeVideoUrl,
 } from "@/lib/translation/file-formats";
+import { resolveLottieSourceKind } from "@/lib/translation/lottie/lottie-translation-export";
 
 function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
@@ -633,12 +634,18 @@ export class NativeContentEditorService extends ProjectServiceBase {
       targetLocale: string;
       canEditTranslations: boolean;
       organizationId: string;
+      organizationSlug: string;
       projectId: string;
     };
     visibleKeys: Awaited<ReturnType<ProjectTranslationService["listKeysForFile"]>>;
     truncated: boolean;
     pagination: ReturnType<typeof buildCatFilePagination> | undefined;
   }): Promise<ProjectFileContentEditorQueueFile> {
+    const lottieSourceUrl = await this.resolveLottieSourceUrl({
+      ...input.input,
+      keys: input.visibleKeys.map((key) => key.key),
+    });
+
     return {
       sourcePath: input.input.sourcePath,
       filename: filenameFromSourcePath(input.input.sourcePath),
@@ -647,8 +654,37 @@ export class NativeContentEditorService extends ProjectServiceBase {
       canEditTranslations: input.input.canEditTranslations,
       truncated: input.truncated,
       pagination: input.pagination,
+      ...(lottieSourceUrl ? { lottieSourceUrl } : {}),
       segments: input.visibleKeys.map((key) => mapTextSegment(key)),
     };
+  }
+
+  private async resolveLottieSourceUrl(input: {
+    organizationId: string;
+    organizationSlug: string;
+    projectId: string;
+    sourcePath: string;
+    keys: readonly string[];
+  }): Promise<string | null> {
+    if (!resolveLottieSourceKind(input.sourcePath, input.keys)) {
+      return null;
+    }
+
+    const latestVersion = await getLatestRepositorySourceFileVersion({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      db: this.database,
+    });
+    if (!latestVersion?.storedFileId) {
+      return null;
+    }
+
+    return projectImageAssetPath({
+      organizationSlug: input.organizationSlug,
+      projectId: input.projectId,
+      fileId: latestVersion.storedFileId,
+    });
   }
 
   async setKeysHidden(input: {
