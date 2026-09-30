@@ -181,7 +181,6 @@ export function IssueSheetPageContent({
         <ProjectSectionHeader
           icon={Copy01Icon}
           section={intl.formatMessage(messages.sectionTitle)}
-          description={intl.formatMessage(messages.sectionDescription)}
           actions={
             <div className="flex flex-wrap gap-2">
               <IssueSheetImportMenu

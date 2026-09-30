@@ -371,15 +371,7 @@ export function ProjectSettingsPageContent({
 
   return (
     <ProjectPageShell>
-      <ProjectSectionHeader
-        icon={Settings01Icon}
-        section="Settings"
-        description={
-          metadataEditable
-            ? "Edit project metadata, style guide, locales, and source connection details."
-            : "View provider-managed project metadata, locales, and source connection details. You can still edit the issue identifier."
-        }
-      />
+      <ProjectSectionHeader icon={Settings01Icon} section="Settings" />
 
       <form id="project-settings-form" ref={formRef} onSubmit={handleSubmit} className="grid gap-5">
         <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">

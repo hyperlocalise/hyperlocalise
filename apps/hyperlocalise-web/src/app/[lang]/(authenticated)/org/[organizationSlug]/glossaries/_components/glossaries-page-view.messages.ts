@@ -25,12 +25,6 @@ export const glossariesPageViewMessages = defineMessages({
     id: "VpdqFflIZ6",
     description: "Glossaries page heading",
   },
-  pageDescription: {
-    defaultMessage:
-      "Create first-party workspace glossaries or sync provider term bases. Provider glossaries stay read-only.",
-    id: "faIh9KrPi/",
-    description: "Glossaries page description under the heading",
-  },
   glossaryCount: {
     defaultMessage: "{count, plural, one {# glossary} other {# glossaries}}",
     id: "yGxOn6oNGU",

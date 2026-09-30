@@ -99,11 +99,10 @@ export function IssuesPageView({
         icon={Copy01Icon}
         label="Workspace"
         title={intl.formatMessage(issuesPageViewMessages.pageTitle)}
-        description={intl.formatMessage(issuesPageViewMessages.pageDescription)}
         actions={actions}
-      />
-
-      {filterBar}
+      >
+        {filterBar}
+      </PageHeader>
 
       {canEditIssues ? bulkActionBar : null}
 

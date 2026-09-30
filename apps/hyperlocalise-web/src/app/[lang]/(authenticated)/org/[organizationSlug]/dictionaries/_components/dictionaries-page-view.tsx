@@ -29,11 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
-import {
-  PageHeader,
-  WorkspaceFilterField,
-  WorkspacePageShell,
-} from "../../_components/workspace-resource-shared";
+import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import type { DictionaryListRow } from "./dictionary-list";
 import { DictionariesTable } from "./dictionaries-table";
 import { dictionariesPageViewMessages } from "./dictionaries-page-view.messages";
@@ -94,7 +90,6 @@ export function DictionariesPageView({
         icon={TextFontIcon}
         label={intl.formatMessage(dictionariesPageViewMessages.pageLabel)}
         title={intl.formatMessage(dictionariesPageViewMessages.pageTitle)}
-        description={intl.formatMessage(dictionariesPageViewMessages.pageDescription)}
         statusLabel={intl.formatMessage(dictionariesPageViewMessages.dictionaryCount, {
           count: searchQuery.trim() ? dictionaries.length : (totalCount ?? dictionaries.length),
         })}
@@ -106,19 +101,15 @@ export function DictionariesPageView({
             </Button>
           ) : null
         }
-      />
-
-      <WorkspaceFilterField
-        label={intl.formatMessage(dictionariesPageViewMessages.searchLabel)}
-        className="w-full sm:max-w-xs"
       >
         <Input
+          aria-label={intl.formatMessage(dictionariesPageViewMessages.searchLabel)}
           placeholder={intl.formatMessage(dictionariesPageViewMessages.searchPlaceholder)}
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.target.value)}
-          className="w-full"
+          className="w-full sm:max-w-xs"
         />
-      </WorkspaceFilterField>
+      </PageHeader>
 
       <DictionariesTable
         organizationSlug={organizationSlug}

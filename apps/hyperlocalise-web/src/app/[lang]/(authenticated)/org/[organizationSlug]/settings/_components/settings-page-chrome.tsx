@@ -16,30 +16,10 @@ import type { ReactNode } from "react";
 
 import { Box } from "@/components/ui/layout/box";
 import { Rows } from "@/components/ui/layout/rows";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 
-export function SettingsPageHeader({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Rows spacing="1u">
-      <span className="text-xs font-medium tracking-wider text-subtle-foreground uppercase">
-        {eyebrow}
-      </span>
-      <TypographyH1 className="text-2xl tracking-tight md:text-2xl" weight="medium" tone="content">
-        {title}
-      </TypographyH1>
-      <TypographyP className="leading-snug" wrapStyle="pretty" size="small" tone="subtle">
-        {description}
-      </TypographyP>
-    </Rows>
-  );
+export function SettingsPageHeader({ title }: { title: string }) {
+  return <h1 className="sr-only">{title}</h1>;
 }
 
 export function SettingsPageBody({

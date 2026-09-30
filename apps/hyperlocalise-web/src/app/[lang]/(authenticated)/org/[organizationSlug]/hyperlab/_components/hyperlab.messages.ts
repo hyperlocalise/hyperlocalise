@@ -25,12 +25,6 @@ export const hyperlabMessages = defineMessages({
     id: "F9TKZ7VAEV",
     description: "Hyperlab overview page title",
   },
-  overviewDescription: {
-    defaultMessage:
-      "Try a different headline, checkout, or offer in one market. Keep the version people like.",
-    id: "M7Q//ePO1O",
-    description: "Hyperlab overview page description",
-  },
   backToList: {
     defaultMessage: "Back",
     id: "VO5BaUGRxq",
@@ -167,12 +161,6 @@ export const hyperlabMessages = defineMessages({
     defaultMessage: "Flags",
     id: "mnIDIyLJHl",
     description: "Flags list page title",
-  },
-  flagsDescription: {
-    defaultMessage:
-      "Each flag is a site change you can turn on in a test, or keep on for everyone.",
-    id: "uYxFyU7KUw",
-    description: "Flags list page description",
   },
   flagsEmptyTitle: {
     defaultMessage: "No flags yet",
@@ -319,12 +307,6 @@ export const hyperlabMessages = defineMessages({
     defaultMessage: "Experiments",
     id: "eJvMGD1rKZ",
     description: "Experiments list page title",
-  },
-  experimentsDescription: {
-    defaultMessage:
-      "A test with dates, who sees it, and the versions of your site you want to compare.",
-    id: "vhIR6HNBrL",
-    description: "Experiments list page description",
   },
   experimentsEmptyTitle: {
     defaultMessage: "No experiments yet",
@@ -657,12 +639,6 @@ export const hyperlabMessages = defineMessages({
     id: "HqRsGE2RWy",
     description: "Audiences list page title",
   },
-  audiencesDescription: {
-    defaultMessage:
-      "Groups of visitors who should see a test, like people in Japan or on a paid plan.",
-    id: "sdjKjNa1CS",
-    description: "Audiences list page description",
-  },
   audiencesEmptyTitle: {
     defaultMessage: "No audiences yet",
     id: "JL3JSNfNKu",
@@ -792,12 +768,6 @@ export const hyperlabMessages = defineMessages({
     defaultMessage: "API keys",
     id: "QhNCkDX/2a",
     description: "Client keys page title",
-  },
-  keysDescription: {
-    defaultMessage:
-      "Create a key and send it to whoever plugs Hyperlab into your site. You only see the full key once.",
-    id: "gOqf5qjv10",
-    description: "Client keys page description",
   },
   keysEmptyTitle: {
     defaultMessage: "No API keys yet",

@@ -197,7 +197,6 @@ export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByRole("heading", { name: "Product UI" })).toBeInTheDocument();
     await expect(canvas.getByText("Workspace")).toBeInTheDocument();
-    await expect(canvas.getByText("Core product translations")).toBeInTheDocument();
     await expect(canvas.getByText("Checkout")).toBeInTheDocument();
     await expect(canvas.getByText("Paiement")).toBeInTheDocument();
     await expect(canvas.getByText("Save changes")).toBeInTheDocument();
@@ -223,9 +222,6 @@ export const Empty: Story = {
   }),
   play: async ({ canvas }) => {
     await expect(await canvas.findByRole("heading", { name: "Product UI" })).toBeInTheDocument();
-    await expect(
-      canvas.getByText("Manage translation examples and assign this memory to projects."),
-    ).toBeInTheDocument();
     await expect(canvas.getByText("No entries yet.")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Import TMX or CSV" })).toBeInTheDocument();
     await expect(canvas.getByText("No projects assigned yet.")).toBeInTheDocument();

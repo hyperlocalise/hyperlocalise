@@ -176,7 +176,6 @@ export function RolePermissionsPageView({ organizationSlug }: { organizationSlug
           icon={UserGroupIcon}
           label={intl.formatMessage(messages.pageLabel)}
           title={intl.formatMessage(messages.pageTitle)}
-          description={intl.formatMessage(messages.pageDescription)}
         />
       </Rows>
 

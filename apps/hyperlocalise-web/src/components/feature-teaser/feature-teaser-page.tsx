@@ -83,9 +83,6 @@ export function FeatureTeaserPage({
         icon={config.icon}
         label={intl.formatMessage(isProjectScope ? config.pageLabelProject : config.pageLabel)}
         title={intl.formatMessage(config.pageTitle)}
-        description={intl.formatMessage(
-          isProjectScope ? config.pageDescriptionProject : config.pageDescription,
-        )}
         statusLabel={intl.formatMessage(featureTeaserMessages.previewBadge)}
       />
 

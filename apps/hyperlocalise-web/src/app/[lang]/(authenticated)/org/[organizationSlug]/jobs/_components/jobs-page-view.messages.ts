@@ -235,11 +235,6 @@ export const jobsPageViewMessages = defineMessages({
     id: "q4g35VNiZ5",
     description: "Project page section label for the jobs view",
   },
-  projectSectionDescription: {
-    defaultMessage: "Translation, review, and QA work from Hyperlocalise and your TMS.",
-    id: "zjUiRNln1O",
-    description: "Project page section description for the jobs view",
-  },
   workspaceLabel: {
     defaultMessage: "Workspace",
     id: "xSmzy2H6ua",
@@ -254,16 +249,6 @@ export const jobsPageViewMessages = defineMessages({
     defaultMessage: "My Jobs",
     id: "AeHzXlSphR",
     description: "Personal jobs page heading",
-  },
-  pageDescriptionWorkspace: {
-    defaultMessage: "Hyperlocalise jobs and live TMS jobs tracked across the workspace.",
-    id: "OLljhH3V9D",
-    description: "Workspace jobs page description under the heading",
-  },
-  pageDescriptionPersonal: {
-    defaultMessage: "Hyperlocalise and live TMS work assigned to you or created by you.",
-    id: "/s8HFQ46mj",
-    description: "Personal jobs page description under the heading",
   },
   noLocalesOrAssignees: {
     defaultMessage: "No locales or assignees",

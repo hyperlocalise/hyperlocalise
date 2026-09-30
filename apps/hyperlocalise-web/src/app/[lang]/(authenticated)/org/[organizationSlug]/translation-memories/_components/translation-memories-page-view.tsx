@@ -192,12 +192,11 @@ export function TranslationMemoriesPageView({
       : (projects.find((project) => project.id === projectFilter)?.name ?? allProjectsLabel);
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-4">
       <PageHeader
         icon={Database01Icon}
         label={intl.formatMessage(translationMemoriesPageViewMessages.pageLabel)}
         title={intl.formatMessage(translationMemoriesPageViewMessages.pageTitle)}
-        description={intl.formatMessage(translationMemoriesPageViewMessages.pageDescription)}
         statusLabel={memoryCountLabel}
         actions={
           allowCreateMemories ? (

@@ -216,7 +216,6 @@ export function QaProjectPageContent({
       <ProjectSectionHeader
         icon={CheckmarkCircle02Icon}
         section={intl.formatMessage(messages.title)}
-        description={intl.formatMessage(messages.description)}
         actions={
           settings?.canRun ? (
             <Button

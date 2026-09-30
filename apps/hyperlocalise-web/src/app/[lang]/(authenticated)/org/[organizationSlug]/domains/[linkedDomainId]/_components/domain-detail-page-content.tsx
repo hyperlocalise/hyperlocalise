@@ -135,7 +135,6 @@ export function DomainDetailPageContent({
             icon={Globe02Icon}
             label="Domains"
             title={linkedDomain.domainKey}
-            description={linkedDomain.sourceUrl}
             actions={
               <div className="flex flex-wrap gap-2">
                 {linkedDomain.projectId ? (

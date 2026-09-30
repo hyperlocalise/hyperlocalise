@@ -80,17 +80,6 @@ export const projectsPageContentMessages = defineMessages({
     id: "aKIe8yWjB3",
     description: "Fallback label when no TMS provider name is available",
   },
-  pageDescriptionWithTms: {
-    defaultMessage: "Manage Hyperlocalise projects and browse live TMS-synced projects.",
-    id: "PKp1AQm4Ed",
-    description: "Projects page description when a TMS provider is connected",
-  },
-  pageDescriptionWithoutTms: {
-    defaultMessage:
-      "Browse Hyperlocalise projects. Connect a TMS provider to view live provider projects alongside them.",
-    id: "HrQO2GGbYJ",
-    description: "Projects page description when no TMS provider is connected",
-  },
   createNativeProject: {
     defaultMessage: "Create native project",
     id: "zKYGdX/fFA",

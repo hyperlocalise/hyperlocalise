@@ -55,7 +55,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import {
   IntegrationCategoryCard,
   IntegrationCategoryLabel,
@@ -371,15 +371,10 @@ export function AiEnginePageContent({
     selectedProviderConfig?.label;
 
   return (
-    <main className="space-y-8">
-      <div className="flex flex-col gap-1.5">
-        <TypographyH1 className="font-heading text-2xl md:text-2xl" weight="medium" tone="content">
-          <FormattedMessage {...aiEnginePageContentMessages.pageTitle} />
-        </TypographyH1>
-        <TypographyP className="max-w-2xl leading-6" size="small" tone="subtle">
-          <FormattedMessage {...aiEnginePageContentMessages.pageDescription} />
-        </TypographyP>
-      </div>
+    <main className="space-y-6">
+      <h1 className="sr-only">
+        <FormattedMessage {...aiEnginePageContentMessages.pageTitle} />
+      </h1>
 
       {canManageAiEngine ? (
         <>

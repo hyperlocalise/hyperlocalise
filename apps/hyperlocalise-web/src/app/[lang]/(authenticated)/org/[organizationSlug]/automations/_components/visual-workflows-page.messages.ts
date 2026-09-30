@@ -25,11 +25,6 @@ export const visualWorkflowsPageMessages = defineMessages({
     id: "XEIB3MxFUn",
     description: "Title for the visual workflows list page",
   },
-  pageDescription: {
-    defaultMessage: "Build deterministic automation graphs with triggers, actions, and branching.",
-    id: "H9KS8ECUJ/",
-    description: "Description for the visual workflows list page",
-  },
   newWorkflow: {
     defaultMessage: "New workflow",
     id: "vj1b+ydRtP",

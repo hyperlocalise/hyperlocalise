@@ -188,7 +188,7 @@ export function AppShellClient({
           <div
             className={cn(
               "flex min-h-0 flex-1 flex-col",
-              isOrgSettingsRoute ? "overflow-hidden" : "overflow-y-auto px-4 py-5 sm:px-6 lg:px-8",
+              isOrgSettingsRoute ? "overflow-hidden" : "overflow-y-auto px-4 py-4 sm:px-6 lg:px-8",
             )}
           >
             {children}

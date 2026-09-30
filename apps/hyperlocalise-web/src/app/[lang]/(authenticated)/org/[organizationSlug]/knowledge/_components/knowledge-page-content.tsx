@@ -84,7 +84,7 @@ export function KnowledgePageContent({
     knowledgeMemoryQuery.isLoading || viewMode === null ? "loading" : viewMode;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
       <KnowledgePageHeader
         scope={projectId ? "project" : "organization"}
         onAddSources={
