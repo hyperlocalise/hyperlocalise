@@ -64,7 +64,12 @@ worker, or a new Lambda artifact under `apps/`.
    workflow into a different upload/provision structure.
 8. Document required non-sensitive environment metadata and the local test
    command. Do not require LocalStack for unit tests.
-9. Run `make fmt`, `make lint`, and `make test` before handing off the infra
+9. For an ECS producer, document the infra-owned task-definition/configuration
+   handoff. Application deploys must clone that handoff revision so arbitrary
+   infra-managed environment variables, secrets, sidecars, and resource
+   settings are preserved. Do not assume a particular queue environment
+   variable is the only configuration at risk.
+10. Run `make fmt`, `make lint`, and `make test` before handing off the infra
    inputs.
 
 ## Required handoff to infrastructure

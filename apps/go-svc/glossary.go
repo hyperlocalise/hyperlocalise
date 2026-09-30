@@ -119,6 +119,7 @@ func (api *glossaryAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("DELETE "+g+"/{glossaryId}/projects/{projectId}", owned((*glossaryAPI).detachGlossaryProject))
 	route("GET "+g+"/{glossaryId}/export", owned((*glossaryAPI).exportGlossaryHandler))
 	route("POST "+g+"/{glossaryId}/export", owned((*glossaryAPI).createGlossaryExportHandler))
+	route("GET "+g+"/{glossaryId}/import-reports", owned((*glossaryAPI).listGlossaryInterchangeRunsHandler))
 	route("GET "+g+"/{glossaryId}/import-reports/{reportId}", owned((*glossaryAPI).getGlossaryImportReportHandler))
 	route("GET "+g+"/{glossaryId}/import-reports/{reportId}/backup", owned((*glossaryAPI).getGlossaryImportBackupHandler))
 	route("GET "+g+"/{glossaryId}/import-reports/{reportId}/download", owned((*glossaryAPI).getGlossaryInterchangeDownloadHandler))

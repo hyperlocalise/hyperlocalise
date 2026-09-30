@@ -34,6 +34,7 @@ env:
   ECR_REPOSITORY_PARAMETER_NAME: /hyperlocalise/prod/ecr/go-svc/repository_name
   ECS_CLUSTER_PARAMETER_NAME: /hyperlocalise/prod/ecs/cluster_name
   ECS_SERVICE_PARAMETER_NAME: /hyperlocalise/prod/ecs/go-svc/service_name
+  ECS_TASK_DEFINITION_PARAMETER_NAME: /hyperlocalise/prod/ecs/go-svc/task_definition_arn
 
 jobs:
   build-and-push:
@@ -61,6 +62,7 @@ jobs:
           ecr-parameter-name: ${{ env.ECR_REPOSITORY_PARAMETER_NAME }}
           ecs-cluster-parameter-name: ${{ env.ECS_CLUSTER_PARAMETER_NAME }}
           ecs-service-parameter-name: ${{ env.ECS_SERVICE_PARAMETER_NAME }}
+          task-definition-parameter-name: ${{ env.ECS_TASK_DEFINITION_PARAMETER_NAME }}
 
       - name: Build and push image
         id: build
@@ -102,3 +104,4 @@ jobs:
           image: ${{ needs.build-and-push.outputs.image }}
           version: ${{ env.GO_SVC_IMAGE_TAG }}
           container-name: go-svc
+          base-task-definition-parameter-name: ${{ env.ECS_TASK_DEFINITION_PARAMETER_NAME }}

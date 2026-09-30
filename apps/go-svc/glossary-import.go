@@ -180,6 +180,7 @@ func (api *glossaryAPI) getGlossaryImportReport(ctx context.Context, actor gloss
 		"counts": jsonObjectOrEmpty(counts), "backupFileId": backupFileID,
 		"resultFilename": resultFilename, "resultContentType": resultContentType,
 		"resultReady": resultObjectKey != nil && *resultObjectKey != "",
+		"backupReady": backupObjectKey != nil && *backupObjectKey != "",
 		"errorCode":   errorCode, "errorMessage": errorMessage,
 		"createdAt": formatGlossaryTime(createdAt), "completedAt": formatGlossaryTimePtr(completedAt),
 	}

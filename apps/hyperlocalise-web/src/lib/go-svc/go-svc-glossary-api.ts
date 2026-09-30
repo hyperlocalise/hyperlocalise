@@ -15,6 +15,7 @@ import type {
   GlossaryConceptPageQuery,
   GlossaryExportQuery,
   GlossaryInterchangeReport,
+  GlossaryInterchangeRunsResponse,
   GlossaryUploadSession,
   GlossaryProject,
   GlossaryRecord,
@@ -126,6 +127,23 @@ export class GoSvcGlossaryApi {
     return this.request.json<GlossaryInterchangeReport>(
       orgPath(organizationSlug, "glossaries", glossaryId, "import-reports", reportId),
       options,
+    );
+  }
+
+  listRuns(
+    organizationSlug: string,
+    glossaryId: string,
+    query: {
+      limit?: number;
+      cursor?: string;
+      operation?: "import" | "export";
+      status?: string;
+    } = {},
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<GlossaryInterchangeRunsResponse>(
+      orgPath(organizationSlug, "glossaries", glossaryId, "import-reports"),
+      { query, ...options },
     );
   }
 
