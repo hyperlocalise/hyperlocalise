@@ -1,17 +1,18 @@
-# Glossary interchange dummy Lambda
+# Glossary interchange Lambda
 
 ## Purpose
 
-Provide a buildable Go Lambda artifact for the newly provisioned glossary-interchange
-queue while the real job contract and processing implementation are still being
-defined. This change intentionally does not use `feat/glossary-interchange-async`.
+Process native glossary imports and exports behind the existing
+`glossary-interchange` SQS queue using the Go Lambda at
+`apps/glossary-interchange-lambda`.
 
 ## Contract
 
-The handler accepts an AWS `events.SQSEvent` and returns partial batch failures.
-It logs only record counts, message IDs, body sizes, timing, and a fixed failure
-reason. Every received record is marked for retry; no message is acknowledged and
-no database, object-storage, or secret access occurs.
+The handler accepts an AWS `events.SQSEvent`, returns partial batch failures, and
+processes one durable `glossary_import_runs` record per message. GoSvc stores
+source/result/backup object references, publishes versioned import/export
+messages, and serves report status plus signed result downloads. Replace imports
+write a TBX backup before mutating glossary concepts.
 
 Canceled contexts return an error so Lambda retries the complete batch. Empty
 batches complete successfully.
@@ -19,6 +20,8 @@ batches complete successfully.
 ## Deployment
 
 The application builds `dist/glossary-interchange-lambda/bootstrap` with the
-`provided.al2023`-compatible root-level bootstrap shape. The deployment workflow
-uploads it to `glossary-interchange/bootstrap.zip` and updates the function named
-by `/hyperlocalise/prod/lambda/glossary-interchange/function_name`.
+`provided.al2023`-compatible root-level bootstrap shape. The existing
+`.github/workflows/lambda-deploy.yml` workflow detects changes under
+`apps/glossary-interchange-lambda/**` and uses the same deploy action and job
+pattern as the other Lambdas. It uploads `glossary-interchange/bootstrap.zip`
+and updates `/hyperlocalise/prod/lambda/glossary-interchange/function_name`.

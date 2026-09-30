@@ -575,10 +575,11 @@ authorization, project-access, and selection tests in `apps/go-svc`.
 The browser can call `/api/go-svc/v1/orgs/{organizationSlug}/glossaries` and
 `/api/go-svc/v1/orgs/{organizationSlug}/translation-memories` for native library
 CRUD, project attachments, glossary concepts/terms, memory entries, and
-CSV/TBX/TMX (plus glossary XLSX export) interchange. Hono routes remain available
-in parallel. The only deferred interchange path is glossary import-report backup
-download (`GET .../import-reports/{reportId}/backup`), which still returns 501
-because it depends on Vercel Blob / stored file adapters.
+CSV/TBX/TMX (plus glossary XLSX export) interchange. Glossary import and export
+are asynchronous: GoSvc creates a run, signs the upload or download, publishes
+an SQS message, and exposes the run report while the existing
+`apps/glossary-interchange-lambda` worker processes it. Replace imports retain a
+TBX backup reference in `glossary_import_runs`.
 Auth matches dictionary routes: WorkOS session cookie, live membership verification,
 and role checks (`glossaries:write` / `memories:write` for managers; translators may
 contribute to team-controlled native glossaries).
@@ -607,14 +608,16 @@ All paths below are relative to `/v1/orgs/{organizationSlug}`:
 | GET, PATCH, DELETE | `/glossaries/{glossaryId}` | Read, update, or delete |
 | GET, POST | `/glossaries/{glossaryId}/projects` | List or attach projects |
 | DELETE | `/glossaries/{glossaryId}/projects/{projectId}` | Detach a project |
-| GET | `/glossaries/{glossaryId}/export` | Export CSV, TBX, or XLSX |
+| POST | `/glossaries/{glossaryId}/export` | Queue an asynchronous CSV, TBX, or XLSX export |
 | GET | `/glossaries/{glossaryId}/import-reports/{reportId}` | Import report JSON |
-| GET | `/glossaries/{glossaryId}/import-reports/{reportId}/backup` | 501 (Blob deferred) |
+| GET | `/glossaries/{glossaryId}/import-reports/{reportId}/backup` | Download a completed replace-import backup |
 | GET, POST | `/glossaries/{glossaryId}/concepts` | List or create concepts |
 | GET | `/glossaries/{glossaryId}/concepts/page` | Cursor-paginated concepts |
 | GET | `/glossaries/{glossaryId}/concepts/authors` | Distinct concept/term authors |
 | GET | `/glossaries/{glossaryId}/concepts/history` | Glossary history events |
-| POST | `/glossaries/{glossaryId}/concepts/import` | Import CSV/TBX (no Blob backup) |
+| POST | `/glossaries/{glossaryId}/concepts/import/uploads` | Create a signed import upload |
+| POST | `/glossaries/{glossaryId}/concepts/import` | Finalize and queue an asynchronous CSV/TBX/XLSX import |
+| GET | `/glossaries/{glossaryId}/import-reports/{reportId}/download` | Get a signed export download URL |
 | GET, PATCH, DELETE | `/glossaries/{glossaryId}/concepts/{conceptId}` | Concept CRUD |
 | GET, POST | `/glossaries/{glossaryId}/concepts/{conceptId}/terms` | List or create terms |
 | GET | `.../concepts/{conceptId}/terms/page` | Cursor-paginated terms |

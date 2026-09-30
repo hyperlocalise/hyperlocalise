@@ -364,10 +364,6 @@ func validGlossaryID(id string) bool {
 	return err == nil
 }
 
-func glossaryNotImplemented() (any, int, error) {
-	return nil, 0, glossaryFailure(501, "not_implemented", "This glossary operation is not available on the native Go service yet")
-}
-
 func trimGlossaryInput(value string) string {
 	return trimDictionaryInput(value)
 }
