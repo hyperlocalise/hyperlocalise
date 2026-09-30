@@ -154,48 +154,53 @@ export function InboxPageView({
           className="min-h-0 min-w-0 flex-1"
           resetKeys={[selectionKey]}
         >
-          {selection?.kind === "notification" ? (
-            selectedNotification ? (
-              <InboxIssuePanel
+          <div
+            key={selectionKey}
+            className="flex h-full min-h-0 min-w-0 flex-1 flex-col"
+          >
+            {selection?.kind === "notification" ? (
+              selectedNotification ? (
+                <InboxIssuePanel
+                  organizationSlug={organizationSlug}
+                  projectId={selectedNotification.projectId}
+                  issueId={selectedNotification.issueId}
+                  canDelete={canDeleteQueries}
+                  onDeleted={onDeletedQuery}
+                />
+              ) : selectedNotificationIsLoading ? (
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  padding="3u"
+                  height="full"
+                  aria-busy="true"
+                  aria-label="Loading notification"
+                >
+                  <span className="text-sm text-muted-foreground">
+                    <FormattedMessage {...inboxNotificationsMessages.issuePanelLoading} />
+                  </span>
+                </Box>
+              ) : null
+            ) : (
+              <ConversationPanel
+                conversation={selectedConversation}
+                currentUser={currentUser}
+                draft={draft}
+                isComposingNew={selection?.kind === "new"}
+                isSending={isSending}
+                isStreaming={isStreaming}
+                jobs={jobs}
+                jobsIsLoading={jobsIsLoading}
+                messages={messages}
+                messagesIsLoading={messagesIsLoading}
+                onDraftChange={onDraftChange}
+                onSendMessage={onSendMessage}
                 organizationSlug={organizationSlug}
-                projectId={selectedNotification.projectId}
-                issueId={selectedNotification.issueId}
-                canDelete={canDeleteQueries}
-                onDeleted={onDeletedQuery}
+                streamedAssistant={streamedAssistant}
               />
-            ) : selectedNotificationIsLoading ? (
-              <Box
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                padding="3u"
-                height="full"
-                aria-busy="true"
-                aria-label="Loading notification"
-              >
-                <span className="text-sm text-muted-foreground">
-                  <FormattedMessage {...inboxNotificationsMessages.issuePanelLoading} />
-                </span>
-              </Box>
-            ) : null
-          ) : (
-            <ConversationPanel
-              conversation={selectedConversation}
-              currentUser={currentUser}
-              draft={draft}
-              isComposingNew={selection?.kind === "new"}
-              isSending={isSending}
-              isStreaming={isStreaming}
-              jobs={jobs}
-              jobsIsLoading={jobsIsLoading}
-              messages={messages}
-              messagesIsLoading={messagesIsLoading}
-              onDraftChange={onDraftChange}
-              onSendMessage={onSendMessage}
-              organizationSlug={organizationSlug}
-              streamedAssistant={streamedAssistant}
-            />
-          )}
+            )}
+          </div>
         </InboxPanelErrorBoundary>
       </div>
     </main>
