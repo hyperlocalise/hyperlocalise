@@ -49,7 +49,7 @@ func (api *glossaryAPI) listGlossaryInterchangeRunsHandler(r *http.Request, _ gl
 	}
 	if cursor := strings.TrimSpace(r.URL.Query().Get("cursor")); cursor != "" {
 		createdAt, id, decodeErr := decodeGlossaryPageCursor(cursor)
-		if decodeErr != nil {
+		if decodeErr != nil || !isValidGlossaryInterchangeCursorTime(createdAt) {
 			return nil, 0, glossaryFailure(400, "invalid_glossary_interchange_cursor", "Glossary interchange cursor is invalid")
 		}
 		args = append(args, createdAt, id)
@@ -108,4 +108,9 @@ func (api *glossaryAPI) listGlossaryInterchangeRunsHandler(r *http.Request, _ gl
 		"nextCursor": nextCursor,
 		"pagination": map[string]any{"limit": limit, "returned": len(runs), "hasMore": hasMore},
 	}, http.StatusOK, nil
+}
+
+func isValidGlossaryInterchangeCursorTime(value string) bool {
+	_, err := time.Parse(time.RFC3339Nano, value)
+	return err == nil
 }

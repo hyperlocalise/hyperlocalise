@@ -239,14 +239,15 @@ func TestGlossaryImportReportGet(t *testing.T) {
 	reportID := "ffffffff-ffff-4fff-8fff-ffffffffffff"
 	_, err := scope.Pool.Exec(t.Context(), `
         insert into glossary_import_runs (
-            id, organization_id, glossary_id, created_by_user_id, format, mode, status, counts, completed_at
-        ) values ($1, $2, $3, $4, 'csv', 'preview', 'completed', '{"skipped":0}'::jsonb, now())`,
+            id, organization_id, glossary_id, created_by_user_id, format, mode, status, counts, backup_object_key, completed_at
+        ) values ($1, $2, $3, $4, 'csv', 'preview', 'completed', '{"skipped":0}'::jsonb, 'backups/report.tbx', now())`,
 		reportID, scope.OrganizationID, id, scope.UserID)
 	require.NoError(t, err)
 	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports/"+reportID), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"report"`)
 	require.Contains(t, rec.Body.String(), reportID)
+	require.Contains(t, rec.Body.String(), `"backupReady":true`)
 }
 
 func TestGlossaryInterchangeRunsList(t *testing.T) {
@@ -273,6 +274,15 @@ func TestGlossaryInterchangeRunsListRejectsInvalidCursor(t *testing.T) {
 	id := scope.MustGlossary(t, "", "Product terms", "en-US")
 	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?cursor=invalid"), "")
 	require.Equal(t, 400, rec.Code)
+	require.Contains(t, rec.Body.String(), "invalid_glossary_interchange_cursor")
+}
+
+func TestGlossaryInterchangeRunsListRejectsCursorWithInvalidTimestamp(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	cursor := encodeGlossaryPageCursor("not-a-time", "11111111-1111-4111-8111-111111111111")
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?cursor="+cursor), "")
+	require.Equal(t, 400, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), "invalid_glossary_interchange_cursor")
 }
 
