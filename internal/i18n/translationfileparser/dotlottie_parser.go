@@ -77,7 +77,7 @@ func MarshalDotLottie(template []byte, values map[string]string) ([]byte, error)
 
 	valuesByEntry := map[string]map[string]string{}
 	for key, value := range values {
-		entryName, lottieKey, ok := strings.Cut(key, dotLottieKeySeparator)
+		entryName, lottieKey, ok := splitDotLottieCompositeKey(key)
 		if !ok {
 			continue
 		}
@@ -144,6 +144,17 @@ func MarshalDotLottie(template []byte, values map[string]string) ([]byte, error)
 		return nil, fmt.Errorf("dotlottie: finalize archive: %w", err)
 	}
 	return out.Bytes(), nil
+}
+
+// splitDotLottieCompositeKey splits a dotLottie translation key into the zip entry
+// path and the inner Lottie key. The separator is the final "#" so entry names may
+// contain "#" (for example "a/foo#bar.json#layers[0].t.d.k[0].s.t").
+func splitDotLottieCompositeKey(key string) (entryName, lottieKey string, ok bool) {
+	idx := strings.LastIndex(key, dotLottieKeySeparator)
+	if idx <= 0 || idx >= len(key)-len(dotLottieKeySeparator) {
+		return "", "", false
+	}
+	return key[:idx], key[idx+len(dotLottieKeySeparator):], true
 }
 
 func isDotLottieAnimationEntry(name string) bool {

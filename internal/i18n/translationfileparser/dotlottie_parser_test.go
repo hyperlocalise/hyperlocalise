@@ -179,6 +179,28 @@ func TestMarshalDotLottieRewritesOnlyChangedAnimations(t *testing.T) {
 	}
 }
 
+func TestMarshalDotLottieRewritesAnimationEntryWithHashInName(t *testing.T) {
+	entryName := "a/foo#bar.json"
+	archive := buildDotLottieArchive(t, []dotLottieTestEntry{
+		{name: "manifest.json", content: `{}`, method: zip.Deflate},
+		{name: entryName, content: dotLottieSecondAnimation, method: zip.Deflate},
+	})
+
+	compositeKey := entryName + "#layers[0].t.d.k[0].s.t"
+	content, err := MarshalDotLottie(archive, map[string]string{
+		compositeKey: "Touchez pour commencer",
+	})
+	if err != nil {
+		t.Fatalf("marshal dotlottie: %v", err)
+	}
+
+	files := readDotLottieTestArchive(t, content)
+	want := strings.Replace(dotLottieSecondAnimation, "Tap to start", "Touchez pour commencer", 1)
+	if got := readDotLottieTestEntry(t, files[entryName]); got != want {
+		t.Fatalf("animation mismatch:\n got %s\nwant %s", got, want)
+	}
+}
+
 func TestMarshalDotLottieIsDeterministic(t *testing.T) {
 	archive := buildDotLottieArchive(t, dotLottieFixtureEntries())
 	values := map[string]string{"a/caption.json#layers[0].t.d.k[0].s.t": "Tippen zum Starten"}
