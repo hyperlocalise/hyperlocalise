@@ -135,9 +135,9 @@ func TestDecodeXLSXKeepsOmittedConceptFieldsUnset(t *testing.T) {
 
 func TestConceptMergeUpdateWritesOnlyPresentFields(t *testing.T) {
 	query, args := conceptMergeUpdate("concept-1", interchangeConcept{
-		PrimaryTerm: "Derived",
-		Subject:     "",
-		Definition:  "",
+		PrimaryTerm:  "Derived",
+		Subject:      "",
+		Definition:   "",
 		Translatable: true,
 		Present: conceptFieldPresence{
 			Definition: true,
