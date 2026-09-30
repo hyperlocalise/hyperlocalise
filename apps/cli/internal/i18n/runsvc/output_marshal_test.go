@@ -1,6 +1,8 @@
 package runsvc
 
 import (
+	"archive/zip"
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -15,6 +17,49 @@ func TestMarshalTargetFileUnsupportedExtension(t *testing.T) {
 	_, _, err := svc.marshalTargetFile("/tmp/out.txt", "/tmp/src.txt", "en", "fr", map[string]string{"hello": "Bonjour"}, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "unsupported target file extension") {
 		t.Fatalf("expected unsupported extension error, got %v", err)
+	}
+}
+
+func TestMarshalTargetFileDotLottieUsesSourceArchive(t *testing.T) {
+	animation := `{"v":"5.7.4","fr":30,"ip":0,"op":60,"layers":[{"ty":5,"nm":"Title","t":{"d":{"k":[{"s":{"t":"Hello"},"t":0}]}}}]}`
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	for name, content := range map[string]string{"manifest.json": `{"version":"2"}`, "a/intro.json": animation} {
+		entry, err := writer.Create(name)
+		if err != nil {
+			t.Fatalf("create %q: %v", name, err)
+		}
+		if _, err := entry.Write([]byte(content)); err != nil {
+			t.Fatalf("write %q: %v", name, err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close archive: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/en/intro.lottie":
+			return archive.Bytes(), nil
+		case "/tmp/fr/intro.lottie":
+			return []byte("stale target"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	key := "a/intro.json#layers[0].t.d.k[0].s.t"
+	content, _, err := svc.marshalTargetFile("/tmp/fr/intro.lottie", "/tmp/en/intro.lottie", "en", "fr", map[string]string{key: "Bonjour"}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal dotlottie target: %v", err)
+	}
+	values, err := translationfileparser.NewDefaultStrategy().Parse("/tmp/fr/intro.lottie", content)
+	if err != nil {
+		t.Fatalf("parse dotlottie target: %v", err)
+	}
+	if got := values[key]; got != "Bonjour" {
+		t.Fatalf("expected translated text, got %q", got)
 	}
 }
 

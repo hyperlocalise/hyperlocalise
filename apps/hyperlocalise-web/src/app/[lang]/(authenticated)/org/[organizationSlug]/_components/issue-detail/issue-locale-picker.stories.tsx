@@ -50,7 +50,7 @@ function PickerStory({
 }
 
 const meta = {
-  title: "App/Issues/Locale Picker",
+  title: "App/Queries/Locale Picker",
   component: PickerStory,
   parameters: {
     layout: "centered",

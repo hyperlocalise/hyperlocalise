@@ -67,6 +67,7 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".properties"] = JavaPropertiesParser{}
 	parsers[".srt"] = SubtitleParser{Kind: SubtitleSRT}
 	parsers[".vtt"] = SubtitleParser{Kind: SubtitleVTT}
+	parsers[".lottie"] = DotLottieParser{}
 
 	for _, ext := range JSTSLocaleModuleExts {
 		parsers[ext] = JSTSLocaleModuleParser{}

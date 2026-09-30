@@ -23,7 +23,7 @@ import { issueSheetMswHandlers } from "../projects/[projectId]/issue-sheet/_comp
 import { IssueGroupedList } from "./issue-grouped-list";
 
 const meta = {
-  title: "App/Issues/Grouped List",
+  title: "App/Queries/Grouped List",
   component: IssueGroupedList,
   parameters: {
     layout: "padded",

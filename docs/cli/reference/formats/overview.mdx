@@ -11,7 +11,7 @@ below for a runnable example, configuration, and format-specific limitations.
 ## How file detection works
 
 The CLI selects a parser from the file extension. Android XML also requires an
-Android resource path. You do not need to declare a format for each bucket.
+Android resource path, and Lottie animations are detected from `.json` content. You do not need to declare a format for each bucket.
 Use matching source and target formats unless a workflow explicitly documents a
 conversion.
 
@@ -70,6 +70,7 @@ For text, CSV, or JSON printed by CLI commands, see [Command output](/cli/refere
 | MDX | `.mdx` | [Translate MDX](/cli/reference/formats/mdx) |
 | HTML | `.html`, `.htm` | [Translate HTML](/cli/reference/formats/html) |
 | Liquid template | `.liquid` | [Translate Liquid template](/cli/reference/formats/liquid) |
+| Lottie animation text | `.json`, `.lottie` | [Translate Lottie animation text](/cli/reference/formats/lottie) |
 
 ### Subtitles and captions
 

@@ -297,9 +297,9 @@ export function JobsKanbanBoard({
 
   if (jobs.length === 0) {
     return (
-      <TypographyP className="px-3 py-8" size="small" tone="subtle">
+      <div className="rounded-xl border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
         {emptyLabel}
-      </TypographyP>
+      </div>
     );
   }
 

@@ -99,6 +99,7 @@ func main() {
 		analytics: newGAProductUsageTrackerFromEnv(),
 	}
 	h.issueSheets = &issueSheetAPI{}
+	h.notifications = &notificationsAPI{}
 	h.activityLogs = &activityLogAPI{}
 	h.contentEditor = &editorCatAPI{}
 	h.projects = &projectAPI{activityLog: activityLogPublisher}
@@ -150,6 +151,7 @@ func main() {
 		h.memories.pool = traced
 		h.qaReports.pool = traced
 		h.issueSheets.pool = traced
+		h.notifications.pool = traced
 		h.teams.pool = traced
 		h.members.pool = traced
 		h.activityLogs.pool = traced
@@ -201,6 +203,7 @@ func main() {
 	h.teams.membership = membershipLookup
 	h.members.membership = membershipLookup
 	h.issueSheets.membership = membershipLookup
+	h.notifications.membership = membershipLookup
 	h.activityLogs.membership = membershipLookup
 	h.contentEditor.membership = membershipLookup
 	h.projects.membership = membershipLookup

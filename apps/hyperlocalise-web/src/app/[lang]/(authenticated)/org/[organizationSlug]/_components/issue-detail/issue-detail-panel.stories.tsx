@@ -34,7 +34,7 @@ const desktopViewport = {
 } as const;
 
 const meta = {
-  title: "App/Issues/Detail Panel",
+  title: "App/Queries/Detail Panel",
   component: IssueDetailPanel,
   decorators: [
     (Story) => (
