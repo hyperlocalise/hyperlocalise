@@ -16,7 +16,6 @@ import { requireAppAuthContext, requireAppCapability } from "@/lib/workos/app-au
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { BillingSettingsPageContent } from "./_components/billing-settings-content";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "settingsBilling");
@@ -27,11 +26,7 @@ export default function BillingSettingsPage({
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <BillingSettingsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <BillingSettingsPageLoader params={params} />;
 }
 
 async function BillingSettingsPageLoader({

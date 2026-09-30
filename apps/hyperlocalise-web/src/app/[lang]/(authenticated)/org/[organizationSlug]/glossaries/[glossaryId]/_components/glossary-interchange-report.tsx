@@ -23,8 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import { OrgNavLink } from "@/components/app-shell/org-nav-link";
-
 import { glossaryInterchangeHistoryMessages as messages } from "./glossary-interchange-history.messages";
 
 export function GlossaryInterchangeReport({
@@ -96,12 +94,6 @@ export function GlossaryInterchangeReport({
           </AlertTitle>
           <AlertDescription />
         </Alert>
-        <Button
-          variant="outline"
-          render={<OrgNavLink href={`/org/${organizationSlug}/glossaries/${glossaryId}/imports`} />}
-        >
-          <FormattedMessage {...messages.back} />
-        </Button>
       </main>
     );
 
@@ -120,12 +112,6 @@ export function GlossaryInterchangeReport({
             {run.operation} · {run.format.toUpperCase()} · {run.status}
           </TypographyP>
         </div>
-        <Button
-          variant="outline"
-          render={<OrgNavLink href={`/org/${organizationSlug}/glossaries/${glossaryId}/imports`} />}
-        >
-          <FormattedMessage {...messages.back} />
-        </Button>
       </div>
       <section className="grid gap-3 rounded-xl border border-border p-5">
         <div className="flex flex-wrap gap-2">

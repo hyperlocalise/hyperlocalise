@@ -15,7 +15,6 @@
 import { useMemo, useRef, useState } from "react";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import {
-  ArrowLeft01Icon,
   Clock01Icon,
   Download01Icon,
   MoreHorizontalCircle01Icon,
@@ -266,14 +265,6 @@ export function TranslationMemoryDetailPageContent({
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-      <OrgNavLink
-        href={`/org/${organizationSlug}/translation-memories`}
-        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
-        <FormattedMessage {...messages.backToList} />
-      </OrgNavLink>
-
       <section className="flex flex-wrap items-center justify-end gap-2">
         <h1 className="sr-only">{memory.name}</h1>
         <Badge variant="outline">

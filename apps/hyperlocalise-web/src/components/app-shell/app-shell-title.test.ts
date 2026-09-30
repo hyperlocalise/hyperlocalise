@@ -50,12 +50,14 @@ describe("getAppShellTitle", () => {
     ["/org/acme/domains/ld_1", "ld_1"],
     ["/org/acme/domains/hyperlocalise-com/keywords", "Keywords"],
     ["/org/acme/glossaries", "Glossaries"],
+    ["/org/acme/glossaries/glos_1", "glos_1"],
     ["/org/acme/hyperlab", "Hyperlab"],
     ["/org/acme/hyperlab/experiments", "Experiments"],
     ["/org/acme/hyperlab/audiences", "Audiences"],
     ["/org/acme/hyperlab/flags", "Flags"],
     ["/org/acme/hyperlab/keys", "API keys"],
     ["/org/acme/translation-memories", "Translation Memories"],
+    ["/org/acme/translation-memories/tm_1", "tm_1"],
     ["/org/acme/dictionaries", "Dictionaries"],
     ["/org/acme/integrations", "Integrations"],
     ["/org/acme/teams", "Teams"],
@@ -127,6 +129,53 @@ describe("getAppShellBreadcrumbs", () => {
     expect(getAppShellBreadcrumbs("/org/acme/settings/activity-logs", intl)).toEqual([
       { label: "Settings", href: "/org/acme/settings" },
       { label: "Activity logs" },
+    ]);
+  });
+
+  it("returns glossary breadcrumbs for glossary detail and subpages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/glossaries", intl)).toEqual([{ label: "Glossaries" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/glossaries/glos_1", intl)).toEqual([
+      { label: "Glossaries", href: "/org/acme/glossaries" },
+      { label: "glos_1" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/glossaries/glos_1", intl, {
+        glossaryName: "Product terms",
+      }),
+    ).toEqual([{ label: "Glossaries", href: "/org/acme/glossaries" }, { label: "Product terms" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/glossaries/glos_1/history", intl)).toEqual([
+      { label: "Glossaries", href: "/org/acme/glossaries" },
+      { label: "glos_1", href: "/org/acme/glossaries/glos_1" },
+      { label: "Glossary history" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/glossaries/glos_1/imports/run_1", intl, {
+        glossaryName: "Product terms",
+      }),
+    ).toEqual([
+      { label: "Glossaries", href: "/org/acme/glossaries" },
+      { label: "Product terms", href: "/org/acme/glossaries/glos_1" },
+      { label: "Import/export history", href: "/org/acme/glossaries/glos_1/imports" },
+      { label: "Interchange report" },
+    ]);
+  });
+
+  it("returns translation memory breadcrumbs for detail and import report pages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/translation-memories", intl)).toEqual([
+      { label: "Translation Memories" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/translation-memories/tm_1", intl)).toEqual([
+      { label: "Translation Memories", href: "/org/acme/translation-memories" },
+      { label: "tm_1" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/translation-memories/tm_1/imports/attempt_1", intl, {
+        translationMemoryName: "Checkout TM",
+      }),
+    ).toEqual([
+      { label: "Translation Memories", href: "/org/acme/translation-memories" },
+      { label: "Checkout TM", href: "/org/acme/translation-memories/tm_1" },
+      { label: "Import report" },
     ]);
   });
 

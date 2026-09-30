@@ -11,7 +11,6 @@
  * Version 2.0 or later.
  */
 import { GlossaryHistoryPage } from "../_components/glossary-history-page";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
@@ -24,11 +23,7 @@ export default function GlossaryHistoryRoute({
 }: {
   params: Promise<{ organizationSlug: string; glossaryId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <GlossaryHistoryPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <GlossaryHistoryPageLoader params={params} />;
 }
 
 async function GlossaryHistoryPageLoader({

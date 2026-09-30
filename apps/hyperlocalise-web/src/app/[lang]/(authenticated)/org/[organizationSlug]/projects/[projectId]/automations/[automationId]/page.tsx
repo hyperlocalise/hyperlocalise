@@ -21,7 +21,6 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { AutomationDetailPageContent } from "../../../../automations/_components/automation-detail-page-content";
-import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "projectAutomationDetail");
@@ -32,11 +31,7 @@ export default function ProjectAutomationDetailPage({
 }: {
   params: Promise<{ organizationSlug: string; projectId: string; automationId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectAutomationDetailPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectAutomationDetailPageLoader params={params} />;
 }
 
 async function ProjectAutomationDetailPageLoader({

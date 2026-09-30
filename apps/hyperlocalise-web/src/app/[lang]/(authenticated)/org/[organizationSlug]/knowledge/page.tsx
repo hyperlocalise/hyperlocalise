@@ -20,7 +20,6 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { KnowledgePageContent } from "./_components/knowledge-page-content";
-import { OrgPageSuspense } from "../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "guideline");
@@ -31,11 +30,7 @@ export default function KnowledgePage({
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <KnowledgePageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <KnowledgePageLoader params={params} />;
 }
 
 async function KnowledgePageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {

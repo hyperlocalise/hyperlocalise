@@ -476,6 +476,53 @@ function formatVisualWorkflowsTitle(intl: IntlShape): string {
   });
 }
 
+function formatGlossaryHistoryTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Glossary history",
+    id: "8gWnVF116T",
+    description: "App shell breadcrumb title for the glossary history page",
+  });
+}
+
+function formatGlossaryImportsTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Import/export history",
+    id: "/1gR0B+OFk",
+    description: "App shell breadcrumb title for glossary import and export history",
+  });
+}
+
+function formatGlossaryImportReportTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Interchange report",
+    id: "qAz1fyJVWy",
+    description: "App shell breadcrumb title for a glossary interchange report",
+  });
+}
+
+function formatTranslationMemoryImportReportTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Import report",
+    id: "4tAGTfwOxM",
+    description: "App shell breadcrumb title for a translation memory import report",
+  });
+}
+
+function buildNamedResourceCrumb(
+  name?: string,
+  nameLoading?: boolean,
+  fallbackId?: string,
+): Pick<AppShellBreadcrumb, "label" | "isLoading"> {
+  const resolvedName = name?.trim();
+  if (resolvedName) {
+    return { label: resolvedName };
+  }
+  if (nameLoading) {
+    return { label: "", isLoading: true };
+  }
+  return { label: fallbackId ?? "" };
+}
+
 export function getAppShellBreadcrumbs(
   pathname: string | null,
   intl: IntlShape,
@@ -486,6 +533,10 @@ export function getAppShellBreadcrumbs(
     teamNameLoading?: boolean;
     domainName?: string;
     domainNameLoading?: boolean;
+    glossaryName?: string;
+    glossaryNameLoading?: boolean;
+    translationMemoryName?: string;
+    translationMemoryNameLoading?: boolean;
   },
 ): AppShellBreadcrumb[] {
   const orgRoute = parseOrgRoute(pathname);
@@ -706,6 +757,83 @@ export function getAppShellBreadcrumbs(
       crumbs.push({
         label: formatRouteTitle(intl, subsection),
       });
+    }
+
+    return crumbs;
+  }
+
+  if (section === "glossaries") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "glossaries") }];
+    }
+
+    const glossaryId = decodePathSegment(subsection);
+    const glossaryHref = buildOrgPath(organizationSlug, "glossaries", subsection);
+    const subSection = routeSegments[2];
+    const subResourceId = routeSegments[3];
+    const glossaryCrumb = buildNamedResourceCrumb(
+      options?.glossaryName,
+      options?.glossaryNameLoading,
+      glossaryId,
+    );
+    const crumbs: AppShellBreadcrumb[] = [
+      {
+        label: formatRouteTitle(intl, "glossaries"),
+        href: buildOrgPath(organizationSlug, "glossaries"),
+      },
+      {
+        ...glossaryCrumb,
+        href: subSection ? glossaryHref : undefined,
+      },
+    ];
+
+    if (subSection === "history") {
+      crumbs.push({ label: formatGlossaryHistoryTitle(intl) });
+      return crumbs;
+    }
+
+    if (subSection === "imports") {
+      const importsHref = buildOrgPath(organizationSlug, "glossaries", subsection, "imports");
+      crumbs.push({
+        label: formatGlossaryImportsTitle(intl),
+        href: subResourceId ? importsHref : undefined,
+      });
+      if (subResourceId) {
+        crumbs.push({ label: formatGlossaryImportReportTitle(intl) });
+      }
+      return crumbs;
+    }
+
+    return crumbs;
+  }
+
+  if (section === "translation-memories") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "translation-memories") }];
+    }
+
+    const memoryId = decodePathSegment(subsection);
+    const memoryHref = buildOrgPath(organizationSlug, "translation-memories", subsection);
+    const subSection = routeSegments[2];
+    const subResourceId = routeSegments[3];
+    const memoryCrumb = buildNamedResourceCrumb(
+      options?.translationMemoryName,
+      options?.translationMemoryNameLoading,
+      memoryId,
+    );
+    const crumbs: AppShellBreadcrumb[] = [
+      {
+        label: formatRouteTitle(intl, "translation-memories"),
+        href: buildOrgPath(organizationSlug, "translation-memories"),
+      },
+      {
+        ...memoryCrumb,
+        href: subSection ? memoryHref : undefined,
+      },
+    ];
+
+    if (subSection === "imports" && subResourceId) {
+      crumbs.push({ label: formatTranslationMemoryImportReportTitle(intl) });
     }
 
     return crumbs;

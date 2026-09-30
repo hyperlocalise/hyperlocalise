@@ -17,7 +17,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Add01Icon,
-  ArrowLeft01Icon,
   BookOpenTextIcon,
   Delete02Icon,
   Download01Icon,
@@ -131,7 +130,6 @@ function TermStatusSkeleton({ compact = false }: { compact?: boolean }) {
 function ConceptListSkeleton() {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6" aria-busy="true">
-      <Skeleton className="h-4 w-24 rounded-full" />
       <section className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <Skeleton className="size-5 rounded-md" />
@@ -776,13 +774,6 @@ export function NativeGlossaryDetail({
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <Link
-        href={`/org/${organizationSlug}/glossaries`}
-        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
-        <FormattedMessage {...messages.backToList} />
-      </Link>
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <HugeiconsIcon

@@ -15,7 +15,14 @@ import path from "node:path";
 
 import { describe, expect, it } from "vite-plus/test";
 
-describe("root layout cacheComponents boundary", () => {
+describe("root layout server render", () => {
+  it("does not enable cache components", () => {
+    const source = readFileSync(path.join(import.meta.dirname, "../../../next.config.ts"), "utf8");
+
+    expect(source).not.toMatch(/\bcacheComponents\s*:/);
+    expect(source).not.toMatch(/\bpartialPrefetching\s*:/);
+  });
+
   it("sets document lang from the request locale on the root html element", () => {
     const layoutSource = readFileSync(
       path.join(import.meta.dirname, "../../app/layout.tsx"),
@@ -31,25 +38,30 @@ describe("root layout cacheComponents boundary", () => {
     expect(htmlSource).not.toMatch(/<html lang=\{DEFAULT_APP_LOCALE\}/);
   });
 
-  it("validates locale route params without request I/O in the locale layout", () => {
+  it("resolves locale and auth while rendering the root providers", () => {
+    const source = readFileSync(
+      path.join(import.meta.dirname, "root-layout-providers.tsx"),
+      "utf8",
+    );
+
+    expect(source).toMatch(/export async function RootLayoutProviders/);
+    expect(source).toMatch(/\bgetAppLocale\b/);
+    expect(source).toMatch(/\bwithAuth\b/);
+    expect(source).toMatch(/\{children\}/);
+    expect(source).not.toMatch(/<Suspense/);
+  });
+
+  it("awaits the locale param in the locale layout", () => {
     const source = readFileSync(
       path.join(import.meta.dirname, "../../app/[lang]/layout.tsx"),
       "utf8",
     );
 
     expect(source).toMatch(/export default async function LocaleLayout/);
+    expect(source).toMatch(/await params/);
     expect(source).not.toMatch(/\bLocaleDocumentLangScript\b/);
-    expect(source).not.toMatch(/\bheaders\s*\(|\bcookies\s*\(/);
-  });
-
-  it("resolves request locale inside the root Suspense boundary", () => {
-    const source = readFileSync(
-      path.join(import.meta.dirname, "root-layout-providers.tsx"),
-      "utf8",
-    );
-
-    expect(source).toMatch(/\bgetAppLocale\b/);
-    expect(source).toMatch(/<Suspense fallback={<RootLayoutProvidersFallback/);
+    expect(source).toMatch(/return children/);
+    expect(source).not.toMatch(/<Suspense/);
   });
 
   it("defaults the color theme to light", () => {
@@ -61,17 +73,5 @@ describe("root layout cacheComponents boundary", () => {
     expect(source).toMatch(/defaultTheme="light"/);
     expect(source).not.toMatch(/defaultTheme="dark"/);
     expect(source).not.toMatch(/\bforcedTheme\b/);
-  });
-
-  it("keeps the root Suspense fallback free of route children", () => {
-    const source = readFileSync(
-      path.join(import.meta.dirname, "root-layout-providers.tsx"),
-      "utf8",
-    );
-    const fallbackFn = source.match(/function RootLayoutProvidersFallback\([\s\S]*?\n\}/)?.[0];
-
-    expect(source).toContain("<Suspense fallback={<RootLayoutProvidersFallback />}>");
-    expect(fallbackFn).toBeDefined();
-    expect(fallbackFn).not.toContain("{children}");
   });
 });

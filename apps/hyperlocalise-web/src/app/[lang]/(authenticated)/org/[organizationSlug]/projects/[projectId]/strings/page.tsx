@@ -29,7 +29,6 @@ import {
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { ProjectFileContentEditorPageContent } from "../files/_components/project-file-content-editor-page-content";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "projectStrings");
@@ -53,11 +52,7 @@ export default function ProjectStringsPage({
     search?: string;
   }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectStringsPageLoader params={params} searchParams={searchParams} />
-    </OrgPageSuspense>
-  );
+  return <ProjectStringsPageLoader params={params} searchParams={searchParams} />;
 }
 
 async function ProjectStringsPageLoader({

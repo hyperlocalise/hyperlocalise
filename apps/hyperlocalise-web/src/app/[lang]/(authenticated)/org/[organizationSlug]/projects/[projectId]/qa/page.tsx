@@ -14,7 +14,6 @@ import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 import { QaProjectPageContent } from "./_components/qa-project-page-content";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
@@ -26,11 +25,7 @@ export default function ProjectQaPage({
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectQaLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectQaLoader params={params} />;
 }
 
 async function ProjectQaLoader({

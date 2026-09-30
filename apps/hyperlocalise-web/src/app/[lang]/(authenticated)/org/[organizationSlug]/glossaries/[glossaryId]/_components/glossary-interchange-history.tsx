@@ -139,12 +139,6 @@ export function GlossaryInterchangeHistory({
             <FormattedMessage {...messages.description} />
           </TypographyP>
         </div>
-        <Button
-          variant="outline"
-          render={<OrgNavLink href={`/org/${organizationSlug}/glossaries/${glossaryId}`} />}
-        >
-          <FormattedMessage {...messages.back} />
-        </Button>
       </div>
       {loading || query.isPending ? (
         <div className="grid gap-3" aria-label={intl.formatMessage(messages.loading)}>

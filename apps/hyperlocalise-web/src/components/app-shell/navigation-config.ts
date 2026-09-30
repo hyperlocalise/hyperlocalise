@@ -642,6 +642,44 @@ export function parseDomainRoute(pathname: string | null) {
   };
 }
 
+export function parseGlossaryRoute(pathname: string | null) {
+  if (!pathname) return null;
+
+  const match = stripAppLocalePrefix(pathname).match(
+    /^\/org\/([^/]+)\/glossaries\/([^/]+)(?:\/(.*))?\/?$/,
+  );
+  if (!match) return null;
+
+  const [, organizationSlug, glossaryIdSegment, remainder] = match;
+  const subSegments = remainder?.split("/").filter(Boolean) ?? [];
+
+  return {
+    organizationSlug,
+    glossaryId: decodePathSegment(glossaryIdSegment),
+    subSection: subSegments[0] ?? null,
+    subResourceId: subSegments[1] ?? null,
+  };
+}
+
+export function parseTranslationMemoryRoute(pathname: string | null) {
+  if (!pathname) return null;
+
+  const match = stripAppLocalePrefix(pathname).match(
+    /^\/org\/([^/]+)\/translation-memories\/([^/]+)(?:\/(.*))?\/?$/,
+  );
+  if (!match) return null;
+
+  const [, organizationSlug, memoryIdSegment, remainder] = match;
+  const subSegments = remainder?.split("/").filter(Boolean) ?? [];
+
+  return {
+    organizationSlug,
+    memoryId: decodePathSegment(memoryIdSegment),
+    subSection: subSegments[0] ?? null,
+    subResourceId: subSegments[1] ?? null,
+  };
+}
+
 export function parseHyperlabRoute(pathname: string | null) {
   if (!pathname) return null;
 

@@ -13,7 +13,6 @@
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 import { AccountSettingsPageContent } from "../_components/settings-pages";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "settingsAccount");
@@ -24,11 +23,7 @@ export default function AccountSettingsPage({
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <AccountSettingsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <AccountSettingsPageLoader params={params} />;
 }
 
 async function AccountSettingsPageLoader({

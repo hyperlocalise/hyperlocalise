@@ -12,18 +12,13 @@
  */
 import { redirect } from "next/navigation";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
-import { OrgPageSuspense } from "../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "inboxNew");
 }
 
 export default function ChatPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
-  return (
-    <OrgPageSuspense>
-      <ChatPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ChatPageLoader params={params} />;
 }
 
 async function ChatPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {

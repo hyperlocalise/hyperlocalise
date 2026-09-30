@@ -15,7 +15,6 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { ProjectSettingsPageContent } from "./_components/project-settings-page-content";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "projectSettings");
@@ -26,11 +25,7 @@ export default function ProjectSettingsPage({
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectSettingsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectSettingsPageLoader params={params} />;
 }
 
 async function ProjectSettingsPageLoader({
