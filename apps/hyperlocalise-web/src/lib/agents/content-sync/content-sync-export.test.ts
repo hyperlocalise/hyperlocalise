@@ -14,8 +14,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildContentSyncLocalePath,
+  buildContentSyncLottiePushTarget,
   buildContentSyncPushCandidate,
   isContentSyncJsonCompatiblePath,
+  isContentSyncLottieCompatiblePath,
   shouldExportContentSyncTranslations,
 } from "./content-sync-export";
 
@@ -27,6 +29,8 @@ describe("content sync export", () => {
     expect(isContentSyncJsonCompatiblePath("messages.yaml")).toBe(false);
     expect(isContentSyncJsonCompatiblePath("catalog.po")).toBe(false);
     expect(isContentSyncJsonCompatiblePath("copy.xliff")).toBe(false);
+    expect(isContentSyncLottieCompatiblePath("animations/intro.lottie")).toBe(true);
+    expect(isContentSyncLottieCompatiblePath("locales/messages.json")).toBe(false);
   });
 
   it("inserts the locale before the source extension", () => {
@@ -83,5 +87,32 @@ describe("content sync export", () => {
     });
     expect(candidate?.targetPath).toBe("locales/messages-fr.json");
     expect(candidate?.content.toString("utf8")).toBe('{\n  "greeting": "Bonjour"\n}\n');
+  });
+
+  it("builds a dotLottie target path without JSON serialization", () => {
+    expect(
+      buildContentSyncLottiePushTarget({
+        providerPath: "animations/intro.lottie",
+        locale: "fr",
+        translatedKeyCount: 0,
+        prefilled: { greeting: "Hello" },
+      }),
+    ).toBeNull();
+
+    const target = buildContentSyncLottiePushTarget({
+      providerPath: "animations/intro.lottie",
+      locale: "fr",
+      translatedKeyCount: 1,
+      prefilled: { "a/caption.json#layers[0].t.d.k[0].s.t": "Bonjour" },
+    });
+    expect(target).toEqual({ targetPath: "animations/intro-fr.lottie" });
+    expect(
+      buildContentSyncPushCandidate({
+        providerPath: "animations/intro.lottie",
+        locale: "fr",
+        translatedKeyCount: 1,
+        prefilled: { "a/caption.json#layers[0].t.d.k[0].s.t": "Bonjour" },
+      }),
+    ).toBeNull();
   });
 });

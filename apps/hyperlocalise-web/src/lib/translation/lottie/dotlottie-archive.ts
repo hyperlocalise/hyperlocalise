@@ -99,17 +99,70 @@ async function loadArchive(
   return isErr(loaded) ? err({ code: "invalid_archive" }) : ok(loaded.value);
 }
 
+function zipEntryUncompressedSize(file: JSZip.JSZipObject): number | null {
+  const data = (file as { _data?: { uncompressedSize?: number } })._data;
+  if (data && typeof data.uncompressedSize === "number" && data.uncompressedSize >= 0) {
+    return data.uncompressedSize;
+  }
+  return null;
+}
+
+class DotLottieEntryTooLargeError extends Error {
+  constructor(readonly entryName: string) {
+    super("entry_too_large");
+  }
+}
+
+async function readZipEntryWithLimit(
+  file: JSZip.JSZipObject,
+  maxBytes: number,
+): Promise<Result<Uint8Array, DotLottieArchiveError>> {
+  const metadataSize = zipEntryUncompressedSize(file);
+  if (metadataSize !== null && metadataSize > maxBytes) {
+    return err({ code: "entry_too_large", entryName: file.name });
+  }
+
+  const read = await fromThrowableAsync(
+    new Promise<Uint8Array>((resolve, reject) => {
+      const stream = file.nodeStream("nodebuffer");
+      const chunks: Buffer[] = [];
+      let total = 0;
+
+      const onData = (chunk: Buffer) => {
+        total += chunk.length;
+        if (total > maxBytes) {
+          stream.removeListener("data", onData);
+          stream.destroy();
+          reject(new DotLottieEntryTooLargeError(file.name));
+          return;
+        }
+        chunks.push(chunk);
+      };
+
+      stream.on("data", onData);
+      stream.on("end", () => resolve(new Uint8Array(Buffer.concat(chunks))));
+      stream.on("error", reject);
+    }),
+  );
+
+  if (isErr(read)) {
+    if (read.error instanceof DotLottieEntryTooLargeError) {
+      return err({ code: "entry_too_large", entryName: read.error.entryName });
+    }
+    return err({ code: "invalid_archive" });
+  }
+
+  return ok(read.value);
+}
+
 async function readAnimationEntry(
   file: JSZip.JSZipObject,
 ): Promise<Result<LottiePayload | null, DotLottieArchiveError>> {
-  const read = await fromThrowableAsync(file.async("string"));
+  const read = await readZipEntryWithLimit(file, DOTLOTTIE_MAX_ENTRY_BYTES);
   if (isErr(read)) {
-    return err({ code: "invalid_archive" });
+    return read;
   }
-  if (read.value.length > DOTLOTTIE_MAX_ENTRY_BYTES) {
-    return err({ code: "entry_too_large", entryName: file.name });
-  }
-  return ok(parseLottieJson(read.value));
+  return ok(parseLottieJson(new TextDecoder().decode(read.value)));
 }
 
 function animationEntries(zip: JSZip): JSZip.JSZipObject[] {
@@ -223,12 +276,13 @@ export async function inlineDotLottieImages(
     if (!file) {
       continue;
     }
-    const base64 = await fromThrowableAsync(file.async("base64"));
-    if (isErr(base64)) {
-      return err({ code: "invalid_archive" });
+    const imageBytes = await readZipEntryWithLimit(file, DOTLOTTIE_MAX_ENTRY_BYTES);
+    if (isErr(imageBytes)) {
+      return imageBytes;
     }
+    const base64 = Buffer.from(imageBytes.value).toString("base64");
     asset.u = "";
-    asset.p = `data:${imageMimeType(filename)};base64,${base64.value}`;
+    asset.p = `data:${imageMimeType(filename)};base64,${base64}`;
     asset.e = 1;
   }
   return ok(copy);
