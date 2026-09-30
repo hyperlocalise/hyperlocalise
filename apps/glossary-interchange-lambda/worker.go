@@ -60,6 +60,21 @@ func escapeCSVFormula(value string) string {
 	return value
 }
 
+func unescapeCSVFormula(value string) string {
+	if !strings.HasPrefix(value, csvFormulaEscapePrefix) {
+		return value
+	}
+	rest := strings.TrimPrefix(value, csvFormulaEscapePrefix)
+	if strings.HasPrefix(rest, csvFormulaEscapePrefix) {
+		return rest
+	}
+	trimmed := strings.TrimLeft(rest, " \t")
+	if trimmed != "" && strings.ContainsRune("=+-@", rune(trimmed[0])) {
+		return rest
+	}
+	return value
+}
+
 func processRun(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Registry, message interchangeMessage) error {
 	var operation, format, mode, sourceLocation, sourceKey string
 	var options []byte
@@ -222,20 +237,22 @@ func loadConcepts(ctx context.Context, pool *pgxpool.Pool, glossaryID string) ([
 	}
 	defer rows.Close()
 	var concepts []interchangeConcept
-	byID := map[string]*interchangeConcept{}
+	byID := map[string]int{}
 	for rows.Next() {
 		var c interchangeConcept
 		if err := rows.Scan(&c.ID, &c.PrimaryTerm, &c.Subject, &c.Definition, &c.Translatable, &c.Note, &c.URL, &c.Figure, &c.CreatedByUserID); err != nil {
 			return nil, err
 		}
 		concepts = append(concepts, c)
-		byID[c.ID] = &concepts[len(concepts)-1]
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	if len(concepts) == 0 {
 		return concepts, nil
+	}
+	for i := range concepts {
+		byID[concepts[i].ID] = i
 	}
 	termRows, err := pool.Query(ctx, `select id,concept_id,coalesce(locale,''),coalesce(term,''),coalesce(description,''),coalesce(note,''),coalesce(part_of_speech,''),coalesce(gender,''),coalesce(term_type,''),coalesce(url,''),coalesce(lemma,''),coalesce(status,'draft'),coalesce(provenance,'manual'),coalesce(review_status,'proposed'),coalesce(case_sensitive,false),coalesce(forbidden,false),coalesce(created_by_user_id::text,'') from glossary_terms where glossary_id=$1 and concept_id is not null and archived_at is null order by locale,term`, glossaryID)
 	if err != nil {
@@ -248,8 +265,8 @@ func loadConcepts(ctx context.Context, pool *pgxpool.Pool, glossaryID string) ([
 		if err := termRows.Scan(&t.ID, &conceptID, &t.Locale, &t.Term, &t.Description, &t.Note, &t.PartOfSpeech, &t.Gender, &t.TermType, &t.URL, &t.Lemma, &t.Status, &t.Provenance, &t.ReviewStatus, &t.CaseSensitive, &t.Forbidden, &t.CreatedByUserID); err != nil {
 			return nil, err
 		}
-		if c := byID[conceptID]; c != nil {
-			c.Terms = append(c.Terms, t)
+		if i, ok := byID[conceptID]; ok {
+			concepts[i].Terms = append(concepts[i].Terms, t)
 		}
 	}
 	return concepts, termRows.Err()
@@ -302,7 +319,14 @@ func filterExportConcepts(concepts []interchangeConcept, options interchangeExpo
 
 func saveConcept(ctx context.Context, tx pgx.Tx, glossaryID string, c interchangeConcept, mode string) error {
 	var conceptID string
-	lookupErr := tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and primary_term=$2 and archived_at is null limit 1`, glossaryID, c.PrimaryTerm).Scan(&conceptID)
+	lookupErr := pgx.ErrNoRows
+	stableID := strings.TrimPrefix(c.ID, "c-")
+	if _, err := uuid.Parse(stableID); err == nil && mode != "create" {
+		lookupErr = tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and id=$2 and archived_at is null`, glossaryID, stableID).Scan(&conceptID)
+	}
+	if lookupErr == pgx.ErrNoRows && mode != "create" {
+		lookupErr = tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and primary_term=$2 and archived_at is null limit 1`, glossaryID, c.PrimaryTerm).Scan(&conceptID)
+	}
 	if lookupErr != nil && lookupErr != pgx.ErrNoRows {
 		return lookupErr
 	}
@@ -357,23 +381,35 @@ func encodeDocument(format string, concepts []interchangeConcept) ([]byte, strin
 	case "xlsx":
 		b := bytes.NewBuffer(nil)
 		f := excelize.NewFile()
-		sheet := f.GetSheetName(0)
-		for i, h := range headers {
+		conceptsSheet := f.GetSheetName(0)
+		_ = f.SetSheetName(conceptsSheet, "Concepts")
+		termsSheet := "Terms"
+		_, _ = f.NewSheet(termsSheet)
+		conceptHeaders := []string{"conceptId", "primaryTerm", "subject", "definition", "translatable", "note", "url", "figure"}
+		termHeaders := []string{"conceptId", "termId", "locale", "term", "description", "note", "partOfSpeech", "gender", "termType", "url", "lemma", "status", "caseSensitive", "forbidden", "provenance", "reviewStatus"}
+		for i, h := range conceptHeaders {
 			cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-			_ = f.SetCellValue(sheet, cell, h)
+			_ = f.SetCellValue("Concepts", cell, h)
 		}
-		row := 2
-		for _, c := range concepts {
+		for i, h := range termHeaders {
+			cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+			_ = f.SetCellValue(termsSheet, cell, h)
+		}
+		termRow := 2
+		for conceptIndex, c := range concepts {
+			conceptRow := conceptIndex + 2
+			conceptValues := []any{c.ID, c.PrimaryTerm, c.Subject, c.Definition, c.Translatable, c.Note, c.URL, c.Figure}
+			for i, value := range conceptValues {
+				cell, _ := excelize.CoordinatesToCellName(i+1, conceptRow)
+				_ = f.SetCellValue("Concepts", cell, value)
+			}
 			for _, t := range c.Terms {
-				vals := []string{
-					c.ID, t.ID, t.Locale, t.Term, c.PrimaryTerm, c.Subject, c.Definition, fmt.Sprintf("%t", c.Translatable), c.Note, c.URL, c.Figure,
-					t.Description, t.Note, t.PartOfSpeech, t.Gender, t.TermType, t.URL, t.Lemma, t.Status, fmt.Sprintf("%t", t.CaseSensitive), fmt.Sprintf("%t", t.Forbidden), t.Provenance, t.ReviewStatus,
+				termValues := []any{c.ID, t.ID, t.Locale, t.Term, t.Description, t.Note, t.PartOfSpeech, t.Gender, t.TermType, t.URL, t.Lemma, t.Status, t.CaseSensitive, t.Forbidden, t.Provenance, t.ReviewStatus}
+				for i, value := range termValues {
+					cell, _ := excelize.CoordinatesToCellName(i+1, termRow)
+					_ = f.SetCellValue(termsSheet, cell, value)
 				}
-				for i, v := range vals {
-					cell, _ := excelize.CoordinatesToCellName(i+1, row)
-					_ = f.SetCellValue(sheet, cell, v)
-				}
-				row++
+				termRow++
 			}
 		}
 		if err := f.Write(b); err != nil {
@@ -425,28 +461,77 @@ func encodeTBX(concepts []interchangeConcept) ([]byte, string, string, error) {
 
 func decodeDocument(format string, data []byte) ([]interchangeConcept, []string, error) {
 	if format == "xlsx" {
-		f, err := excelize.OpenReader(bytes.NewReader(data))
-		if err != nil {
-			return nil, nil, err
-		}
-		sheet := f.GetSheetName(0)
-		rows, err := f.GetRows(sheet)
-		if err != nil {
-			return nil, nil, err
-		}
-		var b bytes.Buffer
-		w := csv.NewWriter(&b)
-		for _, r := range rows {
-			_ = w.Write(r)
-		}
-		w.Flush()
-		data = b.Bytes()
-		format = "csv"
+		return decodeXLSX(data)
 	}
 	if format == "tbx" {
 		return decodeTBX(data)
 	}
 	return decodeCSV(data)
+}
+
+func decodeXLSX(data []byte) ([]interchangeConcept, []string, error) {
+	f, err := excelize.OpenReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = f.Close() }()
+	conceptRows, err := f.GetRows("Concepts")
+	if err != nil {
+		return nil, nil, err
+	}
+	termRows, err := f.GetRows("Terms")
+	if err != nil {
+		return nil, nil, err
+	}
+	concepts := make([]interchangeConcept, 0, len(conceptRows))
+	byID := map[string]int{}
+	conceptHeader := rowHeader(conceptRows)
+	for _, row := range conceptRows[1:] {
+		id := rowValue(row, conceptHeader, "conceptid")
+		if id == "" {
+			continue
+		}
+		byID[id] = len(concepts)
+		concepts = append(concepts, interchangeConcept{
+			ID: id, PrimaryTerm: rowValue(row, conceptHeader, "primaryterm"), Subject: rowValue(row, conceptHeader, "subject"),
+			Definition: rowValue(row, conceptHeader, "definition"), Translatable: strings.ToLower(rowValue(row, conceptHeader, "translatable")) != "false",
+			Note: rowValue(row, conceptHeader, "note"), URL: rowValue(row, conceptHeader, "url"), Figure: rowValue(row, conceptHeader, "figure"),
+		})
+	}
+	termHeader := rowHeader(termRows)
+	for _, row := range termRows[1:] {
+		conceptID := rowValue(row, termHeader, "conceptid")
+		i, ok := byID[conceptID]
+		if !ok {
+			continue
+		}
+		concepts[i].Terms = append(concepts[i].Terms, interchangeTerm{
+			ID: rowValue(row, termHeader, "termid"), Locale: strings.ReplaceAll(rowValue(row, termHeader, "locale"), "_", "-"), Term: rowValue(row, termHeader, "term"),
+			Description: rowValue(row, termHeader, "description"), Note: rowValue(row, termHeader, "note"), PartOfSpeech: rowValue(row, termHeader, "partofspeech"),
+			Gender: rowValue(row, termHeader, "gender"), TermType: rowValue(row, termHeader, "termtype"), URL: rowValue(row, termHeader, "url"), Lemma: rowValue(row, termHeader, "lemma"),
+			Status: rowValue(row, termHeader, "status"), Provenance: rowValue(row, termHeader, "provenance"), ReviewStatus: rowValue(row, termHeader, "reviewstatus"),
+			CaseSensitive: strings.ToLower(rowValue(row, termHeader, "casesensitive")) == "true", Forbidden: strings.ToLower(rowValue(row, termHeader, "forbidden")) == "true",
+		})
+	}
+	return concepts, nil, nil
+}
+
+func rowHeader(rows [][]string) map[string]int {
+	header := map[string]int{}
+	if len(rows) == 0 {
+		return header
+	}
+	for i, value := range rows[0] {
+		header[strings.ToLower(strings.TrimSpace(value))] = i
+	}
+	return header
+}
+
+func rowValue(row []string, header map[string]int, key string) string {
+	if i, ok := header[key]; ok && i < len(row) {
+		return strings.TrimSpace(unescapeCSVFormula(row[i]))
+	}
+	return ""
 }
 
 func decodeCSV(data []byte) ([]interchangeConcept, []string, error) {
@@ -462,12 +547,18 @@ func decodeCSV(data []byte) ([]interchangeConcept, []string, error) {
 	for i, h := range rows[0] {
 		header[strings.ToLower(strings.TrimSpace(h))] = i
 	}
-	if _, ok := header["term"]; ok {
-		start = 1
+	if _, ok := header["conceptid"]; ok {
+		if _, hasLocale := header["locale"]; hasLocale {
+			if _, hasTerm := header["term"]; hasTerm {
+				start = 1
+			}
+		}
+	} else {
+		header = map[string]int{"conceptid": 0, "locale": 1, "term": 2}
 	}
 	get := func(r []string, k string) string {
 		if i, ok := header[k]; ok && i < len(r) {
-			return strings.TrimSpace(r[i])
+			return strings.TrimSpace(unescapeCSVFormula(r[i]))
 		}
 		return ""
 	}

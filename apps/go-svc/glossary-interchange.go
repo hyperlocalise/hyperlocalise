@@ -174,7 +174,9 @@ func (api *glossaryAPI) createGlossaryExportHandler(r *http.Request, actor gloss
 	}
 	options := map[string]any{}
 	for key, values := range r.URL.Query() {
-		if len(values) == 1 {
+		if key == "locales" {
+			options[key] = values
+		} else if len(values) == 1 {
 			options[key] = values[0]
 		} else {
 			options[key] = values
