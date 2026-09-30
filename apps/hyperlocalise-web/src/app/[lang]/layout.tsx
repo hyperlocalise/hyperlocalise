@@ -31,14 +31,5 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     notFound();
   }
 
-<<<<<<< HEAD
   return children;
-=======
-  return (
-    <>
-      <LocaleDocumentLangScript locale={locale} />
-      {children}
-    </>
-  );
->>>>>>> origin/main
 }
