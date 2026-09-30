@@ -19,6 +19,7 @@ import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats
 import { runSandboxCommand } from "@/lib/translation/sandbox";
 import { isSafeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import { createLogger } from "@/lib/log";
 
@@ -297,9 +298,26 @@ async function pushGithubTranslations(input: {
         translatedKeyCount: result.translatedKeyCount,
         prefilled: result.prefilled,
       });
-      if (candidate) {
-        candidates.push(candidate);
+      if (!candidate) {
+        continue;
       }
+
+      const lottieDownload = await loadProjectLottieTranslationDownload({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: file.sourcePath,
+        prefilled: result.prefilled,
+      });
+      if (isErr(lottieDownload)) {
+        logger.warn(
+          { projectId: input.projectId, errorCode: lottieDownload.error.code },
+          "content sync skipped Lottie export",
+        );
+        continue;
+      }
+      candidates.push(
+        lottieDownload.value ? { ...candidate, content: lottieDownload.value.content } : candidate,
+      );
     }
   }
 

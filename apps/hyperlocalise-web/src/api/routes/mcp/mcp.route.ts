@@ -2628,6 +2628,12 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
               "The reconstructed translation file is not supported as UTF-8 text",
             );
 
+          case "lottie_export_failed":
+            return mcpToolError(
+              "lottie_export_failed",
+              "Could not write translations into the Lottie animation",
+            );
+
           default:
             return assertNever(downloadError);
         }

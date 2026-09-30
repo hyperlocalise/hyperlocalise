@@ -33,7 +33,7 @@ import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-
 import { importTranslationsDialogMessages as messages } from "./import-translations-dialog.messages";
 
 const FILE_ACCEPT =
-  ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
+  ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv,.lottie";
 
 type ImportTranslationsDialogProps = {
   open: boolean;

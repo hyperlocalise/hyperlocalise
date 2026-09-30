@@ -109,6 +109,7 @@ export interface ContentEditorFileContext {
   canContributeTeamGlossary?: boolean;
   teamName?: string;
   projectTeamSlug?: string;
+  lottieSourceUrl?: string;
 }
 
 export interface ContentEditorSegment {

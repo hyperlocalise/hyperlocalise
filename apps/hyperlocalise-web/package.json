@@ -117,6 +117,7 @@
     "jszip": "^3.10.2",
     "just-bash": "^3.4.2",
     "jwks-rsa": "^4.1.0",
+    "lottie-web": "^5.13.0",
     "mammoth": "^1.12.3",
     "media-chrome": "^4.19.2",
     "mobx": "^7.0.4",

@@ -862,6 +862,8 @@ export const projectFileCatResponseSchema = z.object({
     canContributeTeamGlossary: z.boolean().optional(),
     teamName: z.string().optional(),
     projectTeamSlug: z.string().optional(),
+    /** Stored source animation for Lottie files, used for the translated preview. */
+    lottieSourceUrl: z.string().optional(),
     segments: z.array(projectFileCatSegmentSchema),
     pagination: projectFileCatPaginationSchema.optional(),
   }),

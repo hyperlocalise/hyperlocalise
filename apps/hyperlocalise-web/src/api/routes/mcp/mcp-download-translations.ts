@@ -12,6 +12,8 @@
  */
 import path from "node:path";
 
+import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import { isErr } from "@/lib/primitives/result/results";
 import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
@@ -33,7 +35,11 @@ export type McpDownloadTranslationsResult =
     }
   | {
       ok: false;
-      error: "source_file_not_found" | "translations_not_found" | "unsupported_binary_download";
+      error:
+        | "source_file_not_found"
+        | "translations_not_found"
+        | "unsupported_binary_download"
+        | "lottie_export_failed";
     }
   | {
       ok: false;
@@ -100,6 +106,16 @@ export async function downloadMcpTranslations(input: {
     };
   }
 
+  const lottieDownload = await loadProjectLottieTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    prefilled: result.prefilled,
+  });
+  if (isErr(lottieDownload)) {
+    return { ok: false, error: "lottie_export_failed" };
+  }
+
   return {
     ok: true,
     value: {
@@ -107,7 +123,9 @@ export async function downloadMcpTranslations(input: {
       contentType: "application/json; charset=utf-8",
       locale: input.locale,
       sourcePath: input.sourcePath,
-      content: `${JSON.stringify(result.prefilled, null, 2)}\n`,
+      content: lottieDownload.value
+        ? lottieDownload.value.content.toString("utf8")
+        : `${JSON.stringify(result.prefilled, null, 2)}\n`,
     },
   };
 }
