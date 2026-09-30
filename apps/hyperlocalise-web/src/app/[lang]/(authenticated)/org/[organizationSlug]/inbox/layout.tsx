@@ -12,45 +12,12 @@
  */
 import type { ReactNode } from "react";
 
-import { hasCapability } from "@/api/auth/policy";
-import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { InboxLayoutContent } from "./_components/inbox-layout-content";
 
-import { InboxPageContent } from "./_components/inbox-page-content";
-
-export default function InboxLayout({
-  children,
-  params,
-}: {
-  children: ReactNode;
-  params: Promise<{ organizationSlug: string }>;
-}) {
-  return <InboxLayoutLoader params={params}>{children}</InboxLayoutLoader>;
-}
-
-async function InboxLayoutLoader({
-  children,
-  params,
-}: {
-  children: ReactNode;
-  params: Promise<{ organizationSlug: string }>;
-}) {
-  const { organizationSlug } = await params;
-  const auth = await requireAppAuthContext({ organizationSlug });
-  const currentUserName =
-    [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
-    auth.sessionUser.email;
-
+export default function InboxLayout({ children }: { children: ReactNode }) {
   return (
     <>
-      <InboxPageContent
-        currentUser={{
-          avatarUrl: auth.sessionUser.profilePictureUrl ?? null,
-          email: auth.sessionUser.email,
-          name: currentUserName,
-        }}
-        organizationSlug={organizationSlug}
-        canDeleteQueries={hasCapability(auth.membership.role, "write_back:translation")}
-      />
+      <InboxLayoutContent />
       {children}
     </>
   );

@@ -12,6 +12,7 @@
  */
 import { makeAutoObservable } from "mobx";
 
+import type { InboxSelection } from "../_components/inbox-list";
 import {
   DEFAULT_INBOX_LIST_FILTERS,
   type InboxListFilters,
@@ -21,6 +22,7 @@ export class InboxPageStore {
   readonly organizationSlug: string;
   composeDraft = "";
   filters: InboxListFilters = DEFAULT_INBOX_LIST_FILTERS;
+  pendingSelection: InboxSelection | undefined = undefined;
 
   constructor(organizationSlug: string) {
     this.organizationSlug = organizationSlug;
@@ -41,5 +43,13 @@ export class InboxPageStore {
 
   resetFilters() {
     this.filters = DEFAULT_INBOX_LIST_FILTERS;
+  }
+
+  setPendingSelection(selection: InboxSelection) {
+    this.pendingSelection = selection;
+  }
+
+  clearPendingSelection() {
+    this.pendingSelection = undefined;
   }
 }
