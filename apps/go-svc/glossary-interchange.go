@@ -14,6 +14,7 @@ import (
 const (
 	glossaryInterchangeUploadTTL   = 15 * time.Minute
 	glossaryInterchangeDownloadTTL = 10 * time.Minute
+	glossaryInterchangeMaxBytes    = 25 * 1024 * 1024
 )
 
 type glossaryImportUploadRequest struct {
@@ -132,8 +133,12 @@ func (api *glossaryAPI) importGlossaryConceptsAsync(r *http.Request, actor gloss
 	if err != nil {
 		return nil, 0, err
 	}
-	if _, err := store.Stat(r.Context(), key); err != nil {
+	info, err := store.Stat(r.Context(), key)
+	if err != nil {
 		return nil, 0, glossaryFailure(409, "glossary_import_upload_missing", "The glossary import upload has not completed")
+	}
+	if info.Size <= 0 || info.Size > glossaryInterchangeMaxBytes {
+		return nil, 0, glossaryFailure(413, "glossary_import_upload_too_large", "The glossary import upload is empty or exceeds the 25 MB limit")
 	}
 	updated, err := api.pool.Exec(r.Context(), `update glossary_import_runs set mode=$2, options=$3::jsonb, status='queued' where id=$1 and status='upload_pending'`, payload.ReportID, mode, options)
 	if err != nil {
