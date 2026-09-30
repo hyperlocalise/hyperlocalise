@@ -166,14 +166,20 @@ func (h *handler) health(w http.ResponseWriter, r *http.Request) {
 	valkey := checkDependencyHealth(r.Context(), h.valkey)
 	postgres := checkDependencyHealth(r.Context(), h.postgres)
 	activityLog := checkDependencyHealth(r.Context(), h.activityLog)
+	var glossaryInterchange healthPinger
+	if h.glossaries != nil {
+		glossaryInterchange = h.glossaries.interchange
+	}
+	glossaryInterchangeHealth := checkDependencyHealth(r.Context(), glossaryInterchange)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"status":       "ok",
-		"activity_log": activityLog,
-		"valkey":       valkey,
-		"postgres":     postgres,
+		"status":               "ok",
+		"activity_log":         activityLog,
+		"glossary_interchange": glossaryInterchangeHealth,
+		"valkey":               valkey,
+		"postgres":             postgres,
 	})
 }
 

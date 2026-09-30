@@ -161,6 +161,8 @@ export WORKOS_API_KEY='sk_test_...'
 export WORKOS_CLIENT_ID='client_...'
 # Optional: publishes glossary activity events and checks the queue in /health.
 export ACTIVITY_LOG_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../activity-log'
+# Optional: enables asynchronous glossary import/export publishing and checks the queue in /health.
+export GLOSSARY_INTERCHANGE_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../glossary-interchange'
 go run ./apps/go-svc
 ```
 
@@ -168,7 +170,7 @@ Health check:
 
 ```bash
 curl http://localhost:8080/health
-# {"status":"ok","activity_log":{"status":"disabled"},"valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}
+# {"status":"ok","activity_log":{"status":"disabled"},"glossary_interchange":{"status":"disabled"},"valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}
 ```
 
 When configured, Valkey and PostgreSQL health objects report `status` as
@@ -176,7 +178,16 @@ When configured, Valkey and PostgreSQL health objects report `status` as
 dependency is not configured, its status is `disabled` and no timing is
 reported. The endpoint remains an HTTP 200 liveness check.
 
-The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects `ACTIVITY_LOG_QUEUE_URL` from the activity-log consumer queue output; the service does not resolve the SSM parameter itself.
+The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects queue URLs from infrastructure outputs; the service does not resolve SSM parameters itself. A configured queue publisher reports `ok` or `unavailable` in `/health`; a missing queue URL is reported as `disabled`.
+
+Application deploys use the infra-owned task-definition ARN in
+`/hyperlocalise/prod/ecs/go-svc/task_definition_arn` as their base revision.
+This preserves every infra-managed environment variable, secret, sidecar, and
+resource setting while replacing only the application image and release
+metadata. Do not add production environment variables only to a live ECS task:
+add them through OpenTofu so the handoff revision contains them. If an infra
+apply changes the handoff during an application deploy, the deploy stops with
+the two observed revisions; rerun it after the infra apply settles.
 
 ## Docker / ECS
 

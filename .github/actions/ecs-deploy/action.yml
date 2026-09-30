@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 name: ECS deploy
-description: Roll out a new image to ECS by cloning the live task definition and swapping only the image
+description: Roll out a new image to ECS by cloning an infra-owned or live task definition and swapping only the image
 inputs:
   ecs-service:
     description: ECS service name
@@ -20,6 +20,9 @@ inputs:
   task-definition-file:
     description: Working file for the downloaded task definition
     default: task-definition.json
+  base-task-definition-parameter-name:
+    description: Optional SSM parameter containing the infra-owned base task definition ARN
+    required: false
   wait-for-minutes:
     description: Minutes to wait for service stability
     default: "15"
@@ -29,19 +32,17 @@ inputs:
 runs:
   using: composite
   steps:
-    # Partial update: clone the task definition revision currently deployed
-    # by the service, swap only the image to the new ref, and point the
-    # service at the new revision. Everything else (CPU, memory, roles,
-    # secrets, port mapping) carries over untouched. The deployed revision
-    # is resolved via describe-services: describe-task-definition with only
-    # the family name would return the latest ACTIVE revision, which may
-    # include unrelated changes staged after the last deployment.
-    - name: Download deployed task definition
+    # Partial update: clone the infra-owned task definition when supplied,
+    # otherwise preserve the legacy live-service behavior. Swap only the image
+    # and release metadata so CPU, memory, roles, secrets, sidecars, and port
+    # mappings carry over untouched.
+    - name: Download base task definition
       uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
       env:
         ECS_SERVICE: ${{ inputs.ecs-service }}
         ECS_CLUSTER: ${{ inputs.ecs-cluster }}
         TASK_DEFINITION_FILE: ${{ inputs.task-definition-file }}
+        BASE_TASK_DEFINITION_PARAMETER_NAME: ${{ inputs.base-task-definition-parameter-name }}
       with:
         script: |
           async function capture(args) {
@@ -51,22 +52,39 @@ runs:
             });
             return stdout;
           }
-          const servicesOut = await capture([
-            'ecs', 'describe-services',
-            '--cluster', process.env.ECS_CLUSTER,
-            '--services', process.env.ECS_SERVICE,
-            '--query', 'services[0].taskDefinition',
-            '--output', 'text',
-          ]);
-          const deployedArn = servicesOut.trim();
-          if (!deployedArn || deployedArn === 'None') {
-            core.setFailed(`Unable to resolve deployed task definition for service ${process.env.ECS_SERVICE} in cluster ${process.env.ECS_CLUSTER}`);
-            return;
+          const parameterName = process.env.BASE_TASK_DEFINITION_PARAMETER_NAME?.trim();
+          let baseArn = '';
+          if (parameterName) {
+            const parameterOut = await capture([
+              'ssm', 'get-parameter',
+              '--name', parameterName,
+              '--query', 'Parameter.Value',
+              '--output', 'text',
+            ]);
+            baseArn = parameterOut.trim();
+            if (!baseArn || baseArn === 'None') {
+              core.setFailed(`Unable to resolve infra-owned task definition from SSM parameter ${parameterName}`);
+              return;
+            }
+            core.info(`Cloning infra-owned task definition: ${baseArn}`);
+          } else {
+            const servicesOut = await capture([
+              'ecs', 'describe-services',
+              '--cluster', process.env.ECS_CLUSTER,
+              '--services', process.env.ECS_SERVICE,
+              '--query', 'services[0].taskDefinition',
+              '--output', 'text',
+            ]);
+            baseArn = servicesOut.trim();
+            if (!baseArn || baseArn === 'None') {
+              core.setFailed(`Unable to resolve deployed task definition for service ${process.env.ECS_SERVICE} in cluster ${process.env.ECS_CLUSTER}`);
+              return;
+            }
+            core.info(`Cloning deployed task definition: ${baseArn}`);
           }
-          core.info(`Cloning deployed task definition: ${deployedArn}`);
           const taskDefinitionOut = await capture([
             'ecs', 'describe-task-definition',
-            '--task-definition', deployedArn,
+            '--task-definition', baseArn,
             '--query', 'taskDefinition',
             '--output', 'json',
           ]);
@@ -75,6 +93,7 @@ runs:
             delete taskDefinition[key];
           }
           require('fs').writeFileSync(process.env.TASK_DEFINITION_FILE, `${JSON.stringify(taskDefinition)}\n`);
+          require('fs').writeFileSync(`${process.env.TASK_DEFINITION_FILE}.base`, `${baseArn}\n`);
 
     - name: Set deployed observability version
       uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
@@ -141,6 +160,30 @@ runs:
         task-definition: ${{ inputs.task-definition-file }}
         container-name: ${{ inputs.container-name }}
         image: ${{ inputs.image }}
+
+    - name: Verify infra task definition handoff is stable
+      if: ${{ inputs.base-task-definition-parameter-name != '' }}
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      env:
+        BASE_TASK_DEFINITION_PARAMETER_NAME: ${{ inputs.base-task-definition-parameter-name }}
+        TASK_DEFINITION_FILE: ${{ inputs.task-definition-file }}
+      with:
+        script: |
+          const fs = require('fs');
+          const expected = fs.readFileSync(`${process.env.TASK_DEFINITION_FILE}.base`, 'utf8').trim();
+          let stdout = '';
+          await exec.exec('aws', [
+            'ssm', 'get-parameter',
+            '--name', process.env.BASE_TASK_DEFINITION_PARAMETER_NAME,
+            '--query', 'Parameter.Value',
+            '--output', 'text',
+          ], { listeners: { stdout: (data) => { stdout += data.toString(); } } });
+          const observed = stdout.trim();
+          if (observed !== expected) {
+            core.setFailed(`Infra task-definition handoff changed during deployment: started with ${expected}, now ${observed}. Retry the deployment so it clones the latest configuration.`);
+            return;
+          }
+          core.info(`Infra task-definition handoff remained stable at ${expected}`);
 
     - name: Deploy new image to ECS
       id: deploy

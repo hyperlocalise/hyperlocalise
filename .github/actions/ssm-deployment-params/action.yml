@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 name: SSM deployment params
-description: Read ECR repository, ECS cluster, and ECS service names from SSM
+description: Read ECS deployment parameters from SSM
 inputs:
   ecr-parameter-name:
     description: SSM parameter name for the ECR repository
@@ -11,6 +11,9 @@ inputs:
   ecs-service-parameter-name:
     description: SSM parameter name for the ECS service
     required: true
+  task-definition-parameter-name:
+    description: Optional SSM parameter name for the infra-owned base task definition ARN
+    required: false
 outputs:
   ecr-repository:
     description: ECR repository name
@@ -21,6 +24,9 @@ outputs:
   ecs-service:
     description: ECS service name
     value: ${{ steps.params.outputs.ecs-service }}
+  task-definition:
+    description: Infra-owned base task definition ARN
+    value: ${{ steps.params.outputs.task-definition }}
 runs:
   using: composite
   steps:
@@ -31,13 +37,15 @@ runs:
         ECR_REPOSITORY_PARAMETER_NAME: ${{ inputs.ecr-parameter-name }}
         ECS_CLUSTER_PARAMETER_NAME: ${{ inputs.ecs-cluster-parameter-name }}
         ECS_SERVICE_PARAMETER_NAME: ${{ inputs.ecs-service-parameter-name }}
+        TASK_DEFINITION_PARAMETER_NAME: ${{ inputs.task-definition-parameter-name }}
       with:
         script: |
           const names = [
             process.env.ECR_REPOSITORY_PARAMETER_NAME,
             process.env.ECS_CLUSTER_PARAMETER_NAME,
             process.env.ECS_SERVICE_PARAMETER_NAME,
-          ];
+            process.env.TASK_DEFINITION_PARAMETER_NAME,
+          ].filter(Boolean);
           let stdout = '';
           await exec.exec('aws', ['ssm', 'get-parameters', '--names', ...names, '--output', 'json'], {
             listeners: { stdout: (data) => { stdout += data.toString(); } },
@@ -61,4 +69,12 @@ runs:
               return;
             }
             core.setOutput(output, value);
+          }
+          if (process.env.TASK_DEFINITION_PARAMETER_NAME) {
+            const value = byName[process.env.TASK_DEFINITION_PARAMETER_NAME];
+            if (!value || value === 'None') {
+              core.setFailed(`SSM parameter missing or empty for TASK_DEFINITION (${process.env.TASK_DEFINITION_PARAMETER_NAME})`);
+              return;
+            }
+            core.setOutput('task-definition', value);
           }
