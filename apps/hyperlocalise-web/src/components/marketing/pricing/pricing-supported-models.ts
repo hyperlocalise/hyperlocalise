@@ -15,7 +15,11 @@ import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
 import { curatedOpenAiNativeModels } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
 
 /** BYOK providers surfaced on the marketing pricing page. */
-export const pricingByokProviderIds = ["openai", "anthropic", "gemini"] as const satisfies readonly LlmProvider[];
+export const pricingByokProviderIds = [
+  "openai",
+  "anthropic",
+  "gemini",
+] as const satisfies readonly LlmProvider[];
 
 export type PricingByokProviderId = (typeof pricingByokProviderIds)[number];
 

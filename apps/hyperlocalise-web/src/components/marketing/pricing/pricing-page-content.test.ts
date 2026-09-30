@@ -125,9 +125,7 @@ describe("pricing page content", () => {
       "video",
     ]);
     const agentModels = models.includedRows[0]?.models ?? [];
-    expect(agentModels).toEqual(
-      curatedOpenAiNativeModels.map((slug) => `openai/${slug}`),
-    );
+    expect(agentModels).toEqual(curatedOpenAiNativeModels.map((slug) => `openai/${slug}`));
     expect(agentModels).toContain(`openai/${hyperlocaliseAgentModelId}`);
     expect(models.includedRows.find((row) => row.id === "tts")?.models).toEqual([
       hyperlocaliseTtsModelId,

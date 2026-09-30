@@ -800,12 +800,15 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
       id: "X1Ie8nZW5a",
       description: "Subheading for Hyperlocalise-managed models on the pricing page",
     }),
-    includedDescription: intl.formatMessage({
-      defaultMessage:
-        "Always available on paid plans. Speech and media capabilities use dedicated included models; agent work uses the managed catalog (default {defaultModel}) unless you connect BYOK.",
-      id: "mnUPrGhGuI",
-      description: "Description under included models on the pricing page",
-    }, { defaultModel: hyperlocaliseAgentModelId }),
+    includedDescription: intl.formatMessage(
+      {
+        defaultMessage:
+          "Always available on paid plans. Speech and media capabilities use dedicated included models; agent work uses the managed catalog (default {defaultModel}) unless you connect BYOK.",
+        id: 'jEcB+kTaAO',
+        description: "Description under included models on the pricing page",
+      },
+      { defaultModel: hyperlocaliseAgentModelId },
+    ),
     includedRows: [
       {
         id: "agent-default",
