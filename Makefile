@@ -27,6 +27,11 @@ build-activity-log-lambda: ## build the activity-log Lambda bootstrap binary
 	@mkdir -p dist/activity-log-lambda
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/activity-log-lambda/bootstrap ./apps/activity-log-lambda
 
+.PHONY: build-glossary-interchange-lambda
+build-glossary-interchange-lambda: ## build the glossary-interchange Lambda bootstrap binary
+	@mkdir -p dist/glossary-interchange-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/glossary-interchange-lambda/bootstrap ./apps/glossary-interchange-lambda
+
 .PHONY: check-build-public-api
 check-build-public-api: ## check standalone public API service build
 	@go build -o /dev/null ./apps/public-api
