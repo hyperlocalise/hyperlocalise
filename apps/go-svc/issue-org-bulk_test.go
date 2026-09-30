@@ -48,6 +48,8 @@ func TestOrgBulkActionsInvalidBody(t *testing.T) {
 		`{"action":"unassign","issues":[]}`,
 		`{"action":"set_status","issues":[{"issueId":"11111111-1111-4111-8111-111111111111","projectId":"p"}]}`,
 		`{"action":"assign","issues":[{"issueId":"not-a-uuid","projectId":"p"}],"assigneeUserId":"11111111-1111-4111-8111-111111111111"}`,
+		`{"action":"assign","issues":[{"issueId":"11111111-1111-4111-8111-111111111111","projectId":"p"}],"assigneeUserId":"not-a-uuid"}`,
+		`{"action":"assign","issues":[{"issueId":"11111111-1111-4111-8111-111111111111","projectId":"p"}]}`,
 	}
 	for _, body := range cases {
 		req := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/issues/bulk-actions"), body)
@@ -55,6 +57,27 @@ func TestOrgBulkActionsInvalidBody(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, rec.Code, body)
 		require.Contains(t, rec.Body.String(), "invalid_issue_bulk_action", body)
 	}
+}
+
+func TestOrgBulkActionsAssignInvalidAssigneeUserIdRejectsBeforeMutation(t *testing.T) {
+	api, scope := issueSheetTestAPIRole(t, true, "admin")
+	id, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "x", "open", "", nil)
+
+	body := bulkActionBody(t, map[string]any{
+		"action":         "assign",
+		"assigneeUserId": "not-a-uuid",
+		"issues":         []map[string]any{{"issueId": id, "projectId": scope.ProjectID}},
+	})
+	req := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/issues/bulk-actions"), body)
+	rec := issueSheetServeOrg(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "invalid_issue_bulk_action")
+
+	var assigneeAfter *string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(),
+		`select assignee_user_id from issue_sheet_issues where id=$1`, id,
+	).Scan(&assigneeAfter))
+	require.Nil(t, assigneeAfter, "a malformed assigneeUserId must be rejected before any per-item processing or database write")
 }
 
 func TestOrgBulkActionsTooManyItems(t *testing.T) {

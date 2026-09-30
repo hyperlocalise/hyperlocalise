@@ -53,7 +53,7 @@ func parseBulkIssueActionRequest(r *http.Request) (bulkIssueActionRequest, error
 
 	switch body.Action {
 	case "assign":
-		if body.AssigneeUserID == nil || strings.TrimSpace(*body.AssigneeUserID) == "" {
+		if body.AssigneeUserID == nil || !isLegacyIssueUUID(strings.TrimSpace(*body.AssigneeUserID)) {
 			return body, invalidIssueBulkAction()
 		}
 	case "unassign":

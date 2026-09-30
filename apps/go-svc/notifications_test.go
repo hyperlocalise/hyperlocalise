@@ -69,13 +69,8 @@ func TestNotificationsCrossUserAccessIs404(t *testing.T) {
 	require.Nil(t, readAt, "a rejected mark-read attempt on someone else's notification must not mutate it")
 }
 
-func TestNotificationsMarkReadIdempotent(t *testing.T) {
-	api, scope := notificationsTestAPI(t, "admin")
-	issueID, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "x", "", "", nil)
-	notifID := mustNotification(t, scope, scope.ProjectID, issueID, scope.UserID, "assigned", "dedupe-1", nil, nil)
-
-	req := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/notifications/"+notifID+"/read"), "")
-	rec := notificationsServe(api, scope.WorkOSUserID, req)
+func decodeMarkReadAt(t *testing.T, rec *httptest.ResponseRecorder, notificationID string) time.Time {
+	t.Helper()
 	require.Equal(t, http.StatusOK, rec.Code)
 	var resp struct {
 		Notification struct {
@@ -84,21 +79,49 @@ func TestNotificationsMarkReadIdempotent(t *testing.T) {
 		} `json:"notification"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	require.Equal(t, notifID, resp.Notification.ID)
+	require.Equal(t, notificationID, resp.Notification.ID)
 	require.NotNil(t, resp.Notification.ReadAt)
-	firstReadAt := *resp.Notification.ReadAt
+	return resp.Notification.ReadAt.UTC()
+}
+
+func storedNotificationReadAt(t *testing.T, scope *testenv.Scope, id string) time.Time {
+	t.Helper()
+	var readAt time.Time
+	require.NoError(t, scope.Pool.QueryRow(t.Context(),
+		`select read_at from issue_notifications where id=$1`, id,
+	).Scan(&readAt))
+	return readAt.UTC()
+}
+
+func TestNotificationsMarkReadIdempotent(t *testing.T) {
+	api, scope := notificationsTestAPI(t, "admin")
+	issueID, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "x", "", "", nil)
+	notifID := mustNotification(t, scope, scope.ProjectID, issueID, scope.UserID, "assigned", "dedupe-1", nil, nil)
+
+	req := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/notifications/"+notifID+"/read"), "")
+	firstReadAt := decodeMarkReadAt(t, notificationsServe(api, scope.WorkOSUserID, req), notifID)
+	stored := storedNotificationReadAt(t, scope, notifID)
+	require.True(t, firstReadAt.Equal(stored), "the first mark-read response must be the stored timestamptz, not the in-process now()")
+
+	time.Sleep(20 * time.Millisecond)
 
 	req2 := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/notifications/"+notifID+"/read"), "")
-	rec2 := notificationsServe(api, scope.WorkOSUserID, req2)
-	require.Equal(t, http.StatusOK, rec2.Code)
-	var resp2 struct {
-		Notification struct {
-			ReadAt *time.Time `json:"readAt"`
-		} `json:"notification"`
-	}
-	require.NoError(t, json.Unmarshal(rec2.Body.Bytes(), &resp2))
-	require.NotNil(t, resp2.Notification.ReadAt)
-	require.True(t, resp2.Notification.ReadAt.Equal(firstReadAt), "a second mark-read must return the original readAt, not bump it")
+	secondReadAt := decodeMarkReadAt(t, notificationsServe(api, scope.WorkOSUserID, req2), notifID)
+	storedAfter := storedNotificationReadAt(t, scope, notifID)
+	require.True(t, secondReadAt.Equal(stored), "a second mark-read must return the original readAt, not bump it")
+	require.True(t, storedAfter.Equal(stored), "a second mark-read must not rewrite the stored read_at")
+}
+
+func TestNotificationsMarkReadPreservesSeededReadAt(t *testing.T) {
+	api, scope := notificationsTestAPI(t, "admin")
+	issueID, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "x", "", "", nil)
+	seeded := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	notifID := mustNotification(t, scope, scope.ProjectID, issueID, scope.UserID, "assigned", "dedupe-seeded", nil, &seeded)
+
+	req := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/notifications/"+notifID+"/read"), "")
+	got := decodeMarkReadAt(t, notificationsServe(api, scope.WorkOSUserID, req), notifID)
+	require.True(t, got.Equal(seeded), "mark-read on an already-read row must return the original timestamp")
+	require.True(t, storedNotificationReadAt(t, scope, notifID).Equal(seeded), "mark-read must leave a non-null read_at untouched")
 }
 
 func TestNotificationsUnreadCountAndFilter(t *testing.T) {

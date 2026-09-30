@@ -56,19 +56,18 @@ func (api *notificationsAPI) markReadHandler(r *http.Request, actor notification
 	if err != nil {
 		return nil, 0, err
 	}
-	if readAt, ok := existing["readAt"].(*time.Time); ok && readAt != nil {
-		return map[string]any{"notification": map[string]any{"id": existing["id"], "readAt": readAt}}, 200, nil
-	}
 
-	now := time.Now().UTC()
-	if _, err := api.pool.Exec(r.Context(), `
-        update issue_notifications set read_at = $1
-        where id = $2 and recipient_user_id = $3`,
-		now, id, actor.userID,
-	); err != nil {
+	var readAt time.Time
+	if err := api.pool.QueryRow(r.Context(), `
+        update issue_notifications
+        set read_at = coalesce(read_at, $1)
+        where id = $2 and recipient_user_id = $3
+        returning read_at`,
+		time.Now().UTC(), id, actor.userID,
+	).Scan(&readAt); err != nil {
 		return nil, 0, err
 	}
-	return map[string]any{"notification": map[string]any{"id": existing["id"], "readAt": now}}, 200, nil
+	return map[string]any{"notification": map[string]any{"id": existing["id"], "readAt": readAt}}, 200, nil
 }
 
 func (api *notificationsAPI) readAllHandler(r *http.Request, actor notificationsActor) (any, int, error) {
