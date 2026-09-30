@@ -371,10 +371,7 @@ export function ProjectSettingsPageContent({
 
   return (
     <ProjectPageShell>
-      <ProjectSectionHeader
-        icon={Settings01Icon}
-        section="Settings"
-      />
+      <ProjectSectionHeader icon={Settings01Icon} section="Settings" />
 
       <form id="project-settings-form" ref={formRef} onSubmit={handleSubmit} className="grid gap-5">
         <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">

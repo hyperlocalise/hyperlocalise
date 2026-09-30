@@ -65,10 +65,7 @@ export function HyperlabExperimentsPage({
   ) : null;
 
   return (
-    <HyperlabPageShell
-      title={intl.formatMessage(messages.experimentsTitle)}
-      actions={createAction}
-    >
+    <HyperlabPageShell title={intl.formatMessage(messages.experimentsTitle)} actions={createAction}>
       {experimentsQuery.isError ? (
         <HyperlabLoadError
           error={experimentsQuery.error}

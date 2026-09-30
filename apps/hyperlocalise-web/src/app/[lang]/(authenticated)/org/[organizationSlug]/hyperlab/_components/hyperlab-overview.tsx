@@ -131,9 +131,7 @@ OpenFeature.setProvider(
   ] as const;
 
   return (
-    <HyperlabPageShell
-      title={intl.formatMessage(messages.overviewTitle)}
-    >
+    <HyperlabPageShell title={intl.formatMessage(messages.overviewTitle)}>
       <Rows spacing="3u">
         {experimentsQuery.isError || audiencesQuery.isError || flagsQuery.isError ? (
           <HyperlabLoadError

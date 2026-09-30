@@ -86,12 +86,7 @@ type ProjectSectionHeaderProps = {
   meta?: ReactNode;
 };
 
-export function ProjectSectionHeader({
-  icon,
-  section,
-  actions,
-  meta,
-}: ProjectSectionHeaderProps) {
+export function ProjectSectionHeader({ icon, section, actions, meta }: ProjectSectionHeaderProps) {
   return (
     <>
       <PageHeader icon={icon} title={section} actions={actions} />

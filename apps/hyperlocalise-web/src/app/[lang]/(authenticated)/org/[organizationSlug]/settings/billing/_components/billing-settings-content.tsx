@@ -80,9 +80,7 @@ function BillingSettingsHeader() {
   const intl = useIntl();
 
   return (
-    <SettingsPageHeader
-      title={intl.formatMessage(billingSettingsContentMessages.pageTitle)}
-    />
+    <SettingsPageHeader title={intl.formatMessage(billingSettingsContentMessages.pageTitle)} />
   );
 }
 

@@ -336,10 +336,7 @@ export function DictionaryDetailPageContent({
 
   return (
     <WorkspacePageShell>
-      <PageHeader
-        icon={TextFontIcon}
-        title={dictionary?.name ?? dictionaryId}
-      />
+      <PageHeader icon={TextFontIcon} title={dictionary?.name ?? dictionaryId} />
 
       {dictionaryQuery.isError ? (
         <TypographyP className="text-flame-100" size="small">
