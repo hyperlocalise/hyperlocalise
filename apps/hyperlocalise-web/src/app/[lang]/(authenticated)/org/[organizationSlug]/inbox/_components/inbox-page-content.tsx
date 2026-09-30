@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 import { useIntl } from "react-intl";
@@ -24,8 +24,9 @@ import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stre
 import { isInboxNewRequestPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { createInboxApi, type ChatComposerSendOptions, type InboxApi } from "./inbox-api";
+import { InboxPageStoreProvider, useInboxPageStore } from "../store/inbox-page-store-context";
 import { conversationPanelMessages } from "./conversation-panel.messages";
+import { createInboxApi, type ChatComposerSendOptions, type InboxApi } from "./inbox-api";
 import { resolveInboxSelection, type InboxSelection } from "./inbox-list";
 import {
   createInboxNotificationsApi,
@@ -57,7 +58,7 @@ function notificationDetailQueryKey(organizationSlug: string, notificationId: st
   return ["issue-notification", organizationSlug, notificationId] as const;
 }
 
-export const InboxPageContent = observer(function InboxPageContent({
+export function InboxPageContent({
   currentUser,
   organizationSlug,
   canDeleteQueries = false,
@@ -70,15 +71,41 @@ export const InboxPageContent = observer(function InboxPageContent({
   inboxApi?: InboxApi;
   notificationsApi?: InboxNotificationsApi;
 }) {
+  return (
+    <InboxPageStoreProvider organizationSlug={organizationSlug}>
+      <InboxPageContentObserver
+        currentUser={currentUser}
+        organizationSlug={organizationSlug}
+        canDeleteQueries={canDeleteQueries}
+        inboxApi={injectedInboxApi}
+        notificationsApi={injectedNotificationsApi}
+      />
+    </InboxPageStoreProvider>
+  );
+}
+
+const InboxPageContentObserver = observer(function InboxPageContentObserver({
+  currentUser,
+  organizationSlug,
+  canDeleteQueries,
+  inboxApi: injectedInboxApi,
+  notificationsApi: injectedNotificationsApi,
+}: {
+  currentUser: InboxCurrentUser;
+  organizationSlug: string;
+  canDeleteQueries: boolean;
+  inboxApi: InboxApi;
+  notificationsApi: InboxNotificationsApi;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const store = useInboxPageStore();
   const urlConversationId = params?.conversationId as string | undefined;
   const urlNotificationId = params?.notificationId as string | undefined;
   const composeNew = isInboxNewRequestPath(pathname);
-  const [composeDraft, setComposeDraft] = useState("");
   const { chatDock } = useAppShellStore();
   const streamManager = getChatStreamManager(organizationSlug, chatDock);
 
@@ -239,7 +266,7 @@ export const InboxPageContent = observer(function InboxPageContent({
       if (composeNew) {
         try {
           const result = await createConversationAsync({ text, files, ...options });
-          setComposeDraft("");
+          store.resetComposeDraft();
           await queryClient.invalidateQueries({
             queryKey: conversationsQueryKey(organizationSlug),
           });
@@ -253,7 +280,16 @@ export const InboxPageContent = observer(function InboxPageContent({
 
       await mutateAsync({ text, files, ...options });
     },
-    [composeNew, createConversationAsync, intl, mutateAsync, organizationSlug, queryClient, router],
+    [
+      composeNew,
+      createConversationAsync,
+      intl,
+      mutateAsync,
+      organizationSlug,
+      queryClient,
+      router,
+      store,
+    ],
   );
 
   const onSelectConversation = useCallback(
@@ -339,7 +375,8 @@ export const InboxPageContent = observer(function InboxPageContent({
       conversationsIsError={conversationsQuery.isError}
       conversationsIsLoading={conversationsQuery.isLoading}
       currentUser={currentUser}
-      draft={composeDraft}
+      draft={store.composeDraft}
+      filters={store.filters}
       hasMoreNotifications={hasMoreNotifications}
       isLoadingMoreNotifications={notificationsQuery.isFetchingNextPage}
       isSending={sendMessageMutation.isPending || createConversationMutation.isPending}
@@ -352,7 +389,8 @@ export const InboxPageContent = observer(function InboxPageContent({
       notifications={notifications}
       notificationsIsError={notificationsQuery.isError}
       notificationsIsLoading={notificationsQuery.isLoading}
-      onDraftChange={setComposeDraft}
+      onDraftChange={store.setComposeDraft}
+      onFiltersChange={store.setFilters}
       onLoadMoreNotifications={onLoadMoreNotifications}
       onMarkAllRead={onMarkAllRead}
       onSelectConversation={onSelectConversation}

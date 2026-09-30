@@ -17,12 +17,14 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
+import { InboxPageStore } from "../store/inbox-page-store";
 import {
   conversationsFixture,
   currentUserFixture,
   issueNotificationsFixture,
 } from "./inbox.fixture";
 import { InboxList } from "./inbox-list";
+import type { InboxListFilters } from "./inbox-list-filters";
 
 function renderInboxList() {
   return render(
@@ -124,5 +126,57 @@ describe("InboxList filters", () => {
 
     await user.click(screen.getByRole("button", { name: "Load more" }));
     expect(onLoadMoreNotifications.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it("keeps filters in the inbox page store when controlled", async () => {
+    const user = userEvent.setup();
+    const store = new InboxPageStore("acme");
+    const filters: InboxListFilters[] = [];
+
+    function ControlledInboxList() {
+      filters.push(store.filters);
+      return (
+        <InboxList
+          conversations={conversationsFixture}
+          currentUser={currentUserFixture}
+          filters={store.filters}
+          hasMoreNotifications={false}
+          isError={false}
+          isLoading={false}
+          isLoadingMoreNotifications={false}
+          notifications={issueNotificationsFixture}
+          onFiltersChange={store.setFilters}
+          onLoadMoreNotifications={vi.fn()}
+          onMarkAllRead={vi.fn()}
+          onSelectConversation={vi.fn()}
+          onSelectNotification={vi.fn()}
+          selection={{ kind: "conversation", id: conversationsFixture[0]!.id }}
+          unreadNotificationCount={2}
+        />
+      );
+    }
+
+    const { rerender } = render(
+      <IntlProvider locale="en" messages={{}}>
+        <div className="h-[32rem] w-full max-w-sm">
+          <ControlledInboxList />
+        </div>
+      </IntlProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Unread" }));
+    expect(store.filters.read).toBe("unread");
+
+    rerender(
+      <IntlProvider locale="en" messages={{}}>
+        <div className="h-[32rem] w-full max-w-sm">
+          <ControlledInboxList />
+        </div>
+      </IntlProvider>,
+    );
+
+    expect(screen.queryByText("Translate homepage hero copy")).not.toBeInTheDocument();
+    expect(screen.getByText("Checkout CTA tone feels off")).toBeInTheDocument();
+    expect(filters.at(-1)).toEqual({ read: "unread", type: "all" });
   });
 });
