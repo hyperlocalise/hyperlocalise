@@ -1,5 +1,3 @@
-// @vitest-environment happy-dom
-
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -12,7 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { render, screen } from "@testing-library/react";
+// @vitest-environment happy-dom
+
+import type { ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -24,6 +26,29 @@ import {
 import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
 
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
+
+const resourceOptionsMock = vi.hoisted(() => ({
+  resourceOptionsFor: vi.fn(() => [{ id: "repo-1", label: "acme/web", resourceKey: "acme/web" }]),
+}));
+
+vi.mock("./visual-workflow-resource-options", () => ({
+  useVisualWorkflowResourceOptions: () => ({
+    projects: [{ id: "project-1", name: "Acme" }],
+    availableProviders: ["github"],
+    resourceOptionsFor: resourceOptionsMock.resourceOptionsFor,
+  }),
+}));
+
+function renderPanel(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <IntlProvider locale="en" messages={{}}>
+      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+    </IntlProvider>,
+  );
+}
 
 function triggerNode(type: VisualWorkflowRfNode["type"] = "trigger.manual"): VisualWorkflowRfNode {
   return {
@@ -39,23 +64,62 @@ function triggerNode(type: VisualWorkflowRfNode["type"] = "trigger.manual"): Vis
   };
 }
 
+function waitNode(
+  config: Extract<VisualWorkflowRfNode["data"]["config"], { kind: "flow.wait" }> = {
+    kind: "flow.wait",
+    mode: "duration",
+    durationMs: 60_000,
+  },
+): VisualWorkflowRfNode {
+  return {
+    id: "wait",
+    type: "flow.wait",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("flow.wait"),
+    data: {
+      catalogType: "flow.wait",
+      config,
+      runStatus: "idle",
+    },
+  };
+}
+
+function mergeNode(): VisualWorkflowRfNode {
+  return {
+    id: "merge",
+    type: "logic.merge",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("logic.merge"),
+    data: {
+      catalogType: "logic.merge",
+      config: {
+        kind: "logic.merge",
+        mode: "all",
+        inputs: [
+          { id: "email", name: "Email" },
+          { id: "slack", name: "Slack" },
+        ],
+      },
+      runStatus: "idle",
+    },
+  };
+}
+
 describe("VisualWorkflowConfigPanel", () => {
   it("lets operators change the trigger type and delete the step", async () => {
     const user = userEvent.setup();
     const onChangeNodeType = vi.fn();
     const onDeleteNode = vi.fn();
 
-    render(
-      <IntlProvider locale="en" messages={{}}>
-        <VisualWorkflowConfigPanel
-          node={triggerNode()}
-          issues={[]}
-          onBack={vi.fn()}
-          onChangeConfig={vi.fn()}
-          onChangeNodeType={onChangeNodeType}
-          onDeleteNode={onDeleteNode}
-        />
-      </IntlProvider>,
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={triggerNode()}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={onChangeNodeType}
+        onDeleteNode={onDeleteNode}
+      />,
     );
 
     await user.click(screen.getByRole("combobox", { name: "Trigger" }));
@@ -64,5 +128,233 @@ describe("VisualWorkflowConfigPanel", () => {
 
     await user.click(screen.getByRole("button", { name: "Delete step" }));
     expect(onDeleteNode).toHaveBeenCalledOnce();
+  });
+
+  it("keeps Switch case ids when the case value changes", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "sw",
+      type: "logic.switch",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.switch"),
+      data: {
+        catalogType: "logic.switch",
+        config: {
+          kind: "logic.switch",
+          expression: "status",
+          cases: [
+            { id: "case-pending", value: "pending" },
+            { id: "case-ready", value: "ready" },
+          ],
+        },
+        runStatus: "idle",
+      },
+    };
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByPlaceholderText("Case 1"), "x");
+    expect(onChangeConfig).toHaveBeenCalled();
+    const lastConfig = onChangeConfig.mock.calls.at(-1)?.[0];
+    expect(lastConfig).toMatchObject({
+      kind: "logic.switch",
+      cases: [
+        { id: "case-pending", value: "pendingx" },
+        { id: "case-ready", value: "ready" },
+      ],
+    });
+  });
+
+  it("persists default content sync resource options into node config", async () => {
+    const onChangeConfig = vi.fn();
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={triggerNode("action.content_sync")}
+        organizationSlug="acme"
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    await vi.waitFor(() => {
+      expect(onChangeConfig).toHaveBeenCalled();
+    });
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      kind: "action.content_sync",
+      connectionId: "repo-1",
+      resourceKey: "acme/web",
+      projectFolder: "github/acme/web",
+    });
+  });
+
+  it("shows labeled pickers for content sync instead of raw ids", () => {
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={triggerNode("action.content_sync")}
+        organizationSlug="acme"
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Project" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Source" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Resource" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Project folder")).toBeInTheDocument();
+    expect(screen.queryByLabelText("GitHub repository ID")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Project ID (optional)")).not.toBeInTheDocument();
+  });
+
+  it("configures a Wait node and changes its mode", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={waitNode()}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Duration (ms)" })).toHaveValue("60000");
+
+    await user.click(screen.getByRole("combobox", { name: "Wait mode" }));
+    await user.click(await screen.findByRole("option", { name: "Until condition" }));
+
+    expect(onChangeConfig).toHaveBeenCalledWith({
+      kind: "flow.wait",
+      mode: "condition",
+      condition: "",
+      pollingIntervalMs: 5_000,
+      timeoutMs: 300_000,
+    });
+  });
+
+  it("edits the bounded condition wait settings", async () => {
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={waitNode({
+          kind: "flow.wait",
+          mode: "condition",
+          condition: "status === 'ready'",
+          pollingIntervalMs: 5_000,
+          timeoutMs: 300_000,
+        })}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Condition" })).toHaveValue("status === 'ready'");
+    expect(screen.getByRole("textbox", { name: "Polling interval (ms)" })).toHaveValue("5000");
+    expect(screen.getByRole("textbox", { name: "Timeout (ms)" })).toHaveValue("300000");
+    const timeout = screen.getByRole("textbox", { name: "Timeout (ms)" });
+    fireEvent.change(timeout, {
+      target: { value: "600000" },
+    });
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      kind: "flow.wait",
+      mode: "condition",
+      condition: "status === 'ready'",
+      pollingIntervalMs: 5_000,
+      timeoutMs: 600_000,
+    });
+  });
+
+  it("edits an absolute Wait timestamp", async () => {
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={waitNode({
+          kind: "flow.wait",
+          mode: "timestamp",
+          timestamp: "2026-10-01T10:00:00.000Z",
+        })}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    const timestamp = screen.getByRole("textbox", { name: "Timestamp" });
+    expect(timestamp).toHaveValue("2026-10-01T10:00:00.000Z");
+
+    fireEvent.change(timestamp, { target: { value: "2026-10-02T12:30:00.000Z" } });
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toEqual({
+      kind: "flow.wait",
+      mode: "timestamp",
+      timestamp: "2026-10-02T12:30:00.000Z",
+    });
+  });
+
+  it("renames a Merge input without changing its stable ID", () => {
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={mergeNode()}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByRole("textbox", {
+        name: "Input 1",
+      }),
+      {
+        target: {
+          value: "Customer email",
+        },
+      },
+    );
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      kind: "logic.merge",
+      inputs: [
+        {
+          id: "email",
+          name: "Customer email",
+        },
+        {
+          id: "slack",
+          name: "Slack",
+        },
+      ],
+    });
   });
 });

@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
+import { toVercelAiGatewayModelId } from "@/lib/providers/shared/vercel-ai-gateway-model-id";
 import type { SandboxByokCredential } from "@/lib/translation/sandbox-llm";
 
 export type CliTokenUsage = {
@@ -109,7 +110,7 @@ export function sandboxTranslationBillingMetadata(
 ): Pick<CliBilledTokenUsage, "modelId" | "credentialSource"> {
   if (byok) {
     return {
-      modelId: byok.model,
+      modelId: toVercelAiGatewayModelId({ provider: byok.provider, model: byok.model }),
       credentialSource: "byok",
     };
   }

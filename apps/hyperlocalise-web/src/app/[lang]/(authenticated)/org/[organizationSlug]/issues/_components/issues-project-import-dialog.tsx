@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import type { IssueSheetImportFormat } from "@/lib/projects/issue-sheet/issue-sheet-import-format";
 
 import { IssueSheetImportDialog } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-import-dialog";
 import { issuesProjectImportDialogMessages } from "./issues-project-import-dialog.messages";
@@ -44,12 +45,14 @@ export function IssuesProjectImportDialog({
   organizationSlug,
   projects,
   onImported,
+  format,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   organizationSlug: string;
   projects: { id: string; name: string }[];
   onImported: () => Promise<void>;
+  format?: IssueSheetImportFormat;
 }) {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [importOpen, setImportOpen] = useState(false);
@@ -157,6 +160,7 @@ export function IssuesProjectImportDialog({
           projectId={selectedProjectId}
           columns={issueSheetQuery.data?.columns ?? []}
           onImported={onImported}
+          format={format}
         />
       ) : null}
     </>

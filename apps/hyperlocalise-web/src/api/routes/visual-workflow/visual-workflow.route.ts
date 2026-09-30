@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { createVisualWorkflowExecutionQueue } from "@/workflows/adapters";
-import { validateVisualWorkflowDefinition } from "@/lib/visual-workflows/validation/validate-workflow";
+import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 import {
   createWorkflowCredential,
   listWorkflowCredentials,
@@ -273,7 +273,7 @@ export function createVisualWorkflowRoutes() {
           previousDefinition: workflow.definition,
           actorWorkosUserId: c.var.auth.user.workosUserId,
         });
-        const issues = validateVisualWorkflowDefinition(definition);
+        const issues = validateVisualWorkflowV3Definition(definition);
         if (issues.length)
           return badRequestResponse(
             c,

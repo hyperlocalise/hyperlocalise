@@ -1,0 +1,25 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "activitylog",
+    srcs = [
+        "contract.go",
+        "store.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/activitylog",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_google_uuid//:uuid",
+        "@com_github_jackc_pgx_v5//pgconn",
+    ],
+)
+
+go_test(
+    name = "activitylog_test",
+    srcs = [
+        "contract_test.go",
+        "store_test.go",
+    ],
+    embed = [":activitylog"],
+    deps = ["@com_github_stretchr_testify//require"],
+)

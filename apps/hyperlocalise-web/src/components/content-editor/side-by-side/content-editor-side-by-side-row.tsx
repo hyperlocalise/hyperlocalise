@@ -20,7 +20,8 @@ import {
   Video01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMemo } from "react";
+import { observer } from "mobx-react-lite";
+import { useMemo, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -69,7 +70,6 @@ import type {
 } from "@/components/content-editor/shared/types";
 
 import { ContentEditorSideBySideFormatCheckIcon } from "./content-editor-side-by-side-format-check-icon";
-import { ContentEditorSideBySideFormatChecksReveal } from "./content-editor-side-by-side-format-checks-reveal";
 
 function isImageEditorSegment(segment: ContentEditorSegment) {
   return segment.contentKind === "image_file" || segment.contentKind === "image_url";
@@ -87,7 +87,7 @@ function hasAssetTarget(segment: ContentEditorSegment) {
   return Boolean(segment.targetAssetUrl || segment.targetText.trim());
 }
 
-export function ContentEditorSideBySideRow({
+export const ContentEditorSideBySideRow = observer(function ContentEditorSideBySideRow({
   segment,
   isFocused,
   isHovered,
@@ -96,8 +96,6 @@ export function ContentEditorSideBySideRow({
   isTargetLoading,
   isApproving = false,
   isSavingDraft = false,
-  isPostingComment = false,
-  isLookingUpContext = false,
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   isImageBusy = false,
@@ -108,8 +106,6 @@ export function ContentEditorSideBySideRow({
   primaryActionLabel,
   segmentShareUrl = null,
   onFocus,
-  onHover,
-  onLeave,
   onTargetChange,
   onApprove,
   onSaveDraft,
@@ -123,7 +119,7 @@ export function ContentEditorSideBySideRow({
 }: {
   segment: ContentEditorSegment;
   isFocused: boolean;
-  isHovered: boolean;
+  isHovered?: boolean;
   isDirty: boolean;
   canEdit: boolean;
   isTargetLoading: boolean;
@@ -141,8 +137,6 @@ export function ContentEditorSideBySideRow({
   primaryActionLabel?: string;
   segmentShareUrl?: string | null;
   onFocus: () => void;
-  onHover: () => void;
-  onLeave: () => void;
   onTargetChange: (value: string) => void;
   onApprove?: () => void;
   onSaveDraft?: () => void;
@@ -157,9 +151,10 @@ export function ContentEditorSideBySideRow({
   const intl = useIntl();
   const isMac = useIsMac();
   const upgradeHref = useAiFeaturesUpgradeHref();
+  const [isPointerHovered, setIsPointerHovered] = useState(false);
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorEditorPanelMessages.approve);
-  const isActive = isFocused || isHovered;
+  const isActive = isFocused || (isHovered ?? isPointerHovered);
   const isImageSegment = isImageEditorSegment(segment);
   const isVideoSegment = isVideoEditorSegment(segment);
   const isAssetSegment = isAssetEditorSegment(segment);
@@ -172,15 +167,7 @@ export function ContentEditorSideBySideRow({
   const hasApprovingTarget = isAssetSegment
     ? hasAssetTarget(segment)
     : segment.targetText.trim().length > 0;
-  const isActionBlocked =
-    isApproving ||
-    isSavingDraft ||
-    isPostingComment ||
-    isLookingUpContext ||
-    isAiSuggestionLoading ||
-    isFormatChecksLoading ||
-    isTargetLoading ||
-    isImageBusy;
+  const isActionBlocked = isApproving || isSavingDraft || isTargetLoading || isImageBusy;
   // Show Approve whenever the focused row has a target to approve — including clean
   // "Needs review" drafts (AI/job-written) that the reviewer has not edited yet.
   const canTriggerApprove =
@@ -222,7 +209,6 @@ export function ContentEditorSideBySideRow({
   );
   const showFormatCheckIcon =
     !isAssetSegment && (isFormatChecksLoading || actionableFormatChecks.length > 0);
-  const revealFormatChecks = showFormatCheckIcon && isActive;
   const showActionBar = showReviewActions || showIssueSheetAction;
   const copySourceLabel = intl.formatMessage(contentEditorEditorPanelMessages.copySource);
   const clearTargetLabel = intl.formatMessage(contentEditorEditorPanelMessages.clearTarget);
@@ -360,11 +346,11 @@ export function ContentEditorSideBySideRow({
         isActive && "bg-grove-500/5",
         isFocused && "ring-1 ring-inset ring-grove-400/30",
       )}
-      onMouseEnter={onHover}
-      onMouseLeave={onLeave}
+      onMouseEnter={() => setIsPointerHovered(true)}
+      onMouseLeave={() => setIsPointerHovered(false)}
       onFocus={onFocus}
     >
-      <div className={cn("min-w-0 border-r border-border px-4", isFocused ? "py-4" : "py-3")}>
+      <div className={cn("min-w-0 border-r border-border px-4", "py-3")}>
         {isFocused && showVideoSource ? (
           <div className="space-y-2.5">
             <ContentEditorEditorVideoSourceSection
@@ -513,7 +499,7 @@ export function ContentEditorSideBySideRow({
         )}
       </div>
 
-      <div className={cn("min-w-0 px-4", isFocused ? "py-4" : "py-2.5")}>
+      <div className="relative min-h-32 min-w-0 px-4 py-3">
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             {isFocused && canEdit ? (
@@ -647,17 +633,13 @@ export function ContentEditorSideBySideRow({
             />
           ) : null}
         </div>
-        {showFormatCheckIcon ? (
-          <ContentEditorSideBySideFormatChecksReveal
-            open={revealFormatChecks}
-            formatChecks={actionableFormatChecks}
-            isLoading={isFormatChecksLoading}
-          />
-        ) : null}
         {isDirty ? (
-          <span className="mt-2 inline-block size-1.5 rounded-full bg-bud-400" aria-hidden />
+          <span
+            className="absolute right-2 bottom-2 size-1.5 rounded-full bg-bud-400"
+            aria-hidden
+          />
         ) : null}
       </div>
     </div>
   );
-}
+});

@@ -18,9 +18,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { GlossaryConceptRecord } from "@/api/routes/glossary/glossary.schema";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { selectGlossaryPrimaryTerm, type GlossaryTermStatus } from "@/lib/glossary/glossary";
 
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
@@ -61,7 +61,9 @@ export function ProviderGlossaryDetail({
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
-      ].concepts.$get({ param: { organizationSlug, glossaryId } });
+      ].concepts.$get({
+        param: { organizationSlug, glossaryId },
+      });
       if (!response.ok) {
         throw new Error(
           await readApiError(response, intl.formatMessage(messages.loadConceptsFailed)),

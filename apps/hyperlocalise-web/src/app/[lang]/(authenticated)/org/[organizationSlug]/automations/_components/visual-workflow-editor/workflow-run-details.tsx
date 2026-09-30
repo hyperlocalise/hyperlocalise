@@ -25,7 +25,16 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import type { VisualWorkflowRunRecord } from "@/lib/visual-workflows/visual-workflow-run-types";
-import type { VisualWorkflowDefinition } from "@/lib/visual-workflows/schema/types";
+import { parseVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/definition-migration";
+
+function parseDefinitionSnapshot(value: unknown) {
+  try {
+    return parseVisualWorkflowV3Definition(value);
+  } catch {
+    return null;
+  }
+}
+
 export function WorkflowRunDetails({
   run,
   organizationSlug,
@@ -39,7 +48,7 @@ export function WorkflowRunDetails({
   const [confirm, setConfirm] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
-  const snapshot = run.inputSnapshot.definitionSnapshot as VisualWorkflowDefinition | undefined;
+  const snapshot = parseDefinitionSnapshot(run.inputSnapshot.definitionSnapshot);
   const act = async (action: "cancel" | "retry") => {
     setPending(true);
     setError(false);
@@ -84,7 +93,11 @@ export function WorkflowRunDetails({
               id: edge.id,
               source: edge.source,
               target: edge.target,
-              label: edge.sourceHandle ?? undefined,
+              label:
+                edge.kind === "data"
+                  ? `${edge.sourcePortId} → ${edge.targetPortId}`
+                  : edge.sourcePortId,
+              style: edge.kind === "data" ? { strokeDasharray: "5 4" } : undefined,
             }))}
             nodesDraggable={false}
             nodesConnectable={false}

@@ -185,13 +185,7 @@ export async function localizeImageUrlTranslation(input: {
     localized = { image: result.image, mimeType: result.mimeType || "image/png" };
   } catch (error) {
     if (error instanceof ManagedAiCreditAccessError) {
-      return error.billingError.code === "ai_credit_insufficient"
-        ? err({
-            code: "ai_credit_insufficient",
-            requiredAmountUsd: error.billingError.requiredAmountUsd,
-            remainingAmountUsd: error.billingError.remainingAmountUsd,
-          })
-        : err({ code: "ai_credit_unavailable", message: error.message });
+      return err({ code: "ai_credit_unavailable", message: error.message });
     }
     return err({
       code: "localization_failed",

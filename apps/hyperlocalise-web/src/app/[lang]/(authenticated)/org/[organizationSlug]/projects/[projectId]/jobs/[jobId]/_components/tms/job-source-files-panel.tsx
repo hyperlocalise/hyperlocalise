@@ -24,6 +24,7 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH4, TypographyP } from "@/components/ui/typography";
+import { isInternalStorageFilename } from "@/lib/projects/jobs/native-job-source-file-display";
 import { supportsProviderContentEditorFile } from "@/lib/providers/capabilities/provider-content-editor-capabilities";
 import { jobContentEditorQueueFilterParam } from "@/lib/projects/job-content-editor-routing";
 import type { ContentEditorQueueFilter } from "@/components/content-editor/queue/content-editor-queue-filter";
@@ -136,6 +137,10 @@ export function JobSourceFilesPanel({
   const selectedFile =
     sortedFiles.find((file) => file.sourcePath === selectedSourcePath) ?? sortedFiles[0] ?? null;
   const activeSourcePath = selectedFile?.sourcePath ?? null;
+  const selectedFileLabel =
+    selectedFile && isInternalStorageFilename(selectedFile.sourcePath)
+      ? selectedFile.filename
+      : selectedFile?.sourcePath;
 
   const openFileInCat = useCallback(
     (sourcePath: string) => {
@@ -233,7 +238,7 @@ export function JobSourceFilesPanel({
             <div className="flex flex-col gap-2 rounded-lg border border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <TypographyP className="font-mono" lineClamp={1} size="xsmall" tone="content">
-                  {selectedFile?.sourcePath}
+                  {selectedFileLabel}
                 </TypographyP>
                 <TypographyP size="xsmall" tone="subtle">
                   {selectedTargetLocale ? (

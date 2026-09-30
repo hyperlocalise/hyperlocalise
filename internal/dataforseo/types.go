@@ -187,6 +187,9 @@ var acceptedLLMModelNames = map[LlmResponseModel]map[string]struct{}{
 		"gpt-5": {},
 	},
 	LlmResponseModelClaude: {
+		"claude-opus-5-5":   {},
+		"claude-opus-5":     {},
+		"claude-sonnet-5":   {},
 		"claude-sonnet-4-5": {},
 		"claude-sonnet-4-6": {},
 	},

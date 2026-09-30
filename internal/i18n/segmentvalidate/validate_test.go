@@ -20,8 +20,13 @@ func TestKindForSourcePath(t *testing.T) {
 		{"/srv/captions.vtt", FormatWebVTT},
 		{"/srv/sections/header.liquid", FormatLiquid},
 		{"/pkg/messages.json", FormatICUInvariant},
+		{"/pkg/MESSAGES.JSON", FormatICUInvariant},
 		{"/pkg/strings.arb", FormatICUInvariant},
+		{"/notes/readme.mdown", FormatMarkdown},
+		{"/notes/README.MDOWN", FormatMarkdown},
+		{"  spaced.md  ", FormatMarkdown},
 		{"noext", FormatICUInvariant},
+		{"", FormatICUInvariant},
 	}
 	for _, tt := range tests {
 		if got := KindForSourcePath(tt.path); got != tt.want {

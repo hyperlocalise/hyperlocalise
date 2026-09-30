@@ -64,6 +64,19 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     mock: { status: 200, ok: true, headers: {}, body: '{"items":[]}', json: { items: [] } },
   },
+  "action.content_sync": {
+    inputs: [
+      field("projectId"),
+      field("connectionId"),
+      field("resourceKey"),
+      field("projectFolder"),
+    ],
+    outputs: [output("pulled", "object"), output("pushed", "object")],
+    mock: {
+      pulled: { uploaded: 1, skipped: 0, failed: 0 },
+      pushed: { written: 1 },
+    },
+  },
   "action.notify_slack": {
     inputs: [field("channelId"), field("message")],
     outputs: [output("sent", "boolean"), output("channelId")],
@@ -100,6 +113,51 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     mock: {},
   },
+  "logic.retry": {
+    inputs: [
+      field("maxAttempts", "number", false),
+      field("initialDelayMs", "number", false),
+      field("backoffMultiplier", "number", false),
+    ],
+    outputs: [
+      output("attemptNumber", "number"),
+      output("exhausted", "boolean"),
+      output("lastErrorCode", "string", true),
+      output("lastErrorMessage", "string", true),
+    ],
+    mock: { attemptNumber: 1, exhausted: false },
+  },
+  "flow.wait": {
+    inputs: [
+      field("durationMs", "number", false),
+      field("timestamp", "string", false),
+      field("condition", "unknown", false),
+      field("pollingIntervalMs", "number", false),
+      field("timeoutMs", "number", false),
+    ],
+    outputs: [
+      output("status"),
+      output("scheduledAt", "string"),
+      output("resumedAt", "string", true),
+    ],
+    mock: {
+      status: "completed",
+      scheduledAt: "2026-01-01T00:00:00.000Z",
+      resumedAt: "2026-01-01T00:01:00.000Z",
+    },
+  },
+  "logic.merge": {
+    inputs: [],
+    outputs: [
+      output("status"),
+      output("selectedInputId", "string", true),
+      output("values", "object"),
+    ],
+    mock: {
+      status: "completed",
+      values: {},
+    },
+  },
 };
 export function matchesWorkflowType(value: unknown, type: WorkflowValueType): boolean {
   if (type === "unknown") return true;
@@ -115,6 +173,10 @@ export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): Work
     for (const assignment of node.config.assignments)
       fields.set(assignment.key, { path: assignment.key, type: "string" });
     for (const [name, binding] of Object.entries(node.inputs ?? {})) {
+      if (binding.kind === "secret") {
+        continue;
+      }
+
       const value = binding.kind === "literal" ? binding.value : undefined;
       const type: WorkflowValueType = Array.isArray(value)
         ? "array"

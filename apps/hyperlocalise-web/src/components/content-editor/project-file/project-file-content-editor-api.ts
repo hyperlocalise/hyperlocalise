@@ -19,6 +19,8 @@ import { defaultProjectFileContentEditorPageLimit } from "@/api/routes/project/p
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 
 import { projectFileCatApiMessages } from "./project-file-content-editor-api.messages";
 
@@ -142,28 +144,63 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
   sortBucketOffset?: number;
   sourcePaths?: string | null;
   intl: ContentEditorFormatMessageIntl;
+  signal?: AbortSignal;
+  goSvcClient?: GoSvcClient;
 }) {
+  if (input.goSvcClient && !input.externalResourceId) {
+    try {
+      const { contentEditorQueue } = await input.goSvcClient.cat.queue(
+        input.organizationSlug,
+        input.projectId,
+        {
+          sourcePath: input.sourcePath,
+          targetLocale: input.targetLocale,
+          ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
+          ...(input.search ? { search: input.search } : {}),
+          ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
+          ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
+          offset: input.offset,
+          limit: input.limit,
+        },
+        { signal: input.signal },
+      );
+      return contentEditorQueue;
+    } catch (error) {
+      if (!isCatDeferredToApp(error)) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            input.intl.formatMessage(projectFileCatApiMessages.failedToLoadQueue),
+          ),
+        );
+      }
+    }
+  }
+
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
-  ].files.detail.cat.queue.$get({
-    param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
-    query: {
-      sourcePath: input.sourcePath,
-      ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
-      ...(input.resourceType ? { resourceType: input.resourceType } : {}),
-      ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
-      targetLocale: input.targetLocale,
-      offset: input.offset,
-      limit: input.limit,
-      ...(input.search ? { search: input.search } : {}),
-      ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
-      ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
-      ...(input.phraseScanPage != null ? { phraseScanPage: input.phraseScanPage } : {}),
-      ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
-      ...(input.sortBucket != null ? { sortBucket: input.sortBucket } : {}),
-      ...(input.sortBucketOffset != null ? { sortBucketOffset: input.sortBucketOffset } : {}),
+  ].files.detail.cat.queue.$get(
+    {
+      param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
+      query: {
+        sourcePath: input.sourcePath,
+        ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
+        ...(input.resourceType ? { resourceType: input.resourceType } : {}),
+        ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
+        targetLocale: input.targetLocale,
+        offset: input.offset,
+        limit: input.limit,
+        ...(input.search ? { search: input.search } : {}),
+        ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
+        ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
+        ...(input.phraseScanPage != null ? { phraseScanPage: input.phraseScanPage } : {}),
+        ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
+        ...(input.sortBucket != null ? { sortBucket: input.sortBucket } : {}),
+        ...(input.sortBucketOffset != null ? { sortBucketOffset: input.sortBucketOffset } : {}),
+      },
     },
-  });
+    { init: { signal: input.signal } },
+  );
 
   if (response.status !== 200) {
     throw new Error(

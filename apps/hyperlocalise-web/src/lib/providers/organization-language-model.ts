@@ -20,6 +20,7 @@ import {
   resolveProviderLanguageModel,
   type ResolvedAgentLanguageModel,
 } from "@/lib/providers/language-model";
+import { toVercelAiGatewayModelId } from "@/lib/providers/shared/vercel-ai-gateway-model-id";
 import {
   decryptProviderCredential,
   unwrapProviderCredentialCrypto,
@@ -114,7 +115,10 @@ export async function resolveHyperlocaliseAgentLanguageModel(input?: {
           model: loaded.credential.model,
         }),
         source: loaded.credential.provider,
-        modelId: loaded.credential.model,
+        modelId: toVercelAiGatewayModelId({
+          provider: loaded.credential.provider,
+          model: loaded.credential.model,
+        }),
       };
     }
   }

@@ -1,168 +1,99 @@
 ---
-title: "Quickstart"
-description: "Run hyperlocalise end-to-end in about 10 minutes."
+title: "Translate your first file"
+sidebarTitle: "Quickstart"
+description: "Translate a JSON file from English to Spanish and review the generated output."
 ---
 
-## Goal
+This guide uses OpenAI and one JSON file. You need the [CLI installed](/cli/getting-started/install)
+and an OpenAI API key. For another setup, choose an [AI provider](/cli/providers/overview)
+or a [file format](/cli/reference/formats/overview).
 
-Create an `i18n.yml`, run translation planning safely, generate outputs, and review status.
+## 1. Create a source file
 
-## 1. Initialize config
+From your project directory, create `locales/en-US.json`:
 
-```bash
-hyperlocalise init
+```json
+{
+    "welcome": "Welcome",
+    "greeting": "Hello, {name}!"
+}
 ```
 
-This writes `i18n.yml` in your current directory.
+## 2. Configure the project
 
-## 2. Configure provider credentials
+Create `i18n.yml` in the project root:
 
-`hyperlocalise` automatically reads credentials from `.env` and `.env.local` in your current project directory. Exported shell variables still take precedence.
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
 
-Example:
+buckets:
+    app:
+        files:
+            - from: locales/{{source}}.json
+              to: locales/{{target}}.json
 
-<CodeGroup>
-```bash Export
-export OPENAI_API_KEY="your-openai-api-key"
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
 ```
 
-```bash .env.local
-OPENAI_API_KEY="your-openai-api-key"
-```
-</CodeGroup>
+A bucket groups related source-to-target file mappings. This one reads
+`locales/en-US.json` and writes `locales/es-ES.json`.
 
-OpenAI:
+For an existing project, you can also use [`hyperlocalise init`](/cli/commands/init)
+to scaffold a configuration, then adjust its file paths and provider.
 
-<CodeGroup>
-```bash Export
-export OPENAI_API_KEY="your-openai-api-key"
-```
+## 3. Add your API key
 
-```bash .env.local
-OPENAI_API_KEY="your-openai-api-key"
-```
-</CodeGroup>
+Add the key to `.env.local` in the project root:
 
-Azure OpenAI:
-
-<CodeGroup>
-```bash Export
-# Example: https://<resource>.openai.azure.com/openai/v1
-export AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
-export AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
+```dotenv
+OPENAI_API_KEY=your-openai-api-key
 ```
 
-```bash .env.local
-# Example: https://<resource>.openai.azure.com/openai/v1
-AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
-AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
-```
-</CodeGroup>
+Keep this file out of version control. The CLI reads `.env` and `.env.local`
+automatically; exported shell variables take precedence. See
+[provider credentials](/cli/configuration/provider-credentials) for other providers.
 
-Gemini:
+## 4. Preview and translate
 
-<CodeGroup>
-```bash Export
-export GEMINI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
-export GEMINI_API_KEY="your-gemini-api-key"
-```
-
-```bash .env.local
-GEMINI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
-GEMINI_API_KEY="your-gemini-api-key"
-```
-</CodeGroup>
-
-Anthropic:
-
-<CodeGroup>
-```bash Export
-export ANTHROPIC_BASE_URL="https://api.anthropic.com/v1"
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-```
-
-```bash .env.local
-ANTHROPIC_BASE_URL="https://api.anthropic.com/v1"
-ANTHROPIC_API_KEY="your-anthropic-api-key"
-```
-</CodeGroup>
-
-LM Studio:
-
-<CodeGroup>
-```bash Export
-export LM_STUDIO_BASE_URL="http://127.0.0.1:1234/v1"
-export LM_STUDIO_API_KEY="lm-studio"
-```
-
-```bash .env.local
-LM_STUDIO_BASE_URL="http://127.0.0.1:1234/v1"
-LM_STUDIO_API_KEY="lm-studio"
-```
-</CodeGroup>
-
-Ollama:
-
-<CodeGroup>
-```bash Export
-export OLLAMA_BASE_URL="http://127.0.0.1:11434/v1"
-export OLLAMA_API_KEY="ollama"
-```
-
-```bash .env.local
-OLLAMA_BASE_URL="http://127.0.0.1:11434/v1"
-OLLAMA_API_KEY="ollama"
-```
-</CodeGroup>
-
-Groq:
-
-<CodeGroup>
-```bash Export
-export GROQ_BASE_URL="https://api.groq.com/openai/v1"
-export GROQ_API_KEY="your-groq-api-key"
-```
-
-```bash .env.local
-GROQ_BASE_URL="https://api.groq.com/openai/v1"
-GROQ_API_KEY="your-groq-api-key"
-```
-</CodeGroup>
-
-## 3. Dry-run first
+Preview the work:
 
 ```bash
 hyperlocalise run --dry-run
 ```
 
-Check `planned_total`, `executable_total`, and the listed `tasks`.
-
-## 4. Execute generation
+Check that the plan includes your source file and Spanish target. Then generate:
 
 ```bash
 hyperlocalise run
 ```
 
-This writes translations and updates `.hyperlocalise.lock.json`. For details, see [Lockfile contract](/cli/reference/lockfile-contract).
+The CLI creates `locales/es-ES.json` and records progress in
+`.hyperlocalise.lock.json`. Translated wording can vary by model; the keys and
+`{name}` placeholder should remain intact.
 
-## 5. Review status
+## 5. Review the result
+
+Open the generated file and review the diff. Check translation integrity and
+inspect progress:
 
 ```bash
+hyperlocalise check
 hyperlocalise status --output csv
 ```
 
-Use `needs_review` rows to identify entries that still need human curation.
+Commit the source, configuration, translated file, and lockfile after review.
+When source messages change, repeat the preview and translation commands.
 
-## 6. Evaluate translation quality when needed
+## Continue
 
-```bash
-hyperlocalise eval run --eval-set ./eval-set.json --output ./eval-report.json
-```
-
-Use this when comparing prompt/profile/provider choices or before promoting large translation updates.
-
-## Next
-
-- Tune config in [i18n config](/cli/configuration/i18n-config).
-- Sync with your TMS using [sync push](/cli/commands/sync-push) and [sync pull](/cli/commands/sync-pull).
-- Check maturity expectations in the [stability matrix](/cli/reference/stability-matrix).
+- [Project layout](/cli/getting-started/first-project) explains what to keep in your repository.
+- [File formats](/cli/reference/formats/overview) covers other source types.
+- [Local translation](/cli/workflows/local-generation) covers repeat runs and release preparation.
+- [TMS curation](/cli/workflows/tms-curation-loop) adds a shared review step.

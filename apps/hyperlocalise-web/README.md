@@ -32,6 +32,10 @@ Create `.env` with at least:
 
 ```bash
 DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise
+ACTIVITY_LOG_SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/000000000000/activity-log-local
+AWS_REGION=us-east-1
+# Production only: IAM role assumed through Vercel OIDC.
+# AWS_ROLE_ARN=arn:aws:iam::123456789012:role/hyperlocalise-web-prod-sqs
 PROVIDER_CREDENTIALS_MASTER_KEY=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 WORKOS_API_KEY=sk_test_placeholder
 WORKOS_CLIENT_ID=client_placeholder
@@ -40,6 +44,17 @@ NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
 WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
 AUTUMN_API_KEY=am_sk_test_placeholder
 ```
+
+Production SQS publishing uses Vercel OIDC credentials. Configure the role to
+allow only `sqs:SendMessage` on the activity-log queue and restrict its trust
+policy to this Vercel project's production environment. Set `AWS_ROLE_ARN`,
+`AWS_REGION`, and `ACTIVITY_LOG_SQS_QUEUE_URL` in the Vercel production
+environment before deploying.
+
+`GET /api/health` includes `checks.oidc` with the selected credential provider
+and status. Production Vercel requests perform a non-mutating AWS STS
+`GetCallerIdentity` check, with a one-second timeout; the response never
+exposes the role ARN or AWS account details.
 
 Apply migrations after Postgres is running:
 
@@ -63,6 +78,11 @@ Keyword research and rank tracking proxy to [`go-svc`](../go-svc/README.md). For
 
 1. Run `go-svc` with `DATAFORSEO_API_KEY` and matching `WORKOS_*` values.
 2. Set `GO_SVC_URL=http://127.0.0.1:8080` in `.env`.
+
+Browser-direct Go service calls use `NEXT_PUBLIC_API_BASE_URL`. Set it to
+`http://127.0.0.1:8080` for local development; production uses
+`https://api.hyperlocalise.com`.
+
 3. Enable the `workspace-domains` WorkOS feature flag for your test org.
 
 Without `go-svc`, Domains UI still loads but research mutations return provider errors.
@@ -81,6 +101,10 @@ vp test
 ```
 
 `vp check --fix` formats, lints, and type-checks. `vp test` runs the Vitest suite through Vite+.
+
+## Observability
+
+Server-side Datadog APM setup, sampling, verification, and rollback are documented in [`DATADOG.md`](./DATADOG.md). Local and test runs do not preload the tracer by default.
 
 ## Useful paths
 

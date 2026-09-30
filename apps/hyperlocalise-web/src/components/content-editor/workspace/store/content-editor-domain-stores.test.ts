@@ -25,6 +25,19 @@ const queueSegments = [
   { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
 ] as const;
 
+it("does not invalidate another segment's intelligence when checks arrive", () => {
+  const store = new ContentEditorIntelligenceStore();
+  store.setSegment("first", { glossaryTerms: [] });
+  let runs = 0;
+  const dispose = autorun(() => {
+    void store.bySegment.first;
+    runs += 1;
+  });
+  store.setSegment("second", { glossaryTerms: [], aiSuggestion: "Bonjour" });
+  expect(runs).toBe(1);
+  dispose();
+});
+
 describe("ContentEditorQueueStore", () => {
   it("constructs without throwing when storage is unavailable", () => {
     vi.stubGlobal("localStorage", undefined);
@@ -326,10 +339,17 @@ describe("ContentEditorWorkspaceUiStore", () => {
     expect(ui.isSideBySideView).toBe(true);
     expect(ui.isFileView).toBe(false);
 
+    ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01"],
+      loadSegmentIds: ["seg-01", "seg-02"],
+    });
+
     ui.setViewMode("file");
 
     expect(ui.isFileView).toBe(true);
     expect(ui.pageLimit).toBe(50);
+    expect(ui.visibleSideBySideSegmentIds).toEqual([]);
+    expect(ui.loadSideBySideSegmentIds).toEqual([]);
   });
 
   it("honors an explicit initial view mode without reading storage", () => {
@@ -362,32 +382,20 @@ describe("ContentEditorWorkspaceUiStore", () => {
     }
   });
 
-  it("tracks hovered segment and preview loading state", () => {
+  it("tracks the virtualized side-by-side viewport and load range", () => {
     const ui = new ContentEditorWorkspaceUiStore();
 
-    ui.setHoveredSegment("seg-02");
-    ui.setPreviewLoadingState("seg-02", {
-      isTargetLoading: true,
-      isCommentsLoading: false,
+    ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01", "seg-02"],
+      loadSegmentIds: ["seg-01", "seg-02", "seg-03"],
     });
 
-    expect(ui.hoveredSegmentId).toBe("seg-02");
-
-    ui.clearHoveredSegment();
-
-    expect(ui.hoveredSegmentId).toBeNull();
-    expect(ui.previewTargetLoading).toBe(true);
-  });
-
-  it("tracks the virtualized side-by-side segment range", () => {
-    const ui = new ContentEditorWorkspaceUiStore();
-
-    ui.setVisibleSideBySideSegmentIds(["seg-01", "seg-02"]);
-
     expect(ui.visibleSideBySideSegmentIds).toEqual(["seg-01", "seg-02"]);
+    expect(ui.loadSideBySideSegmentIds).toEqual(["seg-01", "seg-02", "seg-03"]);
 
-    ui.setVisibleSideBySideSegmentIds([]);
+    ui.setSideBySideViewport({ visibleSegmentIds: [], loadSegmentIds: [] });
 
     expect(ui.visibleSideBySideSegmentIds).toEqual([]);
+    expect(ui.loadSideBySideSegmentIds).toEqual([]);
   });
 });

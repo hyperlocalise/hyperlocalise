@@ -26,7 +26,11 @@ import { cn } from "@/lib/primitives/cn";
 import { IssueAssigneeTableCell } from "./issue-detail/issue-assignee-table-cell";
 import { IssuePriorityIcon } from "./issue-detail/issue-priority-icon";
 import { IssueStatusIcon } from "./issue-detail/issue-status-icon";
-import { buildIssueDetailHref, issueStatusLabel } from "./issue-detail/issue-detail-utils";
+import {
+  buildIssueDetailHref,
+  issueStatusLabel,
+  type IssueDetailHrefScope,
+} from "./issue-detail/issue-detail-utils";
 import {
   groupIssuesByStatus,
   type IssueListSummaryCounts,
@@ -101,6 +105,7 @@ export function IssueListRow({
   organizationSlug,
   issue,
   showProject,
+  detailScope = "project",
   onActivate,
   onActivateKeyDown,
   selectionEnabled = false,
@@ -112,6 +117,7 @@ export function IssueListRow({
   organizationSlug: string;
   issue: IssueGroupedListItem;
   showProject?: boolean;
+  detailScope?: IssueDetailHrefScope;
   onActivate: (issue: IssueGroupedListItem) => void;
   onActivateKeyDown: (event: KeyboardEvent<HTMLDivElement>, issue: IssueGroupedListItem) => void;
   selectionEnabled?: boolean;
@@ -151,6 +157,7 @@ export function IssueListRow({
               organizationSlug,
               projectId: issue.projectId,
               issueId: issue.identifier,
+              scope: detailScope,
             })}
             className="block truncate font-medium text-foreground hover:underline"
             onClick={stopPropagation}
@@ -205,6 +212,7 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
   summary,
   activeStatus,
   showProject,
+  detailScope = "project",
   isLoading,
   isError,
   isFetchingMore,
@@ -227,6 +235,7 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
   summary?: IssueListSummaryCounts;
   activeStatus?: string;
   showProject?: boolean;
+  detailScope?: IssueDetailHrefScope;
   isLoading: boolean;
   isError: boolean;
   isFetchingMore?: boolean;
@@ -331,6 +340,7 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
                       organizationSlug={organizationSlug}
                       issue={issue}
                       showProject={showProject}
+                      detailScope={detailScope}
                       selectionEnabled={selectionEnabled}
                       selected={isIssueSelected?.(issue as T) ?? false}
                       selectionDisabled={selectionDisabled}

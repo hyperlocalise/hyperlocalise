@@ -11,12 +11,72 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { expect, userEvent, waitFor } from "storybook/test";
 
 import {
   visualWorkflowDemoDraft,
   visualWorkflowPlaygroundDraft,
+  visualWorkflowQuickAddDraft,
+  visualWorkflowRetryDraft,
+  visualWorkflowSwitchDeleteDraft,
+  visualWorkflowWaitDraft,
+  visualWorkflowMergeDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
+
+const edgeKindsDraft = {
+  name: "Execution and data edges",
+  nodes: [
+    {
+      id: "trigger",
+      type: "trigger.manual" as const,
+      position: { x: 80, y: 180 },
+      data: {
+        catalogType: "trigger.manual" as const,
+        config: { kind: "trigger.manual" as const },
+        runStatus: "idle" as const,
+      },
+    },
+    {
+      id: "request",
+      type: "action.http" as const,
+      position: { x: 420, y: 180 },
+      data: {
+        catalogType: "action.http" as const,
+        config: {
+          kind: "action.http" as const,
+          method: "GET" as const,
+          url: "https://example.com/api/items",
+        },
+        outputFields: [
+          {
+            path: "items",
+            type: "array" as const,
+          },
+        ],
+        runStatus: "idle" as const,
+      },
+    },
+  ],
+  edges: [
+    {
+      id: "execution-edge",
+      source: "trigger",
+      target: "request",
+      sourceHandle: "success",
+      targetHandle: "input",
+      data: { kind: "execution" as const },
+    },
+    {
+      id: "data-edge",
+      source: "trigger",
+      target: "request",
+      sourceHandle: "triggeredAt",
+      targetHandle: "url",
+      data: { kind: "data" as const },
+    },
+  ],
+};
 
 const meta = {
   title: "App/Automations/Visual Workflow",
@@ -27,6 +87,8 @@ const meta = {
       description: {
         component:
           "Interactive playground for visual workflows. Add nodes from the picker, connect steps, configure each node, and run **Test workflow** to execute the graph in the browser. Logic nodes run for real; HTTP, Slack, and AI steps return simulated outputs.",
+        story:
+          "Shows execution and data ports with compatible-port highlighting. Invalid connections are rejected before they are committed to the graph.",
       },
     },
   },
@@ -61,5 +123,311 @@ export const SampleWorkflow: Story = {
     initialEdges: visualWorkflowDemoDraft.edges,
     previewMode: true,
     playgroundMode: true,
+  },
+};
+
+export const QuickAddBranches: Story = {
+  name: "Quick-add Switch and For Each",
+  args: {
+    initialName: visualWorkflowQuickAddDraft.name,
+    initialNodes: visualWorkflowQuickAddDraft.nodes,
+    initialEdges: visualWorkflowQuickAddDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const click = async (name: string | RegExp) => {
+      const button = await canvas.findByRole("button", { name }, { timeout: 10_000 });
+      button.click();
+    };
+
+    await click("Add node from Case 2");
+    await click(/Assign values into the workflow context/);
+    await expect(
+      await canvas.findByTestId(/visual-workflow-edge-switch-.+-case-ready$/),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+
+    await click("Add node from Each item");
+    await click(/Assign values into the workflow context/);
+    await waitFor(async () => {
+      await expect(canvas.getAllByTestId(/visual-workflow-edge-loop-.+-each$/)).toHaveLength(2);
+    });
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+
+    await click("Add node from Done");
+    await click(/Assign values into the workflow context/);
+    await expect(
+      await canvas.findByTestId(/visual-workflow-edge-loop-.+-done$/),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+  },
+};
+
+export const SwitchCaseDelete: Story = {
+  name: "Deleting a Switch case keeps other branches",
+  args: {
+    initialName: visualWorkflowSwitchDeleteDraft.name,
+    initialNodes: visualWorkflowSwitchDeleteDraft.nodes,
+    initialEdges: visualWorkflowSwitchDeleteDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByTestId("visual-workflow-edge-switch-pending-case-pending"),
+    ).toBeInTheDocument();
+    await expect(
+      await canvas.findByTestId("visual-workflow-edge-switch-ready-case-ready"),
+    ).toBeInTheDocument();
+
+    const switchTitle = await canvas.findByText("Switch", {}, { timeout: 10_000 });
+    switchTitle.click();
+
+    const removeFirst = await canvas.findByRole(
+      "button",
+      { name: "Remove case 1" },
+      { timeout: 10_000 },
+    );
+    removeFirst.click();
+
+    await expect(
+      canvas.queryByTestId("visual-workflow-edge-switch-pending-case-pending"),
+    ).not.toBeInTheDocument();
+    await expect(
+      await canvas.findByTestId("visual-workflow-edge-switch-ready-case-ready"),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+  },
+};
+
+export const PortCompatibility: Story = {
+  name: "Port compatibility",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Shows execution and data ports with compatible-port highlighting. Invalid connections are rejected before they are committed to the graph.",
+      },
+    },
+  },
+  args: {
+    initialName: edgeKindsDraft.name,
+    initialNodes: edgeKindsDraft.nodes,
+    initialEdges: edgeKindsDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const executionInput = canvas.getAllByLabelText("Execution input");
+    const dataOutput = canvas.getByLabelText("Data output: triggeredAt, string");
+    const dataInput = canvas.getByLabelText("Data input: url, string");
+    const optionalInput = canvas.getByLabelText("Data input: body, unknown, optional");
+    const arrayInput = canvas.getByLabelText("Data output: items, array");
+
+    await expect(executionInput).toHaveLength(1);
+    await expect(canvas.getAllByLabelText("Execution success")).toHaveLength(2);
+
+    await expect(dataOutput).toBeInTheDocument();
+    await expect(dataInput).toBeInTheDocument();
+    await expect(optionalInput).toBeInTheDocument();
+    await expect(arrayInput).toBeInTheDocument();
+
+    await expect(
+      canvas.getByTestId("visual-workflow-edge-trigger-request-triggeredAt"),
+    ).toBeInTheDocument();
+
+    await expect(canvas.getByTitle("url: string")).toBeInTheDocument();
+    await expect(canvas.getByTitle("body: unknown (optional)")).toBeInTheDocument();
+
+    for (const type of ["string", "number", "boolean", "object", "array", "unknown"]) {
+      await expect(canvas.getAllByText(type).length).toBeGreaterThan(0);
+    }
+
+    await expect(dataInput.className).toContain("ring-2");
+    await expect(dataOutput.className).toContain("ring-2");
+
+    await expect(dataInput.className).toContain("[&.connecting.valid]:bg-emerald-500");
+    await expect(dataInput.className).toContain("[&.connecting]:opacity-30");
+
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+
+    const requestNode = canvas.getByTitle("url: string").closest(".react-flow__node");
+    await expect(requestNode).not.toBeNull();
+    await userEvent.click(requestNode!);
+
+    await expect(await canvas.findByLabelText("URL")).toBeDisabled();
+    await expect(
+      canvas.getAllByText(
+        "This value is supplied by a connected data port. Remove the data wire to edit it here.",
+      ).length,
+    ).toBeGreaterThan(0);
+  },
+};
+
+export const TypedDataPortsNarrow: Story = {
+  name: "Typed data ports — narrow viewport",
+  parameters: {
+    viewport: {
+      defaultViewport: "mobile1",
+    },
+    docs: {
+      description: {
+        story:
+          "Verifies typed input and output ports remain readable and usable at a narrow viewport.",
+      },
+    },
+  },
+  args: {
+    initialName: edgeKindsDraft.name,
+    initialNodes: edgeKindsDraft.nodes,
+    initialEdges: edgeKindsDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Data output: triggeredAt, string", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+
+    await expect(canvas.getByLabelText("Data input: url, string")).toBeInTheDocument();
+
+    await expect(canvas.getByLabelText("Data output: items, array")).toBeInTheDocument();
+  },
+};
+
+export const RetryAttemptWiring: Story = {
+  name: "Retry Attempt body",
+  args: {
+    initialName: visualWorkflowRetryDraft.name,
+    initialNodes: visualWorkflowRetryDraft.nodes,
+    initialEdges: visualWorkflowRetryDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const click = async (name: string | RegExp) => {
+      const button = await canvas.findByRole("button", { name }, { timeout: 10_000 });
+      button.click();
+    };
+
+    await click("Add node from Succeeded");
+    await click(/Assign values into the workflow context/);
+    await expect(
+      await canvas.findByTestId(/visual-workflow-edge-retry-.+-succeeded$/),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+  },
+};
+
+export const WaitBranches: Story = {
+  name: "Wait duration and branches",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Shows a durable Wait node with Completed, Timed out, and Error execution branches, typed data ports, and duration configuration.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowWaitDraft.name,
+    initialNodes: visualWorkflowWaitDraft.nodes,
+    initialEdges: visualWorkflowWaitDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Completed", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Timed out")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Error")).toBeInTheDocument();
+
+    await expect(
+      canvas.getByLabelText("Data input: durationMs, number, optional"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data input: timestamp, string, optional"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data input: condition, unknown, optional"),
+    ).toBeInTheDocument();
+
+    await expect(canvas.getByLabelText("Data output: status, string")).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data output: resumedAt, string, optional"),
+    ).toBeInTheDocument();
+
+    await expect(
+      canvas.getByTestId("visual-workflow-edge-wait-completed-completed"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByTestId("visual-workflow-edge-wait-timed-out-timed_out"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByTestId("visual-workflow-edge-wait-error-error")).toBeInTheDocument();
+
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+
+    const waitNode = canvas
+      .getByLabelText("Data input: durationMs, number, optional")
+      .closest(".react-flow__node");
+
+    await expect(waitNode).not.toBeNull();
+    await userEvent.click(waitNode!);
+
+    await expect(
+      await canvas.findByRole("combobox", {
+        name: "Wait mode",
+      }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("textbox", {
+        name: "Duration (ms)",
+      }),
+    ).toHaveValue("60000");
+  },
+};
+
+export const MergeBranches: Story = {
+  name: "Merge inputs and branches",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Shows stable named Merge inputs, optional aggregated values, and Completed, Timed out, and Error branches.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowMergeDraft.name,
+    initialNodes: visualWorkflowMergeDraft.nodes,
+    initialEdges: visualWorkflowMergeDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Merge input: Email", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Merge input: Slack")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Completed")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Timed out")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Error")).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data input: value.email-input, unknown, optional"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data input: value.slack-input, unknown, optional"),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+
+    const mergeNode = canvas.getByLabelText("Merge input: Email").closest(".react-flow__node");
+    await expect(mergeNode).not.toBeNull();
+    await userEvent.click(mergeNode!);
+    await expect(await canvas.findByRole("combobox", { name: "Merge mode" })).toBeInTheDocument();
+    await expect(canvas.getByRole("textbox", { name: "Merge input 1" })).toHaveValue("Email");
+    await expect(canvas.getByRole("textbox", { name: "Merge input 2" })).toHaveValue("Slack");
+    await expect(canvas.getByRole("textbox", { name: "Timeout (ms)" })).toHaveValue("60000");
   },
 };

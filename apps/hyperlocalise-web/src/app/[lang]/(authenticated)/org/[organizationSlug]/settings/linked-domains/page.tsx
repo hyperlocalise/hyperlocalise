@@ -36,5 +36,5 @@ async function LinkedDomainsSettingsPageLoader({
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  return redirect(`/org/${organizationSlug}/domains`);
+  return redirect(`/org/${organizationSlug}/settings/domains`);
 }

@@ -200,6 +200,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "0ZtcHWwaTp",
     description: "Catalog description for the HTTP request node",
   },
+  nodeContentSync: {
+    defaultMessage: "Content sync",
+    id: "TosoMhOGUj",
+    description: "Catalog title for the content sync action node",
+  },
+  nodeContentSyncHint: {
+    defaultMessage: "Pull source files into a project and push ready translations back.",
+    id: "CBccpuuEIS",
+    description: "Catalog description for the content sync action node",
+  },
   nodeIf: {
     defaultMessage: "If",
     id: "5ECVkGCnpd",
@@ -304,6 +314,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Add node",
     id: "H541+RZh2a",
     description: "Accessible label for the plus control that opens the node picker",
+  },
+  addNodeFromHandle: {
+    defaultMessage: "Add node from {handle}",
+    id: "8UCB2eKoiL",
+    description: "Accessible label for a per-output quick-add control on a node handle",
   },
   backToPicker: {
     defaultMessage: "Back",
@@ -440,6 +455,216 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "nYOxYYV5jF",
     description: "Label on error output handle",
   },
+  eachHandle: {
+    defaultMessage: "Each item",
+    id: "7eZfUxSh+m",
+    description: "Workflow loop body connection",
+  },
+  doneHandle: {
+    defaultMessage: "Done",
+    id: "zZIbqHg71N",
+    description: "Workflow loop completion connection",
+  },
+  nodeRetry: {
+    defaultMessage: "Retry",
+    id: "2RORR1xT6r",
+    description: "Retry policy node title",
+  },
+  nodeWait: {
+    defaultMessage: "Wait",
+    id: "nncYBDQUwE",
+    description: "Wait node title",
+  },
+  nodeWaitHint: {
+    defaultMessage: "Pause until a duration, timestamp, or condition",
+    id: "5ZZS0Al3rv",
+    description: "Wait node picker hint",
+  },
+  nodeMerge: {
+    defaultMessage: "Merge",
+    id: "c0/sujExf3",
+    description: "Merge node title",
+  },
+  nodeMergeHint: {
+    defaultMessage: "Coordinate multiple incoming execution paths.",
+    id: "xwmJvqOv1C",
+    description: "Merge node picker hint",
+  },
+  mergeMode: {
+    defaultMessage: "Merge mode",
+    id: "GafA21RnmS",
+    description: "Merge node mode field",
+  },
+  mergeModeAll: {
+    defaultMessage: "All selected paths",
+    id: "JmHjqkDgSi",
+    description: "Wait for all selected Merge inputs",
+  },
+  mergeModeAny: {
+    defaultMessage: "Any selected path",
+    id: "CVYpUuUKdZ",
+    description: "Continue after any selected Merge input",
+  },
+  mergeModeFirstSuccess: {
+    defaultMessage: "First successful path",
+    id: "r9FOHZyK+0",
+    description: "Continue after the first successful Merge input",
+  },
+  mergeInputs: {
+    defaultMessage: "Execution inputs",
+    id: "KZhZYT6je6",
+    description: "Merge execution input list",
+  },
+  mergeInputName: {
+    defaultMessage: "Input {index}",
+    id: "bL+wwPFNwO",
+    description: "Merge execution input name placeholder",
+  },
+  addMergeInput: {
+    defaultMessage: "Add input",
+    id: "rKDq5xVpUS",
+    description: "Add a Merge execution input",
+  },
+  removeMergeInput: {
+    defaultMessage: "Remove input {index}",
+    id: "FdmB8M+qZc",
+    description: "Remove a Merge execution input",
+  },
+  moveMergeInputUp: {
+    defaultMessage: "Move input {index} up",
+    id: "V99Pmv6BsN",
+    description: "Move a Merge input upward",
+  },
+  moveMergeInputDown: {
+    defaultMessage: "Move input {index} down",
+    id: "QugOsjCCw4",
+    description: "Move a Merge input downward",
+  },
+  mergeTimeoutMs: {
+    defaultMessage: "Timeout (ms, optional)",
+    id: "M1ITBSXE+Q",
+    description: "Optional Merge timeout",
+  },
+  completedHandle: {
+    defaultMessage: "Completed",
+    id: "w2tot+OYiM",
+    description: "Wait completion output",
+  },
+  timedOutHandle: {
+    defaultMessage: "Timed out",
+    id: "1XJEkWqFT6",
+    description: "Wait timeout output",
+  },
+  waitMode: {
+    defaultMessage: "Wait mode",
+    id: "bUh5gPU+mn",
+    description: "Wait node mode field",
+  },
+  waitModeDuration: {
+    defaultMessage: "Duration",
+    id: "CPWLg67zI3",
+    description: "Wait for a duration mode",
+  },
+  waitModeTimestamp: {
+    defaultMessage: "Until timestamp",
+    id: "EgoeBfG+CV",
+    description: "Wait until a timestamp mode",
+  },
+  waitModeCondition: {
+    defaultMessage: "Until condition",
+    id: "4B/yIypHTz",
+    description: "Wait until a condition mode",
+  },
+  waitDurationMs: {
+    defaultMessage: "Duration (ms)",
+    id: "m4Ahgxr1sR",
+    description: "Wait duration in milliseconds",
+  },
+  waitTimestamp: {
+    defaultMessage: "Timestamp",
+    id: "bxWXLOi+RW",
+    description: "Absolute timestamp to resume a workflow",
+  },
+  waitCondition: {
+    defaultMessage: "Condition",
+    id: "v1chSgy0BK",
+    description: "Condition polled by a Wait node",
+  },
+  waitPollingIntervalMs: {
+    defaultMessage: "Polling interval (ms)",
+    id: "r3XB1uKkxA",
+    description: "Wait condition polling interval",
+  },
+  waitTimeoutMs: {
+    defaultMessage: "Timeout (ms)",
+    id: "ivmGcv+k23",
+    description: "Maximum condition wait duration",
+  },
+  nodeRetryHint: {
+    defaultMessage: "Re-run a body region with backoff",
+    id: "L+aQftO9Id",
+    description: "Retry policy node picker hint",
+  },
+  attemptHandle: {
+    defaultMessage: "Attempt",
+    id: "akMqVdhYbU",
+    description: "Retry body connection",
+  },
+  succeededHandle: {
+    defaultMessage: "Succeeded",
+    id: "r9cem/tyVw",
+    description: "Retry success exit",
+  },
+  exhaustedHandle: {
+    defaultMessage: "Exhausted",
+    id: "gJ4nnkkpNU",
+    description: "Retry exhaustion exit",
+  },
+  retryMaxAttempts: {
+    defaultMessage: "Max attempts",
+    id: "+fsq3dqMqp",
+    description: "Retry policy max attempts field",
+  },
+  retryInitialDelay: {
+    defaultMessage: "Initial delay (ms)",
+    id: "oE/d+yPnQC",
+    description: "Retry initial delay field",
+  },
+  retryBackoffMultiplier: {
+    defaultMessage: "Backoff multiplier",
+    id: "HoA+8TKVfD",
+    description: "Retry exponential backoff multiplier",
+  },
+  retryAcknowledgeDuplicateRisk: {
+    defaultMessage: "Allow duplicate side effects on retry",
+    id: "buLiPCDEq1",
+    description: "Retry non-idempotent acknowledgement checkbox",
+  },
+  nestedRetry: {
+    defaultMessage: "Nested retry regions are not supported.",
+    id: "E+E8CAWOEz",
+    description: "Validation issue for nested retry",
+  },
+  invalidRetry: {
+    defaultMessage: "Fix the retry region wiring and body membership.",
+    id: "9OQEks5YGx",
+    description: "Validation issue for invalid retry graph",
+  },
+  retryForEachNesting: {
+    defaultMessage: "Retry and For each cannot wrap each other.",
+    id: "7pn2UnpCsA",
+    description: "Validation issue for retry/for each nesting",
+  },
+  nonIdempotentRetry: {
+    defaultMessage: "Acknowledge duplicate risk or add idempotency for actions in the retry body.",
+    id: "/8/pZ5ze7R",
+    description: "Validation issue for non-idempotent retry body",
+  },
+  invalidRetryPolicy: {
+    defaultMessage: "Retry policy values are out of range.",
+    id: "bHCCUqEOmY",
+    description: "Validation issue for retry policy config",
+  },
   switchExpression: {
     defaultMessage: "Expression",
     id: "vKVR+7LwqC",
@@ -459,6 +684,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Add case",
     id: "n4hpRZLl37",
     description: "Button to add a switch case",
+  },
+  removeSwitchCase: {
+    defaultMessage: "Remove case {index}",
+    id: "FcPrCbZm2T",
+    description: "Accessible label for removing a numbered switch case",
   },
   switchCaseHandle: {
     defaultMessage: "Case {index}",
@@ -670,6 +900,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "jApfF7IUNd",
     description: "Label for message body on notify email node",
   },
+  githubRepository: {
+    defaultMessage: "GitHub repository",
+    id: "fi4BYzKe5I",
+    description: "Label for the GitHub repository picker on the trigger node",
+  },
+  selectRepository: {
+    defaultMessage: "Select a repository",
+    id: "U6xvadCYhH",
+    description: "Placeholder when no GitHub repository is selected",
+  },
   githubRepositoryId: {
     defaultMessage: "GitHub repository ID",
     id: "a1/Cklodwn",
@@ -765,10 +1005,80 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "yN3IaRAmIM",
     description: "Saturday option for weekly schedule",
   },
+  sourceUploadProject: {
+    defaultMessage: "Project",
+    id: "K+mXcYVMPy",
+    description: "Project picker label for the source upload trigger",
+  },
+  anyProject: {
+    defaultMessage: "Any project",
+    id: "SgSG4ibcXn",
+    description: "Option that matches source uploads from every project",
+  },
   sourceUploadProjectId: {
     defaultMessage: "Project ID (optional)",
     id: "ImtoSoLxJY",
     description: "Optional project filter for source upload trigger",
+  },
+  contentSyncProject: {
+    defaultMessage: "Project",
+    id: "nefEZhjUv2",
+    description: "Project picker label on the content sync action",
+  },
+  contentSyncProvider: {
+    defaultMessage: "Source",
+    id: "Lti2GaN1c6",
+    description: "Provider picker label on the content sync action",
+  },
+  contentSyncResource: {
+    defaultMessage: "Resource",
+    id: "ZmIJvp0JMb",
+    description: "Repository or CMS space picker on the content sync action",
+  },
+  contentSyncProviderFolder: {
+    defaultMessage: "Provider folder",
+    id: "SxwdCDaQLJ",
+    description: "Folder on the connected source for content sync",
+  },
+  contentSyncProjectFolder: {
+    defaultMessage: "Project folder",
+    id: "8R777UILAL",
+    description: "Folder inside the Hyperlocalise project for content sync",
+  },
+  selectProject: {
+    defaultMessage: "Select a project",
+    id: "vFjxVFIzmT",
+    description: "Placeholder when no project is selected for content sync",
+  },
+  selectProvider: {
+    defaultMessage: "Select a source",
+    id: "NkvC0geGcc",
+    description: "Placeholder when no content sync provider is selected",
+  },
+  selectResource: {
+    defaultMessage: "Select a resource",
+    id: "rXuCG4x28U",
+    description: "Placeholder when no repository or CMS space is selected",
+  },
+  providerGithub: {
+    defaultMessage: "GitHub",
+    id: "IC/L6/ETfl",
+    description: "GitHub provider label on the content sync action",
+  },
+  providerGitlab: {
+    defaultMessage: "GitLab",
+    id: "V0L6vHYKYa",
+    description: "GitLab provider label on the content sync action",
+  },
+  providerContentful: {
+    defaultMessage: "Contentful",
+    id: "bWR03+Qpir",
+    description: "Contentful provider label on the content sync action",
+  },
+  providerIntercom: {
+    defaultMessage: "Intercom",
+    id: "X0ufvWkg5R",
+    description: "Intercom provider label on the content sync action",
   },
   triggerBadge: {
     defaultMessage: "Trigger",

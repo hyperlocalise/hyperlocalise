@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon, Database01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Database01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -38,6 +38,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 
+import {
+  memoryImportFormatFromFilename,
+  suggestedMemoryNameFromFilename,
+} from "@/lib/memory/decode-import-file";
+
 import { TmsLiveProjectPicker } from "../../_components/tms-live-project-picker";
 import {
   PageHeader,
@@ -57,6 +62,7 @@ export const MEMORIES_PAGE_SIZE = 100;
 export type MemoryCreateForm = {
   name: string;
   description: string;
+  importFile: File | null;
 };
 
 export function TranslationMemoriesPageView({
@@ -101,6 +107,7 @@ export function TranslationMemoriesPageView({
   createErrors,
   isCreating,
   onSubmitCreateMemory,
+  onImportMemory,
 }: {
   organizationSlug: string;
   memories: MemoryListRow[];
@@ -140,9 +147,10 @@ export function TranslationMemoriesPageView({
   onCreateDialogOpenChange: (open: boolean) => void;
   createForm: MemoryCreateForm;
   onCreateFormChange: (form: MemoryCreateForm) => void;
-  createErrors: { name?: string };
+  createErrors: { name?: string; importFile?: string };
   isCreating: boolean;
   onSubmitCreateMemory: () => void;
+  onImportMemory: () => void;
 }) {
   const intl = useIntl();
   const liveProjectSelectionRequired = useLiveProviderMemories && !selectedExternalProjectId;
@@ -193,14 +201,25 @@ export function TranslationMemoriesPageView({
         statusLabel={memoryCountLabel}
         actions={
           allowCreateMemories ? (
-            <Button
-              type="button"
-              onClick={() => onCreateDialogOpenChange(true)}
-              className="w-full sm:w-fit"
-            >
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              <FormattedMessage {...translationMemoriesPageViewMessages.createMemory} />
-            </Button>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onImportMemory}
+                className="w-full sm:w-fit"
+              >
+                <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
+                <FormattedMessage {...translationMemoriesPageViewMessages.importMemory} />
+              </Button>
+              <Button
+                type="button"
+                onClick={() => onCreateDialogOpenChange(true)}
+                className="w-full sm:w-fit"
+              >
+                <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                <FormattedMessage {...translationMemoriesPageViewMessages.createMemory} />
+              </Button>
+            </div>
           ) : null
         }
       />
@@ -407,9 +426,14 @@ export function TranslationMemoriesPageView({
           }
           emptyAction={
             allowCreateMemories ? (
-              <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
-                <FormattedMessage {...translationMemoriesPageViewMessages.createMemory} />
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
+                  <FormattedMessage {...translationMemoriesPageViewMessages.createMemory} />
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={onImportMemory}>
+                  <FormattedMessage {...translationMemoriesPageViewMessages.importMemory} />
+                </Button>
+              </div>
             ) : (
               <TranslationMemoriesEmptyAction organizationSlug={organizationSlug} />
             )
@@ -496,6 +520,69 @@ export function TranslationMemoriesPageView({
                 placeholder={intl.formatMessage(
                   translationMemoriesPageViewMessages.descriptionPlaceholder,
                 )}
+              />
+            </Field>
+            <Field className="gap-1.5">
+              <FieldLabel>
+                <FormattedMessage {...translationMemoriesPageViewMessages.importFileLabel} />
+              </FieldLabel>
+              <input
+                id="create-translation-memory-file-import"
+                type="file"
+                accept=".csv,.tmx,text/csv,application/xml,text/xml"
+                className="sr-only"
+                disabled={isCreating}
+                aria-label={intl.formatMessage(translationMemoriesPageViewMessages.importFileLabel)}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  const nextName =
+                    createForm.name.trim() ||
+                    (file ? suggestedMemoryNameFromFilename(file.name) : createForm.name);
+                  onCreateFormChange({ ...createForm, name: nextName, importFile: file });
+                  event.currentTarget.value = "";
+                }}
+              />
+              {createForm.importFile ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+                  <TypographyP size="small">
+                    <FormattedMessage
+                      {...translationMemoriesPageViewMessages.selectedImportFile}
+                      values={{
+                        filename: createForm.importFile.name,
+                        format: (
+                          memoryImportFormatFromFilename(createForm.importFile.name) ?? "file"
+                        ).toUpperCase(),
+                      }}
+                    />
+                  </TypographyP>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={isCreating}
+                    onClick={() => onCreateFormChange({ ...createForm, importFile: null })}
+                  >
+                    <FormattedMessage {...translationMemoriesPageViewMessages.clearImportFile} />
+                  </Button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="create-translation-memory-file-import"
+                  className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-6 py-6 text-center transition-colors hover:bg-muted/40"
+                >
+                  <HugeiconsIcon icon={Upload01Icon} className="size-5" strokeWidth={1.8} />
+                  <span className="text-sm font-medium text-foreground">
+                    <FormattedMessage {...translationMemoriesPageViewMessages.selectImportFile} />
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    <FormattedMessage {...translationMemoriesPageViewMessages.importFileHint} />
+                  </span>
+                </label>
+              )}
+              <FieldError
+                errors={
+                  createErrors.importFile ? [{ message: createErrors.importFile }] : undefined
+                }
               />
             </Field>
           </div>

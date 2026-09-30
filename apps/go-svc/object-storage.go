@@ -10,14 +10,15 @@ import (
 
 const maxStoredObjectBytes = 32 << 20
 
-func (h *handler) store(w http.ResponseWriter, locationID string) objectstore.Store {
+func (h *handler) store(w http.ResponseWriter, r *http.Request, locationID string) objectstore.Store {
 	if h.objects == nil {
+		noteRequest(r, "code", "object_storage_not_configured")
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "object_storage_not_configured"})
 		return nil
 	}
 	store, err := h.objects.Resolve(locationID)
 	if err != nil {
-		writeProviderError(w, err)
+		writeProviderError(w, r, err)
 		return nil
 	}
 	return store
@@ -25,17 +26,19 @@ func (h *handler) store(w http.ResponseWriter, locationID string) objectstore.St
 
 func (h *handler) putObject(w http.ResponseWriter, r *http.Request) {
 	if h.objects == nil {
+		noteRequest(r, "code", "object_storage_not_configured")
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "object_storage_not_configured"})
 		return
 	}
 	if r.ContentLength < 0 || r.ContentLength > maxStoredObjectBytes {
+		noteRequest(r, "code", "invalid_object_size")
 		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": "invalid_object_size"})
 		return
 	}
 	input := objectstore.PutInput{Key: r.Header.Get("X-Object-Key"), Body: http.MaxBytesReader(w, r.Body, maxStoredObjectBytes), Size: r.ContentLength, ContentType: r.Header.Get("Content-Type"), IfAbsent: true}
 	ref, info, err := h.objects.Put(r.Context(), input)
 	if err != nil {
-		writeProviderError(w, err)
+		writeProviderError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, struct {
@@ -49,13 +52,13 @@ func (h *handler) getObject(w http.ResponseWriter, r *http.Request) {
 	if !decodeProviderRequest(w, r, &ref) {
 		return
 	}
-	store := h.store(w, ref.LocationID)
+	store := h.store(w, r, ref.LocationID)
 	if store == nil {
 		return
 	}
 	body, info, err := store.Get(r.Context(), ref.Key)
 	if err != nil {
-		writeProviderError(w, err)
+		writeProviderError(w, r, err)
 		return
 	}
 	defer func() { _ = body.Close() }()
@@ -72,13 +75,13 @@ func (h *handler) statObject(w http.ResponseWriter, r *http.Request) {
 	if !decodeProviderRequest(w, r, &ref) {
 		return
 	}
-	store := h.store(w, ref.LocationID)
+	store := h.store(w, r, ref.LocationID)
 	if store == nil {
 		return
 	}
 	info, err := store.Stat(r.Context(), ref.Key)
 	if err != nil {
-		writeProviderError(w, err)
+		writeProviderError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, info)
@@ -89,12 +92,12 @@ func (h *handler) deleteObject(w http.ResponseWriter, r *http.Request) {
 	if !decodeProviderRequest(w, r, &ref) {
 		return
 	}
-	store := h.store(w, ref.LocationID)
+	store := h.store(w, r, ref.LocationID)
 	if store == nil {
 		return
 	}
 	if err := store.Delete(r.Context(), ref.Key); err != nil {
-		writeProviderError(w, err)
+		writeProviderError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -112,10 +115,10 @@ func (h *handler) sign(w http.ResponseWriter, r *http.Request, upload bool) {
 		return
 	}
 	if req.ExpiresInSeconds < 1 || req.ExpiresInSeconds > 3600 {
-		writeBadRequest(w, "expiry must be between 1 and 3600 seconds")
+		writeBadRequest(w, r, "expiry must be between 1 and 3600 seconds")
 		return
 	}
-	store := h.store(w, req.Ref.LocationID)
+	store := h.store(w, r, req.Ref.LocationID)
 	if store == nil {
 		return
 	}
@@ -133,7 +136,7 @@ func (h *handler) sign(w http.ResponseWriter, r *http.Request, upload bool) {
 		signed, err = signer.PresignDownload(r.Context(), req.Ref.Key, ttl)
 	}
 	if err != nil {
-		writeProviderError(w, err)
+		writeProviderError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, signed)

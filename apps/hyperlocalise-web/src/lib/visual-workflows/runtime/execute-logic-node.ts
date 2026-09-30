@@ -76,7 +76,7 @@ export function executeLogicVisualWorkflowNode(input: {
           context,
         ).trim();
         if (caseValue.length > 0 && expressionValue === caseValue) {
-          matchedCase = String(index);
+          matchedCase = node.config.cases[index]?.id ?? "default";
           break;
         }
       }
@@ -121,6 +121,14 @@ export function executeLogicVisualWorkflowNode(input: {
         },
       };
     }
+    case "logic.retry":
+      return {
+        ok: true,
+        output: {
+          attemptNumber: 1,
+          exhausted: false,
+        },
+      };
     default:
       return {
         ok: false,

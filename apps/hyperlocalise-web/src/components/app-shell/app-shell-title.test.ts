@@ -24,6 +24,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/dashboard", "Overview"],
     ["/org/acme/inbox", "Inbox"],
     ["/org/acme/issues", "Queries"],
+    ["/org/acme/issues/WEB-1", "Queries"],
     ["/org/acme/inbox/new", "New Request"],
     ["/org/acme/projects", "Projects"],
     ["/org/acme/projects/proj_1", "proj_1"],
@@ -43,6 +44,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/my-work", "My Jobs"],
     ["/org/acme/my-jobs", "My Jobs"],
     ["/org/acme/knowledge", "Guideline"],
+    ["/org/acme/automations", "Automations"],
     ["/org/acme/ai-engine", "AI Engine"],
     ["/org/acme/domains", "Domains"],
     ["/org/acme/domains/ld_1", "ld_1"],
@@ -62,6 +64,10 @@ describe("getAppShellTitle", () => {
     ["/org/acme/members/permissions", "Role permissions"],
     ["/org/acme/settings", "Settings"],
     ["/org/acme/settings/members", "Members"],
+    ["/org/acme/settings/integrations", "Integrations"],
+    ["/org/acme/settings/ai-engine", "AI Engine"],
+    ["/org/acme/settings/domains", "Domains"],
+    ["/org/acme/settings/hyperlab", "Hyperlab"],
     ["/org/acme/settings/account", "Account"],
     ["/org/acme/settings/billing", "Billing"],
     ["/org/acme/settings/api-keys", "API keys"],
@@ -262,6 +268,68 @@ describe("getAppShellBreadcrumbs", () => {
       { label: "Projects", href: "/org/acme/projects" },
       { label: "Checkout", href: "/org/acme/projects/proj_1" },
       { label: "Queries", href: "/org/acme/projects/proj_1/issue-sheet" },
+    ]);
+  });
+
+  it("links workspace Queries when viewing an organization query detail URL", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/issues", intl)).toEqual([{ label: "Queries" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/issues/WEB-1", intl)).toEqual([
+      { label: "Queries", href: "/org/acme/issues" },
+    ]);
+    expect(getAppShellBreadcrumbs("/en/org/acme/issues/WEB-1", intl)).toEqual([
+      { label: "Queries", href: "/org/acme/issues" },
+    ]);
+  });
+
+  it("links Automations when viewing a workspace automation detail URL", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/automations", intl)).toEqual([
+      { label: "Automations" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/automations/auto_1", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+    ]);
+    expect(getAppShellBreadcrumbs("/en/org/acme/automations/auto_1", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+    ]);
+  });
+
+  it("returns New automation breadcrumbs for the compose pages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/automations/new", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+      { label: "New automation" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/automations/new", intl, {
+        projectName: "Checkout",
+      }),
+    ).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "Checkout", href: "/org/acme/projects/proj_1" },
+      { label: "Automations", href: "/org/acme/projects/proj_1/automations" },
+      { label: "New automation" },
+    ]);
+  });
+
+  it("links Automations when viewing visual workflows", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/automations/visual-workflows", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+      { label: "Visual workflows" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/automations/visual-workflows/wf_1", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+      { label: "Visual workflows", href: "/org/acme/automations/visual-workflows" },
+    ]);
+  });
+
+  it("links Automations when viewing a project automation detail URL", () => {
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/automations/auto_1", intl, {
+        projectName: "Checkout",
+      }),
+    ).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "Checkout", href: "/org/acme/projects/proj_1" },
+      { label: "Automations", href: "/org/acme/projects/proj_1/automations" },
     ]);
   });
 

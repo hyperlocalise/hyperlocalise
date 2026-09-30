@@ -24,7 +24,7 @@ function automation(overrides: Partial<WorkspaceAutomationRecord> = {}): Workspa
     status: "active",
     name: "Test automation",
     instructions: "",
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-6-luna",
     projectId: null,
     triggerConfig: { mode: "manual" },
     repositoryTarget: { kind: "none" },

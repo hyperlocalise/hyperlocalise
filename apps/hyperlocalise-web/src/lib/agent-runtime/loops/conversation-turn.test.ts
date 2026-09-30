@@ -43,7 +43,7 @@ const {
   resolveHyperlocaliseAgentLanguageModelMock: vi.fn(async () => ({
     model: "org-model",
     source: "gateway" as const,
-    modelId: "openai/gpt-5.6-luna",
+    modelId: "openai/gpt-6-luna",
   })),
   resolveGitLabPipesWorkosUserIdMock: vi.fn(async () => "user_workos"),
 }));
@@ -454,7 +454,7 @@ describe("conversation turn preparation", () => {
         languageModel: {
           model: "org-model",
           source: "gateway",
-          modelId: "openai/gpt-5.6-luna",
+          modelId: "openai/gpt-6-luna",
         },
         toolContext: expect.objectContaining({
           reportToolProgress,

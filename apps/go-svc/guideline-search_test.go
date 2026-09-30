@@ -17,4 +17,10 @@ func TestConfigureGuidelineSearchIsOptIn(t *testing.T) {
 	t.Setenv("DATABASE_URL", "")
 	_, _, err = configureGuidelineSearch(t.Context())
 	require.ErrorContains(t, err, "DATABASE_URL")
+
+	t.Setenv("DATABASE_URL", "postgres://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise")
+	t.Setenv("TURBOPUFFER_REGION", "")
+	t.Setenv("TURBOPUFFER_GUIDELINES_PREFIX", "prefix")
+	_, _, err = configureGuidelineSearch(t.Context())
+	require.ErrorContains(t, err, "invalid turbopuffer configuration")
 }

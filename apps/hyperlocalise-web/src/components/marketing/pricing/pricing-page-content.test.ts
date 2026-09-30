@@ -21,7 +21,7 @@ import {
 } from "./pricing-page-content";
 
 describe("pricing page content", () => {
-  it("exposes four plans with coming-soon CTAs except Enterprise demo", () => {
+  it("exposes four plans with signup CTAs except Enterprise demo", () => {
     const plans = getPricingPlans("en");
 
     expect(plans.map((plan) => plan.id)).toEqual([...pricingPlanOrder]);
@@ -29,14 +29,15 @@ describe("pricing page content", () => {
     expect(plans.find((plan) => plan.id === "starter")?.price).toBe("$20");
     expect(plans.find((plan) => plan.id === "growth")?.price).toBe("$2,000");
     expect(plans.find((plan) => plan.id === "growth")?.popular).toBe(true);
+    expect(plans.find((plan) => plan.id === "free")?.badge).toBe("Auto-enable");
+    expect(plans.find((plan) => plan.id === "free")?.price).toBe("Free");
     expect(plans.find((plan) => plan.id === "starter")?.features).toEqual([
       "2 integrations",
       "Unlimited projects",
       "5 seats",
-      "AI features",
+      "AI Feature",
       "Queries Board",
-      "2,000,000 AI tokens per month",
-      "Then $8 per 1,000,000 AI tokens",
+      "$20 per month AI credit",
     ]);
     expect(plans.find((plan) => plan.id === "growth")?.features).toEqual([
       "20 automations",
@@ -45,13 +46,23 @@ describe("pricing page content", () => {
       "Unlimited seats",
       "2,000 agent runs per month",
       "Unlimited translation jobs",
-      "AI features",
+      "AI Feature",
       "Automation Workflow",
       "Queries Board",
-      "2,000,000 AI tokens per month",
-      "Then $4 per 1,000,000 AI tokens",
+      "$2,000 per month AI credit",
     ]);
-    expect(plans.filter((plan) => plan.cta.kind === "coming_soon")).toHaveLength(3);
+    expect(plans.find((plan) => plan.id === "free")?.cta).toEqual({
+      kind: "signup",
+      label: "Start for free",
+    });
+    expect(plans.find((plan) => plan.id === "starter")?.cta).toEqual({
+      kind: "signup",
+      label: "Get started",
+    });
+    expect(plans.find((plan) => plan.id === "growth")?.cta).toEqual({
+      kind: "signup",
+      label: "Get started",
+    });
     expect(plans.find((plan) => plan.id === "enterprise")?.cta).toEqual({
       kind: "demo",
       label: "Contact Sales",
@@ -64,10 +75,17 @@ describe("pricing page content", () => {
 
     expect(sections.length).toBeGreaterThan(0);
     expect(rows.find((row) => row.id === "automations")?.label).toBe("Automations");
+    expect(rows.find((row) => row.id === "ai-tokens")?.label).toBe("AI credit / month");
     expect(rows.find((row) => row.id === "ai-tokens")?.cells.starter).toEqual({
       kind: "text",
-      value: "2,000,000",
+      value: "$20",
     });
+    expect(rows.find((row) => row.id === "ai-tokens")?.cells.growth).toEqual({
+      kind: "text",
+      value: "$2,000",
+    });
+    expect(rows.find((row) => row.id === "ai-tokens")?.detail).toContain("monthly AI credit");
+    expect(rows.find((row) => row.id === "ai-token-overage")).toBeUndefined();
     expect(rows.find((row) => row.id === "ai-features")?.cells.starter).toEqual({ kind: "check" });
     const queriesSection = sections.find((section) => section.id === "queries-automation");
     expect(queriesSection?.title).toBe("Queries & automation");

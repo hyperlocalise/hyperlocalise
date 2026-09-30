@@ -45,6 +45,16 @@ export const jobDetailAssigneeFieldMessages = defineMessages({
     id: "xVxao1E4rb",
     description: "Accessible label for the Crowdin multi-assignee picker trigger",
   },
+  triggerAriaWithNames: {
+    defaultMessage: "Assignees: {names}",
+    id: "Xs9oX3Pg8i",
+    description: "Accessible label listing every selected Crowdin assignee",
+  },
+  overflowCount: {
+    defaultMessage: "+{count}",
+    id: "TW8F48aPTu",
+    description: "Hidden assignee count shown after the first name in the job detail picker",
+  },
   searchPlaceholder: {
     defaultMessage: "Search members…",
     id: "fM2wynVWWB",

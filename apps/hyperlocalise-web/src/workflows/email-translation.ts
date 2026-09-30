@@ -23,8 +23,6 @@ import {
   markEmailTranslationJobFailed,
   markEmailTranslationJobRunning,
   markEmailTranslationJobSucceeded,
-  releaseSandboxTranslationCreditStep,
-  reserveSandboxTranslationCreditStep,
 } from "./steps/translation-job";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
@@ -390,20 +388,6 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
   const { workflowRunId } = getWorkflowMetadata();
   const attachment = firstTaskAttachment(task);
   const { sourceLocale, targetLocale, instructions } = task.parameters.translate;
-  const creditReservation = await reserveSandboxTranslationCreditStep({
-    jobId: task.jobId,
-    source: "email_translation_job_complete",
-    surface: "email_translation",
-  });
-  if (creditReservation && !creditReservation.ok) {
-    await markEmailTranslationJobFailed({
-      jobId: task.jobId,
-      workflowRunId,
-      reason: creditReservation.error.code,
-    });
-    throw new Error(creditReservation.error.code);
-  }
-
   const inputFile = getSandboxInputFilename(attachment.filename);
   const outputFile = getSandboxOutputFilename(attachment.filename, targetLocale);
   let sandboxId = "";
@@ -446,10 +430,6 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
     } catch {
       // Best-effort notification; keep the original workflow error.
     }
-    await releaseSandboxTranslationCreditStep({
-      jobId: task.jobId,
-      reason: "email_translation_failed",
-    });
     await markEmailTranslationJobFailed({ jobId: task.jobId, workflowRunId, reason });
     throw error;
   } finally {

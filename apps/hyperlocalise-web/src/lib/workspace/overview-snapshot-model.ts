@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { nativeJobSourceFileDisplayLabel } from "@/lib/projects/jobs/native-job-source-file-display";
 
 export const OVERVIEW_LOOKBACK_DAYS = 7;
 export const OVERVIEW_ACTIVITY_LIMIT = 4;
@@ -105,6 +106,8 @@ export type OverviewJobTitleInput = {
   reviewCriteria?: string | null;
   syncConnectorKind?: string | null;
   syncDirection?: string | null;
+  sourceFilename?: string | null;
+  sourcePath?: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -162,8 +165,13 @@ export function resolveOverviewJobTitle(job: OverviewJobTitleInput): OverviewRes
     return { kind: "text", text: payload.sourceText.trim().slice(0, 80) };
   }
 
-  if (typeof payload.sourceFileId === "string" && payload.sourceFileId.trim()) {
-    return { kind: "text", text: payload.sourceFileId.trim() };
+  const sourceFileLabel = nativeJobSourceFileDisplayLabel({
+    inputPayload: job.inputPayload,
+    sourceFilename: job.sourceFilename,
+    sourcePath: job.sourcePath,
+  });
+  if (sourceFileLabel) {
+    return { kind: "text", text: sourceFileLabel };
   }
 
   return { kind: "id", id: job.id };

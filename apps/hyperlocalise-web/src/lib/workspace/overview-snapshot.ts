@@ -79,8 +79,8 @@ function overviewJobHref(
   return `/org/${organizationSlug}/projects/${encodeURIComponent(resolvedProjectId)}/jobs/${encodeURIComponent(jobId)}`;
 }
 
-function overviewIssueHref(organizationSlug: string, projectId: string, issueId: string): string {
-  return `/org/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet/${encodeURIComponent(issueId)}`;
+function overviewIssueHref(organizationSlug: string, issueId: string): string {
+  return `/org/${encodeURIComponent(organizationSlug)}/issues/${encodeURIComponent(issueId)}`;
 }
 
 type LatestProjectJob = OverviewJobTitleInput & {
@@ -445,7 +445,7 @@ export async function getWorkspaceOverviewSnapshot(
       locale: issue.targetLocale,
       priority: issue.priority,
       updatedAt: issue.updatedAt,
-      href: overviewIssueHref(organizationSlug, issue.projectId, issue.id),
+      href: overviewIssueHref(organizationSlug, issue.identifier),
     })),
     automations: includeAutomations
       ? recentRuns.slice(0, OVERVIEW_AUTOMATION_LIMIT).map((run) => ({

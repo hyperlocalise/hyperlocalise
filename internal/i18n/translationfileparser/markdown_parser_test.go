@@ -1568,7 +1568,7 @@ func TestMarshalMarkdownWithTargetFallbackRepairsDanglingTableRowClosersFromTest
 }
 
 func TestMarkdownParserParseMdxFixtureQuickstartSkipsCodeGroupExports(t *testing.T) {
-	source := readFixture(t, "docs/cli/getting-started/quickstart.mdx")
+	source := readTestdata(t, "mdx/codegroup_quickstart.mdx")
 
 	entries, err := (MarkdownParser{MDX: true}).Parse(source)
 	if err != nil {

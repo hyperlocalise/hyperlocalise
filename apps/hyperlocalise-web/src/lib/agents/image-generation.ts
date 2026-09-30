@@ -13,16 +13,7 @@
 import { generateImage } from "ai";
 
 import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
-import {
-  ManagedAiCreditAccessError,
-  releaseManagedAiCredit,
-  reserveManagedAiCredit,
-  settleManagedAiCredit,
-} from "@/lib/billing/managed-ai-credit";
-import {
-  getManagedAiPricingConfig,
-  managedAiReservationAmountUsd,
-} from "@/lib/billing/managed-ai-pricing";
+import { getManagedAiPricingConfig } from "@/lib/billing/managed-ai-pricing";
 import { getManagedImageModel, hyperlocaliseImageModelId } from "@/lib/providers/language-model";
 
 export type ImageGenerationResult = {
@@ -142,72 +133,24 @@ export async function regenerateImageFromAttachment(
     agent_surface: "image_localization",
     ...billing.dimensions,
   };
-  const execute = () =>
-    withAgentRuntimeUsageMetering({
-      organizationId: billing.organizationId,
-      operationKey: billing.operationKey,
-      source,
-      interactionId: billing.interactionId,
-      dimensions,
-      run,
-    });
-  const pricingConfig = getManagedAiPricingConfig();
-  if (pricingConfig.mode === "legacy") {
-    const result = await execute();
-    return { image: result.image, mimeType: result.mimeType, prompt: result.prompt };
-  }
-
-  const estimatedAmountUsd = managedAiReservationAmountUsd(pricingConfig, {
-    surface: "image",
-    imageCount: 1,
-  });
-  if (estimatedAmountUsd == null) {
-    throw new ManagedAiCreditAccessError({
-      code: "ai_credit_pricing_not_configured",
-      surface: "image",
-    });
-  }
-  const reservationResult = await reserveManagedAiCredit({
+  const result = await withAgentRuntimeUsageMetering({
     organizationId: billing.organizationId,
-    operationKey: `${billing.operationKey}:ai_tokens`,
+    operationKey: billing.operationKey,
     source,
-    modelId: hyperlocaliseImageModelId,
-    credentialSource: "gateway",
-    estimatedAmountUsd,
-    interactionId: billing.interactionId ?? undefined,
-    mode: pricingConfig.mode,
-    dimensions: {
-      ...dimensions,
-      provider_model_id: hyperlocaliseImageModelId,
-      fallback_synthetic_unit: "image",
-    },
+    interactionId: billing.interactionId,
+    dimensions,
+    run,
+    extractTokenUsage: (generated) =>
+      generated.billing.tokenUsage ?? {
+        inputTokens: 0,
+        outputTokens: generated.billing.imageCount,
+        totalTokens: generated.billing.imageCount,
+      },
+    aiCreditModelId: (generated) =>
+      generated.billing.tokenUsage
+        ? hyperlocaliseImageModelId
+        : getManagedAiPricingConfig().imageModelId,
+    aiCreditCredentialSource: "gateway",
   });
-  if (!reservationResult.ok) {
-    throw new ManagedAiCreditAccessError(reservationResult.error);
-  }
-
-  try {
-    const result = await execute();
-    const tokenUsage = result.billing.tokenUsage ?? {
-      inputTokens: 0,
-      outputTokens: result.billing.imageCount,
-      totalTokens: result.billing.imageCount,
-    };
-    await settleManagedAiCredit({
-      reservation: reservationResult.value,
-      modelId: result.billing.tokenUsage ? hyperlocaliseImageModelId : pricingConfig.imageModelId,
-      tokenUsage,
-      providerGenerationId: result.billing.providerGenerationId,
-      shadowAmountUsd: pricingConfig.imagePriceUsd
-        ? pricingConfig.imagePriceUsd * result.billing.imageCount
-        : undefined,
-    });
-    return { image: result.image, mimeType: result.mimeType, prompt: result.prompt };
-  } catch (error) {
-    await releaseManagedAiCredit({
-      reservation: reservationResult.value,
-      reason: "image_generation_failed",
-    });
-    throw error;
-  }
+  return { image: result.image, mimeType: result.mimeType, prompt: result.prompt };
 }

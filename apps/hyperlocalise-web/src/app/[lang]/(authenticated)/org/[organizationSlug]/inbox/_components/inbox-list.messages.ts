@@ -40,4 +40,70 @@ export const inboxListMessages = defineMessages({
     id: "Leoig5Z0u9",
     description: "Inbox list row preview for a dedicated new localisation request chat",
   },
+  filterReadAria: {
+    defaultMessage: "Filter by read state",
+    id: "fsmYjMN/9O",
+    description: "Accessible label for the inbox read-state filter group",
+  },
+  filterReadAll: {
+    defaultMessage: "All",
+    id: "m9OT0Oi2mc",
+    description: "Inbox filter that shows read and unread items",
+  },
+  filterReadUnread: {
+    defaultMessage: "Unread",
+    id: "m7sC7R0rtG",
+    description: "Inbox filter that shows unread notifications",
+  },
+  filterReadRead: {
+    defaultMessage: "Read",
+    id: "tI6FJ9DXvD",
+    description: "Inbox filter that shows read notifications and conversations",
+  },
+  filterTypeAria: {
+    defaultMessage: "Filter by type",
+    id: "XosmLLsDOK",
+    description: "Accessible label for the inbox type filter menu",
+  },
+  filterTypeAll: {
+    defaultMessage: "All types",
+    id: "N8oWpgtVSh",
+    description: "Inbox type filter that shows conversations and notifications",
+  },
+  filterTypeConversations: {
+    defaultMessage: "Conversations",
+    id: "XXNo1BDzd9",
+    description: "Inbox type filter that shows every conversation source",
+  },
+  filterTypeNotifications: {
+    defaultMessage: "Notifications",
+    id: "g75t7EocMr",
+    description: "Inbox type filter that shows every issue notification",
+  },
+  filterTypeGroupConversations: {
+    defaultMessage: "Conversations",
+    id: "XxZFsAWbq3",
+    description: "Group label for conversation sources in the inbox type filter",
+  },
+  filterTypeGroupNotifications: {
+    defaultMessage: "Notifications",
+    id: "ocGV6u6MPq",
+    description: "Group label for notification types in the inbox type filter",
+  },
+  filterEmpty: {
+    defaultMessage: "No inbox items match these filters.",
+    id: "7+t227O8ET",
+    description: "Empty state when inbox filters hide every loaded item",
+  },
+  filterEmptyHasMore: {
+    defaultMessage: "No matching inbox items on this page.",
+    id: "xuDh1i0+CJ",
+    description:
+      "Empty state when inbox filters hide the loaded page but older notifications can still be loaded",
+  },
+  clearFilters: {
+    defaultMessage: "Clear filters",
+    id: "s5bizftpco",
+    description: "Button that resets inbox read and type filters",
+  },
 });

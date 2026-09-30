@@ -48,10 +48,15 @@ export const ContentEditorWorkspaceViewModeSync = observer(
             viewMode: store.ui.viewMode,
             sourcePath: selected?.sourcePath ?? store.fileContext.sourcePath,
             contentKind: selected?.contentKind,
+            multilingualViewAvailable: store.ui.multilingualViewAvailable,
           };
         },
-        ({ viewMode, sourcePath, contentKind }) => {
-          const capabilities = resolveCatFileViewCapabilities({ sourcePath, contentKind });
+        ({ viewMode, sourcePath, contentKind, multilingualViewAvailable }) => {
+          const capabilities = resolveCatFileViewCapabilities({
+            sourcePath,
+            contentKind,
+            multilingualViewAvailable,
+          });
           const nextMode = clampCatWorkspaceViewMode(viewMode, capabilities);
 
           if (nextMode !== viewMode) {

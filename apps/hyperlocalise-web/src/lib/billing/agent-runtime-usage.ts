@@ -18,24 +18,9 @@ import {
   usageFeatureIds,
   type AiTokenUsage,
 } from "@/lib/billing/usage-control";
-import {
-  formatManagedAiCreditError,
-  getManagedAiCreditReservation,
-  isReusableManagedAiCreditReservation,
-  ManagedAiCreditAccessError,
-  releaseManagedAiCredit,
-  reserveManagedAiCredit,
-  retainManagedAiCreditForUnmeteredSuccess,
-  type AiCreditCredentialSource,
-  type ManagedAiCreditError,
-  type ManagedAiCreditReservation,
-} from "@/lib/billing/managed-ai-credit";
-import {
-  getManagedAiPricingConfig,
-  managedAiReservationAmountUsd,
-} from "@/lib/billing/managed-ai-pricing";
+import type { AiCreditCredentialSource } from "@/lib/billing/managed-ai-credit";
 import { serializeErrorForLog } from "@/lib/log";
-import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { isErr } from "@/lib/primitives/result/results";
 import { hyperlocaliseManagedGatewayModelId } from "@/lib/providers/language-model";
 
 type AgentRuntimeUsageDimensions = Record<string, string | number | boolean | null>;
@@ -131,103 +116,6 @@ export function addAiTokenUsage(
   };
 }
 
-export function agentRunAiCreditOperationKey(runId: string) {
-  return `agent-run:${runId}:agent_runs:ai_tokens`;
-}
-
-export async function reserveAgentRunAiCredit(input: {
-  organizationId: string;
-  runId: string;
-  source?: string;
-  modelId: string;
-  credentialSource: AiCreditCredentialSource;
-}): Promise<Result<ManagedAiCreditReservation | null, ManagedAiCreditError>> {
-  const pricingConfig = getManagedAiPricingConfig();
-  if (pricingConfig.mode === "legacy") {
-    return ok(null);
-  }
-
-  const operationKey = agentRunAiCreditOperationKey(input.runId);
-  const existing = await getManagedAiCreditReservation({ operationKey });
-  if (existing) {
-    if (isReusableManagedAiCreditReservation(existing)) {
-      return ok(existing);
-    }
-    return err({
-      code: "ai_credit_operation_already_exists",
-      operationKey: existing.operationKey,
-      status: existing.status ?? "rejected",
-    });
-  }
-
-  const estimatedAmountUsd =
-    input.credentialSource === "byok"
-      ? 0
-      : managedAiReservationAmountUsd(pricingConfig, { surface: "chat" });
-  if (estimatedAmountUsd == null) {
-    return err({
-      code: "ai_credit_pricing_not_configured",
-      surface: input.source ?? "agent_run",
-    });
-  }
-
-  return reserveManagedAiCredit({
-    organizationId: input.organizationId,
-    operationKey,
-    source: input.source ?? "agent_run_create",
-    modelId: input.modelId,
-    credentialSource: input.credentialSource,
-    estimatedAmountUsd,
-    mode: pricingConfig.mode,
-    dimensions: {
-      surface: "provider_agent",
-    },
-  });
-}
-
-export async function releaseAgentRunAiCredit(input: { runId: string; reason: string }) {
-  const reservation = await getManagedAiCreditReservation({
-    operationKey: agentRunAiCreditOperationKey(input.runId),
-  });
-  if (!reservation) {
-    return;
-  }
-
-  const released = await releaseManagedAiCredit({
-    reservation,
-    reason: input.reason,
-  });
-  if (!released.ok) {
-    logAgentRuntimeUsageError("AI credit release failed", {
-      runId: input.runId,
-      error: formatManagedAiCreditError(released.error),
-    });
-  }
-}
-
-export async function retainAgentRunAiCreditForUnmeteredSuccess(input: {
-  runId: string;
-  reason: string;
-}) {
-  const reservation = await getManagedAiCreditReservation({
-    operationKey: agentRunAiCreditOperationKey(input.runId),
-  });
-  if (!reservation) {
-    return;
-  }
-
-  const retained = await retainManagedAiCreditForUnmeteredSuccess({
-    reservation,
-    reason: input.reason,
-  });
-  if (!retained.ok) {
-    logAgentRuntimeUsageError("AI credit retain-for-missing-usage failed", {
-      runId: input.runId,
-      error: formatManagedAiCreditError(retained.error),
-    });
-  }
-}
-
 export async function reserveAgentRuntimeUsage(input: {
   organizationId: string;
   operationKey: string;
@@ -275,7 +163,6 @@ export async function trackSucceededAgentRuntimeUsage(input: {
   tokenUsage?: AiTokenUsage | null;
   aiCreditModelId?: string;
   aiCreditCredentialSource?: AiCreditCredentialSource;
-  aiCreditEstimatedAmountUsd?: number;
   interactionId?: string | null;
 }) {
   try {
@@ -288,7 +175,6 @@ export async function trackSucceededAgentRuntimeUsage(input: {
       tokenUsage: input.tokenUsage ?? null,
       aiCreditModelId: input.aiCreditModelId,
       aiCreditCredentialSource: input.aiCreditCredentialSource,
-      aiCreditEstimatedAmountUsd: input.aiCreditEstimatedAmountUsd,
       interactionId: input.interactionId ?? undefined,
       aiCreditSource: "agent_runtime_complete",
     });
@@ -322,9 +208,8 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
   dimensions?: AgentRuntimeUsageDimensions;
   run: () => Promise<T>;
   extractTokenUsage?: (result: T) => AiTokenUsage | null;
-  aiCreditModelId?: string;
+  aiCreditModelId?: string | ((result: T) => string | undefined);
   aiCreditCredentialSource?: AiCreditCredentialSource;
-  aiCreditEstimatedAmountUsd?: number;
 }): Promise<T> {
   const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
   if (!aiFeatures.ok) {
@@ -339,69 +224,17 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
     dimensions: input.dimensions,
   });
 
-  const pricingConfig = getManagedAiPricingConfig();
-  const tokenMeteringEnabled = input.extractTokenUsage && pricingConfig.mode !== "legacy";
-  const aiCreditModelId =
-    input.aiCreditModelId ??
-    (tokenMeteringEnabled ? hyperlocaliseManagedGatewayModelId : undefined);
-  const aiCreditCredentialSource =
-    input.aiCreditCredentialSource ?? (tokenMeteringEnabled ? "gateway" : undefined);
-  const aiCreditEstimatedAmountUsd =
-    aiCreditCredentialSource === "byok"
-      ? 0
-      : (input.aiCreditEstimatedAmountUsd ??
-        managedAiReservationAmountUsd(pricingConfig, { surface: "chat" }) ??
-        undefined);
-  let aiCreditReservation: ManagedAiCreditReservation | null = null;
-
-  if (
-    tokenMeteringEnabled &&
-    aiCreditModelId &&
-    aiCreditCredentialSource &&
-    aiCreditEstimatedAmountUsd != null
-  ) {
-    const reservation = await reserveManagedAiCredit({
-      organizationId: input.organizationId,
-      operationKey: `${input.operationKey}:ai_tokens`,
-      source: input.source,
-      modelId: aiCreditModelId,
-      credentialSource: aiCreditCredentialSource,
-      estimatedAmountUsd: aiCreditEstimatedAmountUsd,
-      interactionId: input.interactionId ?? undefined,
-      mode: pricingConfig.mode,
-      dimensions: input.dimensions,
-    });
-    if (!reservation.ok) {
-      throw new ManagedAiCreditAccessError(reservation.error);
-    }
-    aiCreditReservation = reservation.value;
-  } else if (tokenMeteringEnabled) {
-    throw new ManagedAiCreditAccessError({
-      code: "ai_credit_pricing_not_configured",
-      surface: input.source,
-    });
-  }
-
-  let result: T;
-  try {
-    result = await input.run();
-  } catch (error) {
-    if (aiCreditReservation) {
-      await releaseManagedAiCredit({
-        reservation: aiCreditReservation,
-        reason: "agent_runtime_failed",
-      });
-    }
-    throw error;
-  }
+  const result = await input.run();
   const tokenUsage = input.extractTokenUsage?.(result) ?? null;
   const billableTokenUsage = tokenUsage && tokenUsage.totalTokens > 0 ? tokenUsage : null;
-  if (!billableTokenUsage && aiCreditReservation) {
-    await retainManagedAiCreditForUnmeteredSuccess({
-      reservation: aiCreditReservation,
-      reason: "no_token_usage",
-    });
-  }
+  const resolvedModelId =
+    typeof input.aiCreditModelId === "function"
+      ? input.aiCreditModelId(result)
+      : input.aiCreditModelId;
+  const aiCreditModelId =
+    resolvedModelId ?? (billableTokenUsage ? hyperlocaliseManagedGatewayModelId : undefined);
+  const aiCreditCredentialSource =
+    input.aiCreditCredentialSource ?? (billableTokenUsage ? "gateway" : undefined);
 
   await trackSucceededAgentRuntimeUsage({
     organizationId: input.organizationId,
@@ -411,7 +244,6 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
     tokenUsage: billableTokenUsage,
     aiCreditModelId,
     aiCreditCredentialSource,
-    aiCreditEstimatedAmountUsd,
   });
 
   return result;

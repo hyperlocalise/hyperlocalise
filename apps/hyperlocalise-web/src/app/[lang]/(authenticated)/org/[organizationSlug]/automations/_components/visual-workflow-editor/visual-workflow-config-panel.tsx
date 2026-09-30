@@ -12,13 +12,21 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useEffect } from "react";
+
 import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
 import type {
   WorkflowNodeContract,
   VisualWorkflowRfEdge,
 } from "@/lib/visual-workflows/schema/types";
-import { ArrowLeft01Icon, Delete02Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
+import {
+  ArrowDown01Icon,
+  ArrowLeft01Icon,
+  ArrowUp01Icon,
+  Delete02Icon,
+  PlusSignIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -35,7 +43,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
-import { isTriggerType } from "@/lib/visual-workflows/catalog/node-catalog";
+import { createMergeInputId, isTriggerType } from "@/lib/visual-workflows/catalog/node-catalog";
+import { createSwitchCaseId } from "@/lib/visual-workflows/schema/switch-cases";
 import {
   isVisualTriggerCatalogType,
   VISUAL_TRIGGER_TYPES,
@@ -51,8 +60,25 @@ import type {
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
 } from "@/lib/visual-workflows/schema/types";
+import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/validation/validate-workflow-v3";
+
+import {
+  contentSyncNeedsProviderFolder,
+  defaultContentSyncProjectFolder,
+  type ContentSyncProvider,
+} from "@/lib/agents/content-sync/content-sync-types";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
+import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
+import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-options";
+
+const ANY_PROJECT_VALUE = "__any_project__";
+const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = [
+  "github",
+  "gitlab",
+  "contentful",
+  "intercom",
+];
 
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const ERROR_BEHAVIORS: VisualNodeErrorBehavior[] = ["stop", "continue", "branch"];
@@ -76,7 +102,7 @@ export function VisualWorkflowConfigPanel({
   nodes?: readonly VisualWorkflowRfNode[];
   edges?: readonly VisualWorkflowRfEdge[];
   onChangeContract?: (patch: WorkflowNodeContract) => void;
-  issues: readonly VisualWorkflowValidationIssue[];
+  issues: readonly (VisualWorkflowValidationIssue | VisualWorkflowV3ValidationIssue)[];
   onBack: () => void;
   onChangeConfig: (config: VisualNodeConfig) => void;
   onChangeNodeType: (type: VisualCatalogType) => void;
@@ -84,7 +110,28 @@ export function VisualWorkflowConfigPanel({
 }) {
   const intl = useIntl();
   const { config } = node.data;
+  const resources = useVisualWorkflowResourceOptions(organizationSlug);
   const isTrigger = isTriggerType(node.data.catalogType);
+  const isInputConnected = (portId: string) =>
+    getVisualWorkflowDataEdgeBinding({
+      nodeId: node.id,
+      portId,
+      edges,
+    }) !== undefined;
+
+  const connectedInputDescription = intl.formatMessage({
+    id: "uwi6wLAbuv",
+    defaultMessage:
+      "This value is supplied by a connected data port. Remove the data wire to edit it here.",
+    description: "Description for an inline workflow value overridden by a data connection",
+  });
+  const connectedInputProps = (portId: string) => {
+    const disabled = isInputConnected(portId);
+    return {
+      disabled,
+      description: disabled ? connectedInputDescription : undefined,
+    };
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -154,6 +201,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-http-url"
               label={intl.formatMessage(messages.httpUrl)}
               value={config.url}
+              {...connectedInputProps("url")}
               onChange={(value) => onChangeConfig({ ...config, url: value })}
               placeholder="https://"
             />
@@ -188,6 +236,7 @@ export function VisualWorkflowConfigPanel({
                 id="vw-http-body"
                 label={intl.formatMessage(messages.httpBody)}
                 value={config.body ?? ""}
+                {...connectedInputProps("body")}
                 onChange={(value) => onChangeConfig({ ...config, body: value })}
                 placeholder='{"key": "{{trigger.id}}"}'
               />
@@ -275,6 +324,7 @@ export function VisualWorkflowConfigPanel({
             id="vw-if-condition"
             label={intl.formatMessage(messages.ifCondition)}
             value={config.condition}
+            {...connectedInputProps("condition")}
             onChange={(value) => onChangeConfig({ ...config, condition: value })}
           />
         ) : null}
@@ -284,6 +334,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-switch-expression"
               label={intl.formatMessage(messages.switchExpression)}
               value={config.expression}
+              {...connectedInputProps("expression")}
               onChange={(value) => onChangeConfig({ ...config, expression: value })}
               placeholder="{{nodes.http.json.status}}"
             />
@@ -292,12 +343,12 @@ export function VisualWorkflowConfigPanel({
                 <FormattedMessage {...messages.switchCases} />
               </Label>
               {config.cases.map((caseEntry, index) => (
-                <div key={`case-${index}`} className="flex items-center gap-2">
+                <div key={caseEntry.id} className="flex items-center gap-2">
                   <Input
                     value={caseEntry.value}
                     onChange={(event) => {
                       const cases = config.cases.map((entry, caseIndex) =>
-                        caseIndex === index ? { value: event.target.value } : entry,
+                        caseIndex === index ? { ...entry, value: event.target.value } : entry,
                       );
                       onChangeConfig({ ...config, cases });
                     }}
@@ -309,6 +360,9 @@ export function VisualWorkflowConfigPanel({
                     type="button"
                     variant="ghost"
                     size="icon-sm"
+                    aria-label={intl.formatMessage(messages.removeSwitchCase, {
+                      index: index + 1,
+                    })}
                     disabled={config.cases.length <= 1}
                     onClick={() => {
                       onChangeConfig({
@@ -329,7 +383,7 @@ export function VisualWorkflowConfigPanel({
                 onClick={() =>
                   onChangeConfig({
                     ...config,
-                    cases: [...config.cases, { value: "" }],
+                    cases: [...config.cases, { id: createSwitchCaseId(), value: "" }],
                   })
                 }
               >
@@ -337,6 +391,167 @@ export function VisualWorkflowConfigPanel({
                 <FormattedMessage {...messages.addSwitchCase} />
               </Button>
             </div>
+          </>
+        ) : null}
+        {config.kind === "logic.merge" ? (
+          <>
+            <SelectField
+              id="vw-merge-mode"
+              label={intl.formatMessage(messages.mergeMode)}
+              value={config.mode}
+              items={[
+                {
+                  value: "all",
+                  label: intl.formatMessage(messages.mergeModeAll),
+                },
+                {
+                  value: "any",
+                  label: intl.formatMessage(messages.mergeModeAny),
+                },
+                {
+                  value: "first_success",
+                  label: intl.formatMessage(messages.mergeModeFirstSuccess),
+                },
+              ]}
+              onValueChange={(value) => {
+                if (value === "all" || value === "any" || value === "first_success") {
+                  onChangeConfig({
+                    ...config,
+                    mode: value,
+                  });
+                }
+              }}
+            />
+
+            <div className="grid gap-2">
+              <Label>
+                <FormattedMessage {...messages.mergeInputs} />
+              </Label>
+
+              {config.inputs.map((input, index) => (
+                <div key={input.id} className="flex items-center gap-2">
+                  <Input
+                    aria-label={intl.formatMessage(messages.mergeInputName, {
+                      index: index + 1,
+                    })}
+                    value={input.name}
+                    placeholder={intl.formatMessage(messages.mergeInputName, {
+                      index: index + 1,
+                    })}
+                    onChange={(event) => {
+                      const inputs = config.inputs.map((entry, inputIndex) =>
+                        inputIndex === index
+                          ? {
+                              ...entry,
+                              name: event.target.value,
+                            }
+                          : entry,
+                      );
+
+                      onChangeConfig({
+                        ...config,
+                        inputs,
+                      });
+                    }}
+                  />
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={index === 0}
+                    aria-label={intl.formatMessage(messages.moveMergeInputUp, {
+                      index: index + 1,
+                    })}
+                    onClick={() => {
+                      const inputs = [...config.inputs];
+                      [inputs[index - 1], inputs[index]] = [inputs[index]!, inputs[index - 1]!];
+
+                      onChangeConfig({
+                        ...config,
+                        inputs,
+                      });
+                    }}
+                  >
+                    <HugeiconsIcon icon={ArrowUp01Icon} className="size-4" strokeWidth={2} />
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={index === config.inputs.length - 1}
+                    aria-label={intl.formatMessage(messages.moveMergeInputDown, {
+                      index: index + 1,
+                    })}
+                    onClick={() => {
+                      const inputs = [...config.inputs];
+                      [inputs[index], inputs[index + 1]] = [inputs[index + 1]!, inputs[index]!];
+
+                      onChangeConfig({
+                        ...config,
+                        inputs,
+                      });
+                    }}
+                  >
+                    <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" strokeWidth={2} />
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={config.inputs.length <= 2}
+                    aria-label={intl.formatMessage(messages.removeMergeInput, {
+                      index: index + 1,
+                    })}
+                    onClick={() =>
+                      onChangeConfig({
+                        ...config,
+                        inputs: config.inputs.filter((_, inputIndex) => inputIndex !== index),
+                      })
+                    }
+                  >
+                    <HugeiconsIcon icon={Delete02Icon} className="size-4" strokeWidth={2} />
+                  </Button>
+                </div>
+              ))}
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={config.inputs.length >= 32}
+                onClick={() =>
+                  onChangeConfig({
+                    ...config,
+                    inputs: [
+                      ...config.inputs,
+                      {
+                        id: createMergeInputId(),
+                        name: `Input ${config.inputs.length + 1}`,
+                      },
+                    ],
+                  })
+                }
+              >
+                <HugeiconsIcon icon={PlusSignIcon} className="size-4" strokeWidth={2} />
+                <FormattedMessage {...messages.addMergeInput} />
+              </Button>
+            </div>
+
+            <TextField
+              id="vw-merge-timeout"
+              label={intl.formatMessage(messages.mergeTimeoutMs)}
+              value={config.timeoutMs === undefined ? "" : String(config.timeoutMs)}
+              onChange={(value) =>
+                onChangeConfig({
+                  ...config,
+                  timeoutMs:
+                    value.trim() === "" ? undefined : Number.parseInt(value, 10) || undefined,
+                })
+              }
+            />
           </>
         ) : null}
         {config.kind === "logic.set" ? (
@@ -353,9 +568,197 @@ export function VisualWorkflowConfigPanel({
             id="vw-for-each-collection"
             label={intl.formatMessage(messages.forEachCollection)}
             value={config.collection}
+            {...connectedInputProps("collection")}
             onChange={(value) => onChangeConfig({ ...config, collection: value })}
             placeholder="{{trigger.items}}"
           />
+        ) : null}
+        {config.kind === "logic.retry" ? (
+          <>
+            <TextField
+              id="vw-retry-max-attempts"
+              label={intl.formatMessage(messages.retryMaxAttempts)}
+              value={String(config.maxAttempts ?? 3)}
+              {...connectedInputProps("maxAttempts")}
+              onChange={(value) =>
+                onChangeConfig({
+                  ...config,
+                  maxAttempts: Number.parseInt(value, 10) || 1,
+                })
+              }
+            />
+            <TextField
+              id="vw-retry-initial-delay"
+              label={intl.formatMessage(messages.retryInitialDelay)}
+              value={String(config.initialDelayMs ?? 1000)}
+              {...connectedInputProps("initialDelayMs")}
+              onChange={(value) =>
+                onChangeConfig({
+                  ...config,
+                  initialDelayMs: Number.parseInt(value, 10) || 0,
+                })
+              }
+            />
+            <TextField
+              id="vw-retry-backoff"
+              label={intl.formatMessage(messages.retryBackoffMultiplier)}
+              value={String(config.backoffMultiplier ?? 2)}
+              {...connectedInputProps("backoffMultiplier")}
+              onChange={(value) =>
+                onChangeConfig({
+                  ...config,
+                  backoffMultiplier: Number.parseFloat(value) || 1,
+                })
+              }
+            />
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="vw-retry-ack-dup"
+                checked={config.acknowledgeDuplicateRisk ?? false}
+                onCheckedChange={(checked) =>
+                  onChangeConfig({
+                    ...config,
+                    acknowledgeDuplicateRisk: checked === true,
+                  })
+                }
+              />
+              <Label htmlFor="vw-retry-ack-dup" className="text-sm font-normal">
+                {intl.formatMessage(messages.retryAcknowledgeDuplicateRisk)}
+              </Label>
+            </div>
+          </>
+        ) : null}
+        {config.kind === "flow.wait" ? (
+          <>
+            <SelectField
+              id="vw-wait-mode"
+              label={intl.formatMessage(messages.waitMode)}
+              value={config.mode}
+              items={[
+                {
+                  value: "duration",
+                  label: intl.formatMessage(messages.waitModeDuration),
+                },
+                {
+                  value: "timestamp",
+                  label: intl.formatMessage(messages.waitModeTimestamp),
+                },
+                {
+                  value: "condition",
+                  label: intl.formatMessage(messages.waitModeCondition),
+                },
+              ]}
+              onValueChange={(value) => {
+                if (value === "duration") {
+                  onChangeConfig({
+                    kind: "flow.wait",
+                    mode: "duration",
+                    durationMs: config.mode === "duration" ? (config.durationMs ?? 60_000) : 60_000,
+                  });
+                  return;
+                }
+
+                if (value === "timestamp") {
+                  onChangeConfig({
+                    kind: "flow.wait",
+                    mode: "timestamp",
+                    timestamp:
+                      config.mode === "timestamp"
+                        ? config.timestamp
+                        : new Date(Date.now() + 3_600_000).toISOString(),
+                  });
+                  return;
+                }
+
+                if (value === "condition") {
+                  onChangeConfig({
+                    kind: "flow.wait",
+                    mode: "condition",
+                    condition: config.mode === "condition" ? (config.condition ?? "") : "",
+                    pollingIntervalMs:
+                      config.mode === "condition" ? (config.pollingIntervalMs ?? 5_000) : 5_000,
+                    timeoutMs:
+                      config.mode === "condition" ? (config.timeoutMs ?? 300_000) : 300_000,
+                  });
+                }
+              }}
+            />
+
+            {config.mode === "duration" ? (
+              <TextField
+                id="vw-wait-duration"
+                label={intl.formatMessage(messages.waitDurationMs)}
+                value={String(config.durationMs ?? 60_000)}
+                {...connectedInputProps("durationMs")}
+                onChange={(value) =>
+                  onChangeConfig({
+                    ...config,
+                    durationMs: Number.parseInt(value, 10) || 0,
+                  })
+                }
+              />
+            ) : null}
+
+            {config.mode === "timestamp" ? (
+              <TextField
+                id="vw-wait-timestamp"
+                label={intl.formatMessage(messages.waitTimestamp)}
+                value={config.timestamp ?? ""}
+                {...connectedInputProps("timestamp")}
+                onChange={(value) =>
+                  onChangeConfig({
+                    ...config,
+                    timestamp: value,
+                  })
+                }
+                placeholder="2026-10-01T10:00:00.000Z"
+              />
+            ) : null}
+
+            {config.mode === "condition" ? (
+              <>
+                <TextAreaField
+                  id="vw-wait-condition"
+                  label={intl.formatMessage(messages.waitCondition)}
+                  value={config.condition ?? ""}
+                  {...connectedInputProps("condition")}
+                  onChange={(value) =>
+                    onChangeConfig({
+                      ...config,
+                      condition: value,
+                    })
+                  }
+                  placeholder="{{nodes.http.json.status}} === ready"
+                />
+
+                <TextField
+                  id="vw-wait-polling-interval"
+                  label={intl.formatMessage(messages.waitPollingIntervalMs)}
+                  value={String(config.pollingIntervalMs ?? 5_000)}
+                  {...connectedInputProps("pollingIntervalMs")}
+                  onChange={(value) =>
+                    onChangeConfig({
+                      ...config,
+                      pollingIntervalMs: Number.parseInt(value, 10) || 0,
+                    })
+                  }
+                />
+
+                <TextField
+                  id="vw-wait-timeout"
+                  label={intl.formatMessage(messages.waitTimeoutMs)}
+                  value={String(config.timeoutMs ?? 300_000)}
+                  {...connectedInputProps("timeoutMs")}
+                  onChange={(value) =>
+                    onChangeConfig({
+                      ...config,
+                      timeoutMs: Number.parseInt(value, 10) || 0,
+                    })
+                  }
+                />
+              </>
+            ) : null}
+          </>
         ) : null}
         {config.kind === "action.notify_slack" ? (
           <>
@@ -363,12 +766,14 @@ export function VisualWorkflowConfigPanel({
               id="vw-slack-channel"
               label={intl.formatMessage(messages.slackChannelId)}
               value={config.channelId}
+              {...connectedInputProps("channelId")}
               onChange={(value) => onChangeConfig({ ...config, channelId: value })}
             />
             <TextAreaField
               id="vw-slack-message"
               label={intl.formatMessage(messages.slackMessage)}
               value={config.message}
+              {...connectedInputProps("message")}
               onChange={(value) => onChangeConfig({ ...config, message: value })}
             />
             <ErrorBehaviorField
@@ -413,6 +818,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-email-from"
               label={intl.formatMessage(messages.emailFrom)}
               value={config.from}
+              {...connectedInputProps("from")}
               onChange={(value) => onChangeConfig({ ...config, from: value })}
               placeholder="notifications@company.com"
             />
@@ -420,6 +826,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-email-recipients"
               label={intl.formatMessage(messages.emailRecipients)}
               value={config.recipients}
+              {...connectedInputProps("recipients")}
               onChange={(value) => onChangeConfig({ ...config, recipients: value })}
               placeholder="ops@company.com, dev@company.com"
             />
@@ -427,12 +834,14 @@ export function VisualWorkflowConfigPanel({
               id="vw-email-subject"
               label={intl.formatMessage(messages.emailSubject)}
               value={config.subject}
+              {...connectedInputProps("subject")}
               onChange={(value) => onChangeConfig({ ...config, subject: value })}
             />
             <TextAreaField
               id="vw-email-message"
               label={intl.formatMessage(messages.emailMessage)}
               value={config.message}
+              {...connectedInputProps("message")}
               onChange={(value) => onChangeConfig({ ...config, message: value })}
             />
             <ErrorBehaviorField
@@ -443,16 +852,24 @@ export function VisualWorkflowConfigPanel({
         ) : null}
         {config.kind === "trigger.github" ? (
           <>
-            <TextField
+            <SelectField
               id="vw-github-repo"
-              label={intl.formatMessage(messages.githubRepositoryId)}
+              label={intl.formatMessage(messages.githubRepository)}
               value={config.githubInstallationRepositoryId}
-              onChange={(value) =>
+              placeholder={intl.formatMessage(messages.selectRepository)}
+              items={resources.repositories.map((repository) => ({
+                value: repository.id,
+                label: repository.fullName,
+              }))}
+              onValueChange={(value) => {
+                if (!value) {
+                  return;
+                }
                 onChangeConfig({
                   ...config,
                   githubInstallationRepositoryId: value,
-                })
-              }
+                });
+              }}
             />
             <TextField
               id="vw-github-branches"
@@ -583,16 +1000,36 @@ export function VisualWorkflowConfigPanel({
           </>
         ) : null}
         {config.kind === "trigger.source_upload" ? (
-          <TextField
+          <SelectField
             id="vw-source-project"
-            label={intl.formatMessage(messages.sourceUploadProjectId)}
-            value={config.projectId ?? ""}
-            onChange={(value) =>
+            label={intl.formatMessage(messages.sourceUploadProject)}
+            value={config.projectId ?? ANY_PROJECT_VALUE}
+            items={[
+              {
+                value: ANY_PROJECT_VALUE,
+                label: intl.formatMessage(messages.anyProject),
+              },
+              ...resources.projects.map((project) => ({
+                value: project.id,
+                label: project.name,
+              })),
+            ]}
+            onValueChange={(value) => {
+              if (!value) {
+                return;
+              }
               onChangeConfig({
                 ...config,
-                projectId: value.trim() || undefined,
-              })
-            }
+                projectId: value === ANY_PROJECT_VALUE ? undefined : value,
+              });
+            }}
+          />
+        ) : null}
+        {config.kind === "action.content_sync" ? (
+          <ContentSyncConfigFields
+            config={config}
+            organizationSlug={organizationSlug}
+            onChangeConfig={onChangeConfig}
           />
         ) : null}
         {config.kind === "ai.agent" ? (
@@ -601,6 +1038,7 @@ export function VisualWorkflowConfigPanel({
               id="vw-ai-prompt"
               label={intl.formatMessage(messages.aiPrompt)}
               value={config.prompt}
+              {...connectedInputProps("prompt")}
               onChange={(value) => onChangeConfig({ ...config, prompt: value })}
             />
             <ErrorBehaviorField
@@ -632,7 +1070,10 @@ export function VisualWorkflowConfigPanel({
         </Button>
       </div>
       {issues.length > 0 ? (
-        <div className="border-t border-border px-4 py-3 text-sm text-destructive">
+        <div
+          data-testid="visual-workflow-validation-issues"
+          className="border-t border-border px-4 py-3 text-sm text-destructive"
+        >
           {issues.map((issue) => (
             <p key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`}>
               {intl.formatMessage(issueMessage(issue.code))}
@@ -740,26 +1181,186 @@ function ErrorBehaviorField({
   );
 }
 
+function ContentSyncConfigFields({
+  config,
+  organizationSlug,
+  onChangeConfig,
+}: {
+  config: Extract<VisualNodeConfig, { kind: "action.content_sync" }>;
+  organizationSlug?: string;
+  onChangeConfig: (config: VisualNodeConfig) => void;
+}) {
+  const intl = useIntl();
+  const resources = useVisualWorkflowResourceOptions(organizationSlug);
+  const resourceOptions = resources.resourceOptionsFor(config.provider);
+  const selectedResource = resourceOptions.find((option) => option.id === config.connectionId);
+
+  useEffect(() => {
+    const firstResource = resourceOptions[0];
+    if (!firstResource) {
+      return;
+    }
+
+    const hasResource = config.connectionId.trim() && config.resourceKey.trim();
+    if (hasResource) {
+      if (config.projectFolder.trim()) {
+        return;
+      }
+      onChangeConfig({
+        ...config,
+        projectFolder: defaultContentSyncProjectFolder({
+          provider: config.provider,
+          resourceKey: config.resourceKey.trim(),
+        }),
+      });
+      return;
+    }
+
+    onChangeConfig({
+      ...config,
+      connectionId: firstResource.id,
+      resourceKey: firstResource.resourceKey,
+      projectFolder:
+        config.projectFolder.trim() ||
+        defaultContentSyncProjectFolder({
+          provider: config.provider,
+          resourceKey: firstResource.resourceKey,
+        }),
+    });
+  }, [
+    config.connectionId,
+    config.projectFolder,
+    config.provider,
+    config.resourceKey,
+    onChangeConfig,
+    resourceOptions,
+  ]);
+
+  function applyResource(next: {
+    provider: ContentSyncProvider;
+    connectionId: string;
+    resourceKey: string;
+  }) {
+    onChangeConfig({
+      ...config,
+      provider: next.provider,
+      connectionId: next.connectionId,
+      resourceKey: next.resourceKey,
+      projectFolder:
+        config.projectFolder ||
+        defaultContentSyncProjectFolder({
+          provider: next.provider,
+          resourceKey: next.resourceKey,
+        }),
+    });
+  }
+
+  return (
+    <>
+      <SelectField
+        id="vw-content-sync-project"
+        label={intl.formatMessage(messages.contentSyncProject)}
+        value={config.projectId}
+        placeholder={intl.formatMessage(messages.selectProject)}
+        items={resources.projects.map((project) => ({
+          value: project.id,
+          label: project.name,
+        }))}
+        onValueChange={(value) => {
+          if (!value) {
+            return;
+          }
+          onChangeConfig({ ...config, projectId: value });
+        }}
+      />
+      <SelectField
+        id="vw-content-sync-provider"
+        label={intl.formatMessage(messages.contentSyncProvider)}
+        value={config.provider}
+        placeholder={intl.formatMessage(messages.selectProvider)}
+        items={(resources.availableProviders.length > 0
+          ? resources.availableProviders
+          : CONTENT_SYNC_PROVIDERS
+        ).map((provider) => ({
+          value: provider,
+          label: intl.formatMessage(contentSyncProviderMessage(provider)),
+        }))}
+        onValueChange={(value) => {
+          if (!value || !isContentSyncProvider(value)) {
+            return;
+          }
+          applyResource({
+            provider: value,
+            connectionId: "",
+            resourceKey: "",
+          });
+        }}
+      />
+      <SelectField
+        id="vw-content-sync-resource"
+        label={intl.formatMessage(messages.contentSyncResource)}
+        value={selectedResource?.id ?? ""}
+        placeholder={intl.formatMessage(messages.selectResource)}
+        items={resourceOptions.map((option) => ({
+          value: option.id,
+          label: option.label,
+        }))}
+        onValueChange={(value) => {
+          const option = resourceOptions.find((entry) => entry.id === value);
+          if (!option) {
+            return;
+          }
+          applyResource({
+            provider: config.provider,
+            connectionId: option.id,
+            resourceKey: option.resourceKey,
+          });
+        }}
+      />
+      {contentSyncNeedsProviderFolder(config.provider) ? (
+        <TextField
+          id="vw-content-sync-provider-folder"
+          label={intl.formatMessage(messages.contentSyncProviderFolder)}
+          value={config.providerFolder}
+          onChange={(value) => onChangeConfig({ ...config, providerFolder: value })}
+        />
+      ) : null}
+      <TextField
+        id="vw-content-sync-project-folder"
+        label={intl.formatMessage(messages.contentSyncProjectFolder)}
+        value={config.projectFolder}
+        onChange={(value) => onChangeConfig({ ...config, projectFolder: value })}
+      />
+      <ErrorBehaviorField
+        value={config.onError ?? "stop"}
+        onChange={(onError) => onChangeConfig({ ...config, onError })}
+      />
+    </>
+  );
+}
+
 function SelectField({
   id,
   label,
   value,
   items,
   onValueChange,
+  placeholder,
 }: {
   id: string;
   label: string;
   value: string;
   items: { value: string; label: string }[];
   onValueChange: (value: string | null) => void;
+  placeholder?: string;
 }) {
   const selected = items.find((item) => item.value === value);
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Select value={value} items={items} onValueChange={onValueChange}>
+      <Select value={value || null} items={items} onValueChange={onValueChange}>
         <SelectTrigger id={id} className="w-full">
-          <SelectValue>{selected?.label ?? value}</SelectValue>
+          <SelectValue placeholder={placeholder}>{selected?.label ?? value}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {items.map((item) => (
@@ -779,12 +1380,16 @@ function TextField({
   value,
   onChange,
   placeholder,
+  disabled = false,
+  description,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  disabled?: boolean;
+  description?: string;
 }) {
   return (
     <div className="grid gap-1.5">
@@ -792,9 +1397,11 @@ function TextField({
       <Input
         id={id}
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
     </div>
   );
 }
@@ -805,12 +1412,16 @@ function TextAreaField({
   value,
   onChange,
   placeholder,
+  disabled = false,
+  description,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  disabled?: boolean;
+  description?: string;
 }) {
   return (
     <div className="grid gap-1.5">
@@ -818,9 +1429,11 @@ function TextAreaField({
       <Textarea
         id={id}
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
     </div>
   );
 }
@@ -860,6 +1473,23 @@ function isErrorBehavior(value: string): value is VisualNodeErrorBehavior {
   return ERROR_BEHAVIORS.includes(value as VisualNodeErrorBehavior);
 }
 
+function isContentSyncProvider(value: string): value is ContentSyncProvider {
+  return CONTENT_SYNC_PROVIDERS.includes(value as ContentSyncProvider);
+}
+
+function contentSyncProviderMessage(provider: ContentSyncProvider) {
+  switch (provider) {
+    case "github":
+      return messages.providerGithub;
+    case "gitlab":
+      return messages.providerGitlab;
+    case "contentful":
+      return messages.providerContentful;
+    case "intercom":
+      return messages.providerIntercom;
+  }
+}
+
 function errorBehaviorMessage(behavior: VisualNodeErrorBehavior) {
   switch (behavior) {
     case "stop":
@@ -886,7 +1516,9 @@ function titleForTrigger(type: VisualCatalogType) {
   }
 }
 
-function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
+function issueMessage(
+  code: VisualWorkflowValidationIssue["code"] | VisualWorkflowV3ValidationIssue["code"],
+) {
   switch (code) {
     case "missing_trigger":
       return messages.missingTrigger;
@@ -902,6 +1534,16 @@ function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
       return messages.invalidNodeConfig;
     case "nested_for_each":
       return messages.nestedForEach;
+    case "nested_retry":
+      return messages.nestedRetry;
+    case "invalid_retry":
+      return messages.invalidRetry;
+    case "retry_foreach_nesting":
+      return messages.retryForEachNesting;
+    case "non_idempotent_retry":
+      return messages.nonIdempotentRetry;
+    case "invalid_retry_policy":
+      return messages.invalidRetryPolicy;
     default:
       return messages.invalidNodeConfig;
   }

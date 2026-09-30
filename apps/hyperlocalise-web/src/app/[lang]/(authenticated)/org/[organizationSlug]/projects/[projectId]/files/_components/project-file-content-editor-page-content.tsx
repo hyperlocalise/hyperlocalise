@@ -13,8 +13,8 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,6 +23,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
+import { ContentEditorWorkspaceSkeleton } from "@/components/content-editor/workspace/content-editor-workspace-skeleton";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -32,9 +33,11 @@ import {
 } from "@/components/content-editor/workspace/content-editor-page-navigation-guard";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { supportsProviderContentEditorFile } from "@/lib/providers/capabilities/provider-content-editor-capabilities";
 import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
 import {
+  parseProjectFileContentEditorSearchParams,
   buildProjectFileContentEditorAllFilesHref,
   buildProjectFileContentEditorHref,
   canOpenProjectFileContentEditor,
@@ -44,7 +47,12 @@ import {
   resolveProjectFileContentEditorTargetLocaleResolution,
   resolveProjectFileContentEditorTargetLocales,
 } from "@/lib/projects/project-file-content-editor-routing";
-import { buildCatNavigationSearchParams } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
+import {
+  parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueSortParam,
+  parseCatWorkspaceSearchParam,
+  buildCatNavigationSearchParams,
+} from "@/lib/projects/content-editor/content-editor-workspace-query-params";
 import type {
   ContentEditorQueueFilter,
   ContentEditorQueueSort,
@@ -79,7 +87,29 @@ function githubInstallationRepositoriesQueryKey(organizationSlug: string) {
   return ["github-installation-repositories", organizationSlug] as const;
 }
 
-export function ProjectFileContentEditorPageContent({
+export function ProjectFileContentEditorPageContent(
+  props: ComponentProps<typeof ProjectFileContentEditorPageContentInner>,
+) {
+  const searchParams = useSearchParams();
+  // File/locale changes within the editor are client navigation. Keep the page
+  // and file tree mounted; native history also updates Back/Forward through Next.
+  const live = searchParams?.has("sourcePath") ? Object.fromEntries(searchParams.entries()) : null;
+  return (
+    <ProjectFileContentEditorPageContentInner
+      {...props}
+      {...(live
+        ? {
+            ...parseProjectFileContentEditorSearchParams(live),
+            initialQueueFilter: parseCatWorkspaceQueueFilterParam(live.queueFilter) ?? "all",
+            initialQueueSort: parseCatWorkspaceQueueSortParam(live.queueSort) ?? "file_order",
+            initialSearch: parseCatWorkspaceSearchParam(live.search),
+          }
+        : {})}
+    />
+  );
+}
+
+function ProjectFileContentEditorPageContentInner({
   organizationSlug,
   projectId,
   sourcePath,
@@ -116,6 +146,7 @@ export function ProjectFileContentEditorPageContent({
   const router = useRouter();
   const pageNavigationGuardRef = useRef<ContentEditorPageNavigationGuardRef["current"]>(null);
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const hasFileReference = Boolean(sourcePath) || allFiles;
   const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
     enabled: hasFileReference,
@@ -146,6 +177,7 @@ export function ProjectFileContentEditorPageContent({
     queryKey: projectFilesQueryKey(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
     queryFn: () =>
       fetchProjectFiles(
+        goSvcClient,
         organizationSlug,
         projectId,
         PROJECT_FILES_MAX_LIMIT,
@@ -309,14 +341,31 @@ export function ProjectFileContentEditorPageContent({
 
   if (projectQuery.isLoading || (!canOpenFromUrlIdentity && filesQuery.isLoading)) {
     return (
-      <ProjectPageShell>
-        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
-          <Spinner />
-          <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.loadingFile} />
-          </TypographyP>
-        </div>
-      </ProjectPageShell>
+      <ContentEditorPageRoot
+        initialState={createContentEditorLoadingWorkspaceState({
+          sourcePath: sourcePath ?? "",
+          sourceLocale: "",
+          targetLocale: highlightLocale ?? "",
+        })}
+        chrome={{
+          files: [],
+          selectedSourcePath: sourcePath,
+          allFiles,
+          canUseAllFiles: false,
+          targetLocale: highlightLocale ?? "",
+          targetLocales: [],
+          repositoryFullNames: [],
+          selectedRepositoryFullName: null,
+          activitySourcePath: sourcePath ?? "",
+          organizationSlug,
+          projectId,
+          showFileSidebar: true,
+        }}
+        backHref={filesHref}
+        actions={{ onSelectFile: () => undefined, onLocaleChange: () => undefined }}
+      >
+        <ContentEditorWorkspaceSkeleton />
+      </ContentEditorPageRoot>
     );
   }
 
@@ -473,7 +522,7 @@ export function ProjectFileContentEditorPageContent({
   }
 
   const handleFileChange = (nextSourcePath: string | null) => {
-    if (!nextSourcePath) {
+    if (!nextSourcePath || (!allFiles && nextSourcePath === sourcePath)) {
       return;
     }
 
@@ -499,9 +548,13 @@ export function ProjectFileContentEditorPageContent({
         branch,
         segment: null,
       });
-      router.push(
-        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
-      );
+      if (allFiles) {
+        router.push(
+          `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
+        );
+      } else {
+        window.history.pushState(null, "", `?${params.toString()}`);
+      }
     });
   };
 
@@ -538,7 +591,7 @@ export function ProjectFileContentEditorPageContent({
     setRepositoryOverride(nextRepositoryFullName);
   };
 
-  const handleLocaleChange = (nextLocale: string) => {
+  const handleLocaleChange = (nextLocale: string, segmentKey?: string) => {
     if (nextLocale === targetLocale) {
       return;
     }
@@ -549,6 +602,11 @@ export function ProjectFileContentEditorPageContent({
           locale: nextLocale,
           sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
         });
+        if (segmentKey) {
+          params.set("segment", segmentKey);
+          params.set("search", segmentKey);
+          params.set("queueFilter", "all");
+        }
         const section = "strings";
         router.push(
           `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/${section}?${params.toString()}`,
@@ -569,12 +627,16 @@ export function ProjectFileContentEditorPageContent({
         branch,
       });
 
-      router.push(
-        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
-      );
+      if (segmentKey) {
+        params.set("segment", segmentKey);
+        params.set("search", segmentKey);
+        params.set("queueFilter", "all");
+      }
+      window.history.pushState(null, "", `?${params.toString()}`);
     };
 
-    attemptCatPageNavigation(pageNavigationGuardRef, navigate);
+    if (segmentKey) navigate();
+    else attemptCatPageNavigation(pageNavigationGuardRef, navigate);
   };
 
   const resolvedSourcePath = allFiles
@@ -650,6 +712,7 @@ export function ProjectFileContentEditorPageContent({
         resourceType={allFiles ? undefined : resolvedResourceType}
         targetLocale={targetLocale}
         targetLocales={workspaceTargetLocales}
+        onOpenTranslationLocale={handleLocaleChange}
         highlightLocale={highlightLocale}
         repositoryFullName={selectedRepositoryFullName}
         canLookupFreshContext={canLookupFreshCatRepositoryContext(

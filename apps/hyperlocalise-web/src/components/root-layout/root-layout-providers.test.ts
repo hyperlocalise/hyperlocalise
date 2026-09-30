@@ -32,6 +32,17 @@ describe("root layout cacheComponents boundary", () => {
     expect(source).not.toMatch(/\bgetAppLocale\b/);
   });
 
+  it("sets document lang from route params inside the locale layout Suspense boundary", () => {
+    const source = readFileSync(
+      path.join(import.meta.dirname, "../../app/[lang]/layout.tsx"),
+      "utf8",
+    );
+
+    expect(source).toMatch(/\bLocaleDocumentLangScript\b/);
+    expect(source).toMatch(/<Suspense/);
+    expect(source).not.toMatch(/\bheaders\s*\(|\bcookies\s*\(/);
+  });
+
   it("resolves request locale inside the root Suspense boundary", () => {
     const source = readFileSync(
       path.join(import.meta.dirname, "root-layout-providers.tsx"),

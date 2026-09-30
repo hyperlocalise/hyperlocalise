@@ -108,55 +108,6 @@ export async function markEmailTranslationJobRunning(input: {
   }
 }
 
-export async function reserveSandboxTranslationCreditStep(input: {
-  organizationId?: string;
-  jobId: string;
-  source: string;
-  surface: string;
-}) {
-  "use step";
-  const { eq } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database/client");
-  const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
-  const { sandboxTranslationBillingMetadata } = await import("@/lib/translation/cli-token-usage");
-  const { reserveSandboxTranslationAiCredit } =
-    await import("@/lib/billing/sandbox-translation-credit");
-
-  let organizationId = input.organizationId;
-  if (!organizationId) {
-    const [job] = await db
-      .select({ organizationId: schema.jobs.organizationId })
-      .from(schema.jobs)
-      .where(eq(schema.jobs.id, input.jobId))
-      .limit(1);
-    organizationId = job?.organizationId;
-  }
-  if (!organizationId) {
-    throw new Error(`translation job ${input.jobId} has no organization for AI credit reservation`);
-  }
-
-  const byok = await loadSandboxByokCredential(organizationId);
-  const billing = sandboxTranslationBillingMetadata(byok);
-  return reserveSandboxTranslationAiCredit({
-    organizationId,
-    jobId: input.jobId,
-    source: input.source,
-    surface: input.surface,
-    modelId: billing.modelId,
-    credentialSource: billing.credentialSource,
-  });
-}
-
-export async function releaseSandboxTranslationCreditStep(input: {
-  jobId: string;
-  reason: string;
-}) {
-  "use step";
-  const { releaseSandboxTranslationAiCredit } =
-    await import("@/lib/billing/sandbox-translation-credit");
-  await releaseSandboxTranslationAiCredit(input);
-}
-
 export async function markEmailTranslationJobSucceeded(input: {
   jobId: string;
   workflowRunId: string;
@@ -210,8 +161,6 @@ export async function markEmailTranslationJobSucceeded(input: {
     await import("@/lib/billing/usage-control");
   const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
   const { withCliBillingMetadata } = await import("@/lib/translation/cli-token-usage");
-  const { retainSandboxTranslationAiCreditForUnmeteredSuccess } =
-    await import("@/lib/billing/sandbox-translation-credit");
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
   const byok = await loadSandboxByokCredential(succeededJob.organizationId);
@@ -227,12 +176,6 @@ export async function markEmailTranslationJobSucceeded(input: {
     jobId: input.jobId,
     aiCreditSource: "email_translation_job_complete",
   });
-  if (!billedTokenUsage) {
-    await retainSandboxTranslationAiCreditForUnmeteredSuccess({
-      jobId: input.jobId,
-      reason: "no_cli_token_usage",
-    });
-  }
 
   if (isErr(trackUsageResult)) {
     console.error("[email-translation-job] Autumn usage tracking failed after job succeeded", {
@@ -619,8 +562,6 @@ export async function completeFileTranslationJobStep(input: {
     await import("@/lib/billing/usage-control");
   const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
   const { withCliBillingMetadata } = await import("@/lib/translation/cli-token-usage");
-  const { retainSandboxTranslationAiCreditForUnmeteredSuccess } =
-    await import("@/lib/billing/sandbox-translation-credit");
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
   const [jobForUsage] = await db
@@ -645,12 +586,6 @@ export async function completeFileTranslationJobStep(input: {
     jobId: input.jobId,
     aiCreditSource: "translation_job_complete",
   });
-  if (!billedTokenUsage) {
-    await retainSandboxTranslationAiCreditForUnmeteredSuccess({
-      jobId: input.jobId,
-      reason: "no_cli_token_usage",
-    });
-  }
 
   if (isErr(trackUsageResult)) {
     console.error("[file-translation-job] Autumn usage tracking failed after job succeeded", {

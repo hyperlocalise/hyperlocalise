@@ -87,7 +87,7 @@ export function createHyperlabMswHandlers({
   }
 
   return [
-    http.get("/api/orgs/:organizationSlug/hyperlab/experiments", async () => {
+    http.get("*/v1/orgs/:organizationSlug/hyperlab/experiments", async () => {
       await maybeWait();
       if (errorMessage) {
         return fail();
@@ -95,7 +95,7 @@ export function createHyperlabMswHandlers({
       return HttpResponse.json({ experiments });
     }),
     http.get(
-      "/api/orgs/:organizationSlug/hyperlab/experiments/:experimentId",
+      "*/v1/orgs/:organizationSlug/hyperlab/experiments/:experimentId",
       async ({ params }) => {
         await maybeWait();
         if (errorMessage) {
@@ -108,14 +108,14 @@ export function createHyperlabMswHandlers({
         return HttpResponse.json(detail);
       },
     ),
-    http.get("/api/orgs/:organizationSlug/hyperlab/audiences", async () => {
+    http.get("*/v1/orgs/:organizationSlug/hyperlab/audiences", async () => {
       await maybeWait();
       if (errorMessage) {
         return fail();
       }
       return HttpResponse.json({ audiences });
     }),
-    http.get("/api/orgs/:organizationSlug/hyperlab/audiences/:audienceId", async ({ params }) => {
+    http.get("*/v1/orgs/:organizationSlug/hyperlab/audiences/:audienceId", async ({ params }) => {
       await maybeWait();
       if (errorMessage) {
         return fail();
@@ -126,14 +126,14 @@ export function createHyperlabMswHandlers({
       }
       return HttpResponse.json({ audience });
     }),
-    http.get("/api/orgs/:organizationSlug/hyperlab/flags", async () => {
+    http.get("*/v1/orgs/:organizationSlug/hyperlab/flags", async () => {
       await maybeWait();
       if (errorMessage) {
         return fail();
       }
       return HttpResponse.json({ flags });
     }),
-    http.get("/api/orgs/:organizationSlug/hyperlab/flags/:flagId", async ({ params }) => {
+    http.get("*/v1/orgs/:organizationSlug/hyperlab/flags/:flagId", async ({ params }) => {
       await maybeWait();
       if (errorMessage) {
         return fail();
@@ -144,21 +144,21 @@ export function createHyperlabMswHandlers({
       }
       return HttpResponse.json(detail);
     }),
-    http.get("/api/orgs/:organizationSlug/hyperlab/assignments", async () => {
+    http.get("*/v1/orgs/:organizationSlug/hyperlab/assignments", async () => {
       await maybeWait();
       if (errorMessage) {
         return fail();
       }
       return HttpResponse.json({ assignments });
     }),
-    http.get("/api/orgs/:organizationSlug/hyperlab/keys", async () => {
+    http.get("*/v1/orgs/:organizationSlug/hyperlab/keys", async () => {
       await maybeWait();
       if (errorMessage) {
         return fail();
       }
       return HttpResponse.json({ keys });
     }),
-    http.post("/api/orgs/:organizationSlug/hyperlab/experiments", async ({ request }) => {
+    http.post("*/v1/orgs/:organizationSlug/hyperlab/experiments", async ({ request }) => {
       const body = (await request.json()) as { name?: string; kind?: "toggle" | "ab" };
       return HttpResponse.json(
         {
@@ -173,10 +173,10 @@ export function createHyperlabMswHandlers({
         { status: 201 },
       );
     }),
-    http.post("/api/orgs/:organizationSlug/hyperlab/experiments/:experimentId/variants", () =>
+    http.post("*/v1/orgs/:organizationSlug/hyperlab/experiments/:experimentId/variants", () =>
       HttpResponse.json({ variant: hyperlabToggleExperimentDetail.variants[0] }, { status: 201 }),
     ),
-    http.post("/api/orgs/:organizationSlug/hyperlab/flags", async ({ request }) => {
+    http.post("*/v1/orgs/:organizationSlug/hyperlab/flags", async ({ request }) => {
       const body = (await request.json()) as { key?: string };
       return HttpResponse.json(
         {
@@ -189,7 +189,7 @@ export function createHyperlabMswHandlers({
         { status: 201 },
       );
     }),
-    http.post("/api/orgs/:organizationSlug/hyperlab/audiences", async ({ request }) => {
+    http.post("*/v1/orgs/:organizationSlug/hyperlab/audiences", async ({ request }) => {
       const body = (await request.json()) as { name?: string };
       return HttpResponse.json(
         {
@@ -203,7 +203,7 @@ export function createHyperlabMswHandlers({
         { status: 201 },
       );
     }),
-    http.post("/api/orgs/:organizationSlug/hyperlab/keys", async ({ request }) => {
+    http.post("*/v1/orgs/:organizationSlug/hyperlab/keys", async ({ request }) => {
       const body = (await request.json()) as { name?: string };
       return HttpResponse.json(
         {

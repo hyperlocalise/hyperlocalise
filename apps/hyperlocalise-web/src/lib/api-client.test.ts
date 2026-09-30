@@ -40,8 +40,7 @@ describe("createApiClient", () => {
     expect(typeof org["provider-credential"].$get).toBe("function");
     expect(typeof org["contentful-connections"].$get).toBe("function");
     expect(typeof org["mcp-server-connections"].$get).toBe("function");
-    expect(typeof org["linked-domains"].$get).toBe("function");
-    expect(typeof org["linked-domains"][":linkedDomainId"].research.$get).toBe("function");
+    expect("linked-domains" in org).toBe(false);
     expect(typeof org["semrush-connections"].$get).toBe("function");
     expect(typeof org["ahrefs-connections"].$get).toBe("function");
     expect(typeof org.pipes[":provider"].$get).toBe("function");
@@ -52,14 +51,12 @@ describe("createApiClient", () => {
     expect(typeof org["slack-connect"].$get).toBe("function");
     expect(typeof org["github-installation"].$get).toBe("function");
     expect(typeof org.gitlab.projects.$get).toBe("function");
-    expect(typeof org.members.$get).toBe("function");
     expect(typeof org.workspace.$get).toBe("function");
     expect(typeof org.billing["resource-usage"].$get).toBe("function");
     expect(typeof org["api-keys"].$get).toBe("function");
     expect(typeof client.api.v1.files.$post).toBe("function");
     expect(typeof client.api.v1.jobs.$post).toBe("function");
     expect(typeof client.api.auth.context.$get).toBe("function");
-    expect(typeof client.api.auth.native.authorize.$get).toBe("function");
     expect(typeof client.api.auth.slack.callback.$get).toBe("function");
   });
 

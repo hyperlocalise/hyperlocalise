@@ -7,10 +7,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/workos/workos-go/v10"
 )
@@ -71,34 +71,39 @@ func qaReportFailure(status int, code, message string) error {
 	return &qaReportError{status, code, message}
 }
 
-func qaReportJSON(w http.ResponseWriter, status int, value any) {
+func qaReportJSON(ctx context.Context, w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(value); err != nil {
-		slog.Warn("qa_report_json_encode_failed")
+		slog.WarnContext(ctx, "qa_report_json_encode_failed")
 	}
 }
 
 func writeQaReportError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *qaReportError
 	if !errors.As(err, &failure) {
-		slog.Error("qa_report_request_failed", "phase", phase, "path", r.URL.Path)
+		logRequestFailure(r, "qa_report_request_failed", phase, err)
 		failure = &qaReportError{500, "internal_error", "Internal server error"}
-	} else if failure.status >= 500 {
-		slog.Error("qa_report_request_failed", "phase", phase, "path", r.URL.Path, "error", failure.code)
+	} else {
+		logRequestFailure(r, "qa_report_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
-	qaReportJSON(w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
+	qaReportJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
 }
 
 func (api *qaReportAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
-	for _, path := range []string{
-		"/v1/orgs/{organizationSlug}/qa-reports",
-		"/v1/orgs/{organizationSlug}/qa-reports/{rest...}",
-		"/v1/orgs/{organizationSlug}/projects/{projectId}/qa-reports",
-		"/v1/orgs/{organizationSlug}/projects/{projectId}/qa-reports/{rest...}",
-	} {
-		mux.Handle(path, authMiddleware(verifier)(http.HandlerFunc(api.serveHTTP)))
+	q := orgRoutePrefix + "/qa-reports"
+	p := orgRoutePrefix + "/projects/{projectId}/qa-reports"
+	route := func(pattern string, fn func(*http.Request, qaReportActor) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
 	}
+	route("GET "+q, bindActor(api, (*qaReportAPI).listWorkspaceReportsHandler))
+	route("GET "+q+"/findings", bindActor(api, (*qaReportAPI).listWorkspaceFindingsHandler))
+	route("POST "+q+"/findings/promote", bindActor(api, (*qaReportAPI).promoteWorkspaceFindingsHandler))
+	route("GET "+p, bindActor(api, (*qaReportAPI).listProjectQaReportsHandler))
+	route("PATCH "+p+"/settings", bindActor(api, (*qaReportAPI).patchProjectQaSettingsHandler))
+	route("GET "+p+"/latest-findings", bindActor(api, (*qaReportAPI).listProjectLatestFindingsHandler))
+	route("POST "+p+"/findings/promote", bindActor(api, (*qaReportAPI).promoteProjectFindingsHandler))
+	route("GET "+p+"/{runId}", bindActor(api, (*qaReportAPI).getProjectQaRunHandler))
 }
 
 func (api *qaReportAPI) actor(ctx context.Context, claims AuthClaims, slug string) (qaReportActor, error) {
@@ -141,69 +146,109 @@ func (api *qaReportAPI) actor(ctx context.Context, claims AuthClaims, slug strin
 	return actor, nil
 }
 
-func (api *qaReportAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		origin := r.Header.Get("Origin")
-		if origin != "" {
-			parsed, err := url.Parse(origin)
-			if err != nil || parsed.Host != r.Host || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-				writeQaReportError(w, r, "origin_guard", qaReportFailure(403, "forbidden", "Cross-origin request denied"))
-				return
-			}
-		}
-		if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
+func (api *qaReportAPI) handle(fn func(*http.Request, qaReportActor) (any, int, error)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		if denyBrowserMutation(r) {
 			writeQaReportError(w, r, "origin_guard", qaReportFailure(403, "forbidden", "Cross-origin request denied"))
 			return
 		}
-	}
-	if api.pool == nil {
-		writeQaReportError(w, r, "availability", qaReportFailure(503, "qa_report_unavailable", "QA report service unavailable"))
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), qaReportRequestTimeout)
-	defer cancel()
-	r = r.WithContext(ctx)
-	claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
-	if !ok {
-		writeQaReportError(w, r, "auth", qaReportFailure(401, "unauthorized", "Authentication required"))
-		return
-	}
-	actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
-	if err != nil {
-		writeQaReportError(w, r, "resolve_actor", err)
-		return
-	}
-
-	if projectID := strings.TrimSpace(r.PathValue("projectId")); projectID != "" {
-		api.serveProjectQaReport(w, r, actor, projectID)
-		return
-	}
-
-	rest := strings.Trim(r.PathValue("rest"), "/")
-	var value any
-	var status int
-	switch {
-	case rest == "" && r.Method == http.MethodGet:
-		value, status, err = api.listWorkspaceReports(ctx, actor)
-	case rest == "findings" && r.Method == http.MethodGet:
-		value, status, err = api.listWorkspaceFindings(ctx, actor, r)
-	case rest == "findings/promote" && r.Method == http.MethodPost:
-		if !actor.canPromoteFindings() {
-			writeQaReportError(w, r, "authorize", qaReportFailure(403, "forbidden", "You do not have permission to create issues"))
+		if api.pool == nil {
+			writeQaReportError(w, r, "availability", qaReportFailure(503, "qa_report_unavailable", "QA report service unavailable"))
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, qaReportBodyLimit)
-		value, status, err = api.promoteWorkspaceFindings(ctx, actor, r)
-	default:
-		writeQaReportError(w, r, "route", qaReportFailure(404, "not_found", "Not found"))
-		return
+		ctx, cancel := context.WithTimeout(r.Context(), qaReportRequestTimeout)
+		defer cancel()
+		r = r.WithContext(ctx)
+		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
+		if !ok {
+			writeQaReportError(w, r, "auth", qaReportFailure(401, "unauthorized", "Authentication required"))
+			return
+		}
+		actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
+		if err != nil {
+			writeQaReportError(w, r, "resolve_actor", err)
+			return
+		}
+		if r.Method == http.MethodPost || r.Method == http.MethodPatch {
+			r.Body = http.MaxBytesReader(w, r.Body, qaReportBodyLimit)
+		}
+		value, status, err := fn(r, actor)
+		if err != nil {
+			writeQaReportError(w, r, "handle", err)
+			return
+		}
+		qaReportJSON(r.Context(), w, status, value)
+	})
+}
+
+func (api *qaReportAPI) listWorkspaceReportsHandler(r *http.Request, actor qaReportActor) (any, int, error) {
+	return api.listWorkspaceReports(r.Context(), actor)
+}
+
+func (api *qaReportAPI) listWorkspaceFindingsHandler(r *http.Request, actor qaReportActor) (any, int, error) {
+	return api.listWorkspaceFindings(r.Context(), actor, r)
+}
+
+func (api *qaReportAPI) promoteWorkspaceFindingsHandler(r *http.Request, actor qaReportActor) (any, int, error) {
+	if !actor.canPromoteFindings() {
+		return nil, 0, qaReportFailure(403, "forbidden", "You do not have permission to create issues")
 	}
+	return api.promoteWorkspaceFindings(r.Context(), actor, r)
+}
+
+func (api *qaReportAPI) withOwnedProject(r *http.Request, actor qaReportActor) (nativeQaProject, error) {
+	return api.ownedNativeProject(r.Context(), actor, r.PathValue("projectId"))
+}
+
+func (api *qaReportAPI) listProjectQaReportsHandler(r *http.Request, actor qaReportActor) (any, int, error) {
+	project, err := api.withOwnedProject(r, actor)
 	if err != nil {
-		writeQaReportError(w, r, "handle", err)
-		return
+		return nil, 0, err
 	}
-	qaReportJSON(w, status, value)
+	return api.listProjectQaReports(r.Context(), actor, project)
+}
+
+func (api *qaReportAPI) patchProjectQaSettingsHandler(r *http.Request, actor qaReportActor) (any, int, error) {
+	if !actor.canProjectWrite() {
+		return nil, 0, qaReportFailure(403, "forbidden", "Forbidden")
+	}
+	project, err := api.withOwnedProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
+	return api.patchProjectQaSettings(r.Context(), actor, project, r)
+}
+
+func (api *qaReportAPI) listProjectLatestFindingsHandler(r *http.Request, actor qaReportActor) (any, int, error) {
+	project, err := api.withOwnedProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
+	return api.listProjectLatestFindings(r.Context(), actor, project.ID, r)
+}
+
+func (api *qaReportAPI) promoteProjectFindingsHandler(r *http.Request, actor qaReportActor) (any, int, error) {
+	if !actor.canPromoteFindings() {
+		return nil, 0, qaReportFailure(403, "forbidden", "Forbidden")
+	}
+	project, err := api.withOwnedProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
+	return api.promoteProjectFindings(r.Context(), actor, project.ID, r)
+}
+
+func (api *qaReportAPI) getProjectQaRunHandler(r *http.Request, actor qaReportActor) (any, int, error) {
+	project, err := api.withOwnedProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
+	runID, parseErr := uuid.Parse(r.PathValue("runId"))
+	if parseErr != nil {
+		return nil, 0, qaReportFailure(404, "not_found", "Not found")
+	}
+	return api.getProjectQaRunDetail(r.Context(), actor, project.ID, runID, r)
 }
 
 func readQaReportBody(r *http.Request, dest any) error {

@@ -253,6 +253,121 @@ describe("typed values and secret inspection", () => {
       ),
     ).toEqual({ Authorization: "Bearer {{literal-secret}}" });
   });
+  it("expands unbound HTTP templates before inputsResolved execution", () => {
+    const context = createVisualWorkflowExecutionContext({
+      triggerInput: { id: 'quote"me', items: "42" },
+    });
+    const node: CanonicalVisualWorkflowNode = {
+      id: "http",
+      type: "action.http",
+      config: {
+        kind: "action.http",
+        method: "POST",
+        url: "https://example.com/hooks/{{trigger.id}}",
+        bodyType: "json",
+        body: '{"key": "{{trigger.id}}", "n": "{{trigger.items}}"}',
+        headers: [
+          { key: "X-Event", value: "evt-{{trigger.items}}" },
+          { key: "Authorization", value: "Bearer {{literal-secret}}" },
+        ],
+        queryParams: [{ key: "ref", value: "{{trigger.items}}" }],
+        auth: { type: "bearer", token: "tok-{{trigger.items}}" },
+        onError: "stop",
+      },
+      inputs: {
+        "headers.Authorization": { kind: "literal", value: "Bearer {{literal-secret}}" },
+      },
+    };
+    const resolved = resolveWorkflowNodeInputs(node, context);
+    expect(resolved.config).toMatchObject({
+      url: 'https://example.com/hooks/quote"me',
+      body: JSON.stringify({ key: 'quote"me', n: "42" }),
+      headers: [
+        { key: "X-Event", value: "evt-42" },
+        { key: "Authorization", value: "Bearer {{literal-secret}}" },
+      ],
+      queryParams: [{ key: "ref", value: "42" }],
+      auth: { type: "bearer", token: "tok-42" },
+    });
+    expect(
+      resolveHttpRequestBody({
+        body: (resolved.config as { body?: unknown }).body,
+        bodyType: "json",
+        method: "POST",
+        resolved: true,
+        context,
+      }),
+    ).toBe(JSON.stringify({ key: 'quote"me', n: "42" }));
+    expect(
+      resolveKeyValuePairs(
+        (resolved.config as { headers?: { key: string; value: string }[] }).headers,
+        context,
+        { resolved: true },
+      ),
+    ).toEqual({
+      "X-Event": "evt-42",
+      Authorization: "Bearer {{literal-secret}}",
+    });
+  });
+  it("skips body templating when body input is bound", () => {
+    const context = createVisualWorkflowExecutionContext({
+      triggerInput: { id: "should-not-appear" },
+    });
+    const literalBody = '{"token":"{{keep-literal}}","id":"{{trigger.id}}"}';
+    const node: CanonicalVisualWorkflowNode = {
+      id: "http",
+      type: "action.http",
+      config: {
+        kind: "action.http",
+        method: "POST",
+        url: "https://example.com/hooks/{{trigger.id}}",
+        bodyType: "json",
+        body: '{"fallback":"{{trigger.id}}"}',
+        headers: [],
+        queryParams: [],
+        auth: { type: "none" },
+        onError: "stop",
+      },
+      inputs: {
+        body: { kind: "literal", value: literalBody },
+      },
+    };
+    const resolved = resolveWorkflowNodeInputs(node, context);
+    expect(resolved.config).toMatchObject({
+      url: "https://example.com/hooks/should-not-appear",
+      body: literalBody,
+    });
+  });
+  it("skips body templating when a body.* input is bound", () => {
+    const context = createVisualWorkflowExecutionContext({
+      triggerInput: { id: "expanded-in-url-only" },
+    });
+    const node: CanonicalVisualWorkflowNode = {
+      id: "http",
+      type: "action.http",
+      config: {
+        kind: "action.http",
+        method: "POST",
+        url: "https://example.com/{{trigger.id}}",
+        bodyType: "json",
+        body: '{"raw":"{{trigger.id}}"}',
+        headers: [],
+        queryParams: [],
+        auth: { type: "none" },
+        onError: "stop",
+      },
+      inputs: {
+        "body.raw": { kind: "literal", value: "injected" },
+      },
+    };
+    const resolved = resolveWorkflowNodeInputs(node, context);
+    expect(resolved.config).toMatchObject({
+      url: "https://example.com/expanded-in-url-only",
+      // body.* applies the bound leaf and skips unbound body templating.
+      body: { raw: "injected" },
+    });
+  });
+
   it("serializes bound JSON once, including quotes and template-like content", () => {
     const body = { text: 'a "quote" and {{literal}}' };
     expect(

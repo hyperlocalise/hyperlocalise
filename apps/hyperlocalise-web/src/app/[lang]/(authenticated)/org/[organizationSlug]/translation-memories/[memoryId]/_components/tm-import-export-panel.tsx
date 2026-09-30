@@ -34,7 +34,10 @@ import {
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { readMemoryImportFile } from "@/lib/memory/decode-import-file";
+import {
+  memoryImportFormatFromFilename,
+  readMemoryImportFile,
+} from "@/lib/memory/decode-import-file";
 import { TMX_MAX_IMPORT_CONTENT_CHARS } from "@/lib/memory/tmx/tmx-constants";
 
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
@@ -97,7 +100,10 @@ export function TmImportExportPanel({
         );
       }
       const content = decoded.content;
-      const format = file.name.toLowerCase().endsWith(".tmx") ? ("tmx" as const) : ("csv" as const);
+      const format = memoryImportFormatFromFilename(file.name);
+      if (!format) {
+        throw new Error(intl.formatMessage(messages.unsupportedImportFormat));
+      }
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
         ":memoryId"
       ].entries["import"].$post({

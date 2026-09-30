@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 
-import type { VisualWorkflowDefinition } from "./schema/types";
+import type { VisualWorkflowV3Definition } from "./schema/types";
 
 export const visualWorkflowStatusSchema = z.enum(["draft", "active", "paused", "archived"]);
 
@@ -25,11 +25,11 @@ export type VisualWorkflowRecord = {
   projectId: string | null;
   status: VisualWorkflowStatus;
   name: string;
-  definition: VisualWorkflowDefinition;
+  definition: VisualWorkflowV3Definition;
   definitionVersion: number;
   revision: number;
   publishedVersion: number | null;
-  publishedDefinition: VisualWorkflowDefinition | null;
+  publishedDefinition: VisualWorkflowV3Definition | null;
   triggerFingerprint: string | null;
   nextRunAt: string | null;
   createdAt: string;

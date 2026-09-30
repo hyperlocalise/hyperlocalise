@@ -113,6 +113,7 @@ export function IssuesPageView({
         summary={summary}
         activeStatus={activeStatus}
         showProject
+        detailScope="organization"
         isLoading={isLoading}
         isError={isError}
         isFetchingMore={isFetchingMore}

@@ -97,14 +97,14 @@ describe("loadSandboxByokCredentialForJob", () => {
       credential: {
         provider: "openai",
         apiKey: "sk-org",
-        model: "gpt-5.6-luna",
+        model: "gpt-6-luna",
       },
     });
 
     await expect(loadSandboxByokCredentialForJob("job_123")).resolves.toEqual({
       provider: "openai",
       apiKey: "sk-org",
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
     });
   });
 

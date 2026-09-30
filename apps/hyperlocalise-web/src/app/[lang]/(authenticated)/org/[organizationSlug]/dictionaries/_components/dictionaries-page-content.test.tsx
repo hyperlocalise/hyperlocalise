@@ -51,15 +51,15 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/spellcheck-dictionary/client", () => ({
-  dictionaryClient: { list: apiMocks.listDictionaries, create: apiMocks.createDictionary },
+  createDictionaryClient: () => ({
+    list: apiMocks.listDictionaries,
+    create: apiMocks.createDictionary,
+  }),
 }));
 
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({ client: {}, loading: false }),
+}));
 
 function dictionaryRecord(input: { id: string; name: string }) {
   return {
@@ -100,7 +100,7 @@ describe("DictionariesPageContent", () => {
     apiMocks.listDictionaries.mockReset();
     apiMocks.createDictionary.mockReset();
     apiMocks.toastError.mockReset();
-    apiMocks.listDictionaries.mockResolvedValue(jsonResponse({ dictionaries: [], total: 0 }));
+    apiMocks.listDictionaries.mockResolvedValue({ dictionaries: [], total: 0 });
   });
 
   it("loads later dictionaries when Load more is clicked", async () => {
@@ -108,15 +108,15 @@ describe("DictionariesPageContent", () => {
     apiMocks.listDictionaries.mockImplementation(async (args: { query?: { offset?: string } }) => {
       const offset = Number(args.query?.offset ?? "0");
       if (offset === 0) {
-        return jsonResponse({
+        return {
           dictionaries: [dictionaryRecord({ id: "dict-1", name: "Brand names" })],
           total: 2,
-        });
+        };
       }
-      return jsonResponse({
+      return {
         dictionaries: [dictionaryRecord({ id: "dict-2", name: "Product terms" })],
         total: 2,
-      });
+      };
     });
 
     renderDictionariesPage();
@@ -140,9 +140,7 @@ describe("DictionariesPageContent", () => {
 
   it("shows a toast and dialog error when creating a dictionary fails", async () => {
     const user = userEvent.setup();
-    apiMocks.createDictionary.mockResolvedValue(
-      jsonResponse({ error: "forbidden", message: "Insufficient permissions" }, 403),
-    );
+    apiMocks.createDictionary.mockRejectedValue(new Error("Insufficient permissions"));
 
     renderDictionariesPage({ canWriteDictionaries: true });
 

@@ -45,6 +45,21 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "J210+x7u6p",
     description: "Trigger label for a web chat automation in the list",
   },
+  triggerContentSync: {
+    defaultMessage: "Content sync",
+    id: "6NDLX93t5d",
+    description: "Trigger label for a content sync automation in the list",
+  },
+  toolContentful: {
+    defaultMessage: "Contentful",
+    id: "Ccr0NcCtO0",
+    description: "Tool badge when a content sync uses Contentful",
+  },
+  toolIntercom: {
+    defaultMessage: "Intercom",
+    id: "NGl2apEpYb",
+    description: "Tool badge when a content sync uses Intercom",
+  },
   toolKnowledgeFiles: {
     defaultMessage: "Knowledge files",
     id: "l0dInWPeYD",

@@ -27,6 +27,15 @@ export const env = createEnv({
     /** Postgres connection string for Drizzle ORM. */
     DATABASE_URL: z.string().min(1),
 
+    /** SQS queue used for asynchronous organization activity-log events. */
+    ACTIVITY_LOG_SQS_QUEUE_URL: z.url(),
+
+    /** AWS region used to sign activity-log SQS requests. */
+    AWS_REGION: z.string().min(1),
+
+    /** IAM role assumed through Vercel OIDC for activity-log SQS requests. */
+    AWS_ROLE_ARN: z.string().min(1).optional(),
+
     /** OpenAI API key used for CLI sandbox translation. Optional when AI Gateway or that feature is unused. */
     OPENAI_API_KEY: z.string().min(1).optional(),
 
@@ -68,13 +77,6 @@ export const env = createEnv({
 
     /** Password for encrypting WorkOS session cookies. Must be at least 32 characters. */
     WORKOS_COOKIE_PASSWORD: z.string().min(32).optional(),
-
-    /**
-     * Comma-separated AuthKit redirect URIs allowed for native clients (Mac app).
-     * Always merged with the default `hyperlocalise://auth/callback` scheme.
-     * Example: `http://127.0.0.1:53682/callback`
-     */
-    WORKOS_NATIVE_REDIRECT_URIS: z.string().min(1).optional(),
 
     /** Secret used by WorkOS to sign webhook payloads. Required for secure WorkOS webhook handling. */
     WORKOS_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -150,20 +152,8 @@ export const env = createEnv({
     /** Channel name prefix for Slack Connect client channels. Default `ext`. */
     SLACK_CONNECT_CHANNEL_PREFIX: z.string().min(1).max(20).optional(),
 
-    /** Autumn secret key for server-side usage checks and tracking. */
+    /** Autumn secret key for server-side usage tracking. */
     AUTUMN_API_KEY: z.string().min(1).optional(),
-
-    /** AI credit rollout mode. Legacy preserves raw-token tracking until Autumn is configured. */
-    AI_CREDIT_METERING_MODE: z.enum(["legacy", "shadow", "enforced"]).default("legacy"),
-
-    /** Conservative USD reservation for one managed main-chat turn. */
-    AI_CREDIT_CHAT_RESERVATION_USD: z.coerce.number().positive().optional(),
-
-    /** Customer USD price for one generated image, including configured markup. */
-    AI_CREDIT_IMAGE_PRICE_USD: z.coerce.number().positive().optional(),
-
-    /** Customer USD price per generated video second, including configured markup. */
-    AI_CREDIT_VIDEO_PRICE_USD_PER_SECOND: z.coerce.number().positive().optional(),
 
     /** Autumn custom model ID used to price one generated image as one synthetic token. */
     AI_CREDIT_IMAGE_MODEL_ID: z.string().min(1).default("custom/hyperlocalise-gpt-image-2"),
@@ -302,15 +292,17 @@ export const env = createEnv({
     E2E_BASE_URL: z.url().optional(),
 
     /**
-     * Origin of go-svc for server-side DataForSEO research calls.
-     * Vercel injects this via the `go_svc` service binding. Local default is
-     * `http://127.0.0.1:8080`.
+     * Origin of go-svc for server-side domains research and Search Console calls.
+     * Production: `https://api.hyperlocalise.com`. Local default is `http://127.0.0.1:8080`.
      */
     GO_SVC_URL: z.url().optional(),
   },
   client: {
     /** Public runtime environment exposed to the browser. Mirrors NODE_ENV. */
     NEXT_PUBLIC_APP_ENV: z.enum(["development", "test", "production"]).default("development"),
+
+    /** Public origin used by browser-direct Go service requests. */
+    NEXT_PUBLIC_API_BASE_URL: z.url().optional(),
 
     /** Public WorkOS OAuth redirect URI exposed to the browser. Optional — falls back to WORKOS_REDIRECT_URI. */
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: z.url().optional(),
@@ -321,7 +313,14 @@ export const env = createEnv({
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
+    NEXT_PUBLIC_API_BASE_URL:
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? (isTestEnv ? "http://127.0.0.1:8080" : undefined),
     DATABASE_URL: process.env.DATABASE_URL,
+    ACTIVITY_LOG_SQS_QUEUE_URL:
+      process.env.ACTIVITY_LOG_SQS_QUEUE_URL ??
+      (isTestEnv ? "https://sqs.test.local/123456789012/activity-log" : undefined),
+    AWS_REGION: process.env.AWS_REGION ?? (isTestEnv ? "us-east-1" : undefined),
+    AWS_ROLE_ARN: process.env.AWS_ROLE_ARN,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? (isTestEnv ? "test-openai-api-key" : undefined),
     AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
     AI_GATEWAY_BASE_URL: process.env.AI_GATEWAY_BASE_URL,
@@ -346,7 +345,6 @@ export const env = createEnv({
     WORKOS_COOKIE_PASSWORD:
       process.env.WORKOS_COOKIE_PASSWORD ??
       (isTestEnv ? "test-workos-cookie-password-at-least-32-chars" : undefined),
-    WORKOS_NATIVE_REDIRECT_URIS: process.env.WORKOS_NATIVE_REDIRECT_URIS,
     WORKOS_WEBHOOK_SECRET:
       process.env.WORKOS_WEBHOOK_SECRET ?? (isTestEnv ? "test-workos-webhook-secret" : undefined),
     WORKOS_API_HOSTNAME: process.env.WORKOS_API_HOSTNAME,
@@ -377,10 +375,6 @@ export const env = createEnv({
     SLACK_CONNECT_HOST_USER_IDS: process.env.SLACK_CONNECT_HOST_USER_IDS,
     SLACK_CONNECT_CHANNEL_PREFIX: process.env.SLACK_CONNECT_CHANNEL_PREFIX,
     AUTUMN_API_KEY: process.env.AUTUMN_API_KEY,
-    AI_CREDIT_METERING_MODE: process.env.AI_CREDIT_METERING_MODE ?? "legacy",
-    AI_CREDIT_CHAT_RESERVATION_USD: process.env.AI_CREDIT_CHAT_RESERVATION_USD,
-    AI_CREDIT_IMAGE_PRICE_USD: process.env.AI_CREDIT_IMAGE_PRICE_USD,
-    AI_CREDIT_VIDEO_PRICE_USD_PER_SECOND: process.env.AI_CREDIT_VIDEO_PRICE_USD_PER_SECOND,
     AI_CREDIT_IMAGE_MODEL_ID:
       process.env.AI_CREDIT_IMAGE_MODEL_ID ?? "custom/hyperlocalise-gpt-image-2",
     AI_CREDIT_VIDEO_MODEL_ID:

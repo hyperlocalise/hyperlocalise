@@ -12,9 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, useEdges, type NodeProps } from "@xyflow/react";
 import { defineMessages, FormattedMessage, useIntl } from "react-intl";
 
 import { Card } from "@/components/ui/card";
@@ -24,12 +23,21 @@ import {
   resolveNodeSubtitle,
   TRIGGER_BADGE_ICON,
 } from "@/lib/visual-workflows/catalog/node-catalog";
+import { getPrimaryExecutionSourceHandle } from "@/lib/visual-workflows/validation/execution-handles";
+import {
+  getVisualWorkflowDataPorts,
+  type VisualWorkflowDataPort,
+} from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 import { nodeSupportsErrorBranch } from "@/lib/visual-workflows/runtime/node-options";
-import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
+import type {
+  VisualWorkflowRfEdge,
+  VisualWorkflowRfNode,
+} from "@/lib/visual-workflows/schema/types";
 import { cn } from "@/lib/primitives/cn";
 
 import { useVisualWorkflowCanvasActions } from "../visual-workflow-canvas-actions";
 import { visualWorkflowEditorMessages as messages } from "../visual-workflow-editor.messages";
+import { VisualWorkflowQuickAddButton } from "./visual-workflow-quick-add-button";
 
 const nodeStatusMessages = defineMessages({
   running: { defaultMessage: "Running", id: "ZWQ+8S8rpv", description: "Workflow node status" },
@@ -49,35 +57,150 @@ const nodeStatusMessages = defineMessages({
     description: "Workflow node status",
   },
 });
-const HANDLE_CLASS = "size-2.5! border-2 border-background bg-primary";
+const HANDLE_CLASS = cn(
+  "size-2.5! border-2 border-background bg-primary",
+  "transition-[transform,opacity,box-shadow] duration-150",
+  "[&.connecting]:scale-125 [&.connecting]:opacity-30",
+  "[&.connecting.valid]:bg-emerald-500",
+  "[&.connecting.valid]:opacity-100",
+  "[&.connecting.valid]:ring-4",
+  "[&.connecting.valid]:ring-emerald-500/30",
+  "motion-reduce:transition-none",
+);
+
+const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
+  string: "bg-blue-500",
+  number: "bg-amber-500",
+  boolean: "bg-violet-500",
+  object: "bg-emerald-500",
+  array: "bg-pink-500",
+  unknown: "bg-slate-500",
+};
+
+function DataPortLabel({
+  port,
+  direction,
+}: {
+  port: VisualWorkflowDataPort;
+  direction: "input" | "output";
+}) {
+  const connected = port.connectionCount > 0;
+
+  return (
+    <div
+      className={cn(
+        "relative flex min-h-6 items-center gap-1.5 text-[10px]",
+        direction === "output" ? "justify-end text-right" : null,
+      )}
+      title={`${port.label}: ${port.type}${port.optional ? " (optional)" : ""}`}
+    >
+      {direction === "input" ? (
+        <Handle
+          id={port.id}
+          type="target"
+          position={Position.Left}
+          className={cn(
+            HANDLE_CLASS,
+            DATA_TYPE_CLASS[port.type],
+            connected ? "ring-2 ring-primary/30" : null,
+          )}
+          aria-label={`Data input: ${port.label}, ${port.type}${port.optional ? ", optional" : ""}`}
+        />
+      ) : null}
+
+      <span className="min-w-0 truncate font-medium">{port.label}</span>
+      <span className="shrink-0 text-muted-foreground">{port.type}</span>
+
+      {direction === "output" ? (
+        <Handle
+          id={port.id}
+          type="source"
+          position={Position.Right}
+          className={cn(
+            HANDLE_CLASS,
+            DATA_TYPE_CLASS[port.type],
+            connected ? "ring-2 ring-primary/30" : null,
+          )}
+          aria-label={`Data output: ${port.label}, ${port.type}${
+            port.optional ? ", optional" : ""
+          }`}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
+  const edges = useEdges<VisualWorkflowRfEdge>();
   const { onAddFromNode } = useVisualWorkflowCanvasActions();
   const catalog = catalogItemByType(data.catalogType);
   const isTrigger = isTriggerType(data.catalogType);
   const isIf = data.catalogType === "logic.if";
   const isSwitch = data.catalogType === "logic.switch";
   const showErrorHandle = nodeSupportsErrorBranch(data.config);
+  const dataPorts = getVisualWorkflowDataPorts({
+    node: {
+      id,
+      type: data.catalogType,
+      position: { x: 0, y: 0 },
+      data,
+    },
+    edges,
+  });
+  const hasDataPorts = dataPorts.inputs.length > 0 || dataPorts.outputs.length > 0;
+  const hasSingleExecutionOutput =
+    !isIf &&
+    !isSwitch &&
+    data.catalogType !== "logic.for_each" &&
+    data.catalogType !== "logic.retry" &&
+    data.catalogType !== "flow.wait" &&
+    data.catalogType !== "logic.merge";
   const title = intl.formatMessage(titleMessage(data.catalogType));
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
+  const primaryHandle = getPrimaryExecutionSourceHandle({
+    type: data.catalogType,
+    config: data.config,
+  });
+  const primaryHandleLabel = isIf
+    ? intl.formatMessage(messages.trueHandle)
+    : isSwitch && primaryHandle === "default"
+      ? intl.formatMessage(messages.switchDefaultHandle)
+      : isSwitch
+        ? intl.formatMessage(messages.switchCaseHandle, { index: 1 })
+        : data.catalogType === "logic.for_each"
+          ? intl.formatMessage(messages.eachHandle)
+          : data.catalogType === "logic.retry"
+            ? intl.formatMessage(messages.attemptHandle)
+            : data.catalogType === "flow.wait"
+              ? intl.formatMessage(messages.completedHandle)
+              : null;
+
+  const addFromHandle = (handleId?: string) => {
+    onAddFromNode({
+      nodeId: id,
+      handleId,
+    });
+  };
 
   const switchHandles =
     isSwitch && data.config.kind === "logic.switch"
       ? [
-          ...data.config.cases.map((_, index) => ({
-            id: String(index),
+          ...data.config.cases.map((caseEntry, index) => ({
+            id: caseEntry.id,
             label: intl.formatMessage(messages.switchCaseHandle, { index: index + 1 }),
           })),
           { id: "default", label: intl.formatMessage(messages.switchDefaultHandle) },
         ]
       : [];
 
+  const mergeInputs = data.config.kind === "logic.merge" ? data.config.inputs : [];
+
   return (
     <Card
       aria-busy={data.runStatus === "running"}
       className={cn(
-        "relative w-[200px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
+        "relative w-[280px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
         selected ? "ring-2 ring-ring" : null,
         data.runStatus === "running" ? "ring-2 ring-primary/70" : null,
         data.runStatus === "succeeded" ? "border-grove-700/40 bg-grove-100/60" : null,
@@ -91,8 +214,28 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         >
           <HugeiconsIcon icon={TRIGGER_BADGE_ICON} className="size-3.5" strokeWidth={2} />
         </span>
+      ) : data.config.kind === "logic.merge" ? (
+        mergeInputs.map((input, index) => (
+          <Handle
+            key={input.id}
+            id={input.id}
+            className={HANDLE_CLASS}
+            position={Position.Left}
+            type="target"
+            aria-label={`Merge input: ${input.name}`}
+            style={{
+              top: `${((index + 1) / (mergeInputs.length + 1)) * 100}%`,
+            }}
+          />
+        ))
       ) : (
-        <Handle className={HANDLE_CLASS} position={Position.Left} type="target" />
+        <Handle
+          id="input"
+          className={cn(HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
+          position={Position.Left}
+          type="target"
+          aria-label="Execution input"
+        />
       )}
 
       {isIf ? (
@@ -127,6 +270,78 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Done"
           />
         </>
+      ) : data.catalogType === "logic.retry" ? (
+        <>
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[28%]!")}
+            id="attempt"
+            position={Position.Right}
+            type="source"
+            aria-label="Attempt"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[50%]!")}
+            id="succeeded"
+            position={Position.Right}
+            type="source"
+            aria-label="Succeeded"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[72%]! bg-muted-foreground")}
+            id="exhausted"
+            position={Position.Right}
+            type="source"
+            aria-label="Exhausted"
+          />
+        </>
+      ) : data.catalogType === "flow.wait" ? (
+        <>
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[28%]!")}
+            id="completed"
+            position={Position.Right}
+            type="source"
+            aria-label="Completed"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[50%]! bg-muted-foreground")}
+            id="timed_out"
+            position={Position.Right}
+            type="source"
+            aria-label="Timed out"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[72%]! bg-destructive")}
+            id="error"
+            position={Position.Right}
+            type="source"
+            aria-label="Error"
+          />
+        </>
+      ) : data.catalogType === "logic.merge" ? (
+        <>
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[28%]!")}
+            id="completed"
+            position={Position.Right}
+            type="source"
+            aria-label="Completed"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[50%]! bg-muted-foreground")}
+            id="timed_out"
+            position={Position.Right}
+            type="source"
+            aria-label="Timed out"
+          />
+          <Handle
+            className={cn(HANDLE_CLASS, "top-[72%]! bg-destructive")}
+            id="error"
+            position={Position.Right}
+            type="source"
+            aria-label="Error"
+          />
+        </>
       ) : isSwitch ? (
         switchHandles.map((handle, index) => (
           <Handle
@@ -142,7 +357,13 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         ))
       ) : (
         <>
-          <Handle className={HANDLE_CLASS} position={Position.Right} type="source" />
+          <Handle
+            id="success"
+            className={cn(HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
+            position={Position.Right}
+            type="source"
+            aria-label="Execution success"
+          />
           {showErrorHandle ? (
             <Handle
               className={cn(HANDLE_CLASS, "top-[75%]! bg-destructive")}
@@ -160,32 +381,147 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
 
+      {hasDataPorts ? (
+        <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-2">
+          <div className="min-w-0">
+            <p className="mb-1 text-left text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <FormattedMessage
+                defaultMessage="Inputs"
+                id="xOduwNEWmK"
+                description="Workflow node data input ports heading"
+              />
+            </p>
+
+            <div className="space-y-0.5">
+              {dataPorts.inputs.map((port) => (
+                <DataPortLabel key={`data-input-${port.id}`} port={port} direction="input" />
+              ))}
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <p className="mb-1 text-right text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <FormattedMessage
+                defaultMessage="Outputs"
+                id="AfVZqT7lYf"
+                description="Workflow node data output ports heading"
+              />
+            </p>
+
+            <div className="space-y-0.5">
+              {dataPorts.outputs.map((port) => (
+                <DataPortLabel key={`data-output-${port.id}`} port={port} direction="output" />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {isIf ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-2.4rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute inset-y-0 right-[-4.25rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
           <span>
             <FormattedMessage {...messages.trueHandle} />
           </span>
-          <span>
+          <span className="flex items-center gap-1">
             <FormattedMessage {...messages.falseHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="false"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.falseHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
           </span>
         </div>
       ) : null}
 
       {data.catalogType === "logic.for_each" ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-3.5rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute inset-y-0 right-[-5.25rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
           <span>
-            <FormattedMessage
-              defaultMessage="Each item"
-              id="7eZfUxSh+m"
-              description="Workflow loop body connection"
-            />
+            <FormattedMessage {...messages.eachHandle} />
           </span>
+          <span className="flex items-center gap-1">
+            <FormattedMessage {...messages.doneHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="done"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.doneHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
+          </span>
+        </div>
+      ) : null}
+      {data.catalogType === "logic.retry" ? (
+        <div className="pointer-events-none absolute inset-y-0 right-[-5.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
           <span>
-            <FormattedMessage
-              defaultMessage="Done"
-              id="zZIbqHg71N"
-              description="Workflow loop completion connection"
-            />
+            <FormattedMessage {...messages.attemptHandle} />
+          </span>
+          <span className="flex items-center gap-1">
+            <FormattedMessage {...messages.succeededHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="succeeded"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.succeededHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
+          </span>
+          <span className="flex items-center gap-1">
+            <FormattedMessage {...messages.exhaustedHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="exhausted"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.exhaustedHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
+          </span>
+        </div>
+      ) : null}
+      {data.catalogType === "flow.wait" ? (
+        <div className="pointer-events-none absolute inset-y-0 right-[-5.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+          <span>
+            <FormattedMessage {...messages.completedHandle} />
+          </span>
+
+          <span className="flex items-center gap-1">
+            <FormattedMessage {...messages.timedOutHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="timed_out"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.timedOutHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
+          </span>
+          <span className="flex items-center gap-1 text-destructive">
+            <FormattedMessage {...messages.errorHandle} />
+            {data.hideAddAction ? null : (
+              <VisualWorkflowQuickAddButton
+                className="pointer-events-auto size-5"
+                handleId="error"
+                label={intl.formatMessage(messages.addNodeFromHandle, {
+                  handle: intl.formatMessage(messages.errorHandle),
+                })}
+                onAdd={addFromHandle}
+              />
+            )}
           </span>
         </div>
       ) : null}
@@ -195,16 +531,40 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </p>
       ) : null}
       {isSwitch ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-2.8rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute inset-y-0 right-[-4.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
           {switchHandles.map((handle) => (
-            <span key={handle.id}>{handle.label}</span>
+            <span key={handle.id} className="flex items-center gap-1">
+              {handle.label}
+              {data.hideAddAction || handle.id === primaryHandle ? null : (
+                <VisualWorkflowQuickAddButton
+                  className="pointer-events-auto size-5"
+                  handleId={handle.id}
+                  label={intl.formatMessage(messages.addNodeFromHandle, { handle: handle.label })}
+                  onAdd={addFromHandle}
+                />
+              )}
+            </span>
           ))}
         </div>
       ) : null}
 
-      {showErrorHandle && !isIf && !isSwitch ? (
-        <div className="pointer-events-none absolute top-[72%] right-[-2.6rem] text-[10px] font-medium text-destructive">
+      {showErrorHandle &&
+      !isIf &&
+      !isSwitch &&
+      data.catalogType !== "logic.retry" &&
+      data.catalogType !== "flow.wait" ? (
+        <div className="pointer-events-none absolute top-[72%] right-[-4.5rem] flex items-center gap-1 text-[10px] font-medium text-destructive">
           <FormattedMessage {...messages.errorHandle} />
+          {data.hideAddAction ? null : (
+            <VisualWorkflowQuickAddButton
+              className="pointer-events-auto size-5"
+              handleId="error"
+              label={intl.formatMessage(messages.addNodeFromHandle, {
+                handle: intl.formatMessage(messages.errorHandle),
+              })}
+              onAdd={addFromHandle}
+            />
+          )}
         </div>
       ) : null}
 
@@ -215,27 +575,19 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : null}
 
       {data.hideAddAction ? null : (
-        <button
-          type="button"
-          data-visual-workflow-add=""
-          className="nodrag nopan absolute top-1/2 -right-3 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-muted"
-          aria-label={intl.formatMessage(messages.addNode)}
-          onClick={(event) => {
-            event.stopPropagation();
-            onAddFromNode({
-              nodeId: id,
-              handleId: isIf
-                ? "true"
-                : isSwitch
-                  ? "0"
-                  : data.catalogType === "logic.for_each"
-                    ? "each"
-                    : undefined,
-            });
-          }}
-        >
-          <HugeiconsIcon icon={Add01Icon} className="size-3.5" strokeWidth={2} />
-        </button>
+        <VisualWorkflowQuickAddButton
+          className={cn(
+            "absolute -right-3 -translate-y-1/2",
+            hasDataPorts && hasSingleExecutionOutput ? "top-16" : "top-1/2",
+          )}
+          handleId={primaryHandle ?? undefined}
+          label={
+            primaryHandleLabel
+              ? intl.formatMessage(messages.addNodeFromHandle, { handle: primaryHandleLabel })
+              : intl.formatMessage(messages.addNode)
+          }
+          onAdd={addFromHandle}
+        />
       )}
     </Card>
   );
@@ -253,6 +605,8 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeSourceUploadTrigger;
     case "action.http":
       return messages.nodeHttp;
+    case "action.content_sync":
+      return messages.nodeContentSync;
     case "action.notify_slack":
       return messages.nodeNotifySlack;
     case "action.notify_email":
@@ -267,5 +621,11 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeAi;
     case "logic.for_each":
       return messages.nodeLoop;
+    case "logic.retry":
+      return messages.nodeRetry;
+    case "flow.wait":
+      return messages.nodeWait;
+    case "logic.merge":
+      return messages.nodeMerge;
   }
 }

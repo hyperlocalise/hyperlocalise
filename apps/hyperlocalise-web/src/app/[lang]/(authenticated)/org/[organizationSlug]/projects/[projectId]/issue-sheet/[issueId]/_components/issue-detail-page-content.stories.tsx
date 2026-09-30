@@ -57,6 +57,7 @@ const meta = {
     organizationSlug: issueSheetOrganizationSlug,
     projectId: issueSheetProjectId,
     issueId,
+    canDelete: true,
   },
 } satisfies Meta<typeof IssueDetailPageContent>;
 

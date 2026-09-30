@@ -6,3 +6,7 @@
 drafts/
 *.draft.mdx
 AGENTS.md
+
+# Repository design records; contributor docs link to their GitHub sources.
+adr/
+plans/

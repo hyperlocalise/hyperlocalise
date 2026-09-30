@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -324,21 +325,36 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
 }
 
 func parseFindingIDs(raw []string) ([]uuid.UUID, error) {
-	if len(raw) == 0 || len(raw) > 100 {
+	n := len(raw)
+	if n == 0 || n > 100 {
 		return nil, qaReportFailure(400, "invalid_qa_findings_promote", "Invalid QA findings promote payload")
 	}
-	seen := make(map[uuid.UUID]struct{}, len(raw))
-	ids := make([]uuid.UUID, 0, len(raw))
+	// Pre-allocate ids slice capacity; since n <= 100, linear deduplication scan
+	// avoids allocating a map[uuid.UUID]struct{} on the heap.
+	ids := make([]uuid.UUID, 0, n)
 	for _, item := range raw {
-		id, err := uuid.Parse(strings.TrimSpace(item))
+		// Canonical UUIDs are 36 bytes with non-whitespace edges. A shorter form
+		// that uuid.Parse accepts (for example 32 hex digits) can also total 36
+		// bytes once surrounding spaces are counted, so check the boundaries
+		// before skipping TrimSpace.
+		s := item
+		if len(item) != 36 || item[0] <= ' ' || item[0] >= utf8.RuneSelf || item[len(item)-1] <= ' ' || item[len(item)-1] >= utf8.RuneSelf {
+			s = strings.TrimSpace(item)
+		}
+		id, err := uuid.Parse(s)
 		if err != nil {
 			return nil, qaReportFailure(400, "invalid_qa_findings_promote", "Invalid QA findings promote payload")
 		}
-		if _, ok := seen[id]; ok {
-			continue
+		duplicate := false
+		for _, existing := range ids {
+			if existing == id {
+				duplicate = true
+				break
+			}
 		}
-		seen[id] = struct{}{}
-		ids = append(ids, id)
+		if !duplicate {
+			ids = append(ids, id)
+		}
 	}
 	return ids, nil
 }

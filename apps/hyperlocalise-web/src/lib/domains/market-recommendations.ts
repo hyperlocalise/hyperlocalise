@@ -76,6 +76,7 @@ function localeLanguage(locale: string | null | undefined): string | null {
 
 export async function recommendDomainMarkets(input: {
   domain: string;
+  organizationSlug: string;
   cookie?: string;
   signal?: AbortSignal;
 }): Promise<
@@ -118,6 +119,7 @@ export async function recommendDomainMarkets(input: {
   const provider = getDomainResearchProvider();
   const results = await mapWithConcurrency(markets, 4, async (market) =>
     provider.marketVisibility({
+      organizationSlug: input.organizationSlug,
       targetDomain: identity.value.domainKey,
       marketId: market.id,
       locationCode: market.locationCode,

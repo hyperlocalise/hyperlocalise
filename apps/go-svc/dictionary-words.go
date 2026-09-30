@@ -23,10 +23,29 @@ const (
 	dictionaryMaxResolvedBytes = 256 * 1024
 )
 
+// BOLT OPTIMIZATION: Reuse package-level Caser to avoid allocation on every normalization.
+var englishLowerCaser = cases.Lower(language.English)
+
 type normalizedDictionaryWord struct{ word, folded string }
 
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
+}
+
 func normalizeDictionaryWord(raw string) (normalizedDictionaryWord, bool) {
-	word := norm.NFC.String(trimDictionaryInput(raw))
+	trimmed := trimDictionaryInput(raw)
+	var word string
+	// BOLT OPTIMIZATION: Bypass NFC normalization for plain ASCII strings.
+	if isASCII(trimmed) {
+		word = trimmed
+	} else {
+		word = norm.NFC.String(trimmed)
+	}
 	if word == "" || utf8.RuneCountInString(word) > dictionaryMaxWordLength {
 		return normalizedDictionaryWord{}, false
 	}
@@ -35,17 +54,31 @@ func normalizeDictionaryWord(raw string) (normalizedDictionaryWord, bool) {
 			return normalizedDictionaryWord{}, false
 		}
 	}
-	return normalizedDictionaryWord{word, cases.Lower(language.English).String(word)}, true
+	return normalizedDictionaryWord{word, englishLowerCaser.String(word)}, true
 }
 
 func parseDictionaryWords(content string) []normalizedDictionaryWord {
-	result := []normalizedDictionaryWord{}
-	seen := map[string]bool{}
-	for _, line := range strings.Split(content, "\n") {
-		if strings.HasPrefix(trimDictionaryInput(line), "#") {
+	// BOLT OPTIMIZATION: Pre-allocate result and seen map based on line count hint.
+	linesCount := strings.Count(content, "\n") + 1
+	result := make([]normalizedDictionaryWord, 0, min(linesCount, dictionaryMaxWords))
+	seen := make(map[string]bool, min(linesCount, dictionaryMaxWords))
+
+	// BOLT OPTIMIZATION: Stream lines with IndexByte instead of allocating a []string slice via strings.Split.
+	for len(content) > 0 {
+		var line string
+		if idx := strings.IndexByte(content, '\n'); idx >= 0 {
+			line = content[:idx]
+			content = content[idx+1:]
+		} else {
+			line = content
+			content = ""
+		}
+
+		trimmed := trimDictionaryInput(line)
+		if strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		word, ok := normalizeDictionaryWord(line)
+		word, ok := normalizeDictionaryWord(trimmed)
 		if !ok || seen[word.folded] {
 			continue
 		}
@@ -56,15 +89,11 @@ func parseDictionaryWords(content string) []normalizedDictionaryWord {
 }
 
 func dictionaryLocale(raw string) (string, error) {
-	locale := strings.ReplaceAll(trimDictionaryInput(raw), "_", "-")
-	if locale == "" || utf16Length(locale) > 50 {
+	canonical, ok := parseCanonicalLocale(raw)
+	if !ok {
 		return "", invalidDictionary()
 	}
-	tag, err := language.Parse(locale)
-	if err != nil {
-		return "", invalidDictionary()
-	}
-	return tag.String(), nil
+	return canonical, nil
 }
 
 type dictionaryWordRecord struct {
@@ -88,84 +117,89 @@ type dictionaryWordPayload struct {
 	Content string `json:"content"`
 }
 
-func (api *dictionaryAPI) wordRequest(r *http.Request, actor dictionaryActor, d dictionaryRecord, rest []string) (any, int, error) {
-	if len(rest) > 1 {
+func (api *dictionaryAPI) exportDictionaryWords(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	locale, err := dictionaryLocale(r.URL.Query().Get("locale"))
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := api.pool.Query(r.Context(), `select word from spellcheck_word_library_words where library_id=$1 and locale=$2 order by word`, d.ID, locale)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	words := []string{}
+	for rows.Next() {
+		var word string
+		if err := rows.Scan(&word); err != nil {
+			return nil, 0, err
+		}
+		words = append(words, word)
+	}
+	return dictionaryExport{locale, strings.Join(words, "\n") + "\n"}, 200, rows.Err()
+}
+
+func (api *dictionaryAPI) listDictionaryWords(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	limit, offset, err := dictionaryPage(r, 100, 500)
+	if err != nil {
+		return nil, 0, err
+	}
+	locale := ""
+	if r.URL.Query().Has("locale") {
+		locale, err = dictionaryLocale(r.URL.Query().Get("locale"))
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+	rows, err := api.pool.Query(r.Context(), `select id,locale,word,created_at from spellcheck_word_library_words where library_id=$1 and ($2='' or locale=$2) order by locale,word limit $3 offset $4`, d.ID, locale, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	words := []dictionaryWordRecord{}
+	for rows.Next() {
+		word, err := scanDictionaryWord(rows)
+		if err != nil {
+			rows.Close()
+			return nil, 0, err
+		}
+		words = append(words, word)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	var total int
+	err = api.pool.QueryRow(r.Context(), `select count(*) from spellcheck_word_library_words where library_id=$1 and ($2='' or locale=$2)`, d.ID, locale).Scan(&total)
+	return map[string]any{"words": words, "total": total}, 200, err
+}
+
+func (api *dictionaryAPI) deleteDictionaryWord(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	wordID := r.PathValue("wordId")
+	if !validDictionaryID(wordID) {
 		return nil, 0, missingDictionary()
 	}
+	err := api.withDictionaryWords(r.Context(), actor, d.ID, func(tx pgx.Tx) error {
+		deleted, err := tx.Exec(r.Context(), `delete from spellcheck_word_library_words where id=$1 and library_id=$2`, wordID, d.ID)
+		if err != nil {
+			return err
+		}
+		if deleted.RowsAffected() == 0 {
+			return missingDictionary()
+		}
+		return bumpDictionary(r.Context(), tx, d.ID)
+	})
+	return nil, 204, err
+}
+
+func (api *dictionaryAPI) createDictionaryWord(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	return api.writeDictionaryWords(r, actor, d, false)
+}
+
+func (api *dictionaryAPI) importDictionaryWords(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
+	return api.writeDictionaryWords(r, actor, d, true)
+}
+
+func (api *dictionaryAPI) writeDictionaryWords(r *http.Request, actor dictionaryActor, d dictionaryRecord, importing bool) (any, int, error) {
 	ctx := r.Context()
-	if len(rest) == 1 && rest[0] == "export" && r.Method == http.MethodGet {
-		locale, err := dictionaryLocale(r.URL.Query().Get("locale"))
-		if err != nil {
-			return nil, 0, err
-		}
-		rows, err := api.pool.Query(ctx, `select word from spellcheck_word_library_words where library_id=$1 and locale=$2 order by word`, d.ID, locale)
-		if err != nil {
-			return nil, 0, err
-		}
-		defer rows.Close()
-		words := []string{}
-		for rows.Next() {
-			var word string
-			if err := rows.Scan(&word); err != nil {
-				return nil, 0, err
-			}
-			words = append(words, word)
-		}
-		return dictionaryExport{locale, strings.Join(words, "\n") + "\n"}, 200, rows.Err()
-	}
-	if len(rest) == 0 && r.Method == http.MethodGet {
-		limit, offset, err := dictionaryPage(r, 100, 500)
-		if err != nil {
-			return nil, 0, err
-		}
-		locale := ""
-		if r.URL.Query().Has("locale") {
-			locale, err = dictionaryLocale(r.URL.Query().Get("locale"))
-			if err != nil {
-				return nil, 0, err
-			}
-		}
-		rows, err := api.pool.Query(ctx, `select id,locale,word,created_at from spellcheck_word_library_words where library_id=$1 and ($2='' or locale=$2) order by locale,word limit $3 offset $4`, d.ID, locale, limit, offset)
-		if err != nil {
-			return nil, 0, err
-		}
-		words := []dictionaryWordRecord{}
-		for rows.Next() {
-			word, err := scanDictionaryWord(rows)
-			if err != nil {
-				rows.Close()
-				return nil, 0, err
-			}
-			words = append(words, word)
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return nil, 0, err
-		}
-		var total int
-		err = api.pool.QueryRow(ctx, `select count(*) from spellcheck_word_library_words where library_id=$1 and ($2='' or locale=$2)`, d.ID, locale).Scan(&total)
-		return map[string]any{"words": words, "total": total}, 200, err
-	}
-	if len(rest) == 1 && r.Method == http.MethodDelete {
-		if !validDictionaryID(rest[0]) {
-			return nil, 0, missingDictionary()
-		}
-		err := api.withDictionaryWords(ctx, actor, d.ID, func(tx pgx.Tx) error {
-			deleted, err := tx.Exec(ctx, `delete from spellcheck_word_library_words where id=$1 and library_id=$2`, rest[0], d.ID)
-			if err != nil {
-				return err
-			}
-			if deleted.RowsAffected() == 0 {
-				return missingDictionary()
-			}
-			return bumpDictionary(ctx, tx, d.ID)
-		})
-		return nil, 204, err
-	}
-	importing := len(rest) == 1 && rest[0] == "import"
-	if r.Method != http.MethodPost || (len(rest) > 0 && !importing) {
-		return dictionaryMethodNotAllowed()
-	}
 	var payload dictionaryWordPayload
 	if err := readDictionaryBody(r, &payload); err != nil {
 		return nil, 0, err
@@ -256,15 +290,35 @@ func (api *dictionaryAPI) wordRequest(r *http.Request, actor dictionaryActor, d 
 	return map[string]any{"word": created}, 201, err
 }
 
+// BOLT OPTIMIZATION: Check if string is simple ASCII with no JSON special characters
+// or HTML characters (<, >, &) that require escaping by Go's json.Marshal.
+func isSimpleASCIIJSON(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c < 0x20 || c > 0x7e || c == '"' || c == '\\' || c == '<' || c == '>' || c == '&' {
+			return false
+		}
+	}
+	return true
+}
+
 func capDictionaryWords(words []string) []string {
-	result := []string{}
+	// BOLT OPTIMIZATION: Pre-allocate result slice capacity up to max resolved words.
+	result := make([]string, 0, min(len(words), dictionaryMaxResolvedWords))
 	bytes := 2
 	for _, word := range words {
-		encoded, err := json.Marshal(word)
-		if err != nil {
-			break
-		} // Strings always marshal successfully.
-		extra := len(encoded)
+		var extra int
+		// BOLT OPTIMIZATION: Use zero-allocation length calculation for simple ASCII words
+		// instead of invoking json.Marshal for thousands of dictionary entries.
+		if isSimpleASCIIJSON(word) {
+			extra = len(word) + 2
+		} else {
+			encoded, err := json.Marshal(word)
+			if err != nil {
+				break
+			}
+			extra = len(encoded)
+		}
 		if len(result) > 0 {
 			extra++
 		}
@@ -277,9 +331,26 @@ func capDictionaryWords(words []string) []string {
 	return result
 }
 
+func isDictionaryTrimRune(r rune) bool {
+	if r <= ' ' {
+		return r == ' ' || (r >= '\t' && r <= '\r')
+	}
+	switch r {
+	case '\u00a0', '\u1680', '\u2000', '\u2001', '\u2002', '\u2003', '\u2004', '\u2005', '\u2006', '\u2007', '\u2008', '\u2009', '\u200a', '\u2028', '\u2029', '\u202f', '\u205f', '\u3000', '\ufeff':
+		return true
+	}
+	return false
+}
+
 // Match JavaScript String.trim, including the BOM commonly found in word files.
 func trimDictionaryInput(value string) string {
-	return strings.TrimFunc(value, func(r rune) bool {
-		return strings.ContainsRune("\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff", r)
-	})
+	if value == "" {
+		return ""
+	}
+	// BOLT OPTIMIZATION: ASCII fast path to avoid TrimFunc when bounds are non-whitespace.
+	if value[0] > ' ' && value[0] < utf8.RuneSelf && value[len(value)-1] > ' ' && value[len(value)-1] < utf8.RuneSelf {
+		return value
+	}
+	// BOLT OPTIMIZATION: Use top-level function to avoid closure allocation and strings.ContainsRune.
+	return strings.TrimFunc(value, isDictionaryTrimRune)
 }

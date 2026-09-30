@@ -51,7 +51,7 @@ describe("managed language model", () => {
     expect(getManagedVideoModel()).toBe(hyperlocaliseVideoModelId);
     expect(getManagedTtsModel()).toBe(hyperlocaliseTtsModelId);
     expect(getManagedTranscribeModel()).toBe(hyperlocaliseTranscribeModelId);
-    expect(hyperlocaliseManagedGatewayModelId).toBe("openai/gpt-5.6-luna");
+    expect(hyperlocaliseManagedGatewayModelId).toBe("openai/gpt-6-luna");
     expect(hyperlocaliseImageModelId).toBe("openai/gpt-image-2.5-flare");
     expect(hyperlocaliseVideoModelId).toBe("bytedance/seedance-2.5");
     expect(hyperlocaliseTtsModelId).toBe("fish-audio/s2.1-pro");
@@ -85,11 +85,11 @@ describe("resolveProviderLanguageModel", () => {
       resolveProviderLanguageModel({
         provider: "openai",
         apiKey: "sk-openai",
-        model: "gpt-5.6-luna",
+        model: "gpt-6-luna",
       }),
     ).toEqual({
       kind: "openai",
-      modelId: "gpt-5.6-luna",
+      modelId: "gpt-6-luna",
       options: { apiKey: "sk-openai" },
     });
   });

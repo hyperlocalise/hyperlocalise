@@ -15,7 +15,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 import type { AppLocale } from "@/lib/app-i18n/locales";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 type LegalPageProps = {
   locale: AppLocale;
@@ -40,6 +40,11 @@ export function createLegalMetadata({
     title,
     description,
     alternates: getLocalizedAlternates({ locale, path }),
+    openGraph: localizedOpenGraph(locale, path, {
+      title,
+      description,
+      type: "website",
+    }),
   };
 }
 

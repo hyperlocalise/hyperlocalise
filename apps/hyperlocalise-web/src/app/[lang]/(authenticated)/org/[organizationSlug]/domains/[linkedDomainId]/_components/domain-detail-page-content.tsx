@@ -21,11 +21,13 @@ import { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { LocalisationAuditResult } from "@/components/marketing/localisation-audit/localisation-audit-result";
+import { AddDomainDialog } from "../../_components/add-domain-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 import { getAppLocaleFromPathname } from "@/lib/app-i18n/rewrite-app-locale-path";
-import type { LinkedDomainAuditDetail, LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { DOMAIN_RESEARCH_MARKETS } from "@/lib/domains/research-prototype";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { PageHeader, WorkspacePageShell } from "../../../_components/workspace-resource-shared";
 
@@ -42,24 +44,12 @@ export function DomainDetailPageContent({
   const pathname = usePathname();
   const locale = getAppLocaleFromPathname(pathname ?? "/");
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
 
   const domainQuery = useQuery({
     queryKey: ["linked-domain", organizationSlug, linkedDomainId],
     queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}`,
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.message || body.error || intl.formatMessage(messages.loadError));
-      }
-      if (!body.linkedDomain) {
-        throw new Error(intl.formatMessage(messages.loadError));
-      }
+      const body = await goSvcClient.domains.getLinkedDomain(organizationSlug, linkedDomainId);
       return body.linkedDomain;
     },
   });
@@ -69,25 +59,13 @@ export function DomainDetailPageContent({
     enabled:
       Boolean(domainQuery.data?.localisationAuditId) && domainQuery.data?.status === "verified",
     queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/audit`,
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        audit?: LinkedDomainAuditDetail;
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.message || body.error || intl.formatMessage(messages.auditLoadError));
-      }
-      if (!body.audit) {
-        throw new Error(intl.formatMessage(messages.auditLoadError));
-      }
+      const body = await goSvcClient.domains.getLinkedDomainAudit(organizationSlug, linkedDomainId);
       return body.audit;
     },
   });
 
   const linkedDomain = domainQuery.data;
+  const [marketDialogOpen, setMarketDialogOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(linkedDomain?.projectId ?? "");
 
   useEffect(() => {
@@ -98,35 +76,23 @@ export function DomainDetailPageContent({
     queryKey: ["translation-projects", organizationSlug, "domain-assignment"],
     enabled: linkedDomain?.status === "verified",
     queryFn: async () => {
-      const response = await fetch(`/api/orgs/${encodeURIComponent(organizationSlug)}/projects`);
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.projectsLoadError));
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects.map((project) => ({ id: project.id, name: project.name }));
+      } catch (error) {
+        throw new Error(intl.formatMessage(messages.projectsLoadError), { cause: error });
       }
-      const body = (await response.json().catch(() => ({}))) as {
-        projects?: Array<{ id: string; name: string }>;
-      };
-      return body.projects ?? [];
     },
   });
 
   const projectMutation = useMutation({
     mutationFn: async (projectId: string | null) => {
       if (!linkedDomain) throw new Error("linked_domain_not_found");
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomain.id)}/project`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId }),
-        },
+      const body = await goSvcClient.domains.updateLinkedDomainProject(
+        organizationSlug,
+        linkedDomain.id,
+        { projectId },
       );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-      };
-      if (!response.ok || !body.linkedDomain) {
-        throw new Error(body.message || intl.formatMessage(messages.projectUpdateError));
-      }
       return body.linkedDomain;
     },
     onSuccess: (updated) => {
@@ -199,6 +165,38 @@ export function DomainDetailPageContent({
               <span className="tabular-nums">Score {linkedDomain.auditScore}</span>
             ) : null}
           </div>
+
+          {linkedDomain.status === "verified" ? (
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <TypographyH2 className="pb-0" size="xlarge">
+                    <FormattedMessage {...messages.marketsHeading} />
+                  </TypographyH2>
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...messages.marketsDescription} />
+                  </TypographyP>
+                </div>
+                <Button type="button" variant="outline" onClick={() => setMarketDialogOpen(true)}>
+                  <FormattedMessage {...messages.editMarkets} />
+                </Button>
+              </div>
+              {linkedDomain.marketIds.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {linkedDomain.marketIds.map((marketId) => (
+                    <Badge key={marketId} variant="secondary">
+                      {DOMAIN_RESEARCH_MARKETS.find((market) => market.id === marketId)?.label ??
+                        marketId.replaceAll("-", " ")}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <TypographyP size="small" tone="critical">
+                  <FormattedMessage {...messages.noMarkets} />
+                </TypographyP>
+              )}
+            </section>
+          ) : null}
 
           {linkedDomain.status === "verified" ? (
             <section className="space-y-3">
@@ -320,6 +318,21 @@ export function DomainDetailPageContent({
             ) : null}
           </section>
         </>
+      ) : null}
+
+      {linkedDomain?.status === "verified" ? (
+        <AddDomainDialog
+          open={marketDialogOpen}
+          onOpenChange={setMarketDialogOpen}
+          organizationSlug={organizationSlug}
+          mode="edit"
+          initialStep="markets"
+          initialLinkedDomain={linkedDomain}
+          initialSelectedMarketIds={linkedDomain.marketIds}
+          onComplete={(updated) => {
+            queryClient.setQueryData(["linked-domain", organizationSlug, linkedDomainId], updated);
+          }}
+        />
       ) : null}
     </WorkspacePageShell>
   );

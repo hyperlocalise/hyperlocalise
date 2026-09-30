@@ -12,9 +12,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
 	"github.com/workos/workos-go/v10"
 )
 
@@ -24,6 +25,8 @@ const (
 	serverWriteTimeout      = 75 * time.Second
 	serverIdleTimeout       = 60 * time.Second
 	serverShutdownTimeout   = 10 * time.Second
+	// telemetryShutdownReserve reserves part of the shutdown budget for flushing spans.
+	telemetryShutdownReserve = 2 * time.Second
 
 	defaultHunspellDictDir = "/usr/share/hunspell"
 )
@@ -40,7 +43,12 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 }
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	slog.SetDefault(slog.New(newDatadogLogHandler(slog.NewJSONHandler(os.Stdout, nil))))
+
+	shutdownTelemetry, err := initTelemetry(context.Background())
+	if err != nil {
+		log.Printf("configure telemetry: %v; continuing without tracing", err)
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -71,18 +79,49 @@ func main() {
 	}()
 
 	h := newHandler()
+	activityLogPublisher, activityLogErr := newActivityLogPublisher(context.Background())
+	if activityLogErr != nil {
+		log.Printf("configure activity log publisher: %v", activityLogErr)
+	}
+	h.activityLog = activityLogPublisher
 	h.spellChecker = spellChecker
 	h.dictionaries = &dictionaryAPI{}
+	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher}
+	h.memories = &memoryAPI{}
 	h.qaReports = &qaReportAPI{}
 	h.teams = &teamAPI{}
-	if key := strings.TrimSpace(os.Getenv("WORKOS_API_KEY")); key != "" {
-		client := workos.NewClient(key)
-		membershipLookup := func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
-			return client.OrganizationMembership().Get(ctx, id)
+	h.members = &memberAPI{
+		seats:     fallbackMemberSeats{limit: localSeatFallbackLimit},
+		analytics: newGAProductUsageTrackerFromEnv(),
+	}
+	h.issueSheets = &issueSheetAPI{}
+	h.activityLogs = &activityLogAPI{}
+	h.contentEditor = &editorCatAPI{}
+	h.projects = &projectAPI{activityLog: activityLogPublisher}
+	if autumnKey := strings.TrimSpace(os.Getenv("AUTUMN_API_KEY")); autumnKey != "" {
+		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
+			log.Printf("configure autumn: %v", err)
+		} else {
+			h.autumn = client
+			h.issueSheets.autumn = autumnClientChecker{client: client}
+			h.members.seats = autumnMemberSeats{client: client}
+			h.projects.autumn = client
 		}
-		h.dictionaries.membership = membershipLookup
-		h.qaReports.membership = membershipLookup
-		h.teams.membership = membershipLookup
+	}
+	var membershipLookup organizationMembershipLookup
+	var workosClient *workos.Client
+	if key := strings.TrimSpace(os.Getenv("WORKOS_API_KEY")); key != "" {
+		workosClient = workos.NewClient(key)
+		membershipLookup = func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
+			return workosClient.OrganizationMembership().Get(ctx, id)
+		}
+		h.members.workos = newLiveMemberWorkos(key, workosAPIBaseURL())
+	}
+	h.workspace = &workspaceAPI{membership: membershipLookup}
+	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
+	if workosClient != nil {
+		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
+		h.workspace.pipes = workosPipeTokens{client: workosClient}
 	}
 
 	if apiKey := strings.TrimSpace(os.Getenv("DATAFORSEO_API_KEY")); apiKey != "" {
@@ -95,14 +134,24 @@ func main() {
 	}
 
 	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
-		pool, err := pgxpool.New(context.Background(), databaseURL)
+		pool, err := postgres.NewPool(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure dictionary store: %v", err)
 		}
 		defer pool.Close()
-		h.dictionaries.pool = pool
-		h.qaReports.pool = pool
-		h.teams.pool = pool
+		h.postgres = pool
+		traced := tracedPool{inner: pool}
+		h.dictionaries.pool = traced
+		h.glossaries.pool = traced
+		h.memories.pool = traced
+		h.qaReports.pool = traced
+		h.issueSheets.pool = traced
+		h.teams.pool = traced
+		h.members.pool = traced
+		h.activityLogs.pool = traced
+		h.contentEditor.pool = traced
+		h.projects.pool = traced
+		h.workspace.pool = traced
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure experiment store: %v", err)
@@ -127,11 +176,38 @@ func main() {
 	defer closeGuidelines()
 	h.guidelines = guidelineSearch
 
+	valkeyCtx, cancelValkey := context.WithTimeout(context.Background(), 5*time.Second)
+	valkeyClient, err := configureValkey(valkeyCtx)
+	cancelValkey()
+	if err != nil {
+		log.Fatalf("configure valkey: %v", err)
+	}
+	if valkeyClient != nil {
+		h.valkey = valkeyClient
+		h.dictionaries.wordsCache = valkeyClient
+		h.glossaries.readCache = valkeyClient
+		defer valkeyClient.Close()
+	}
+	membershipLookup = newCachedOrganizationMembershipLookup(membershipLookup, valkeyClient)
+	h.dictionaries.membership = membershipLookup
+	h.glossaries.membership = membershipLookup
+	h.memories.membership = membershipLookup
+	h.qaReports.membership = membershipLookup
+	h.teams.membership = membershipLookup
+	h.members.membership = membershipLookup
+	h.issueSheets.membership = membershipLookup
+	h.activityLogs.membership = membershipLookup
+	h.contentEditor.membership = membershipLookup
+	h.projects.membership = membershipLookup
+	h.workspace.membership = membershipLookup
+
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, verifier)
 
 	addr := ":" + port
-	server := newHTTPServer(addr, requestLogMiddleware(withOptionalPrefix(publicPathPrefix, mux)))
+	// Keep request logging inside tracing. requestLogMiddleware copies the mux
+	// Pattern back onto the outer request so spans keep the matched route.
+	server := newHTTPServer(addr, tracingMiddleware(requestLogMiddleware(corsMiddleware(mux))))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -156,11 +232,25 @@ func main() {
 
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
 		defer cancel()
-		if err := server.Shutdown(shutdownCtx); err != nil {
+
+		serverBudget := serverShutdownTimeout
+		if shutdownTelemetry != nil {
+			serverBudget -= telemetryShutdownReserve
+		}
+		serverShutdownCtx, serverCancel := context.WithTimeout(shutdownCtx, serverBudget)
+		defer serverCancel()
+		if err := server.Shutdown(serverShutdownCtx); err != nil {
 			log.Printf("graceful shutdown: %v", err)
 		}
 		if err := <-serveErrCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("serve after shutdown: %v", err)
+		}
+
+		if shutdownTelemetry != nil {
+			// Use the overall shutdown context so telemetry gets the reserved flush window.
+			if err := shutdownTelemetry(shutdownCtx); err != nil {
+				log.Printf("shutdown telemetry: %v", err)
+			}
 		}
 	}
 }

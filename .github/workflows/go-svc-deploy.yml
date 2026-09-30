@@ -1,0 +1,104 @@
+name: Go Service Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .dockerignore
+      - Dockerfile.vercel
+      - go.mod
+      - go.sum
+      - third_party/**
+      - internal/**
+      - apps/go-svc/**
+      - .github/actions/aws-auth/**
+      - .github/actions/ssm-deployment-params/**
+      - .github/actions/ecr-build-push/**
+      - .github/actions/ecs-deploy/**
+      - .github/workflows/go-svc-deploy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: go-svc-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+  GO_SVC_IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+  ECR_REPOSITORY_PARAMETER_NAME: /hyperlocalise/prod/ecr/go-svc/repository_name
+  ECS_CLUSTER_PARAMETER_NAME: /hyperlocalise/prod/ecs/cluster_name
+  ECS_SERVICE_PARAMETER_NAME: /hyperlocalise/prod/ecs/go-svc/service_name
+
+jobs:
+  build-and-push:
+    name: Build and push go-svc image
+    if: github.ref == 'refs/heads/main'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Authenticate with AWS and ECR
+        id: auth
+        uses: ./.github/actions/aws-auth
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-go-svc-deploy
+
+      - name: Read deployment parameters
+        id: params
+        uses: ./.github/actions/ssm-deployment-params
+        with:
+          ecr-parameter-name: ${{ env.ECR_REPOSITORY_PARAMETER_NAME }}
+          ecs-cluster-parameter-name: ${{ env.ECS_CLUSTER_PARAMETER_NAME }}
+          ecs-service-parameter-name: ${{ env.ECS_SERVICE_PARAMETER_NAME }}
+
+      - name: Build and push image
+        id: build
+        uses: ./.github/actions/ecr-build-push
+        with:
+          registry: ${{ steps.auth.outputs.registry }}
+          repository: ${{ steps.params.outputs.ecr-repository }}
+          tag: ${{ env.GO_SVC_IMAGE_TAG }}
+          dockerfile: ./apps/go-svc/Dockerfile.ecs
+
+    outputs:
+      ecs-cluster: ${{ steps.params.outputs.ecs-cluster }}
+      ecs-service: ${{ steps.params.outputs.ecs-service }}
+      image: ${{ steps.build.outputs.image }}
+
+  deploy:
+    name: Deploy go-svc image to ECS
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Authenticate with AWS
+        uses: ./.github/actions/aws-auth
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-go-svc-deploy
+
+      - name: Deploy new image to ECS
+        uses: ./.github/actions/ecs-deploy
+        with:
+          ecs-service: ${{ needs.build-and-push.outputs.ecs-service }}
+          ecs-cluster: ${{ needs.build-and-push.outputs.ecs-cluster }}
+          image: ${{ needs.build-and-push.outputs.image }}
+          version: ${{ env.GO_SVC_IMAGE_TAG }}
+          container-name: go-svc

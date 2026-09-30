@@ -23,6 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
 
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
@@ -88,28 +92,41 @@ export function findCachedProjectFiles(
 }
 
 export async function fetchProjectFiles(
+  goSvcClient: GoSvcClient,
   organizationSlug: string,
   projectId: string,
   limit: number = PROJECT_FILES_PAGE_SIZE,
   branch?: string | null,
   loadFailedMessage = "Failed to load project files",
 ) {
-  const params = new URLSearchParams({ limit: String(limit) });
   const trimmedBranch = branch?.trim();
-  if (trimmedBranch) {
-    params.set("branch", trimmedBranch);
+  if (parseProviderProjectId(projectId)) {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (trimmedBranch) {
+      params.set("branch", trimmedBranch);
+    }
+
+    const response = await fetch(`${apiPath(organizationSlug, projectId)}?${params.toString()}`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      throw await readApiResponseError(response, loadFailedMessage);
+    }
+
+    const body = (await response.json()) as { files: ProjectFileRecord[] };
+    return body.files;
   }
 
-  const response = await fetch(`${apiPath(organizationSlug, projectId)}?${params.toString()}`, {
-    method: "GET",
-  });
-
-  if (!response.ok) {
-    throw await readApiResponseError(response, loadFailedMessage);
+  try {
+    const body = await goSvcClient.project.files(organizationSlug, projectId, {
+      limit,
+      ...(trimmedBranch ? { branch: trimmedBranch } : {}),
+    });
+    return body.files as ProjectFileRecord[];
+  } catch (error) {
+    throw new Error(goSvcErrorMessage(error, loadFailedMessage), { cause: error });
   }
-
-  const body = (await response.json()) as { files: ProjectFileRecord[] };
-  return body.files;
 }
 
 function apiPath(organizationSlug: string, projectId: string) {
@@ -245,6 +262,7 @@ export function ProjectFilesTreePanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [fileLimit, setFileLimit] = useState(PROJECT_FILES_PAGE_SIZE);
   const [autoAdvanceExhausted, setAutoAdvanceExhausted] = useState(false);
   const fetchLimit = Math.min(fileLimit + 1, PROJECT_FILES_MAX_LIMIT);
@@ -253,7 +271,14 @@ export function ProjectFilesTreePanel({
   const filesQuery = useQuery({
     queryKey,
     queryFn: () =>
-      fetchProjectFiles(organizationSlug, projectId, fetchLimit, branch, loadFailedMessage),
+      fetchProjectFiles(
+        goSvcClient,
+        organizationSlug,
+        projectId,
+        fetchLimit,
+        branch,
+        loadFailedMessage,
+      ),
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
   });
 
@@ -267,7 +292,11 @@ export function ProjectFilesTreePanel({
   useEffect(() => {
     setAutoAdvanceExhausted(false);
     setFileLimit(PROJECT_FILES_PAGE_SIZE);
-  }, [branch, selectedSourcePath]);
+  }, [organizationSlug, projectId, branch]);
+
+  useEffect(() => {
+    setAutoAdvanceExhausted(false);
+  }, [selectedSourcePath]);
 
   useEffect(() => {
     onLoadedFilesChange?.(files);

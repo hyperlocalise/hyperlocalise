@@ -161,7 +161,9 @@ function createDetail(entry: MemoryEntryRecord): MemoryEntryDetailResponse {
   };
 }
 
-function renderExplorer(): ReturnType<typeof render> {
+function renderExplorer(
+  overrides?: Partial<Parameters<typeof TmEntryExplorer>[0]>,
+): ReturnType<typeof render> {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0 },
@@ -175,6 +177,7 @@ function renderExplorer(): ReturnType<typeof render> {
           memoryId="mem_1"
           localeCoverage={["en-US", "fr-FR"]}
           canEdit
+          {...overrides}
         />
       </QueryClientProvider>
     </IntlProvider>
@@ -211,6 +214,18 @@ describe("TmEntryExplorer", () => {
     resolvePage?.(jsonResponse(createPage([])));
     await waitFor(() => {
       expect(screen.getByText("No entries yet.")).toBeInTheDocument();
+    });
+  });
+
+  it("shows empty-state import actions when the memory has no entries", async () => {
+    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([])));
+
+    renderExplorer({
+      emptyActions: <button type="button">Import TMX or CSV</button>,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Import TMX or CSV" })).toBeInTheDocument();
     });
   });
 

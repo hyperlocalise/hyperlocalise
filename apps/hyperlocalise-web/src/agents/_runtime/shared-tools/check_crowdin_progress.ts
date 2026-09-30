@@ -16,6 +16,7 @@ import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { crowdinTmsProvider } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { isErr } from "@/lib/primitives/result/results";
+import { toolCanAccessProject } from "@/lib/tools/tool-access";
 
 const checkCrowdinProgressInputSchema = z.object({
   projectId: z.string().trim().min(1).optional(),
@@ -111,9 +112,7 @@ const checkCrowdinProgressOutputSchema = z.object({
 export type CheckCrowdinProgressToolInput = z.infer<typeof checkCrowdinProgressInputSchema>;
 export type CheckCrowdinProgressToolOutput = z.infer<typeof checkCrowdinProgressOutputSchema>;
 
-export function createCheckCrowdinProgressTool(
-  ctx: Pick<ToolContext, "organizationId" | "projectId" | "localUserId">,
-) {
+export function createCheckCrowdinProgressTool(ctx: ToolContext) {
   return defineAgentTool({
     description:
       "Check Crowdin translation progress for the linked TMS project, a specific source file, or an individual string. Requires the Hyperlocalise project to be connected to Crowdin.",
@@ -127,6 +126,10 @@ export function createCheckCrowdinProgressTool(
           error:
             "check_crowdin_progress requires a project. Attach a Hyperlocalise project linked to Crowdin, or pass projectId.",
         };
+      }
+
+      if (!(await toolCanAccessProject(ctx, projectId))) {
+        return { success: false, error: "Project not found or not accessible." };
       }
 
       const result = await crowdinTmsProvider.checkProgress({

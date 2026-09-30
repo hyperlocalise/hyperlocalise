@@ -13,16 +13,7 @@
 import { experimental_generateVideo as generateVideo } from "ai";
 
 import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
-import {
-  ManagedAiCreditAccessError,
-  releaseManagedAiCredit,
-  reserveManagedAiCredit,
-  settleManagedAiCredit,
-} from "@/lib/billing/managed-ai-credit";
-import {
-  getManagedAiPricingConfig,
-  managedAiReservationAmountUsd,
-} from "@/lib/billing/managed-ai-pricing";
+import { getManagedAiPricingConfig } from "@/lib/billing/managed-ai-pricing";
 import { getManagedVideoModel, hyperlocaliseVideoModelId } from "@/lib/providers/language-model";
 
 export { hyperlocaliseVideoModelId };
@@ -187,72 +178,20 @@ export async function regenerateVideoFromAttachment(
     agent_surface: "video_localization",
     ...billing.dimensions,
   };
-  const execute = () =>
-    withAgentRuntimeUsageMetering({
-      organizationId: billing.organizationId,
-      operationKey: billing.operationKey,
-      source,
-      interactionId: billing.interactionId,
-      dimensions,
-      run,
-    });
-  const pricingConfig = getManagedAiPricingConfig();
-  if (pricingConfig.mode === "legacy") {
-    const result = await execute();
-    return { video: result.video, mimeType: result.mimeType, prompt: result.prompt };
-  }
-
-  const estimatedAmountUsd = managedAiReservationAmountUsd(pricingConfig, {
-    surface: "video",
-    durationSeconds: normalizedDurationSeconds,
-  });
-  if (estimatedAmountUsd == null) {
-    throw new ManagedAiCreditAccessError({
-      code: "ai_credit_pricing_not_configured",
-      surface: "video",
-    });
-  }
-  const reservationResult = await reserveManagedAiCredit({
+  const result = await withAgentRuntimeUsageMetering({
     organizationId: billing.organizationId,
-    operationKey: `${billing.operationKey}:ai_tokens`,
+    operationKey: billing.operationKey,
     source,
-    modelId: pricingConfig.videoModelId,
-    credentialSource: "gateway",
-    estimatedAmountUsd,
-    interactionId: billing.interactionId ?? undefined,
-    mode: pricingConfig.mode,
-    dimensions: {
-      ...dimensions,
-      provider_model_id: hyperlocaliseVideoModelId,
-      synthetic_unit: "video_second",
-      requested_duration_seconds: normalizedDurationSeconds,
-    },
+    interactionId: billing.interactionId,
+    dimensions,
+    run,
+    extractTokenUsage: (generated) => ({
+      inputTokens: 0,
+      outputTokens: generated.billing.durationSeconds,
+      totalTokens: generated.billing.durationSeconds,
+    }),
+    aiCreditModelId: getManagedAiPricingConfig().videoModelId,
+    aiCreditCredentialSource: "gateway",
   });
-  if (!reservationResult.ok) {
-    throw new ManagedAiCreditAccessError(reservationResult.error);
-  }
-
-  try {
-    const result = await execute();
-    await settleManagedAiCredit({
-      reservation: reservationResult.value,
-      modelId: pricingConfig.videoModelId,
-      tokenUsage: {
-        inputTokens: 0,
-        outputTokens: result.billing.durationSeconds,
-        totalTokens: result.billing.durationSeconds,
-      },
-      providerGenerationId: result.billing.providerGenerationId,
-      shadowAmountUsd: pricingConfig.videoPriceUsdPerSecond
-        ? pricingConfig.videoPriceUsdPerSecond * result.billing.durationSeconds
-        : undefined,
-    });
-    return { video: result.video, mimeType: result.mimeType, prompt: result.prompt };
-  } catch (error) {
-    await releaseManagedAiCredit({
-      reservation: reservationResult.value,
-      reason: "video_generation_failed",
-    });
-    throw error;
-  }
+  return { video: result.video, mimeType: result.mimeType, prompt: result.prompt };
 }

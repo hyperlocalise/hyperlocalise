@@ -70,6 +70,7 @@ const meta = {
     createErrors: {},
     isCreating: false,
     onSubmitCreateMemory: fn(),
+    onImportMemory: fn(),
   },
 } satisfies Meta<typeof TranslationMemoriesPageView>;
 
@@ -83,6 +84,7 @@ export const Default: Story = {
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();
     await expect(canvas.getByText("Phrase TM")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin Memory")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Import TMX or CSV" })).toBeInTheDocument();
   },
 };
 
@@ -119,9 +121,12 @@ export const Empty: Story = {
     await expect(canvas.getByText("No translation memories yet")).toBeInTheDocument();
     await expect(
       canvas.getByText(
-        "Create a workspace memory, import entries, then assign it to the projects that should use it.",
+        "Create a workspace memory, upload a TMX or CSV file, then assign it to the projects that should use it.",
       ),
     ).toBeInTheDocument();
+    await expect(
+      canvas.getAllByRole("button", { name: "Import TMX or CSV" }).length,
+    ).toBeGreaterThan(0);
   },
 };
 
@@ -160,6 +165,7 @@ export const CreateDialogOpen: Story = {
     await expect(
       canvas.getByRole("dialog", { name: "Create translation memory" }),
     ).toBeInTheDocument();
+    await expect(canvas.getByText("Choose a TMX or CSV file")).toBeInTheDocument();
   },
 };
 

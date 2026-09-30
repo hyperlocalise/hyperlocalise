@@ -1,0 +1,239 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: ECS deploy
+description: Roll out a new image to ECS by cloning the live task definition and swapping only the image
+inputs:
+  ecs-service:
+    description: ECS service name
+    required: true
+  ecs-cluster:
+    description: ECS cluster name
+    required: true
+  image:
+    description: Fully-qualified container image URI to deploy
+    required: true
+  version:
+    description: Immutable application image tag used for Datadog and OpenTelemetry version metadata
+    required: true
+  container-name:
+    description: Container name inside the task definition to update
+    required: true
+  task-definition-file:
+    description: Working file for the downloaded task definition
+    default: task-definition.json
+  wait-for-minutes:
+    description: Minutes to wait for service stability
+    default: "15"
+  wait-max-delay-seconds:
+    description: Max delay between stability checks, in seconds
+    default: "15"
+runs:
+  using: composite
+  steps:
+    # Partial update: clone the task definition revision currently deployed
+    # by the service, swap only the image to the new ref, and point the
+    # service at the new revision. Everything else (CPU, memory, roles,
+    # secrets, port mapping) carries over untouched. The deployed revision
+    # is resolved via describe-services: describe-task-definition with only
+    # the family name would return the latest ACTIVE revision, which may
+    # include unrelated changes staged after the last deployment.
+    - name: Download deployed task definition
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      env:
+        ECS_SERVICE: ${{ inputs.ecs-service }}
+        ECS_CLUSTER: ${{ inputs.ecs-cluster }}
+        TASK_DEFINITION_FILE: ${{ inputs.task-definition-file }}
+      with:
+        script: |
+          async function capture(args) {
+            let stdout = '';
+            await exec.exec('aws', args, {
+              listeners: { stdout: (data) => { stdout += data.toString(); } },
+            });
+            return stdout;
+          }
+          const servicesOut = await capture([
+            'ecs', 'describe-services',
+            '--cluster', process.env.ECS_CLUSTER,
+            '--services', process.env.ECS_SERVICE,
+            '--query', 'services[0].taskDefinition',
+            '--output', 'text',
+          ]);
+          const deployedArn = servicesOut.trim();
+          if (!deployedArn || deployedArn === 'None') {
+            core.setFailed(`Unable to resolve deployed task definition for service ${process.env.ECS_SERVICE} in cluster ${process.env.ECS_CLUSTER}`);
+            return;
+          }
+          core.info(`Cloning deployed task definition: ${deployedArn}`);
+          const taskDefinitionOut = await capture([
+            'ecs', 'describe-task-definition',
+            '--task-definition', deployedArn,
+            '--query', 'taskDefinition',
+            '--output', 'json',
+          ]);
+          const taskDefinition = JSON.parse(taskDefinitionOut);
+          for (const key of ['taskDefinitionArn', 'revision', 'status', 'registeredAt', 'registeredBy', 'compatibilities', 'requiresAttributes']) {
+            delete taskDefinition[key];
+          }
+          require('fs').writeFileSync(process.env.TASK_DEFINITION_FILE, `${JSON.stringify(taskDefinition)}\n`);
+
+    - name: Set deployed observability version
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      env:
+        TASK_DEFINITION_FILE: ${{ inputs.task-definition-file }}
+        CONTAINER_NAME: ${{ inputs.container-name }}
+        VERSION: ${{ inputs.version }}
+      with:
+        script: |
+          const fs = require('fs');
+          const file = process.env.TASK_DEFINITION_FILE;
+          const taskDefinition = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const application = (taskDefinition.containerDefinitions ?? []).find(
+            (container) => container.name === process.env.CONTAINER_NAME,
+          );
+          if (!application) {
+            core.setFailed(`Container ${process.env.CONTAINER_NAME} not found in task definition`);
+            return;
+          }
+
+          const setEnvironment = (container, name, value) => {
+            container.environment ??= [];
+            const existing = container.environment.find((entry) => entry.name === name);
+            if (existing) {
+              existing.value = value;
+            } else {
+              container.environment.push({ name, value });
+            }
+          };
+
+          const removeEnvironment = (container, name) => {
+            container.environment = (container.environment ?? []).filter(
+              (entry) => entry.name !== name,
+            );
+          };
+
+          const setTagVersion = (tags) => {
+            const versionTag = `version:${process.env.VERSION}`;
+            const values = (tags ?? '').split(',').map((value) => value.trim()).filter(Boolean);
+            const withoutVersion = values.filter((value) => !value.startsWith('version:'));
+            return [...withoutVersion, versionTag].join(',');
+          };
+
+          setEnvironment(application, 'DD_VERSION', process.env.VERSION);
+          removeEnvironment(application, 'OTEL_RESOURCE_ATTRIBUTES');
+
+          for (const container of taskDefinition.containerDefinitions ?? []) {
+            const tags = (container.environment ?? []).find((entry) => entry.name === 'DD_TAGS');
+            if (tags) {
+              tags.value = setTagVersion(tags.value);
+            }
+            const options = container.logConfiguration?.options;
+            if (options?.dd_tags) {
+              options.dd_tags = setTagVersion(options.dd_tags);
+            }
+          }
+
+          fs.writeFileSync(file, `${JSON.stringify(taskDefinition)}\n`);
+
+    - name: Render task definition with new image
+      id: render
+      uses: aws-actions/amazon-ecs-render-task-definition@138c24f321fdbdf7edee4a685519d253cae2cdea # v1
+      with:
+        task-definition: ${{ inputs.task-definition-file }}
+        container-name: ${{ inputs.container-name }}
+        image: ${{ inputs.image }}
+
+    - name: Deploy new image to ECS
+      id: deploy
+      uses: aws-actions/amazon-ecs-deploy-task-definition@c465972ecbd160473f22e683363b422a5412a3de # v2
+      with:
+        task-definition: ${{ steps.render.outputs.task-definition }}
+        service: ${{ inputs.ecs-service }}
+        cluster: ${{ inputs.ecs-cluster }}
+        wait-for-service-stability: true
+        wait-for-minutes: ${{ inputs.wait-for-minutes }}
+        wait-max-delay-seconds: ${{ inputs.wait-max-delay-seconds }}
+
+    # The action waits for ECS service stability and checks for a failed or
+    # rolled-back deployment. Verify the final task definition's container
+    # image separately to ensure the requested image is deployed.
+    - name: Verify deployed image
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      env:
+        ECS_SERVICE: ${{ inputs.ecs-service }}
+        ECS_CLUSTER: ${{ inputs.ecs-cluster }}
+        CONTAINER_NAME: ${{ inputs.container-name }}
+        EXPECTED_IMAGE: ${{ inputs.image }}
+        EXPECTED_TASK_DEFINITION: ${{ steps.deploy.outputs.task-definition-arn }}
+      with:
+        script: |
+          async function capture(args) {
+            let stdout = '';
+            await exec.exec('aws', args, {
+              listeners: { stdout: (data) => { stdout += data.toString(); } },
+            });
+            return stdout;
+          }
+          const expectedTaskDefinition = process.env.EXPECTED_TASK_DEFINITION?.trim();
+          if (!expectedTaskDefinition) {
+            core.setFailed('Deploy action did not return a task-definition ARN');
+            return;
+          }
+
+          const maxAttempts = 12;
+          const retryDelayMs = 5_000;
+          let lastObservation = {};
+          for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+            const servicesOut = await capture([
+              'ecs', 'describe-services',
+              '--cluster', process.env.ECS_CLUSTER,
+              '--services', process.env.ECS_SERVICE,
+              '--output', 'json',
+            ]);
+            const service = JSON.parse(servicesOut).services?.[0];
+            const primary = (service?.deployments ?? []).find((d) => d.status === 'PRIMARY');
+            const observedTaskDefinition = primary?.taskDefinition ?? '';
+            const rolloutState = primary?.rolloutState ?? 'unknown';
+            lastObservation = {
+              observedTaskDefinition,
+              serviceTaskDefinition: service?.taskDefinition,
+              rolloutState,
+              desiredCount: service?.desiredCount,
+              runningCount: service?.runningCount,
+              pendingCount: service?.pendingCount,
+            };
+
+            if (rolloutState === 'FAILED') {
+              core.setFailed(`Primary deployment failed for ${process.env.ECS_SERVICE}: ${JSON.stringify(lastObservation)}, expected task definition ${expectedTaskDefinition}`);
+              return;
+            }
+
+            if (observedTaskDefinition !== expectedTaskDefinition || rolloutState === 'IN_PROGRESS') {
+              if (attempt < maxAttempts) {
+                core.info(`Waiting for deployed task definition (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(lastObservation)}, expected ${expectedTaskDefinition}`);
+                await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+                continue;
+              }
+              break;
+            }
+
+            const taskDefinitionOut = await capture([
+              'ecs', 'describe-task-definition',
+              '--task-definition', expectedTaskDefinition,
+              '--query', 'taskDefinition.containerDefinitions',
+              '--output', 'json',
+            ]);
+            const containers = JSON.parse(taskDefinitionOut);
+            const container = containers.find((c) => c.name === process.env.CONTAINER_NAME);
+            if (!container) {
+              core.setFailed(`Container ${process.env.CONTAINER_NAME} not found in deployed task definition ${expectedTaskDefinition}; service observation: ${JSON.stringify(lastObservation)}`);
+              return;
+            }
+            if (container.image !== process.env.EXPECTED_IMAGE) {
+              core.setFailed(`Deployed image mismatch: task definition ${expectedTaskDefinition} runs ${container.image}, expected ${process.env.EXPECTED_IMAGE}; service observation: ${JSON.stringify(lastObservation)}`);
+              return;
+            }
+            core.info(`Verified ${process.env.CONTAINER_NAME} runs ${container.image} in ${expectedTaskDefinition}`);
+            return;
+          }
+
+          core.setFailed(`Timed out waiting for task definition ${expectedTaskDefinition} to become primary for ${process.env.ECS_SERVICE}: ${JSON.stringify(lastObservation)}`);

@@ -53,7 +53,7 @@ function lazyCommentFields(
 export function composeSegmentView(input: {
   fileContext: ContentEditorFileContext;
   meta: ContentEditorQueueSegment;
-  draft: ContentEditorSegmentDraft | undefined;
+  draft: Pick<ContentEditorSegmentDraft, "targetText" | "status"> | undefined;
   comments: ContentEditorSegmentComment[] | undefined;
   openIssueCount?: number;
   intelligence: ContentEditorSegmentIntelligence | undefined;

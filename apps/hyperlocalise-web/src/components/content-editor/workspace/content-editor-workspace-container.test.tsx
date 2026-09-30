@@ -360,4 +360,54 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       screen.queryByRole("button", { name: "Content Editor view mode" }),
     ).not.toBeInTheDocument();
   });
+
+  it("omits the multilingual view when no multilingual configuration is given", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          initialViewMode="comfortable"
+          services={{ validateFormat: mockValidateFormat }}
+        />
+      </>,
+    );
+
+    await user.click(
+      await waitFor(() => screen.getByRole("button", { name: "Content Editor view mode" })),
+    );
+
+    expect(screen.getByRole("menuitemradio", { name: "Side by side" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitemradio", { name: "Multilingual" })).not.toBeInTheDocument();
+  });
+
+  it("offers the multilingual view when a multilingual configuration is given", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          initialViewMode="comfortable"
+          multilingual={{
+            organizationSlug: "acme",
+            projectId: "proj_1",
+            sourcePath: "locales/en-US.json",
+            sourceLocale: "en-US",
+            targetLocales: ["vi", "fr-FR"],
+          }}
+          services={{ validateFormat: mockValidateFormat }}
+        />
+      </>,
+    );
+
+    await user.click(
+      await waitFor(() => screen.getByRole("button", { name: "Content Editor view mode" })),
+    );
+
+    expect(screen.getByRole("menuitemradio", { name: "Multilingual" })).toBeInTheDocument();
+  });
 });

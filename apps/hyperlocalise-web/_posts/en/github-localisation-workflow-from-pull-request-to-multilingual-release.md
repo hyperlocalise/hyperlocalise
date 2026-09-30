@@ -65,7 +65,7 @@ Use a GitHub environment such as `localisation` for production credentials if yo
 Create `i18n.yml` at the repository root:
 
 ```yaml
-version: hyperlocalise@1.12.0
+version: hyperlocalise@1.12.1
 
 locales:
   source: en-US
@@ -87,7 +87,7 @@ llm:
   profiles:
     default:
       provider: openai
-      model: gpt-5.6-luna
+      model: gpt-6-luna
 
 hyperlocalise:
   project_id_env: HYPERLOCALISE_PROJECT_ID

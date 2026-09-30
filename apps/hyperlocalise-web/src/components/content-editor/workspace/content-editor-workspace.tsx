@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { ContentEditorMultilingualTable } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
+import { useCallback, useEffect, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage } from "react-intl";
 
@@ -49,27 +50,33 @@ const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
 
 type ContentEditorWorkspacePanel = "edit" | "queue" | "ai";
 
-function useIsCompactWorkspace() {
-  const [isCompact, setIsCompact] = useState(
-    () => typeof window !== "undefined" && window.matchMedia(COMPACT_WORKSPACE_QUERY).matches,
-  );
-
+function useIsCompactWorkspace(viewMode: string) {
+  const [isCompact, setIsCompact] = useState(false);
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const workspaceRef = useCallback((node: HTMLDivElement | null) => setElement(node), []);
   useEffect(() => {
     const mediaQuery = window.matchMedia(COMPACT_WORKSPACE_QUERY);
-    const sync = () => setIsCompact(mediaQuery.matches);
-
+    const sync = () => {
+      const rootRem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const minimumWidth = (viewMode === "comfortable" ? 55 : 41) * rootRem;
+      const width = element?.getBoundingClientRect().width ?? 0;
+      setIsCompact(mediaQuery.matches || (width > 0 && width < minimumWidth));
+    };
     sync();
+    const resizeObserver = new ResizeObserver(sync);
+    if (element) resizeObserver.observe(element);
     mediaQuery.addEventListener("change", sync);
     return () => {
+      resizeObserver.disconnect();
       mediaQuery.removeEventListener("change", sync);
     };
-  }, []);
-
-  return isCompact;
+  }, [element, viewMode]);
+  return { isCompact, workspaceRef };
 }
 
 export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspaceView({
   shell,
+  multilingual,
   queueSegments,
   selectedSegment,
   dependencies,
@@ -95,6 +102,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   queueSearch,
   isQueueFetchingPage = false,
   isQueueListLoading = false,
+  isQueueDataPending = false,
   isTranslationViewLoading = false,
   isCommentsLoading = false,
   isSegmentTargetLoading = false,
@@ -126,7 +134,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           segment.id === shell.selectedSegmentId || segment.key === shell.selectedSegmentId,
       )
     : -1;
-  const isCompact = useIsCompactWorkspace();
+  const { isCompact, workspaceRef } = useIsCompactWorkspace(viewMode);
   const [activePanel, setActivePanel] = useState<ContentEditorWorkspacePanel>("edit");
   const isSideBySideDesktop = viewMode === "side-by-side" && !isCompact;
   const isFileView = viewMode === "file";
@@ -135,7 +143,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const isIntelligencePanelVisible = Boolean(
     selectedSegmentIdForIntelligence &&
     (!isCompact || activePanel === "ai") &&
-    !isSideBySideDesktop,
+    !isSideBySideDesktop &&
+    viewMode !== "multilingual",
   );
 
   useEffect(() => {
@@ -156,6 +165,27 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   ]);
 
   const showTranslationViewSkeleton = isTranslationViewLoading || store.ui.translationViewLoading;
+
+  if (viewMode === "multilingual" && multilingual) {
+    return (
+      <div
+        ref={workspaceRef}
+        className={cn("flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}
+      >
+        <ContentEditorMultilingualTable
+          key={`${multilingual.projectId}:${multilingual.sourcePath}`}
+          config={multilingual}
+          segments={queueSegments}
+          selectedSegmentId={shell.selectedSegmentId}
+          isLoading={isQueueListLoading || isQueueDataPending}
+          hasMore={hasMoreQueue}
+          isLoadingMore={isQueueFetchingPage}
+          onLoadMore={onLoadMoreQueue}
+          drafts={store.multilingualDrafts}
+        />
+      </div>
+    );
+  }
 
   if (!selectedSegment) {
     const emptyQueuePanel = (
@@ -182,6 +212,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       if (isCompact) {
         return (
           <div
+            ref={workspaceRef}
             className={cn(
               "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
               className,
@@ -195,6 +226,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       if (isFileView) {
         return (
           <div
+            ref={workspaceRef}
             className={cn(
               "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
               className,
@@ -208,6 +240,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       if (isSideBySideDesktop) {
         return (
           <div
+            ref={workspaceRef}
             className={cn(
               "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
               className,
@@ -220,6 +253,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
 
       return (
         <div
+          ref={workspaceRef}
           className={cn(
             "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
             className,
@@ -238,6 +272,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
 
     return (
       <div
+        ref={workspaceRef}
         className={cn(
           "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
           className,
@@ -731,6 +766,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
 
   return (
     <div
+      ref={workspaceRef}
       className={cn(
         "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
         className,

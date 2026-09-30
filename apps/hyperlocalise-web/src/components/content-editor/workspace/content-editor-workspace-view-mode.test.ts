@@ -74,6 +74,7 @@ describe("content-editor-workspace-view-mode", () => {
 
   it("maps view mode to page limits", () => {
     expect(contentEditorPageLimitForViewMode("comfortable")).toBe(50);
+    expect(contentEditorPageLimitForViewMode("multilingual")).toBe(50);
     expect(contentEditorPageLimitForViewMode("side-by-side")).toBe(20);
     // File view keeps Comfortable page size so aggregate queue selections survive.
     expect(contentEditorPageLimitForViewMode("file")).toBe(50);
@@ -81,6 +82,7 @@ describe("content-editor-workspace-view-mode", () => {
 
   it("recognizes valid view modes", () => {
     expect(isCatWorkspaceViewMode("file")).toBe(true);
+    expect(isCatWorkspaceViewMode("multilingual")).toBe(true);
     expect(isCatWorkspaceViewMode("grid")).toBe(false);
   });
 });

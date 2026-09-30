@@ -48,6 +48,23 @@ export function decodeMemoryImportBytes(bytes: Uint8Array) {
   return new TextDecoder("utf-8").decode(bytes);
 }
 
+export function memoryImportFormatFromFilename(filename: string): "csv" | "tmx" | null {
+  const trimmed = filename.trim().toLowerCase();
+  if (trimmed.endsWith(".tmx")) {
+    return "tmx";
+  }
+  if (trimmed.endsWith(".csv")) {
+    return "csv";
+  }
+  return null;
+}
+
+export function suggestedMemoryNameFromFilename(filename: string): string {
+  const base = filename.trim().split(/[/\\]/).pop() ?? "";
+  const withoutExtension = base.replace(/\.(tmx|csv)$/i, "").trim();
+  return withoutExtension.slice(0, 200);
+}
+
 export async function readMemoryImportFile(file: File) {
   if (file.size > TMX_MAX_IMPORT_CONTENT_CHARS) {
     return { ok: false as const, code: "oversized" as const };

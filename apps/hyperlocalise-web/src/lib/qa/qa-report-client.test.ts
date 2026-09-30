@@ -12,27 +12,41 @@
  */
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { projectQaReportClient, workspaceQaReportClient } from "./qa-report-client";
+import { DEFAULT_GO_SVC_BASE_URL, GoSvcClient } from "@/lib/go-svc/go-svc-client";
+
+import { createProjectQaReportClient, createWorkspaceQaReportClient } from "./qa-report-client";
+
+function createTestClients(fetchMock: ReturnType<typeof vi.fn>) {
+  const client = new GoSvcClient({
+    getAccessToken: () => "access-token",
+    fetch: fetchMock as unknown as typeof fetch,
+  });
+  return {
+    project: createProjectQaReportClient(client),
+    workspace: createWorkspaceQaReportClient(client),
+  };
+}
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("workspaceQaReportClient", () => {
+describe("createWorkspaceQaReportClient", () => {
   it("lists workspace reports from go-svc", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{"reports":[]}'));
-    vi.stubGlobal("fetch", fetchMock);
-    await workspaceQaReportClient.listReports({ param: { organizationSlug: "acme" } });
-    expect(fetchMock).toHaveBeenCalledWith("/api/go-svc/v1/orgs/acme/qa-reports", {
-      method: "GET",
-      credentials: "same-origin",
-    });
+    const { workspace } = createTestClients(fetchMock);
+    await workspace.listReports({ param: { organizationSlug: "acme" } });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/qa-reports`);
+    expect(init.method).toBe("GET");
+    expect(init.credentials).toBe("omit");
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer access-token");
   });
 
   it("encodes findings query parameters", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(new Response('{"findings":[],"total":0,"limit":50,"offset":0}'));
-    vi.stubGlobal("fetch", fetchMock);
-    await workspaceQaReportClient.listFindings({
+    const { workspace } = createTestClients(fetchMock);
+    await workspace.listFindings({
       param: { organizationSlug: "acme" },
       query: {
         projectId: "project/a",
@@ -43,39 +57,35 @@ describe("workspaceQaReportClient", () => {
       },
     });
     expect(fetchMock.mock.calls[0][0]).toBe(
-      "/api/go-svc/v1/orgs/acme/qa-reports/findings?projectId=project%2Fa&locale=de-DE&checkType=not_localized&limit=50&offset=0",
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/qa-reports/findings?limit=50&offset=0&projectId=project%2Fa&locale=de-DE&checkType=not_localized`,
     );
   });
 
   it("posts promote payloads to go-svc", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{"results":[]}'));
-    vi.stubGlobal("fetch", fetchMock);
-    await workspaceQaReportClient.promoteFindings({
+    const { workspace } = createTestClients(fetchMock);
+    await workspace.promoteFindings({
       param: { organizationSlug: "acme" },
       json: { findingIds: ["00000000-0000-4000-8000-000000000001"] },
     });
-    expect(fetchMock).toHaveBeenCalledWith("/api/go-svc/v1/orgs/acme/qa-reports/findings/promote", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: '{"findingIds":["00000000-0000-4000-8000-000000000001"]}',
-    });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/qa-reports/findings/promote`);
+    expect(init.method).toBe("POST");
+    expect(new Headers(init.headers).get("content-type")).toBe("application/json");
+    expect(init.body).toBe('{"findingIds":["00000000-0000-4000-8000-000000000001"]}');
   });
 });
 
-describe("projectQaReportClient", () => {
+describe("createProjectQaReportClient", () => {
   it("loads project QA reports from go-svc", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{"reports":[],"settings":{}}'));
-    vi.stubGlobal("fetch", fetchMock);
-    await projectQaReportClient.listReports({
+    const { project } = createTestClients(fetchMock);
+    await project.listReports({
       param: { organizationSlug: "acme", projectId: "project/a" },
     });
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/go-svc/v1/orgs/acme/projects/project%2Fa/qa-reports",
-      {
-        method: "GET",
-        credentials: "same-origin",
-      },
-    );
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/project%2Fa/qa-reports`);
+    expect(init.method).toBe("GET");
+    expect(init.credentials).toBe("omit");
   });
 });

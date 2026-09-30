@@ -6,11 +6,12 @@
  *
  * Change Date: Four years after publication of the applicable version.
  *
- * On the Change Date, in accordance with the Business Source License, use
- * of this software will be governed by the GNU General Public License
+ * On the Change Date, in accordance with the Business Source License 1.1,
+ * use of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
 import { apiClient } from "@/lib/api-client-instance";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 
 type OrgParams = { organizationSlug: string };
 type ProjectParams = OrgParams & { projectId: string };
@@ -24,36 +25,12 @@ type WorkspaceFindingsQuery = PageQuery & {
 };
 
 type QaReportResponse<T> = Omit<Response, "json"> & { json(): Promise<T> };
-type RequestInput<P, B, Q> = { param: P } & ([B] extends [never] ? {} : { json: B }) &
-  ([Q] extends [never] ? {} : { query?: Q });
+type StartScanInput = { param: ProjectParams };
 
-function endpoint<P extends OrgParams, B, Q, T>(method: string, path: string) {
-  return async (input: RequestInput<P, B, Q>): Promise<QaReportResponse<T>> => {
-    const pathname = path.replace(/:([a-zA-Z]+)/g, (_, key: string) => {
-      const value = (input.param as Record<string, string>)[key];
-      if (!value) throw new Error(`Missing QA report path parameter: ${key}`);
-      return encodeURIComponent(value);
-    });
-    const search = new URLSearchParams();
-    if ("query" in input && input.query) {
-      for (const [key, value] of Object.entries(input.query)) {
-        if (typeof value === "string") search.set(key, value);
-      }
-    }
-    const query = search.size ? `?${search}` : "";
-    return fetch(
-      `/api/go-svc/v1/orgs/:organizationSlug${pathname}`.replace(
-        ":organizationSlug",
-        encodeURIComponent(input.param.organizationSlug),
-      ) + query,
-      {
-        method,
-        credentials: "same-origin",
-        ...("json" in input
-          ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(input.json) }
-          : {}),
-      },
-    ) as Promise<QaReportResponse<T>>;
+function pageQuery(query: PageQuery) {
+  return {
+    ...(query.limit ? { limit: Number(query.limit) } : {}),
+    ...(query.offset ? { offset: Number(query.offset) } : {}),
   };
 }
 
@@ -140,94 +117,137 @@ export type ProjectQaFinding = {
   editorHref: string;
 };
 
-export const projectQaReportClient = {
-  listReports: endpoint<
-    ProjectParams,
-    never,
-    never,
-    {
-      reports: ProjectQaReport[];
-      settings: {
-        cadence: "off" | "daily";
-        lastRunAt: string | null;
-        canRun: boolean;
-        canManageSchedule: boolean;
-      };
-    }
-  >("GET", "/projects/:projectId/qa-reports"),
-  startScan: async (input: RequestInput<ProjectParams, never, never>) =>
-    apiClient.api.orgs[":organizationSlug"].projects[":projectId"]["qa-reports"].$post({
-      param: input.param,
-    }) as Promise<QaReportResponse<{ report: ProjectQaReport }>>,
-  updateSettings: endpoint<
-    ProjectParams,
-    { cadence: "off" | "daily" },
-    never,
-    {
-      settings: {
-        cadence: "off" | "daily";
-        lastRunAt: string | null;
-        canRun: boolean;
-        canManageSchedule: boolean;
-      };
-    }
-  >("PATCH", "/projects/:projectId/qa-reports/settings"),
-  getRun: endpoint<
-    RunParams,
-    never,
-    PageQuery & { locale?: string; checkType?: string; severity?: string },
-    {
-      report: ProjectQaReport;
-      findings: ProjectQaFinding[];
-      total: number;
-      limit: number;
-      offset: number;
-    }
-  >("GET", "/projects/:projectId/qa-reports/:runId"),
-  latestFindings: endpoint<
-    ProjectParams,
-    never,
-    PageQuery & { locale: string; sourcePath?: string },
-    {
-      runId: string | null;
-      findings: Array<{
-        translationKeyId: string | null;
-        key: string;
-        sourcePath: string | null;
-        targetLocale: string;
-        checkType: string;
-        severity: "error" | "warning";
-        category: string;
-        message: string;
-        relatedTokens: string[];
-        sourceText: string;
-        targetText: string;
-      }>;
-    }
-  >("GET", "/projects/:projectId/qa-reports/latest-findings"),
-  promoteFindings: endpoint<
-    ProjectParams,
-    { findingIds: string[] },
-    never,
-    { results: Array<{ findingId: string; issueId: string; identifier: string; created: boolean }> }
-  >("POST", "/projects/:projectId/qa-reports/findings/promote"),
-};
+export function createProjectQaReportClient(goSvcClient: GoSvcClient) {
+  return {
+    listReports: ({ param }: { param: ProjectParams }) =>
+      goSvcClient.qaReport.project.list(param.organizationSlug, param.projectId) as Promise<{
+        reports: ProjectQaReport[];
+        settings: {
+          cadence: "off" | "daily";
+          lastRunAt: string | null;
+          canRun: boolean;
+          canManageSchedule: boolean;
+        };
+      }>,
 
-export const workspaceQaReportClient = {
-  listReports: endpoint<OrgParams, never, never, { reports: WorkspaceQaReportRow[] }>(
-    "GET",
-    "/qa-reports",
-  ),
-  listFindings: endpoint<
-    OrgParams,
-    never,
-    WorkspaceFindingsQuery,
-    { findings: WorkspaceQaFinding[]; total: number; limit: number; offset: number }
-  >("GET", "/qa-reports/findings"),
-  promoteFindings: endpoint<
-    OrgParams,
-    { findingIds: string[] },
-    never,
-    { results: Array<{ findingId: string; issueId: string; identifier: string; created: boolean }> }
-  >("POST", "/qa-reports/findings/promote"),
-};
+    startScan: async ({ param }: StartScanInput) =>
+      apiClient.api.orgs[":organizationSlug"].projects[":projectId"]["qa-reports"].$post({
+        param,
+      }) as Promise<QaReportResponse<{ report: ProjectQaReport }>>,
+
+    updateSettings: ({
+      param,
+      json,
+    }: {
+      param: ProjectParams;
+      json: { cadence: "off" | "daily" };
+    }) =>
+      goSvcClient.qaReport.project.updateSettings(
+        param.organizationSlug,
+        param.projectId,
+        json,
+      ) as Promise<{
+        settings: {
+          cadence: "off" | "daily";
+          lastRunAt: string | null;
+          canRun: boolean;
+          canManageSchedule: boolean;
+        };
+      }>,
+
+    getRun: ({
+      param,
+      query = {},
+    }: {
+      param: RunParams;
+      query?: PageQuery & { locale?: string; checkType?: string; severity?: string };
+    }) =>
+      goSvcClient.qaReport.project.get(param.organizationSlug, param.projectId, param.runId, {
+        ...pageQuery(query),
+        ...(query.locale ? { locale: query.locale } : {}),
+        ...(query.checkType ? { checkType: query.checkType } : {}),
+        ...(query.severity ? { severity: query.severity } : {}),
+      }) as Promise<{
+        report: ProjectQaReport;
+        findings: ProjectQaFinding[];
+        total: number;
+        limit: number;
+        offset: number;
+      }>,
+
+    latestFindings: ({
+      param,
+      query,
+    }: {
+      param: ProjectParams;
+      query: PageQuery & { locale: string; sourcePath?: string };
+    }) =>
+      goSvcClient.qaReport.project.latestFindings(param.organizationSlug, param.projectId, {
+        ...pageQuery(query),
+        locale: query.locale,
+        ...(query.sourcePath ? { sourcePath: query.sourcePath } : {}),
+      }) as Promise<{
+        runId: string | null;
+        findings: Array<{
+          translationKeyId: string | null;
+          key: string;
+          sourcePath: string | null;
+          targetLocale: string;
+          checkType: string;
+          severity: "error" | "warning";
+          category: string;
+          message: string;
+          relatedTokens: string[];
+          sourceText: string;
+          targetText: string;
+        }>;
+      }>,
+
+    promoteFindings: ({ param, json }: { param: ProjectParams; json: { findingIds: string[] } }) =>
+      goSvcClient.qaReport.project.promoteFindings(
+        param.organizationSlug,
+        param.projectId,
+        json,
+      ) as Promise<{
+        results: Array<{
+          findingId: string;
+          issueId: string;
+          identifier: string;
+          created: boolean;
+        }>;
+      }>,
+  };
+}
+
+export function createWorkspaceQaReportClient(goSvcClient: GoSvcClient) {
+  return {
+    listReports: ({ param }: { param: OrgParams }) =>
+      goSvcClient.qaReport.list(param.organizationSlug) as Promise<{
+        reports: WorkspaceQaReportRow[];
+      }>,
+
+    listFindings: ({ param, query = {} }: { param: OrgParams; query?: WorkspaceFindingsQuery }) =>
+      goSvcClient.qaReport.findings.list(param.organizationSlug, {
+        ...pageQuery(query),
+        ...(query.projectId ? { projectId: query.projectId } : {}),
+        ...(query.locale ? { locale: query.locale } : {}),
+        ...(query.checkType ? { checkType: query.checkType } : {}),
+        ...(query.severity ? { severity: query.severity } : {}),
+      }) as Promise<{
+        findings: WorkspaceQaFinding[];
+        total: number;
+        limit: number;
+        offset: number;
+      }>,
+
+    promoteFindings: ({ param, json }: { param: OrgParams; json: { findingIds: string[] } }) =>
+      goSvcClient.qaReport.findings.promote(param.organizationSlug, json) as Promise<{
+        results: Array<{
+          findingId: string;
+          issueId: string;
+          identifier: string;
+          created: boolean;
+        }>;
+      }>,
+  };
+}

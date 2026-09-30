@@ -77,7 +77,7 @@ import {
 } from "../store/hyperlab-workspace-context";
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabAllocation,
@@ -134,7 +134,7 @@ const HyperlabExperimentDetailConnected = observer(function HyperlabExperimentDe
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const { experiment: experimentStore, ui: uiStore } = useHyperlabWorkspace();
 
   const detailQuery = useQuery({
@@ -810,7 +810,7 @@ const HyperlabVariantCard = observer(function HyperlabVariantCard({
   onRefresh: () => Promise<void>;
 }) {
   const intl = useIntl();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const { ui: uiStore } = useHyperlabWorkspace();
   const audienceId = uiStore.getVariantAudienceDraft(variant.id, variant.audienceId ?? "");
   const sheetOpen = uiStore.isVariantSheetOpen(variant.id);
@@ -1057,7 +1057,7 @@ function AttachFlagSheet({
   onRefresh: () => Promise<void>;
 }) {
   const intl = useIntl();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const available = flags.filter(
     (flag) => flag.kind === "experiment" && !assignedFlagIds.has(flag.id),
   );

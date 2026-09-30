@@ -140,7 +140,7 @@ type researchRankCheckBatchResponse struct {
 }
 
 func (h *handler) marketVisibility(w http.ResponseWriter, r *http.Request) {
-	if !h.requireResearch(w) {
+	if !h.requireResearch(w, r) {
 		return
 	}
 
@@ -163,7 +163,19 @@ func (h *handler) marketVisibility(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := h.research.DomainRankOverview(r.Context(), dataforseo.DomainRankOverviewInput{
+	result, err := h.computeMarketVisibility(r.Context(), req)
+	if err != nil {
+		writeResearchError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *handler) computeMarketVisibility(
+	ctx context.Context,
+	req researchMarketVisibilityRequest,
+) (researchMarketVisibilityResponse, error) {
+	response, err := h.research.DomainRankOverview(ctx, dataforseo.DomainRankOverviewInput{
 		Target: strings.TrimSpace(req.TargetDomain),
 		Market: dataforseo.MarketScope{
 			LocationCode: req.LocationCode,
@@ -171,12 +183,11 @@ func (h *handler) marketVisibility(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
-		writeResearchError(w, err)
-		return
+		return researchMarketVisibilityResponse{}, err
 	}
 
 	organicCount, organicETV, top10Count := marketOrganicMetrics(response.Data)
-	writeJSON(w, http.StatusOK, researchMarketVisibilityResponse{
+	return researchMarketVisibilityResponse{
 		MarketID:             req.MarketID,
 		LocationCode:         req.LocationCode,
 		LanguageCode:         strings.TrimSpace(req.LanguageCode),
@@ -185,7 +196,7 @@ func (h *handler) marketVisibility(w http.ResponseWriter, r *http.Request) {
 		Top10Count:           top10Count,
 		HasOrganicVisibility: organicCount > 0 || organicETV > 0 || top10Count > 0,
 		Billing:              response.Billing,
-	})
+	}, nil
 }
 
 func marketOrganicMetrics(items []dataforseo.DomainRankOverviewItem) (int, float64, int) {
@@ -231,7 +242,7 @@ func anyFloat(value any) float64 {
 }
 
 func (h *handler) expandKeywords(w http.ResponseWriter, r *http.Request) {
-	if !h.requireResearch(w) {
+	if !h.requireResearch(w, r) {
 		return
 	}
 
@@ -240,7 +251,7 @@ func (h *handler) expandKeywords(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyword, languageCode, ok := validateKeywordMarket(w, req.Keyword, req.LanguageCode, req.LocationCode)
+	keyword, languageCode, ok := validateKeywordMarket(w, r, req.Keyword, req.LanguageCode, req.LocationCode)
 	if !ok {
 		return
 	}
@@ -254,7 +265,7 @@ func (h *handler) expandKeywords(w http.ResponseWriter, r *http.Request) {
 		Limit: clampKeywordLimit(req.Limit),
 	})
 	if err != nil {
-		writeResearchError(w, err)
+		writeResearchError(w, r, err)
 		return
 	}
 
@@ -265,7 +276,7 @@ func (h *handler) expandKeywords(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) liveSerp(w http.ResponseWriter, r *http.Request) {
-	if !h.requireResearch(w) {
+	if !h.requireResearch(w, r) {
 		return
 	}
 
@@ -274,7 +285,7 @@ func (h *handler) liveSerp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyword, languageCode, ok := validateKeywordMarket(w, req.Keyword, req.LanguageCode, req.LocationCode)
+	keyword, languageCode, ok := validateKeywordMarket(w, r, req.Keyword, req.LanguageCode, req.LocationCode)
 	if !ok {
 		return
 	}
@@ -289,7 +300,7 @@ func (h *handler) liveSerp(w http.ResponseWriter, r *http.Request) {
 		Depth:  req.Depth,
 	})
 	if err != nil {
-		writeResearchError(w, err)
+		writeResearchError(w, r, err)
 		return
 	}
 
@@ -300,7 +311,7 @@ func (h *handler) liveSerp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) rankCheck(w http.ResponseWriter, r *http.Request) {
-	if !h.requireResearch(w) {
+	if !h.requireResearch(w, r) {
 		return
 	}
 
@@ -309,13 +320,13 @@ func (h *handler) rankCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyword, languageCode, ok := validateKeywordMarket(w, req.Keyword, req.LanguageCode, req.LocationCode)
+	keyword, languageCode, ok := validateKeywordMarket(w, r, req.Keyword, req.LanguageCode, req.LocationCode)
 	if !ok {
 		return
 	}
 	targetDomain := strings.TrimSpace(req.TargetDomain)
 	if targetDomain == "" {
-		writeBadRequest(w, "targetDomain is required")
+		writeBadRequest(w, r, "targetDomain is required")
 		return
 	}
 
@@ -331,7 +342,7 @@ func (h *handler) rankCheck(w http.ResponseWriter, r *http.Request) {
 		Depth:  defaultSerpDepth(req.Depth),
 	})
 	if err != nil {
-		writeResearchError(w, err)
+		writeResearchError(w, r, err)
 		return
 	}
 
@@ -342,7 +353,7 @@ func (h *handler) rankCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) rankCheckBatch(w http.ResponseWriter, r *http.Request) {
-	if !h.requireResearch(w) {
+	if !h.requireResearch(w, r) {
 		return
 	}
 
@@ -352,17 +363,17 @@ func (h *handler) rankCheckBatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(req.Keywords) == 0 || len(req.Keywords) > maxRankCheckBatchSize {
-		writeBadRequest(w, "keywords must contain 1-20 entries")
+		writeBadRequest(w, r, "keywords must contain 1-20 entries")
 		return
 	}
 	targetDomain := strings.TrimSpace(req.TargetDomain)
 	if targetDomain == "" {
-		writeBadRequest(w, "targetDomain is required")
+		writeBadRequest(w, r, "targetDomain is required")
 		return
 	}
 	languageCode := strings.TrimSpace(req.LanguageCode)
 	if languageCode == "" || req.LocationCode <= 0 {
-		writeBadRequest(w, "locationCode and languageCode are required")
+		writeBadRequest(w, r, "locationCode and languageCode are required")
 		return
 	}
 
@@ -406,17 +417,18 @@ func (h *handler) rankCheckBatch(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	if err := group.Wait(); err != nil {
-		writeResearchError(w, err)
+		writeResearchError(w, r, err)
 		return
 	}
 
 	writeJSON(w, http.StatusOK, researchRankCheckBatchResponse{Results: results})
 }
 
-func (h *handler) requireResearch(w http.ResponseWriter) bool {
+func (h *handler) requireResearch(w http.ResponseWriter, r *http.Request) bool {
 	if h.research != nil {
 		return true
 	}
+	noteRequest(r, "code", "dataforseo_not_configured")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusServiceUnavailable)
 	_ = json.NewEncoder(w).Encode(map[string]string{
@@ -430,24 +442,24 @@ func decodeResearchBody(w http.ResponseWriter, r *http.Request, dest any) bool {
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxResearchBodyBytes))
 	if err := decoder.Decode(dest); err != nil {
 		if isRequestBodyTooLarge(err) {
-			writePayloadTooLarge(w)
+			writePayloadTooLarge(w, r)
 			return false
 		}
-		writeBadRequest(w, "invalid JSON body")
+		writeBadRequest(w, r, "invalid JSON body")
 		return false
 	}
 	return true
 }
 
-func validateKeywordMarket(w http.ResponseWriter, keyword, languageCode string, locationCode int) (string, string, bool) {
+func validateKeywordMarket(w http.ResponseWriter, r *http.Request, keyword, languageCode string, locationCode int) (string, string, bool) {
 	trimmedKeyword := strings.TrimSpace(keyword)
 	trimmedLanguage := strings.TrimSpace(languageCode)
 	if trimmedKeyword == "" {
-		writeBadRequest(w, "keyword is required")
+		writeBadRequest(w, r, "keyword is required")
 		return "", "", false
 	}
 	if locationCode <= 0 || trimmedLanguage == "" {
-		writeBadRequest(w, "locationCode and languageCode are required")
+		writeBadRequest(w, r, "locationCode and languageCode are required")
 		return "", "", false
 	}
 	return trimmedKeyword, trimmedLanguage, true
@@ -476,7 +488,7 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 
-func writeResearchError(w http.ResponseWriter, err error) {
+func writeResearchError(w http.ResponseWriter, r *http.Request, err error) {
 	status := http.StatusBadGateway
 	code := "dataforseo_upstream_unavailable"
 	message := "DataForSEO request failed"
@@ -494,6 +506,7 @@ func writeResearchError(w http.ResponseWriter, err error) {
 			status = http.StatusBadGateway
 		}
 	}
+	noteRequest(r, "code", code)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{

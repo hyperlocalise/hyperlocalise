@@ -14,32 +14,50 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { start } from "workflow/api";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { awsCredentialsProvider } from "@vercel/oidc-aws-credentials-provider";
 
-import { createLogger, type Logger } from "@/lib/log";
+import { env } from "@/lib/env";
+import { createLogger, serializeErrorForLog, type Logger } from "@/lib/log";
 import {
+  ACTIVITY_LOG_SQS_SCHEMA_VERSION,
   assertSafeActivityLogPayload,
   type ActivityLogEventInput,
   type ActivityLogEnqueueError,
+  type ActivityLogSqsMessage,
   type ActivityLogWorkflowEvent,
 } from "@/lib/activity-log/activity-log-contract";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 const logger = createLogger("activity-log-writer");
+const sqsClient = new SQSClient({
+  region: env.AWS_REGION,
+  ...(env.AWS_ROLE_ARN
+    ? {
+        credentials: awsCredentialsProvider({
+          audience: "sts.amazonaws.com",
+          roleArn: env.AWS_ROLE_ARN,
+        }),
+      }
+    : {}),
+});
+export const ACTIVITY_LOG_SQS_SEND_TIMEOUT_MS = 2_000;
 
 export type ActivityLogWriterLogger = Pick<Logger, "error">;
 
 export type ActivityLogWriterOptions = {
   correlationId?: string;
   logger?: ActivityLogWriterLogger;
+  signal?: AbortSignal;
 };
 
 function logWriteFailure(
   log: ActivityLogWriterLogger,
   input: ActivityLogEventInput,
   correlationId: string,
-  failure: "payload_validation" | "workflow_enqueue",
+  failure: "payload_validation" | "sqs_enqueue",
+  error?: unknown,
 ): void {
   log.error(
     {
@@ -49,6 +67,7 @@ function logWriteFailure(
       organizationId: input.organizationId,
       targetId: input.targetId,
       targetKind: input.targetKind,
+      ...(error ? { error: serializeErrorForLog(error) } : {}),
     },
     "workspace activity log enqueue failed",
   );
@@ -80,12 +99,26 @@ export async function enqueueActivityLogEvent(
       createdAt: new Date().toISOString(),
       id: randomUUID(),
     };
-    const { activityLogWorkflow } = await import("@/workflows/activity-log");
-    await start(activityLogWorkflow, [event]);
+    const message: ActivityLogSqsMessage = {
+      event,
+      messageType: "activity_log",
+      schemaVersion: ACTIVITY_LOG_SQS_SCHEMA_VERSION,
+    };
+    const timeoutSignal = AbortSignal.timeout(ACTIVITY_LOG_SQS_SEND_TIMEOUT_MS);
+    const abortSignal = options.signal
+      ? AbortSignal.any([options.signal, timeoutSignal])
+      : timeoutSignal;
+    await sqsClient.send(
+      new SendMessageCommand({
+        MessageBody: JSON.stringify(message),
+        QueueUrl: env.ACTIVITY_LOG_SQS_QUEUE_URL,
+      }),
+      { abortSignal },
+    );
 
     return ok({ createdAt: new Date(event.createdAt), id: event.id });
-  } catch {
-    logWriteFailure(log, input, correlationId, "workflow_enqueue");
+  } catch (error) {
+    logWriteFailure(log, input, correlationId, "sqs_enqueue", error);
     return err({ code: "activity_log_enqueue_failed" });
   }
 }

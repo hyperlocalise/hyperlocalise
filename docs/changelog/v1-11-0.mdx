@@ -1,0 +1,43 @@
+---
+title: "v1.11.0"
+description: "Go CLI release notes for v1.11.0."
+---
+
+Crowdin CLI coverage expands with discovery, file operations, string listing, and TM pre-translate. Projects can pin the CLI version in `i18n.yml`, bucket paths resolve relative to the config file for monorepo workflows, and `extract` is faster on large React Intl catalogs.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.11.0) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.10.0...v1.11.0)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Add an optional `version` field to `i18n.yml` (for example `hyperlocalise@1.10.0`) so projects can pin the CLI version, similar to `packageManager` in `package.json`. Commands fail with a clear error when the running binary does not match the pin. GitHub Actions can install the pinned version with `hyperlocalise-version: config`. ([#2171](https://github.com/hyperlocalise/hyperlocalise/pull/2171))
+- Expand `hyperlocalise crowdin` with discovery and resource commands: `branch list` / `branch add`, `config sources` / `config translations`, `file list`, `language list`, `glossary list` / `glossary upload` (TBX), and `tm list` / `tm upload` (TMX) with import polling and interruptible long imports. ([#2124](https://github.com/hyperlocalise/hyperlocalise/pull/2124))
+- Add `crowdin string list` for source strings, path-based `crowdin file upload` / `file download` / `file delete`, and TM-only `crowdin auto-translate` (alias `pre-translate`) with async status polling. Machine translation and AI pre-translate remain deferred. ([#2137](https://github.com/hyperlocalise/hyperlocalise/pull/2137))
+
+## Fixes
+
+- `check`, `status`, `pack`, `sync`, and `run` now resolve bucket file paths relative to the i18n config file's directory instead of the process working directory. This fixes failures when running from a monorepo root against a nested project config (for example `nested-app/i18n.jsonc` with `src/locales/en/common.json`). ([#2170](https://github.com/hyperlocalise/hyperlocalise/pull/2170))
+- Reject i18n glob matches that escape the config root via directory symlinks, so `status`, `check`, `pack`, and `run` cannot read or rewrite files outside the project. ([#2226](https://github.com/hyperlocalise/hyperlocalise/pull/2226))
+- Reject out-of-range PHP octal escapes (for example `\400`) instead of silently wrapping to NUL during locale file parsing. Valid escapes such as `\377` still decode. ([#2225](https://github.com/hyperlocalise/hyperlocalise/pull/2225))
+
+## Performance
+
+- React Intl `extract` is about 28% faster on glob file resolution (1.77 ms → 1.28 ms), with 53% fewer allocations (5,266 → 2,466 allocs/op) and 33% less memory (326 KB → 217 KB/op). Message extraction is about 13% faster (684 µs → 592 µs); end-to-end `extract` is about 9% faster with 240 fewer allocations per operation. ([#2177](https://github.com/hyperlocalise/hyperlocalise/pull/2177), [#2199](https://github.com/hyperlocalise/hyperlocalise/pull/2199))
+- CSV marshaling saves about 163 KB per operation when no extra keys are present by skipping slice allocation and sorting. ([#2162](https://github.com/hyperlocalise/hyperlocalise/pull/2162))
+- Eval scoring reuses cached `language.Parse` results and avoids intermediate match slices during tag token counting (81 → 75–78 allocs/op in `BenchmarkEvaluatorEvaluate`). ([#2127](https://github.com/hyperlocalise/hyperlocalise/pull/2127), [#2144](https://github.com/hyperlocalise/hyperlocalise/pull/2144), [#2224](https://github.com/hyperlocalise/hyperlocalise/pull/2224))
+
+## Tests
+
+- Version pin enforcement across CLI commands, YAML loading, and `runsvc` integration.
+- Config-relative path resolution for `check`, `status`, `pack`, and `run --dry-run` from a foreign CWD.
+- Crowdin string list, file resolve/upload/download/delete, TM pre-translate polling, import edges, and file/directory/string pagination.
+- Glob and directory-symlink escape regression for `status`, `check`, `pack`, and `run`.
+
+## Maintenance
+
+- Upgrade `github.com/gobwas/glob` to v1 and `github.com/yuin/goldmark` to v2; migrate extract glob matching and Markdown parsing to the new APIs. ([#2168](https://github.com/hyperlocalise/hyperlocalise/pull/2168))
+- Bump Go dependencies, including `github.com/jackc/pgx/v5` to v5.10.0. ([#2229](https://github.com/hyperlocalise/hyperlocalise/pull/2229), [#2206](https://github.com/hyperlocalise/hyperlocalise/pull/2206), [#2201](https://github.com/hyperlocalise/hyperlocalise/pull/2201), [#2131](https://github.com/hyperlocalise/hyperlocalise/pull/2131))
+- Update the Go build image to 1.27.1. ([#2228](https://github.com/hyperlocalise/hyperlocalise/pull/2228))

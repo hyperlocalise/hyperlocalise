@@ -31,10 +31,14 @@ export function InboxIssuePanel({
   organizationSlug,
   projectId,
   issueId,
+  canDelete = false,
+  onDeleted,
 }: {
   organizationSlug: string;
   projectId: string;
   issueId: string;
+  canDelete?: boolean;
+  onDeleted?: () => void;
 }) {
   const intl = useIntl();
   const panelRef = useRef<IssueDetailPanelHandle>(null);
@@ -63,7 +67,9 @@ export function InboxIssuePanel({
           organizationSlug={organizationSlug}
           projectId={projectId}
           issueId={issueId}
+          canDelete={canDelete}
           onDirtyChange={setIsDraftDirty}
+          onDeleted={onDeleted}
           defaultSidebarOpen={false}
           sidebarStorageScope="inbox"
         />

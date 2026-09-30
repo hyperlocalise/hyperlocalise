@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
@@ -51,6 +52,7 @@ async function InboxNewRequestPageLoader({
         name: currentUserName,
       }}
       organizationSlug={organizationSlug}
+      canDeleteQueries={hasCapability(auth.membership.role, "write_back:translation")}
     />
   );
 }

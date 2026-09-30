@@ -19,6 +19,7 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
 import {
@@ -59,17 +60,21 @@ vi.mock("@/lib/api-client-instance", () => ({
               },
             },
           },
-          projects: {
-            ":projectId": {
-              files: {
-                $get: (...args: unknown[]) => apiMocks.listProjectFiles(...args),
-              },
-            },
-          },
         },
       },
     },
   },
+}));
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      project: {
+        files: (...args: unknown[]) => apiMocks.listProjectFiles(...args),
+      },
+    },
+    loading: false,
+  }),
 }));
 
 vi.mock("./workspace-automation-form", () => ({
@@ -103,7 +108,9 @@ function renderPage(automationRecord = automation) {
   return render(
     <IntlProvider locale="en" messages={{}}>
       <QueryClientProvider client={queryClient}>
-        <AutomationDetailPageContent organizationSlug="acme" automationId={automationRecord.id} />
+        <AppShellStoreProvider defaultNavigationGroups={[]}>
+          <AutomationDetailPageContent organizationSlug="acme" automationId={automationRecord.id} />
+        </AppShellStoreProvider>
       </QueryClientProvider>
     </IntlProvider>,
   );
@@ -204,11 +211,7 @@ describe("AutomationDetailPageContent write locking", () => {
       json: async () => ({ automation: sourceUploadAutomation, recentRuns: [] }),
     });
     apiMocks.listProjectFiles.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        files: [{ sourcePath: "locales/en.json" }, { sourcePath: "messages.po" }],
-      }),
+      files: [{ sourcePath: "locales/en.json" }, { sourcePath: "messages.po" }],
     });
     apiMocks.runSourceFiles.mockResolvedValue({
       ok: true,
@@ -225,14 +228,15 @@ describe("AutomationDetailPageContent write locking", () => {
     await user.click(within(dialog).getByRole("button", { name: "Run 2 files" }));
 
     await vi.waitFor(() => expect(apiMocks.runSourceFiles).toHaveBeenCalledOnce());
-    expect(apiMocks.listProjectFiles).toHaveBeenCalledWith({
-      param: { organizationSlug: "acme", projectId: sourceUploadAutomation.projectId },
-      query: {
-        limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
+    expect(apiMocks.listProjectFiles).toHaveBeenCalledWith(
+      "acme",
+      sourceUploadAutomation.projectId,
+      {
+        limit: AUTOMATION_SOURCE_FILES_PAGE_SIZE,
         offset: 0,
         origin: "repository",
       },
-    });
+    );
     expect(apiMocks.runSourceFiles).toHaveBeenCalledWith({
       param: { organizationSlug: "acme", automationId: sourceUploadAutomation.id },
       json: { sourcePaths: ["locales/en.json", "messages.po"] },
@@ -257,18 +261,16 @@ describe("AutomationDetailPageContent write locking", () => {
       status: 200,
       json: async () => ({ automation: sourceUploadAutomation, recentRuns: [] }),
     });
-    apiMocks.listProjectFiles.mockImplementation((input: { query?: { search?: string } }) => {
-      const search = input.query?.search;
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: async () => ({
+    apiMocks.listProjectFiles.mockImplementation(
+      (_organizationSlug: string, _projectId: string, query?: { search?: string }) => {
+        const search = query?.search;
+        return Promise.resolve({
           files: search
             ? [{ sourcePath: "locales/z-late-file.json" }]
             : [{ sourcePath: "locales/en.json" }],
-        }),
-      });
-    });
+        });
+      },
+    );
 
     renderPage(sourceUploadAutomation);
 
@@ -281,15 +283,16 @@ describe("AutomationDetailPageContent write locking", () => {
     );
 
     await vi.waitFor(() =>
-      expect(apiMocks.listProjectFiles).toHaveBeenCalledWith({
-        param: { organizationSlug: "acme", projectId: sourceUploadAutomation.projectId },
-        query: {
-          limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
+      expect(apiMocks.listProjectFiles).toHaveBeenCalledWith(
+        "acme",
+        sourceUploadAutomation.projectId,
+        {
+          limit: AUTOMATION_SOURCE_FILES_PAGE_SIZE,
           offset: 0,
           origin: "repository",
           search: "z-late-file",
         },
-      }),
+      ),
     );
     expect(
       await within(dialog).findByRole("checkbox", { name: "locales/z-late-file.json" }),
@@ -320,16 +323,14 @@ describe("AutomationDetailPageContent write locking", () => {
       status: 200,
       json: async () => ({ automation: sourceUploadAutomation, recentRuns: [] }),
     });
-    apiMocks.listProjectFiles.mockImplementation((input: { query?: { offset?: number } }) => {
-      const offset = Number(input.query?.offset ?? "0");
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: async () => ({
+    apiMocks.listProjectFiles.mockImplementation(
+      (_organizationSlug: string, _projectId: string, query?: { offset?: number }) => {
+        const offset = Number(query?.offset ?? 0);
+        return Promise.resolve({
           files: offset === 0 ? firstPage : [{ sourcePath: "locales/z-late-file.json" }],
-        }),
-      });
-    });
+        });
+      },
+    );
 
     renderPage(sourceUploadAutomation);
 
@@ -338,14 +339,15 @@ describe("AutomationDetailPageContent write locking", () => {
     await user.click(await within(dialog).findByRole("button", { name: "Load more files" }));
 
     await vi.waitFor(() =>
-      expect(apiMocks.listProjectFiles).toHaveBeenCalledWith({
-        param: { organizationSlug: "acme", projectId: sourceUploadAutomation.projectId },
-        query: {
-          limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
+      expect(apiMocks.listProjectFiles).toHaveBeenCalledWith(
+        "acme",
+        sourceUploadAutomation.projectId,
+        {
+          limit: AUTOMATION_SOURCE_FILES_PAGE_SIZE,
           offset: AUTOMATION_SOURCE_FILES_PAGE_SIZE,
           origin: "repository",
         },
-      }),
+      ),
     );
     expect(
       await within(dialog).findByRole("checkbox", { name: "locales/z-late-file.json" }),

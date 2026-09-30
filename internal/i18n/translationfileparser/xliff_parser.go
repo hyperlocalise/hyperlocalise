@@ -327,6 +327,12 @@ func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, template []byt
 // <x:target> and literal "<target>" text inside CDATA or comments. The scan stops at the
 // unit's own end element, whose matching start element is not part of content.
 func hasXLIFFTargetElement(content []byte) bool {
+	// BOLT OPTIMIZATION: If "target" is absent from content, no <target> or <x:target>
+	// element can exist, avoiding xml.Decoder initialization.
+	if !bytes.Contains(content, []byte("target")) {
+		return false
+	}
+
 	decoder := xml.NewDecoder(bytes.NewReader(content))
 	depth := 0
 	for {

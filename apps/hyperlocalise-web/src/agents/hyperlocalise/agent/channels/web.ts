@@ -27,13 +27,6 @@ import {
   reserveAgentRuntimeUsage,
   trackSucceededAgentRuntimeUsage,
 } from "@/lib/billing/agent-runtime-usage";
-import {
-  formatManagedAiCreditError,
-  releaseManagedAiCredit,
-  retainManagedAiCreditForUnmeteredSuccess,
-  settleManagedAiCredit,
-  type ManagedAiCreditReservation,
-} from "@/lib/billing/managed-ai-credit";
 import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
 import {
@@ -130,7 +123,6 @@ export function createWebChatAgentUIStreamResponse(input: {
   hasTranslationAttachments: boolean;
   usageOperationKey?: string;
   languageModel?: ResolvedAgentLanguageModel;
-  aiCreditReservation?: ManagedAiCreditReservation;
   abortSignal?: AbortSignal;
 }) {
   let persistedDuringExecute = false;
@@ -219,9 +211,7 @@ export function createWebChatAgentUIStreamResponse(input: {
           messages: prepared.chatMessages,
           abortSignal: input.abortSignal,
         });
-        if (input.aiCreditReservation) {
-          agentTokenUsagePromise = Promise.resolve(result.usage).then(extractAiSdkTokenUsage);
-        }
+        agentTokenUsagePromise = Promise.resolve(result.usage).then(extractAiSdkTokenUsage);
 
         writer.merge(
           result.toUIMessageStream({
@@ -260,10 +250,22 @@ export function createWebChatAgentUIStreamResponse(input: {
 
         if (shouldTrackUsage && !isAborted) {
           try {
+            const agentTokenUsage = agentTokenUsagePromise
+              ? await agentTokenUsagePromise.catch(() => null)
+              : null;
+            const tokenUsage = addAiTokenUsage(classificationTokenUsage, agentTokenUsage);
             await trackSucceededAgentRuntimeUsage({
               organizationId: input.toolContext.organizationId,
               operationKey: usageOperationKey,
               dimensions: usageDimensions,
+              tokenUsage,
+              aiCreditModelId: tokenUsage ? input.languageModel?.modelId : undefined,
+              aiCreditCredentialSource: tokenUsage
+                ? input.languageModel?.source === "gateway"
+                  ? "gateway"
+                  : "byok"
+                : undefined,
+              interactionId: input.conversationId,
             });
           } catch (error) {
             console.error("[web-agent] Failed to track agent runtime usage", {
@@ -274,49 +276,8 @@ export function createWebChatAgentUIStreamResponse(input: {
           }
         }
       } finally {
-        try {
-          if (input.aiCreditReservation) {
-            const agentTokenUsage = agentTokenUsagePromise
-              ? await agentTokenUsagePromise.catch(() => null)
-              : null;
-            const hasBillableAgentUsage = Boolean(
-              agentTokenUsage && agentTokenUsage.totalTokens > 0,
-            );
-            // Classifier tokens alone must not settle the hold: a successful
-            // main generation with missing streamed usage would otherwise
-            // underbill and free the reservation.
-            if (!hasBillableAgentUsage && !isAborted) {
-              await retainManagedAiCreditForUnmeteredSuccess({
-                reservation: input.aiCreditReservation,
-                reason: "chat_completed_without_usage",
-              });
-            } else {
-              const tokenUsage = addAiTokenUsage(classificationTokenUsage, agentTokenUsage);
-              if (tokenUsage) {
-                const settlement = await settleManagedAiCredit({
-                  reservation: input.aiCreditReservation,
-                  modelId: input.languageModel?.modelId ?? "unknown",
-                  tokenUsage,
-                });
-                if (!settlement.ok) {
-                  console.error("[web-agent] AI credit settlement failed", {
-                    organizationId: input.toolContext.organizationId,
-                    operationKey: input.aiCreditReservation.operationKey,
-                    error: formatManagedAiCreditError(settlement.error),
-                  });
-                }
-              } else if (isAborted) {
-                await releaseManagedAiCredit({
-                  reservation: input.aiCreditReservation,
-                  reason: "chat_aborted_without_usage",
-                });
-              }
-            }
-          }
-        } finally {
-          releaseSandboxLease?.();
-          releaseSandboxLease = null;
-        }
+        releaseSandboxLease?.();
+        releaseSandboxLease = null;
       }
     },
     onError: () => "Sorry, I encountered an error while generating a response.",

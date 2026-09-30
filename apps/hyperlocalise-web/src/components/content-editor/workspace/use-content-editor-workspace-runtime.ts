@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { computed } from "mobx";
 import { useIntl } from "react-intl";
 
 import {
@@ -125,7 +126,11 @@ export function useContentEditorWorkspaceRuntime({
     lookupSegmentVisualContext && store.providerKind && store.providerKind !== "native",
   );
   const canUseAiRecommendation = Boolean(generateAiRecommendation);
-  const queuePanelSegments = store.getQueuePanelSegments(queueFilter, usesServerQueueFilter);
+  const queueView = useMemo(
+    () => computed(() => store.getQueuePanelSegments(queueFilter, usesServerQueueFilter)),
+    [store, queueFilter, usesServerQueueFilter],
+  );
+  const queuePanelSegments = queueView.get();
 
   const intelligencePorts = useMemo<ContentEditorIntelligenceControllerPorts>(
     () => ({

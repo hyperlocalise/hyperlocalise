@@ -221,10 +221,10 @@ Release assets are built by [GoReleaser](https://goreleaser.com/) via [`.github/
 The CLI, shared Go packages, GitHub Actions, and repository files are licensed
 under the MIT License unless a more specific license file applies.
 
-The web application in [`apps/hyperlocalise-web/`](apps/hyperlocalise-web/),
-the Canva app in [`apps/canva-app/`](apps/canva-app/), and the Mac app in
-[`apps/mac-app/`](apps/mac-app/) are licensed separately under the Business
-Source License 1.1 by Hyperlocalise Pty Ltd. See each directory's `LICENSE`
+The web application in [`apps/hyperlocalise-web/`](apps/hyperlocalise-web/) and
+the Canva app in [`apps/canva-app/`](apps/canva-app/) are licensed separately
+under the Business Source License 1.1 by Hyperlocalise Pty Ltd. See each
+directory's `LICENSE`
 file for the Licensed Work definition, Additional Use Grant, Change Date, and
 Change License. Hyperlocalise-owned source files in those trees carry a BSL
 header; third-party files retain their own notices. Use

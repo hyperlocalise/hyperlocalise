@@ -46,6 +46,8 @@ import type {
 } from "./project.schema";
 
 const {
+  enqueueActivityLogEventMock,
+  enqueueActivityLogEventsMock,
   getTmsProviderConnectionMock,
   getTmsProviderLiveCatFileMock,
   getTmsProviderLiveContentEditorAllFilesMock,
@@ -66,6 +68,11 @@ const {
   enqueueStringSegmentLockedActivityMock,
   enqueueStringSegmentStatusChangedActivityMock,
 } = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
+  enqueueActivityLogEventsMock: vi.fn().mockResolvedValue([]),
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
   getTmsProviderLiveContentEditorAllFilesMock: vi.fn(),
@@ -85,6 +92,11 @@ const {
   enqueueStringSegmentHiddenActivityMock: vi.fn(),
   enqueueStringSegmentLockedActivityMock: vi.fn(),
   enqueueStringSegmentStatusChangedActivityMock: vi.fn(),
+}));
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: enqueueActivityLogEventsMock,
 }));
 
 vi.mock("@/lib/activity-log/file-segment-events", async (importOriginal) => {
@@ -3219,92 +3231,5 @@ describe("project file CAT routes", () => {
     ]);
     expect(body.contentEditorQueue.projectTeamId).toBe(team.id);
     expect(body.contentEditorQueue.canContributeTeamGlossary).toBe(true);
-  });
-
-  it("lists file and string activity for the current source path", async () => {
-    const { identity, project, organization, user } =
-      await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-
-    await db.insert(schema.organizationActivityEvents).values([
-      {
-        actorKind: "user",
-        actorUserId: user.id,
-        eventType: "file_uploaded",
-        organizationId: organization.id,
-        payload: {
-          fileName: "en.json",
-          name: "en.json",
-          projectId: project.id,
-          sourcePath: "locales/en.json",
-        },
-        targetId: `${project.id}:locales/en.json`,
-        targetKind: "file",
-      },
-      {
-        actorKind: "user",
-        actorUserId: user.id,
-        eventType: "file_uploaded",
-        organizationId: organization.id,
-        payload: {
-          fileName: "de.json",
-          name: "de.json",
-          projectId: project.id,
-          sourcePath: "locales/de.json",
-        },
-        targetId: `${project.id}:locales/de.json`,
-        targetKind: "file",
-      },
-    ]);
-
-    const response = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat["activity-logs"].$get(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          projectId: project.id,
-        },
-        query: { sourcePath: "locales/en.json", limit: "50" },
-      },
-      { headers },
-    );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      activityLogs: Array<{ eventType: string; target: { displayName: string | null } }>;
-      actors?: unknown;
-    };
-    expect(body.activityLogs).toHaveLength(1);
-    expect(body.activityLogs[0]).toMatchObject({
-      eventType: "file_uploaded",
-      target: { displayName: "en.json" },
-    });
-    expect(body.actors).toBeUndefined();
-  });
-
-  it("rejects provider activity logs when the live project is not accessible", async () => {
-    const translator = projectFixture.createWorkosIdentityWithRole("translator");
-    getTmsProviderConnectionMock.mockResolvedValue({
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      validationStatus: "valid",
-      validationMessage: null,
-    });
-
-    const response = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat["activity-logs"].$get(
-      {
-        param: {
-          organizationSlug: translator.organization.slug ?? "missing-slug",
-          projectId: "ext:crowdin:999",
-        },
-        query: { sourcePath: "locales/en.json", limit: "50" },
-      },
-      { headers: await projectFixture.authHeadersFor(translator) },
-    );
-
-    expect(response.status).toBe(404);
   });
 });

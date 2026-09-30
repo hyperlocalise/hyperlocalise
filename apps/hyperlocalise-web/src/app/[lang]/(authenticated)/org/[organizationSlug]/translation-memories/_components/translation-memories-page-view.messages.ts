@@ -41,6 +41,11 @@ export const translationMemoriesPageViewMessages = defineMessages({
     id: "elDbGHn1Tb",
     description: "Button to open the create translation memory dialog",
   },
+  importMemory: {
+    defaultMessage: "Import TMX or CSV",
+    id: "88klhgXFog",
+    description: "Button to create a translation memory by uploading a TMX or CSV file",
+  },
   searchLabel: {
     defaultMessage: "Search",
     id: "3zVs9fHVPp",
@@ -154,8 +159,8 @@ export const translationMemoriesPageViewMessages = defineMessages({
   },
   emptyDescriptionCreate: {
     defaultMessage:
-      "Create a workspace memory, import entries, then assign it to the projects that should use it.",
-    id: "hoUlxWeu2t",
+      "Create a workspace memory, upload a TMX or CSV file, then assign it to the projects that should use it.",
+    id: "a1Rp/rylyq",
     description: "Empty state description when the user can create translation memories",
   },
   emptyDescriptionWithProvider: {
@@ -197,9 +202,39 @@ export const translationMemoriesPageViewMessages = defineMessages({
   },
   createDialogDescription: {
     defaultMessage:
-      "Add a first-party memory library. You can import and edit entries after creation.",
-    id: "0LWDKXES/c",
+      "Add a workspace memory. Upload a TMX or CSV file now, or add entries after creation.",
+    id: "CIhbMSiEM0",
     description: "Description of the create translation memory dialog",
+  },
+  importFileLabel: {
+    defaultMessage: "TMX or CSV file",
+    id: "kgYTYlFKnV",
+    description: "Label for the optional translation memory upload field",
+  },
+  importFileHint: {
+    defaultMessage: "Optional. TMX is the interchange format for translation memories.",
+    id: "nxfY9E7T+0",
+    description: "Hint under the optional translation memory upload field",
+  },
+  selectImportFile: {
+    defaultMessage: "Choose a TMX or CSV file",
+    id: "xJG0B6qHm8",
+    description: "Prompt inside the create translation memory file upload area",
+  },
+  selectedImportFile: {
+    defaultMessage: "{filename} · {format}",
+    id: "wKc4U9j256",
+    description: "Selected translation memory import filename and format",
+  },
+  clearImportFile: {
+    defaultMessage: "Remove file",
+    id: "caNZDGtpcW",
+    description: "Button to clear the selected translation memory import file",
+  },
+  importFileInvalid: {
+    defaultMessage: "Choose a TMX or CSV file.",
+    id: "MHv6MtNx22",
+    description: "Validation error when the create-memory upload is not TMX or CSV",
   },
   nameLabel: {
     defaultMessage: "Name",

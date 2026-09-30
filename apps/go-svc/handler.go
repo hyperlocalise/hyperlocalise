@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
@@ -16,6 +19,22 @@ import (
 )
 
 const maxValidateSegmentBodyBytes = 512 << 10 // 512 KiB
+
+const dependencyHealthTimeout = time.Second
+
+type healthPinger interface {
+	Ping(context.Context) error
+}
+
+type valkeyHealthClient interface {
+	healthPinger
+	Close()
+}
+
+type dependencyHealth struct {
+	Status      string   `json:"status"`
+	RoundtripMS *float64 `json:"roundtrip_ms,omitempty"`
+}
 
 type validateSegmentRequest struct {
 	SourceText    string   `json:"sourceText"`
@@ -33,16 +52,29 @@ type validateSegmentResponse struct {
 }
 
 type handler struct {
-	validate     func(segmentvalidate.Request) []segmentvalidate.Check
-	spellChecker SpellChecker
-	ofrep        *experiment.OFREPHandler
-	research     researchService
-	gsc          gscService
-	objects      *objectstore.Registry
-	guidelines   *guidelines.Service
-	dictionaries *dictionaryAPI
-	qaReports    *qaReportAPI
-	teams        *teamAPI
+	validate          func(segmentvalidate.Request) []segmentvalidate.Check
+	spellChecker      SpellChecker
+	ofrep             *experiment.OFREPHandler
+	research          researchService
+	gsc               gscService
+	objects           *objectstore.Registry
+	guidelines        *guidelines.Service
+	dictionaries      *dictionaryAPI
+	glossaries        *glossaryAPI
+	memories          *memoryAPI
+	qaReports         *qaReportAPI
+	teams             *teamAPI
+	members           *memberAPI
+	issueSheets       *issueSheetAPI
+	activityLogs      *activityLogAPI
+	activityLog       activityLogPublisher
+	contentEditor     *editorCatAPI
+	projects          *projectAPI
+	workspace         *workspaceAPI
+	autumn            *autumn.Client
+	knowledgeMemories *knowledgeMemoryAPI
+	valkey            valkeyHealthClient
+	postgres          healthPinger
 }
 
 func newHandler() *handler {
@@ -53,17 +85,45 @@ func newHandler() *handler {
 	}
 }
 
-const publicPathPrefix = "/api/go-svc"
-
 func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	if h.dictionaries != nil {
 		h.dictionaries.register(mux, verifier)
 	}
+	if h.glossaries != nil {
+		h.glossaries.register(mux, verifier)
+	}
+	if h.memories != nil {
+		h.memories.register(mux, verifier)
+	}
 	if h.qaReports != nil {
 		h.qaReports.register(mux, verifier)
 	}
+	if h.issueSheets != nil {
+		h.issueSheets.register(mux, verifier)
+	}
 	if h.teams != nil {
 		h.teams.register(mux, verifier)
+	}
+	if h.members != nil {
+		h.members.register(mux, verifier)
+	}
+	if h.activityLogs != nil {
+		h.activityLogs.register(mux, verifier)
+	}
+	if h.contentEditor != nil {
+		h.contentEditor.register(mux, verifier)
+	}
+	if h.projects != nil {
+		h.projects.register(mux, verifier)
+	}
+	if h.workspace != nil {
+		h.registerDomainResearch(mux, verifier)
+		h.registerDomainSearchConsole(mux, verifier)
+		h.registerHyperlab(mux, verifier)
+		(&linkedDomainAPI{workspace: h.workspace, research: h.research, autumn: h.autumn}).register(mux, verifier)
+	}
+	if h.knowledgeMemories != nil {
+		h.knowledgeMemories.register(mux, verifier)
 	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	editorExport := authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -73,15 +133,6 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	mux.HandleFunc("GET /health", h.health)
 	mux.Handle("POST /v1/validate/segment", validate)
 	mux.Handle("POST /v1/editor-export/filtered/serialize", editorExport)
-	research := serverCallAuthMiddleware(verifier)
-	mux.Handle("POST /v1/domains/research/keywords", research(http.HandlerFunc(h.expandKeywords)))
-	mux.Handle("POST /v1/domains/research/market-visibility", research(http.HandlerFunc(h.marketVisibility)))
-	mux.Handle("POST /v1/domains/research/serp", research(http.HandlerFunc(h.liveSerp)))
-	mux.Handle("POST /v1/domains/research/rank-check", research(http.HandlerFunc(h.rankCheck)))
-	mux.Handle("POST /v1/domains/research/rank-check/batch", research(http.HandlerFunc(h.rankCheckBatch)))
-	mux.Handle("POST /v1/domains/gsc/sites", research(http.HandlerFunc(h.listGscSites)))
-	mux.Handle("POST /v1/domains/gsc/performance", research(http.HandlerFunc(h.queryGscPerformance)))
-	mux.Handle("POST /v1/domains/gsc/inspect", research(http.HandlerFunc(h.inspectGscURL)))
 	for pattern, route := range map[string]http.HandlerFunc{
 		"PUT /v1/storage/object":         h.putObject,
 		"POST /v1/storage/read":          h.getObject,
@@ -102,21 +153,6 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 }
 
-// withOptionalPrefix serves next at both its native paths and under prefix.
-// Vercel Services forwards the public path unchanged, so production calls
-// arrive as /api/go-svc/v1/validate/segment while local and binding calls
-// use /v1/validate/segment.
-func withOptionalPrefix(prefix string, next http.Handler) http.Handler {
-	stripped := http.StripPrefix(prefix, next)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == prefix || strings.HasPrefix(r.URL.Path, prefix+"/") {
-			stripped.ServeHTTP(w, r)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 func (h *handler) checkSpelling(ctx context.Context, locale, text string, acceptedWords []string) ([]SpellingIssue, error) {
 	accepted := spellcheck.NewAcceptedWords(acceptedWords)
 	words := spellcheck.RejectedWords(uniqueWords(spellcheck.Tokenize(text)), accepted)
@@ -126,16 +162,48 @@ func (h *handler) checkSpelling(ctx context.Context, locale, text string, accept
 	return h.spellChecker.Check(ctx, locale, words)
 }
 
-func (h *handler) health(w http.ResponseWriter, _ *http.Request) {
+func (h *handler) health(w http.ResponseWriter, r *http.Request) {
+	valkey := checkDependencyHealth(r.Context(), h.valkey)
+	postgres := checkDependencyHealth(r.Context(), h.postgres)
+	activityLog := checkDependencyHealth(r.Context(), h.activityLog)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`{"status":"ok"}`))
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status":       "ok",
+		"activity_log": activityLog,
+		"valkey":       valkey,
+		"postgres":     postgres,
+	})
+}
+
+func checkDependencyHealth(parent context.Context, pinger healthPinger) dependencyHealth {
+	if pinger == nil {
+		return dependencyHealth{Status: "disabled"}
+	}
+
+	ctx, cancel := context.WithTimeout(parent, dependencyHealthTimeout)
+	started := time.Now()
+	err := pinger.Ping(ctx)
+	roundtripMS := math.Round(float64(time.Since(started))/float64(time.Millisecond)*1000) / 1000
+	cancel()
+
+	status := "ok"
+	if err != nil {
+		status = "unavailable"
+	}
+	return dependencyHealth{Status: status, RoundtripMS: &roundtripMS}
 }
 
 func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
+		noteRequest(r, "code", "method_not_allowed")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if denyBrowserMutation(r) {
+		writeForbidden(w, r, "Cross-origin request denied")
 		return
 	}
 
@@ -143,10 +211,10 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxValidateSegmentBodyBytes))
 	if err := decoder.Decode(&req); err != nil {
 		if isRequestBodyTooLarge(err) {
-			writePayloadTooLarge(w)
+			writePayloadTooLarge(w, r)
 			return
 		}
-		writeBadRequest(w, "invalid JSON body")
+		writeBadRequest(w, r, "invalid JSON body")
 		return
 	}
 
@@ -157,7 +225,7 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 		var err error
 		targetLocale, err = validateTargetLocale(req.TargetLocale)
 		if err != nil {
-			writeBadRequest(w, err.Error())
+			writeBadRequest(w, r, err.Error())
 			return
 		}
 	}
@@ -192,7 +260,18 @@ func validateTargetLocale(raw string) (string, error) {
 	return trimmed, nil
 }
 
-func writeBadRequest(w http.ResponseWriter, message string) {
+func writeForbidden(w http.ResponseWriter, r *http.Request, message string) {
+	noteRequest(r, "code", "forbidden", "reason", message)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error":   "forbidden",
+		"message": message,
+	})
+}
+
+func writeBadRequest(w http.ResponseWriter, r *http.Request, message string) {
+	noteRequest(r, "code", "bad_request", "reason", message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
 	_ = json.NewEncoder(w).Encode(map[string]string{
@@ -201,7 +280,8 @@ func writeBadRequest(w http.ResponseWriter, message string) {
 	})
 }
 
-func writePayloadTooLarge(w http.ResponseWriter) {
+func writePayloadTooLarge(w http.ResponseWriter, r *http.Request) {
+	noteRequest(r, "code", "payload_too_large")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusRequestEntityTooLarge)
 	_ = json.NewEncoder(w).Encode(map[string]string{

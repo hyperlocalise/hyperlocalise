@@ -197,12 +197,12 @@ func TestJoinRestoresLeadingWhitespace(t *testing.T) {
 	}
 }
 
-func TestJoinFallsBackToSourceWhenTranslationMissing(t *testing.T) {
+func TestJoinLeavesMissingTranslationsEmpty(t *testing.T) {
 	t.Parallel()
 	spans := []Span{{Text: "Hello."}, {Text: " World."}}
 	got := Join(spans, []string{"Bonjour."})
-	if got != "Bonjour. World." {
-		t.Fatalf("join = %q", got)
+	if got != "Bonjour." {
+		t.Fatalf("join = %q, want Bonjour. without source fallback", got)
 	}
 }
 

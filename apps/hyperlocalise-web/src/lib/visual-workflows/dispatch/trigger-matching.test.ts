@@ -19,6 +19,7 @@ import {
   visualWorkflowShouldDispatchOnGithubPush,
 } from "./trigger-matching";
 import type { VisualWorkflowDefinition } from "../schema/types";
+import { parseVisualWorkflowV3Definition } from "../schema/definition-migration";
 import type { VisualWorkflowRecord } from "../visual-workflow-types";
 
 function workflowRecord(definition: VisualWorkflowDefinition): VisualWorkflowRecord {
@@ -29,7 +30,7 @@ function workflowRecord(definition: VisualWorkflowDefinition): VisualWorkflowRec
     projectId: null,
     status: "active",
     name: definition.name,
-    definition,
+    definition: parseVisualWorkflowV3Definition(definition),
     definitionVersion: 1,
     revision: 1,
     publishedVersion: null,

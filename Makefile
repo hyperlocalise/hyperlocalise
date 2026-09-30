@@ -22,6 +22,15 @@ check-build: ## check golang build
 check-build-go-svc: ## check go-svc container service build
 	@go build -o /dev/null ./apps/go-svc
 
+.PHONY: build-activity-log-lambda
+build-activity-log-lambda: ## build the activity-log Lambda bootstrap binary
+	@mkdir -p dist/activity-log-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/activity-log-lambda/bootstrap ./apps/activity-log-lambda
+
+.PHONY: check-build-public-api
+check-build-public-api: ## check standalone public API service build
+	@go build -o /dev/null ./apps/public-api
+
 .PHONY: check-build-go-svc-cgo
 check-build-go-svc-cgo: ## check go-svc build+tests with the real cgo_hunspell provider (requires libhunspell-dev + pkg-config locally; matches Dockerfile.vercel)
 	CGO_ENABLED=1 go build -tags cgo_hunspell -o /dev/null ./apps/go-svc
@@ -54,6 +63,12 @@ test-root: clean ## run root-module tests with JSON output and coverage
 test-workspace: clean ## run workspace tests
 	go test -cover -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out | sort -rnk3
+
+.PHONY: test-go-svc
+test-go-svc: ## run go-svc tests against live Postgres and Valkey (DATABASE_URL + VALKEY_URL)
+	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL is required for go-svc integration tests" >&2 && exit 1)
+	@test -n "$(VALKEY_URL)" || (echo "VALKEY_URL is required for go-svc integration tests" >&2 && exit 1)
+	GO_SVC_INTEGRATION=1 go test -race ./apps/go-svc/...
 
 .PHONY: test
 test: test-workspace ## run workspace-wide tests

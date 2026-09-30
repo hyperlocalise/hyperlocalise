@@ -25,20 +25,6 @@ import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
 } from "@/lib/billing/usage-control";
-import {
-  releaseSandboxTranslationAiCredit,
-  retainSandboxTranslationAiCreditForUnmeteredSuccess,
-} from "@/lib/billing/sandbox-translation-credit";
-import {
-  formatManagedAiCreditError,
-  releaseManagedAiCredit,
-  reserveManagedAiCredit,
-  type ManagedAiCreditReservation,
-} from "@/lib/billing/managed-ai-credit";
-import {
-  getManagedAiPricingConfig,
-  managedAiReservationAmountUsd,
-} from "@/lib/billing/managed-ai-pricing";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   defaultGlossaryMatchResolution,
@@ -326,61 +312,12 @@ class TranslationJobExecutor {
       };
     }
 
-    const pricingConfig = getManagedAiPricingConfig();
-    let aiCreditReservation: ManagedAiCreditReservation | null = null;
-    if (pricingConfig.mode !== "legacy") {
-      const estimatedAmountUsd =
-        organizationGenerator.credentialSource === "byok"
-          ? 0
-          : managedAiReservationAmountUsd(pricingConfig, { surface: "chat" });
-      if (estimatedAmountUsd == null) {
-        return {
-          ok: false,
-          code: "ai_credit_pricing_not_configured",
-          message: "AI credit pricing is not configured for translation jobs",
-        };
-      }
-      const reservation = await reserveManagedAiCredit({
-        organizationId: organizationGenerator.organizationId,
-        operationKey: `job:${claimedJob.id}:translation_jobs:ai_tokens`,
-        source: "translation_job_complete",
-        modelId: organizationGenerator.modelId,
-        credentialSource: organizationGenerator.credentialSource,
-        estimatedAmountUsd,
-        jobId: claimedJob.id,
-        mode: pricingConfig.mode,
-        dimensions: {
-          surface: "translation_job",
-          project_id: claimedJob.projectId,
-        },
-      });
-      if (!reservation.ok) {
-        return {
-          ok: false,
-          code: reservation.error.code,
-          message: formatManagedAiCreditError(reservation.error),
-        };
-      }
-      aiCreditReservation = reservation.value;
-    }
-
-    let result: StringTranslationJobResult;
-    try {
-      result = await organizationGenerator.translateStringJob(
-        contextResult.context.toStringTranslationInput(
-          organizationGenerator.project.name,
-          organizationGenerator.project.translationContext,
-        ),
-      );
-    } catch (error) {
-      if (aiCreditReservation) {
-        await releaseManagedAiCredit({
-          reservation: aiCreditReservation,
-          reason: "translation_generation_failed",
-        });
-      }
-      throw error;
-    }
+    const result = await organizationGenerator.translateStringJob(
+      contextResult.context.toStringTranslationInput(
+        organizationGenerator.project.name,
+        organizationGenerator.project.translationContext,
+      ),
+    );
 
     return { ok: true, result };
   }
@@ -470,12 +407,6 @@ class TranslationJobCompletionService {
       input.result.tokenUsage && input.result.tokenUsage.totalTokens > 0
         ? input.result.tokenUsage
         : null;
-    if (!tokenUsage) {
-      await retainSandboxTranslationAiCreditForUnmeteredSuccess({
-        jobId: input.jobId,
-        reason: "no_token_usage",
-      });
-    }
     const [projectForUsage] = await db
       .select({ organizationId: schema.projects.organizationId })
       .from(schema.projects)
@@ -560,10 +491,6 @@ class TranslationJobCompletionService {
     serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobFailed, {
       status: "failed",
       source: "translation_job",
-    });
-    await releaseSandboxTranslationAiCredit({
-      jobId: input.jobId,
-      reason: "translation_job_failed",
     });
 
     const failedJob = await this.repository.getStored(input.jobId, input.projectId);

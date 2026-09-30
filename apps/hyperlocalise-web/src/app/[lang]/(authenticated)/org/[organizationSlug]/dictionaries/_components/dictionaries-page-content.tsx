@@ -18,8 +18,9 @@ import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { readApiResponseError } from "@/lib/api-error";
-import { dictionaryClient } from "@/lib/spellcheck-dictionary/client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { createDictionaryClient } from "@/lib/spellcheck-dictionary/client";
 
 import { filterDictionaryListRows, type ApiDictionary } from "./dictionary-list";
 import { DictionariesPageView, type DictionaryCreateForm } from "./dictionaries-page-view";
@@ -40,6 +41,8 @@ export function DictionariesPageContent({
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
+  const { client: goSvcClient } = useGoSvcClient();
+  const dictionaryClient = useMemo(() => createDictionaryClient(goSvcClient), [goSvcClient]);
   const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createForm, setCreateForm] = useState<DictionaryCreateForm>(createEmptyForm);
@@ -49,25 +52,25 @@ export function DictionariesPageContent({
     queryKey: ["spellcheck-dictionaries", organizationSlug],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
-      const response = await dictionaryClient.list({
-        param: { organizationSlug },
-        query: {
-          limit: String(DICTIONARIES_PAGE_SIZE),
-          offset: String(pageParam),
-        },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(dictionariesPageContentMessages.loadFailed),
+      try {
+        const response = await dictionaryClient.list({
+          param: { organizationSlug },
+          query: {
+            limit: String(DICTIONARIES_PAGE_SIZE),
+            offset: String(pageParam),
+          },
+        });
+        return {
+          dictionaries: (response.dictionaries ?? []) as ApiDictionary[],
+          total: Number(response.total ?? 0),
+          offset: pageParam,
+        };
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(dictionariesPageContentMessages.loadFailed)),
+          { cause: error },
         );
       }
-      const body = await response.json();
-      return {
-        dictionaries: (body.dictionaries ?? []) as ApiDictionary[],
-        total: Number(body.total ?? 0),
-        offset: pageParam,
-      };
     },
     getNextPageParam: (lastPage) => {
       const nextOffset = lastPage.offset + lastPage.dictionaries.length;
@@ -86,20 +89,23 @@ export function DictionariesPageContent({
 
   const createDictionary = useMutation({
     mutationFn: async (form: DictionaryCreateForm) => {
-      const response = await dictionaryClient.create({
-        param: { organizationSlug },
-        json: {
-          name: form.name.trim(),
-          description: form.description.trim() || undefined,
-        },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(dictionariesPageContentMessages.createFailed),
+      try {
+        return await dictionaryClient.create({
+          param: { organizationSlug },
+          json: {
+            name: form.name.trim(),
+            description: form.description.trim() || undefined,
+          },
+        });
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(dictionariesPageContentMessages.createFailed),
+          ),
+          { cause: error },
         );
       }
-      return response.json();
     },
     onSuccess: (body) => {
       setCreateDialogOpen(false);
@@ -108,10 +114,10 @@ export function DictionariesPageContent({
       router.push(`/org/${organizationSlug}/dictionaries/${body.dictionary.id}`);
     },
     onError: (error) => {
-      const message =
-        error instanceof Error
-          ? error.message
-          : intl.formatMessage(dictionariesPageContentMessages.createFailed);
+      const message = goSvcErrorMessage(
+        error,
+        intl.formatMessage(dictionariesPageContentMessages.createFailed),
+      );
       setCreateErrors((current) => ({ ...current, submit: message }));
       toast.error(message);
     },

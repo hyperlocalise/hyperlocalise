@@ -28,13 +28,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
-import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
+import type {
+  VisualWorkflowRecord,
+  VisualWorkflowStatus,
+} from "@/lib/visual-workflows/visual-workflow-types";
 
 import { VisualWorkflowDeleteDialog } from "./visual-workflow-delete-dialog";
 import { createVisualWorkflowsApi } from "./visual-workflows-api";
 import { visualWorkflowsPageMessages } from "./visual-workflows-page.messages";
 
 const visualWorkflowsApi = createVisualWorkflowsApi();
+
+function visualWorkflowStatusMessage(status: VisualWorkflowStatus) {
+  switch (status) {
+    case "draft":
+      return visualWorkflowsPageMessages.statusDraft;
+    case "active":
+      return visualWorkflowsPageMessages.statusActive;
+    case "paused":
+      return visualWorkflowsPageMessages.statusPaused;
+    case "archived":
+      return visualWorkflowsPageMessages.statusArchived;
+  }
+}
 
 function visualWorkflowsQueryKey(organizationSlug: string) {
   return ["visual-workflows", organizationSlug] as const;
@@ -114,7 +130,9 @@ export function VisualWorkflowsPageContent({
                 >
                   <div className="min-w-0">
                     <p className="truncate font-medium text-foreground">{workflow.name}</p>
-                    <p className="text-sm text-muted-foreground">{workflow.status}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {intl.formatMessage(visualWorkflowStatusMessage(workflow.status))}
+                    </p>
                   </div>
                   <span className="text-sm text-muted-foreground">
                     v{workflow.definitionVersion}

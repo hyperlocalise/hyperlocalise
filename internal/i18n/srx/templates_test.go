@@ -9,6 +9,13 @@ func TestLoadTemplateRejectsUnknown(t *testing.T) {
 	}
 }
 
+func TestNormalizeSpecTrims(t *testing.T) {
+	t.Parallel()
+	if got := NormalizeSpec("  Default \n"); got != "Default" {
+		t.Fatalf("NormalizeSpec = %q", got)
+	}
+}
+
 func TestNamedTemplatesSegmentDifferently(t *testing.T) {
 	t.Parallel()
 	def, err := LoadTemplate("DEFAULT")

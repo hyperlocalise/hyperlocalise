@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import {
   issueSheetEmptyMswHandlers,
@@ -28,6 +28,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/${issueSheetOrganizationSlug}/projects/${issueSheetProjectId}/issue-sheet`,
       },
@@ -50,11 +51,29 @@ export const Default: Story = {
   },
   play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByText("Queries")).toBeInTheDocument();
-    await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        canvas.getByText((_, node) => {
+          const text = node?.textContent ?? "";
+          if (!text.includes("Source string needs context")) {
+            return false;
+          }
+          return !Array.from(node?.children ?? []).some((child) =>
+            (child.textContent ?? "").includes("Source string needs context"),
+          );
+        }),
+      ).toBeInTheDocument(),
+    );
     await expect(canvas.getByText("Open")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Issue" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Column" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Import CSV" })).toBeInTheDocument();
+    const importButton = canvas.getByRole("button", { name: "Import" });
+    await expect(importButton).toBeEnabled();
+    await userEvent.click(importButton);
+    const menu = within(document.body);
+    await expect(menu.getByRole("menuitem", { name: "CSV" })).toBeInTheDocument();
+    await expect(menu.getByRole("menuitem", { name: "XLS" })).toBeInTheDocument();
+    await expect(menu.getByRole("menuitem", { name: "XLSX" })).toBeInTheDocument();
     await expect(canvasElement.querySelector("table")).toBeNull();
     await expect(canvas.queryByText("3 total")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Owner note")).not.toBeInTheDocument();

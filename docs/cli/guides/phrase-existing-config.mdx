@@ -1,0 +1,83 @@
+---
+title: "Use an existing .phrase.yml with Hyperlocalise"
+sidebarTitle: "Reuse Phrase configuration"
+description: "Run Phrase Strings push and pull workflows with Hyperlocalise using an existing .phrase.yml. Check credentials, supported fields, and upload completion."
+---
+
+Use `hyperlocalise phrase push` and `hyperlocalise phrase pull` with supported
+`.phrase.yml` fields to keep Phrase Strings file workflows in your all-in-one
+localization CLI. Existing syntax alone does not guarantee every setting applies:
+unknown fields can be silently ignored.
+
+## Check the configuration first
+
+[Install Hyperlocalise](/cli/getting-started/install). Compare your file with the
+[supported fields and gap inventory](/cli/commands/phrase). In particular,
+automatic `delete_unmentioned_keys` cleanup and the push-side
+`translation_key_prefix` setting are unsupported.
+
+Set `PHRASE_ACCESS_TOKEN` in your shell or CI secret manager. A minimal configuration
+for a Phrase Strings project with `en` and `fr` locales is:
+
+```yaml
+phrase:
+    access_token: $PHRASE_ACCESS_TOKEN
+    project_id: your-project-id
+    file_format: simple_json
+    host: https://api.phrase.com/v2
+    push:
+        sources:
+            - file: ./locales/en.json
+              params:
+                  locale_id: en
+    pull:
+        targets:
+            - file: ./locales/fr.json
+              params:
+                  locale_id: fr
+```
+
+Replace the project ID, locale identifiers, and host with your Phrase Strings
+settings. This example uses `simple_json` for flat JSON strings such as
+`{"welcome":"Welcome"}`. Keep the file format that matches your actual files.
+
+## Validate and push
+
+```bash
+hyperlocalise phrase config validate --config .phrase.yml
+hyperlocalise phrase push --config .phrase.yml --dry-run
+hyperlocalise phrase push --config .phrase.yml --wait --wait-timeout 10m
+```
+
+Validation checks configuration, not full compatibility with every official
+Phrase CLI option. `--wait` polls upload processing; it does not wait for a reviewer
+to finish translations. Keep the printed upload ID if waiting fails so you can
+inspect that upload before retrying.
+
+## Pull completed translations
+
+After translating the French locale in Phrase Strings:
+
+```bash
+hyperlocalise phrase pull --config .phrase.yml --dry-run
+hyperlocalise phrase pull --config .phrase.yml
+```
+
+The pull writes `locales/fr.json` from the configured target. Review the diff. If
+you intend to replace an existing output, use `--force`. For locale placeholders
+in more complex configurations, dry-run may need `--source-locale` or
+`--target-locale` because it cannot enumerate locales remotely.
+
+## Why is my token missing?
+
+When `access_token` is `$PHRASE_ACCESS_TOKEN`, that variable must be non-empty.
+An explicit environment reference does not fall back to another token variable.
+If you omit `access_token`, config mode tries `PHRASE_ACCESS_TOKEN`, then
+`PHRASE_API_TOKEN`. Manual flag mode has different resolution; consult the reference.
+
+Keep cleanup separate from push: `uploads cleanup` deletes keys absent from an
+upload. It is not needed for this workflow.
+
+Continue with [Phrase Strings CLI commands](/cli/commands/phrase),
+[TMS integration choices](/cli/storage/overview), or
+[local JSON translation](/cli/reference/formats/json).

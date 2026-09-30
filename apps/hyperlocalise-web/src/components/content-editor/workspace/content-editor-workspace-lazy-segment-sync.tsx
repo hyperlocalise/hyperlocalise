@@ -12,12 +12,18 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useEffect, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { reaction } from "mobx";
+import { useNativeTargetLoader } from "../project-file/content-editor-native-target-context";
+import { projectFileCatSegmentTargetQueryKey } from "../project-file/use-content-editor-segment-target";
+import type { ProjectFileContentEditorTranslation } from "@/api/routes/project/project.schema";
 import { observer } from "mobx-react-lite";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
 
 import { resolveCatFileIdentity } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
+import type { ContentEditorSegmentFileIdentityLookupRef } from "@/components/content-editor/project-file/use-content-editor-mutations";
 import { useContentEditorSegmentComments } from "@/components/content-editor/project-file/use-content-editor-segment-comments";
 import {
   useContentEditorSegmentTarget,
@@ -25,6 +31,7 @@ import {
 } from "@/components/content-editor/project-file/use-content-editor-segment-target";
 
 import { useContentEditorWorkspace } from "./content-editor-workspace-context";
+import { isSegmentTargetQuerySettledWithoutData } from "./content-editor-workspace-segment-target-query-status";
 
 function useCatSegmentLazySync(input: {
   organizationSlug: string;
@@ -44,6 +51,7 @@ function useCatSegmentLazySync(input: {
   const segmentId = input.segmentId
     ? (store.findSegmentIdByKeyOrId(input.segmentId) ?? input.segmentId)
     : null;
+  const hasContentEditorFile = Boolean(input.contentEditorFile);
 
   const queueSegment = segmentId
     ? input.contentEditorFile?.segments.find((segment) => segment.externalStringId === segmentId)
@@ -101,7 +109,10 @@ function useCatSegmentLazySync(input: {
       return;
     }
 
-    store.setCommentsLoading(segmentCommentsQuery.isFetching && !segmentCommentsQuery.data);
+    store.setCommentsLoading(
+      segmentCommentsQuery.isFetching && !segmentCommentsQuery.data,
+      segmentId,
+    );
   }, [
     input.syncCommentsLoading,
     segmentCommentsQuery.data,
@@ -115,16 +126,27 @@ function useCatSegmentLazySync(input: {
       return;
     }
 
+    const queryEnabled = input.enabled && hasContentEditorFile;
     const isLoading =
+      queryEnabled &&
       segmentTargetQuery.isFetching &&
       segmentTargetQuery.data === undefined &&
       !(segmentId && store.drafts.get(segmentId)?.targetText.trim());
 
-    store.setSegmentTargetLoading(isLoading);
+    store.setSegmentTargetLoading(isLoading, segmentId);
+    if (isLoading) {
+      store.clearSegmentTargetLoadFailed(segmentId);
+    } else if (queryEnabled && isSegmentTargetQuerySettledWithoutData(segmentTargetQuery)) {
+      store.markSegmentTargetLoadFailed(segmentId);
+    }
   }, [
+    hasContentEditorFile,
+    input.enabled,
     input.syncTargetLoading,
     segmentId,
     segmentTargetQuery.data,
+    segmentTargetQuery.fetchStatus,
+    segmentTargetQuery.isError,
     segmentTargetQuery.isFetching,
     store,
   ]);
@@ -215,7 +237,10 @@ function useCatLoadedQueueTargetsSync(input: {
     .map((query) => `${query.dataUpdatedAt}:${query.status}`)
     .join("|");
   const targetLoadingSyncKey = targetQueries
-    .map((query) => `${query.isFetching}:${query.data === undefined}`)
+    .map(
+      (query) =>
+        `${query.isFetching}:${query.data === undefined}:${query.status}:${query.fetchStatus}`,
+    )
     .join("|");
 
   useEffect(() => {
@@ -238,12 +263,28 @@ function useCatLoadedQueueTargetsSync(input: {
     // Track fetch-in-flight only. Draft text is filtered in `loadingSegmentIds`
     // so typing during a fetch clears the skeleton without needing this effect
     // to re-run on draft changes.
-    const loadingIds = segmentIds.filter((_segmentId, index) => {
+    const loadingIds: string[] = [];
+    const failedIds: string[] = [];
+    segmentIds.forEach((segmentId, index) => {
       const query = targetQueriesRef.current[index];
-      return Boolean(query?.isFetching && query.data === undefined);
+      if (!query) {
+        return;
+      }
+
+      if (query.isFetching && query.data === undefined) {
+        loadingIds.push(segmentId);
+        return;
+      }
+
+      if (isSegmentTargetQuerySettledWithoutData(query)) {
+        failedIds.push(segmentId);
+      }
     });
 
     store.setQueueTargetLoadingSegmentIds(loadingIds);
+    for (const segmentId of failedIds) {
+      store.markSegmentTargetLoadFailed(segmentId);
+    }
   }, [segmentIds, store, targetLoadingSyncKey, targetsEnabled]);
 }
 
@@ -256,6 +297,7 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
     externalResourceId = null,
     resourceType,
     contentEditorFile,
+    retainedSegmentIdentityRef,
     enabled,
   }: {
     organizationSlug: string;
@@ -265,16 +307,92 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
     contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+    retainedSegmentIdentityRef?: ContentEditorSegmentFileIdentityLookupRef;
     enabled: boolean;
   }) {
     const store = useContentEditorWorkspace();
+    const nativeLoader = useNativeTargetLoader();
+    const queryClient = useQueryClient();
+    useLayoutEffect(() => {
+      if (!nativeLoader) return;
+      // The store keeps meta for the selected segment after its queue page is evicted.
+      // Mutations read it from here so they still resolve the segment's real source file.
+      if (retainedSegmentIdentityRef) {
+        retainedSegmentIdentityRef.current = (externalStringId) =>
+          store.segmentMeta.get(externalStringId);
+      }
+      store.serverTargetLookup = (externalStringId) => {
+        const segment = store.segmentMeta.get(externalStringId);
+        return queryClient.getQueryData<ProjectFileContentEditorTranslation | null>(
+          projectFileCatSegmentTargetQueryKey({
+            organizationSlug,
+            projectId,
+            sourcePath: segment?.sourcePath || sourcePath,
+            targetLocale,
+            externalStringId,
+            externalResourceId,
+            resourceType,
+          }),
+        );
+      };
+      const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+        const key = event.query.queryKey;
+        if (
+          key[0] !== "project-file-content-editor-segment-target" ||
+          key[1] !== organizationSlug ||
+          key[2] !== projectId ||
+          key[6] !== targetLocale
+        )
+          return;
+        const id = String(key[7]);
+        if (
+          event.type === "updated" &&
+          event.query.state.data !== undefined &&
+          store.segmentMeta.has(id)
+        ) {
+          store.applySegmentTarget(
+            id,
+            event.query.state.data as ProjectFileContentEditorTranslation | null,
+          );
+        }
+      });
+      const dispose = reaction(
+        () => [store.pendingWrites.size, store.dirtySegmentIds.size],
+        () => store.releaseCleanDrafts(),
+      );
+      return () => {
+        unsubscribe();
+        dispose();
+        store.serverTargetLookup = undefined;
+        if (retainedSegmentIdentityRef) {
+          retainedSegmentIdentityRef.current = null;
+        }
+      };
+    }, [
+      nativeLoader,
+      queryClient,
+      store,
+      organizationSlug,
+      projectId,
+      sourcePath,
+      targetLocale,
+      externalResourceId,
+      resourceType,
+      retainedSegmentIdentityRef,
+    ]);
     const selectedSegmentId = store.selectedSegmentId;
-    const previewSegmentId =
-      store.ui.hoveredSegmentId && store.ui.hoveredSegmentId !== selectedSegmentId
-        ? store.ui.hoveredSegmentId
-        : null;
     const isSideBySideView = store.ui.isSideBySideView;
-    const visibleSideBySideSegmentIds = store.ui.visibleSideBySideSegmentIds;
+    const loadSideBySideSegmentIds = store.ui.loadSideBySideSegmentIds;
+
+    const adjacentSegmentIds = useMemo(() => {
+      const segments = contentEditorFile?.segments ?? [];
+      const index = segments.findIndex((segment) => segment.externalStringId === selectedSegmentId);
+      return index < 0
+        ? []
+        : segments
+            .slice(Math.max(0, index - 1), index + 3)
+            .map((segment) => segment.externalStringId);
+    }, [contentEditorFile, selectedSegmentId]);
 
     useCatLoadedQueueTargetsSync({
       organizationSlug,
@@ -284,11 +402,11 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
       externalResourceId,
       resourceType,
       contentEditorFile,
-      enabled: enabled && isSideBySideView,
-      segmentIds: visibleSideBySideSegmentIds,
+      enabled: enabled && store.ui.viewMode !== "multilingual",
+      segmentIds: isSideBySideView ? loadSideBySideSegmentIds : adjacentSegmentIds,
     });
 
-    const _selectedSync = useCatSegmentLazySync({
+    useCatSegmentLazySync({
       organizationSlug,
       projectId,
       sourcePath,
@@ -296,43 +414,12 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
       externalResourceId,
       resourceType,
       contentEditorFile,
-      enabled,
+      enabled: enabled && store.ui.viewMode !== "multilingual",
       segmentId: selectedSegmentId || null,
       syncComments: true,
       syncTargetLoading: true,
       syncCommentsLoading: true,
     });
-
-    const previewSync = useCatSegmentLazySync({
-      organizationSlug,
-      projectId,
-      sourcePath,
-      targetLocale,
-      externalResourceId,
-      resourceType,
-      contentEditorFile,
-      enabled: enabled && Boolean(previewSegmentId),
-      segmentId: previewSegmentId,
-      syncComments: true,
-      syncTargetLoading: false,
-      syncCommentsLoading: false,
-    });
-
-    useEffect(() => {
-      store.ui.setPreviewLoadingState(previewSync.segmentId, {
-        isTargetLoading: previewSync.isTargetLoading,
-        isCommentsLoading:
-          Boolean(previewSync.segmentId) &&
-          previewSync.isCommentsFetching &&
-          previewSync.comments === undefined,
-      });
-    }, [
-      previewSync.comments,
-      previewSync.isCommentsFetching,
-      previewSync.isTargetLoading,
-      previewSync.segmentId,
-      store,
-    ]);
 
     return null;
   },

@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useEditorPageWindow } from "../project-file/content-editor-page-window";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef } from "react";
 import { useIntl } from "react-intl";
@@ -54,7 +55,7 @@ export function ContentEditorQueueVirtualList({
 }) {
   const intl = useIntl();
   const parentRef = useRef<HTMLDivElement>(null);
-  const loadRequestedForLengthRef = useRef<number | null>(null);
+  const loadRequestedForLengthRef = useRef<string | null>(null);
   const checkForNearEnd = useCallback(
     (items: Array<{ index: number }>) => {
       if (items.length === 0 || segments.length === 0) {
@@ -62,19 +63,23 @@ export function ContentEditorQueueVirtualList({
       }
 
       const lastItem = items.at(-1);
-      if (!lastItem || lastItem.index < Math.max(segments.length - 3, 0)) {
+      if (
+        !lastItem ||
+        lastItem.index < Math.max(segments.length - Math.min(10, Math.ceil(segments.length / 3)), 0)
+      ) {
         return;
       }
 
-      if (!hasMore || isLoadingMore || loadRequestedForLengthRef.current === segments.length) {
+      if (!hasMore || isLoadingMore || loadRequestedForLengthRef.current === segments.at(-1)?.id) {
         return;
       }
 
-      loadRequestedForLengthRef.current = segments.length;
+      loadRequestedForLengthRef.current = segments.at(-1)?.id ?? null;
       onNearEnd?.();
     },
     [hasMore, isLoadingMore, onNearEnd, segments.length],
   );
+  const previousSelectedId = useRef<string | null>(null);
   const getItemKey = useCallback((index: number) => segments[index]?.id ?? index, [segments]);
   const virtualizer = useVirtualizer({
     count: segments.length,
@@ -86,6 +91,16 @@ export function ContentEditorQueueVirtualList({
       checkForNearEnd(instance.getVirtualItems());
     },
   });
+
+  useEditorPageWindow(segments, parentRef, virtualizer);
+
+  useEffect(() => {
+    if (previousSelectedId.current === selectedSegmentId) return;
+    const index = segments.findIndex((segment) => segment.id === selectedSegmentId);
+    if (index < 0) return;
+    previousSelectedId.current = selectedSegmentId;
+    virtualizer.scrollToIndex(index, { align: "auto" });
+  }, [selectedSegmentId, segments, virtualizer]);
 
   useEffect(() => {
     if (!isLoadingMore) {

@@ -1,0 +1,37 @@
+---
+title: "Build reliable workflow branches and retries"
+description: "Use typed bindings, mock tests, and bounded retries in advanced visual workflows."
+---
+
+Use a visual workflow when each step must receive predictable inputs and failures need explicit handling. Build and test the smallest complete path before adding loops or retries.
+
+## Preserve data types
+
+An upstream field binding preserves its type. Use it to pass an array into **For each**, a number into a comparison, or an object into an HTTP body. A text template always produces text, even when its value looks like JSON.
+
+For an HTTP response, declare the output fields you need, such as `json.items` as an array. A sample helps discover fields but does not guarantee that every response contains them. Add an optional binding or fallback for values produced only by one conditional branch.
+
+## Example: process a list and summarize it
+
+1. Start with a manual trigger while developing.
+2. Add an HTTP step that fetches a JSON list and declare its array output.
+3. Bind the array to **For each**.
+4. Connect **Each item** to the body and select the body nodes in the inspector.
+5. Use the loop’s `item` and `index` as inputs, and configure collected outputs.
+6. Connect **Done** to a summary step using `iterationOutputs`.
+
+Items run sequentially. An empty array follows **Done** with an empty result. Nested loops are not supported.
+
+## Retry only recoverable failures
+
+Wrap transient failures in **Retry**. Connect **Attempt** to the selected body, **Succeeded** to the normal next step, and **Exhausted** to the failure path. Configure the errors that should retry; malformed input usually needs correction, not repetition.
+
+The defaults are three attempts, a one-second initial delay, exponential backoff, and jitter. The maximum is ten attempts. Retry bodies cannot contain another Retry or For each region.
+
+A retry can repeat an external action. For an HTTP POST, use an idempotency key only when the destination supports and honors it. For email, Slack, AI, and other non-idempotent actions, review and enable **Acknowledge duplicate risk** where required.
+
+## Test the failure paths
+
+Use mock outputs to test success, an empty list, a missing required field, a branch that is skipped, and retry exhaustion. Run a small live test only after checking destinations and credentials. Live tests can send messages or write to external systems.
+
+Publish after inspecting the results. If a live run needs attention, check whether the external action completed before retrying it. See [Visual workflows](/platform/visual-workflows) for versioning, cancellation, and limits.

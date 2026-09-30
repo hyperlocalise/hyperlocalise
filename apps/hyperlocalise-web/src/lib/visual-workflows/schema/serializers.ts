@@ -17,8 +17,10 @@ import type {
   VisualWorkflowEditorState,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
+  VisualWorkflowV3Definition,
 } from "./types";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
+import { computeForEachBodyNodeIds } from "../editor/for-each-body-membership";
 
 const ENABLED_TYPES = new Set<VisualCatalogType>([
   "trigger.manual",
@@ -26,6 +28,7 @@ const ENABLED_TYPES = new Set<VisualCatalogType>([
   "trigger.github",
   "trigger.source_upload",
   "action.http",
+  "action.content_sync",
   "action.notify_slack",
   "action.notify_email",
   "logic.if",
@@ -33,21 +36,41 @@ const ENABLED_TYPES = new Set<VisualCatalogType>([
   "logic.set",
   "ai.agent",
   "logic.for_each",
+  "flow.wait",
+  "logic.merge",
 ]);
+
+function deriveFlowBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  return nodes.map((node) =>
+    node.data.catalogType === "logic.for_each"
+      ? {
+          ...node,
+          data: {
+            ...node.data,
+            bodyNodeIds: computeForEachBodyNodeIds(node.id, edges),
+          },
+        }
+      : node,
+  );
+}
 
 export function toVisualWorkflowDefinition(
   state: VisualWorkflowEditorState,
 ): VisualWorkflowDefinition {
+  const nodes = deriveFlowBodyMembership(state.nodes, state.edges);
   const positions: VisualWorkflowDefinition["editor"]["positions"] = {};
 
-  for (const node of state.nodes) {
+  for (const node of nodes) {
     positions[node.id] = { x: node.position.x, y: node.position.y };
   }
 
   return {
     schemaVersion: VISUAL_WORKFLOW_SCHEMA_VERSION,
     name: state.name,
-    nodes: state.nodes.map((node) => ({
+    nodes: nodes.map((node) => ({
       id: node.id,
       type: node.data.catalogType,
       config: node.data.config,
@@ -64,6 +87,45 @@ export function toVisualWorkflowDefinition(
       targetHandle: edge.targetHandle ?? null,
     })),
     editor: { positions },
+  };
+}
+
+export function toVisualWorkflowV3Definition(
+  state: VisualWorkflowEditorState,
+): VisualWorkflowV3Definition {
+  const nodes = deriveFlowBodyMembership(state.nodes, state.edges);
+  const positions: VisualWorkflowV3Definition["editor"]["positions"] = {};
+
+  for (const node of nodes) {
+    positions[node.id] = {
+      x: node.position.x,
+      y: node.position.y,
+    };
+  }
+
+  return {
+    schemaVersion: 3,
+    name: state.name,
+    nodes: nodes.map((node) => ({
+      id: node.id,
+      type: node.data.catalogType,
+      config: node.data.config,
+      inputs: node.data.inputs,
+      outputFields: node.data.outputFields,
+      bodyNodeIds: node.data.bodyNodeIds,
+      collect: node.data.collect,
+    })),
+    edges: state.edges.map((edge) => ({
+      id: edge.id,
+      kind: edge.data?.kind ?? "execution",
+      source: edge.source,
+      target: edge.target,
+      sourcePortId: edge.sourceHandle ?? "success",
+      targetPortId: edge.targetHandle ?? "input",
+    })),
+    editor: {
+      positions,
+    },
   };
 }
 
@@ -107,8 +169,34 @@ export function fromVisualWorkflowDefinition(
 
   return {
     name: definition.name,
-    nodes,
+    nodes: deriveFlowBodyMembership(nodes, edges),
     edges,
+  };
+}
+
+export function fromVisualWorkflowV3Definition(
+  definition: VisualWorkflowV3Definition,
+): VisualWorkflowEditorState {
+  const state = fromVisualWorkflowDefinition({
+    ...definition,
+    schemaVersion: 2,
+    edges: definition.edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourcePortId,
+      targetHandle: edge.targetPortId,
+    })),
+  });
+
+  return {
+    ...state,
+    edges: state.edges.map((edge, index) => ({
+      ...edge,
+      data: {
+        kind: definition.edges[index]?.kind ?? "execution",
+      },
+    })),
   };
 }
 

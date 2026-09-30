@@ -12,6 +12,10 @@
  */
 import { generateText, Output } from "ai";
 
+import { validateContentSyncConfig } from "@/lib/agents/content-sync/content-sync-config";
+import { executeContentSyncConfig } from "@/lib/agents/content-sync/execute-content-sync";
+import { db, schema } from "@/lib/database/client";
+import { isErr } from "@/lib/primitives/result/results";
 import {
   runWorkspaceAutomationEmailNotificationTool,
   runWorkspaceAutomationSlackNotificationTool,
@@ -34,6 +38,7 @@ import {
 
 export type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { WORKFLOW_LIMITS } from "./limits";
 import { workflowStructuredOutputSchema } from "./structured-output";
@@ -43,6 +48,8 @@ export async function executeVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
   context: VisualWorkflowExecutionContext;
   organizationId: string;
+  visualWorkflowId?: string;
+  visualWorkflowRunId?: string;
   signal?: AbortSignal;
   inputsResolved?: boolean;
   idempotencyKey?: string;
@@ -163,6 +170,77 @@ export async function executeVisualWorkflowNode(input: {
           },
         };
       }
+    }
+    case "action.content_sync": {
+      const projectId = text(node.config.projectId).trim();
+      const connectionId = text(node.config.connectionId).trim();
+      const resourceKey = text(node.config.resourceKey).trim();
+      const projectFolder = text(node.config.projectFolder).trim();
+      if (!projectId || !connectionId || !resourceKey || !projectFolder) {
+        return {
+          ok: false,
+          error: {
+            code: "missing_content_sync_config",
+            message: "Choose a project, source, and project folder before syncing.",
+          },
+        };
+      }
+
+      const syncValidation = validateContentSyncConfig({
+        provider: node.config.provider,
+        connectionId,
+        resourceKey,
+        providerFolder: text(node.config.providerFolder).trim(),
+        projectFolder,
+      });
+      if (isErr(syncValidation)) {
+        return {
+          ok: false,
+          error: {
+            code: syncValidation.error.code,
+            message: syncValidation.error.message,
+          },
+        };
+      }
+
+      const [scopedProject] = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+      if (!scopedProject) {
+        return {
+          ok: false,
+          error: {
+            code: "project_not_found",
+            message: "Choose a project in this organization.",
+          },
+        };
+      }
+
+      const result = await executeContentSyncConfig({
+        organizationId: input.organizationId,
+        projectId,
+        workflowId: input.visualWorkflowId ?? input.organizationId,
+        runId: input.visualWorkflowRunId ?? input.idempotencyKey ?? crypto.randomUUID(),
+        syncConfig: syncValidation.value,
+      });
+      if (isErr(result)) {
+        return {
+          ok: false,
+          error: {
+            code: result.error.code,
+            message: result.error.message,
+          },
+        };
+      }
+
+      return { ok: true, output: result.value };
     }
     case "action.notify_slack": {
       const channelId = text(node.config.channelId).trim();

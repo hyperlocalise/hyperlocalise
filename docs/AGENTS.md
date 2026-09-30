@@ -4,8 +4,9 @@ This directory is the Mintlify documentation site for Hyperlocalise.
 
 ## Project Context
 
-- Position Cloud as infrastructure for multilingual content operations, not as a CAT-first product. CAT, automations, knowledge, CLI, and API are surfaces of that layer.
+- Position Platform as infrastructure for multilingual content operations, not as a CAT-first product. CAT, automations, knowledge, CLI, and API are surfaces of that layer.
 - Write for Hyperlocalise users and contributors.
+- Name the hosted product Hyperlocalise Platform and the command-line tool Hyperlocalise CLI. Preserve third-party product names and technical identifiers.
 - Pages are MDX files with YAML frontmatter.
 - Site configuration and navigation live in `docs.json`.
 - Platform docs live under `docs/platform/` and `docs/index.mdx`.
@@ -33,7 +34,7 @@ Use `mint dev` to preview pages locally at `http://localhost:3000`. Use
 - Use sentence case for headings.
 - Use backticks for commands, paths, filenames, configuration keys, and code.
 - Use bold only for visible UI labels, such as **Settings**.
-- Keep examples runnable and aligned with the current CLI or Cloud behavior.
+- Keep examples runnable and aligned with the current CLI or Platform behavior.
 
 ## Content Boundaries
 

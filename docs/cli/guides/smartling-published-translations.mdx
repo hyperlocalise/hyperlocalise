@@ -1,0 +1,73 @@
+---
+title: "Download published Smartling translations from the command line"
+sidebarTitle: "Download published Smartling files"
+description: "Export published Smartling translations with Hyperlocalise. Check file status, choose locale IDs, and download one file or a project file set."
+---
+
+Use `hyperlocalise smartling download translations --retrieval-type published`
+to request published translations from Smartling. Specify the retrieval type
+explicitly so the intended export is visible in scripts and CI.
+
+## Before you start
+
+[Install Hyperlocalise](/cli/getting-started/install), then set
+`SMARTLING_USER_IDENTIFIER` and `SMARTLING_USER_SECRET` for a credential with
+project access. This workflow expects source files and published translations
+already in Smartling. It does not start a translation job.
+
+Replace the project ID and inspect the available files and locale IDs:
+
+```bash
+hyperlocalise smartling locales list --project-id your-project-id
+hyperlocalise smartling files list --project-id your-project-id
+hyperlocalise smartling files status \
+    --project-id your-project-id --file-uri locales/en.json
+```
+
+Use the exact file URI returned by `files list` and an enabled target locale.
+`--uri-mask` is a substring filter for listing or multi-file downloads, not an
+alternative to an exact `--file-uri`.
+
+## Download one published locale
+
+```bash
+hyperlocalise smartling download translations \
+    --project-id your-project-id --file-uri locales/en.json \
+    --target-locale fr-FR --retrieval-type published \
+    --output ./locales/fr-FR.json --dry-run
+hyperlocalise smartling download translations \
+    --project-id your-project-id --file-uri locales/en.json \
+    --target-locale fr-FR --retrieval-type published \
+    --output ./locales/fr-FR.json
+```
+
+Review `locales/fr-FR.json` and check that required strings are present. Published
+retrieval does not prove the whole file is translated. Add `--force` if you intend
+to overwrite an existing output file.
+
+## Download a set of files
+
+Use `--all` instead of `--file-uri` and provide a directory:
+
+```bash
+hyperlocalise smartling download translations \
+    --project-id your-project-id --all --target-locale fr-FR \
+    --retrieval-type published --output ./smartling-export
+```
+
+For URI `locales/en.json`, the exported path is
+`smartling-export/locales/en_fr-FR.json`. Add `--uri-mask locales/` to limit the
+listed files. Downloads run sequentially and stop on the first error; inspect
+partial output before retrying. An empty file list produces an error.
+
+Do not use `%locale%` or stdout (`-`) with `--all`. With a single file and several
+`--target-locale` flags, use `%locale%` in the output filename instead.
+
+## If the export is missing content
+
+Check file status, enabled locales, and publication state in Smartling. The
+`pending`, `published`, and `pseudo` retrieval types serve different purposes;
+changing to `pending` is not a substitute for completing your release workflow.
+
+See [Smartling CLI workflows](/cli/commands/smartling) for upload behavior and
+credential differences from the official CLI, or [all TMS integrations](/cli/storage/overview).

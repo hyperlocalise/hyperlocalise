@@ -34,3 +34,20 @@ func BenchmarkParseInvariant(b *testing.B) {
 		_, _ = ParseInvariant(input)
 	}
 }
+
+func BenchmarkIsPlaceholderName(b *testing.B) {
+	names := []string{
+		"name",
+		"count",
+		"user_id",
+		"folderName",
+		"items[0]",
+		"user.profile.name",
+	}
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, name := range names {
+			_ = isPlaceholderName(name)
+		}
+	}
+}

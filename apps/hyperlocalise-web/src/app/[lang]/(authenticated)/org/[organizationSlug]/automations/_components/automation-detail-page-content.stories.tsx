@@ -13,6 +13,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, within } from "storybook/test";
 
+import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
+
 import { createAutomationSummary } from "./automations.fixture";
 import { AutomationDetailPageContent } from "./automation-detail-page-content";
 import { createAutomationDetailMswHandlers } from "./automation-msw-handlers";
@@ -54,6 +56,13 @@ const meta = {
     organizationSlug: "acme",
     automationId: githubAutomation.id,
   },
+  decorators: [
+    (Story) => (
+      <AppShellStoreProvider defaultNavigationGroups={[]}>
+        <Story />
+      </AppShellStoreProvider>
+    ),
+  ],
 } satisfies Meta<typeof AutomationDetailPageContent>;
 
 export default meta;

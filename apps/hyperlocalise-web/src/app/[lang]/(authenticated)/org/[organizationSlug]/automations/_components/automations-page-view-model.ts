@@ -18,9 +18,10 @@ import {
   type WorkspaceAutomationTemplate,
   type WorkspaceAutomationTemplateCategory,
 } from "@/lib/agents/workspace-automation-templates";
-import type {
-  WorkspaceAutomationRecord,
-  WorkspaceAutomationTriggerConfig,
+import {
+  isContentSyncAutomation,
+  type WorkspaceAutomationRecord,
+  type WorkspaceAutomationTriggerConfig,
 } from "@/lib/agents/workspace-automation-types";
 
 import { automationsPageViewModelMessages } from "./automations-page-view-model.messages";
@@ -113,7 +114,16 @@ export function resolveAutomationCreatorName(
 export function resolveAutomationTriggerLabel(
   intl: IntlShape,
   triggerConfig: WorkspaceAutomationTriggerConfig,
+  automation?: WorkspaceAutomationRecord,
 ) {
+  if (automation && isContentSyncAutomation(automation)) {
+    const resourceKey = automation.syncConfig?.resourceKey.trim();
+    if (resourceKey) {
+      return resourceKey;
+    }
+    return intl.formatMessage(automationsPageViewModelMessages.triggerContentSync);
+  }
+
   if (triggerConfig.mode === "scheduled") {
     return intl.formatMessage(automationsPageViewModelMessages.triggerScheduled);
   }
@@ -133,6 +143,20 @@ export function resolveAutomationTriggerLabel(
 }
 
 export function resolveAutomationTools(intl: IntlShape, automation: WorkspaceAutomationRecord) {
+  if (isContentSyncAutomation(automation)) {
+    const provider = automation.syncConfig?.provider;
+    if (provider === "gitlab") {
+      return [intl.formatMessage(automationsPageViewModelMessages.toolGitlab)];
+    }
+    if (provider === "contentful") {
+      return [intl.formatMessage(automationsPageViewModelMessages.toolContentful)];
+    }
+    if (provider === "intercom") {
+      return [intl.formatMessage(automationsPageViewModelMessages.toolIntercom)];
+    }
+    return [intl.formatMessage(automationsPageViewModelMessages.toolGithub)];
+  }
+
   const tools: string[] = [];
   if (automation.toolConfig.github?.enabled) {
     tools.push(intl.formatMessage(automationsPageViewModelMessages.toolGithub));

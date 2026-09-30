@@ -11,11 +11,22 @@
  * Version 2.0 or later.
  */
 import {
+  buildDefaultContentSyncTriggerMode,
+  contentSyncNeedsProviderFolder,
+  defaultContentSyncName,
+  defaultContentSyncProjectFolder,
+  type ContentSyncConfig,
+  type ContentSyncProvider,
+} from "./content-sync/content-sync-types";
+import {
+  DEFAULT_WORKSPACE_AUTOMATION_KIND,
   DEFAULT_WORKSPACE_AUTOMATION_MODEL,
   resolveWorkspaceAutomationGithubEvents,
+  resolveWorkspaceAutomationKind,
   resolveWorkspaceAutomationModel,
   type WorkspaceAutomationGithubToolMode,
   type WorkspaceAutomationGithubTriggerEvent,
+  type WorkspaceAutomationKind,
   type WorkspaceAutomationModel,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationRepositoryTarget,
@@ -40,11 +51,17 @@ export type WorkspaceAutomationTriggerMode =
   | "web_chat";
 
 export type WorkspaceAutomationFormState = {
+  kind: WorkspaceAutomationKind;
   name: string;
   instructions: string;
   model: WorkspaceAutomationModel;
   status: "active" | "paused";
   projectId: string;
+  syncProvider: ContentSyncProvider;
+  syncConnectionId: string;
+  syncResourceKey: string;
+  syncProviderFolder: string;
+  syncProjectFolder: string;
   triggerMode: WorkspaceAutomationTriggerMode;
   pushBranches: string[];
   githubEvents: WorkspaceAutomationGithubTriggerEvent[];
@@ -140,6 +157,9 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "ahrefs"
     | "crowdinProjectId"
     | "scheduledTimezone"
+    | "syncConnectionId"
+    | "syncProviderFolder"
+    | "syncProjectFolder"
     | "form",
     string
   >
@@ -206,6 +226,11 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_repository_not_enabled: "Enable this repository before configuring automation.",
   github_repository_archived: "Archived repositories cannot use automations.",
   project_not_found: "The selected project could not be found.",
+  content_sync_config_required: "Choose a source, resource, and project folder.",
+  content_sync_provider_folder_required: "Add the folder on the connected source.",
+  content_sync_folder_invalid: "Choose a safe relative folder path.",
+  content_sync_duplicate: "This project already syncs that source folder.",
+  content_sync_connection_required: "Connect this source in Integrations first.",
 };
 
 export function selectableAutomationRepositories<
@@ -220,11 +245,17 @@ export function selectableAutomationRepositories<
 
 export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomationFormState {
   return {
+    kind: DEFAULT_WORKSPACE_AUTOMATION_KIND,
     name: "",
     instructions: "",
     model: DEFAULT_WORKSPACE_AUTOMATION_MODEL,
     status: "active",
     projectId: "",
+    syncProvider: "github",
+    syncConnectionId: "",
+    syncResourceKey: "",
+    syncProviderFolder: "locales",
+    syncProjectFolder: "",
     triggerMode: "manual",
     pushBranches: ["main"],
     githubEvents: ["push"],
@@ -303,8 +334,14 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const webSearch = automation.toolConfig.webSearch;
 
   return {
+    kind: resolveWorkspaceAutomationKind(automation.kind),
     name: automation.name,
     instructions: automation.instructions,
+    syncProvider: automation.syncConfig?.provider ?? "github",
+    syncConnectionId: automation.syncConfig?.connectionId ?? "",
+    syncResourceKey: automation.syncConfig?.resourceKey ?? "",
+    syncProviderFolder: automation.syncConfig?.providerFolder ?? "locales",
+    syncProjectFolder: automation.syncConfig?.projectFolder ?? "",
     model: resolveWorkspaceAutomationModel(automation.model),
     status: automation.status === "paused" ? "paused" : "active",
     projectId: automation.projectId ?? "",
@@ -439,7 +476,8 @@ export function applyWorkspaceAutomationProjectSelection(
   return next;
 }
 
-export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationFormState): {
+export type WorkspaceAutomationAgentWritePayload = {
+  kind?: "agent";
   name: string;
   instructions: string;
   model: WorkspaceAutomationModel;
@@ -448,7 +486,55 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
-} {
+};
+
+export type WorkspaceAutomationContentSyncWritePayload = {
+  kind: "content_sync";
+  name: string;
+  model?: WorkspaceAutomationModel;
+  status: "active" | "paused";
+  projectId?: string;
+  triggerConfig: WorkspaceAutomationTriggerConfig;
+  repositoryTarget?: WorkspaceAutomationRepositoryTarget;
+  syncConfig: ContentSyncConfig;
+  toolConfig: WorkspaceAutomationToolConfig;
+};
+
+export type WorkspaceAutomationWritePayload =
+  | WorkspaceAutomationAgentWritePayload
+  | WorkspaceAutomationContentSyncWritePayload;
+
+export function formStateToWorkspaceAutomationPayload(
+  form: WorkspaceAutomationFormState,
+): WorkspaceAutomationWritePayload {
+  if (form.kind === "content_sync") {
+    const resourceKey = form.syncResourceKey.trim();
+    const projectFolder =
+      form.syncProjectFolder.trim() ||
+      defaultContentSyncProjectFolder({
+        provider: form.syncProvider,
+        resourceKey,
+      });
+    return {
+      kind: "content_sync",
+      name:
+        form.name.trim() || defaultContentSyncName({ provider: form.syncProvider, resourceKey }),
+      status: form.status,
+      projectId: form.projectId.trim() || undefined,
+      triggerConfig: { mode: buildDefaultContentSyncTriggerMode(form.syncProvider) },
+      syncConfig: {
+        provider: form.syncProvider,
+        connectionId: form.syncConnectionId.trim(),
+        resourceKey,
+        providerFolder: contentSyncNeedsProviderFolder(form.syncProvider)
+          ? form.syncProviderFolder.trim()
+          : "",
+        projectFolder,
+      },
+      toolConfig: {},
+    };
+  }
+
   const triggerConfig: WorkspaceAutomationTriggerConfig =
     form.triggerMode === "scheduled"
       ? {
@@ -664,6 +750,28 @@ export function validateWorkspaceAutomationFormState(
 ): WorkspaceAutomationFieldErrors {
   const errors: WorkspaceAutomationFieldErrors = {};
 
+  if (form.kind === "content_sync") {
+    if (!form.projectId.trim()) {
+      errors.projectId = "Choose a Hyperlocalise project.";
+    }
+    if (!form.syncConnectionId.trim() || !form.syncResourceKey.trim()) {
+      errors.syncConnectionId = "Choose a connected source.";
+    }
+    if (contentSyncNeedsProviderFolder(form.syncProvider) && !form.syncProviderFolder.trim()) {
+      errors.syncProviderFolder = "Add the folder on the connected source.";
+    }
+    if (
+      !form.syncProjectFolder.trim() &&
+      !defaultContentSyncProjectFolder({
+        provider: form.syncProvider,
+        resourceKey: form.syncResourceKey,
+      })
+    ) {
+      errors.syncProjectFolder = "Add a project folder.";
+    }
+    return errors;
+  }
+
   if (!form.name.trim()) {
     errors.name = "Name is required.";
   }
@@ -861,6 +969,15 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "crowdin_project_not_linked":
     case "crowdin_not_connected":
       return { crowdinProjectId: message };
+    case "content_sync_config_required":
+      return { syncConnectionId: message };
+    case "content_sync_provider_folder_required":
+      return { syncProviderFolder: message };
+    case "content_sync_folder_invalid":
+      return { syncProjectFolder: message };
+    case "content_sync_duplicate":
+    case "content_sync_connection_required":
+      return { form: message };
     default:
       return { form: message };
   }
@@ -880,6 +997,12 @@ export function workspaceAutomationFormHasChanges(
 }
 
 export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationFormState) {
+  if (form.kind === "content_sync") {
+    return Boolean(
+      form.projectId.trim() && form.syncConnectionId.trim() && form.syncResourceKey.trim(),
+    );
+  }
+
   if (form.triggerMode === "web_chat") {
     return true;
   }

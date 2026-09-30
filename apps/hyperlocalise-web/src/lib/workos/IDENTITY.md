@@ -53,7 +53,7 @@ Users without an active WorkOS membership after reconcile are routed to `/auth/o
 It runs:
 
 1. During session bootstrap (`resolveApiAuthContextFromSession`) before loading active memberships
-2. After admin member role updates and removals (`member.route`)
+2. After admin member role updates and removals. `go-svc` `/v1/orgs/{slug}/members` writes the local membership and the matching WorkOS membership or invitation directly.
 3. Via WorkOS webhooks for incremental updates (with live membership verification on create events)
 
 `user.created` also sends a one-time getting-started email after the local user
@@ -81,6 +81,14 @@ AuthKit at `/.well-known/oauth-protected-resource/api/v1`.
 Dashboard: Authentication → Agents — service auth on, anonymous off, access
 token credentials, trusted permissions matching PAT scopes plus `mcp`. See
 [`docs/adr/2026-09-08-workos-agent-registration-design.md`](../../../../docs/adr/2026-09-08-workos-agent-registration-design.md).
+
+## go-svc session access tokens
+
+Human WorkOS session access tokens (the JWT inside an AuthKit session) are a
+second credential for go-svc. Verify them against the WorkOS User Management
+JWKS (`/sso/jwks/{client_id}`), not AuthKit agent JWKS. Reject tokens that
+carry `act` so agent credentials cannot reach dictionary, team, or CAT routes.
+See [`docs/adr/2026-09-20-go-svc-workos-access-token-design.md`](../../../../docs/adr/2026-09-20-go-svc-workos-access-token-design.md).
 
 ## Placeholder users
 

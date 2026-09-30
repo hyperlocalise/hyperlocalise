@@ -22,6 +22,44 @@ import {
   resolveSegmentIntelligenceForDisplay,
 } from "./store/content-editor-workspace-store-utils";
 
+describe("editor subscription boundaries", () => {
+  it("keeps the ordered queue subscription stable when a draft changes", () => {
+    const store = createCatWorkspace(createContentEditorWorkspaceState());
+    let listReads = 0;
+    let rowReads = 0;
+    const stopList = autorun(() => {
+      store.getQueuePanelSegments("all", false);
+      listReads += 1;
+    });
+    const row = store.getQueuePanelSegments("all", false)[0]!;
+    const stopRow = autorun(() => {
+      void row.targetText;
+      rowReads += 1;
+    });
+    const before = listReads;
+    store.setTargetText(row.id, "Changed translation");
+    expect(listReads).toBe(before);
+    expect(rowReads).toBe(2);
+    expect(row.targetText).toBe("Changed translation");
+    stopList();
+    stopRow();
+  });
+
+  it("keeps target and comment loading local to the requested segment", () => {
+    const store = createCatWorkspace(createContentEditorWorkspaceState());
+    const [first, second] = store.queueSegments;
+    store.setSelectedSegmentId(first!.id);
+    store.setSegmentTargetLoading(true, first!.id);
+    store.setCommentsLoading(true, first!.id);
+    expect(store.isSegmentTargetLoading).toBe(true);
+    store.setSelectedSegmentId(second!.id);
+    expect(store.isSegmentTargetLoading).toBe(false);
+    expect(store.isCommentsLoading).toBe(false);
+    store.setSelectedSegmentId(first!.id);
+    expect(store.isCommentsLoading).toBe(true);
+  });
+});
+
 describe("ContentEditorWorkspaceOrchestrator hydration", () => {
   it("preserves selected segment and unsaved target edits across server refreshes", () => {
     const previousInitialState = createContentEditorWorkspaceState({
@@ -1067,7 +1105,7 @@ describe("resolveSegmentIntelligenceForDisplay", () => {
 });
 
 describe("ContentEditorWorkspaceOrchestrator ui state", () => {
-  it("resolves intelligence segment from hover and clears hover on selection", () => {
+  it("keeps intelligence on the selected segment instead of hover", () => {
     const store = createCatWorkspace(
       createContentEditorWorkspaceState({
         selectedSegmentId: "seg-01",
@@ -1096,30 +1134,54 @@ describe("ContentEditorWorkspaceOrchestrator ui state", () => {
       }),
     );
 
-    store.ui.setHoveredSegment("seg-02");
-
-    expect(store.intelligenceSegmentId).toBe("seg-02");
-    expect(store.intelligenceSegmentView?.key).toBe("second");
+    expect(store.intelligenceSegmentId).toBe("seg-01");
+    expect(store.intelligenceSegmentView?.key).toBe("first");
 
     store.setSelectedSegmentId("seg-02");
 
     expect(store.selectedSegmentId).toBe("seg-02");
-    expect(store.ui.hoveredSegmentId).toBeNull();
     expect(store.intelligenceSegmentId).toBe("seg-02");
+    expect(store.intelligenceSegmentView?.key).toBe("second");
   });
 
-  it("tracks loading segment ids from selected and preview targets", () => {
+  it("tracks loading segment ids from the selected target", () => {
     const store = createCatWorkspace(
       createContentEditorWorkspaceState({ selectedSegmentId: "seg-01" }),
     );
 
     store.setSegmentTargetLoading(true);
-    store.ui.setPreviewLoadingState("seg-02", {
-      isTargetLoading: true,
-      isCommentsLoading: false,
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-01"]);
+  });
+
+  it("treats unhydrated side-by-side load-range rows as loading", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+          { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
+        ],
+        segments: [],
+      }),
+    );
+
+    store.ui.setViewMode("side-by-side");
+    store.ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01", "seg-02"],
+      loadSegmentIds: ["seg-01", "seg-02", "seg-03"],
     });
 
-    expect([...store.loadingSegmentIds]).toEqual(["seg-01", "seg-02"]);
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-02", "seg-03"]);
+
+    store.applySegmentTarget("seg-02", {
+      text: "Second target",
+      externalTranslationId: "translation-2",
+      isApproved: false,
+    });
+
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-03"]);
   });
 
   it("includes queue target loading segment ids in side-by-side loading state", () => {
@@ -1165,6 +1227,92 @@ describe("ContentEditorWorkspaceOrchestrator ui state", () => {
     store.setTargetText("seg-02", "Typed while fetching");
 
     expect([...store.loadingSegmentIds]).toEqual(["seg-03"]);
+  });
+
+  it("stops treating failed viewport target loads as loading", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+          { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
+        ],
+        segments: [],
+      }),
+    );
+
+    store.ui.setViewMode("side-by-side");
+    store.ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01", "seg-02"],
+      loadSegmentIds: ["seg-01", "seg-02", "seg-03"],
+    });
+
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-02", "seg-03"]);
+
+    store.markSegmentTargetLoadFailed("seg-01");
+    store.markSegmentTargetLoadFailed("seg-02");
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-03"]);
+    expect(store.hasFailedTarget("seg-01")).toBe(true);
+    expect(store.hasHydratedTarget("seg-01")).toBe(false);
+  });
+
+  it("returns a failed viewport row to loading when its target fetch retries", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+        ],
+        segments: [],
+      }),
+    );
+
+    store.ui.setViewMode("side-by-side");
+    store.ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01", "seg-02"],
+      loadSegmentIds: ["seg-01", "seg-02"],
+    });
+    store.markSegmentTargetLoadFailed("seg-02");
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-01"]);
+
+    store.setQueueTargetLoadingSegmentIds(["seg-02"]);
+
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-02"]);
+    expect(store.hasFailedTarget("seg-02")).toBe(false);
+  });
+
+  it("clears a failed target load after the payload hydrates", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+        ],
+        segments: [],
+      }),
+    );
+
+    store.ui.setViewMode("side-by-side");
+    store.ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01", "seg-02"],
+      loadSegmentIds: ["seg-01", "seg-02"],
+    });
+    store.markSegmentTargetLoadFailed("seg-02");
+
+    store.applySegmentTarget("seg-02", {
+      text: "Second target",
+      externalTranslationId: "translation-2",
+      isApproved: false,
+    });
+
+    expect(store.hasFailedTarget("seg-02")).toBe(false);
+    expect(store.hasHydratedTarget("seg-02")).toBe(true);
+    expect([...store.loadingSegmentIds]).toEqual(["seg-01"]);
   });
 });
 

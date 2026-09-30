@@ -32,15 +32,11 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
 import { contentEditorActivityLogMessages as messages } from "./content-editor-activity-log.messages";
-
-type ActivityLogResponse = {
-  activityLogs: ActivityLogItem[];
-  nextCursor: string | null;
-};
 
 function contentEditorActivityLogsQueryKey(
   organizationSlug: string,
@@ -60,6 +56,7 @@ export function ContentEditorActivityLogButton({
   sourcePath: string;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const [open, setOpen] = useState(false);
   const [now] = useState(() => Date.now());
   const allFiles = isContentEditorAllFilesSourcePath(sourcePath);
@@ -69,20 +66,19 @@ export function ContentEditorActivityLogButton({
     initialPageParam: undefined as string | undefined,
     enabled: open,
     queryFn: async ({ pageParam }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat["activity-logs"].$get({
-        param: { organizationSlug, projectId },
-        query: {
+      try {
+        const result = await goSvcClient.cat.activityLogs(organizationSlug, projectId, {
           sourcePath,
           cursor: pageParam,
-          limit: "50",
-        },
-      });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.loadError));
+          limit: 50,
+        });
+        return {
+          activityLogs: result.activityLogs as ActivityLogItem[],
+          nextCursor: result.nextCursor ?? null,
+        };
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadError)));
       }
-      return (await response.json()) as ActivityLogResponse;
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });

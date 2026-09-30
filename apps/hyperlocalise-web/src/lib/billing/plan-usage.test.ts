@@ -83,9 +83,9 @@ describe("plan usage helpers", () => {
       ],
       balances: {
         ai_tokens: {
-          usage: 1_200_000,
-          granted: 2_000_000,
-          remaining: 800_000,
+          usage: 1_200,
+          granted: 2_000,
+          remaining: 800,
         },
       },
       plans: [{ id: "enterprise", name: "Enterprise" }],
@@ -108,9 +108,9 @@ describe("plan usage helpers", () => {
       ],
       balances: {
         ai_tokens: {
-          usage: 1_200_000,
-          granted: 2_000_000,
-          remaining: 800_000,
+          usage: 1_200,
+          granted: 2_000,
+          remaining: 800,
         },
       },
       plans: [{ id: "enterprise", name: "Enterprise" }],
@@ -138,7 +138,7 @@ describe("plan usage helpers", () => {
         isScheduledForCancel: false,
         renewalLabel: "Aug 24, 2027",
         renewalCopy: "Renews on Aug 24, 2027",
-        usageSummary: "$1,200,000.00 / $2,000,000.00 AI credit used",
+        usageSummary: "$1,200.00 / $2,000.00 AI credit used",
         usageProgressPercent: 60,
         unlimited: false,
       }),

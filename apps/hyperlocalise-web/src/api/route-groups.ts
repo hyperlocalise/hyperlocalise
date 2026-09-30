@@ -29,12 +29,10 @@ import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
 import { createSlackConnectRoutes } from "./routes/slack-connect/slack-connect.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
-import { createNativeAuthRoutes } from "./routes/auth/native-auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
-import { createLinkedDomainRoutes } from "./routes/linked-domain/linked-domain.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
@@ -66,12 +64,9 @@ import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms
 import { createTmsProviderRoutes } from "./routes/tms-provider/tms-provider.route";
 import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
-import { createMemberRoutes } from "./routes/member/member.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
-import { createHyperlabRoutes } from "./routes/hyperlab/hyperlab.route";
 import { createReportsRoutes } from "./routes/reports/reports.route";
-import { createActivityLogRoutes } from "./routes/activity-log/activity-log.route";
 import { createOverviewRoutes } from "./routes/overview/overview.route";
 
 export type OrgScopedRouteOptions = {
@@ -91,10 +86,7 @@ export type PublicApiRouteOptions = {
 };
 
 export function createAuthRoutes() {
-  return new Hono()
-    .route("/native", createNativeAuthRoutes())
-    .route("/", authRoutes)
-    .route("/slack", createSlackOAuthRoutes());
+  return new Hono().route("/", authRoutes).route("/slack", createSlackOAuthRoutes());
 }
 
 export function createPublicApiRoutes(options: PublicApiRouteOptions) {
@@ -170,7 +162,6 @@ export function createOrgIntegrationsRoutes() {
   return new Hono()
     .route("/contentful-connections", createContentfulConnectionRoutes())
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
-    .route("/linked-domains", createLinkedDomainRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
     .route("/zernio-connections", createZernioConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())
@@ -190,13 +181,10 @@ export function createOrgAgentsRoutes() {
 
 export function createOrgWorkspaceRoutes() {
   return new Hono()
-    .route("/members", createMemberRoutes())
     .route("/workspace", createWorkspaceRoutes())
     .route("/billing", createBillingRoutes())
     .route("/api-keys", createApiKeyRoutes())
-    .route("/activity-logs", createActivityLogRoutes())
     .route("/reports", createReportsRoutes())
-    .route("/hyperlab", createHyperlabRoutes())
     .route("/overview", createOverviewRoutes());
 }
 

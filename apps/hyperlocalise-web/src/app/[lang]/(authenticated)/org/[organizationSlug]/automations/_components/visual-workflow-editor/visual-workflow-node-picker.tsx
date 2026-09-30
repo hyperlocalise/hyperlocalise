@@ -150,6 +150,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeSourceUploadTrigger;
     case "action.http":
       return messages.nodeHttp;
+    case "action.content_sync":
+      return messages.nodeContentSync;
     case "action.notify_slack":
       return messages.nodeNotifySlack;
     case "action.notify_email":
@@ -164,6 +166,12 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeAi;
     case "logic.for_each":
       return messages.nodeLoop;
+    case "logic.retry":
+      return messages.nodeRetry;
+    case "flow.wait":
+      return messages.nodeWait;
+    case "logic.merge":
+      return messages.nodeMerge;
   }
 }
 
@@ -179,6 +187,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeSourceUploadTriggerHint;
     case "action.http":
       return messages.nodeHttpHint;
+    case "action.content_sync":
+      return messages.nodeContentSyncHint;
     case "action.notify_slack":
       return messages.nodeNotifySlackHint;
     case "action.notify_email":
@@ -193,6 +203,12 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeAiHint;
     case "logic.for_each":
       return messages.nodeLoopHint;
+    case "logic.retry":
+      return messages.nodeRetryHint;
+    case "flow.wait":
+      return messages.nodeWaitHint;
+    case "logic.merge":
+      return messages.nodeMergeHint;
   }
 }
 

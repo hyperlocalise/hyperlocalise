@@ -12,6 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createContentEditorRequestScheduler } from "@/components/content-editor/shared/content-editor-request-scheduler";
+import { useNativeTargetLoader } from "./content-editor-native-target-context";
+import { CAT_CACHE_GC_TIME, installEditorCacheBudget } from "./content-editor-cache-budget";
 import { useMemo } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
@@ -20,8 +23,13 @@ import type { ProjectFileContentEditorTranslation } from "@/api/routes/project/p
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { projectFileCatApiMessages } from "./project-file-content-editor-api.messages";
+
+const scheduleTargetRequest = createContentEditorRequestScheduler(4);
 
 export function projectFileCatSegmentTargetQueryKey(input: {
   organizationSlug: string;
@@ -53,22 +61,53 @@ export async function fetchProjectFileContentEditorSegmentTarget(input: {
   targetLocale: string;
   externalStringId: string;
   intl: ContentEditorFormatMessageIntl;
+  signal?: AbortSignal;
+  goSvcClient?: GoSvcClient;
 }) {
+  if (input.goSvcClient && !input.externalResourceId) {
+    try {
+      const { target } = await input.goSvcClient.cat.segmentTarget(
+        input.organizationSlug,
+        input.projectId,
+        input.externalStringId,
+        {
+          sourcePath: input.sourcePath,
+          targetLocale: input.targetLocale,
+          ...(input.resourceType ? { resourceType: input.resourceType } : {}),
+        },
+        { signal: input.signal },
+      );
+      return target;
+    } catch (error) {
+      if (!isCatDeferredToApp(error)) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            input.intl.formatMessage(projectFileCatApiMessages.failedToLoadSegmentTranslation),
+          ),
+        );
+      }
+    }
+  }
+
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
-  ].files.detail.cat.segments[":externalStringId"].target.$get({
-    param: {
-      organizationSlug: input.organizationSlug,
-      projectId: input.projectId,
-      externalStringId: input.externalStringId,
+  ].files.detail.cat.segments[":externalStringId"].target.$get(
+    {
+      param: {
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        externalStringId: input.externalStringId,
+      },
+      query: {
+        sourcePath: input.sourcePath,
+        ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
+        ...(input.resourceType ? { resourceType: input.resourceType } : {}),
+        targetLocale: input.targetLocale,
+      },
     },
-    query: {
-      sourcePath: input.sourcePath,
-      ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
-      ...(input.resourceType ? { resourceType: input.resourceType } : {}),
-      targetLocale: input.targetLocale,
-    },
-  });
+    { init: { signal: input.signal } },
+  );
 
   if (response.status !== 200) {
     throw new Error(
@@ -92,7 +131,10 @@ function contentEditorSegmentTargetQueryOptions(input: {
   targetLocale: string;
   externalStringId: string;
   enabled?: boolean;
+  priority?: boolean;
   intl: ContentEditorFormatMessageIntl;
+  nativeLoader?: ReturnType<typeof useNativeTargetLoader>;
+  goSvcClient?: GoSvcClient;
 }) {
   return {
     queryKey: projectFileCatSegmentTargetQueryKey(input),
@@ -102,7 +144,20 @@ function contentEditorSegmentTargetQueryOptions(input: {
       Boolean(input.targetLocale) &&
       Boolean(input.sourcePath),
     staleTime: 30_000,
-    queryFn: () => fetchProjectFileContentEditorSegmentTarget(input),
+    gcTime: CAT_CACHE_GC_TIME,
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      input.nativeLoader
+        ? input.nativeLoader(input, signal, input.priority)
+        : scheduleTargetRequest(
+            () =>
+              fetchProjectFileContentEditorSegmentTarget({
+                ...input,
+                signal,
+                goSvcClient: input.goSvcClient,
+              }),
+            signal,
+            input.priority,
+          ),
   };
 }
 
@@ -115,8 +170,12 @@ export function useContentEditorSegmentTarget(input: {
   targetLocale: string;
   externalStringId: string | null;
   enabled?: boolean;
+  priority?: boolean;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
+  const nativeLoader = useNativeTargetLoader();
+  installEditorCacheBudget(useQueryClient());
   const externalStringId = input.externalStringId ?? "";
 
   return useQuery(
@@ -129,7 +188,10 @@ export function useContentEditorSegmentTarget(input: {
       targetLocale: input.targetLocale,
       externalStringId,
       enabled: input.enabled,
+      priority: input.priority ?? true,
       intl,
+      nativeLoader,
+      goSvcClient,
     }),
   );
 }
@@ -151,6 +213,9 @@ export function useContentEditorSegmentTargets(input: {
   enabled?: boolean;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
+  const nativeLoader = useNativeTargetLoader();
+  installEditorCacheBudget(useQueryClient());
   const segments = useMemo(() => {
     const seen = new Set<string>();
     const unique: typeof input.segments = [];
@@ -178,6 +243,8 @@ export function useContentEditorSegmentTargets(input: {
         externalStringId: segment.externalStringId,
         enabled: input.enabled,
         intl,
+        nativeLoader,
+        goSvcClient,
       }),
     ),
   });
@@ -203,7 +270,7 @@ export function useInvalidateCatSegmentTarget() {
   };
 }
 
-/** Cancel in-flight fetches, seed cache with the saved translation, then refetch. */
+/** The write response is authoritative; cancel older reads and publish it immediately. */
 export function useSyncCatSegmentTargetAfterSave() {
   const queryClient = useQueryClient();
 
@@ -214,6 +281,5 @@ export function useSyncCatSegmentTargetAfterSave() {
     const queryKey = projectFileCatSegmentTargetQueryKey(input);
     await queryClient.cancelQueries({ queryKey });
     queryClient.setQueryData(queryKey, translation);
-    await queryClient.invalidateQueries({ queryKey });
   };
 }

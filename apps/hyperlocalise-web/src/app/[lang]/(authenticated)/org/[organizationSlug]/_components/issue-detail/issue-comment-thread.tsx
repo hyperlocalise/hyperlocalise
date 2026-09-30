@@ -48,6 +48,7 @@ import { formatRelativeTimestamp } from "../workspace-files-shared";
 import { IssueCommentComposer } from "./issue-comment-composer";
 import { issueCommentMessages as messages } from "./issue-comment.messages";
 import { useIssueDetailGuardedNavigate } from "./issue-detail-navigation-guard";
+import { useIssueDetailLinkScope } from "./issue-detail-link-scope";
 import {
   buildIssueDetailHref,
   issuePriorityLabel,
@@ -101,6 +102,7 @@ function IssueCommentBody({
 }) {
   const intl = useIntl();
   const navigateGuarded = useIssueDetailGuardedNavigate();
+  const detailScope = useIssueDetailLinkScope();
   const { updateComment, deleteComment } = useIssueCommentMutations({
     organizationSlug,
     projectId,
@@ -140,6 +142,7 @@ function IssueCommentBody({
           organizationSlug,
           projectId: mention.projectId,
           issueId: mention.id,
+          scope: detailScope,
         }),
       );
       return;

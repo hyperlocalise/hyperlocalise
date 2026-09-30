@@ -57,6 +57,7 @@ export function TmEntryExplorer({
   onDeleteEntry,
   isDeleting = false,
   toolbarActions,
+  emptyActions,
 }: {
   organizationSlug: string;
   memoryId: string;
@@ -66,6 +67,7 @@ export function TmEntryExplorer({
   onDeleteEntry?: (entryId: string) => void;
   isDeleting?: boolean;
   toolbarActions?: ReactNode;
+  emptyActions?: ReactNode;
 }) {
   const intl = useIntl();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } =
@@ -286,13 +288,14 @@ export function TmEntryExplorer({
       ) : null}
 
       {entriesQuery.isSuccess && entries.length === 0 ? (
-        <TypographyP
-          className="rounded-lg border border-border px-4 py-6"
-          size="small"
-          tone="subtle"
-        >
-          <FormattedMessage {...(hasFilters ? messages.empty : messages.emptyNoFilters)} />
-        </TypographyP>
+        <div className="flex flex-col items-center gap-4 rounded-lg border border-border px-4 py-10 text-center">
+          <TypographyP size="small" tone="subtle">
+            <FormattedMessage {...(hasFilters ? messages.empty : messages.emptyNoFilters)} />
+          </TypographyP>
+          {!hasFilters && emptyActions ? (
+            <div className="flex flex-wrap items-center justify-center gap-2">{emptyActions}</div>
+          ) : null}
+        </div>
       ) : null}
 
       {entriesQuery.isSuccess && entries.length > 0 ? (

@@ -10,31 +10,35 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { redirect } from "next/navigation";
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
+import { MembersPageContent } from "../_components/members-page-content";
 import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "settingsMembers");
 }
 
-export default function MembersSettingsRedirectPage({
+export default function MembersSettingsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
   return (
     <OrgPageSuspense>
-      <MembersSettingsRedirectPageLoader params={params} />
+      <MembersSettingsPageLoader params={params} />
     </OrgPageSuspense>
   );
 }
 
-async function MembersSettingsRedirectPageLoader({
+async function MembersSettingsPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  return redirect(`/org/${organizationSlug}/members`);
+  await requireAppAuthContext({ organizationSlug });
+
+  return <MembersPageContent organizationSlug={organizationSlug} />;
 }

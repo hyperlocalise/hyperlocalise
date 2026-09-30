@@ -208,6 +208,44 @@ describe("workspace job list", () => {
     );
   });
 
+  it("returns original source filenames for native file jobs", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "pricing.json",
+      contentType: "application/json",
+      metadata: { sourcePath: "marketing/pricing.json" },
+    });
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      inputPayload: {
+        sourceFileId: sourceFile.id,
+        fileFormat: "json",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { limit: "100" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as WorkspaceJobsResponse;
+    const listed = body.jobs.find((entry) => entry.id === job.id);
+
+    expect(listed?.sourceFilename).toBe("pricing.json");
+    expect(listed?.sourcePath).toBe("marketing/pricing.json");
+    expect(listed?.inputPayload).toMatchObject({ sourceFileId: sourceFile.id });
+  });
+
   it("returns assigned provider jobs for translators without team project access", async () => {
     const admin = projectFixture.createWorkosIdentityWithRole("admin");
     const translator = projectFixture.createWorkosIdentityForOrganization(
@@ -594,7 +632,16 @@ describe("project job create", () => {
     );
 
     expect(response.status).toBe(201);
-    const body = (await response.json()) as { job: { id: string } };
+    const body = (await response.json()) as {
+      job: {
+        id: string;
+        sourceFilename?: string | null;
+        sourcePath?: string | null;
+        inputPayload: {
+          metadata?: { title?: string; sourceFilename?: string; sourcePath?: string };
+        };
+      };
+    };
     const [job] = await db
       .select({ inputPayload: schema.jobs.inputPayload })
       .from(schema.jobs)
@@ -607,6 +654,18 @@ describe("project job create", () => {
     expect(
       (job?.inputPayload as { metadata?: { title?: string } } | undefined)?.metadata?.title,
     ).toMatch(/^messages\.json · \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    expect(
+      (
+        job?.inputPayload as
+          | { metadata?: { sourceFilename?: string; sourcePath?: string } }
+          | undefined
+      )?.metadata,
+    ).toMatchObject({
+      sourceFilename: "messages.json",
+      sourcePath: "messages.json",
+    });
+    expect(body.job.sourceFilename).toBe("messages.json");
+    expect(body.job.sourcePath).toBe("messages.json");
     expect(enqueueJob).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "translation",

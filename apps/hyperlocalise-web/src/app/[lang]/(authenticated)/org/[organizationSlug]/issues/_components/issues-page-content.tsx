@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation";
 
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { buildIssueDetailHref } from "../../_components/issue-detail/issue-detail-utils";
 import { IssueBulkActionBar } from "../../_components/issue-bulk-action-bar";
@@ -40,6 +42,7 @@ export function IssuesPageContent({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useIssueListUrlState({
     includeProject: true,
   });
@@ -52,18 +55,16 @@ export function IssuesPageContent({
   const projectsQuery = useQuery({
     queryKey: ["organization-issues-projects", organizationSlug],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load projects");
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects.map((project) => ({
+          id: project.id,
+          name: project.name,
+          targetLocales: project.targetLocales ?? [],
+        }));
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load projects"), { cause: error });
       }
-      const body = await response.json();
-      return body.projects.map((project) => ({
-        id: project.id,
-        name: project.name,
-        targetLocales: project.targetLocales ?? [],
-      }));
     },
   });
 
@@ -161,8 +162,8 @@ export function IssuesPageContent({
     router.push(
       buildIssueDetailHref({
         organizationSlug,
-        projectId: issue.projectId,
         issueId: issue.identifier,
+        scope: "organization",
       }),
     );
   };

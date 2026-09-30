@@ -13,7 +13,8 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
-import { isSupportedAppLocale } from "@/lib/app-i18n/locales";
+import { LocaleDocumentLangScript } from "@/components/root-layout/locale-document-lang-script";
+import { isSupportedAppLocale, normalizeAppLocale } from "@/lib/app-i18n/locales";
 
 type LocaleLayoutProps = {
   children: React.ReactNode;
@@ -38,5 +39,10 @@ async function LocaleParamGate({ params }: { params: Promise<{ lang: string }> }
     notFound();
   }
 
-  return null;
+  const locale = normalizeAppLocale(lang);
+  if (!locale) {
+    notFound();
+  }
+
+  return <LocaleDocumentLangScript locale={locale} />;
 }

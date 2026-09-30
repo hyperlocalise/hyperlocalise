@@ -18,8 +18,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { readApiError, readApiResponseError } from "@/lib/api-error";
+import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { GoSvcClientError, type GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
@@ -80,13 +83,13 @@ function buildGlossaryListQuery(
   source?: "native" | "external_tms",
 ) {
   const query: {
-    limit: string;
-    offset: string;
+    limit: number;
+    offset: number;
     search?: string;
     source?: "native" | "external_tms";
   } = {
-    limit: String(GLOSSARIES_PAGE_SIZE),
-    offset: String((page - 1) * GLOSSARIES_PAGE_SIZE),
+    limit: GLOSSARIES_PAGE_SIZE,
+    offset: (page - 1) * GLOSSARIES_PAGE_SIZE,
   };
 
   const search = filters.searchQuery.trim();
@@ -99,30 +102,33 @@ function buildGlossaryListQuery(
 }
 
 async function fetchWorkspaceGlossaries(
+  goSvcClient: GoSvcClient,
   organizationSlug: string,
   intl: ReturnType<typeof useIntl>,
   page: number,
   filters: GlossaryListFilters,
   source?: "native" | "external_tms",
 ): Promise<WorkspaceGlossariesResult> {
-  const response = await apiClient.api.orgs[":organizationSlug"].glossaries.$get({
-    param: { organizationSlug },
-    query: buildGlossaryListQuery(page, filters, source),
-  });
-
-  if (!response.ok) {
+  try {
+    const body = await goSvcClient.glossary.list(
+      organizationSlug,
+      buildGlossaryListQuery(page, filters, source),
+    );
+    return {
+      glossaries: body.glossaries as ApiGlossary[],
+      total: body.total,
+    };
+  } catch (error) {
     throw new Error(
-      intl.formatMessage(glossariesPageContentMessages.loadGlossariesFailed, {
-        status: response.status,
-      }),
+      goSvcErrorMessage(
+        error,
+        intl.formatMessage(glossariesPageContentMessages.loadGlossariesFailed, {
+          status: error instanceof GoSvcClientError ? error.status : 0,
+        }),
+      ),
+      { cause: error },
     );
   }
-
-  const body = await response.json();
-  return {
-    glossaries: body.glossaries as ApiGlossary[],
-    total: body.total as number,
-  };
 }
 const projectsQueryKey = (organizationSlug: string) => ["glossary-projects", organizationSlug];
 const credentialsQueryKey = (organizationSlug: string) => [
@@ -172,6 +178,7 @@ export function GlossariesPageContent({
   const intl = useIntl();
   const router = useOrgRouter();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [page, setPage] = useState(1);
   const [crowdinPage, setCrowdinPage] = useState(1);
   const [crowdinOrderBy, setCrowdinOrderBy] = useState(CROWDIN_GLOSSARIES_DEFAULT_ORDER);
@@ -196,19 +203,18 @@ export function GlossariesPageContent({
     queryKey: projectsQueryKey(organizationSlug),
     enabled: allowCreateGlossaries,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(glossariesPageContentMessages.loadProjectsFailed),
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects;
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(glossariesPageContentMessages.loadProjectsFailed),
+          ),
+          { cause: error },
         );
       }
-
-      const body = await response.json();
-      return body.projects;
     },
   });
 
@@ -287,14 +293,15 @@ export function GlossariesPageContent({
         };
       }
 
-      return fetchWorkspaceGlossaries(organizationSlug, intl, page, filters);
+      return fetchWorkspaceGlossaries(goSvcClient, organizationSlug, intl, page, filters);
     },
   });
 
   const nativeGlossariesQuery = useQuery<WorkspaceGlossariesResult>({
     queryKey: ["native-glossaries", organizationSlug, page, filters],
     enabled: useLiveProviderGlossaries,
-    queryFn: () => fetchWorkspaceGlossaries(organizationSlug, intl, page, filters, "native"),
+    queryFn: () =>
+      fetchWorkspaceGlossaries(goSvcClient, organizationSlug, intl, page, filters, "native"),
   });
 
   const liveCrowdinGlossariesQuery = useQuery<LiveGlossariesResult>({
@@ -369,8 +376,8 @@ export function GlossariesPageContent({
       return response.json();
     },
     onSuccess: async (body) => {
-      await queryClient.invalidateQueries({ queryKey: ["glossaries", organizationSlug] });
-      await queryClient.invalidateQueries({ queryKey: ["native-glossaries", organizationSlug] });
+      void queryClient.invalidateQueries({ queryKey: ["glossaries", organizationSlug] });
+      void queryClient.invalidateQueries({ queryKey: ["native-glossaries", organizationSlug] });
       setCreateDialogOpen(false);
       setCreateForm(createEmptyGlossaryForm());
       toast.success(intl.formatMessage(glossariesPageContentMessages.glossaryCreated));

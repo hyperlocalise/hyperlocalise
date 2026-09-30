@@ -1,0 +1,35 @@
+---
+title: "Track and recover jobs"
+description: "Understand job status and decide when to retry, cancel, or request help."
+---
+
+Open a project’s jobs and select a job to inspect its status, progress, target locales, and source file. Use **My Jobs** to follow your own work across requests.
+
+## Understand status
+
+| Status | What to do |
+| --- | --- |
+| Queued | Wait for execution to start; inspect the job if it remains queued unexpectedly. |
+| Running | Follow progress before submitting the same work again. |
+| Waiting for review | Open the job and complete the review it requests. |
+| Succeeded | Inspect the output; generation success is separate from translation approval. |
+| Failed | Read the error, fix its cause, and retry when eligible. |
+| Cancelled | The job was stopped; create a new job if the work is still needed. |
+
+Provider-backed jobs can expose different status and action names. Use **Open in provider** when the connected system owns the job.
+
+## Retry a job
+
+For a translation job in a queued or failed state, the detail page can offer **Retry job**. Check the source file, target locales, permissions, usage, and error first. Select **Retry job** once, then follow the queued attempt.
+
+Retrying without fixing a malformed file or disconnected provider is unlikely to help. See [Translation failures](/platform/help/translation-failures).
+
+## Stop an active native job
+
+For a native job that is queued, running, or waiting for review, select **Cancel job** and confirm when you want to stop it. Cancellation does not undo output or external actions that already completed.
+
+**Mark as failed** is a separate recovery action for active native jobs. It prevents the current workflow from later updating the job and removes it from the active queue. Use it when you have decided to abandon that attempt, rather than treating it as a refresh button.
+
+## Hand off the result
+
+Use **Open Editor** when available. Check [review permissions](/platform/workspace/roles) if approval is unavailable. Keep the job link when [contacting support](/platform/help/contact-support).

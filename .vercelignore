@@ -1,9 +1,5 @@
-# Project-root ignore for Vercel Services (Root Directory = repo root).
-# See https://vercel.com/docs/deployments/vercel-ignore
-# Vercel already ignores node_modules, .next, .git, and .env* by default.
-#
-# Keep apps/hyperlocalise-web/.vercelignore in sync as a fallback when the
-# dashboard Root Directory is the web app.
+# Legacy project-root ignore (unused when Vercel Root Directory is apps/hyperlocalise-web).
+# Canonical deploy config: apps/hyperlocalise-web/vercel.json and .vercelignore.
 
 # Storybook
 .storybook

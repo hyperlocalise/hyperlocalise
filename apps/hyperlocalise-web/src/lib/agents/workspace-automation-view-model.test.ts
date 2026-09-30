@@ -114,7 +114,7 @@ describe("workspace automation view model", () => {
       from: "notifications@example.com",
       recipients: ["ops@example.com"],
     });
-    expect(payload.model).toBe("openai/gpt-5.6-luna");
+    expect(payload.model).toBe("openai/gpt-6-luna");
   });
 
   it("hydrates and persists a selected automation model", () => {
@@ -128,9 +128,46 @@ describe("workspace automation view model", () => {
   });
 
   it("falls back to Luna when an automation model is missing or unknown", () => {
-    expect(resolveWorkspaceAutomationModel(undefined)).toBe("openai/gpt-5.6-luna");
-    expect(resolveWorkspaceAutomationModel("not-a-model")).toBe("openai/gpt-5.6-luna");
+    expect(resolveWorkspaceAutomationModel(undefined)).toBe("openai/gpt-6-luna");
+    expect(resolveWorkspaceAutomationModel("not-a-model")).toBe("openai/gpt-6-luna");
     expect(resolveWorkspaceAutomationModel("openai/gpt-5.6-sol")).toBe("openai/gpt-5.6-sol");
+    expect(resolveWorkspaceAutomationModel("openai/gpt-6-astra")).toBe("openai/gpt-6-astra");
+    expect(resolveWorkspaceAutomationModel("openai/gpt-6-sol")).toBe("openai/gpt-6-sol");
+    expect(resolveWorkspaceAutomationModel("openai/gpt-6.1-sol")).toBe("openai/gpt-6.1-sol");
+    expect(resolveWorkspaceAutomationModel("openai/gpt-6.1-sol-fast")).toBe(
+      "openai/gpt-6.1-sol-fast",
+    );
+    expect(resolveWorkspaceAutomationModel("openai/gpt-6-luna-fast")).toBe(
+      "openai/gpt-6-luna-fast",
+    );
+    expect(resolveWorkspaceAutomationModel("openai/gpt-5.6-luna")).toBe("openai/gpt-6-luna");
+  });
+
+  it("resolves Anthropic gateway models with Vercel AI Gateway id matching", () => {
+    expect(resolveWorkspaceAutomationModel("anthropic/claude-opus-5.5")).toBe(
+      "anthropic/claude-opus-5.5",
+    );
+    expect(resolveWorkspaceAutomationModel("anthropic/claude-opus-5-5")).toBe(
+      "anthropic/claude-opus-5.5",
+    );
+  });
+
+  it("resolves Google Gemini gateway models with Vercel AI Gateway ids", () => {
+    expect(resolveWorkspaceAutomationModel("google/gemini-3.8-flash")).toBe(
+      "google/gemini-3.8-flash",
+    );
+    expect(resolveWorkspaceAutomationModel("google/gemini-3.7-flash")).toBe(
+      "google/gemini-3.7-flash",
+    );
+    expect(resolveWorkspaceAutomationModel("google/gemini-3.6-flash")).toBe(
+      "google/gemini-3.6-flash",
+    );
+    expect(resolveWorkspaceAutomationModel("google/gemini-3.5-flash")).toBe(
+      "google/gemini-3.5-flash",
+    );
+    expect(resolveWorkspaceAutomationModel("google/gemini-3.1-pro-preview")).toBe(
+      "google/gemini-3.1-pro-preview",
+    );
   });
 
   it("maps knowledge memories tool into the API payload", () => {

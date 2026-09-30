@@ -46,7 +46,8 @@ import {
 } from "../store/hyperlab-workspace-context";
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  type HyperlabGoSvcClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabAssignment,
@@ -90,7 +91,7 @@ const HyperlabFlagDetailConnected = observer(function HyperlabFlagDetailConnecte
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const store = useHyperlabWorkspace();
   const { flag: flagStore } = store;
 
@@ -334,7 +335,7 @@ function FlagAssignmentList({
   organizationSlug: string;
   assignments: HyperlabAssignment[];
   experiments: HyperlabExperiment[];
-  client: ReturnType<typeof hyperlabClient>;
+  client: HyperlabGoSvcClient;
   loadError: string;
 }) {
   const variantsQuery = useQuery({

@@ -57,7 +57,7 @@ export function ContentEditorEditorActions({
   onNext: () => void;
 }) {
   const intl = useIntl();
-  const isNavigationBlocked = isApproving || isSavingDraft || isLookingUpContext;
+  const isNavigationBlocked = isApproving || isSavingDraft;
 
   return (
     <div className="flex flex-wrap items-center gap-2">

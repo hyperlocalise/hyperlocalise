@@ -35,6 +35,7 @@ type MockVirtualItem = {
 type MockVirtualizer = {
   getVirtualItems: () => MockVirtualItem[];
   getTotalSize: () => number;
+  scrollToIndex: (index: number, options: { align: string }) => void;
   measureElement: () => undefined;
 };
 
@@ -57,6 +58,7 @@ function makeVirtualItems(indexes: number[]) {
 const virtualizer: MockVirtualizer = {
   getVirtualItems: () => virtualItems,
   getTotalSize: () => virtualizerCount * ROW_HEIGHT,
+  scrollToIndex: vi.fn(),
   measureElement: () => undefined,
 };
 

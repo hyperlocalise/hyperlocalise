@@ -21,11 +21,37 @@ type mockSessionVerifier struct {
 	err    error
 }
 
+type mockValkeyHealthClient struct {
+	err error
+}
+
+func (m mockValkeyHealthClient) Ping(context.Context) error {
+	return m.err
+}
+
+func (mockValkeyHealthClient) Close() {}
+
+func dependencyStatus(t *testing.T, body []byte, name string) map[string]any {
+	t.Helper()
+	var response map[string]any
+	require.NoError(t, json.Unmarshal(body, &response))
+	dependency, ok := response[name].(map[string]any)
+	require.True(t, ok, "%s health payload", name)
+	return dependency
+}
+
 func (m mockSessionVerifier) Verify(_ context.Context, _ string) (SessionResult, error) {
 	if m.err != nil {
 		return SessionResult{}, m.err
 	}
 	return SessionResult{Claims: m.claims}, nil
+}
+
+func (m mockSessionVerifier) VerifyAccessToken(_ context.Context, _ string) (AuthClaims, error) {
+	if m.err != nil {
+		return AuthClaims{}, m.err
+	}
+	return m.claims, nil
 }
 
 func TestHealth(t *testing.T) {
@@ -36,7 +62,50 @@ func TestHealth(t *testing.T) {
 	h.health(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.JSONEq(t, `{"status":"ok"}`, rec.Body.String())
+	require.JSONEq(t, `{"status":"ok","activity_log":{"status":"disabled"},"valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}`, rec.Body.String())
+}
+
+func TestHealthValkeyOK(t *testing.T) {
+	h := newHandler()
+	h.valkey = mockValkeyHealthClient{}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+
+	h.health(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	valkey := dependencyStatus(t, rec.Body.Bytes(), "valkey")
+	require.Equal(t, "ok", valkey["status"])
+	require.IsType(t, float64(0), valkey["roundtrip_ms"])
+	require.GreaterOrEqual(t, valkey["roundtrip_ms"].(float64), float64(0))
+}
+
+func TestHealthValkeyUnavailable(t *testing.T) {
+	h := newHandler()
+	h.valkey = mockValkeyHealthClient{err: errors.New("connection refused")}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+
+	h.health(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	valkey := dependencyStatus(t, rec.Body.Bytes(), "valkey")
+	require.Equal(t, "unavailable", valkey["status"])
+	require.IsType(t, float64(0), valkey["roundtrip_ms"])
+}
+
+func TestHealthPostgresOK(t *testing.T) {
+	h := newHandler()
+	h.postgres = mockValkeyHealthClient{}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+
+	h.health(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	postgres := dependencyStatus(t, rec.Body.Bytes(), "postgres")
+	require.Equal(t, "ok", postgres["status"])
+	require.IsType(t, float64(0), postgres["roundtrip_ms"])
 }
 
 func TestValidateSegmentUnauthorized(t *testing.T) {
@@ -55,28 +124,50 @@ func TestValidateSegmentUnauthorized(t *testing.T) {
 	require.Equal(t, "unauthorized", body["error"])
 }
 
-func TestRegisterRoutesServesStrippedPaths(t *testing.T) {
+func TestValidateSegmentOriginGuard(t *testing.T) {
+	h := newHandler()
+	mux := http.NewServeMux()
+	mux.Handle(
+		"POST /v1/validate/segment",
+		authMiddleware(mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
+	)
+
+	denied := httptest.NewRecorder()
+	deniedReq := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(`{}`))
+	deniedReq.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	deniedReq.Header.Set("Origin", "https://evil.example")
+	mux.ServeHTTP(denied, deniedReq)
+	require.Equal(t, http.StatusForbidden, denied.Code)
+
+	allowed := httptest.NewRecorder()
+	allowedReq := httptest.NewRequest(http.MethodPost, "http://api.hyperlocalise.com/v1/validate/segment", bytes.NewBufferString(
+		`{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json"}`,
+	))
+	allowedReq.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	allowedReq.Header.Set("Origin", "https://hyperlocalize.com")
+	allowedReq.Header.Set("Sec-Fetch-Site", "cross-site")
+	mux.ServeHTTP(allowed, allowedReq)
+	require.Equal(t, http.StatusOK, allowed.Code)
+}
+
+func TestRegisterRoutesServesNativePaths(t *testing.T) {
 	h := newHandler()
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})
-	handler := withOptionalPrefix(publicPathPrefix, mux)
+	handler := mux
 
-	for _, path := range []string{"/health", publicPathPrefix + "/health"} {
-		healthRec := httptest.NewRecorder()
-		healthReq := httptest.NewRequest(http.MethodGet, path, nil)
-		handler.ServeHTTP(healthRec, healthReq)
-		require.Equal(t, http.StatusOK, healthRec.Code, path)
-		require.JSONEq(t, `{"status":"ok"}`, healthRec.Body.String())
-	}
+	healthRec := httptest.NewRecorder()
+	healthReq := httptest.NewRequest(http.MethodGet, "/health", nil)
+	handler.ServeHTTP(healthRec, healthReq)
+	require.Equal(t, http.StatusOK, healthRec.Code)
+	require.JSONEq(t, `{"status":"ok","activity_log":{"status":"disabled"},"valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}`, healthRec.Body.String())
 
 	payload := `{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json"}`
-	for _, path := range []string{"/v1/validate/segment", publicPathPrefix + "/v1/validate/segment"} {
-		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(payload))
-		req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
-		handler.ServeHTTP(rec, req)
-		require.Equal(t, http.StatusOK, rec.Code, path)
-	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(payload))
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestValidateSegmentSuccess(t *testing.T) {

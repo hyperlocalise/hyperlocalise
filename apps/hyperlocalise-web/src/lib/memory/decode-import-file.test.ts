@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { decodeMemoryImportBytes } from "./decode-import-file";
+import {
+  decodeMemoryImportBytes,
+  memoryImportFormatFromFilename,
+  suggestedMemoryNameFromFilename,
+} from "./decode-import-file";
 
 const SAMPLE = '<?xml version="1.0"?><tmx version="1.4"><body/></tmx>';
 
@@ -39,5 +43,23 @@ describe("decodeMemoryImportBytes", () => {
 
   it("keeps UTF-8 TMX unchanged", () => {
     expect(decodeMemoryImportBytes(new TextEncoder().encode(SAMPLE))).toBe(SAMPLE);
+  });
+});
+
+describe("memoryImportFormatFromFilename", () => {
+  it("recognizes TMX and CSV extensions", () => {
+    expect(memoryImportFormatFromFilename("launch.tmx")).toBe("tmx");
+    expect(memoryImportFormatFromFilename("Launch.TMX")).toBe("tmx");
+    expect(memoryImportFormatFromFilename("rows.csv")).toBe("csv");
+    expect(memoryImportFormatFromFilename("notes.txt")).toBeNull();
+  });
+});
+
+describe("suggestedMemoryNameFromFilename", () => {
+  it("strips the interchange extension and path", () => {
+    expect(suggestedMemoryNameFromFilename("../folder\\Marketing Launch.tmx")).toBe(
+      "Marketing Launch",
+    );
+    expect(suggestedMemoryNameFromFilename("rows.csv")).toBe("rows");
   });
 });

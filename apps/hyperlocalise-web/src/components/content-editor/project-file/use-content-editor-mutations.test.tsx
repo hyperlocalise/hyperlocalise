@@ -26,9 +26,13 @@ import {
   jsonResponse,
 } from "@/components/content-editor/shared/content-editor-api.fixture";
 import { ContentEditorTestProviders } from "@/components/content-editor/shared/content-editor-test-utils";
+import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 
 const {
   contentEditorTranslationsPostMock,
+  contentEditorTranslationsReportingCapturePostMock,
+  contentEditorCommentsProductUsageCapturePostMock,
   contentEditorCommentsPostMock,
   contentEditorCommentResolvePatchMock,
   contentEditorStringsHiddenPostMock,
@@ -38,6 +42,8 @@ const {
   invalidateSegmentCommentsMock,
 } = vi.hoisted(() => ({
   contentEditorTranslationsPostMock: vi.fn(),
+  contentEditorTranslationsReportingCapturePostMock: vi.fn().mockResolvedValue({ status: 204 }),
+  contentEditorCommentsProductUsageCapturePostMock: vi.fn().mockResolvedValue({ status: 204 }),
   contentEditorCommentsPostMock: vi.fn(),
   contentEditorCommentResolvePatchMock: vi.fn(),
   contentEditorStringsHiddenPostMock: vi.fn(),
@@ -59,6 +65,10 @@ vi.mock("@/lib/api-client-instance", () => ({
                   cat: {
                     translations: {
                       $post: (...args: unknown[]) => contentEditorTranslationsPostMock(...args),
+                      "reporting-capture": {
+                        $post: (...args: unknown[]) =>
+                          contentEditorTranslationsReportingCapturePostMock(...args),
+                      },
                     },
                     strings: {
                       hidden: {
@@ -70,6 +80,10 @@ vi.mock("@/lib/api-client-instance", () => ({
                     },
                     comments: {
                       $post: (...args: unknown[]) => contentEditorCommentsPostMock(...args),
+                      "product-usage-capture": {
+                        $post: (...args: unknown[]) =>
+                          contentEditorCommentsProductUsageCapturePostMock(...args),
+                      },
                       ":commentId": {
                         resolve: {
                           $patch: (...args: unknown[]) =>
@@ -93,7 +107,8 @@ vi.mock("./use-content-editor-segment-target", () => ({
   useSyncCatSegmentTargetAfterSave: () => syncSegmentTargetAfterSaveMock,
 }));
 
-vi.mock("./use-content-editor-segment-comments", () => ({
+vi.mock("./use-content-editor-segment-comments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./use-content-editor-segment-comments")>()),
   useInvalidateCatSegmentComments: () => invalidateSegmentCommentsMock,
 }));
 
@@ -104,7 +119,10 @@ const onTranslationSaved = vi.fn();
 
 syncSegmentTargetAfterSaveMock.mockResolvedValue(undefined);
 
-function renderCatMutations(contentEditorFile = createCatFileResponse().contentEditorFile) {
+function renderCatMutations(
+  contentEditorFile = createCatFileResponse().contentEditorFile,
+  goSvcClient?: GoSvcClient,
+) {
   return renderHook(
     () =>
       useContentEditorMutations({
@@ -112,6 +130,7 @@ function renderCatMutations(contentEditorFile = createCatFileResponse().contentE
         contentEditorFile,
         invalidateQueue,
         onTranslationSaved,
+        goSvcClient,
       }),
     { wrapper: ContentEditorTestProviders },
   );
@@ -157,6 +176,126 @@ describe("useContentEditorMutations", () => {
       }),
       translation,
     );
+  });
+
+  it("saves an inline cell to its language and only reconciles that target cache", async () => {
+    const translation = createCatTranslation();
+    contentEditorTranslationsPostMock.mockResolvedValue(jsonResponse({ translation }));
+    const { result } = renderCatMutations();
+    await act(async () => {
+      await result.current.saveTranslation({
+        externalStringId: "segment-1",
+        text: "Hallo",
+        targetLocale: "de",
+        deferQueueRefresh: true,
+      });
+    });
+    expect(contentEditorTranslationsPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({ targetLocale: "de", text: "Hallo" }),
+      }),
+    );
+    expect(syncSegmentTargetAfterSaveMock).toHaveBeenCalledWith(
+      expect.objectContaining({ targetLocale: "de" }),
+      translation,
+    );
+    expect(invalidateQueue).not.toHaveBeenCalled();
+  });
+
+  it("saves native translations through go-svc", async () => {
+    const translation = createCatTranslation({ isApproved: true });
+    const saveTranslation = vi.fn().mockResolvedValue({ translation });
+    const goSvcClient = { cat: { saveTranslation } } as unknown as GoSvcClient;
+    const { result } = renderCatMutations(
+      createCatFileResponse({ provider: undefined }).contentEditorFile,
+      goSvcClient,
+    );
+
+    await act(async () => {
+      const saved = await result.current.saveTranslation({
+        externalStringId: "segment-1",
+        text: "Bonjour",
+        approve: true,
+      });
+      expect(saved).toEqual(translation);
+    });
+
+    expect(saveTranslation).toHaveBeenCalledWith(
+      "acme",
+      "project_1",
+      expect.objectContaining({
+        externalStringId: "segment-1",
+        sourcePath: contentEditorApiTestContext.sourcePath,
+        text: "Bonjour",
+        approve: true,
+      }),
+    );
+    expect(contentEditorTranslationsReportingCapturePostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          externalStringId: "segment-1",
+          text: "Bonjour",
+          approve: true,
+        }),
+      }),
+    );
+    expect(contentEditorTranslationsPostMock).not.toHaveBeenCalled();
+  });
+
+  it("coalesces rapid inline saves into one queue refresh", async () => {
+    vi.useFakeTimers();
+    try {
+      contentEditorTranslationsPostMock.mockImplementation(() =>
+        Promise.resolve(jsonResponse({ translation: createCatTranslation() })),
+      );
+      const { result } = renderCatMutations();
+      await act(async () => {
+        await result.current.saveTranslation({
+          externalStringId: "segment-1",
+          text: "first",
+          coalesceQueueRefresh: true,
+        });
+        await result.current.saveTranslation({
+          externalStringId: "segment-1",
+          text: "second",
+          coalesceQueueRefresh: true,
+        });
+      });
+      expect(invalidateQueue).not.toHaveBeenCalled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(750);
+      });
+      expect(invalidateQueue).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("finishes a saved write even while queue reconciliation is pending", async () => {
+    contentEditorTranslationsPostMock.mockResolvedValue(
+      jsonResponse({ translation: createCatTranslation() }),
+    );
+    invalidateQueue.mockImplementationOnce(() => new Promise<void>(() => undefined));
+    const { result } = renderCatMutations();
+    await act(async () => {
+      await result.current.saveTranslation({ externalStringId: "segment-1", text: "Bonjour" });
+    });
+    await waitFor(() => expect(result.current.isSaving).toBe(false));
+  });
+
+  it("does not refresh the queue for each write in a bulk operation", async () => {
+    contentEditorTranslationsPostMock.mockResolvedValue(
+      jsonResponse({ translation: createCatTranslation() }),
+    );
+    const { result } = renderCatMutations();
+    await act(async () => {
+      await result.current.saveTranslation({
+        externalStringId: "segment-1",
+        text: "Bonjour",
+        deferQueueRefresh: true,
+      });
+    });
+    expect(invalidateQueue).not.toHaveBeenCalled();
   });
 
   it("surfaces API errors when saving translations fails", async () => {
@@ -210,6 +349,51 @@ describe("useContentEditorMutations", () => {
     ).rejects.toThrow("Locked strings can't be edited from the Content Editor.");
     expect(contentEditorTranslationsPostMock).not.toHaveBeenCalled();
     expect(onTranslationSaved).not.toHaveBeenCalled();
+  });
+
+  it("saves a selected segment whose All Files queue page was evicted", async () => {
+    const translation = createCatTranslation();
+    contentEditorTranslationsPostMock.mockResolvedValue(jsonResponse({ translation }));
+
+    const allFilesQueue = {
+      ...createCatFileResponse().contentEditorFile,
+      sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
+      provider: null,
+      // The evicted page no longer carries segment-42.
+      segments: [
+        createCatSegment({ externalStringId: "segment-1", sourcePath: "locales/en.json" }),
+      ],
+    };
+    const retainedSegmentIdentityRef = {
+      current: (externalStringId: string) =>
+        externalStringId === "segment-42" ? { sourcePath: "locales/de.json" } : undefined,
+    };
+
+    const { result } = renderHook(
+      () =>
+        useContentEditorMutations({
+          ...contentEditorApiTestContext,
+          sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
+          contentEditorFile: allFilesQueue,
+          retainedSegmentIdentityRef,
+          invalidateQueue,
+        }),
+      { wrapper: ContentEditorTestProviders },
+    );
+
+    await act(async () => {
+      await result.current.saveTranslation({ externalStringId: "segment-42", text: "Hallo" });
+    });
+
+    expect(contentEditorTranslationsPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          sourcePath: "locales/de.json",
+          externalStringId: "segment-42",
+          text: "Hallo",
+        }),
+      }),
+    );
   });
 
   it("throws when saving with a provider record missing an external resource id", async () => {

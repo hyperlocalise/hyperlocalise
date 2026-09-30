@@ -30,8 +30,8 @@ export function getPricingFaqItems(locale: string): PricingFaqItem[] {
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Not yet. Self-serve signup is coming soon. Request a demo if you want early access or need Enterprise.",
-        id: "YxQp9bMkby",
+          "Yes. Create an account to start a Free workspace. You can move to Starter or Growth from billing. Request a demo if you need Enterprise.",
+        id: "OUMb/UN84L",
         description: "Pricing FAQ answer about account creation availability",
       }),
     },
@@ -56,8 +56,8 @@ export function getPricingFaqItems(locale: string): PricingFaqItem[] {
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Starter suits small teams that need more seats, integrations, and 2,000,000 AI tokens per month. Growth adds agent runs, automations, Automation Workflow, unlimited translation jobs, and a lower AI token overage rate for production localisation.",
-        id: "UcQMMtZFaJ",
+          "Starter suits small teams that need more seats, integrations, and $20 per month of managed AI credit. Growth adds agent runs, automations, Automation Workflow, unlimited translation jobs, and $2,000 per month AI credit for production localisation. Usage draws down that balance at model rates.",
+        id: "1xP+9DRzHz",
         description: "Pricing FAQ answer comparing Starter and Growth",
       }),
     },
@@ -82,8 +82,8 @@ export function getPricingFaqItems(locale: string): PricingFaqItem[] {
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Listed Starter and Growth prices are monthly. Enterprise pricing is custom and agreed during the demo. Final billing terms will be confirmed when self-serve checkout opens.",
-        id: "Yol/WQATQ6",
+          "Listed Starter and Growth prices are monthly. Enterprise pricing is custom and agreed during the demo.",
+        id: "pVd6AgLLSN",
         description: "Pricing FAQ answer about billing cadence",
       }),
     },
@@ -95,8 +95,8 @@ export function getPricingFaqItems(locale: string): PricingFaqItem[] {
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Yes. Once billing is available you will be able to move between plans as your usage grows. Enterprise changes are handled with your account contact.",
-        id: "k8esVDxjx3",
+          "Yes. You can move between Free, Starter, and Growth from billing as your usage grows. Enterprise changes are handled with your account contact.",
+        id: "g3fJsc2Zam",
         description: "Pricing FAQ answer about changing plans",
       }),
     },

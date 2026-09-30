@@ -1013,6 +1013,46 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "4/w2RcdLUO",
     description: "Helper text for the automation language model select",
   },
+  modelGpt6Luna: {
+    defaultMessage: "GPT-6 Luna",
+    id: "lNo4qG1F4d",
+    description: "Label for the OpenAI GPT-6 Luna automation model",
+  },
+  modelGpt6Astra: {
+    defaultMessage: "GPT-6 Astra",
+    id: "5wWPtxr+Iq",
+    description: "Label for the OpenAI GPT-6 Astra automation model",
+  },
+  modelGpt6Sol: {
+    defaultMessage: "GPT-6 Sol",
+    id: "v5ZuLrI48c",
+    description: "Label for the OpenAI GPT-6 Sol automation model",
+  },
+  modelGpt61Sol: {
+    defaultMessage: "GPT-6.1 Sol",
+    id: "nn5/Lv4WBX",
+    description: "Label for the OpenAI GPT-6.1 Sol automation model",
+  },
+  modelGpt61SolFast: {
+    defaultMessage: "GPT-6.1 Sol (Fast)",
+    id: "zN4XlAxGFa",
+    description: "Label for the OpenAI GPT-6.1 Sol fast automation model",
+  },
+  modelGpt6LunaFast: {
+    defaultMessage: "GPT-6 Luna (Fast)",
+    id: "XTQH6Cl2jC",
+    description: "Label for the OpenAI GPT-6 Luna fast automation model",
+  },
+  modelGpt6AstraFast: {
+    defaultMessage: "GPT-6 Astra (Fast)",
+    id: "XcFjhy5gkF",
+    description: "Label for the OpenAI GPT-6 Astra fast automation model",
+  },
+  modelGpt6SolFast: {
+    defaultMessage: "GPT-6 Sol (Fast)",
+    id: "dO1TC3x3LJ",
+    description: "Label for the OpenAI GPT-6 Sol fast automation model",
+  },
   modelGpt56Luna: {
     defaultMessage: "GPT-5.6 Luna",
     id: "IrSQ6vE36K",
@@ -1028,6 +1068,16 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "f7G04QgkqV",
     description: "Label for the OpenAI GPT-5.6 Sol automation model",
   },
+  modelGpt56TerraFast: {
+    defaultMessage: "GPT-5.6 Terra (Fast)",
+    id: "cAyguvo6I8",
+    description: "Label for the OpenAI GPT-5.6 Terra fast automation model",
+  },
+  modelGpt56SolFast: {
+    defaultMessage: "GPT-5.6 Sol (Fast)",
+    id: "29NlUC9+y8",
+    description: "Label for the OpenAI GPT-5.6 Sol fast automation model",
+  },
   modelClaudeSonnet5: {
     defaultMessage: "Claude Sonnet 5",
     id: "4b7EZj4onr",
@@ -1037,6 +1087,36 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Claude Opus 5",
     id: "hGgsaGVVDY",
     description: "Label for the Anthropic Claude Opus 5 automation model",
+  },
+  modelClaudeOpus55: {
+    defaultMessage: "Claude Opus 5.5",
+    id: "ksdV9RsBoH",
+    description: "Label for the Anthropic Claude Opus 5.5 automation model",
+  },
+  modelGemini38Flash: {
+    defaultMessage: "Gemini 3.8 Flash",
+    id: "EE7waUBBeR",
+    description: "Label for the Google Gemini 3.8 Flash automation model",
+  },
+  modelGemini37Flash: {
+    defaultMessage: "Gemini 3.7 Flash",
+    id: "j8e6X/c9hq",
+    description: "Label for the Google Gemini 3.7 Flash automation model",
+  },
+  modelGemini36Flash: {
+    defaultMessage: "Gemini 3.6 Flash",
+    id: "YlNYKWNMnX",
+    description: "Label for the Google Gemini 3.6 Flash automation model",
+  },
+  modelGemini35Flash: {
+    defaultMessage: "Gemini 3.5 Flash",
+    id: "TvuxI/JPcp",
+    description: "Label for the Google Gemini 3.5 Flash automation model",
+  },
+  modelGemini31ProPreview: {
+    defaultMessage: "Gemini 3.1 Pro Preview",
+    id: "bwRlaW2gsC",
+    description: "Label for the Google Gemini 3.1 Pro Preview automation model",
   },
   instructionsPlaceholder: {
     defaultMessage: "Tell the automation what to do, what to inspect, and what to ignore.",

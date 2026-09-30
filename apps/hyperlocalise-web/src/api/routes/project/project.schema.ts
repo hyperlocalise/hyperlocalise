@@ -25,21 +25,6 @@ export const projectIdParamsSchema = z.object({
   projectId: projectIdSchema,
 });
 
-export const updateProjectContentEditorBehaviorBodySchema = z.object({
-  automaticallyGroupIdenticalStrings: z.boolean(),
-});
-
-export const projectContentEditorBehaviorSchema = z.object({
-  automaticallyGroupIdenticalStrings: z.boolean(),
-  groupingRevision: z.number().int().nonnegative(),
-  canManage: z.boolean(),
-});
-
-export const projectContentEditorBehaviorPreviewSchema = z.object({
-  affectedOccurrences: z.number().int().nonnegative(),
-  groups: z.number().int().nonnegative(),
-});
-
 export const projectFileCatCommentIdParamsSchema = projectIdParamsSchema.extend({
   commentId: z.string().trim().min(1).max(128),
 });
@@ -761,6 +746,7 @@ export const projectFileCatContentKindSchema = z.enum([
 ]);
 
 export const projectFileCatTranslationSchema = z.object({
+  revision: z.string().optional(),
   text: z.string(),
   externalTranslationId: z.string().nullable(),
   isApproved: z.boolean(),
@@ -769,6 +755,35 @@ export const projectFileCatTranslationSchema = z.object({
   imageVariantId: z.string().nullable().optional(),
   status: z.enum(["draft", "needs_review", "approved", "rejected"]).optional(),
 });
+
+/** Bounds apply to the rectangle, including cells not explicitly requested by callers. */
+export const CAT_TARGET_BATCH_MAX_SEGMENTS = 50;
+export const CAT_TARGET_BATCH_MAX_LOCALES = 8;
+export const CAT_TARGET_BATCH_MAX_CELLS = 200;
+export const projectFileCatTargetIdentitySchema = z.object({
+  externalStringId: z.string().trim().min(1).max(128),
+  sourcePath: z.string().trim().min(1).max(2048),
+  externalResourceId: z.string().trim().min(1).max(128).optional(),
+  resourceType: z.enum(["file", "key"]).optional(),
+});
+export const projectFileCatTargetsBodySchema = z
+  .object({
+    segments: z.array(projectFileCatTargetIdentitySchema).min(1).max(CAT_TARGET_BATCH_MAX_SEGMENTS),
+    targetLocales: z
+      .array(z.string().trim().min(1).max(32))
+      .min(1)
+      .max(CAT_TARGET_BATCH_MAX_LOCALES),
+  })
+  .refine(
+    (value) => value.segments.length * value.targetLocales.length <= CAT_TARGET_BATCH_MAX_CELLS,
+    "Translation rectangle is too large",
+  );
+export const projectFileCatTargetRowSchema = projectFileCatTargetIdentitySchema.extend({
+  targets: z.record(z.string(), projectFileCatTranslationSchema.nullable()),
+});
+export type ProjectFileCatTargetIdentity = z.infer<typeof projectFileCatTargetIdentitySchema>;
+export type ProjectFileCatTargetsInput = z.infer<typeof projectFileCatTargetsBodySchema>;
+export type ProjectFileCatTargetRow = z.infer<typeof projectFileCatTargetRowSchema>;
 
 export const projectFileCatSegmentSchema = z.object({
   externalStringId: z.string(),
@@ -879,6 +894,9 @@ export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectProviderBranchesResponse = z.infer<typeof projectProviderBranchesResponseSchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileContentEditorQuery = z.infer<typeof projectFileCatQuerySchema>;
+export type ProjectFileContentEditorActivityLogQuery = z.infer<
+  typeof projectFileCatActivityLogQuerySchema
+>;
 export type ProjectFileContentEditorQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
 export type ProjectFileContentEditorQueueSort = z.infer<typeof projectFileCatQueueSortSchema>;
 export type ProjectFileContentEditorTranslationBody = z.infer<

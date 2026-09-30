@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ContentEditorMultilingualConfig } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import type { ContentEditorVisualContext } from "@/lib/translation/content-editor-visual-context";
 import type {
   ContentEditorFormatCheck,
@@ -63,6 +64,7 @@ export interface ContentEditorWorkspaceReview {
   onApprove: (
     segmentId: string,
     targetText: string,
+    options?: { deferQueueRefresh?: boolean },
   ) => void | ContentEditorSegmentStatus | Promise<void | ContentEditorSegmentStatus>;
   onSaveDraft?: (
     segmentId: string,
@@ -77,6 +79,7 @@ export interface ContentEditorWorkspaceReview {
   onAskQuestion: (segmentId: string, options?: { forceRefresh?: boolean }) => void | Promise<void>;
   onReviewWithAi: (segmentId: string) => void | Promise<void>;
   onSkip: (segmentId: string) => void;
+  onBulkApproveComplete?: () => void | Promise<void>;
   onBulkApprove?: (segmentIds: string[]) => void | Promise<void>;
   onBulkSkip?: (segmentIds: string[]) => void | Promise<void>;
   onBulkHide?: (segmentIds: string[]) => void | Promise<void>;
@@ -131,6 +134,7 @@ export type PartialCatWorkspaceDependencies = {
 export type { ContentEditorWorkspaceShell };
 
 export interface ContentEditorWorkspaceViewProps {
+  multilingual?: ContentEditorMultilingualConfig;
   shell: ContentEditorWorkspaceShell;
   queueSegments: ContentEditorSegment[];
   selectedSegment: ContentEditorSegment | null;

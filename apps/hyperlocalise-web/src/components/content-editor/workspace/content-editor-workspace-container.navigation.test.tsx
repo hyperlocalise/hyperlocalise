@@ -42,6 +42,7 @@ type MockVirtualizer = {
     lane: number;
   }>;
   getTotalSize: () => number;
+  scrollToIndex: (index: number, options: { align: string }) => void;
   measureElement: () => undefined;
 };
 
@@ -73,6 +74,7 @@ vi.mock("@tanstack/react-virtual", () => ({
     const virtualizer: MockVirtualizer = {
       getVirtualItems: () => virtualItems,
       getTotalSize: () => count * rowHeight,
+      scrollToIndex: vi.fn(),
       measureElement: () => undefined,
     };
 

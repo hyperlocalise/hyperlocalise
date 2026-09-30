@@ -41,7 +41,6 @@ import {
   workspaceResourceLimitErrorDetails,
   workspaceResourceLimitMessage,
 } from "@/lib/billing/workspace-resource-limits";
-import { FILE_SEGMENT_ACTIVITY_EVENT_TYPES } from "@/lib/activity-log/activity-log-contract";
 import {
   enqueueFileUploadedActivity,
   enqueueStringSegmentApprovedActivity,
@@ -51,10 +50,6 @@ import {
   enqueueStringSegmentStatusChangedActivity,
   sessionActivityActor,
 } from "@/lib/activity-log/file-segment-events";
-import {
-  InvalidActivityLogCursorError,
-  listActivityLogEvents,
-} from "@/lib/activity-log/activity-log-reader";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { Project } from "@/lib/database/types";
@@ -97,7 +92,6 @@ import {
   setTmsProviderLiveCatStringsHidden,
   resolveTmsProviderLiveCatComment,
 } from "@/lib/providers/jobs/tms-provider-live";
-import { listNativeProjectLocaleProgress } from "@/lib/projects/locale-progress/native-project-locale-progress";
 import { normalizeProviderLocaleProgress } from "@/lib/projects/locale-progress/provider-locale-progress";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
@@ -112,6 +106,11 @@ import {
   setNativeProjectContentEditorKeyMaxLength,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/content-editor/native-content-editor-service";
+import { captureNativeCatTranslationReporting } from "@/lib/projects/content-editor/native-cat-reporting-capture";
+import {
+  trackNativeCatCommentProductUsage,
+  trackNativeCatTranslationProductUsage,
+} from "@/lib/projects/content-editor/native-cat-product-analytics";
 import {
   enrichExternalContentEditorFileImageFields,
   enrichExternalContentEditorTranslationImageFields,
@@ -187,7 +186,6 @@ import {
   projectFileCatSegmentParamsSchema,
   projectFileCatSegmentQuerySchema,
   projectFileCatQuerySchema,
-  projectFileCatActivityLogQuerySchema,
   projectFileCatConcordanceBodySchema,
   projectFileCatCommentBodySchema,
   projectFileCatCommentResolveBodySchema,
@@ -213,7 +211,6 @@ import {
   projectIdParamsSchema,
   projectFileCatCommentIdParamsSchema,
   updateProjectBodySchema,
-  updateProjectContentEditorBehaviorBodySchema,
   type CreateProjectBody,
   type ProjectFileContentEditorQuery,
   type ProjectFileContentEditorQueueFile,
@@ -242,14 +239,9 @@ import {
 } from "@/api/routes/glossary/glossary.shared";
 import {
   isAiActionAllowed,
-  isProjectContentEditorBehaviorMutationAllowed,
   isReviewApproveAllowed,
   isWriteBackTranslationAllowed,
 } from "@/api/auth/capability-guards";
-import {
-  previewIdenticalStringGrouping,
-  updateProjectContentEditorGroupingPolicy,
-} from "@/lib/projects/content-editor/project-content-editor-behavior-service";
 import {
   buildAccessibleProjectsWhere,
   projectForbiddenResponse,
@@ -687,16 +679,6 @@ const validateProjectFileContentEditorQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
-const validateProjectFileContentEditorActivityLogQuery = validator("query", (value, c) => {
-  const parsed = projectFileCatActivityLogQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
 const validateProjectFileContentEditorTranslationBody = validator("json", (value, c) => {
   const parsed = projectFileCatTranslationBodySchema.safeParse(value);
 
@@ -935,16 +917,6 @@ const validateCreateProjectBody = validator("json", (value, c) => {
 
 const validateUpdateProjectBody = validator("json", (value, c) => {
   const parsed = updateProjectBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateUpdateProjectContentEditorBehaviorBody = validator("json", (value, c) => {
-  const parsed = updateProjectContentEditorBehaviorBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -1243,50 +1215,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       },
     )
     .get(
-      "/:projectId/files/detail/cat/activity-logs",
-      validateProjectParams,
-      validateProjectFileContentEditorActivityLogQuery,
-      async (c) => {
-        const params = c.req.valid("param");
-        const query = c.req.valid("query");
-        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-        if (target.kind === "provider_unavailable") {
-          return providerProjectUnavailableResponse(c, target);
-        }
-
-        const project = await getOwnedProject(c.var.auth, params.projectId);
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-
-        try {
-          const { activityLogs, nextCursor } = await listActivityLogEvents({
-            includeActors: false,
-            organizationId: c.var.auth.organization.localOrganizationId,
-            organizationSlug: c.req.param("organizationSlug") ?? "",
-            query: {
-              eventTypes: [...FILE_SEGMENT_ACTIVITY_EVENT_TYPES],
-              limit: query.limit,
-              projectId: params.projectId,
-              range: "all",
-              sourcePath: query.sourcePath,
-              cursor: query.cursor,
-            },
-          });
-          return c.json({ activityLogs, nextCursor }, 200);
-        } catch (error) {
-          if (error instanceof InvalidActivityLogCursorError) {
-            return badRequestResponse(
-              c,
-              "invalid_activity_log_cursor",
-              "Activity log cursor is invalid",
-            );
-          }
-          throw error;
-        }
-      },
-    )
-    .get(
       "/:projectId/files/detail/cat",
       validateProjectParams,
       validateProjectFileContentEditorQuery,
@@ -1451,6 +1379,82 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       },
     )
     .post(
+      "/:projectId/files/detail/cat/translations/reporting-capture",
+      validateProjectParams,
+      validateProjectFileContentEditorTranslationBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_deferred",
+            "Reporting capture applies to native CAT only",
+          );
+        }
+
+        const captured = await captureNativeCatTranslationReporting({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+          translationKeyId: body.externalStringId,
+          targetLocale: body.targetLocale,
+          text: body.text,
+          approve: body.approve,
+        });
+        if (!captured) {
+          return badRequestResponse(c, "translation_key_not_found", "Translation key not found");
+        }
+
+        trackNativeCatTranslationProductUsage({ approve: body.approve });
+
+        return c.body(null, 204);
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/comments/product-usage-capture",
+      validateProjectParams,
+      validateProjectFileContentEditorCommentBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_deferred",
+            "Product usage capture applies to native CAT only",
+          );
+        }
+        if (body.type === "issue") {
+          return badRequestResponse(
+            c,
+            "native_cat_issue_unsupported",
+            "Native CAT issues are tracked in Issues.",
+          );
+        }
+
+        trackNativeCatCommentProductUsage({ type: body.type });
+
+        return c.body(null, 204);
+      },
+    )
+    .post(
       "/:projectId/files/detail/cat/translations",
       validateProjectParams,
       validateProjectFileContentEditorTranslationBody,
@@ -1511,15 +1515,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return badRequestResponse(c, "translation_key_not_found", "Translation key not found");
           }
 
-          serverAnalytics.track(
-            body.approve
-              ? PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorSegmentApproved
-              : PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorSegmentDraftSaved,
-            {
-              source: "native",
-              status: body.approve ? "approved" : "draft",
-            },
-          );
+          trackNativeCatTranslationProductUsage({ approve: body.approve });
 
           if (body.approve) {
             await enqueueStringSegmentApprovedActivity({
@@ -1628,10 +1624,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             );
           }
 
-          serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorCommentCreated, {
-            source: "native",
-            feature: "comment",
-          });
+          trackNativeCatCommentProductUsage({ type: body.type });
 
           await enqueueStringSegmentCommentedActivity({
             ...sessionActivityActor(c.var.auth.user.localUserId),
@@ -3906,23 +3899,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
       }
 
-      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
-      if (!project) {
-        scheduleProjectNotFoundDiagnostics({
-          auth: c.var.auth,
-          projectId: params.projectId,
-          route: "project.locale_progress",
-        });
-        return projectNotFoundResponse(c);
-      }
-
-      const locales = await listNativeProjectLocaleProgress({
-        organizationId,
-        projectId: project.id,
-        sourceLocale: project.sourceLocale,
-        targetLocales: project.targetLocales,
-      });
-      return c.json({ locales }, 200);
+      return projectNotFoundResponse(c);
     })
     .get("/:projectId/open-job-count", validateProjectParams, async (c) => {
       const params = c.req.valid("param");
@@ -3946,83 +3923,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
       }
 
-      const project = await getOwnedProject(c.var.auth, params.projectId);
-      if (!project) {
-        scheduleProjectNotFoundDiagnostics({
-          auth: c.var.auth,
-          projectId: params.projectId,
-          route: "project.open_job_count",
-        });
-        return projectNotFoundResponse(c);
-      }
-
-      const openJobCount = await countOpenJobs(c.var.auth, project.id);
-      return c.json({ openJobCount }, 200);
+      return projectNotFoundResponse(c);
     })
-    .get("/:projectId/content-editor-behavior", validateProjectParams, async (c) => {
-      const params = c.req.valid("param");
-      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
-      if (!project) return projectNotFoundResponse(c);
-
-      return c.json(
-        {
-          contentEditorBehavior: {
-            automaticallyGroupIdenticalStrings: project.automaticallyGroupIdenticalStrings,
-            groupingRevision: project.contentEditorGroupingRevision,
-            canManage: isProjectContentEditorBehaviorMutationAllowed(c.var.auth.membership.role),
-          },
-        },
-        200,
-      );
-    })
-    .get("/:projectId/content-editor-behavior/preview", validateProjectParams, async (c) => {
-      if (!isProjectContentEditorBehaviorMutationAllowed(c.var.auth.membership.role)) {
-        return projectForbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
-      if (!project) return projectNotFoundResponse(c);
-
-      const preview = await previewIdenticalStringGrouping(
-        c.var.auth.organization.localOrganizationId,
-        project.id,
-      );
-      return c.json({ preview }, 200);
-    })
-    .patch(
-      "/:projectId/content-editor-behavior",
-      validateProjectParams,
-      validateUpdateProjectContentEditorBehaviorBody,
-      async (c) => {
-        if (!isProjectContentEditorBehaviorMutationAllowed(c.var.auth.membership.role)) {
-          return projectForbiddenResponse(c);
-        }
-
-        const params = c.req.valid("param");
-        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
-        if (!project) return projectNotFoundResponse(c);
-
-        const payload = c.req.valid("json");
-        const contentEditorBehavior = await updateProjectContentEditorGroupingPolicy({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: project.id,
-          automaticallyGroupIdenticalStrings: payload.automaticallyGroupIdenticalStrings,
-          actorUserId: c.var.auth.user.localUserId,
-        });
-        if (!contentEditorBehavior) return projectNotFoundResponse(c);
-
-        return c.json(
-          {
-            contentEditorBehavior: {
-              ...contentEditorBehavior,
-              canManage: true,
-            },
-          },
-          200,
-        );
-      },
-    )
     .get("/:projectId", validateProjectParams, async (c) => {
       const rawPathProjectId = c.req.param("projectId");
       const params = c.req.valid("param");

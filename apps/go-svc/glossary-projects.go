@@ -1,0 +1,213 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/url"
+	"strings"
+
+	"github.com/jackc/pgx/v5"
+)
+
+func normalizeGlossaryProjectID(raw string) string {
+	value := trimGlossaryInput(raw)
+	for i := 0; i < 2 && strings.Contains(value, "%"); i++ {
+		decoded, err := url.PathUnescape(value)
+		if err != nil || decoded == value {
+			break
+		}
+		value = decoded
+	}
+	return trimGlossaryInput(value)
+}
+
+func ownedGlossaryProject(ctx context.Context, db dictionaryDB, actor glossaryActor, raw string) (string, error) {
+	id := normalizeGlossaryProjectID(raw)
+	if id == "" || utf16Length(id) > 128 {
+		return "", missingGlossaryProject()
+	}
+	var found string
+	err := db.QueryRow(ctx, `select p.id from projects p where p.id=$1 and p.organization_id=$2 and ($3 or exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$4 and t.organization_id=$2 and (t.id=p.team_id or (p.team_id is null and t.slug='default'))))`, id, actor.organizationID, actor.orgWideAccess(), actor.userID).Scan(&found)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", missingGlossaryProject()
+	}
+	return found, err
+}
+
+type glossaryAttachmentPayload struct {
+	ProjectID string `json:"projectId"`
+	Priority  *int   `json:"priority"`
+}
+
+func (p glossaryAttachmentPayload) validate() error {
+	if trimGlossaryInput(p.ProjectID) == "" {
+		return invalidGlossary()
+	}
+	if p.Priority != nil && (*p.Priority < 0 || *p.Priority > 10000) {
+		return invalidGlossary()
+	}
+	return nil
+}
+
+type glossaryProjectRecord struct {
+	ProjectID     string   `json:"projectId"`
+	ProjectName   string   `json:"projectName"`
+	Priority      int      `json:"priority"`
+	SourceLocale  *string  `json:"sourceLocale"`
+	TargetLocales []string `json:"targetLocales"`
+	ExternalURL   *string  `json:"externalUrl"`
+}
+
+func (api *glossaryAPI) glossaryProjects(ctx context.Context, actor glossaryActor, glossaryID string) ([]glossaryProjectRecord, error) {
+	rows, err := api.pool.Query(ctx, `select a.project_id, p.name, a.priority, p.source_locale, p.target_locales from project_glossaries a join projects p on p.id=a.project_id where a.glossary_id=$1 and a.organization_id=$2 and p.organization_id=$2 and ($3 or exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$4 and t.organization_id=$2 and (t.id=p.team_id or (p.team_id is null and t.slug='default')))) order by a.priority, a.created_at, a.project_id`, glossaryID, actor.organizationID, actor.orgWideAccess(), actor.userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := []glossaryProjectRecord{}
+	for rows.Next() {
+		var record glossaryProjectRecord
+		var targets []byte
+		if err := rows.Scan(&record.ProjectID, &record.ProjectName, &record.Priority, &record.SourceLocale, &targets); err != nil {
+			return nil, err
+		}
+		record.TargetLocales = []string{}
+		if len(targets) > 0 {
+			_ = json.Unmarshal(targets, &record.TargetLocales)
+		}
+		record.ExternalURL = nil
+		result = append(result, record)
+	}
+	return result, rows.Err()
+}
+
+func (api *glossaryAPI) listGlossaryProjects(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	projects, err := api.glossaryProjects(r.Context(), actor, g.ID)
+	return map[string]any{"projects": projects}, 200, err
+}
+
+func (api *glossaryAPI) attachGlossaryProject(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	if !actor.canManageGlossaries() {
+		return nil, 0, glossaryFailure(403, "forbidden", "Insufficient permissions")
+	}
+	if err := requireNativeGlossary(g); err != nil {
+		return nil, 0, err
+	}
+	var payload glossaryAttachmentPayload
+	if err := readGlossaryBody(r, []string{"projectId", "priority"}, &payload); err != nil {
+		return nil, 0, err
+	}
+	if err := payload.validate(); err != nil {
+		return nil, 0, err
+	}
+	ctx := r.Context()
+	projectID, err := ownedGlossaryProject(ctx, api.pool, actor, payload.ProjectID)
+	if err != nil {
+		return nil, 0, err
+	}
+	var source string
+	var sourceLocale *string
+	err = api.pool.QueryRow(ctx, `select source, source_locale from projects where id=$1 and organization_id=$2`, projectID, actor.organizationID).Scan(&source, &sourceLocale)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, 0, missingGlossaryProject()
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	if sourceLocale == nil || *sourceLocale != g.SourceLocale {
+		return nil, 0, glossaryFailure(400, "glossary_source_locale_mismatch", "The selected project uses a different source locale")
+	}
+	if g.ControlLevel == "team" && source != "native" {
+		return nil, 0, glossaryFailure(400, "glossary_team_native_project_required", "Team glossaries must attach to Hyperlocalise-owned projects")
+	}
+	priority := 0
+	if payload.Priority != nil {
+		priority = *payload.Priority
+	}
+	_, err = api.pool.Exec(ctx, `insert into project_glossaries (organization_id, project_id, glossary_id, priority) values ($1,$2,$3,$4) on conflict (project_id, glossary_id) do update set priority=excluded.priority, updated_at=now()`, actor.organizationID, projectID, g.ID, priority)
+	if err != nil {
+		return nil, 0, err
+	}
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "glossary_project_attached",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"projectId":  projectID,
+			"resourceId": g.ID,
+		},
+		TargetID:   projectID,
+		TargetKind: "project",
+	})
+	return api.listGlossaryProjects(r, actor, g)
+}
+
+func (api *glossaryAPI) detachGlossaryProject(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	if !actor.canManageGlossaries() {
+		return nil, 0, glossaryFailure(403, "forbidden", "Insufficient permissions")
+	}
+	if err := requireNativeGlossary(g); err != nil {
+		return nil, 0, err
+	}
+	ctx := r.Context()
+	projectID, err := ownedGlossaryProject(ctx, api.pool, actor, r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var detached bool
+	if g.ControlLevel == "team" {
+		tx, err := api.pool.Begin(ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+		defer func() { _ = tx.Rollback(ctx) }()
+
+		var locked string
+		if err := tx.QueryRow(ctx, `select id from glossaries where id=$1 for update`, g.ID).Scan(&locked); err != nil {
+			return nil, 0, err
+		}
+		var nativeCount int
+		if err := tx.QueryRow(ctx, `select count(*) from project_glossaries a join projects p on p.id=a.project_id where a.glossary_id=$1 and p.source='native'`, g.ID).Scan(&nativeCount); err != nil {
+			return nil, 0, err
+		}
+		var detachingNative bool
+		if err := tx.QueryRow(ctx, `select p.source='native' from projects p where p.id=$1`, projectID).Scan(&detachingNative); err != nil {
+			return nil, 0, err
+		}
+		if detachingNative && nativeCount <= 1 {
+			return nil, 0, glossaryFailure(403, "glossary_team_project_required", "Team glossaries must attach at least one accessible project")
+		}
+		tag, err := tx.Exec(ctx, `delete from project_glossaries where glossary_id=$1 and project_id=$2 and organization_id=$3`, g.ID, projectID, actor.organizationID)
+		if err != nil {
+			return nil, 0, err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return nil, 0, err
+		}
+		detached = tag.RowsAffected() > 0
+	} else {
+		tag, err := api.pool.Exec(ctx, `delete from project_glossaries where glossary_id=$1 and project_id=$2 and organization_id=$3`, g.ID, projectID, actor.organizationID)
+		if err != nil {
+			return nil, 0, err
+		}
+		detached = tag.RowsAffected() > 0
+	}
+
+	if detached {
+		api.publishActivity(ctx, activityLogEventInput{
+			ActorUserID:    actor.userID,
+			EventType:      "glossary_project_detached",
+			OrganizationID: actor.organizationID,
+			Payload: map[string]any{
+				"projectId":  projectID,
+				"resourceId": g.ID,
+			},
+			TargetID:   projectID,
+			TargetKind: "project",
+		})
+	}
+	return nil, 204, nil
+}

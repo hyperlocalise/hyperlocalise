@@ -19,6 +19,7 @@ import { maxProjectFileContentEditorPageLimit } from "@/api/routes/project/proje
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
 import { fetchProjectFileContentEditorQueuePage } from "@/components/content-editor/project-file/project-file-content-editor-api";
 import { fetchProjectFileContentEditorSegmentTarget } from "@/components/content-editor/project-file/use-content-editor-segment-target";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
   maxCatFilteredExportSegments,
@@ -47,6 +48,7 @@ async function loadPageTargets(input: {
   targetLocale: string;
   segments: ProjectFileContentEditorSegment[];
   intl: ContentEditorFormatMessageIntl;
+  goSvcClient?: GoSvcClient;
 }) {
   const pairs = await mapWithConcurrency(
     input.segments,
@@ -62,6 +64,7 @@ async function loadPageTargets(input: {
         targetLocale: input.targetLocale,
         externalStringId: segment.externalStringId,
         intl: input.intl,
+        goSvcClient: input.goSvcClient,
       });
       const text = target?.text ?? "";
       return [segment.externalStringId, text] as const;
@@ -85,6 +88,7 @@ export async function collectCatFilteredExportRows(
     resourceType?: "file" | "key";
     sourcePaths?: string | null;
     intl: ContentEditorFormatMessageIntl;
+    goSvcClient?: GoSvcClient;
   },
   deps: ContentEditorFilteredExportCollectDeps = defaultCollectDeps,
 ): Promise<
@@ -120,6 +124,7 @@ export async function collectCatFilteredExportRows(
       sortBucket,
       sortBucketOffset,
       intl: input.intl,
+      goSvcClient: input.goSvcClient,
     });
 
     if (contentEditorQueue.segments.length === 0) {
@@ -157,6 +162,7 @@ export async function collectCatFilteredExportRows(
       targetLocale: input.targetLocale,
       segments: contentEditorQueue.segments,
       intl: input.intl,
+      goSvcClient: input.goSvcClient,
     });
 
     for (const segment of contentEditorQueue.segments) {

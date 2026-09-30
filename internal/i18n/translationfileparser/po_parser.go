@@ -224,9 +224,11 @@ func handlePOContinuation(lineNumber int, line string, currentMsgID, currentMsgS
 }
 
 func parsePOQuoted(raw string) (string, error) {
+	// BOLT OPTIMIZATION: Use strings.IndexByte checks instead of strings.ContainsAny
+	// to avoid table lookups and leverage SIMD assembly instructions in assembly runtime.
 	if len(raw) >= 2 && raw[0] == '"' && raw[len(raw)-1] == '"' {
 		inner := raw[1 : len(raw)-1]
-		if !strings.ContainsAny(inner, "\\\"") {
+		if strings.IndexByte(inner, '\\') < 0 && strings.IndexByte(inner, '"') < 0 {
 			return inner, nil
 		}
 	} else {
@@ -235,7 +237,7 @@ func parsePOQuoted(raw string) (string, error) {
 			return "", fmt.Errorf("expected quoted string, got %q", raw)
 		}
 		inner := raw[1 : len(raw)-1]
-		if !strings.ContainsAny(inner, "\\\"") {
+		if strings.IndexByte(inner, '\\') < 0 && strings.IndexByte(inner, '"') < 0 {
 			return inner, nil
 		}
 	}

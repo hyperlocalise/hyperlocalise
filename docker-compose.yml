@@ -15,5 +15,15 @@ services:
     volumes:
       - postgres18-data:/var/lib/postgresql
 
+  valkey:
+    image: valkey/valkey:8
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
 volumes:
   postgres18-data:

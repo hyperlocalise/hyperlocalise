@@ -6,12 +6,12 @@
 
 ## Context
 
-CAT already posts to `/api/go-svc/v1/validate/segment` for format, length, and
-QA checks. `go-svc` can also spell-check requested locales with Hunspell when
-built with `cgo_hunspell`. The `go_svc` container service and `/api/go-svc/*`
-rewrite are already in [`vercel.json`](../../vercel.json). This record is the
-rollout and rollback procedure for turning CAT spelling on and for turning it
-off independently of the rest of segment validation.
+CAT posts to `POST /v1/validate/segment` on the Go service origin for format,
+length, and QA checks. `go-svc` can also spell-check requested locales with
+Hunspell when built with `cgo_hunspell`. Production runs on ECS at
+`https://api.hyperlocalise.com`. This record is the rollout and rollback
+procedure for turning CAT spelling on and for turning it off independently of
+the rest of segment validation.
 
 Related: [CAT segment validation service
 integration](./2026-07-05-cat-segment-validation-service-design.md), [CLI spell
@@ -28,11 +28,12 @@ only if the problem is not spelling.
 This order is already in place. Follow it again only if a future change turns
 the flags off.
 
-1. Confirm `vercel.json` defines the `go_svc` container (`Dockerfile.vercel`)
-   and the `/api/go-svc/*` rewrite.
-2. Build and deploy that image (`make docker-build-go-svc`, then the usual
-   deploy).
-3. Confirm `GET /api/go-svc/health` returns `{"status":"ok"}`.
+1. Build and deploy `go-svc` to ECS (see
+   [go-svc deploy design](./2026-09-19-go-svc-deploy-design.md)).
+2. Confirm `GET https://api.hyperlocalise.com/health` returns
+   `{"status":"ok"}`.
+3. Set `NEXT_PUBLIC_API_BASE_URL=https://api.hyperlocalise.com` on the web
+   project if not already defaulted in the client.
 4. Set both flags in
    [`project-file-content-editor-validation.ts`](../../apps/hyperlocalise-web/src/components/content-editor/project-file/project-file-content-editor-validation.ts)
    to `true` and deploy web:

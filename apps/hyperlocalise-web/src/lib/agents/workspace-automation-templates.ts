@@ -896,6 +896,16 @@ export function getWorkspaceAutomationTemplateFlow(
   template: WorkspaceAutomationTemplate,
 ): WorkspaceAutomationTemplateFlow {
   const form = template.defaultForm;
+  if (form.kind === "content_sync") {
+    return {
+      trigger: { id: "content-sync", label: "Source change" },
+      tools: [
+        { id: "pull-source", label: "Pull source" },
+        { id: "push-translations", label: "Push translations" },
+      ],
+    };
+  }
+
   const triggerMode = form.triggerMode ?? "manual";
 
   const githubEvents = form.githubEvents ?? ["push"];

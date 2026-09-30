@@ -16,15 +16,28 @@ import { stripAppLocalePrefix } from "@/components/app-shell/navigation-config";
 
 export const settingsNavItemIds = [
   "general",
-  "billing",
   "activity-logs",
-  "account",
+  "members",
+  "integrations",
+  "ai-engine",
+  "domains",
+  "hyperlab",
+  "billing",
   "api-keys",
+  "account",
 ] as const;
 
 export type SettingsNavItemId = (typeof settingsNavItemIds)[number];
 
-export const settingsNavGroupIds = ["workspace", "you", "developer"] as const;
+export const settingsNavGroupIds = [
+  "workspace",
+  "members-teams",
+  "integrations-ai",
+  "apps",
+  "billing",
+  "developer",
+  "you",
+] as const;
 
 export type SettingsNavGroupId = (typeof settingsNavGroupIds)[number];
 
@@ -44,7 +57,6 @@ export const settingsNavGroups: readonly SettingsNavGroupConfig[] = [
     id: "workspace",
     items: [
       { id: "general", href: "" },
-      { id: "billing", href: "billing", requiredCapability: "billing:read" },
       {
         id: "activity-logs",
         href: "activity-logs",
@@ -53,16 +65,41 @@ export const settingsNavGroups: readonly SettingsNavGroupConfig[] = [
     ],
   },
   {
-    id: "you",
-    items: [{ id: "account", href: "account" }],
+    id: "members-teams",
+    items: [{ id: "members", href: "members" }],
+  },
+  {
+    id: "integrations-ai",
+    items: [
+      { id: "integrations", href: "integrations", requiredCapability: "integrations:read" },
+      { id: "ai-engine", href: "ai-engine" },
+    ],
+  },
+  {
+    id: "apps",
+    items: [
+      { id: "domains", href: "domains" },
+      { id: "hyperlab", href: "hyperlab", requiredCapability: "experiments:read" },
+    ],
+  },
+  {
+    id: "billing",
+    items: [{ id: "billing", href: "billing", requiredCapability: "billing:read" }],
   },
   {
     id: "developer",
     items: [{ id: "api-keys", href: "api-keys", requiredCapability: "api_keys:read" }],
   },
+  {
+    id: "you",
+    items: [{ id: "account", href: "account" }],
+  },
 ];
 
 export function buildSettingsItemHref(organizationSlug: string, href: string) {
+  if (href.startsWith("/")) {
+    return `/org/${organizationSlug}${href}`;
+  }
   return href ? `/org/${organizationSlug}/settings/${href}` : `/org/${organizationSlug}/settings`;
 }
 
@@ -92,6 +129,45 @@ export function resolveActiveSettingsNavItem(
 ): SettingsNavItemId {
   const normalizedPath = stripAppLocalePrefix(pathname);
   const settingsRoot = `/org/${organizationSlug}/settings`;
+  const orgRoot = `/org/${organizationSlug}`;
+
+  if (
+    normalizedPath.startsWith(`${settingsRoot}/members`) ||
+    normalizedPath.startsWith(`${orgRoot}/members`) ||
+    normalizedPath.startsWith(`${orgRoot}/teams`)
+  ) {
+    return "members";
+  }
+
+  if (
+    normalizedPath.startsWith(`${settingsRoot}/integrations`) ||
+    normalizedPath.startsWith(`${orgRoot}/integrations`)
+  ) {
+    return "integrations";
+  }
+
+  if (
+    normalizedPath.startsWith(`${settingsRoot}/ai-engine`) ||
+    normalizedPath.startsWith(`${orgRoot}/ai-engine`)
+  ) {
+    return "ai-engine";
+  }
+
+  if (
+    normalizedPath.startsWith(`${settingsRoot}/domains`) ||
+    normalizedPath.startsWith(`${settingsRoot}/linked-domains`) ||
+    normalizedPath === `${orgRoot}/domains` ||
+    normalizedPath.startsWith(`${orgRoot}/domains/`)
+  ) {
+    return "domains";
+  }
+
+  if (
+    normalizedPath.startsWith(`${settingsRoot}/hyperlab`) ||
+    normalizedPath.startsWith(`${orgRoot}/hyperlab`)
+  ) {
+    return "hyperlab";
+  }
 
   if (normalizedPath === settingsRoot) {
     return "general";

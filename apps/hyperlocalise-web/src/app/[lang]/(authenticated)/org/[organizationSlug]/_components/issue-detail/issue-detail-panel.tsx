@@ -24,24 +24,38 @@ import {
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
-  Calendar03Icon,
   CheckmarkCircle02Icon,
-  Clock01Icon,
   File01Icon,
   Flag01Icon,
   LanguageCircleIcon,
   LinkSquare02Icon,
+  MoreHorizontalCircle01Icon,
   Tag01Icon,
   TranslateIcon,
   User02Icon,
-  UserCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -78,6 +92,7 @@ import {
   type IssueDetailIssue,
 } from "./issue-detail-utils";
 import { IssueLocalePicker } from "./issue-locale-picker";
+import { IssueSourcePathPicker } from "./issue-source-path-picker";
 import { IssuePriorityIcon } from "./issue-priority-icon";
 import { IssueRelationshipSection } from "./issue-relationship-section";
 import { IssueStatusIcon } from "./issue-status-icon";
@@ -103,7 +118,10 @@ import { type IssueDetailSidebarScope } from "./issue-detail-sidebar-state";
 import { useIssueDetailSidebarOpen } from "./use-issue-detail-sidebar-open";
 import { issueSheetSharedMessages as sharedMessages } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-shared.messages";
 import { useProjectPageQuery } from "../../projects/[projectId]/_components/project-page-shell";
-import { formatRelativeTimestamp } from "../workspace-files-shared";
+import {
+  issueContentFieldClassName,
+  issuePropertyControlClassName,
+} from "./issue-property-control";
 
 type PropertyIcon = Parameters<typeof HugeiconsIcon>[0]["icon"];
 
@@ -139,20 +157,25 @@ function PropertyRow({
   icon,
   label,
   children,
+  interactive = true,
 }: {
   icon: PropertyIcon;
   label: ReactNode;
   children: ReactNode;
+  interactive?: boolean;
 }) {
   return (
-    <div className="flex min-h-8 items-center justify-between gap-3 py-1.5">
-      <dt className="flex min-w-0 shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+    <div
+      className={cn(
+        "-mx-1 flex min-h-9 items-center gap-2 rounded-md px-1",
+        interactive && "hover:bg-accent",
+      )}
+    >
+      <dt className="flex w-[7.5rem] shrink-0 items-center gap-2 text-sm text-muted-foreground">
         <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-3.5 shrink-0" />
         <span className="truncate">{label}</span>
       </dt>
-      <dd className="flex min-h-8 min-w-0 max-w-[55%] items-center justify-end text-end">
-        {children}
-      </dd>
+      <dd className="min-w-0 flex-1">{children}</dd>
     </div>
   );
 }
@@ -202,11 +225,8 @@ function IssueDetailSkeleton() {
   );
 }
 
-const ghostSelectTriggerClassName =
-  "h-8 max-w-full justify-end border-transparent bg-transparent px-1.5 shadow-none hover:bg-muted/60 focus-visible:border-ring";
-
 const iconRailSelectTriggerClassName =
-  "size-8 justify-center border-transparent bg-transparent p-0 shadow-none hover:bg-muted/60 focus-visible:border-ring";
+  "size-8 justify-center border-transparent bg-transparent p-0 shadow-none hover:bg-accent focus-visible:border-ring";
 
 export const IssueDetailPanel = forwardRef<
   IssueDetailPanelHandle,
@@ -215,6 +235,8 @@ export const IssueDetailPanel = forwardRef<
     projectId: string;
     issueId: string;
     onDirtyChange?: (dirty: boolean) => void;
+    onDeleted?: () => void;
+    canDelete?: boolean;
     defaultSidebarOpen?: boolean;
     sidebarStorageScope?: IssueDetailSidebarScope;
   }
@@ -224,6 +246,8 @@ export const IssueDetailPanel = forwardRef<
     projectId,
     issueId,
     onDirtyChange,
+    onDeleted,
+    canDelete = false,
     defaultSidebarOpen = true,
     sidebarStorageScope = "issue-detail",
   },
@@ -255,12 +279,13 @@ export const IssueDetailPanel = forwardRef<
     (member) => member.isCurrentUser,
   )?.userId;
 
-  const { updateIssue, setValue, cancelPending } = useIssueDetailMutations({
+  const { updateIssue, setValue, deleteIssue, cancelPending } = useIssueDetailMutations({
     organizationSlug,
     projectId,
     issueId,
     actorUserId,
     onSaved: () => toast.success(intl.formatMessage(messages.saved)),
+    onDeleted,
   });
 
   const issue = issueQuery.data;
@@ -268,12 +293,13 @@ export const IssueDetailPanel = forwardRef<
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [ownerNoteDraft, setOwnerNoteDraft] = useState("");
   const [customColumnDrafts, setCustomColumnDrafts] = useState<Record<string, string>>({});
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useIssueDetailSidebarOpen(
     sidebarStorageScope,
     issueId,
     defaultSidebarOpen,
   );
-  const isSaving = updateIssue.isPending || setValue.isPending;
+  const isSaving = updateIssue.isPending || setValue.isPending || deleteIssue.isPending;
 
   const titleDraftRef = useRef(titleDraft);
   const descriptionDraftRef = useRef(descriptionDraft);
@@ -629,228 +655,529 @@ export const IssueDetailPanel = forwardRef<
     setValue.mutate({ columnKey: "owner_note", value: ownerNoteDraft });
   };
 
+  const confirmDelete = async () => {
+    cancelPending();
+    await deleteIssue.mutateAsync();
+    setIsDeleteOpen(false);
+  };
+
   return (
-    <div
-      className={cn(
-        "grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden lg:grid-rows-none",
-        sidebarOpen ? "lg:grid-cols-[minmax(0,1fr)_22rem]" : "lg:grid-cols-[minmax(0,1fr)_3rem]",
-      )}
-      aria-busy={isSaving}
-    >
-      <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto px-6 py-5">
-        <IssueDuplicateBanner organizationSlug={organizationSlug} relationships={relationships} />
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="font-mono text-xs text-muted-foreground tabular-nums hover:text-foreground"
-            onClick={() => {
-              void navigator.clipboard.writeText(issue.identifier);
-              toast.success(intl.formatMessage(messages.copiedIssueId));
-            }}
-          >
-            {issue.identifier}
-          </button>
-        </div>
-        <Textarea
-          value={titleDraft}
-          onChange={(event) => setTitleDraft(event.currentTarget.value)}
-          onBlur={saveTitle}
-          disabled={isSaving}
-          aria-label={intl.formatMessage(messages.fieldTitle)}
-          rows={1}
-          className={cn(
-            "min-h-10 shrink-0 overflow-hidden rounded-none border-transparent bg-transparent px-0 py-1 text-lg font-semibold shadow-none md:min-h-10 md:text-xl",
-            "focus-visible:border-transparent focus-visible:ring-0",
-          )}
-        />
+    <>
+      <div
+        className={cn(
+          "grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden lg:grid-rows-none",
+          sidebarOpen ? "lg:grid-cols-[minmax(0,1fr)_22rem]" : "lg:grid-cols-[minmax(0,1fr)_3rem]",
+        )}
+        aria-busy={isSaving}
+      >
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto px-6 py-5">
+          <IssueDuplicateBanner organizationSlug={organizationSlug} relationships={relationships} />
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              className="font-mono text-xs text-muted-foreground tabular-nums hover:text-foreground"
+              onClick={() => {
+                void navigator.clipboard.writeText(issue.identifier);
+                toast.success(intl.formatMessage(messages.copiedIssueId));
+              }}
+            >
+              {issue.identifier}
+            </button>
+            {canDelete ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={intl.formatMessage(messages.queryActions)}
+                      disabled={isSaving}
+                    />
+                  }
+                >
+                  <HugeiconsIcon
+                    icon={MoreHorizontalCircle01Icon}
+                    strokeWidth={1.8}
+                    className="size-4"
+                  />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-40">
+                  <DropdownMenuItem
+                    variant="destructive"
+                    disabled={isSaving}
+                    onClick={() => setIsDeleteOpen(true)}
+                  >
+                    <FormattedMessage {...messages.deleteQuery} />
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
+          <Textarea
+            value={titleDraft}
+            onChange={(event) => setTitleDraft(event.currentTarget.value)}
+            onBlur={saveTitle}
+            disabled={isSaving}
+            aria-label={intl.formatMessage(messages.fieldTitle)}
+            rows={1}
+            className={cn(
+              issueContentFieldClassName,
+              "min-h-10 shrink-0 overflow-hidden text-lg font-semibold md:min-h-10 md:text-xl",
+            )}
+          />
 
-        <IssueMarkdownField
-          key={`${issue.id}-description`}
-          value={descriptionDraft}
-          onChange={setDescriptionDraft}
-          onCommit={saveDescription}
-          disabled={isSaving}
-          placeholder={intl.formatMessage(messages.fieldDescription)}
-          emptyMessage={intl.formatMessage(markdownFieldMessages.emptyDescription)}
-          ariaLabel={intl.formatMessage(messages.fieldDescription)}
-          imageUpload={{ organizationSlug, projectId }}
-        />
+          <IssueMarkdownField
+            key={`${issue.id}-description`}
+            value={descriptionDraft}
+            onChange={setDescriptionDraft}
+            onCommit={saveDescription}
+            disabled={isSaving}
+            placeholder={intl.formatMessage(messages.fieldDescription)}
+            emptyMessage={intl.formatMessage(markdownFieldMessages.emptyDescription)}
+            ariaLabel={intl.formatMessage(messages.fieldDescription)}
+            imageUpload={{ organizationSlug, projectId }}
+          />
 
-        {showOwnerNoteField ? (
-          <section className="mt-2 grid gap-2 border-t border-border pt-4">
-            <TypographyP size="small" weight="medium" tone="content">
-              <FormattedMessage {...messages.fieldOwnerNote} />
-            </TypographyP>
-            <IssueMarkdownField
-              key={`${issue.id}-owner-note`}
-              value={ownerNoteDraft}
-              onChange={setOwnerNoteDraft}
-              onCommit={saveOwnerNote}
-              disabled={isSaving}
-              placeholder={intl.formatMessage(messages.fieldOwnerNotePlaceholder)}
-              emptyMessage={intl.formatMessage(markdownFieldMessages.emptyOwnerNote)}
-              ariaLabel={intl.formatMessage(messages.fieldOwnerNote)}
-              imageUpload={{ organizationSlug, projectId }}
-            />
-          </section>
-        ) : null}
+          {showOwnerNoteField ? (
+            <section className="mt-2 grid gap-2 border-t border-border pt-4">
+              <TypographyP size="small" weight="medium" tone="content">
+                <FormattedMessage {...messages.fieldOwnerNote} />
+              </TypographyP>
+              <IssueMarkdownField
+                key={`${issue.id}-owner-note`}
+                value={ownerNoteDraft}
+                onChange={setOwnerNoteDraft}
+                onCommit={saveOwnerNote}
+                disabled={isSaving}
+                placeholder={intl.formatMessage(messages.fieldOwnerNotePlaceholder)}
+                emptyMessage={intl.formatMessage(markdownFieldMessages.emptyOwnerNote)}
+                ariaLabel={intl.formatMessage(messages.fieldOwnerNote)}
+                imageUpload={{ organizationSlug, projectId }}
+              />
+            </section>
+          ) : null}
 
-        {showCustomColumns
-          ? mainCustomColumns.map((column) => (
-              <section key={column.id} className="mt-2 grid gap-2 border-t border-border pt-4">
+          {showCustomColumns
+            ? mainCustomColumns.map((column) => (
+                <section key={column.id} className="mt-2 grid gap-2 border-t border-border pt-4">
+                  <TypographyP
+                    className="inline-flex items-center gap-1.5"
+                    size="small"
+                    weight="medium"
+                    tone="content"
+                  >
+                    <IssueColumnIcon iconId={column.icon} className="text-muted-foreground" />
+                    {column.label}
+                  </TypographyP>
+                  <IssueCustomColumnField
+                    column={column}
+                    value={issue.values[column.key]}
+                    draft={customColumnDrafts[column.key] ?? ""}
+                    emptyValue={emptyValue}
+                    disabled={isSaving}
+                    variant="main"
+                    members={assignableMembersQuery.data?.members ?? []}
+                    membersLoading={assignableMembersQuery.isLoading}
+                    imageUpload={{ organizationSlug, projectId }}
+                    onDraftChange={(value) => updateCustomColumnDraft(column.key, value)}
+                    onCommit={() => saveCustomColumnDraft(column.key)}
+                    onChange={(value) => saveCustomColumnValue(column.key, value)}
+                  />
+                </section>
+              ))
+            : null}
+
+          {hasLinkedContext ? (
+            <section className="mt-2 grid gap-3 border-t border-border pt-4">
+              <div className="flex items-center justify-between gap-2">
                 <TypographyP
                   className="inline-flex items-center gap-1.5"
                   size="small"
                   weight="medium"
                   tone="content"
                 >
-                  <IssueColumnIcon iconId={column.icon} className="text-muted-foreground" />
-                  {column.label}
+                  <HugeiconsIcon
+                    icon={LinkSquare02Icon}
+                    strokeWidth={1.8}
+                    className="size-3.5 text-muted-foreground"
+                  />
+                  <FormattedMessage {...messages.linkedContext} />
                 </TypographyP>
-                <IssueCustomColumnField
-                  column={column}
-                  value={issue.values[column.key]}
-                  draft={customColumnDrafts[column.key] ?? ""}
-                  emptyValue={emptyValue}
-                  disabled={isSaving}
-                  variant="main"
-                  members={assignableMembersQuery.data?.members ?? []}
-                  membersLoading={assignableMembersQuery.isLoading}
-                  imageUpload={{ organizationSlug, projectId }}
-                  onDraftChange={(value) => updateCustomColumnDraft(column.key, value)}
-                  onCommit={() => saveCustomColumnDraft(column.key)}
-                  onChange={(value) => saveCustomColumnValue(column.key, value)}
-                />
-              </section>
-            ))
-          : null}
-
-        {hasLinkedContext ? (
-          <section className="mt-2 grid gap-3 border-t border-border pt-4">
-            <div className="flex items-center justify-between gap-2">
-              <TypographyP
-                className="inline-flex items-center gap-1.5"
-                size="small"
-                weight="medium"
-                tone="content"
-              >
-                <HugeiconsIcon
-                  icon={LinkSquare02Icon}
-                  strokeWidth={1.8}
-                  className="size-3.5 text-muted-foreground"
-                />
-                <FormattedMessage {...messages.linkedContext} />
-              </TypographyP>
-              {issue.translationKeyId ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={isSaving}
-                  onClick={() => {
-                    updateIssue.mutate(
-                      { translationKeyId: null },
-                      {
-                        onSuccess: () => {
-                          toast.success(intl.formatMessage(messages.stringUnlinked));
-                        },
-                      },
-                    );
-                  }}
-                >
-                  <FormattedMessage {...messages.unlinkString} />
-                </Button>
-              ) : null}
-            </div>
-            <div className="grid gap-3">
-              {issue.key ? (
-                <LinkedContextRow label={<FormattedMessage {...messages.fieldKey} />}>
-                  <ReadOnlyValue value={issue.key} empty={emptyValue} />
-                </LinkedContextRow>
-              ) : null}
-              {issue.segmentId ? (
-                <LinkedContextRow label={<FormattedMessage {...messages.fieldSegmentId} />}>
-                  <ReadOnlyValue value={issue.segmentId} empty={emptyValue} />
-                </LinkedContextRow>
-              ) : null}
-              {issue.sourceText ? (
-                <LinkedContextRow label={<FormattedMessage {...messages.fieldSourceText} />}>
-                  <ReadOnlyValue value={issue.sourceText} empty={emptyValue} />
-                </LinkedContextRow>
-              ) : null}
-              {issue.linkKind ? (
-                <LinkedContextRow label={<FormattedMessage {...messages.fieldLink} />}>
-                  <ReadOnlyValue value={linkKindLabel(intl, issue.linkKind)} empty={emptyValue} />
-                </LinkedContextRow>
-              ) : null}
-            </div>
-          </section>
-        ) : null}
-
-        <IssueRelationshipSection
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          issueId={issue.id}
-          relationships={relationships}
-          isLoading={relationshipsQuery.isLoading}
-          isError={relationshipsQuery.isError}
-          disabled={isSaving}
-        />
-
-        <IssueWatchControl
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          issueId={issue.id}
-          isWatching={issue.isWatching}
-          disabled={isSaving}
-        />
-
-        <IssueCommentThread
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          issueId={issue.id}
-        />
-      </div>
-
-      <Collapsible
-        open={sidebarOpen}
-        onOpenChange={setSidebarOpen}
-        className="flex min-h-0 flex-col overflow-hidden border-t border-border bg-muted/20 md:border-t-0 md:border-s"
-      >
-        <aside
-          className={cn(
-            "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto",
-            sidebarOpen ? "px-4 py-5" : "px-4 py-5 lg:items-center lg:px-1.5 lg:py-3",
-          )}
-        >
-          {sidebarOpen ? (
-            <div className="mb-4 flex flex-col gap-2">
-              <div className="flex items-stretch gap-2">
-                {contentEditorHref ? (
+                {issue.translationKeyId ? (
                   <Button
-                    variant="outline"
+                    type="button"
                     size="sm"
-                    className="min-w-0 flex-1 justify-start"
+                    variant="ghost"
+                    disabled={isSaving}
+                    onClick={() => {
+                      updateIssue.mutate(
+                        { translationKeyId: null },
+                        {
+                          onSuccess: () => {
+                            toast.success(intl.formatMessage(messages.stringUnlinked));
+                          },
+                        },
+                      );
+                    }}
+                  >
+                    <FormattedMessage {...messages.unlinkString} />
+                  </Button>
+                ) : null}
+              </div>
+              <div className="grid gap-3">
+                {issue.key ? (
+                  <LinkedContextRow label={<FormattedMessage {...messages.fieldKey} />}>
+                    <ReadOnlyValue value={issue.key} empty={emptyValue} />
+                  </LinkedContextRow>
+                ) : null}
+                {issue.segmentId ? (
+                  <LinkedContextRow label={<FormattedMessage {...messages.fieldSegmentId} />}>
+                    <ReadOnlyValue value={issue.segmentId} empty={emptyValue} />
+                  </LinkedContextRow>
+                ) : null}
+                {issue.sourceText ? (
+                  <LinkedContextRow label={<FormattedMessage {...messages.fieldSourceText} />}>
+                    <ReadOnlyValue value={issue.sourceText} empty={emptyValue} />
+                  </LinkedContextRow>
+                ) : null}
+                {issue.linkKind ? (
+                  <LinkedContextRow label={<FormattedMessage {...messages.fieldLink} />}>
+                    <ReadOnlyValue value={linkKindLabel(intl, issue.linkKind)} empty={emptyValue} />
+                  </LinkedContextRow>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
+          <IssueRelationshipSection
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            issueId={issue.id}
+            relationships={relationships}
+            isLoading={relationshipsQuery.isLoading}
+            isError={relationshipsQuery.isError}
+            disabled={isSaving}
+          />
+
+          <IssueWatchControl
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            issueId={issue.id}
+            isWatching={issue.isWatching}
+            disabled={isSaving}
+          />
+
+          <IssueCommentThread
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            issueId={issue.id}
+          />
+        </div>
+
+        <Collapsible
+          open={sidebarOpen}
+          onOpenChange={setSidebarOpen}
+          className="flex min-h-0 flex-col overflow-hidden border-t border-border bg-muted/20 md:border-t-0 md:border-s"
+        >
+          <aside
+            className={cn(
+              "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto",
+              sidebarOpen ? "px-4 py-5" : "px-4 py-5 lg:items-center lg:px-1.5 lg:py-3",
+            )}
+          >
+            {sidebarOpen ? (
+              <div className="mb-4 flex flex-col gap-2">
+                <div className="flex items-stretch gap-2">
+                  {contentEditorHref ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="min-w-0 flex-1 justify-start"
+                      render={
+                        <a href={contentEditorHref} target="_blank" rel="noopener noreferrer" />
+                      }
+                    >
+                      <HugeiconsIcon
+                        icon={TranslateIcon}
+                        strokeWidth={1.8}
+                        data-icon="inline-start"
+                      />
+                      <FormattedMessage {...messages.openInContentEditor} />
+                    </Button>
+                  ) : (
+                    <div className="flex min-w-0 flex-1 items-center rounded-lg border border-dashed border-border px-3 py-2">
+                      <TypographyP size="xsmall" tone="subtle">
+                        <FormattedMessage {...messages.openInContentEditorUnavailable} />
+                      </TypographyP>
+                    </div>
+                  )}
+                  <CollapsibleTrigger
+                    className="hidden shrink-0 lg:flex"
                     render={
-                      <a href={contentEditorHref} target="_blank" rel="noopener noreferrer" />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label={sidebarToggleLabel}
+                        title={sidebarToggleLabel}
+                      />
                     }
                   >
                     <HugeiconsIcon
-                      icon={TranslateIcon}
+                      icon={ArrowRight01Icon}
+                      strokeWidth={1.8}
+                      className="size-4 rtl:rotate-180"
+                    />
+                  </CollapsibleTrigger>
+                </div>
+                {showExternalLink && issue.linkUrl ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                    render={
+                      <a
+                        href={issue.linkUrl}
+                        {...(isExternalHttpUrl(issue.linkUrl)
+                          ? { target: "_blank", rel: "noopener noreferrer" }
+                          : {})}
+                      />
+                    }
+                  >
+                    <HugeiconsIcon
+                      icon={LinkSquare02Icon}
                       strokeWidth={1.8}
                       data-icon="inline-start"
                     />
-                    <FormattedMessage {...messages.openInContentEditor} />
+                    {issue.linkLabel || intl.formatMessage(messages.openLink)}
                   </Button>
-                ) : (
-                  <div className="flex min-w-0 flex-1 items-center rounded-lg border border-dashed border-border px-3 py-2">
-                    <TypographyP size="xsmall" tone="subtle">
-                      <FormattedMessage {...messages.openInContentEditorUnavailable} />
-                    </TypographyP>
-                  </div>
-                )}
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className={cn("flex flex-col gap-1", !sidebarOpen && "lg:hidden")}>
+              {columnsQuery.isError ? (
+                <div className="mb-3 space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <TypographyP size="xsmall" tone="critical">
+                    <FormattedMessage {...messages.loadColumnsError} />
+                  </TypographyP>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={columnsQuery.isFetching}
+                    onClick={() => void columnsQuery.refetch()}
+                  >
+                    <FormattedMessage {...messages.retryColumns} />
+                  </Button>
+                </div>
+              ) : null}
+
+              <dl className="flex flex-col">
+                <PropertyRow
+                  icon={User02Icon}
+                  label={<FormattedMessage {...messages.fieldAssignee} />}
+                >
+                  <IssueAssigneePicker
+                    value={issue.assigneeUserId}
+                    currentLabel={issue.assignee}
+                    members={assignableMembersQuery.data?.members ?? []}
+                    isLoading={assignableMembersQuery.isLoading}
+                    disabled={isSaving}
+                    size="ghost"
+                    triggerClassName={issuePropertyControlClassName}
+                    onChange={(assigneeUserId) => {
+                      updateIssue.mutate({ assigneeUserId });
+                    }}
+                  />
+                </PropertyRow>
+
+                <PropertyRow
+                  icon={CheckmarkCircle02Icon}
+                  label={<FormattedMessage {...messages.fieldStatus} />}
+                >
+                  <Select
+                    value={issue.status}
+                    items={statusItems}
+                    onValueChange={(value) => {
+                      if (value) {
+                        updateIssue.mutate({ status: value });
+                      }
+                    }}
+                    disabled={isSaving}
+                  >
+                    <SelectTrigger
+                      aria-label={intl.formatMessage(messages.fieldStatus)}
+                      className={issuePropertyControlClassName}
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <IssueStatusIcon status={issue.status} className="size-3.5" />
+                        <span className="truncate">{issueStatusLabel(intl, issue.status)}</span>
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent className="min-w-44 p-1.5">
+                      {statusItems.map((status) => (
+                        <SelectItem
+                          key={status.value}
+                          value={status.value}
+                          label={status.label}
+                          className="rounded-lg px-2 py-1.5 focus:bg-muted! focus:text-foreground! data-highlighted:bg-muted! data-highlighted:text-foreground!"
+                        >
+                          <span className="flex items-center gap-2">
+                            <IssueStatusIcon status={status.value} className="size-3.5" />
+                            {status.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </PropertyRow>
+
+                <PropertyRow icon={Tag01Icon} label={<FormattedMessage {...messages.fieldType} />}>
+                  <IssueTypePicker
+                    value={issue.issueType as IssueTypeValue}
+                    onValueChange={(value) => {
+                      updateIssue.mutate({ issueType: value });
+                    }}
+                    disabled={isSaving}
+                    appearance="plain"
+                    aria-label={intl.formatMessage(messages.fieldType)}
+                    triggerClassName={issuePropertyControlClassName}
+                  />
+                </PropertyRow>
+
+                {showPriorityField ? (
+                  <PropertyRow
+                    icon={Flag01Icon}
+                    label={<FormattedMessage {...messages.fieldPriority} />}
+                  >
+                    <Select
+                      value={priority || null}
+                      items={priorityItems}
+                      onValueChange={(value) => {
+                        if (value) {
+                          setValue.mutate({ columnKey: "priority", value });
+                        }
+                      }}
+                      disabled={isSaving}
+                    >
+                      <SelectTrigger
+                        aria-label={intl.formatMessage(messages.fieldPriority)}
+                        className={issuePropertyControlClassName}
+                      >
+                        {priority ? (
+                          <span className="flex min-w-0 items-center gap-2">
+                            <IssuePriorityIcon priority={priority} size="sm" />
+                            <span className="truncate">
+                              {priorityItems.find((item) => item.value === priority)?.label ??
+                                priority}
+                            </span>
+                          </span>
+                        ) : (
+                          <SelectValue placeholder={emptyValue} />
+                        )}
+                      </SelectTrigger>
+                      <SelectContent>
+                        {priorityItems.map((item) => (
+                          <SelectItem key={item.value} value={item.value} label={item.label}>
+                            <span className="flex items-center gap-2">
+                              <IssuePriorityIcon priority={item.value} size="sm" />
+                              {item.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </PropertyRow>
+                ) : null}
+
+                {issue.templateKey ? (
+                  <PropertyRow
+                    icon={Tag01Icon}
+                    label={<FormattedMessage {...messages.fieldTemplate} />}
+                    interactive={false}
+                  >
+                    <ReadOnlyValue
+                      value={issueSheetTemplateLabel(intl, issue.templateKey)}
+                      empty={emptyValue}
+                      className="truncate px-2"
+                    />
+                  </PropertyRow>
+                ) : null}
+
+                <PropertyRow
+                  icon={LanguageCircleIcon}
+                  label={<FormattedMessage {...messages.fieldLocale} />}
+                >
+                  <IssueLocalePicker
+                    value={issue.targetLocale}
+                    locales={projectQuery.data?.targetLocales ?? []}
+                    allowClear
+                    disabled={isSaving}
+                    size="sm"
+                    triggerClassName={issuePropertyControlClassName}
+                    aria-label={intl.formatMessage(messages.fieldLocale)}
+                    onValueChange={(targetLocale) => {
+                      updateIssue.mutate({ targetLocale });
+                    }}
+                  />
+                </PropertyRow>
+
+                <PropertyRow
+                  icon={File01Icon}
+                  label={<FormattedMessage {...messages.fieldSourcePath} />}
+                >
+                  <IssueSourcePathPicker
+                    organizationSlug={organizationSlug}
+                    projectId={projectId}
+                    value={issue.sourcePath}
+                    emptyValue={emptyValue}
+                    disabled={isSaving}
+                    triggerClassName={issuePropertyControlClassName}
+                    onChange={(sourcePath) => {
+                      if (sourcePath === issue.sourcePath) {
+                        return;
+                      }
+                      updateIssue.mutate({
+                        sourcePath,
+                        segmentId: null,
+                        translationKeyId: null,
+                      });
+                    }}
+                  />
+                </PropertyRow>
+
+                {showCustomColumns
+                  ? sidebarCustomColumns.map((column) => (
+                      <PropertyRow
+                        key={column.id}
+                        icon={resolveIssueSheetColumnIcon(column.icon)}
+                        label={column.label}
+                      >
+                        <IssueCustomColumnField
+                          column={column}
+                          value={issue.values[column.key]}
+                          draft={customColumnDrafts[column.key] ?? ""}
+                          emptyValue={emptyValue}
+                          disabled={isSaving}
+                          variant="sidebar"
+                          members={assignableMembersQuery.data?.members ?? []}
+                          membersLoading={assignableMembersQuery.isLoading}
+                          imageUpload={{ organizationSlug, projectId }}
+                          onDraftChange={(value) => updateCustomColumnDraft(column.key, value)}
+                          onCommit={() => saveCustomColumnDraft(column.key)}
+                          onChange={(value) => saveCustomColumnValue(column.key, value)}
+                        />
+                      </PropertyRow>
+                    ))
+                  : null}
+              </dl>
+            </div>
+
+            {!sidebarOpen ? (
+              <div className="hidden flex-col items-center gap-2 lg:flex">
                 <CollapsibleTrigger
-                  className="hidden shrink-0 lg:flex"
                   render={
                     <Button
                       type="button"
@@ -862,78 +1189,56 @@ export const IssueDetailPanel = forwardRef<
                   }
                 >
                   <HugeiconsIcon
-                    icon={ArrowRight01Icon}
+                    icon={ArrowLeft01Icon}
                     strokeWidth={1.8}
                     className="size-4 rtl:rotate-180"
                   />
                 </CollapsibleTrigger>
-              </div>
-              {showExternalLink && issue.linkUrl ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                  render={
-                    <a
-                      href={issue.linkUrl}
-                      {...(isExternalHttpUrl(issue.linkUrl)
-                        ? { target: "_blank", rel: "noopener noreferrer" }
-                        : {})}
-                    />
-                  }
-                >
-                  <HugeiconsIcon
-                    icon={LinkSquare02Icon}
-                    strokeWidth={1.8}
-                    data-icon="inline-start"
-                  />
-                  {issue.linkLabel || intl.formatMessage(messages.openLink)}
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
+                {contentEditorHref ? (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={intl.formatMessage(messages.openInContentEditor)}
+                    title={intl.formatMessage(messages.openInContentEditor)}
+                    render={
+                      <a href={contentEditorHref} target="_blank" rel="noopener noreferrer" />
+                    }
+                  >
+                    <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} className="size-4" />
+                  </Button>
+                ) : null}
+                {showExternalLink && issue.linkUrl ? (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={issue.linkLabel || intl.formatMessage(messages.openLink)}
+                    title={issue.linkLabel || intl.formatMessage(messages.openLink)}
+                    render={
+                      <a
+                        href={issue.linkUrl}
+                        {...(isExternalHttpUrl(issue.linkUrl)
+                          ? { target: "_blank", rel: "noopener noreferrer" }
+                          : {})}
+                      />
+                    }
+                  >
+                    <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} className="size-4" />
+                  </Button>
+                ) : null}
 
-          <div className={cn("flex flex-col gap-1", !sidebarOpen && "lg:hidden")}>
-            {columnsQuery.isError ? (
-              <div className="mb-3 space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-                <TypographyP size="xsmall" tone="critical">
-                  <FormattedMessage {...messages.loadColumnsError} />
-                </TypographyP>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={columnsQuery.isFetching}
-                  onClick={() => void columnsQuery.refetch()}
-                >
-                  <FormattedMessage {...messages.retryColumns} />
-                </Button>
-              </div>
-            ) : null}
-
-            <dl className="flex flex-col">
-              <PropertyRow
-                icon={User02Icon}
-                label={<FormattedMessage {...messages.fieldAssignee} />}
-              >
                 <IssueAssigneePicker
                   value={issue.assigneeUserId}
                   currentLabel={issue.assignee}
                   members={assignableMembersQuery.data?.members ?? []}
                   isLoading={assignableMembersQuery.isLoading}
                   disabled={isSaving}
-                  size="ghost"
-                  triggerClassName={ghostSelectTriggerClassName}
+                  size="sm"
+                  align="end"
                   onChange={(assigneeUserId) => {
                     updateIssue.mutate({ assigneeUserId });
                   }}
                 />
-              </PropertyRow>
 
-              <PropertyRow
-                icon={CheckmarkCircle02Icon}
-                label={<FormattedMessage {...messages.fieldStatus} />}
-              >
                 <Select
                   value={issue.status}
                   items={statusItems}
@@ -944,13 +1249,15 @@ export const IssueDetailPanel = forwardRef<
                   }}
                   disabled={isSaving}
                 >
-                  <SelectTrigger className={ghostSelectTriggerClassName} showIcon={false}>
-                    <span className="flex items-center gap-2">
-                      <IssueStatusIcon status={issue.status} className="size-3.5" />
-                      {issueStatusLabel(intl, issue.status)}
-                    </span>
+                  <SelectTrigger
+                    className={iconRailSelectTriggerClassName}
+                    showIcon={false}
+                    aria-label={intl.formatMessage(messages.fieldStatus)}
+                    title={issueStatusLabel(intl, issue.status)}
+                  >
+                    <IssueStatusIcon status={issue.status} className="size-3.5" />
                   </SelectTrigger>
-                  <SelectContent className="min-w-44 p-1.5">
+                  <SelectContent className="min-w-44 p-1.5" align="end">
                     {statusItems.map((status) => (
                       <SelectItem
                         key={status.value}
@@ -966,25 +1273,35 @@ export const IssueDetailPanel = forwardRef<
                     ))}
                   </SelectContent>
                 </Select>
-              </PropertyRow>
 
-              <PropertyRow icon={Tag01Icon} label={<FormattedMessage {...messages.fieldType} />}>
-                <IssueTypePicker
-                  value={issue.issueType as IssueTypeValue}
+                <Select
+                  value={issue.issueType}
+                  items={typeItems}
                   onValueChange={(value) => {
-                    updateIssue.mutate({ issueType: value });
+                    if (value && issueTypeValues.includes(value as IssueTypeValue)) {
+                      updateIssue.mutate({ issueType: value });
+                    }
                   }}
                   disabled={isSaving}
-                  showIcon={false}
-                  triggerClassName={ghostSelectTriggerClassName}
-                />
-              </PropertyRow>
-
-              {showPriorityField ? (
-                <PropertyRow
-                  icon={Flag01Icon}
-                  label={<FormattedMessage {...messages.fieldPriority} />}
                 >
+                  <SelectTrigger
+                    className={iconRailSelectTriggerClassName}
+                    showIcon={false}
+                    aria-label={intl.formatMessage(messages.fieldType)}
+                    title={issueTypeLabel(intl, issue.issueType)}
+                  >
+                    <HugeiconsIcon icon={Tag01Icon} strokeWidth={1.8} className="size-3.5" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {typeItems.map((type) => (
+                      <SelectItem key={type.value} value={type.value} label={type.label}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {showPriorityField ? (
                   <Select
                     value={priority || null}
                     items={priorityItems}
@@ -995,14 +1312,19 @@ export const IssueDetailPanel = forwardRef<
                     }}
                     disabled={isSaving}
                   >
-                    <SelectTrigger className={ghostSelectTriggerClassName} showIcon={false}>
+                    <SelectTrigger
+                      className={iconRailSelectTriggerClassName}
+                      showIcon={false}
+                      aria-label={intl.formatMessage(messages.fieldPriority)}
+                      title={priority || emptyValue}
+                    >
                       {priority ? (
                         <IssuePriorityIcon priority={priority} size="sm" />
                       ) : (
-                        <SelectValue placeholder={emptyValue} />
+                        <HugeiconsIcon icon={Flag01Icon} strokeWidth={1.8} className="size-3.5" />
                       )}
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent align="end">
                       {priorityItems.map((item) => (
                         <SelectItem key={item.value} value={item.value} label={item.label}>
                           <span className="flex items-center gap-2">
@@ -1013,280 +1335,44 @@ export const IssueDetailPanel = forwardRef<
                       ))}
                     </SelectContent>
                   </Select>
-                </PropertyRow>
-              ) : null}
-
-              <PropertyRow
-                icon={UserCircleIcon}
-                label={<FormattedMessage {...messages.fieldReporter} />}
-              >
-                <ReadOnlyValue value={issue.reporter} empty={emptyValue} className="truncate" />
-              </PropertyRow>
-
-              {issue.templateKey ? (
-                <PropertyRow
-                  icon={Tag01Icon}
-                  label={<FormattedMessage {...messages.fieldTemplate} />}
-                >
-                  <ReadOnlyValue
-                    value={issueSheetTemplateLabel(intl, issue.templateKey)}
-                    empty={emptyValue}
-                    className="truncate"
-                  />
-                </PropertyRow>
-              ) : null}
-
-              <PropertyRow
-                icon={LanguageCircleIcon}
-                label={<FormattedMessage {...messages.fieldLocale} />}
-              >
-                <IssueLocalePicker
-                  value={issue.targetLocale}
-                  locales={projectQuery.data?.targetLocales ?? []}
-                  allowClear
-                  disabled={isSaving}
-                  showIcon={false}
-                  size="sm"
-                  triggerClassName={ghostSelectTriggerClassName}
-                  aria-label={intl.formatMessage(messages.fieldLocale)}
-                  onValueChange={(targetLocale) => {
-                    updateIssue.mutate({ targetLocale });
-                  }}
-                />
-              </PropertyRow>
-
-              <PropertyRow
-                icon={File01Icon}
-                label={<FormattedMessage {...messages.fieldSourcePath} />}
-              >
-                <ReadOnlyValue value={issue.sourcePath} empty={emptyValue} className="truncate" />
-              </PropertyRow>
-
-              <PropertyRow
-                icon={Calendar03Icon}
-                label={<FormattedMessage {...messages.fieldCreatedAt} />}
-              >
-                <ReadOnlyValue
-                  value={formatRelativeTimestamp(issue.createdAt)}
-                  empty={emptyValue}
-                  className="truncate"
-                />
-              </PropertyRow>
-
-              <PropertyRow
-                icon={Clock01Icon}
-                label={<FormattedMessage {...messages.fieldUpdatedAt} />}
-              >
-                <ReadOnlyValue
-                  value={formatRelativeTimestamp(issue.updatedAt)}
-                  empty={emptyValue}
-                  className="truncate"
-                />
-              </PropertyRow>
-
-              {issue.resolvedAt ? (
-                <PropertyRow
-                  icon={CheckmarkCircle02Icon}
-                  label={<FormattedMessage {...messages.fieldResolvedAt} />}
-                >
-                  <ReadOnlyValue
-                    value={formatRelativeTimestamp(issue.resolvedAt)}
-                    empty={emptyValue}
-                    className="truncate"
-                  />
-                </PropertyRow>
-              ) : null}
-
-              {showCustomColumns
-                ? sidebarCustomColumns.map((column) => (
-                    <PropertyRow
-                      key={column.id}
-                      icon={resolveIssueSheetColumnIcon(column.icon)}
-                      label={column.label}
-                    >
-                      <IssueCustomColumnField
-                        column={column}
-                        value={issue.values[column.key]}
-                        draft={customColumnDrafts[column.key] ?? ""}
-                        emptyValue={emptyValue}
-                        disabled={isSaving}
-                        variant="sidebar"
-                        members={assignableMembersQuery.data?.members ?? []}
-                        membersLoading={assignableMembersQuery.isLoading}
-                        imageUpload={{ organizationSlug, projectId }}
-                        onDraftChange={(value) => updateCustomColumnDraft(column.key, value)}
-                        onCommit={() => saveCustomColumnDraft(column.key)}
-                        onChange={(value) => saveCustomColumnValue(column.key, value)}
-                      />
-                    </PropertyRow>
-                  ))
-                : null}
-            </dl>
-          </div>
-
-          {!sidebarOpen ? (
-            <div className="hidden flex-col items-center gap-2 lg:flex">
-              <CollapsibleTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label={sidebarToggleLabel}
-                    title={sidebarToggleLabel}
-                  />
-                }
-              >
-                <HugeiconsIcon
-                  icon={ArrowLeft01Icon}
-                  strokeWidth={1.8}
-                  className="size-4 rtl:rotate-180"
-                />
-              </CollapsibleTrigger>
-              {contentEditorHref ? (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={intl.formatMessage(messages.openInContentEditor)}
-                  title={intl.formatMessage(messages.openInContentEditor)}
-                  render={<a href={contentEditorHref} target="_blank" rel="noopener noreferrer" />}
-                >
-                  <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} className="size-4" />
-                </Button>
-              ) : null}
-              {showExternalLink && issue.linkUrl ? (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={issue.linkLabel || intl.formatMessage(messages.openLink)}
-                  title={issue.linkLabel || intl.formatMessage(messages.openLink)}
-                  render={
-                    <a
-                      href={issue.linkUrl}
-                      {...(isExternalHttpUrl(issue.linkUrl)
-                        ? { target: "_blank", rel: "noopener noreferrer" }
-                        : {})}
-                    />
-                  }
-                >
-                  <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} className="size-4" />
-                </Button>
-              ) : null}
-
-              <IssueAssigneePicker
-                value={issue.assigneeUserId}
-                currentLabel={issue.assignee}
-                members={assignableMembersQuery.data?.members ?? []}
-                isLoading={assignableMembersQuery.isLoading}
-                disabled={isSaving}
-                size="sm"
-                align="end"
-                onChange={(assigneeUserId) => {
-                  updateIssue.mutate({ assigneeUserId });
-                }}
-              />
-
-              <Select
-                value={issue.status}
-                items={statusItems}
-                onValueChange={(value) => {
-                  if (value) {
-                    updateIssue.mutate({ status: value });
-                  }
-                }}
-                disabled={isSaving}
-              >
-                <SelectTrigger
-                  className={iconRailSelectTriggerClassName}
-                  showIcon={false}
-                  aria-label={intl.formatMessage(messages.fieldStatus)}
-                  title={issueStatusLabel(intl, issue.status)}
-                >
-                  <IssueStatusIcon status={issue.status} className="size-3.5" />
-                </SelectTrigger>
-                <SelectContent className="min-w-44 p-1.5" align="end">
-                  {statusItems.map((status) => (
-                    <SelectItem
-                      key={status.value}
-                      value={status.value}
-                      label={status.label}
-                      className="rounded-lg px-2 py-1.5 focus:bg-muted! focus:text-foreground! data-highlighted:bg-muted! data-highlighted:text-foreground!"
-                    >
-                      <span className="flex items-center gap-2">
-                        <IssueStatusIcon status={status.value} className="size-3.5" />
-                        {status.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={issue.issueType}
-                items={typeItems}
-                onValueChange={(value) => {
-                  if (value && issueTypeValues.includes(value as IssueTypeValue)) {
-                    updateIssue.mutate({ issueType: value });
-                  }
-                }}
-                disabled={isSaving}
-              >
-                <SelectTrigger
-                  className={iconRailSelectTriggerClassName}
-                  showIcon={false}
-                  aria-label={intl.formatMessage(messages.fieldType)}
-                  title={issueTypeLabel(intl, issue.issueType)}
-                >
-                  <HugeiconsIcon icon={Tag01Icon} strokeWidth={1.8} className="size-3.5" />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {typeItems.map((type) => (
-                    <SelectItem key={type.value} value={type.value} label={type.label}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {showPriorityField ? (
-                <Select
-                  value={priority || null}
-                  items={priorityItems}
-                  onValueChange={(value) => {
-                    if (value) {
-                      setValue.mutate({ columnKey: "priority", value });
-                    }
-                  }}
-                  disabled={isSaving}
-                >
-                  <SelectTrigger
-                    className={iconRailSelectTriggerClassName}
-                    showIcon={false}
-                    aria-label={intl.formatMessage(messages.fieldPriority)}
-                    title={priority || emptyValue}
-                  >
-                    {priority ? (
-                      <IssuePriorityIcon priority={priority} size="sm" />
-                    ) : (
-                      <HugeiconsIcon icon={Flag01Icon} strokeWidth={1.8} className="size-3.5" />
-                    )}
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    {priorityItems.map((item) => (
-                      <SelectItem key={item.value} value={item.value} label={item.label}>
-                        <span className="flex items-center gap-2">
-                          <IssuePriorityIcon priority={item.value} size="sm" />
-                          {item.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : null}
-            </div>
-          ) : null}
-        </aside>
-      </Collapsible>
-    </div>
+                ) : null}
+              </div>
+            ) : null}
+          </aside>
+        </Collapsible>
+      </div>
+      <AlertDialog
+        open={canDelete && isDeleteOpen}
+        onOpenChange={(open) => {
+          if (deleteIssue.isPending) {
+            return;
+          }
+          setIsDeleteOpen(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...messages.deleteConfirmTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <FormattedMessage {...messages.deleteConfirmDescription} />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteIssue.isPending}>
+              <FormattedMessage {...messages.deleteCancel} />
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleteIssue.isPending}
+              onClick={() => void confirmDelete()}
+            >
+              <FormattedMessage {...messages.deleteConfirmAction} />
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 });

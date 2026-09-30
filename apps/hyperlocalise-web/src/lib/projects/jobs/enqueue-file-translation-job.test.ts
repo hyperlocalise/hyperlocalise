@@ -155,6 +155,8 @@ describe("mergeNativeFileTranslationJobMetadata", () => {
     ).toEqual({
       title: "messages.json · 2026-07-31 22:11",
       instructions: "Keep brand names",
+      sourceFilename: "messages.json",
+      sourcePath: "messages.json",
     });
   });
 
@@ -167,6 +169,22 @@ describe("mergeNativeFileTranslationJobMetadata", () => {
       ),
     ).toEqual({
       title: "Release notes · JP + KO",
+      sourceFilename: "messages.json",
+      sourcePath: "messages.json",
+    });
+  });
+
+  it("stores the original filename instead of a Vercel Blob storage key", () => {
+    expect(
+      mergeNativeFileTranslationJobMetadata(
+        "organizations/org_1/workspace/files/file_abc/brief.docx",
+        { sourcePath: "organizations/org_1/workspace/files/file_abc/brief.docx" },
+        new Date("2026-07-31T22:11:45.000Z"),
+      ),
+    ).toEqual({
+      title: "brief.docx · 2026-07-31 22:11",
+      sourceFilename: "brief.docx",
+      sourcePath: "brief.docx",
     });
   });
 });
@@ -272,6 +290,8 @@ describe("enqueueFileTranslationJob", () => {
         targetLocales: ["fr-FR"],
         metadata: {
           title: "messages.json · 2026-07-31 22:11",
+          sourceFilename: "messages.json",
+          sourcePath: "messages.json",
         },
       });
     } finally {

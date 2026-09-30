@@ -23,6 +23,7 @@ const config: StorybookConfig = {
     const workosWidgetsMock = path.resolve(storybookDir, "./mocks/workos-widgets.tsx");
     const emptyCssMock = path.resolve(storybookDir, "./mocks/empty.css");
     const aiFeaturesAccessMock = path.resolve(storybookDir, "./mocks/use-ai-features-access.ts");
+    const autoAnimateReactMock = path.resolve(storybookDir, "./mocks/auto-animate-react.ts");
 
     viteConfig.resolve ??= {};
     const existingAlias = viteConfig.resolve.alias;
@@ -50,6 +51,10 @@ const config: StorybookConfig = {
           find: "@/lib/billing/use-ai-features-access",
           replacement: aiFeaturesAccessMock,
         },
+        {
+          find: "@formkit/auto-animate/react",
+          replacement: autoAnimateReactMock,
+        },
       ];
     } else {
       viteConfig.resolve.alias = Object.assign(
@@ -61,6 +66,7 @@ const config: StorybookConfig = {
           "@radix-ui/themes/styles.css": emptyCssMock,
           "@workos-inc/widgets": workosWidgetsMock,
           "@/lib/billing/use-ai-features-access": aiFeaturesAccessMock,
+          "@formkit/auto-animate/react": autoAnimateReactMock,
         },
       );
     }

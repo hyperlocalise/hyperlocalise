@@ -14,6 +14,9 @@
  */
 import { useIntl } from "react-intl";
 
+import { observer } from "mobx-react-lite";
+import { useOptionalCatWorkspace } from "./content-editor-workspace-context";
+import { ContentEditorSideBySidePanelSkeleton } from "../side-by-side/content-editor-side-by-side-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
@@ -174,27 +177,38 @@ export function ContentEditorCompactWorkspaceSkeleton() {
   );
 }
 
-export function ContentEditorWorkspaceSkeleton({ className }: { className?: string }) {
+export const ContentEditorWorkspaceSkeleton = observer(function ContentEditorWorkspaceSkeleton({
+  className,
+}: {
+  className?: string;
+}) {
   const intl = useIntl();
+  const workspace = useOptionalCatWorkspace();
 
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
+        "@container flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
         className,
       )}
       aria-busy="true"
       aria-label={intl.formatMessage(contentEditorWorkspaceSkeletonMessages.loadingWorkspace)}
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden @[55rem]:hidden">
         <ContentEditorCompactWorkspaceSkeleton />
       </div>
 
-      <div className="hidden h-full min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,20rem)_minmax(0,1fr)_minmax(0,22rem)] overflow-hidden lg:grid">
-        <ContentEditorQueuePanelSkeleton />
-        <ContentEditorEditorPanelSkeleton />
-        <ContentEditorIntelligencePanelSkeleton />
-      </div>
+      {workspace?.ui.viewMode === "side-by-side" ? (
+        <div className="hidden min-h-0 flex-1 @[55rem]:flex">
+          <ContentEditorSideBySidePanelSkeleton className="flex-1" />
+        </div>
+      ) : (
+        <div className="hidden h-full min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,20rem)_minmax(0,1fr)_minmax(0,22rem)] overflow-hidden @[55rem]:grid">
+          <ContentEditorQueuePanelSkeleton />
+          <ContentEditorEditorPanelSkeleton />
+          <ContentEditorIntelligencePanelSkeleton />
+        </div>
+      )}
     </div>
   );
-}
+});

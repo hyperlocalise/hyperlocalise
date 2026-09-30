@@ -35,6 +35,22 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/org/acme/domains/hyperlocalise-com/search-console",
 }));
 
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    loading: false,
+    client: {
+      domains: {
+        inspectSearchConsole: async () => ({
+          inspection: {
+            indexStatusResult: { verdict: "PASS", coverageState: "Submitted and indexed" },
+            inspectionResultLink: "https://search.google.com/search-console",
+          },
+        }),
+      },
+    },
+  }),
+}));
+
 vi.mock("./use-domain-search-console", () => ({
   domainSearchConsoleQueryKey: (
     organizationSlug: string,
@@ -171,18 +187,6 @@ describe("DomainSearchConsoleView", () => {
       ...getPrototypeSearchConsoleSnapshot("hyperlocalise.com"),
       status: "ready",
     };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          inspection: {
-            indexStatusResult: { verdict: "PASS", coverageState: "Submitted and indexed" },
-            inspectionResultLink: "https://search.google.com/search-console",
-          },
-        }),
-      }),
-    );
     renderView();
     const user = userEvent.setup();
     await user.type(screen.getByLabelText("Page URL"), "https://hyperlocalise.com/fr");

@@ -16,9 +16,9 @@ import { defineMessages } from "react-intl";
 
 export const issueSheetImportDialogMessages = defineMessages({
   title: {
-    defaultMessage: "Import issues from CSV",
-    id: "h5YfBD98F1",
-    description: "Title of the Issue Sheet CSV import dialog",
+    defaultMessage: "Import issues",
+    id: "1fzjoEGRB4",
+    description: "Title of the Queries import dialog",
   },
   description: {
     defaultMessage:
@@ -26,15 +26,15 @@ export const issueSheetImportDialogMessages = defineMessages({
     id: "r7n1+etxph",
     description: "Description of the Issue Sheet CSV import dialog",
   },
-  chooseCsvFile: {
-    defaultMessage: "Choose a CSV file",
-    id: "OXTjKr806t",
-    description: "Primary label on the CSV upload drop zone",
+  chooseFile: {
+    defaultMessage: "Choose a CSV, XLS, or XLSX file",
+    id: "yBvXsTHP4U",
+    description: "Primary label on the Queries import upload drop zone",
   },
-  csvLimits: {
-    defaultMessage: "UTF-8 CSV up to 2 MB and 2,000 rows",
-    id: "uYFDr/Lkl1",
-    description: "Helper text describing CSV size and row limits for import",
+  fileLimits: {
+    defaultMessage: "CSV, XLS, or XLSX up to 2 MB and 2,000 rows",
+    id: "niov1t8GR9",
+    description: "Helper text describing Queries import size and row limits",
   },
   columnsBadge: {
     defaultMessage: "{count} columns",
@@ -47,9 +47,9 @@ export const issueSheetImportDialogMessages = defineMessages({
     description: "Badge showing how many preview rows are shown while mapping",
   },
   csvColumnHeader: {
-    defaultMessage: "CSV column",
-    id: "Qpt4IfmhcE",
-    description: "Table header for the CSV column name in the mapping step",
+    defaultMessage: "Column",
+    id: "kbwuSrf5q5",
+    description: "Table header for the source column name in the mapping step",
   },
   mapsToHeader: {
     defaultMessage: "Maps to",
@@ -211,15 +211,15 @@ export const issueSheetImportDialogMessages = defineMessages({
     id: "UWtBPjqoSn",
     description: "Button to close the Issue Sheet import dialog after success",
   },
-  uploadCsvRequired: {
-    defaultMessage: "Upload a UTF-8 CSV file",
-    id: "JO5M8qgbCX",
-    description: "Toast when the selected file is not a CSV",
+  uploadFileRequired: {
+    defaultMessage: "Upload a CSV, XLS, or XLSX file",
+    id: "WPwGMykiJy",
+    description: "Toast when the selected Queries import file is not a supported spreadsheet",
   },
-  parseCsvFailed: {
-    defaultMessage: "Could not parse CSV",
-    id: "tn0uMdvPeH",
-    description: "Fallback toast when CSV parsing fails",
+  parseFileFailed: {
+    defaultMessage: "Could not parse the spreadsheet",
+    id: "jU5YqZST56",
+    description: "Fallback toast when Queries spreadsheet parsing fails",
   },
   importFailed: {
     defaultMessage: "Import failed",

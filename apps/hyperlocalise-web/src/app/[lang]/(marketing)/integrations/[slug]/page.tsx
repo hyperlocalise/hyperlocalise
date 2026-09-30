@@ -24,7 +24,7 @@ import {
   normalizeAppLocale,
   SUPPORTED_APP_LOCALES,
 } from "@/lib/app-i18n/locales";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { getIntegrationRouteMetadata } from "./integration-route-metadata";
 
@@ -58,11 +58,11 @@ export async function generateMetadata({ params }: IntegrationRouteProps): Promi
     description,
     keywords,
     alternates: getLocalizedAlternates({ locale, path: `/integrations/${slug}` }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, `/integrations/${slug}`, {
       title,
       description,
       type: "website",
-    },
+    }),
   };
 }
 

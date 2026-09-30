@@ -1,0 +1,87 @@
+---
+title: "Download approved Crowdin translations without losing local JSON keys"
+sidebarTitle: "Merge approved Crowdin translations"
+description: "Merge approved Crowdin translations into local JSON files with Hyperlocalise. Preserve unrelated local keys and avoid replacing them with source-language fallbacks."
+---
+
+Use `hyperlocalise crowdin download translations --merge-approved` to update
+only keys present in an approved Crowdin export. Local keys absent from that
+export remain in the JSON file. This is a provider file workflow in the
+[all-in-one localization CLI](/cli).
+
+## Before you start
+
+[Install Hyperlocalise](/cli/getting-started/install), set `CROWDIN_PERSONAL_TOKEN`,
+and use a Crowdin project with approved French translations. Keep a Git checkpoint
+of your local files so you can inspect the merge.
+
+Use JSON object files. This merge mode does not support YAML, ARB, or other formats.
+Create `crowdin.yml` with your actual project ID:
+
+```yaml
+project_id: "your-project-id"
+api_token_env: CROWDIN_PERSONAL_TOKEN
+files:
+    - source: /locales/en.json
+      translation: /locales/%two_letters_code%.json
+```
+
+For this example, `locales/en.json` contains:
+
+```json
+{
+    "welcome": "Welcome",
+    "new_feature": "New feature"
+}
+```
+
+Suppose the existing `locales/fr.json` contains:
+
+```json
+{
+    "welcome": "Salut",
+    "new_feature": "Nouvelle fonctionnalité"
+}
+```
+
+## Merge the approved export
+
+Approve `welcome` as `Bienvenue` in Crowdin, leaving `new_feature` unapproved.
+Validate the mapping, then download:
+
+```bash
+hyperlocalise crowdin config validate
+hyperlocalise crowdin download translations --language fr --merge-approved
+git diff -- locales/fr.json
+```
+
+When the approved export contains only `welcome`, the local result is:
+
+```json
+{
+    "welcome": "Bienvenue",
+    "new_feature": "Nouvelle fonctionnalité"
+}
+```
+
+## What does merge-approved preserve?
+
+The command requests an approved-only sparse export and overwrites only keys
+present in that payload. It also skips downloaded values that exactly match the
+source JSON, treating them as source-language fallbacks. Consequently, an approved
+translation intentionally identical to the source is also skipped by this rule.
+
+The merge updates translation values; it does not import the provider's review
+history. It does not delete local keys merely because they are absent from the
+export. Review obsolete local keys separately.
+
+## If a value did not change
+
+Check the target language, Crowdin approval state, and file mapping. Then compare
+the exported value with the source: identical values are not merged. For a full
+approved export without merging into existing JSON, use `--export-only-approved`
+without `--merge-approved`, and review the resulting file carefully.
+
+Continue with [Crowdin CLI commands](/cli/commands/crowdin),
+[JSON format behavior](/cli/reference/formats/json), or
+[Crowdin in GitHub Actions](/cli/guides/crowdin-github-actions).

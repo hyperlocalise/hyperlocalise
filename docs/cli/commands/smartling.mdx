@@ -1,9 +1,62 @@
 ---
-title: "smartling"
-description: "Smartling file workflow commands using project flags and API credentials."
+title: "Smartling CLI workflows with Hyperlocalise"
+sidebarTitle: "Smartling"
+description: "Upload Smartling files, check progress, and download published translations with the all-in-one Hyperlocalise CLI. Compare commands, credentials, and export behavior."
 ---
 
-## Usage
+Use `hyperlocalise smartling` to upload source files, inspect translation status,
+and download published translations. Smartling file and resource operations share
+one executable with local AI translation and other TMS commands in the
+[all-in-one localization CLI](/cli).
+
+## Start with a Smartling upload and download
+
+[Install Hyperlocalise](/cli/getting-started/install). Set
+`SMARTLING_USER_IDENTIFIER` and `SMARTLING_USER_SECRET` in your shell or CI secret
+manager for a credential with project access. Prepare `locales/en.json`, then
+replace the project ID and use a target locale enabled in Smartling:
+
+```bash
+hyperlocalise smartling locales list --project-id your-project-id
+hyperlocalise smartling upload sources \
+    --project-id your-project-id --file ./locales/en.json \
+    --file-uri locales/en.json --file-type json --authorize=false
+```
+
+Authorize and complete the translation workflow in Smartling, then download the
+published French translation:
+
+```bash
+hyperlocalise smartling download translations \
+    --project-id your-project-id --file-uri locales/en.json \
+    --target-locale fr-FR --retrieval-type published --output ./locales/fr-FR.json
+```
+
+The explicit `--authorize=false` leaves authorization to your Smartling workflow;
+Hyperlocalise otherwise defaults to authorizing uploaded sources. Review the
+export before committing. See [download published Smartling translations](/cli/guides/smartling-published-translations)
+for status checks and multi-file downloads.
+
+## Hyperlocalise vs the official Smartling CLI
+
+Hyperlocalise is a Smartling CLI alternative for the documented file workflows.
+Command names, credential variables, and upload defaults differ from the
+[official Smartling CLI](https://github.com/Smartling/smartling-cli).
+
+| Task | Official smartling-cli | Hyperlocalise |
+| --- | --- | --- |
+| Upload sources | `files push` | `smartling upload sources` |
+| Download translations | `files pull` | `smartling download translations` |
+| Import existing translations | `files import` | `smartling upload translations` with `--published` or `--post-translation` |
+| Credentials | `SMARTLING_USER_ID` / `SMARTLING_SECRET` | `SMARTLING_USER_IDENTIFIER` / `SMARTLING_USER_SECRET` |
+| Upload authorization | Explicit authorization option | Defaults to true; use `--authorize=false` to defer |
+| Configuration | Vendor CLI configuration | Flags; `smartling.yml` is not read |
+
+Prefix commands in the last column with `hyperlocalise`. Check retrieval type,
+output paths, and authorization explicitly before replacing an existing script.
+
+
+## Command reference
 
 ```bash
 hyperlocalise smartling locales list --project-id <id> [--output text|json] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
@@ -32,7 +85,7 @@ These commands are flag-only. Hyperlocalise does not read `smartling.yml` in thi
 
 These commands talk to the Smartling Files, Projects, Accounts, Glossary, and Translation Memory APIs.
 
-They are separate from Hyperlocalise native `i18n.yml` and `sync push` / `sync pull` workflows. Use native sync when you want Hyperlocalise-managed entry sync through the [Smartling adapter](/cli/storage/smartling). Use this surface when you want flag-driven file upload and download against a Smartling project.
+They are separate from Hyperlocalise native `i18n.yml` and `sync push` / `sync pull` workflows. Use shared TMS sync when you want Hyperlocalise-managed entry sync through the [Smartling adapter](/cli/storage/smartling). Use this surface when you want flag-driven file upload and download against a Smartling project.
 
 Use them for:
 
@@ -219,3 +272,10 @@ List projects when you have an account id from glossary or TM download:
 ```bash
 hyperlocalise smartling projects list --account-uid your-account-uid
 ```
+
+## Related workflows
+
+- [One CLI for your TMS workflows](/cli/storage/overview)
+- [Local AI translation](/cli/workflows/local-generation)
+- [Localization file formats](/cli/reference/formats/overview)
+- [Hyperlocalise Platform integration with Smartling](https://www.hyperlocalise.com/en/integrations/smartling)

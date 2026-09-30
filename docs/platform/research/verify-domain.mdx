@@ -1,0 +1,32 @@
+---
+title: "Verify a website domain"
+description: "Prove ownership of a hostname before saving keyword research and tracking rankings."
+---
+
+Link a domain and complete ownership verification to use research actions for that hostname. You need access to its DNS records or website content.
+
+## Link and verify
+
+1. Open **Domains** and select **Link domain**.
+2. Enter the hostname, such as `example.com`.
+3. Choose a verification method and copy the exact value shown.
+4. Make the requested change, then select **Verify**.
+5. After verification, review recommended markets and select at least one to complete onboarding.
+
+| Method | Where to make the change |
+| --- | --- |
+| DNS TXT | Add the supplied TXT value at `_hyperlocalise.{domain}`. |
+| HTML file | Upload the supplied verification file at the requested site-root path. |
+| Meta tag | Add the supplied meta tag to the homepage. |
+
+Follow the exact hostname, file path, and token shown by the product. DNS providers differ in whether they expect a full record name or only the prefix.
+
+## Verification has not succeeded
+
+Check the hostname and token for typing errors. Allow DNS changes to become visible, or confirm that the HTML file or homepage tag can be reached publicly. Check that redirects or access restrictions do not hide the verification content, then try **Verify** again.
+
+Verification belongs to the hostname, not a market. A verified hostname can be claimed by only one organization at a time. If another workspace already owns it, [contact support](/platform/help/contact-support) with the hostname and workspace details.
+
+Pending claims can be cancelled from the domain list. For an already verified domain that needs to move, contact support.
+
+You can browse the research catalog while verification is pending, but keyword expansion, saving, search-result lookups, and ranking actions require verification. Continue with [keyword research](/platform/research/keywords-and-ranks).

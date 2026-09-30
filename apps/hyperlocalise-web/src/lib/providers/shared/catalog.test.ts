@@ -13,10 +13,20 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
+import { buildCuratedOpenAiNativeModelsForTest } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
 
 describe("llmProviderContentEditoralog", () => {
+  it("uses OpenAI native model IDs for BYOK validation", () => {
+    expect(llmProviderContentEditoralog.openai.models).toEqual(
+      buildCuratedOpenAiNativeModelsForTest(),
+    );
+  });
+
   it("uses Anthropic native model IDs for BYOK validation", () => {
     expect(llmProviderContentEditoralog.anthropic.models).toEqual([
+      "claude-opus-5-5",
+      "claude-opus-5",
+      "claude-sonnet-5",
       "claude-sonnet-4-6",
       "claude-opus-4-8",
       "claude-opus-4-7",
@@ -27,5 +37,24 @@ describe("llmProviderContentEditoralog", () => {
     ]);
 
     expect(llmProviderContentEditoralog.anthropic.models).not.toContain("claude-sonnet-4.6");
+  });
+
+  it("uses Gemini native model IDs for BYOK validation", () => {
+    expect(llmProviderContentEditoralog.gemini.models).toEqual([
+      "gemini-3.8-flash",
+      "gemini-3.7-flash",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-pro-preview",
+      "gemini-3.1-flash-lite",
+      "gemini-3-flash",
+      "gemini-3-pro-preview",
+      "gemini-2.5-pro",
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+    ]);
+
+    expect(llmProviderContentEditoralog.gemini.models).not.toContain("google/gemini-3.8-flash");
   });
 });

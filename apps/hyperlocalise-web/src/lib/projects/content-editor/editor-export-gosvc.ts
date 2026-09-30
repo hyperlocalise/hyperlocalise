@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 
 import type {
   ContentEditorFilteredExportFormat,
@@ -22,45 +24,26 @@ export type EditorFilteredExportSerializeError = {
   message: string;
 };
 
-export async function serializeEditorFilteredExportViaGoSvc(input: {
-  format: ContentEditorFilteredExportFormat;
-  rows: readonly ContentEditorFilteredExportRow[];
-}): Promise<
+export async function serializeEditorFilteredExportViaGoSvc(
+  goSvcClient: GoSvcClient,
+  input: {
+    format: ContentEditorFilteredExportFormat;
+    rows: readonly ContentEditorFilteredExportRow[];
+  },
+): Promise<
   Result<
     { body: Uint8Array; contentType: string; extension: string },
     EditorFilteredExportSerializeError
   >
 > {
   try {
-    const response = await fetch("/api/go-svc/v1/editor-export/filtered/serialize", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        format: input.format,
-        rows: input.rows,
-      }),
+    const response = await goSvcClient.cat.exportFilteredEditorRows({
+      format: input.format,
+      rows: [...input.rows],
     });
 
-    if (response.status === 400) {
-      const message = (await response.json().catch(() => null)) as { message?: string } | null;
-      return err({
-        code: "export_invalid_request",
-        message: message?.message || "Invalid editor export request.",
-      });
-    }
-
-    if (!response.ok) {
-      return err({
-        code: "export_service_failed",
-        message: "Editor export serialization failed.",
-      });
-    }
-
-    const extension = response.headers.get("X-Export-Extension")?.trim();
-    const contentType = response.headers.get("Content-Type")?.trim();
+    const extension = response.extension?.trim();
+    const contentType = response.contentType?.trim();
     if (!extension || !contentType) {
       return err({
         code: "export_service_failed",
@@ -68,9 +51,18 @@ export async function serializeEditorFilteredExportViaGoSvc(input: {
       });
     }
 
-    const body = new Uint8Array(await response.arrayBuffer());
-    return ok({ body, contentType, extension });
-  } catch {
+    return ok({
+      body: new Uint8Array(await response.blob.arrayBuffer()),
+      contentType,
+      extension,
+    });
+  } catch (error) {
+    if (error instanceof GoSvcClientError && error.status === 400) {
+      return err({
+        code: "export_invalid_request",
+        message: error.message,
+      });
+    }
     return err({
       code: "export_service_unavailable",
       message: "The editor export service is unavailable.",

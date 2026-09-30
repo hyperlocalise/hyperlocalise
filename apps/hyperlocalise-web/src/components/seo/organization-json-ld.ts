@@ -12,13 +12,9 @@
  */
 import type { Organization, WithContext } from "schema-dts";
 
-import type { AppLocale } from "@/lib/app-i18n/locales";
 import { brandLogomarkAbsoluteUrl } from "@/lib/brand/brand-assets";
-import { jsonLdInLanguage } from "@/lib/seo/json-ld-in-language";
 
-export function buildOrganizationJsonLd(locale: AppLocale): WithContext<Organization> & {
-  inLanguage: string;
-} {
+export function buildOrganizationJsonLd(): WithContext<Organization> {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -32,7 +28,7 @@ export function buildOrganizationJsonLd(locale: AppLocale): WithContext<Organiza
     description:
       "Agentic localisation platform that connects product change signals, AI translation, human review, and release workflows.",
     foundingDate: "2026",
-    founders: [
+    founder: [
       {
         "@type": "Person",
         name: "Minh Cung",
@@ -50,6 +46,5 @@ export function buildOrganizationJsonLd(locale: AppLocale): WithContext<Organiza
       contactType: "sales",
       email: "minh@hyperlocalise.com",
     },
-    inLanguage: jsonLdInLanguage(locale),
   };
 }

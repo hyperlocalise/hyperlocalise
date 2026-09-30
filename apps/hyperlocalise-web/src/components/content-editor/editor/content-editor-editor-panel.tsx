@@ -108,15 +108,7 @@ export function ContentEditorEditorPanel({
   const supportsIssueComments = providerKind === "crowdin" && canAddComment;
 
   const actionState = useMemo(() => {
-    const isActionBlocked =
-      isApproving ||
-      isSavingDraft ||
-      isPostingComment ||
-      isLookingUpContext ||
-      isAiSuggestionLoading ||
-      isFormatChecksLoading ||
-      isSegmentTargetLoading ||
-      isImageBusy;
+    const isActionBlocked = isApproving || isSavingDraft || isSegmentTargetLoading || isImageBusy;
     const hasTargetText = isAssetEditorSegment(segment)
       ? Boolean(segment.targetAssetUrl || segment.targetText.trim())
       : segment.targetText.trim().length > 0;
@@ -124,13 +116,7 @@ export function ContentEditorEditorPanel({
     return {
       canTriggerApprove: canApprove && hasTargetText && !isActionBlocked && !segment.isLocked,
       canTriggerFindContext:
-        canLookupContext &&
-        !isApproving &&
-        !isSavingDraft &&
-        !isLookingUpContext &&
-        !isAiSuggestionLoading &&
-        !isFormatChecksLoading &&
-        !isImageBusy,
+        canLookupContext && !isApproving && !isSavingDraft && !isLookingUpContext && !isImageBusy,
       canEditTarget: canEditTranslations && !isEditorBusy && !isImageBusy && !segment.isLocked,
     };
   }, [

@@ -15,7 +15,7 @@ import type { Metadata } from "next";
 import { CompanyPage } from "@/components/marketing/company/company-page";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { getCompanyRouteMetadata } from "./company-route-metadata";
 
@@ -33,11 +33,11 @@ export async function generateMetadata({ params }: CompanyRouteProps): Promise<M
     title: metadata.title,
     description: metadata.description,
     alternates: getLocalizedAlternates({ locale, path: "/company" }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, "/company", {
       title: metadata.title,
       description: metadata.description,
       type: "website",
-    },
+    }),
   };
 }
 

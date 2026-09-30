@@ -13,8 +13,10 @@
  * Version 2.0 or later.
  */
 
+import Link from "next/link";
 import { Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,8 @@ type PricingPlansSectionProps = {
   plans: readonly PricingPlan[];
   popularBadge: string;
 };
+
+const signUpHref = "/auth/sign-in";
 
 function PlanCta({ plan }: { plan: PricingPlan }) {
   if (plan.cta.kind === "demo") {
@@ -45,7 +49,13 @@ function PlanCta({ plan }: { plan: PricingPlan }) {
   }
 
   return (
-    <Button className="mt-auto w-full" variant={plan.popular ? "default" : "outline"} disabled>
+    <Button
+      className="mt-auto w-full"
+      variant={plan.popular ? "default" : "outline"}
+      nativeButton={false}
+      render={<Link href={signUpHref} prefetch={false} />}
+      onClick={() => trackMarketingCtaClick("sign_up", "pricing")}
+    >
       {plan.cta.label}
     </Button>
   );
@@ -65,8 +75,9 @@ export function PricingPlansSection({ plans, popularBadge }: PricingPlansSection
             plan.popular && "bg-muted/30",
           )}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-foreground">{plan.name}</h2>
+            {plan.badge ? <Badge variant="secondary">{plan.badge}</Badge> : null}
             {plan.popular ? <Badge variant="outline">{popularBadge}</Badge> : null}
           </div>
 

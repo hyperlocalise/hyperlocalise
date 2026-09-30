@@ -15,12 +15,15 @@ import {
   Clock01Icon,
   FlashIcon,
   GitBranchIcon,
+  Folder01Icon,
   Globe02Icon,
   Mail01Icon,
+  ReloadIcon,
   Route01Icon,
   Task01Icon,
   Upload04Icon,
   VariableIcon,
+  GitMergeIcon,
 } from "@hugeicons/core-free-icons";
 import type { ComponentProps } from "react";
 import type { HugeiconsIcon } from "@hugeicons/react";
@@ -28,6 +31,7 @@ import type { HugeiconsIcon } from "@hugeicons/react";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import type { VisualCatalogCategory, VisualCatalogType, VisualNodeConfig } from "../schema/types";
+import { createSwitchCaseId } from "../schema/switch-cases";
 
 export type CatalogIcon = ComponentProps<typeof HugeiconsIcon>["icon"];
 
@@ -70,6 +74,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: Globe02Icon,
   },
   {
+    type: "action.content_sync",
+    category: "action",
+    enabled: true,
+    icon: Folder01Icon,
+  },
+  {
     type: "action.notify_slack",
     category: "action",
     enabled: true,
@@ -110,6 +120,24 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "flow",
     enabled: true,
     icon: Task01Icon,
+  },
+  {
+    type: "logic.retry",
+    category: "flow",
+    enabled: true,
+    icon: ReloadIcon,
+  },
+  {
+    type: "flow.wait",
+    category: "flow",
+    enabled: true,
+    icon: Clock01Icon,
+  },
+  {
+    type: "logic.merge",
+    category: "logic",
+    enabled: true,
+    icon: GitMergeIcon,
   },
 ];
 
@@ -154,6 +182,17 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         failOnHttpError: true,
         onError: "stop",
       };
+    case "action.content_sync":
+      return {
+        kind: "action.content_sync",
+        projectId: "",
+        provider: "github",
+        connectionId: "",
+        resourceKey: "",
+        providerFolder: "locales",
+        projectFolder: "",
+        onError: "stop",
+      };
     case "action.notify_slack":
       return { kind: "action.notify_slack", channelId: "", message: "", onError: "stop" };
     case "action.notify_email":
@@ -172,7 +211,10 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return {
         kind: "logic.switch",
         expression: "",
-        cases: [{ value: "" }, { value: "" }],
+        cases: [
+          { id: createSwitchCaseId(), value: "" },
+          { id: createSwitchCaseId(), value: "" },
+        ],
       };
     case "logic.set":
       return { kind: "logic.set", assignments: [{ key: "", value: "" }] };
@@ -180,6 +222,30 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
       return { kind: "logic.for_each", collection: "[]" };
+    case "logic.retry":
+      return {
+        kind: "logic.retry",
+        maxAttempts: 3,
+        initialDelayMs: 1000,
+        backoffMultiplier: 2,
+        jitter: true,
+        acknowledgeDuplicateRisk: false,
+      };
+    case "flow.wait":
+      return {
+        kind: "flow.wait",
+        mode: "duration",
+        durationMs: 60_000,
+      };
+    case "logic.merge":
+      return {
+        kind: "logic.merge",
+        mode: "all",
+        inputs: [
+          { id: createMergeInputId(), name: "Input 1" },
+          { id: createMergeInputId(), name: "Input 2" },
+        ],
+      };
     default:
       return assertNever(type);
   }
@@ -190,18 +256,27 @@ export function getVisualNodeDimensions(type: VisualCatalogType): {
   height: number;
 } {
   if (type === "ai.agent") {
-    return { width: 200, height: 156 };
+    return { width: 280, height: 156 };
   }
   if (type === "logic.if") {
-    return { width: 200, height: 120 };
+    return { width: 280, height: 120 };
   }
   if (type === "logic.switch") {
-    return { width: 200, height: 140 };
+    return { width: 280, height: 140 };
+  }
+  if (type === "logic.retry") {
+    return { width: 280, height: 140 };
   }
   if (type.startsWith("trigger.")) {
-    return { width: 200, height: 120 };
+    return { width: 280, height: 120 };
   }
-  return { width: 200, height: 104 };
+  if (type === "flow.wait") {
+    return { width: 280, height: 140 };
+  }
+  if (type === "logic.merge") {
+    return { width: 280, height: 140 };
+  }
+  return { width: 280, height: 104 };
 }
 
 export function isTriggerType(type: VisualCatalogType): boolean {
@@ -228,6 +303,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.projectId ? "Project upload" : "Any project";
     case "action.http":
       return config.method;
+    case "action.content_sync":
+      return config.resourceKey.trim() || config.provider;
     case "action.notify_slack":
       return config.channelId ? "Slack" : "Slack channel";
     case "action.notify_email":
@@ -244,7 +321,25 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return "Tools agent";
     case "logic.for_each":
       return "For each item";
+    case "logic.retry":
+      return config.maxAttempts ? `${config.maxAttempts} attempts` : "Retry policy";
+    case "flow.wait":
+      if (config.mode === "duration") {
+        return `${config.durationMs ?? 0} ms`;
+      }
+
+      if (config.mode === "timestamp") {
+        return config.timestamp ?? "Wait until timestamp";
+      }
+
+      return "Wait until condition";
+    case "logic.merge":
+      return `${config.inputs.length} inputs · ${config.mode.replace("_", " ")}`;
     default:
       return assertNever(config);
   }
+}
+
+export function createMergeInputId(): string {
+  return crypto.randomUUID();
 }

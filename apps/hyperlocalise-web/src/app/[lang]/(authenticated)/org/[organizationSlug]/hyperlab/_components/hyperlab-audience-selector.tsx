@@ -30,7 +30,7 @@ import {
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabAudience,
@@ -50,7 +50,7 @@ export function HyperlabAudienceSelector({
   hint?: string;
 }) {
   const intl = useIntl();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const audiencesQuery = useQuery({
     queryKey: hyperlabQueryKeys.audiences(organizationSlug),
     queryFn: async () => {

@@ -46,6 +46,9 @@ function viewModeIcon(mode: ContentEditorWorkspaceViewMode) {
 }
 
 function viewModeLabel(mode: ContentEditorWorkspaceViewMode) {
+  if (mode === "multilingual") {
+    return contentEditorWorkspaceViewModeMessages.multilingualView;
+  }
   if (mode === "file") {
     return contentEditorWorkspaceViewModeMessages.fileView;
   }

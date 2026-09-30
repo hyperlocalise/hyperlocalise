@@ -444,17 +444,19 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
         return { success: false, error: `Entry ${entryId} not found.` };
       }
 
-      const access = toolMemoryActionAllowed(
-        ctx,
-        entryWithMemory.memory,
-        isReviewOnly ? "review" : "edit",
-      );
+      // Mirror HTTP resolveMemoryCapabilities: team-scope the parent memory before mutate.
+      const memory = await toolGetAccessibleMemory(ctx, entryWithMemory.memory.id);
+      if (!memory) {
+        return { success: false, error: `Entry ${entryId} not found.` };
+      }
+
+      const access = toolMemoryActionAllowed(ctx, memory, isReviewOnly ? "review" : "edit");
       if (!access.allowed) {
         return { success: false, error: `Translation memory action denied: ${access.reason}.` };
       }
 
       const result = await updateMemoryEntrySafely({
-        memory: entryWithMemory.memory,
+        memory,
         entryId,
         expectedVersion: entryWithMemory.version,
         actorUserId: ctx.localUserId,
@@ -519,7 +521,14 @@ export function createDeleteMemoryEntryTool(ctx: ToolContext) {
       if (!entryWithMemory || entryWithMemory.memory.organizationId !== ctx.organizationId) {
         return { success: false, error: `Entry ${entryId} not found.` };
       }
-      const access = toolMemoryActionAllowed(ctx, entryWithMemory.memory, "delete");
+
+      // Mirror HTTP resolveMemoryCapabilities: team-scope the parent memory before delete.
+      const memory = await toolGetAccessibleMemory(ctx, entryWithMemory.memory.id);
+      if (!memory) {
+        return { success: false, error: `Entry ${entryId} not found.` };
+      }
+
+      const access = toolMemoryActionAllowed(ctx, memory, "delete");
       if (!access.allowed) {
         return { success: false, error: `Translation memory action denied: ${access.reason}.` };
       }

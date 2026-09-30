@@ -40,6 +40,7 @@ import {
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import type { IssueSheetImportFormat } from "@/lib/projects/issue-sheet/issue-sheet-import-format";
 
 import { buildIssueDetailHref } from "../../../../_components/issue-detail/issue-detail-utils";
 import { IssueBulkActionBar } from "../../../../_components/issue-bulk-action-bar";
@@ -56,6 +57,7 @@ import { ProjectPageShell, ProjectSectionHeader } from "../../_components/projec
 import { useProjectPageQuery } from "../../_components/project-page-shell";
 import { IssueSheetCreateIssueDialog } from "./issue-sheet-create-issue-dialog";
 import { IssueSheetImportDialog } from "./issue-sheet-import-dialog";
+import { IssueSheetImportMenu } from "./issue-sheet-import-menu";
 import { useRouter } from "next/navigation";
 
 const columnTypeValues = ["text", "long_text", "select", "user"] as const;
@@ -109,6 +111,7 @@ export function IssueSheetPageContent({
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFormat, setImportFormat] = useState<IssueSheetImportFormat>("csv");
 
   const requestFailed = intl.formatMessage(messages.requestFailed);
   const apiQuery = issueListStateToApiQuery(state);
@@ -181,9 +184,14 @@ export function IssueSheetPageContent({
           description={intl.formatMessage(messages.sectionDescription)}
           actions={
             <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setImportDialogOpen(true)}>
-                <FormattedMessage {...messages.importCsv} />
-              </Button>
+              <IssueSheetImportMenu
+                variant="ghost"
+                size="sm"
+                onSelectFormat={(nextFormat) => {
+                  setImportFormat(nextFormat);
+                  setImportDialogOpen(true);
+                }}
+              />
               <Button variant="ghost" size="sm" onClick={() => setColumnDialogOpen(true)}>
                 <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
                 <FormattedMessage {...messages.column} />
@@ -287,6 +295,7 @@ export function IssueSheetPageContent({
         projectId={projectId}
         columns={data?.columns ?? []}
         onImported={refresh}
+        format={importFormat}
       />
     </ProjectPageShell>
   );

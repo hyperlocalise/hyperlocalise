@@ -28,7 +28,94 @@ import { createDefaultConfig } from "../catalog/node-catalog";
 import { createVisualWorkflowExecutionContext } from "./context";
 import { evaluateVisualWorkflowCondition, resolveVisualWorkflowTemplate } from "./expressions";
 import { runVisualWorkflowInterpreter } from "./interpreter-server";
-import type { VisualWorkflowDefinition } from "../schema/types";
+import type { VisualMergeMode, VisualWorkflowDefinition } from "../schema/types";
+
+function createMergeDefinition(mode: VisualMergeMode): VisualWorkflowDefinition {
+  return {
+    schemaVersion: 2,
+    name: `Merge ${mode}`,
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: createDefaultConfig("trigger.manual"),
+      },
+      {
+        id: "email",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [{ key: "result", value: "sent" }],
+        },
+      },
+      {
+        id: "slack",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [{ key: "result", value: "posted" }],
+        },
+      },
+      {
+        id: "merge",
+        type: "logic.merge",
+        config: {
+          kind: "logic.merge",
+          mode,
+          inputs: [
+            { id: "email-input", name: "Email" },
+            { id: "slack-input", name: "Slack" },
+          ],
+        },
+        inputs: {
+          "value.email-input": {
+            kind: "reference",
+            nodeId: "email",
+            path: ["result"],
+            optional: true,
+          },
+          "value.slack-input": {
+            kind: "reference",
+            nodeId: "slack",
+            path: ["result"],
+            optional: true,
+          },
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-email",
+        source: "trigger",
+        target: "email",
+        sourceHandle: null,
+        targetHandle: null,
+      },
+      {
+        id: "trigger-slack",
+        source: "trigger",
+        target: "slack",
+        sourceHandle: null,
+        targetHandle: null,
+      },
+      {
+        id: "email-merge",
+        source: "email",
+        target: "merge",
+        sourceHandle: null,
+        targetHandle: "email-input",
+      },
+      {
+        id: "slack-merge",
+        source: "slack",
+        target: "merge",
+        sourceHandle: null,
+        targetHandle: "slack-input",
+      },
+    ],
+    editor: { positions: {} },
+  };
+}
 
 describe("visual workflow expressions", () => {
   it("resolves trigger and node template paths", () => {
@@ -148,6 +235,28 @@ describe("visual workflow node execution edges", () => {
       error: { code: "missing_url", message: "HTTP URL is required." },
     });
     expect(withPublicHttpFetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects incomplete content sync config before calling the provider", async () => {
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "sync",
+        type: "action.content_sync",
+        config: createDefaultConfig("action.content_sync"),
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "missing_content_sync_config",
+        message: "Choose a project, source, and project folder before syncing.",
+      },
+    });
   });
 
   it("maps SSRF-blocked HTTP URLs to http_request_failed", async () => {
@@ -371,7 +480,10 @@ describe("visual workflow node execution edges", () => {
         config: {
           kind: "logic.switch",
           expression: "{{nodes.http.json.status}}",
-          cases: [{ value: "pending" }, { value: "ready" }],
+          cases: [
+            { id: "case-pending", value: "pending" },
+            { id: "case-ready", value: "ready" },
+          ],
         },
       },
     });
@@ -380,9 +492,9 @@ describe("visual workflow node execution edges", () => {
       ok: true,
       output: {
         expression: "ready",
-        matchedCase: "1",
+        matchedCase: "case-ready",
       },
-      switchCase: "1",
+      switchCase: "case-ready",
     });
   });
 });
@@ -390,6 +502,66 @@ describe("visual workflow node execution edges", () => {
 describe("visual workflow interpreter", () => {
   beforeEach(() => {
     withPublicHttpFetchMock.mockReset();
+  });
+
+  it("routes only the matching switch case by stable id", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Switch cases",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "switch",
+          type: "logic.switch",
+          config: {
+            kind: "logic.switch",
+            expression: "ready",
+            cases: [
+              { id: "case-pending", value: "pending" },
+              { id: "case-ready", value: "ready" },
+            ],
+          },
+        },
+        { id: "pending", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+        { id: "ready", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "switch", sourceHandle: null, targetHandle: null },
+        {
+          id: "e2",
+          source: "switch",
+          target: "pending",
+          sourceHandle: "case-pending",
+          targetHandle: null,
+        },
+        {
+          id: "e3",
+          source: "switch",
+          target: "ready",
+          sourceHandle: "case-ready",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const updates: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "succeeded") {
+          updates.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(updates).toEqual(["t", "switch", "ready"]);
+    expect(result.nodeResults.switch).toEqual({
+      expression: "ready",
+      matchedCase: "case-ready",
+    });
   });
 
   it("walks trigger and if nodes without following the false branch", async () => {
@@ -766,6 +938,282 @@ describe("visual workflow interpreter", () => {
     expect(started).not.toContain("success");
   });
 
+  it("retries a failing body HTTP action and exits through succeeded", async () => {
+    let calls = 0;
+    withPublicHttpFetchMock.mockImplementation(async () => {
+      calls += 1;
+      if (calls < 2) {
+        throw new Error("upstream unavailable");
+      }
+      return {
+        status: 200,
+        statusText: "OK",
+        ok: true,
+        headers: {},
+        body: "{}",
+        json: {},
+      };
+    });
+
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Retry success",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "retry",
+          type: "logic.retry",
+          bodyNodeIds: ["http"],
+          config: {
+            kind: "logic.retry",
+            maxAttempts: 3,
+            initialDelayMs: 0,
+            backoffMultiplier: 2,
+            jitter: false,
+            acknowledgeDuplicateRisk: true,
+          },
+        },
+        {
+          id: "http",
+          type: "action.http",
+          config: {
+            kind: "action.http",
+            method: "POST",
+            url: "https://example.com/retry-body",
+            onError: "stop",
+          },
+        },
+        { id: "after", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "retry", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "retry", target: "http", sourceHandle: "attempt", targetHandle: null },
+        {
+          id: "e3",
+          source: "retry",
+          target: "after",
+          sourceHandle: "succeeded",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const started: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "running") {
+          started.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls).toBe(2);
+    expect(started).toContain("after");
+    if (result.ok) {
+      expect(result.nodeResults.retry).toMatchObject({
+        attemptNumber: 2,
+        exhausted: false,
+      });
+    }
+  });
+
+  it("exits through exhausted when retry attempts are used up", async () => {
+    withPublicHttpFetchMock.mockRejectedValue(new Error("upstream unavailable"));
+
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Retry exhausted",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "retry",
+          type: "logic.retry",
+          bodyNodeIds: ["http"],
+          config: {
+            kind: "logic.retry",
+            maxAttempts: 2,
+            initialDelayMs: 0,
+            backoffMultiplier: 2,
+            jitter: false,
+            acknowledgeDuplicateRisk: true,
+          },
+        },
+        {
+          id: "http",
+          type: "action.http",
+          config: {
+            kind: "action.http",
+            method: "POST",
+            url: "https://example.com/retry-exhaust",
+            onError: "stop",
+          },
+        },
+        { id: "fallback", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "retry", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "retry", target: "http", sourceHandle: "attempt", targetHandle: null },
+        {
+          id: "e3",
+          source: "retry",
+          target: "fallback",
+          sourceHandle: "exhausted",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const started: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "running") {
+          started.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(started).toContain("fallback");
+    if (result.ok) {
+      expect(result.nodeResults.retry).toMatchObject({
+        exhausted: true,
+        attemptNumber: 2,
+      });
+    }
+  });
+
+  it("treats onError continue as a failed retry attempt", async () => {
+    withPublicHttpFetchMock.mockRejectedValue(new Error("upstream unavailable"));
+
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Retry continue error",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "retry",
+          type: "logic.retry",
+          bodyNodeIds: ["http"],
+          config: {
+            kind: "logic.retry",
+            maxAttempts: 2,
+            initialDelayMs: 0,
+            backoffMultiplier: 2,
+            jitter: false,
+            acknowledgeDuplicateRisk: true,
+          },
+        },
+        {
+          id: "http",
+          type: "action.http",
+          config: {
+            kind: "action.http",
+            method: "POST",
+            url: "https://example.com/retry-continue",
+            onError: "continue",
+          },
+        },
+        { id: "fallback", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "retry", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "retry", target: "http", sourceHandle: "attempt", targetHandle: null },
+        {
+          id: "e3",
+          source: "retry",
+          target: "fallback",
+          sourceHandle: "exhausted",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.nodeResults.retry).toMatchObject({ exhausted: true, attemptNumber: 2 });
+    }
+  });
+
+  it("retries http_error responses from the HTTP action", async () => {
+    let calls = 0;
+    withPublicHttpFetchMock.mockImplementation(async () => {
+      calls += 1;
+      return {
+        status: calls === 1 ? 503 : 200,
+        statusText: calls === 1 ? "Unavailable" : "OK",
+        ok: calls !== 1,
+        headers: {},
+        body: "{}",
+        json: {},
+      };
+    });
+
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Retry http_error",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "retry",
+          type: "logic.retry",
+          bodyNodeIds: ["http"],
+          config: {
+            kind: "logic.retry",
+            maxAttempts: 3,
+            initialDelayMs: 0,
+            backoffMultiplier: 2,
+            jitter: false,
+            acknowledgeDuplicateRisk: true,
+          },
+        },
+        {
+          id: "http",
+          type: "action.http",
+          config: {
+            kind: "action.http",
+            method: "POST",
+            url: "https://example.com/retry-http-error",
+            onError: "stop",
+          },
+        },
+        { id: "after", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "retry", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "retry", target: "http", sourceHandle: "attempt", targetHandle: null },
+        {
+          id: "e3",
+          source: "retry",
+          target: "after",
+          sourceHandle: "succeeded",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+
   it("rejects nested for-each loops", async () => {
     const definition: VisualWorkflowDefinition = {
       schemaVersion: 2,
@@ -806,5 +1254,381 @@ describe("visual workflow interpreter", () => {
 
     expect(result.ok).toBe(false);
     expect(started.filter((nodeId) => nodeId === "noop")).toHaveLength(0);
+  });
+
+  it("runs an all Merge after every connected input settles", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Merge all",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual",
+          config: createDefaultConfig("trigger.manual"),
+        },
+        {
+          id: "email",
+          type: "logic.set",
+          config: {
+            kind: "logic.set",
+            assignments: [],
+          },
+        },
+        {
+          id: "slack",
+          type: "logic.set",
+          config: {
+            kind: "logic.set",
+            assignments: [],
+          },
+        },
+        {
+          id: "merge",
+          type: "logic.merge",
+          config: {
+            kind: "logic.merge",
+            mode: "all",
+            inputs: [
+              { id: "email-input", name: "Email" },
+              { id: "slack-input", name: "Slack" },
+            ],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "trigger-email",
+          source: "trigger",
+          target: "email",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+        {
+          id: "trigger-slack",
+          source: "trigger",
+          target: "slack",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+        {
+          id: "email-merge",
+          source: "email",
+          target: "merge",
+          sourceHandle: null,
+          targetHandle: "email-input",
+        },
+        {
+          id: "slack-merge",
+          source: "slack",
+          target: "merge",
+          sourceHandle: null,
+          targetHandle: "slack-input",
+        },
+      ],
+      editor: {
+        positions: {},
+      },
+    };
+
+    const started: string[] = [];
+
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "running") {
+          started.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(started.indexOf("merge")).toBeGreaterThan(started.indexOf("email"));
+    expect(started.indexOf("merge")).toBeGreaterThan(started.indexOf("slack"));
+
+    if (result.ok) {
+      expect(result.nodeResults.merge).toMatchObject({
+        status: "completed",
+        selectedInputId: "email-input",
+      });
+    }
+  });
+
+  it("executes an any Merge only once", async () => {
+    const definition = createMergeDefinition("any");
+    const succeeded: string[] = [];
+
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.nodeId === "merge" && update.status === "succeeded") {
+          succeeded.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(succeeded).toEqual(["merge"]);
+    if (result.ok) {
+      expect(result.nodeResults.merge).toMatchObject({
+        values: {
+          "email-input": "sent",
+        },
+      });
+    }
+  });
+
+  it("selects the branch that actually settled first", async () => {
+    const definition = createMergeDefinition("any");
+    const byId = new Map(definition.nodes.map((node) => [node.id, node]));
+    definition.nodes = [
+      byId.get("trigger")!,
+      byId.get("slack")!,
+      byId.get("email")!,
+      byId.get("merge")!,
+    ];
+
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.nodeResults.merge).toMatchObject({ selectedInputId: "slack-input" });
+    }
+  });
+
+  it("arms a Merge timeout when its first input settles", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-01-01T00:00:00.000Z");
+    try {
+      const definition = createMergeDefinition("all");
+      const merge = definition.nodes.find((node) => node.id === "merge")!;
+      if (merge.config.kind !== "logic.merge") throw new Error("expected Merge");
+      merge.config.timeoutMs = 1_000;
+      definition.nodes.push({
+        id: "timed-out",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      });
+      definition.edges.push({
+        id: "merge-timed-out-real",
+        source: "merge",
+        target: "timed-out",
+        sourceHandle: "timed_out",
+        targetHandle: null,
+      });
+
+      const result = await runVisualWorkflowInterpreter({
+        definition,
+        organizationId: "00000000-0000-4000-8000-000000000001",
+        onNodeUpdate: (update) => {
+          if (update.nodeId === "slack" && update.status === "running") {
+            vi.setSystemTime("2026-01-01T00:00:02.000Z");
+          }
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.nodeResults.merge).toMatchObject({ status: "timed_out" });
+        expect(result.nodeResults["timed-out"]).toBeDefined();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("carries an armed Merge timeout across a durable Wait suspension", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-01-01T00:00:00.000Z");
+    try {
+      const definition = createMergeDefinition("all");
+      const wait = definition.nodes.find((node) => node.id === "slack")!;
+      wait.type = "flow.wait";
+      wait.config = { kind: "flow.wait", mode: "duration", durationMs: 60_000 };
+      const merge = definition.nodes.find((node) => node.id === "merge")!;
+      if (merge.config.kind !== "logic.merge") throw new Error("expected Merge");
+      merge.config.timeoutMs = 5_000;
+      if (merge.inputs) delete merge.inputs["value.slack-input"];
+      const waitEdge = definition.edges.find((edge) => edge.id === "slack-merge")!;
+      waitEdge.sourceHandle = "completed";
+      const byId = new Map(definition.nodes.map((node) => [node.id, node]));
+      definition.nodes = [byId.get("trigger")!, wait, byId.get("email")!, merge];
+
+      const result = await runVisualWorkflowInterpreter({
+        definition,
+        organizationId: "00000000-0000-4000-8000-000000000001",
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toMatchObject({
+          code: "wait_suspended",
+          mergeResume: {
+            mergeNodeId: "merge",
+            iteration: -1,
+            wakeAt: "2026-01-01T00:00:05.000Z",
+          },
+        });
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("resumes an expired Merge through the timed out branch", async () => {
+    const definition = createMergeDefinition("all");
+    const merge = definition.nodes.find((node) => node.id === "merge")!;
+    if (merge.config.kind !== "logic.merge") throw new Error("expected Merge");
+    merge.config.timeoutMs = 1_000;
+    definition.nodes = [definition.nodes[0]!, definition.nodes[1]!, merge, definition.nodes[2]!];
+    definition.nodes.push({
+      id: "timed-out",
+      type: "logic.set",
+      config: { kind: "logic.set", assignments: [] },
+    });
+    definition.edges.push({
+      id: "merge-timed-out",
+      source: "merge",
+      target: "timed-out",
+      sourceHandle: "timed_out",
+      targetHandle: null,
+    });
+
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      mergeResume: {
+        mergeNodeId: "merge",
+        iteration: -1,
+        scheduledAt: "2026-01-01T00:00:00.000Z",
+        wakeAt: "2026-01-01T00:00:01.000Z",
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.nodeResults.merge).toMatchObject({ status: "timed_out" });
+      expect(result.nodeResults["timed-out"]).toBeDefined();
+    }
+  });
+
+  it("completes Merge from a due Wait before an armed Merge timeout expires", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-01-01T00:00:00.000Z");
+    try {
+      const definition = createMergeDefinition("all");
+      const wait = definition.nodes.find((node) => node.id === "slack")!;
+      wait.type = "flow.wait";
+      wait.config = { kind: "flow.wait", mode: "duration", durationMs: 5_000 };
+      const merge = definition.nodes.find((node) => node.id === "merge")!;
+      if (merge.config.kind !== "logic.merge") throw new Error("expected Merge");
+      merge.config.timeoutMs = 60_000;
+      if (merge.inputs) delete merge.inputs["value.slack-input"];
+      const waitEdge = definition.edges.find((edge) => edge.id === "slack-merge")!;
+      waitEdge.sourceHandle = "completed";
+      const byId = new Map(definition.nodes.map((node) => [node.id, node]));
+      definition.nodes = [byId.get("trigger")!, wait, byId.get("email")!, merge];
+
+      const suspended = await runVisualWorkflowInterpreter({
+        definition,
+        organizationId: "00000000-0000-4000-8000-000000000001",
+      });
+      expect(suspended.ok).toBe(false);
+      if (suspended.ok) throw new Error("expected wait_suspended");
+      expect(suspended.error).toMatchObject({
+        code: "wait_suspended",
+        mergeResume: {
+          mergeNodeId: "merge",
+          wakeAt: "2026-01-01T00:01:00.000Z",
+        },
+      });
+
+      const waitResume = {
+        waitNodeId: "slack",
+        iteration: -1,
+        mode: "duration" as const,
+        scheduledAt: "2026-01-01T00:00:00.000Z",
+        wakeAt: "2026-01-01T00:00:05.000Z",
+      };
+      const mergeResume = suspended.error.mergeResume as {
+        mergeNodeId: string;
+        iteration: number;
+        scheduledAt: string;
+        wakeAt: string;
+      };
+
+      // Wait is due; Merge timeout is still in the future. Merge must complete,
+      // not sleep until timeout and then force timed_out ahead of Wait.
+      vi.setSystemTime("2026-01-01T00:00:10.000Z");
+      const resumed = await runVisualWorkflowInterpreter({
+        definition,
+        organizationId: "00000000-0000-4000-8000-000000000001",
+        waitResume,
+        mergeResume,
+      });
+
+      expect(resumed.ok).toBe(true);
+      if (resumed.ok) {
+        expect(resumed.nodeResults.merge).toMatchObject({ status: "completed" });
+        expect(resumed.nodeResults.slack).toMatchObject({ status: "completed" });
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reuses a durable Merge completion instead of re-timing-out on later slices", async () => {
+    const definition = createMergeDefinition("all");
+    const merge = definition.nodes.find((node) => node.id === "merge")!;
+    if (merge.config.kind !== "logic.merge") throw new Error("expected Merge");
+    merge.config.timeoutMs = 1_000;
+    definition.nodes.push({
+      id: "completed-branch",
+      type: "logic.set",
+      config: { kind: "logic.set", assignments: [] },
+    });
+    definition.edges.push({
+      id: "merge-completed-branch",
+      source: "merge",
+      target: "completed-branch",
+      sourceHandle: "completed",
+      targetHandle: null,
+    });
+
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      mergeResume: {
+        mergeNodeId: "merge",
+        iteration: -1,
+        scheduledAt: "2026-01-01T00:00:00.000Z",
+        wakeAt: "2026-01-01T00:00:01.000Z",
+      },
+      executeNode: async (args) => {
+        if (args.node.type === "logic.merge") {
+          return {
+            ok: true,
+            output: {
+              status: "completed",
+              selectedInputId: "email-input",
+              values: {},
+            },
+          };
+        }
+        return executeVisualWorkflowNode({ ...args, inputsResolved: true });
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(`unexpected failure: ${JSON.stringify(result.error)}`);
+    }
+    expect(result.nodeResults.merge).toMatchObject({ status: "completed" });
+    expect(result.nodeResults["completed-branch"]).toBeDefined();
   });
 });

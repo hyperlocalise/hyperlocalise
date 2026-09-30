@@ -16,6 +16,8 @@ import type {
   CanonicalVisualWorkflowNode,
   VisualCatalogType,
   VisualWorkflowDefinition,
+  VisualWorkflowV3Definition,
+  VisualWorkflowV3Edge,
 } from "../schema/types";
 
 export type VisualWorkflowGraphIndex = {
@@ -57,6 +59,57 @@ export function buildVisualWorkflowGraphIndex(
     triggerNodeId: triggers[0]!.id,
   };
 }
+
+export function buildVisualWorkflowV3GraphIndex(
+  definition: VisualWorkflowV3Definition,
+): VisualWorkflowV3GraphIndex | null {
+  const nodesById = new Map(definition.nodes.map((node) => [node.id, node]));
+
+  const outgoingByNodeId = new Map<string, VisualWorkflowV3ExecutionEdge[]>();
+
+  const incomingCountByNodeId = new Map<string, number>();
+
+  for (const node of definition.nodes) {
+    outgoingByNodeId.set(node.id, []);
+    incomingCountByNodeId.set(node.id, 0);
+  }
+
+  for (const edge of definition.edges) {
+    if (edge.kind !== "execution") {
+      continue;
+    }
+
+    if (!nodesById.has(edge.source) || !nodesById.has(edge.target)) {
+      continue;
+    }
+
+    outgoingByNodeId.get(edge.source)?.push(edge);
+
+    incomingCountByNodeId.set(edge.target, (incomingCountByNodeId.get(edge.target) ?? 0) + 1);
+  }
+
+  const triggers = definition.nodes.filter((node) => isTriggerType(node.type));
+
+  if (triggers.length !== 1) {
+    return null;
+  }
+
+  return {
+    nodesById,
+    outgoingByNodeId,
+    incomingCountByNodeId,
+    triggerNodeId: triggers[0]!.id,
+  };
+}
+
+type VisualWorkflowV3ExecutionEdge = Extract<VisualWorkflowV3Edge, { kind: "execution" }>;
+
+export type VisualWorkflowV3GraphIndex = {
+  nodesById: Map<string, CanonicalVisualWorkflowNode>;
+  outgoingByNodeId: Map<string, VisualWorkflowV3ExecutionEdge[]>;
+  incomingCountByNodeId: Map<string, number>;
+  triggerNodeId: string;
+};
 
 export function selectNextEdges(input: {
   nodeType: VisualCatalogType;

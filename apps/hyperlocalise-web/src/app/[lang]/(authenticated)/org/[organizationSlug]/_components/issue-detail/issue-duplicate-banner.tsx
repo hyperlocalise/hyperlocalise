@@ -19,6 +19,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
+import { useIssueDetailLinkScope } from "./issue-detail-link-scope";
 import { buildIssueDetailHref } from "./issue-detail-utils";
 import { issueDuplicateBannerMessages as messages } from "./issue-duplicate-banner.messages";
 import type { IssueRelationship } from "./use-issue-relationships-query";
@@ -31,6 +32,7 @@ export function IssueDuplicateBanner({
   organizationSlug: string;
   relationships: IssueRelationship[];
 }) {
+  const detailScope = useIssueDetailLinkScope();
   const canonical = relationships.find(
     (relationship) => relationship.presentedKind === "duplicate_of",
   );
@@ -61,6 +63,7 @@ export function IssueDuplicateBanner({
                 organizationSlug,
                 projectId: canonical.otherIssue.projectId,
                 issueId: canonical.otherIssue.issueId,
+                scope: detailScope,
               })}
             />
           }

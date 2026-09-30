@@ -92,7 +92,7 @@ func (c *hunspellSpellChecker) Check(ctx context.Context, locale string, words [
 
 	handle, ok := c.handles[locale]
 	if !ok {
-		slog.Info("spellcheck: skipping check for locale without a loaded dictionary",
+		slog.InfoContext(ctx, "spellcheck: skipping check for locale without a loaded dictionary",
 			"locale", locale,
 			"word_count", len(words),
 		)

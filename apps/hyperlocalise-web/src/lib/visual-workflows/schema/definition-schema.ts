@@ -12,8 +12,9 @@
  */
 import { z } from "zod";
 
+import { contentSyncProviderSchema } from "@/lib/agents/content-sync/content-sync-types";
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
-import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
+import { VISUAL_WORKFLOW_SCHEMA_VERSION, VISUAL_WORKFLOW_SCHEMA_V3_VERSION } from "./types";
 
 const httpMethodSchema = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
@@ -51,6 +52,7 @@ const visualCatalogTypeSchema = z.enum([
   "trigger.github",
   "trigger.source_upload",
   "action.http",
+  "action.content_sync",
   "action.notify_slack",
   "action.notify_email",
   "logic.if",
@@ -58,6 +60,9 @@ const visualCatalogTypeSchema = z.enum([
   "logic.set",
   "ai.agent",
   "logic.for_each",
+  "logic.retry",
+  "flow.wait",
+  "logic.merge",
 ]);
 
 const visualNodeConfigSchema = z.discriminatedUnion("kind", [
@@ -99,6 +104,24 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
+    kind: z.literal("action.content_sync"),
+    projectId: z.string().trim().max(128),
+    provider: contentSyncProviderSchema,
+    connectionId: z.string().trim().max(256),
+    resourceKey: z.string().trim().max(512),
+    providerFolder: z
+      .string()
+      .trim()
+      .max(512)
+      .regex(/^[^\\:*?"<>|]*$/, "invalid_folder_path"),
+    projectFolder: z
+      .string()
+      .trim()
+      .max(512)
+      .regex(/^[^\\:*?"<>|]*$/, "invalid_folder_path"),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
     kind: z.literal("action.notify_slack"),
     channelId: z.string().trim().min(1).max(64),
     message: z.string().max(4000),
@@ -122,9 +145,32 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     kind: z.literal("logic.switch"),
     expression: z.string().max(2000),
     cases: z
-      .array(z.object({ value: z.string().max(2000) }))
+      .array(
+        z.object({
+          id: z
+            .string()
+            .trim()
+            .min(1)
+            .max(64)
+            .refine((id) => id !== "default", { message: "Switch case id cannot be default." }),
+          value: z.string().max(2000),
+        }),
+      )
       .min(1)
-      .max(12),
+      .max(12)
+      .superRefine((cases, ctx) => {
+        const seen = new Set<string>();
+        for (const [index, entry] of cases.entries()) {
+          if (seen.has(entry.id)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Switch case ids must be unique.",
+              path: [index, "id"],
+            });
+          }
+          seen.add(entry.id);
+        }
+      }),
   }),
   z.object({
     kind: z.literal("logic.set"),
@@ -138,6 +184,97 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("logic.for_each"),
     collection: z.string().max(2000),
+  }),
+  z.object({
+    kind: z.literal("logic.retry"),
+    maxAttempts: z.number().int().min(1).max(10).optional(),
+    initialDelayMs: z.number().int().min(0).max(3_600_000).optional(),
+    backoffMultiplier: z.number().min(1).max(10).optional(),
+    jitter: z.boolean().optional(),
+    retryableErrorCodes: z.array(z.string().trim().min(1).max(64)).max(32).optional(),
+    acknowledgeDuplicateRisk: z.boolean().optional(),
+  }),
+  z
+    .object({
+      kind: z.literal("flow.wait"),
+      mode: z.enum(["duration", "timestamp", "condition"]),
+      durationMs: z.number().int().min(0).max(31_536_000_000).optional(),
+      timestamp: z.string().datetime({ offset: true }).optional(),
+      condition: z.string().trim().min(1).max(2_000).optional(),
+      pollingIntervalMs: z.number().int().min(1_000).max(3_600_000).optional(),
+      timeoutMs: z.number().int().min(1_000).max(31_536_000_000).optional(),
+    })
+    .superRefine((config, context) => {
+      if (config.mode === "duration" && config.durationMs === undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["durationMs"],
+          message: "Duration is required when wait mode is duration.",
+        });
+      }
+
+      if (config.mode === "timestamp" && config.timestamp === undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["timestamp"],
+          message: "Timestamp is required when wait mode is timestamp.",
+        });
+      }
+
+      if (config.mode === "condition") {
+        if (config.condition === undefined) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["condition"],
+            message: "Condition is required when wait mode is condition.",
+          });
+        }
+
+        if (config.pollingIntervalMs === undefined) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["pollingIntervalMs"],
+            message: "Polling interval is required when wait mode is condition.",
+          });
+        }
+
+        if (config.timeoutMs === undefined) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["timeoutMs"],
+            message: "Timeout is required when wait mode is condition.",
+          });
+        }
+      }
+    }),
+  z.object({
+    kind: z.literal("logic.merge"),
+    mode: z.enum(["all", "any", "first_success"]),
+    inputs: z
+      .array(
+        z.object({
+          id: z.string().trim().min(1).max(128),
+          name: z.string().trim().min(1).max(128),
+        }),
+      )
+      .min(2)
+      .max(32)
+      .superRefine((inputs, context) => {
+        const ids = new Set<string>();
+
+        for (const [index, input] of inputs.entries()) {
+          if (ids.has(input.id)) {
+            context.addIssue({
+              code: "custom",
+              path: [index, "id"],
+              message: "duplicate_merge_input_id",
+            });
+          }
+
+          ids.add(input.id);
+        }
+      }),
+    timeoutMs: z.number().int().positive().max(86_400_000).optional(),
   }),
 ]);
 
@@ -194,6 +331,19 @@ const visualWorkflowEdgeSchema = z
   })
   .strict();
 
+const visualWorkflowV3EdgeBaseSchema = z.object({
+  id: z.string().trim().min(1).max(128),
+  source: z.string().trim().min(1).max(128),
+  target: z.string().trim().min(1).max(128),
+  sourcePortId: z.string().trim().min(1).max(128),
+  targetPortId: z.string().trim().min(1).max(128),
+});
+
+export const visualWorkflowV3EdgeSchema = z.discriminatedUnion("kind", [
+  visualWorkflowV3EdgeBaseSchema.extend({ kind: z.literal("execution") }).strict(),
+  visualWorkflowV3EdgeBaseSchema.extend({ kind: z.literal("data") }).strict(),
+]);
+
 export const visualWorkflowDefinitionSchema = z
   .object({
     schemaVersion: z.literal(VISUAL_WORKFLOW_SCHEMA_VERSION),
@@ -210,5 +360,10 @@ export const visualWorkflowDefinitionSchema = z
       .strict(),
   })
   .strict();
+
+export const visualWorkflowV3DefinitionSchema = visualWorkflowDefinitionSchema.extend({
+  schemaVersion: z.literal(VISUAL_WORKFLOW_SCHEMA_V3_VERSION),
+  edges: z.array(visualWorkflowV3EdgeSchema).max(400),
+});
 
 export type VisualWorkflowDefinitionInput = z.infer<typeof visualWorkflowDefinitionSchema>;

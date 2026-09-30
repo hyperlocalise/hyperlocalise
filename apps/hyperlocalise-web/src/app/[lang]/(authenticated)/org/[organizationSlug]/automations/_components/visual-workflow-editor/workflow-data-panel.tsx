@@ -38,6 +38,8 @@ import type {
   WorkflowBinding,
 } from "@/lib/visual-workflows/schema/types";
 import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
+import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
+import { computeForEachBodyNodeIds } from "@/lib/visual-workflows/editor/for-each-body-membership";
 
 const HTTP_SECRET_BINDING_PATH = /^(headers|body)\.[A-Za-z0-9_.-]+$/;
 
@@ -115,12 +117,26 @@ export function WorkflowDataPanel({
             }).some((declared) => declared.path === field.path),
         ),
       ]
-        .filter(
-          (field) =>
-            candidate.data.catalogType !== "logic.for_each" ||
-            !["item", "index"].includes(field.path) ||
-            candidate.data.bodyNodeIds?.includes(node.id),
-        )
+        .filter((field) => {
+          const inBody =
+            candidate.data.catalogType === "logic.for_each"
+              ? computeForEachBodyNodeIds(candidate.id, edges).includes(node.id)
+              : (candidate.data.bodyNodeIds?.includes(node.id) ?? false);
+
+          if (candidate.data.catalogType === "logic.for_each") {
+            if (["item", "index"].includes(field.path)) {
+              return inBody;
+            }
+          }
+
+          if (candidate.data.catalogType === "logic.retry") {
+            if (field.path === "attemptNumber") {
+              return inBody;
+            }
+          }
+
+          return true;
+        })
         .map((field) => ({
           nodeId: candidate.id,
           path: field.path
@@ -148,6 +164,8 @@ export function WorkflowDataPanel({
     else delete inputs[name];
     onChange({ inputs });
   };
+  const forEachBodyNodeIds =
+    node.data.catalogType === "logic.for_each" ? computeForEachBodyNodeIds(node.id, edges) : [];
   return (
     <FieldGroup>
       <h3 className="text-sm font-medium">
@@ -172,7 +190,13 @@ export function WorkflowDataPanel({
         />
       </Field>
       {inputFields.map((field) => {
-        const binding = node.data.inputs?.[field.name];
+        const wiredBinding = getVisualWorkflowDataEdgeBinding({
+          nodeId: node.id,
+          portId: field.name,
+          edges,
+        });
+        const binding = wiredBinding ?? node.data.inputs?.[field.name];
+        const isWired = wiredBinding !== undefined;
         return (
           <Field key={field.name}>
             <FieldLabel>
@@ -180,6 +204,7 @@ export function WorkflowDataPanel({
             </FieldLabel>
             <Select
               value={binding?.kind ?? "configuration"}
+              disabled={isWired}
               onValueChange={(value) => {
                 if (value === "reference")
                   change(field.name, {
@@ -206,7 +231,23 @@ export function WorkflowDataPanel({
                 </SelectGroup>
               </SelectContent>
             </Select>
-            {binding?.kind === "reference" ? (
+            {isWired ? (
+              <FieldDescription>
+                {intl.formatMessage(
+                  {
+                    description: "Visual workflow connected data input description",
+                    id: "02ZUVYObvj",
+                    defaultMessage:
+                      "Connected from {nodeId} · {path}. Remove the data wire to configure this input manually.",
+                  },
+                  {
+                    nodeId: wiredBinding.nodeId,
+                    path: wiredBinding.path.join("."),
+                  },
+                )}
+              </FieldDescription>
+            ) : null}
+            {binding?.kind === "reference" && !isWired ? (
               <>
                 <Select
                   value={JSON.stringify([binding.nodeId, binding.path])}
@@ -377,49 +418,90 @@ export function WorkflowDataPanel({
         </Field>
       ) : null}
       {node.data.catalogType === "logic.for_each" ? (
-        <>
-          <Field>
-            <FieldLabel>
-              {intl.formatMessage({
-                description: "Visual workflow editor control",
-                id: "P7iGJ3MOIk",
-                defaultMessage: "Nodes inside Each item",
-              })}
-            </FieldLabel>
-            {nodes
-              .filter(
-                (candidate) =>
-                  candidate.id !== node.id && !candidate.data.catalogType.startsWith("trigger."),
-              )
-              .map((candidate) => (
-                <FieldLabel key={candidate.id}>
-                  <Checkbox
-                    checked={node.data.bodyNodeIds?.includes(candidate.id) ?? false}
-                    onCheckedChange={(checked) =>
-                      onChange({
-                        bodyNodeIds: checked
-                          ? [...(node.data.bodyNodeIds ?? []), candidate.id]
-                          : (node.data.bodyNodeIds ?? []).filter((id) => id !== candidate.id),
-                      })
-                    }
-                  />
-                  {candidate.id}
-                </FieldLabel>
-              ))}
-          </Field>
-          <WorkflowJsonField
-            label={intl.formatMessage({
+        <Field>
+          <FieldLabel>
+            {intl.formatMessage({
               description: "Visual workflow editor control",
-              id: "sUNtSb7xJe",
-              defaultMessage: "Collected output bindings (JSON)",
+              id: "P7iGJ3MOIk",
+              defaultMessage: "Nodes inside Each item",
             })}
-            validate={(value) =>
-              Boolean(value) && typeof value === "object" && !Array.isArray(value)
-            }
-            value={node.data.collect ?? {}}
-            onChange={(value) => onChange({ collect: value as WorkflowNodeContract["collect"] })}
-          />
-        </>
+          </FieldLabel>
+
+          <FieldDescription>
+            {intl.formatMessage({
+              description: "Explanation of graph-derived For Each membership",
+              id: "3OlJR3Fxjp",
+              defaultMessage:
+                "Loop membership is derived automatically from connections leaving the Each item port.",
+            })}
+          </FieldDescription>
+
+          {forEachBodyNodeIds.length > 0 ? (
+            <ul className="space-y-1 text-sm">
+              {forEachBodyNodeIds.map((bodyNodeId) => (
+                <li key={bodyNodeId}>{bodyNodeId}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {intl.formatMessage({
+                description: "Empty graph-derived For Each body",
+                id: "yIZkW24JC2",
+                defaultMessage: "No nodes are connected to the Each item region.",
+              })}
+            </p>
+          )}
+        </Field>
+      ) : null}
+
+      {node.data.catalogType === "logic.retry" ? (
+        <Field>
+          <FieldLabel>
+            {intl.formatMessage({
+              description: "Visual workflow editor control",
+              id: "cpyaLTW85o",
+              defaultMessage: "Nodes inside Attempt",
+            })}
+          </FieldLabel>
+
+          {nodes
+            .filter(
+              (candidate) =>
+                candidate.id !== node.id && !candidate.data.catalogType.startsWith("trigger."),
+            )
+            .map((candidate) => (
+              <FieldLabel key={candidate.id}>
+                <Checkbox
+                  checked={node.data.bodyNodeIds?.includes(candidate.id) ?? false}
+                  onCheckedChange={(checked) =>
+                    onChange({
+                      bodyNodeIds: checked
+                        ? [...(node.data.bodyNodeIds ?? []), candidate.id]
+                        : (node.data.bodyNodeIds ?? []).filter((id) => id !== candidate.id),
+                    })
+                  }
+                />
+                {candidate.id}
+              </FieldLabel>
+            ))}
+        </Field>
+      ) : null}
+
+      {node.data.catalogType === "logic.for_each" || node.data.catalogType === "logic.retry" ? (
+        <WorkflowJsonField
+          label={intl.formatMessage({
+            description: "Visual workflow editor control",
+            id: "sUNtSb7xJe",
+            defaultMessage: "Collected output bindings (JSON)",
+          })}
+          validate={(value) => Boolean(value) && typeof value === "object" && !Array.isArray(value)}
+          value={node.data.collect ?? {}}
+          onChange={(value) =>
+            onChange({
+              collect: value as WorkflowNodeContract["collect"],
+            })
+          }
+        />
       ) : null}
       <h3 className="text-sm font-medium">
         {intl.formatMessage({

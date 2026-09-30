@@ -21,6 +21,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { supportsProviderContentEditorFile } from "@/lib/providers/capabilities/provider-content-editor-capabilities";
 
 import { ProjectPageShell, useProjectPageQuery } from "../../../../_components/project-page-shell";
@@ -209,6 +210,7 @@ export function JobContentEditorPageContent({
 }) {
   const intl = useIntl();
   const router = useRouter();
+  const { client: goSvcClient } = useGoSvcClient();
   const pageNavigationGuardRef = useRef<ContentEditorPageNavigationGuardRef["current"]>(null);
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
   const canUseAllFiles = contentEditorAllFilesEnabled;
@@ -254,6 +256,7 @@ export function JobContentEditorPageContent({
     enabled: hasFileReference && !allFiles,
     queryFn: () =>
       loadJobContentEditorTargetFile({
+        goSvcClient,
         organizationSlug,
         projectId,
         sourcePath,

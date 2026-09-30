@@ -24,10 +24,10 @@ export type ContentEditorUniverHostHandle = {
 };
 
 type UniverApi = {
-  createUniverDoc: (data?: Partial<IDocumentData>) => unknown;
+  createDocument: (data?: Partial<IDocumentData>) => unknown;
   createWorkbook: (data?: Partial<IWorkbookData>) => unknown;
   createUnit?: (type: number, data: unknown) => unknown;
-  getActiveDocument?: () => { getSnapshot: () => IDocumentData } | null;
+  getActiveDocument?: () => { save: () => IDocumentData } | null;
   getActiveWorkbook?: () => { save: () => IWorkbookData } | null;
   dispose: () => void;
 };
@@ -56,12 +56,12 @@ async function createDocsHost(
     ],
   }) as { univerAPI: UniverApi };
 
-  univerAPI.createUniverDoc(data);
+  univerAPI.createDocument(data);
 
   return {
     getSnapshot: () => {
       const active = univerAPI.getActiveDocument?.();
-      const snapshot = active?.getSnapshot?.() ?? data;
+      const snapshot = active?.save?.() ?? data;
       return { kind: "docx", data: snapshot };
     },
     dispose: () => {

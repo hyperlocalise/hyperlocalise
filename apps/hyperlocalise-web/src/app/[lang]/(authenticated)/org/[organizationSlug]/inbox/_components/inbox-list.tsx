@@ -12,16 +12,27 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { memo, useMemo, type ReactNode } from "react";
-import { Chat01Icon, SparklesIcon } from "@hugeicons/core-free-icons";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Chat01Icon, FilterIcon, SparklesIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
+import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyMuted, TypographySmall } from "@/components/ui/typography";
 import { stripMarkdown } from "@/lib/markdown/strip-markdown";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -29,19 +40,29 @@ import {
   getNotificationListItemVisual,
   type InboxListItemVisual,
 } from "./inbox-list-item-visuals";
+import {
+  DEFAULT_INBOX_LIST_FILTERS,
+  filterInboxIndexItems,
+  INBOX_CONVERSATION_TYPE_FILTERS,
+  INBOX_NOTIFICATION_TYPE_FILTERS,
+  INBOX_READ_FILTERS,
+  isInboxListFiltersActive,
+  type InboxIndexItem,
+  type InboxListFilters,
+  type InboxTypeFilter,
+} from "./inbox-list-filters";
 import { inboxListMessages } from "./inbox-list.messages";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
 import { inboxNotificationsMessages } from "./inbox-notifications.messages";
 import {
   formatRelativeTime,
   getConversationParticipantAvatar,
+  getSourceLabel,
   type Conversation,
   type InboxCurrentUser,
 } from "./inbox-types";
 
-export type InboxIndexItem =
-  | { kind: "conversation"; conversation: Conversation; sortAt: string }
-  | { kind: "notification"; notification: InboxIssueNotification; sortAt: string };
+export type { InboxIndexItem };
 
 export type InboxSelection =
   | { kind: "conversation"; id: string }
@@ -108,6 +129,140 @@ export function buildInboxIndexItems(
   });
 }
 
+const readFilterMessage = {
+  all: inboxListMessages.filterReadAll,
+  unread: inboxListMessages.filterReadUnread,
+  read: inboxListMessages.filterReadRead,
+} as const;
+
+function inboxTypeFilterLabel(type: InboxTypeFilter, intl: IntlShape): string {
+  switch (type) {
+    case "all":
+      return intl.formatMessage(inboxListMessages.filterTypeAll);
+    case "conversations":
+      return intl.formatMessage(inboxListMessages.filterTypeConversations);
+    case "notifications":
+      return intl.formatMessage(inboxListMessages.filterTypeNotifications);
+    case "chat_ui":
+    case "email_agent":
+    case "github_agent":
+    case "slack_agent":
+    case "web_chat":
+      return getSourceLabel(type, intl);
+    case "assigned":
+      return intl.formatMessage(inboxNotificationsMessages.assignedType);
+    case "mentioned":
+      return intl.formatMessage(inboxNotificationsMessages.mentionedType);
+    case "comment":
+      return intl.formatMessage(inboxNotificationsMessages.commentType);
+    case "status_changed":
+      return intl.formatMessage(inboxNotificationsMessages.statusChangedType);
+    case "assignee_changed":
+      return intl.formatMessage(inboxNotificationsMessages.assigneeChangedType);
+    default:
+      return assertNever(type);
+  }
+}
+
+function InboxListFiltersToolbar({
+  filters,
+  onFiltersChange,
+  onMarkAllRead,
+}: {
+  filters: InboxListFilters;
+  onFiltersChange: (filters: InboxListFilters) => void;
+  onMarkAllRead?: () => void;
+}) {
+  const intl = useIntl();
+  const typeActive = filters.type !== "all";
+
+  return (
+    <div className="flex shrink-0 flex-col gap-1.5 border-b border-border px-2 py-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <div
+          role="group"
+          aria-label={intl.formatMessage(inboxListMessages.filterReadAria)}
+          className="flex min-w-0 items-center gap-0.5"
+        >
+          {INBOX_READ_FILTERS.map((read) => {
+            const isActive = filters.read === read;
+            return (
+              <Button
+                key={read}
+                type="button"
+                variant="ghost"
+                size="xs"
+                aria-pressed={isActive}
+                className={cn(isActive && "bg-muted text-foreground")}
+                onClick={() => onFiltersChange({ ...filters, read })}
+              >
+                <FormattedMessage {...readFilterMessage[read]} />
+              </Button>
+            );
+          })}
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                className={cn("gap-1 font-normal", typeActive && "border-grove-400/40")}
+                aria-label={intl.formatMessage(inboxListMessages.filterTypeAria)}
+              />
+            }
+          >
+            <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3" />
+            <span className="max-w-24 truncate">{inboxTypeFilterLabel(filters.type, intl)}</span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuRadioGroup
+              value={filters.type}
+              onValueChange={(value) =>
+                onFiltersChange({ ...filters, type: value as InboxTypeFilter })
+              }
+            >
+              <DropdownMenuRadioItem value="all">
+                <FormattedMessage {...inboxListMessages.filterTypeAll} />
+              </DropdownMenuRadioItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>
+                  <FormattedMessage {...inboxListMessages.filterTypeGroupConversations} />
+                </DropdownMenuLabel>
+                {INBOX_CONVERSATION_TYPE_FILTERS.map((type) => (
+                  <DropdownMenuRadioItem key={type} value={type}>
+                    {inboxTypeFilterLabel(type, intl)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>
+                  <FormattedMessage {...inboxListMessages.filterTypeGroupNotifications} />
+                </DropdownMenuLabel>
+                {INBOX_NOTIFICATION_TYPE_FILTERS.map((type) => (
+                  <DropdownMenuRadioItem key={type} value={type}>
+                    {inboxTypeFilterLabel(type, intl)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {onMarkAllRead ? (
+        <div className="flex items-center justify-end">
+          <Button type="button" variant="ghost" size="xs" onClick={onMarkAllRead}>
+            <FormattedMessage {...inboxNotificationsMessages.markAllRead} />
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function notificationPreviewMessage(type: InboxIssueNotification["type"]): MessageDescriptor {
   switch (type) {
     case "assigned":
@@ -154,22 +309,45 @@ export const InboxList = memo(function InboxList({
   selection: InboxSelection;
   unreadNotificationCount: number;
 }) {
-  const items = useMemo(
+  const [filters, setFilters] = useState<InboxListFilters>(DEFAULT_INBOX_LIST_FILTERS);
+  const allItems = useMemo(
     () => buildInboxIndexItems(conversations, notifications),
     [conversations, notifications],
   );
-
+  const items = useMemo(() => filterInboxIndexItems(allItems, filters), [allItems, filters]);
+  const filtersActive = isInboxListFiltersActive(filters);
   const isComposingNew = selection?.kind === "new";
+  const showMarkAllRead = unreadNotificationCount > 0 && onMarkAllRead;
+  const isFilteredEmpty = !isLoading && !isError && allItems.length > 0 && items.length === 0;
+  const canLoadMoreFilteredPage = isFilteredEmpty && hasMoreNotifications;
+  const autoLoadPageKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!canLoadMoreFilteredPage || isLoadingMoreNotifications) {
+      return;
+    }
+    const pageKey = `${filters.read}:${filters.type}:${notifications.length}`;
+    if (autoLoadPageKeyRef.current === pageKey) {
+      return;
+    }
+    autoLoadPageKeyRef.current = pageKey;
+    onLoadMoreNotifications();
+  }, [
+    canLoadMoreFilteredPage,
+    filters.read,
+    filters.type,
+    isLoadingMoreNotifications,
+    notifications.length,
+    onLoadMoreNotifications,
+  ]);
 
   return (
     <section className="flex max-h-[40svh] min-h-0 shrink-0 flex-col overflow-hidden border-border lg:h-full lg:max-h-none lg:shrink lg:border-r">
-      {unreadNotificationCount > 0 && onMarkAllRead ? (
-        <div className="flex shrink-0 items-center justify-end border-b border-border px-2 py-1.5">
-          <Button type="button" variant="ghost" size="xs" onClick={onMarkAllRead}>
-            <FormattedMessage {...inboxNotificationsMessages.markAllRead} />
-          </Button>
-        </div>
-      ) : null}
+      <InboxListFiltersToolbar
+        filters={filters}
+        onFiltersChange={setFilters}
+        onMarkAllRead={showMarkAllRead ? onMarkAllRead : undefined}
+      />
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {isLoading ? (
           <ConversationListSkeleton />
@@ -178,9 +356,33 @@ export const InboxList = memo(function InboxList({
             <FormattedMessage {...inboxNotificationsMessages.loadError} />
           </TypographyMuted>
         ) : items.length === 0 && !isComposingNew ? (
-          <TypographyMuted className="px-3 py-4">
-            <FormattedMessage {...inboxNotificationsMessages.empty} />
-          </TypographyMuted>
+          <div className="flex flex-col items-start gap-2 px-3 py-4">
+            <TypographyMuted>
+              <FormattedMessage
+                {...(filtersActive && isFilteredEmpty
+                  ? hasMoreNotifications
+                    ? inboxListMessages.filterEmptyHasMore
+                    : inboxListMessages.filterEmpty
+                  : inboxNotificationsMessages.empty)}
+              />
+            </TypographyMuted>
+            {filtersActive && isFilteredEmpty ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => setFilters(DEFAULT_INBOX_LIST_FILTERS)}
+              >
+                <FormattedMessage {...inboxListMessages.clearFilters} />
+              </Button>
+            ) : null}
+            {hasMoreNotifications ? (
+              <InboxLoadMoreNotifications
+                disabled={isLoadingMoreNotifications}
+                onLoadMore={onLoadMoreNotifications}
+              />
+            ) : null}
+          </div>
         ) : (
           <div className="flex flex-col gap-1">
             {isComposingNew ? <NewRequestListItem /> : null}
@@ -207,18 +409,10 @@ export const InboxList = memo(function InboxList({
               ),
             )}
             {hasMoreNotifications ? (
-              <div className="px-2 py-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="w-full"
-                  disabled={isLoadingMoreNotifications}
-                  onClick={onLoadMoreNotifications}
-                >
-                  <FormattedMessage {...inboxNotificationsMessages.loadMore} />
-                </Button>
-              </div>
+              <InboxLoadMoreNotifications
+                disabled={isLoadingMoreNotifications}
+                onLoadMore={onLoadMoreNotifications}
+              />
             ) : null}
           </div>
         )}
@@ -226,6 +420,29 @@ export const InboxList = memo(function InboxList({
     </section>
   );
 });
+
+function InboxLoadMoreNotifications({
+  disabled,
+  onLoadMore,
+}: {
+  disabled: boolean;
+  onLoadMore: () => void;
+}) {
+  return (
+    <div className="w-full px-2 py-1">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="w-full"
+        disabled={disabled}
+        onClick={onLoadMore}
+      >
+        <FormattedMessage {...inboxNotificationsMessages.loadMore} />
+      </Button>
+    </div>
+  );
+}
 
 function listItemClassName(isSelected: boolean, isUnread = false) {
   return cn(

@@ -113,6 +113,26 @@ describe("JobSourceFilesPanel CAT entry UX", () => {
     );
   });
 
+  it("shows the original filename when sourcePath is a stored file id", () => {
+    renderWithIntl(
+      <JobSourceFilesPanel
+        organizationSlug="acme"
+        projectId="proj_1"
+        encodedJobId="job_1"
+        files={[
+          createProjectFileRecord({
+            sourcePath: "file_3b017712-ec57-448f-8015-ca282a5a103a",
+            storedFileId: "file_3b017712-ec57-448f-8015-ca282a5a103a",
+            filename: "home.json",
+          }),
+        ]}
+        highlightLocale="vi"
+      />,
+    );
+
+    expect(screen.getAllByText("home.json").length).toBeGreaterThan(0);
+  });
+
   it("wires onActivateFile for double-click navigation", () => {
     renderWithIntl(
       <JobSourceFilesPanel

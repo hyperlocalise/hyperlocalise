@@ -46,6 +46,7 @@ import {
   DOMAIN_RESEARCH_MARKETS,
   type DomainResearchDomain,
 } from "@/lib/domains/research-prototype";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { LinkedDomainVerificationMethod } from "@/lib/database/schema/linked-domains";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import { cn } from "@/lib/primitives/cn";
@@ -62,12 +63,6 @@ type MarketRecommendation = {
   hasOrganicVisibility: boolean;
 };
 type MarketTier = "strong" | "emerging" | "discovery";
-type ApiErrorBody = { error?: string; message?: string };
-
-function getApiErrorMessage(body: ApiErrorBody, fallback: string) {
-  return body.message || body.error || fallback;
-}
-
 function getMarketTier(market: MarketRecommendation): MarketTier {
   if (market.top10Count >= 10) return "strong";
   if (market.organicCount > 0 || market.organicEtv > 0 || market.hasOrganicVisibility) {
@@ -76,11 +71,27 @@ function getMarketTier(market: MarketRecommendation): MarketTier {
   return "discovery";
 }
 
+function emptyMarketRecommendation(marketId: string): MarketRecommendation {
+  return {
+    marketId,
+    organicCount: 0,
+    organicEtv: 0,
+    top10Count: 0,
+    hasOrganicVisibility: false,
+  };
+}
+
+const supportedMarketRecommendations = DOMAIN_RESEARCH_MARKETS.map((market) =>
+  emptyMarketRecommendation(market.id),
+);
+const MAX_MARKET_SELECTIONS = 16;
+
 export function AddDomainDialog({
   open,
   onOpenChange,
   organizationSlug,
   initialDomainSlug,
+  mode = "create",
   initialStep = "details",
   initialLinkedDomain,
   initialRecommendations = [],
@@ -95,6 +106,7 @@ export function AddDomainDialog({
   onOpenChange: (open: boolean) => void;
   organizationSlug: string;
   initialDomainSlug?: string;
+  mode?: "create" | "edit";
   initialStep?: Step;
   initialLinkedDomain?: LinkedDomainPublic;
   initialRecommendations?: MarketRecommendation[];
@@ -106,6 +118,7 @@ export function AddDomainDialog({
   onVerified?: (domain: LinkedDomainPublic) => void;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const domainId = useId();
   const [step, setStep] = useState<Step>(initialStep);
   const [domain, setDomain] = useState(initialLinkedDomain?.domainKey ?? "");
@@ -115,7 +128,6 @@ export function AddDomainDialog({
   );
   const [projectMode, setProjectMode] = useState<"create" | "existing" | "unassigned">("create");
   const [projectId, setProjectId] = useState("");
-  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   const [method, setMethod] = useState<LinkedDomainVerificationMethod>("dns_txt");
   const [recommendations, setRecommendations] =
     useState<MarketRecommendation[]>(initialRecommendations);
@@ -123,6 +135,7 @@ export function AddDomainDialog({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const allowsEmptyMarkets = Boolean(claimDomainSlug || linkedDomain?.localisationAuditId);
 
   useEffect(() => {
     if (!open) return;
@@ -133,9 +146,16 @@ export function AddDomainDialog({
     setMethod("dns_txt");
     setProjectMode("create");
     setProjectId("");
-    setCreatedProjectId(null);
-    setRecommendations(initialRecommendations);
-    setSelectedMarketIds(initialSelectedMarketIds);
+    setRecommendations(
+      initialRecommendations.length || mode !== "edit"
+        ? initialRecommendations
+        : supportedMarketRecommendations,
+    );
+    setSelectedMarketIds(
+      initialSelectedMarketIds.length || !initialLinkedDomain
+        ? initialSelectedMarketIds
+        : initialLinkedDomain.marketIds,
+    );
     setPending(false);
     setError(null);
     setCopied(false);
@@ -170,22 +190,10 @@ export function AddDomainDialog({
     setPending(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...(input.domainSlug ? { domainSlug: input.domainSlug } : { domain: normalized }),
-            marketIds: [],
-          }),
-        },
-      );
-      const body = (await response.json().catch(() => ({}))) as ApiErrorBody & {
-        linkedDomain?: LinkedDomainPublic;
-      };
-      if (!response.ok || !body.linkedDomain)
-        throw new Error(getApiErrorMessage(body, intl.formatMessage(messages.startError)));
+      const body = await goSvcClient.domains.createLinkedDomain(organizationSlug, {
+        ...(input.domainSlug ? { domainSlug: input.domainSlug } : { domain: normalized }),
+        marketIds: [],
+      });
       setDomain(body.linkedDomain.domainKey);
       setLinkedDomain(body.linkedDomain);
       if (body.linkedDomain.status === "verified") {
@@ -223,66 +231,37 @@ export function AddDomainDialog({
     window.setTimeout(() => setCopied(false), 1600);
   }
 
-  async function verify() {
+  async function loadRecommendations() {
     if (!linkedDomain) return;
     setPending(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/verify`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ method, createProject: false }),
-        },
+      const body = await goSvcClient.domains.recommendLinkedDomainMarkets(
+        organizationSlug,
+        linkedDomain.id,
+        { method },
       );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-      };
-      if (!response.ok || !body.linkedDomain)
-        throw new Error(body.message || intl.formatMessage(messages.verifyError));
-      setLinkedDomain(body.linkedDomain);
       setStep("markets");
-      const recommendationResponse = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${body.linkedDomain.id}/market-recommendations`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: "{}",
-        },
-      );
-      const recommendationBody = (await recommendationResponse.json().catch(() => ({}))) as {
-        marketRecommendations?: {
-          candidates?: MarketRecommendation[];
-          recommended?: MarketRecommendation[];
-        };
-        message?: string;
-      };
-      if (!recommendationResponse.ok || !recommendationBody.marketRecommendations)
-        throw new Error(
-          recommendationBody.message || intl.formatMessage(messages.recommendationsError),
-        );
-      const candidates = recommendationBody.marketRecommendations.candidates ?? [];
+      const candidates = body.marketRecommendations.candidates ?? [];
       const candidatesById = new Map(candidates.map((market) => [market.marketId, market]));
       const supportedMarkets = DOMAIN_RESEARCH_MARKETS.map(
         (market): MarketRecommendation =>
-          candidatesById.get(market.id) ?? {
-            marketId: market.id,
-            organicCount: 0,
-            organicEtv: 0,
-            top10Count: 0,
-            hasOrganicVisibility: false,
-          },
+          candidatesById.get(market.id) ?? emptyMarketRecommendation(market.id),
       );
       setRecommendations(supportedMarkets);
       setSelectedMarketIds(
-        (recommendationBody.marketRecommendations.recommended ?? []).map(
-          (market) => market.marketId,
-        ),
+        (body.marketRecommendations.recommended ?? []).map((market) => market.marketId),
       );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : intl.formatMessage(messages.verifyError));
+      setRecommendations((current) =>
+        current.length > 0 ? current : supportedMarketRecommendations,
+      );
+      setStep("markets");
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : intl.formatMessage(messages.recommendationsError),
+      );
     } finally {
       setPending(false);
     }
@@ -290,75 +269,41 @@ export function AddDomainDialog({
 
   async function saveMarkets() {
     if (!linkedDomain) return;
+    if (selectedMarketIds.length === 0 && !allowsEmptyMarkets) {
+      setError(intl.formatMessage(messages.marketSelectionRequired));
+      return;
+    }
     setPending(true);
     setError(null);
     try {
-      let selectedProjectId: string | null = null;
+      if (mode === "edit") {
+        const body = await goSvcClient.domains.updateLinkedDomainMarkets(
+          organizationSlug,
+          linkedDomain.id,
+          { marketIds: selectedMarketIds },
+        );
+        onComplete?.(body.linkedDomain);
+        onOpenChange(false);
+        return;
+      }
+
+      let selectedProjectId: string | undefined;
+      let createProject: boolean | undefined;
       if (projectMode === "existing") {
         if (!projectId) throw new Error(intl.formatMessage(messages.selectProjectError));
         selectedProjectId = projectId;
       } else if (projectMode === "create") {
-        if (createdProjectId) {
-          selectedProjectId = createdProjectId;
-        } else {
-          const projectResponse = await fetch(
-            `/api/orgs/${encodeURIComponent(organizationSlug)}/projects`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: linkedDomain.domainKey,
-                sourceLocale: "en-US",
-                targetLocales: [],
-              }),
-            },
-          );
-          const projectBody = (await projectResponse.json().catch(() => ({}))) as {
-            project?: { id: string };
-            message?: string;
-          };
-          if (!projectResponse.ok || !projectBody.project) {
-            throw new Error(projectBody.message || intl.formatMessage(messages.createProjectError));
-          }
-          selectedProjectId = projectBody.project.id;
-          setCreatedProjectId(projectBody.project.id);
-        }
+        createProject = true;
+      } else {
+        createProject = false;
       }
 
-      const projectResponse = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/project`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId: selectedProjectId }),
-        },
-      );
-      const projectBody = (await projectResponse.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-      };
-      if (!projectResponse.ok) {
-        throw new Error(projectBody.message || intl.formatMessage(messages.attachProjectError));
-      }
-
-      let completedDomain = projectBody.linkedDomain;
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${linkedDomain.id}/markets`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ marketIds: selectedMarketIds }),
-        },
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-      };
-      if (!response.ok || !body.linkedDomain)
-        throw new Error(body.message || intl.formatMessage(messages.saveMarketsError));
-      completedDomain = body.linkedDomain;
-      if (!completedDomain) throw new Error(intl.formatMessage(messages.finishError));
-      onComplete?.(completedDomain);
+      const body = await goSvcClient.domains.verifyLinkedDomain(organizationSlug, linkedDomain.id, {
+        method,
+        ...(selectedProjectId ? { projectId: selectedProjectId } : { createProject }),
+        marketIds: selectedMarketIds,
+      });
+      onComplete?.(body.linkedDomain);
       onOpenChange(false);
     } catch (reason) {
       setError(
@@ -604,10 +549,10 @@ export function AddDomainDialog({
                 <Button type="button" variant="outline" onClick={() => setStep("details")}>
                   {intl.formatMessage(messages.back)}
                 </Button>
-                <Button type="button" disabled={pending} onClick={() => void verify()}>
+                <Button type="button" disabled={pending} onClick={() => void loadRecommendations()}>
                   {pending
-                    ? intl.formatMessage(messages.verifying)
-                    : intl.formatMessage(messages.verify)}
+                    ? intl.formatMessage(messages.findingMarkets)
+                    : intl.formatMessage(messages.continue)}
                 </Button>
               </DialogFooter>
             </>
@@ -654,6 +599,9 @@ export function AddDomainDialog({
                         >
                           <Checkbox
                             checked={selectedMarketIds.includes(market.marketId)}
+                            disabled={
+                              !selected && selectedMarketIds.length >= MAX_MARKET_SELECTIONS
+                            }
                             onCheckedChange={(checked) =>
                               setSelectedMarketIds((current) =>
                                 checked
@@ -696,11 +644,25 @@ export function AddDomainDialog({
                   {intl.formatMessage(messages.noRecommendations)}
                 </p>
               )}
+              {selectedMarketIds.length >= MAX_MARKET_SELECTIONS ? (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {intl.formatMessage(messages.marketSelectionLimit)}
+                </p>
+              ) : null}
+              {selectedMarketIds.length === 0 && !allowsEmptyMarkets ? (
+                <p role="alert" className="text-sm text-destructive">
+                  {intl.formatMessage(messages.marketSelectionRequired)}
+                </p>
+              ) : null}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setStep("connect")}>
                   {intl.formatMessage(messages.back)}
                 </Button>
-                <Button type="button" disabled={pending} onClick={() => setStep("project")}>
+                <Button
+                  type="button"
+                  disabled={pending || (selectedMarketIds.length === 0 && !allowsEmptyMarkets)}
+                  onClick={() => setStep("project")}
+                >
                   {intl.formatMessage(messages.continueToProject)}
                 </Button>
               </DialogFooter>
@@ -811,10 +773,18 @@ export function AddDomainDialog({
                 <Button type="button" variant="outline" onClick={() => setStep("markets")}>
                   {intl.formatMessage(messages.back)}
                 </Button>
-                <Button type="button" disabled={pending} onClick={() => void saveMarkets()}>
+                <Button
+                  type="button"
+                  disabled={pending || (selectedMarketIds.length === 0 && !allowsEmptyMarkets)}
+                  onClick={() => void saveMarkets()}
+                >
                   {pending
                     ? intl.formatMessage(messages.finishing)
-                    : intl.formatMessage(messages.addSelectedMarkets)}
+                    : intl.formatMessage(
+                        mode === "edit"
+                          ? messages.saveSelectedMarkets
+                          : messages.addSelectedMarkets,
+                      )}
                 </Button>
               </DialogFooter>
             </>

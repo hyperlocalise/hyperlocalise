@@ -24,7 +24,7 @@ import {
   isLocalisationAuditRerunnable,
   localisationAuditRerunAvailableAt,
 } from "@/lib/localisation-audit/store";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { getLocalisationAuditResultRouteMetadata } from "../localisation-audit-route-metadata";
 
@@ -59,11 +59,11 @@ export async function generateMetadata({
       locale,
       path: `/localisation-audit/${domainSlug}`,
     }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, `/localisation-audit/${domainSlug}`, {
       title: metadata.title,
       description: metadata.description,
       type: "website",
-    },
+    }),
   };
 }
 

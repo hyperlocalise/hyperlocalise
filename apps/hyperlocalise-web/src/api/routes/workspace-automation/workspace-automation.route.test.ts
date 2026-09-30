@@ -221,7 +221,7 @@ describe("workspace automation routes", () => {
     };
     expect(createdBody.automation).toMatchObject({
       name: "Repository translation check",
-      model: "openai/gpt-5.6-luna",
+      model: "openai/gpt-6-luna",
       configVersion: 1,
     });
     expect(createdBody.recentRuns).toEqual([]);

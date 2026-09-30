@@ -1,48 +1,88 @@
 ---
-title: "Storage overview"
-description: "How local files, sidecar metadata, and remote adapters work during sync."
+title: "TMS integrations: one CLI for your translation platforms"
+sidebarTitle: "TMS integrations"
+description: "Use one localization CLI with Crowdin, Lokalise, Phrase Strings, Smartling, POEditor, and LILT AI. Compare file commands, entry sync, and Platform workflows."
 ---
 
-## What the storage layer does
+Hyperlocalise is an all-in-one localization CLI with provider-specific file
+commands and a shared entry-sync workflow. Keep local AI translation and checks
+in the same tool you use to move content to and from supported translation platforms.
 
-Storage connects:
+## What is a TMS-agnostic localization CLI?
 
-- local translation files,
-- sidecar provenance metadata,
-- remote adapter APIs.
+A TMS-agnostic CLI lets you choose among supported translation management systems
+without tying local translation and checks to one vendor. In Hyperlocalise, you
+choose your AI provider separately from your TMS. Changing TMS still requires new
+credentials, project IDs, locale mappings, and a review of provider behavior.
 
-## Supported adapters
+## Supported TMS commands and adapters
 
-- [Crowdin](/cli/storage/crowdin)
-- [LILT AI](/cli/storage/lilt)
-- [Lokalise](/cli/storage/lokalise)
-- [Phrase](/cli/storage/phrase)
-- [POEditor](/cli/storage/poeditor)
-- [Smartling](/cli/storage/smartling)
+| Provider | File commands | Configuration for file commands | Shared entry sync |
+| --- | --- | --- | --- |
+| [Crowdin](/cli/commands/crowdin) | Sources, translations, branches, status, glossary and TM exchange | Supported `crowdin.yml` / `crowdin.yaml` fields | [Experimental adapter](/cli/storage/crowdin) |
+| [Lokalise](/cli/commands/lokalise) | Sources, translations, locale/file lists, glossary download | Flags; optional `i18n.yml` storage credentials | [Experimental adapter](/cli/storage/lokalise) |
+| [Phrase Strings](/cli/commands/phrase) | Push/pull, locales, upload cleanup, glossary/TM download | Supported `.phrase.yml` fields or flags | [Experimental adapter](/cli/storage/phrase) |
+| [Smartling](/cli/commands/smartling) | Sources, translations, file status, projects, glossary and TM operations | Flags and environment variables | [Experimental adapter](/cli/storage/smartling) |
+| POEditor | No dedicated file command family | — | [Experimental adapter](/cli/storage/poeditor) |
+| LILT AI | No dedicated file command family | — | [Experimental adapter](/cli/storage/lilt) |
 
-## Entry identity
+Check each command reference for supported flags and compatibility gaps. Adapter
+maturity does not imply feature parity with a provider's official CLI. Pin a tested
+release in CI and consult the [stability matrix](/cli/reference/stability-matrix).
 
-Each translation entry is identified by:
+## Choose the right workflow
 
-- `key`
-- `context`
-- `locale`
+### Provider file commands
 
-## Why sidecar metadata exists
+Use `hyperlocalise crowdin`, `lokalise`, `phrase`, or `smartling` for provider file
+uploads, downloads, and the operations listed above. These commands use provider
+APIs and their own configuration. Their file support depends on the provider and
+operation, not just the [local CLI parser](/cli/reference/formats/overview).
 
-Your user-facing text stays in normal translation files. Operational metadata (for example draft vs curated state) stays in sidecar metadata files so translation content remains clean.
+Start with [Crowdin approved translations](/cli/guides/crowdin-approved-translations),
+[Lokalise imports](/cli/guides/lokalise-translation-import),
+[Phrase configuration reuse](/cli/guides/phrase-existing-config), or
+[Smartling published downloads](/cli/guides/smartling-published-translations).
 
-## Pull and push lifecycle
+### Shared TMS entry sync
 
-1. `run` generates local drafts (`origin=llm`, `state=draft`).
-2. `sync push` sends local changes to remote storage.
-3. Human translators curate values in remote TMS.
-4. `sync pull` applies curated changes locally.
+Use `sync push` and `sync pull` with `storage.adapter` in `i18n.yml` for
+Hyperlocalise-managed translation entries. This experimental path reads flat JSON
+from the first bucket's `files[].to` mapping (bucket names sorted). Use one concrete
+`.json` target path template. Nested JSON, contextual entries, other formats, and
+globs are not supported on this path.
 
-## Conflict rules
+Entries use `key`, `context`, and `locale` as identity. Sidecar files keep
+provenance and draft/review state separate from user-facing translation text.
 
-- Pull can auto-apply curated-over-draft when enabled.
-- Push protects curated remote values by default.
-- `--force-conflicts` is opt-in for risky overwrite paths.
+1. Generate drafts with `run`.
+2. Preview and send entries with `sync push --dry-run`, then `sync push`.
+3. Curate translations in your TMS.
+4. Preview and retrieve entries with `sync pull --dry-run`, then `sync pull`.
 
-For specific conflict decisions, see [conflicts](/cli/troubleshooting/conflicts).
+Push protects curated remote values by default. Pull can apply curated-over-draft
+updates when enabled. Read [conflict rules](/cli/troubleshooting/conflicts) before
+using overwrite options.
+
+### Platform file sync
+
+Use a top-level `hyperlocalise` block for [Platform file sync](/platform/cli).
+`sync push` uploads source files; `sync pull` retrieves project translations.
+If both `hyperlocalise` and `storage` are present, Platform sync takes precedence.
+Use separate configurations when you need both destinations.
+
+## Does Hyperlocalise replace my TMS or its official CLI?
+
+Hyperlocalise works with your TMS. Your provider still owns its projects, review
+workflow, and provider-specific settings. The file commands are alternatives for
+the documented tasks, not replacements for every official command. Each provider
+reference includes a comparison and unsupported features.
+
+## What changes when I switch TMS?
+
+Keep your local translation and checks, then configure the new provider's account,
+project, locales, and file mappings. Verify a small upload/download cycle before
+changing CI. Exporting translation memory or a glossary does not migrate review
+history, tasks, permissions, or every provider-specific field.
+
+For connected workspace review, see [Platform TMS integrations](/platform/tms).

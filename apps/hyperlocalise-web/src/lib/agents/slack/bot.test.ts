@@ -61,7 +61,7 @@ const {
   resolveHyperlocaliseAgentLanguageModelMock: vi.fn(async () => ({
     model: "org-model",
     source: "gateway" as const,
-    modelId: "openai/gpt-5.6-luna",
+    modelId: "openai/gpt-6-luna",
   })),
 }));
 

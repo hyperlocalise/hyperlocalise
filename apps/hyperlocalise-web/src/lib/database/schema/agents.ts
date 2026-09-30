@@ -58,7 +58,7 @@ export const workspaceAutomations = pgTable(
     name: text("name").notNull(),
     instructions: text("instructions").notNull(),
     // Gateway model id used when this automation runs (orchestrator and nested agents).
-    model: text("model").notNull().default("openai/gpt-5.6-luna"),
+    model: text("model").notNull().default("openai/gpt-6-luna"),
     triggerConfig: jsonb("trigger_config")
       .$type<Record<string, unknown>>()
       .notNull()

@@ -31,25 +31,31 @@ import {
   isTriggerType,
 } from "@/lib/visual-workflows/catalog/node-catalog";
 import {
+  applyVisualWorkflowGraphConnection,
+  applyNodeConfigUpdate,
+  reconcileFlowBodyMembership,
   removeVisualWorkflowNode,
   replaceVisualWorkflowNodeType,
+  reconnectVisualWorkflowGraphConnection,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
 import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
-import { toVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/serializers";
+import { getSwitchCaseIndexByHandleId } from "@/lib/visual-workflows/schema/switch-cases";
+import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
 import type {
   MockNodeRunStatus,
   VisualCatalogType,
   VisualNodeConfig,
-  VisualWorkflowDefinition,
+  VisualWorkflowV3Definition,
   VisualWorkflowEditorState,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
 } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowStatus } from "@/lib/visual-workflows/visual-workflow-types";
-import { validateVisualWorkflowDefinition } from "@/lib/visual-workflows/validation/validate-workflow";
+import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
+import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
-import { applyVisualWorkflowConnection, VisualWorkflowCanvas } from "./visual-workflow-canvas";
+import { VisualWorkflowCanvas } from "./visual-workflow-canvas";
 import {
   VisualWorkflowCanvasActionsProvider,
   type VisualWorkflowAddFrom,
@@ -69,8 +75,30 @@ import { visualWorkflowEditorMessages as messages } from "./visual-workflow-edit
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
 import type { VisualWorkflowsApi } from "../visual-workflows-api";
 
-const NODE_GAP_X = 260;
+const NODE_GAP_X = 340;
 const NODE_GAP_Y = 36;
+
+function quickAddOffsetY(handleId: string | undefined, source: VisualWorkflowRfNode): number {
+  const sourceHeight = source.height ?? getVisualNodeDimensions(source.data.catalogType).height;
+  const branchStep = sourceHeight + NODE_GAP_Y;
+
+  if (!handleId || handleId === "true" || handleId === "each") {
+    return 0;
+  }
+  if (handleId === "false" || handleId === "done" || handleId === "error") {
+    return branchStep;
+  }
+  if (source.data.catalogType === "logic.switch" && source.data.config.kind === "logic.switch") {
+    if (handleId === "default") {
+      return source.data.config.cases.length * branchStep;
+    }
+    const caseIndex = getSwitchCaseIndexByHandleId(source.data.config.cases, handleId);
+    if (caseIndex !== null) {
+      return caseIndex * branchStep;
+    }
+  }
+  return 0;
+}
 
 export function VisualWorkflowEditor({
   initialNodes = [],
@@ -96,14 +124,17 @@ export function VisualWorkflowEditor({
   previewMode?: boolean;
   playgroundMode?: boolean;
   sampleDraft?: VisualWorkflowEditorState;
-  onSave?: (definition: VisualWorkflowDefinition) => void | Promise<void>;
+  onSave?: (definition: VisualWorkflowV3Definition) => void | Promise<void>;
   isSaving?: boolean;
   organizationSlug?: string;
   visualWorkflowId?: string;
   visualWorkflowsApi?: VisualWorkflowsApi;
-  onPersistBeforeTest?: (definition: VisualWorkflowDefinition) => Promise<unknown>;
+  onPersistBeforeTest?: (definition: VisualWorkflowV3Definition) => Promise<unknown>;
   workflowStatus?: VisualWorkflowStatus;
-  onStatusChange?: (active: boolean, definition: VisualWorkflowDefinition) => void | Promise<void>;
+  onStatusChange?: (
+    active: boolean,
+    definition: VisualWorkflowV3Definition,
+  ) => void | Promise<void>;
   statusUpdating?: boolean;
   onDelete?: () => void;
   isDeleting?: boolean;
@@ -124,10 +155,12 @@ export function VisualWorkflowEditor({
   const [copied, setCopied] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const runAbortRef = useRef<AbortController | null>(null);
+  const graphRef = useRef({ nodes, edges });
+  graphRef.current = { nodes, edges };
 
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
   const issues = useMemo(
-    () => validateVisualWorkflowDefinition(toVisualWorkflowDefinition({ name, nodes, edges })),
+    () => validateVisualWorkflowV3Definition(toVisualWorkflowV3Definition({ name, nodes, edges })),
     [edges, name, nodes],
   );
   const hasTrigger = nodes.some((node) => isTriggerType(node.data.catalogType));
@@ -140,11 +173,37 @@ export function VisualWorkflowEditor({
   }, []);
 
   const onEdgesChange = useCallback((changes: EdgeChange<VisualWorkflowRfEdge>[]) => {
-    setEdges((current) => applyEdgeChanges(changes, current));
+    const removesEdge = changes.some((change) => change.type === "remove");
+    if (!removesEdge) {
+      setEdges((current) => applyEdgeChanges(changes, current));
+      return;
+    }
+    const { nodes: currentNodes, edges: currentEdges } = graphRef.current;
+    const nextEdges = applyEdgeChanges(changes, currentEdges);
+    setEdges(nextEdges);
+    setNodes(reconcileFlowBodyMembership(currentNodes, nextEdges));
   }, []);
 
   const onConnect = useCallback((connection: Connection) => {
-    setEdges((current) => applyVisualWorkflowConnection(current, connection));
+    const next = applyVisualWorkflowGraphConnection(
+      graphRef.current.nodes,
+      graphRef.current.edges,
+      connection,
+    );
+    setNodes(next.nodes);
+    setEdges(next.edges);
+  }, []);
+
+  const onReconnect = useCallback((oldEdge: VisualWorkflowRfEdge, connection: Connection) => {
+    const next = reconnectVisualWorkflowGraphConnection(
+      graphRef.current.nodes,
+      graphRef.current.edges,
+      oldEdge.id,
+      connection,
+    );
+
+    setNodes(next.nodes);
+    setEdges(next.edges);
   }, []);
 
   const onSelectionChange = useCallback((params: OnSelectionChangeParams) => {
@@ -181,13 +240,14 @@ export function VisualWorkflowEditor({
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? `vw_${crypto.randomUUID().slice(0, 8)}`
           : `vw_${Date.now()}`;
-      const source = addFrom ? nodes.find((node) => node.id === addFrom.nodeId) : undefined;
+      const { nodes: currentNodes, edges: currentEdges } = graphRef.current;
+      const source = addFrom ? currentNodes.find((node) => node.id === addFrom.nodeId) : undefined;
       const position = source
         ? {
             x: source.position.x + NODE_GAP_X,
-            y: source.position.y + (addFrom?.handleId === "false" ? NODE_GAP_Y + 80 : 0),
+            y: source.position.y + quickAddOffsetY(addFrom?.handleId, source),
           }
-        : { x: 120 + nodes.length * 24, y: 160 + nodes.length * 16 };
+        : { x: 120 + currentNodes.length * 24, y: 160 + currentNodes.length * 16 };
 
       const nextNode: VisualWorkflowRfNode = {
         id,
@@ -201,25 +261,24 @@ export function VisualWorkflowEditor({
         },
       };
 
-      setNodes((current) => [...current, nextNode]);
       if (source && !isTriggerType(type)) {
-        const branchHandle =
-          addFrom?.handleId === "true" || addFrom?.handleId === "false" ? addFrom.handleId : null;
-        setEdges((current) =>
-          applyVisualWorkflowConnection(current, {
-            source: source.id,
-            target: id,
-            sourceHandle: branchHandle,
-            targetHandle: null,
-          }),
-        );
+        const next = applyVisualWorkflowGraphConnection([...currentNodes, nextNode], currentEdges, {
+          source: source.id,
+          target: id,
+          sourceHandle: addFrom?.handleId ?? null,
+          targetHandle: null,
+        });
+        setNodes(next.nodes);
+        setEdges(next.edges);
+      } else {
+        setNodes([...currentNodes, nextNode]);
       }
       setAddFrom(null);
       setSelectedNodeId(id);
       setPanelMode("config");
       setMobilePanelOpen(true);
     },
-    [addFrom, nodes],
+    [addFrom],
   );
 
   const onChangeConfig = useCallback(
@@ -227,13 +286,11 @@ export function VisualWorkflowEditor({
       if (!selectedNodeId) {
         return;
       }
-      setNodes((current) =>
-        current.map((node) =>
-          node.id === selectedNodeId ? { ...node, data: { ...node.data, config } } : node,
-        ),
-      );
+      const next = applyNodeConfigUpdate(nodes, edges, selectedNodeId, config);
+      setNodes(next.nodes);
+      setEdges(next.edges);
     },
-    [selectedNodeId],
+    [edges, nodes, selectedNodeId],
   );
 
   const onChangeNodeType = useCallback(
@@ -344,7 +401,7 @@ export function VisualWorkflowEditor({
       })),
     );
 
-    const definition = toVisualWorkflowDefinition({ name, nodes, edges });
+    const definition = toVisualWorkflowV3Definition({ name, nodes, edges });
 
     try {
       if (organizationSlug && visualWorkflowId && visualWorkflowsApi) {
@@ -425,7 +482,7 @@ export function VisualWorkflowEditor({
   ]);
 
   const draftJson = useCallback(() => {
-    const definition = toVisualWorkflowDefinition({ name, nodes, edges });
+    const definition = toVisualWorkflowV3Definition({ name, nodes, edges });
     return `${JSON.stringify(redactWorkflowSnapshot(definition, collectWorkflowSecrets(definition)), null, 2)}\n`;
   }, [edges, name, nodes]);
 
@@ -449,7 +506,7 @@ export function VisualWorkflowEditor({
     if (!onSave) {
       return;
     }
-    void onSave(toVisualWorkflowDefinition({ name, nodes, edges }));
+    void onSave(toVisualWorkflowV3Definition({ name, nodes, edges }));
   }, [edges, name, nodes, onSave, saveDisabled]);
 
   const handleStatusChange = useCallback(
@@ -457,7 +514,7 @@ export function VisualWorkflowEditor({
       if (!onStatusChange || (active && saveDisabled)) {
         return;
       }
-      await onStatusChange(active, toVisualWorkflowDefinition({ name, nodes, edges }));
+      await onStatusChange(active, toVisualWorkflowV3Definition({ name, nodes, edges }));
     },
     [edges, name, nodes, onStatusChange, saveDisabled],
   );
@@ -544,6 +601,7 @@ export function VisualWorkflowEditor({
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              onReconnect={onReconnect}
               onSelectionChange={onSelectionChange}
               onAddFirstStep={() => openPicker(null)}
               onLoadSample={() => {
@@ -558,6 +616,14 @@ export function VisualWorkflowEditor({
               }}
               onTestWorkflow={onTestWorkflowClick}
             />
+            <div data-testid="visual-workflow-graph-edges" hidden>
+              {edges.map((edge) => (
+                <span
+                  key={edge.id}
+                  data-testid={`visual-workflow-edge-${edge.source}-${edge.target}-${edge.sourceHandle ?? "out"}`}
+                />
+              ))}
+            </div>
           </VisualWorkflowCanvasActionsProvider>
           <VisualWorkflowEditorPanel
             open={mobilePanelOpen}
@@ -595,7 +661,10 @@ export function VisualWorkflowEditor({
                   onPick={addNode}
                 />
                 {issues.length > 0 ? (
-                  <div className="border-t border-border px-4 py-3 text-sm text-destructive">
+                  <div
+                    data-testid="visual-workflow-validation-issues"
+                    className="border-t border-border px-4 py-3 text-sm text-destructive"
+                  >
                     {issues.map((issue) => (
                       <p key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`}>
                         {intl.formatMessage(issueMessage(issue.code))}
@@ -612,7 +681,9 @@ export function VisualWorkflowEditor({
   );
 }
 
-function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
+function issueMessage(
+  code: VisualWorkflowValidationIssue["code"] | VisualWorkflowV3ValidationIssue["code"],
+) {
   switch (code) {
     case "missing_trigger":
       return messages.missingTrigger;
@@ -628,6 +699,16 @@ function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
       return messages.invalidNodeConfig;
     case "nested_for_each":
       return messages.nestedForEach;
+    case "nested_retry":
+      return messages.nestedRetry;
+    case "invalid_retry":
+      return messages.invalidRetry;
+    case "retry_foreach_nesting":
+      return messages.retryForEachNesting;
+    case "non_idempotent_retry":
+      return messages.nonIdempotentRetry;
+    case "invalid_retry_policy":
+      return messages.invalidRetryPolicy;
     default:
       return messages.invalidNodeConfig;
   }

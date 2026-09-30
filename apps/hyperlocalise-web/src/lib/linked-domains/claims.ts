@@ -12,9 +12,20 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import {
+  buildAccessibleProjectsWhere,
+  hasOrganizationWideProjectAccess,
+} from "@/api/auth/team-access";
+import type { ApiAuthContext } from "@/api/auth/workos";
+
+import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
+import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
+import {
+  withWorkspaceResourceLimit,
+  workspaceResourceFeatureIds,
+} from "@/lib/billing/workspace-resource-limits";
 import type {
   LinkedDomainStatus,
   LinkedDomainVerificationMethod,
@@ -23,13 +34,41 @@ import { isValidDomainSlug, resolveDomainIdentity } from "@/lib/localisation-aud
 import { DOMAIN_RESEARCH_MARKETS } from "@/lib/domains/research-prototype";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultNativeProjectMemory } from "@/lib/memory/ensure-default-native-project-memory";
-import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import {
+  ensureDefaultWorkspaceTeam,
+  ensureTeamMembership,
+} from "@/lib/teams/default-workspace-team";
+import { insertWithAllocatedProjectIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 
 import { buildLinkedDomainChallenges, mintLinkedDomainVerificationToken } from "./challenges";
 import type { LinkedDomainError, LinkedDomainAuditDetail, LinkedDomainPublic } from "./types";
 import { verifyLinkedDomainChallenge, type PublicFetchFn, type ResolveTxtFn } from "./verify";
 
 export type LinkedDomainRow = typeof schema.linkedDomains.$inferSelect;
+
+async function accessibleLinkedDomainsWhere(auth: ApiAuthContext, database: DatabaseClient = db) {
+  const organizationScope = eq(
+    schema.linkedDomains.organizationId,
+    auth.organization.localOrganizationId,
+  );
+  if (hasOrganizationWideProjectAccess(auth)) return organizationScope;
+
+  const accessibleProjects = database
+    .select({ id: schema.projects.id })
+    .from(schema.projects)
+    .where(await buildAccessibleProjectsWhere(auth));
+
+  return and(
+    organizationScope,
+    or(
+      inArray(schema.linkedDomains.projectId, accessibleProjects),
+      and(
+        isNull(schema.linkedDomains.projectId),
+        eq(schema.linkedDomains.createdByUserId, auth.user.localUserId),
+      ),
+    ),
+  );
+}
 
 function toPublic(row: LinkedDomainRow, auditScore: number | null = null): LinkedDomainPublic {
   return {
@@ -80,14 +119,14 @@ async function auditScoreByIds(
 }
 
 export async function listLinkedDomains(input: {
-  organizationId: string;
+  auth: ApiAuthContext;
   database?: DatabaseClient;
 }): Promise<LinkedDomainPublic[]> {
   const database = input.database ?? db;
   const rows = await database
     .select()
     .from(schema.linkedDomains)
-    .where(eq(schema.linkedDomains.organizationId, input.organizationId))
+    .where(await accessibleLinkedDomainsWhere(input.auth))
     .orderBy(desc(schema.linkedDomains.createdAt));
 
   const auditIds = rows
@@ -101,7 +140,7 @@ export async function listLinkedDomains(input: {
 }
 
 export async function getLinkedDomain(input: {
-  organizationId: string;
+  auth: ApiAuthContext;
   linkedDomainId: string;
   database?: DatabaseClient;
 }): Promise<LinkedDomainPublic | null> {
@@ -112,7 +151,7 @@ export async function getLinkedDomain(input: {
     .where(
       and(
         eq(schema.linkedDomains.id, input.linkedDomainId),
-        eq(schema.linkedDomains.organizationId, input.organizationId),
+        await accessibleLinkedDomainsWhere(input.auth),
       ),
     )
     .limit(1);
@@ -130,13 +169,13 @@ export async function getLinkedDomain(input: {
 }
 
 export async function getLinkedDomainAudit(input: {
-  organizationId: string;
+  auth: ApiAuthContext;
   linkedDomainId: string;
   database?: DatabaseClient;
 }): Promise<Result<LinkedDomainAuditDetail, LinkedDomainError>> {
   const database = input.database ?? db;
   const linkedDomain = await getLinkedDomain({
-    organizationId: input.organizationId,
+    auth: input.auth,
     linkedDomainId: input.linkedDomainId,
     database,
   });
@@ -163,7 +202,10 @@ export async function getLinkedDomainAudit(input: {
   }
 
   // Claimed domains may only expose the audit to the owning org.
-  if (audit.organizationId && audit.organizationId !== input.organizationId) {
+  if (
+    audit.organizationId &&
+    audit.organizationId !== input.auth.organization.localOrganizationId
+  ) {
     return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
   }
 
@@ -185,7 +227,7 @@ export async function getLinkedDomainAudit(input: {
 }
 
 export async function updateLinkedDomainProject(input: {
-  organizationId: string;
+  auth: ApiAuthContext;
   linkedDomainId: string;
   projectId: string | null;
   database?: DatabaseClient;
@@ -197,7 +239,7 @@ export async function updateLinkedDomainProject(input: {
     .where(
       and(
         eq(schema.linkedDomains.id, input.linkedDomainId),
-        eq(schema.linkedDomains.organizationId, input.organizationId),
+        await accessibleLinkedDomainsWhere(input.auth, database),
       ),
     )
     .limit(1);
@@ -220,7 +262,7 @@ export async function updateLinkedDomainProject(input: {
       .where(
         and(
           eq(schema.projects.id, input.projectId),
-          eq(schema.projects.organizationId, input.organizationId),
+          eq(schema.projects.organizationId, input.auth.organization.localOrganizationId),
         ),
       )
       .limit(1);
@@ -235,7 +277,12 @@ export async function updateLinkedDomainProject(input: {
   const [updated] = await database
     .update(schema.linkedDomains)
     .set({ projectId: input.projectId })
-    .where(eq(schema.linkedDomains.id, row.id))
+    .where(
+      and(
+        eq(schema.linkedDomains.id, row.id),
+        await accessibleLinkedDomainsWhere(input.auth, database),
+      ),
+    )
     .returning();
 
   if (!updated) {
@@ -252,7 +299,7 @@ export async function updateLinkedDomainProject(input: {
 }
 
 export async function updateLinkedDomainMarkets(input: {
-  organizationId: string;
+  auth: ApiAuthContext;
   linkedDomainId: string;
   marketIds: string[];
   database?: DatabaseClient;
@@ -264,7 +311,7 @@ export async function updateLinkedDomainMarkets(input: {
     .where(
       and(
         eq(schema.linkedDomains.id, input.linkedDomainId),
-        eq(schema.linkedDomains.organizationId, input.organizationId),
+        await accessibleLinkedDomainsWhere(input.auth, database),
       ),
     )
     .limit(1);
@@ -281,14 +328,22 @@ export async function updateLinkedDomainMarkets(input: {
 
   const marketIds = [...new Set(input.marketIds)];
   const supportedMarketIds = new Set(DOMAIN_RESEARCH_MARKETS.map((market) => market.id));
-  if (marketIds.some((marketId) => !supportedMarketIds.has(marketId))) {
+  if (
+    (marketIds.length === 0 && !row.localisationAuditId) ||
+    marketIds.some((marketId) => !supportedMarketIds.has(marketId))
+  ) {
     return err({ code: "invalid_market_selection", message: "Select supported markets." });
   }
 
   const [updated] = await database
     .update(schema.linkedDomains)
     .set({ marketIds })
-    .where(eq(schema.linkedDomains.id, row.id))
+    .where(
+      and(
+        eq(schema.linkedDomains.id, row.id),
+        await accessibleLinkedDomainsWhere(input.auth, database),
+      ),
+    )
     .returning();
   if (!updated) {
     return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
@@ -540,7 +595,7 @@ export async function startDirectLinkedDomainClaim(input: {
 }
 
 export async function cancelPendingLinkedDomainClaim(input: {
-  organizationId: string;
+  auth: ApiAuthContext;
   linkedDomainId: string;
   database?: DatabaseClient;
 }): Promise<Result<true, LinkedDomainError>> {
@@ -551,7 +606,7 @@ export async function cancelPendingLinkedDomainClaim(input: {
     .where(
       and(
         eq(schema.linkedDomains.id, input.linkedDomainId),
-        eq(schema.linkedDomains.organizationId, input.organizationId),
+        await accessibleLinkedDomainsWhere(input.auth, database),
       ),
     )
     .limit(1);
@@ -567,11 +622,24 @@ export async function cancelPendingLinkedDomainClaim(input: {
     });
   }
 
-  await database.delete(schema.linkedDomains).where(eq(schema.linkedDomains.id, row.id));
+  const deleted = await database
+    .delete(schema.linkedDomains)
+    .where(
+      and(
+        eq(schema.linkedDomains.id, row.id),
+        await accessibleLinkedDomainsWhere(input.auth, database),
+        eq(schema.linkedDomains.status, "pending_verification"),
+      ),
+    )
+    .returning({ id: schema.linkedDomains.id });
+  if (deleted.length === 0) {
+    return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
   return ok(true);
 }
 
 export async function verifyAndClaimLinkedDomain(input: {
+  auth: ApiAuthContext;
   organizationId: string;
   userId: string;
   linkedDomainId: string;
@@ -580,6 +648,12 @@ export async function verifyAndClaimLinkedDomain(input: {
   projectId?: string;
   /** When true (or when omitted with no projectId), create a new native project. */
   createProject?: boolean;
+  /** Markets to persist with the verified domain. Omit to preserve existing selections. */
+  marketIds?: string[];
+  /** Active team selected by the caller for a newly created project. */
+  teamId?: string;
+  /** Whether the caller needs explicit membership to see projects on the team. */
+  ensureCreatorTeamMembership?: boolean;
   resolveTxt?: ResolveTxtFn;
   fetchPublic?: PublicFetchFn;
   database?: DatabaseClient;
@@ -587,6 +661,7 @@ export async function verifyAndClaimLinkedDomain(input: {
   const database = input.database ?? db;
   const shouldCreateProject =
     input.createProject === true || (!input.projectId && input.createProject === undefined);
+  const supportedMarketIds = new Set(DOMAIN_RESEARCH_MARKETS.map((market) => market.id));
 
   const [row] = await database
     .select()
@@ -594,13 +669,25 @@ export async function verifyAndClaimLinkedDomain(input: {
     .where(
       and(
         eq(schema.linkedDomains.id, input.linkedDomainId),
-        eq(schema.linkedDomains.organizationId, input.organizationId),
+        await accessibleLinkedDomainsWhere(input.auth, database),
       ),
     )
     .limit(1);
 
   if (!row) {
     return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
+
+  const marketIds = input.marketIds ? [...new Set(input.marketIds)] : row.marketIds;
+  if (marketIds.some((marketId) => !supportedMarketIds.has(marketId))) {
+    return err({ code: "invalid_market_selection", message: "Select supported markets." });
+  }
+
+  if (!row.localisationAuditId && marketIds.length === 0) {
+    return err({
+      code: "invalid_market_selection",
+      message: "Select at least one supported market.",
+    });
   }
 
   if (row.status === "verified") {
@@ -641,10 +728,19 @@ export async function verifyAndClaimLinkedDomain(input: {
     }
   }
 
-  await database
+  const [prepared] = await database
     .update(schema.linkedDomains)
     .set({ preferredMethod: input.method })
-    .where(eq(schema.linkedDomains.id, row.id));
+    .where(
+      and(
+        eq(schema.linkedDomains.id, row.id),
+        await accessibleLinkedDomainsWhere(input.auth, database),
+      ),
+    )
+    .returning({ id: schema.linkedDomains.id });
+  if (!prepared) {
+    return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
 
   const check = await verifyLinkedDomainChallenge({
     method: input.method,
@@ -656,41 +752,83 @@ export async function verifyAndClaimLinkedDomain(input: {
   });
 
   if (isErr(check)) {
+    // Only mark failed while still unverified. A concurrent verify may have
+    // already committed status=verified; demoting it would drop the partial
+    // unique index on verified domain_key and allow another workspace to steal
+    // the domain.
     await database
       .update(schema.linkedDomains)
       .set({ status: "failed" })
-      .where(eq(schema.linkedDomains.id, row.id));
+      .where(
+        and(
+          eq(schema.linkedDomains.id, row.id),
+          await accessibleLinkedDomainsWhere(input.auth, database),
+          inArray(schema.linkedDomains.status, ["pending_verification", "failed"]),
+        ),
+      );
     return check;
   }
 
   try {
-    const verified = await database.transaction(async (tx) => {
+    const verifyInTransaction = async (tx: DatabaseTransaction) => {
       const raced = await findVerifiedLinkedDomainByDomainKey(row.domainKey, tx);
       if (raced && raced.id !== row.id) {
         throw new Error("domain_already_claimed");
       }
+      // Concurrent request already verified this claim — do not create another project.
+      if (raced && raced.id === row.id) {
+        return raced;
+      }
 
       let projectId = input.projectId ?? null;
       if (shouldCreateProject) {
-        const team = await ensureDefaultWorkspaceTeam(input.organizationId, tx);
-        const newProjectId = `project_${randomUUID()}`;
-        const [project] = await tx
-          .insert(schema.projects)
-          .values({
-            id: newProjectId,
-            organizationId: input.organizationId,
-            teamId: team.id,
-            createdByUserId: input.userId,
-            name: row.domainKey,
-            description: `Linked from localisation audit for ${row.domainKey}`,
-            source: "native",
-            sourceLocale: "en",
-            targetLocales: [],
-          })
-          .returning();
+        const team = input.teamId
+          ? (
+              await tx
+                .select()
+                .from(schema.teams)
+                .where(
+                  and(
+                    eq(schema.teams.id, input.teamId),
+                    eq(schema.teams.organizationId, input.organizationId),
+                  ),
+                )
+                .limit(1)
+            )[0]
+          : await ensureDefaultWorkspaceTeam(input.organizationId, tx);
+        if (!team) throw new Error("invalid_project_team");
+
+        const [project] = await insertWithAllocatedProjectIdentifier({
+          organizationId: input.organizationId,
+          name: row.domainKey,
+          database: tx,
+          insert: async (identifier, attemptDb) =>
+            attemptDb
+              .insert(schema.projects)
+              .values({
+                id: `project_${randomUUID()}`,
+                organizationId: input.organizationId,
+                teamId: team.id,
+                createdByUserId: input.userId,
+                name: row.domainKey,
+                identifier,
+                description: `Linked from localisation audit for ${row.domainKey}`,
+                source: "native",
+                sourceLocale: "en-US",
+                targetLocales: [],
+              })
+              .returning(),
+        });
 
         if (!project) {
           throw new Error("project_create_failed");
+        }
+        if (input.ensureCreatorTeamMembership !== false) {
+          await ensureTeamMembership({
+            teamId: team.id,
+            userId: input.userId,
+            database: tx,
+          });
         }
         await ensureDefaultNativeProjectMemory({
           organizationId: input.organizationId,
@@ -724,9 +862,22 @@ export async function verifyAndClaimLinkedDomain(input: {
           verifiedAt: new Date(),
           preferredMethod: input.method,
           projectId,
+          marketIds,
         })
-        .where(eq(schema.linkedDomains.id, row.id))
+        .where(
+          and(
+            eq(schema.linkedDomains.id, row.id),
+            await accessibleLinkedDomainsWhere(input.auth, tx),
+            inArray(schema.linkedDomains.status, ["pending_verification", "failed"]),
+          ),
+        )
         .returning();
+
+      if (!updated) {
+        // Lost the status transition (cancelled or verified mid-flight). Roll back
+        // any project created above by aborting the transaction.
+        throw new Error("linked_domain_not_pending");
+      }
 
       if (row.localisationAuditId) {
         await tx
@@ -739,7 +890,64 @@ export async function verifyAndClaimLinkedDomain(input: {
       }
 
       return updated;
-    });
+    };
+
+    let verified: LinkedDomainRow | undefined;
+    if (shouldCreateProject) {
+      const limitResult = await withWorkspaceResourceLimit(
+        {
+          organizationId: input.organizationId,
+          featureId: workspaceResourceFeatureIds.projects,
+          ...(database === db ? {} : { db: database as DatabaseTransaction }),
+          analyticsSource: "linked_domain_claim",
+        },
+        verifyInTransaction,
+      );
+      if (!limitResult.ok) {
+        if (limitResult.error.code === "workspace_resource_limit_reached") {
+          return err({
+            code: "project_limit_reached",
+            message: "Project limit reached for your current plan.",
+          });
+        }
+        return err({
+          code: "project_limit_check_failed",
+          message: "Unable to verify project limits. Try again later.",
+        });
+      }
+      verified = limitResult.value;
+    } else {
+      verified = await database.transaction(verifyInTransaction);
+    }
+
+    if (shouldCreateProject && verified.projectId) {
+      const [createdProject] = await database
+        .select()
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.id, verified.projectId),
+            eq(schema.projects.organizationId, input.organizationId),
+          ),
+        )
+        .limit(1);
+      if (!createdProject) throw new Error("project_create_failed");
+      await enqueueActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: input.userId,
+        eventType: "project_created",
+        organizationId: input.organizationId,
+        payload: {
+          name: createdProject.name,
+          providerKind: createdProject.externalProviderKind ?? undefined,
+          resourceId: createdProject.id,
+          source: createdProject.source,
+        },
+        targetId: createdProject.id,
+        targetKind: "project",
+      });
+    }
 
     return ok(toPublic(verified));
   } catch (error) {
@@ -754,6 +962,12 @@ export async function verifyAndClaimLinkedDomain(input: {
       return err({
         code: "project_not_found",
         message: "Selected project was not found in this workspace.",
+      });
+    }
+    if (message === "linked_domain_not_pending") {
+      return err({
+        code: "linked_domain_not_pending",
+        message: "This linked domain cannot be verified in its current state.",
       });
     }
     if (message.includes("uq_linked_domains_verified_domain_key")) {

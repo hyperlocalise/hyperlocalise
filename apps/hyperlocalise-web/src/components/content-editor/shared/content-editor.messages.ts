@@ -1244,6 +1244,11 @@ export const contentEditorPanelErrorBoundaryMessages = defineMessages({
 });
 
 export const contentEditorWorkspaceViewModeMessages = defineMessages({
+  multilingualView: {
+    defaultMessage: "Multilingual",
+    id: "vB15JCGjFn",
+    description: "CAT view with a column for each language",
+  },
   viewModeAria: {
     defaultMessage: "Content Editor view mode",
     id: "TEw3QR5zHs",

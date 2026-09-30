@@ -101,6 +101,14 @@ describe("overview snapshot helpers", () => {
         inputPayload: { sourceFileId: "marketing/home.json" },
       }),
     ).toEqual({ kind: "text", text: "marketing/home.json" });
+    expect(
+      resolveOverviewJobTitle({
+        id: "job_5",
+        kind: "translation",
+        inputPayload: { sourceFileId: "file_3b017712-ec57-448f-8015-ca282a5a103a" },
+        sourceFilename: "brief.docx",
+      }),
+    ).toEqual({ kind: "text", text: "brief.docx" });
   });
 
   it("keeps job kind and translation type structured for the client", () => {

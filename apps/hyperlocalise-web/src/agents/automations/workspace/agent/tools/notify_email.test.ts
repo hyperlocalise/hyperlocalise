@@ -65,7 +65,7 @@ function session(
         recipients: ["ops@example.com", "l10n@example.com"],
       },
     },
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-6-luna",
     configVersion: 1,
     nextRunAt: null,
     createdAt: new Date().toISOString(),

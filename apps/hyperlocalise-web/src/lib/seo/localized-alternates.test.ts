@@ -18,6 +18,7 @@ import {
   getLocalizedAbsoluteUrl,
   getLocalizedAlternates,
   getSitemapLanguageAlternates,
+  localizedOpenGraph,
 } from "./localized-alternates";
 import { SITE_URL } from "./site-url";
 
@@ -82,6 +83,21 @@ describe("getLocalizedAlternates", () => {
     });
     expect(alternates.languages).not.toHaveProperty("x-default");
     expect(DEFAULT_APP_LOCALE).toBe("en");
+  });
+});
+
+describe("localizedOpenGraph", () => {
+  it("sets url to the localized canonical page URL", () => {
+    expect(
+      localizedOpenGraph("fr-FR", "/pricing", {
+        title: "Pricing",
+        description: "Plans",
+        type: "website",
+      }),
+    ).toMatchObject({
+      url: `${SITE_URL}/fr-FR/pricing`,
+      title: "Pricing",
+    });
   });
 });
 

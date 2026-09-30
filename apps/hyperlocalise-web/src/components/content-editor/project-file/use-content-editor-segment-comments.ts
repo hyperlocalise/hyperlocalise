@@ -18,6 +18,9 @@ import { useIntl } from "react-intl";
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { projectFileCatApiMessages } from "./project-file-content-editor-api.messages";
 
@@ -51,7 +54,33 @@ export async function fetchProjectFileContentEditorSegmentComments(input: {
   targetLocale: string;
   externalStringId: string;
   intl: ContentEditorFormatMessageIntl;
+  goSvcClient?: GoSvcClient;
 }) {
+  if (input.goSvcClient && !input.externalResourceId) {
+    try {
+      const { comments } = await input.goSvcClient.cat.segmentComments(
+        input.organizationSlug,
+        input.projectId,
+        input.externalStringId,
+        {
+          sourcePath: input.sourcePath,
+          targetLocale: input.targetLocale,
+          ...(input.resourceType ? { resourceType: input.resourceType } : {}),
+        },
+      );
+      return comments;
+    } catch (error) {
+      if (!isCatDeferredToApp(error)) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            input.intl.formatMessage(projectFileCatApiMessages.failedToLoadSegmentComments),
+          ),
+        );
+      }
+    }
+  }
+
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
   ].files.detail.cat.segments[":externalStringId"].comments.$get({
@@ -92,6 +121,7 @@ export function useContentEditorSegmentComments(input: {
   enabled?: boolean;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const externalStringId = input.externalStringId ?? "";
 
   return useQuery({
@@ -120,6 +150,7 @@ export function useContentEditorSegmentComments(input: {
         targetLocale: input.targetLocale,
         externalStringId,
         intl,
+        goSvcClient,
       }),
   });
 }

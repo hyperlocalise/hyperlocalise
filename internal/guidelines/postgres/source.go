@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
+	sharedpostgres "github.com/hyperlocalise/hyperlocalise/internal/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -14,7 +15,7 @@ type Source struct{ pool *pgxpool.Pool }
 
 // New connects to the canonical database. It does not create or migrate tables.
 func New(ctx context.Context, databaseURL string) (*Source, error) {
-	pool, err := pgxpool.New(ctx, databaseURL)
+	pool, err := sharedpostgres.NewPool(ctx, databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("configure guideline database: %w", err)
 	}

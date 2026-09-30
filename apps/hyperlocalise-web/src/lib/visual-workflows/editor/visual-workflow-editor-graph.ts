@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { addEdge, type Connection } from "@xyflow/react";
+
 import {
   createDefaultConfig,
   getVisualNodeDimensions,
@@ -17,9 +19,15 @@ import {
 } from "../catalog/node-catalog";
 import type {
   VisualCatalogType,
+  VisualNodeConfig,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
 } from "../schema/types";
+import { collectRemovedSwitchCaseIds, pruneSwitchCaseEdges } from "../schema/switch-cases";
+import { validateVisualWorkflowConnection } from "../validation/validate-connection";
+import { computeForEachBodyNodeIds, computeRetryBodyNodeIds } from "./for-each-body-membership";
+
+export { computeForEachBodyNodeIds, computeRetryBodyNodeIds } from "./for-each-body-membership";
 
 export const VISUAL_TRIGGER_TYPES = VISUAL_NODE_CATALOG.filter(
   (item) => item.enabled && item.category === "trigger",
@@ -52,12 +60,261 @@ export function removeVisualWorkflowNode(
   edges: readonly VisualWorkflowRfEdge[],
   nodeId: string,
 ): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
+  const nextNodes = nodes.filter((node) => node.id !== nodeId);
+  const nextEdges = edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
+
   return {
-    nodes: nodes.filter((node) => node.id !== nodeId),
-    edges: edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
+    nodes: reconcileFlowBodyMembership(nextNodes, nextEdges),
+    edges: nextEdges,
   };
 }
 
 export function isVisualTriggerCatalogType(type: string): type is VisualCatalogType {
   return (VISUAL_TRIGGER_TYPES as readonly string[]).includes(type);
+}
+
+function collectRemovedMergeInputIds(
+  currentInputs: readonly { id: string }[],
+  nextInputs: readonly { id: string }[],
+): Set<string> {
+  const nextIds = new Set(nextInputs.map((input) => input.id));
+
+  return new Set(currentInputs.map((input) => input.id).filter((inputId) => !nextIds.has(inputId)));
+}
+
+function pruneMergeInputEdges(
+  edges: readonly VisualWorkflowRfEdge[],
+  nodeId: string,
+  removedInputIds: ReadonlySet<string>,
+): VisualWorkflowRfEdge[] {
+  if (removedInputIds.size === 0) {
+    return [...edges];
+  }
+
+  return edges.filter((edge) => {
+    if (edge.target !== nodeId || !edge.targetHandle) {
+      return true;
+    }
+
+    const inputId = edge.targetHandle.startsWith("value.")
+      ? edge.targetHandle.slice("value.".length)
+      : edge.targetHandle;
+
+    return !removedInputIds.has(inputId);
+  });
+}
+
+function asMutableGraph(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
+  return {
+    nodes: nodes as VisualWorkflowRfNode[],
+    edges: edges as VisualWorkflowRfEdge[],
+  };
+}
+
+function forEachBodyIdsEqual(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  const sortedLeft = [...left].toSorted();
+  const sortedRight = [...right].toSorted();
+  return sortedLeft.every((id, index) => id === sortedRight[index]);
+}
+
+function reconcileBodyMembershipForType(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+  catalogType: "logic.for_each" | "logic.retry",
+  compute: (ownerId: string, edges: readonly VisualWorkflowRfEdge[]) => string[],
+): VisualWorkflowRfNode[] {
+  let changed = false;
+  const next = nodes.map((node) => {
+    if (node.data.catalogType !== catalogType) {
+      return node;
+    }
+    const computed = compute(node.id, edges);
+    const current = node.data.bodyNodeIds ?? [];
+    if (forEachBodyIdsEqual(current, computed)) {
+      return node;
+    }
+    changed = true;
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        bodyNodeIds: computed,
+      },
+    };
+  });
+  return changed ? next : (nodes as VisualWorkflowRfNode[]);
+}
+
+export function reconcileForEachBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  return reconcileBodyMembershipForType(nodes, edges, "logic.for_each", computeForEachBodyNodeIds);
+}
+
+export function reconcileRetryBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  return reconcileBodyMembershipForType(nodes, edges, "logic.retry", computeRetryBodyNodeIds);
+}
+
+export function reconcileFlowBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  return reconcileRetryBodyMembership(reconcileForEachBodyMembership(nodes, edges), edges);
+}
+
+export function applyNodeConfigUpdate(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+  nodeId: string,
+  nextConfig: VisualNodeConfig,
+): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
+  const current = nodes.find((node) => node.id === nodeId);
+  const nextNodes = nodes.map((node) =>
+    node.id === nodeId ? { ...node, data: { ...node.data, config: nextConfig } } : node,
+  );
+  if (current?.data.config.kind === "logic.switch" && nextConfig.kind === "logic.switch") {
+    return {
+      nodes: nextNodes,
+      edges: pruneSwitchCaseEdges(
+        edges,
+        nodeId,
+        collectRemovedSwitchCaseIds(current.data.config.cases, nextConfig.cases),
+      ),
+    };
+  }
+  if (current?.data.config.kind === "logic.merge" && nextConfig.kind === "logic.merge") {
+    return {
+      nodes: nextNodes,
+      edges: pruneMergeInputEdges(
+        edges,
+        nodeId,
+        collectRemovedMergeInputIds(current.data.config.inputs, nextConfig.inputs),
+      ),
+    };
+  }
+  return { nodes: nextNodes, edges: [...edges] };
+}
+
+export function applyVisualWorkflowGraphConnection(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+  connection: Connection,
+): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
+  const validation = validateVisualWorkflowConnection({
+    nodes,
+    edges,
+    connection,
+  });
+
+  if (!validation.valid) {
+    return asMutableGraph(nodes, edges);
+  }
+
+  const nextConnection: Connection = {
+    ...connection,
+    sourceHandle: validation.sourcePortId,
+    targetHandle: validation.targetPortId,
+  };
+
+  if (validation.edgeKind === "data") {
+    return {
+      nodes: nodes as VisualWorkflowRfNode[],
+      edges: addEdge(
+        {
+          ...nextConnection,
+          data: {
+            kind: "data",
+          },
+          label: `${validation.sourcePortId} → ${validation.targetPortId}`,
+          style: {
+            strokeDasharray: "5 4",
+          },
+        },
+        [...edges],
+      ),
+    };
+  }
+
+  const nextEdges = addEdge(
+    {
+      ...nextConnection,
+      data: {
+        kind: "execution",
+      },
+      label: validation.sourcePortId,
+    },
+    [...edges],
+  );
+
+  return {
+    nodes: reconcileFlowBodyMembership(nodes, nextEdges),
+    edges: nextEdges,
+  };
+}
+
+export function reconnectVisualWorkflowGraphConnection(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+  edgeId: string,
+  connection: Connection,
+): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
+  const currentEdge = edges.find((edge) => edge.id === edgeId);
+
+  if (!currentEdge) {
+    return asMutableGraph(nodes, edges);
+  }
+
+  const validation = validateVisualWorkflowConnection({
+    nodes,
+    edges,
+    connection,
+    replacingEdgeId: edgeId,
+  });
+
+  if (!validation.valid) {
+    return asMutableGraph(nodes, edges);
+  }
+
+  const { strokeDasharray: _, ...baseStyle } = currentEdge.style ?? {};
+  const isDataEdge = validation.edgeKind === "data";
+
+  const nextEdge: VisualWorkflowRfEdge = {
+    ...currentEdge,
+    source: connection.source,
+    target: connection.target,
+    sourceHandle: validation.sourcePortId,
+    targetHandle: validation.targetPortId,
+    data: {
+      ...currentEdge.data,
+      kind: validation.edgeKind,
+    },
+    label: isDataEdge
+      ? `${validation.sourcePortId} → ${validation.targetPortId}`
+      : validation.sourcePortId,
+    style: isDataEdge
+      ? {
+          ...baseStyle,
+          strokeDasharray: "5 4",
+        }
+      : Object.keys(baseStyle).length > 0
+        ? baseStyle
+        : undefined,
+  };
+
+  const nextEdges = edges.map((edge) => (edge.id === edgeId ? nextEdge : edge));
+
+  return {
+    nodes: reconcileFlowBodyMembership(nodes, nextEdges),
+    edges: nextEdges,
+  };
 }

@@ -32,7 +32,9 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { cn } from "@/lib/primitives/cn";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   createInboxNotificationsApi,
   notificationsUnreadCountQueryKey,
@@ -41,19 +43,20 @@ import {
 import { appShellNavigationMessages } from "./app-shell-navigation.messages";
 import { OrgNavLink } from "./org-nav-link";
 import {
+  annotateNavigationByWorkspaceFlags,
   annotateNavigationItemsWithWorkspaceFlags,
   groupPreviewNavigationGroups,
 } from "@/lib/flags/workspace-flag-navigation";
 import { formatInboxUnreadBadgeLabel, inboxUnreadBadgeClassName } from "./inbox-unread-badge";
 
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
-import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import {
   buildDomainNavigationItems,
   buildHyperlabNavigationItems,
   buildOrganizationPath,
-  buildProjectNavigationItems,
+  buildProjectNavigationGroups,
   isNavigationItemActive,
   parseDomainRoute,
   parseHyperlabRoute,
@@ -100,7 +103,7 @@ export const AppShellNavigation = observer(function AppShellNavigation({
           projectId={customState.projectContext.projectId}
           pathname={pathname}
           projectName={customState.projectContext.projectName}
-          items={customState.groups.flatMap((group) => group.items)}
+          groups={customState.groups}
         />
       );
     }
@@ -200,51 +203,116 @@ function ProjectNavigation({
   pathname,
   projectName,
   items,
+  groups,
 }: {
   organizationSlug: string;
   projectId: string;
   pathname: string;
   projectName?: string;
   items?: readonly NavigationItem[];
+  groups?: readonly NavigationGroup[];
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const projectQuery = useQuery({
     queryKey: ["translation-project", organizationSlug, projectId],
-    enabled: !projectName && !items,
+    enabled: !projectName && !items && !groups,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-        param: { organizationSlug, projectId },
-      });
-      if (response.status !== 200) {
-        throw new Error(`Failed to load project (${response.status})`);
+      if (parseProviderProjectId(projectId)) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
+          param: { organizationSlug, projectId },
+        });
+        if (response.status !== 200) {
+          throw new Error(`Failed to load project (${response.status})`);
+        }
+        const body = await response.json();
+        return body.project;
       }
-      const body = await response.json();
-      return body.project;
+
+      try {
+        const body = await goSvcClient.project.get(organizationSlug, projectId);
+        return body.project;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load project"), { cause: error });
+      }
     },
   });
 
   const store = useAppShellStore();
-  const resolvedItems = annotateNavigationItemsWithWorkspaceFlags(
-    items ?? buildProjectNavigationItems(organizationSlug, projectId, intl),
-    store.workspaceFeatureFlags,
-  );
+  const rawGroups =
+    groups ??
+    (items ? [{ items }] : buildProjectNavigationGroups(organizationSlug, projectId, intl));
+  const resolvedGroups = annotateNavigationByWorkspaceFlags(rawGroups, store.workspaceFeatureFlags);
+  const tryLabel = intl.formatMessage(appShellNavigationMessages.trySection);
+  const grouped = groupPreviewNavigationGroups(resolvedGroups, tryLabel);
   const resolvedProjectName =
     projectName ??
     projectQuery.data?.name ??
     intl.formatMessage(appShellNavigationMessages.projectFallbackName);
+  const projectsHref = buildOrganizationPath(organizationSlug, "projects");
+  const allProjectsLabel = intl.formatMessage(appShellNavigationMessages.allProjects);
 
   return (
-    <ResourceScopedNavigation
-      backHref={buildOrganizationPath(organizationSlug, "projects")}
-      backLabel={intl.formatMessage(appShellNavigationMessages.allProjects)}
-      sectionLabel={intl.formatMessage(appShellNavigationMessages.projectSection)}
-      resourceName={resolvedProjectName}
-      isNameLoading={!projectName && projectQuery.isLoading}
-      items={resolvedItems}
-      pathname={pathname}
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-    />
+    <div className="flex flex-col gap-3">
+      <SidebarGroup className="p-0">
+        <SidebarGroupContent>
+          <SidebarMenu className="gap-1">
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<OrgNavLink href={projectsHref} />}
+                tooltip={allProjectsLabel}
+                className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
+                <span>
+                  <FormattedMessage {...appShellNavigationMessages.allProjects} />
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup className="gap-1 p-0">
+        <SidebarGroupLabel className="h-auto px-3 py-1 text-xs font-medium tracking-wide text-muted-foreground uppercase group-data-[collapsible=icon]:hidden">
+          <FormattedMessage {...appShellNavigationMessages.projectSection} />
+        </SidebarGroupLabel>
+        <div className="px-3 pb-1 group-data-[collapsible=icon]:hidden">
+          {!projectName && projectQuery.isLoading ? (
+            <Skeleton className="h-5 w-4/5" />
+          ) : (
+            <p className="truncate text-sm font-medium text-sidebar-foreground">
+              {resolvedProjectName}
+            </p>
+          )}
+        </div>
+      </SidebarGroup>
+
+      {grouped.map((group, groupIndex) => {
+        const content = (
+          <NavigationGroupItems
+            group={group}
+            pathname={pathname}
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+          />
+        );
+
+        if (!group.label) {
+          return (
+            <SidebarGroup key={`project-group-${groupIndex}`} className="p-0">
+              {content}
+            </SidebarGroup>
+          );
+        }
+
+        return (
+          <LabeledNavigationSection key={group.label} label={group.label} offset={groupIndex > 0}>
+            {content}
+          </LabeledNavigationSection>
+        );
+      })}
+    </div>
   );
 }
 
@@ -262,25 +330,13 @@ function DomainNavigation({
   items?: readonly NavigationItem[];
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const searchParams = useSearchParams();
   const domainQuery = useQuery({
     queryKey: ["linked-domain", organizationSlug, linkedDomainId],
     enabled: !domainName && !items && isLiveDomainResearchId(linkedDomainId),
     queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}`,
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.message || body.error || "Failed to load domain");
-      }
-      if (!body.linkedDomain) {
-        throw new Error("Failed to load domain");
-      }
+      const body = await goSvcClient.domains.getLinkedDomain(organizationSlug, linkedDomainId);
       return body.linkedDomain;
     },
   });
@@ -525,10 +581,11 @@ function NavigationGroupItems({
           return (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
-                render={<OrgNavLink href={href} />}
-                isActive={isActive}
+                render={item.disabled ? undefined : <OrgNavLink href={href} />}
+                isActive={!item.disabled && isActive}
+                disabled={item.disabled}
                 tooltip={tooltip}
-                className={navigationButtonClass(isActive)}
+                className={navigationButtonClass(!item.disabled && isActive)}
               >
                 <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>

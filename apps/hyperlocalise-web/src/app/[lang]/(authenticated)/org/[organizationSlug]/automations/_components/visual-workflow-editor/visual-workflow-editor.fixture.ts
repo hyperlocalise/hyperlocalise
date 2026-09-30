@@ -12,3 +12,8 @@
  */
 export { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
 export { visualWorkflowPlaygroundDraft } from "@/lib/visual-workflows/fixtures/playground-draft";
+export { visualWorkflowQuickAddDraft } from "@/lib/visual-workflows/fixtures/quick-add-draft";
+export { visualWorkflowRetryDraft } from "@/lib/visual-workflows/fixtures/retry-draft";
+export { visualWorkflowSwitchDeleteDraft } from "@/lib/visual-workflows/fixtures/switch-delete-draft";
+export { visualWorkflowWaitDraft } from "@/lib/visual-workflows/fixtures/wait-draft";
+export { visualWorkflowMergeDraft } from "@/lib/visual-workflows/fixtures/merge-draft";

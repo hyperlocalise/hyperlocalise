@@ -33,7 +33,7 @@ import {
 } from "../store/hyperlab-workspace-context";
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabAudience,
@@ -74,7 +74,7 @@ const HyperlabAudienceDetailConnected = observer(function HyperlabAudienceDetail
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const { audience: audienceStore } = useHyperlabWorkspace();
 
   const detailQuery = useQuery({

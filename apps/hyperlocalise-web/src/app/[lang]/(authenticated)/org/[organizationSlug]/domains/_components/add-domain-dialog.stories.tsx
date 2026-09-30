@@ -47,10 +47,10 @@ const domain = {
 };
 
 const handlers = [
-  http.post("*/api/orgs/:organizationSlug/linked-domains", () =>
+  http.post("*/v1/orgs/:organizationSlug/domains/linked-domains", () =>
     HttpResponse.json({ linkedDomain: domain }, { status: 201 }),
   ),
-  http.post("*/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/verify", () =>
+  http.post("*/v1/orgs/:organizationSlug/domains/linked-domains/:linkedDomainId/verify", () =>
     HttpResponse.json({
       linkedDomain: {
         ...domain,
@@ -61,7 +61,7 @@ const handlers = [
     }),
   ),
   http.post(
-    "*/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/market-recommendations",
+    "*/v1/orgs/:organizationSlug/domains/linked-domains/:linkedDomainId/market-recommendations",
     () =>
       HttpResponse.json({
         marketRecommendations: {
@@ -107,7 +107,7 @@ const handlers = [
         },
       }),
   ),
-  http.patch("*/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/markets", () =>
+  http.patch("*/v1/orgs/:organizationSlug/domains/linked-domains/:linkedDomainId/markets", () =>
     HttpResponse.json({
       linkedDomain: {
         ...domain,
@@ -118,10 +118,7 @@ const handlers = [
       },
     }),
   ),
-  http.post("*/api/orgs/:organizationSlug/projects", () =>
-    HttpResponse.json({ project: { id: "project_acme" } }, { status: 201 }),
-  ),
-  http.patch("*/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/project", () =>
+  http.patch("*/v1/orgs/:organizationSlug/domains/linked-domains/:linkedDomainId/project", () =>
     HttpResponse.json({
       linkedDomain: { ...domain, status: "verified", projectId: "project_acme" },
     }),
@@ -247,7 +244,7 @@ export const MarketResearchLoading: Story = {
       handlers: [
         ...handlers.slice(0, 2),
         http.post(
-          "*/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/market-recommendations",
+          "*/v1/orgs/:organizationSlug/domains/linked-domains/:linkedDomainId/market-recommendations",
           async () => {
             await delay("infinite");
             return HttpResponse.json({});
@@ -273,7 +270,7 @@ export const MarketResearchFailed: Story = {
       handlers: [
         ...handlers.slice(0, 2),
         http.post(
-          "*/api/orgs/:organizationSlug/linked-domains/:linkedDomainId/market-recommendations",
+          "*/v1/orgs/:organizationSlug/domains/linked-domains/:linkedDomainId/market-recommendations",
           () =>
             HttpResponse.json(
               { message: "Market research is temporarily unavailable." },
@@ -309,7 +306,7 @@ export const StartClaimError: Story = {
   parameters: {
     msw: {
       handlers: [
-        http.post("*/api/orgs/:organizationSlug/linked-domains", () =>
+        http.post("*/v1/orgs/:organizationSlug/domains/linked-domains", () =>
           HttpResponse.json({ error: "domain_already_claimed" }, { status: 409 }),
         ),
       ],

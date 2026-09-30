@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { BuildTextUtils } from "@univerjs/core";
 import PptxGenJS from "pptxgenjs";
 
 import {
@@ -40,10 +41,7 @@ describe("cat-office-convert", () => {
     if (snapshot.kind !== "docx") {
       throw new Error("expected docx snapshot");
     }
-    snapshot.data.body = {
-      dataStream: "Hello from CAT\r\n",
-      paragraphs: [{ startIndex: 14 }],
-    };
+    snapshot.data.body = BuildTextUtils.transform.fromPlainText("Hello from CAT");
 
     const file = await exportOfficeSnapshotToFile({
       snapshot,

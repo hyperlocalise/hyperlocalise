@@ -166,6 +166,117 @@ describe("ContentEditorReviewController", () => {
     expect(validateFormat).toHaveBeenCalledTimes(1);
   });
 
+  describe("side-by-side visible checks", () => {
+    it("does not flag empty translations on unfocused visible rows", async () => {
+      const validateFormat = vi.fn().mockResolvedValue([]);
+      const workspace = createTestWorkspace({
+        selectedSegmentId: "seg-02",
+        segments: [
+          {
+            id: "seg-01",
+            index: 1,
+            key: "first",
+            sourceText: "First",
+            targetText: "Premier",
+            sourceLocale: "en-US",
+            targetLocale: "vi",
+            status: "reviewed",
+          },
+          {
+            id: "seg-02",
+            index: 2,
+            key: "second",
+            sourceText: "Second",
+            targetText: "Deuxième",
+            sourceLocale: "en-US",
+            targetLocale: "vi",
+            status: "needs_review",
+          },
+          {
+            id: "seg-03",
+            index: 3,
+            key: "third",
+            sourceText: "Third",
+            targetText: "",
+            sourceLocale: "en-US",
+            targetLocale: "vi",
+            status: "pending",
+          },
+        ],
+      });
+      workspace.ui.setViewMode("side-by-side");
+      workspace.ui.setSideBySideViewport({
+        visibleSegmentIds: ["seg-01", "seg-02", "seg-03"],
+        loadSegmentIds: ["seg-01", "seg-02", "seg-03"],
+      });
+
+      const controller = new ContentEditorReviewController(workspace, {
+        intl,
+        services: { validateFormat },
+        queueFilter: "all",
+        usesServerQueueFilter: false,
+      });
+      controller.start();
+
+      await vi.waitFor(() => expect(validateFormat).toHaveBeenCalled());
+      expect(
+        validateFormat.mock.calls
+          .map((call) => (call[0] as { id: string }).id)
+          .toSorted((left, right) => left.localeCompare(right)),
+      ).toEqual(["seg-01", "seg-02"]);
+      controller.dispose();
+    });
+
+    it("waits until a visible target hydrates before running checks", async () => {
+      const validateFormat = vi.fn().mockResolvedValue([]);
+      const workspace = createCatWorkspace(
+        createContentEditorWorkspaceState({
+          selectedSegmentId: "seg-01",
+          queueSegments: [
+            { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+            { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+          ],
+          segments: [],
+        }),
+      );
+      workspace.ui.setViewMode("side-by-side");
+      workspace.ui.setSideBySideViewport({
+        visibleSegmentIds: ["seg-01", "seg-02"],
+        loadSegmentIds: ["seg-01", "seg-02"],
+      });
+
+      const controller = new ContentEditorReviewController(workspace, {
+        intl,
+        services: { validateFormat },
+        queueFilter: "all",
+        usesServerQueueFilter: false,
+      });
+      controller.start();
+
+      await Promise.resolve();
+      expect(validateFormat).not.toHaveBeenCalled();
+
+      workspace.applySegmentTarget("seg-01", {
+        text: "Premier",
+        externalTranslationId: "translation-1",
+        isApproved: false,
+      });
+      workspace.applySegmentTarget("seg-02", {
+        text: "Deuxième",
+        externalTranslationId: "translation-2",
+        isApproved: false,
+      });
+
+      await vi.waitFor(() => expect(validateFormat).toHaveBeenCalled());
+      expect(
+        validateFormat.mock.calls
+          .map((call) => (call[0] as { id: string }).id)
+          .toSorted((left, right) => left.localeCompare(right)),
+      ).toEqual(["seg-01", "seg-02"]);
+      controller.dispose();
+    });
+  });
+
   describe("runChecks and scheduleChecks", () => {
     it("merges QA checks from runQaChecks", async () => {
       const qaCheck: ContentEditorFormatCheck = {
@@ -819,6 +930,45 @@ describe("ContentEditorReviewController", () => {
         workspace.getFilteredQueueSegments("needs_review", true).map((segment) => segment.id),
       ).toEqual(["seg-01"]);
     });
+  });
+
+  it("preserves edits made during a pending save and leaves that segment selected", async () => {
+    let finish!: (status: ContentEditorSegmentStatus) => void;
+    const { controller, workspace } = createController(undefined, {
+      review: {
+        onApprove: () =>
+          new Promise<ContentEditorSegmentStatus>((resolve) => {
+            finish = resolve;
+          }),
+      },
+    });
+    workspace.setTargetText("seg-02", "Submitted");
+    const pending = controller.approve("seg-02", "Submitted");
+    workspace.setTargetText("seg-02", "Edited while saving");
+    finish("reviewed");
+    await pending;
+    expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Edited while saving");
+    expect(workspace.drafts.get("seg-02")?.isDirty).toBe(true);
+    expect(workspace.selectedSegmentId).toBe("seg-02");
+  });
+
+  it("keeps failed bulk items selected and refreshes once after all writes", async () => {
+    const onBulkApproveComplete = vi.fn();
+    const onApprove = vi.fn(async (id: string) => {
+      if (id === "seg-02") throw new Error("Write failed");
+      return "reviewed" as const;
+    });
+    const { controller, workspace } = createController(undefined, {
+      review: { onApprove, onBulkApproveComplete },
+    });
+    workspace.toggleSegmentChecked("seg-02", true);
+    workspace.toggleSegmentChecked("seg-03", true);
+    await controller.bulkApprove();
+    expect([...workspace.checkedSegmentIds]).toEqual(["seg-02"]);
+    expect(workspace.getSegmentView("seg-03")?.status).toBe("reviewed");
+    expect(onBulkApproveComplete).toHaveBeenCalledTimes(1);
+    expect(workspace.bulkCompletedCount).toBe(2);
+    expect(onApprove).toHaveBeenCalledWith("seg-03", "Troisième", { deferQueueRefresh: true });
   });
 
   describe("bulkApprove", () => {

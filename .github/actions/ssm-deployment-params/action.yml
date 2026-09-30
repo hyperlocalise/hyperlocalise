@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: SSM deployment params
+description: Read ECR repository, ECS cluster, and ECS service names from SSM
+inputs:
+  ecr-parameter-name:
+    description: SSM parameter name for the ECR repository
+    required: true
+  ecs-cluster-parameter-name:
+    description: SSM parameter name for the ECS cluster
+    required: true
+  ecs-service-parameter-name:
+    description: SSM parameter name for the ECS service
+    required: true
+outputs:
+  ecr-repository:
+    description: ECR repository name
+    value: ${{ steps.params.outputs.ecr-repository }}
+  ecs-cluster:
+    description: ECS cluster name
+    value: ${{ steps.params.outputs.ecs-cluster }}
+  ecs-service:
+    description: ECS service name
+    value: ${{ steps.params.outputs.ecs-service }}
+runs:
+  using: composite
+  steps:
+    - name: Read deployment parameters
+      id: params
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      env:
+        ECR_REPOSITORY_PARAMETER_NAME: ${{ inputs.ecr-parameter-name }}
+        ECS_CLUSTER_PARAMETER_NAME: ${{ inputs.ecs-cluster-parameter-name }}
+        ECS_SERVICE_PARAMETER_NAME: ${{ inputs.ecs-service-parameter-name }}
+      with:
+        script: |
+          const names = [
+            process.env.ECR_REPOSITORY_PARAMETER_NAME,
+            process.env.ECS_CLUSTER_PARAMETER_NAME,
+            process.env.ECS_SERVICE_PARAMETER_NAME,
+          ];
+          let stdout = '';
+          await exec.exec('aws', ['ssm', 'get-parameters', '--names', ...names, '--output', 'json'], {
+            listeners: { stdout: (data) => { stdout += data.toString(); } },
+          });
+          const response = JSON.parse(stdout);
+          const invalid = response.InvalidParameters ?? [];
+          if (invalid.length > 0) {
+            core.setFailed(`Missing SSM parameters: ${invalid.join(', ')}`);
+            return;
+          }
+          const byName = Object.fromEntries((response.Parameters ?? []).map((p) => [p.Name, p.Value]));
+          const wanted = {
+            'ecr-repository': [process.env.ECR_REPOSITORY_PARAMETER_NAME, 'ECR_REPOSITORY'],
+            'ecs-cluster': [process.env.ECS_CLUSTER_PARAMETER_NAME, 'ECS_CLUSTER'],
+            'ecs-service': [process.env.ECS_SERVICE_PARAMETER_NAME, 'ECS_SERVICE'],
+          };
+          for (const [output, [name, label]] of Object.entries(wanted)) {
+            const value = byName[name];
+            if (!value || value === 'None') {
+              core.setFailed(`SSM parameter missing or empty for ${label} (${name})`);
+              return;
+            }
+            core.setOutput(output, value);
+          }

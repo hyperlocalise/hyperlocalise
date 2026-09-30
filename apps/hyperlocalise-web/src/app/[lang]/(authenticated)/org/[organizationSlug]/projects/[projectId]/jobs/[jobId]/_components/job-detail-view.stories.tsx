@@ -40,6 +40,7 @@ import {
   jobDetailTaskLayoutFromLiveJob,
   jobDetailTaskLayoutFromRecord,
 } from "./job-detail-layout-helpers";
+import { CrowdinJobAssigneesField } from "./job-detail-assignee-field";
 import { JobDetailTaskView } from "./job-detail-task-view";
 import type { JobDetailRecord } from "./job-detail-types";
 import { JobProviderDetailSectionView } from "./job-provider-detail-section-view";
@@ -343,6 +344,49 @@ export const LiveCrowdinTask: Story = {
     await expect(canvas.getByText("home.json")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("tab", { name: "Comments" }));
     await expect(canvas.getByText(/Preserve product name casing/)).toBeInTheDocument();
+  },
+};
+
+const manyAssigneeNames = ["Ada", "Beau", "Cora", "Drew", "Eden"];
+const manyAssigneesJob = createLiveCrowdinJobDetail({
+  externalAssignedUsers: manyAssigneeNames,
+});
+
+export const ManyCrowdinAssignees: Story = {
+  args: taskViewArgsFromLiveJob(manyAssigneesJob),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Ada")).toBeInTheDocument();
+    await expect(canvas.getByText("+4")).toBeInTheDocument();
+    await expect(canvas.queryByText("Eden")).not.toBeInTheDocument();
+  },
+};
+
+export const CrowdinAssigneesPicker: Story = {
+  args: {
+    ...taskViewArgsFromLiveJob(manyAssigneesJob),
+    properties: taskViewArgsFromLiveJob(manyAssigneesJob).properties.map((property) =>
+      property.id === "assignees"
+        ? {
+            ...property,
+            value: (
+              <CrowdinJobAssigneesField
+                organizationSlug={organizationSlug}
+                encodedJobId="ext:crowdin:project_website:1204"
+                externalProjectId="project_website"
+                selectedExternalUserIds={["1", "2", "3", "4", "5"]}
+                fallbackLabels={manyAssigneeNames}
+                queryKey={["story-crowdin-assignees"]}
+              />
+            ),
+          }
+        : property,
+    ),
+  },
+  play: async ({ canvas }) => {
+    const trigger = canvas.getByRole("button", { name: /Assignees:/ });
+    await expect(trigger).toHaveTextContent("Ada");
+    await expect(trigger).toHaveTextContent("+4");
+    await expect(canvas.queryByText("Eden")).not.toBeInTheDocument();
   },
 };
 

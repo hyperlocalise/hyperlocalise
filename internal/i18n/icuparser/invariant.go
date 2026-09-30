@@ -415,6 +415,23 @@ func isPlaceholderName(s string) bool {
 		return false
 	}
 
+	// BOLT OPTIMIZATION: Fast-path for simple ASCII identifier placeholder names (without '.' or '[').
+	// This covers >99% of i18n placeholders (e.g. {name}, {count}, {folder}, {user_id}) in a single,
+	// branch-predictor-friendly byte loop without complex indexing or unicode checks.
+	if isASCIIPlaceholderFirst(s[0]) {
+		isSimple := true
+		for i := 1; i < len(s); i++ {
+			b := s[i]
+			if b >= 0x80 || !isASCIIPlaceholderSubsequent(b) || b == '.' || b == '[' {
+				isSimple = false
+				break
+			}
+		}
+		if isSimple {
+			return true
+		}
+	}
+
 	for i := 0; i < len(s); {
 		// BOLT OPTIMIZATION: Fast-path for ASCII to avoid range rune decoding and unicode checks.
 		ch := s[i]

@@ -12,11 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ContentEditorMultilingualConfig } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import { observer } from "mobx-react-lite";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
+import type { ContentEditorSegmentFileIdentityLookupRef } from "@/components/content-editor/project-file/use-content-editor-mutations";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 import {
   AlertDialog,
@@ -62,6 +64,7 @@ import { ContentEditorWorkspaceViewModeSync } from "./content-editor-workspace-v
 import { useContentEditorWorkspaceRuntime } from "./use-content-editor-workspace-runtime";
 
 export interface ContentEditorWorkspaceContainerProps {
+  multilingual?: ContentEditorMultilingualConfig;
   initialState: ContentEditorWorkspaceState;
   /** Overrides persisted view-mode preference for this workspace instance. */
   initialViewMode?: ContentEditorWorkspaceViewMode;
@@ -74,6 +77,7 @@ export interface ContentEditorWorkspaceContainerProps {
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
     contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+    retainedSegmentIdentityRef?: ContentEditorSegmentFileIdentityLookupRef;
     enabled: boolean;
   };
   dependencies?: PartialCatWorkspaceDependencies;
@@ -125,6 +129,7 @@ export interface ContentEditorWorkspaceContainerProps {
 const ContentEditorWorkspaceContainerObserver = observer(
   function ContentEditorWorkspaceContainerObserver({
     store,
+    multilingual,
     queueSnapshot,
     lazySegment,
     initialSegmentKeyOrId,
@@ -202,6 +207,10 @@ const ContentEditorWorkspaceContainerObserver = observer(
     useLayoutEffect(() => {
       store.ui.setTranslationViewLoading(Boolean(isTranslationViewLoading));
     }, [isTranslationViewLoading, store]);
+
+    useLayoutEffect(() => {
+      store.ui.setMultilingualViewAvailable(Boolean(multilingual));
+    }, [multilingual, store]);
 
     // Cache hits make the query look ready before ContentEditorQueryBridge writes the
     // snapshot. Block bulk targets until both the query and the store agree.
@@ -314,6 +323,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
           ]}
         >
           <ContentEditorWorkspaceView
+            multilingual={multilingual}
             shell={controller.shell}
             queueSegments={controller.queueSegments}
             selectedSegment={controller.selectedSegment}
@@ -342,6 +352,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
             queueSearch={queueSearch}
             isQueueFetchingPage={isQueueFetchingPage}
             isQueueListLoading={resolvedQueueListLoading}
+            isQueueDataPending={isQueueBulkBlocked}
             isTranslationViewLoading={store.ui.translationViewLoading}
             isCommentsLoading={store.isCommentsLoading}
             isSegmentTargetLoading={store.isSegmentTargetLoading}

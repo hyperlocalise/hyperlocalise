@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 	"unsafe"
 
 	"github.com/gobwas/glob"
@@ -615,16 +616,33 @@ func isReactIntlCallName(name string) bool {
 }
 
 func findCallOpenAfterIdentifier(src string, index int) int {
-	i := skipWhitespaceAndComments(src, index)
-	if i < len(src) && src[i] == '<' {
-		typeEnd, ok := findTypeArgumentEnd(src, i)
-		if !ok {
+	i := index
+	for i < len(src) {
+		i = skipWhitespaceAndComments(src, i)
+		if i >= len(src) {
 			return -1
 		}
-		i = skipWhitespaceAndComments(src, typeEnd+1)
-	}
-	if i < len(src) && src[i] == '(' {
-		return i
+		if src[i] == '!' {
+			i++
+			continue
+		}
+		if i+1 < len(src) && src[i] == '?' && src[i+1] == '.' {
+			i += 2
+			continue
+		}
+		if src[i] == '<' {
+			typeEnd, ok := findTypeArgumentEnd(src, i)
+			if !ok {
+				return -1
+			}
+			i = typeEnd + 1
+			continue
+		}
+		if src[i] == '(' {
+			return i
+		}
+
+		return -1
 	}
 
 	return -1
@@ -632,6 +650,9 @@ func findCallOpenAfterIdentifier(src string, index int) int {
 
 func firstObjectArgument(src string, callOpen int) int {
 	i := skipWhitespaceAndComments(src, callOpen+1)
+	for i < len(src) && src[i] == '(' {
+		i = skipWhitespaceAndComments(src, i+1)
+	}
 	if i < len(src) && src[i] == '{' {
 		return i
 	}
@@ -694,10 +715,10 @@ func extractMessageDescriptor(src, file string, objectStart, objectEnd int) (ext
 		}
 	}
 
+	if !hasDefaultMessage || strings.TrimSpace(defaultMessage) == "" {
+		return extractMessage{}, false, nil
+	}
 	if !hasID || strings.TrimSpace(id) == "" {
-		if !hasDefaultMessage {
-			return extractMessage{}, false, nil
-		}
 		id = generatedFormatJSMessageID(defaultMessage, description)
 	}
 
@@ -752,12 +773,9 @@ func parseObjectPropertyValue(src, key string, valueStart, objectEnd int) (extra
 		return property, nil
 	}
 
-	if isStringQuote(src[valueStart]) {
-		value, _, ok := parseStaticStringLiteral(src, valueStart)
-		if ok {
-			property.stringValue = value
-			property.stringValueSet = true
-		}
+	if value, _, ok := parseStaticMessageExpression(src, valueStart, objectEnd); ok {
+		property.stringValue = value
+		property.stringValueSet = true
 		return property, nil
 	}
 
@@ -787,6 +805,10 @@ func readObjectPropertyKey(src string, index int) (string, int, bool) {
 	if isStringQuote(src[index]) {
 		value, next, ok := parseStaticStringLiteral(src, index)
 		return value, next, ok
+	}
+	if isDecimalDigit(src[index]) {
+		value, next := readNumericPropertyKey(src, index)
+		return value, next, true
 	}
 	if !isIdentifierStart(src[index]) {
 		return "", index, false
@@ -888,24 +910,27 @@ func extractReactIntlJSXMessagesRange(src, file string, start, end int) ([]extra
 		if err != nil {
 			return nil, err
 		}
-		id := attrs["id"]
-		if strings.TrimSpace(id) == "" {
-			defaultMessage, ok := attrs["defaultMessage"]
-			if !ok {
-				i = tagEnd + 1
-				continue
+		defaultMessage := attrs["defaultMessage"]
+		if defaultMessage == "" && !isSelfClosingJSXTag(src, tagEnd) {
+			if child, ok := readStaticJSXTextChildren(src, tagEnd+1, name); ok {
+				defaultMessage = child
 			}
+		}
+		id := attrs["id"]
+		if strings.TrimSpace(defaultMessage) == "" {
+			i = tagEnd + 1
+			continue
+		}
+		if strings.TrimSpace(id) == "" {
 			id = generatedFormatJSMessageID(defaultMessage, attrs["description"])
 		}
-		if strings.TrimSpace(id) != "" {
-			messages = append(messages, extractMessage{
-				ID:             id,
-				DefaultMessage: attrs["defaultMessage"],
-				Description:    attrs["description"],
-				sourcePath:     file,
-				sourcePos:      i,
-			})
-		}
+		messages = append(messages, extractMessage{
+			ID:             id,
+			DefaultMessage: defaultMessage,
+			Description:    attrs["description"],
+			sourcePath:     file,
+			sourcePos:      i,
+		})
 		i = tagEnd + 1
 	}
 
@@ -1053,17 +1078,205 @@ func isReactIntlMessageAttribute(name string) bool {
 }
 
 func parseStaticJSXExpression(expr string) (string, bool) {
-	trimmed := strings.TrimSpace(expr)
-	if trimmed == "" || !isStringQuote(trimmed[0]) {
-		return "", false
-	}
-
-	value, next, ok := parseStaticStringLiteral(trimmed, 0)
-	if !ok || strings.TrimSpace(trimmed[next:]) != "" {
+	value, next, ok := parseStaticMessageExpression(expr, 0, len(expr))
+	if !ok || strings.TrimSpace(expr[next:]) != "" {
 		return "", false
 	}
 
 	return value, true
+}
+
+func parseStaticMessageExpression(src string, index, end int) (string, int, bool) {
+	i := skipWhitespaceAndComments(src, index)
+	if i >= end {
+		return "", index, false
+	}
+	if src[i] == '(' {
+		closeParen, ok := findMatchingDelimiter(src, i, '(', ')')
+		if !ok || closeParen > end {
+			return "", index, false
+		}
+		value, _, ok := parseStaticMessageExpression(src, i+1, closeParen)
+		if !ok {
+			return "", index, false
+		}
+
+		return continueStaticStringConcat(src, closeParen+1, end, value)
+	}
+	if src[i] == '[' {
+		value, next, ok := parseStaticStringArray(src, i, end)
+		if !ok {
+			return "", index, false
+		}
+
+		return continueStaticStringConcat(src, next, end, value)
+	}
+
+	return parseStaticStringConcat(src, i, end)
+}
+
+func continueStaticStringConcat(src string, index, end int, prefix string) (string, int, bool) {
+	i := skipTSConstAssertion(src, index, end)
+	i = skipWhitespaceAndComments(src, i)
+	if i >= end || src[i] != '+' {
+		return prefix, i, true
+	}
+
+	rest, next, ok := parseStaticStringConcat(src, i+1, end)
+	if !ok {
+		return "", index, false
+	}
+
+	return prefix + rest, next, true
+}
+
+func parseStaticStringConcat(src string, index, end int) (string, int, bool) {
+	var b strings.Builder
+	i := index
+	needPart := true
+	for i < end {
+		i = skipWhitespaceAndComments(src, i)
+		if !needPart {
+			if i < end && src[i] == '+' {
+				i++
+				needPart = true
+				continue
+			}
+
+			return b.String(), i, true
+		}
+		if i >= end || !isStringQuote(src[i]) {
+			return "", index, false
+		}
+		value, next, ok := parseStaticStringLiteral(src, i)
+		if !ok {
+			return "", index, false
+		}
+		b.WriteString(value)
+		i = skipTSConstAssertion(src, next, end)
+		needPart = false
+	}
+	if needPart {
+		return "", index, false
+	}
+
+	return b.String(), i, true
+}
+
+func parseStaticStringArray(src string, index, end int) (string, int, bool) {
+	closeBracket, ok := findMatchingDelimiter(src, index, '[', ']')
+	if !ok || closeBracket > end {
+		return "", index, false
+	}
+
+	var b strings.Builder
+	saw := false
+	for i := index + 1; i < closeBracket; {
+		i = skipWhitespaceAndComments(src, i)
+		if i >= closeBracket {
+			break
+		}
+		if src[i] == ',' {
+			i++
+			continue
+		}
+		value, next, ok := parseStaticMessageExpression(src, i, closeBracket)
+		if !ok {
+			return "", index, false
+		}
+		b.WriteString(value)
+		saw = true
+		i = skipValueExpression(src, next, closeBracket)
+	}
+	if !saw {
+		return "", index, false
+	}
+
+	return b.String(), closeBracket + 1, true
+}
+
+func skipTSConstAssertion(src string, index, end int) int {
+	i := skipWhitespaceAndComments(src, index)
+	if i+1 >= end || src[i] != 'a' || src[i+1] != 's' {
+		return index
+	}
+	if i+2 < end && isIdentifierPart(src[i+2]) {
+		return index
+	}
+	name, next := readIdentifier(src, skipWhitespaceAndComments(src, i+2))
+	if name != "const" {
+		return index
+	}
+
+	return next
+}
+
+func isSelfClosingJSXTag(src string, tagEnd int) bool {
+	i := tagEnd - 1
+	for i >= 0 && isWhitespaceByte(src[i]) {
+		i--
+	}
+
+	return i >= 0 && src[i] == '/'
+}
+
+func readStaticJSXTextChildren(src string, start int, name string) (string, bool) {
+	closeStart, ok := findJSXClosingTag(src, start, name)
+	if !ok {
+		return "", false
+	}
+	inner := strings.TrimSpace(src[start:closeStart])
+	if inner == "" || strings.Contains(inner, "{") {
+		return "", false
+	}
+	if strings.IndexByte(inner, '&') >= 0 {
+		return html.UnescapeString(inner), true
+	}
+
+	return inner, true
+}
+
+func findJSXClosingTag(src string, start int, name string) (int, bool) {
+	close := "</" + name
+	depth := 1
+	for i := start; i < len(src); {
+		if next, ok := skipIgnoredToken(src, i); ok {
+			i = next
+			continue
+		}
+		if src[i] != '<' {
+			i++
+			continue
+		}
+		if strings.HasPrefix(src[i:], close) {
+			j := i + len(close)
+			if j < len(src) && isJSXNamePart(src[j]) {
+				i++
+				continue
+			}
+			j = skipWhitespaceAndComments(src, j)
+			if j < len(src) && src[j] == '>' {
+				depth--
+				if depth == 0 {
+					return i, true
+				}
+			}
+			i++
+			continue
+		}
+		if i+1 < len(src) && src[i+1] != '/' && src[i+1] != '!' {
+			openName, nameEnd, ok := readJSXElementName(src, i+1)
+			if ok && openName == name {
+				tagEnd, ok := findJSXTagEnd(src, nameEnd)
+				if ok && !isSelfClosingJSXTag(src, tagEnd) {
+					depth++
+				}
+			}
+		}
+		i++
+	}
+
+	return 0, false
 }
 
 func skipQuotedJSXAttribute(src string, index int) int {
@@ -1510,24 +1723,98 @@ func startsAtIdentifierBoundary(src string, index int) bool {
 }
 
 func readIdentifier(src string, index int) (string, int) {
-	if index >= len(src) || !isIdentifierStart(src[index]) {
+	if index >= len(src) {
+		return "", index
+	}
+	r, size := utf8.DecodeRuneInString(src[index:])
+	if !isIdentifierStartRune(r) {
 		return "", index
 	}
 
+	i := index + size
+	for i < len(src) {
+		r, size = utf8.DecodeRuneInString(src[i:])
+		if r == utf8.RuneError && size == 1 {
+			break
+		}
+		if !isIdentifierPartRune(r) {
+			break
+		}
+		i += size
+	}
+
+	return src[index:i], i
+}
+
+func isDecimalDigit(ch byte) bool {
+	return '0' <= ch && ch <= '9'
+}
+
+func isHexDigit(ch byte) bool {
+	return isDecimalDigit(ch) || ('A' <= ch && ch <= 'F') || ('a' <= ch && ch <= 'f')
+}
+
+func isBinaryDigit(ch byte) bool {
+	return ch == '0' || ch == '1'
+}
+
+func isOctalDigit(ch byte) bool {
+	return '0' <= ch && ch <= '7'
+}
+
+func readNumericPropertyKey(src string, index int) (string, int) {
+	if index+1 < len(src) && src[index] == '0' {
+		switch src[index+1] {
+		case 'x', 'X':
+			return readPrefixedNumericPropertyKey(src, index, isHexDigit)
+		case 'b', 'B':
+			return readPrefixedNumericPropertyKey(src, index, isBinaryDigit)
+		case 'o', 'O':
+			return readPrefixedNumericPropertyKey(src, index, isOctalDigit)
+		}
+	}
+
 	i := index + 1
-	for i < len(src) && isIdentifierPart(src[i]) {
+	for i < len(src) && (isDecimalDigit(src[i]) || src[i] == '_') {
+		i++
+	}
+	if i < len(src) && src[i] == 'n' {
 		i++
 	}
 
 	return src[index:i], i
 }
 
+func readPrefixedNumericPropertyKey(src string, index int, isDigit func(byte) bool) (string, int) {
+	i := index + 2
+	for i < len(src) && (isDigit(src[i]) || src[i] == '_') {
+		i++
+	}
+	if i < len(src) && src[i] == 'n' {
+		i++
+	}
+
+	return src[index:i], i
+}
+
+func isIdentifierStartRune(r rune) bool {
+	return r == '_' || r == '$' || unicode.IsLetter(r)
+}
+
+func isIdentifierPartRune(r rune) bool {
+	return isIdentifierStartRune(r) ||
+		unicode.IsDigit(r) ||
+		unicode.IsMark(r) ||
+		r == '\u200c' ||
+		r == '\u200d'
+}
+
 func isIdentifierStart(ch byte) bool {
-	return ch == '_' || ch == '$' || ('A' <= ch && ch <= 'Z') || ('a' <= ch && ch <= 'z')
+	return ch == '_' || ch == '$' || ('A' <= ch && ch <= 'Z') || ('a' <= ch && ch <= 'z') || ch >= 0xc0
 }
 
 func isIdentifierPart(ch byte) bool {
-	return isIdentifierStart(ch) || ('0' <= ch && ch <= '9')
+	return isIdentifierStart(ch) || ('0' <= ch && ch <= '9') || ch >= 0x80
 }
 
 func isStringQuote(ch byte) bool {

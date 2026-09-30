@@ -17,16 +17,15 @@ ignoredBuiltDependencies:
   - unrs-resolver
 minimumReleaseAgeExclude:
   - '@ai-sdk/anthropic@4.0.19'
-  - '@ai-sdk/gateway@4.0.28'
+  - '@ai-sdk/gateway@4.0.28 || 4.0.85'
   - '@ai-sdk/openai@4.0.20'
   - '@ai-sdk/react@4.0.40'
-  - ai@7.0.37
+  - ai@7.0.37 || 7.0.105
+  - '@ai-sdk/provider-utils@5.0.43'
+  - '@ai-sdk/provider@4.0.17'
 overrides:
   vite: "8.2.2"
-  # Pin each undici major independently (transitive deps use 6/7/8).
-  "undici@^6.0.0": "6.28.0"
-  "undici@^7.0.0": "7.29.0"
-  "undici@^8.0.0": "8.10.1"
+  undici: "8.10.2"
   devalue: "5.9.2"
   qs: "6.16.0"
   "@anthropic-ai/sdk": "0.123.0"
@@ -54,6 +53,8 @@ overrides:
   "brace-expansion@^5.0.0": "5.0.9"
   mermaid: "11.17.2"
   valibot: "1.4.2"
+  # eslint-plugin-formatjs imports Binary_Property/*/regex.js; @unicode 2.0.5+ ships .mjs only.
+  "@unicode/unicode-17.0.0": "2.0.4"
   # TipTap 3.28 pulls prosemirror-model ^1.25.9 while nested PM packages
   # still resolve 1.25.8; dual copies break editor Fragment identity.
   prosemirror-model: "1.25.11"

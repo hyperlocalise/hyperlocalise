@@ -22,6 +22,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useDomainResearchCatalog } from "./domain-research-context";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 
 import { DomainResearchEmpty } from "./domain-research-empty";
@@ -31,7 +33,7 @@ import { domainRanksViewMessages as messages } from "./domain-ranks-view.message
 import { liveDomainResearchQueryKey, useLiveDomainResearch } from "./use-live-domain-research";
 
 const RANK_GRID =
-  "grid grid-cols-[minmax(12rem,1.2fr)_repeat(2,minmax(4rem,0.4fr))_minmax(10rem,1fr)_minmax(4.5rem,0.45fr)] items-center gap-3 px-3 py-2.5";
+  "grid grid-cols-[minmax(12rem,1.2fr)_repeat(2,minmax(4rem,0.4fr))_minmax(10rem,1fr)_minmax(4.5rem,0.45fr)_minmax(5rem,0.4fr)] items-center gap-3 px-3 py-2.5";
 
 function parseKeywordLines(value: string) {
   const unique = new Map<string, string>();
@@ -54,6 +56,7 @@ export function DomainRanksView({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const catalog = useDomainResearchCatalog(linkedDomainId);
   const liveResearch = useLiveDomainResearch(organizationSlug, linkedDomainId);
   const [addOpen, setAddOpen] = useState(false);
@@ -78,24 +81,18 @@ export function DomainRanksView({
     }
     setAddPending(true);
     try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/ranks`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ marketId, keywords }),
-        },
-      );
-      const body = (await response.json().catch(() => ({}))) as { message?: string };
-      if (!response.ok) {
-        toast.error(body.message || intl.formatMessage(messages.addError));
-        return false;
-      }
+      await goSvcClient.domains.trackRanks(organizationSlug, linkedDomainId, {
+        marketId,
+        keywords,
+      });
       await queryClient.invalidateQueries({
         queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
       });
       toast.success(intl.formatMessage(messages.addSuccess));
       return true;
+    } catch (error) {
+      toast.error(goSvcErrorMessage(error, intl.formatMessage(messages.addError)));
+      return false;
     } finally {
       setAddPending(false);
     }
@@ -107,19 +104,13 @@ export function DomainRanksView({
     }
     setRefreshPending(true);
     try {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/ranks/refresh`,
-        { method: "POST" },
-      );
-      const body = (await response.json().catch(() => ({}))) as { message?: string };
-      if (!response.ok) {
-        toast.error(body.message || intl.formatMessage(messages.refreshError));
-        return;
-      }
+      await goSvcClient.domains.refreshRanks(organizationSlug, linkedDomainId);
       await queryClient.invalidateQueries({
         queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
       });
       toast.success(intl.formatMessage(messages.refreshSuccess));
+    } catch (error) {
+      toast.error(goSvcErrorMessage(error, intl.formatMessage(messages.refreshError)));
     } finally {
       setRefreshPending(false);
     }
@@ -184,6 +175,9 @@ export function DomainRanksView({
             <span className="text-end">
               <FormattedMessage {...messages.columnVolume} />
             </span>
+            <span className="text-end">
+              <FormattedMessage {...messages.columnDevice} />
+            </span>
           </div>
           <div className="divide-y divide-border">
             {ranks.map((row) => {
@@ -212,6 +206,9 @@ export function DomainRanksView({
                   </span>
                   <span className="text-end tabular-nums text-sm text-muted-foreground">
                     {intl.formatNumber(row.volume)}
+                  </span>
+                  <span className="text-end text-sm capitalize text-muted-foreground">
+                    {row.device ?? "desktop"}
                   </span>
                 </div>
               );

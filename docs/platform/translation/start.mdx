@@ -1,0 +1,36 @@
+---
+title: "Start a translation"
+description: "Request translations for specific files and languages, then follow the resulting jobs."
+---
+
+Use **New Request** for one-off work or a saved automation for repeated translation. State the project, source files, and target locales explicitly so the request has a clear scope.
+
+## Before you start
+
+Upload the source files, configure target locales, and add any required [guideline, glossary, or translation memory](/platform/knowledge). Your role and project access must allow the requested actions. Generation also depends on workspace usage and AI configuration.
+
+## Request one-off work
+
+1. Open **New Request** under **Agents**.
+2. Identify the project and exact files to translate.
+3. Specify target locales and the resources the agent should use.
+4. Review the request and any action confirmation shown in the conversation.
+5. Follow the work in **My Jobs** or the project’s job list.
+
+Example request:
+
+```text
+Translate product.json in the Storefront project from en to de and fr.
+Use the Storefront glossary and project guideline.
+Keep placeholders unchanged and prepare the translations for human review.
+```
+
+Agent requests depend on the tools available in your workspace. If the request cannot find a file, confirm that upload has finished and that the selected project contains that path.
+
+## Repeat this after uploads
+
+Create a [Source upload automation](/platform/automation/create-automation), scoped to the project. Test it with a small file before using it for a large batch. An upload and a translation request are separate operations; avoid submitting a manual request for the same work when an automation already handles it.
+
+## What completion means
+
+Job success means the generation operation completed. Open the [Content Editor](/platform/cat) to check and approve the content, then [download translations](/platform/translation/download). For a failed or stuck job, see [Track and recover jobs](/platform/translation/jobs).

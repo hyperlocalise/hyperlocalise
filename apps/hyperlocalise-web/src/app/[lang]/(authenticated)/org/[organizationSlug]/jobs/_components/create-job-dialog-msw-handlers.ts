@@ -91,10 +91,10 @@ export const createJobDialogProviderMembers = [
 ];
 
 export const createJobDialogMswHandlers = [
-  http.get("/api/orgs/:organizationSlug/projects/:projectId/files", () =>
+  http.get("*/v1/orgs/:organizationSlug/projects/:projectId/files", () =>
     HttpResponse.json({ files: createJobDialogNativeFiles }),
   ),
-  http.get("/api/orgs/:organizationSlug/members", () =>
+  http.get("*/v1/orgs/:organizationSlug/members", () =>
     HttpResponse.json({ members: createJobDialogNativeMembers }),
   ),
   http.post("/api/orgs/:organizationSlug/projects/:projectId/jobs", () =>

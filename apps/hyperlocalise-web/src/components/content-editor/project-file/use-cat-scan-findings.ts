@@ -17,7 +17,8 @@ import type {
   ContentEditorFormatCheck,
   ContentEditorSegment,
 } from "@/components/content-editor/shared/types";
-import { projectQaReportClient } from "@/lib/qa/qa-report-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
 import {
   formatChecksFromScanFindings,
   type TranslationQaFindingLike,
@@ -37,6 +38,11 @@ export function useCatScanFindings(input: {
   targetLocale: string;
   enabled: boolean;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
+  const projectQaReportClient = useMemo(
+    () => createProjectQaReportClient(goSvcClient),
+    [goSvcClient],
+  );
   const query = useQuery({
     queryKey: [
       "cat-qa-scan-findings",
@@ -64,10 +70,7 @@ export function useCatScanFindings(input: {
             offset: String(offset),
           },
         });
-        if (!response.ok) {
-          return { runId: null, findings: [] as CatScanFinding[] };
-        }
-        const body = (await response.json()) as {
+        const body = response as {
           runId: string | null;
           findings: Array<{
             translationKeyId: string | null;

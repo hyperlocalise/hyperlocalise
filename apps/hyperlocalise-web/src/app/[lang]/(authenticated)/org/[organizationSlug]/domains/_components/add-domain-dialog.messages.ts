@@ -268,9 +268,9 @@ export const addDomainDialogMessages = defineMessages({
     description: "Market metric",
   },
   noRecommendations: {
-    id: "LQqGbywv5w",
+    id: "ONBegCBs6b",
     defaultMessage:
-      "No recommendations were found. You can continue with no markets and add them later.",
+      "No recommendations were found. Select at least one supported market to continue.",
     description: "Markets empty state",
   },
   continueToProject: {
@@ -353,6 +353,21 @@ export const addDomainDialogMessages = defineMessages({
     id: "pbPMcXnHkC",
     defaultMessage: "Add selected markets",
     description: "Submit button label",
+  },
+  saveSelectedMarkets: {
+    id: "FgFTX9ttZW",
+    defaultMessage: "Save markets",
+    description: "Submit button label when editing linked domain markets",
+  },
+  marketSelectionRequired: {
+    id: "gV0ro12ITy",
+    defaultMessage: "Select at least one market to continue.",
+    description: "Required market selection validation message",
+  },
+  marketSelectionLimit: {
+    id: "6L6wa37ZDx",
+    defaultMessage: "You can select up to 16 markets.",
+    description: "Maximum market selection message",
   },
   invalidDomain: {
     id: "ezTvHw7x6I",

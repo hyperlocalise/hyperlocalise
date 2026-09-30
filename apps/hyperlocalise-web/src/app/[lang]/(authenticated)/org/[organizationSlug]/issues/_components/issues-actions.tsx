@@ -19,10 +19,12 @@ import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import type { IssueSheetImportFormat } from "@/lib/projects/issue-sheet/issue-sheet-import-format";
 
 import { IssueSheetCreateIssueDialog } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-create-issue-dialog";
+import { IssueSheetImportMenu } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-import-menu";
 import { issuesActionsMessages } from "./issues-actions.messages";
 import { IssuesProjectImportDialog } from "./issues-project-import-dialog";
 
@@ -35,22 +37,22 @@ export function IssuesActions({
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [importFormat, setImportFormat] = useState<IssueSheetImportFormat>("csv");
+  const { client: goSvcClient } = useGoSvcClient();
 
   const projectsQuery = useQuery({
     queryKey: ["projects", organizationSlug],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load projects");
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects.map((project) => ({
+          id: project.id,
+          name: project.name,
+          targetLocales: project.targetLocales ?? [],
+        }));
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load projects"), { cause: error });
       }
-      const body = await response.json();
-      return body.projects.map((project) => ({
-        id: project.id,
-        name: project.name,
-        targetLocales: project.targetLocales ?? [],
-      }));
     },
   });
 
@@ -59,14 +61,13 @@ export function IssuesActions({
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setImportOpen(true)}
+        <IssueSheetImportMenu
           disabled={projectsQuery.isLoading}
-        >
-          <FormattedMessage {...issuesActionsMessages.importCsv} />
-        </Button>
+          onSelectFormat={(nextFormat) => {
+            setImportFormat(nextFormat);
+            setImportOpen(true);
+          }}
+        />
         <Button
           type="button"
           onClick={() => setCreateOpen(true)}
@@ -90,6 +91,7 @@ export function IssuesActions({
         organizationSlug={organizationSlug}
         projects={projects}
         onImported={onIssuesChanged}
+        format={importFormat}
       />
     </>
   );

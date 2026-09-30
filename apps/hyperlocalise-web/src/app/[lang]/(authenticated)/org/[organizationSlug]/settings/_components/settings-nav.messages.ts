@@ -25,6 +25,26 @@ export const settingsNavMessages = defineMessages({
     id: "2tqV6BfsFk",
     description: "Settings nav group label for workspace pages",
   },
+  membersTeamsGroup: {
+    defaultMessage: "Members & Teams",
+    id: "v5v/H6tZaM",
+    description: "Settings nav group label for members and teams",
+  },
+  integrationsAiGroup: {
+    defaultMessage: "Integrations & AI",
+    id: "/yLtzBRXLM",
+    description: "Settings nav group label for integrations and AI engine",
+  },
+  appsGroup: {
+    defaultMessage: "Apps & Features",
+    id: "beO/JeLdTY",
+    description: "Settings nav group label for apps and experiments",
+  },
+  billingGroup: {
+    defaultMessage: "Billing",
+    id: "B735KJgHcl",
+    description: "Settings nav group label for billing",
+  },
   youGroup: {
     defaultMessage: "You",
     id: "JOEjtzHHyY",
@@ -39,6 +59,31 @@ export const settingsNavMessages = defineMessages({
     defaultMessage: "General",
     id: "qGYTsk/C8o",
     description: "Settings nav item for workspace general settings",
+  },
+  members: {
+    defaultMessage: "Members & Teams",
+    id: "y63jFiOQdg",
+    description: "Settings nav item for workspace members and teams",
+  },
+  integrations: {
+    defaultMessage: "Integrations",
+    id: "jzgZ33edcY",
+    description: "Settings nav item for third-party integrations",
+  },
+  aiEngine: {
+    defaultMessage: "AI Engine",
+    id: "TP5Mnh6pdF",
+    description: "Settings nav item for AI engine providers",
+  },
+  domains: {
+    defaultMessage: "Domains",
+    id: "/B9xo+vNOt",
+    description: "Settings nav item for linked domains and audits",
+  },
+  hyperlab: {
+    defaultMessage: "Hyperlab",
+    id: "oMHhdgMQGQ",
+    description: "Settings nav item for Hyperlab experiments",
   },
   billing: {
     defaultMessage: "Billing",

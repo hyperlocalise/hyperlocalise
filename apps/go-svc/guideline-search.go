@@ -12,8 +12,9 @@ import (
 	guidelineindex "github.com/hyperlocalise/hyperlocalise/internal/guidelines/turbopuffer"
 )
 
-func (h *handler) requireGuidelines(w http.ResponseWriter) bool {
+func (h *handler) requireGuidelines(w http.ResponseWriter, r *http.Request) bool {
 	if h.guidelines == nil {
+		noteRequest(r, "code", "guideline_search_not_configured")
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "guideline_search_not_configured"})
 		return false
 	}
@@ -21,7 +22,7 @@ func (h *handler) requireGuidelines(w http.ResponseWriter) bool {
 }
 
 func (h *handler) syncGuidelines(w http.ResponseWriter, r *http.Request) {
-	if !h.requireGuidelines(w) {
+	if !h.requireGuidelines(w, r) {
 		return
 	}
 	var scope guidelines.Scope
@@ -29,14 +30,14 @@ func (h *handler) syncGuidelines(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.guidelines.Sync(r.Context(), scope); err != nil {
-		writeProviderError(w, err)
+		writeProviderError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handler) searchGuidelines(w http.ResponseWriter, r *http.Request) {
-	if !h.requireGuidelines(w) {
+	if !h.requireGuidelines(w, r) {
 		return
 	}
 	var req struct {
@@ -49,7 +50,7 @@ func (h *handler) searchGuidelines(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.guidelines.Retrieve(r.Context(), req.Scope, req.Query, req.Limit)
 	if err != nil {
-		writeProviderError(w, err)
+		writeProviderError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)

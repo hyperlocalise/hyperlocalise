@@ -30,7 +30,7 @@ import {
 
 describe("research prototype catalog", () => {
   it("keeps the legacy markets and includes common research markets", () => {
-    expect(DOMAIN_RESEARCH_MARKETS.length).toBeGreaterThan(4);
+    expect(DOMAIN_RESEARCH_MARKETS).toHaveLength(39);
     expect(DEFAULT_DOMAIN_RESEARCH_MARKET_IDS).toEqual([
       "france-fr",
       "germany-de",
@@ -44,6 +44,8 @@ describe("research prototype catalog", () => {
     expect(new Set(DOMAIN_RESEARCH_MARKETS.map((market) => market.id)).size).toBe(
       DOMAIN_RESEARCH_MARKETS.length,
     );
+    expect(DOMAIN_RESEARCH_MARKETS.every((market) => market.label.length > 0)).toBe(true);
+    expect(DOMAIN_RESEARCH_MARKETS.every((market) => market.locationCode > 0)).toBe(true);
   });
 
   it("lists the Paper domain set", () => {

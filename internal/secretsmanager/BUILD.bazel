@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "secretsmanager",
+    srcs = ["loader.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/secretsmanager",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_aws_aws_sdk_go_v2//service/secretsmanager",
+    ],
+)
+
+go_test(
+    name = "secretsmanager_test",
+    srcs = ["loader_test.go"],
+    embed = [":secretsmanager"],
+    deps = [
+        "@com_github_aws_aws_sdk_go_v2//service/secretsmanager",
+        "@com_github_stretchr_testify//require",
+    ],
+)

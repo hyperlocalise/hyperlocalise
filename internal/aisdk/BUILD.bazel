@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "aisdk",
+    srcs = [
+        "client.go",
+        "doc.go",
+        "errors.go",
+        "evaluate.go",
+        "types.go",
+        "validate.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/aisdk",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "aisdk_test",
+    srcs = ["evaluate_test.go"],
+    embed = [":aisdk"],
+)

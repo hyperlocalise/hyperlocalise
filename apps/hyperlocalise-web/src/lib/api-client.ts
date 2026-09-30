@@ -73,7 +73,6 @@ function createOrgSlugClient(origin: string) {
     ...pickClientPaths(integrations, [
       "contentful-connections",
       "mcp-server-connections",
-      "linked-domains",
       "semrush-connections",
       "zernio-connections",
       "ahrefs-connections",
@@ -88,15 +87,7 @@ function createOrgSlugClient(origin: string) {
       "github-installation",
       "gitlab",
     ]),
-    ...pickClientPaths(workspace, [
-      "members",
-      "workspace",
-      "billing",
-      "api-keys",
-      "activity-logs",
-      "hyperlab",
-      "overview",
-    ]),
+    ...pickClientPaths(workspace, ["workspace", "billing", "api-keys", "overview"]),
   };
 }
 

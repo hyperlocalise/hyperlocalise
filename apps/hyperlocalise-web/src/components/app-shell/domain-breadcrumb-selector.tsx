@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
 import type { DomainResearchSurface } from "@/lib/domains/research-prototype";
-import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { BreadcrumbCrumbSelector } from "./breadcrumb-crumb-selector";
@@ -43,24 +43,11 @@ export function DomainBreadcrumbSelector({
 }: DomainBreadcrumbSelectorProps) {
   const intl = useIntl();
   const router = useOrgRouter();
+  const { client: goSvcClient } = useGoSvcClient();
   const domainsQuery = useQuery({
     queryKey: organizationDomainsQueryKey(organizationSlug),
     queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains`,
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomains?: LinkedDomainPublic[];
-        message?: string;
-        error?: string;
-      };
-
-      if (!response.ok) {
-        throw new Error(
-          body.message || body.error || intl.formatMessage(messages.domainsLoadError),
-        );
-      }
-
+      const body = await goSvcClient.domains.listLinkedDomains(organizationSlug);
       return (body.linkedDomains ?? []).map((domain) => ({
         value: domain.id,
         label: domain.domainKey,

@@ -20,6 +20,9 @@ import {
   type VisualWorkflowInterpreterResult,
 } from "./interpreter";
 import type { VisualWorkflowDefinition } from "../schema/types";
+import type { RetryResumeState } from "./retry-delay";
+import type { WaitResumeState } from "./wait-schedule";
+import type { MergeResumeState } from "./merge-timeout";
 
 export type {
   VisualWorkflowGraphIndex,
@@ -36,6 +39,12 @@ export async function runVisualWorkflowInterpreter(input: {
   triggerInput?: Record<string, unknown>;
   executeNode?: VisualWorkflowInterpreterExecuteNode;
   onNodeUpdate?: (update: VisualWorkflowInterpreterNodeUpdate) => Promise<void> | void;
+  signal?: AbortSignal;
+  shouldCancel?: () => Promise<boolean>;
+  mockMode?: boolean;
+  retryBackoff?: RetryResumeState | null;
+  waitResume?: WaitResumeState | null;
+  mergeResume?: MergeResumeState | null;
 }): Promise<VisualWorkflowInterpreterResult> {
   return runVisualWorkflowInterpreterCore({
     ...input,

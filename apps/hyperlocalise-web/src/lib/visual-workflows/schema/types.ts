@@ -15,6 +15,7 @@ import type { Edge, Node } from "@xyflow/react";
 import type { EmailProviderSlug } from "@/lib/email/constants";
 
 export const VISUAL_WORKFLOW_SCHEMA_VERSION = 2 as const;
+export const VISUAL_WORKFLOW_SCHEMA_V3_VERSION = 3 as const;
 
 export type VisualCatalogType =
   | "trigger.manual"
@@ -22,13 +23,17 @@ export type VisualCatalogType =
   | "trigger.github"
   | "trigger.source_upload"
   | "action.http"
+  | "action.content_sync"
   | "action.notify_slack"
   | "action.notify_email"
   | "logic.if"
   | "logic.switch"
   | "logic.set"
   | "ai.agent"
-  | "logic.for_each";
+  | "logic.for_each"
+  | "logic.retry"
+  | "flow.wait"
+  | "logic.merge";
 
 export type VisualCatalogCategory = "trigger" | "action" | "logic" | "ai" | "flow";
 
@@ -111,6 +116,16 @@ export type VisualNodeConfig =
       onError?: VisualNodeErrorBehavior;
     }
   | {
+      kind: "action.content_sync";
+      projectId: string;
+      provider: "github" | "gitlab" | "contentful" | "intercom";
+      connectionId: string;
+      resourceKey: string;
+      providerFolder: string;
+      projectFolder: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
       kind: "action.notify_slack";
       channelId: string;
       message: string;
@@ -130,14 +145,38 @@ export type VisualNodeConfig =
   | {
       kind: "logic.switch";
       expression: string;
-      cases: { value: string }[];
+      cases: { id: string; value: string }[];
     }
   | {
       kind: "logic.set";
       assignments: VisualKeyValuePair[];
     }
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
-  | { kind: "logic.for_each"; collection: string };
+  | { kind: "logic.for_each"; collection: string }
+  | {
+      kind: "logic.retry";
+      maxAttempts?: number;
+      initialDelayMs?: number;
+      backoffMultiplier?: number;
+      jitter?: boolean;
+      retryableErrorCodes?: string[];
+      acknowledgeDuplicateRisk?: boolean;
+    }
+  | {
+      kind: "flow.wait";
+      mode: "duration" | "timestamp" | "condition";
+      durationMs?: number;
+      timestamp?: string;
+      condition?: string;
+      pollingIntervalMs?: number;
+      timeoutMs?: number;
+    }
+  | {
+      kind: "logic.merge";
+      mode: VisualMergeMode;
+      inputs: VisualMergeInput[];
+      timeoutMs?: number;
+    };
 
 export type VisualWorkflowNodeData = WorkflowNodeContract & {
   catalogType: VisualCatalogType;
@@ -151,7 +190,11 @@ export type VisualWorkflowNodeData = WorkflowNodeContract & {
 };
 
 export type VisualWorkflowRfNode = Node<VisualWorkflowNodeData, VisualCatalogType>;
-export type VisualWorkflowRfEdge = Edge;
+export type VisualWorkflowRfEdgeData = {
+  kind?: "execution" | "data";
+};
+
+export type VisualWorkflowRfEdge = Edge<VisualWorkflowRfEdgeData>;
 
 export type CanonicalVisualWorkflowNode = WorkflowNodeContract & {
   id: string;
@@ -167,6 +210,18 @@ export type CanonicalVisualWorkflowEdge = {
   targetHandle: string | null;
 };
 
+type VisualWorkflowV3EdgeBase = {
+  id: string;
+  source: string;
+  target: string;
+  sourcePortId: string;
+  targetPortId: string;
+};
+
+export type VisualWorkflowV3Edge =
+  | (VisualWorkflowV3EdgeBase & { kind: "execution" })
+  | (VisualWorkflowV3EdgeBase & { kind: "data" });
+
 export type VisualWorkflowDefinition = {
   schemaVersion: typeof VISUAL_WORKFLOW_SCHEMA_VERSION;
   name: string;
@@ -175,6 +230,14 @@ export type VisualWorkflowDefinition = {
   editor: {
     positions: Record<string, { x: number; y: number }>;
   };
+};
+
+export type VisualWorkflowV3Definition = Omit<
+  VisualWorkflowDefinition,
+  "schemaVersion" | "edges"
+> & {
+  schemaVersion: typeof VISUAL_WORKFLOW_SCHEMA_V3_VERSION;
+  edges: VisualWorkflowV3Edge[];
 };
 
 /** @deprecated Use VisualWorkflowDefinition */
@@ -189,6 +252,11 @@ export type VisualWorkflowValidationIssue = {
     | "invalid_trigger_config"
     | "invalid_node_config"
     | "nested_for_each"
+    | "nested_retry"
+    | "invalid_retry"
+    | "retry_foreach_nesting"
+    | "non_idempotent_retry"
+    | "invalid_retry_policy"
     | "duplicate_id"
     | "cycle"
     | "invalid_handle"
@@ -205,4 +273,11 @@ export type VisualWorkflowEditorState = {
   name: string;
   nodes: VisualWorkflowRfNode[];
   edges: VisualWorkflowRfEdge[];
+};
+
+export type VisualMergeMode = "all" | "any" | "first_success";
+
+export type VisualMergeInput = {
+  id: string;
+  name: string;
 };

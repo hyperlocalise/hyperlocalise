@@ -38,6 +38,7 @@ import {
   buildAccessibleProjectsWhere,
   buildProjectLinkedGlossaryWhere,
   canAccessGlossary,
+  canAccessProject,
   ownedProjectWhere,
 } from "@/api/auth/team-access";
 import { jobIdParamsSchema } from "@/api/routes/public-jobs/public-jobs.schema";
@@ -137,6 +138,8 @@ import {
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import { createTranslationJob } from "@/lib/agent-runtime/tools/translation-tools";
 import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { isAutumnBooleanFeatureEnabled } from "@/lib/billing/autumn-boolean-feature-access";
 import { getOwnedGlossary, isGlossaryManageAllowed } from "@/api/routes/glossary/glossary.shared";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { GlossaryValidationError } from "@/lib/glossary/glossary";
@@ -980,6 +983,19 @@ function mcpToolError(code: string, message: string, details?: Record<string, un
   };
 }
 
+const QUERIES_BOARD_UNAVAILABLE_MESSAGE = "Queries is not included in your current plan.";
+
+async function requireMcpQueriesBoard(apiAuth: ApiAuthContext) {
+  const enabled = await isAutumnBooleanFeatureEnabled({
+    organizationId: apiAuth.organization.localOrganizationId,
+    featureId: autumnFeatureIds.queriesBoard,
+  });
+  if (!enabled) {
+    return mcpToolError("feature_unavailable", QUERIES_BOARD_UNAVAILABLE_MESSAGE);
+  }
+  return null;
+}
+
 function detailedMcpIssue(issue: IssueSheetIssue) {
   const { key, sourceText, ...issueDetails } = issue;
 
@@ -1294,6 +1310,11 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       inputSchema: mcpListIssuesInputSchema,
     },
     async (query: OrganizationIssuesQuery) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       const result = await organizationIssueService.list(apiAuth, query);
       const nextOffset = query.offset + result.issues.length;
       const hasMore = nextOffset < result.total;
@@ -1329,6 +1350,11 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       inputSchema: mcpListIssueCommentsInputSchema,
     },
     async ({ projectId, issueId, limit, cursor }) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       if ((cursor as unknown) === invalidCommentCursor) {
         return mcpToolError("invalid_comment_cursor", "Invalid comment cursor");
       }
@@ -1395,6 +1421,11 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       inputSchema: mcpCreateIssueCommentInputSchema,
     },
     async ({ projectId, issueId, ...commentBody }) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       const [project] = await db
         .select({ id: schema.projects.id })
         .from(schema.projects)
@@ -1461,6 +1492,11 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       inputSchema: mcpGetIssueInputSchema,
     },
     async ({ projectId, issueId }) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       const [project] = await db
         .select({ id: schema.projects.id })
         .from(schema.projects)
@@ -1502,6 +1538,11 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       inputSchema: mcpUpdateIssueInputSchema,
     },
     async ({ projectId, issueId, priority, ...updates }) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       if (!isWriteBackTranslationAllowed(apiAuth.membership.role)) {
         return mcpToolError("forbidden", "Insufficient permissions to update issues");
       }
@@ -1589,6 +1630,11 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       inputSchema: mcpCreateIssueInputSchema,
     },
     async ({ projectId, idempotencyKey, ...body }) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       if (!isWriteBackTranslationAllowed(apiAuth.membership.role)) {
         return mcpToolError("forbidden", "Insufficient permissions to create issues");
       }
@@ -2451,15 +2497,24 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
         resolvedProjectId = ensuredProject.value;
       }
 
-      const projectWhere =
-        target.kind === "provider"
-          ? and(
-              eq(schema.projects.organizationId, apiAuth.organization.localOrganizationId),
-              eq(schema.projects.id, resolvedProjectId),
-            )
-          : await ownedProjectWhere(apiAuth, resolvedProjectId);
+      // Always enforce project access after materialization. Org-only lookups on
+      // provider targets skipped team ACL and live TMS membership for already-
+      // materialized `ext:` rows (ensureOrganizationProjectRecord early-returns).
+      const accessibleProject = await canAccessProject(apiAuth, resolvedProjectId);
+      if (!accessibleProject) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
 
-      const [project] = await db.select().from(schema.projects).where(projectWhere).limit(1);
+      const [project] = await db
+        .select()
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, apiAuth.organization.localOrganizationId),
+            eq(schema.projects.id, accessibleProject.id),
+          ),
+        )
+        .limit(1);
 
       if (!project) {
         return mcpToolError("project_not_found", "Project not found or inaccessible");

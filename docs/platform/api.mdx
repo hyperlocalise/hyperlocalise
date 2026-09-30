@@ -3,9 +3,9 @@ title: "Public API"
 description: "HTTP API for the same multilingual content operations pipeline the CLI uses."
 ---
 
-The public API is the machine edge of Hyperlocalise Cloud. It is the contract the [CLI](/platform/cli) uses to upload sources and download translations. Use it from your own scripts when you need the same operations without the CLI.
+The public API is the machine edge of Hyperlocalise Platform. It is the contract the [CLI](/platform/cli) uses to upload sources and download translations. Use it from your own scripts when you need the same operations without the CLI.
 
-There is no published OpenAPI spec yet. The routes below are the `/api/v1` surface Cloud actually serves.
+There is no published OpenAPI spec yet. The routes below are the `/api/v1` surface Platform actually serves.
 
 ## Base URL
 
@@ -64,7 +64,7 @@ Permission: `files:write`
 | Field | Required | Notes |
 | --- | --- | --- |
 | `file` | yes | The source file bytes |
-| `projectId` | yes | Cloud project id |
+| `projectId` | yes | Platform project id |
 | `sourcePath` | yes | Repository-style path, max 2048 characters |
 | `sourceHash` | no | |
 | `commitSha` | no | |
@@ -154,7 +154,7 @@ JSON body. Discriminate on `type`.
 }
 ```
 
-The CLI does not call this endpoint during `sync push`. Cloud automations and the UI create jobs after upload.
+The CLI does not call this endpoint during `sync push`. Platform automations and the UI create jobs after upload.
 
 ### Latest job for a source path
 

@@ -85,4 +85,24 @@ export const visualWorkflowsPageMessages = defineMessages({
     id: "it5kPOtvZj",
     description: "Toast when visual workflow deletion fails",
   },
+  statusDraft: {
+    defaultMessage: "Draft",
+    id: "XVyJ8t4WfM",
+    description: "Visual workflow list status for unpublished drafts",
+  },
+  statusActive: {
+    defaultMessage: "Active",
+    id: "//TpvvzaTN",
+    description: "Visual workflow list status when the workflow is live",
+  },
+  statusPaused: {
+    defaultMessage: "Paused",
+    id: "ksFVpxkIyn",
+    description: "Visual workflow list status when the workflow is paused",
+  },
+  statusArchived: {
+    defaultMessage: "Archived",
+    id: "ovGZxV6gQB",
+    description: "Visual workflow list status when the workflow is archived",
+  },
 });

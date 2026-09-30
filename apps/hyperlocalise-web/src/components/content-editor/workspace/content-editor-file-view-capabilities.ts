@@ -35,6 +35,10 @@ const SEGMENT_VIEWS = [
   "comfortable",
   "side-by-side",
 ] as const satisfies readonly ContentEditorWorkspaceViewMode[];
+const MULTILINGUAL_SEGMENT_VIEWS = [
+  ...SEGMENT_VIEWS,
+  "multilingual",
+] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 const FILE_ONLY_VIEWS = ["file"] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 
 function extensionOf(sourcePath: string): string | null {
@@ -63,6 +67,8 @@ function officeViewerIdForExtension(extension: string | null): ContentEditorFile
 export function resolveCatFileViewCapabilities(input: {
   sourcePath?: string | null;
   contentKind?: ContentEditorContentKind | null;
+  /** The multilingual table needs a locale/key configuration the workspace may not have. */
+  multilingualViewAvailable?: boolean;
 }): ContentEditorFileViewCapabilities {
   const sourcePath = input.sourcePath?.trim() ?? "";
   const contentKind = input.contentKind ?? null;
@@ -109,7 +115,7 @@ export function resolveCatFileViewCapabilities(input: {
   // String Content Editor files and unknown paths stay in segment views.
   return {
     family: "text",
-    availableViews: SEGMENT_VIEWS,
+    availableViews: input.multilingualViewAvailable ? MULTILINGUAL_SEGMENT_VIEWS : SEGMENT_VIEWS,
     defaultView: "side-by-side",
     viewerId: null,
   };

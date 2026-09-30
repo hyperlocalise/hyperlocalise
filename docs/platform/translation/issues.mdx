@@ -1,0 +1,28 @@
+---
+title: "Resolve translation issues"
+description: "Investigate placeholder, terminology, and contextual issues before approving translations."
+---
+
+Use **Has issues** in the Content Editor to focus on strings that need attention. Resolve the underlying problem before approving the target text.
+
+## Work through an issue
+
+1. Open the affected file and target locale in the [Content Editor](/platform/cat).
+2. Filter to **Has issues**, then select a segment.
+3. Compare source and target, including **Placeholders & ICU**, **Length**, and relevant terminology.
+4. Correct the target and inspect the checks again.
+5. Approve when the translation is ready and your role permits it.
+
+Keep placeholder names exactly as written in the source. For example, `{userName}` must not become `{nom}`. Translate the visible wording inside ICU plural branches while preserving the message syntax. See [ICU troubleshooting](/cli/troubleshooting/icu-placeholders) for concrete syntax examples.
+
+## Track a decision in Board
+
+Open **Board** when the issue needs an owner or a broader product decision. Include the project, file path, key, locale, source wording, proposed translation, and the decision needed. Revisit the affected segment after the team resolves the issue.
+
+A tracker item and a translation approval serve different purposes. Check the translation itself before considering the content ready to ship.
+
+## Repeated quality issues
+
+If the same term or tone issue appears across files, update the relevant [glossary or guideline](/platform/knowledge) and review other occurrences. If a translation-memory suggestion is outdated, correct the resource rather than repeatedly accepting and repairing it.
+
+See [Translation quality troubleshooting](/platform/help/quality) for a systematic check.
