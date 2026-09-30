@@ -42,5 +42,4 @@ describe("readDotLottieAnimations", () => {
     expect(result.value).toHaveLength(1);
     expect(result.value[0]?.entryName).toBe("a/caption.json");
   });
-
 });

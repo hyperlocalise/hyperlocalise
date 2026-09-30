@@ -113,6 +113,92 @@ class DotLottieEntryTooLargeError extends Error {
   }
 }
 
+function concatUint8Arrays(chunks: Uint8Array[]): Uint8Array {
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return merged;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(bytes).toString("base64");
+  }
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
+type ZipStreamLike = {
+  on(event: "data", listener: (chunk: Uint8Array) => void): ZipStreamLike;
+  on(event: "end" | "error", listener: (error?: unknown) => void): ZipStreamLike;
+  removeListener(event: "data", listener: (chunk: Uint8Array) => void): void;
+  destroy?: () => void;
+  resume?: () => void;
+};
+
+function readZipEntryFromStream(
+  stream: ZipStreamLike,
+  entryName: string,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+
+    const onData = (chunk: Uint8Array) => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        stream.removeListener("data", onData);
+        stream.destroy?.();
+        reject(new DotLottieEntryTooLargeError(entryName));
+        return;
+      }
+      chunks.push(chunk);
+    };
+
+    stream.on("data", onData);
+    stream.on("end", () => resolve(concatUint8Arrays(chunks)));
+    stream.on("error", reject);
+    stream.resume?.();
+  });
+}
+
+async function readZipEntryBytes(file: JSZip.JSZipObject, maxBytes: number): Promise<Uint8Array> {
+  if (typeof file.nodeStream === "function") {
+    try {
+      return await readZipEntryFromStream(
+        file.nodeStream("nodebuffer") as ZipStreamLike,
+        file.name,
+        maxBytes,
+      );
+    } catch (error) {
+      if (error instanceof DotLottieEntryTooLargeError) {
+        throw error;
+      }
+    }
+  }
+
+  const zipObject = file as JSZip.JSZipObject & {
+    internalStream?: (type: "uint8array") => ZipStreamLike;
+  };
+  if (typeof zipObject.internalStream === "function") {
+    return readZipEntryFromStream(zipObject.internalStream("uint8array"), file.name, maxBytes);
+  }
+
+  const bytes = await file.async("uint8array");
+  if (bytes.length > maxBytes) {
+    throw new DotLottieEntryTooLargeError(file.name);
+  }
+  return bytes;
+}
+
 async function readZipEntryWithLimit(
   file: JSZip.JSZipObject,
   maxBytes: number,
@@ -122,29 +208,7 @@ async function readZipEntryWithLimit(
     return err({ code: "entry_too_large", entryName: file.name });
   }
 
-  const read = await fromThrowableAsync(
-    new Promise<Uint8Array>((resolve, reject) => {
-      const stream = file.nodeStream("nodebuffer");
-      const chunks: Buffer[] = [];
-      let total = 0;
-
-      const onData = (chunk: Buffer) => {
-        total += chunk.length;
-        if (total > maxBytes) {
-          stream.removeListener("data", onData);
-          stream.destroy();
-          reject(new DotLottieEntryTooLargeError(file.name));
-          return;
-        }
-        chunks.push(chunk);
-      };
-
-      stream.on("data", onData);
-      stream.on("end", () => resolve(new Uint8Array(Buffer.concat(chunks))));
-      stream.on("error", reject);
-    }),
-  );
-
+  const read = await fromThrowableAsync(readZipEntryBytes(file, maxBytes));
   if (isErr(read)) {
     if (read.error instanceof DotLottieEntryTooLargeError) {
       return err({ code: "entry_too_large", entryName: read.error.entryName });
@@ -280,7 +344,7 @@ export async function inlineDotLottieImages(
     if (isErr(imageBytes)) {
       return imageBytes;
     }
-    const base64 = Buffer.from(imageBytes.value).toString("base64");
+    const base64 = bytesToBase64(imageBytes.value);
     asset.u = "";
     asset.p = `data:${imageMimeType(filename)};base64,${base64}`;
     asset.e = 1;

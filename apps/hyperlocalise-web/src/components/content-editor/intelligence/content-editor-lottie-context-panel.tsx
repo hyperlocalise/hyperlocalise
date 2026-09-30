@@ -14,14 +14,16 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
+import { useDeferredValue, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import { contentEditorLottieContextPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import {
+  applyLottiePreviewValues,
   buildLottiePreviewValuesFromSegments,
-  loadLottiePreviewPayload,
-  lottiePreviewValuesFingerprint,
+  fetchLottieSourceBytes,
+  loadLottiePreviewBase,
 } from "@/lib/translation/lottie/lottie-preview-load";
 
 import { ContentEditorLottiePlayer } from "./content-editor-lottie-player";
@@ -45,45 +47,45 @@ function ContentEditorLottieContextPanelContent({
 
   const sourceValues = buildLottiePreviewValuesFromSegments(previewSegments, "source");
   const targetValues = buildLottiePreviewValuesFromSegments(previewSegments, "target");
-  const sourceFingerprint = lottiePreviewValuesFingerprint(sourceValues);
-  const targetFingerprint = lottiePreviewValuesFingerprint(targetValues);
+  const deferredTargetValues = useDeferredValue(targetValues);
 
-  const sourceQuery = useQuery({
-    queryKey: [
-      "cat-lottie-preview",
-      lottieSourceUrl,
-      "source",
-      sourceFingerprint,
-      activeSegmentKey,
-    ],
-    queryFn: () =>
-      loadLottiePreviewPayload({
-        sourceUrl: lottieSourceUrl,
-        sourcePath,
-        values: sourceValues,
-        activeSegmentKey,
-      }),
+  const sourceBytesQuery = useQuery({
+    queryKey: ["cat-lottie-source-bytes", lottieSourceUrl],
+    queryFn: () => fetchLottieSourceBytes(lottieSourceUrl),
     staleTime: 60_000,
   });
 
-  const targetQuery = useQuery({
-    queryKey: [
-      "cat-lottie-preview",
-      lottieSourceUrl,
-      "target",
-      targetFingerprint,
-      activeSegmentKey,
-    ],
-    queryFn: () =>
-      loadLottiePreviewPayload({
-        sourceUrl: lottieSourceUrl,
+  const previewBaseQuery = useQuery({
+    queryKey: ["cat-lottie-preview-base", lottieSourceUrl, sourcePath, activeSegmentKey],
+    queryFn: async () => {
+      if (!sourceBytesQuery.data) {
+        return null;
+      }
+      return loadLottiePreviewBase({
+        sourceBytes: sourceBytesQuery.data,
         sourcePath,
-        values: targetValues,
         activeSegmentKey,
-      }),
-    staleTime: 10_000,
+      });
+    },
+    enabled: Boolean(sourceBytesQuery.data),
+    staleTime: 60_000,
   });
 
+  const sourcePreview = useMemo(
+    () =>
+      previewBaseQuery.data ? applyLottiePreviewValues(previewBaseQuery.data, sourceValues) : null,
+    [previewBaseQuery.data, sourceValues],
+  );
+
+  const targetPreview = useMemo(
+    () =>
+      previewBaseQuery.data
+        ? applyLottiePreviewValues(previewBaseQuery.data, deferredTargetValues)
+        : null,
+    [previewBaseQuery.data, deferredTargetValues],
+  );
+
+  const isLoading = sourceBytesQuery.isLoading || previewBaseQuery.isLoading;
   const emptyLabel = intl.formatMessage(contentEditorLottieContextPanelMessages.previewUnavailable);
 
   return (
@@ -106,8 +108,8 @@ function ContentEditorLottieContextPanelContent({
             />
           </figcaption>
           <ContentEditorLottiePlayer
-            animationData={sourceQuery.data ?? null}
-            isLoading={sourceQuery.isLoading}
+            animationData={sourcePreview}
+            isLoading={isLoading}
             emptyLabel={emptyLabel}
           />
         </figure>
@@ -120,8 +122,8 @@ function ContentEditorLottieContextPanelContent({
             />
           </figcaption>
           <ContentEditorLottiePlayer
-            animationData={targetQuery.data ?? null}
-            isLoading={targetQuery.isLoading}
+            animationData={targetPreview}
+            isLoading={isLoading}
             emptyLabel={emptyLabel}
           />
         </figure>
@@ -142,11 +144,14 @@ export const ContentEditorLottieContextPanel = observer(function ContentEditorLo
     return null;
   }
 
-  const previewSegments = workspace.getQueuePanelSegments("all", false).map((segment) => ({
-    key: segment.key,
-    sourceText: segment.sourceText,
-    targetText: segment.targetText,
-  }));
+  const previewSegments = workspace.queueSegments.map((meta) => {
+    const target = workspace.targetState(meta.id);
+    return {
+      key: meta.key,
+      sourceText: meta.sourceText,
+      targetText: target?.targetText ?? "",
+    };
+  });
 
   return (
     <ContentEditorLottieContextPanelContent

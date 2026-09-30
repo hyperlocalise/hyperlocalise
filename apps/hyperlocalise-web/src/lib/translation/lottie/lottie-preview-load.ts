@@ -71,21 +71,33 @@ function resolveDotLottieEntryName(
   return animations[0]!.entryName;
 }
 
-export async function loadLottiePreviewPayload(input: {
-  sourceUrl: string;
-  sourcePath: string;
-  values: Readonly<Record<string, string>>;
-  activeSegmentKey?: string | null;
-}): Promise<LottiePayload | null> {
-  const response = await fetch(input.sourceUrl, { credentials: "include" });
+export type LottiePreviewBase =
+  | {
+      kind: "json";
+      payload: LottiePayload;
+    }
+  | {
+      kind: "dotlottie";
+      entryName: string;
+      payload: LottiePayload;
+    };
+
+export async function fetchLottieSourceBytes(sourceUrl: string): Promise<ArrayBuffer | null> {
+  const response = await fetch(sourceUrl, { credentials: "include" });
   if (!response.ok) {
     return null;
   }
+  return response.arrayBuffer();
+}
 
+export async function loadLottiePreviewBase(input: {
+  sourceBytes: ArrayBuffer;
+  sourcePath: string;
+  activeSegmentKey?: string | null;
+}): Promise<LottiePreviewBase | null> {
   const format = inferSupportedTranslationFileFormat(input.sourcePath);
   if (format === "lottie") {
-    const archive = await response.arrayBuffer();
-    const animations = await readDotLottieAnimations(archive);
+    const animations = await readDotLottieAnimations(input.sourceBytes);
     if (isErr(animations) || animations.value.length === 0) {
       return null;
     }
@@ -94,27 +106,67 @@ export async function loadLottiePreviewPayload(input: {
     const animation =
       animations.value.find((candidate) => candidate.entryName === entryName) ??
       animations.value[0]!;
-    const entryValues = extractDotLottieEntryValues(input.values, animation.entryName);
-    let payload = applyLottieTextTranslations(animation.payload, entryValues);
-    const inlined = await inlineDotLottieImages(archive, payload);
+    const inlined = await inlineDotLottieImages(input.sourceBytes, animation.payload);
     if (isErr(inlined)) {
       return null;
     }
-    payload = inlined.value;
-    return payload;
+
+    return {
+      kind: "dotlottie",
+      entryName: animation.entryName,
+      payload: inlined.value,
+    };
   }
 
-  const text = await response.text();
+  const text = new TextDecoder().decode(input.sourceBytes);
   const payload = parseLottieJson(text);
   if (!payload) {
     return null;
   }
 
+  return {
+    kind: "json",
+    payload,
+  };
+}
+
+export function applyLottiePreviewValues(
+  base: LottiePreviewBase,
+  values: Readonly<Record<string, string>>,
+): LottiePayload {
+  if (base.kind === "dotlottie") {
+    const entryValues = extractDotLottieEntryValues(values, base.entryName);
+    return applyLottieTextTranslations(base.payload, entryValues);
+  }
+
   const jsonValues: Record<string, string> = {};
-  for (const [key, value] of Object.entries(input.values)) {
+  for (const [key, value] of Object.entries(values)) {
     if (isLottieTextKey(key)) {
       jsonValues[key] = value;
     }
   }
-  return applyLottieTextTranslations(payload, jsonValues);
+  return applyLottieTextTranslations(base.payload, jsonValues);
+}
+
+export async function loadLottiePreviewPayload(input: {
+  sourceUrl: string;
+  sourcePath: string;
+  values: Readonly<Record<string, string>>;
+  activeSegmentKey?: string | null;
+}): Promise<LottiePayload | null> {
+  const sourceBytes = await fetchLottieSourceBytes(input.sourceUrl);
+  if (!sourceBytes) {
+    return null;
+  }
+
+  const base = await loadLottiePreviewBase({
+    sourceBytes,
+    sourcePath: input.sourcePath,
+    activeSegmentKey: input.activeSegmentKey,
+  });
+  if (!base) {
+    return null;
+  }
+
+  return applyLottiePreviewValues(base, input.values);
 }
