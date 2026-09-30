@@ -35,7 +35,7 @@ const projects = [
 ];
 
 const meta = {
-  title: "App/Issues/Create Dialog",
+  title: "App/Queries/Create Dialog",
   component: IssueSheetCreateIssueDialog,
   parameters: {
     layout: "centered",

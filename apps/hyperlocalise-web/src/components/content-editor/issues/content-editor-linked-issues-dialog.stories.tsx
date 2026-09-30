@@ -59,7 +59,7 @@ function LinkedIssuesStoryHost({
 }
 
 const meta = {
-  title: "CAT/Linked Issues Dialog",
+  title: "CAT/Linked Queries Dialog",
   component: LinkedIssuesStoryHost,
   parameters: {
     layout: "fullscreen",

@@ -112,11 +112,13 @@ export const WorkspaceJobs: Story = {
     isTmsLoading: false,
     now: fixedNow,
   },
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByRole("heading", { name: "Jobs" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Filter" })).toBeInTheDocument();
     await expect(canvas.getByText("Translate marketing homepage")).toBeInTheDocument();
     await expect(canvas.getByText("Running")).toBeInTheDocument();
     await expect(canvas.getByText("Waiting for review")).toBeInTheDocument();
+    await expect(canvasElement.querySelector("table")).toBeNull();
   },
 };
 
@@ -195,6 +197,12 @@ export const Loading: Story = {
     isNativeLoading: true,
     isTmsLoading: true,
     now: fixedNow,
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByRole("heading", { name: "Jobs" })).toBeInTheDocument();
+    await expect(canvasElement.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(
+      0,
+    );
   },
 };
 
