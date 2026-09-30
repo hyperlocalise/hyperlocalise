@@ -11,6 +11,10 @@ locales:
   # Add more locales as your project grows.
   targets:
     - es-ES
+  # Optional. Copy a target catalog from another locale instead of translating it.
+  # Both locales must be listed in targets (or the origin may be locales.source).
+  # copies:
+  #   en-AU: en-GB
 
 # One bucket defines how files map from source to target.
 # Use {{source}} and {{target}} placeholders in paths.
