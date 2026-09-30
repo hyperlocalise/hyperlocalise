@@ -706,7 +706,7 @@ export class IssueSheetService {
         query: input.query,
       }),
       this.countIssueRows(conditions, input.query),
-      this.loadSummary(input),
+      this.loadSummary(conditions, input.query),
     ]);
     const issueIds = rows.map((row) => row.id);
     const valuesByIssueId = await this.loadValuesByIssueId({
@@ -2494,19 +2494,23 @@ export class IssueSheetService {
     return valuesByIssueId;
   }
 
-  private async loadSummary(input: { organizationId: string; projectId: string }) {
-    const rows = await this.database
+  private async loadSummary(conditions: SQL[], query: IssueSheetQuery) {
+    let summaryQuery = this.database
       .select({
         status: schema.issueSheetIssues.status,
         count: sql<number>`count(*)`.mapWith(Number),
       })
       .from(schema.issueSheetIssues)
-      .where(
-        and(
-          eq(schema.issueSheetIssues.organizationId, input.organizationId),
-          eq(schema.issueSheetIssues.projectId, input.projectId),
-        ),
-      )
+      .$dynamic();
+
+    if (issueListNeedsCountPriorityJoin(query)) {
+      summaryQuery = summaryQuery
+        .leftJoin(priorityColumns, priorityColumnJoin)
+        .leftJoin(priorityValues, priorityValueJoin);
+    }
+
+    const rows = await summaryQuery
+      .where(and(...conditions))
       .groupBy(schema.issueSheetIssues.status);
 
     const counts = new Map(rows.map((row) => [row.status, row.count]));

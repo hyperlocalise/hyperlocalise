@@ -235,7 +235,7 @@ export class OrganizationIssueService {
         .limit(query.limit)
         .offset(query.offset),
       countQuery.where(where),
-      this.loadSummary(organizationId, accessibleProjectsWhere),
+      this.loadSummary(where, { needsCountPriorityJoin }),
     ]);
 
     return {
@@ -279,23 +279,24 @@ export class OrganizationIssueService {
     };
   }
 
-  private async loadSummary(organizationId: string, accessibleProjectsWhere: SQL) {
+  private async loadSummary(where: SQL | undefined, options: { needsCountPriorityJoin: boolean }) {
     const issueProjectJoin = eq(schema.issueSheetIssues.projectId, schema.projects.id);
-    const rows = await this.database
+    let summaryQuery = this.database
       .select({
         status: schema.issueSheetIssues.status,
         count: sql<number>`count(*)`.mapWith(Number),
       })
       .from(schema.issueSheetIssues)
       .innerJoin(schema.projects, issueProjectJoin)
-      .where(
-        and(
-          eq(schema.issueSheetIssues.organizationId, organizationId),
-          accessibleProjectsWhere,
-          issueProjectJoin,
-        ),
-      )
-      .groupBy(schema.issueSheetIssues.status);
+      .$dynamic();
+
+    if (options.needsCountPriorityJoin) {
+      summaryQuery = summaryQuery
+        .leftJoin(priorityColumns, priorityColumnJoin)
+        .leftJoin(priorityValues, priorityValueJoin);
+    }
+
+    const rows = await summaryQuery.where(where).groupBy(schema.issueSheetIssues.status);
 
     const counts = new Map(rows.map((row) => [row.status, row.count]));
     return {
