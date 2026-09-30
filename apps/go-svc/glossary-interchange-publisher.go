@@ -47,7 +47,10 @@ func newGlossaryInterchangePublisher(ctx context.Context) (glossaryInterchangePu
 	}
 	config, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(strings.TrimSpace(os.Getenv("AWS_REGION"))))
 	if err != nil {
-		return nil, fmt.Errorf("load AWS configuration: %w", err)
+		publisher := newSQSGlossaryInterchangePublisher(nil, queueURL)
+		publisher.initErr = fmt.Errorf("load AWS configuration: %w", err)
+		slog.Error("glossary_interchange_publisher_configuration_failed", "reason", "load_aws_config", "environment_variable", glossaryInterchangeQueueURLEnv, "error", err)
+		return publisher, publisher.initErr
 	}
 	slog.Info("glossary_interchange_publisher_configured", "environment_variable", glossaryInterchangeQueueURLEnv, "aws_region", strings.TrimSpace(os.Getenv("AWS_REGION")))
 	return &sqsGlossaryInterchangePublisher{client: sqs.NewFromConfig(config), queueURL: queueURL}, nil

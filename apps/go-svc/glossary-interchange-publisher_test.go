@@ -39,3 +39,10 @@ func TestSQSGlossaryInterchangePublisherPingUnavailable(t *testing.T) {
 
 	require.ErrorContains(t, publisher.Ping(context.Background()), "get glossary interchange queue attributes")
 }
+
+func TestSQSGlossaryInterchangePublisherPingInitializationFailure(t *testing.T) {
+	publisher := newSQSGlossaryInterchangePublisher(nil, "queue")
+	publisher.initErr = errors.New("load AWS configuration: invalid credentials")
+
+	require.ErrorContains(t, publisher.Ping(context.Background()), "load AWS configuration")
+}
