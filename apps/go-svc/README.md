@@ -631,3 +631,41 @@ All paths below are relative to `/v1/orgs/{organizationSlug}`:
 | GET | `/translation-memories/{memoryId}/import-attempts/{attemptId}` | Attempt + diagnostics |
 | GET | `.../import-attempts/{attemptId}/report` | JSON report download |
 | GET, PATCH, DELETE | `/translation-memories/{memoryId}/entries/{entryId}` | Entry CRUD (PATCH requires `expectedVersion`) |
+
+## Org inbox: issues, bulk actions, notifications, and mentions
+
+Provides organization-scoped Queries inbox APIs for issues, issue-sheet,
+notifications, notification preferences, and mention suggestions.
+
+Issue and issue-sheet routes use the `queries-board` Autumn gate and existing
+issue-sheet capability model. Notifications, notification preferences, and
+mentions are authenticated organization APIs without an Autumn gate.
+
+Project-backed data is scoped by organization and team membership. Notification
+ownership is enforced in SQL so missing, inaccessible, and other users'
+notifications uniformly return `404 notification_not_found` without leaking
+existence. `POST /notifications/read-all` uses snapshot semantics so
+notifications created during the request remain unread.
+
+`GET /mentions` provides `@`-mention autocomplete for users and issues.
+Issue suggestions are ordered by `updated_at` ascending.
+
+`POST /issues/bulk-actions` processes items independently with per-item outcomes
+and retries transactions on PostgreSQL deadlock or serialization failures
+(`40P01`/`40001`) using bounded jittered backoff.
+
+All paths below are relative to `/v1/orgs/{organizationSlug}`:
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/issues` | Cross-project issue list (`view`, `status`, `issueType`, `priority`, `locale`, `assignee`, `projectId`, `qaCheckType`, `search`, `sort`, `sortDir`, `limit`, `offset`) with a status summary |
+| POST | `/issues/bulk-actions` | Bulk `assign` / `unassign` / `set_status` / `set_priority` / `set_issue_type` across up to 100 deduplicated issues |
+| GET | `/issue-sheet/search` | Title/external-ref picker search, no offset, newest-touched first |
+| GET | `/issue-sheet/{issueId}` | Full issue detail by UUID or `PREFIX-N` identifier, with project name |
+| GET | `/notifications` | Own notifications (`unreadOnly`, `limit`, `offset`), newest first |
+| GET | `/notifications/unread-count` | Live unread count (no persisted counter) |
+| POST | `/notifications/read-all` | Mark all currently-unread, accessible notifications read |
+| GET | `/notifications/{notificationId}` | One owned notification |
+| POST | `/notifications/{notificationId}/read` | Mark one owned notification read (idempotent) |
+| GET, PUT | `/notification-preferences` | Read (app default if unset) or fully replace the caller's email preferences |
+| GET | `/mentions` | `@`-mention autocomplete: org members and issues matching `q` |
