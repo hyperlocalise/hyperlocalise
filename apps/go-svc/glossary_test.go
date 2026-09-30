@@ -162,12 +162,12 @@ func TestGlossaryCreateListGet(t *testing.T) {
 		require.Contains(t, rec.Body.String(), "Checkout")
 		require.Contains(t, rec.Header().Get("Content-Disposition"), "attachment")
 	})
-	t.Run("import backup still 501", func(t *testing.T) {
+	t.Run("import backup reports unavailable storage", func(t *testing.T) {
 		api, scope := glossaryTestAPI(t, "admin")
 		id := scope.MustGlossary(t, "", "Product terms", "en-US")
 		rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports/"+uuid.NewString()+"/backup"), "")
-		require.Equal(t, 501, rec.Code)
-		require.Contains(t, rec.Body.String(), "not_implemented")
+		require.Equal(t, 503, rec.Code)
+		require.Contains(t, rec.Body.String(), "object_storage_unavailable")
 	})
 	t.Run("concepts page returns envelope", func(t *testing.T) {
 		api, scope := glossaryTestAPI(t, "admin")

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -126,6 +128,16 @@ func (api *glossaryAPI) pageGlossaryHistoryHandler(r *http.Request, actor glossa
 }
 
 func (api *glossaryAPI) importGlossaryConceptsHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	// Keep accepting the pre-interchange inline payload for existing API clients.
+	// Native UI uploads use the S3/SQS flow and do not include content.
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, 0, invalidGlossary()
+	}
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	if bytes.Contains(body, []byte(`"content"`)) {
+		return api.importGlossaryConcepts(r, actor, g)
+	}
 	return api.importGlossaryConceptsAsync(r, actor, g)
 }
 
