@@ -166,7 +166,7 @@ overrides:
   vite: 8.2.2
   undici@^6.0.0: 6.28.0
   undici@^7.0.0: 7.29.0
-  undici@^8.0.0: 8.10.1
+  undici@^8.0.0: 8.10.2
   devalue: 5.9.2
   qs: 6.16.0
   '@anthropic-ai/sdk': 0.123.0
@@ -613,8 +613,8 @@ importers:
         specifier: ^7.2.4
         version: 7.2.4
       undici:
-        specifier: 8.10.1
-        version: 8.10.1
+        specifier: 8.10.2
+        version: 8.10.2
       unpdf:
         specifier: ^1.8.1
         version: 1.8.1
@@ -10877,8 +10877,8 @@ packages:
     resolution: {integrity: sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw==}
     engines: {node: '>=20.18.1'}
 
-  undici@8.10.1:
-    resolution: {integrity: sha512-YQ3WlbqjYMmNpdvDH64jAgLjxuAR9+649calDWhbshYaeQGO2bR4nI94ORJmwI3J9YhoKQnpyGOK+0zlWS5N5Q==}
+  undici@8.10.2:
+    resolution: {integrity: sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==}
     engines: {node: '>=22.19.0'}
 
   unicorn-magic@0.1.0:
@@ -22028,7 +22028,7 @@ snapshots:
 
   undici@7.29.0: {}
 
-  undici@8.10.1: {}
+  undici@8.10.2: {}
 
   unicorn-magic@0.1.0: {}
 
