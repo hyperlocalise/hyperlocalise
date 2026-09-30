@@ -227,5 +227,8 @@ func requestLogPath(path string) string {
 	if parts[4] == "notification-preferences" {
 		return "/v1/orgs/{organizationSlug}/notification-preferences"
 	}
+	if parts[4] == "mentions" {
+		return "/v1/orgs/{organizationSlug}/mentions"
+	}
 	return path
 }

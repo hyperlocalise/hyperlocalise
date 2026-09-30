@@ -126,6 +126,7 @@ func (api *notificationsAPI) register(mux *http.ServeMux, verifier SessionVerifi
 	route("POST "+orgRoutePrefix+"/notifications/{notificationId}/read", api.markReadHandler)
 	route("GET "+orgRoutePrefix+"/notification-preferences", api.getPreferencesHandler)
 	route("PUT "+orgRoutePrefix+"/notification-preferences", api.putPreferencesHandler)
+	route("GET "+orgRoutePrefix+"/mentions", api.mentionSuggestionsHandler)
 }
 
 type notificationListQuery struct {
