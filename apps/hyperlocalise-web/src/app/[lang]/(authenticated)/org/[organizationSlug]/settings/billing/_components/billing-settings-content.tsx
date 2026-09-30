@@ -81,9 +81,7 @@ function BillingSettingsHeader() {
 
   return (
     <SettingsPageHeader
-      eyebrow={intl.formatMessage(billingSettingsContentMessages.pageLabel)}
       title={intl.formatMessage(billingSettingsContentMessages.pageTitle)}
-      description={intl.formatMessage(billingSettingsContentMessages.pageDescription)}
     />
   );
 }

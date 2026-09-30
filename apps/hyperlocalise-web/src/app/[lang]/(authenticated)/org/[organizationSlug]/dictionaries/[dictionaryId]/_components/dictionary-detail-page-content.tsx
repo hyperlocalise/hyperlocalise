@@ -339,9 +339,6 @@ export function DictionaryDetailPageContent({
       <PageHeader
         icon={TextFontIcon}
         title={dictionary?.name ?? dictionaryId}
-        description={
-          dictionary?.description || intl.formatMessage(dictionaryDetailMessages.wordsTitle)
-        }
       />
 
       {dictionaryQuery.isError ? (

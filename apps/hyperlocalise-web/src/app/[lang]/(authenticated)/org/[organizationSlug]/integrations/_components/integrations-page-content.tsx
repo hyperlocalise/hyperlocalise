@@ -813,7 +813,6 @@ export function IntegrationsPageContent({
         icon={PuzzleIcon}
         label={intl.formatMessage(integrationsPageContentMessages.pageLabel)}
         title={intl.formatMessage(integrationsPageContentMessages.pageTitle)}
-        description={intl.formatMessage(integrationsPageContentMessages.pageDescription)}
       />
 
       {integrationError ? (

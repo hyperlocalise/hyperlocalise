@@ -20,12 +20,6 @@ export const qaProjectMessages = defineMessages({
     id: "TaVUffauIB",
     description: "Project QA page title",
   },
-  description: {
-    defaultMessage:
-      "Background checks for empty targets, same-as-source copy, placeholders, length, and glossary terms.",
-    id: "saH2j0ya2P",
-    description: "Project QA page description",
-  },
   run: {
     defaultMessage: "Run QA check",
     id: "i/EBft9uxG",

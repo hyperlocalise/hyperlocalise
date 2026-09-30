@@ -171,7 +171,6 @@ export function QaWorkspacePageContent({
       <PageHeader
         icon={CheckmarkCircle02Icon}
         title={intl.formatMessage(messages.title)}
-        description={intl.formatMessage(messages.description)}
       />
 
       <section className="flex flex-col gap-3">

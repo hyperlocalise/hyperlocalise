@@ -32,8 +32,6 @@ export type FeatureTeaserConfig = {
   pageLabel: MessageDescriptor;
   pageLabelProject: MessageDescriptor;
   pageTitle: MessageDescriptor;
-  pageDescription: MessageDescriptor;
-  pageDescriptionProject: MessageDescriptor;
   earlyAccessTitle: MessageDescriptor;
   earlyAccessDescription: MessageDescriptor;
   benefits: readonly MessageDescriptor[];
@@ -96,17 +94,6 @@ export const featureTeaserMessages = defineMessages({
     id: "uQuuO1WuxO",
     description: "Feature teaser page title for automations",
   },
-  automationsDescription: {
-    defaultMessage:
-      "Put repetitive global content work on autopilot so your team ships to more markets, faster.",
-    id: "D3q/aG4RpR",
-    description: "Feature teaser page description for workspace automations",
-  },
-  automationsDescriptionProject: {
-    defaultMessage: "Keep this project releasing on time without chasing manual handoffs.",
-    id: "99UKjV7Fo4",
-    description: "Feature teaser page description for project automations",
-  },
   automationsEarlyAccessTitle: {
     defaultMessage: "Ship to more markets without growing the team",
     id: "PG2jivJB3X",
@@ -148,17 +135,6 @@ export const featureTeaserMessages = defineMessages({
     defaultMessage: "Guideline",
     id: "UQT1fdMFbW",
     description: "Feature teaser page title for guideline",
-  },
-  guidelineDescription: {
-    defaultMessage:
-      "Capture style, market, and compliance guidance so teams scale into new markets with confidence.",
-    id: "4y4y0oNFFl",
-    description: "Feature teaser page description for workspace guideline",
-  },
-  guidelineDescriptionProject: {
-    defaultMessage: "Give this project the GTM context it needs to launch and grow in new markets.",
-    id: "FcomHiDTaX",
-    description: "Feature teaser page description for project guideline",
   },
   guidelineEarlyAccessTitle: {
     defaultMessage: "One playbook for global growth in every market",
@@ -202,18 +178,6 @@ export const featureTeaserMessages = defineMessages({
     id: "hSuFqgtras",
     description: "Feature teaser page title for domains",
   },
-  domainsDescription: {
-    defaultMessage:
-      "Audit your websites for localisation, SEO, and AEO. See what is blocking discoverability in every market.",
-    id: "2icICV/DAq",
-    description: "Feature teaser page description for domains",
-  },
-  domainsDescriptionProject: {
-    defaultMessage:
-      "Audit your websites for localisation, SEO, and AEO. See what is blocking discoverability in every market.",
-    id: "PyZoyjoXDF",
-    description: "Feature teaser page description for domains (project scope unused)",
-  },
   domainsEarlyAccessTitle: {
     defaultMessage: "See what is hurting search and AI answers in every locale",
     id: "SWDbxCkEGV",
@@ -255,18 +219,6 @@ export const featureTeaserMessages = defineMessages({
     defaultMessage: "Hyperlab",
     id: "+i+mcUZPR+",
     description: "Feature teaser title for Hyperlab",
-  },
-  hyperlabDescription: {
-    defaultMessage:
-      "Try a different headline, checkout, or offer in one market. Keep the version people like.",
-    id: "yK7qvwt0hg",
-    description: "Feature teaser description for Hyperlab",
-  },
-  hyperlabDescriptionProject: {
-    defaultMessage:
-      "Try a different headline, checkout, or offer in one market. Keep the version people like.",
-    id: "IY3g7G42ej",
-    description: "Feature teaser description for Hyperlab when opened from a project",
   },
   hyperlabEarlyAccessTitle: {
     defaultMessage: "Target, split, and ship without another vendor",
@@ -310,16 +262,6 @@ export const featureTeaserMessages = defineMessages({
     id: "b/0QCcEDip",
     description: "Feature teaser page title for reports",
   },
-  reportsDescription: {
-    defaultMessage: "See word counts, time, and cost across projects so you can forecast spend.",
-    id: "Y2qBs5EsBK",
-    description: "Feature teaser page description for workspace reports",
-  },
-  reportsDescriptionProject: {
-    defaultMessage: "See word counts, time, and cost for this project before work overruns.",
-    id: "k1Ku5BR4yb",
-    description: "Feature teaser page description for project reports",
-  },
   reportsEarlyAccessTitle: {
     defaultMessage: "Know what translation is costing before the invoice arrives",
     id: "3iwjDXakJS",
@@ -354,8 +296,6 @@ export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig>
     pageLabel: featureTeaserMessages.automationsPageLabel,
     pageLabelProject: featureTeaserMessages.automationsPageLabelProject,
     pageTitle: featureTeaserMessages.automationsTitle,
-    pageDescription: featureTeaserMessages.automationsDescription,
-    pageDescriptionProject: featureTeaserMessages.automationsDescriptionProject,
     earlyAccessTitle: featureTeaserMessages.automationsEarlyAccessTitle,
     earlyAccessDescription: featureTeaserMessages.automationsEarlyAccessDescription,
     benefits: [
@@ -369,8 +309,6 @@ export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig>
     pageLabel: featureTeaserMessages.guidelinePageLabel,
     pageLabelProject: featureTeaserMessages.guidelinePageLabelProject,
     pageTitle: featureTeaserMessages.guidelineTitle,
-    pageDescription: featureTeaserMessages.guidelineDescription,
-    pageDescriptionProject: featureTeaserMessages.guidelineDescriptionProject,
     earlyAccessTitle: featureTeaserMessages.guidelineEarlyAccessTitle,
     earlyAccessDescription: featureTeaserMessages.guidelineEarlyAccessDescription,
     benefits: [
@@ -384,8 +322,6 @@ export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig>
     pageLabel: featureTeaserMessages.domainsPageLabel,
     pageLabelProject: featureTeaserMessages.domainsPageLabelProject,
     pageTitle: featureTeaserMessages.domainsTitle,
-    pageDescription: featureTeaserMessages.domainsDescription,
-    pageDescriptionProject: featureTeaserMessages.domainsDescriptionProject,
     earlyAccessTitle: featureTeaserMessages.domainsEarlyAccessTitle,
     earlyAccessDescription: featureTeaserMessages.domainsEarlyAccessDescription,
     benefits: [
@@ -399,8 +335,6 @@ export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig>
     pageLabel: featureTeaserMessages.hyperlabPageLabel,
     pageLabelProject: featureTeaserMessages.hyperlabPageLabelProject,
     pageTitle: featureTeaserMessages.hyperlabTitle,
-    pageDescription: featureTeaserMessages.hyperlabDescription,
-    pageDescriptionProject: featureTeaserMessages.hyperlabDescriptionProject,
     earlyAccessTitle: featureTeaserMessages.hyperlabEarlyAccessTitle,
     earlyAccessDescription: featureTeaserMessages.hyperlabEarlyAccessDescription,
     benefits: [
@@ -414,8 +348,6 @@ export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig>
     pageLabel: featureTeaserMessages.reportsPageLabel,
     pageLabelProject: featureTeaserMessages.reportsPageLabelProject,
     pageTitle: featureTeaserMessages.reportsTitle,
-    pageDescription: featureTeaserMessages.reportsDescription,
-    pageDescriptionProject: featureTeaserMessages.reportsDescriptionProject,
     earlyAccessTitle: featureTeaserMessages.reportsEarlyAccessTitle,
     earlyAccessDescription: featureTeaserMessages.reportsEarlyAccessDescription,
     benefits: [

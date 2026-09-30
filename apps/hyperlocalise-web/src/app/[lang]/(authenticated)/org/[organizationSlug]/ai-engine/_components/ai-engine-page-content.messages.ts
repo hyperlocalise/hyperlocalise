@@ -20,12 +20,6 @@ export const aiEnginePageContentMessages = defineMessages({
     id: "YEHmCLlYeR",
     description: "AI Engine page heading",
   },
-  pageDescription: {
-    defaultMessage:
-      "Connect one or more model providers and set the workspace default for Hyperlocalise Agent. Included models stay available even when BYOK providers are connected.",
-    id: "6du8XKbuUv",
-    description: "AI Engine page description",
-  },
   providerSectionTitle: {
     defaultMessage: "Provider",
     id: "Niev/tzFno",

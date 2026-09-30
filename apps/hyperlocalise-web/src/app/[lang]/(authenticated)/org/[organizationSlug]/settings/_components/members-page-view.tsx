@@ -436,7 +436,6 @@ export function MembersPageView({
         icon={UserGroupIcon}
         label={intl.formatMessage(membersPageContentMessages.pageLabel)}
         title={intl.formatMessage(membersPageContentMessages.pageTitle)}
-        description={intl.formatMessage(membersPageContentMessages.pageDescription)}
         actions={
           <Columns spacing="1u" alignY="center" collapseBelow="small">
             <Column width="containedContent">

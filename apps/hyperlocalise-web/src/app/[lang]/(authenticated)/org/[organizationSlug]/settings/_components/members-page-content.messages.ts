@@ -65,11 +65,6 @@ export const membersPageContentMessages = defineMessages({
     id: "2+En/9xBc0",
     description: "Workspace members page heading",
   },
-  pageDescription: {
-    defaultMessage: "Manage workspace access, invitations, and localization roles.",
-    id: "8QNV5JFMzw",
-    description: "Workspace members page description",
-  },
   inviteMember: {
     defaultMessage: "Invite member",
     id: "eW2eLsJu8K",

@@ -102,7 +102,6 @@ export function VisualWorkflowsPageContent({
         icon={GitBranchIcon}
         label={intl.formatMessage(visualWorkflowsPageMessages.pageLabel)}
         title={intl.formatMessage(visualWorkflowsPageMessages.pageTitle)}
-        description={intl.formatMessage(visualWorkflowsPageMessages.pageDescription)}
         actions={
           <Button
             type="button"

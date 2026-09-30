@@ -65,7 +65,6 @@ export function HyperlabFlagsPage({
   return (
     <HyperlabPageShell
       title={intl.formatMessage(messages.flagsTitle)}
-      description={intl.formatMessage(messages.flagsDescription)}
       actions={createAction}
     >
       {flagsQuery.isError ? (

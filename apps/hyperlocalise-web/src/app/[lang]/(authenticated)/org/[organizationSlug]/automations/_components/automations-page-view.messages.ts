@@ -30,12 +30,6 @@ export const automationsPageViewMessages = defineMessages({
     id: "hScQeR54rc",
     description: "Automations page heading",
   },
-  pageDescription: {
-    defaultMessage:
-      "Automate repetitive tasks with always-on workflows that respond to schedules and GitHub pushes.",
-    id: "9xPbF7DCJr",
-    description: "Automations page description under the heading",
-  },
   newAutomation: {
     defaultMessage: "New Automation",
     id: "1um5cM9poq",

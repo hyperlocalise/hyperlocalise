@@ -66,7 +66,6 @@ export function HyperlabAudiencesPage({
   return (
     <HyperlabPageShell
       title={intl.formatMessage(messages.audiencesTitle)}
-      description={intl.formatMessage(messages.audiencesDescription)}
       actions={createAction}
     >
       {audiencesQuery.isError ? (
