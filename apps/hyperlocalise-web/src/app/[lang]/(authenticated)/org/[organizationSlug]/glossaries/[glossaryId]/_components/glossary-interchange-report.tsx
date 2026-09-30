@@ -59,19 +59,17 @@ export function GlossaryInterchangeReport({
         ? await client.glossary.importBackup(organizationSlug, glossaryId, runId)
         : await (async () => {
             const signed = await client.glossary.downloadUrl(organizationSlug, glossaryId, runId);
-            const response = await fetch(signed.url);
-            if (!response.ok) throw new Error("download failed");
             return {
-              blob: await response.blob(),
+              url: signed.url,
               filename: signed.filename ?? run.resultFilename ?? `glossary.${run.format}`,
             };
           })();
-      const url = URL.createObjectURL(file.blob);
       const anchor = document.createElement("a");
-      anchor.href = url;
+      anchor.href = "url" in file ? file.url : URL.createObjectURL(file.blob);
       anchor.download = file.filename ?? `glossary.${run.format}`;
+      anchor.rel = "noreferrer";
       anchor.click();
-      URL.revokeObjectURL(url);
+      if (!("url" in file)) URL.revokeObjectURL(anchor.href);
     } catch (error) {
       void error;
       toast.error(intl.formatMessage(messages.downloadFailed));

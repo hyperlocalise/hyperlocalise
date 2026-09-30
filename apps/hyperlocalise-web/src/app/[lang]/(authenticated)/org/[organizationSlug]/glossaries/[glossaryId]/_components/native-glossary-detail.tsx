@@ -585,17 +585,13 @@ export function NativeGlossaryDetail({
         glossaryId,
         job.reportId,
       );
-      const response = await fetch(download.url);
-      if (!response.ok) throw new Error(intl.formatMessage(messages.exportFailed));
-      const blob = await response.blob();
       const filename = download.filename ?? `glossary.${input.format}`;
-      const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
-      anchor.href = url;
+      anchor.href = download.url;
       anchor.download = filename;
+      anchor.rel = "noreferrer";
       anchor.click();
-      URL.revokeObjectURL(url);
-      return Number(response.headers.get("x-hyperlocalise-export-warning-count") ?? 0);
+      return Number(report.report.counts.warned ?? 0);
     },
     onSuccess: (warningCount) => {
       if (warningCount > 0) {
