@@ -52,6 +52,24 @@ When `groups` is omitted, Hyperlocalise automatically uses one implicit `default
 - `locales.source`: source locale.
 - `locales.targets`: list of target locales.
 - optional `locales.fallbacks`: fallback order per locale.
+- optional `locales.copies`: map a target locale to another locale whose catalog should be copied instead of translated. Use this when one locale should ship as a duplicate of another, for example `en-AU` copying `en-GB`.
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - en-GB
+    - en-AU
+    - fr-FR
+  copies:
+    en-AU: en-GB
+```
+
+`run` still writes a catalog for the copy locale. It does not call an LLM or MT provider for that locale. After the origin locale is translated (or when its files already exist), Hyperlocalise copies those values into the copy locale's output paths.
+
+The copy key must be in `locales.targets`. The origin must be `locales.source` or another target that is not itself a copy. A locale cannot be both a copy and a `locales.fallbacks` key. Copy locales need their own output files, so the bucket `to` path must include `{{target}}`, `{{localeDir}}`, or `[locale]`.
+
+Include copy locales in `groups.*.targets` (or omit `groups` so the implicit default group includes every target). `hl run --locale en-AU` copies from existing origin files and does not translate the origin. Translate the origin first, or run both locales together.
 
 ## Buckets
 
