@@ -50,21 +50,10 @@ export const apiKeysPageContentMessages = defineMessages({
     id: "TrnH0+MELk",
     description: "Error toast when clipboard copy fails",
   },
-  pageLabel: {
-    defaultMessage: "Developer",
-    id: "rFURovB9j2",
-    description: "Eyebrow label above the API keys page title",
-  },
   pageTitle: {
     defaultMessage: "API keys",
     id: "9QLXCOIwOa",
     description: "API keys settings page heading",
-  },
-  pageDescription: {
-    defaultMessage:
-      "Workspace keys for jobs and resources. Rotate regularly and keep them out of source control.",
-    id: "h74mcLmzi5",
-    description: "API keys settings page description",
   },
   createButton: {
     defaultMessage: "Create API key",

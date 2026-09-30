@@ -27,6 +27,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { GlossaryResponse } from "@/api/routes/glossary/glossary.schema";
 import { apiClient } from "@/lib/api-client-instance";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
@@ -332,12 +333,13 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
         if (!response.ok) {
           throw new Error(`Failed to load glossary (${response.status})`);
         }
-        const body = (await response.json()) as { glossary: { name: string } };
-        return body.glossary;
+        return (await response.json()) as GlossaryResponse;
       }
 
-      const body = await goSvcClient.glossary.get(resolvedOrganizationSlug, glossaryId);
-      return body.glossary;
+      return (await goSvcClient.glossary.get(
+        resolvedOrganizationSlug,
+        glossaryId,
+      )) as GlossaryResponse;
     },
   });
 
@@ -369,7 +371,7 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
       teamNameLoading: teamQuery.isPending,
       domainName: domainQuery.data?.domainKey,
       domainNameLoading: domainQuery.isLoading,
-      glossaryName: glossaryQuery.data?.name,
+      glossaryName: glossaryQuery.data?.glossary?.name,
       glossaryNameLoading: glossaryQuery.isPending,
       translationMemoryName: translationMemoryQuery.data?.name,
       translationMemoryNameLoading: translationMemoryQuery.isPending,

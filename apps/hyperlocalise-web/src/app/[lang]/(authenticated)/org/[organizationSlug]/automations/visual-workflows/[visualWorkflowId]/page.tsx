@@ -26,7 +26,6 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { VisualWorkflowEditorPageContent } from "../../_components/visual-workflow-editor-page-content";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "visualWorkflowDetail");
@@ -37,11 +36,7 @@ export default function VisualWorkflowEditorPage({
 }: {
   params: Promise<{ organizationSlug: string; visualWorkflowId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <VisualWorkflowEditorPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <VisualWorkflowEditorPageLoader params={params} />;
 }
 
 async function VisualWorkflowEditorPageLoader({

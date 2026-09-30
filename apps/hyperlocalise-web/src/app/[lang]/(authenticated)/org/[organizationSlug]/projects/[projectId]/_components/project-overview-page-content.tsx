@@ -14,12 +14,7 @@
  */
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import {
-  Add01Icon,
-  ArrowRight01Icon,
-  CubeIcon,
-  LanguageCircleIcon,
-} from "@hugeicons/core-free-icons";
+import { Add01Icon, ArrowRight01Icon, LanguageCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -33,7 +28,7 @@ import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import type { ProjectLocaleProgressRow } from "@/api/routes/project/project.schema";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
@@ -341,10 +336,6 @@ export function ProjectOverviewPageContentView({
       })
     : [];
 
-  const projectDescription =
-    project?.descriptionValue || intl.formatMessage(messages.defaultProjectDescription);
-
-  const projectsHref = `/org/${organizationSlug}/projects`;
   const settingsHref = buildProjectPath(organizationSlug, projectId, "settings");
   const filesHref = buildProjectPath(organizationSlug, projectId, "files");
   const jobsHref = buildProjectPath(organizationSlug, projectId, "jobs");
@@ -358,89 +349,48 @@ export function ProjectOverviewPageContentView({
     <ProjectPageShell>
       <Box paddingX="2u" paddingTop="1u" paddingBottom="4u">
         <Rows spacing="3u">
-          <Columns spacing="2u" collapseBelow="small" align="spaceBetween" alignY="start">
-            <Column width="fluid">
-              <Rows spacing="1u">
-                {isProjectLoading ? (
-                  <>
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-8 w-64" />
-                    <Skeleton className="h-4 w-full max-w-xl" />
-                  </>
-                ) : isProjectError ? (
-                  <>
-                    <TypographyH1
-                      className="text-2xl text-balance tracking-tight md:text-2xl"
-                      weight="medium"
-                      tone="content"
-                    >
-                      <FormattedMessage {...messages.projectOverviewFallbackTitle} />
-                    </TypographyH1>
-                    <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-                      <FormattedMessage {...messages.loadProjectError} />
-                    </TypographyP>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href={projectsHref}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      <HugeiconsIcon icon={CubeIcon} strokeWidth={1.8} className="size-4" />
-                      <FormattedMessage {...messages.projectsBreadcrumb} />
-                    </Link>
-                    <TypographyH1
-                      className="text-2xl text-balance tracking-tight md:text-2xl"
-                      weight="medium"
-                      tone="content"
-                    >
-                      {project?.name ?? intl.formatMessage(messages.projectFallbackName)}
-                    </TypographyH1>
-                    <TypographyP
-                      className="max-w-xl leading-normal"
-                      wrapStyle="pretty"
-                      size="small"
-                      tone="subtle"
-                    >
-                      {projectDescription}
-                    </TypographyP>
-                  </>
-                )}
-              </Rows>
-            </Column>
-
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <h1 className="sr-only">
+              {isProjectError
+                ? intl.formatMessage(messages.projectOverviewFallbackTitle)
+                : (project?.name ?? intl.formatMessage(messages.projectFallbackName))}
+            </h1>
+            {isProjectLoading ? <Skeleton className="h-9 w-40 shrink-0" /> : null}
+            {isProjectError ? (
+              <TypographyP wrapStyle="pretty" size="small" tone="subtle">
+                <FormattedMessage {...messages.loadProjectError} />
+              </TypographyP>
+            ) : null}
             {showHeaderActions ? (
-              <Column width="content">
-                <Row spacing="1u" alignY="center">
-                  {showViewStrings ? (
-                    <Button
-                      nativeButton={false}
-                      render={
-                        <Link href={buildProjectPath(organizationSlug, projectId, "strings")} />
-                      }
-                      size="sm"
-                      variant="outline"
-                    >
-                      <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} />
-                      <FormattedMessage {...messages.openEditor} />
-                    </Button>
-                  ) : null}
+              <Row spacing="1u" alignY="center">
+                {showViewStrings ? (
                   <Button
                     nativeButton={false}
-                    render={<Link href={filesHref} />}
+                    render={
+                      <Link href={buildProjectPath(organizationSlug, projectId, "strings")} />
+                    }
                     size="sm"
                     variant="outline"
                   >
-                    <FormattedMessage {...messages.viewFiles} />
+                    <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} />
+                    <FormattedMessage {...messages.openEditor} />
                   </Button>
-                  <Button type="button" size="sm" onClick={onCreateJob}>
-                    <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-                    <FormattedMessage {...messages.createJob} />
-                  </Button>
-                </Row>
-              </Column>
+                ) : null}
+                <Button
+                  nativeButton={false}
+                  render={<Link href={filesHref} />}
+                  size="sm"
+                  variant="outline"
+                >
+                  <FormattedMessage {...messages.viewFiles} />
+                </Button>
+                <Button type="button" size="sm" onClick={onCreateJob}>
+                  <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                  <FormattedMessage {...messages.createJob} />
+                </Button>
+              </Row>
             ) : null}
-          </Columns>
+          </div>
 
           {isProjectLoading ? (
             <Skeleton className="min-h-56 w-full" />

@@ -236,7 +236,6 @@ export function TeamsPageView({
         icon={UserGroupIcon}
         label={intl.formatMessage(teamsPageViewMessages.pageLabel)}
         title={intl.formatMessage(teamsPageViewMessages.pageTitle)}
-        description={intl.formatMessage(teamsPageViewMessages.pageDescription)}
         actions={
           pageState.canCreateTeam ? (
             <Button

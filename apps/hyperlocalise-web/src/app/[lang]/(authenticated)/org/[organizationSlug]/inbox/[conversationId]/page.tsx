@@ -10,49 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { hasCapability } from "@/api/auth/policy";
-import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
-
-import { InboxPageContent } from "../_components/inbox-page-content";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "inboxConversation");
 }
 
-export default function InboxConversationPage({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string; conversationId: string }>;
-}) {
-  return (
-    <OrgPageSuspense>
-      <InboxConversationPageLoader params={params} />
-    </OrgPageSuspense>
-  );
-}
-
-async function InboxConversationPageLoader({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string; conversationId: string }>;
-}) {
-  const { organizationSlug } = await params;
-  const auth = await requireAppAuthContext({ organizationSlug });
-  const currentUserName =
-    [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
-    auth.sessionUser.email;
-
-  return (
-    <InboxPageContent
-      currentUser={{
-        avatarUrl: auth.sessionUser.profilePictureUrl ?? null,
-        email: auth.sessionUser.email,
-        name: currentUserName,
-      }}
-      organizationSlug={organizationSlug}
-      canDeleteQueries={hasCapability(auth.membership.role, "write_back:translation")}
-    />
-  );
+// The inbox shell lives in `layout.tsx` so it stays mounted when the URL changes.
+export default function InboxConversationPage() {
+  return null;
 }

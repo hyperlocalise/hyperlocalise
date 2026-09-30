@@ -354,13 +354,6 @@ export function TeamDetailPageView({
           icon={UserGroupIcon}
           label={intl.formatMessage(teamDetailPageViewMessages.pageLabel)}
           title={team?.name ?? intl.formatMessage(teamDetailPageViewMessages.pageTitleFallback)}
-          description={
-            team
-              ? intl.formatMessage(teamDetailPageViewMessages.pageDescriptionWithSlug, {
-                  slug: team.slug,
-                })
-              : intl.formatMessage(teamDetailPageViewMessages.pageDescriptionLoading)
-          }
           actions={
             pageState.canManageTeams && team ? (
               <Button

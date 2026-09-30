@@ -18,8 +18,9 @@ type LocaleDocumentLangScriptProps = {
 };
 
 /**
- * Sets `document.documentElement.lang` from static route params (no request I/O).
- * The root `<html lang>` stays on the default locale so `cacheComponents` can prerender the shell.
+ * Sets `document.documentElement.lang` from the locale route param.
+ * The shared root `<html lang>` stays on the default locale; this script corrects it
+ * in the server HTML before paint.
  */
 export function LocaleDocumentLangScript({ locale }: LocaleDocumentLangScriptProps) {
   const htmlLang = appLocaleToBcp47Tag(locale);

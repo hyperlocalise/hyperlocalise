@@ -807,7 +807,6 @@ export function JobsPageView({
         <ProjectSectionHeader
           icon={CenterFocusIcon}
           section={intl.formatMessage(jobsPageViewMessages.projectSectionLabel)}
-          description={intl.formatMessage(jobsPageViewMessages.projectSectionDescription)}
           actions={headerActions}
         />
         {jobsSection}
@@ -824,11 +823,6 @@ export function JobsPageView({
           isPersonalWork
             ? intl.formatMessage(jobsPageViewMessages.pageTitleMyJobs)
             : intl.formatMessage(jobsPageViewMessages.pageTitleJobs)
-        }
-        description={
-          isPersonalWork
-            ? intl.formatMessage(jobsPageViewMessages.pageDescriptionPersonal)
-            : intl.formatMessage(jobsPageViewMessages.pageDescriptionWorkspace)
         }
         actions={headerActions}
       />

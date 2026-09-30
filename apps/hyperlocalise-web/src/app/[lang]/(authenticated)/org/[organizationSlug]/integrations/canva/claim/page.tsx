@@ -15,7 +15,6 @@ import { requireAppCapability } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { CanvaClaimPageContent } from "./canva-claim-page-content";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "canvaClaim");
@@ -28,11 +27,7 @@ export default function CanvaClaimPage({
   params: Promise<{ organizationSlug: string }>;
   searchParams: Promise<{ claimId?: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <CanvaClaimPageLoader params={params} searchParams={searchParams} />
-    </OrgPageSuspense>
-  );
+  return <CanvaClaimPageLoader params={params} searchParams={searchParams} />;
 }
 
 async function CanvaClaimPageLoader({

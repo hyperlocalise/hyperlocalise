@@ -51,6 +51,7 @@ export function groupIssuesByStatus<T extends { status: string }>(
   issues: T[],
   options?: {
     activeStatus?: string;
+    hasMore?: boolean;
     summary?: IssueListSummaryCounts;
   },
 ): IssueStatusGroup<T>[] {
@@ -75,8 +76,9 @@ export function groupIssuesByStatus<T extends { status: string }>(
     const summaryCount = summaryCountForStatus(status, options?.summary);
     const count = summaryCount ?? groupIssues.length;
     // Keep summary-backed groups even when their rows are not loaded yet
-    // (global offset pagination loads status blocks page by page).
-    if (!activeStatus && groupIssues.length === 0 && count === 0) {
+    // (global offset pagination loads status blocks page by page). Hide them
+    // once pagination is exhausted — leftover counts are a filter mismatch.
+    if (!activeStatus && groupIssues.length === 0 && (count === 0 || options?.hasMore === false)) {
       return [];
     }
     return [{ status, issues: groupIssues, count }];

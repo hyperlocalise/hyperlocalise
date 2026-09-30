@@ -107,11 +107,7 @@ const HyperlabKeysPageConnected = observer(function HyperlabKeysPageConnected({
   });
 
   return (
-    <HyperlabPageShell
-      title={intl.formatMessage(messages.keysTitle)}
-      description={intl.formatMessage(messages.keysDescription)}
-      actions={createAction}
-    >
+    <HyperlabPageShell title={intl.formatMessage(messages.keysTitle)} actions={createAction}>
       <Rows spacing="2u">
         {uiStore.createdSecret ? (
           <Box border="standard" borderRadius="standard" background="muted" padding="2u">

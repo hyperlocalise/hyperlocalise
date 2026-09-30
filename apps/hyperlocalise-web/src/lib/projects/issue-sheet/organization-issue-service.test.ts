@@ -119,6 +119,123 @@ describe("OrganizationIssueService.getById", () => {
   });
 });
 
+describe("OrganizationIssueService.list", () => {
+  it("scopes summary counts to the current list filters", async () => {
+    const { identity, project, user } = await createProjectForIdentity();
+    await authFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+
+    await issueSheetService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: project.id,
+      actorUserId: user.id,
+      body: {
+        title: "Open query",
+        issueType: "general_question",
+      },
+    });
+    await issueSheetService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: project.id,
+      actorUserId: user.id,
+      body: {
+        title: "Won't fix query",
+        issueType: "general_question",
+        status: "wont_fix",
+      },
+    });
+
+    const openView = await organizationIssueService.list(auth, {
+      view: "all_open",
+      sort: "status",
+      limit: 50,
+      offset: 0,
+    });
+    expect(openView.issues.map((issue) => issue.status)).toEqual(["open"]);
+    expect(openView.summary).toEqual({
+      total: 1,
+      open: 1,
+      inProgress: 0,
+      resolved: 0,
+      wontFix: 0,
+    });
+
+    const wontFixView = await organizationIssueService.list(auth, {
+      view: "all_open",
+      status: "wont_fix",
+      sort: "status",
+      limit: 50,
+      offset: 0,
+    });
+    expect(wontFixView.issues.map((issue) => issue.status)).toEqual(["wont_fix"]);
+    expect(wontFixView.summary).toEqual({
+      total: 1,
+      open: 0,
+      inProgress: 0,
+      resolved: 0,
+      wontFix: 1,
+    });
+  });
+});
+
+describe("IssueSheetService.listIssues", () => {
+  it("scopes summary counts to the current list filters", async () => {
+    const { identity, project, user } = await createProjectForIdentity();
+    await authFixture.authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    await issueSheetService.createIssue({
+      organizationId,
+      projectId: project.id,
+      actorUserId: user.id,
+      body: {
+        title: "Open query",
+        issueType: "general_question",
+      },
+    });
+    await issueSheetService.createIssue({
+      organizationId,
+      projectId: project.id,
+      actorUserId: user.id,
+      body: {
+        title: "Won't fix query",
+        issueType: "general_question",
+        status: "wont_fix",
+      },
+    });
+
+    const openView = await issueSheetService.listIssues({
+      organizationId,
+      projectId: project.id,
+      actorUserId: user.id,
+      query: { view: "all_open", sort: "status", limit: 50, offset: 0 },
+    });
+    expect(openView.issues.map((issue) => issue.status)).toEqual(["open"]);
+    expect(openView.summary).toEqual({
+      total: 1,
+      open: 1,
+      inProgress: 0,
+      resolved: 0,
+      wontFix: 0,
+    });
+
+    const wontFixView = await issueSheetService.listIssues({
+      organizationId,
+      projectId: project.id,
+      actorUserId: user.id,
+      query: { view: "all_open", status: "wont_fix", sort: "status", limit: 50, offset: 0 },
+    });
+    expect(wontFixView.issues.map((issue) => issue.status)).toEqual(["wont_fix"]);
+    expect(wontFixView.summary).toEqual({
+      total: 1,
+      open: 0,
+      inProgress: 0,
+      resolved: 0,
+      wontFix: 1,
+    });
+  });
+});
+
 describe("IssueSheetService.getIssue", () => {
   it("returns null when the issue belongs to another project", async () => {
     const { identity, organization, user, project } = await createProjectForIdentity();

@@ -312,12 +312,11 @@ export function GlossariesPageView({
     </div>
   ) : null;
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-4">
       <PageHeader
         icon={BookOpenTextIcon}
         label={intl.formatMessage(glossariesPageViewMessages.pageLabel)}
         title={intl.formatMessage(glossariesPageViewMessages.pageTitle)}
-        description={intl.formatMessage(glossariesPageViewMessages.pageDescription)}
         statusLabel={glossaryCountLabel}
         actions={
           allowCreateGlossaries && !showWorkspaceEmptyState ? (
@@ -331,28 +330,24 @@ export function GlossariesPageView({
             </Button>
           ) : null
         }
-      />
-
-      {hasAnyResults || hasActiveFilters || nativeQuery.isLoading || externalQuery.isLoading ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
-          <WorkspaceFilterField
-            label={intl.formatMessage(glossariesPageViewMessages.searchLabel)}
-            className="w-full sm:max-w-xs"
-          >
+      >
+        {hasAnyResults || hasActiveFilters || nativeQuery.isLoading || externalQuery.isLoading ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
             <Input
+              aria-label={intl.formatMessage(glossariesPageViewMessages.searchLabel)}
               placeholder={intl.formatMessage(glossariesPageViewMessages.searchPlaceholder)}
               value={searchQuery}
               onChange={(e) => onSearchQueryChange(e.target.value)}
-              className="w-full"
+              className="w-full sm:max-w-xs"
             />
-          </WorkspaceFilterField>
-          {activeFilterCount > 0 ? (
-            <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
-              <FormattedMessage {...glossariesPageViewMessages.clearFilters} />
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+            {activeFilterCount > 0 ? (
+              <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
+                <FormattedMessage {...glossariesPageViewMessages.clearFilters} />
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </PageHeader>
 
       {queriesHaveNoResults && hasActiveFilters ? (
         <div className="text-sm text-muted-foreground">

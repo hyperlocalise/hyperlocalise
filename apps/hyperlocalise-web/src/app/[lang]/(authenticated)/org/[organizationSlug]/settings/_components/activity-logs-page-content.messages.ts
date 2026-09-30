@@ -15,20 +15,10 @@
 import { defineMessages } from "react-intl";
 
 export const activityLogsPageContentMessages = defineMessages({
-  pageLabel: {
-    defaultMessage: "Workspace",
-    id: "sa3vn/n2AP",
-    description: "Eyebrow for the activity logs settings page",
-  },
   pageTitle: {
     defaultMessage: "Activity logs",
     id: "RZLaeRVZkR",
     description: "Title for the activity logs settings page",
-  },
-  pageDescription: {
-    defaultMessage: "Review important changes made across your workspace.",
-    id: "J6COMAGjgx",
-    description: "Description for the activity logs settings page",
   },
   eventTypeLabel: {
     defaultMessage: "Event types",

@@ -12,7 +12,6 @@
  */
 import { redirect } from "next/navigation";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "settingsLinkedDomains");
@@ -23,11 +22,7 @@ export default function LinkedDomainsSettingsPage({
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <LinkedDomainsSettingsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <LinkedDomainsSettingsPageLoader params={params} />;
 }
 
 async function LinkedDomainsSettingsPageLoader({

@@ -168,11 +168,7 @@ export function QaWorkspacePageContent({
 
   return (
     <WorkspacePageShell>
-      <PageHeader
-        icon={CheckmarkCircle02Icon}
-        title={intl.formatMessage(messages.title)}
-        description={intl.formatMessage(messages.description)}
-      />
+      <PageHeader icon={CheckmarkCircle02Icon} title={intl.formatMessage(messages.title)} />
 
       <section className="flex flex-col gap-3">
         <TypographyP size="small" weight="medium">

@@ -63,11 +63,7 @@ export function HyperlabFlagsPage({
   ) : null;
 
   return (
-    <HyperlabPageShell
-      title={intl.formatMessage(messages.flagsTitle)}
-      description={intl.formatMessage(messages.flagsDescription)}
-      actions={createAction}
-    >
+    <HyperlabPageShell title={intl.formatMessage(messages.flagsTitle)} actions={createAction}>
       {flagsQuery.isError ? (
         <HyperlabLoadError error={flagsQuery.error} onRetry={() => void flagsQuery.refetch()} />
       ) : null}

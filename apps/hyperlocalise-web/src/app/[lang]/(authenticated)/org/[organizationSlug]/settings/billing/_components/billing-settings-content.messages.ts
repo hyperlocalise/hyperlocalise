@@ -15,20 +15,10 @@
 import { defineMessages } from "react-intl";
 
 export const billingSettingsContentMessages = defineMessages({
-  pageLabel: {
-    defaultMessage: "Workspace",
-    id: "Vp/eGd+cjb",
-    description: "Eyebrow label above the billing settings page title",
-  },
   pageTitle: {
     defaultMessage: "Billing",
     id: "8toT7pGxD3",
     description: "Billing settings page heading",
-  },
-  pageDescription: {
-    defaultMessage: "Plan, usage, and payment. Admins can change plan or open the billing portal.",
-    id: "QMQ6fLk/Jf",
-    description: "Billing settings page description",
   },
   billingUnavailableTitle: {
     defaultMessage: "Billing unavailable",

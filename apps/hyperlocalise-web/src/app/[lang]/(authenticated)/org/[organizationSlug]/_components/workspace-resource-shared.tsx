@@ -19,7 +19,7 @@ import { useIntl } from "react-intl";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import { workspaceResourceSharedMessages as messages } from "./workspace-resource-shared.messages";
@@ -31,7 +31,7 @@ type WorkspacePageShellProps = ComponentProps<"main">;
 
 export function WorkspacePageShell({ children, className, ...props }: WorkspacePageShellProps) {
   return (
-    <main className={cn("flex w-full flex-col gap-6 p-4", className)} {...props}>
+    <main className={cn("flex w-full flex-col gap-4", className)} {...props}>
       {children}
     </main>
   );
@@ -71,68 +71,47 @@ export function toneClass(tone: Tone) {
 }
 
 export function PageHeader({
-  icon,
-  label,
   title,
-  description,
-  descriptionDetail,
   statusLabel,
   actions,
+  children,
 }: {
   icon: Icon;
   label?: string;
   title: string;
-  description: string;
-  descriptionDetail?: string;
   statusLabel?: string;
   actions?: ReactNode;
+  children?: ReactNode;
 }) {
+  const hasToolbar = Boolean(children || statusLabel || actions);
+
   return (
-    <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div className="max-w-2xl">
-        {label ? (
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground antialiased">
-            <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4 shrink-0" />
-            <span>{label}</span>
-          </div>
-        ) : null}
-        <TypographyH1
-          className={cn("text-2xl md:text-2xl", label ? "mt-2" : "flex items-center gap-2")}
-          weight="medium"
-          tone="content"
-        >
-          {label ? (
-            title
-          ) : (
-            <>
-              <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-5 shrink-0" />
-              {title}
-            </>
+    <>
+      <h1 className="sr-only">{title}</h1>
+      {hasToolbar ? (
+        <div
+          className={cn(
+            "flex flex-col gap-3 sm:flex-row sm:items-center",
+            children ? "sm:justify-between" : "sm:justify-end",
           )}
-        </TypographyH1>
-        <TypographyP className="mt-2 leading-6" wrapStyle="pretty" size="small" tone="subtle">
-          {description}
-        </TypographyP>
-        {descriptionDetail ? (
-          <TypographyP className="mt-1.5 leading-6" wrapStyle="pretty" size="small" tone="subtle">
-            {descriptionDetail}
-          </TypographyP>
-        ) : null}
-      </div>
-      {statusLabel || actions ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {statusLabel ? (
-            <Badge
-              variant="outline"
-              className="h-8 w-fit rounded-lg border-border bg-muted text-subtle-foreground"
-            >
-              {statusLabel}
-            </Badge>
+        >
+          {children ? <div className="min-w-0 flex-1">{children}</div> : null}
+          {statusLabel || actions ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+              {statusLabel ? (
+                <Badge
+                  variant="outline"
+                  className="h-8 w-fit rounded-lg border-border bg-muted text-subtle-foreground"
+                >
+                  {statusLabel}
+                </Badge>
+              ) : null}
+              {actions}
+            </div>
           ) : null}
-          {actions}
         </div>
       ) : null}
-    </section>
+    </>
   );
 }
 

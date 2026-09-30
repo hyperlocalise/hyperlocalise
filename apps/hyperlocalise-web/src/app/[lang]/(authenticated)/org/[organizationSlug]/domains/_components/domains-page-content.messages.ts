@@ -20,12 +20,6 @@ export const domainsPageContentMessages = defineMessages({
     id: "icuWnstCMG",
     description: "Edit locales for a domain in the list",
   },
-  pageDescription: {
-    defaultMessage:
-      "Manage each domain and its locales. Open a domain to explore research by locale.",
-    id: "2NdI8ju66r",
-    description: "Domains workspace page description",
-  },
   loadError: {
     defaultMessage: "Could not load linked domains.",
     id: "BBrh+7z4Oj",

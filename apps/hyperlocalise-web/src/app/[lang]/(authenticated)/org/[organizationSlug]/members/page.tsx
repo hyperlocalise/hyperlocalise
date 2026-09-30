@@ -14,18 +14,13 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { MembersPageContent } from "../settings/_components/members-page-content";
-import { OrgPageSuspense } from "../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "members");
 }
 
 export default function MembersPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
-  return (
-    <OrgPageSuspense>
-      <MembersPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <MembersPageLoader params={params} />;
 }
 
 async function MembersPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {

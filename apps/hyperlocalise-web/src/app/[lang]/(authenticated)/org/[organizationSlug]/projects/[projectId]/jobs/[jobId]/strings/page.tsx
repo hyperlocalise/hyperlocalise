@@ -28,7 +28,6 @@ import {
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { JobContentEditorPageContent } from "./_components/job-content-editor-page-content";
-import { OrgPageSuspense } from "../../../../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "projectJobStrings");
@@ -50,11 +49,7 @@ export default function ProjectJobStringsPage({
     search?: string;
   }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectJobStringsPageLoader params={params} searchParams={searchParams} />
-    </OrgPageSuspense>
-  );
+  return <ProjectJobStringsPageLoader params={params} searchParams={searchParams} />;
 }
 
 async function ProjectJobStringsPageLoader({

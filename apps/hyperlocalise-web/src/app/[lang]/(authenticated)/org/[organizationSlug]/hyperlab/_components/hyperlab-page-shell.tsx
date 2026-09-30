@@ -26,13 +26,11 @@ import { hyperlabMessages as messages } from "./hyperlab.messages";
 
 export function HyperlabPageShell({
   title,
-  description,
   actions,
   backHref,
   children,
 }: {
   title: string;
-  description: string;
   actions?: ReactNode;
   backHref?: string;
   children: ReactNode;
@@ -58,7 +56,6 @@ export function HyperlabPageShell({
           icon={FlaskConicalIcon}
           label={intl.formatMessage(messages.workspaceLabel)}
           title={title}
-          description={description}
           actions={actions}
         />
         {children}

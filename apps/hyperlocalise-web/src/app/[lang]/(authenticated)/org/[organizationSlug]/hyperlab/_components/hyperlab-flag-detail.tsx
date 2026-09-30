@@ -190,7 +190,6 @@ const HyperlabFlagDetailConnected = observer(function HyperlabFlagDetailConnecte
       <HyperlabFlagQueryBridge flag={flag} config={detailQuery.data?.config} />
       <HyperlabPageShell
         title={flag?.key ?? intl.formatMessage(messages.flagsTitle)}
-        description={intl.formatMessage(messages.flagsDescription)}
         backHref={`/org/${organizationSlug}/hyperlab/flags`}
         actions={
           canWrite ? (

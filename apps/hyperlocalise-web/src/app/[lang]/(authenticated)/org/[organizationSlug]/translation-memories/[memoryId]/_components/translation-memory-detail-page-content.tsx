@@ -51,7 +51,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
@@ -264,25 +264,16 @@ export function TranslationMemoryDetailPageContent({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-      <section className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <TypographyH1 className="text-2xl" weight="medium">
-            {memory.name}
-          </TypographyH1>
-          <Badge variant="outline">
-            {memory.source === "native" ? (
-              <FormattedMessage {...messages.sourceWorkspace} />
-            ) : (
-              <FormattedMessage {...messages.sourceProvider} />
-            )}
-          </Badge>
-        </div>
-        {memory.description ? (
-          <TypographyP className="max-w-2xl leading-6" size="small" tone="subtle">
-            {memory.description}
-          </TypographyP>
-        ) : null}
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+      <section className="flex flex-wrap items-center justify-end gap-2">
+        <h1 className="sr-only">{memory.name}</h1>
+        <Badge variant="outline">
+          {memory.source === "native" ? (
+            <FormattedMessage {...messages.sourceWorkspace} />
+          ) : (
+            <FormattedMessage {...messages.sourceProvider} />
+          )}
+        </Badge>
       </section>
 
       <TmEntryExplorer

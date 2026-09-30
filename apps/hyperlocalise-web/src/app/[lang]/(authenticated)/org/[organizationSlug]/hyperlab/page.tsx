@@ -13,7 +13,6 @@
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { HyperlabOverview } from "./_components/hyperlab-overview";
-import { OrgPageSuspense } from "../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "hyperlab");
@@ -24,11 +23,7 @@ export default function HyperlabPage({
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <HyperlabPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <HyperlabPageLoader params={params} />;
 }
 
 async function HyperlabPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {

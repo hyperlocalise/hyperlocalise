@@ -20,12 +20,6 @@ export const qaWorkspaceMessages = defineMessages({
     id: "6PydP1CR24",
     description: "Workspace QA page title",
   },
-  description: {
-    defaultMessage:
-      "Portfolio health from the latest scans, plus a cross-project queue to fix findings.",
-    id: "qWfE0C4hqC",
-    description: "Workspace QA page description",
-  },
   portfolioTitle: {
     defaultMessage: "Portfolio",
     id: "zJnpLjNSBd",

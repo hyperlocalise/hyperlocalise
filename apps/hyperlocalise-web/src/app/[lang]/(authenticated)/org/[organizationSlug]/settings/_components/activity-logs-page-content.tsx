@@ -122,11 +122,7 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
   return (
     <SettingsPageBody width="wide">
       <Rows spacing="4u">
-        <SettingsPageHeader
-          eyebrow={intl.formatMessage(messages.pageLabel)}
-          title={intl.formatMessage(messages.pageTitle)}
-          description={intl.formatMessage(messages.pageDescription)}
-        />
+        <SettingsPageHeader title={intl.formatMessage(messages.pageTitle)} />
 
         <Card size="sm">
           <CardContent>

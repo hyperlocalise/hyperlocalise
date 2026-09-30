@@ -25,12 +25,6 @@ export const translationMemoriesPageViewMessages = defineMessages({
     id: "zHmiYq4Tm1",
     description: "Translation memories page heading",
   },
-  pageDescription: {
-    defaultMessage:
-      "Create first-party workspace memories or sync provider translation memories. Provider memories stay read-only.",
-    id: "RiqlM9/Nv4",
-    description: "Translation memories page description under the heading",
-  },
   memoryCount: {
     defaultMessage: "{count, plural, one {# memory} other {# memories}}",
     id: "hIXJeNB+nI",

@@ -107,7 +107,6 @@ const DomainsPageView = observer(function DomainsPageView({
           icon={Globe02Icon}
           label="Workspace"
           title="Domains"
-          description={intl.formatMessage(messages.pageDescription)}
           actions={store.hasDomains ? addDomainAction : undefined}
         />
       </div>

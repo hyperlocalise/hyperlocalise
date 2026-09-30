@@ -19,8 +19,6 @@ import { AGENT_MARKDOWN_TRACE_GLOB } from "./src/agents/_runtime/paths";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
   reactCompiler: true,
   // Keep the tracer and the dependencies whose load hooks provide the spans we
   // rely on as native Node.js modules instead of folding them into route bundles.
@@ -28,9 +26,6 @@ const nextConfig: NextConfig = {
   typescript: {
     // Exclude tests and typed-app.ts so next build does not instantiate AppType (TS2589).
     tsconfigPath: "tsconfig.build.json",
-  },
-  experimental: {
-    exposeTestingApiInProductionBuild: true,
   },
   async rewrites() {
     const authkitDomain = process.env.WORKOS_AUTHKIT_DOMAIN;
