@@ -50,49 +50,40 @@ jobs:
 
       - name: Detect changed paths
         id: paths
-        shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.sha }}
-        run: |
-          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
-            echo "activity-log=true" >> "${GITHUB_OUTPUT}"
-            echo "glossary-interchange=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          changed_files="$(git diff --name-only "${BEFORE_SHA}" "${AFTER_SHA}")"
-          shared_changed=false
-          while IFS= read -r path; do
-            case "${path}" in
-              Makefile|go.mod|go.sum|MODULE.bazel|internal/activitylog/*|internal/secretsmanager/*|.github/actions/go-bootstrap/*|.github/actions/provision-lambda/*|.github/actions/upload-lambda-artifact/*|.github/actions/deploy-lambda-artifact/*|.github/workflows/lambda-deploy.yml)
-                shared_changed=true
-                break
-                ;;
-            esac
-          done <<< "${changed_files}"
-
-          activity_changed="${shared_changed}"
-          glossary_changed="${shared_changed}"
-          while IFS= read -r path; do
-            case "${path}" in
-              apps/activity-log-lambda/*)
-                activity_changed=true
-                ;;
-              apps/glossary-interchange-lambda/*)
-                glossary_changed=true
-                ;;
-            esac
-          done <<< "${changed_files}"
-
-          echo "activity-log=${activity_changed}" >> "${GITHUB_OUTPUT}"
-          echo "glossary-interchange=${glossary_changed}" >> "${GITHUB_OUTPUT}"
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            activity-log:
+              - 'apps/activity-log-lambda/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/activitylog/**'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/workflows/lambda-deploy.yml'
+            glossary-interchange:
+              - 'apps/glossary-interchange-lambda/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/activitylog/**'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/workflows/lambda-deploy.yml'
 
   activity_log_deploy:
     name: Build and deploy activity-log Lambda
     needs: changed_paths
-    if: github.ref == 'refs/heads/main' && needs.changed_paths.outputs.activity-log == 'true'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.activity-log == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
 
@@ -146,7 +137,7 @@ jobs:
   glossary_interchange_deploy:
     name: Build and deploy glossary-interchange Lambda
     needs: changed_paths
-    if: github.ref == 'refs/heads/main' && needs.changed_paths.outputs.glossary-interchange == 'true'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.glossary-interchange == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
 
