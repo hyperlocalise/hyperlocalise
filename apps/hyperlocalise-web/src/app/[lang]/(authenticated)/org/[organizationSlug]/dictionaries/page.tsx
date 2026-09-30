@@ -14,7 +14,6 @@ import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { DictionariesPageContent } from "./_components/dictionaries-page-content";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
@@ -26,11 +25,7 @@ export default function DictionariesPage({
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <DictionariesPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <DictionariesPageLoader params={params} />;
 }
 
 async function DictionariesPageLoader({

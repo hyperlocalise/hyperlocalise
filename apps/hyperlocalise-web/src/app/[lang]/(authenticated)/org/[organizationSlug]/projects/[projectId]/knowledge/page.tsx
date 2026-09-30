@@ -19,7 +19,6 @@ import {
 } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "projectGuideline");
@@ -30,11 +29,7 @@ export default function ProjectKnowledgePage({
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectKnowledgePageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectKnowledgePageLoader params={params} />;
 }
 
 async function ProjectKnowledgePageLoader({

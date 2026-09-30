@@ -13,7 +13,6 @@
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
 import { GlossaryInterchangeReport } from "../../_components/glossary-interchange-report";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
@@ -25,11 +24,7 @@ export default function GlossaryInterchangeReportPage({
 }: {
   params: Promise<{ organizationSlug: string; glossaryId: string; runId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <GlossaryInterchangeReportLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <GlossaryInterchangeReportLoader params={params} />;
 }
 
 async function GlossaryInterchangeReportLoader({

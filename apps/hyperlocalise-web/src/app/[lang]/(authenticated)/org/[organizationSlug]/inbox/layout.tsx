@@ -16,7 +16,6 @@ import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { InboxPageContent } from "./_components/inbox-page-content";
-import { OrgPageSuspense } from "../_components/org-page-suspense";
 
 export default function InboxLayout({
   children,
@@ -25,11 +24,7 @@ export default function InboxLayout({
   children: ReactNode;
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <InboxLayoutLoader params={params}>{children}</InboxLayoutLoader>
-    </OrgPageSuspense>
-  );
+  return <InboxLayoutLoader params={params}>{children}</InboxLayoutLoader>;
 }
 
 async function InboxLayoutLoader({

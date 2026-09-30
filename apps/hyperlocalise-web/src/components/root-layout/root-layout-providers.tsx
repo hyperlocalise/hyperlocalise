@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 
 import { I18nProvider } from "@/components/i18n/i18n-provider";
@@ -18,7 +18,6 @@ import { QueryProvider } from "@/components/query-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { type AppLocale, DEFAULT_APP_LOCALE } from "@/lib/app-i18n/locales";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { withAuth } from "@/lib/workos/server-auth";
 
@@ -28,41 +27,9 @@ type RootLayoutProvidersProps = {
   children: ReactNode;
 };
 
-type RootLayoutProvidersInnerProps = {
-  children?: ReactNode;
-  initialAuth: React.ComponentProps<typeof AuthKitProvider>["initialAuth"];
-  locale: AppLocale;
-};
-
-export function RootLayoutProviders({ children }: RootLayoutProvidersProps) {
-  return (
-    <Suspense fallback={<RootLayoutProvidersFallback />}>
-      <RootLayoutProvidersContent>{children}</RootLayoutProvidersContent>
-    </Suspense>
-  );
-}
-
-function RootLayoutProvidersFallback() {
-  // Keep route children out of the fallback. Including them would prerender
-  // uncached page data (cookies, headers, auth) into the static shell.
-  return <RootLayoutProvidersInner initialAuth={undefined} locale={DEFAULT_APP_LOCALE} />;
-}
-
-async function RootLayoutProvidersContent({ children }: RootLayoutProvidersProps) {
+export async function RootLayoutProviders({ children }: RootLayoutProvidersProps) {
   const [locale, initialAuth] = await Promise.all([getAppLocale(), getInitialAuth()]);
 
-  return (
-    <RootLayoutProvidersInner initialAuth={initialAuth} locale={locale}>
-      {children}
-    </RootLayoutProvidersInner>
-  );
-}
-
-function RootLayoutProvidersInner({
-  children,
-  initialAuth,
-  locale,
-}: RootLayoutProvidersInnerProps) {
   return (
     <>
       <RootDocumentLocale locale={locale} />

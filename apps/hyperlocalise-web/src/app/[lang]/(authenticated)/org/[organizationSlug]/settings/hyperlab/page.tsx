@@ -16,7 +16,6 @@ import { requireAppCapability } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { HyperlabOverview } from "../../hyperlab/_components/hyperlab-overview";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "hyperlab");
@@ -27,11 +26,7 @@ export default function HyperlabSettingsPage({
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <HyperlabSettingsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <HyperlabSettingsPageLoader params={params} />;
 }
 
 async function HyperlabSettingsPageLoader({
