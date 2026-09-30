@@ -19,7 +19,6 @@ const (
 	SecretARNEnv     = "DATABASE_URL_SECRET_ARN"
 	SecretKeyEnv     = "DATABASE_SECRET_KEY"
 	SecretTTLSeconds = "DATABASE_URL_SECRET_CACHE_TTL_SECONDS"
-	SecretEnvPrefix  = "HYPERLOCALISE_SECRET_"
 	DefaultCacheTTL  = 5 * time.Minute
 )
 
@@ -39,17 +38,17 @@ type Config struct {
 //
 // Each reference uses the following variables, where NAME is an uppercase
 // logical name containing letters, numbers, and underscores:
-//   - HYPERLOCALISE_SECRET_NAME_ARN
-//   - HYPERLOCALISE_SECRET_NAME_KEY
-//   - HYPERLOCALISE_SECRET_NAME_CACHE_TTL_SECONDS (optional)
+//   - NAME_ARN
+//   - NAME_KEY
+//   - NAME_CACHE_TTL_SECONDS (optional)
 func ConfigsFromEnv() (map[string]Config, error) {
 	arns := make(map[string]string)
 	for _, entry := range os.Environ() {
 		key, value, ok := strings.Cut(entry, "=")
-		if !ok || !strings.HasPrefix(key, SecretEnvPrefix) || !strings.HasSuffix(key, "_ARN") {
+		if !ok || !strings.HasSuffix(key, "_ARN") {
 			continue
 		}
-		name := strings.TrimSuffix(strings.TrimPrefix(key, SecretEnvPrefix), "_ARN")
+		name := strings.TrimSuffix(key, "_ARN")
 		if name != "" {
 			arns[name] = strings.TrimSpace(value)
 		}
@@ -57,11 +56,11 @@ func ConfigsFromEnv() (map[string]Config, error) {
 
 	configs := make(map[string]Config, len(arns))
 	for name, arn := range arns {
-		keyEnv := SecretEnvPrefix + name + "_KEY"
-		ttlEnv := SecretEnvPrefix + name + "_CACHE_TTL_SECONDS"
+		keyEnv := name + "_KEY"
+		ttlEnv := name + "_CACHE_TTL_SECONDS"
 		key := strings.TrimSpace(os.Getenv(keyEnv))
 		if arn == "" {
-			return nil, fmt.Errorf("%s is required", SecretEnvPrefix+name+"_ARN")
+			return nil, fmt.Errorf("%s is required", name+"_ARN")
 		}
 		if key == "" {
 			return nil, fmt.Errorf("%s is required", keyEnv)

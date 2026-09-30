@@ -131,6 +131,14 @@ uploads a versioned S3 artifact, and updates the function named by SSM. Secret
 values stay in Secrets Manager; Lambda receives only ARN, JSON-key, and cache
 metadata through environment variables.
 
+The existing activity-log compatibility wrapper in infrastructure still passes
+the database secret metadata as `DATABASE_URL_SECRET_ARN`,
+`DATABASE_SECRET_KEY`, and `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`. Keep using
+`secretsmanager.ConfigFromEnv` for that worker. New workers composed directly
+from the reusable infrastructure module use the generic
+`<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` variables and
+`ConfigsFromEnv`/`Collection`.
+
 ```yaml
 jobs:
   localization-drift:

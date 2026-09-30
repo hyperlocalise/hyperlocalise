@@ -26,8 +26,14 @@ a versioned S3 object.
 ## Secret metadata
 
 Only secret references are environment configuration. A generated worker should
-turn named values into a typed config structure during initialization and keep
-the values out of logs, error strings, metrics, and child-process environment.
+turn named values into `<NAME>_ARN`, `<NAME>_KEY`, and
+`<NAME>_CACHE_TTL_SECONDS` metadata during initialization and keep the values
+out of logs, error strings, metrics, and child-process environment.
+
+The existing activity-log compatibility wrapper still uses the legacy
+`DATABASE_URL_SECRET_ARN`, `DATABASE_SECRET_KEY`, and
+`DATABASE_URL_SECRET_CACHE_TTL_SECONDS` variables. Do not rename those inputs
+without a coordinated infrastructure change.
 
 ## Deployment inputs
 

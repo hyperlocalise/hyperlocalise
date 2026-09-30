@@ -34,13 +34,19 @@ worker, or a new Lambda artifact under `apps/`.
    - logs IDs, counts, phases, and durations without payload secrets.
 4. Add shared-secret metadata configuration. The infrastructure supplies only:
 
-   - `HYPERLOCALISE_SECRET_<NAME>_ARN`
-   - `HYPERLOCALISE_SECRET_<NAME>_KEY`
-   - `HYPERLOCALISE_SECRET_<NAME>_CACHE_TTL_SECONDS`
+   - `<NAME>_ARN`
+   - `<NAME>_KEY`
+   - `<NAME>_CACHE_TTL_SECONDS`
 
    Call `secretsmanager.ConfigsFromEnv`, create a
    `secretsmanager.Collection`, and map named values into a typed runtime
    config. Never mutate `os.Environ` with loaded values.
+
+   The existing activity-log Lambda is a compatibility exception: the merged
+   infrastructure wrapper still supplies `DATABASE_URL_SECRET_ARN`,
+   `DATABASE_SECRET_KEY`, and `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`, so that
+   worker continues to use `secretsmanager.ConfigFromEnv` until infrastructure
+   changes its wrapper contract.
 5. Add table-driven tests for valid messages, malformed messages, partial
    failures, context cancellation, secret loading, cache behavior, and safe
    logging. Use fakes for AWS and external dependencies.

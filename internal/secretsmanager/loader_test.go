@@ -91,11 +91,11 @@ func TestConfigFromEnvUsesConfiguredTTL(t *testing.T) {
 }
 
 func TestConfigsFromEnvReadsNamedReferences(t *testing.T) {
-	t.Setenv("HYPERLOCALISE_SECRET_DATABASE_ARN", "arn:database")
-	t.Setenv("HYPERLOCALISE_SECRET_DATABASE_KEY", "DATABASE_URL")
-	t.Setenv("HYPERLOCALISE_SECRET_DATABASE_CACHE_TTL_SECONDS", "42")
-	t.Setenv("HYPERLOCALISE_SECRET_PROVIDER_ARN", "arn:provider")
-	t.Setenv("HYPERLOCALISE_SECRET_PROVIDER_KEY", "API_KEY")
+	t.Setenv("DATABASE_ARN", "arn:database")
+	t.Setenv("DATABASE_KEY", "DATABASE_URL")
+	t.Setenv("DATABASE_CACHE_TTL_SECONDS", "42")
+	t.Setenv("PROVIDER_ARN", "arn:provider")
+	t.Setenv("PROVIDER_KEY", "API_KEY")
 
 	configs, err := ConfigsFromEnv()
 	require.NoError(t, err)
@@ -104,11 +104,11 @@ func TestConfigsFromEnvReadsNamedReferences(t *testing.T) {
 }
 
 func TestConfigsFromEnvRequiresKey(t *testing.T) {
-	t.Setenv("HYPERLOCALISE_SECRET_DATABASE_ARN", "arn:database")
-	t.Setenv("HYPERLOCALISE_SECRET_DATABASE_KEY", "")
+	t.Setenv("DATABASE_ARN", "arn:database")
+	t.Setenv("DATABASE_KEY", "")
 
 	_, err := ConfigsFromEnv()
-	require.EqualError(t, err, "HYPERLOCALISE_SECRET_DATABASE_KEY is required")
+	require.EqualError(t, err, "DATABASE_KEY is required")
 }
 
 func TestCollectionLoadsNamedReferences(t *testing.T) {

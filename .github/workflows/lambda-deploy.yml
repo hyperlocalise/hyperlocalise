@@ -35,8 +35,8 @@ env:
   LAMBDA_ARTIFACT_KEY: activity-log/bootstrap.zip
 
 jobs:
-  activity_log_upload:
-    name: Build and upload activity-log artifact
+  activity_log_deploy:
+    name: Build and deploy activity-log Lambda
     if: github.ref == 'refs/heads/main'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
@@ -51,63 +51,32 @@ jobs:
           go-version-file: go.mod
 
       - name: Test activity-log Lambda
-        run: go test ./apps/activity-log-lambda ./internal/activitylog
+        run: go test ./apps/activity-log-lambda ./internal/activitylog ./internal/secretsmanager
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
         with:
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-actions-lambda-upload
+          role-session-name: github-actions-lambda-deploy
 
-      - name: Build and upload activity-log Lambda artifact
-        id: upload
-        uses: ./.github/actions/upload-lambda-artifact
+      - name: Build and deploy activity-log Lambda artifact
+        id: deploy
+        uses: ./.github/actions/deploy-lambda-artifact
         with:
           bucket-parameter-name: ${{ env.LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME }}
+          function-parameter-name: ${{ env.LAMBDA_FUNCTION_PARAMETER_NAME }}
           build-command: make build-activity-log-lambda
           binary-path: dist/activity-log-lambda/bootstrap
           s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
 
-    outputs:
-      bucket: ${{ steps.upload.outputs.bucket }}
-      s3-uri: ${{ steps.upload.outputs.s3-uri }}
-      version-id: ${{ steps.upload.outputs.version-id }}
-
-  activity_log_provision:
-    name: Provision activity-log Lambda code
-    needs: activity_log_upload
-    if: github.ref == 'refs/heads/main'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
-        with:
-          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-actions-lambda-provision
-
-      - name: Provision activity-log Lambda from artifact
-        id: provision
-        uses: ./.github/actions/provision-lambda
-        with:
-          function-parameter-name: ${{ env.LAMBDA_FUNCTION_PARAMETER_NAME }}
-          bucket: ${{ needs.activity_log_upload.outputs.bucket }}
-          s3-key: ${{ env.LAMBDA_ARTIFACT_KEY }}
-          version-id: ${{ needs.activity_log_upload.outputs.version-id }}
-
       - name: Summarize activity-log deployment
         shell: bash
         env:
-          S3_URI: ${{ needs.activity_log_upload.outputs.s3-uri }}
-          VERSION_ID: ${{ needs.activity_log_upload.outputs.version-id }}
-          FUNCTION_NAME: ${{ steps.provision.outputs.function-name }}
-          UPDATE: ${{ steps.provision.outputs.update }}
+          S3_URI: ${{ steps.deploy.outputs.s3-uri }}
+          VERSION_ID: ${{ steps.deploy.outputs.version-id }}
+          FUNCTION_NAME: ${{ steps.deploy.outputs.function-name }}
+          UPDATE: ${{ steps.deploy.outputs.update }}
         run: |
           {
             echo "## Activity-log Lambda deployed"
