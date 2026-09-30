@@ -129,7 +129,7 @@ export function createTranslationMemoryDetailMswHandlers({
         return new HttpResponse(null, { status: 204 });
       },
     ),
-    http.get("/api/orgs/:organizationSlug/projects", () =>
+    http.get("*/v1/orgs/:organizationSlug/projects", () =>
       HttpResponse.json({
         projects: projects.map((project) => ({
           id: project.id,

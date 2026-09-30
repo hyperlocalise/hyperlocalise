@@ -76,14 +76,12 @@ export function DomainDetailPageContent({
     queryKey: ["translation-projects", organizationSlug, "domain-assignment"],
     enabled: linkedDomain?.status === "verified",
     queryFn: async () => {
-      const response = await fetch(`/api/orgs/${encodeURIComponent(organizationSlug)}/projects`);
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.projectsLoadError));
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects.map((project) => ({ id: project.id, name: project.name }));
+      } catch (error) {
+        throw new Error(intl.formatMessage(messages.projectsLoadError), { cause: error });
       }
-      const body = (await response.json().catch(() => ({}))) as {
-        projects?: Array<{ id: string; name: string }>;
-      };
-      return body.projects ?? [];
     },
   });
 

@@ -29,6 +29,9 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
       domains: {
         listLinkedDomains,
       },
+      project: {
+        list: vi.fn().mockResolvedValue({ projects: [] }),
+      },
     },
     loading: false,
   }),
