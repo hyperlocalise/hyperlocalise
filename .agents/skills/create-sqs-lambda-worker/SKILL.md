@@ -23,7 +23,9 @@ worker, or a new Lambda artifact under `apps/`.
 1. Inspect `AGENTS.md`, nearby Lambda packages, `Makefile`, `go.mod`, Bazel
    metadata, and existing message contracts.
 2. Choose a stable worker package under `apps/<worker-name>-lambda` and a
-   versioned message type. Reject ambiguous ownership or an unversioned wire
+   versioned message type. If the Lambda already exists, preserve its directory,
+   artifact name, and SSM function parameter; do not rename it to fit the
+   scaffold convention. Reject ambiguous ownership or an unversioned wire
    contract.
 3. Scaffold a handler that:
    - accepts `events.SQSEvent`;
@@ -55,6 +57,11 @@ worker, or a new Lambda artifact under `apps/`.
 7. Add or update deployment workflow configuration using
    `.github/actions/deploy-lambda-artifact` with the build command, binary path,
    artifact key, artifact-bucket SSM parameter, and function-name SSM parameter.
+   Follow the existing `.github/workflows/lambda-deploy.yml` pattern: preserve
+   the changed-path detector and deploy job, and make the smallest possible
+   change—normally only the Lambda source path and the worker-specific test,
+   build, binary, artifact, and function-parameter values. Do not refactor the
+   workflow into a different upload/provision structure.
 8. Document required non-sensitive environment metadata and the local test
    command. Do not require LocalStack for unit tests.
 9. Run `make fmt`, `make lint`, and `make test` before handing off the infra
