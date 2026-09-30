@@ -1,22 +1,6 @@
-load("@rules_go//go:def.bzl", "go_binary", "go_test")
-
 go_binary(
-    name = "glossary_interchange_lambda",
-    srcs = ["main.go"],
-    importpath = "github.com/hyperlocalise/hyperlocalise/apps/glossary-interchange-lambda",
+    name = "glossary-interchange",
+    srcs = ["main.go", "worker.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/glossary-interchange",
     visibility = ["//visibility:public"],
-    deps = [
-        "@com_github_aws_aws_lambda_go//events",
-        "@com_github_aws_aws_lambda_go//lambda",
-    ],
-)
-
-go_test(
-    name = "glossary_interchange_lambda_test",
-    srcs = ["handler_test.go"],
-    embed = [":glossary_interchange_lambda"],
-    deps = [
-        "@com_github_aws_aws_lambda_go//events",
-        "@com_github_stretchr_testify//require",
-    ],
 )

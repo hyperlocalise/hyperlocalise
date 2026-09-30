@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -23,6 +24,8 @@ type glossaryAPI struct {
 	membership  organizationMembershipLookup
 	readCache   glossaryReadCache
 	activityLog activityLogPublisher
+	interchange glossaryInterchangePublisher
+	objects     *objectstore.Registry
 }
 
 type glossaryActor struct{ userID, organizationID, role string }
@@ -115,14 +118,17 @@ func (api *glossaryAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("POST "+g+"/{glossaryId}/projects", owned((*glossaryAPI).attachGlossaryProject))
 	route("DELETE "+g+"/{glossaryId}/projects/{projectId}", owned((*glossaryAPI).detachGlossaryProject))
 	route("GET "+g+"/{glossaryId}/export", owned((*glossaryAPI).exportGlossaryHandler))
+	route("POST "+g+"/{glossaryId}/export", owned((*glossaryAPI).createGlossaryExportHandler))
 	route("GET "+g+"/{glossaryId}/import-reports/{reportId}", owned((*glossaryAPI).getGlossaryImportReportHandler))
 	route("GET "+g+"/{glossaryId}/import-reports/{reportId}/backup", owned((*glossaryAPI).getGlossaryImportBackupHandler))
+	route("GET "+g+"/{glossaryId}/import-reports/{reportId}/download", owned((*glossaryAPI).getGlossaryInterchangeDownloadHandler))
 	route("GET "+g+"/{glossaryId}/concepts", owned((*glossaryAPI).listConceptsHandler))
 	route("POST "+g+"/{glossaryId}/concepts", owned((*glossaryAPI).createConceptHandler))
 	route("GET "+g+"/{glossaryId}/concepts/page", owned((*glossaryAPI).pageGlossaryConceptsHandler))
 	route("GET "+g+"/{glossaryId}/concepts/authors", owned((*glossaryAPI).listGlossaryConceptAuthorsHandler))
 	route("GET "+g+"/{glossaryId}/concepts/history", owned((*glossaryAPI).pageGlossaryHistoryHandler))
 	route("POST "+g+"/{glossaryId}/concepts/import", owned((*glossaryAPI).importGlossaryConceptsHandler))
+	route("POST "+g+"/{glossaryId}/concepts/import/uploads", owned((*glossaryAPI).createGlossaryImportUploadHandler))
 	route("GET "+g+"/{glossaryId}/concepts/{conceptId}", owned((*glossaryAPI).getConceptHandler))
 	route("PATCH "+g+"/{glossaryId}/concepts/{conceptId}", owned((*glossaryAPI).patchConceptHandler))
 	route("DELETE "+g+"/{glossaryId}/concepts/{conceptId}", owned((*glossaryAPI).deleteConceptHandler))
