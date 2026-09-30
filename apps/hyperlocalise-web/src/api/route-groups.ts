@@ -81,6 +81,7 @@ export type OrgScopedRouteOptions = {
 };
 
 export type PublicApiRouteOptions = {
+  deferAfterResponse?: (task: Promise<unknown>) => void;
   jobQueue: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
 };
@@ -91,7 +92,13 @@ export function createAuthRoutes() {
 
 export function createPublicApiRoutes(options: PublicApiRouteOptions) {
   return new Hono()
-    .route("/files", createPublicFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
+    .route(
+      "/files",
+      createPublicFileRoutes({
+        deferAfterResponse: options.deferAfterResponse,
+        fileStorageAdapter: options.fileStorageAdapter,
+      }),
+    )
     .route("/jobs", createPublicJobRoutes(options))
     .route("/projects", createPublicTranslationRoutes())
     .route(
