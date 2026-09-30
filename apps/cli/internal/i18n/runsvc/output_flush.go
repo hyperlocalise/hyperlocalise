@@ -90,6 +90,9 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 		}
 		stagedEntries = joined
 	}
+	if output.replaceCatalog {
+		keep = catalogKeySet(stagedEntries)
+	}
 	if keep != nil {
 		for key := range values {
 			if _, ok := keep[key]; !ok {
@@ -115,6 +118,14 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 		return nil, fmt.Errorf("flush outputs: write %q: %w", targetPath, err)
 	}
 	return append(loadWarnings, warnings...), nil
+}
+
+func catalogKeySet(entries map[string]string) map[string]struct{} {
+	keep := make(map[string]struct{}, len(entries))
+	for key := range entries {
+		keep[key] = struct{}{}
+	}
+	return keep
 }
 
 func (s *Service) loadExistingTarget(path string) (map[string]string, error) {

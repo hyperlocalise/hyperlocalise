@@ -188,7 +188,7 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 
 	if len(executable) > 0 || len(copyTasks) > 0 {
 		emitter.emit(Event{Kind: EventPhase, Phase: PhaseExecuting})
-		if len(executable) > 0 && state.ActiveRunID == "" {
+		if state.ActiveRunID == "" {
 			state.ActiveRunID = nextRunID(s.now())
 			activeRunID = state.ActiveRunID
 		}

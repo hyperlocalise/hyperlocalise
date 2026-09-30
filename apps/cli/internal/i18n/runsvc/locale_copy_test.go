@@ -1,14 +1,19 @@
 package runsvc
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
@@ -422,6 +427,165 @@ func TestRunCopyLocaleFromSource(t *testing.T) {
 	assertJSONFile(t, files[auPath], map[string]string{"hello": "Hello"})
 }
 
+func TestRunCopyLocaleReplacesExistingCatalog(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	gbPath := "/tmp/en-GB.json"
+	auPath := "/tmp/en-AU.json"
+	files := map[string][]byte{
+		sourcePath: []byte(`{"hello":"Hello"}`),
+		gbPath:     []byte(`{"hello":"Colour"}`),
+		auPath:     []byte(`{"hello":"Old","stale":"Stale"}`),
+	}
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testLocaleCopyConfig(sourcePath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		content, ok := files[path]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return content, nil
+	}
+	svc.writeFile = func(path string, content []byte) error {
+		files[path] = append([]byte(nil), content...)
+		return nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		t.Fatalf("translate should not run for copy-only locale, got target %q", req.TargetLanguage)
+		return "", nil
+	}
+
+	if _, err := svc.Run(context.Background(), Input{TargetLocales: []string{"en-AU"}}); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	assertJSONExact(t, files[auPath], map[string]string{"hello": "Colour"})
+}
+
+func TestRunCopyOnlyPersistsLockEntries(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	gbPath := "/tmp/en-GB.json"
+	auPath := "/tmp/en-AU.json"
+	files := map[string][]byte{
+		sourcePath: []byte(`{"hello":"Hello"}`),
+		gbPath:     []byte(`{"hello":"Colour"}`),
+	}
+	staleID := auPath + "::hello"
+	lockState := &lockfile.File{
+		RunCompleted: map[string]lockfile.RunCompletion{
+			staleID: {SourceHash: "stale-source", TaskHash: "stale-llm"},
+		},
+	}
+	var saved lockfile.File
+	saveCount := 0
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testLocaleCopyConfig(sourcePath)
+		return &cfg, nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return lockState, nil
+	}
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		saveCount++
+		saved = f
+		*lockState = f
+		return nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		content, ok := files[path]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return content, nil
+	}
+	svc.writeFile = func(path string, content []byte) error {
+		files[path] = append([]byte(nil), content...)
+		return nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		t.Fatalf("translate should not run for copy-only locale, got target %q", req.TargetLanguage)
+		return "", nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{TargetLocales: []string{"en-AU"}})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if saveCount == 0 {
+		t.Fatal("saveLock was not called for copy-only run")
+	}
+	if report.PersistedToLock != 1 {
+		t.Fatalf("persisted=%d, want 1", report.PersistedToLock)
+	}
+	if saved.ActiveRunID != "" {
+		t.Fatalf("active run id=%q, want empty after checkpoint clear", saved.ActiveRunID)
+	}
+	got, ok := saved.RunCompleted[staleID]
+	if !ok {
+		t.Fatalf("missing copy lock entry %q in %+v", staleID, saved.RunCompleted)
+	}
+	if got.TaskHash == "" || got.TaskHash == "stale-llm" {
+		t.Fatalf("copy lock hash=%q, want a new copy hash", got.TaskHash)
+	}
+	assertJSONExact(t, files[auPath], map[string]string{"hello": "Colour"})
+}
+
+func TestRunCopyLocaleConvertsSourceImageFormat(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/banner.png"
+	auPath := "/tmp/en-AU.webp"
+	pngBytes := testPNGBytes(t)
+	files := map[string][]byte{
+		sourcePath: pngBytes,
+	}
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, "/tmp/{{target}}.webp")
+		cfg.Locales.Targets = []string{"en-AU"}
+		cfg.Locales.Copies = map[string]string{"en-AU": "en"}
+		cfg.Buckets["ui"] = config.BucketConfig{
+			Files: []config.BucketFileMapping{{
+				From: sourcePath,
+				To:   "/tmp/{{target}}.webp",
+			}},
+		}
+		cfg.Groups["default"] = config.GroupConfig{Targets: []string{"en-AU"}, Buckets: []string{"ui"}}
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		content, ok := files[path]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return content, nil
+	}
+	svc.writeFile = func(path string, content []byte) error {
+		files[path] = append([]byte(nil), content...)
+		return nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		t.Fatalf("translate should not run for image copy, got target %q", req.TargetLanguage)
+		return "", nil
+	}
+	svc.editImage = func(_ context.Context, _ translator.ImageEditRequest) ([]byte, error) {
+		t.Fatal("editImage should not run for image copy")
+		return nil, nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if report.Succeeded != 1 {
+		t.Fatalf("succeeded=%d, want 1", report.Succeeded)
+	}
+	got := files[auPath]
+	if detectImageFormat(got) != "webp" {
+		t.Fatalf("copied image format=%q, want webp (len=%d)", detectImageFormat(got), len(got))
+	}
+}
+
 func testLocaleCopyConfig(sourcePath string) config.I18NConfig {
 	cfg := testConfig(sourcePath, "/tmp/{{target}}.json")
 	cfg.Locales.Source = "en-US"
@@ -442,6 +606,29 @@ func testLocaleCopyConfig(sourcePath string) config.I18NConfig {
 
 func assertJSONFile(t *testing.T, content []byte, want map[string]string) {
 	t.Helper()
+	payload := decodeJSONFile(t, content)
+	for key, value := range want {
+		if payload[key] != value {
+			t.Fatalf("key %q=%q, want %q in %v", key, payload[key], value, payload)
+		}
+	}
+}
+
+func assertJSONExact(t *testing.T, content []byte, want map[string]string) {
+	t.Helper()
+	payload := decodeJSONFile(t, content)
+	if len(payload) != len(want) {
+		t.Fatalf("json keys=%v, want %v", payload, want)
+	}
+	for key, value := range want {
+		if payload[key] != value {
+			t.Fatalf("key %q=%q, want %q in %v", key, payload[key], value, payload)
+		}
+	}
+}
+
+func decodeJSONFile(t *testing.T, content []byte) map[string]string {
+	t.Helper()
 	if len(content) == 0 {
 		t.Fatal("expected file content")
 	}
@@ -449,9 +636,17 @@ func assertJSONFile(t *testing.T, content []byte, want map[string]string) {
 	if err := json.Unmarshal(content, &payload); err != nil {
 		t.Fatalf("decode json %q: %v", content, err)
 	}
-	for key, value := range want {
-		if payload[key] != value {
-			t.Fatalf("key %q=%q, want %q in %v", key, payload[key], value, payload)
-		}
+	return payload
+}
+
+func testPNGBytes(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	img.Set(0, 0, color.RGBA{R: 255, A: 255})
+	img.Set(1, 1, color.RGBA{B: 255, A: 255})
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encode test png: %v", err)
 	}
+	return buf.Bytes()
 }

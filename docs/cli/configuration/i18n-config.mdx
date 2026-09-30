@@ -65,7 +65,7 @@ locales:
     en-AU: en-GB
 ```
 
-`run` still writes a catalog for the copy locale. It does not call an LLM or MT provider for that locale. After the origin locale is translated (or when its files already exist), Hyperlocalise copies those values into the copy locale's output paths.
+`run` still writes a catalog for the copy locale. It does not call an LLM or MT provider for that locale. After the origin locale is translated (or when its files already exist), Hyperlocalise copies those values into the copy locale's output paths. The copy replaces the destination catalog: keys that exist only on the destination are removed. Image copies convert the origin bytes into the destination file format when the extensions differ, for example `banner.png` to `banner-en-AU.webp`.
 
 The copy key must be in `locales.targets`. The origin must be `locales.source` or another target that is not itself a copy. A locale cannot be both a copy and a `locales.fallbacks` key. Copy locales need their own output files, so the bucket `to` path must include `{{target}}`, `{{localeDir}}`, or `[locale]`.
 

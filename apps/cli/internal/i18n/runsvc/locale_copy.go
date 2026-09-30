@@ -87,6 +87,15 @@ func (s *Service) applyLocaleCopies(copyTasks []Task, staged map[string]stagedOu
 			return copied, err
 		}
 		cloned := cloneStagedForLocale(origin, group.locale)
+		if cloned.binaryOutput {
+			converted, convErr := convertCopiedImage(cloned.binary, group.outputFormat)
+			if convErr != nil {
+				return copied, fmt.Errorf("copy locale %q from %q: convert image %q: %w", group.locale, group.originLocale, group.path, convErr)
+			}
+			cloned.binary = converted
+		} else {
+			cloned.replaceCatalog = true
+		}
 		staged[group.path] = cloned
 		copied += countCopiedTasks(group.tasks, cloned)
 	}
@@ -131,6 +140,7 @@ type copyTargetGroup struct {
 	originPath   string
 	sourcePath   string
 	sourceLocale string
+	outputFormat string
 	tasks        []Task
 }
 
@@ -151,6 +161,7 @@ func groupCopyTasksByTarget(tasks []Task) []copyTargetGroup {
 			originPath:   task.copyFromTargetPath,
 			sourcePath:   task.SourcePath,
 			sourceLocale: task.SourceLocale,
+			outputFormat: task.OutputFormat,
 			tasks:        []Task{task},
 		})
 	}
