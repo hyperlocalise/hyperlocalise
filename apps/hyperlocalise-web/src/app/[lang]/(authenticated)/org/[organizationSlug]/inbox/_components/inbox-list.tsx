@@ -283,11 +283,13 @@ function notificationPreviewMessage(type: InboxIssueNotification["type"]): Messa
 export const InboxList = memo(function InboxList({
   conversations,
   currentUser,
+  filters: filtersProp,
   hasMoreNotifications,
   isError,
   isLoading,
   isLoadingMoreNotifications,
   notifications,
+  onFiltersChange,
   onLoadMoreNotifications,
   onMarkAllRead,
   onSelectConversation,
@@ -297,11 +299,13 @@ export const InboxList = memo(function InboxList({
 }: {
   conversations: Conversation[];
   currentUser: InboxCurrentUser;
+  filters?: InboxListFilters;
   hasMoreNotifications: boolean;
   isError: boolean;
   isLoading: boolean;
   isLoadingMoreNotifications: boolean;
   notifications: InboxIssueNotification[];
+  onFiltersChange?: (filters: InboxListFilters) => void;
   onLoadMoreNotifications: () => void;
   onMarkAllRead?: () => void;
   onSelectConversation: (conversationId: string) => void;
@@ -309,7 +313,11 @@ export const InboxList = memo(function InboxList({
   selection: InboxSelection;
   unreadNotificationCount: number;
 }) {
-  const [filters, setFilters] = useState<InboxListFilters>(DEFAULT_INBOX_LIST_FILTERS);
+  const [uncontrolledFilters, setUncontrolledFilters] = useState<InboxListFilters>(
+    DEFAULT_INBOX_LIST_FILTERS,
+  );
+  const filters = filtersProp ?? uncontrolledFilters;
+  const setFilters = onFiltersChange ?? setUncontrolledFilters;
   const allItems = useMemo(
     () => buildInboxIndexItems(conversations, notifications),
     [conversations, notifications],
