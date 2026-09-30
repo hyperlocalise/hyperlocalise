@@ -1068,7 +1068,10 @@ function mcpIssueComment(comment: IssueSheetComment) {
   };
 }
 
-async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
+async function createMcpServerForRequest(
+  auth: McpAuthVariables["mcpAuth"],
+  options: { deferAfterResponse?: (task: () => Promise<unknown>) => void } = {},
+) {
   const apiAuth = apiAuthContextFromMcpAuth(auth);
   const server = new McpServer({
     name: "hyperlocalise",
@@ -2538,6 +2541,8 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
         uploadSurface: "mcp",
         uploadedByUserId: apiAuth.user.localUserId,
         actorUserId: apiAuth.user.localUserId,
+        // Keep ingest enqueue alive after the MCP response (same as /api/v1/files).
+        deferAfterResponse: options.deferAfterResponse,
       });
 
       if (isErr(result)) {
@@ -2785,7 +2790,11 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   return server;
 }
 
-async function handleMcpTransport(request: Request, auth: McpAuthVariables["mcpAuth"]) {
+async function handleMcpTransport(
+  request: Request,
+  auth: McpAuthVariables["mcpAuth"],
+  options: { deferAfterResponse?: (task: () => Promise<unknown>) => void } = {},
+) {
   if (request.method !== "POST") {
     return new Response(null, {
       status: 405,
@@ -2795,7 +2804,7 @@ async function handleMcpTransport(request: Request, auth: McpAuthVariables["mcpA
     });
   }
 
-  const server = await createMcpServerForRequest(auth);
+  const server = await createMcpServerForRequest(auth, options);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
@@ -2829,8 +2838,14 @@ const validateRegisterBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
+export function createMcpRoutes(
+  options: {
+    apiBasePath?: string;
+    deferAfterResponse?: (task: () => Promise<unknown>) => void;
+  } = {},
+) {
   const apiBasePath = options.apiBasePath ?? "/api";
+  const deferAfterResponse = options.deferAfterResponse;
 
   // `/mcp` is the canonical Streamable HTTP endpoint advertised by
   // protected-resource metadata. `/mcp/sse` and `/mcp/message` remain
@@ -3190,7 +3205,11 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
     .use("/mcp", mcpBearerAuthMiddleware)
     .use("/mcp/sse", mcpBearerAuthMiddleware)
     .use("/mcp/message", mcpBearerAuthMiddleware)
-    .all("/mcp", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth))
-    .all("/mcp/sse", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth))
-    .all("/mcp/message", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth));
+    .all("/mcp", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth, { deferAfterResponse }))
+    .all("/mcp/sse", async (c) =>
+      handleMcpTransport(c.req.raw, c.var.mcpAuth, { deferAfterResponse }),
+    )
+    .all("/mcp/message", async (c) =>
+      handleMcpTransport(c.req.raw, c.var.mcpAuth, { deferAfterResponse }),
+    );
 }
