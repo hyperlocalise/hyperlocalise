@@ -398,4 +398,58 @@ describe("ContentEditorWorkspaceUiStore", () => {
     expect(ui.visibleSideBySideSegmentIds).toEqual([]);
     expect(ui.loadSideBySideSegmentIds).toEqual([]);
   });
+
+  it("loads saved persona on initial text family hydration without early returning", () => {
+    const getItem = vi.fn().mockImplementation((key: string) => {
+      if (key === "content-editor-workspace-persona:v1:text") {
+        return "reviewer";
+      }
+      return null;
+    });
+    vi.stubGlobal("window", {
+      localStorage: { getItem, setItem: vi.fn() },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("text");
+
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.resolvedPersona).toBe("reviewer");
+      expect(ui.isReviewerPersona).toBe(true);
+      expect(ui.viewMode).toBe("side-by-side");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("drives corresponding layout preset when selecting a persona", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: { getItem: vi.fn().mockReturnValue(null), setItem },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+
+      ui.setWorkspacePersona("reviewer");
+      expect(ui.resolvedPersona).toBe("reviewer");
+      expect(ui.isReviewerPersona).toBe(true);
+      expect(ui.viewMode).toBe("side-by-side");
+
+      ui.setWorkspacePersona("translator");
+      expect(ui.resolvedPersona).toBe("translator");
+      expect(ui.isTranslatorPersona).toBe(true);
+      expect(ui.viewMode).toBe("comfortable");
+
+      ui.setWorkspacePersona("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.isDesignerPersona).toBe(true);
+      expect(ui.viewMode).toBe("file");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

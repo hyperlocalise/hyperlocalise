@@ -125,6 +125,7 @@ function ProjectFileContentEditorPageContentInner({
   branch = null,
   sourcePaths = null,
   canWriteDictionaries = false,
+  adaptiveWorkspaceEnabled = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -141,6 +142,7 @@ function ProjectFileContentEditorPageContentInner({
   branch?: string | null;
   sourcePaths?: string | null;
   canWriteDictionaries?: boolean;
+  adaptiveWorkspaceEnabled?: boolean;
 }) {
   const intl = useIntl();
   const router = useRouter();
@@ -728,6 +730,7 @@ function ProjectFileContentEditorPageContentInner({
         className="min-h-0 flex-1"
         pageNavigationGuardRef={pageNavigationGuardRef}
         canWriteDictionaries={canWriteDictionaries}
+        adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
       />
     </ContentEditorPageRoot>
   );

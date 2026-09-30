@@ -132,7 +132,9 @@ export const ContentEditorQueueToolbarConnected = observer(
         queueSort={queueSort}
         onQueueSortChange={onQueueSortChange ? handleSortChange : undefined}
         availableQueueSorts={availableQueueSorts}
-        selectionMode={store.selectionMode}
+        selectionMode={
+          store.selectionMode || (adaptiveWorkspaceEnabled && store.ui.isReviewerPersona)
+        }
         onSelectionModeChange={(enabled) => store.setSelectionMode(enabled)}
         selectedCount={store.checkedSegmentIds.size}
         visibleCount={visibleCount}

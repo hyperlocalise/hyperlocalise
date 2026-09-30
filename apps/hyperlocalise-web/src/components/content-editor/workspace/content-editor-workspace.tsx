@@ -123,6 +123,11 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
 }: ContentEditorWorkspaceViewProps) {
   const store = useContentEditorWorkspace();
   const viewMode = store.ui.viewMode;
+  const isAdaptiveEnabled = store.ui.adaptiveWorkspaceEnabled;
+  const isDesignerPersona = isAdaptiveEnabled && store.ui.isDesignerPersona;
+  const isReviewerPersona = isAdaptiveEnabled && store.ui.isReviewerPersona;
+  const isTranslatorPersona = isAdaptiveEnabled && store.ui.isTranslatorPersona;
+  const resolvedPersona = store.ui.resolvedPersona;
   const intelligenceSegmentId = store.intelligenceSegmentId;
   const intelligenceSegment = store.intelligenceSegmentView ?? null;
   const loadingSegmentIds = store.loadingSegmentIds;
@@ -135,9 +140,15 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       )
     : -1;
   const { isCompact, workspaceRef } = useIsCompactWorkspace(viewMode);
-  const [activePanel, setActivePanel] = useState<ContentEditorWorkspacePanel>("edit");
-  const isSideBySideDesktop = viewMode === "side-by-side" && !isCompact;
-  const isFileView = viewMode === "file";
+  const [activePanel, setActivePanel] = useState<ContentEditorWorkspacePanel>(
+    isReviewerPersona ? "queue" : "edit",
+  );
+  const isSideBySideDesktop =
+    (viewMode === "side-by-side" || isReviewerPersona) &&
+    !isCompact &&
+    !isTranslatorPersona &&
+    viewMode !== "file";
+  const isFileView = viewMode === "file" || isDesignerPersona;
   const selectedSegmentIdForIntelligence = intelligenceSegmentId;
   const [isIssuePanelOpen, setIsIssuePanelOpen] = useState(false);
   const isIntelligencePanelVisible = Boolean(
@@ -707,7 +718,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           queueFilter={queueFilter}
           checkedSegmentIds={checkedSegmentIds}
           onToggleSegmentChecked={onToggleSegmentChecked}
-          showSelection={store.selectionMode}
+          showSelection={store.selectionMode || isReviewerPersona}
           isFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueListLoading}
           pagination={queuePagination}
@@ -767,6 +778,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   return (
     <div
       ref={workspaceRef}
+      data-workspace-persona={isAdaptiveEnabled ? resolvedPersona : undefined}
       className={cn(
         "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
         className,

@@ -52,6 +52,7 @@ const {
       initialQueueSort?: string;
       initialSearch?: string;
       onOpenTranslationLocale?: (locale: string, key: string) => void;
+      adaptiveWorkspaceEnabled?: boolean;
     }) => (
       <div
         data-testid="content-editor-workspace"
@@ -145,6 +146,7 @@ vi.mock("@/components/content-editor/project-file/project-file-content-editor-wo
     sourcePath: string;
     targetLocale: string;
     targetLocales?: string[];
+    adaptiveWorkspaceEnabled?: boolean;
   }) => ProjectFileContentEditorWorkspaceMock(props),
 }));
 
@@ -317,6 +319,23 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
     expect(destination.searchParams.get("segment")).toBe("checkout.confirm");
     expect(destination.searchParams.get("search")).toBe("checkout.confirm");
     expect(destination.searchParams.get("queueFilter")).toBe("all");
+  });
+
+  it("propagates adaptiveWorkspaceEnabled prop to ProjectFileContentEditorWorkspace", async () => {
+    render(
+      <ContentEditorTestProviders>
+        <ProjectFileContentEditorPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath="en-US.json"
+          highlightLocale="vi"
+          adaptiveWorkspaceEnabled
+        />
+      </ContentEditorTestProviders>,
+    );
+    await screen.findByTestId("content-editor-workspace");
+    const props = ProjectFileContentEditorWorkspaceMock.mock.calls.at(-1)?.[0];
+    expect(props?.adaptiveWorkspaceEnabled).toBe(true);
   });
 
   it("keeps the file list mounted and cached when selecting another file or going back", async () => {

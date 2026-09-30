@@ -41,14 +41,24 @@ export class ContentEditorWorkspaceUiStore {
   #persistViewMode: boolean;
 
   /**
+   * Whether the adaptive workspace persona system is active.
+   * Controlled by the release-content-editor-adaptive-workspace release flag.
+   */
+  adaptiveWorkspaceEnabled = false;
+
+  /**
    * Current workspace persona. Stored per-file-family so switching between
    * an image file and a string file remembers a separate preference for each.
    * Null means the persona has not been resolved yet for the current file family.
    */
   workspacePersona: ContentEditorWorkspacePersona | null = null;
 
-  /** File family used to scope persona persistence (e.g. "image", "text"). */
-  #currentFileFamily: string = "text";
+  /**
+   * File family used to scope persona persistence (e.g. "image", "text").
+   * Starts as null so the initial applyFileFamily("text") does not early return
+   * before reading saved preferences from localStorage.
+   */
+  #currentFileFamily: string | null = null;
 
   constructor(initialViewMode?: ContentEditorWorkspaceViewMode) {
     this.viewMode = initialViewMode ?? readCatWorkspaceViewMode();
@@ -69,7 +79,7 @@ export class ContentEditorWorkspaceUiStore {
   }
 
   get resolvedPersona(): ContentEditorWorkspacePersona {
-    return this.workspacePersona ?? defaultPersonaForFileFamily(this.#currentFileFamily);
+    return this.workspacePersona ?? defaultPersonaForFileFamily(this.#currentFileFamily ?? "text");
   }
 
   get isDesignerPersona(): boolean {
@@ -84,6 +94,16 @@ export class ContentEditorWorkspaceUiStore {
     return this.resolvedPersona === "translator";
   }
 
+  setAdaptiveWorkspaceEnabled(enabled: boolean) {
+    if (this.adaptiveWorkspaceEnabled === enabled) {
+      return;
+    }
+    this.adaptiveWorkspaceEnabled = enabled;
+    if (enabled && this.#currentFileFamily) {
+      this.#applyPersonaLayout(this.resolvedPersona);
+    }
+  }
+
   setViewMode(mode: ContentEditorWorkspaceViewMode) {
     this.viewMode = mode;
     if (this.#persistViewMode) {
@@ -94,28 +114,47 @@ export class ContentEditorWorkspaceUiStore {
     }
   }
 
+  #applyPersonaLayout(persona: ContentEditorWorkspacePersona) {
+    if (!this.#persistViewMode) {
+      return;
+    }
+    if (persona === "designer") {
+      this.setViewMode("file");
+    } else if (persona === "reviewer") {
+      this.setViewMode("side-by-side");
+    } else if (persona === "translator") {
+      this.setViewMode("comfortable");
+    }
+  }
+
   /**
    * Called when the active file family changes (e.g. switching from a string
    * file to an image file). Loads the stored persona preference for the new
    * family, falling back to the auto-detected default.
    */
   applyFileFamily(fileFamily: string) {
-    if (this.#currentFileFamily === fileFamily) {
+    if (this.#currentFileFamily === fileFamily && this.workspacePersona !== null) {
       return;
     }
 
     this.#currentFileFamily = fileFamily;
     const stored = readCatWorkspacePersona(fileFamily);
     this.workspacePersona = stored;
+
+    if (this.adaptiveWorkspaceEnabled) {
+      this.#applyPersonaLayout(this.resolvedPersona);
+    }
   }
 
   /**
    * Explicitly set the workspace persona. Persists the choice under the
-   * current file family so it is restored on future visits.
+   * current file family so it is restored on future visits, and drives the
+   * corresponding workspace layout preset.
    */
   setWorkspacePersona(persona: ContentEditorWorkspacePersona) {
     this.workspacePersona = persona;
-    writeCatWorkspacePersona(this.#currentFileFamily, persona);
+    writeCatWorkspacePersona(this.#currentFileFamily ?? "text", persona);
+    this.#applyPersonaLayout(persona);
   }
 
   setSideBySideViewport(input: { visibleSegmentIds: string[]; loadSegmentIds: string[] }) {

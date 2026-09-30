@@ -410,4 +410,47 @@ describe("ContentEditorWorkspaceContainer UI", () => {
 
     expect(screen.getByRole("menuitemradio", { name: "Multilingual" })).toBeInTheDocument();
   });
+
+  it("omits the persona switcher when adaptiveWorkspaceEnabled is false", async () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        adaptiveWorkspaceEnabled={false}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Workspace mode" })).not.toBeInTheDocument();
+  });
+
+  it("renders persona switcher and adapts layout to reviewer when adaptiveWorkspaceEnabled is true", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          adaptiveWorkspaceEnabled
+        />
+      </>,
+    );
+
+    const personaButton = await waitFor(() =>
+      screen.getByRole("button", { name: "Workspace mode" }),
+    );
+    expect(personaButton).toBeInTheDocument();
+
+    await user.click(personaButton);
+
+    const reviewerOption = await screen.findByRole("menuitemradio", { name: "Reviewer" });
+    expect(reviewerOption).toBeInTheDocument();
+
+    await user.click(reviewerOption);
+
+    // After selecting Reviewer, workspace adapts to side-by-side review table
+    await waitFor(() => {
+      const workspace = document.querySelector("[data-workspace-persona]");
+      expect(workspace).toHaveAttribute("data-workspace-persona", "reviewer");
+    });
+  });
 });
