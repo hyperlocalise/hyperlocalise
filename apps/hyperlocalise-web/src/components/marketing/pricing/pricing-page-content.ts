@@ -804,7 +804,7 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
       {
         defaultMessage:
           "Always available on paid plans. Speech and media capabilities use dedicated included models; agent work uses the managed catalog (default {defaultModel}) unless you connect BYOK.",
-        id: 'jEcB+kTaAO',
+        id: "jEcB+kTaAO",
         description: "Description under included models on the pricing page",
       },
       { defaultModel: hyperlocaliseAgentModelId },
