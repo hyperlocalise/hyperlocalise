@@ -11,12 +11,12 @@
  * Version 2.0 or later.
  */
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 
-import { LocaleDocumentLangScript } from "@/components/root-layout/locale-document-lang-script";
 import { isSupportedAppLocale, normalizeAppLocale } from "@/lib/app-i18n/locales";
 
 type LocaleLayoutProps = {
-  children: React.ReactNode;
+  children: ReactNode;
   params: Promise<{ lang: string }>;
 };
 
@@ -27,15 +27,9 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     notFound();
   }
 
-  const locale = normalizeAppLocale(lang);
-  if (!locale) {
+  if (!normalizeAppLocale(lang)) {
     notFound();
   }
 
-  return (
-    <>
-      <LocaleDocumentLangScript locale={locale} />
-      {children}
-    </>
-  );
+  return children;
 }

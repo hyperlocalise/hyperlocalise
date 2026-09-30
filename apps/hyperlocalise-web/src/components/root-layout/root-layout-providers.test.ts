@@ -23,6 +23,21 @@ describe("root layout server render", () => {
     expect(source).not.toMatch(/\bpartialPrefetching\s*:/);
   });
 
+  it("sets document lang from the request locale on the root html element", () => {
+    const layoutSource = readFileSync(
+      path.join(import.meta.dirname, "../../app/layout.tsx"),
+      "utf8",
+    );
+    const htmlSource = readFileSync(path.join(import.meta.dirname, "root-html.tsx"), "utf8");
+
+    expect(layoutSource).toMatch(/export default async function RootLayout/);
+    expect(layoutSource).toMatch(/\bgetAppLocale\b/);
+    expect(layoutSource).toMatch(/\bappLocaleToBcp47Tag\b/);
+    expect(layoutSource).not.toMatch(/\bgetInitialAuth\b|\bwithAuth\b/);
+    expect(htmlSource).toMatch(/<html lang=\{htmlLang\}/);
+    expect(htmlSource).not.toMatch(/<html lang=\{DEFAULT_APP_LOCALE\}/);
+  });
+
   it("resolves locale and auth while rendering the root providers", () => {
     const source = readFileSync(
       path.join(import.meta.dirname, "root-layout-providers.tsx"),
@@ -44,8 +59,8 @@ describe("root layout server render", () => {
 
     expect(source).toMatch(/export default async function LocaleLayout/);
     expect(source).toMatch(/await params/);
-    expect(source).toMatch(/\bLocaleDocumentLangScript\b/);
-    expect(source).toMatch(/\{children\}/);
+    expect(source).not.toMatch(/\bLocaleDocumentLangScript\b/);
+    expect(source).toMatch(/return children/);
     expect(source).not.toMatch(/<Suspense/);
   });
 

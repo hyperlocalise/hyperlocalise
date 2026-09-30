@@ -18,7 +18,9 @@ import {
   brandLogomarkDarkModeSvgSrc,
   brandLogomarkLightModeSvgSrc,
 } from "@/lib/brand/brand-assets";
+import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { PRIVATE_ROBOTS } from "@/lib/seo/robots-metadata";
+import { appLocaleToBcp47Tag } from "@/lib/seo/bcp47-locale";
 import { SITE_URL } from "@/lib/seo/site-url";
 
 import "./globals.css";
@@ -42,10 +44,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <RootHtml>{children}</RootHtml>;
+  const locale = await getAppLocale();
+
+  return <RootHtml htmlLang={appLocaleToBcp47Tag(locale)}>{children}</RootHtml>;
 }
