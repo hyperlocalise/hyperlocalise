@@ -70,6 +70,9 @@ func parseOrgIssueSearchQuery(r *http.Request) (orgIssueSearchQuery, error) {
 	if len(out.q) > 100 {
 		return out, invalidIssueSearchQuery()
 	}
+	if out.excludeIssueID != "" && !isLegacyIssueUUID(out.excludeIssueID) {
+		return out, invalidIssueSearchQuery()
+	}
 	if raw := strings.TrimSpace(q.Get("limit")); raw != "" {
 		n, err := strconv.Atoi(raw)
 		if err != nil || n < 1 || n > 50 {

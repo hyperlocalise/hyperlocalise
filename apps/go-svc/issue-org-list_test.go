@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -151,6 +152,22 @@ func TestOrgIssuesSearchIncludesProjectName(t *testing.T) {
 func TestOrgIssuesInvalidQuery(t *testing.T) {
 	api, scope := issueSheetTestAPIRole(t, true, "admin")
 	req := issueSheetAuthedRequest(http.MethodGet, scope.OrgPath("/issues?limit=101"), "")
+	rec := issueSheetServeOrg(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "invalid_organization_issues_query")
+}
+
+func TestOrgIssuesInvalidLocale(t *testing.T) {
+	api, scope := issueSheetTestAPIRole(t, true, "admin")
+	req := issueSheetAuthedRequest(http.MethodGet, scope.OrgPath("/issues?locale="+strings.Repeat("a", 33)), "")
+	rec := issueSheetServeOrg(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "invalid_organization_issues_query")
+}
+
+func TestOrgIssuesInvalidAssignee(t *testing.T) {
+	api, scope := issueSheetTestAPIRole(t, true, "admin")
+	req := issueSheetAuthedRequest(http.MethodGet, scope.OrgPath("/issues?assignee=not-a-uuid-or-keyword"), "")
 	rec := issueSheetServeOrg(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "invalid_organization_issues_query")

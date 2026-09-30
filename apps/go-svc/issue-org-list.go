@@ -135,6 +135,12 @@ func parseOrgIssueListQuery(r *http.Request, actorUserID string) (orgIssueListQu
 	if len(out.search) > 200 {
 		return out, invalidOrgIssuesQuery()
 	}
+	if len(out.locale) > 32 {
+		return out, invalidOrgIssuesQuery()
+	}
+	if out.assignee != "" && out.assignee != "me" && out.assignee != "unassigned" && !isLegacyIssueUUID(out.assignee) {
+		return out, invalidOrgIssuesQuery()
+	}
 	if out.view == "my_work" && out.assignee == "" {
 		out.assignee = actorUserID
 	}

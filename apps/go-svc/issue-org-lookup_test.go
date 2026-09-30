@@ -102,3 +102,11 @@ func TestOrgIssueSearchInvalidQuery(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "invalid_issue_search_query")
 }
+
+func TestOrgIssueSearchInvalidExcludeIssueId(t *testing.T) {
+	api, scope := issueSheetTestAPIRole(t, true, "admin")
+	req := issueSheetAuthedRequest(http.MethodGet, scope.OrgPath("/issue-sheet/search?excludeIssueId=not-a-uuid"), "")
+	rec := issueSheetServeOrg(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "invalid_issue_search_query")
+}

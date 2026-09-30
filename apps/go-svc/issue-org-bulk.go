@@ -193,6 +193,8 @@ func isSerializationFailure(err error) bool {
 	return false
 }
 
+const bulkIssueActionGenericFailureMessage = "Issue update failed"
+
 func (api *issueSheetAPI) applyBulkIssueAction(ctx context.Context, r *http.Request, actor issueSheetActor, target bulkIssueTarget, body bulkIssueActionRequest) (outcome string, issue map[string]any, errCode, errMessage string) {
 	var retryErr error
 	for attempt := 1; attempt <= bulkIssueActionMaxAttempts; attempt++ {
@@ -201,14 +203,22 @@ func (api *issueSheetAPI) applyBulkIssueAction(ctx context.Context, r *http.Requ
 			return outcome, issue, errCode, errMessage
 		}
 		if !isSerializationFailure(retryErr) || attempt == bulkIssueActionMaxAttempts {
-			return "failed", nil, "issue_update_failed", retryErr.Error()
+			logRequestFailure(r, "issue_org_bulk_action_failed", "attempt", retryErr, "issueId", target.IssueID, "projectId", target.ProjectID)
+			return "failed", nil, "issue_update_failed", bulkIssueActionGenericFailureMessage
 		}
 		time.Sleep(bulkIssueActionRetryDelay(attempt))
 	}
-	return "failed", nil, "issue_update_failed", retryErr.Error()
+	logRequestFailure(r, "issue_org_bulk_action_failed", "attempt", retryErr, "issueId", target.IssueID, "projectId", target.ProjectID)
+	return "failed", nil, "issue_update_failed", bulkIssueActionGenericFailureMessage
 }
 
 func (api *issueSheetAPI) attemptBulkIssueAction(ctx context.Context, r *http.Request, actor issueSheetActor, target bulkIssueTarget, body bulkIssueActionRequest) (outcome string, issue map[string]any, errCode, errMessage string, retryErr error) {
+	if api.testForceBulkActionError != nil {
+		if err := api.testForceBulkActionError(); err != nil {
+			return "", nil, "", "", err
+		}
+	}
+
 	orgWide := actor.canWriteProjectTeam()
 
 	tx, err := api.pool.Begin(ctx)
@@ -217,17 +227,17 @@ func (api *issueSheetAPI) attemptBulkIssueAction(ctx context.Context, r *http.Re
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	var previousStatus, previousIssueType string
+	var previousStatus, previousIssueType, issueTitle string
 	var previousAssignee *string
 	err = tx.QueryRow(ctx, `
-        select i.status, i.issue_type, i.assignee_user_id
+        select i.status, i.issue_type, i.title, i.assignee_user_id
         from issue_sheet_issues i
         join projects p on p.id = i.project_id
         where i.organization_id = $1 and i.project_id = $2 and i.id = $3
         and `+formatQaProjectTeamAccessSQL(4, 5, 1)+`
         for update`,
 		actor.organizationID, target.ProjectID, target.IssueID, orgWide, actor.userID,
-	).Scan(&previousStatus, &previousIssueType, &previousAssignee)
+	).Scan(&previousStatus, &previousIssueType, &issueTitle, &previousAssignee)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "failed", nil, "issue_not_found", "Issue not found", nil
 	}
@@ -338,6 +348,9 @@ func (api *issueSheetAPI) attemptBulkIssueAction(ctx context.Context, r *http.Re
 
 	priorityChanged := false
 	if body.Action == "set_priority" {
+		if err := ensureIssueStarterColumns(ctx, tx, actor.organizationID, target.ProjectID, actor.userID); err != nil {
+			return "", nil, "", "", err
+		}
 		changed, err := setPriorityTx(ctx, tx, actor.organizationID, target.ProjectID, target.IssueID, actor.userID, *body.Priority)
 		if err != nil {
 			var failure *issueSheetError
@@ -352,21 +365,25 @@ func (api *issueSheetAPI) attemptBulkIssueAction(ctx context.Context, r *http.Re
 	if err := tx.Commit(ctx); err != nil {
 		return "", nil, "", "", err
 	}
+	if api.testAfterBulkCommit != nil {
+		api.testAfterBulkCommit()
+	}
 
 	if statusChanged {
 		api.safeNotify(r, "status_changed", func() error {
-			return api.notifyStatusChanged(ctx, api.pool, actor.organizationID, target.ProjectID, target.IssueID, actor.userID, previousStatus, nextStatus)
+			return api.notifyStatusChanged(ctx, api.pool, actor.organizationID, target.ProjectID, target.IssueID, actor.userID, issueTitle, previousStatus, nextStatus)
 		})
 	}
 	if assigneeChanged {
 		api.safeNotify(r, "assignee_changed", func() error {
-			return api.notifyAssigneeChanged(ctx, api.pool, actor.organizationID, target.ProjectID, target.IssueID, actor.userID, previousAssignee, nextAssignee)
+			return api.notifyAssigneeChanged(ctx, api.pool, actor.organizationID, target.ProjectID, target.IssueID, actor.userID, issueTitle, previousAssignee, nextAssignee)
 		})
 	}
 
 	issueMap, err := api.loadIssue(ctx, actor, issueSheetProject{ID: target.ProjectID}, target.IssueID)
 	if err != nil {
-		return "failed", nil, "issue_update_failed", err.Error(), nil
+		logRequestFailure(r, "issue_org_bulk_action_failed", "load_issue_after_commit", err)
+		issueMap = nil
 	}
 	if coreChanged || priorityChanged {
 		return "updated", issueMap, "", "", nil

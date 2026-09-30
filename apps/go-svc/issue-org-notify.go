@@ -73,7 +73,7 @@ func userHasIssueProjectAccess(ctx context.Context, db dictionaryDB, organizatio
 	return allowed, err
 }
 
-func accessibleWatchers(ctx context.Context, db dictionaryDB, organizationID, projectID, issueID string) ([]string, error) {
+func subscriberUserIDs(ctx context.Context, db dictionaryDB, organizationID, projectID, issueID string) ([]string, error) {
 	rows, err := db.Query(ctx, `
         select user_id from issue_sheet_subscriptions
         where organization_id = $1 and project_id = $2 and issue_id = $3`,
@@ -82,29 +82,37 @@ func accessibleWatchers(ctx context.Context, db dictionaryDB, organizationID, pr
 		return nil, err
 	}
 	defer rows.Close()
-	var all []string
+	var ids []string
 	for rows.Next() {
 		var userID string
 		if err := rows.Scan(&userID); err != nil {
 			return nil, err
 		}
-		all = append(all, userID)
+		ids = append(ids, userID)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	return ids, nil
+}
 
-	accessible := make([]string, 0, len(all))
-	for _, userID := range all {
+func resolveAccessibleRecipients(ctx context.Context, db dictionaryDB, organizationID, projectID, actorUserID string, candidateUserIDs []string) ([]string, error) {
+	seen := map[string]bool{}
+	recipients := make([]string, 0, len(candidateUserIDs))
+	for _, userID := range candidateUserIDs {
+		if userID == "" || userID == actorUserID || seen[userID] {
+			continue
+		}
+		seen[userID] = true
 		ok, err := userHasIssueProjectAccess(ctx, db, organizationID, projectID, userID)
 		if err != nil {
 			return nil, err
 		}
 		if ok {
-			accessible = append(accessible, userID)
+			recipients = append(recipients, userID)
 		}
 	}
-	return accessible, nil
+	return recipients, nil
 }
 
 func notificationDedupeBucket() int64 {
@@ -125,14 +133,21 @@ func nullableAny(v *string) any {
 	return *v
 }
 
-func (api *issueSheetAPI) notifyStatusChanged(ctx context.Context, db dictionaryDB, organizationID, projectID, issueID, actorUserID, previousStatus, nextStatus string) error {
-	watchers, err := accessibleWatchers(ctx, db, organizationID, projectID, issueID)
+func (api *issueSheetAPI) notifyStatusChanged(ctx context.Context, db dictionaryDB, organizationID, projectID, issueID, actorUserID, issueTitle, previousStatus, nextStatus string) error {
+	subscribers, err := subscriberUserIDs(ctx, db, organizationID, projectID, issueID)
 	if err != nil {
 		return err
 	}
+	recipients, err := resolveAccessibleRecipients(ctx, db, organizationID, projectID, actorUserID, subscribers)
+	if err != nil {
+		return err
+	}
+	if len(recipients) == 0 {
+		return nil
+	}
 	bucket := notificationDedupeBucket()
-	rows := make([]notificationRow, 0, len(watchers))
-	for _, recipient := range watchers {
+	rows := make([]notificationRow, 0, len(recipients))
+	for _, recipient := range recipients {
 		rows = append(rows, notificationRow{
 			organizationID:  organizationID,
 			projectID:       projectID,
@@ -141,6 +156,8 @@ func (api *issueSheetAPI) notifyStatusChanged(ctx context.Context, db dictionary
 			notifType:       "status_changed",
 			actorUserID:     actorUserID,
 			payload: map[string]any{
+				"issueTitle":     issueTitle,
+				"projectId":      projectID,
 				"previousStatus": previousStatus,
 				"nextStatus":     nextStatus,
 			},
@@ -150,44 +167,80 @@ func (api *issueSheetAPI) notifyStatusChanged(ctx context.Context, db dictionary
 	return upsertNotifications(ctx, db, rows)
 }
 
-func (api *issueSheetAPI) notifyAssigneeChanged(ctx context.Context, db dictionaryDB, organizationID, projectID, issueID, actorUserID string, previousAssignee, nextAssignee *string) error {
-	watchers, err := accessibleWatchers(ctx, db, organizationID, projectID, issueID)
+func (api *issueSheetAPI) notifyAssigned(ctx context.Context, db dictionaryDB, organizationID, projectID, issueID, actorUserID, issueTitle, assigneeUserID string) error {
+	recipients, err := resolveAccessibleRecipients(ctx, db, organizationID, projectID, actorUserID, []string{assigneeUserID})
 	if err != nil {
 		return err
 	}
-	bucket := notificationDedupeBucket()
-	rows := make([]notificationRow, 0, len(watchers)+1)
+	if len(recipients) == 0 {
+		return nil
+	}
+	rows := make([]notificationRow, 0, 1)
+	for _, recipient := range recipients {
+		rows = append(rows, notificationRow{
+			organizationID:  organizationID,
+			projectID:       projectID,
+			issueID:         issueID,
+			recipientUserID: recipient,
+			notifType:       "assigned",
+			actorUserID:     actorUserID,
+			payload: map[string]any{
+				"issueTitle":         issueTitle,
+				"projectId":          projectID,
+				"nextAssigneeUserId": assigneeUserID,
+			},
+			dedupeKey: fmt.Sprintf("assigned:%s:%s", issueID, assigneeUserID),
+		})
+	}
+	return upsertNotifications(ctx, db, rows)
+}
 
-	var newAssignee string
-	if nextAssignee != nil && strings.TrimSpace(*nextAssignee) != "" {
-		newAssignee = strings.TrimSpace(*nextAssignee)
-		ok, err := userHasIssueProjectAccess(ctx, db, organizationID, projectID, newAssignee)
-		if err != nil {
+func (api *issueSheetAPI) notifyAssigneeChanged(ctx context.Context, db dictionaryDB, organizationID, projectID, issueID, actorUserID, issueTitle string, previousAssignee, nextAssignee *string) error {
+	var nextAssigneeID string
+	if nextAssignee != nil {
+		nextAssigneeID = strings.TrimSpace(*nextAssignee)
+	}
+	if nextAssigneeID != "" {
+		if err := api.notifyAssigned(ctx, db, organizationID, projectID, issueID, actorUserID, issueTitle, nextAssigneeID); err != nil {
 			return err
-		}
-		if ok {
-			rows = append(rows, notificationRow{
-				organizationID:  organizationID,
-				projectID:       projectID,
-				issueID:         issueID,
-				recipientUserID: newAssignee,
-				notifType:       "assigned",
-				actorUserID:     actorUserID,
-				payload:         map[string]any{"issueId": issueID},
-				dedupeKey:       fmt.Sprintf("assigned:%s:%s", issueID, newAssignee),
-			})
 		}
 	}
 
+	subscribers, err := subscriberUserIDs(ctx, db, organizationID, projectID, issueID)
+	if err != nil {
+		return err
+	}
+	candidates := make([]string, 0, len(subscribers)+1)
+	candidates = append(candidates, subscribers...)
+	if previousAssignee != nil {
+		if previousID := strings.TrimSpace(*previousAssignee); previousID != "" {
+			candidates = append(candidates, previousID)
+		}
+	}
+	filtered := candidates[:0:0]
+	for _, candidate := range candidates {
+		if candidate != nextAssigneeID {
+			filtered = append(filtered, candidate)
+		}
+	}
+
+	recipients, err := resolveAccessibleRecipients(ctx, db, organizationID, projectID, actorUserID, filtered)
+	if err != nil {
+		return err
+	}
+	if len(recipients) == 0 {
+		return nil
+	}
+	bucket := notificationDedupeBucket()
 	payload := map[string]any{
+		"issueTitle":             issueTitle,
+		"projectId":              projectID,
 		"previousAssigneeUserId": nullableAny(previousAssignee),
 		"nextAssigneeUserId":     nullableAny(nextAssignee),
 	}
 	dedupeKey := fmt.Sprintf("assignee_changed:%s:%s:%s:%d", issueID, assigneeDedupePart(previousAssignee), assigneeDedupePart(nextAssignee), bucket)
-	for _, recipient := range watchers {
-		if recipient == newAssignee {
-			continue
-		}
+	rows := make([]notificationRow, 0, len(recipients))
+	for _, recipient := range recipients {
 		rows = append(rows, notificationRow{
 			organizationID:  organizationID,
 			projectID:       projectID,

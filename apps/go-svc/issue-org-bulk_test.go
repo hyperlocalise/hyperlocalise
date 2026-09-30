@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 )
 
@@ -319,4 +321,173 @@ func TestOrgBulkActionsAssignSameIssueConcurrentSerializes(t *testing.T) {
 		`select assignee_user_id from issue_sheet_issues where id=$1`, id,
 	).Scan(&finalAssignee))
 	require.Contains(t, assignees, finalAssignee, "final assignee must be exactly one of the concurrent requests' targets, never corrupted")
+}
+
+func TestOrgBulkActionsNotificationPayloadIncludesIssueContext(t *testing.T) {
+	api, scope := issueSheetTestAPIRole(t, true, "admin")
+	team := scope.MustTeam(t, "default", "Default", "")
+	mustSetProjectTeam(t, scope, scope.ProjectID, team)
+	watcher := mustAssignableOrgMember(t, scope, team)
+	id, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "Payload Title", "open", "", nil)
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into issue_sheet_subscriptions (organization_id, project_id, issue_id, user_id)
+        values ($1, $2, $3, $4)`, scope.OrganizationID, scope.ProjectID, id, watcher)
+	require.NoError(t, err)
+
+	body := bulkActionBody(t, map[string]any{
+		"action": "set_status",
+		"status": "resolved",
+		"issues": []map[string]any{{"issueId": id, "projectId": scope.ProjectID}},
+	})
+	req := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/issues/bulk-actions"), body)
+	rec := issueSheetServeOrg(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var payloadRaw []byte
+	require.NoError(t, scope.Pool.QueryRow(t.Context(),
+		`select payload from issue_notifications where issue_id=$1 and recipient_user_id=$2 and type='status_changed'`,
+		id, watcher,
+	).Scan(&payloadRaw))
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(payloadRaw, &payload))
+	require.Equal(t, "Payload Title", payload["issueTitle"])
+	require.Equal(t, scope.ProjectID, payload["projectId"])
+	require.Equal(t, "open", payload["previousStatus"])
+	require.Equal(t, "resolved", payload["nextStatus"])
+}
+
+func TestOrgBulkActionsExcludesActorFromRecipients(t *testing.T) {
+	api, scope := issueSheetTestAPIRole(t, true, "admin")
+	id, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "x", "open", "", nil)
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into issue_sheet_subscriptions (organization_id, project_id, issue_id, user_id)
+        values ($1, $2, $3, $4)`, scope.OrganizationID, scope.ProjectID, id, scope.UserID)
+	require.NoError(t, err)
+
+	body := bulkActionBody(t, map[string]any{
+		"action": "set_status",
+		"status": "resolved",
+		"issues": []map[string]any{{"issueId": id, "projectId": scope.ProjectID}},
+	})
+	req := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/issues/bulk-actions"), body)
+	rec := issueSheetServeOrg(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var count int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(),
+		`select count(*) from issue_notifications where issue_id=$1 and recipient_user_id=$2`, id, scope.UserID,
+	).Scan(&count))
+	require.Equal(t, 0, count, "the actor must never receive a notification about their own action")
+}
+
+func TestOrgBulkActionsAssigneeChangeNotifiesPreviousAssigneeEvenIfNotSubscribed(t *testing.T) {
+	api, scope := issueSheetTestAPIRole(t, true, "admin")
+	team := scope.MustTeam(t, "default", "Default", "")
+	mustSetProjectTeam(t, scope, scope.ProjectID, team)
+	previousAssignee := mustAssignableOrgMember(t, scope, team)
+	nextAssignee := mustAssignableOrgMember(t, scope, team)
+	id, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "x", "open", "", &previousAssignee)
+
+	var subscribedBefore bool
+	require.NoError(t, scope.Pool.QueryRow(t.Context(),
+		`select exists(select 1 from issue_sheet_subscriptions where issue_id=$1 and user_id=$2)`, id, previousAssignee,
+	).Scan(&subscribedBefore))
+	require.False(t, subscribedBefore, "sanity check: the previous assignee must not be a subscriber")
+
+	body := bulkActionBody(t, map[string]any{
+		"action":         "assign",
+		"assigneeUserId": nextAssignee,
+		"issues":         []map[string]any{{"issueId": id, "projectId": scope.ProjectID}},
+	})
+	req := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/issues/bulk-actions"), body)
+	rec := issueSheetServeOrg(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var notified bool
+	require.NoError(t, scope.Pool.QueryRow(t.Context(),
+		`select exists(select 1 from issue_notifications where issue_id=$1 and recipient_user_id=$2 and type='assignee_changed')`,
+		id, previousAssignee,
+	).Scan(&notified))
+	require.True(t, notified, "the previous assignee must be notified of the reassignment even though they were never a subscriber")
+}
+
+func TestOrgBulkActionsSetPriorityBootstrapsStarterColumnsOnFreshProject(t *testing.T) {
+	api, scope := issueSheetTestAPIRole(t, true, "admin")
+	id, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "Fresh project issue", "open", "", nil)
+
+	var columnExistsBefore bool
+	require.NoError(t, scope.Pool.QueryRow(t.Context(),
+		`select exists(select 1 from issue_sheet_columns where project_id=$1 and key='priority')`, scope.ProjectID,
+	).Scan(&columnExistsBefore))
+	require.False(t, columnExistsBefore, "sanity check: the priority column must not exist on a fresh project")
+
+	body := bulkActionBody(t, map[string]any{
+		"action":   "set_priority",
+		"priority": "P1",
+		"issues":   []map[string]any{{"issueId": id, "projectId": scope.ProjectID}},
+	})
+	req := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/issues/bulk-actions"), body)
+	rec := issueSheetServeOrg(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"outcome":"updated"`, rec.Body.String())
+
+	var priority string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
+        select v.value #>> '{}' from issue_sheet_row_values v
+        join issue_sheet_columns c on c.id = v.column_id
+        where v.issue_id=$1 and c.key='priority'`, id,
+	).Scan(&priority))
+	require.Equal(t, "P1", priority)
+}
+
+func TestOrgBulkActionsLoadIssueFailureAfterCommitIsNotReportedAsFailed(t *testing.T) {
+	api, scope := issueSheetTestAPIRole(t, true, "admin")
+	id, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "x", "open", "", nil)
+	api.testAfterBulkCommit = func() {
+		_, err := scope.Pool.Exec(context.Background(), `delete from issue_sheet_issues where id=$1`, id)
+		require.NoError(t, err)
+	}
+
+	body := bulkActionBody(t, map[string]any{
+		"action": "set_status",
+		"status": "resolved",
+		"issues": []map[string]any{{"issueId": id, "projectId": scope.ProjectID}},
+	})
+	req := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/issues/bulk-actions"), body)
+	rec := issueSheetServeOrg(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp struct {
+		BulkAction struct {
+			Succeeded int              `json:"succeeded"`
+			Failed    int              `json:"failed"`
+			Results   []map[string]any `json:"results"`
+		} `json:"bulkAction"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 1, resp.BulkAction.Succeeded, "the committed mutation must still count as succeeded")
+	require.Equal(t, 0, resp.BulkAction.Failed)
+	require.Equal(t, "updated", resp.BulkAction.Results[0]["outcome"])
+	require.NotContains(t, resp.BulkAction.Results[0], "issue", "the issue payload is correctly omitted when the post-commit read fails")
+}
+
+func TestOrgBulkActionsGenericFailureMessageIsSanitized(t *testing.T) {
+	api, scope := issueSheetTestAPIRole(t, true, "admin")
+	id, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "x", "open", "", nil)
+	const sensitive = "internal constraint detail that must never reach a client"
+	api.testForceBulkActionError = func() error {
+		return &pgconn.PgError{Code: "XX000", Severity: "ERROR", Message: sensitive}
+	}
+
+	body := bulkActionBody(t, map[string]any{
+		"action": "set_status",
+		"status": "resolved",
+		"issues": []map[string]any{{"issueId": id, "projectId": scope.ProjectID}},
+	})
+	req := issueSheetAuthedRequest(http.MethodPost, scope.OrgPath("/issues/bulk-actions"), body)
+	rec := issueSheetServeOrg(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotContains(t, rec.Body.String(), sensitive)
+	require.Contains(t, rec.Body.String(), "issue_update_failed")
+	require.Contains(t, rec.Body.String(), bulkIssueActionGenericFailureMessage)
 }

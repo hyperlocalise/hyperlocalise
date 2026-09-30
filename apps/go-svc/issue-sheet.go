@@ -39,6 +39,9 @@ type issueSheetAPI struct {
 	pool       dictionaryPool
 	membership func(context.Context, string) (*workos.UserOrganizationMembership, error)
 	autumn     autumnChecker
+
+	testForceBulkActionError func() error
+	testAfterBulkCommit      func()
 }
 
 type issueSheetActor struct {
