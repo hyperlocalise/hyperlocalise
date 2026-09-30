@@ -79,10 +79,10 @@ export const ContentEditorQueueToolbarConnected = observer(
         return;
       }
 
-      if (store.selectionMode) {
-        store.setSelectionMode(false);
-      }
-    }, [store, store.ui.isFileView, store.selectionMode]);
+      // When the workspace switches into file view, clear selection mode so
+      // stale checkboxes do not carry over to a context without a queue list.
+      store.setSelectionMode(false);
+    }, [store, store.ui.isFileView]);
 
     const handleSearchChange = useCallback(
       (value: string) => {
