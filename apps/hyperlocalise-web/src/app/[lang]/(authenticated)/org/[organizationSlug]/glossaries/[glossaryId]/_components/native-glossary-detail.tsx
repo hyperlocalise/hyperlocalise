@@ -468,7 +468,7 @@ export function NativeGlossaryDetail({
         strictLocale: true,
         localeMapping: {},
       });
-      for (let attempt = 0; attempt < 60; attempt += 1) {
+      for (let attempt = 0; attempt < 450; attempt += 1) {
         const report = await goSvcClient.glossary.report(
           organizationSlug,
           glossaryId,
@@ -572,7 +572,7 @@ export function NativeGlossaryDetail({
         createdByUserId: input.createdByUserId,
       });
       let report;
-      for (let attempt = 0; attempt < 60; attempt += 1) {
+      for (let attempt = 0; attempt < 450; attempt += 1) {
         report = await goSvcClient.glossary.report(organizationSlug, glossaryId, job.reportId);
         if (["completed", "failed"].includes(report.report.status)) break;
         await new Promise((resolve) => setTimeout(resolve, Math.min(2_000, 400 + attempt * 100)));

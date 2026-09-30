@@ -58,6 +58,7 @@ export const glossaryImportRuns = pgTable(
     backupObjectKey: text("backup_object_key"),
     errorCode: text("error_code"),
     errorMessage: text("error_message"),
+    processingStartedAt: timestamp("processing_started_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },

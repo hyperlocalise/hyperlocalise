@@ -1,0 +1,1 @@
+ALTER TABLE "glossary_import_runs" ADD COLUMN "processing_started_at" timestamp with time zone;

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
@@ -20,11 +21,13 @@ import (
 type interchangeConcept struct {
 	ID, PrimaryTerm, Subject, Definition, Note, URL, Figure, CreatedByUserID string
 	Translatable                                                             bool
+	CreatedAt, UpdatedAt                                                     time.Time
 	Terms                                                                    []interchangeTerm
 }
 type interchangeTerm struct {
 	ID, Locale, Term, Description, Note, PartOfSpeech, Gender, TermType, URL, Lemma, Status, Provenance, ReviewStatus, CreatedByUserID string
 	CaseSensitive, Forbidden                                                                                                           bool
+	CreatedAt, UpdatedAt                                                                                                               time.Time
 }
 
 type interchangeImportOptions struct {
@@ -33,14 +36,16 @@ type interchangeImportOptions struct {
 }
 
 type interchangeExportOptions struct {
-	Scope            string   `json:"scope"`
-	Locales          []string `json:"locales"`
-	Search           string   `json:"search"`
-	PartOfSpeech     string   `json:"partOfSpeech"`
-	TermType         string   `json:"termType"`
-	Gender           string   `json:"gender"`
-	LinguisticStatus string   `json:"linguisticStatus"`
-	CreatedByUserID  string   `json:"createdByUserId"`
+	Scope            string    `json:"scope"`
+	Locales          []string  `json:"locales"`
+	Search           string    `json:"search"`
+	PartOfSpeech     string    `json:"partOfSpeech"`
+	TermType         string    `json:"termType"`
+	Gender           string    `json:"gender"`
+	LinguisticStatus string    `json:"linguisticStatus"`
+	CreatedByUserID  string    `json:"createdByUserId"`
+	ModifiedFrom     string    `json:"modifiedFrom"`
+	ModifiedAfter    time.Time `json:"-"`
 }
 
 const maxGlossaryInterchangeBytes int64 = 25 * 1024 * 1024
@@ -78,7 +83,7 @@ func unescapeCSVFormula(value string) string {
 func processRun(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Registry, message interchangeMessage) error {
 	var operation, format, mode, sourceLocation, sourceKey string
 	var options []byte
-	err := pool.QueryRow(ctx, `update glossary_import_runs set status='running' where id=$1 and operation=$2 and status in ('queued','running') returning operation, format, mode, coalesce(source_object_location,''), coalesce(source_object_key,''), options`, message.RunID, message.Operation).Scan(&operation, &format, &mode, &sourceLocation, &sourceKey, &options)
+	err := pool.QueryRow(ctx, `update glossary_import_runs set status='running', processing_started_at=now() where id=$1 and operation=$2 and (status='queued' or (status='running' and (processing_started_at is null or processing_started_at < now() - interval '15 minutes'))) returning operation, format, mode, coalesce(source_object_location,''), coalesce(source_object_key,''), options`, message.RunID, message.Operation).Scan(&operation, &format, &mode, &sourceLocation, &sourceKey, &options)
 	if err == pgx.ErrNoRows {
 		return nil
 	}
@@ -95,7 +100,9 @@ func processRun(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Re
 		if ctx.Err() != nil {
 			return runErr
 		}
-		_, _ = pool.Exec(ctx, `update glossary_import_runs set status='failed', error_code='glossary_interchange_failed', error_message=$2, completed_at=now() where id=$1`, message.RunID, runErr.Error())
+		failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, _ = pool.Exec(failureCtx, `update glossary_import_runs set status='failed', processing_started_at=null, error_code='glossary_interchange_failed', error_message=$2, completed_at=now() where id=$1`, message.RunID, runErr.Error())
 		return runErr
 	}
 	return nil
@@ -114,6 +121,12 @@ func runExport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 	if err := json.Unmarshal(options, &exportOptions); err != nil {
 		return fmt.Errorf("decode export options: %w", err)
 	}
+	if exportOptions.ModifiedFrom != "" {
+		exportOptions.ModifiedAfter, err = time.Parse(time.RFC3339, exportOptions.ModifiedFrom)
+		if err != nil {
+			return fmt.Errorf("decode modifiedFrom: %w", err)
+		}
+	}
 	concepts = filterExportConcepts(concepts, exportOptions)
 	body, contentType, ext, err := encodeDocument(format, concepts)
 	if err != nil {
@@ -125,7 +138,7 @@ func runExport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 		return err
 	}
 	filename := fmt.Sprintf("glossary-%s.%s", glossaryID, ext)
-	_, err = pool.Exec(ctx, `update glossary_import_runs set status='completed', result_object_location=$2, result_object_key=$3, result_filename=$4, result_content_type=$5, counts=$6::jsonb, completed_at=now() where id=$1`, runID, objects.DefaultLocationID(), key, filename, contentType, json.RawMessage(fmt.Sprintf(`{"concepts":%d}`, len(concepts))))
+	_, err = pool.Exec(ctx, `update glossary_import_runs set status='completed', processing_started_at=null, result_object_location=$2, result_object_key=$3, result_filename=$4, result_content_type=$5, counts=$6::jsonb, completed_at=now() where id=$1`, runID, objects.DefaultLocationID(), key, filename, contentType, json.RawMessage(fmt.Sprintf(`{"concepts":%d,"terms":%d}`, len(concepts), countTerms(concepts))))
 	return err
 }
 
@@ -184,7 +197,7 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 		}
 	}
 	if mode == "preview" {
-		_, err = pool.Exec(ctx, `update glossary_import_runs set status='completed', counts=$2::jsonb, completed_at=now() where id=$1`, runID, json.RawMessage(fmt.Sprintf(`{"concepts":%d}`, len(concepts))))
+		_, err = pool.Exec(ctx, `update glossary_import_runs set status='completed', processing_started_at=null, counts=$2::jsonb, completed_at=now() where id=$1`, runID, json.RawMessage(fmt.Sprintf(`{"concepts":%d,"terms":%d}`, len(concepts), countTerms(concepts))))
 		return err
 	}
 	glossaryID := ""
@@ -218,20 +231,42 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 			return err
 		}
 	}
+	var mutationCounts importMutationCounts
 	for _, concept := range concepts {
-		if err := saveConcept(ctx, tx, glossaryID, concept, mode); err != nil {
+		counts, err := saveConcept(ctx, tx, glossaryID, concept, mode)
+		if err != nil {
 			return err
 		}
+		mutationCounts.ConceptsCreated += counts.ConceptsCreated
+		mutationCounts.ConceptsUpdated += counts.ConceptsUpdated
+		mutationCounts.ConceptsMerged += counts.ConceptsMerged
+		mutationCounts.TermsCreated += counts.TermsCreated
+		mutationCounts.TermsUpdated += counts.TermsUpdated
+		mutationCounts.TermsMerged += counts.TermsMerged
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	_, err = pool.Exec(ctx, `update glossary_import_runs set status='completed', counts=$2::jsonb, completed_at=now() where id=$1`, runID, json.RawMessage(fmt.Sprintf(`{"concepts":%d}`, len(concepts))))
+	countsJSON, _ := json.Marshal(map[string]int{
+		"concepts": len(concepts), "terms": countTerms(concepts),
+		"created": mutationCounts.TermsCreated, "updated": mutationCounts.TermsUpdated, "merged": mutationCounts.TermsMerged,
+		"conceptsCreated": mutationCounts.ConceptsCreated, "conceptsUpdated": mutationCounts.ConceptsUpdated, "conceptsMerged": mutationCounts.ConceptsMerged,
+		"termsCreated": mutationCounts.TermsCreated, "termsUpdated": mutationCounts.TermsUpdated, "termsMerged": mutationCounts.TermsMerged,
+	})
+	_, err = pool.Exec(ctx, `update glossary_import_runs set status='completed', processing_started_at=null, counts=$2::jsonb, completed_at=now() where id=$1`, runID, countsJSON)
 	return err
 }
 
+func countTerms(concepts []interchangeConcept) int {
+	total := 0
+	for _, concept := range concepts {
+		total += len(concept.Terms)
+	}
+	return total
+}
+
 func loadConcepts(ctx context.Context, pool *pgxpool.Pool, glossaryID string) ([]interchangeConcept, error) {
-	rows, err := pool.Query(ctx, `select c.id,c.primary_term,c.subject,c.definition,c.translatable,coalesce(c.note,''),coalesce(c.url,''),coalesce(c.figure,''),coalesce(c.created_by_user_id::text,'') from glossary_concepts c where c.glossary_id=$1 and c.archived_at is null order by c.id`, glossaryID)
+	rows, err := pool.Query(ctx, `select c.id,c.primary_term,c.subject,c.definition,c.translatable,coalesce(c.note,''),coalesce(c.url,''),coalesce(c.figure,''),coalesce(c.created_by_user_id::text,''),c.created_at,c.updated_at from glossary_concepts c where c.glossary_id=$1 and c.archived_at is null order by c.id`, glossaryID)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +275,7 @@ func loadConcepts(ctx context.Context, pool *pgxpool.Pool, glossaryID string) ([
 	byID := map[string]int{}
 	for rows.Next() {
 		var c interchangeConcept
-		if err := rows.Scan(&c.ID, &c.PrimaryTerm, &c.Subject, &c.Definition, &c.Translatable, &c.Note, &c.URL, &c.Figure, &c.CreatedByUserID); err != nil {
+		if err := rows.Scan(&c.ID, &c.PrimaryTerm, &c.Subject, &c.Definition, &c.Translatable, &c.Note, &c.URL, &c.Figure, &c.CreatedByUserID, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		concepts = append(concepts, c)
@@ -254,7 +289,7 @@ func loadConcepts(ctx context.Context, pool *pgxpool.Pool, glossaryID string) ([
 	for i := range concepts {
 		byID[concepts[i].ID] = i
 	}
-	termRows, err := pool.Query(ctx, `select id,concept_id,coalesce(locale,''),coalesce(term,''),coalesce(description,''),coalesce(note,''),coalesce(part_of_speech,''),coalesce(gender,''),coalesce(term_type,''),coalesce(url,''),coalesce(lemma,''),coalesce(status,'draft'),coalesce(provenance,'manual'),coalesce(review_status,'proposed'),coalesce(case_sensitive,false),coalesce(forbidden,false),coalesce(created_by_user_id::text,'') from glossary_terms where glossary_id=$1 and concept_id is not null and archived_at is null order by locale,term`, glossaryID)
+	termRows, err := pool.Query(ctx, `select id,concept_id,coalesce(locale,''),coalesce(term,''),coalesce(description,''),coalesce(note,''),coalesce(part_of_speech,''),coalesce(gender,''),coalesce(term_type,''),coalesce(url,''),coalesce(lemma,''),coalesce(status,'draft'),coalesce(provenance,'manual'),coalesce(review_status,'proposed'),coalesce(case_sensitive,false),coalesce(forbidden,false),coalesce(created_by_user_id::text,''),created_at,updated_at from glossary_terms where glossary_id=$1 and concept_id is not null and archived_at is null order by locale,term`, glossaryID)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +297,7 @@ func loadConcepts(ctx context.Context, pool *pgxpool.Pool, glossaryID string) ([
 	for termRows.Next() {
 		var t interchangeTerm
 		var conceptID string
-		if err := termRows.Scan(&t.ID, &conceptID, &t.Locale, &t.Term, &t.Description, &t.Note, &t.PartOfSpeech, &t.Gender, &t.TermType, &t.URL, &t.Lemma, &t.Status, &t.Provenance, &t.ReviewStatus, &t.CaseSensitive, &t.Forbidden, &t.CreatedByUserID); err != nil {
+		if err := termRows.Scan(&t.ID, &conceptID, &t.Locale, &t.Term, &t.Description, &t.Note, &t.PartOfSpeech, &t.Gender, &t.TermType, &t.URL, &t.Lemma, &t.Status, &t.Provenance, &t.ReviewStatus, &t.CaseSensitive, &t.Forbidden, &t.CreatedByUserID, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, err
 		}
 		if i, ok := byID[conceptID]; ok {
@@ -273,7 +308,7 @@ func loadConcepts(ctx context.Context, pool *pgxpool.Pool, glossaryID string) ([
 }
 
 func filterExportConcepts(concepts []interchangeConcept, options interchangeExportOptions) []interchangeConcept {
-	if options.Scope != "filtered" {
+	if options.Scope != "filtered" && options.ModifiedAfter.IsZero() {
 		return concepts
 	}
 	locales := map[string]bool{}
@@ -296,6 +331,9 @@ func filterExportConcepts(concepts []interchangeConcept, options interchangeExpo
 	for _, concept := range concepts {
 		terms := make([]interchangeTerm, 0, len(concept.Terms))
 		for _, term := range concept.Terms {
+			if !options.ModifiedAfter.IsZero() && concept.UpdatedAt.Before(options.ModifiedAfter) && term.UpdatedAt.Before(options.ModifiedAfter) {
+				continue
+			}
 			if len(locales) > 0 && !locales[strings.ReplaceAll(term.Locale, "_", "-")] {
 				continue
 			}
@@ -317,41 +355,92 @@ func filterExportConcepts(concepts []interchangeConcept, options interchangeExpo
 	return filtered
 }
 
-func saveConcept(ctx context.Context, tx pgx.Tx, glossaryID string, c interchangeConcept, mode string) error {
+type importMutationCounts struct {
+	ConceptsCreated int
+	ConceptsUpdated int
+	ConceptsMerged  int
+	TermsCreated    int
+	TermsUpdated    int
+	TermsMerged     int
+}
+
+func saveConcept(ctx context.Context, tx pgx.Tx, glossaryID string, c interchangeConcept, mode string) (importMutationCounts, error) {
+	var counts importMutationCounts
 	var conceptID string
 	lookupErr := pgx.ErrNoRows
 	stableID := strings.TrimPrefix(c.ID, "c-")
-	if _, err := uuid.Parse(stableID); err == nil && mode != "create" {
+	if _, err := uuid.Parse(stableID); err == nil {
 		lookupErr = tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and id=$2 and archived_at is null`, glossaryID, stableID).Scan(&conceptID)
 	}
-	if lookupErr == pgx.ErrNoRows && mode != "create" {
+	if lookupErr == pgx.ErrNoRows {
 		lookupErr = tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and primary_term=$2 and archived_at is null limit 1`, glossaryID, c.PrimaryTerm).Scan(&conceptID)
 	}
 	if lookupErr != nil && lookupErr != pgx.ErrNoRows {
-		return lookupErr
+		return counts, lookupErr
 	}
 	if mode == "create" && lookupErr == nil {
-		return nil
+		return counts, nil
 	}
 	if mode == "update" && lookupErr == pgx.ErrNoRows {
-		return nil
+		return counts, nil
 	}
 	if conceptID == "" {
 		if err := tx.QueryRow(ctx, `insert into glossary_concepts (glossary_id,primary_term,subject,definition,translatable,note,url,figure) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`, glossaryID, c.PrimaryTerm, c.Subject, c.Definition, c.Translatable, c.Note, c.URL, c.Figure).Scan(&conceptID); err != nil {
-			return err
+			return counts, err
 		}
+		counts.ConceptsCreated = 1
 	} else if mode != "merge" {
-		if _, err := tx.Exec(ctx, `update glossary_concepts set subject=$2,definition=$3,translatable=$4,note=$5,url=$6,figure=$7,updated_at=now() where id=$1`, conceptID, c.Subject, c.Definition, c.Translatable, c.Note, c.URL, c.Figure); err != nil {
-			return err
+		if _, err := tx.Exec(ctx, `update glossary_concepts set primary_term=$2,subject=$3,definition=$4,translatable=$5,note=$6,url=$7,figure=$8,updated_at=now() where id=$1`, conceptID, c.PrimaryTerm, c.Subject, c.Definition, c.Translatable, c.Note, c.URL, c.Figure); err != nil {
+			return counts, err
 		}
+		counts.ConceptsUpdated = 1
+	} else {
+		counts.ConceptsMerged = 1
 	}
 	for _, t := range c.Terms {
-		_, err := tx.Exec(ctx, `insert into glossary_terms (glossary_id,concept_id,locale,term,source_term,target_term,description,note,part_of_speech,gender,term_type,url,lemma,status,case_sensitive,forbidden,provenance,review_status) values ($1,$2,$3,$4,$4,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) on conflict (concept_id,locale,term) where concept_id is not null and locale is not null and term is not null do update set description=excluded.description,note=excluded.note,part_of_speech=excluded.part_of_speech,gender=excluded.gender,term_type=excluded.term_type,url=excluded.url,lemma=excluded.lemma,status=excluded.status,case_sensitive=excluded.case_sensitive,forbidden=excluded.forbidden,provenance=excluded.provenance,review_status=excluded.review_status,updated_at=now()`, glossaryID, conceptID, t.Locale, t.Term, t.Description, t.Note, t.PartOfSpeech, t.Gender, t.TermType, t.URL, t.Lemma, t.Status, t.CaseSensitive, t.Forbidden, t.Provenance, t.ReviewStatus)
+		provenance := t.Provenance
+		if provenance == "" {
+			provenance = "manual"
+		}
+		reviewStatus := t.ReviewStatus
+		if reviewStatus == "" {
+			reviewStatus = "proposed"
+		}
+		status := t.Status
+		if status == "" {
+			status = "draft"
+		}
+		if stableTermID := strings.TrimPrefix(t.ID, "t-"); mode != "create" {
+			if _, parseErr := uuid.Parse(stableTermID); parseErr == nil {
+				var existingConceptID string
+				err := tx.QueryRow(ctx, `select concept_id from glossary_terms where id=$1 and glossary_id=$2 and archived_at is null`, stableTermID, glossaryID).Scan(&existingConceptID)
+				if err == nil {
+					if _, err = tx.Exec(ctx, `update glossary_terms set concept_id=$2,locale=$3,term=$4,source_term=$4,target_term=$4,description=$5,note=$6,part_of_speech=$7,gender=$8,term_type=$9,url=$10,lemma=$11,status=$12,case_sensitive=$13,forbidden=$14,provenance=$15,review_status=$16,updated_at=now() where id=$1`, stableTermID, conceptID, t.Locale, t.Term, t.Description, t.Note, t.PartOfSpeech, t.Gender, t.TermType, t.URL, t.Lemma, status, t.CaseSensitive, t.Forbidden, provenance, reviewStatus); err != nil {
+						return counts, err
+					}
+					if mode == "merge" {
+						counts.TermsMerged++
+					} else {
+						counts.TermsUpdated++
+					}
+					continue
+				}
+				if err != pgx.ErrNoRows {
+					return counts, err
+				}
+			}
+		}
+		_, err := tx.Exec(ctx, `insert into glossary_terms (glossary_id,concept_id,locale,term,source_term,target_term,description,note,part_of_speech,gender,term_type,url,lemma,status,case_sensitive,forbidden,provenance,review_status) values ($1,$2,$3,$4,$4,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) on conflict (concept_id,locale,term) where concept_id is not null and locale is not null and term is not null do update set description=excluded.description,note=excluded.note,part_of_speech=excluded.part_of_speech,gender=excluded.gender,term_type=excluded.term_type,url=excluded.url,lemma=excluded.lemma,status=excluded.status,case_sensitive=excluded.case_sensitive,forbidden=excluded.forbidden,provenance=excluded.provenance,review_status=excluded.review_status,updated_at=now()`, glossaryID, conceptID, t.Locale, t.Term, t.Description, t.Note, t.PartOfSpeech, t.Gender, t.TermType, t.URL, t.Lemma, status, t.CaseSensitive, t.Forbidden, provenance, reviewStatus)
 		if err != nil {
-			return err
+			return counts, err
+		}
+		if mode == "merge" {
+			counts.TermsMerged++
+		} else {
+			counts.TermsCreated++
 		}
 	}
-	return nil
+	return counts, nil
 }
 
 func encodeDocument(format string, concepts []interchangeConcept) ([]byte, string, string, error) {
@@ -601,17 +690,23 @@ func decodeCSV(data []byte) ([]interchangeConcept, []string, error) {
 }
 
 func decodeTBX(data []byte) ([]interchangeConcept, []string, error) {
+	type descrip struct {
+		Type string `xml:"type,attr"`
+		Text string `xml:",chardata"`
+	}
 	type term struct {
-		ID   string `xml:"id,attr"`
-		Text string `xml:"term"`
+		ID       string    `xml:"id,attr"`
+		Text     string    `xml:"term"`
+		Descrips []descrip `xml:"descrip"`
 	}
 	type lang struct {
 		Locale string `xml:"lang,attr"`
 		Terms  []term `xml:"termSec"`
 	}
 	type entry struct {
-		ID    string `xml:"id,attr"`
-		Langs []lang `xml:"langSec"`
+		ID       string    `xml:"id,attr"`
+		Descrips []descrip `xml:"descrip"`
+		Langs    []lang    `xml:"langSec"`
 	}
 	var root struct {
 		Entries []entry `xml:"text>body>conceptEntry"`
@@ -622,12 +717,63 @@ func decodeTBX(data []byte) ([]interchangeConcept, []string, error) {
 	var out []interchangeConcept
 	for _, e := range root.Entries {
 		c := interchangeConcept{ID: strings.TrimPrefix(e.ID, "c-")}
+		for _, d := range e.Descrips {
+			switch d.Type {
+			case "primaryTerm":
+				c.PrimaryTerm = d.Text
+			case "subject":
+				c.Subject = d.Text
+			case "definition":
+				c.Definition = d.Text
+			case "note":
+				c.Note = d.Text
+			case "translatable":
+				c.Translatable = strings.EqualFold(d.Text, "true")
+			case "url":
+				c.URL = d.Text
+			case "figure":
+				c.Figure = d.Text
+			case "createdByUserId":
+				c.CreatedByUserID = d.Text
+			}
+		}
 		for _, l := range e.Langs {
 			for _, t := range l.Terms {
 				if c.PrimaryTerm == "" {
 					c.PrimaryTerm = t.Text
 				}
-				c.Terms = append(c.Terms, interchangeTerm{ID: strings.TrimPrefix(t.ID, "t-"), Locale: l.Locale, Term: t.Text, Status: "draft"})
+				term := interchangeTerm{ID: strings.TrimPrefix(t.ID, "t-"), Locale: l.Locale, Term: t.Text, Status: "draft"}
+				for _, d := range t.Descrips {
+					switch d.Type {
+					case "description":
+						term.Description = d.Text
+					case "note":
+						term.Note = d.Text
+					case "partOfSpeech":
+						term.PartOfSpeech = d.Text
+					case "gender":
+						term.Gender = d.Text
+					case "termType":
+						term.TermType = d.Text
+					case "url":
+						term.URL = d.Text
+					case "lemma":
+						term.Lemma = d.Text
+					case "status":
+						term.Status = d.Text
+					case "caseSensitive":
+						term.CaseSensitive = strings.EqualFold(d.Text, "true")
+					case "forbidden":
+						term.Forbidden = strings.EqualFold(d.Text, "true")
+					case "provenance":
+						term.Provenance = d.Text
+					case "reviewStatus":
+						term.ReviewStatus = d.Text
+					case "createdByUserId":
+						term.CreatedByUserID = d.Text
+					}
+				}
+				c.Terms = append(c.Terms, term)
 			}
 		}
 		if c.ID == "" {
