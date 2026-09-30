@@ -85,7 +85,7 @@ async function ProjectFileContentEditorPageLoader({
   const target = await resolveProjectResourceTarget(auth, projectId);
   const [contentEditorAllFilesEnabled, adaptiveWorkspaceEnabled] = await Promise.all([
     isReleaseContentEditorAllFilesEnabled(contentEditorAllFilesProviderKindFromTarget(target)),
-    isReleaseCatAdaptiveWorkspaceEnabled(),
+    isReleaseCatAdaptiveWorkspaceEnabled(auth),
   ]);
 
   return (

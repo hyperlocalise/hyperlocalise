@@ -88,7 +88,7 @@ async function ProjectJobStringsPageLoader({
   const target = await resolveProjectResourceTarget(auth, projectId);
   const [contentEditorAllFilesEnabled, adaptiveWorkspaceEnabled] = await Promise.all([
     isReleaseContentEditorAllFilesEnabled(contentEditorAllFilesProviderKindFromTarget(target)),
-    isReleaseCatAdaptiveWorkspaceEnabled(),
+    isReleaseCatAdaptiveWorkspaceEnabled(auth),
   ]);
 
   const initialQueueFilter = await resolveJobContentEditorInitialQueueFilter({

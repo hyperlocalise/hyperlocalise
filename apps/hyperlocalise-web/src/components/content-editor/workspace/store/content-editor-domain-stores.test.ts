@@ -452,4 +452,68 @@ describe("ContentEditorWorkspaceUiStore", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("synchronizes workspacePersona when setViewMode is called under adaptive mode", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: { getItem: vi.fn().mockReturnValue(null), setItem },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("text");
+
+      // Default for text is translator
+      expect(ui.resolvedPersona).toBe("translator");
+
+      // Selecting side-by-side view synchronizes persona to reviewer
+      ui.setViewMode("side-by-side");
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.resolvedPersona).toBe("reviewer");
+      expect(ui.isReviewerPersona).toBe(true);
+      expect(setItem).toHaveBeenCalledWith("content-editor-workspace-persona:v1:text", "reviewer");
+
+      // Selecting comfortable view synchronizes persona to translator
+      ui.setViewMode("comfortable");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(ui.resolvedPersona).toBe("translator");
+      expect(ui.isTranslatorPersona).toBe(true);
+      expect(setItem).toHaveBeenCalledWith(
+        "content-editor-workspace-persona:v1:text",
+        "translator",
+      );
+
+      // Selecting file view synchronizes persona to designer
+      ui.setViewMode("file");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.isDesignerPersona).toBe(true);
+      expect(setItem).toHaveBeenCalledWith("content-editor-workspace-persona:v1:text", "designer");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not mutate workspacePersona when adaptive mode is disabled", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: { getItem: vi.fn().mockReturnValue(null), setItem },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(false);
+      ui.applyFileFamily("text");
+
+      ui.setViewMode("side-by-side");
+      expect(ui.workspacePersona).toBeNull();
+      expect(setItem).not.toHaveBeenCalledWith(
+        "content-editor-workspace-persona:v1:text",
+        "reviewer",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

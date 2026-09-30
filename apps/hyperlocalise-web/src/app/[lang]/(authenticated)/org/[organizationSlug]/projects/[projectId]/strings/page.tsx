@@ -84,7 +84,7 @@ async function ProjectStringsPageLoader({
   const target = await resolveProjectResourceTarget(auth, projectId);
   const [contentEditorAllFilesEnabled, adaptiveWorkspaceEnabled] = await Promise.all([
     isReleaseContentEditorAllFilesEnabled(contentEditorAllFilesProviderKindFromTarget(target)),
-    isReleaseCatAdaptiveWorkspaceEnabled(),
+    isReleaseCatAdaptiveWorkspaceEnabled(auth),
   ]);
   const defaultSourcePath = contentEditorAllFilesEnabled
     ? CONTENT_EDITOR_ALL_FILES_SOURCE_PATH

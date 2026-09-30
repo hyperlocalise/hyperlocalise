@@ -12,9 +12,13 @@
  */
 import { flag } from "flags/next";
 
+import type { AppAuthContext } from "@/lib/workos/app-auth";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
 
+import { createWorkosIdentify } from "./identify-workos-context";
+import { workosAdapter } from "./workos-adapter";
+import type { WorkosFlagEntities } from "./workos-flag-entities";
 import {
   RELEASE_CAT_ALL_FILES_FLAG,
   RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
@@ -96,25 +100,26 @@ export async function isReleaseSandboxVcrImageEnabled(): Promise<boolean> {
  * Release gate for the adaptive workspace persona system in the Content Editor
  * (Translator / Designer / Reviewer layout presets + per-file-family auto-detection).
  *
- * Off by default — enable per-org or globally via Flags Explorer for A/B testing.
- * No `decide` logic: purely a manual on/off gate controlled through the dashboard.
+ * Controlled per-organization or per-user in WorkOS Feature Flags dashboard, or
+ * overridden via Flags Explorer.
  */
-export const releaseCatAdaptiveWorkspaceFlag = flag<boolean>({
+export const releaseCatAdaptiveWorkspaceFlag = flag<boolean, WorkosFlagEntities>({
   key: RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
   description:
     "Adaptive workspace personas for the Content Editor (Translator / Designer / Reviewer).",
   defaultValue: false,
-  decide() {
-    // No server-side eligibility logic — purely a Flags Explorer toggle.
-    // Flags Explorer overrides always take priority over decide() so
-    // enabling per-org in the dashboard still works as expected.
-    return false;
-  },
+  adapter: workosAdapter(),
 });
 
-export async function isReleaseCatAdaptiveWorkspaceEnabled(): Promise<boolean> {
+export async function isReleaseCatAdaptiveWorkspaceEnabled(
+  auth?: Pick<AppAuthContext, "activeOrganization" | "user">,
+): Promise<boolean> {
   try {
-    return (await releaseCatAdaptiveWorkspaceFlag.run({ identify: {} })) === true;
+    return (
+      (await releaseCatAdaptiveWorkspaceFlag.run({
+        identify: auth ? () => createWorkosIdentify(auth) : () => ({}),
+      })) === true
+    );
   } catch {
     return false;
   }

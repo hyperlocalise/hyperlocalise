@@ -15,6 +15,11 @@ import { describe, expect, it, vi } from "vite-plus/test";
 const releaseFlagRunMocks = vi.hoisted(() => ({
   contentEditorAllFiles: vi.fn(),
   sandboxVcrImage: vi.fn(),
+  catAdaptiveWorkspace: vi.fn(),
+}));
+
+vi.mock("./workos-adapter", () => ({
+  workosAdapter: vi.fn(),
 }));
 
 vi.mock("flags/next", () => ({
@@ -22,7 +27,9 @@ vi.mock("flags/next", () => ({
     const run =
       definition.key === "release-sandbox-vcr-image"
         ? releaseFlagRunMocks.sandboxVcrImage
-        : releaseFlagRunMocks.contentEditorAllFiles;
+        : definition.key === "release-content-editor-adaptive-workspace"
+          ? releaseFlagRunMocks.catAdaptiveWorkspace
+          : releaseFlagRunMocks.contentEditorAllFiles;
     return Object.assign(vi.fn(), {
       run,
       key: definition.key,
@@ -31,6 +38,7 @@ vi.mock("flags/next", () => ({
 }));
 
 import {
+  isReleaseCatAdaptiveWorkspaceEnabled,
   isReleaseContentEditorAllFilesEnabled,
   isReleaseSandboxVcrImageEnabled,
 } from "./release-flags";
@@ -76,5 +84,45 @@ describe("isReleaseSandboxVcrImageEnabled", () => {
     releaseFlagRunMocks.sandboxVcrImage.mockRejectedValue(new Error("flags unavailable"));
 
     await expect(isReleaseSandboxVcrImageEnabled()).resolves.toBe(false);
+  });
+});
+
+describe("isReleaseCatAdaptiveWorkspaceEnabled", () => {
+  it("passes WorkOS organization and user identity when auth context is provided", async () => {
+    releaseFlagRunMocks.catAdaptiveWorkspace.mockImplementation(
+      async (options: { identify: () => unknown }) => {
+        const identity = options.identify();
+        expect(identity).toEqual({
+          user: { id: "user_test_123" },
+          organization: { id: "org_test_456" },
+        });
+        return true;
+      },
+    );
+
+    const mockAuth = {
+      user: { workosUserId: "user_test_123" },
+      activeOrganization: { workosOrganizationId: "org_test_456" },
+    };
+
+    await expect(isReleaseCatAdaptiveWorkspaceEnabled(mockAuth as any)).resolves.toBe(true);
+  });
+
+  it("passes empty identify when auth context is omitted", async () => {
+    releaseFlagRunMocks.catAdaptiveWorkspace.mockImplementation(
+      async (options: { identify: () => unknown }) => {
+        const identity = options.identify();
+        expect(identity).toEqual({});
+        return true;
+      },
+    );
+
+    await expect(isReleaseCatAdaptiveWorkspaceEnabled()).resolves.toBe(true);
+  });
+
+  it("returns false when flag evaluation throws", async () => {
+    releaseFlagRunMocks.catAdaptiveWorkspace.mockRejectedValue(new Error("flag error"));
+
+    await expect(isReleaseCatAdaptiveWorkspaceEnabled()).resolves.toBe(false);
   });
 });

@@ -112,6 +112,20 @@ export class ContentEditorWorkspaceUiStore {
     if (mode !== "side-by-side") {
       this.setSideBySideViewport({ visibleSegmentIds: [], loadSegmentIds: [] });
     }
+    if (this.adaptiveWorkspaceEnabled && this.#persistViewMode) {
+      const targetPersona: ContentEditorWorkspacePersona | null =
+        mode === "side-by-side"
+          ? "reviewer"
+          : mode === "comfortable"
+            ? "translator"
+            : mode === "file"
+              ? "designer"
+              : null;
+      if (targetPersona && this.workspacePersona !== targetPersona) {
+        this.workspacePersona = targetPersona;
+        writeCatWorkspacePersona(this.#currentFileFamily ?? "text", targetPersona);
+      }
+    }
   }
 
   #applyPersonaLayout(persona: ContentEditorWorkspacePersona) {
