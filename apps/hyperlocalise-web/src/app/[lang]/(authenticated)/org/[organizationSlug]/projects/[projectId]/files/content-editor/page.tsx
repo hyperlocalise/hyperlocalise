@@ -12,7 +12,10 @@
  */
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { isReleaseContentEditorAllFilesEnabled } from "@/lib/flags/release-flags";
+import {
+  isReleaseCatAdaptiveWorkspaceEnabled,
+  isReleaseContentEditorAllFilesEnabled,
+} from "@/lib/flags/release-flags";
 import {
   parseCatWorkspaceQueueFilterParam,
   parseCatWorkspaceQueueSortParam,
@@ -80,9 +83,10 @@ async function ProjectFileContentEditorPageLoader({
   const parsedSearchParams = parseProjectFileContentEditorSearchParams(rawSearchParams);
   const auth = await requireAppAuthContext({ organizationSlug });
   const target = await resolveProjectResourceTarget(auth, projectId);
-  const contentEditorAllFilesEnabled = await isReleaseContentEditorAllFilesEnabled(
-    contentEditorAllFilesProviderKindFromTarget(target),
-  );
+  const [contentEditorAllFilesEnabled, adaptiveWorkspaceEnabled] = await Promise.all([
+    isReleaseContentEditorAllFilesEnabled(contentEditorAllFilesProviderKindFromTarget(target)),
+    isReleaseCatAdaptiveWorkspaceEnabled(auth),
+  ]);
 
   return (
     <ProjectFileContentEditorPageContent
@@ -91,6 +95,7 @@ async function ProjectFileContentEditorPageLoader({
       sourcePath={parsedSearchParams.sourcePath}
       allFiles={contentEditorAllFilesEnabled ? parsedSearchParams.allFiles : false}
       contentEditorAllFilesEnabled={contentEditorAllFilesEnabled}
+      adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
       highlightLocale={parsedSearchParams.highlightLocale}
       initialSegmentKey={parsedSearchParams.initialSegmentKey}
       initialQueueFilter={parseCatWorkspaceQueueFilterParam(rawSearchParams.queueFilter) ?? "all"}

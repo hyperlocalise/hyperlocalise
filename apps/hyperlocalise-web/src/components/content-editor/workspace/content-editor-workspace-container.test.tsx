@@ -15,7 +15,7 @@
 import type { ReactElement } from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   createCatImageFileWorkspaceState,
@@ -57,6 +57,10 @@ function renderCatWorkspace(ui: ReactElement) {
 }
 
 describe("ContentEditorWorkspaceContainer UI", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it("renders queue, editor, and intelligence panels on desktop", async () => {
     renderCatWorkspace(
       <ContentEditorWorkspaceContainer
@@ -409,5 +413,146 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     );
 
     expect(screen.getByRole("menuitemradio", { name: "Multilingual" })).toBeInTheDocument();
+  });
+
+  it("omits the persona switcher when adaptiveWorkspaceEnabled is false", async () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        adaptiveWorkspaceEnabled={false}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Workspace mode" })).not.toBeInTheDocument();
+  });
+
+  it("renders persona switcher and adapts layout to reviewer when adaptiveWorkspaceEnabled is true", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          adaptiveWorkspaceEnabled
+        />
+      </>,
+    );
+
+    const personaButton = await waitFor(() =>
+      screen.getByRole("button", { name: "Workspace mode" }),
+    );
+    expect(personaButton).toBeInTheDocument();
+
+    await user.click(personaButton);
+
+    const reviewerOption = await screen.findByRole("menuitemradio", { name: "Reviewer" });
+    expect(reviewerOption).toBeInTheDocument();
+
+    await user.click(reviewerOption);
+
+    // After selecting Reviewer, workspace adapts to side-by-side review table
+    await waitFor(() => {
+      const workspace = document.querySelector("[data-workspace-persona]");
+      expect(workspace).toHaveAttribute("data-workspace-persona", "reviewer");
+    });
+  });
+
+  it("switches compact panel to queue when reviewer persona is selected, and to edit when translator is selected", async () => {
+    const user = userEvent.setup();
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === "(max-width: 1023px)",
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    try {
+      renderCatWorkspace(
+        <>
+          <ContentEditorQueueToolbarHost />
+          <ContentEditorWorkspaceContainer
+            initialState={createUiCatWorkspaceState()}
+            adaptiveWorkspaceEnabled
+          />
+        </>,
+      );
+
+      // Initially in translator mode, compact tab is "Edit"
+      await waitFor(() => {
+        expect(screen.getByRole("tab", { name: "Edit" })).toHaveAttribute("data-active");
+      });
+
+      // Switch to Reviewer persona
+      const personaButton = screen.getByRole("button", { name: "Workspace mode" });
+      await user.click(personaButton);
+      const reviewerOption = await screen.findByRole("menuitemradio", { name: "Reviewer" });
+      await user.click(reviewerOption);
+
+      // Compact tab automatically switches to "Queue"
+      await waitFor(() => {
+        expect(screen.getByRole("tab", { name: "Queue" })).toHaveAttribute("data-active");
+      });
+
+      // Switch back to Translator persona (menu is still open)
+      const translatorOption = await screen.findByRole("menuitemradio", { name: "Translator" });
+      await user.click(translatorOption);
+
+      // Compact tab automatically switches to "Edit"
+      await waitFor(() => {
+        expect(screen.getByRole("tab", { name: "Edit" })).toHaveAttribute("data-active");
+      });
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it("synchronizes persona when selecting a view mode from the view switcher under adaptive workspace", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          adaptiveWorkspaceEnabled
+        />
+      </>,
+    );
+
+    // Initial state is translator (Comfortable view)
+    await waitFor(() => {
+      const workspace = document.querySelector("[data-workspace-persona]");
+      expect(workspace).toHaveAttribute("data-workspace-persona", "translator");
+    });
+
+    // Open view switcher and select Side-by-side
+    const viewButton = await waitFor(() =>
+      screen.getByRole("button", { name: "Content Editor view mode" }),
+    );
+    await user.click(viewButton);
+    const sideBySideOption = await screen.findByRole("menuitemradio", { name: "Side by side" });
+    await user.click(sideBySideOption);
+
+    // Persona should synchronize to reviewer
+    await waitFor(() => {
+      const workspace = document.querySelector("[data-workspace-persona]");
+      expect(workspace).toHaveAttribute("data-workspace-persona", "reviewer");
+    });
+
+    // Select Comfortable (menu is still open)
+    const comfortableOption = await screen.findByRole("menuitemradio", { name: "Comfortable" });
+    await user.click(comfortableOption);
+
+    // Persona should synchronize back to translator
+    await waitFor(() => {
+      const workspace = document.querySelector("[data-workspace-persona]");
+      expect(workspace).toHaveAttribute("data-workspace-persona", "translator");
+    });
   });
 });

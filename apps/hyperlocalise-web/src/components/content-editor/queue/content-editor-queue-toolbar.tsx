@@ -50,6 +50,7 @@ import {
 } from "./content-editor-queue-filter";
 import { contentEditorQueuePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import { ContentEditorWorkspaceViewSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-view-switcher-connected";
+import { ContentEditorWorkspacePersonaSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-persona-switcher-connected";
 
 export const queueFilterMessageByValue: Record<
   ContentEditorQueueFilter,
@@ -103,6 +104,7 @@ export function ContentEditorQueueToolbar({
   isQueueLoading = false,
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
+  adaptiveWorkspaceEnabled = false,
 }: {
   search?: string;
   onSearchChange?: (value: string) => void;
@@ -135,8 +137,14 @@ export function ContentEditorQueueToolbar({
   isQueueLoading?: boolean;
   onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
   isDownloadingFilteredView?: boolean;
+  /** When true, the adaptive workspace persona switcher is rendered. Off by default. */
+  adaptiveWorkspaceEnabled?: boolean;
 }) {
   const intl = useIntl();
+  // The selection-mode checkbox is shown whenever onSelectionModeChange is provided,
+  // independent of whether any bulk action handler is wired up. This lets users enter
+  // selection mode even in contexts where only some bulk actions are available.
+  const canEnterSelectionMode = Boolean(onSelectionModeChange);
   const hasBulkActions = Boolean(
     onSelectionModeChange &&
     (onBulkApprove || onBulkSkip || onBulkHide || onBulkUnhide || onBulkLock || onBulkUnlock),
@@ -301,7 +309,7 @@ export function ContentEditorQueueToolbar({
           </DropdownMenu>
         ) : null}
 
-        {hasBulkActions ? (
+        {canEnterSelectionMode ? (
           <label className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
             <input
               type="checkbox"
@@ -417,6 +425,7 @@ export function ContentEditorQueueToolbar({
           </DropdownMenu>
         ) : null}
 
+        {adaptiveWorkspaceEnabled ? <ContentEditorWorkspacePersonaSwitcherConnected /> : null}
         <ContentEditorWorkspaceViewSwitcherConnected />
       </div>
     </div>

@@ -177,4 +177,18 @@ describe("ContentEditorQueueToolbar", () => {
     expect(onBulkHide).not.toHaveBeenCalled();
     expect(onBulkApprove).not.toHaveBeenCalled();
   });
+
+  it("shows multi-select checkbox when onSelectionModeChange is provided, even without bulk handlers", () => {
+    // Regression: previously the checkbox was gated on hasBulkActions which
+    // required at least one bulk handler alongside onSelectionModeChange.
+    // The checkbox must now appear whenever onSelectionModeChange is provided.
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        onSelectionModeChange={vi.fn()}
+        // Deliberately omit onBulkApprove, onBulkSkip, onBulkHide, etc.
+      />,
+    );
+
+    expect(screen.getByLabelText("Show bulk selection checkboxes")).toBeInTheDocument();
+  });
 });

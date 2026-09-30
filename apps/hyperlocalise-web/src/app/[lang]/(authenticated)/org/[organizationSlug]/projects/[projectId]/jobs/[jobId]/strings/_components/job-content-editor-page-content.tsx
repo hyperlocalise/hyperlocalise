@@ -192,6 +192,7 @@ export function JobContentEditorPageContent({
   initialQueueSort = "file_order",
   initialSearch = "",
   contentEditorAllFilesEnabled = false,
+  adaptiveWorkspaceEnabled = false,
   canWriteDictionaries = false,
 }: {
   organizationSlug: string;
@@ -206,6 +207,7 @@ export function JobContentEditorPageContent({
   initialQueueSort?: ContentEditorQueueSort;
   initialSearch?: string;
   contentEditorAllFilesEnabled?: boolean;
+  adaptiveWorkspaceEnabled?: boolean;
   canWriteDictionaries?: boolean;
 }) {
   const intl = useIntl();
@@ -691,6 +693,7 @@ export function JobContentEditorPageContent({
           className="min-h-0 flex-1"
           pageNavigationGuardRef={pageNavigationGuardRef}
           canWriteDictionaries={canWriteDictionaries}
+          adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
         />
       </ContentEditorPageRoot>
     );
@@ -862,6 +865,7 @@ export function JobContentEditorPageContent({
           className="min-h-0 flex-1"
           pageNavigationGuardRef={pageNavigationGuardRef}
           canWriteDictionaries={canWriteDictionaries}
+          adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
         />
       </ContentEditorPageRoot>
     );
@@ -987,6 +991,7 @@ export function JobContentEditorPageContent({
         className="min-h-0 flex-1"
         pageNavigationGuardRef={pageNavigationGuardRef}
         canWriteDictionaries={canWriteDictionaries}
+        adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
       />
     </ContentEditorPageRoot>
   );

@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { ContentEditorMultilingualTable } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage } from "react-intl";
 
@@ -38,6 +38,7 @@ import { resolveCatFileViewCapabilities } from "./content-editor-file-view-capab
 import { loadOriginalDocumentContext } from "./content-editor-original-document-context";
 import { ContentEditorPanelErrorBoundary } from "./content-editor-panel-error-boundary";
 import { useContentEditorWorkspace } from "./content-editor-workspace-context";
+import type { ContentEditorWorkspacePersona } from "./content-editor-workspace-persona";
 import { contentEditorWorkspaceViewMessages } from "./content-editor-workspace.messages";
 import { ContentEditorComfortableResizableLayout } from "./content-editor-workspace-resizable-layout";
 import {
@@ -123,6 +124,9 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
 }: ContentEditorWorkspaceViewProps) {
   const store = useContentEditorWorkspace();
   const viewMode = store.ui.viewMode;
+  const isAdaptiveEnabled = store.ui.adaptiveWorkspaceEnabled;
+  const isReviewerPersona = isAdaptiveEnabled && store.ui.isReviewerPersona;
+  const resolvedPersona = store.ui.resolvedPersona;
   const intelligenceSegmentId = store.intelligenceSegmentId;
   const intelligenceSegment = store.intelligenceSegmentView ?? null;
   const loadingSegmentIds = store.loadingSegmentIds;
@@ -135,7 +139,28 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       )
     : -1;
   const { isCompact, workspaceRef } = useIsCompactWorkspace(viewMode);
-  const [activePanel, setActivePanel] = useState<ContentEditorWorkspacePanel>("edit");
+  const [activePanel, setActivePanel] = useState<ContentEditorWorkspacePanel>(
+    isReviewerPersona ? "queue" : "edit",
+  );
+  const prevPersonaRef = useRef<ContentEditorWorkspacePersona | null>(null);
+
+  useEffect(() => {
+    if (!isAdaptiveEnabled) {
+      prevPersonaRef.current = null;
+      return;
+    }
+
+    const currentPersona = store.ui.resolvedPersona;
+    if (prevPersonaRef.current !== currentPersona) {
+      prevPersonaRef.current = currentPersona;
+      if (currentPersona === "reviewer") {
+        setActivePanel("queue");
+      } else if (currentPersona === "translator") {
+        setActivePanel("edit");
+      }
+    }
+  }, [isAdaptiveEnabled, store.ui.resolvedPersona]);
+
   const isSideBySideDesktop = viewMode === "side-by-side" && !isCompact;
   const isFileView = viewMode === "file";
   const selectedSegmentIdForIntelligence = intelligenceSegmentId;
@@ -707,7 +732,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           queueFilter={queueFilter}
           checkedSegmentIds={checkedSegmentIds}
           onToggleSegmentChecked={onToggleSegmentChecked}
-          showSelection={store.selectionMode}
+          showSelection={store.selectionMode || isReviewerPersona}
           isFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueListLoading}
           pagination={queuePagination}
@@ -767,6 +792,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   return (
     <div
       ref={workspaceRef}
+      data-workspace-persona={isAdaptiveEnabled ? resolvedPersona : undefined}
       className={cn(
         "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
         className,

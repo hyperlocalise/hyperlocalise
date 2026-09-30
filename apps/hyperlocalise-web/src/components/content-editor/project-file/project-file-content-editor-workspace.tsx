@@ -131,6 +131,7 @@ export function ProjectFileContentEditorWorkspace({
   className,
   pageNavigationGuardRef,
   canWriteDictionaries = false,
+  adaptiveWorkspaceEnabled = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -153,6 +154,7 @@ export function ProjectFileContentEditorWorkspace({
   className?: string;
   pageNavigationGuardRef?: ContentEditorPageNavigationGuardRef;
   canWriteDictionaries?: boolean;
+  adaptiveWorkspaceEnabled?: boolean;
 }) {
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
@@ -1003,6 +1005,7 @@ export function ProjectFileContentEditorWorkspace({
                 queueSnapshot={workspaceState}
                 fileScopeKey={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
                 pageNavigationGuardRef={resolvedPageNavigationGuardRef}
+                adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
                 lazySegment={{
                   organizationSlug,
                   projectId,

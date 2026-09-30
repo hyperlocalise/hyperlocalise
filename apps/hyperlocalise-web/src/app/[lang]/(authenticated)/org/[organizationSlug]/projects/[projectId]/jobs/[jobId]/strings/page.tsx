@@ -12,7 +12,10 @@
  */
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { isReleaseContentEditorAllFilesEnabled } from "@/lib/flags/release-flags";
+import {
+  isReleaseCatAdaptiveWorkspaceEnabled,
+  isReleaseContentEditorAllFilesEnabled,
+} from "@/lib/flags/release-flags";
 import {
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
@@ -83,9 +86,10 @@ async function ProjectJobStringsPageLoader({
   } = await searchParams;
   const auth = await requireAppAuthContext({ organizationSlug });
   const target = await resolveProjectResourceTarget(auth, projectId);
-  const contentEditorAllFilesEnabled = await isReleaseContentEditorAllFilesEnabled(
-    contentEditorAllFilesProviderKindFromTarget(target),
-  );
+  const [contentEditorAllFilesEnabled, adaptiveWorkspaceEnabled] = await Promise.all([
+    isReleaseContentEditorAllFilesEnabled(contentEditorAllFilesProviderKindFromTarget(target)),
+    isReleaseCatAdaptiveWorkspaceEnabled(auth),
+  ]);
 
   const initialQueueFilter = await resolveJobContentEditorInitialQueueFilter({
     auth,
@@ -107,6 +111,7 @@ async function ProjectJobStringsPageLoader({
       initialQueueSort={parseCatWorkspaceQueueSortParam(queueSort) ?? "file_order"}
       initialSearch={parseCatWorkspaceSearchParam(search)}
       contentEditorAllFilesEnabled={contentEditorAllFilesEnabled}
+      adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
       canWriteDictionaries={hasCapability(auth.membership.role, "dictionaries:write")}
     />
   );

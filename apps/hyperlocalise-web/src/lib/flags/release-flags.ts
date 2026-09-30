@@ -12,12 +12,24 @@
  */
 import { flag } from "flags/next";
 
+import type { AppAuthContext } from "@/lib/workos/app-auth";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
 
-import { RELEASE_CAT_ALL_FILES_FLAG, RELEASE_SANDBOX_VCR_IMAGE_FLAG } from "./release-flag-keys";
+import { createWorkosIdentify } from "./identify-workos-context";
+import { workosAdapter } from "./workos-adapter";
+import type { WorkosFlagEntities } from "./workos-flag-entities";
+import {
+  RELEASE_CAT_ALL_FILES_FLAG,
+  RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
+  RELEASE_SANDBOX_VCR_IMAGE_FLAG,
+} from "./release-flag-keys";
 
-export { RELEASE_CAT_ALL_FILES_FLAG, RELEASE_SANDBOX_VCR_IMAGE_FLAG } from "./release-flag-keys";
+export {
+  RELEASE_CAT_ALL_FILES_FLAG,
+  RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
+  RELEASE_SANDBOX_VCR_IMAGE_FLAG,
+} from "./release-flag-keys";
 
 export type ReleaseContentEditorAllFilesEntities = {
   /** `null` / omitted = native project; otherwise the live TMS provider kind. */
@@ -79,6 +91,35 @@ export const releaseSandboxVcrImageFlag = flag<boolean>({
 export async function isReleaseSandboxVcrImageEnabled(): Promise<boolean> {
   try {
     return (await releaseSandboxVcrImageFlag.run({ identify: {} })) === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Release gate for the adaptive workspace persona system in the Content Editor
+ * (Translator / Designer / Reviewer layout presets + per-file-family auto-detection).
+ *
+ * Controlled per-organization or per-user in WorkOS Feature Flags dashboard, or
+ * overridden via Flags Explorer.
+ */
+export const releaseCatAdaptiveWorkspaceFlag = flag<boolean, WorkosFlagEntities>({
+  key: RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
+  description:
+    "Adaptive workspace personas for the Content Editor (Translator / Designer / Reviewer).",
+  defaultValue: false,
+  adapter: workosAdapter(),
+});
+
+export async function isReleaseCatAdaptiveWorkspaceEnabled(
+  auth?: Pick<AppAuthContext, "activeOrganization" | "user">,
+): Promise<boolean> {
+  try {
+    return (
+      (await releaseCatAdaptiveWorkspaceFlag.run({
+        identify: auth ? () => createWorkosIdentify(auth) : () => ({}),
+      })) === true
+    );
   } catch {
     return false;
   }
