@@ -36,31 +36,33 @@ type Config struct {
 // metadata. Values remain in Secrets Manager and are loaded only when the
 // caller asks for them.
 //
-// Each reference uses the following variables, where NAME is an uppercase
-// logical name containing letters, numbers, and underscores:
+// Each explicitly requested reference uses the following variables, where
+// NAME is an uppercase logical name containing letters, numbers, and
+// underscores:
 //   - NAME_ARN
 //   - NAME_KEY
 //   - NAME_CACHE_TTL_SECONDS (optional)
-func ConfigsFromEnv() (map[string]Config, error) {
-	arns := make(map[string]string)
-	for _, entry := range os.Environ() {
-		key, value, ok := strings.Cut(entry, "=")
-		if !ok || !strings.HasSuffix(key, "_ARN") {
-			continue
-		}
-		name := strings.TrimSuffix(key, "_ARN")
-		if name != "" {
-			arns[name] = strings.TrimSpace(value)
-		}
+
+// Names must be supplied explicitly so unrelated environment variables such
+// as AWS_DEPLOY_ROLE_ARN are never treated as secret references.
+func ConfigsFromEnv(names ...string) (map[string]Config, error) {
+	if len(names) == 0 {
+		return nil, errors.New("at least one secret reference name is required")
 	}
 
-	configs := make(map[string]Config, len(arns))
-	for name, arn := range arns {
+	configs := make(map[string]Config, len(names))
+	for _, rawName := range names {
+		name := strings.TrimSpace(rawName)
+		if name == "" {
+			return nil, errors.New("secret reference name is required")
+		}
+		arnEnv := name + "_ARN"
 		keyEnv := name + "_KEY"
 		ttlEnv := name + "_CACHE_TTL_SECONDS"
+		arn := strings.TrimSpace(os.Getenv(arnEnv))
 		key := strings.TrimSpace(os.Getenv(keyEnv))
 		if arn == "" {
-			return nil, fmt.Errorf("%s is required", name+"_ARN")
+			return nil, fmt.Errorf("%s is required", arnEnv)
 		}
 		if key == "" {
 			return nil, fmt.Errorf("%s is required", keyEnv)

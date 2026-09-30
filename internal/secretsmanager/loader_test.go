@@ -91,13 +91,14 @@ func TestConfigFromEnvUsesConfiguredTTL(t *testing.T) {
 }
 
 func TestConfigsFromEnvReadsNamedReferences(t *testing.T) {
+	t.Setenv("AWS_DEPLOY_ROLE_ARN", "arn:role")
 	t.Setenv("DATABASE_ARN", "arn:database")
 	t.Setenv("DATABASE_KEY", "DATABASE_URL")
 	t.Setenv("DATABASE_CACHE_TTL_SECONDS", "42")
 	t.Setenv("PROVIDER_ARN", "arn:provider")
 	t.Setenv("PROVIDER_KEY", "API_KEY")
 
-	configs, err := ConfigsFromEnv()
+	configs, err := ConfigsFromEnv("DATABASE", "PROVIDER")
 	require.NoError(t, err)
 	require.Equal(t, Config{ARN: "arn:database", Key: "DATABASE_URL", CacheTTL: 42 * time.Second}, configs["DATABASE"])
 	require.Equal(t, Config{ARN: "arn:provider", Key: "API_KEY", CacheTTL: DefaultCacheTTL}, configs["PROVIDER"])
@@ -107,8 +108,13 @@ func TestConfigsFromEnvRequiresKey(t *testing.T) {
 	t.Setenv("DATABASE_ARN", "arn:database")
 	t.Setenv("DATABASE_KEY", "")
 
-	_, err := ConfigsFromEnv()
+	_, err := ConfigsFromEnv("DATABASE")
 	require.EqualError(t, err, "DATABASE_KEY is required")
+}
+
+func TestConfigsFromEnvRequiresNames(t *testing.T) {
+	_, err := ConfigsFromEnv()
+	require.EqualError(t, err, "at least one secret reference name is required")
 }
 
 func TestCollectionLoadsNamedReferences(t *testing.T) {

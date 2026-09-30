@@ -38,7 +38,7 @@ worker, or a new Lambda artifact under `apps/`.
    - `<NAME>_KEY`
    - `<NAME>_CACHE_TTL_SECONDS`
 
-   Call `secretsmanager.ConfigsFromEnv`, create a
+   Call `secretsmanager.ConfigsFromEnv("NAME", ...)`, create a
    `secretsmanager.Collection`, and map named values into a typed runtime
    config. Never mutate `os.Environ` with loaded values.
 

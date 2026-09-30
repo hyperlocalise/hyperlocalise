@@ -117,6 +117,24 @@ jobs:
 
 Example: `drift` mode in reporting-only mode
 
+```yaml
+jobs:
+  localization-drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hyperlocalise/hyperlocalise@v1
+        with:
+          check: drift
+          config-path: i18n.yml
+          hyperlocalise-version: latest
+          fail-on-drift: false
+          upload-artifact: true
+```
+
 ## SQS Lambda workers
 
 Use the `create-sqs-lambda-worker` skill in `.agents/skills/` when adding a
@@ -135,27 +153,9 @@ The existing activity-log compatibility wrapper in infrastructure still passes
 the database secret metadata as `DATABASE_URL_SECRET_ARN`,
 `DATABASE_SECRET_KEY`, and `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`. Keep using
 `secretsmanager.ConfigFromEnv` for that worker. New workers composed directly
-from the reusable infrastructure module use the generic
-`<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` variables and
-`ConfigsFromEnv`/`Collection`.
-
-```yaml
-jobs:
-  localization-drift:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: hyperlocalise/hyperlocalise@v1
-        with:
-          check: drift
-          config-path: i18n.yml
-          hyperlocalise-version: latest
-          fail-on-drift: false
-          upload-artifact: true
-```
+from the reusable infrastructure module use explicitly requested generic
+`<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` variables with
+`ConfigsFromEnv("NAME", ...)` and `Collection`.
 
 ### GitHub Action settings
 

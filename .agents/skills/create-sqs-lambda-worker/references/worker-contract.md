@@ -29,6 +29,8 @@ Only secret references are environment configuration. A generated worker should
 turn named values into `<NAME>_ARN`, `<NAME>_KEY`, and
 `<NAME>_CACHE_TTL_SECONDS` metadata during initialization and keep the values
 out of logs, error strings, metrics, and child-process environment.
+Pass the logical names explicitly to `ConfigsFromEnv` so unrelated ARN
+environment variables are ignored.
 
 The existing activity-log compatibility wrapper still uses the legacy
 `DATABASE_URL_SECRET_ARN`, `DATABASE_SECRET_KEY`, and
