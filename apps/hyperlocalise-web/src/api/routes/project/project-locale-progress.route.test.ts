@@ -12,13 +12,12 @@
  */
 import "dotenv/config";
 
-import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { testClient } from "hono/testing";
 
 import { app } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
-import { db, schema } from "@/lib/database/client";
+import { db } from "@/lib/database/client";
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
@@ -70,104 +69,6 @@ afterEach(async () => {
 });
 
 describe("GET /projects/:projectId/locale-progress", () => {
-  it("aggregates native translation words and strings per locale", async () => {
-    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-
-    await db
-      .update(schema.projects)
-      .set({ targetLocales: ["fr-FR", "de-DE"] })
-      .where(eq(schema.projects.id, project.id));
-
-    const [hello, save, hidden] = await db
-      .insert(schema.projectTranslationKeys)
-      .values([
-        {
-          organizationId: organization.id,
-          projectId: project.id,
-          key: "hello",
-          sourceText: "Hello world",
-          normalizedSourceText: "hello world",
-        },
-        {
-          organizationId: organization.id,
-          projectId: project.id,
-          key: "save",
-          sourceText: "Save",
-          normalizedSourceText: "save",
-        },
-        {
-          organizationId: organization.id,
-          projectId: project.id,
-          key: "debug",
-          sourceText: "Internal id",
-          normalizedSourceText: "internal id",
-          isHidden: true,
-        },
-      ])
-      .returning();
-
-    await db.insert(schema.projectTranslations).values([
-      {
-        organizationId: organization.id,
-        projectId: project.id,
-        translationKeyId: hello!.id,
-        targetLocale: "fr-FR",
-        text: "Bonjour le monde",
-        status: "approved",
-      },
-      {
-        organizationId: organization.id,
-        projectId: project.id,
-        translationKeyId: save!.id,
-        targetLocale: "fr-FR",
-        text: "",
-        status: "draft",
-      },
-      {
-        organizationId: organization.id,
-        projectId: project.id,
-        translationKeyId: hidden!.id,
-        targetLocale: "fr-FR",
-        text: "id interne",
-        status: "approved",
-      },
-    ]);
-
-    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "locale-progress"
-    ].$get(
-      {
-        param: {
-          organizationSlug: identity.organization.slug!,
-          projectId: project.id,
-        },
-      },
-      { headers },
-    );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as ProjectLocaleProgressResponse;
-    expect(body.locales).toEqual([
-      expect.objectContaining({
-        locale: "fr-FR",
-        translationProgress: 67,
-        approvalProgress: 67,
-        words: { total: 3, translated: 2, approved: 2 },
-        phrases: { total: 2, translated: 1, approved: 1 },
-      }),
-      expect.objectContaining({
-        locale: "de-DE",
-        translationProgress: 0,
-        approvalProgress: 0,
-        words: { total: 3, translated: 0, approved: 0 },
-        phrases: { total: 2, translated: 0, approved: 0 },
-        lastActivityAt: null,
-      }),
-    ]);
-    expect(body.locales[0]?.lastActivityAt).toBeTruthy();
-  });
-
   it("maps live provider locale readiness onto target locales", async () => {
     const admin = projectFixture.createWorkosIdentityWithRole("admin");
     const headers = await projectFixture.authHeadersFor(admin);

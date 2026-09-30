@@ -30,6 +30,19 @@ import {
 } from "./project-files-tree-panel";
 import { TREE_HEIGHT_PX } from "./project-files-tree";
 
+const filesApi = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      project: {
+        files: filesApi,
+      },
+    },
+    loading: false,
+  }),
+}));
+
 vi.mock("./project-files-tree", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./project-files-tree")>();
   return {
@@ -41,6 +54,7 @@ vi.mock("./project-files-tree", async (importOriginal) => {
 
 describe("project files browser capacity", () => {
   afterEach(() => {
+    filesApi.mockReset();
     vi.unstubAllGlobals();
   });
 
@@ -48,19 +62,11 @@ describe("project files browser capacity", () => {
     const files = Array.from({ length: 600 }, (_, index) =>
       createProjectFileRecord({ sourcePath: `file-${String(index).padStart(4, "0")}.json` }),
     );
-    const fetchMock = vi.fn().mockImplementation(
-      async (url: string) =>
-        new Response(
-          JSON.stringify({
-            files: files.slice(
-              0,
-              Number(new URL(url, "http://localhost").searchParams.get("limit")),
-            ),
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+    filesApi.mockImplementation(
+      async (_organizationSlug: string, _projectId: string, query: { limit?: number }) => ({
+        files: files.slice(0, query.limit ?? PROJECT_FILES_PAGE_SIZE),
+      }),
     );
-    vi.stubGlobal("fetch", fetchMock);
     const props = {
       organizationSlug: "acme",
       projectId: "proj_1",
@@ -73,29 +79,25 @@ describe("project files browser capacity", () => {
     await waitFor(() => expect(screen.getByTestId("file-count")).toHaveTextContent("500"));
     fireEvent.click(screen.getByRole("button", { name: /load more/i }));
     await waitFor(() => expect(screen.getByTestId("file-count")).toHaveTextContent("600"));
-    const requests = fetchMock.mock.calls.length;
+    const requests = filesApi.mock.calls.length;
     rerender(
       createElement(ProjectFilesTreePanel, { ...props, selectedSourcePath: "file-0599.json" }),
     );
     await waitFor(() => expect(screen.getByTestId("file-count")).toHaveTextContent("600"));
-    expect(fetchMock).toHaveBeenCalledTimes(requests);
+    expect(filesApi).toHaveBeenCalledTimes(requests);
   });
 
   it("requests 500 files by default", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ files: [] }), {
-        headers: { "Content-Type": "application/json" },
-        status: 200,
-      }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
+    const goSvcClient = {
+      project: {
+        files: filesApi.mockResolvedValue({ files: [] }),
+      },
+    };
 
-    await fetchProjectFiles("acme", "proj_1");
+    await fetchProjectFiles(goSvcClient as never, "acme", "proj_1");
 
     expect(PROJECT_FILES_PAGE_SIZE).toBe(500);
-    expect(fetchMock).toHaveBeenCalledWith("/api/orgs/acme/projects/proj_1/files?limit=500", {
-      method: "GET",
-    });
+    expect(filesApi).toHaveBeenCalledWith("acme", "proj_1", { limit: 500 });
   });
 
   it("uses a 480 pixel tree viewport", () => {

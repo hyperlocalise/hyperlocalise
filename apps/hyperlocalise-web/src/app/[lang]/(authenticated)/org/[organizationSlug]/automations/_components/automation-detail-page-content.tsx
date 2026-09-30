@@ -45,6 +45,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { readApiResponseError } from "@/lib/api-error";
 import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
@@ -95,6 +97,7 @@ export function AutomationDetailPageContent({
   const intl = useIntl();
   const router = useOrgRouter();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
 
   const automationQuery = useQuery({
@@ -150,27 +153,19 @@ export function AutomationDetailPageContent({
       if (!projectId) {
         return [];
       }
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.$get({
-        param: { organizationSlug, projectId },
-        query: {
-          limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
+      try {
+        const body = await goSvcClient.project.files(organizationSlug, projectId, {
+          limit: AUTOMATION_SOURCE_FILES_PAGE_SIZE,
           offset: pageParam,
           origin: "repository",
           ...(debouncedSourceFileSearch ? { search: debouncedSourceFileSearch } : {}),
-        },
-      });
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load source files");
+        });
+        return uniqueSourceFilesByPath(
+          body.files.map((file) => ({ sourcePath: file.sourcePath })),
+        ).toSorted((left, right) => left.sourcePath.localeCompare(right.sourcePath));
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load source files"), { cause: error });
       }
-      const body = await response.json();
-      if (!("files" in body)) {
-        throw new Error("Failed to load source files");
-      }
-      return uniqueSourceFilesByPath(
-        body.files.map((file) => ({ sourcePath: file.sourcePath })),
-      ).toSorted((left, right) => left.sourcePath.localeCompare(right.sourcePath));
     },
     getNextPageParam: (lastPage, pages) => {
       if (lastPage.length < AUTOMATION_SOURCE_FILES_PAGE_SIZE) {

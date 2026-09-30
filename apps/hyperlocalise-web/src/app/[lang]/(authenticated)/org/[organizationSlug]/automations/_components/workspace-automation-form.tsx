@@ -88,6 +88,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
 import { createApiClient } from "@/lib/api-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   AUTOMATION_WEEKDAY_OPTIONS,
   addBranchPattern,
@@ -198,12 +199,19 @@ const COMING_SOON_GOOGLE_TOOLS: readonly ComingSoonAutomationTool[] = [
 ] as const;
 
 const AUTOMATION_MODEL_MESSAGES = {
+  "openai/gpt-6.1-sol": workspaceAutomationFormMessages.modelGpt61Sol,
+  "openai/gpt-6.1-sol-fast": workspaceAutomationFormMessages.modelGpt61SolFast,
   "openai/gpt-6-luna": workspaceAutomationFormMessages.modelGpt6Luna,
+  "openai/gpt-6-luna-fast": workspaceAutomationFormMessages.modelGpt6LunaFast,
   "openai/gpt-6-astra": workspaceAutomationFormMessages.modelGpt6Astra,
+  "openai/gpt-6-astra-fast": workspaceAutomationFormMessages.modelGpt6AstraFast,
   "openai/gpt-6-sol": workspaceAutomationFormMessages.modelGpt6Sol,
+  "openai/gpt-6-sol-fast": workspaceAutomationFormMessages.modelGpt6SolFast,
   "openai/gpt-5.6-luna": workspaceAutomationFormMessages.modelGpt56Luna,
   "openai/gpt-5.6-terra": workspaceAutomationFormMessages.modelGpt56Terra,
+  "openai/gpt-5.6-terra-fast": workspaceAutomationFormMessages.modelGpt56TerraFast,
   "openai/gpt-5.6-sol": workspaceAutomationFormMessages.modelGpt56Sol,
+  "openai/gpt-5.6-sol-fast": workspaceAutomationFormMessages.modelGpt56SolFast,
   "anthropic/claude-sonnet-5": workspaceAutomationFormMessages.modelClaudeSonnet5,
   "anthropic/claude-opus-5.5": workspaceAutomationFormMessages.modelClaudeOpus55,
   "anthropic/claude-opus-5": workspaceAutomationFormMessages.modelClaudeOpus5,
@@ -3379,17 +3387,12 @@ export function WorkspaceAutomationEditor({
 }) {
   const intl = useIntl();
   const [activeTab, setActiveTab] = useState<AutomationEditorTab>("settings");
+  const { client: goSvcClient } = useGoSvcClient();
 
   const projectsQuery = useQuery({
     queryKey: ["projects", organizationSlug],
     queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-      if (response.status !== 200) {
-        throw new Error("Failed to load projects");
-      }
-      const body = await response.json();
+      const body = await goSvcClient.project.list(organizationSlug);
       return body.projects;
     },
   });

@@ -242,6 +242,72 @@ Outro text.`))
 	}
 }
 
+func TestLiquidParserParseSkipsUnsafeBlocksCaseInsensitive(t *testing.T) {
+	// Bolt rewrite matches skipped block names with ASCII case-folding; mixed-case
+	// open tags must still suppress the entire block body from extraction.
+	got, err := (LiquidParser{}).Parse([]byte(`Before.
+{% RAW %}
+Do not translate raw.
+{% endraw %}
+{% Comment %}
+Do not translate comment.
+{% endcomment %}
+{% SCHEMA %}
+{ "name": "Do not translate schema" }
+{% endschema %}
+{% JavaScript %}console.log("skip");{% endjavascript %}
+{% StyleSheet %}.x{}{% endstylesheet %}
+After.`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected only surrounding text, got %#v", got)
+	}
+	if !liquidValuesContain(got, "Before.\n") || !liquidValuesContain(got, "\nAfter.") {
+		t.Fatalf("expected flanking prose preserved, got %#v", got)
+	}
+	for _, value := range got {
+		for _, forbidden := range []string{
+			"Do not translate raw",
+			"Do not translate comment",
+			"Do not translate schema",
+			"console.log",
+			".x{}",
+			"HLLQPH_",
+		} {
+			if strings.Contains(value, forbidden) {
+				t.Fatalf("expected skipped block body omitted, found %q in %q", forbidden, value)
+			}
+		}
+	}
+}
+
+func TestLiquidSkippedBlockName(t *testing.T) {
+	cases := []struct {
+		tag  string
+		want string
+	}{
+		{tag: "{% raw %}", want: "raw"},
+		{tag: "{%-RAW-%}", want: "raw"},
+		{tag: "{%  Comment  %}", want: "comment"},
+		{tag: "{% SCHEMA %}", want: "schema"},
+		{tag: "{% JavaScript %}", want: "javascript"},
+		{tag: "{% stylesheet %}", want: "stylesheet"},
+		{tag: "{% if product %}", want: ""},
+		{tag: "{% endfor %}", want: ""},
+		{tag: "{{ product.title }}", want: ""},
+		{tag: "", want: ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.tag, func(t *testing.T) {
+			if got := liquidSkippedBlockName([]byte(tc.tag)); got != tc.want {
+				t.Fatalf("liquidSkippedBlockName(%q) = %q, want %q", tc.tag, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestLiquidParserShopifyExampleShapes(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -507,6 +573,22 @@ func TestLiquidInternalPlaceholderTokensFastPathAndFormat(t *testing.T) {
 	tokens := LiquidInternalPlaceholderTokens("A " + first + " B")
 	if len(tokens) != 1 || tokens[0] != first {
 		t.Fatalf("expected extracted token %q, got %#v", first, tokens)
+	}
+}
+
+func TestLiquidSyntaxPlaceholderTokensFastPath(t *testing.T) {
+	if tokens := liquidSyntaxPlaceholderTokens("plain text without liquid markers"); tokens != nil {
+		t.Fatalf("expected nil when HLLQPH_ is absent, got %#v", tokens)
+	}
+	// Substring mention without sentinel control bytes must not invent tokens.
+	if tokens := liquidSyntaxPlaceholderTokens("docs mention HLLQPH_ but lack sentinels"); len(tokens) != 0 {
+		t.Fatalf("expected no tokens without sentinel bytes, got %#v", tokens)
+	}
+
+	token := liquidPlaceholderToken(0, "{{ product.title }}")
+	got := liquidSyntaxPlaceholderTokens("Hello " + token)
+	if len(got) != 1 || got[0] != token {
+		t.Fatalf("expected liquid placeholder token, got %#v", got)
 	}
 }
 

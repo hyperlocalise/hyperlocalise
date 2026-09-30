@@ -112,7 +112,7 @@ export const WithActions: Story = {
   parameters: {
     msw: {
       handlers: [
-        http.get("/api/orgs/:organizationSlug/projects", () =>
+        http.get("*/v1/orgs/:organizationSlug/projects", () =>
           HttpResponse.json({
             projects: [
               {

@@ -26,8 +26,8 @@ import { projectsTableMessages } from "./projects-table.messages";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
@@ -151,6 +151,7 @@ function RecentProjectsStrip({
 export function ProjectsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [projectDialogMode, setProjectDialogMode] = useState<"create" | "edit" | null>(null);
   const [editingProject, setEditingProject] = useState<ProjectListRow | null>(null);
   const [deleteProject, setDeleteProject] = useState<ProjectListRow | null>(null);
@@ -162,19 +163,18 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   const nativeProjectsQuery = useQuery({
     queryKey: nativeProjectsQueryKey(organizationSlug),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-
-      if (response.status !== 200) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(projectsPageContentMessages.loadProjectsFailed),
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects.map((project) => mapProjectToListRow(project, intl));
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(projectsPageContentMessages.loadProjectsFailed),
+          ),
+          { cause: error },
         );
       }
-
-      const body = await response.json();
-      return body.projects.map((project) => mapProjectToListRow(project, intl));
     },
   });
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
@@ -187,19 +187,20 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   });
   const createProject = useMutation({
     mutationFn: async (values: ProjectFormValues) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$post({
-        param: { organizationSlug },
-        json: toProjectPayload(values, { mode: "create" }),
-      });
-
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(projectsPageContentMessages.createProjectFailed),
+      try {
+        return await goSvcClient.project.create(
+          organizationSlug,
+          toProjectPayload(values, { mode: "create" }),
+        );
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(projectsPageContentMessages.createProjectFailed),
+          ),
+          { cause: error },
         );
       }
-
-      return response.json();
     },
     onSuccess: async () => {
       void queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
@@ -212,23 +213,25 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   });
   const updateProject = useMutation({
     mutationFn: async ({ projectId, values }: { projectId: string; values: ProjectFormValues }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$patch({
-        param: { organizationSlug, projectId },
-        json: toProjectPayload(values, {
-          mode: "edit",
-          includeLocales: editingProject?.source === "native",
-          includeMetadata: editingProject?.source === "native",
-        }),
-      });
-
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(projectsPageContentMessages.updateProjectFailed),
+      try {
+        return await goSvcClient.project.update(
+          organizationSlug,
+          projectId,
+          toProjectPayload(values, {
+            mode: "edit",
+            includeLocales: editingProject?.source === "native",
+            includeMetadata: editingProject?.source === "native",
+          }),
+        );
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(projectsPageContentMessages.updateProjectFailed),
+          ),
+          { cause: error },
         );
       }
-
-      return response.json();
     },
     onSuccess: async () => {
       void queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
@@ -242,16 +245,15 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   });
   const deleteProjectMutation = useMutation({
     mutationFn: async (projectId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$delete(
-        {
-          param: { organizationSlug, projectId },
-        },
-      );
-
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(projectsPageContentMessages.deleteProjectFailed),
+      try {
+        await goSvcClient.project.delete(organizationSlug, projectId);
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(projectsPageContentMessages.deleteProjectFailed),
+          ),
+          { cause: error },
         );
       }
     },

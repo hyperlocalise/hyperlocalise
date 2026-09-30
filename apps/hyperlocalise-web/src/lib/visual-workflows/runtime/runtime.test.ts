@@ -1515,11 +1515,126 @@ describe("visual workflow interpreter", () => {
       expect(result.nodeResults["timed-out"]).toBeDefined();
     }
   });
+
+  it("completes Merge from a due Wait before an armed Merge timeout expires", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-01-01T00:00:00.000Z");
+    try {
+      const definition = createMergeDefinition("all");
+      const wait = definition.nodes.find((node) => node.id === "slack")!;
+      wait.type = "flow.wait";
+      wait.config = { kind: "flow.wait", mode: "duration", durationMs: 5_000 };
+      const merge = definition.nodes.find((node) => node.id === "merge")!;
+      if (merge.config.kind !== "logic.merge") throw new Error("expected Merge");
+      merge.config.timeoutMs = 60_000;
+      if (merge.inputs) delete merge.inputs["value.slack-input"];
+      const waitEdge = definition.edges.find((edge) => edge.id === "slack-merge")!;
+      waitEdge.sourceHandle = "completed";
+      const byId = new Map(definition.nodes.map((node) => [node.id, node]));
+      definition.nodes = [byId.get("trigger")!, wait, byId.get("email")!, merge];
+
+      const suspended = await runVisualWorkflowInterpreter({
+        definition,
+        organizationId: "00000000-0000-4000-8000-000000000001",
+      });
+      expect(suspended.ok).toBe(false);
+      if (suspended.ok) throw new Error("expected wait_suspended");
+      expect(suspended.error).toMatchObject({
+        code: "wait_suspended",
+        mergeResume: {
+          mergeNodeId: "merge",
+          wakeAt: "2026-01-01T00:01:00.000Z",
+        },
+      });
+
+      const waitResume = {
+        waitNodeId: "slack",
+        iteration: -1,
+        mode: "duration" as const,
+        scheduledAt: "2026-01-01T00:00:00.000Z",
+        wakeAt: "2026-01-01T00:00:05.000Z",
+      };
+      const mergeResume = suspended.error.mergeResume as {
+        mergeNodeId: string;
+        iteration: number;
+        scheduledAt: string;
+        wakeAt: string;
+      };
+
+      // Wait is due; Merge timeout is still in the future. Merge must complete,
+      // not sleep until timeout and then force timed_out ahead of Wait.
+      vi.setSystemTime("2026-01-01T00:00:10.000Z");
+      const resumed = await runVisualWorkflowInterpreter({
+        definition,
+        organizationId: "00000000-0000-4000-8000-000000000001",
+        waitResume,
+        mergeResume,
+      });
+
+      expect(resumed.ok).toBe(true);
+      if (resumed.ok) {
+        expect(resumed.nodeResults.merge).toMatchObject({ status: "completed" });
+        expect(resumed.nodeResults.slack).toMatchObject({ status: "completed" });
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reuses a durable Merge completion instead of re-timing-out on later slices", async () => {
+    const definition = createMergeDefinition("all");
+    const merge = definition.nodes.find((node) => node.id === "merge")!;
+    if (merge.config.kind !== "logic.merge") throw new Error("expected Merge");
+    merge.config.timeoutMs = 1_000;
+    definition.nodes.push({
+      id: "completed-branch",
+      type: "logic.set",
+      config: { kind: "logic.set", assignments: [] },
+    });
+    definition.edges.push({
+      id: "merge-completed-branch",
+      source: "merge",
+      target: "completed-branch",
+      sourceHandle: "completed",
+      targetHandle: null,
+    });
+
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      mergeResume: {
+        mergeNodeId: "merge",
+        iteration: -1,
+        scheduledAt: "2026-01-01T00:00:00.000Z",
+        wakeAt: "2026-01-01T00:00:01.000Z",
+      },
+      executeNode: async (args) => {
+        if (args.node.type === "logic.merge") {
+          return {
+            ok: true,
+            output: {
+              status: "completed",
+              selectedInputId: "email-input",
+              values: {},
+            },
+          };
+        }
+        return executeVisualWorkflowNode({ ...args, inputsResolved: true });
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(`unexpected failure: ${JSON.stringify(result.error)}`);
+    }
+    expect(result.nodeResults.merge).toMatchObject({ status: "completed" });
+    expect(result.nodeResults["completed-branch"]).toBeDefined();
+  });
+
   it("returns the configured Sequence dispatch order", async () => {
     const { executeVisualWorkflowNode } = await import("./execute-node");
-    const context = createVisualWorkflowExecutionContext({
-      triggerInput: {},
-    });
+    const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
 
     const result = await executeVisualWorkflowNode({
       organizationId: "00000000-0000-4000-8000-000000000001",
@@ -1539,13 +1654,11 @@ describe("visual workflow interpreter", () => {
 
     expect(result).toEqual({
       ok: true,
-      output: {
-        dispatchedOutputIds: ["slack", "email"],
-      },
+      output: { dispatchedOutputIds: ["slack", "email"] },
     });
   });
 
-  it("dispatches Sequence outputs exactly once in configured order", async () => {
+  it("finishes each Sequence path before starting the next output", async () => {
     const definition: VisualWorkflowDefinition = {
       schemaVersion: 2,
       name: "Sequence order",
@@ -1561,28 +1674,25 @@ describe("visual workflow interpreter", () => {
           config: {
             kind: "logic.sequence",
             outputs: [
-              { id: "second-output", label: "Second node first" },
-              { id: "first-output", label: "First node second" },
+              { id: "first-output", label: "First path" },
+              { id: "second-output", label: "Second path" },
             ],
           },
         },
-
-        // Cố tình đặt first trước second trong node list.
         {
           id: "first",
           type: "logic.set",
-          config: {
-            kind: "logic.set",
-            assignments: [{ key: "value", value: "first" }],
-          },
+          config: { kind: "logic.set", assignments: [{ key: "value", value: "first" }] },
         },
         {
           id: "second",
           type: "logic.set",
-          config: {
-            kind: "logic.set",
-            assignments: [{ key: "value", value: "second" }],
-          },
+          config: { kind: "logic.set", assignments: [{ key: "value", value: "second" }] },
+        },
+        {
+          id: "first-tail",
+          type: "logic.set",
+          config: { kind: "logic.set", assignments: [{ key: "value", value: "tail" }] },
         },
       ],
       edges: [
@@ -1601,6 +1711,13 @@ describe("visual workflow interpreter", () => {
           targetHandle: null,
         },
         {
+          id: "first-tail",
+          source: "first",
+          target: "first-tail",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+        {
           id: "sequence-second",
           source: "sequence",
           target: "second",
@@ -1608,9 +1725,7 @@ describe("visual workflow interpreter", () => {
           targetHandle: null,
         },
       ],
-      editor: {
-        positions: {},
-      },
+      editor: { positions: {} },
     };
 
     const succeeded: string[] = [];
@@ -1618,20 +1733,16 @@ describe("visual workflow interpreter", () => {
       definition,
       organizationId: "00000000-0000-4000-8000-000000000001",
       onNodeUpdate: async (update) => {
-        if (update.status === "succeeded") {
-          succeeded.push(update.nodeId);
-        }
+        if (update.status === "succeeded") succeeded.push(update.nodeId);
       },
     });
 
     expect(result.ok).toBe(true);
-    expect(succeeded).toEqual(["trigger", "sequence", "second", "first"]);
+    expect(succeeded).toEqual(["trigger", "sequence", "first", "first-tail", "second"]);
     expect(result.nodeResults.sequence).toEqual({
-      dispatchedOutputIds: ["second-output", "first-output"],
+      dispatchedOutputIds: ["first-output", "second-output"],
     });
-
-    expect(succeeded.filter((nodeId) => nodeId === "second")).toHaveLength(1);
-    expect(succeeded.filter((nodeId) => nodeId === "first")).toHaveLength(1);
+    expect(new Set(succeeded).size).toBe(succeeded.length);
   });
 
   it("allows a Sequence with no outputs to complete", async () => {
@@ -1647,10 +1758,7 @@ describe("visual workflow interpreter", () => {
         {
           id: "sequence",
           type: "logic.sequence",
-          config: {
-            kind: "logic.sequence",
-            outputs: [],
-          },
+          config: { kind: "logic.sequence", outputs: [] },
         },
       ],
       edges: [
@@ -1662,9 +1770,7 @@ describe("visual workflow interpreter", () => {
           targetHandle: null,
         },
       ],
-      editor: {
-        positions: {},
-      },
+      editor: { positions: {} },
     };
 
     const result = await runVisualWorkflowInterpreter({
@@ -1673,8 +1779,6 @@ describe("visual workflow interpreter", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(result.nodeResults.sequence).toEqual({
-      dispatchedOutputIds: [],
-    });
+    expect(result.nodeResults.sequence).toEqual({ dispatchedOutputIds: [] });
   });
 });

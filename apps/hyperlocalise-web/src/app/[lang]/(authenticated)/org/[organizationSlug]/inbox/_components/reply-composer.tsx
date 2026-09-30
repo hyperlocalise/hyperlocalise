@@ -39,7 +39,8 @@ import {
   Attachments,
 } from "@/components/ai-elements/attachments";
 import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import type { ChatRepository } from "../../_components/chat-repository";
 import { RepositorySelector } from "../../_components/repository-selector";
@@ -294,6 +295,7 @@ export const ReplyComposer = memo(function ReplyComposer({
   draft,
   ...viewProps
 }: ReplyComposerProps) {
+  const { client: goSvcClient } = useGoSvcClient();
   const repositoriesQuery = useQuery({
     queryKey: ["chat-repositories", organizationSlug],
     queryFn: () => injectedInboxApi.listChatRepositories(organizationSlug),
@@ -301,14 +303,12 @@ export const ReplyComposer = memo(function ReplyComposer({
   const nativeProjectsQuery = useQuery({
     queryKey: ["chat-composer-projects", organizationSlug, "native"],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load projects");
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load projects"), { cause: error });
       }
-      const body = await response.json();
-      return body.projects;
     },
   });
   const tmsProjectsQuery = useTmsLiveProjects(organizationSlug);

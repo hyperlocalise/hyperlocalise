@@ -118,9 +118,6 @@ const handlers = [
       },
     }),
   ),
-  http.post("*/api/orgs/:organizationSlug/projects", () =>
-    HttpResponse.json({ project: { id: "project_acme" } }, { status: 201 }),
-  ),
   http.patch("*/v1/orgs/:organizationSlug/domains/linked-domains/:linkedDomainId/project", () =>
     HttpResponse.json({
       linkedDomain: { ...domain, status: "verified", projectId: "project_acme" },

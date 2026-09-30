@@ -161,14 +161,17 @@ export async function executeDurableWorkflowSlice(input: {
           completed.has(id)
         )
           return completed.get(id)!;
-        // Wait nodes are scheduled by the interpreter; the durable layer only
-        // supplies cached completions from prior slices.
-        if (args.node.type === "flow.wait") {
+        // Wait / Merge nodes are scheduled by the interpreter; the durable layer
+        // only supplies cached completions from prior slices.
+        if (args.node.type === "flow.wait" || args.node.type === "logic.merge") {
           return {
             ok: false,
             error: {
-              code: "wait_evaluate",
-              message: "Wait schedule must be evaluated by the interpreter.",
+              code: args.node.type === "flow.wait" ? "wait_evaluate" : "merge_evaluate",
+              message:
+                args.node.type === "flow.wait"
+                  ? "Wait schedule must be evaluated by the interpreter."
+                  : "Merge settlement must be evaluated by the interpreter.",
             },
           };
         }
@@ -338,14 +341,14 @@ export async function executeDurableWorkflowSlice(input: {
           return;
         }
         const execution = pending.get(id);
-        const waitExecution =
+        const interpreterExecution =
           !execution &&
-          update.nodeType === "flow.wait" &&
+          (update.nodeType === "flow.wait" || update.nodeType === "logic.merge") &&
           update.status === "succeeded" &&
           update.outputSnapshot
             ? ({ ok: true, output: update.outputSnapshot } as VisualWorkflowNodeExecutionResult)
             : null;
-        const recorded = execution ?? waitExecution;
+        const recorded = execution ?? interpreterExecution;
         await upsertVisualWorkflowNodeRun({
           leaseToken: input.leaseToken,
           runId: input.run.id,

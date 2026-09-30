@@ -265,7 +265,10 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
   }
 }
 
-export function getVisualNodeDimensions(type: VisualCatalogType): {
+export function getVisualNodeDimensions(
+  type: VisualCatalogType,
+  config?: VisualNodeConfig,
+): {
   width: number;
   height: number;
 } {
@@ -291,7 +294,8 @@ export function getVisualNodeDimensions(type: VisualCatalogType): {
     return { width: 280, height: 140 };
   }
   if (type === "logic.sequence") {
-    return { width: 280, height: 140 };
+    const outputCount = config?.kind === "logic.sequence" ? config.outputs.length : 2;
+    return { width: 280, height: Math.max(140, 56 + outputCount * 32) };
   }
   return { width: 280, height: 104 };
 }

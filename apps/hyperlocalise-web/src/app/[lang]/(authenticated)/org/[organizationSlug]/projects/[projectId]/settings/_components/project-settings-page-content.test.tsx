@@ -24,12 +24,14 @@ import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-st
 
 import type { ProjectListRow } from "../../../_components/project-list";
 
-const { useProjectPageQueryMock, patchMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
-  useProjectPageQueryMock: vi.fn(),
-  patchMock: vi.fn(),
-  toastErrorMock: vi.fn(),
-  toastSuccessMock: vi.fn(),
-}));
+const { useProjectPageQueryMock, patchMock, updateMock, toastErrorMock, toastSuccessMock } =
+  vi.hoisted(() => ({
+    useProjectPageQueryMock: vi.fn(),
+    patchMock: vi.fn(),
+    updateMock: vi.fn(),
+    toastErrorMock: vi.fn(),
+    toastSuccessMock: vi.fn(),
+  }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/en/org/acme/projects/project_1/settings",
@@ -64,6 +66,17 @@ vi.mock("@/lib/api-client-instance", () => ({
       },
     },
   },
+}));
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      project: {
+        update: (...args: unknown[]) => updateMock(...args),
+      },
+    },
+    loading: false,
+  }),
 }));
 
 vi.mock("./project-issue-templates-panel", () => ({
@@ -183,6 +196,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  updateMock.mockResolvedValue({ project: createProject({ identifier: "NEW" }) });
   patchMock.mockResolvedValue({
     ok: true,
     json: async () => ({ project: createProject({ identifier: "NEW" }) }),
@@ -200,11 +214,13 @@ describe("ProjectSettingsPageContent", () => {
 
     await user.click(screen.getByRole("button", { name: "Save settings" }));
 
-    await waitFor(() => expect(patchMock).toHaveBeenCalled());
-    expect(patchMock.mock.calls[0]?.[0]).toMatchObject({
-      param: { organizationSlug: "acme", projectId: "project_1" },
-      json: expect.objectContaining({ identifier: "NEW" }),
-    });
+    await waitFor(() => expect(updateMock).toHaveBeenCalled());
+    expect(updateMock).toHaveBeenCalledWith(
+      "acme",
+      "project_1",
+      expect.objectContaining({ identifier: "NEW" }),
+    );
+    expect(patchMock).not.toHaveBeenCalled();
     await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Project settings saved"));
   });
 
@@ -223,6 +239,7 @@ describe("ProjectSettingsPageContent", () => {
         "Use 1–10 letters or numbers, starting with a letter (e.g. HL).",
       ),
     );
+    expect(updateMock).not.toHaveBeenCalled();
     expect(patchMock).not.toHaveBeenCalled();
     expect(
       screen.getByText("Use 1–10 letters or numbers, starting with a letter (e.g. HL)."),
@@ -287,11 +304,13 @@ describe("ProjectSettingsPageContent", () => {
 
     await user.click(screen.getByRole("button", { name: "Save settings" }));
 
-    await waitFor(() => expect(patchMock).toHaveBeenCalled());
-    expect(patchMock.mock.calls[0]?.[0]).toMatchObject({
-      json: expect.objectContaining({
+    await waitFor(() => expect(updateMock).toHaveBeenCalled());
+    expect(updateMock).toHaveBeenCalledWith(
+      "acme",
+      "project_1",
+      expect.objectContaining({
         translationContext: "Keep product names in English.",
       }),
-    });
+    );
   });
 });

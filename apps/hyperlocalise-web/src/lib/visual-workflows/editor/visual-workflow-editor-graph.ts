@@ -41,13 +41,15 @@ export function replaceVisualWorkflowNodeType(
     return node;
   }
 
+  const config = createDefaultConfig(nextType);
+
   return {
     ...node,
     type: nextType,
-    ...getVisualNodeDimensions(nextType),
+    ...getVisualNodeDimensions(nextType, config),
     data: {
       catalogType: nextType,
-      config: createDefaultConfig(nextType),
+      config,
       runStatus: "idle",
       lastOutput: null,
       lastError: null,
@@ -206,7 +208,13 @@ export function applyNodeConfigUpdate(
 ): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
   const current = nodes.find((node) => node.id === nodeId);
   const nextNodes = nodes.map((node) =>
-    node.id === nodeId ? { ...node, data: { ...node.data, config: nextConfig } } : node,
+    node.id === nodeId
+      ? {
+          ...node,
+          ...getVisualNodeDimensions(node.data.catalogType, nextConfig),
+          data: { ...node.data, config: nextConfig },
+        }
+      : node,
   );
   if (current?.data.config.kind === "logic.switch" && nextConfig.kind === "logic.switch") {
     return {

@@ -28,8 +28,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
-import { readApiResponseError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { normalizeSpellcheckWord } from "@/lib/spellcheck-dictionary/normalize-word";
@@ -150,17 +148,15 @@ export function DictionaryDetailPageContent({
     queryKey: ["dictionary-available-projects", organizationSlug],
     enabled: canWriteDictionaries,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(dictionaryDetailMessages.loadFailed),
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return (body.projects ?? []) as ProjectOption[];
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(dictionaryDetailMessages.loadFailed)),
+          { cause: error },
         );
       }
-      const body = await response.json();
-      return (body.projects ?? []) as ProjectOption[];
     },
   });
 

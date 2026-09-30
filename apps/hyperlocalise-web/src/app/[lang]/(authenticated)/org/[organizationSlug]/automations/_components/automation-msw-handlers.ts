@@ -23,7 +23,7 @@ import {
 } from "./automation-editor.fixture";
 
 export const automationEditorMswHandlers = [
-  http.get("/api/orgs/:organizationSlug/projects", () =>
+  http.get("*/v1/orgs/:organizationSlug/projects", () =>
     HttpResponse.json({ projects: automationEditorNativeProjectsFixture }),
   ),
   http.get("/api/orgs/:organizationSlug/tms-provider/connection", () =>
@@ -126,7 +126,7 @@ export const automationEditorMswHandlers = [
 ];
 
 export const automationEditorDisconnectedMswHandlers = [
-  http.get("/api/orgs/:organizationSlug/projects", () =>
+  http.get("*/v1/orgs/:organizationSlug/projects", () =>
     HttpResponse.json({ projects: automationEditorNativeProjectsFixture }),
   ),
   http.get("/api/orgs/:organizationSlug/tms-provider/connection", () =>

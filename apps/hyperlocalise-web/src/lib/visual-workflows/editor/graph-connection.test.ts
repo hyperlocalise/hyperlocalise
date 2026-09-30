@@ -676,4 +676,24 @@ describe("reconnectVisualWorkflowGraphConnection", () => {
 
     expect(result.edges).toEqual([edges[1]]);
   });
+
+  it("grows a Sequence node as outputs are added", () => {
+    const sequence = node("sequence", "logic.sequence", {
+      config: {
+        kind: "logic.sequence",
+        outputs: [{ id: "initial", label: "Initial" }],
+      },
+    });
+    const outputs = Array.from({ length: 10 }, (_, index) => ({
+      id: `output-${index}`,
+      label: `Output ${index + 1}`,
+    }));
+
+    const result = applyNodeConfigUpdate([sequence], [], "sequence", {
+      kind: "logic.sequence",
+      outputs,
+    });
+
+    expect(result.nodes[0]?.height).toBe(376);
+  });
 });

@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type {
+  CanonicalVisualWorkflowEdge,
   CanonicalVisualWorkflowNode,
   VisualWorkflowDefinition,
   MockNodeRunStatus,
@@ -108,6 +109,30 @@ function collectMergeValues(
   }
 
   return values;
+}
+
+function collectSequencePriorityNodeIds(
+  selectedEdges: readonly CanonicalVisualWorkflowEdge[],
+  outgoingByNodeId: ReadonlyMap<string, readonly CanonicalVisualWorkflowEdge[]>,
+): string[] {
+  const orderedNodeIds: string[] = [];
+  const visited = new Set<string>();
+
+  const visit = (nodeId: string) => {
+    if (visited.has(nodeId)) return;
+    visited.add(nodeId);
+    orderedNodeIds.push(nodeId);
+
+    for (const edge of outgoingByNodeId.get(nodeId) ?? []) {
+      visit(edge.target);
+    }
+  };
+
+  for (const edge of selectedEdges) {
+    visit(edge.target);
+  }
+
+  return orderedNodeIds;
 }
 
 export async function runVisualWorkflowInterpreter(input: {
@@ -301,7 +326,28 @@ export async function runVisualWorkflowInterpreter(input: {
           });
 
           if (resolved.type === "logic.merge") {
-            if (mergeTimedOut) {
+            // Prefer a durable cached completion so later slices can clear
+            // mergeResume without re-timing-out a Merge that already settled.
+            const cached = await input.executeNode({
+              node: resolved,
+              context,
+              organizationId: input.organizationId,
+              iteration,
+              signal: input.signal,
+            });
+            const cachedStatus =
+              cached.ok && cached.output && typeof cached.output === "object"
+                ? (cached.output as Record<string, unknown>).status
+                : null;
+
+            if (
+              cachedStatus === "completed" ||
+              cachedStatus === "timed_out" ||
+              cachedStatus === "error"
+            ) {
+              execution = cached;
+              mergeExitHandle = cachedStatus;
+            } else if (mergeTimedOut) {
               execution = {
                 ok: true,
                 output: {
@@ -585,7 +631,7 @@ export async function runVisualWorkflowInterpreter(input: {
           if (target?.config.kind === "logic.merge") armMergeTimeout(target);
         }
         if (node.config.kind === "logic.sequence") {
-          priorityNodeIds = next.map((edge) => edge.target);
+          priorityNodeIds = collectSequencePriorityNodeIds(next, graph.outgoingByNodeId);
           break;
         }
         if (expiredMergeId && id !== expiredMergeId) break;

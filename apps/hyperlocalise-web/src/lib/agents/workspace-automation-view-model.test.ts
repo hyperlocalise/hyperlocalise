@@ -133,6 +133,13 @@ describe("workspace automation view model", () => {
     expect(resolveWorkspaceAutomationModel("openai/gpt-5.6-sol")).toBe("openai/gpt-5.6-sol");
     expect(resolveWorkspaceAutomationModel("openai/gpt-6-astra")).toBe("openai/gpt-6-astra");
     expect(resolveWorkspaceAutomationModel("openai/gpt-6-sol")).toBe("openai/gpt-6-sol");
+    expect(resolveWorkspaceAutomationModel("openai/gpt-6.1-sol")).toBe("openai/gpt-6.1-sol");
+    expect(resolveWorkspaceAutomationModel("openai/gpt-6.1-sol-fast")).toBe(
+      "openai/gpt-6.1-sol-fast",
+    );
+    expect(resolveWorkspaceAutomationModel("openai/gpt-6-luna-fast")).toBe(
+      "openai/gpt-6-luna-fast",
+    );
     expect(resolveWorkspaceAutomationModel("openai/gpt-5.6-luna")).toBe("openai/gpt-6-luna");
   });
 

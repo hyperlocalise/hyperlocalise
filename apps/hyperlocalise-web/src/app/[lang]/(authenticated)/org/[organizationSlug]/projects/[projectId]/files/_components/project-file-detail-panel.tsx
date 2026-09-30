@@ -30,6 +30,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 import { formatBytes } from "./project-files-shared";
 import { projectFileDetailPanelMessages as messages } from "./project-file-detail-panel.messages";
@@ -106,6 +108,7 @@ export function ProjectFileDetailPanel({
   encodedJobId?: string | null;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const sourcePath = file?.sourcePath ?? null;
   const externalResourceId = file?.provider?.externalResourceId ?? null;
   const loadDetailsFailed = intl.formatMessage(messages.loadDetailsFailedShort);
@@ -159,18 +162,12 @@ export function ProjectFileDetailPanel({
     queryKey: ["project", organizationSlug, projectId],
     enabled: Boolean(file && !file.provider && !encodedJobId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-        param: { organizationSlug, projectId },
-      });
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response, loadProjectFailed));
+      try {
+        const body = await goSvcClient.project.get(organizationSlug, projectId);
+        return body.project;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, loadProjectFailed), { cause: error });
       }
-
-      const body = (await response.json()) as {
-        project: { targetLocales: string[]; sourceLocale: string | null };
-      };
-      return body.project;
     },
   });
 

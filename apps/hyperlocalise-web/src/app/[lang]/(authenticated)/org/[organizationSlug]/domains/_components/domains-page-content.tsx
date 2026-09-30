@@ -24,6 +24,8 @@ import { buildDomainPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TypographyP } from "@/components/ui/typography";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { cn } from "@/lib/primitives/cn";
 
@@ -68,6 +70,7 @@ const DomainsPageView = observer(function DomainsPageView({
   const intl = useIntl();
   const router = useOrgRouter();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const store = useDomainsPageStore();
   const openedClaimRef = useRef(false);
 
@@ -81,14 +84,12 @@ const DomainsPageView = observer(function DomainsPageView({
     queryKey: ["translation-projects", store.organizationSlug, "domain-link"],
     enabled: allowLinkDomains && store.addDomainDialogOpen,
     queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(store.organizationSlug)}/projects`,
-      );
-      if (!response.ok) return [];
-      const body = (await response.json().catch(() => ({}))) as {
-        projects?: Array<{ id: string; name: string }>;
-      };
-      return body.projects ?? [];
+      try {
+        const body = await goSvcClient.project.list(store.organizationSlug);
+        return body.projects.map((project) => ({ id: project.id, name: project.name }));
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load projects"), { cause: error });
+      }
     },
   });
 

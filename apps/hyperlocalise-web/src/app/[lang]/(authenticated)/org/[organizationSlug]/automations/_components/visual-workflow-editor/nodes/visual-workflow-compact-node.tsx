@@ -19,6 +19,7 @@ import { defineMessages, FormattedMessage, useIntl } from "react-intl";
 import { Card } from "@/components/ui/card";
 import {
   catalogItemByType,
+  getVisualNodeDimensions,
   isTriggerType,
   resolveNodeSubtitle,
   TRIGGER_BADGE_ICON,
@@ -201,6 +202,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   return (
     <Card
       aria-busy={data.runStatus === "running"}
+      style={{ minHeight: getVisualNodeDimensions(data.catalogType, data.config).height }}
       className={cn(
         "relative w-[280px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
         selected ? "ring-2 ring-ring" : null,

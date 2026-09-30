@@ -141,7 +141,7 @@ export function fromVisualWorkflowDefinition(
     const position = definition.editor.positions[node.id] ?? { x: 80, y: 160 };
     const config = node.config.kind === type ? node.config : createDefaultConfig(type);
 
-    const dimensions = getVisualNodeDimensions(type);
+    const dimensions = getVisualNodeDimensions(type, config);
     return {
       id: node.id,
       type,
