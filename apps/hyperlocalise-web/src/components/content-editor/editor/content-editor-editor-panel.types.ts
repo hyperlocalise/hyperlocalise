@@ -66,4 +66,9 @@ export type ContentEditorEditorPanelProps = {
   onRegenerateImage?: () => void;
   onUploadImage?: (file: File) => void;
   onToggleLocked?: () => void;
+  /**
+   * When true, renders the keyboard shortcut hint bar below the action buttons.
+   * Enabled only in Translator persona when the adaptive workspace is active.
+   */
+  showKeyboardHints?: boolean;
 };

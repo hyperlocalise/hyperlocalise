@@ -51,6 +51,7 @@ import {
 import { contentEditorQueuePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import { ContentEditorWorkspaceViewSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-view-switcher-connected";
 import { ContentEditorWorkspacePersonaSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-persona-switcher-connected";
+import type { ContentEditorWorkspacePersona } from "@/components/content-editor/workspace/content-editor-workspace-persona";
 
 export const queueFilterMessageByValue: Record<
   ContentEditorQueueFilter,
@@ -105,6 +106,7 @@ export function ContentEditorQueueToolbar({
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
   adaptiveWorkspaceEnabled = false,
+  resolvedPersona,
 }: {
   search?: string;
   onSearchChange?: (value: string) => void;
@@ -139,6 +141,11 @@ export function ContentEditorQueueToolbar({
   isDownloadingFilteredView?: boolean;
   /** When true, the adaptive workspace persona switcher is rendered. Off by default. */
   adaptiveWorkspaceEnabled?: boolean;
+  /**
+   * The current resolved workspace persona. Used to adjust the selection-mode
+   * button styling in Translator mode to increase its visual prominence.
+   */
+  resolvedPersona?: ContentEditorWorkspacePersona;
 }) {
   const intl = useIntl();
   // The selection-mode checkbox is shown whenever onSelectionModeChange is provided,
@@ -310,7 +317,21 @@ export function ContentEditorQueueToolbar({
         ) : null}
 
         {canEnterSelectionMode ? (
-          <label className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+          <label
+            className={cn(
+              "flex size-8 cursor-pointer items-center justify-center rounded-lg border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              // Translator persona: use a slightly more prominent outlined style so
+              // bulk-select is clearly accessible as a first-class action.
+              adaptiveWorkspaceEnabled && resolvedPersona === "translator"
+                ? "border-border bg-muted/60 text-foreground"
+                : "border-border",
+            )}
+            title={
+              adaptiveWorkspaceEnabled && resolvedPersona === "translator"
+                ? intl.formatMessage(contentEditorQueuePanelMessages.showSelectionAria)
+                : undefined
+            }
+          >
             <input
               type="checkbox"
               className="size-3.5 rounded border-input accent-foreground"
