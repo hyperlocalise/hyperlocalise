@@ -73,9 +73,14 @@ export function PricingModelsSection({
                     <p className="mt-0.5 text-sm text-muted-foreground">{row.detail}</p>
                   ) : null}
                 </div>
-                <p className="font-mono text-xs text-foreground sm:text-right sm:text-sm">
-                  {row.model}
-                </p>
+                <ul
+                  className="space-y-1 font-mono text-xs text-foreground sm:text-right sm:text-sm"
+                  aria-label={row.capability}
+                >
+                  {row.models.map((model) => (
+                    <li key={model}>{model}</li>
+                  ))}
+                </ul>
               </li>
             ))}
           </ul>
@@ -89,26 +94,33 @@ export function PricingModelsSection({
             </TypographyP>
           </div>
 
-          <ul className="flex flex-wrap gap-3" aria-label={byokProvidersAriaLabel(byokProviders)}>
+          <ul className="space-y-4" aria-label={byokProvidersAriaLabel(byokProviders)}>
             {byokProviders.map((provider) => {
               const logo = byokProviderLogos[provider.id];
               return (
                 <li
                   key={provider.id}
-                  className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-sm font-medium text-foreground"
+                  className="rounded-lg border border-border bg-muted/20 px-4 py-3"
                 >
-                  {logo ? (
-                    <Image
-                      alt=""
-                      aria-hidden
-                      className="size-5 rounded-full object-cover"
-                      height={logo.height}
-                      src={logo.src}
-                      unoptimized
-                      width={logo.width}
-                    />
-                  ) : null}
-                  {provider.name}
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    {logo ? (
+                      <Image
+                        alt=""
+                        aria-hidden
+                        className="size-5 rounded-full object-cover"
+                        height={logo.height}
+                        src={logo.src}
+                        unoptimized
+                        width={logo.width}
+                      />
+                    ) : null}
+                    {provider.name}
+                  </div>
+                  <ul className="mt-2 space-y-1 font-mono text-xs text-muted-foreground sm:text-sm">
+                    {provider.models.map((model) => (
+                      <li key={model}>{model}</li>
+                    ))}
+                  </ul>
                 </li>
               );
             })}
