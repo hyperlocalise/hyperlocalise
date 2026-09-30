@@ -12,6 +12,7 @@ on:
       - internal/activitylog/**
       - internal/secretsmanager/**
       - apps/activity-log-lambda/**
+      - apps/glossary-interchange-lambda/**
       - .github/actions/go-bootstrap/**
       - .github/actions/provision-lambda/**
       - .github/actions/upload-lambda-artifact/**
@@ -35,9 +36,54 @@ env:
   LAMBDA_ARTIFACT_KEY: activity-log/bootstrap.zip
 
 jobs:
+  changed_paths:
+    name: Detect changed Lambda paths
+    runs-on: ubuntu-24.04
+    outputs:
+      activity-log: ${{ steps.paths.outputs.activity-log }}
+      glossary-interchange: ${{ steps.paths.outputs.glossary-interchange }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: paths
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            activity-log:
+              - 'apps/activity-log-lambda/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/activitylog/**'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/workflows/lambda-deploy.yml'
+            glossary-interchange:
+              - 'apps/glossary-interchange-lambda/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/activitylog/**'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/workflows/lambda-deploy.yml'
+
   activity_log_deploy:
     name: Build and deploy activity-log Lambda
-    if: github.ref == 'refs/heads/main'
+    needs: changed_paths
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.activity-log == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
 
@@ -80,6 +126,60 @@ jobs:
         run: |
           {
             echo "## Activity-log Lambda deployed"
+            echo
+            echo "- Function: \`${FUNCTION_NAME}\`"
+            echo "- Object: \`${S3_URI}\`"
+            echo "- Version: \`${VERSION_ID}\`"
+            echo "- Update: \`${UPDATE}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  glossary_interchange_deploy:
+    name: Build and deploy glossary-interchange Lambda
+    needs: changed_paths
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.glossary-interchange == 'true')
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Bootstrap Go toolchain
+        uses: ./.github/actions/go-bootstrap
+        with:
+          go-version-file: go.mod
+
+      - name: Test glossary-interchange Lambda
+        run: go test ./apps/glossary-interchange-lambda
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-glossary-interchange-lambda-deploy
+
+      - name: Build and deploy glossary-interchange Lambda artifact
+        id: deploy
+        uses: ./.github/actions/deploy-lambda-artifact
+        with:
+          bucket-parameter-name: ${{ env.LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME }}
+          function-parameter-name: /hyperlocalise/prod/lambda/glossary-interchange/function_name
+          build-command: make build-glossary-interchange-lambda
+          binary-path: dist/glossary-interchange-lambda/bootstrap
+          s3-key: glossary-interchange/bootstrap.zip
+
+      - name: Summarize glossary-interchange deployment
+        shell: bash
+        env:
+          S3_URI: ${{ steps.deploy.outputs.s3-uri }}
+          VERSION_ID: ${{ steps.deploy.outputs.version-id }}
+          FUNCTION_NAME: ${{ steps.deploy.outputs.function-name }}
+          UPDATE: ${{ steps.deploy.outputs.update }}
+        run: |
+          {
+            echo "## Glossary-interchange Lambda deployed"
             echo
             echo "- Function: \`${FUNCTION_NAME}\`"
             echo "- Object: \`${S3_URI}\`"
