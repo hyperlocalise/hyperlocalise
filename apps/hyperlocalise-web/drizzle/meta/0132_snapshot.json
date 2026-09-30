@@ -1,5 +1,5 @@
 {
-  "id": "ca37f0eb-9539-4c7e-9c51-b19104ed1fd9",
+  "id": "a8059fd8-fc47-44e8-9c6d-50e4d775a8fb",
   "prevId": "debd8cea-490a-453f-9e40-f35039c03fcb",
   "version": "7",
   "dialect": "postgresql",
@@ -7912,6 +7912,12 @@
         "error_message": {
           "name": "error_message",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "processing_started_at": {
+          "name": "processing_started_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
