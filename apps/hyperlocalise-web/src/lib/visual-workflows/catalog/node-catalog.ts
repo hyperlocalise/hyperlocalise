@@ -139,6 +139,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     enabled: true,
     icon: GitMergeIcon,
   },
+  {
+    type: "logic.sequence",
+    category: "flow",
+    enabled: true,
+    icon: Route01Icon,
+  },
 ];
 
 export const VISUAL_CATALOG_CATEGORY_ORDER: readonly VisualCatalogCategory[] = [
@@ -246,12 +252,23 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
           { id: createMergeInputId(), name: "Input 2" },
         ],
       };
+    case "logic.sequence":
+      return {
+        kind: "logic.sequence",
+        outputs: [
+          { id: createSequenceOutputId(), label: "Output 1" },
+          { id: createSequenceOutputId(), label: "Output 2" },
+        ],
+      };
     default:
       return assertNever(type);
   }
 }
 
-export function getVisualNodeDimensions(type: VisualCatalogType): {
+export function getVisualNodeDimensions(
+  type: VisualCatalogType,
+  config?: VisualNodeConfig,
+): {
   width: number;
   height: number;
 } {
@@ -275,6 +292,10 @@ export function getVisualNodeDimensions(type: VisualCatalogType): {
   }
   if (type === "logic.merge") {
     return { width: 280, height: 140 };
+  }
+  if (type === "logic.sequence") {
+    const outputCount = config?.kind === "logic.sequence" ? config.outputs.length : 2;
+    return { width: 280, height: Math.max(140, 56 + outputCount * 32) };
   }
   return { width: 280, height: 104 };
 }
@@ -335,11 +356,17 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return "Wait until condition";
     case "logic.merge":
       return `${config.inputs.length} inputs · ${config.mode.replace("_", " ")}`;
+    case "logic.sequence":
+      return config.outputs.length === 1 ? "1 output" : `${config.outputs.length} outputs`;
     default:
       return assertNever(config);
   }
 }
 
 export function createMergeInputId(): string {
+  return crypto.randomUUID();
+}
+
+export function createSequenceOutputId(): string {
   return crypto.randomUUID();
 }

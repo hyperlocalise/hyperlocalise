@@ -183,4 +183,27 @@ describe("normalizeExecutionSourceHandle", () => {
     expect(getAllowedExecutionSourceHandles(node)).toEqual(["completed", "timed_out", "error"]);
     expect(getPrimaryExecutionSourceHandle(node)).toBe("completed");
   });
+
+  it("returns Sequence output IDs in configured order", () => {
+    const sequence = canonical("logic.sequence", {
+      kind: "logic.sequence",
+      outputs: [
+        { id: "email", label: "Email" },
+        { id: "slack", label: "Slack" },
+      ],
+    });
+
+    expect(getAllowedExecutionSourceHandles(sequence)).toEqual(["email", "slack"]);
+    expect(getPrimaryExecutionSourceHandle(sequence)).toBe("email");
+  });
+
+  it("allows an empty Sequence", () => {
+    const sequence = canonical("logic.sequence", {
+      kind: "logic.sequence",
+      outputs: [],
+    });
+
+    expect(getAllowedExecutionSourceHandles(sequence)).toEqual([]);
+    expect(getPrimaryExecutionSourceHandle(sequence)).toBeNull();
+  });
 });

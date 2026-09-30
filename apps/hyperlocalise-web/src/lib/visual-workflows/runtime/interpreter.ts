@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type {
+  CanonicalVisualWorkflowEdge,
   CanonicalVisualWorkflowNode,
   VisualWorkflowDefinition,
   MockNodeRunStatus,
@@ -110,6 +111,30 @@ function collectMergeValues(
   return values;
 }
 
+function collectSequencePriorityNodeIds(
+  selectedEdges: readonly CanonicalVisualWorkflowEdge[],
+  outgoingByNodeId: ReadonlyMap<string, readonly CanonicalVisualWorkflowEdge[]>,
+): string[] {
+  const orderedNodeIds: string[] = [];
+  const visited = new Set<string>();
+
+  const visit = (nodeId: string) => {
+    if (visited.has(nodeId)) return;
+    visited.add(nodeId);
+    orderedNodeIds.push(nodeId);
+
+    for (const edge of outgoingByNodeId.get(nodeId) ?? []) {
+      visit(edge.target);
+    }
+  };
+
+  for (const edge of selectedEdges) {
+    visit(edge.target);
+  }
+
+  return orderedNodeIds;
+}
+
 export async function runVisualWorkflowInterpreter(input: {
   definition: VisualWorkflowDefinition;
   organizationId: string;
@@ -168,6 +193,7 @@ export async function runVisualWorkflowInterpreter(input: {
     const states = new Map<string, MergeInputSettlement>();
     const completed = new Set<string>();
     const mergeResumes = new Map<string, MergeResumeState>();
+    let priorityNodeIds: string[] = [];
     const mergeResumeFor = (node: CanonicalVisualWorkflowNode): MergeResumeState | null => {
       const current = mergeResumes.get(node.id);
       if (current) return current;
@@ -200,9 +226,16 @@ export async function runVisualWorkflowInterpreter(input: {
         input.mergeResume && Date.now() >= Date.parse(input.mergeResume.wakeAt)
           ? input.mergeResume.mergeNodeId
           : null;
+      const prioritizedIds = priorityNodeIds.filter((id) => ids.has(id));
+      priorityNodeIds = [];
+
       const orderedIds = expiredMergeId
-        ? [expiredMergeId, ...[...ids].filter((id) => id !== expiredMergeId)]
-        : [...ids];
+        ? [
+            expiredMergeId,
+            ...prioritizedIds.filter((id) => id !== expiredMergeId),
+            ...[...ids].filter((id) => id !== expiredMergeId && !prioritizedIds.includes(id)),
+          ]
+        : [...prioritizedIds, ...[...ids].filter((id) => !prioritizedIds.includes(id))];
       for (const id of orderedIds) {
         if (!ids.has(id)) continue;
         if (completed.has(id)) continue;
@@ -576,6 +609,10 @@ export async function runVisualWorkflowInterpreter(input: {
                       switchCase: execution.ok ? (execution.switchCase ?? null) : null,
                       useErrorBranch: errorBranch,
                       outgoing,
+                      sequenceOutputIds:
+                        node.config.kind === "logic.sequence"
+                          ? node.config.outputs.map((output) => output.id)
+                          : undefined,
                     });
         const selectedIds = new Set(next.map((edge) => edge.id));
 
@@ -592,6 +629,10 @@ export async function runVisualWorkflowInterpreter(input: {
           states.set(edge.id, settlement);
           const target = graph.nodesById.get(edge.target);
           if (target?.config.kind === "logic.merge") armMergeTimeout(target);
+        }
+        if (node.config.kind === "logic.sequence") {
+          priorityNodeIds = collectSequencePriorityNodeIds(next, graph.outgoingByNodeId);
+          break;
         }
         if (expiredMergeId && id !== expiredMergeId) break;
       }

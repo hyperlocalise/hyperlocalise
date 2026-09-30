@@ -117,6 +117,7 @@ export function selectNextEdges(input: {
   switchCase: string | null;
   useErrorBranch: boolean;
   outgoing: readonly CanonicalVisualWorkflowEdge[];
+  sequenceOutputIds?: readonly string[];
 }): CanonicalVisualWorkflowEdge[] {
   if (input.useErrorBranch) {
     return input.outgoing.filter((edge) => edge.sourceHandle === "error");
@@ -134,6 +135,24 @@ export function selectNextEdges(input: {
       return matched;
     }
     return input.outgoing.filter((edge) => edge.sourceHandle === "default");
+  }
+
+  if (input.nodeType === "logic.sequence") {
+    const outputOrder = new Map(
+      (input.sequenceOutputIds ?? []).map((outputId, index) => [outputId, index]),
+    );
+
+    return input.outgoing
+      .filter((edge) => edge.sourceHandle !== null && outputOrder.has(edge.sourceHandle))
+      .map((edge, edgeIndex) => ({
+        edge,
+        edgeIndex,
+        outputIndex: outputOrder.get(edge.sourceHandle!)!,
+      }))
+      .toSorted(
+        (left, right) => left.outputIndex - right.outputIndex || left.edgeIndex - right.edgeIndex,
+      )
+      .map(({ edge }) => edge);
   }
 
   const successEdges = input.outgoing.filter((edge) => edge.sourceHandle !== "error");

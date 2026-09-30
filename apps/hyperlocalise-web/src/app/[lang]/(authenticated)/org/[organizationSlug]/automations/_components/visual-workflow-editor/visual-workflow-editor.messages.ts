@@ -490,6 +490,51 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "xwmJvqOv1C",
     description: "Merge node picker hint",
   },
+  nodeSequence: {
+    defaultMessage: "Sequence",
+    id: "vp7tRvtQmV",
+    description: "Sequence node title",
+  },
+  nodeSequenceHint: {
+    defaultMessage: "Dispatch execution paths in a configured order.",
+    id: "4cYBnVImbP",
+    description: "Sequence node picker hint",
+  },
+  sequenceOutputs: {
+    defaultMessage: "Execution outputs",
+    id: "y+ijUpauzH",
+    description: "Sequence execution output list",
+  },
+  sequenceOutputsEmpty: {
+    defaultMessage: "No outputs configured.",
+    id: "9DlFb+wOTr",
+    description: "Message shown when a Sequence has no outputs",
+  },
+  sequenceOutputLabel: {
+    defaultMessage: "Output {index}",
+    id: "zljXhBmvix",
+    description: "Sequence execution output label",
+  },
+  addSequenceOutput: {
+    defaultMessage: "Add output",
+    id: "NVCqz7i9kK",
+    description: "Add a Sequence execution output",
+  },
+  removeSequenceOutput: {
+    defaultMessage: "Remove output {index}",
+    id: "NJNmXs5MqR",
+    description: "Remove a Sequence execution output",
+  },
+  moveSequenceOutputUp: {
+    defaultMessage: "Move output {index} up",
+    id: "OKuhgUJXOJ",
+    description: "Move a Sequence output upward",
+  },
+  moveSequenceOutputDown: {
+    defaultMessage: "Move output {index} down",
+    id: "exjYr2VS99",
+    description: "Move a Sequence output downward",
+  },
   mergeMode: {
     defaultMessage: "Merge mode",
     id: "GafA21RnmS",
