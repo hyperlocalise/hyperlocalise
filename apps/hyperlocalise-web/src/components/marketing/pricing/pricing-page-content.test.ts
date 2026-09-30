@@ -13,9 +13,18 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { buildPricingFaqJsonLd, getPricingFaqItems } from "./pricing-faq-content";
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
+import {
+  hyperlocaliseImageModelId,
+  hyperlocaliseTranscribeModelId,
+  hyperlocaliseTtsModelId,
+  hyperlocaliseVideoModelId,
+} from "@/lib/providers/managed-model-ids";
+
 import {
   getPricingAiFeatures,
   getPricingMatrixSections,
+  getPricingModelsSectionContent,
   getPricingPlans,
   pricingPlanOrder,
 } from "./pricing-page-content";
@@ -100,6 +109,39 @@ describe("pricing page content", () => {
         expect(row.cells[planId]).toBeTruthy();
       }
     }
+  });
+
+  it("describes included models and BYOK providers", () => {
+    const models = getPricingModelsSectionContent("en");
+
+    expect(models.heading).toBe("Models and BYOK");
+    expect(models.includedRows.map((row) => row.id)).toEqual([
+      "agent-default",
+      "tts",
+      "transcribe",
+      "image",
+      "video",
+    ]);
+    expect(models.includedRows[0]?.model).toBe(hyperlocaliseAgentModelId);
+    expect(models.includedRows.find((row) => row.id === "tts")?.model).toBe(
+      hyperlocaliseTtsModelId,
+    );
+    expect(models.includedRows.find((row) => row.id === "transcribe")?.model).toBe(
+      hyperlocaliseTranscribeModelId,
+    );
+    expect(models.includedRows.find((row) => row.id === "image")?.model).toBe(
+      hyperlocaliseImageModelId,
+    );
+    expect(models.includedRows.find((row) => row.id === "video")?.model).toBe(
+      hyperlocaliseVideoModelId,
+    );
+    expect(models.byokProviders.map((provider) => provider.id)).toEqual([
+      "openai",
+      "anthropic",
+      "gemini",
+    ]);
+    expect(models.byokFeatures.length).toBeGreaterThanOrEqual(4);
+    expect(models.byokFootnote).toContain("AI Engine");
   });
 
   it("lists eight AI feature capabilities", () => {

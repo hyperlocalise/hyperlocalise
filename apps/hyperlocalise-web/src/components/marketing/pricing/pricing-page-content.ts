@@ -10,7 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import { getIntlShape } from "@/lib/app-i18n/intl";
+import {
+  hyperlocaliseImageModelId,
+  hyperlocaliseTranscribeModelId,
+  hyperlocaliseTtsModelId,
+  hyperlocaliseVideoModelId,
+} from "@/lib/providers/managed-model-ids";
 
 export type PricingPlanId = "free" | "starter" | "growth" | "enterprise";
 
@@ -728,6 +735,200 @@ export type PricingAiFeature = {
   title: string;
   description: string;
 };
+
+export type PricingIncludedModelRow = {
+  id: string;
+  capability: string;
+  model: string;
+  detail?: string;
+};
+
+export type PricingByokProvider = {
+  id: string;
+  name: string;
+};
+
+export type PricingByokFeature = {
+  id: string;
+  text: string;
+};
+
+export type PricingModelsSectionContent = {
+  heading: string;
+  subcopy: string;
+  includedTitle: string;
+  includedDescription: string;
+  includedRows: readonly PricingIncludedModelRow[];
+  byokTitle: string;
+  byokDescription: string;
+  byokProviders: readonly PricingByokProvider[];
+  byokFeatures: readonly PricingByokFeature[];
+  byokFootnote: string;
+};
+
+export function getPricingModelsSectionContent(locale: string): PricingModelsSectionContent {
+  const intl = getIntlShape(locale);
+
+  const agentCapabilities = intl.formatMessage({
+    defaultMessage: "Ask, Translation, and Coding",
+    id: "hjwoGYZd+k",
+    description: "Pricing models row label for agent text capabilities",
+  });
+
+  return {
+    heading: intl.formatMessage({
+      defaultMessage: "Models and BYOK",
+      id: "zO4by8PZEN",
+      description: "Heading for the models and BYOK section on the pricing page",
+    }),
+    subcopy: intl.formatMessage({
+      defaultMessage:
+        "Managed models draw down your monthly AI credit. Connect your own provider keys when you want direct billing with OpenAI, Anthropic, or Gemini.",
+      id: "aEo791NENU",
+      description: "Supporting copy for the models and BYOK section on the pricing page",
+    }),
+    includedTitle: intl.formatMessage({
+      defaultMessage: "Included models",
+      id: "X1Ie8nZW5a",
+      description: "Subheading for Hyperlocalise-managed models on the pricing page",
+    }),
+    includedDescription: intl.formatMessage({
+      defaultMessage:
+        "Always available on paid plans. Speech and media capabilities use dedicated included models; agent work uses the managed default unless you connect BYOK.",
+      id: "mnUPrGhGuI",
+      description: "Description under included models on the pricing page",
+    }),
+    includedRows: [
+      {
+        id: "agent-default",
+        capability: agentCapabilities,
+        model: hyperlocaliseAgentModelId,
+        detail: intl.formatMessage({
+          defaultMessage: "Workspace default for chat, translation jobs, and coding agents.",
+          id: "c+4z1kMqTq",
+          description: "Detail for the managed agent default model on the pricing page",
+        }),
+      },
+      {
+        id: "tts",
+        capability: intl.formatMessage({
+          defaultMessage: "Text to speech",
+          id: "WfOVeAc/hr",
+          description: "Pricing models row label for text to speech",
+        }),
+        model: hyperlocaliseTtsModelId,
+      },
+      {
+        id: "transcribe",
+        capability: intl.formatMessage({
+          defaultMessage: "Transcribe",
+          id: "aYuiXKzRRS",
+          description: "Pricing models row label for transcription",
+        }),
+        model: hyperlocaliseTranscribeModelId,
+      },
+      {
+        id: "image",
+        capability: intl.formatMessage({
+          defaultMessage: "Image generation",
+          id: "aq9uIWSdUf",
+          description: "Pricing models row label for image generation",
+        }),
+        model: hyperlocaliseImageModelId,
+      },
+      {
+        id: "video",
+        capability: intl.formatMessage({
+          defaultMessage: "Video generation",
+          id: "OhHPkKM0Ft",
+          description: "Pricing models row label for video generation",
+        }),
+        model: hyperlocaliseVideoModelId,
+      },
+    ],
+    byokTitle: intl.formatMessage({
+      defaultMessage: "Bring your own key (BYOK)",
+      id: "xcNNt34EVn",
+      description: "Subheading for BYOK on the pricing page",
+    }),
+    byokDescription: intl.formatMessage({
+      defaultMessage:
+        "Save a shared workspace API key in AI Engine. Hyperlocalise validates the key, encrypts it at rest, and routes agent and translation traffic through your provider account.",
+      id: "cs1R2QyhSD",
+      description: "Description under BYOK on the pricing page",
+    }),
+    byokProviders: [
+      {
+        id: "openai",
+        name: intl.formatMessage({
+          defaultMessage: "OpenAI",
+          id: "ebSc/SgRuM",
+          description: "OpenAI provider name on the pricing BYOK section",
+        }),
+      },
+      {
+        id: "anthropic",
+        name: intl.formatMessage({
+          defaultMessage: "Anthropic",
+          id: "zgB7RcHWk8",
+          description: "Anthropic provider name on the pricing BYOK section",
+        }),
+      },
+      {
+        id: "gemini",
+        name: intl.formatMessage({
+          defaultMessage: "Google Gemini",
+          id: "4I4RDHWJ2Q",
+          description: "Google Gemini provider name on the pricing BYOK section",
+        }),
+      },
+    ],
+    byokFeatures: [
+      {
+        id: "curated-models",
+        text: intl.formatMessage({
+          defaultMessage:
+            "Pick a default model from our curated catalog for each provider (for example GPT-6 Luna, Claude Sonnet, or Gemini Flash).",
+          id: "ooSKNfcn90",
+          description: "BYOK feature bullet about curated model catalog on pricing page",
+        }),
+      },
+      {
+        id: "no-credit-draw",
+        text: intl.formatMessage({
+          defaultMessage:
+            "BYOK inference is billed by your provider and does not draw down Hyperlocalise monthly AI credit.",
+          id: "8n+pwQn9aX",
+          description: "BYOK feature bullet about AI credit on pricing page",
+        }),
+      },
+      {
+        id: "included-stays",
+        text: intl.formatMessage({
+          defaultMessage:
+            "Included models for speech, transcription, image, and video stay available alongside BYOK.",
+          id: "7FJ8bUMk8H",
+          description: "BYOK feature bullet about included models on pricing page",
+        }),
+      },
+      {
+        id: "workspace-default",
+        text: intl.formatMessage({
+          defaultMessage:
+            "Ask, Translation, Coding, file translation jobs, and workspace automations inherit your workspace default model.",
+          id: "bbuRb12c5B",
+          description: "BYOK feature bullet about workspace default inheritance on pricing page",
+        }),
+      },
+    ],
+    byokFootnote: intl.formatMessage({
+      defaultMessage:
+        "Configure providers in AI Engine after you upgrade to Starter, Growth, or Enterprise.",
+      id: "aRW1mCoyPj",
+      description: "Footnote under BYOK features on the pricing page",
+    }),
+  };
+}
 
 export function getPricingAiFeatures(locale: string): PricingAiFeature[] {
   const intl = getIntlShape(locale);
