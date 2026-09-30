@@ -1936,4 +1936,206 @@ describe("visual workflow interpreter", () => {
       vi.useRealTimers();
     }
   });
+
+  it("retains the outer Sequence later outputs across a nested Sequence", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Nested Sequence",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual",
+          config: createDefaultConfig("trigger.manual"),
+        },
+        {
+          id: "outer",
+          type: "logic.sequence",
+          config: {
+            kind: "logic.sequence",
+            outputs: [
+              { id: "inner-output", label: "Inner path" },
+              { id: "outer-second", label: "Outer second" },
+            ],
+          },
+        },
+        {
+          id: "inner",
+          type: "logic.sequence",
+          config: {
+            kind: "logic.sequence",
+            outputs: [
+              { id: "inner-first", label: "Inner first" },
+              { id: "inner-second", label: "Inner second" },
+            ],
+          },
+        },
+        {
+          id: "inner-first",
+          type: "logic.set",
+          config: { kind: "logic.set", assignments: [{ key: "value", value: "inner-first" }] },
+        },
+        {
+          id: "inner-second",
+          type: "logic.set",
+          config: { kind: "logic.set", assignments: [{ key: "value", value: "inner-second" }] },
+        },
+        {
+          id: "outer-second",
+          type: "logic.set",
+          config: { kind: "logic.set", assignments: [{ key: "value", value: "outer-second" }] },
+        },
+      ],
+      edges: [
+        {
+          id: "trigger-outer",
+          source: "trigger",
+          target: "outer",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+        {
+          id: "outer-inner",
+          source: "outer",
+          target: "inner",
+          sourceHandle: "inner-output",
+          targetHandle: null,
+        },
+        {
+          id: "inner-first-edge",
+          source: "inner",
+          target: "inner-first",
+          sourceHandle: "inner-first",
+          targetHandle: null,
+        },
+        {
+          id: "inner-second-edge",
+          source: "inner",
+          target: "inner-second",
+          sourceHandle: "inner-second",
+          targetHandle: null,
+        },
+        {
+          id: "outer-second-edge",
+          source: "outer",
+          target: "outer-second",
+          sourceHandle: "outer-second",
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const succeeded: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "succeeded") succeeded.push(update.nodeId);
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(`unexpected failure: ${JSON.stringify(result.error)}`);
+    expect(succeeded).toEqual([
+      "trigger",
+      "outer",
+      "inner",
+      "inner-first",
+      "inner-second",
+      "outer-second",
+    ]);
+    expect(result.nodeResults["outer-second"]).toMatchObject({ value: "outer-second" });
+  });
+
+  it("releases later Sequence outputs when paths reconverge at a normal join", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Sequence diamond join",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual",
+          config: createDefaultConfig("trigger.manual"),
+        },
+        {
+          id: "sequence",
+          type: "logic.sequence",
+          config: {
+            kind: "logic.sequence",
+            outputs: [
+              { id: "left-output", label: "Left" },
+              { id: "right-output", label: "Right" },
+            ],
+          },
+        },
+        {
+          id: "left",
+          type: "logic.set",
+          config: { kind: "logic.set", assignments: [{ key: "value", value: "left" }] },
+        },
+        {
+          id: "right",
+          type: "logic.set",
+          config: { kind: "logic.set", assignments: [{ key: "value", value: "right" }] },
+        },
+        {
+          id: "join",
+          type: "logic.set",
+          config: { kind: "logic.set", assignments: [{ key: "value", value: "joined" }] },
+        },
+      ],
+      edges: [
+        {
+          id: "trigger-sequence",
+          source: "trigger",
+          target: "sequence",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+        {
+          id: "sequence-left",
+          source: "sequence",
+          target: "left",
+          sourceHandle: "left-output",
+          targetHandle: null,
+        },
+        {
+          id: "sequence-right",
+          source: "sequence",
+          target: "right",
+          sourceHandle: "right-output",
+          targetHandle: null,
+        },
+        {
+          id: "left-join",
+          source: "left",
+          target: "join",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+        {
+          id: "right-join",
+          source: "right",
+          target: "join",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const succeeded: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "succeeded") succeeded.push(update.nodeId);
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(`unexpected failure: ${JSON.stringify(result.error)}`);
+    expect(succeeded).toEqual(["trigger", "sequence", "left", "right", "join"]);
+    expect(result.nodeResults.join).toMatchObject({ value: "joined" });
+  });
 });

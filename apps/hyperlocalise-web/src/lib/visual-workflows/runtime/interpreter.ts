@@ -157,11 +157,37 @@ function sequenceHoldBlocksMerge(input: {
   return input.heldSequenceEdges.some((edge) => canReachMerge(edge.target, new Set()));
 }
 
+type SequenceHoldFrame = {
+  heldEdges: CanonicalVisualWorkflowEdge[];
+  activeReleasedEdge: CanonicalVisualWorkflowEdge | null;
+};
+
+function collectReachableNodeIds(
+  startNodeIds: readonly string[],
+  outgoingByNodeId: ReadonlyMap<string, readonly CanonicalVisualWorkflowEdge[]>,
+  scopeIds: ReadonlySet<string>,
+): Set<string> {
+  const reachable = new Set<string>();
+  const visit = (nodeId: string) => {
+    if (!scopeIds.has(nodeId) || reachable.has(nodeId)) return;
+    reachable.add(nodeId);
+    for (const edge of outgoingByNodeId.get(nodeId) ?? []) {
+      visit(edge.target);
+    }
+  };
+  for (const nodeId of startNodeIds) {
+    visit(nodeId);
+  }
+  return reachable;
+}
+
 /**
  * A released Sequence path is done enough to release the next output when every
- * non-Merge descendant has completed *and* settled its outgoing edges. A suspended
- * Wait stays in `completed` but has not settled outgoing edges yet, so later
- * Sequence feeders stay held (and Merge timeouts are not armed against them).
+ * non-boundary descendant has completed *and* settled its outgoing edges. Merge
+ * nodes and ordinary joins that are still waiting on another held Sequence path
+ * are propagation boundaries so later Sequence outputs can settle those joins.
+ * A suspended Wait stays in `completed` but has not settled outgoing edges yet,
+ * so later Sequence feeders stay held (and Merge timeouts are not armed against them).
  */
 function sequenceReleasedPathFullyPropagated(input: {
   releasedEdge: CanonicalVisualWorkflowEdge;
@@ -169,14 +195,31 @@ function sequenceReleasedPathFullyPropagated(input: {
   states: ReadonlyMap<string, MergeInputSettlement>;
   nodesById: ReadonlyMap<string, CanonicalVisualWorkflowNode>;
   outgoingByNodeId: ReadonlyMap<string, readonly CanonicalVisualWorkflowEdge[]>;
+  incomingByNodeId: ReadonlyMap<string, readonly CanonicalVisualWorkflowEdge[]>;
+  heldSequenceEdges: readonly CanonicalVisualWorkflowEdge[];
   scopeIds: ReadonlySet<string>;
 }): boolean {
+  const heldEdgeIds = new Set(input.heldSequenceEdges.map((edge) => edge.id));
+  const reachableFromHeld = collectReachableNodeIds(
+    input.heldSequenceEdges.map((edge) => edge.target),
+    input.outgoingByNodeId,
+    input.scopeIds,
+  );
+  const waitingOnHeldSequencePath = (nodeId: string): boolean => {
+    const incoming = (input.incomingByNodeId.get(nodeId) ?? []).filter((edge) =>
+      input.scopeIds.has(edge.source),
+    );
+    return incoming.some((edge) => {
+      if (input.states.has(edge.id)) return false;
+      return heldEdgeIds.has(edge.id) || reachableFromHeld.has(edge.source);
+    });
+  };
   const visit = (nodeId: string): boolean => {
     if (!input.scopeIds.has(nodeId)) return true;
     const node = input.nodesById.get(nodeId);
     if (!node) return true;
     if (node.config.kind === "logic.merge") return true;
-    if (!input.completed.has(nodeId)) return false;
+    if (!input.completed.has(nodeId)) return waitingOnHeldSequencePath(nodeId);
     const outgoing = (input.outgoingByNodeId.get(nodeId) ?? []).filter((edge) =>
       input.scopeIds.has(edge.target),
     );
@@ -250,10 +293,28 @@ export async function runVisualWorkflowInterpreter(input: {
     const completed = new Set<string>();
     const mergeResumes = new Map<string, MergeResumeState>();
     let priorityNodeIds: string[] = [];
-    // Sequence outputs settle one path at a time so later feeders are not
-    // visible to Merge timeouts while an earlier Wait (or other path) is open.
-    let heldSequenceEdges: CanonicalVisualWorkflowEdge[] = [];
-    let activeReleasedSequenceEdge: CanonicalVisualWorkflowEdge | null = null;
+    // Nested Sequences each keep their own hold frame so an inner Sequence
+    // cannot replace the outer Sequence's later outputs.
+    const sequenceHoldStack: SequenceHoldFrame[] = [];
+    const incomingByNodeId = new Map<string, CanonicalVisualWorkflowEdge[]>();
+    for (const edge of definition.edges) {
+      if (!ids.has(edge.source) || !ids.has(edge.target)) continue;
+      const incoming = incomingByNodeId.get(edge.target) ?? [];
+      incoming.push(edge);
+      incomingByNodeId.set(edge.target, incoming);
+    }
+    const allHeldSequenceEdges = () => sequenceHoldStack.flatMap((frame) => frame.heldEdges);
+    const sequencePathFullyPropagated = (releasedEdge: CanonicalVisualWorkflowEdge) =>
+      sequenceReleasedPathFullyPropagated({
+        releasedEdge,
+        completed,
+        states,
+        nodesById: graph.nodesById,
+        outgoingByNodeId: graph.outgoingByNodeId,
+        incomingByNodeId,
+        heldSequenceEdges: allHeldSequenceEdges(),
+        scopeIds: ids,
+      });
     const mergeResumeFor = (node: CanonicalVisualWorkflowNode): MergeResumeState | null => {
       const current = mergeResumes.get(node.id);
       if (current) return current;
@@ -268,7 +329,7 @@ export async function runVisualWorkflowInterpreter(input: {
       if (
         sequenceHoldBlocksMerge({
           mergeNodeId: node.id,
-          heldSequenceEdges,
+          heldSequenceEdges: allHeldSequenceEdges(),
           outgoingByNodeId: graph.outgoingByNodeId,
           scopeIds: ids,
         })
@@ -290,30 +351,34 @@ export async function runVisualWorkflowInterpreter(input: {
         (left, right) => Date.parse(left.wakeAt) - Date.parse(right.wakeAt),
       )[0] ?? null;
     const releaseHeldSequenceEdges = () => {
-      while (
-        heldSequenceEdges.length > 0 &&
-        activeReleasedSequenceEdge &&
-        sequenceReleasedPathFullyPropagated({
-          releasedEdge: activeReleasedSequenceEdge,
-          completed,
-          states,
-          nodesById: graph.nodesById,
-          outgoingByNodeId: graph.outgoingByNodeId,
-          scopeIds: ids,
-        })
-      ) {
-        const edge = heldSequenceEdges.shift()!;
-        states.set(
-          edge.id,
-          selectedEdgeSettlement({
-            sourceHandle: edge.sourceHandle,
-            executionSucceeded: true,
-          }),
-        );
-        activeReleasedSequenceEdge = edge;
-        const target = graph.nodesById.get(edge.target);
-        if (target?.config.kind === "logic.merge") armMergeTimeout(target);
-        priorityNodeIds = collectSequencePriorityNodeIds([edge], graph.outgoingByNodeId);
+      while (sequenceHoldStack.length > 0) {
+        const frame = sequenceHoldStack[sequenceHoldStack.length - 1]!;
+        while (
+          frame.heldEdges.length > 0 &&
+          frame.activeReleasedEdge &&
+          sequencePathFullyPropagated(frame.activeReleasedEdge)
+        ) {
+          const edge = frame.heldEdges.shift()!;
+          states.set(
+            edge.id,
+            selectedEdgeSettlement({
+              sourceHandle: edge.sourceHandle,
+              executionSucceeded: true,
+            }),
+          );
+          frame.activeReleasedEdge = edge;
+          const target = graph.nodesById.get(edge.target);
+          if (target?.config.kind === "logic.merge") armMergeTimeout(target);
+          priorityNodeIds = collectSequencePriorityNodeIds([edge], graph.outgoingByNodeId);
+        }
+        const frameDone =
+          frame.heldEdges.length === 0 &&
+          (!frame.activeReleasedEdge || sequencePathFullyPropagated(frame.activeReleasedEdge));
+        if (frameDone) {
+          sequenceHoldStack.pop();
+          continue;
+        }
+        break;
       }
     };
     while (completed.size < ids.size) {
@@ -741,8 +806,10 @@ export async function runVisualWorkflowInterpreter(input: {
           if (target?.config.kind === "logic.merge") armMergeTimeout(target);
         }
         if (node.config.kind === "logic.sequence") {
-          heldSequenceEdges = sequenceHeldEdges;
-          activeReleasedSequenceEdge = sequenceReleaseEdge;
+          sequenceHoldStack.push({
+            heldEdges: sequenceHeldEdges,
+            activeReleasedEdge: sequenceReleaseEdge,
+          });
           priorityNodeIds = sequenceReleaseEdge
             ? collectSequencePriorityNodeIds([sequenceReleaseEdge], graph.outgoingByNodeId)
             : [];
@@ -757,7 +824,7 @@ export async function runVisualWorkflowInterpreter(input: {
           pendingMerge.config.timeoutMs &&
           !sequenceHoldBlocksMerge({
             mergeNodeId: pendingMerge.id,
-            heldSequenceEdges,
+            heldSequenceEdges: allHeldSequenceEdges(),
             outgoingByNodeId: graph.outgoingByNodeId,
             scopeIds: ids,
           })
