@@ -10,21 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import { getIntlShape } from "@/lib/app-i18n/intl";
-import {
-  hyperlocaliseImageModelId,
-  hyperlocaliseTranscribeModelId,
-  hyperlocaliseTtsModelId,
-  hyperlocaliseVideoModelId,
-} from "@/lib/providers/managed-model-ids";
 
 import {
-  getPricingByokProviderModelIds,
-  pricingByokProviderIds,
-  pricingManagedAgentGatewayModelIds,
-  type PricingByokProviderId,
-} from "./pricing-supported-models";
+  getPricingCatalogEntries,
+  type PricingModelAccess,
+  type PricingModelCopyKey,
+  type PricingModelJob,
+  type PricingModelProviderId,
+} from "./pricing-model-catalog";
 
 export type PricingPlanId = "free" | "starter" | "growth" | "enterprise";
 
@@ -743,199 +737,544 @@ export type PricingAiFeature = {
   description: string;
 };
 
-export type PricingIncludedModelRow = {
-  id: string;
-  capability: string;
-  models: readonly string[];
-  detail?: string;
-};
-
-export type PricingByokProvider = {
-  id: string;
+export type PricingBrowserModel = {
+  modelId: string;
   name: string;
-  models: readonly string[];
+  providerId: PricingModelProviderId;
+  providerName: string;
+  job: PricingModelJob;
+  access: PricingModelAccess;
+  summary: string;
+  story: string;
+  useWhen: string;
+  billingLabel: string;
+  highlight: string | null;
+  recommended: boolean;
 };
 
-export type PricingByokFeature = {
+export type PricingModelFilterOption = {
   id: string;
-  text: string;
+  label: string;
 };
 
 export type PricingModelsSectionContent = {
   heading: string;
   subcopy: string;
-  includedTitle: string;
-  includedDescription: string;
-  includedRows: readonly PricingIncludedModelRow[];
-  byokTitle: string;
-  byokDescription: string;
-  byokProviders: readonly PricingByokProvider[];
-  byokFeatures: readonly PricingByokFeature[];
-  byokFootnote: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  jobFilterLabel: string;
+  accessFilterLabel: string;
+  scopeFilterLabel: string;
+  scopes: readonly PricingModelFilterOption[];
+  jobs: readonly PricingModelFilterOption[];
+  accessOptions: readonly PricingModelFilterOption[];
+  columnModel: string;
+  columnHelpsWith: string;
+  columnBilling: string;
+  useWhenLabel: string;
+  modelIdLabel: string;
+  models: readonly PricingBrowserModel[];
+  emptyRecommendedTitle: string;
+  emptyRecommendedBody: string;
+  showEveryModelLabel: string;
+  emptyTitle: string;
+  emptyBody: string;
+  clearFiltersLabel: string;
+  listLabel: string;
+  footnote: string;
 };
 
 export function getPricingModelsSectionContent(locale: string): PricingModelsSectionContent {
   const intl = getIntlShape(locale);
 
-  const agentCapabilities = intl.formatMessage({
-    defaultMessage: "Ask, Translation, and Coding",
-    id: "hjwoGYZd+k",
-    description: "Pricing models row label for agent text capabilities",
+  const includedBilling = intl.formatMessage({
+    defaultMessage: "Included",
+    id: "qDPDjijqjg",
+    description: "Badge and filter for a model included with paid plans",
   });
+  const byokBilling = intl.formatMessage({
+    defaultMessage: "Your account",
+    id: "fxjFqNjim9",
+    description: "Badge and filter for a model billed to the customer's provider account",
+  });
+  const workspaceDefault = intl.formatMessage({
+    defaultMessage: "Workspace default",
+    id: "J3VsxKxltT",
+    description: "Highlight for the default writing model on the pricing page",
+  });
+
+  const providerNames = {
+    openai: intl.formatMessage({
+      defaultMessage: "OpenAI",
+      id: "ebSc/SgRuM",
+      description: "OpenAI provider name on the pricing BYOK section",
+    }),
+    anthropic: intl.formatMessage({
+      defaultMessage: "Anthropic",
+      id: "zgB7RcHWk8",
+      description: "Anthropic provider name on the pricing BYOK section",
+    }),
+    gemini: intl.formatMessage({
+      defaultMessage: "Google Gemini",
+      id: "4I4RDHWJ2Q",
+      description: "Google Gemini provider name on the pricing BYOK section",
+    }),
+    fish: intl.formatMessage({
+      defaultMessage: "Fish Audio",
+      id: "p2iBQGftoM",
+      description: "Fish Audio provider name on the pricing page",
+    }),
+    bytedance: intl.formatMessage({
+      defaultMessage: "ByteDance",
+      id: "l//f5K3F+p",
+      description: "ByteDance provider name on the pricing page",
+    }),
+  } as const satisfies Record<PricingModelProviderId, string>;
+
+  const copy = {
+    luna: {
+      summary: intl.formatMessage({
+        defaultMessage: "Chat, translation, and coding",
+        id: "ow1T0+Vk+a",
+        description: "Summary for the default writing model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "This is the writer on paid plans. Ask it about a string, run a translation job, or let a coding agent draft a change. Usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill this model instead.",
+        id: "Ino5JbBMsK",
+        description: "Story for the default writing model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want one default the whole workspace can share.",
+        id: "MoH++be9F6",
+        description: "Situation for the default writing model on the pricing page",
+      }),
+    },
+    "luna-fast": {
+      summary: intl.formatMessage({
+        defaultMessage: "Quicker replies from Luna",
+        id: "i8AxYRXb9E",
+        description: "Summary for the fast Luna model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "A faster Luna for the same chat, translation, and coding work. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill it instead.",
+        id: "fPXZYLvS43",
+        description: "Story for the fast Luna model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want the same Luna writer, with quicker replies.",
+        id: "akrLncuXTs",
+        description: "Situation for the fast Luna model on the pricing page",
+      }),
+    },
+    "openai-writer": {
+      summary: intl.formatMessage({
+        defaultMessage: "Chat, translation, and coding",
+        id: "Hv8dudDiIO",
+        description: "Summary for an included OpenAI writing model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Use it for chat, translation, and coding. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill this model instead.",
+        id: "T2qLjqNIRT",
+        description: "Story for an included OpenAI writing model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want this OpenAI model for chat, translation, or coding.",
+        id: "rzB2qvVXWW",
+        description: "Situation for an included OpenAI writing model on the pricing page",
+      }),
+    },
+    "openai-fast": {
+      summary: intl.formatMessage({
+        defaultMessage: "Quicker replies for writing",
+        id: "r4DslyI+Ba",
+        description: "Summary for a faster included OpenAI model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "A faster version for chat, translation, and coding. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill it instead.",
+        id: "x7rTF4CYcT",
+        description: "Story for a faster included OpenAI model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want quicker replies from this OpenAI model.",
+        id: "ZqN2yepK3V",
+        description: "Situation for a faster included OpenAI model on the pricing page",
+      }),
+    },
+    sonnet: {
+      summary: intl.formatMessage({
+        defaultMessage: "Longer drafts and review",
+        id: "n5ZuB985rS",
+        description: "Summary for Claude Sonnet on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Connect an Anthropic key and use Sonnet for longer drafts and review notes. Anthropic bills this usage. It does not draw down your monthly AI credit.",
+        id: "t9wxr1NNC0",
+        description: "Story for Claude Sonnet on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want a second writer for longer text.",
+        id: "/SJnfuawRk",
+        description: "Situation for Claude Sonnet on the pricing page",
+      }),
+    },
+    opus: {
+      summary: intl.formatMessage({
+        defaultMessage: "A more careful pass",
+        id: "Pb5w1LHor2",
+        description: "Summary for Claude Opus on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Connect an Anthropic key and use Opus when the wording needs extra attention. Anthropic bills this usage. It does not draw down your monthly AI credit.",
+        id: "JTdejUyr0G",
+        description: "Story for Claude Opus on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "The wording needs extra attention.",
+        id: "oAdWI3pqoy",
+        description: "Situation for Claude Opus on the pricing page",
+      }),
+    },
+    haiku: {
+      summary: intl.formatMessage({
+        defaultMessage: "Shorter turns",
+        id: "5vxosjDykR",
+        description: "Summary for Claude Haiku on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Connect an Anthropic key and use Haiku for shorter turns. Anthropic bills this usage. It does not draw down your monthly AI credit.",
+        id: "G715x+6MXV",
+        description: "Story for Claude Haiku on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want shorter turns and quicker replies.",
+        id: "YCaD+nC2OM",
+        description: "Situation for Claude Haiku on the pricing page",
+      }),
+    },
+    "gemini-flash": {
+      summary: intl.formatMessage({
+        defaultMessage: "Quick drafts",
+        id: "1hnHBtSh2K",
+        description: "Summary for Gemini Flash on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Connect a Gemini key and use Flash to move through a long list of strings. Google bills this usage. It does not draw down your monthly AI credit.",
+        id: "3BtQulEZ6Y",
+        description: "Story for Gemini Flash on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You have many short strings and want quick drafts.",
+        id: "9ia5fOVQ3G",
+        description: "Situation for Gemini Flash on the pricing page",
+      }),
+    },
+    "gemini-pro": {
+      summary: intl.formatMessage({
+        defaultMessage: "Harder drafts",
+        id: "qWuPZZeIC0",
+        description: "Summary for Gemini Pro on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Connect a Gemini key and use Pro for harder drafts. Google bills this usage. It does not draw down your monthly AI credit.",
+        id: "hRiPxjtqBZ",
+        description: "Story for Gemini Pro on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want a more careful Google model for harder drafts.",
+        id: "upsJCx/arg",
+        description: "Situation for Gemini Pro on the pricing page",
+      }),
+    },
+    voice: {
+      summary: intl.formatMessage({
+        defaultMessage: "Hear how a line sounds",
+        id: "V5Cs48ujmR",
+        description: "Summary for the text to speech model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "It reads copy aloud so you can check rhythm and length before a voiceover goes out. Included on paid plans. Usage comes out of your monthly AI credit.",
+        id: "1KKO0Okjmc",
+        description: "Story for the text to speech model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want to hear the rhythm and length of a line.",
+        id: "YP1eohi/Yy",
+        description: "Situation for the text to speech model on the pricing page",
+      }),
+    },
+    listen: {
+      summary: intl.formatMessage({
+        defaultMessage: "Turn speech into text",
+        id: "RSD6Hb39Fw",
+        description: "Summary for the transcription model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Turn a recording into text your team can review and translate. Included on paid plans. Usage comes out of your monthly AI credit.",
+        id: "O+malJ4pAE",
+        description: "Story for the transcription model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "A recording needs to become copy you can localize.",
+        id: "b/ulx7nVXu",
+        description: "Situation for the transcription model on the pricing page",
+      }),
+    },
+    picture: {
+      summary: intl.formatMessage({
+        defaultMessage: "Still images from a short brief",
+        id: "cHYsUGiY4s",
+        description: "Summary for the image model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Describe the picture you need for a campaign or a stand-in visual. Included on paid plans. Usage comes out of your monthly AI credit.",
+        id: "Tr9qQQZ/aQ",
+        description: "Story for the image model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You need an image, not another paragraph.",
+        id: "Ge+3hBBbLV",
+        description: "Situation for the image model on the pricing page",
+      }),
+    },
+    video: {
+      summary: intl.formatMessage({
+        defaultMessage: "Short video from a brief",
+        id: "t1MgIE0AON",
+        description: "Summary for the video model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Describe a short clip when a market needs motion as well as words. Included on paid plans. Usage comes out of your monthly AI credit.",
+        id: "Bqz0aRCBut",
+        description: "Story for the video model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "A still image is not enough for the campaign.",
+        id: "pWIlwfK6L5",
+        description: "Situation for the video model on the pricing page",
+      }),
+    },
+  } as const satisfies Record<
+    PricingModelCopyKey,
+    { summary: string; story: string; useWhen: string }
+  >;
+
+  const billingLabels = {
+    included: includedBilling,
+    byok: byokBilling,
+  } as const satisfies Record<PricingModelAccess, string>;
 
   return {
     heading: intl.formatMessage({
-      defaultMessage: "Models and BYOK",
-      id: "zO4by8PZEN",
-      description: "Heading for the models and BYOK section on the pricing page",
+      defaultMessage: "Models your team can use",
+      id: "rc9DBDztDD",
+      description: "Heading for the models section on the pricing page",
     }),
     subcopy: intl.formatMessage({
       defaultMessage:
-        "Managed models draw down your monthly AI credit. Connect your own provider keys when you want direct billing with OpenAI, Anthropic, or Gemini.",
-      id: "aEo791NENU",
-      description: "Supporting copy for the models and BYOK section on the pricing page",
+        "Paid plans include models for writing, voice, listening, pictures, and video. Those draw from your monthly AI credit. Connect OpenAI, Anthropic, or Gemini when you want a writer billed to that account.",
+      id: "rK02Gg9nl5",
+      description: "Supporting copy for the models section on the pricing page",
     }),
-    includedTitle: intl.formatMessage({
-      defaultMessage: "Included models",
-      id: "X1Ie8nZW5a",
-      description: "Subheading for Hyperlocalise-managed models on the pricing page",
+    searchLabel: intl.formatMessage({
+      defaultMessage: "Search models",
+      id: "Zhasquwx2x",
+      description: "Accessible label for the pricing model search field",
     }),
-    includedDescription: intl.formatMessage(
+    searchPlaceholder: intl.formatMessage({
+      defaultMessage: "Search by name or job",
+      id: "Fb4AJ4nGEX",
+      description: "Placeholder for the pricing model search field",
+    }),
+    jobFilterLabel: intl.formatMessage({
+      defaultMessage: "Filter by job",
+      id: "DT7M7vytkc",
+      description: "Accessible label for the pricing model job filter",
+    }),
+    accessFilterLabel: intl.formatMessage({
+      defaultMessage: "Filter by billing",
+      id: "GpCoXXS8l1",
+      description: "Accessible label for the pricing model billing filter",
+    }),
+    scopeFilterLabel: intl.formatMessage({
+      defaultMessage: "Choose how many models to show",
+      id: "YGFB2mB2iu",
+      description: "Accessible label for the pricing model list scope",
+    }),
+    scopes: [
       {
-        defaultMessage:
-          "Always available on paid plans. Speech and media capabilities use dedicated included models; agent work uses the managed catalog (default {defaultModel}) unless you connect BYOK.",
-        id: "jEcB+kTaAO",
-        description: "Description under included models on the pricing page",
-      },
-      { defaultModel: hyperlocaliseAgentModelId },
-    ),
-    includedRows: [
-      {
-        id: "agent-default",
-        capability: agentCapabilities,
-        models: pricingManagedAgentGatewayModelIds,
-        detail: intl.formatMessage({
-          defaultMessage: "Workspace default for chat, translation jobs, and coding agents.",
-          id: "c+4z1kMqTq",
-          description: "Detail for the managed agent default model on the pricing page",
+        id: "recommended",
+        label: intl.formatMessage({
+          defaultMessage: "Recommended",
+          id: "N/76NIMu0h",
+          description: "Filter that shows the short model list on the pricing page",
         }),
       },
       {
-        id: "tts",
-        capability: intl.formatMessage({
-          defaultMessage: "Text to speech",
-          id: "WfOVeAc/hr",
-          description: "Pricing models row label for text to speech",
+        id: "all",
+        label: intl.formatMessage({
+          defaultMessage: "Every model",
+          id: "WojZwK+028",
+          description: "Filter that shows the full model list on the pricing page",
         }),
-        models: [hyperlocaliseTtsModelId],
+      },
+    ],
+    jobs: [
+      {
+        id: "all",
+        label: intl.formatMessage({
+          defaultMessage: "All",
+          id: "nLIx9rcSZg",
+          description: "Filter label for every model job on the pricing page",
+        }),
       },
       {
-        id: "transcribe",
-        capability: intl.formatMessage({
-          defaultMessage: "Transcribe",
-          id: "aYuiXKzRRS",
-          description: "Pricing models row label for transcription",
+        id: "write",
+        label: intl.formatMessage({
+          defaultMessage: "Writing",
+          id: "ZMuADiRtdx",
+          description: "Filter label for writing models on the pricing page",
         }),
-        models: [hyperlocaliseTranscribeModelId],
       },
       {
-        id: "image",
-        capability: intl.formatMessage({
-          defaultMessage: "Image generation",
-          id: "aq9uIWSdUf",
-          description: "Pricing models row label for image generation",
+        id: "speak",
+        label: intl.formatMessage({
+          defaultMessage: "Voice",
+          id: "LRVFAS5BU6",
+          description: "Filter label for voice models on the pricing page",
         }),
-        models: [hyperlocaliseImageModelId],
+      },
+      {
+        id: "listen",
+        label: intl.formatMessage({
+          defaultMessage: "Listening",
+          id: "UQJXYycHuy",
+          description: "Filter label for transcription models on the pricing page",
+        }),
+      },
+      {
+        id: "picture",
+        label: intl.formatMessage({
+          defaultMessage: "Pictures",
+          id: "4NRfGc3Yk+",
+          description: "Filter label for image models on the pricing page",
+        }),
       },
       {
         id: "video",
-        capability: intl.formatMessage({
-          defaultMessage: "Video generation",
-          id: "OhHPkKM0Ft",
-          description: "Pricing models row label for video generation",
+        label: intl.formatMessage({
+          defaultMessage: "Video",
+          id: "wCP+A1rntn",
+          description: "Filter label for video models on the pricing page",
         }),
-        models: [hyperlocaliseVideoModelId],
       },
     ],
-    byokTitle: intl.formatMessage({
-      defaultMessage: "Bring your own key (BYOK)",
-      id: "xcNNt34EVn",
-      description: "Subheading for BYOK on the pricing page",
+    accessOptions: [
+      {
+        id: "all",
+        label: intl.formatMessage({
+          defaultMessage: "Any billing",
+          id: "6W4y3PFOV8",
+          description: "Filter label for every billing type on the pricing page",
+        }),
+      },
+      { id: "included", label: includedBilling },
+      { id: "byok", label: byokBilling },
+    ],
+    columnModel: intl.formatMessage({
+      defaultMessage: "Model",
+      id: "Up335i7GML",
+      description: "Column label for the model name on the pricing page",
     }),
-    byokDescription: intl.formatMessage({
-      defaultMessage:
-        "Save a shared workspace API key in AI Engine. Hyperlocalise validates the key, encrypts it at rest, and routes agent and translation traffic through your provider account.",
-      id: "cs1R2QyhSD",
-      description: "Description under BYOK on the pricing page",
+    columnHelpsWith: intl.formatMessage({
+      defaultMessage: "What it helps with",
+      id: "mCz1OMRk2y",
+      description: "Column label for what a pricing model is used for",
     }),
-    byokProviders: pricingByokProviderIds.map((providerId) => {
-      const providerNameById = {
-        openai: intl.formatMessage({
-          defaultMessage: "OpenAI",
-          id: "ebSc/SgRuM",
-          description: "OpenAI provider name on the pricing BYOK section",
-        }),
-        anthropic: intl.formatMessage({
-          defaultMessage: "Anthropic",
-          id: "zgB7RcHWk8",
-          description: "Anthropic provider name on the pricing BYOK section",
-        }),
-        gemini: intl.formatMessage({
-          defaultMessage: "Google Gemini",
-          id: "4I4RDHWJ2Q",
-          description: "Google Gemini provider name on the pricing BYOK section",
-        }),
-      } as const satisfies Record<PricingByokProviderId, string>;
-
+    columnBilling: intl.formatMessage({
+      defaultMessage: "Billing",
+      id: "i70eKYLUvJ",
+      description: "Column label for how a pricing model is billed",
+    }),
+    useWhenLabel: intl.formatMessage({
+      defaultMessage: "Use it when",
+      id: "I3a2YDu+oy",
+      description: "Label above the situation a pricing model fits",
+    }),
+    modelIdLabel: intl.formatMessage({
+      defaultMessage: "In AI Engine",
+      id: "9Cdevjsa8b",
+      description: "Label for the technical model id in the pricing model detail",
+    }),
+    models: getPricingCatalogEntries().map((entry) => {
+      const entryCopy = copy[entry.copyKey];
       return {
-        id: providerId,
-        name: providerNameById[providerId],
-        models: getPricingByokProviderModelIds(providerId),
+        modelId: entry.modelId,
+        name: entry.name,
+        providerId: entry.providerId,
+        providerName: providerNames[entry.providerId],
+        job: entry.job,
+        access: entry.access,
+        summary: entryCopy.summary,
+        story: entryCopy.story,
+        useWhen: entryCopy.useWhen,
+        billingLabel: billingLabels[entry.access],
+        highlight: entry.highlight ? workspaceDefault : null,
+        recommended: entry.recommended,
       };
     }),
-    byokFeatures: [
-      {
-        id: "curated-models",
-        text: intl.formatMessage({
-          defaultMessage:
-            "Pick a default model from our curated catalog for each provider (for example GPT-6 Luna, Claude Sonnet, or Gemini Flash).",
-          id: "ooSKNfcn90",
-          description: "BYOK feature bullet about curated model catalog on pricing page",
-        }),
-      },
-      {
-        id: "no-credit-draw",
-        text: intl.formatMessage({
-          defaultMessage:
-            "BYOK inference is billed by your provider and does not draw down Hyperlocalise monthly AI credit.",
-          id: "8n+pwQn9aX",
-          description: "BYOK feature bullet about AI credit on pricing page",
-        }),
-      },
-      {
-        id: "included-stays",
-        text: intl.formatMessage({
-          defaultMessage:
-            "Included models for speech, transcription, image, and video stay available alongside BYOK.",
-          id: "7FJ8bUMk8H",
-          description: "BYOK feature bullet about included models on pricing page",
-        }),
-      },
-      {
-        id: "workspace-default",
-        text: intl.formatMessage({
-          defaultMessage:
-            "Ask, Translation, Coding, file translation jobs, and workspace automations inherit your workspace default model.",
-          id: "bbuRb12c5B",
-          description: "BYOK feature bullet about workspace default inheritance on pricing page",
-        }),
-      },
-    ],
-    byokFootnote: intl.formatMessage({
+    emptyRecommendedTitle: intl.formatMessage({
+      defaultMessage: "Nothing recommended matches",
+      id: "mWtA0VdJue",
+      description: "Title when the recommended pricing models do not match the search",
+    }),
+    emptyRecommendedBody: intl.formatMessage({
+      defaultMessage: "Look through every model, or clear the search.",
+      id: "9M6xjAhsYc",
+      description: "Help text when the recommended pricing models do not match the search",
+    }),
+    showEveryModelLabel: intl.formatMessage({
+      defaultMessage: "Show every model",
+      id: "kRkY9YXl2W",
+      description: "Button that expands the pricing model list to the full catalog",
+    }),
+    emptyTitle: intl.formatMessage({
+      defaultMessage: "No models match",
+      id: "yj4HofLXjM",
+      description: "Title when pricing model filters return nothing",
+    }),
+    emptyBody: intl.formatMessage({
+      defaultMessage: "Try another job, or clear the search.",
+      id: "LRjbYLhwbi",
+      description: "Help text when pricing model filters return nothing",
+    }),
+    clearFiltersLabel: intl.formatMessage({
+      defaultMessage: "Clear filters",
+      id: "UvSp5y/OIh",
+      description: "Button that resets pricing model search and filters",
+    }),
+    listLabel: intl.formatMessage({
+      defaultMessage: "Models",
+      id: "JKmR2EOv2K",
+      description: "Accessible label for the pricing model list",
+    }),
+    footnote: intl.formatMessage({
       defaultMessage:
-        "Configure providers in AI Engine after you upgrade to Starter, Growth, or Enterprise.",
-      id: "aRW1mCoyPj",
-      description: "Footnote under BYOK features on the pricing page",
+        "Connect a key in AI Engine on Starter, Growth, or Enterprise. Ask, Translation, Coding, file translation, and automations follow the workspace default. Speech, transcription, images, and video stay included.",
+      id: "r6qom0JjbO",
+      description: "Footnote under the model list on the pricing page",
     }),
   };
 }
