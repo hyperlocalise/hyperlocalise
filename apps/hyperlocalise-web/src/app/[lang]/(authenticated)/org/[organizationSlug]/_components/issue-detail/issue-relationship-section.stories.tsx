@@ -43,7 +43,7 @@ const allKinds: IssueRelationship[] = [
 ];
 
 const meta = {
-  title: "App/Issue Detail/Relationship Section",
+  title: "App/Queries/Relationship Section",
   component: IssueRelationshipSection,
   decorators: [
     (Story) => (

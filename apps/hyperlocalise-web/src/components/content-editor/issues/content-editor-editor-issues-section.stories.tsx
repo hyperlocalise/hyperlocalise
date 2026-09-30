@@ -27,7 +27,7 @@ import {
 import { ContentEditorEditorIssuesSection } from "./content-editor-editor-issues-section";
 
 const meta = {
-  title: "CAT/Issues Panel",
+  title: "CAT/Queries Panel",
   component: ContentEditorEditorIssuesSection,
   parameters: {
     layout: "fullscreen",

@@ -14,7 +14,6 @@
  */
 import { useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Add01Icon, TranslateIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -36,7 +35,6 @@ import { CreateJobDialog } from "./create-job-dialog";
 import {
   JobsPageErrorMessage,
   JobsPageView,
-  jobsStatusOptions,
   type ApiJob,
   type JobRow,
   type JobsErrorRenderer,
@@ -45,18 +43,7 @@ import {
   type JobsStatusFilter,
 } from "./jobs-page-view";
 import { jobsPageContentMessages } from "./jobs-page-content.messages";
-
-import {
-  JOB_STATUS_FILTERS,
-  readWorkspaceFilterParam,
-} from "../../_components/workspace-filter-params";
-
-function readInitialStatusFilter(searchParams: URLSearchParams): JobsStatusFilter {
-  const status = readWorkspaceFilterParam(searchParams, "status", JOB_STATUS_FILTERS);
-  return (jobsStatusOptions as readonly string[]).includes(status)
-    ? (status as JobsStatusFilter)
-    : "all";
-}
+import { useJobsListUrlState } from "./use-jobs-list-url-state";
 
 function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRenderer>[0]) {
   if (kind === "title") {
@@ -211,8 +198,8 @@ export function JobsPageContent({
   projectId?: string;
 }) {
   const intl = useIntl();
-  const searchParams = useSearchParams();
-  const [statusFilter, setStatusFilter] = useState(() => readInitialStatusFilter(searchParams));
+  const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useJobsListUrlState();
+  const statusFilter = state.status;
   const [createJobOpen, setCreateJobOpen] = useState(false);
   const parsedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
   const isProviderProjectScope = Boolean(parsedProviderProject);
@@ -326,12 +313,15 @@ export function JobsPageContent({
         isTmsLoading={tmsJobsQuery.isLoading && !tmsJobsQuery.data}
         nativeError={nativeError}
         nativeJobs={nativeJobs}
-        onStatusFilterChange={setStatusFilter}
+        onClearFilters={clearFilters}
+        onSearchDraftChange={setSearchDraft}
+        onStatusFilterChange={(nextStatus) => updateState({ status: nextStatus })}
         organizationSlug={organizationSlug}
         projectId={projectId}
         renderError={renderProductionJobsError}
         renderJobLink={renderProductionJobLink}
         scope={scope}
+        searchDraft={searchDraft}
         statusFilter={statusFilter}
         tmsError={tmsJobsQuery.error}
         tmsJobs={tmsJobs}
