@@ -15,9 +15,17 @@ import { flag } from "flags/next";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
 
-import { RELEASE_CAT_ALL_FILES_FLAG, RELEASE_SANDBOX_VCR_IMAGE_FLAG } from "./release-flag-keys";
+import {
+  RELEASE_CAT_ALL_FILES_FLAG,
+  RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
+  RELEASE_SANDBOX_VCR_IMAGE_FLAG,
+} from "./release-flag-keys";
 
-export { RELEASE_CAT_ALL_FILES_FLAG, RELEASE_SANDBOX_VCR_IMAGE_FLAG } from "./release-flag-keys";
+export {
+  RELEASE_CAT_ALL_FILES_FLAG,
+  RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
+  RELEASE_SANDBOX_VCR_IMAGE_FLAG,
+} from "./release-flag-keys";
 
 export type ReleaseContentEditorAllFilesEntities = {
   /** `null` / omitted = native project; otherwise the live TMS provider kind. */
@@ -79,6 +87,34 @@ export const releaseSandboxVcrImageFlag = flag<boolean>({
 export async function isReleaseSandboxVcrImageEnabled(): Promise<boolean> {
   try {
     return (await releaseSandboxVcrImageFlag.run({ identify: {} })) === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Release gate for the adaptive workspace persona system in the Content Editor
+ * (Translator / Designer / Reviewer layout presets + per-file-family auto-detection).
+ *
+ * Off by default — enable per-org or globally via Flags Explorer for A/B testing.
+ * No `decide` logic: purely a manual on/off gate controlled through the dashboard.
+ */
+export const releaseCatAdaptiveWorkspaceFlag = flag<boolean>({
+  key: RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
+  description:
+    "Adaptive workspace personas for the Content Editor (Translator / Designer / Reviewer).",
+  defaultValue: false,
+  decide() {
+    // No server-side eligibility logic — purely a Flags Explorer toggle.
+    // Flags Explorer overrides always take priority over decide() so
+    // enabling per-org in the dashboard still works as expected.
+    return false;
+  },
+});
+
+export async function isReleaseCatAdaptiveWorkspaceEnabled(): Promise<boolean> {
+  try {
+    return (await releaseCatAdaptiveWorkspaceFlag.run({ identify: {} })) === true;
   } catch {
     return false;
   }

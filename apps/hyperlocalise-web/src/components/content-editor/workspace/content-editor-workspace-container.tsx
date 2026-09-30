@@ -112,6 +112,14 @@ export interface ContentEditorWorkspaceContainerProps {
   isDownloadingFilteredView?: boolean;
   /** Stable identity for the open file/locale. Changing this resets workspace data only. */
   fileScopeKey?: string;
+  /**
+   * When true, the adaptive workspace persona switcher (Translator / Designer / Reviewer)
+   * is visible and the UI auto-detects the persona from the file's content family.
+   *
+   * Controlled by the `release-content-editor-adaptive-workspace` feature flag.
+   * Defaults to false — off for all users until enabled via Flags Explorer.
+   */
+  adaptiveWorkspaceEnabled?: boolean;
 }
 
 const ContentEditorWorkspaceContainerObserver = observer(
@@ -152,6 +160,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
     fileScopeKey,
+    adaptiveWorkspaceEnabled = false,
   }: ContentEditorWorkspaceContainerProps & { store: ContentEditorWorkspaceOrchestrator }) {
     const controller = useContentEditorWorkspaceRuntime({
       store,
@@ -290,6 +299,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
           }
           onDownloadFilteredView={onDownloadFilteredView}
           isDownloadingFilteredView={isDownloadingFilteredView}
+          adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
         />
 
         <ContentEditorPanelErrorBoundary

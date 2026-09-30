@@ -103,6 +103,7 @@ export function ContentEditorQueueToolbar({
   isQueueLoading = false,
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
+  adaptiveWorkspaceEnabled = false,
 }: {
   search?: string;
   onSearchChange?: (value: string) => void;
@@ -134,6 +135,8 @@ export function ContentEditorQueueToolbar({
   isQueueLoading?: boolean;
   onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
   isDownloadingFilteredView?: boolean;
+  /** When true, the adaptive workspace persona switcher is rendered. Off by default. */
+  adaptiveWorkspaceEnabled?: boolean;
 }) {
   const intl = useIntl();
   // The selection-mode checkbox is shown whenever onSelectionModeChange is provided,
@@ -415,7 +418,7 @@ export function ContentEditorQueueToolbar({
           </DropdownMenu>
         ) : null}
 
-        <ContentEditorWorkspacePersonaSwitcherConnected />
+        {adaptiveWorkspaceEnabled ? <ContentEditorWorkspacePersonaSwitcherConnected /> : null}
         <ContentEditorWorkspaceViewSwitcherConnected />
       </div>
     </div>

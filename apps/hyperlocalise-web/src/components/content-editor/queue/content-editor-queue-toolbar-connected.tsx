@@ -47,6 +47,7 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkUnlock,
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
+    adaptiveWorkspaceEnabled = false,
   }: {
     onQueueSearchChange?: (value: string) => void;
     onQueueFilterChange?: (filter: ContentEditorQueueFilter) => void;
@@ -66,6 +67,8 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkUnlock?: () => void;
     onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
     isDownloadingFilteredView?: boolean;
+    /** Gate for the adaptive workspace persona switcher. Off by default. */
+    adaptiveWorkspaceEnabled?: boolean;
   }) {
     const store = useContentEditorWorkspace();
     const [host, setHost] = useState<HTMLElement | null | undefined>(undefined);
@@ -144,6 +147,7 @@ export const ContentEditorQueueToolbarConnected = observer(
         isBulkActionPending={store.isBulkActionPending}
         onDownloadFilteredView={onDownloadFilteredView}
         isDownloadingFilteredView={isDownloadingFilteredView}
+        adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
       />
     );
 
