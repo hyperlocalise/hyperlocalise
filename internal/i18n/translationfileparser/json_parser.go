@@ -28,6 +28,11 @@ func (p JSONParser) ParseWithContext(content []byte) (map[string]string, map[str
 		return map[string]string{}, nil, nil
 	}
 
+	if IsLottiePayload(payload) {
+		values, entryContext := parseLottiePayload(payload)
+		return values, entryContext, nil
+	}
+
 	// Single-pass check and extraction for FormatJS catalogs avoids O(N log N)
 	// sorting of all keys and redundant iterations for descriptions.
 	if out, descriptions, isFormatJS, err := parseFormatJS(payload); err != nil {
