@@ -221,5 +221,11 @@ func requestLogPath(path string) string {
 	if parts[4] == "issue-sheet" {
 		return "/v1/orgs/{organizationSlug}/issue-sheet/{resource}"
 	}
+	if parts[4] == "notifications" {
+		return "/v1/orgs/{organizationSlug}/notifications/{resource}"
+	}
+	if parts[4] == "notification-preferences" {
+		return "/v1/orgs/{organizationSlug}/notification-preferences"
+	}
 	return path
 }
