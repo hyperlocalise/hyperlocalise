@@ -13,6 +13,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { RequestAuthProvider } from "@/components/root-layout/request-auth-provider";
 import { BrandThemeProvider } from "@/components/ui/brand-theme";
 import { getAuthenticatedLayoutMetadata } from "@/lib/seo/authenticated-page-metadata";
 
@@ -27,5 +28,9 @@ export async function generateMetadata({ params }: AuthenticatedLayoutProps): Pr
 }
 
 export default function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
-  return <BrandThemeProvider theme="product">{children}</BrandThemeProvider>;
+  return (
+    <RequestAuthProvider>
+      <BrandThemeProvider theme="product">{children}</BrandThemeProvider>
+    </RequestAuthProvider>
+  );
 }

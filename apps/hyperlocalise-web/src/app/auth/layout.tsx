@@ -12,8 +12,13 @@
  */
 import type { ReactNode } from "react";
 
+import { RequestLocaleProvider } from "@/components/root-layout/request-locale-provider";
 import { BrandThemeProvider } from "@/components/ui/brand-theme";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  return <BrandThemeProvider theme="product">{children}</BrandThemeProvider>;
+  return (
+    <RequestLocaleProvider>
+      <BrandThemeProvider theme="product">{children}</BrandThemeProvider>
+    </RequestLocaleProvider>
+  );
 }

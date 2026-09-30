@@ -12,6 +12,7 @@
  */
 import type { ReactNode } from "react";
 
+import { RequestLocaleProvider } from "@/components/root-layout/request-locale-provider";
 import { BrandThemeProvider } from "@/components/ui/brand-theme";
 
 import "./crowdin-app.css";
@@ -26,10 +27,12 @@ export const metadata = {
 
 export default function CrowdinAppLayout({ children }: { children: ReactNode }) {
   return (
-    <BrandThemeProvider theme="product">
-      <div data-crowdin-app className="crowdin-app-root min-h-svh bg-background text-foreground">
-        {children}
-      </div>
-    </BrandThemeProvider>
+    <RequestLocaleProvider>
+      <BrandThemeProvider theme="product">
+        <div data-crowdin-app className="crowdin-app-root min-h-svh bg-background text-foreground">
+          {children}
+        </div>
+      </BrandThemeProvider>
+    </RequestLocaleProvider>
   );
 }

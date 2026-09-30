@@ -10,39 +10,35 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
+import { I18nProvider } from "@/components/i18n/i18n-provider";
 import { LocaleDocumentLangScript } from "@/components/root-layout/locale-document-lang-script";
-import { isSupportedAppLocale, normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { RootDocumentLocale } from "@/components/root-layout/root-document-locale";
+import { SUPPORTED_APP_LOCALES, normalizeAppLocale } from "@/lib/app-i18n/locales";
 
 type LocaleLayoutProps = {
   children: React.ReactNode;
   params: Promise<{ lang: string }>;
 };
 
-export default function LocaleLayout({ children, params }: LocaleLayoutProps) {
-  return (
-    <>
-      <Suspense>
-        <LocaleParamGate params={params} />
-      </Suspense>
-      {children}
-    </>
-  );
+export function generateStaticParams() {
+  return SUPPORTED_APP_LOCALES.map((lang) => ({ lang }));
 }
 
-async function LocaleParamGate({ params }: { params: Promise<{ lang: string }> }) {
+export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { lang } = await params;
-
-  if (!isSupportedAppLocale(lang)) {
-    notFound();
-  }
-
   const locale = normalizeAppLocale(lang);
+
   if (!locale) {
     notFound();
   }
 
-  return <LocaleDocumentLangScript locale={locale} />;
+  return (
+    <>
+      <LocaleDocumentLangScript locale={locale} />
+      <RootDocumentLocale locale={locale} />
+      <I18nProvider locale={locale}>{children}</I18nProvider>
+    </>
+  );
 }

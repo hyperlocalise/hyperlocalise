@@ -15,64 +15,72 @@ import path from "node:path";
 
 import { describe, expect, it } from "vite-plus/test";
 
+const REQUEST_DATA_RE =
+  /\bgetAppLocale\b|\bgetInitialAuth\b|\bwithAuth\b|\bheaders\s*\(|\bcookies\s*\(/;
+
+function readSource(relativePath: string): string {
+  return readFileSync(path.join(import.meta.dirname, relativePath), "utf8");
+}
+
 describe("root layout cacheComponents boundary", () => {
   it("does not read request data in the root layout module", () => {
-    const source = readFileSync(path.join(import.meta.dirname, "../../app/layout.tsx"), "utf8");
+    const source = readSource("../../app/layout.tsx");
 
     expect(source).toMatch(/export default function RootLayout/);
-    expect(source).not.toMatch(/\bgetAppLocale\b|\bgetInitialAuth\b|\bwithAuth\b/);
-    expect(source).not.toMatch(/\bheaders\s*\(|\bcookies\s*\(/);
+    expect(source).not.toMatch(REQUEST_DATA_RE);
+  });
+
+  it("does not read request data in root providers", () => {
+    expect(readSource("root-layout-providers.tsx")).not.toMatch(REQUEST_DATA_RE);
+    expect(readSource("root-html.tsx")).not.toMatch(REQUEST_DATA_RE);
   });
 
   it("uses a static document lang in the root html shell", () => {
-    const source = readFileSync(path.join(import.meta.dirname, "root-html.tsx"), "utf8");
+    const source = readSource("root-html.tsx");
 
     expect(source).toMatch(/\bDEFAULT_APP_LOCALE\b/);
     expect(source).toMatch(/<html lang=\{DEFAULT_APP_LOCALE\}/);
-    expect(source).not.toMatch(/\bgetAppLocale\b/);
   });
 
-  it("sets document lang from route params inside the locale layout Suspense boundary", () => {
-    const source = readFileSync(
-      path.join(import.meta.dirname, "../../app/[lang]/layout.tsx"),
-      "utf8",
-    );
+  it("derives the locale layout from static route params", () => {
+    const source = readSource("../../app/[lang]/layout.tsx");
 
+    expect(source).toMatch(/export function generateStaticParams/);
     expect(source).toMatch(/\bLocaleDocumentLangScript\b/);
-    expect(source).toMatch(/<Suspense/);
-    expect(source).not.toMatch(/\bheaders\s*\(|\bcookies\s*\(/);
+    expect(source).toMatch(/<I18nProvider locale=\{locale\}>/);
+    expect(source).not.toMatch(REQUEST_DATA_RE);
   });
 
-  it("resolves request locale inside the root Suspense boundary", () => {
-    const source = readFileSync(
-      path.join(import.meta.dirname, "root-layout-providers.tsx"),
-      "utf8",
-    );
+  it("keeps marketing layouts free of request data", () => {
+    const source = readSource("../../app/[lang]/(marketing)/layout.tsx");
 
-    expect(source).toMatch(/\bgetAppLocale\b/);
-    expect(source).toMatch(/<Suspense fallback={<RootLayoutProvidersFallback/);
+    expect(source).toMatch(/<AuthKitProvider>/);
+    expect(source).not.toMatch(/initialAuth=/);
+    expect(source).not.toMatch(REQUEST_DATA_RE);
+  });
+
+  it("seeds auth from the request in the authenticated layout", () => {
+    expect(readSource("../../app/[lang]/(authenticated)/layout.tsx")).toMatch(
+      /<RequestAuthProvider>/,
+    );
+  });
+
+  it("resolves request locale for routes outside /[lang]", () => {
+    expect(readSource("../../app/auth/layout.tsx")).toMatch(/<RequestLocaleProvider>/);
+    expect(readSource("../../app/crowdin-app/layout.tsx")).toMatch(/<RequestLocaleProvider>/);
+  });
+
+  it("keeps request provider Suspense fallbacks free of route children", () => {
+    for (const file of ["request-auth-provider.tsx", "request-locale-provider.tsx"]) {
+      expect(readSource(file)).toContain("<Suspense fallback={null}>");
+    }
   });
 
   it("defaults the color theme to light", () => {
-    const source = readFileSync(
-      path.join(import.meta.dirname, "root-layout-providers.tsx"),
-      "utf8",
-    );
+    const source = readSource("root-layout-providers.tsx");
 
     expect(source).toMatch(/defaultTheme="light"/);
     expect(source).not.toMatch(/defaultTheme="dark"/);
     expect(source).not.toMatch(/\bforcedTheme\b/);
-  });
-
-  it("keeps the root Suspense fallback free of route children", () => {
-    const source = readFileSync(
-      path.join(import.meta.dirname, "root-layout-providers.tsx"),
-      "utf8",
-    );
-    const fallbackFn = source.match(/function RootLayoutProvidersFallback\([\s\S]*?\n\}/)?.[0];
-
-    expect(source).toContain("<Suspense fallback={<RootLayoutProvidersFallback />}>");
-    expect(fallbackFn).toBeDefined();
-    expect(fallbackFn).not.toContain("{children}");
   });
 });

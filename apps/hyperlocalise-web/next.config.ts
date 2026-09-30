@@ -16,11 +16,13 @@ import { withDatadogTurbopack } from "dd-trace/next";
 import { withWorkflow } from "workflow/next";
 
 import { AGENT_MARKDOWN_TRACE_GLOB } from "./src/agents/_runtime/paths";
+import { HTML_LIMITED_BOTS } from "./src/lib/seo/html-limited-bots";
 
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  htmlLimitedBots: HTML_LIMITED_BOTS,
   reactCompiler: true,
   // Keep the tracer and the dependencies whose load hooks provide the spans we
   // rely on as native Node.js modules instead of folding them into route bundles.
