@@ -15,7 +15,6 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { IntegrationsPageContent } from "../../integrations/_components/integrations-page-content";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "integrations");
@@ -28,11 +27,7 @@ export default function IntegrationsSettingsPage({
   params: Promise<{ organizationSlug: string }>;
   searchParams: Promise<{ error?: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <IntegrationsSettingsPageLoader params={params} searchParams={searchParams} />
-    </OrgPageSuspense>
-  );
+  return <IntegrationsSettingsPageLoader params={params} searchParams={searchParams} />;
 }
 
 async function IntegrationsSettingsPageLoader({

@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { LocaleDocumentLangScript } from "@/components/root-layout/locale-document-lang-script";
@@ -21,18 +20,7 @@ type LocaleLayoutProps = {
   params: Promise<{ lang: string }>;
 };
 
-export default function LocaleLayout({ children, params }: LocaleLayoutProps) {
-  return (
-    <>
-      <Suspense>
-        <LocaleParamGate params={params} />
-      </Suspense>
-      {children}
-    </>
-  );
-}
-
-async function LocaleParamGate({ params }: { params: Promise<{ lang: string }> }) {
+export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { lang } = await params;
 
   if (!isSupportedAppLocale(lang)) {
@@ -44,5 +32,10 @@ async function LocaleParamGate({ params }: { params: Promise<{ lang: string }> }
     notFound();
   }
 
-  return <LocaleDocumentLangScript locale={locale} />;
+  return (
+    <>
+      <LocaleDocumentLangScript locale={locale} />
+      {children}
+    </>
+  );
 }

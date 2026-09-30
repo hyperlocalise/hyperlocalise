@@ -14,7 +14,6 @@ import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { TranslationMemoriesPageContent } from "./_components/translation-memories-page-content";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
@@ -26,11 +25,7 @@ export default function TranslationMemoriesPage({
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <TranslationMemoriesPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <TranslationMemoriesPageLoader params={params} />;
 }
 
 async function TranslationMemoriesPageLoader({

@@ -16,8 +16,6 @@ import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-pa
 import { getWorkspaceFeatureFlagEnabled, workspaceDomainsFlag } from "@/lib/flags/workspace-flags";
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
-
 export default function DomainDetailLayout({
   children,
   params,
@@ -25,11 +23,7 @@ export default function DomainDetailLayout({
   children: ReactNode;
   params: Promise<{ organizationSlug: string; linkedDomainId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <DomainDetailLayoutLoader params={params}>{children}</DomainDetailLayoutLoader>
-    </OrgPageSuspense>
-  );
+  return <DomainDetailLayoutLoader params={params}>{children}</DomainDetailLayoutLoader>;
 }
 
 async function DomainDetailLayoutLoader({

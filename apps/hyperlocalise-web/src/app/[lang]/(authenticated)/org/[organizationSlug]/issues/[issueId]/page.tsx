@@ -17,7 +17,6 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { IssueDetailPageContent } from "../../projects/[projectId]/issue-sheet/[issueId]/_components/issue-detail-page-content";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "queryDetail");
@@ -28,11 +27,7 @@ export default function OrganizationIssueDetailPage({
 }: {
   params: Promise<{ organizationSlug: string; issueId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <OrganizationIssueDetailPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <OrganizationIssueDetailPageLoader params={params} />;
 }
 
 async function OrganizationIssueDetailPageLoader({

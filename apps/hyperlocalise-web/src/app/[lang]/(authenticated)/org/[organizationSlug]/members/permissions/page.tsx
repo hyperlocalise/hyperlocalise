@@ -14,7 +14,6 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { RolePermissionsPageView } from "../../settings/_components/role-permissions-page-view";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "membersPermissions");
@@ -25,11 +24,7 @@ export default function RolePermissionsPage({
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <RolePermissionsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <RolePermissionsPageLoader params={params} />;
 }
 
 async function RolePermissionsPageLoader({

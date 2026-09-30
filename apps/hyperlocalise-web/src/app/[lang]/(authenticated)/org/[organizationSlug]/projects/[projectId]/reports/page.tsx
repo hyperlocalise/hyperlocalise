@@ -16,8 +16,6 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { ReportsWorkspace } from "@/components/reports/reports-workspace";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
-
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "projectReports");
 }
@@ -27,11 +25,7 @@ export default function ReportsPage({
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ReportsLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ReportsLoader params={params} />;
 }
 
 async function ReportsLoader({

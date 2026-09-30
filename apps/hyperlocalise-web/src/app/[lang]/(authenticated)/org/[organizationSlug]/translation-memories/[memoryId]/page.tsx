@@ -13,7 +13,6 @@
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 import { TranslationMemoryDetailPageContent } from "./_components/translation-memory-detail-page-content";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "translationMemoryDetail");
@@ -24,11 +23,7 @@ export default function TranslationMemoryDetailPage({
 }: {
   params: Promise<{ organizationSlug: string; memoryId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <TranslationMemoryDetailPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <TranslationMemoryDetailPageLoader params={params} />;
 }
 
 async function TranslationMemoryDetailPageLoader({

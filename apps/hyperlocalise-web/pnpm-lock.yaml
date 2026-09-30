@@ -640,9 +640,6 @@ importers:
         specifier: 4.5.4
         version: 4.5.4
     devDependencies:
-      '@next/playwright':
-        specifier: 16.3.4
-        version: 16.3.4
       '@storybook/addon-a11y':
         specifier: 10.6.0
         version: 10.6.0(storybook@10.6.0(@types/react@19.2.18)(prettier@3.9.9)(react@19.2.8)(vite-plus@0.3.0(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/browser-playwright@4.1.11)(esbuild@0.28.2)(happy-dom@20.14.5)(jiti@2.7.0)(msw@2.15.0(@types/node@24.13.3)(typescript@7.0.2))(tsx@4.23.15)(typescript@7.0.2)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(yaml@2.9.1)))
@@ -2063,14 +2060,6 @@ packages:
 
   '@next/env@16.3.6':
     resolution: {integrity: sha512-x9Vblze1EbtltQYnNH38xCPWU3TVfBd1eXqA3+w9+BTpedkkdNpAaltXlGQ/nsc1+E0mVTNrtcbX3GoO09zeLQ==}
-
-  '@next/playwright@16.3.4':
-    resolution: {integrity: sha512-3kY/r//YJutrG1JTV7bAe1RNraRmwDjI19lzPrNPmq0mdYvEVTASXPyAqhRW6auQiyWS8FG75TyMHXUkn78tVw==}
-    peerDependencies:
-      '@playwright/test': '>=1.0.0'
-    peerDependenciesMeta:
-      '@playwright/test':
-        optional: true
 
   '@next/swc-darwin-arm64@16.3.4':
     resolution: {integrity: sha512-iBr3I5LZNk5/bgl5//iTgD2tcym14MX0Xo7fD//u9dYAEgGzza1y9oywluPtf74YnOswVdH1908aK9xVz7zQTw==}
@@ -12745,8 +12734,6 @@ snapshots:
   '@next/env@16.3.4': {}
 
   '@next/env@16.3.6': {}
-
-  '@next/playwright@16.3.4': {}
 
   '@next/swc-darwin-arm64@16.3.4':
     optional: true

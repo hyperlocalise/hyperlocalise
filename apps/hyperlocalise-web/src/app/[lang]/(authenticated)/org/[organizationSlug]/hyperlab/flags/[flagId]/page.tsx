@@ -15,7 +15,6 @@ import { requireAppCapability } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { HyperlabFlagDetail } from "../../_components/hyperlab-flag-detail";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "hyperlabFlagDetail");
@@ -26,11 +25,7 @@ export default function HyperlabFlagDetailRoute({
 }: {
   params: Promise<{ organizationSlug: string; flagId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <HyperlabFlagDetailRouteLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <HyperlabFlagDetailRouteLoader params={params} />;
 }
 
 async function HyperlabFlagDetailRouteLoader({

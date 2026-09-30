@@ -13,7 +13,6 @@
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { JobsPageContent } from "../../../jobs/_components/jobs-page-content";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "projectJobs");
@@ -24,11 +23,7 @@ export default function ProjectJobsPage({
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectJobsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectJobsPageLoader params={params} />;
 }
 
 async function ProjectJobsPageLoader({
