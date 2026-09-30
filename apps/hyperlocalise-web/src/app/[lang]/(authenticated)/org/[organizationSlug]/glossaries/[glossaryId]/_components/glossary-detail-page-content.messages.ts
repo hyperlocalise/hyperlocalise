@@ -100,6 +100,11 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "DzmZ+KrwIu",
     description: "Link to the glossary history page",
   },
+  glossaryInterchangeHistory: {
+    defaultMessage: "Import/export history",
+    id: "V9MdNbgEBM",
+    description: "Link to glossary import and export history",
+  },
   exportAsTbx: {
     defaultMessage: "Export as TBX",
     id: "Jh6eXznG+8",

@@ -866,6 +866,14 @@ export function NativeGlossaryDetail({
             <HugeiconsIcon icon={WorkHistoryIcon} strokeWidth={1.8} data-icon="inline-start" />
             <FormattedMessage {...messages.glossaryHistory} />
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            render={<Link href={`${glossaryHref}/imports`} />}
+          >
+            <HugeiconsIcon icon={WorkHistoryIcon} strokeWidth={1.8} data-icon="inline-start" />
+            <FormattedMessage {...messages.glossaryInterchangeHistory} />
+          </Button>
           {canManage ? (
             <Button
               type="button"

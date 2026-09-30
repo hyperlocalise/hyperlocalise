@@ -44,7 +44,15 @@ export type GlossaryInterchangeRun = {
   counts: GoSvcRecord;
   errorCode?: string | null;
   errorMessage?: string | null;
+  createdAt: string;
+  processingStartedAt?: string | null;
   completedAt?: string | null;
+  backupReady?: boolean;
+};
+
+export type GlossaryInterchangeRunsResponse = {
+  runs: GlossaryInterchangeRun[];
+  nextCursor?: string | null;
 };
 
 export type GlossaryInterchangeReport = {
