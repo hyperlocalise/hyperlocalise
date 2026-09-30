@@ -95,6 +95,25 @@ export function resolveInboxSelection(input: {
   return null;
 }
 
+export function inboxSelectionsEqual(left: InboxSelection, right: InboxSelection): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (!left || !right) {
+    return false;
+  }
+  if (left.kind === "new" && right.kind === "new") {
+    return true;
+  }
+  if (left.kind === "conversation" && right.kind === "conversation") {
+    return left.id === right.id;
+  }
+  if (left.kind === "notification" && right.kind === "notification") {
+    return left.id === right.id;
+  }
+  return false;
+}
+
 /** Plain-text secondary line for notification rows (strips mention markdown etc.). */
 export function notificationSecondaryText(excerpt: string | undefined, fallback: string): string {
   const source = excerpt?.trim() || fallback;

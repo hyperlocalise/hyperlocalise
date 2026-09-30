@@ -11,6 +11,48 @@ import (
 	"testing"
 )
 
+func TestFlushOutputForTargetReplaceCatalogDropsDestinationOnlyKeys(t *testing.T) {
+	dir := t.TempDir()
+	targetPath := filepath.Join(dir, "en-AU.json")
+	sourcePath := filepath.Join(dir, "en-US.json")
+	if err := os.WriteFile(targetPath, []byte(`{"hello":"Old","stale":"Stale"}`), 0o644); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path: %s", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	_, err := svc.flushOutputForTarget(targetPath, stagedOutput{
+		entries:        map[string]string{"hello": "Colour"},
+		sourcePath:     sourcePath,
+		targetLocale:   "en-AU",
+		replaceCatalog: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("flush output target: %v", err)
+	}
+
+	var payload map[string]string
+	if err := json.Unmarshal(written, &payload); err != nil {
+		t.Fatalf("decode written payload: %v", err)
+	}
+	want := map[string]string{"hello": "Colour"}
+	if !reflect.DeepEqual(payload, want) {
+		t.Fatalf("written payload mismatch\nwant: %#v\n got: %#v", want, payload)
+	}
+}
+
 func TestFlushOutputForTargetPrunesAndMerges(t *testing.T) {
 	targetPath := filepath.Join(t.TempDir(), "fr.json")
 	sourcePath := filepath.Join(t.TempDir(), "en.json")

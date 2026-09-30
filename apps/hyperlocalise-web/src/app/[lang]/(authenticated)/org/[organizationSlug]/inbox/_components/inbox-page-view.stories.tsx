@@ -232,8 +232,7 @@ export const IssueNotificationLoading: Story = {
     jobs: [],
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByLabelText("Loading notification")).toBeInTheDocument();
-    await expect(canvas.getByText("Loading issue")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Loading issue")).toBeInTheDocument();
   },
 };
 

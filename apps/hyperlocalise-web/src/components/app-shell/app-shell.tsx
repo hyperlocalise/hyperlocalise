@@ -92,6 +92,7 @@ export async function AppShell({
       showBillingLink={hasCapability(auth.membership.role, "billing:read")}
       showMembersLink={hasCapability(auth.membership.role, "workspace:read")}
       canWriteProjects={hasCapability(auth.membership.role, "projects:write")}
+      canDeleteQueries={hasCapability(auth.membership.role, "write_back:translation")}
       user={{
         name: displayName,
         email: auth.sessionUser.email,

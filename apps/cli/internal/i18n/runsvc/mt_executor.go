@@ -70,6 +70,9 @@ func partitionMTTasks(tasks []Task) (llmTasks []Task, mtTasks []Task) {
 	llmTasks = make([]Task, 0, len(tasks))
 	mtTasks = make([]Task, 0)
 	for _, task := range tasks {
+		if task.TranslationType == config.TranslationTypeCopy {
+			continue
+		}
 		if task.TranslationType == config.TranslationTypeMT {
 			mtTasks = append(mtTasks, task)
 			continue

@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Box } from "@/components/ui/layout/box";
 import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 
@@ -170,6 +171,10 @@ export function ConversationPanel({
   }
 
   if (!conversation) {
+    if (messagesIsLoading) {
+      return <ConversationPanelSkeleton />;
+    }
+
     return (
       <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
         <Box
@@ -226,6 +231,39 @@ export function ConversationPanel({
             </InboxPanelErrorBoundary>
           </InboxAiComposer>
         ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ConversationPanelSkeleton() {
+  const intl = useIntl();
+
+  return (
+    <section
+      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
+      aria-busy="true"
+      aria-label={intl.formatMessage(conversationPanelMessages.loadingConversation)}
+    >
+      <header className="border-b border-border">
+        <Box paddingX="3u" paddingY="1.5u">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-5 w-52 bg-muted" />
+            <Skeleton className="h-4 w-36 bg-muted" />
+          </div>
+        </Box>
+      </header>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 py-5">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="flex gap-3">
+            <Skeleton className="size-8 shrink-0 rounded-full bg-muted" />
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <Skeleton className="h-4 w-24 bg-muted" />
+              <Skeleton className="h-3 w-full bg-muted" />
+              <Skeleton className="h-3 w-4/5 bg-muted" />
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );

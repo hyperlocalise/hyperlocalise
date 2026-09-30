@@ -219,6 +219,9 @@ func lockTaskHashWithContextFingerprint(task Task, sourceContextFingerprint stri
 	}
 	if includeTranslationType {
 		parts = append(parts, "translation_type="+strings.TrimSpace(task.TranslationType))
+		if origin := strings.TrimSpace(task.CopyFrom); origin != "" {
+			parts = append(parts, "copy_from="+origin)
+		}
 	}
 	parts = append(parts, "prompt_version_hash="+strings.TrimSpace(task.PromptVersion))
 	if includeLegacyDefaults {

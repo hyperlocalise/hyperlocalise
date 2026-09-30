@@ -37,4 +37,16 @@ describe("InboxPageStore", () => {
     expect(store.filters).toEqual(DEFAULT_INBOX_LIST_FILTERS);
     expect(store.composeDraft).toBe("Keep me");
   });
+
+  it("holds a pending selection until it is cleared", () => {
+    const store = new InboxPageStore("acme");
+    store.setPendingSelection({ kind: "conversation", id: "c-1" });
+    expect(store.pendingSelection).toEqual({ kind: "conversation", id: "c-1" });
+
+    store.setPendingSelection({ kind: "notification", id: "n-1" });
+    expect(store.pendingSelection).toEqual({ kind: "notification", id: "n-1" });
+
+    store.clearPendingSelection();
+    expect(store.pendingSelection).toBeUndefined();
+  });
 });

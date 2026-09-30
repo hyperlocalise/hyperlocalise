@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -256,9 +259,9 @@ func TestGlossaryInterchangeRunsList(t *testing.T) {
 	first := "11111111-1111-4111-8111-111111111111"
 	second := "22222222-2222-4222-8222-222222222222"
 	_, err := scope.Pool.Exec(t.Context(), `
-        insert into glossary_import_runs (id, organization_id, glossary_id, created_by_user_id, operation, format, mode, status, source_filename, counts)
-        values ($1, $2, $3, $4, 'import', 'csv', 'merge', 'completed', 'terms.csv', '{"created":2}'::jsonb),
-               ($5, $2, $3, $4, 'export', 'tbx', 'export', 'queued', null, '{}'::jsonb)`,
+        insert into glossary_import_runs (id, organization_id, glossary_id, created_by_user_id, operation, format, mode, status, source_filename, counts, result_object_key, backup_object_key)
+        values ($1, $2, $3, $4, 'import', 'csv', 'merge', 'completed', 'terms.csv', '{"created":2}'::jsonb, 'results/import.csv', 'backups/import.tbx'),
+               ($5, $2, $3, $4, 'export', 'tbx', 'export', 'queued', null, '{}'::jsonb, null, null)`,
 		first, scope.OrganizationID, id, scope.UserID, second)
 	require.NoError(t, err)
 
@@ -267,6 +270,64 @@ func TestGlossaryInterchangeRunsList(t *testing.T) {
 	require.Contains(t, rec.Body.String(), `"runs"`)
 	require.Contains(t, rec.Body.String(), first)
 	require.NotContains(t, rec.Body.String(), second)
+	require.Contains(t, rec.Body.String(), `"resultReady":true`)
+	require.Contains(t, rec.Body.String(), `"backupReady":true`)
+}
+
+func TestGlossaryInterchangeRunsListRejectsInvalidOperation(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?operation=sync"), "")
+	require.Equal(t, 400, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "invalid_glossary_interchange_operation")
+}
+
+func TestGlossaryInterchangeRunsListRejectsOversizedStatus(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	status := strings.Repeat("x", 65)
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?status="+url.QueryEscape(status)), "")
+	require.Equal(t, 400, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "invalid_glossary_interchange_status")
+}
+
+func TestGlossaryInterchangeRunsListPaginates(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	base := time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)
+	ids := []string{
+		"11111111-1111-4111-8111-111111111111",
+		"22222222-2222-4222-8222-222222222222",
+		"33333333-3333-4333-8333-333333333333",
+	}
+	for i, runID := range ids {
+		_, err := scope.Pool.Exec(t.Context(), `
+            insert into glossary_import_runs (
+                id, organization_id, glossary_id, created_by_user_id, operation, format, mode, status, counts, created_at
+            ) values ($1, $2, $3, $4, 'import', 'csv', 'merge', 'completed', '{}'::jsonb, $5)`,
+			runID, scope.OrganizationID, id, scope.UserID, base.Add(time.Duration(i)*time.Minute))
+		require.NoError(t, err)
+	}
+
+	firstPage := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?limit=2"), "")
+	require.Equal(t, 200, firstPage.Code, firstPage.Body.String())
+	require.Contains(t, firstPage.Body.String(), ids[2])
+	require.Contains(t, firstPage.Body.String(), ids[1])
+	require.NotContains(t, firstPage.Body.String(), ids[0])
+	require.Contains(t, firstPage.Body.String(), `"hasMore":true`)
+
+	var payload struct {
+		NextCursor *string `json:"nextCursor"`
+	}
+	require.NoError(t, json.Unmarshal(firstPage.Body.Bytes(), &payload))
+	require.NotNil(t, payload.NextCursor)
+	require.NotEmpty(t, *payload.NextCursor)
+
+	secondPage := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?limit=2&cursor="+url.QueryEscape(*payload.NextCursor)), "")
+	require.Equal(t, 200, secondPage.Code, secondPage.Body.String())
+	require.Contains(t, secondPage.Body.String(), ids[0])
+	require.NotContains(t, secondPage.Body.String(), ids[2])
+	require.Contains(t, secondPage.Body.String(), `"hasMore":false`)
 }
 
 func TestGlossaryInterchangeRunsListRejectsInvalidCursor(t *testing.T) {

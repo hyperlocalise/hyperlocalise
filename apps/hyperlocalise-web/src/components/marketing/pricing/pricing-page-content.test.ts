@@ -113,48 +113,63 @@ describe("pricing page content", () => {
     }
   });
 
-  it("describes included models and BYOK providers", () => {
-    const models = getPricingModelsSectionContent("en");
+  it("describes included models and BYOK providers in plain language", () => {
+    const section = getPricingModelsSectionContent("en");
+    const catalog = section.models;
 
-    expect(models.heading).toBe("Models and BYOK");
-    expect(models.includedRows.map((row) => row.id)).toEqual([
-      "agent-default",
-      "tts",
-      "transcribe",
-      "image",
-      "video",
-    ]);
-    const agentModels = models.includedRows[0]?.models ?? [];
-    expect(agentModels).toEqual(curatedOpenAiNativeModels.map((slug) => `openai/${slug}`));
-    expect(agentModels).toContain(`openai/${hyperlocaliseAgentModelId}`);
-    expect(models.includedRows.find((row) => row.id === "tts")?.models).toEqual([
-      hyperlocaliseTtsModelId,
-    ]);
-    expect(models.includedRows.find((row) => row.id === "transcribe")?.models).toEqual([
-      hyperlocaliseTranscribeModelId,
-    ]);
-    expect(models.includedRows.find((row) => row.id === "image")?.models).toEqual([
-      hyperlocaliseImageModelId,
-    ]);
-    expect(models.includedRows.find((row) => row.id === "video")?.models).toEqual([
-      hyperlocaliseVideoModelId,
-    ]);
-    expect(models.byokProviders.map((provider) => provider.id)).toEqual([
-      "openai",
-      "anthropic",
-      "gemini",
-    ]);
-    expect(models.byokProviders.find((provider) => provider.id === "openai")?.models).toEqual(
-      llmProviderContentEditoralog.openai.models,
+    expect(section.heading).toBe("Models your team can use");
+    expect(section.footnote).toContain("AI Engine");
+    expect(catalog[0]?.name).toBe("GPT-6 Luna");
+    expect(catalog[0]?.highlight).toBe("Workspace default");
+    expect(catalog[0]?.story).toContain("monthly AI credit");
+
+    const includedOpenAi = catalog
+      .filter((model) => model.providerId === "openai" && model.job === "write")
+      .map((model) => model.modelId);
+    expect(new Set(includedOpenAi)).toEqual(
+      new Set(curatedOpenAiNativeModels.map((slug) => `openai/${slug}`)),
     );
-    expect(models.byokProviders.find((provider) => provider.id === "anthropic")?.models).toEqual(
-      llmProviderContentEditoralog.anthropic.models,
+    expect(includedOpenAi).toContain(`openai/${hyperlocaliseAgentModelId}`);
+
+    expect(catalog.find((model) => model.modelId === hyperlocaliseTtsModelId)?.name).toBe(
+      "Fish Audio",
     );
-    expect(models.byokProviders.find((provider) => provider.id === "gemini")?.models).toEqual(
-      llmProviderContentEditoralog.gemini.models,
+    expect(catalog.find((model) => model.modelId === hyperlocaliseTranscribeModelId)?.job).toBe(
+      "listen",
     );
-    expect(models.byokFeatures.length).toBeGreaterThanOrEqual(4);
-    expect(models.byokFootnote).toContain("AI Engine");
+    expect(catalog.find((model) => model.modelId === hyperlocaliseImageModelId)?.access).toBe(
+      "included",
+    );
+    expect(catalog.find((model) => model.modelId === hyperlocaliseVideoModelId)?.access).toBe(
+      "included",
+    );
+    expect(
+      new Set(
+        catalog.filter((model) => model.providerId === "anthropic").map((model) => model.modelId),
+      ),
+    ).toEqual(new Set(llmProviderContentEditoralog.anthropic.models));
+    expect(
+      new Set(
+        catalog
+          .filter((model) => model.providerId === "gemini" && model.access === "byok")
+          .map((model) => model.modelId),
+      ),
+    ).toEqual(new Set(llmProviderContentEditoralog.gemini.models));
+    expect(catalog.find((model) => model.modelId === "claude-sonnet-5")?.billingLabel).toBe(
+      "Your account",
+    );
+    expect(catalog.filter((model) => model.recommended).map((model) => model.name)).toEqual([
+      "GPT-6 Luna",
+      "GPT-6 Luna Fast",
+      "GPT-6.1 Sol",
+      "Claude Sonnet 5",
+      "Claude Opus 5.5",
+      "Gemini 3.8 Flash",
+      "Fish Audio",
+      "Gemini transcription",
+      "GPT Image",
+      "Seedance",
+    ]);
   });
 
   it("lists eight AI feature capabilities", () => {

@@ -58,11 +58,26 @@ type SpellcheckConfig struct {
 	DictionaryDir string `json:"dictionary_dir,omitempty"`
 }
 
-// LocaleConfig configures source/target locales and fallback hierarchy.
+// LocaleConfig configures source/target locales, fallback hierarchy, and copies.
 type LocaleConfig struct {
 	Source    string              `json:"source" jsonschema:"required"`
 	Targets   []string            `json:"targets" jsonschema:"required"`
 	Fallbacks map[string][]string `json:"fallbacks,omitempty"`
+	// Copies maps a target locale to the locale whose catalog should be copied
+	// instead of translated. Example: en-AU copies en-GB.
+	Copies map[string]string `json:"copies,omitempty"`
+}
+
+// CopyOrigin returns the locale that locale copies, if configured.
+func (c LocaleConfig) CopyOrigin(locale string) (string, bool) {
+	if len(c.Copies) == 0 {
+		return "", false
+	}
+	origin, ok := c.Copies[locale]
+	if !ok || strings.TrimSpace(origin) == "" {
+		return "", false
+	}
+	return origin, true
 }
 
 // BucketConfig defines file mappings for a bucket.
@@ -416,6 +431,10 @@ func (c I18NConfig) validateLocales() (map[string]struct{}, error) {
 		return nil, err
 	}
 
+	if err := c.validateCopies(targetSet); err != nil {
+		return nil, err
+	}
+
 	return targetSet, nil
 }
 
@@ -456,6 +475,38 @@ func (c I18NConfig) validateFallbacks(targetSet map[string]struct{}) error {
 
 	if err := c.validateFallbackCycles(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (c I18NConfig) validateCopies(targetSet map[string]struct{}) error {
+	for locale, origin := range c.Locales.Copies {
+		if _, exists := targetSet[locale]; !exists {
+			return fmt.Errorf("locales.copies.%s: copy key must exist in locales.targets", locale)
+		}
+
+		if strings.TrimSpace(origin) == "" {
+			return fmt.Errorf("locales.copies.%s: origin must not be empty", locale)
+		}
+
+		if origin == locale {
+			return fmt.Errorf("locales.copies.%s: self-reference is not allowed", locale)
+		}
+
+		if origin != c.Locales.Source {
+			if _, exists := targetSet[origin]; !exists {
+				return fmt.Errorf("locales.copies.%s: origin %q must be in locales.targets or locales.source", locale, origin)
+			}
+		}
+
+		if _, originIsCopy := c.Locales.Copies[origin]; originIsCopy {
+			return fmt.Errorf("locales.copies.%s: origin %q is itself a copy locale; copy from that locale's origin instead", locale, origin)
+		}
+
+		if _, hasFallback := c.Locales.Fallbacks[locale]; hasFallback {
+			return fmt.Errorf("locales.copies.%s: must not also be set in locales.fallbacks", locale)
+		}
 	}
 
 	return nil

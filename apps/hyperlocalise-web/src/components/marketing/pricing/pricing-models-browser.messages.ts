@@ -1,3 +1,5 @@
+"use client";
+
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -10,15 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ReactNode } from "react";
+import { defineMessages } from "react-intl";
 
-import { InboxLayoutContent } from "./_components/inbox-layout-content";
-
-export default function InboxLayout({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <InboxLayoutContent />
-      {children}
-    </>
-  );
-}
+export const pricingModelsBrowserMessages = defineMessages({
+  resultCount: {
+    defaultMessage: "{count, plural, one {# model} other {# models}}",
+    id: "0LOTblqWHo",
+    description: "Count of models visible in the pricing model browser",
+  },
+});
