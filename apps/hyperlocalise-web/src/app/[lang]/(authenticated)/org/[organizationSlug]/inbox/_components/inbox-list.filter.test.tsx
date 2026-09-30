@@ -145,7 +145,7 @@ describe("InboxList filters", () => {
           isLoading={false}
           isLoadingMoreNotifications={false}
           notifications={issueNotificationsFixture}
-          onFiltersChange={store.setFilters}
+          onFiltersChange={(nextFilters) => store.setFilters(nextFilters)}
           onLoadMoreNotifications={vi.fn()}
           onMarkAllRead={vi.fn()}
           onSelectConversation={vi.fn()}

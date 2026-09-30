@@ -389,8 +389,8 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       notifications={notifications}
       notificationsIsError={notificationsQuery.isError}
       notificationsIsLoading={notificationsQuery.isLoading}
-      onDraftChange={store.setComposeDraft}
-      onFiltersChange={store.setFilters}
+      onDraftChange={(draft) => store.setComposeDraft(draft)}
+      onFiltersChange={(nextFilters) => store.setFilters(nextFilters)}
       onLoadMoreNotifications={onLoadMoreNotifications}
       onMarkAllRead={onMarkAllRead}
       onSelectConversation={onSelectConversation}
