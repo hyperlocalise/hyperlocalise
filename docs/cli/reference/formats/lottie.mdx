@@ -1,0 +1,100 @@
+---
+title: "Translate Lottie animation text with Hyperlocalise"
+sidebarTitle: "Lottie animations"
+description: "Translate editable text layers in Lottie JSON animations and dotLottie archives while keeping the rest of the animation unchanged."
+---
+
+Lottie (Bodymovin) animations can contain editable text layers. Hyperlocalise translates the text in those layers and leaves shapes, keyframes, fonts, and timing untouched.
+
+Supported extensions: `.json` and `.lottie`.
+
+- `.json`: the CLI detects Lottie by content. A `.json` file whose root has `v`, `fr`, `ip`, `op`, and `layers` is treated as a Lottie animation rather than a JSON localization file.
+- `.lottie`: dotLottie zip archives. Every animation under `animations/` (dotLottie 1.0) or `a/` (dotLottie 2.0) is translated.
+
+## Source file
+
+Save this example as `animations/en-US/promo.json`.
+
+```json
+{"v":"5.7.4","fr":30,"ip":0,"op":90,"w":512,"h":512,"layers":[
+  {"ty":5,"nm":"Headline","t":{"d":{"k":[{"s":{"s":48,"f":"Inter-Bold","t":"Save more\rtoday","j":0},"t":0}]}}}
+]}
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    animations:
+        files:
+            - from: animations/en-US/promo.json
+              to: animations/{{target}}/promo.json
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+For a dotLottie archive, map the `.lottie` file the same way:
+
+```yaml
+buckets:
+    animations:
+        files:
+            - from: animations/en-US/promo.lottie
+              to: animations/{{target}}/promo.lottie
+```
+
+## Behavior and limitations
+
+- Only text layers (`ty: 5`) are translated, including text layers inside precompositions (`assets[].layers`). Keys are JSON paths such as `layers[1].t.d.k[0].s.t`.
+
+- Each text keyframe is one translation unit. The layer name, precomposition ID, and keyframe frame are supplied as translation context.
+
+- Lottie encodes line breaks as `\r`. The translation keeps them as `\r`.
+
+- Writeback always starts from the source animation and replaces only the text string values. Formatting, number precision, and key order are preserved byte-for-byte.
+
+- Text converted to shapes cannot be translated. Only editable text layers are extracted.
+
+- Animations that embed glyphs (`chars`) only render characters that have glyph outlines. Use a font that covers the target script, or export without embedded glyphs.
+
+- In `.lottie` archives, keys are prefixed with the animation entry, such as `a/promo.json#layers[1].t.d.k[0].s.t`. The target archive is rebuilt from the source archive. Only animations with translated text are rewritten; the manifest, images, themes, and state machines are copied unchanged.
+
+- Theme or slot overrides inside dotLottie archives are not translated.
+
+- Translated text can overflow the original text box or layout. Review the rendered animation for each locale.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).
+
+## Related formats
+
+- [JSON localization](/cli/reference/formats/json)
