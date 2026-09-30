@@ -64,3 +64,18 @@ func mustSetProjectTeam(t *testing.T, scope *testenv.Scope, projectID, teamID st
 	_, err := scope.Pool.Exec(t.Context(), `update projects set team_id=$1 where id=$2`, teamID, projectID)
 	require.NoError(t, err)
 }
+
+func mustAssignableOrgMember(t *testing.T, scope *testenv.Scope, teamID string) string {
+	t.Helper()
+	userID := mustSecondUser(t, scope)
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into organization_memberships (organization_id, user_id, workos_membership_id, role)
+        values ($1, $2, $3, 'member')`,
+		scope.OrganizationID, userID, "om_"+userID[:8])
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into team_memberships (team_id, user_id, role) values ($1, $2, 'member')`,
+		teamID, userID)
+	require.NoError(t, err)
+	return userID
+}

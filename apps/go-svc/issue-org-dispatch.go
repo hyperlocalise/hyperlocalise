@@ -62,6 +62,7 @@ func (api *issueSheetAPI) registerOrgRoutes(mux *http.ServeMux, verifier Session
 		registerAuthenticated(mux, verifier, pattern, api.handleOrg(fn))
 	}
 	route("GET "+orgRoutePrefix+"/issues", api.listOrgIssuesHandler)
+	route("POST "+orgRoutePrefix+"/issues/bulk-actions", api.bulkIssueActionsHandler)
 	route("GET "+orgRoutePrefix+"/issue-sheet/search", api.searchOrgIssuesHandler)
 	route("GET "+orgRoutePrefix+"/issue-sheet/{issueId}", api.getOrgIssueHandler)
 }

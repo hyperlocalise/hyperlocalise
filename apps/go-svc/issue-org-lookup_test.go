@@ -10,7 +10,6 @@ import (
 
 func TestOrgIssueSearchNarrowColumns(t *testing.T) {
 	api, scope := issueSheetTestAPIRole(t, true, "admin")
-	scope.MustTeam(t, "default", "Default", "admin")
 	idTitleMatch, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "Zephyr login bug", "", "", nil)
 	idDescOnlyMatch, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 2, "Unrelated", "", "", nil)
 	_, err := scope.Pool.Exec(t.Context(), `update issue_sheet_issues set description=$1 where id=$2`,
@@ -69,7 +68,6 @@ func TestOrgIssueDetailUniform404(t *testing.T) {
 
 func TestOrgIssueDetailIncludesProjectMeta(t *testing.T) {
 	api, scope := issueSheetTestAPIRole(t, true, "admin")
-	scope.MustTeam(t, "default", "Default", "admin")
 	_, err := scope.Pool.Exec(t.Context(), `update projects set name=$1 where id=$2`, "Nova", scope.ProjectID)
 	require.NoError(t, err)
 	_, identifier := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "Detail check", "", "", nil)
@@ -90,7 +88,6 @@ func TestOrgIssueDetailIncludesProjectMeta(t *testing.T) {
 
 func TestOrgIssueDetailAcceptsLegacyUUID(t *testing.T) {
 	api, scope := issueSheetTestAPIRole(t, true, "admin")
-	scope.MustTeam(t, "default", "Default", "admin")
 	id, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "By UUID", "", "", nil)
 
 	req := issueSheetAuthedRequest(http.MethodGet, scope.OrgPath("/issue-sheet/"+id), "")

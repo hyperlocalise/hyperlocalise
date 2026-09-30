@@ -28,7 +28,6 @@ func TestOrgIssuesUnauthorized(t *testing.T) {
 
 func TestOrgIssuesViewMyWorkDefaults(t *testing.T) {
 	api, scope := issueSheetTestAPIRole(t, true, "admin")
-	scope.MustTeam(t, "default", "Default", "admin")
 	otherUser := mustSecondUser(t, scope)
 
 	idResolvedMine, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "Resolved mine", "resolved", "", &scope.UserID)
@@ -43,17 +42,17 @@ func TestOrgIssuesViewMyWorkDefaults(t *testing.T) {
 	require.NotContains(t, ids, idResolvedMine, "my_work's implicit status filter should exclude resolved issues")
 	require.NotContains(t, ids, idOpenOther, "my_work's implicit assignee filter should exclude other users' issues")
 
-	req2 := issueSheetAuthedRequest(http.MethodGet, scope.OrgPath("/issues?view=my_work&status=all"), "")
+	req2 := issueSheetAuthedRequest(http.MethodGet, scope.OrgPath("/issues?view=my_work&status=resolved"), "")
 	rec2 := issueSheetServeOrg(api, scope.WorkOSUserID, req2)
 	require.Equal(t, http.StatusOK, rec2.Code)
 	ids2 := decodeOrgIssueIDs(t, rec2.Body.Bytes())
 	require.Contains(t, ids2, idResolvedMine)
-	require.NotContains(t, ids2, idOpenOther, "explicit status override should not also override the assignee default")
+	require.NotContains(t, ids2, idOpenMine)
+	require.NotContains(t, ids2, idOpenOther, "the assignee default still applies even when status is overridden")
 }
 
 func TestOrgIssuesSummaryUnaffectedByFilters(t *testing.T) {
 	api, scope := issueSheetTestAPIRole(t, true, "admin")
-	scope.MustTeam(t, "default", "Default", "admin")
 	mustOrgIssueFull(t, scope, scope.ProjectID, 1, "Open one", "open", "", nil)
 	mustOrgIssueFull(t, scope, scope.ProjectID, 2, "Resolved one", "resolved", "", nil)
 
@@ -74,7 +73,6 @@ func TestOrgIssuesSummaryUnaffectedByFilters(t *testing.T) {
 
 func TestOrgIssuesIDTiebreak(t *testing.T) {
 	api, scope := issueSheetTestAPIRole(t, true, "admin")
-	scope.MustTeam(t, "default", "Default", "admin")
 	fixed := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	ids := make([]string, 0, 4)
 	for i := 1; i <= 4; i++ {
@@ -140,7 +138,6 @@ func TestOrgIssuesOrgWideRoleSeesAllTeams(t *testing.T) {
 
 func TestOrgIssuesSearchIncludesProjectName(t *testing.T) {
 	api, scope := issueSheetTestAPIRole(t, true, "admin")
-	scope.MustTeam(t, "default", "Default", "admin")
 	_, err := scope.Pool.Exec(t.Context(), `update projects set name=$1 where id=$2`, "Zephyr Marketing", scope.ProjectID)
 	require.NoError(t, err)
 	id, _ := mustOrgIssueFull(t, scope, scope.ProjectID, 1, "Unrelated title", "", "", nil)
