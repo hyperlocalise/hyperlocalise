@@ -26,9 +26,7 @@ export function InboxPageStoreProvider({
   children: ReactNode;
 }) {
   const store = useMemo(() => new InboxPageStore(organizationSlug), [organizationSlug]);
-  return (
-    <InboxPageStoreContext.Provider value={store}>{children}</InboxPageStoreContext.Provider>
-  );
+  return <InboxPageStoreContext.Provider value={store}>{children}</InboxPageStoreContext.Provider>;
 }
 
 export function useInboxPageStore() {
