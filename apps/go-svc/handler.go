@@ -100,6 +100,7 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.issueSheets != nil {
 		h.issueSheets.register(mux, verifier)
+		h.issueSheets.registerOrgRoutes(mux, verifier)
 	}
 	if h.teams != nil {
 		h.teams.register(mux, verifier)
