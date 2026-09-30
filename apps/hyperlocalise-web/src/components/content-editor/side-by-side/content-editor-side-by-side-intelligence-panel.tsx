@@ -155,6 +155,7 @@ export function ContentEditorSideBySideIntelligencePanel({
     <ContentEditorIntelligencePanel
       intelligence={intelligence}
       segmentId={segment.id}
+      segmentKey={segment.key}
       sourceText={segment.sourceText}
       targetText={segment.targetText}
       sourceLocale={segment.sourceLocale}
