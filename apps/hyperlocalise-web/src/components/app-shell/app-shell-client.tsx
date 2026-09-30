@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { CSSProperties, ReactNode } from "react";
+import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useIntl } from "react-intl";
 
@@ -37,6 +37,7 @@ import {
   type NavigationGroup,
 } from "./navigation-config";
 import { AppShellHeaderActions } from "./store/app-shell-header-actions";
+import { AppShellSessionProvider } from "./store/app-shell-session-context";
 import { AppShellStoreProvider } from "./store/app-shell-store-context";
 import { SidebarStoreBridge } from "./store/sidebar-store-bridge";
 import type { WorkspaceFeatureFlagState } from "@/lib/flags/workos-flag-entities";
@@ -66,6 +67,7 @@ type AppShellClientProps = {
   showBillingLink?: boolean;
   showMembersLink?: boolean;
   canWriteProjects?: boolean;
+  canDeleteQueries?: boolean;
   user: {
     name: string;
     email: string;
@@ -85,6 +87,7 @@ export function AppShellClient({
   showBillingLink = false,
   showMembersLink = false,
   canWriteProjects = false,
+  canDeleteQueries = false,
   user,
 }: AppShellClientProps) {
   const intl = useIntl();
@@ -100,12 +103,21 @@ export function AppShellClient({
     initialData: tmsUserConnectCta,
   });
   const resolvedTmsUserConnectCta = tmsUserConnectQuery.data ?? tmsUserConnectCta;
+  const currentUser = useMemo(
+    () => ({
+      avatarUrl: user.avatarUrl ?? null,
+      email: user.email,
+      name: user.name,
+    }),
+    [user.avatarUrl, user.email, user.name],
+  );
 
   return (
-    <AppShellStoreProvider
-      defaultNavigationGroups={navigationGroups}
-      workspaceFeatureFlags={workspaceFeatureFlags}
-    >
+    <AppShellSessionProvider canDeleteQueries={canDeleteQueries} currentUser={currentUser}>
+      <AppShellStoreProvider
+        defaultNavigationGroups={navigationGroups}
+        workspaceFeatureFlags={workspaceFeatureFlags}
+      >
       <TmsUserOAuthErrorToast />
       <SidebarProvider
         defaultOpen
@@ -204,17 +216,10 @@ export function AppShellClient({
           showGuideline={knowledgeEnabled && isContentEditorWorkspaceRoute}
           showStyleGuide={!knowledgeEnabled && isContentEditorWorkspaceRoute}
           canWriteProjects={canWriteProjects}
-          currentUser={
-            organizationSlug
-              ? {
-                  avatarUrl: user.avatarUrl ?? null,
-                  email: user.email,
-                  name: user.name,
-                }
-              : undefined
-          }
+          currentUser={organizationSlug ? currentUser : undefined}
         />
       </SidebarProvider>
-    </AppShellStoreProvider>
+      </AppShellStoreProvider>
+    </AppShellSessionProvider>
   );
 }

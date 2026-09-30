@@ -20,6 +20,11 @@ export const conversationPanelMessages = defineMessages({
     id: "iUA2MassCX",
     description: "Empty state when no inbox conversation is selected",
   },
+  loadingConversation: {
+    defaultMessage: "Loading conversation",
+    id: "q8nK2pLw0R",
+    description: "Aria label while the selected inbox conversation is loading",
+  },
   newRequestTitle: {
     defaultMessage: "New Request",
     id: "XJxHCpyMN1",

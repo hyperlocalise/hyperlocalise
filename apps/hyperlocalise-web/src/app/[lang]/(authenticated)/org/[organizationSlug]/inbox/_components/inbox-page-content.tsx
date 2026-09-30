@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo } from "react";
+import { startTransition, useCallback, useEffect, useMemo } from "react";
 import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 import { useIntl } from "react-intl";
@@ -27,7 +27,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { InboxPageStoreProvider, useInboxPageStore } from "../store/inbox-page-store-context";
 import { conversationPanelMessages } from "./conversation-panel.messages";
 import { createInboxApi, type ChatComposerSendOptions, type InboxApi } from "./inbox-api";
-import { resolveInboxSelection, type InboxSelection } from "./inbox-list";
+import { inboxSelectionsEqual, resolveInboxSelection, type InboxSelection } from "./inbox-list";
 import {
   createInboxNotificationsApi,
   notificationsQueryKey,
@@ -143,7 +143,7 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   );
   const notificationsTotal = notificationsQuery.data?.pages[0]?.total ?? notifications.length;
 
-  const selection: InboxSelection = useMemo(
+  const urlSelection: InboxSelection = useMemo(
     () =>
       resolveInboxSelection({
         composeNew,
@@ -154,6 +154,24 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       }),
     [composeNew, conversations, notifications, urlConversationId, urlNotificationId],
   );
+  const selection = store.pendingSelection ?? urlSelection;
+
+  useEffect(() => {
+    if (
+      store.pendingSelection !== undefined &&
+      inboxSelectionsEqual(store.pendingSelection, urlSelection)
+    ) {
+      store.clearPendingSelection();
+    }
+  }, [store, store.pendingSelection, urlSelection]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      store.clearPendingSelection();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [store]);
 
   const selectedConversationId = selection?.kind === "conversation" ? selection.id : "";
   const selectedNotificationId = selection?.kind === "notification" ? selection.id : "";
@@ -270,7 +288,10 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
           await queryClient.invalidateQueries({
             queryKey: conversationsQueryKey(organizationSlug),
           });
-          router.push(`/org/${organizationSlug}/inbox/${result.conversation.id}`);
+          store.setPendingSelection({ kind: "conversation", id: result.conversation.id });
+          startTransition(() => {
+            router.push(`/org/${organizationSlug}/inbox/${result.conversation.id}`);
+          });
         } catch (error) {
           toast.error(intl.formatMessage(conversationPanelMessages.createFailed));
           throw error;
@@ -294,25 +315,34 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
 
   const onSelectConversation = useCallback(
     (conversationId: string) => {
-      router.push(`/org/${organizationSlug}/inbox/${conversationId}`);
+      store.setPendingSelection({ kind: "conversation", id: conversationId });
+      startTransition(() => {
+        router.push(`/org/${organizationSlug}/inbox/${conversationId}`);
+      });
     },
-    [router, organizationSlug],
+    [router, organizationSlug, store],
   );
 
   const onSelectNotification = useCallback(
     (notificationId: string) => {
-      router.push(`/org/${organizationSlug}/inbox/notifications/${notificationId}`);
+      store.setPendingSelection({ kind: "notification", id: notificationId });
+      startTransition(() => {
+        router.push(`/org/${organizationSlug}/inbox/notifications/${notificationId}`);
+      });
       const notification = notifications.find((item) => item.id === notificationId);
       if (notification && !notification.readAt) {
         markReadMutation.mutate(notificationId);
       }
     },
-    [router, organizationSlug, notifications, markReadMutation],
+    [router, organizationSlug, notifications, markReadMutation, store],
   );
 
   const onDeletedQuery = useCallback(() => {
-    router.push(`/org/${organizationSlug}/inbox`);
-  }, [router, organizationSlug]);
+    store.clearPendingSelection();
+    startTransition(() => {
+      router.push(`/org/${organizationSlug}/inbox`);
+    });
+  }, [router, organizationSlug, store]);
 
   const onMarkAllRead = useCallback(() => {
     markAllReadMutation.mutate();

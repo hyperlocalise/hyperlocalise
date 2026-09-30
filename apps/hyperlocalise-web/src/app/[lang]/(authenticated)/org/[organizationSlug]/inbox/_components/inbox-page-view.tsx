@@ -12,9 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { FormattedMessage } from "react-intl";
+import { useIntl } from "react-intl";
 
-import { Box } from "@/components/ui/layout/box";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { ConversationPanel } from "./conversation-panel";
 import { inboxChatSplitPaneClassName } from "./inbox-chat-split-pane";
@@ -108,6 +108,7 @@ export function InboxPageView({
   streamedAssistant: StreamedAssistantMessage | null;
   unreadNotificationCount: number;
 }) {
+  const intl = useIntl();
   const listIsLoading = conversationsIsLoading || notificationsIsLoading;
   const listIsError = conversationsIsError || notificationsIsError;
   const selectionKey =
@@ -165,19 +166,13 @@ export function InboxPageView({
                   onDeleted={onDeletedQuery}
                 />
               ) : selectedNotificationIsLoading ? (
-                <Box
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  padding="3u"
-                  height="full"
+                <section
+                  className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
                   aria-busy="true"
-                  aria-label="Loading notification"
+                  aria-label={intl.formatMessage(inboxNotificationsMessages.issuePanelLoading)}
                 >
-                  <span className="text-sm text-muted-foreground">
-                    <FormattedMessage {...inboxNotificationsMessages.issuePanelLoading} />
-                  </span>
-                </Box>
+                  <InboxIssuePanelSkeleton />
+                </section>
               ) : null
             ) : (
               <ConversationPanel
@@ -201,5 +196,23 @@ export function InboxPageView({
         </InboxPanelErrorBoundary>
       </div>
     </main>
+  );
+}
+
+function InboxIssuePanelSkeleton() {
+  return (
+    <div className="grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden md:grid-cols-[minmax(0,1fr)_22rem] md:grid-rows-none">
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-5">
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+      <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="ml-auto h-7 w-24" />
+        <Skeleton className="ml-auto h-7 w-20" />
+        <Skeleton className="ml-auto h-7 w-28" />
+      </aside>
+    </div>
   );
 }
