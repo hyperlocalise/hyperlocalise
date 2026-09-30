@@ -23,6 +23,13 @@ type interchangeConcept struct {
 	Translatable                                                             bool
 	CreatedAt, UpdatedAt                                                     time.Time
 	Terms                                                                    []interchangeTerm
+	// Present records which concept fields were supplied by the import
+	// document so merge/update can skip omitted columns (native importer).
+	Present conceptFieldPresence
+}
+
+type conceptFieldPresence struct {
+	PrimaryTerm, Subject, Definition, Translatable, Note, URL, Figure bool
 }
 type interchangeTerm struct {
 	ID, Locale, Term, Description, Note, PartOfSpeech, Gender, TermType, URL, Lemma, Status, Provenance, ReviewStatus, CreatedByUserID string
@@ -385,13 +392,18 @@ func saveConcept(ctx context.Context, tx pgx.Tx, glossaryID string, c interchang
 		return counts, nil
 	}
 	if conceptID == "" {
-		if err := tx.QueryRow(ctx, `insert into glossary_concepts (glossary_id,primary_term,subject,definition,translatable,note,url,figure) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`, glossaryID, c.PrimaryTerm, c.Subject, c.Definition, c.Translatable, c.Note, c.URL, c.Figure).Scan(&conceptID); err != nil {
+		translatable := true
+		if c.Present.Translatable {
+			translatable = c.Translatable
+		}
+		if err := tx.QueryRow(ctx, `insert into glossary_concepts (glossary_id,primary_term,subject,definition,translatable,note,url,figure) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`, glossaryID, c.PrimaryTerm, c.Subject, c.Definition, translatable, c.Note, c.URL, c.Figure).Scan(&conceptID); err != nil {
 			return counts, err
 		}
 		counts.ConceptsCreated = 1
 	} else {
-		// Match legacy sync import: merge also applies concept metadata updates.
-		if _, err := tx.Exec(ctx, `update glossary_concepts set primary_term=$2,subject=$3,definition=$4,translatable=$5,note=$6,url=$7,figure=$8,updated_at=now() where id=$1`, conceptID, c.PrimaryTerm, c.Subject, c.Definition, c.Translatable, c.Note, c.URL, c.Figure); err != nil {
+		// Match native merge: only write fields the import actually supplied.
+		query, args := conceptMergeUpdate(conceptID, c)
+		if _, err := tx.Exec(ctx, query, args...); err != nil {
 			return counts, err
 		}
 		if mode == "merge" {
@@ -449,6 +461,38 @@ func saveConcept(ctx context.Context, tx pgx.Tx, glossaryID string, c interchang
 		}
 	}
 	return counts, nil
+}
+
+func conceptMergeUpdate(conceptID string, c interchangeConcept) (string, []any) {
+	sets := make([]string, 0, 8)
+	args := []any{conceptID}
+	add := func(column string, value any) {
+		args = append(args, value)
+		sets = append(sets, fmt.Sprintf("%s=$%d", column, len(args)))
+	}
+	if c.Present.PrimaryTerm {
+		add("primary_term", c.PrimaryTerm)
+	}
+	if c.Present.Subject {
+		add("subject", c.Subject)
+	}
+	if c.Present.Definition {
+		add("definition", c.Definition)
+	}
+	if c.Present.Translatable {
+		add("translatable", c.Translatable)
+	}
+	if c.Present.Note {
+		add("note", c.Note)
+	}
+	if c.Present.URL {
+		add("url", c.URL)
+	}
+	if c.Present.Figure {
+		add("figure", c.Figure)
+	}
+	sets = append(sets, "updated_at=now()")
+	return fmt.Sprintf("update glossary_concepts set %s where id=$1", strings.Join(sets, ",")), args
 }
 
 func encodeDocument(format string, concepts []interchangeConcept) ([]byte, string, string, error) {
@@ -594,11 +638,15 @@ func decodeXLSX(data []byte) ([]interchangeConcept, []string, error) {
 			continue
 		}
 		byID[id] = len(concepts)
-		concepts = append(concepts, interchangeConcept{
-			ID: id, PrimaryTerm: rowValue(row, conceptHeader, "primaryterm"), Subject: rowValue(row, conceptHeader, "subject"),
-			Definition: rowValue(row, conceptHeader, "definition"), Translatable: strings.ToLower(rowValue(row, conceptHeader, "translatable")) != "false",
-			Note: rowValue(row, conceptHeader, "note"), URL: rowValue(row, conceptHeader, "url"), Figure: rowValue(row, conceptHeader, "figure"),
-		})
+		concept := interchangeConcept{ID: id}
+		applyPresentConceptString(&concept.PrimaryTerm, &concept.Present.PrimaryTerm, rowValue(row, conceptHeader, "primaryterm"), conceptHeader, "primaryterm")
+		applyPresentConceptString(&concept.Subject, &concept.Present.Subject, rowValue(row, conceptHeader, "subject"), conceptHeader, "subject")
+		applyPresentConceptString(&concept.Definition, &concept.Present.Definition, rowValue(row, conceptHeader, "definition"), conceptHeader, "definition")
+		applyPresentConceptString(&concept.Note, &concept.Present.Note, rowValue(row, conceptHeader, "note"), conceptHeader, "note")
+		applyPresentConceptNullable(&concept.URL, &concept.Present.URL, rowValue(row, conceptHeader, "url"), conceptHeader, "url")
+		applyPresentConceptNullable(&concept.Figure, &concept.Present.Figure, rowValue(row, conceptHeader, "figure"), conceptHeader, "figure")
+		applyPresentConceptBool(&concept.Translatable, &concept.Present.Translatable, rowValue(row, conceptHeader, "translatable"), conceptHeader, "translatable", true)
+		concepts = append(concepts, concept)
 	}
 	termHeader := rowHeader(termRows)
 	for rowIndex, row := range termRows[1:] {
@@ -693,16 +741,20 @@ func decodeCSV(data []byte) ([]interchangeConcept, []string, error) {
 		}
 		c := by[id]
 		if c == nil {
-			c = &interchangeConcept{ID: id, PrimaryTerm: get(r, "primaryterm"), Subject: get(r, "subject"), Definition: get(r, "definition"), Note: get(r, "conceptnote")}
+			c = &interchangeConcept{ID: id}
+			applyPresentConceptString(&c.PrimaryTerm, &c.Present.PrimaryTerm, get(r, "primaryterm"), header, "primaryterm")
+			applyPresentConceptString(&c.Subject, &c.Present.Subject, get(r, "subject"), header, "subject")
+			applyPresentConceptString(&c.Definition, &c.Present.Definition, get(r, "definition"), header, "definition")
+			applyPresentConceptString(&c.Note, &c.Present.Note, get(r, "conceptnote"), header, "conceptnote")
 			if c.PrimaryTerm == "" {
 				c.PrimaryTerm = term
 			}
 			by[id] = c
 			order = append(order, id)
 		}
-		c.Translatable = strings.ToLower(get(r, "translatable")) != "false"
-		c.URL = get(r, "concepturl")
-		c.Figure = get(r, "figure")
+		applyPresentConceptBool(&c.Translatable, &c.Present.Translatable, get(r, "translatable"), header, "translatable", true)
+		applyPresentConceptNullable(&c.URL, &c.Present.URL, get(r, "concepturl"), header, "concepturl")
+		applyPresentConceptNullable(&c.Figure, &c.Present.Figure, get(r, "figure"), header, "figure")
 		c.Terms = append(c.Terms, interchangeTerm{
 			ID: get(r, "termid"), Locale: locale, Term: term, Description: get(r, "description"), Note: get(r, "termnote"),
 			PartOfSpeech: get(r, "partofspeech"), Gender: get(r, "gender"), TermType: get(r, "termtype"), URL: get(r, "termurl"),
@@ -728,6 +780,43 @@ func rowIsBlank(row []string) bool {
 
 func glossaryTermBelongsToOtherConcept(existingConceptID, targetConceptID string) bool {
 	return existingConceptID != targetConceptID
+}
+
+func headerHas(header map[string]int, keys ...string) bool {
+	for _, key := range keys {
+		if _, ok := header[key]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func applyPresentConceptString(dst *string, present *bool, value string, header map[string]int, keys ...string) {
+	if !headerHas(header, keys...) || value == "" {
+		return
+	}
+	*dst = value
+	*present = true
+}
+
+func applyPresentConceptNullable(dst *string, present *bool, value string, header map[string]int, keys ...string) {
+	if !headerHas(header, keys...) {
+		return
+	}
+	*dst = value
+	*present = true
+}
+
+func applyPresentConceptBool(dst *bool, present *bool, value string, header map[string]int, key string, trueUnlessFalse bool) {
+	if !headerHas(header, key) || value == "" {
+		return
+	}
+	if trueUnlessFalse {
+		*dst = strings.ToLower(value) != "false"
+	} else {
+		*dst = strings.EqualFold(value, "true")
+	}
+	*present = true
 }
 
 func decodeTBX(data []byte) ([]interchangeConcept, []string, error) {
@@ -762,18 +851,25 @@ func decodeTBX(data []byte) ([]interchangeConcept, []string, error) {
 			switch d.Type {
 			case "primaryTerm":
 				c.PrimaryTerm = d.Text
+				c.Present.PrimaryTerm = true
 			case "subject":
 				c.Subject = d.Text
+				c.Present.Subject = true
 			case "definition":
 				c.Definition = d.Text
+				c.Present.Definition = true
 			case "note":
 				c.Note = d.Text
+				c.Present.Note = true
 			case "translatable":
 				c.Translatable = strings.EqualFold(d.Text, "true")
+				c.Present.Translatable = true
 			case "url":
 				c.URL = d.Text
+				c.Present.URL = true
 			case "figure":
 				c.Figure = d.Text
+				c.Present.Figure = true
 			case "createdByUserId":
 				c.CreatedByUserID = d.Text
 			}
