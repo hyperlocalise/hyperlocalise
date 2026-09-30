@@ -12,8 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -183,21 +181,11 @@ export function TmImportAttemptDetail({
             />
           </AlertDescription>
         </Alert>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            render={
-              <OrgNavLink href={`/org/${organizationSlug}/translation-memories/${memoryId}`} />
-            }
-          >
-            <FormattedMessage {...messages.back} />
+        {!unavailable ? (
+          <Button type="button" onClick={() => attemptQuery.refetch()}>
+            <FormattedMessage {...messages.retry} />
           </Button>
-          {!unavailable ? (
-            <Button type="button" onClick={() => attemptQuery.refetch()}>
-              <FormattedMessage {...messages.retry} />
-            </Button>
-          ) : null}
-        </div>
+        ) : null}
       </main>
     );
   }
@@ -223,14 +211,6 @@ export function TmImportAttemptDetail({
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <OrgNavLink
-        href={`/org/${organizationSlug}/translation-memories/${memoryId}`}
-        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
-        <FormattedMessage {...messages.back} />
-      </OrgNavLink>
-
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">

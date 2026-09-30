@@ -30,7 +30,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
-import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import {
+  parseLiveProviderGlossaryId,
+  parseProviderProjectId,
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -43,8 +46,10 @@ import {
   buildOrganizationPath,
   buildProjectPath,
   parseDomainRoute,
+  parseGlossaryRoute,
   parseProjectRoute,
   parseTeamRoute,
+  parseTranslationMemoryRoute,
 } from "./navigation-config";
 import { ProjectBreadcrumbSelector } from "./project-breadcrumb-selector";
 import { useAppShellStore } from "./store/app-shell-store-context";
@@ -256,10 +261,14 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
   const projectRoute = parseProjectRoute(pathname);
   const teamRoute = parseTeamRoute(pathname);
   const domainRoute = parseDomainRoute(pathname);
+  const glossaryRoute = parseGlossaryRoute(pathname);
+  const translationMemoryRoute = parseTranslationMemoryRoute(pathname);
   const resolvedOrganizationSlug =
     projectRoute?.organizationSlug ??
     teamRoute?.organizationSlug ??
     domainRoute?.organizationSlug ??
+    glossaryRoute?.organizationSlug ??
+    translationMemoryRoute?.organizationSlug ??
     organizationSlug;
 
   const projectQuery = useQuery({
@@ -309,6 +318,49 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
     },
   });
 
+  const glossaryQuery = useQuery({
+    queryKey: ["glossary", resolvedOrganizationSlug, glossaryRoute?.glossaryId],
+    enabled: Boolean(glossaryRoute?.glossaryId),
+    queryFn: async () => {
+      const glossaryId = glossaryRoute!.glossaryId;
+      if (parseLiveProviderGlossaryId(glossaryId)) {
+        const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+          ":glossaryId"
+        ].$get({
+          param: { organizationSlug: resolvedOrganizationSlug, glossaryId },
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to load glossary (${response.status})`);
+        }
+        const body = (await response.json()) as { glossary: { name: string } };
+        return body.glossary;
+      }
+
+      const body = await goSvcClient.glossary.get(resolvedOrganizationSlug, glossaryId);
+      return body.glossary;
+    },
+  });
+
+  const translationMemoryQuery = useQuery({
+    queryKey: ["translation-memory", resolvedOrganizationSlug, translationMemoryRoute?.memoryId],
+    enabled: Boolean(translationMemoryRoute?.memoryId),
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
+        ":memoryId"
+      ].$get({
+        param: {
+          organizationSlug: resolvedOrganizationSlug,
+          memoryId: translationMemoryRoute!.memoryId,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to load translation memory (${response.status})`);
+      }
+      const body = (await response.json()) as { memory: { name: string } };
+      return body.memory;
+    },
+  });
+
   const breadcrumbs = store.breadcrumb.applyOverrides(
     getAppShellBreadcrumbs(pathname, intl, {
       projectName: projectQuery.data?.name,
@@ -317,6 +369,10 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
       teamNameLoading: teamQuery.isPending,
       domainName: domainQuery.data?.domainKey,
       domainNameLoading: domainQuery.isLoading,
+      glossaryName: glossaryQuery.data?.name,
+      glossaryNameLoading: glossaryQuery.isPending,
+      translationMemoryName: translationMemoryQuery.data?.name,
+      translationMemoryNameLoading: translationMemoryQuery.isPending,
     }),
   );
 

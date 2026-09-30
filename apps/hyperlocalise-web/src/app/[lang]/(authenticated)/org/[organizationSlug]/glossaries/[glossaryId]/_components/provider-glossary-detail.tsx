@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft01Icon, BookOpenTextIcon } from "@hugeicons/core-free-icons";
+import { BookOpenTextIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import type { GlossaryConceptRecord } from "@/api/routes/glossary/glossary.schema";
@@ -29,7 +29,6 @@ import { useGlossary } from "./use-glossary";
 function ProviderGlossaryDetailSkeleton() {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6" aria-busy="true">
-      <Skeleton className="h-4 w-24 rounded-full" />
       <Skeleton className="h-12 w-96 max-w-full" />
       <Skeleton className="h-4 w-full max-w-2xl" />
       <Skeleton className="h-48 w-full rounded-lg" />
@@ -86,13 +85,6 @@ export function ProviderGlossaryDetail({
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <Link
-        href={`/org/${organizationSlug}/glossaries`}
-        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
-        <FormattedMessage {...messages.backToList} />
-      </Link>
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <HugeiconsIcon icon={BookOpenTextIcon} className="size-5 text-muted-foreground" />
