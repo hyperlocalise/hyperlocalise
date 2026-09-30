@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -51,7 +51,17 @@ vi.mock("@/lib/billing/use-ai-features-access", () => ({
 }));
 
 vi.mock("./reply-composer", () => ({
-  ReplyComposer: () => null,
+  ReplyComposer: ({
+    disabled,
+    onSend,
+  }: {
+    disabled: boolean;
+    onSend: (text: string, files: File[]) => void | Promise<void>;
+  }) => (
+    <button disabled={disabled} onClick={() => void onSend("Follow-up reply", [])} type="button">
+      Send reply
+    </button>
+  ),
 }));
 
 function createInboxApi(listMessages: InboxApi["listMessages"]): InboxApi {
@@ -136,5 +146,62 @@ describe("InboxPageContent item switching", () => {
     ).toHaveLength(1);
 
     resolveSecondMessages?.([]);
+  });
+
+  it("sends a reply after leaving /new before the route updates", async () => {
+    const user = userEvent.setup();
+    navigation.conversationId = undefined;
+    navigation.pathname = "/org/acme/inbox/new";
+
+    const inboxApi = createInboxApi(async () => messagesFixture);
+    inboxApi.createConversation = vi.fn();
+    inboxApi.sendMessage = vi.fn(async () => undefined);
+
+    renderInbox(inboxApi);
+
+    await user.click(await screen.findByRole("button", { name: /Translate homepage hero copy/ }));
+    expect(navigation.push).toHaveBeenCalledWith(`/org/acme/inbox/${firstConversation.id}`);
+    expect(navigation.pathname).toBe("/org/acme/inbox/new");
+
+    await user.click(await screen.findByRole("button", { name: "Send reply" }));
+
+    await waitFor(() => {
+      expect(inboxApi.sendMessage).toHaveBeenCalledWith(
+        "acme",
+        firstConversation.id,
+        expect.objectContaining({ text: "Follow-up reply" }),
+      );
+    });
+    expect(inboxApi.createConversation).not.toHaveBeenCalled();
+  });
+
+  it("replies to a just-created conversation before the route updates", async () => {
+    const user = userEvent.setup();
+    navigation.conversationId = undefined;
+    navigation.pathname = "/org/acme/inbox/new";
+
+    const inboxApi = createInboxApi(async () => messagesFixture);
+    inboxApi.createConversation = vi.fn(async () => ({
+      conversation: { id: firstConversation.id },
+    }));
+    inboxApi.sendMessage = vi.fn(async () => undefined);
+
+    renderInbox(inboxApi);
+
+    await user.click(await screen.findByRole("button", { name: "Send reply" }));
+    await waitFor(() => {
+      expect(inboxApi.createConversation).toHaveBeenCalledTimes(1);
+    });
+    expect(navigation.pathname).toBe("/org/acme/inbox/new");
+
+    await user.click(await screen.findByRole("button", { name: "Send reply" }));
+    await waitFor(() => {
+      expect(inboxApi.sendMessage).toHaveBeenCalledWith(
+        "acme",
+        firstConversation.id,
+        expect.objectContaining({ text: "Follow-up reply" }),
+      );
+    });
+    expect(inboxApi.createConversation).toHaveBeenCalledTimes(1);
   });
 });

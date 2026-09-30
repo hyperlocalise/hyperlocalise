@@ -281,7 +281,7 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   const createConversationAsync = createConversationMutation.mutateAsync;
   const onSendMessage = useCallback(
     async (text: string, files: File[], options?: ChatComposerSendOptions) => {
-      if (composeNew) {
+      if (selection?.kind === "new") {
         try {
           const result = await createConversationAsync({ text, files, ...options });
           store.resetComposeDraft();
@@ -302,13 +302,13 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       await mutateAsync({ text, files, ...options });
     },
     [
-      composeNew,
       createConversationAsync,
       intl,
       mutateAsync,
       organizationSlug,
       queryClient,
       router,
+      selection,
       store,
     ],
   );
