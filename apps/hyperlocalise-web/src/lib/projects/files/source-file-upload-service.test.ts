@@ -105,9 +105,13 @@ describe("uploadSourceFile", () => {
       value: { destination: "native", file: { id: "file_1", sourceFileVersionId: "version_1" } },
     });
     expect(deferAfterResponse).toHaveBeenCalledTimes(1);
+    expect(enqueueSourceFileIngestAfterUploadMock).not.toHaveBeenCalled();
+
+    const deferredTask = deferAfterResponse.mock.calls[0]?.[0] as () => Promise<unknown>;
+    const deferredPromise = deferredTask();
     expect(enqueueSourceFileIngestAfterUploadMock).toHaveBeenCalledTimes(1);
 
     resolveEnqueue();
-    await deferAfterResponse.mock.calls[0]?.[0];
+    await deferredPromise;
   });
 });

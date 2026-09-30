@@ -81,7 +81,7 @@ export type OrgScopedRouteOptions = {
 };
 
 export type PublicApiRouteOptions = {
-  deferAfterResponse?: (task: Promise<unknown>) => void;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
   jobQueue: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
 };

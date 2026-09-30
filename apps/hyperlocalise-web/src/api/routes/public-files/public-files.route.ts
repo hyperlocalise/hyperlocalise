@@ -52,7 +52,7 @@ function asFile(value: unknown) {
 }
 
 type CreatePublicFileRoutesOptions = {
-  deferAfterResponse?: (task: Promise<unknown>) => void;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
   fileStorageAdapter?: FileStorageAdapter;
 };
 

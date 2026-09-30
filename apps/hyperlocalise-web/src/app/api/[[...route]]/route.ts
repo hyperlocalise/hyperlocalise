@@ -18,7 +18,7 @@ import { createApp } from "@/api/app";
 
 const handler = handle(
   createApp({
-    deferAfterResponse: (task) => after(() => task),
+    deferAfterResponse: (task) => after(task),
   }),
 );
 

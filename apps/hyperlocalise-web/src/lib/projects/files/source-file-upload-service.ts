@@ -72,7 +72,7 @@ export type SourceFileUploadInput = {
   uploadedByUserId?: string | null;
   actorUserId?: string | null;
   targetAutomationId?: string;
-  deferAfterResponse?: (task: Promise<unknown>) => void;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
@@ -171,31 +171,32 @@ async function uploadNativeSourceFile(
       throw error;
     });
 
-  const ingestEnqueueTask = withTimeout(
-    enqueueSourceFileIngestAfterUpload({
-      organizationId: input.organizationId,
-      projectId: input.project.id,
-      storedFileId: storedFile.id,
-      sourceFileVersionId: version.id,
-      sourcePath: input.sourcePath,
-      sourceHash: input.sourceHash ?? storedFile.sha256,
-      targetAutomationId: input.targetAutomationId,
-    }),
-    sourceFileIngestEnqueueTimeoutMs,
-  ).catch((error) => {
-    logger.warn(
-      {
+  const enqueueIngest = () =>
+    withTimeout(
+      enqueueSourceFileIngestAfterUpload({
+        organizationId: input.organizationId,
         projectId: input.project.id,
+        storedFileId: storedFile.id,
         sourceFileVersionId: version.id,
-        error: error instanceof Error ? error.message : "unknown",
-      },
-      "source-file-upload source ingest enqueue failed",
-    );
-  });
+        sourcePath: input.sourcePath,
+        sourceHash: input.sourceHash ?? storedFile.sha256,
+        targetAutomationId: input.targetAutomationId,
+      }),
+      sourceFileIngestEnqueueTimeoutMs,
+    ).catch((error) => {
+      logger.warn(
+        {
+          projectId: input.project.id,
+          sourceFileVersionId: version.id,
+          error: error instanceof Error ? error.message : "unknown",
+        },
+        "source-file-upload source ingest enqueue failed",
+      );
+    });
   if (input.deferAfterResponse) {
-    input.deferAfterResponse(ingestEnqueueTask);
+    input.deferAfterResponse(enqueueIngest);
   } else {
-    void ingestEnqueueTask;
+    void enqueueIngest();
   }
 
   await enqueueFileUploadedActivity({
