@@ -19,6 +19,13 @@ import {
   hyperlocaliseVideoModelId,
 } from "@/lib/providers/managed-model-ids";
 
+import {
+  getPricingByokProviderModelIds,
+  pricingByokProviderIds,
+  pricingManagedAgentGatewayModelIds,
+  type PricingByokProviderId,
+} from "./pricing-supported-models";
+
 export type PricingPlanId = "free" | "starter" | "growth" | "enterprise";
 
 export type PricingPlanCta = {
@@ -739,13 +746,14 @@ export type PricingAiFeature = {
 export type PricingIncludedModelRow = {
   id: string;
   capability: string;
-  model: string;
+  models: readonly string[];
   detail?: string;
 };
 
 export type PricingByokProvider = {
   id: string;
   name: string;
+  models: readonly string[];
 };
 
 export type PricingByokFeature = {
@@ -792,17 +800,20 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
       id: "X1Ie8nZW5a",
       description: "Subheading for Hyperlocalise-managed models on the pricing page",
     }),
-    includedDescription: intl.formatMessage({
-      defaultMessage:
-        "Always available on paid plans. Speech and media capabilities use dedicated included models; agent work uses the managed default unless you connect BYOK.",
-      id: "mnUPrGhGuI",
-      description: "Description under included models on the pricing page",
-    }),
+    includedDescription: intl.formatMessage(
+      {
+        defaultMessage:
+          "Always available on paid plans. Speech and media capabilities use dedicated included models; agent work uses the managed catalog (default {defaultModel}) unless you connect BYOK.",
+        id: "jEcB+kTaAO",
+        description: "Description under included models on the pricing page",
+      },
+      { defaultModel: hyperlocaliseAgentModelId },
+    ),
     includedRows: [
       {
         id: "agent-default",
         capability: agentCapabilities,
-        model: hyperlocaliseAgentModelId,
+        models: pricingManagedAgentGatewayModelIds,
         detail: intl.formatMessage({
           defaultMessage: "Workspace default for chat, translation jobs, and coding agents.",
           id: "c+4z1kMqTq",
@@ -816,7 +827,7 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
           id: "WfOVeAc/hr",
           description: "Pricing models row label for text to speech",
         }),
-        model: hyperlocaliseTtsModelId,
+        models: [hyperlocaliseTtsModelId],
       },
       {
         id: "transcribe",
@@ -825,7 +836,7 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
           id: "aYuiXKzRRS",
           description: "Pricing models row label for transcription",
         }),
-        model: hyperlocaliseTranscribeModelId,
+        models: [hyperlocaliseTranscribeModelId],
       },
       {
         id: "image",
@@ -834,7 +845,7 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
           id: "aq9uIWSdUf",
           description: "Pricing models row label for image generation",
         }),
-        model: hyperlocaliseImageModelId,
+        models: [hyperlocaliseImageModelId],
       },
       {
         id: "video",
@@ -843,7 +854,7 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
           id: "OhHPkKM0Ft",
           description: "Pricing models row label for video generation",
         }),
-        model: hyperlocaliseVideoModelId,
+        models: [hyperlocaliseVideoModelId],
       },
     ],
     byokTitle: intl.formatMessage({
@@ -857,32 +868,31 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
       id: "cs1R2QyhSD",
       description: "Description under BYOK on the pricing page",
     }),
-    byokProviders: [
-      {
-        id: "openai",
-        name: intl.formatMessage({
+    byokProviders: pricingByokProviderIds.map((providerId) => {
+      const providerNameById = {
+        openai: intl.formatMessage({
           defaultMessage: "OpenAI",
           id: "ebSc/SgRuM",
           description: "OpenAI provider name on the pricing BYOK section",
         }),
-      },
-      {
-        id: "anthropic",
-        name: intl.formatMessage({
+        anthropic: intl.formatMessage({
           defaultMessage: "Anthropic",
           id: "zgB7RcHWk8",
           description: "Anthropic provider name on the pricing BYOK section",
         }),
-      },
-      {
-        id: "gemini",
-        name: intl.formatMessage({
+        gemini: intl.formatMessage({
           defaultMessage: "Google Gemini",
           id: "4I4RDHWJ2Q",
           description: "Google Gemini provider name on the pricing BYOK section",
         }),
-      },
-    ],
+      } as const satisfies Record<PricingByokProviderId, string>;
+
+      return {
+        id: providerId,
+        name: providerNameById[providerId],
+        models: getPricingByokProviderModelIds(providerId),
+      };
+    }),
     byokFeatures: [
       {
         id: "curated-models",

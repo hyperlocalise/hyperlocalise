@@ -20,6 +20,8 @@ import {
   hyperlocaliseTtsModelId,
   hyperlocaliseVideoModelId,
 } from "@/lib/providers/managed-model-ids";
+import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
+import { curatedOpenAiNativeModels } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
 
 import {
   getPricingAiFeatures,
@@ -122,24 +124,35 @@ describe("pricing page content", () => {
       "image",
       "video",
     ]);
-    expect(models.includedRows[0]?.model).toBe(hyperlocaliseAgentModelId);
-    expect(models.includedRows.find((row) => row.id === "tts")?.model).toBe(
+    const agentModels = models.includedRows[0]?.models ?? [];
+    expect(agentModels).toEqual(curatedOpenAiNativeModels.map((slug) => `openai/${slug}`));
+    expect(agentModels).toContain(`openai/${hyperlocaliseAgentModelId}`);
+    expect(models.includedRows.find((row) => row.id === "tts")?.models).toEqual([
       hyperlocaliseTtsModelId,
-    );
-    expect(models.includedRows.find((row) => row.id === "transcribe")?.model).toBe(
+    ]);
+    expect(models.includedRows.find((row) => row.id === "transcribe")?.models).toEqual([
       hyperlocaliseTranscribeModelId,
-    );
-    expect(models.includedRows.find((row) => row.id === "image")?.model).toBe(
+    ]);
+    expect(models.includedRows.find((row) => row.id === "image")?.models).toEqual([
       hyperlocaliseImageModelId,
-    );
-    expect(models.includedRows.find((row) => row.id === "video")?.model).toBe(
+    ]);
+    expect(models.includedRows.find((row) => row.id === "video")?.models).toEqual([
       hyperlocaliseVideoModelId,
-    );
+    ]);
     expect(models.byokProviders.map((provider) => provider.id)).toEqual([
       "openai",
       "anthropic",
       "gemini",
     ]);
+    expect(models.byokProviders.find((provider) => provider.id === "openai")?.models).toEqual(
+      llmProviderContentEditoralog.openai.models,
+    );
+    expect(models.byokProviders.find((provider) => provider.id === "anthropic")?.models).toEqual(
+      llmProviderContentEditoralog.anthropic.models,
+    );
+    expect(models.byokProviders.find((provider) => provider.id === "gemini")?.models).toEqual(
+      llmProviderContentEditoralog.gemini.models,
+    );
     expect(models.byokFeatures.length).toBeGreaterThanOrEqual(4);
     expect(models.byokFootnote).toContain("AI Engine");
   });
