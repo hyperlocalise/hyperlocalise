@@ -10,11 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { after } from "next/server";
+
 import { handle } from "@/api/hono-vercel";
 
-import { app } from "@/api/app";
+import { createApp } from "@/api/app";
 
-const handler = handle(app);
+const handler = handle(
+  createApp({
+    deferAfterResponse: (task) => after(task),
+  }),
+);
 
 export const GET = handler;
 export const POST = handler;

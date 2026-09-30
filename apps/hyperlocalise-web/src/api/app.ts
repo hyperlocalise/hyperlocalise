@@ -59,6 +59,7 @@ import type { LocalisationAuditQueue, TranslationQaScanQueue } from "@/lib/workf
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
 
 export type CreateAppOptions = {
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
   emailAgentTaskQueue?: EmailAgentTaskQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
   jobQueue?: JobQueue<TranslationJobEventData>;

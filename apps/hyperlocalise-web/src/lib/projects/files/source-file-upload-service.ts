@@ -31,6 +31,26 @@ import { enqueueSourceFileIngestAfterUpload } from "./source-file-ingest";
 type ProjectRecord = typeof schema.projects.$inferSelect;
 
 const logger = createLogger("source-file-upload-service");
+const sourceFileIngestEnqueueTimeoutMs = 10_000;
+
+function withTimeout<T>(task: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`source file ingest enqueue timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    task.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
+}
 
 export type SourceFileUploadInput = {
   organizationId: string;
@@ -52,6 +72,7 @@ export type SourceFileUploadInput = {
   uploadedByUserId?: string | null;
   actorUserId?: string | null;
   targetAutomationId?: string;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
@@ -150,24 +171,33 @@ async function uploadNativeSourceFile(
       throw error;
     });
 
-  await enqueueSourceFileIngestAfterUpload({
-    organizationId: input.organizationId,
-    projectId: input.project.id,
-    storedFileId: storedFile.id,
-    sourceFileVersionId: version.id,
-    sourcePath: input.sourcePath,
-    sourceHash: input.sourceHash ?? storedFile.sha256,
-    targetAutomationId: input.targetAutomationId,
-  }).catch((error) => {
-    logger.warn(
-      {
+  const enqueueIngest = () =>
+    withTimeout(
+      enqueueSourceFileIngestAfterUpload({
+        organizationId: input.organizationId,
         projectId: input.project.id,
+        storedFileId: storedFile.id,
         sourceFileVersionId: version.id,
-        error: error instanceof Error ? error.message : "unknown",
-      },
-      "source-file-upload source ingest enqueue failed",
-    );
-  });
+        sourcePath: input.sourcePath,
+        sourceHash: input.sourceHash ?? storedFile.sha256,
+        targetAutomationId: input.targetAutomationId,
+      }),
+      sourceFileIngestEnqueueTimeoutMs,
+    ).catch((error) => {
+      logger.warn(
+        {
+          projectId: input.project.id,
+          sourceFileVersionId: version.id,
+          error: error instanceof Error ? error.message : "unknown",
+        },
+        "source-file-upload source ingest enqueue failed",
+      );
+    });
+  if (input.deferAfterResponse) {
+    input.deferAfterResponse(enqueueIngest);
+  } else {
+    void enqueueIngest();
+  }
 
   await enqueueFileUploadedActivity({
     ...uploadActivityActor(input),
