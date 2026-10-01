@@ -58,8 +58,11 @@ const DARK_GLOBE_COLORS: GlobeColors = {
   glowColor: [0.1, 0.3, 0.8],
 };
 
-/** Share of the remaining color distance covered per frame (settles in ~300ms at 60fps). */
+/** Share of the remaining color distance covered per frame (visibly settles in ~300ms at 60fps). */
 const THEME_FADE_PER_FRAME = 0.15;
+
+/** Remaining fade share below which colors snap to the target (~0.7s at 60fps). */
+const THEME_FADE_DONE_THRESHOLD = 0.001;
 
 function fadeTowards(from: number, to: number) {
   return from + (to - from) * THEME_FADE_PER_FRAME;
@@ -101,6 +104,8 @@ export function Globe({ className }: { className?: string }) {
 
     let animationFrame: number;
     let colors = targetColorsRef.current;
+    let fadeTarget = colors;
+    let fadeRemaining = 0;
 
     const getSize = () => Math.max(canvas.offsetWidth, 1);
 
@@ -121,10 +126,19 @@ export function Globe({ className }: { className?: string }) {
         phiRef.current += 0.003;
       }
 
-      if (colors !== targetColorsRef.current) {
-        colors = fadeGlobeColors(colors, targetColorsRef.current);
-        if (Math.abs(colors.dark - targetColorsRef.current.dark) < 0.001) {
-          colors = targetColorsRef.current;
+      // Track fade progress separately from the palette values, so the fade
+      // still runs when a value happens to match across themes.
+      const target = targetColorsRef.current;
+      if (target !== fadeTarget) {
+        fadeTarget = target;
+        fadeRemaining = 1;
+      }
+
+      if (colors !== target) {
+        colors = fadeGlobeColors(colors, target);
+        fadeRemaining *= 1 - THEME_FADE_PER_FRAME;
+        if (fadeRemaining < THEME_FADE_DONE_THRESHOLD) {
+          colors = target;
         }
       }
 
