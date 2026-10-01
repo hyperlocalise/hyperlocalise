@@ -555,4 +555,68 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       expect(workspace).toHaveAttribute("data-workspace-persona", "translator");
     });
   });
+
+  it("renders Designer mode badge and persona switcher in file view when adaptiveWorkspaceEnabled is true", async () => {
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createCatImageFileWorkspaceState()}
+          initialViewMode="file"
+          adaptiveWorkspaceEnabled
+        />
+      </>,
+    );
+
+    // In file view with adaptive mode, data-workspace-persona should be designer
+    await waitFor(() => {
+      const workspace = document.querySelector("[data-workspace-persona]");
+      expect(workspace).toHaveAttribute("data-workspace-persona", "designer");
+    });
+
+    // Persona switcher and Designer badge should be visible
+    expect(screen.getByRole("button", { name: "Workspace mode" })).toBeInTheDocument();
+    expect(screen.getAllByText("Designer").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("opens the AI Context drawer in file view when the AI Context button is clicked", async () => {
+    const user = userEvent.setup();
+    const state = createCatImageFileWorkspaceState();
+    const customIntelligence = {
+      ...state.intelligence,
+      productMeaning: "Landing page hero graphic explaining localization workflows",
+      locationBreadcrumb: "Landing > Hero",
+    };
+    state.intelligence = customIntelligence;
+    state.segmentIntelligence = {
+      [state.selectedSegmentId]: customIntelligence,
+    };
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={state}
+          initialViewMode="file"
+          adaptiveWorkspaceEnabled
+        />
+      </>,
+    );
+
+    // The AI Context button should be rendered in the header
+    const aiButton = await waitFor(() => screen.getByRole("button", { name: /AI asset context/i }));
+    expect(aiButton).toBeInTheDocument();
+
+    // Click the button to open the sheet
+    await user.click(aiButton);
+
+    // AI drawer title and content should appear
+    await waitFor(() => {
+      expect(screen.getByText("Asset Intelligence")).toBeInTheDocument();
+      expect(
+        screen.getByText("Landing page hero graphic explaining localization workflows"),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Landing > Hero")).toBeInTheDocument();
+    });
+  });
 });

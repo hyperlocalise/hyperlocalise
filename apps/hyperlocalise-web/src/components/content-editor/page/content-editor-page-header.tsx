@@ -36,7 +36,9 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
   backHref: string;
   actions: ContentEditorPageActions;
 }) {
-  const page = useContentEditorWorkspace().page;
+  const workspace = useContentEditorWorkspace();
+  const page = workspace.page;
+  const isFileViewOrDesigner = workspace.ui.isFileView || workspace.ui.isDesignerPersona;
   const showFilePicker = page.files.length > 0 || page.allFiles;
 
   return (
@@ -52,7 +54,7 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
         </Button>
 
         {showFilePicker ? (
-          <div className="lg:hidden">
+          <div className={isFileViewOrDesigner ? "inline-flex" : "lg:hidden"}>
             <ContentEditorFileTreePicker
               files={page.files}
               selectedSourcePath={page.selectedSourcePath ?? ""}

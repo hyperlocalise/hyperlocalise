@@ -604,6 +604,9 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               ? (input) => editing.onRegenerateImage?.(editorSegment.id, input)
               : undefined
           }
+          adaptiveWorkspaceEnabled={isAdaptiveEnabled}
+          isDesignerPersona={isAdaptiveEnabled && store.ui.isDesignerPersona}
+          intelligence={selectedSegmentIntelligence}
         />
       </ContentEditorPanelErrorBoundary>
     );

@@ -21,6 +21,7 @@ import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
+  AiPaintbrushIcon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
   Loading03Icon,
@@ -34,15 +35,29 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { ContentEditorWorkspaceViewSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-view-switcher-connected";
+import { ContentEditorWorkspacePersonaSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-persona-switcher-connected";
+import { contentEditorWorkspacePersonaMessages } from "@/components/content-editor/workspace/content-editor-workspace-persona.messages";
 import { ContentEditorHiddenStringBadge } from "@/components/content-editor/segment/content-editor-hidden-string-badge";
 import { ContentEditorLockedStringBadge } from "@/components/content-editor/segment/content-editor-locked-string-badge";
 import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
 } from "@/components/content-editor/segment/content-editor-segment-status";
-import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
+import type {
+  ContentEditorSegment,
+  ContentEditorSegmentIntelligence,
+} from "@/components/content-editor/shared/types";
 import type { ContentEditorFileViewerId } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { MarkdownContent } from "@/components/markdown-editor/markdown-editor";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -127,6 +142,9 @@ export function ContentEditorFileViewPanel({
   onRegenerate,
   selectionAi,
   className,
+  adaptiveWorkspaceEnabled = false,
+  isDesignerPersona = false,
+  intelligence,
 }: {
   segment: ContentEditorSegment;
   viewerId: ContentEditorFileViewerId | null;
@@ -146,6 +164,9 @@ export function ContentEditorFileViewPanel({
   selectionAi?: MarkdownSelectionAiConfig;
   onRegenerate?: (input: { instructions?: string }) => void | Promise<void>;
   className?: string;
+  adaptiveWorkspaceEnabled?: boolean;
+  isDesignerPersona?: boolean;
+  intelligence?: ContentEditorSegmentIntelligence;
 }) {
   const intl = useIntl();
   const reduceMotion = useReducedMotion();
@@ -156,6 +177,7 @@ export function ContentEditorFileViewPanel({
   const [documentReviewBlocked, setDocumentReviewBlocked] = useState(true);
   const [saveActionsContainer, setSaveActionsContainer] = useState<HTMLDivElement | null>(null);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const [sourcePaneVisible, setSourcePaneVisible] = useState(() =>
     readCatFileViewSourcePaneVisible(viewerId !== "markdown"),
   );
@@ -164,6 +186,16 @@ export function ContentEditorFileViewPanel({
     setSourcePaneViewerId(viewerId);
     setSourcePaneVisible(readCatFileViewSourcePaneVisible(viewerId !== "markdown"));
   }
+  const agentBadges = [
+    intelligence?.locationBreadcrumb,
+    intelligence?.componentName,
+    intelligence?.filePath,
+  ].filter(Boolean);
+  const hasAiContext = Boolean(
+    intelligence?.productMeaning?.trim() ||
+    intelligence?.agentContext?.trim() ||
+    agentBadges.length > 0,
+  );
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorFileViewMessages.approve);
   const hasTarget = Boolean(segment.targetAssetUrl || segment.targetText.trim());
@@ -339,6 +371,15 @@ export function ContentEditorFileViewPanel({
               ) : null}
               {segment.isHidden ? <ContentEditorHiddenStringBadge /> : null}
               {segment.isLocked ? <ContentEditorLockedStringBadge /> : null}
+              {adaptiveWorkspaceEnabled && isDesignerPersona ? (
+                <Badge
+                  variant="outline"
+                  className="hidden items-center gap-1 border-blue-500/30 bg-blue-500/10 text-xs font-normal text-blue-600 sm:inline-flex dark:text-blue-400"
+                >
+                  <HugeiconsIcon icon={AiPaintbrushIcon} className="size-3" />
+                  <FormattedMessage {...contentEditorWorkspacePersonaMessages.designerPersona} />
+                </Badge>
+              ) : null}
             </Row>
           </Column>
 
@@ -366,6 +407,38 @@ export function ContentEditorFileViewPanel({
                       : contentEditorFileViewMessages.showSource)}
                 />
               </Button>
+              {hasAiContext ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => setAiDrawerOpen(true)}
+                  className={cn(
+                    "gap-1",
+                    aiDrawerOpen &&
+                      "border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400",
+                  )}
+                  aria-label={intl.formatMessage({
+                    defaultMessage: "AI asset context",
+                    id: "bz08WHCwL2",
+                    description: "Accessible label for AI context button in file view",
+                  })}
+                >
+                  <HugeiconsIcon
+                    icon={SparklesIcon}
+                    data-icon="inline-start"
+                    className="size-3.5 text-blue-500"
+                  />
+                  <FormattedMessage
+                    defaultMessage="AI Context"
+                    id="HCZzZ6mMQr"
+                    description="Button in file view header to open the AI Context drawer"
+                  />
+                </Button>
+              ) : null}
+              {adaptiveWorkspaceEnabled ? (
+                <ContentEditorWorkspacePersonaSwitcherConnected size="xs" variant="outline" />
+              ) : null}
               <ContentEditorWorkspaceViewSwitcherConnected size="xs" variant="outline" />
               {isDocumentViewer ? <div ref={setSaveActionsContainer} /> : null}
               {isDocumentViewer && hasTargetFileActions ? (
@@ -429,6 +502,23 @@ export function ContentEditorFileViewPanel({
           </div>
         </div>
       </FileViewHeader>
+
+      {adaptiveWorkspaceEnabled && isDesignerPersona ? (
+        <div className="flex shrink-0 items-center justify-between border-b border-border/40 bg-muted/20 px-4 py-1.5 text-xs text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-foreground/80">
+              {viewerId ? viewerId.toUpperCase() : "ASSET"}
+            </span>
+            <span className="text-border">·</span>
+            <span className="truncate max-w-sm">{displayName}</span>
+          </div>
+          <div className="flex shrink-0 items-center gap-3 font-mono text-[11px]">
+            <span>
+              {segment.sourceLocale} (Original) → {segment.targetLocale} (Localized)
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       {viewerId === "image" ? (
         <ContentEditorImageWorkspace
@@ -610,6 +700,91 @@ export function ContentEditorFileViewPanel({
           isSubmitting={isImageBusy}
           onSubmit={handleGenerateSubmit}
         />
+      ) : null}
+      {hasAiContext ? (
+        <Sheet open={aiDrawerOpen} onOpenChange={setAiDrawerOpen}>
+          <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
+            <SheetHeader className="border-b border-border px-6 py-4">
+              <div className="flex items-center gap-2">
+                <HugeiconsIcon icon={SparklesIcon} className="size-4 text-blue-500" />
+                <SheetTitle className="text-base font-medium">
+                  <FormattedMessage
+                    defaultMessage="Asset Intelligence"
+                    id="ZsbAToAoYu"
+                    description="Title for AI Context drawer in file view"
+                  />
+                </SheetTitle>
+              </div>
+              <SheetDescription className="text-xs text-muted-foreground">
+                <FormattedMessage
+                  defaultMessage="AI-derived context, placement, and product meaning for this visual asset"
+                  id="HmIchM6Zb8"
+                  description="Description for AI Context drawer in file view"
+                />
+              </SheetDescription>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
+              {intelligence?.productMeaning ? (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <FormattedMessage
+                      defaultMessage="Product Meaning & Intent"
+                      id="wEsY0WRe0u"
+                      description="Section title for product meaning in AI drawer"
+                    />
+                  </h4>
+                  <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs leading-relaxed text-foreground">
+                    <MarkdownContent value={intelligence.productMeaning} />
+                  </div>
+                </div>
+              ) : null}
+
+              {intelligence?.agentContext ? (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <FormattedMessage
+                      defaultMessage="Repository & Code Context"
+                      id="N6HeARlaSS"
+                      description="Section title for code context in AI drawer"
+                    />
+                  </h4>
+                  <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs leading-relaxed text-foreground">
+                    <MarkdownContent value={intelligence.agentContext} />
+                  </div>
+                </div>
+              ) : null}
+
+              {agentBadges.length > 0 ? (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <FormattedMessage
+                      defaultMessage="Asset Placement"
+                      id="gTSRgtU4sZ"
+                      description="Section title for placement in AI drawer"
+                    />
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {intelligence?.locationBreadcrumb ? (
+                      <Badge variant="outline" className="text-xs font-normal">
+                        {intelligence.locationBreadcrumb}
+                      </Badge>
+                    ) : null}
+                    {intelligence?.componentName ? (
+                      <Badge variant="outline" className="text-xs font-normal">
+                        {intelligence.componentName}
+                      </Badge>
+                    ) : null}
+                    {intelligence?.filePath ? (
+                      <Badge variant="outline" className="font-mono text-xs font-normal">
+                        {intelligence.filePath}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </SheetContent>
+        </Sheet>
       ) : null}
     </div>
   );
