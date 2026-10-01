@@ -105,6 +105,28 @@ func TestDecodeCSVMarksSuppliedConceptFieldsPresent(t *testing.T) {
 	require.Equal(t, "Commerce", concepts[0].Subject)
 }
 
+func TestDecodeCSVMarksEmptyConceptFieldsPresent(t *testing.T) {
+	csv := "conceptId,locale,term,primaryTerm,subject,definition,conceptNote,conceptUrl,figure\n" +
+		"c1,en-US,Checkout,,,,,,\n"
+
+	concepts, diagnostics, err := decodeDocument("csv", []byte(csv))
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	require.Len(t, concepts, 1)
+	require.Equal(t, "Checkout", concepts[0].PrimaryTerm)
+	require.False(t, concepts[0].Present.PrimaryTerm)
+	require.True(t, concepts[0].Present.Subject)
+	require.True(t, concepts[0].Present.Definition)
+	require.True(t, concepts[0].Present.Note)
+	require.True(t, concepts[0].Present.URL)
+	require.True(t, concepts[0].Present.Figure)
+	require.Empty(t, concepts[0].Subject)
+	require.Empty(t, concepts[0].Definition)
+	require.Empty(t, concepts[0].Note)
+	require.Empty(t, concepts[0].URL)
+	require.Empty(t, concepts[0].Figure)
+}
+
 func TestDecodeXLSXKeepsOmittedConceptFieldsUnset(t *testing.T) {
 	f := excelize.NewFile()
 	require.NoError(t, f.SetSheetName(f.GetSheetName(0), "Concepts"))
@@ -131,6 +153,46 @@ func TestDecodeXLSXKeepsOmittedConceptFieldsUnset(t *testing.T) {
 	require.False(t, concepts[0].Present.Definition)
 	require.False(t, concepts[0].Present.Translatable)
 	require.False(t, concepts[0].Present.Note)
+}
+
+func TestDecodeXLSXMarksEmptyConceptFieldsPresent(t *testing.T) {
+	f := excelize.NewFile()
+	require.NoError(t, f.SetSheetName(f.GetSheetName(0), "Concepts"))
+	_, err := f.NewSheet("Terms")
+	require.NoError(t, err)
+	require.NoError(t, f.SetCellValue("Concepts", "A1", "conceptId"))
+	require.NoError(t, f.SetCellValue("Concepts", "B1", "primaryTerm"))
+	require.NoError(t, f.SetCellValue("Concepts", "C1", "subject"))
+	require.NoError(t, f.SetCellValue("Concepts", "D1", "definition"))
+	require.NoError(t, f.SetCellValue("Concepts", "E1", "note"))
+	require.NoError(t, f.SetCellValue("Concepts", "F1", "url"))
+	require.NoError(t, f.SetCellValue("Concepts", "G1", "figure"))
+	require.NoError(t, f.SetCellValue("Concepts", "A2", "concept-a"))
+	require.NoError(t, f.SetCellValue("Terms", "A1", "conceptId"))
+	require.NoError(t, f.SetCellValue("Terms", "B1", "locale"))
+	require.NoError(t, f.SetCellValue("Terms", "C1", "term"))
+	require.NoError(t, f.SetCellValue("Terms", "A2", "concept-a"))
+	require.NoError(t, f.SetCellValue("Terms", "B2", "en-US"))
+	require.NoError(t, f.SetCellValue("Terms", "C2", "Alpha"))
+
+	var buf bytes.Buffer
+	require.NoError(t, f.Write(&buf))
+
+	concepts, diagnostics, err := decodeDocument("xlsx", buf.Bytes())
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	require.Len(t, concepts, 1)
+	require.False(t, concepts[0].Present.PrimaryTerm)
+	require.True(t, concepts[0].Present.Subject)
+	require.True(t, concepts[0].Present.Definition)
+	require.True(t, concepts[0].Present.Note)
+	require.True(t, concepts[0].Present.URL)
+	require.True(t, concepts[0].Present.Figure)
+	require.Empty(t, concepts[0].Subject)
+	require.Empty(t, concepts[0].Definition)
+	require.Empty(t, concepts[0].Note)
+	require.Empty(t, concepts[0].URL)
+	require.Empty(t, concepts[0].Figure)
 }
 
 func TestConceptMergeUpdateWritesOnlyPresentFields(t *testing.T) {
