@@ -61,7 +61,7 @@ export const ContentEditorWorkspaceViewModeSync = observer(
           const nextMode = clampCatWorkspaceViewMode(currentMode, capabilities);
 
           if (nextMode !== currentMode) {
-            store.ui.setViewMode(nextMode);
+            store.ui.setViewMode(nextMode, { persistViewMode: false });
           }
         },
         { fireImmediately: true },
