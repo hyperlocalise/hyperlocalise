@@ -143,7 +143,7 @@ func TestSerializeGlossaryCSVEscapesFormulas(t *testing.T) {
 }
 
 func TestApplyGlossaryImportLocaleOptions(t *testing.T) {
-	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{"fr-FR"}}
+	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{"de-DE", "fr-FR"}}
 	strict := true
 	payload := glossaryImportPayload{
 		StrictLocale:  &strict,
@@ -159,10 +159,21 @@ func TestApplyGlossaryImportLocaleOptions(t *testing.T) {
 	}}
 	out, diagnostics := applyGlossaryImportLocaleOptions(g, payload, concepts, nil)
 	require.Len(t, out, 1)
-	require.Len(t, out[0].Terms, 2)
+	require.Len(t, out[0].Terms, 3)
 	require.Equal(t, "fr-FR", out[0].Terms[1].Locale)
-	require.NotEmpty(t, diagnostics)
-	require.Equal(t, "unknown_locale", diagnostics[0].Code)
+	require.Equal(t, "de-DE", out[0].Terms[2].Locale)
+	require.Contains(t, diagnostics, glossaryImportDiagnostic{Severity: "warning", Code: "locale_mapped", Message: "Crowdin language ID was mapped to the configured glossary locale", ConceptID: stringPtr("c1"), TermID: stringPtr("t3"), Field: stringPtr("locale")})
+}
+
+func TestResolveCrowdinGlossaryLocaleRejectsAmbiguousBaseLanguage(t *testing.T) {
+	locales := []glossaryLanguage{
+		{Locale: "de-DE"},
+		{Locale: "de-AT"},
+	}
+
+	locale, ok := resolveCrowdinGlossaryLocale("de", locales)
+	require.False(t, ok)
+	require.Empty(t, locale)
 }
 
 func TestGlossaryImportReplaceRejectsParserErrors(t *testing.T) {

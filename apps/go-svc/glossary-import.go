@@ -310,6 +310,7 @@ func glossaryImportHasErrors(diagnostics []glossaryImportDiagnostic) bool {
 func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPayload, concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
 	strict := payload.StrictLocale == nil || *payload.StrictLocale
 	known := map[string]bool{}
+	knownLocales := glossaryLanguages(g)
 	for _, lang := range glossaryLanguages(g) {
 		known[strings.ToLower(lang.Locale)] = true
 	}
@@ -319,11 +320,18 @@ func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPa
 		for _, term := range concept.Terms {
 			raw := strings.ReplaceAll(trimGlossaryInput(term.Locale), "_", "-")
 			mapped := raw
+			mappedByCrowdin := false
 			if payload.LocaleMapping != nil {
 				if replacement, ok := payload.LocaleMapping[raw]; ok {
 					mapped = strings.ReplaceAll(trimGlossaryInput(replacement), "_", "-")
 				} else if replacement, ok := payload.LocaleMapping[term.Locale]; ok {
 					mapped = strings.ReplaceAll(trimGlossaryInput(replacement), "_", "-")
+				}
+			}
+			if mapped == raw {
+				if crowdinLocale, ok := resolveCrowdinGlossaryLocale(raw, knownLocales); ok && !strings.EqualFold(crowdinLocale, raw) {
+					mapped = crowdinLocale
+					mappedByCrowdin = true
 				}
 			}
 			term.Locale = mapped
@@ -347,6 +355,16 @@ func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPa
 				})
 				continue
 			}
+			if mappedByCrowdin {
+				id := concept.ID
+				termID := term.ID
+				field := "locale"
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "warning", Code: "locale_mapped",
+					Message:   "Crowdin language ID was mapped to the configured glossary locale",
+					ConceptID: &id, TermID: &termID, Field: &field,
+				})
+			}
 			terms = append(terms, term)
 		}
 		if len(terms) == 0 {
@@ -363,6 +381,26 @@ func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPa
 		out = append(out, concept)
 	}
 	return out, diagnostics
+}
+
+func resolveCrowdinGlossaryLocale(raw string, locales []glossaryLanguage) (string, bool) {
+	raw = strings.ToLower(strings.TrimSpace(strings.ReplaceAll(raw, "_", "-")))
+	if raw == "" || strings.Contains(raw, "-") {
+		return "", false
+	}
+	var match string
+	for _, language := range locales {
+		locale := strings.TrimSpace(language.Locale)
+		parts := strings.SplitN(strings.ToLower(strings.ReplaceAll(locale, "_", "-")), "-", 2)
+		if len(parts) != 2 || parts[0] != raw {
+			continue
+		}
+		if match != "" && !strings.EqualFold(match, locale) {
+			return "", false
+		}
+		match = locale
+	}
+	return match, match != ""
 }
 
 func countImportTerms(concepts []glossaryImportConcept) int {
