@@ -657,6 +657,7 @@ describe("ContentEditorWorkspaceUiStore", () => {
     try {
       const ui = new ContentEditorWorkspaceUiStore();
       ui.setAdaptiveWorkspaceEnabled(true);
+      ui.setMultilingualViewAvailable(true);
       ui.applyFileFamily("text");
 
       // User selects multilingual in view switcher
@@ -679,6 +680,7 @@ describe("ContentEditorWorkspaceUiStore", () => {
       const reopenedUi = new ContentEditorWorkspaceUiStore();
       expect(reopenedUi.viewMode).toBe("multilingual");
       reopenedUi.setAdaptiveWorkspaceEnabled(true);
+      reopenedUi.setMultilingualViewAvailable(true);
       // Applying file family must preserve multilingual layout instead of overriding with translator persona
       reopenedUi.applyFileFamily("text");
       expect(reopenedUi.viewMode).toBe("multilingual");
@@ -693,6 +695,50 @@ describe("ContentEditorWorkspaceUiStore", () => {
       expect(reopenedUi.viewMode).toBe("file");
       reopenedUi.applyFileFamily("text");
       expect(reopenedUi.viewMode).toBe("comfortable");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not restore multilingual when multilingualViewAvailable is false and preserves stored preference", () => {
+    const storage = new Map<string, string>([
+      ["content-editor-workspace-view-mode:v1", "multilingual"],
+    ]);
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => storage.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+      },
+    });
+
+    try {
+      // Workspace has no multilingual configuration
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.setMultilingualViewAvailable(false);
+
+      // Navigating to an image file in mixed workspace
+      ui.applyFileFamily("image");
+      expect(ui.viewMode).toBe("file");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Moving to a text segment: since multilingual is unavailable, it falls back to persona layout
+      // and does NOT attempt to set multilingual or overwrite the stored preference in localStorage
+      ui.applyFileFamily("text");
+      expect(ui.viewMode).toBe("comfortable");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // When view-mode sync clamps with { persistViewMode: false }, the stored preference is also preserved
+      ui.setViewMode("side-by-side", { persistViewMode: false });
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Opening another workspace where multilingual IS available restores the choice
+      const multiUi = new ContentEditorWorkspaceUiStore();
+      multiUi.setAdaptiveWorkspaceEnabled(true);
+      multiUi.setMultilingualViewAvailable(true);
+      multiUi.applyFileFamily("text");
+      expect(multiUi.viewMode).toBe("multilingual");
     } finally {
       vi.unstubAllGlobals();
     }
