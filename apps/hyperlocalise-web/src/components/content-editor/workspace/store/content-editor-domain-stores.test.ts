@@ -18,6 +18,7 @@ import { ContentEditorQueueStore } from "./content-editor-queue-store";
 import { ContentEditorSegmentDraft } from "./content-editor-segment-draft";
 import { ContentEditorSegmentStore } from "./content-editor-segment-store";
 import { ContentEditorWorkspaceUiStore } from "./content-editor-workspace-ui-store";
+import { ContentEditorWorkspaceOrchestrator } from "../content-editor-workspace-orchestrator";
 
 const queueSegments = [
   { id: "seg-01", index: 1, key: "first", sourceText: "First" },
@@ -639,6 +640,81 @@ describe("ContentEditorWorkspaceUiStore", () => {
         "content-editor-workspace-view-mode:v1",
         "side-by-side",
       );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("saves and preserves multilingual view choice in adaptive workspace without overwriting on file family apply", () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => storage.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("text");
+
+      // User selects multilingual in view switcher
+      ui.setViewMode("multilingual");
+      expect(ui.viewMode).toBe("multilingual");
+      // Multilingual choice is saved to localStorage
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Reopening workspace (new instance reading stored viewMode)
+      const reopenedUi = new ContentEditorWorkspaceUiStore();
+      expect(reopenedUi.viewMode).toBe("multilingual");
+      reopenedUi.setAdaptiveWorkspaceEnabled(true);
+      // Applying file family must preserve multilingual layout instead of overriding with translator persona
+      reopenedUi.applyFileFamily("text");
+      expect(reopenedUi.viewMode).toBe("multilingual");
+
+      // Explicitly selecting another view mode updates the saved preference
+      reopenedUi.setViewMode("comfortable");
+      expect(reopenedUi.viewMode).toBe("comfortable");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("comfortable");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not persist selectionMode to localStorage when adaptiveWorkspaceEnabled is true and clears on translator switch", () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => storage.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+      },
+    });
+
+    try {
+      const orchestrator = new ContentEditorWorkspaceOrchestrator();
+      orchestrator.ui.setAdaptiveWorkspaceEnabled(true);
+
+      // In adaptive workspace, orchestrator.setSelectionMode defaults to persist: false
+      orchestrator.setSelectionMode(true);
+      expect(orchestrator.queue.selectionMode).toBe(true);
+      expect(storage.get("content-editor-queue:selection-mode:v1")).toBeUndefined();
+
+      // Check some segments
+      orchestrator.queue.toggleChecked("seg-1", true);
+      orchestrator.queue.toggleChecked("seg-2", true);
+      expect(orchestrator.queue.checkedSegmentIds.size).toBe(2);
+
+      // Switching off selection mode clears checked segments without writing to localStorage
+      orchestrator.setSelectionMode(false);
+      expect(orchestrator.queue.selectionMode).toBe(false);
+      expect(orchestrator.queue.checkedSegmentIds.size).toBe(0);
+      expect(storage.get("content-editor-queue:selection-mode:v1")).toBeUndefined();
+
+      // Outside adaptive mode, setting selection mode DOES persist to localStorage
+      orchestrator.ui.setAdaptiveWorkspaceEnabled(false);
+      orchestrator.setSelectionMode(true);
+      expect(storage.get("content-editor-queue:selection-mode:v1")).toBe("true");
     } finally {
       vi.unstubAllGlobals();
     }
