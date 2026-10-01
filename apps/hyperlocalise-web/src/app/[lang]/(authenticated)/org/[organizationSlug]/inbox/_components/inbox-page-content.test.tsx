@@ -175,7 +175,6 @@ describe("InboxPageContent item switching", () => {
       `/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
     );
     await user.click(issueItem);
-
     expect(await screen.findByText("Issue panel: issue_001")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
   });
