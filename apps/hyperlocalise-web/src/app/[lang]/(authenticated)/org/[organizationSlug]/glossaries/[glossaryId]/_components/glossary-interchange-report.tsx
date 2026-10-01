@@ -47,6 +47,7 @@ export function GlossaryInterchangeReport({
     queryFn: ({ signal }) =>
       client.glossary.report(organizationSlug, glossaryId, runId, { signal }),
     refetchInterval: (current) => {
+      if (current.state.status === "error") return false;
       const status = current.state.data?.report.status;
       return !status || !["completed", "failed"].includes(status) ? 3000 : false;
     },
