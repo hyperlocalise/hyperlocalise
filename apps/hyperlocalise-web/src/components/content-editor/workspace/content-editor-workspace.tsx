@@ -157,13 +157,13 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       if (currentPersona === "reviewer") {
         setActivePanel("queue");
         store.setSelectionMode(true, { persist: false });
-      } else if (currentPersona === "translator") {
-        setActivePanel("edit");
-        if (prevPersona === "reviewer" || prevPersona === null) {
+      } else {
+        if (currentPersona === "translator") {
+          setActivePanel("edit");
+        }
+        if (prevPersona === "reviewer") {
           store.setSelectionMode(false, { persist: false });
         }
-      } else if (prevPersona === "reviewer") {
-        store.setSelectionMode(false, { persist: false });
       }
     }
   }, [isAdaptiveEnabled, store, store.ui.resolvedPersona]);

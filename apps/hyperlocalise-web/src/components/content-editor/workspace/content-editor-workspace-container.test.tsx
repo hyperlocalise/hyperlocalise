@@ -886,4 +886,24 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       expect(screen.getByRole("table")).toBeInTheDocument();
     });
   });
+
+  it("preserves saved selection mode preference when opening an adaptive text workspace", async () => {
+    window.localStorage.setItem("content-editor-queue:selection-mode:v1", "true");
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          adaptiveWorkspaceEnabled
+        />
+      </>,
+    );
+
+    // Initial persona is Translator; selection mode saved as true must not be forced off on mount
+    await waitFor(() => {
+      const selectionCheckbox = screen.getByLabelText("Show bulk selection checkboxes");
+      expect(selectionCheckbox).toBeChecked();
+    });
+  });
 });
