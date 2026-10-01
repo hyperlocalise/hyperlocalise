@@ -6,7 +6,7 @@ Crowdin TBX exports use short language IDs such as `de`, while native glossaries
 
 ## Design
 
-Resolve each imported locale against the glossary's configured locales before validation. Explicit `localeMapping` entries take precedence. When no explicit mapping exists, use the Crowdin language catalog to translate a short ID to a configured locale. Apply the translation only when it matches one configured glossary locale; otherwise preserve the existing validation behavior.
+Resolve each imported locale against the glossary's configured locales before validation. Explicit `localeMapping` entries take precedence. For the native asynchronous import path, the Lambda resolver uses Crowdin's known default regions when that configured locale exists. For the legacy inline Go path, a short ID maps only when exactly one configured locale shares its base language. Apply either translation only when it matches a configured glossary locale; otherwise preserve the existing validation behavior.
 
 The resolver will keep the configured locale's spelling and region, so imported terms are stored under `de-DE` rather than the raw `de` value. It will emit a warning diagnostic when it performs this provider-specific mapping.
 

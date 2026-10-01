@@ -46,10 +46,10 @@ export function GlossaryInterchangeReport({
     enabled: !loading,
     queryFn: ({ signal }) =>
       client.glossary.report(organizationSlug, glossaryId, runId, { signal }),
-    refetchInterval: (current) =>
-      current.state.data && !["completed", "failed"].includes(current.state.data.report.status)
-        ? 3000
-        : false,
+    refetchInterval: (current) => {
+      const status = current.state.data?.report.status;
+      return !status || !["completed", "failed"].includes(status) ? 3000 : false;
+    },
   });
   const run = reportQuery.data?.report;
   useEffect(() => {

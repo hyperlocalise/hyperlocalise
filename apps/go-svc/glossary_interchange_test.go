@@ -177,6 +177,12 @@ func TestResolveCrowdinGlossaryLocaleRejectsAmbiguousBaseLanguage(t *testing.T) 
 	require.Empty(t, locale)
 }
 
+func TestResolveCrowdinGlossaryLocalePreservesExactConfiguredLocale(t *testing.T) {
+	locale, ok := resolveCrowdinGlossaryLocale("de", []glossaryLanguage{{Locale: "de"}, {Locale: "de-DE"}})
+	require.True(t, ok)
+	require.Equal(t, "de", locale)
+}
+
 func TestApplyGlossaryImportLocaleOptionsDoesNotUseCrowdinFallbackForCSV(t *testing.T) {
 	strict := true
 	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{"de-DE"}}

@@ -388,13 +388,20 @@ func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPa
 
 func resolveCrowdinGlossaryLocale(raw string, locales []glossaryLanguage) (string, bool) {
 	raw = strings.ToLower(strings.TrimSpace(strings.ReplaceAll(raw, "_", "-")))
-	if raw == "" || strings.Contains(raw, "-") {
+	if raw == "" {
 		return "", false
 	}
 	var match string
 	for _, language := range locales {
 		locale := strings.TrimSpace(language.Locale)
-		parts := strings.SplitN(strings.ToLower(strings.ReplaceAll(locale, "_", "-")), "-", 2)
+		normalizedLocale := strings.ToLower(strings.ReplaceAll(locale, "_", "-"))
+		if normalizedLocale == raw {
+			return locale, true
+		}
+		if strings.Contains(raw, "-") {
+			continue
+		}
+		parts := strings.SplitN(normalizedLocale, "-", 2)
 		if len(parts) != 2 || parts[0] != raw {
 			continue
 		}
