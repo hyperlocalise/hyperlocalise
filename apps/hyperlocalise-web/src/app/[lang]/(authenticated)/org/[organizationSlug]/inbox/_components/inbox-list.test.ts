@@ -43,6 +43,7 @@ function notification(
     organizationId: "org",
     projectId: "project",
     issueId: "issue",
+    priority: null,
     type: "assigned",
     payload: { issueTitle: "Issue", projectId: "project" },
     actor: null,
