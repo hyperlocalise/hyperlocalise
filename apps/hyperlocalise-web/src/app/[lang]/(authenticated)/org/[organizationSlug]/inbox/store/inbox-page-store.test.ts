@@ -28,9 +28,9 @@ describe("InboxPageStore", () => {
   it("updates and clears list filters without touching the draft", () => {
     const store = new InboxPageStore("acme");
     store.setComposeDraft("Keep me");
-    store.setFilters({ read: "unread", type: "assigned" });
+    store.setFilters({ priority: "all", read: "unread", type: "assigned" });
 
-    expect(store.filters).toEqual({ read: "unread", type: "assigned" });
+    expect(store.filters).toEqual({ priority: "all", read: "unread", type: "assigned" });
     expect(store.composeDraft).toBe("Keep me");
 
     store.resetFilters();

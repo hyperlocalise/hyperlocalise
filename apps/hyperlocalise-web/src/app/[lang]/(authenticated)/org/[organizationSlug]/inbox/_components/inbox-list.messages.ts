@@ -65,6 +65,36 @@ export const inboxListMessages = defineMessages({
     id: "XosmLLsDOK",
     description: "Accessible label for the inbox type filter menu",
   },
+  filterPriorityAria: {
+    defaultMessage: "Filter by priority",
+    id: "i+L328OqBg",
+    description: "Accessible label for the inbox priority filter menu",
+  },
+  filterPriorityAll: {
+    defaultMessage: "All priorities",
+    id: "ZWsiVHYRoy",
+    description: "Inbox priority filter that shows all priorities",
+  },
+  filterPriorityP0: {
+    defaultMessage: "P0",
+    id: "xHpeWF3wBJ",
+    description: "Inbox priority filter for P0 issues",
+  },
+  filterPriorityP1: {
+    defaultMessage: "P1",
+    id: "tIBFMHgcgW",
+    description: "Inbox priority filter for P1 issues",
+  },
+  filterPriorityP2: {
+    defaultMessage: "P2",
+    id: "U7Oa7ZDE9f",
+    description: "Inbox priority filter for P2 issues",
+  },
+  filterPriorityNone: {
+    defaultMessage: "No priority",
+    id: "ipXlmfoH58",
+    description: "Inbox priority filter for issues without a priority",
+  },
   filterTypeAll: {
     defaultMessage: "All types",
     id: "N8oWpgtVSh",

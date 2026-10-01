@@ -177,6 +177,6 @@ describe("InboxList filters", () => {
 
     expect(screen.queryByText("Translate homepage hero copy")).not.toBeInTheDocument();
     expect(screen.getByText("Checkout CTA tone feels off")).toBeInTheDocument();
-    expect(filters.at(-1)).toEqual({ read: "unread", type: "all" });
+    expect(filters.at(-1)).toEqual({ priority: "all", read: "unread", type: "all" });
   });
 });

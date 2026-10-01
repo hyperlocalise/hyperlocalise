@@ -17,6 +17,10 @@ export const INBOX_READ_FILTERS = ["all", "unread", "read"] as const;
 
 export type InboxReadFilter = (typeof INBOX_READ_FILTERS)[number];
 
+export const INBOX_PRIORITY_FILTERS = ["all", "P0", "P1", "P2", "none"] as const;
+
+export type InboxPriorityFilter = (typeof INBOX_PRIORITY_FILTERS)[number];
+
 export const INBOX_TYPE_FILTERS = [
   "all",
   "conversations",
@@ -58,17 +62,19 @@ export type InboxIndexItem =
   | { kind: "notification"; notification: InboxIssueNotification; sortAt: string };
 
 export type InboxListFilters = {
+  priority: InboxPriorityFilter;
   read: InboxReadFilter;
   type: InboxTypeFilter;
 };
 
 export const DEFAULT_INBOX_LIST_FILTERS: InboxListFilters = {
+  priority: "all",
   read: "all",
   type: "all",
 };
 
 export function isInboxListFiltersActive(filters: InboxListFilters): boolean {
-  return filters.read !== "all" || filters.type !== "all";
+  return filters.priority !== "all" || filters.read !== "all" || filters.type !== "all";
 }
 
 export function inboxItemMatchesReadFilter(item: InboxIndexItem, read: InboxReadFilter): boolean {
@@ -98,6 +104,22 @@ export function inboxItemMatchesTypeFilter(item: InboxIndexItem, type: InboxType
   return item.notification.type === type;
 }
 
+export function inboxItemMatchesPriorityFilter(
+  item: InboxIndexItem,
+  priority: InboxPriorityFilter,
+): boolean {
+  if (priority === "all") {
+    return true;
+  }
+  if (item.kind === "conversation") {
+    return false;
+  }
+  if (priority === "none") {
+    return item.notification.priority === null;
+  }
+  return item.notification.priority === priority;
+}
+
 export function filterInboxIndexItems(
   items: InboxIndexItem[],
   filters: InboxListFilters,
@@ -107,6 +129,7 @@ export function filterInboxIndexItems(
   }
   return items.filter(
     (item) =>
+      inboxItemMatchesPriorityFilter(item, filters.priority) &&
       inboxItemMatchesReadFilter(item, filters.read) &&
       inboxItemMatchesTypeFilter(item, filters.type),
   );
