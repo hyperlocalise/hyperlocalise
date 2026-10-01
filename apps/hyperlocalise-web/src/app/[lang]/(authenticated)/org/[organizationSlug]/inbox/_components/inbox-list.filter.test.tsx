@@ -40,8 +40,7 @@ function renderInboxList() {
           notifications={issueNotificationsFixture}
           onLoadMoreNotifications={vi.fn()}
           onMarkAllRead={vi.fn()}
-          onSelectConversation={vi.fn()}
-          onSelectNotification={vi.fn()}
+          onSelectItem={vi.fn()}
           selection={{ kind: "conversation", id: conversationsFixture[0]!.id }}
           unreadNotificationCount={2}
         />
@@ -109,8 +108,7 @@ describe("InboxList filters", () => {
             notifications={issueNotificationsFixture.filter((notification) => notification.readAt)}
             onLoadMoreNotifications={onLoadMoreNotifications}
             onMarkAllRead={vi.fn()}
-            onSelectConversation={vi.fn()}
-            onSelectNotification={vi.fn()}
+            onSelectItem={vi.fn()}
             selection={null}
             unreadNotificationCount={2}
           />
@@ -148,8 +146,7 @@ describe("InboxList filters", () => {
           onFiltersChange={(nextFilters) => store.setFilters(nextFilters)}
           onLoadMoreNotifications={vi.fn()}
           onMarkAllRead={vi.fn()}
-          onSelectConversation={vi.fn()}
-          onSelectNotification={vi.fn()}
+          onSelectItem={vi.fn()}
           selection={{ kind: "conversation", id: conversationsFixture[0]!.id }}
           unreadNotificationCount={2}
         />

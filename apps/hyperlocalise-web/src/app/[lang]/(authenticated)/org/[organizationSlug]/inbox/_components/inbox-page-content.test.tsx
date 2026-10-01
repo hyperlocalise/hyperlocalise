@@ -24,7 +24,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import type { InboxApi } from "./inbox-api";
 import { InboxPageContent } from "./inbox-page-content";
 import type { InboxNotificationsApi } from "./inbox-notifications-api";
-import { conversationsFixture, currentUserFixture, messagesFixture } from "./inbox.fixture";
+import {
+  conversationsFixture,
+  currentUserFixture,
+  issueNotificationsFixture,
+  messagesFixture,
+} from "./inbox.fixture";
 
 const firstConversation = conversationsFixture[0]!;
 const secondConversation = conversationsFixture[1]!;
@@ -64,6 +69,10 @@ vi.mock("./reply-composer", () => ({
   ),
 }));
 
+vi.mock("./inbox-issue-panel", () => ({
+  InboxIssuePanel: ({ issueId }: { issueId: string }) => <div>Issue panel: {issueId}</div>,
+}));
+
 function createInboxApi(listMessages: InboxApi["listMessages"]): InboxApi {
   return {
     createConversation: vi.fn(),
@@ -77,13 +86,19 @@ function createInboxApi(listMessages: InboxApi["listMessages"]): InboxApi {
 
 const notificationsApi: InboxNotificationsApi = {
   getById: vi.fn(),
-  list: async () => ({ notifications: [], total: 0 }),
+  list: async () => ({
+    notifications: issueNotificationsFixture,
+    total: issueNotificationsFixture.length,
+  }),
   markAllRead: vi.fn(),
   markRead: vi.fn(),
   unreadCount: async () => 0,
 };
 
-function renderInbox(inboxApi: InboxApi) {
+function renderInbox(
+  inboxApi: InboxApi,
+  injectedNotificationsApi: InboxNotificationsApi = notificationsApi,
+) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -98,7 +113,7 @@ function renderInbox(inboxApi: InboxApi) {
             <InboxPageContent
               currentUser={currentUserFixture}
               inboxApi={inboxApi}
-              notificationsApi={notificationsApi}
+              notificationsApi={injectedNotificationsApi}
               organizationSlug="acme"
             />
           </TooltipProvider>
@@ -146,6 +161,21 @@ describe("InboxPageContent item switching", () => {
     ).toHaveLength(1);
 
     resolveSecondMessages?.([]);
+  });
+
+  it("opens an assigned issue in the issue pane instead of the chat pane", async () => {
+    const user = userEvent.setup();
+    const listMessages = vi.fn(async () => messagesFixture);
+
+    renderInbox(createInboxApi(listMessages));
+
+    await user.click(await screen.findByRole("button", { name: /Otto Klein assigned you/i }));
+
+    expect(navigation.push).toHaveBeenCalledWith(
+      `/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
+    );
+    expect(await screen.findByText("Issue panel: issue_001")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
   });
 
   it("sends a reply after leaving /new before the route updates", async () => {
