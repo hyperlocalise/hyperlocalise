@@ -56,7 +56,7 @@ export const glossaryInterchangeHistoryMessages = defineMessages({
     description: "Back navigation from glossary interchange history",
   },
   backToHistory: {
-    id: 'qYSoW7SGAG',
+    id: "qYSoW7SGAG",
     defaultMessage: "Back to import/export history",
     description: "Back navigation from a glossary interchange report",
   },

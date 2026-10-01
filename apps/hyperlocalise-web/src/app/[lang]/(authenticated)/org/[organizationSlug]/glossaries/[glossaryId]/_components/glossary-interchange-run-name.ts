@@ -19,21 +19,21 @@ import type { GlossaryInterchangeRun } from "@/lib/go-svc/go-svc-client.types";
 import { glossaryInterchangeHistoryMessages as messages } from "./glossary-interchange-history.messages";
 
 export function formatGlossaryInterchangeRunName(run: GlossaryInterchangeRun, intl: IntlShape) {
-    const filename = (run.operation === "export" ? run.resultFilename : run.sourceFilename)?.trim();
-    if (filename) {
-        return intl.formatMessage(
-            run.operation === "import" ? messages.importRunName : messages.exportRunName,
-            { filename },
-        );
-    }
-
+  const filename = (run.operation === "export" ? run.resultFilename : run.sourceFilename)?.trim();
+  if (filename) {
     return intl.formatMessage(
-        run.operation === "import" ? messages.importRunTimestampName : messages.exportRunTimestampName,
-        {
-            timestamp: intl.formatDate(new Date(run.createdAt), {
-                dateStyle: "medium",
-                timeStyle: "short",
-            }),
-        },
+      run.operation === "import" ? messages.importRunName : messages.exportRunName,
+      { filename },
     );
+  }
+
+  return intl.formatMessage(
+    run.operation === "import" ? messages.importRunTimestampName : messages.exportRunTimestampName,
+    {
+      timestamp: intl.formatDate(new Date(run.createdAt), {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    },
+  );
 }
