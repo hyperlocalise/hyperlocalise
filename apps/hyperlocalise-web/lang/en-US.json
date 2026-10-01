@@ -731,6 +731,10 @@
     "defaultMessage": "Request a Demo",
     "description": "Primary call-to-action button on the marketing homepage final section"
   },
+  "/SJnfuawRk": {
+    "defaultMessage": "You want a second writer for longer text.",
+    "description": "Situation for Claude Sonnet on the pricing page"
+  },
   "/TETuqYPDH": {
     "defaultMessage": "Select at least one source file.",
     "description": "Toast when download is attempted without selecting source files"
@@ -1098,6 +1102,10 @@
   "0Kd+BaMKpW": {
     "defaultMessage": "Export CSV",
     "description": "Keyword research screen: export"
+  },
+  "0LOTblqWHo": {
+    "defaultMessage": "{count, plural, one {# model} other {# models}}",
+    "description": "Count of models visible in the pricing model browser"
   },
   "0LbxmzSNhE": {
     "defaultMessage": "Location",
@@ -1555,6 +1563,10 @@
     "defaultMessage": "@Hyperlocalise Review this launch copy against our brand guidelines and flag anything that needs attention.",
     "description": "Marketing homepage agentRequest"
   },
+  "1KKO0Okjmc": {
+    "defaultMessage": "It reads copy aloud so you can check rhythm and length before a voiceover goes out. Included on paid plans. Usage comes out of your monthly AI credit.",
+    "description": "Story for the text to speech model on the pricing page"
+  },
   "1KXz+b/LeX": {
     "defaultMessage": "Heading 3",
     "description": "Slash menu item for a level-3 heading"
@@ -1786,6 +1798,10 @@
   "1ggu9Tm0ub": {
     "defaultMessage": "Conversation list failed to load",
     "description": "Error boundary title when the inbox list panel crashes"
+  },
+  "1hnHBtSh2K": {
+    "defaultMessage": "Quick drafts",
+    "description": "Summary for Gemini Flash on the pricing page"
   },
   "1iMVYFQbGc": {
     "defaultMessage": "Unable to remove project",
@@ -2471,6 +2487,10 @@
     "defaultMessage": "Failed to load provider credentials ({status})",
     "description": "Error when TMS provider credentials fail to load"
   },
+  "3BtQulEZ6Y": {
+    "defaultMessage": "Connect a Gemini key and use Flash to move through a long list of strings. Google bills this usage. It does not draw down your monthly AI credit.",
+    "description": "Story for Gemini Flash on the pricing page"
+  },
   "3CTikplBoF": {
     "defaultMessage": "Select a run to inspect node-level status.",
     "description": "Prompt when no run is selected in the executions tab"
@@ -2694,6 +2714,10 @@
   "3kmGzc1eFE": {
     "defaultMessage": "Default template",
     "description": "Label for the default template select"
+  },
+  "3knVI+YndO": {
+    "defaultMessage": "Loading conversation",
+    "description": "Aria label while the selected inbox conversation is loading"
   },
   "3ljQO/9DOw": {
     "defaultMessage": "Today",
@@ -3070,6 +3094,10 @@
   "4NIhoyP8P+": {
     "defaultMessage": "Draft translations with your preferred LLM",
     "description": "Capability 3 title for the github-release-localisation use case"
+  },
+  "4NRfGc3Yk+": {
+    "defaultMessage": "Pictures",
+    "description": "Filter label for image models on the pricing page"
   },
   "4Nb8hxfYt5": {
     "defaultMessage": "API key revoked",
@@ -3619,6 +3647,10 @@
     "defaultMessage": "View report",
     "description": "Translation reporting label"
   },
+  "5aBQ8ovclg": {
+    "defaultMessage": "Export · {timestamp}",
+    "description": "Name of a glossary export run identified by its timestamp"
+  },
   "5atqmuSxdx": {
     "defaultMessage": "Tools",
     "description": "Section label for agent tools list"
@@ -3778,6 +3810,10 @@
   "5tlPxcqfUt": {
     "defaultMessage": "Coordinate localization reviews from Slack mentions and DMs.",
     "description": "Slack integration description before OAuth connection"
+  },
+  "5vxosjDykR": {
+    "defaultMessage": "Shorter turns",
+    "description": "Summary for Claude Haiku on the pricing page"
   },
   "5w2ioj6keh": {
     "defaultMessage": "Key",
@@ -4058,6 +4094,10 @@
   "6V8CrxumwV": {
     "defaultMessage": "{count, plural, one {Explored {subject}, # search} other {Explored {subject}, # searches}}",
     "description": "Collapsed explore rollup with a subject and search count"
+  },
+  "6W4y3PFOV8": {
+    "defaultMessage": "Any billing",
+    "description": "Filter label for every billing type on the pricing page"
   },
   "6Wo0GmkOW8": {
     "defaultMessage": "This is a playground. Add a step, edit a prompt, press test. Refresh the page and it resets. Nothing is saved.",
@@ -4430,10 +4470,6 @@
   "7F+nlF4WOX": {
     "defaultMessage": "e.g. Keep speaker notes concise and preserve slide layout.",
     "description": "Placeholder for AI prompt when generating a translated presentation in CAT file view"
-  },
-  "7FJ8bUMk8H": {
-    "defaultMessage": "Included models for speech, transcription, image, and video stay available alongside BYOK.",
-    "description": "BYOK feature bullet about included models on pricing page"
   },
   "7GK/dF2FBE": {
     "defaultMessage": "Dictionaries",
@@ -5179,10 +5215,6 @@
     "defaultMessage": "Compose triggers, branches, and actions on a canvas with typed bindings.",
     "description": "Pricing matrix detail for Automation Workflow visual editor"
   },
-  "8n+pwQn9aX": {
-    "defaultMessage": "BYOK inference is billed by your provider and does not draw down Hyperlocalise monthly AI credit.",
-    "description": "BYOK feature bullet about AI credit on pricing page"
-  },
   "8n5eYbhjGv": {
     "defaultMessage": "Chinese (Taiwan)",
     "description": "Display name for BCP-47 locale zh-TW"
@@ -5399,6 +5431,10 @@
     "defaultMessage": "Keywords",
     "description": "Add keywords textarea label"
   },
+  "9Cdevjsa8b": {
+    "defaultMessage": "In AI Engine",
+    "description": "Label for the technical model id in the pricing model detail"
+  },
   "9CrGAdF92d": {
     "defaultMessage": "Q3 localisation volume",
     "description": "Reports mock UI dashboard panel title"
@@ -5498,6 +5534,10 @@
   "9LD3POhUor": {
     "defaultMessage": "Your story.\nThe same impact.",
     "description": "Title for the slides format panel"
+  },
+  "9M6xjAhsYc": {
+    "defaultMessage": "Look through every model, or clear the search.",
+    "description": "Help text when the recommended pricing models do not match the search"
   },
   "9MIwXNtVoL": {
     "defaultMessage": "Value",
@@ -5678,6 +5718,10 @@
   "9hphmwIx1l": {
     "defaultMessage": "https://cloud.memsource.com/web",
     "description": "Example placeholder for the Phrase API base URL field"
+  },
+  "9ia5fOVQ3G": {
+    "defaultMessage": "You have many short strings and want quick drafts.",
+    "description": "Situation for Gemini Flash on the pricing page"
   },
   "9jLtl6PUKI": {
     "defaultMessage": "No locale",
@@ -6699,6 +6743,10 @@
     "defaultMessage": "Fit",
     "description": "Image viewer: fit"
   },
+  "Bqz0aRCBut": {
+    "defaultMessage": "Describe a short clip when a market needs motion as well as words. Included on paid plans. Usage comes out of your monthly AI credit.",
+    "description": "Story for the video model on the pricing page"
+  },
   "BrXfVaiNs0": {
     "defaultMessage": "Workspace subscription plan",
     "description": "Fallback description when an Autumn plan has no description"
@@ -7558,6 +7606,10 @@
   "DSm/l7fomX": {
     "defaultMessage": "Revoke API key",
     "description": "Title of the revoke API key confirmation dialog"
+  },
+  "DT7M7vytkc": {
+    "defaultMessage": "Filter by job",
+    "description": "Accessible label for the pricing model job filter"
   },
   "DTYOuQdye9": {
     "defaultMessage": "Untitled automation",
@@ -8627,6 +8679,10 @@
     "defaultMessage": "A page can be live and still be invisible. Domains shows the gaps in each language, in search, and in AI answers.",
     "description": "Body copy for the Domains solutions section"
   },
+  "Fb4AJ4nGEX": {
+    "defaultMessage": "Search by name or job",
+    "description": "Placeholder for the pricing model search field"
+  },
   "FbWiUTt6DX": {
     "defaultMessage": "Verify DNS",
     "description": "Verify DNS dialog title"
@@ -8855,6 +8911,10 @@
     "defaultMessage": "Update workspace settings",
     "description": "Permission row for updating workspace settings"
   },
+  "G715x+6MXV": {
+    "defaultMessage": "Connect an Anthropic key and use Haiku for shorter turns. Anthropic bills this usage. It does not draw down your monthly AI credit.",
+    "description": "Story for Claude Haiku on the pricing page"
+  },
   "G7es7H7NT8": {
     "defaultMessage": "Connect first",
     "description": "Shortcut hint when an email provider must be connected first"
@@ -9079,6 +9139,10 @@
     "defaultMessage": "Contentful",
     "description": "Automation run trigger source label for Contentful-triggered runs"
   },
+  "Ge+3hBBbLV": {
+    "defaultMessage": "You need an image, not another paragraph.",
+    "description": "Situation for the image model on the pricing page"
+  },
   "GeD3IIa8Fg": {
     "defaultMessage": "Update the metadata stored with this project.",
     "description": "Description of the edit project dialog"
@@ -9142,6 +9206,10 @@
   "GpAqGi0E/I": {
     "defaultMessage": "Loading video…",
     "description": "Video refinement workspace: loading"
+  },
+  "GpCoXXS8l1": {
+    "defaultMessage": "Filter by billing",
+    "description": "Accessible label for the pricing model billing filter"
   },
   "GpJgVP/u6k": {
     "defaultMessage": "Unable to load teams",
@@ -9615,6 +9683,10 @@
     "defaultMessage": "Loading jobs",
     "description": "Accessible label while the grouped jobs list is loading"
   },
+  "Hv8dudDiIO": {
+    "defaultMessage": "Chat, translation, and coding",
+    "description": "Summary for an included OpenAI writing model on the pricing page"
+  },
   "HvVXRZQQIf": {
     "defaultMessage": "This report does not exist, or you do not have access to it.",
     "description": "Missing or unauthorized import report explanation"
@@ -9686,6 +9758,10 @@
   "I3Xom21N//": {
     "defaultMessage": "Access your Hyperlocalise workspace from MCP clients.",
     "description": "Overview card description for the inbound MCP connection snippet"
+  },
+  "I3a2YDu+oy": {
+    "defaultMessage": "Use it when",
+    "description": "Label above the situation a pricing model fits"
   },
   "I42jTEngJ1": {
     "defaultMessage": "AI captures the signal",
@@ -10011,6 +10087,10 @@
     "defaultMessage": "Engineering manager",
     "description": "Marketing homepage testimonial speaker role"
   },
+  "Ino5JbBMsK": {
+    "defaultMessage": "This is the writer on paid plans. Ask it about a string, run a translation job, or let a coding agent draft a change. Usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill this model instead.",
+    "description": "Story for the default writing model on the pricing page"
+  },
   "Io0khnUDZT": {
     "defaultMessage": "French requires “marchés” with an acute accent. Without it, the line reads like the verb “marches” instead of “markets” in customer-facing pricing copy.",
     "description": "Body of the review finding in the PR illustration mock comment"
@@ -10123,6 +10203,10 @@
     "defaultMessage": "Value",
     "description": "Label for the audience rule value"
   },
+  "J0n8L9KLms": {
+    "defaultMessage": "Glossary: {name}",
+    "description": "Glossary name shown on import/export history pages"
+  },
   "J0zJVMmJUF": {
     "defaultMessage": "Create a token in Crowdin under Account Settings → API, or in Crowdin Enterprise under your account or Organization Settings → User Access Tokens.",
     "description": "Help text describing where to create a Crowdin personal access token"
@@ -10138,6 +10222,10 @@
   "J210+x7u6p": {
     "defaultMessage": "Web chat",
     "description": "Trigger label for a web chat automation in the list"
+  },
+  "J3VsxKxltT": {
+    "defaultMessage": "Workspace default",
+    "description": "Highlight for the default writing model on the pricing page"
   },
   "J4A3eYJ5tj": {
     "defaultMessage": "No text elements yet",
@@ -10251,6 +10339,10 @@
     "defaultMessage": "Issue",
     "description": "Button to open the create issue dialog on the Issue Sheet page"
   },
+  "JKmR2EOv2K": {
+    "defaultMessage": "Models",
+    "description": "Accessible label for the pricing model list"
+  },
   "JL3JSNfNKu": {
     "defaultMessage": "No audiences yet",
     "description": "Empty state title for the audiences list"
@@ -10334,6 +10426,10 @@
   "JSylA1G/ba": {
     "defaultMessage": "Public scores, side by side. Check yours to see where you stand.",
     "description": "Supporting copy for the public localisation audit leaderboard"
+  },
+  "JTdejUyr0G": {
+    "defaultMessage": "Connect an Anthropic key and use Opus when the wording needs extra attention. Anthropic bills this usage. It does not draw down your monthly AI credit.",
+    "description": "Story for Claude Opus on the pricing page"
   },
   "JUWqOD5PWj": {
     "defaultMessage": "Enable this repository to configure translation automation.",
@@ -11139,6 +11235,14 @@
     "defaultMessage": "Open Editor",
     "description": "Button on project overview linking to the project Content Editor page"
   },
+  "LRVFAS5BU6": {
+    "defaultMessage": "Voice",
+    "description": "Filter label for voice models on the pricing page"
+  },
+  "LRjbYLhwbi": {
+    "defaultMessage": "Try another job, or clear the search.",
+    "description": "Help text when pricing model filters return nothing"
+  },
   "LRlVY40lAz": {
     "defaultMessage": "Account",
     "description": "Account settings page heading"
@@ -11807,6 +11911,10 @@
     "defaultMessage": "Branch pattern",
     "description": "Accessible label for the branch pattern input"
   },
+  "MoH++be9F6": {
+    "defaultMessage": "You want one default the whole workspace can share.",
+    "description": "Situation for the default writing model on the pricing page"
+  },
   "ModLI3ew1I": {
     "defaultMessage": "No glossaries yet",
     "description": "Empty state title when the workspace has no glossaries"
@@ -11894,6 +12002,10 @@
   "MyhfQjH0sE": {
     "defaultMessage": "Active",
     "description": "Badge label when an automation is active"
+  },
+  "N/76NIMu0h": {
+    "defaultMessage": "Recommended",
+    "description": "Filter that shows the short model list on the pricing page"
   },
   "N/7JtE/mmo": {
     "defaultMessage": "Launch globally",
@@ -12455,6 +12567,10 @@
     "defaultMessage": "Unknown",
     "description": "Fallback label when an automation has no creator name"
   },
+  "O+malJ4pAE": {
+    "defaultMessage": "Turn a recording into text your team can review and translate. Included on paid plans. Usage comes out of your monthly AI credit.",
+    "description": "Story for the transcription model on the pricing page"
+  },
   "O/4w7DJ8Jn": {
     "defaultMessage": "Check copy against style guides and market rules before publish.",
     "description": "Empty state subtitle in brand chat mock"
@@ -12746,10 +12862,6 @@
   "OfQ4bwN572": {
     "defaultMessage": "Length",
     "description": "CAT format check label when the translation exceeds the max length"
-  },
-  "OhHPkKM0Ft": {
-    "defaultMessage": "Video generation",
-    "description": "Pricing models row label for video generation"
   },
   "OhpM+OYfcF": {
     "defaultMessage": "Overview",
@@ -13151,6 +13263,10 @@
     "defaultMessage": "Loading progress...",
     "description": "Placeholder while Crowdin locale readiness is loading"
   },
+  "Pb5w1LHor2": {
+    "defaultMessage": "A more careful pass",
+    "description": "Summary for Claude Opus on the pricing page"
+  },
   "Pbjej2iS6R": {
     "defaultMessage": "Coming soon",
     "description": "Tooltip when a visual editor control is not yet implemented"
@@ -13398,6 +13514,10 @@
   "Q6fTrZjDFK": {
     "defaultMessage": "Schedule",
     "description": "Catalog title for the scheduled trigger node"
+  },
+  "Q6hHUNtw7B": {
+    "defaultMessage": "Export · {filename}",
+    "description": "Name of a glossary export run identified by its filename"
   },
   "Q6oQuKFEbX": {
     "defaultMessage": "Bring your own model stack",
@@ -13966,6 +14086,10 @@
   "RSCu8OSDph": {
     "defaultMessage": "No description yet",
     "description": "Fallback text when a project card has no description"
+  },
+  "RSD6Hb39Fw": {
+    "defaultMessage": "Turn speech into text",
+    "description": "Summary for the transcription model on the pricing page"
   },
   "RSG9yRsAq1": {
     "defaultMessage": "Turn off",
@@ -14739,6 +14863,10 @@
     "defaultMessage": "Configure translation automation for {repositoryFullName}. This is separate from refreshing repository metadata from GitHub.",
     "description": "Page description for GitHub repository automation settings, including the repository full name"
   },
+  "T2qLjqNIRT": {
+    "defaultMessage": "Use it for chat, translation, and coding. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill this model instead.",
+    "description": "Story for an included OpenAI writing model on the pricing page"
+  },
   "T4Nt0cVH3/": {
     "defaultMessage": "Unable to delete glossary",
     "description": "Fallback error when deleting a glossary fails"
@@ -15127,6 +15255,10 @@
     "defaultMessage": "Loading Slack channel invite",
     "description": "Accessible label while the Slack Connect banner loads"
   },
+  "Tr9qQQZ/aQ": {
+    "defaultMessage": "Describe the picture you need for a campaign or a stand-in visual. Included on paid plans. Usage comes out of your monthly AI credit.",
+    "description": "Story for the image model on the pricing page"
+  },
   "TrBjo12/3b": {
     "defaultMessage": "HTTP, webhooks & AI steps",
     "description": "Pricing matrix row for Automation Workflow step types"
@@ -15246,6 +15378,10 @@
   "U76tWGMJVU": {
     "defaultMessage": "started an automation run",
     "description": "Action for starting an automation run"
+  },
+  "U7Oa7ZDE9f": {
+    "defaultMessage": "P2",
+    "description": "Inbox priority filter for P2 issues"
   },
   "U7qjKZzoBx": {
     "defaultMessage": "Save settings",
@@ -15414,6 +15550,10 @@
   "UPSrigC8qi": {
     "defaultMessage": "Headers",
     "description": "HTTP node headers label"
+  },
+  "UQJXYycHuy": {
+    "defaultMessage": "Listening",
+    "description": "Filter label for transcription models on the pricing page"
   },
   "UQM29Qy4Ux": {
     "defaultMessage": "Added",
@@ -15587,6 +15727,10 @@
     "defaultMessage": "Page {currentPage} of {totalPages}",
     "description": "Current page indicator for proposal pagination"
   },
+  "Up335i7GML": {
+    "defaultMessage": "Model",
+    "description": "Column label for the model name on the pricing page"
+  },
   "Up5yLUnVpF": {
     "defaultMessage": "No locales configured",
     "description": "Summary when a project has no source or target locales"
@@ -15646,6 +15790,10 @@
   "UvLPwAuWGw": {
     "defaultMessage": "New issue",
     "description": "Title of the create Issue Sheet issue dialog"
+  },
+  "UvSp5y/OIh": {
+    "defaultMessage": "Clear filters",
+    "description": "Button that resets pricing model search and filters"
   },
   "UvTEiYJq6k": {
     "defaultMessage": "Context-aware from pull requests and issues",
@@ -15726,6 +15874,10 @@
   "V3RuMxqgSZ": {
     "defaultMessage": "Filter entries",
     "description": "Title of the translation memory entry filter popover"
+  },
+  "V5Cs48ujmR": {
+    "defaultMessage": "Hear how a line sounds",
+    "description": "Summary for the text to speech model on the pricing page"
   },
   "V5IhYqq1Fk": {
     "defaultMessage": "Manage",
@@ -16407,10 +16559,6 @@
     "defaultMessage": "Automations",
     "description": "Project sidebar navigation item for project automations"
   },
-  "WfOVeAc/hr": {
-    "defaultMessage": "Text to speech",
-    "description": "Pricing models row label for text to speech"
-  },
   "WgTwa4eiEE": {
     "defaultMessage": "Import report",
     "description": "Translation memory import report page title"
@@ -16494,6 +16642,10 @@
   "WoJQD0Fykh": {
     "defaultMessage": "From a button label to a whole flow",
     "description": "Supporting line for the Hyperlab flags solution panel"
+  },
+  "WojZwK+028": {
+    "defaultMessage": "Every model",
+    "description": "Filter that shows the full model list on the pricing page"
   },
   "WpB4HHsI4I": {
     "defaultMessage": "Responded",
@@ -16610,10 +16762,6 @@
   "X0ufvWkg5R": {
     "defaultMessage": "Intercom",
     "description": "Intercom provider label on the content sync action"
-  },
-  "X1Ie8nZW5a": {
-    "defaultMessage": "Included models",
-    "description": "Subheading for Hyperlocalise-managed models on the pricing page"
   },
   "X1JobycgOR": {
     "defaultMessage": "All",
@@ -17179,6 +17327,10 @@
     "defaultMessage": "Loops",
     "description": "Loops integration name on the integrations page"
   },
+  "YCaD+nC2OM": {
+    "defaultMessage": "You want shorter turns and quicker replies.",
+    "description": "Situation for Claude Haiku on the pricing page"
+  },
   "YDQwelYneJ": {
     "defaultMessage": "Contentful entry ID",
     "description": "Placeholder for the Contentful entry ID input"
@@ -17198,6 +17350,10 @@
   "YEpKGG3Nzw": {
     "defaultMessage": "Hyperlocalise logo",
     "description": "Alt text for the Hyperlocalise logo in the app shell sidebar"
+  },
+  "YGFB2mB2iu": {
+    "defaultMessage": "Choose how many models to show",
+    "description": "Accessible label for the pricing model list scope"
   },
   "YGfWnIp6A9": {
     "defaultMessage": "Loading issues",
@@ -17270,6 +17426,10 @@
   "YOYL3H2qOe": {
     "defaultMessage": "Locale",
     "description": "Placeholder for the CAT header target locale select when empty"
+  },
+  "YP1eohi/Yy": {
+    "defaultMessage": "You want to hear the rhythm and length of a line.",
+    "description": "Situation for the text to speech model on the pricing page"
   },
   "YPT/4ux3Z/": {
     "defaultMessage": "Manual only",
@@ -17719,6 +17879,10 @@
     "defaultMessage": "Unable to verify this channel right now. Try again.",
     "description": "Error when Slack channel verification fails unexpectedly"
   },
+  "ZMuADiRtdx": {
+    "defaultMessage": "Writing",
+    "description": "Filter label for writing models on the pricing page"
+  },
   "ZNAwtFUkzx": {
     "defaultMessage": "Audited",
     "description": "Label for the completed-at date on a localisation audit result"
@@ -17787,6 +17951,10 @@
     "defaultMessage": "Running",
     "description": "Workflow node status"
   },
+  "ZWsiVHYRoy": {
+    "defaultMessage": "All priorities",
+    "description": "Inbox priority filter that shows all priorities"
+  },
   "ZXPdUvtPkF": {
     "defaultMessage": "Assign values into the workflow context.",
     "description": "Catalog description for the set fields node"
@@ -17846,6 +18014,10 @@
   "Zh1+GZ3Hje": {
     "defaultMessage": "Add files",
     "description": "Button to choose source files for upload"
+  },
+  "Zhasquwx2x": {
+    "defaultMessage": "Search models",
+    "description": "Accessible label for the pricing model search field"
   },
   "ZhhmEl6FUY": {
     "defaultMessage": "No imports yet",
@@ -17918,6 +18090,10 @@
   "Zq6yckXsZ1": {
     "defaultMessage": "Search repositories",
     "description": "Aria label for the GitHub repository search input"
+  },
+  "ZqN2yepK3V": {
+    "defaultMessage": "You want quicker replies from this OpenAI model.",
+    "description": "Situation for a faster included OpenAI model on the pricing page"
   },
   "Zr6ABmqsLb": {
     "defaultMessage": "New flag",
@@ -18171,10 +18347,6 @@
     "defaultMessage": "Enter an Intercom access token.",
     "description": "Validation error when Intercom access token is missing on create"
   },
-  "aEo791NENU": {
-    "defaultMessage": "Managed models draw down your monthly AI credit. Connect your own provider keys when you want direct billing with OpenAI, Anthropic, or Gemini.",
-    "description": "Supporting copy for the models and BYOK section on the pricing page"
-  },
   "aFBvwlBhSp": {
     "defaultMessage": "Collapse Sidebar",
     "description": "Label and tooltip when the sidebar is expanded and can be collapsed"
@@ -18283,10 +18455,6 @@
     "defaultMessage": "Unassign",
     "description": "Bulk action to unassign selected issues"
   },
-  "aRW1mCoyPj": {
-    "defaultMessage": "Configure providers in AI Engine after you upgrade to Starter, Growth, or Enterprise.",
-    "description": "Footnote under BYOK features on the pricing page"
-  },
   "aRsl7fqj3D": {
     "defaultMessage": "Comment",
     "description": "Button to submit the mock PR comment in the review illustration"
@@ -18318,10 +18486,6 @@
   "aXy7jDdqhj": {
     "defaultMessage": "Billing is not available for this workspace.",
     "description": "Error when the billing customer is unavailable"
-  },
-  "aYuiXKzRRS": {
-    "defaultMessage": "Transcribe",
-    "description": "Pricing models row label for transcription"
   },
   "aa15mSwX4W": {
     "defaultMessage": "Source locale",
@@ -18399,6 +18563,10 @@
     "defaultMessage": "Attempt",
     "description": "Retry body connection"
   },
+  "akrLncuXTs": {
+    "defaultMessage": "You want the same Luna writer, with quicker replies.",
+    "description": "Situation for the fast Luna model on the pricing page"
+  },
   "alKFWoCQYb": {
     "defaultMessage": "Download",
     "description": "Submit button in the download translations dialog footer"
@@ -18438,10 +18606,6 @@
   "ap7pcG+5Mr": {
     "defaultMessage": "Column order saved",
     "description": "Toast after reordering issue columns"
-  },
-  "aq9uIWSdUf": {
-    "defaultMessage": "Image generation",
-    "description": "Pricing models row label for image generation"
   },
   "auA819r7rs": {
     "defaultMessage": "Loading job",
@@ -18510,6 +18674,10 @@
   "b/Vd04dNDW": {
     "defaultMessage": "Hyperlocalise",
     "description": "Tab to show only Hyperlocalise-native projects"
+  },
+  "b/ulx7nVXu": {
+    "defaultMessage": "A recording needs to become copy you can localize.",
+    "description": "Situation for the transcription model on the pricing page"
   },
   "b04WpJPIZh": {
     "defaultMessage": "Keywords",
@@ -18671,6 +18839,10 @@
     "defaultMessage": "Save & localise",
     "description": "Image viewer: saveLocalise"
   },
+  "bIozEMK8ly": {
+    "defaultMessage": "Import · {timestamp}",
+    "description": "Name of a glossary import run identified by its timestamp"
+  },
   "bJPgIG0M7T": {
     "defaultMessage": "Branch",
     "description": "Label next to the project files branch filter select"
@@ -18806,10 +18978,6 @@
   "bbfynfwu7y": {
     "defaultMessage": "No keywords tracked yet",
     "description": "Empty rank tracking title"
-  },
-  "bbuRb12c5B": {
-    "defaultMessage": "Ask, Translation, Coding, file translation jobs, and workspace automations inherit your workspace default model.",
-    "description": "BYOK feature bullet about workspace default inheritance on pricing page"
   },
   "bc/4smjeQZ": {
     "defaultMessage": "Add column",
@@ -18987,10 +19155,6 @@
     "defaultMessage": "Context and terminology for this string.",
     "description": "Supporting copy below the CAT translation intelligence panel heading"
   },
-  "c+4z1kMqTq": {
-    "defaultMessage": "Workspace default for chat, translation jobs, and coding agents.",
-    "description": "Detail for the managed agent default model on the pricing page"
-  },
   "c+Mjo4w0Tb": {
     "defaultMessage": "Delete this concept and all of its terms?",
     "description": "Confirmation prompt before deleting a concept"
@@ -19130,6 +19294,10 @@
   "cHNG0eH0rr": {
     "defaultMessage": "No localisation audit is attached to this domain yet.",
     "description": "Empty state when a linked domain has no audit"
+  },
+  "cHYsUGiY4s": {
+    "defaultMessage": "Still images from a short brief",
+    "description": "Summary for the image model on the pricing page"
   },
   "cHvtlHrefQ": {
     "defaultMessage": "Source image",
@@ -19426,10 +19594,6 @@
   "crhiHIjb38": {
     "defaultMessage": "{count}/{limit} characters",
     "description": "Character count for the organization knowledge memory editor"
-  },
-  "cs1R2QyhSD": {
-    "defaultMessage": "Save a shared workspace API key in AI Engine. Hyperlocalise validates the key, encrypts it at rest, and routes agent and translation traffic through your provider account.",
-    "description": "Description under BYOK on the pricing page"
   },
   "cs9xdfnPbE": {
     "defaultMessage": "Send terminal run summaries through your connected email provider.",
@@ -20767,6 +20931,10 @@
     "defaultMessage": "Failed to cancel job",
     "description": "Toast and error fallback when cancelling a job fails"
   },
+  "fPXZYLvS43": {
+    "defaultMessage": "A faster Luna for the same chat, translation, and coding work. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill it instead.",
+    "description": "Story for the fast Luna model on the pricing page"
+  },
   "fQ1jKCCGwH": {
     "defaultMessage": "Lock",
     "description": "Button to lock the current CAT segment against edits"
@@ -20994,6 +21162,10 @@
   "fxgs/d7//D": {
     "defaultMessage": "Create a project first, then import issues into Queries.",
     "description": "Empty state when there are no projects to import issues into"
+  },
+  "fxjFqNjim9": {
+    "defaultMessage": "Your account",
+    "description": "Badge and filter for a model billed to the customer's provider account"
   },
   "fxy2Q92Fyj": {
     "defaultMessage": "Search can read it",
@@ -21803,6 +21975,10 @@
     "defaultMessage": "Used {count} sources",
     "description": "Collapsible trigger label showing how many sources were cited"
   },
+  "hRiPxjtqBZ": {
+    "defaultMessage": "Connect a Gemini key and use Pro for harder drafts. Google bills this usage. It does not draw down your monthly AI credit.",
+    "description": "Story for Gemini Pro on the pricing page"
+  },
   "hSMtpPxb+x": {
     "defaultMessage": "All reviews",
     "description": "All option for the term review filter"
@@ -21967,10 +22143,6 @@
     "defaultMessage": "Try again",
     "description": "Button to retry rendering the chat dock panel"
   },
-  "hjwoGYZd+k": {
-    "defaultMessage": "Ask, Translation, and Coding",
-    "description": "Pricing models row label for agent text capabilities"
-  },
   "hm9/43e7py": {
     "defaultMessage": "End time",
     "description": "Label for experiment end time"
@@ -22071,6 +22243,10 @@
     "defaultMessage": "Notion",
     "description": "Notion source name on the guidelines board"
   },
+  "i+L328OqBg": {
+    "defaultMessage": "Filter by priority",
+    "description": "Accessible label for the inbox priority filter menu"
+  },
   "i/10E+WnLM": {
     "defaultMessage": "This domain blocked the crawler, so we did not score the site.",
     "description": "Body explaining that a blocked crawl did not produce a localisation score"
@@ -22123,6 +22299,10 @@
     "defaultMessage": "Use cases",
     "description": "Category heading above use-case links in the marketing navbar mega-menu"
   },
+  "i70eKYLUvJ": {
+    "defaultMessage": "Billing",
+    "description": "Column label for how a pricing model is billed"
+  },
   "i7F4qIlR4E": {
     "defaultMessage": "Enabled",
     "description": "Badge shown when a Semrush connection is enabled"
@@ -22130,6 +22310,10 @@
   "i7dxDvInjb": {
     "defaultMessage": "Select",
     "description": "Button to select and attach a subscription plan"
+  },
+  "i8AxYRXb9E": {
+    "defaultMessage": "Quicker replies from Luna",
+    "description": "Summary for the fast Luna model on the pricing page"
   },
   "i8B+GP5gs5": {
     "defaultMessage": "Jira",
@@ -22495,6 +22679,10 @@
     "defaultMessage": "Created",
     "description": "Created timestamp column in the concept table"
   },
+  "ipXlmfoH58": {
+    "defaultMessage": "No priority",
+    "description": "Inbox priority filter for issues without a priority"
+  },
   "iqtybHn407": {
     "defaultMessage": "Video",
     "description": "Content Studio format tab for video"
@@ -22706,10 +22894,6 @@
   "jEVZfFEPYx": {
     "defaultMessage": "Audiences",
     "description": "Hyperlab mock UI nav tab"
-  },
-  "jEcB+kTaAO": {
-    "defaultMessage": "Always available on paid plans. Speech and media capabilities use dedicated included models; agent work uses the managed catalog (default {defaultModel}) unless you connect BYOK.",
-    "description": "Description under included models on the pricing page"
   },
   "jEkf8VDO5/": {
     "defaultMessage": "Create Jira issues from translation blockers and keep localization work in sync.",
@@ -23319,6 +23503,10 @@
     "defaultMessage": "To {value}",
     "description": "Chip label for the modified-to filter"
   },
+  "kRkY9YXl2W": {
+    "defaultMessage": "Show every model",
+    "description": "Button that expands the pricing model list to the full catalog"
+  },
   "kRw106UBLA": {
     "defaultMessage": "Tap the market version you would keep.",
     "description": "Headline for the Hyperlab A/B comparison section"
@@ -23602,6 +23790,10 @@
   "l+wMmn4Krw": {
     "defaultMessage": "Failed to load Semrush connections.",
     "description": "Error when Semrush connections cannot be loaded"
+  },
+  "l//f5K3F+p": {
+    "defaultMessage": "ByteDance",
+    "description": "ByteDance provider name on the pricing page"
   },
   "l0LaeWZhOk": {
     "defaultMessage": "Term used instead",
@@ -24123,6 +24315,10 @@
     "defaultMessage": "Resources",
     "description": "Sidebar heading for integration resources on the detail page"
   },
+  "mCz1OMRk2y": {
+    "defaultMessage": "What it helps with",
+    "description": "Column label for what a pricing model is used for"
+  },
   "mDY8Zlbd4D": {
     "defaultMessage": "cancelled a job",
     "description": "Action for job cancellation"
@@ -24306,6 +24502,10 @@
   "mWmRyMvedC": {
     "defaultMessage": "{actor} moved from {previousStatus} to {nextStatus}",
     "description": "Activity line when an issue status changes"
+  },
+  "mWtA0VdJue": {
+    "defaultMessage": "Nothing recommended matches",
+    "description": "Title when the recommended pricing models do not match the search"
   },
   "mX/u4fe+7s": {
     "defaultMessage": "Showing {pageStart}–{pageEnd} of {glossaryTotal} glossaries",
@@ -24579,6 +24779,10 @@
     "defaultMessage": "Add case",
     "description": "Button to add a switch case"
   },
+  "n5ZuB985rS": {
+    "defaultMessage": "Longer drafts and review",
+    "description": "Summary for Claude Sonnet on the pricing page"
+  },
   "n5bYPU3uSK": {
     "defaultMessage": "Product updates outpace help center translations. Support teams absorb the cost when localized articles lag behind.",
     "description": "Problem section description for the help-center-localisation use case"
@@ -24710,6 +24914,10 @@
   "nLGLyaeThi": {
     "defaultMessage": "Locale",
     "description": "Label for issue target locale field"
+  },
+  "nLIx9rcSZg": {
+    "defaultMessage": "All",
+    "description": "Filter label for every model job on the pricing page"
   },
   "nMNoXhRMk/": {
     "defaultMessage": "Unable to remove member from team.",
@@ -25111,6 +25319,10 @@
     "defaultMessage": "Choose one or more existing project files. Each file starts its own run.",
     "description": "Description for the existing source-file selection dialog"
   },
+  "oAdWI3pqoy": {
+    "defaultMessage": "The wording needs extra attention.",
+    "description": "Situation for Claude Opus on the pricing page"
+  },
   "oCFslUs6eA": {
     "defaultMessage": "Show bulk selection checkboxes",
     "description": "Accessible label for the CAT queue bulk selection mode toggle"
@@ -25463,10 +25675,6 @@
     "defaultMessage": "Back",
     "description": "Back button label"
   },
-  "ooSKNfcn90": {
-    "defaultMessage": "Pick a default model from our curated catalog for each provider (for example GPT-6 Luna, Claude Sonnet, or Gemini Flash).",
-    "description": "BYOK feature bullet about curated model catalog on pricing page"
-  },
   "oojEYpvA6e": {
     "defaultMessage": "Digests wait a few minutes and skip items you already read in Inbox. Immediate sends each notification right away.",
     "description": "Description for email digest vs immediate delivery format"
@@ -25518,6 +25726,10 @@
   "ow+0+l1ZrI": {
     "defaultMessage": "Clear. Human. Confident.",
     "description": "Brand voice example in the campaign context mock"
+  },
+  "ow1T0+Vk+a": {
+    "defaultMessage": "Chat, translation, and coding",
+    "description": "Summary for the default writing model on the pricing page"
   },
   "owW1Hvk/pe": {
     "defaultMessage": "Do I need to replace my TMS?",
@@ -25590,6 +25802,10 @@
   "p2ZEW4INMa": {
     "defaultMessage": "Glossaries",
     "description": "Sidebar navigation item for glossaries"
+  },
+  "p2iBQGftoM": {
+    "defaultMessage": "Fish Audio",
+    "description": "Fish Audio provider name on the pricing page"
   },
   "p3FC9aFD6g": {
     "defaultMessage": "Save split",
@@ -25858,6 +26074,10 @@
   "pW1y7yrfkU": {
     "defaultMessage": "Actions for {name}",
     "description": "Accessible label for a workspace member row actions menu"
+  },
+  "pWIlwfK6L5": {
+    "defaultMessage": "A still image is not enough for the campaign.",
+    "description": "Situation for the video model on the pricing page"
   },
   "pWLMdEuyPH": {
     "defaultMessage": "{requestedLocale} is not a target locale for this file. Double-click a file or use Open Editor to edit {targetLocale}.",
@@ -26291,6 +26511,10 @@
     "defaultMessage": "Brand QA",
     "description": "Flow node label"
   },
+  "qDPDjijqjg": {
+    "defaultMessage": "Included",
+    "description": "Badge and filter for a model included with paid plans"
+  },
   "qFVbPH/1i/": {
     "defaultMessage": "Failed to load spellcheck dictionaries.",
     "description": "Error when CAT cannot load the project spellcheck allow-list"
@@ -26403,6 +26627,10 @@
     "defaultMessage": "Failed to invite member",
     "description": "Error when inviting a workspace member fails"
   },
+  "qWuPZZeIC0": {
+    "defaultMessage": "Harder drafts",
+    "description": "Summary for Gemini Pro on the pricing page"
+  },
   "qXmUZikt+0": {
     "defaultMessage": "No agent run selected",
     "description": "Error when saving proposal review without a selected agent run"
@@ -26414,6 +26642,10 @@
   "qYH/VTnW7r": {
     "defaultMessage": "Inbox",
     "description": "Sidebar navigation item for the workspace inbox"
+  },
+  "qYSoW7SGAG": {
+    "defaultMessage": "Back to import/export history",
+    "description": "Back navigation from a glossary interchange report"
   },
   "qZPWtL4H2F": {
     "defaultMessage": "Multilingual content operations, unified. <muted>Less operational overhead, faster market entry, and more revenue from every language you ship.</muted>",
@@ -26659,9 +26891,17 @@
     "defaultMessage": "Could not load relationships",
     "description": "Shown when the relationships list fails to load"
   },
+  "r4DslyI+Ba": {
+    "defaultMessage": "Quicker replies for writing",
+    "description": "Summary for a faster included OpenAI model on the pricing page"
+  },
   "r6Ldwc5qHk": {
     "defaultMessage": "Russian (Russia)",
     "description": "Display name for BCP-47 locale ru-RU"
+  },
+  "r6qom0JjbO": {
+    "defaultMessage": "Connect a key in AI Engine on Starter, Growth, or Enterprise. Ask, Translation, Coding, file translation, and automations follow the workspace default. Speech, transcription, images, and video stay included.",
+    "description": "Footnote under the model list on the pricing page"
   },
   "r7/0syRDA9": {
     "defaultMessage": "required",
@@ -26778,6 +27018,10 @@
   "rJRBMWgpmE": {
     "defaultMessage": "From address",
     "description": "Label for the sender email address field"
+  },
+  "rK02Gg9nl5": {
+    "defaultMessage": "Paid plans include models for writing, voice, listening, pictures, and video. Those draw from your monthly AI credit. Connect OpenAI, Anthropic, or Gemini when you want a writer billed to that account.",
+    "description": "Supporting copy for the models section on the pricing page"
   },
   "rKDq5xVpUS": {
     "defaultMessage": "Add input",
@@ -26918,6 +27162,10 @@
   "raG3uRf8nJ": {
     "defaultMessage": "Active",
     "description": "Active status badge"
+  },
+  "rc9DBDztDD": {
+    "defaultMessage": "Models your team can use",
+    "description": "Heading for the models section on the pricing page"
   },
   "rcANTRobpQ": {
     "defaultMessage": "Role",
@@ -27062,6 +27310,10 @@
   "ryd9aeww4k": {
     "defaultMessage": "Can we use more than one source?",
     "description": "Guidelines FAQ question about multiple sources"
+  },
+  "rzB2qvVXWW": {
+    "defaultMessage": "You want this OpenAI model for chat, translation, or coding.",
+    "description": "Situation for an included OpenAI writing model on the pricing page"
   },
   "rzRd9sk8q6": {
     "defaultMessage": "Project created",
@@ -27523,6 +27775,10 @@
     "defaultMessage": "Translate detected Contentful fields, run QA, and write drafts back for review.",
     "description": "Description for Contentful translate when Contentful is connected"
   },
+  "t1MgIE0AON": {
+    "defaultMessage": "Short video from a brief",
+    "description": "Summary for the video model on the pricing page"
+  },
   "t1gNC2Fo+D": {
     "defaultMessage": "Your account does not have permission to open this page.",
     "description": "Access denied page summary when the user lacks required permissions"
@@ -27603,6 +27859,10 @@
     "defaultMessage": "Book a demo. We'll confirm eligibility and show you startup pricing at 80% off Growth.",
     "description": "Final CTA supporting copy on the startups page"
   },
+  "t9wxr1NNC0": {
+    "defaultMessage": "Connect an Anthropic key and use Sonnet for longer drafts and review notes. Anthropic bills this usage. It does not draw down your monthly AI credit.",
+    "description": "Story for Claude Sonnet on the pricing page"
+  },
   "tAIkYXyE7a": {
     "defaultMessage": "A lab connected to the bigger picture.",
     "description": "Headline for the Hyperlab connected-products section"
@@ -27658,6 +27918,10 @@
   "tI6FJ9DXvD": {
     "defaultMessage": "Read",
     "description": "Inbox filter that shows read notifications and conversations"
+  },
+  "tIBFMHgcgW": {
+    "defaultMessage": "P1",
+    "description": "Inbox priority filter for P1 issues"
   },
   "tIIkL73dX1": {
     "defaultMessage": "12 high-intent gaps found in DE",
@@ -27810,6 +28074,10 @@
   "tcEBE8+x0p": {
     "defaultMessage": "MB",
     "description": "Megabyte size unit abbreviation"
+  },
+  "tdAVe+ZkeJ": {
+    "defaultMessage": "Import · {filename}",
+    "description": "Name of a glossary import run identified by its filename"
   },
   "te38CqnzSy": {
     "defaultMessage": "Agent run",
@@ -28354,6 +28622,10 @@
   "up9lzQ6bIP": {
     "defaultMessage": "Explore the rest",
     "description": "Product page related links section title"
+  },
+  "upsJCx/arg": {
+    "defaultMessage": "You want a more careful Google model for harder drafts.",
+    "description": "Situation for Gemini Pro on the pricing page"
   },
   "uqGZNAVfVF": {
     "defaultMessage": "Add",
@@ -29075,6 +29347,10 @@
     "defaultMessage": "Hyperlab",
     "description": "Navigation label for the Hyperlab product page"
   },
+  "wCP+A1rntn": {
+    "defaultMessage": "Video",
+    "description": "Filter label for video models on the pricing page"
+  },
   "wDUtJytI6K": {
     "defaultMessage": "Select all",
     "description": "Action to select every activity log event type"
@@ -29587,6 +29863,10 @@
     "defaultMessage": "Could not re-run the audit.",
     "description": "Error shown when re-running a localisation audit fails"
   },
+  "x7rTF4CYcT": {
+    "defaultMessage": "A faster version for chat, translation, and coding. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill it instead.",
+    "description": "Story for a faster included OpenAI model on the pricing page"
+  },
   "x86tb6Gc1r": {
     "defaultMessage": "Open in Claude",
     "description": "Menu item to open the prompt in Claude"
@@ -29682,6 +29962,10 @@
   "xHmiZAvHuU": {
     "defaultMessage": "Ask, Translation, and Coding use the workspace default model today. Text to speech, Transcribe, Image generation, and Video generation use included models. Per-capability overrides are coming soon.",
     "description": "Description under the Hyperlocalise Agent section heading"
+  },
+  "xHpeWF3wBJ": {
+    "defaultMessage": "P0",
+    "description": "Inbox priority filter for P0 issues"
   },
   "xJ1r4T0Bx9": {
     "defaultMessage": "GDPR marketing claims reviewed",
@@ -29854,10 +30138,6 @@
   "xcHOCv8Mg0": {
     "defaultMessage": "Filename",
     "description": "Import filename field label"
-  },
-  "xcNNt34EVn": {
-    "defaultMessage": "Bring your own key (BYOK)",
-    "description": "Subheading for BYOK on the pricing page"
   },
   "xdQ4upYwW8": {
     "defaultMessage": "Loading…",
@@ -30403,6 +30683,10 @@
     "defaultMessage": "Use OpenAI, Claude, Gemini, or another provider without locking your stack to one model vendor.",
     "description": "Capability 2 description for the product-localisation use case"
   },
+  "yj4HofLXjM": {
+    "defaultMessage": "No models match",
+    "description": "Title when pricing model filters return nothing"
+  },
   "ykDxLMM1xO": {
     "defaultMessage": "Definition, context, or example sentence",
     "description": "Placeholder for term-level glossary description"
@@ -30734,10 +31018,6 @@
   "zNmLFPYZSE": {
     "defaultMessage": "Image generation",
     "description": "Hyperlocalise Agent image generation capability name"
-  },
-  "zO4by8PZEN": {
-    "defaultMessage": "Models and BYOK",
-    "description": "Heading for the models and BYOK section on the pricing page"
   },
   "zPBtoUzMcl": {
     "defaultMessage": "Last 30 days",
