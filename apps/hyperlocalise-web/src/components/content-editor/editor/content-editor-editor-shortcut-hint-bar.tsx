@@ -78,8 +78,8 @@ export function ContentEditorEditorShortcutHintBar({ isMac }: { isMac: boolean }
       {hints.map(({ keys, label }) => (
         <span key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <KbdGroup aria-hidden="true" className="inline-flex items-center gap-1">
-            {keys.map((key) => (
-              <Kbd key={key}>{key}</Kbd>
+            {keys.map((key, index) => (
+              <Kbd key={`${key}-${index}`}>{key}</Kbd>
             ))}
           </KbdGroup>
           <span>{label}</span>

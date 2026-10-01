@@ -619,4 +619,46 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       expect(screen.getByText("Landing > Hero")).toBeInTheDocument();
     });
   });
+
+  it("does not render Designer badge or persona switcher when adaptiveWorkspaceEnabled is false", async () => {
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createCatImageFileWorkspaceState()}
+          initialViewMode="file"
+          adaptiveWorkspaceEnabled={false}
+        />
+      </>,
+    );
+
+    // In file view without adaptive mode, data-workspace-persona attribute should not be set
+    await waitFor(() => {
+      const workspace = document.querySelector("[data-workspace-persona]");
+      expect(workspace).toBeNull();
+    });
+
+    // Persona switcher and Designer badge should not be present
+    expect(screen.queryByRole("button", { name: "Workspace mode" })).toBeNull();
+    expect(screen.queryByText("Designer")).toBeNull();
+  });
+
+  it("renders asset format metadata and original/localized labels in Designer mode", async () => {
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createCatImageFileWorkspaceState()}
+          initialViewMode="file"
+          adaptiveWorkspaceEnabled
+        />
+      </>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("IMAGE")).toBeInTheDocument();
+      expect(screen.getByText("(Original)")).toBeInTheDocument();
+      expect(screen.getByText("(Localized)")).toBeInTheDocument();
+    });
+  });
 });

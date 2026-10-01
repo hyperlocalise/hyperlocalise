@@ -244,6 +244,16 @@ export const contentEditorFileViewMessages = defineMessages({
     id: "U2RIqLyDQ1",
     description: "Accessible label for hiding the source pane in CAT File view",
   },
+  originalLocaleLabel: {
+    defaultMessage: "Original",
+    id: "/QkL5ZPMkl",
+    description: "Label indicating the original or source asset locale in Designer mode metadata",
+  },
+  localizedLocaleLabel: {
+    defaultMessage: "Localized",
+    id: "NxK3anx/eE",
+    description: "Label indicating the localized or target asset locale in Designer mode metadata",
+  },
 });
 
 export function contentEditorFileGeneratePromptPlaceholderMessage(

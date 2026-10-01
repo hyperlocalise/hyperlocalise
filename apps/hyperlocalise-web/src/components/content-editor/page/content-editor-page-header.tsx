@@ -38,7 +38,9 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
 }) {
   const workspace = useContentEditorWorkspace();
   const page = workspace.page;
-  const isFileViewOrDesigner = workspace.ui.isFileView || workspace.ui.isDesignerPersona;
+  const isFileViewOrDesigner =
+    workspace.ui.isFileView ||
+    (workspace.ui.adaptiveWorkspaceEnabled && workspace.ui.isDesignerPersona);
   const showFilePicker = page.files.length > 0 || page.allFiles;
 
   return (

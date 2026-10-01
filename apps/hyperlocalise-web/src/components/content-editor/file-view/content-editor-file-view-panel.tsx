@@ -17,7 +17,7 @@ import { imageViewerMessages } from "./content-editor-image-viewer.messages";
 import { ContentEditorImageWorkspace } from "./content-editor-image-workspace";
 
 import type { MarkdownSelectionAiConfig } from "@/components/markdown-editor/markdown-selection-ai.types";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -196,6 +196,13 @@ export function ContentEditorFileViewPanel({
     intelligence?.agentContext?.trim() ||
     agentBadges.length > 0,
   );
+
+  useEffect(() => {
+    if (!hasAiContext && aiDrawerOpen) {
+      setAiDrawerOpen(false);
+    }
+  }, [hasAiContext, aiDrawerOpen]);
+
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorFileViewMessages.approve);
   const hasTarget = Boolean(segment.targetAssetUrl || segment.targetText.trim());
@@ -209,6 +216,11 @@ export function ContentEditorFileViewPanel({
           ? CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT
           : contentEditorOfficeUploadAccept(viewerId);
   const displayName = segment.sourcePath || filename || segment.key;
+  const assetFormatLabel = viewerId
+    ? viewerId.toUpperCase()
+    : displayName.includes(".")
+      ? (displayName.split(".").pop()?.toUpperCase() ?? "ASSET")
+      : "ASSET";
   const officeKind = isOfficeViewerId(viewerId) ? viewerId : null;
   const isMediaViewer = viewerId === "image" || viewerId === "video";
   const isDocumentViewer = viewerId === "markdown";
@@ -507,14 +519,20 @@ export function ContentEditorFileViewPanel({
         <div className="flex shrink-0 items-center justify-between border-b border-border/40 bg-muted/20 px-4 py-1.5 text-xs text-muted-foreground">
           <div className="flex min-w-0 items-center gap-2">
             <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-foreground/80">
-              {viewerId ? viewerId.toUpperCase() : "ASSET"}
+              {assetFormatLabel}
             </span>
             <span className="text-border">·</span>
-            <span className="truncate max-w-sm">{displayName}</span>
+            <span className="max-w-[200px] truncate sm:max-w-sm">{displayName}</span>
           </div>
-          <div className="flex shrink-0 items-center gap-3 font-mono text-[11px]">
-            <span>
-              {segment.sourceLocale} (Original) → {segment.targetLocale} (Localized)
+          <div className="flex shrink-0 items-center gap-1.5 font-mono text-[11px]">
+            <span>{segment.sourceLocale}</span>
+            <span className="text-muted-foreground/70">
+              (<FormattedMessage {...contentEditorFileViewMessages.originalLocaleLabel} />)
+            </span>
+            <span>→</span>
+            <span>{segment.targetLocale}</span>
+            <span className="text-muted-foreground/70">
+              (<FormattedMessage {...contentEditorFileViewMessages.localizedLocaleLabel} />)
             </span>
           </div>
         </div>
@@ -724,7 +742,7 @@ export function ContentEditorFileViewPanel({
               </SheetDescription>
             </SheetHeader>
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
-              {intelligence?.productMeaning ? (
+              {intelligence?.productMeaning?.trim() ? (
                 <div className="space-y-2">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     <FormattedMessage
@@ -739,7 +757,7 @@ export function ContentEditorFileViewPanel({
                 </div>
               ) : null}
 
-              {intelligence?.agentContext ? (
+              {intelligence?.agentContext?.trim() ? (
                 <div className="space-y-2">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     <FormattedMessage
