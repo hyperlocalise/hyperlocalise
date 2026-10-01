@@ -665,6 +665,16 @@ describe("ContentEditorWorkspaceUiStore", () => {
       // Multilingual choice is saved to localStorage
       expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
 
+      // Navigating to an image segment in a mixed-file workspace applies designer layout (file view)
+      ui.applyFileFamily("image");
+      expect(ui.viewMode).toBe("file");
+      // The automatic switch to file view must NOT overwrite the stored multilingual preference
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Returning to a text segment restores the user's chosen multilingual view
+      ui.applyFileFamily("text");
+      expect(ui.viewMode).toBe("multilingual");
+
       // Reopening workspace (new instance reading stored viewMode)
       const reopenedUi = new ContentEditorWorkspaceUiStore();
       expect(reopenedUi.viewMode).toBe("multilingual");
@@ -677,6 +687,12 @@ describe("ContentEditorWorkspaceUiStore", () => {
       reopenedUi.setViewMode("comfortable");
       expect(reopenedUi.viewMode).toBe("comfortable");
       expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("comfortable");
+
+      // Switching to image and back to text now restores the persona preference (comfortable), not multilingual
+      reopenedUi.applyFileFamily("image");
+      expect(reopenedUi.viewMode).toBe("file");
+      reopenedUi.applyFileFamily("text");
+      expect(reopenedUi.viewMode).toBe("comfortable");
     } finally {
       vi.unstubAllGlobals();
     }
