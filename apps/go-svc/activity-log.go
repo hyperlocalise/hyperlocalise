@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -307,14 +308,26 @@ func parseActivityLogQuery(values url.Values) (activityLogQuery, error) {
 	return query, nil
 }
 
+type activityLogUserActorPayload struct {
+	Kind   string `json:"kind"`
+	UserID string `json:"userId"`
+}
+
 func activityLogFilterFingerprint(query activityLogQuery) (string, error) {
-	eventTypes := append([]string(nil), query.eventTypes...)
-	sort.Strings(eventTypes)
+	// BOLT OPTIMIZATION: Avoid unnecessary slice allocations when eventTypes is already sorted,
+	// and replace map[string]string with a typed struct to avoid map heap allocations during json.Marshal.
+	var eventTypes []string
+	if len(query.eventTypes) > 1 && !slices.IsSorted(query.eventTypes) {
+		eventTypes = slices.Clone(query.eventTypes)
+		slices.Sort(eventTypes)
+	} else {
+		eventTypes = query.eventTypes
+	}
 
 	var actor any
 	if query.actor != nil {
 		if query.actor.kind == "user" {
-			actor = map[string]string{"kind": "user", "userId": query.actor.userID}
+			actor = activityLogUserActorPayload{Kind: "user", UserID: query.actor.userID}
 		} else {
 			actor = query.actor.kind
 		}
