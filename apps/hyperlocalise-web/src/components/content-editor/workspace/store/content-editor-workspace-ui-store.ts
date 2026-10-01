@@ -105,8 +105,15 @@ export class ContentEditorWorkspaceUiStore {
         this.#currentFileFamily &&
         DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never),
       );
-      if (isDesignerFamily || this.viewMode !== "multilingual") {
+      if (isDesignerFamily) {
         this.#applyPersonaLayout(this.resolvedPersona);
+      } else {
+        const savedViewMode = readCatWorkspaceViewMode();
+        if (savedViewMode === "multilingual") {
+          this.setViewMode("multilingual");
+        } else {
+          this.#applyPersonaLayout(this.resolvedPersona);
+        }
       }
     }
   }
@@ -118,7 +125,7 @@ export class ContentEditorWorkspaceUiStore {
       if (
         !this.adaptiveWorkspaceEnabled ||
         mode === "multilingual" ||
-        previousMode === "multilingual"
+        (previousMode === "multilingual" && mode !== "file")
       ) {
         writeCatWorkspaceViewMode(mode);
       }
@@ -181,8 +188,15 @@ export class ContentEditorWorkspaceUiStore {
       const isDesignerFamily = Boolean(
         fileFamily && DESIGNER_PERSONA_FILE_FAMILIES.has(fileFamily as never),
       );
-      if (isDesignerFamily || this.viewMode !== "multilingual") {
+      if (isDesignerFamily) {
         this.#applyPersonaLayout(this.resolvedPersona);
+      } else {
+        const savedViewMode = readCatWorkspaceViewMode();
+        if (savedViewMode === "multilingual") {
+          this.setViewMode("multilingual");
+        } else {
+          this.#applyPersonaLayout(this.resolvedPersona);
+        }
       }
     }
   }
