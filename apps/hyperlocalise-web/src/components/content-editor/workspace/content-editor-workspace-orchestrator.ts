@@ -921,7 +921,9 @@ export class ContentEditorWorkspaceOrchestrator {
       const initialFamily =
         nextFileContext.sourcePath === "*" && initialSegment
           ? resolveCatFileViewCapabilities({
-              sourcePath: initialSegment.sourcePath,
+              sourcePath:
+                initialSegment.sourcePath ??
+                (initialSegment as { filePath?: string } | undefined)?.filePath,
               contentKind: initialSegment.contentKind,
             }).family
           : resolveCatFileViewCapabilities({ sourcePath: nextFileContext.sourcePath }).family;

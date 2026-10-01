@@ -23,6 +23,7 @@ import {
 } from "@/components/content-editor/file-view/content-editor-file-view.fixture";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import {
+  contentEditorIntelligenceFixture,
   contentEditorSegmentsFixture,
   createContentEditorWorkspaceState,
   mockValidateFormat,
@@ -771,5 +772,43 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     // Designer badge is no longer rendered in the workspace
     const workspace = document.querySelector<HTMLElement>("[data-workspace-persona]")!;
     expect(within(workspace).queryByText("Designer")).toBeNull();
+  });
+
+  it("scrolls to translation memory in translator persona when adaptive workspace is enabled", async () => {
+    const scrollIntoViewMock = vi.fn();
+    window.Element.prototype.scrollIntoView = scrollIntoViewMock;
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+
+    try {
+      renderCatWorkspace(
+        <>
+          <ContentEditorQueueToolbarHost />
+          <ContentEditorWorkspaceContainer
+            initialState={createContentEditorWorkspaceState({
+              selectedSegmentId: "seg-02",
+              segments: contentEditorSegmentsFixture.filter((segment) =>
+                ["seg-01", "seg-02", "seg-03"].includes(segment.id),
+              ),
+              segmentIntelligence: {
+                "seg-02": contentEditorIntelligenceFixture,
+              },
+            })}
+            adaptiveWorkspaceEnabled
+          />
+        </>,
+      );
+
+      await screen.findByText("Translation memory");
+
+      await waitFor(() => {
+        expect(scrollIntoViewMock).toHaveBeenCalledWith({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      });
+    } finally {
+      delete (window.HTMLElement.prototype as unknown as { scrollIntoView?: unknown })
+        .scrollIntoView;
+    }
   });
 });

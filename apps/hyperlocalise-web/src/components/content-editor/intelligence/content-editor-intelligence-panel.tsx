@@ -443,6 +443,7 @@ export function ContentEditorIntelligencePanel({
 
   useEffect(() => {
     if (!scrollToTm) {
+      lastScrolledSegmentIdRef.current = null;
       return;
     }
     const currentSegmentKey = segmentId ?? "__default__";
