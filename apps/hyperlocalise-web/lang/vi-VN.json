@@ -44,6 +44,9 @@
   "+2VYvugvF6": {
     "defaultMessage": "Tìm kiếm tệp…"
   },
+  "+2o7dFzpfn": {
+    "defaultMessage": "Xóa {label}"
+  },
   "+2zqlpTfbd": {
     "defaultMessage": "Bạn muốn tôi mở các nhiệm vụ dịch thuật và đính kèm bản tóm tắt thương hiệu làm ngữ cảnh không?"
   },
@@ -120,7 +123,10 @@
     "defaultMessage": "Ở lại"
   },
   "+FX267AAXq": {
-    "defaultMessage": "SERP · {keyword}"
+    "defaultMessage": "Trang kết quả tìm kiếm · {keyword}"
+  },
+  "+FcGOPQu9Z": {
+    "defaultMessage": "Bắt đầu miễn phí"
   },
   "+FuW5t+7ZR": {
     "defaultMessage": "Bình luận không thành công"
@@ -271,6 +277,9 @@
   },
   "+f0xDGLORc": {
     "defaultMessage": "Không thể mở tệp này trong Trình chỉnh sửa nội dung."
+  },
+  "+fCf0CPa76": {
+    "defaultMessage": "Xem lại lịch sử nhập và xuất bảng thuật ngữ không đồng bộ."
   },
   "+fsq3dqMqp": {
     "defaultMessage": "Số lần thử tối đa"
@@ -431,6 +440,9 @@
   "/14v/WK67D": {
     "defaultMessage": "Quay lại trang web"
   },
+  "/1gR0B+OFk": {
+    "defaultMessage": "Lịch sử nhập/xuất"
+  },
   "/2DsRIRpZu": {
     "defaultMessage": "GitHub push và pull request · {repository} · {branches}"
   },
@@ -581,6 +593,9 @@
   "/O89M/pt0V": {
     "defaultMessage": "Các trang đích và quảng cáo bị lệch giữa các ngôn ngữ sau đợt ra mắt ban đầu."
   },
+  "/PO5w1JP7C": {
+    "defaultMessage": "So sánh và tải lên tài nguyên hình ảnh toàn màn hình"
+  },
   "/PaSQNTzO0": {
     "defaultMessage": "Phân tích nội dung"
   },
@@ -610,6 +625,9 @@
   },
   "/SBgalTEEE": {
     "defaultMessage": "Yêu cầu bản demo"
+  },
+  "/SJnfuawRk": {
+    "defaultMessage": "Bạn muốn có thêm một người viết cho những nội dung dài hơn."
   },
   "/TETuqYPDH": {
     "defaultMessage": "Chọn ít nhất một tệp nguồn."
@@ -908,6 +926,9 @@
   "0DciqLd38A": {
     "defaultMessage": "Các thay đổi trong repo trở thành yêu cầu tiếp nhận."
   },
+  "0Dfbf90A7W": {
+    "defaultMessage": "Đang chạy"
+  },
   "0DwOCagj+y": {
     "defaultMessage": "Thích ứng ngôn ngữ và vùng miền"
   },
@@ -952,6 +973,9 @@
   },
   "0Kd+BaMKpW": {
     "defaultMessage": "Xuất CSV"
+  },
+  "0LOTblqWHo": {
+    "defaultMessage": "{count, plural, one {# mô hình} other {# mô hình}}"
   },
   "0LWDKXES/c": {
     "defaultMessage": "Thêm thư viện bộ nhớ chính thức. Bạn có thể nhập và chỉnh sửa các mục sau khi tạo."
@@ -1370,6 +1394,9 @@
   "1JD/IP06L1": {
     "defaultMessage": "@Hyperlocalise Hãy đánh giá nội dung ra mắt này dựa trên nguyên tắc thương hiệu của chúng tôi và đánh dấu mọi điểm cần lưu ý."
   },
+  "1KKO0Okjmc": {
+    "defaultMessage": "Tính năng này đọc nội dung thành tiếng để bạn kiểm tra nhịp điệu và độ dài trước khi gửi đi thu âm lời thuyết minh. Có trong các gói trả phí. Mức sử dụng được trừ vào hạn mức AI hàng tháng của bạn."
+  },
   "1KXz+b/LeX": {
     "defaultMessage": "Tiêu đề 3"
   },
@@ -1447,6 +1474,9 @@
   },
   "1VNZg9UkcM": {
     "defaultMessage": "Anthropic"
+  },
+  "1WHEF2Z8lT": {
+    "defaultMessage": "Không thể tải lịch sử."
   },
   "1WYC40KrqC": {
     "defaultMessage": "Blog SEO"
@@ -1549,6 +1579,9 @@
   },
   "1ggu9Tm0ub": {
     "defaultMessage": "Không thể tải danh sách cuộc trò chuyện"
+  },
+  "1hnHBtSh2K": {
+    "defaultMessage": "Bản nháp nhanh"
   },
   "1iMVYFQbGc": {
     "defaultMessage": "Không thể xóa dự án"
@@ -1724,6 +1757,9 @@
   "27Ij3QBoyk": {
     "defaultMessage": "Thêm ảnh và tệp"
   },
+  "27ZkVhmhxq": {
+    "defaultMessage": "Import"
+  },
   "27qrEmB3yO": {
     "defaultMessage": "Thử lại"
   },
@@ -1738,6 +1774,9 @@
   },
   "2963Vncu1b": {
     "defaultMessage": "Hãy sửa cấu hình bước trước khi lưu quy trình này."
+  },
+  "29NlUC9+y8": {
+    "defaultMessage": "GPT-5.6 Sol (Nhanh)"
   },
   "2AFaXwgQin": {
     "defaultMessage": "Việc sử dụng mô hình do chúng tôi quản lý sẽ trừ vào số dư tín dụng AI hằng tháng của bạn theo mức giá được công bố."
@@ -2168,6 +2207,9 @@
   "3BQQgDQPHy": {
     "defaultMessage": "Không thể tải thông tin xác thực của nhà cung cấp ({status})"
   },
+  "3BtQulEZ6Y": {
+    "defaultMessage": "Kết nối khóa Gemini và dùng Flash để xử lý một danh sách dài các chuỗi. Google tính phí cho mức sử dụng này. Phí này không trừ vào hạn mức tín dụng AI hàng tháng của bạn."
+  },
   "3CBfdb8CgM": {
     "defaultMessage": "Khả năng hiển thị của AI"
   },
@@ -2258,6 +2300,9 @@
   "3U55zi8ElG": {
     "defaultMessage": "Markets"
   },
+  "3UJV/6yCWv": {
+    "defaultMessage": "Mở rộng {status}"
+  },
   "3URR9qLWsH": {
     "defaultMessage": "Có. Các agent của Hyperlocalise hoạt động trong những tích hợp như Slack, Teams và GitHub, để các nhóm có thể yêu cầu thực hiện công việc ngay tại nơi họ đang cộng tác. Các thao tác khả dụng phụ thuộc vào tích hợp và cấu hình không gian làm việc."
   },
@@ -2272,6 +2317,9 @@
   },
   "3W0VCaMyWO": {
     "defaultMessage": "Tạo sự cố"
+  },
+  "3W7isWjvZh": {
+    "defaultMessage": "Bộ lọc"
   },
   "3WK0Pdi+Cc": {
     "defaultMessage": "Không có trang nào trong Search Console trong phạm vi này."
@@ -2339,6 +2387,9 @@
   "3ggwxElkQA": {
     "defaultMessage": "Tên hiển thị"
   },
+  "3hB61fmVx/": {
+    "defaultMessage": "Báo cáo trao đổi"
+  },
   "3hTiwfSSe8": {
     "defaultMessage": "Nhập khóa API MCP của Ahrefs."
   },
@@ -2365,6 +2416,9 @@
   },
   "3kmGzc1eFE": {
     "defaultMessage": "Mẫu mặc định"
+  },
+  "3knVI+YndO": {
+    "defaultMessage": "Đang tải cuộc trò chuyện"
   },
   "3ljQO/9DOw": {
     "defaultMessage": "Hôm nay"
@@ -2639,6 +2693,9 @@
   "4HsCO20k/1": {
     "defaultMessage": "Kết nối các chương trình bản địa hóa doanh nghiệp."
   },
+  "4I4RDHWJ2Q": {
+    "defaultMessage": "Google Gemini"
+  },
   "4IGqbe4A0j": {
     "defaultMessage": "Chuỗi đã được phê duyệt"
   },
@@ -2677,6 +2734,9 @@
   },
   "4NIhoyP8P+": {
     "defaultMessage": "Bản dịch nháp bằng LLM bạn पसंद thích"
+  },
+  "4NRfGc3Yk+": {
+    "defaultMessage": "Hình ảnh"
   },
   "4Nb8hxfYt5": {
     "defaultMessage": "Đã thu hồi khóa API"
@@ -2771,6 +2831,9 @@
   "4b7EZj4onr": {
     "defaultMessage": "Claude Sonnet 5"
   },
+  "4cYBnVImbP": {
+    "defaultMessage": "Thực thi các đường dẫn điều phối theo thứ tự đã định cấu hình."
+  },
   "4ePMzhVeCL": {
     "defaultMessage": "Chỉnh sửa"
   },
@@ -2863,6 +2926,9 @@
   },
   "4rrhdZuDqB": {
     "defaultMessage": "Đăng nhập lại để quản lý kết nối Ahrefs."
+  },
+  "4tAGTfwOxM": {
+    "defaultMessage": "Báo cáo nhập khẩu"
   },
   "4tP9x2ODN4": {
     "defaultMessage": "Kết nối tài khoản Anthropic của bạn"
@@ -3152,6 +3218,9 @@
   "5a+z7ec3fj": {
     "defaultMessage": "Xem báo cáo"
   },
+  "5aBQ8ovclg": {
+    "defaultMessage": "Xuất · {timestamp}"
+  },
   "5atqmuSxdx": {
     "defaultMessage": "Công cụ"
   },
@@ -3280,6 +3349,9 @@
   },
   "5tlPxcqfUt": {
     "defaultMessage": "Điều phối việc đánh giá bản địa hóa từ các lượt đề cập và tin nhắn trực tiếp trên Slack."
+  },
+  "5vxosjDykR": {
+    "defaultMessage": "Lượt hội thoại ngắn hơn."
   },
   "5w2ioj6keh": {
     "defaultMessage": "Khóa"
@@ -3517,6 +3589,9 @@
   },
   "6V8CrxumwV": {
     "defaultMessage": "{count, plural, one {Đã khám phá {subject}, # lượt tìm kiếm} other {Đã khám phá {subject}, # lượt tìm kiếm}}"
+  },
+  "6W4y3PFOV8": {
+    "defaultMessage": "Bất kỳ hình thức thanh toán nào"
   },
   "6Wo0GmkOW8": {
     "defaultMessage": "Đây là khu vực thử nghiệm. Hãy thêm một bước, chỉnh sửa lời nhắc rồi nhấn kiểm tra. Làm mới trang để đặt lại. Không có gì được lưu."
@@ -4313,6 +4388,9 @@
   "8OHSn5eQCa": {
     "defaultMessage": "Thuật ngữ trong bảng thuật ngữ bị cấm"
   },
+  "8Oyr38Aj4F": {
+    "defaultMessage": "Bắt đầu"
+  },
   "8P9Vlj8jx9": {
     "defaultMessage": "Thảo luận về các vấn đề, phân công người phụ trách và liên kết công việc giữa các dự án."
   },
@@ -4453,6 +4531,9 @@
   },
   "8gMDutTCiw": {
     "defaultMessage": "CPC tối thiểu"
+  },
+  "8gWnVF116T": {
+    "defaultMessage": "Lịch sử thuật ngữ"
   },
   "8h06kh0ScV": {
     "defaultMessage": "Không sửa vĩnh viễn"
@@ -4682,11 +4763,17 @@
   "9CS7SXDP/E": {
     "defaultMessage": "Từ khóa"
   },
+  "9Cdevjsa8b": {
+    "defaultMessage": "Trong AI Engine"
+  },
   "9CrGAdF92d": {
     "defaultMessage": "Khối lượng bản địa hóa quý 3"
   },
   "9D2YjR59lt": {
     "defaultMessage": "Keys"
+  },
+  "9DlFb+wOTr": {
+    "defaultMessage": "Chưa cấu hình đầu ra nào."
   },
   "9Dln9NUE9S": {
     "defaultMessage": "Lịch sử nhập khẩu"
@@ -4756,6 +4843,9 @@
   },
   "9LcPjakBL/": {
     "defaultMessage": "2 tích hợp"
+  },
+  "9M6xjAhsYc": {
+    "defaultMessage": "Xem qua tất cả các mô hình hoặc xóa nội dung tìm kiếm."
   },
   "9MIwXNtVoL": {
     "defaultMessage": "Value"
@@ -4900,6 +4990,9 @@
   },
   "9hphmwIx1l": {
     "defaultMessage": "https://cloud.memsource.com/web"
+  },
+  "9ia5fOVQ3G": {
+    "defaultMessage": "Bạn có nhiều chuỗi ngắn và muốn có bản nháp nhanh."
   },
   "9jLtl6PUKI": {
     "defaultMessage": "Không có ngôn ngữ địa phương"
@@ -5762,6 +5855,9 @@
   "Bqk3bamIsK": {
     "defaultMessage": "Fit"
   },
+  "Bqz0aRCBut": {
+    "defaultMessage": "Mô tả một đoạn clip ngắn khi nội dung tiếp thị cần có chuyển động cũng như lời văn. Được bao gồm trong các gói trả phí. Lượng sử dụng sẽ được trừ vào hạn mức tín dụng AI hằng tháng của bạn."
+  },
   "BrXfVaiNs0": {
     "defaultMessage": "Gói đăng ký Workspace"
   },
@@ -5881,6 +5977,9 @@
   },
   "C5fqvIk+YX": {
     "defaultMessage": "Old"
+  },
+  "C6J27/fKBC": {
+    "defaultMessage": "Thử lại"
   },
   "C6lJp+tZ7H": {
     "defaultMessage": "HTML"
@@ -6053,6 +6152,9 @@
   "CUMVPg+yCv": {
     "defaultMessage": "Cách hoạt động"
   },
+  "CVYpUuUKdZ": {
+    "defaultMessage": "Bất kỳ đường dẫn nào được chọn"
+  },
   "CWXh32oIoB": {
     "defaultMessage": "{prefix}••••••••"
   },
@@ -6190,6 +6292,9 @@
   },
   "Cp3xy0MA7p": {
     "defaultMessage": "Reporter"
+  },
+  "CpSuBpt6f9": {
+    "defaultMessage": "Chế độ không gian làm việc"
   },
   "Cpqhu+50JL": {
     "defaultMessage": "Tiêu đề khung mô tả cho mẫu vấn đề sai sót nguồn"
@@ -6494,6 +6599,9 @@
   "DSm/l7fomX": {
     "defaultMessage": "Thu hồi khóa API"
   },
+  "DT7M7vytkc": {
+    "defaultMessage": "Lọc theo công việc"
+  },
   "DTYOuQdye9": {
     "defaultMessage": "Tự động hóa chưa có tiêu đề"
   },
@@ -6740,6 +6848,9 @@
   "E/rfTTHsFg": {
     "defaultMessage": "Có cảnh báo"
   },
+  "E0aClcxSs/": {
+    "defaultMessage": "Quay lại bảng thuật ngữ"
+  },
   "E0iZCqdGpv": {
     "defaultMessage": "Đã thay đổi vai trò thành viên"
   },
@@ -6787,6 +6898,9 @@
   },
   "E8rEmEqTpX": {
     "defaultMessage": "Đang xử lý…"
+  },
+  "E9OGLGhC//": {
+    "defaultMessage": "Tải xuống không thành công."
   },
   "EA4eYo/c8H": {
     "defaultMessage": "Get started with Hyperlocalise"
@@ -7226,6 +7340,9 @@
   "F8EegdWpYQ": {
     "defaultMessage": "Context"
   },
+  "F98XlMnJqA": {
+    "defaultMessage": "Tải bản sao lưu xuống"
+  },
   "F9TKZ7VAEV": {
     "defaultMessage": "Hyperlab"
   },
@@ -7394,6 +7511,9 @@
   "FaT5oUwQOq": {
     "defaultMessage": "Một trang có thể đang hoạt động nhưng vẫn vô hình. Domains cho thấy những khoảng trống trong từng ngôn ngữ, trên công cụ tìm kiếm và trong các câu trả lời của AI."
   },
+  "Fb4AJ4nGEX": {
+    "defaultMessage": "Tìm kiếm theo tên hoặc công việc"
+  },
   "FbWiUTt6DX": {
     "defaultMessage": "Xác minh DNS"
   },
@@ -7411,6 +7531,9 @@
   },
   "FdB4nFTP4P": {
     "defaultMessage": "Hàng đợi đánh giá"
+  },
+  "FdmB8M+qZc": {
+    "defaultMessage": "Xóa đầu vào {index}"
   },
   "Fe3r00g1BD": {
     "defaultMessage": "Chưa được phân công"
@@ -7438,6 +7561,9 @@
   },
   "FgWgulEUlJ": {
     "defaultMessage": "Đã tạo nhóm"
+  },
+  "FgpL0Qp0e5": {
+    "defaultMessage": "Search"
   },
   "Fhrua/1XPG": {
     "defaultMessage": "Xem lại bản dịch mà không cần đoán chuỗi đó có nghĩa là gì"
@@ -7583,6 +7709,9 @@
   "G6aiREcgX6": {
     "defaultMessage": "Cập nhật cài đặt không gian làm việc"
   },
+  "G715x+6MXV": {
+    "defaultMessage": "Kết nối khóa Anthropic và sử dụng Haiku cho các lượt trao đổi ngắn hơn. Anthropic tính phí cho mức sử dụng này. Khoản này không trừ vào tín dụng AI hàng tháng của bạn."
+  },
   "G7es7H7NT8": {
     "defaultMessage": "Kết nối trước"
   },
@@ -7633,6 +7762,9 @@
   },
   "GERghL+Meu": {
     "defaultMessage": "Lịch sử chạy"
+  },
+  "GFW3iHWNfM": {
+    "defaultMessage": "Không thể tải bản xem trước."
   },
   "GIB7hmrXGj": {
     "defaultMessage": "Pending"
@@ -7748,6 +7880,9 @@
   "Gab1SK2EhW": {
     "defaultMessage": "Không thể lưu các thị trường nghiên cứu."
   },
+  "GafA21RnmS": {
+    "defaultMessage": "Chế độ hợp nhất"
+  },
   "GausSgRE+l": {
     "defaultMessage": "Kết hợp các tín chỉ vào điểm số của bốn học phần."
   },
@@ -7768,6 +7903,9 @@
   },
   "GdufIv1RQV": {
     "defaultMessage": "Contentful"
+  },
+  "Ge+3hBBbLV": {
+    "defaultMessage": "Bạn cần một hình ảnh, không phải thêm một đoạn văn."
   },
   "GeD3IIa8Fg": {
     "defaultMessage": "Cập nhật siêu dữ liệu được lưu trữ cùng dự án này."
@@ -7831,6 +7969,9 @@
   },
   "GpAqGi0E/I": {
     "defaultMessage": "Đang tải video…"
+  },
+  "GpCoXXS8l1": {
+    "defaultMessage": "Lọc theo chu kỳ thanh toán"
   },
   "GpJgVP/u6k": {
     "defaultMessage": "Không thể tải các nhóm"
@@ -7969,6 +8110,9 @@
   },
   "H4VFBPQjwj": {
     "defaultMessage": "Overview"
+  },
+  "H4oJUxHAEF": {
+    "defaultMessage": "Tải xuống bản xuất"
   },
   "H541+RZh2a": {
     "defaultMessage": "Thêm nút"
@@ -8258,6 +8402,12 @@
   "HsKYBaml0e": {
     "defaultMessage": "bộ nhớ dịch đã xuất"
   },
+  "Hsz2q13V4l": {
+    "defaultMessage": "Đang tải công việc"
+  },
+  "Hv8dudDiIO": {
+    "defaultMessage": "Trò chuyện, dịch thuật và lập trình"
+  },
   "HvVXRZQQIf": {
     "defaultMessage": "Báo cáo này không tồn tại hoặc bạn không có quyền truy cập vào báo cáo."
   },
@@ -8329,6 +8479,9 @@
   },
   "I3Xom21N//": {
     "defaultMessage": "Truy cập không gian làm việc Hyperlocalise của bạn từ các ứng dụng khách MCP."
+  },
+  "I3a2YDu+oy": {
+    "defaultMessage": "Dùng khi"
   },
   "I42jTEngJ1": {
     "defaultMessage": "AI nắm bắt tín hiệu"
@@ -8606,6 +8759,9 @@
   "IncbWjPIeF": {
     "defaultMessage": "Quản lý kỹ thuật"
   },
+  "Ino5JbBMsK": {
+    "defaultMessage": "Đây là mô hình viết dành cho các gói trả phí. Hãy yêu cầu mô hình giải đáp thắc mắc về một chuỗi, chạy tác vụ dịch thuật hoặc để tác nhân lập trình soạn bản nháp thay đổi. Mức sử dụng sẽ được trừ vào hạn mức tín dụng AI hằng tháng của bạn. Nếu muốn OpenAI tính phí trực tiếp cho mô hình này, hãy kết nối khóa OpenAI của riêng bạn."
+  },
   "Io0khnUDZT": {
     "defaultMessage": "Tiếng Pháp yêu cầu “marchés” có dấu sắc. Nếu thiếu dấu này, dòng chữ sẽ giống động từ “marches” thay vì “markets” trong nội dung giá dành cho khách hàng."
   },
@@ -8702,6 +8858,9 @@
   "J/R20j7EMz": {
     "defaultMessage": "Value"
   },
+  "J0n8L9KLms": {
+    "defaultMessage": "Bảng thuật ngữ: {name}"
+  },
   "J0zJVMmJUF": {
     "defaultMessage": "Tạo mã thông báo trong Crowdin tại Cài đặt tài khoản → API hoặc trong Crowdin Enterprise tại tài khoản của bạn hoặc Cài đặt tổ chức → Mã thông báo truy cập người dùng."
   },
@@ -8716,6 +8875,9 @@
   },
   "J2Tvcwc2sx": {
     "defaultMessage": "Mở bảng, {count} vấn đề đang mở"
+  },
+  "J3VsxKxltT": {
+    "defaultMessage": "Mặc định của không gian làm việc"
   },
   "J3in5zOVha": {
     "defaultMessage": "Locale, e.g. de-DE"
@@ -8822,6 +8984,9 @@
   "JKZvTllRbs": {
     "defaultMessage": "Issue"
   },
+  "JKmR2EOv2K": {
+    "defaultMessage": "Mô hình"
+  },
   "JL3JSNfNKu": {
     "defaultMessage": "Chưa có đối tượng nào"
   },
@@ -8893,6 +9058,9 @@
   },
   "JSylA1G/ba": {
     "defaultMessage": "Điểm số công khai, được so sánh cạnh nhau. Kiểm tra điểm của bạn để biết vị trí của mình."
+  },
+  "JTdejUyr0G": {
+    "defaultMessage": "Kết nối khóa Anthropic và sử dụng Opus khi câu chữ cần được chăm chút kỹ hơn. Anthropic tính phí cho mức sử dụng này. Khoản này không làm giảm số dư tín dụng AI hàng tháng của bạn."
   },
   "JUWqOD5PWj": {
     "defaultMessage": "Bật kho lưu trữ này để cấu hình tự động hóa dịch thuật."
@@ -8995,6 +9163,9 @@
   },
   "Jm9tR2PeYs": {
     "defaultMessage": "Chọn một dự án"
+  },
+  "JmHjqkDgSi": {
+    "defaultMessage": "Tất cả đường dẫn đã chọn"
   },
   "JmNB19hrDA": {
     "defaultMessage": "• {cost}"
@@ -9197,6 +9368,9 @@
   "KJHAVDuUjG": {
     "defaultMessage": "Mức độ ưu tiên: {value}"
   },
+  "KKUxl6AuoX": {
+    "defaultMessage": "Tệp kết quả"
+  },
   "KL1WoqHBtQ": {
     "defaultMessage": "Nâng cấp gói cước"
   },
@@ -9280,6 +9454,9 @@
   },
   "KZCeYDEUrd": {
     "defaultMessage": "Đã xóa dự án"
+  },
+  "KZhZYT6je6": {
+    "defaultMessage": "Đầu vào thực thi"
   },
   "Ka+KmK/Z9+": {
     "defaultMessage": "Kết nối Crowdin trong <link>Tích hợp</link> để sử dụng công cụ này."
@@ -9479,6 +9656,9 @@
   "L80pAvj6yJ": {
     "defaultMessage": "Không thể tải các tệp tác vụ"
   },
+  "L8xTOJqX0d": {
+    "defaultMessage": "Tìm kiếm: {value}"
+  },
   "L9CYRKrj6S": {
     "defaultMessage": "Quản trị viên"
   },
@@ -9608,8 +9788,14 @@
   "LQqGbywv5w": {
     "defaultMessage": "No recommendations were found. You can continue with no markets and add them later."
   },
+  "LRVFAS5BU6": {
+    "defaultMessage": "Giọng nói"
+  },
   "LRZ3vQhI80": {
     "defaultMessage": "Failed"
+  },
+  "LRjbYLhwbi": {
+    "defaultMessage": "Thử công việc khác hoặc xóa bộ lọc tìm kiếm."
   },
   "LRlVY40lAz": {
     "defaultMessage": "Account"
@@ -9838,6 +10024,9 @@
   },
   "M0znNdV8EN": {
     "defaultMessage": "Tìm kiếm AI không có khối Câu hỏi thường gặp để trích dẫn từ trang này."
+  },
+  "M1ITBSXE+Q": {
+    "defaultMessage": "Thời gian chờ (ms, tùy chọn)"
   },
   "M1OWEzMawd": {
     "defaultMessage": "Đang tải các lượt chạy tự động hóa"
@@ -10175,6 +10364,9 @@
   "Mo3KUqU9mk": {
     "defaultMessage": "Chưa kết nối"
   },
+  "MoH++be9F6": {
+    "defaultMessage": "Bạn muốn có một mặc định mà toàn bộ không gian làm việc có thể dùng chung."
+  },
   "ModLI3ew1I": {
     "defaultMessage": "Chưa có bảng thuật ngữ nào"
   },
@@ -10249,6 +10441,9 @@
   },
   "MyhfQjH0sE": {
     "defaultMessage": "Active"
+  },
+  "N/76NIMu0h": {
+    "defaultMessage": "Được đề xuất"
   },
   "N/7JtE/mmo": {
     "defaultMessage": "Ra mắt trên toàn cầu"
@@ -10412,6 +10607,9 @@
   "NJJU5P3v/j": {
     "defaultMessage": "Linear"
   },
+  "NJNmXs5MqR": {
+    "defaultMessage": "Xóa đầu ra {index}"
+  },
   "NJcIVnfImQ": {
     "defaultMessage": "Cú pháp ICU và các placeholder đã được xác thực"
   },
@@ -10468,6 +10666,9 @@
   },
   "NUXNiXqQOj": {
     "defaultMessage": "Token đầu vào"
+  },
+  "NVCqz7i9kK": {
+    "defaultMessage": "Thêm đầu ra"
   },
   "NVI4PGUZDH": {
     "defaultMessage": "Chọn các ngôn ngữ để nghiên cứu cho miền này."
@@ -10700,6 +10901,9 @@
   "O+ldw8Aj3z": {
     "defaultMessage": "Không xác định"
   },
+  "O+malJ4pAE": {
+    "defaultMessage": "Chuyển bản ghi âm thành văn bản để nhóm của bạn xem lại và dịch. Có trong các gói trả phí. Mức sử dụng được trừ vào tín dụng AI hằng tháng của bạn."
+  },
   "O/4w7DJ8Jn": {
     "defaultMessage": "Kiểm tra nội dung theo hướng dẫn về phong cách và quy định của thị trường trước khi xuất bản."
   },
@@ -10808,6 +11012,9 @@
   "OJm01EvxZW": {
     "defaultMessage": "Không thể tạo các tác vụ Crowdin"
   },
+  "OKuhgUJXOJ": {
+    "defaultMessage": "Di chuyển đầu ra {index} lên trên"
+  },
   "OL7E13SfCy": {
     "defaultMessage": "NGUỒN"
   },
@@ -10870,6 +11077,9 @@
   },
   "OUDcVk0AHJ": {
     "defaultMessage": "Tìm kiếm dự án…"
+  },
+  "OUMb/UN84L": {
+    "defaultMessage": "Có. Tạo tài khoản để bắt đầu sử dụng không gian làm việc miễn phí. Bạn có thể chuyển sang gói Starter hoặc Growth trong phần thanh toán. Hãy yêu cầu bản demo nếu bạn cần gói Enterprise."
   },
   "OUVC3TaOp2": {
     "defaultMessage": "Tạo đối tượng"
@@ -11053,6 +11263,9 @@
   },
   "P/pTxjwRBx": {
     "defaultMessage": "Tổ chức"
+  },
+  "P041ZEKjF5": {
+    "defaultMessage": "Trạng thái"
   },
   "P0cpKEoGJ1": {
     "defaultMessage": "Hyperlocalise không phải là sự thay thế cho TMS. Đây là lớp quy trình mà các nhóm vận hành bản địa hóa sử dụng để điều phối tác nhân, con người, mô hình và nền tảng mà không cần chuyển đổi toàn bộ hệ thống."
@@ -11300,6 +11513,9 @@
   "PapSWiA4OI": {
     "defaultMessage": "Đang tải tiến trình..."
   },
+  "Pb5w1LHor2": {
+    "defaultMessage": "Một lượt rà soát kỹ lưỡng hơn"
+  },
   "Pbjej2iS6R": {
     "defaultMessage": "Sắp ra mắt"
   },
@@ -11515,6 +11731,9 @@
   },
   "Q6fTrZjDFK": {
     "defaultMessage": "Schedule"
+  },
+  "Q6hHUNtw7B": {
+    "defaultMessage": "Xuất · {filename}"
   },
   "Q6oQuKFEbX": {
     "defaultMessage": "Mang theo ngăn xếp mô hình của riêng bạn"
@@ -11849,6 +12068,9 @@
   "QsCILqwet/": {
     "defaultMessage": "Hỏi Hyperlocalise…"
   },
+  "QugOsjCCw4": {
+    "defaultMessage": "Di chuyển đầu vào {index} xuống dưới"
+  },
   "QvT2rHSxpM": {
     "defaultMessage": "Đã lưu các lớp"
   },
@@ -11900,11 +12122,17 @@
   "R32W5WVswi": {
     "defaultMessage": "đã xóa một thành viên"
   },
+  "R3s4z9CFzm": {
+    "defaultMessage": "Bản xem trước trực tiếp của tệp nguồn với các bản dịch hiện tại của bạn được áp dụng cho các lớp văn bản."
+  },
   "R4/gdgFOXs": {
     "defaultMessage": "Thêm một trigger để bắt đầu workflow."
   },
   "R40rhBTb/1": {
     "defaultMessage": "Tài liệu"
+  },
+  "R66KfvDVs+": {
+    "defaultMessage": "Đang tải lịch sử"
   },
   "R68TUJrkVn": {
     "defaultMessage": "Thêm cột"
@@ -11963,6 +12191,9 @@
   "RKI1ij45Ie": {
     "defaultMessage": "Chưa có tin nhắn nào"
   },
+  "RKL5/xQyJD": {
+    "defaultMessage": "Các bảng Hàng đợi, Trình chỉnh sửa và Trí tuệ dịch thuật"
+  },
   "RKhdKk2/eB": {
     "defaultMessage": "Đặt câu hỏi để bắt đầu trò chuyện với {name}."
   },
@@ -12016,6 +12247,9 @@
   },
   "RSCu8OSDph": {
     "defaultMessage": "Chưa có mô tả-singaw"
+  },
+  "RSD6Hb39Fw": {
+    "defaultMessage": "Chuyển lời nói thành văn bản"
   },
   "RSG9yRsAq1": {
     "defaultMessage": "Tắt"
@@ -12235,6 +12469,9 @@
   },
   "Rx1gsFSIpF": {
     "defaultMessage": "Không thể xác minh phiên Crowdin này. Hãy mở lại tab Hyperlocalise."
+  },
+  "RxnCQxP9ZO": {
+    "defaultMessage": "Xem trước hoạt ảnh"
   },
   "Rxt6SwzGmb": {
     "defaultMessage": "Từ một trang đang hoạt động thành một trang mà mọi người có thể tìm thấy."
@@ -12551,6 +12788,9 @@
   "SoBpyZvv53": {
     "defaultMessage": "Thử nghiệm ở một quốc gia, sau đó triển khai phiên bản chiến thắng đến các quốc gia còn lại"
   },
+  "SowGQ5aJoL": {
+    "defaultMessage": "Tải thêm"
+  },
   "SpUDjYg0OG": {
     "defaultMessage": "Chọn một phần tử văn bản để chuyển đến khung hình tham chiếu của phần tử đó."
   },
@@ -12659,6 +12899,9 @@
   "T2Xmxy54ip": {
     "defaultMessage": "Cấu hình tự động hóa bản dịch cho {repositoryFullName}. Việc này tách biệt với việc làm mới siêu dữ liệu kho lưu trữ từ GitHub."
   },
+  "T2qLjqNIRT": {
+    "defaultMessage": "Dùng cho trò chuyện, dịch thuật và lập trình. Được bao gồm trong các gói trả phí, và mức sử dụng sẽ được trừ vào khoản tín dụng AI hằng tháng của bạn. Kết nối khóa OpenAI của riêng bạn nếu bạn muốn OpenAI tính phí riêng cho mô hình này."
+  },
   "T4Nt0cVH3/": {
     "defaultMessage": "Không thể xóa bảng thuật ngữ"
   },
@@ -12721,6 +12964,9 @@
   },
   "TEhuWyiC97": {
     "defaultMessage": "None"
+  },
+  "TEuqfRTlCy": {
+    "defaultMessage": "Nguồn ({locale})"
   },
   "TEw3QR5zHs": {
     "defaultMessage": "Chế độ xem Trình chỉnh sửa nội dung"
@@ -12983,6 +13229,9 @@
   "Tr3_f_b-E4": {
     "defaultMessage": "Save"
   },
+  "Tr9qQQZ/aQ": {
+    "defaultMessage": "Mô tả hình ảnh bạn cần cho chiến dịch hoặc hình ảnh thay thế. Có trong các gói trả phí. Chi phí sử dụng được trừ vào hạn mức AI hàng tháng của bạn."
+  },
   "TrBjo12/3b": {
     "defaultMessage": "Các bước HTTP, webhook & AI"
   },
@@ -13081,6 +13330,9 @@
   },
   "U76tWGMJVU": {
     "defaultMessage": "đã bắt đầu chạy một tự động hóa"
+  },
+  "U7Oa7ZDE9f": {
+    "defaultMessage": "P2"
   },
   "U7qjKZzoBx": {
     "defaultMessage": "Lưu cài đặt"
@@ -13232,6 +13484,9 @@
   "UPSrigC8qi": {
     "defaultMessage": "Headers"
   },
+  "UQJXYycHuy": {
+    "defaultMessage": "Nghe"
+  },
   "UQM29Qy4Ux": {
     "defaultMessage": "Added"
   },
@@ -13379,6 +13634,9 @@
   "UoWZO/Gkq4": {
     "defaultMessage": "Trang {currentPage} trên tổng số {totalPages} trang"
   },
+  "Up335i7GML": {
+    "defaultMessage": "Mô hình"
+  },
   "Up5yLUnVpF": {
     "defaultMessage": "Chưa cấu hình ngôn ngữ địa phương"
   },
@@ -13423,6 +13681,9 @@
   },
   "UvLPwAuWGw": {
     "defaultMessage": "Vấn đề mới"
+  },
+  "UvSp5y/OIh": {
+    "defaultMessage": "Xóa bộ lọc"
   },
   "UvTEiYJq6k": {
     "defaultMessage": "Nhận biết ngữ cảnh từ các pull request và issue"
@@ -13493,6 +13754,9 @@
   "V3RuMxqgSZ": {
     "defaultMessage": "Lọc các mục"
   },
+  "V5Cs48ujmR": {
+    "defaultMessage": "Nghe thử câu thoại này phát âm như thế nào."
+  },
   "V5IhYqq1Fk": {
     "defaultMessage": "Quản lý"
   },
@@ -13514,11 +13778,17 @@
   "V8i8Y0KnvL": {
     "defaultMessage": "Điều chỉnh văn bản, tài liệu, trang trình bày, hình ảnh và video phù hợp với ngôn ngữ, văn hóa, thuật ngữ và bối cảnh của từng đối tượng."
   },
+  "V99Pmv6BsN": {
+    "defaultMessage": "Di chuyển đầu vào {index} lên trên"
+  },
   "V9EOgHjiEJ": {
     "defaultMessage": "Hành động bộ nhớ dịch bị từ chối"
   },
   "V9FwiTxbs+": {
     "defaultMessage": "Vui lòng cung cấp văn bản cần dịch."
+  },
+  "V9MdNbgEBM": {
+    "defaultMessage": "Lịch sử nhập/xuất"
   },
   "V9ko0FO785": {
     "defaultMessage": "Giảm {change}"
@@ -13841,6 +14111,9 @@
   "VzzqUlIKvt": {
     "defaultMessage": "Chọn ngôn ngữ đích để mở tệp này trong không gian làm việc CAT."
   },
+  "W+B8lwWr04": {
+    "defaultMessage": "Xóa bộ lọc"
+  },
   "W+LYiFgyzf": {
     "defaultMessage": "Sử dụng kiến thức của tổ chức làm hướng dẫn cho quá trình tự động hóa này."
   },
@@ -13858,6 +14131,9 @@
   },
   "W3/qvnQA3o": {
     "defaultMessage": "Webhook Contentful đã được đồng bộ"
+  },
+  "W3I3Xglsup": {
+    "defaultMessage": "Lọc ({count})"
   },
   "W3V5ERIIW9": {
     "defaultMessage": "Linked context"
@@ -14159,6 +14435,9 @@
   "WoJQD0Fykh": {
     "defaultMessage": "Từ nhãn nút đến toàn bộ quy trình"
   },
+  "WojZwK+028": {
+    "defaultMessage": "Mọi mô hình"
+  },
   "WpB4HHsI4I": {
     "defaultMessage": "Đã phản hồi"
   },
@@ -14432,6 +14711,9 @@
   "XRHW9DFjAT": {
     "defaultMessage": "Khóa API"
   },
+  "XTQH6Cl2jC": {
+    "defaultMessage": "GPT-6 Luna (Nhanh)"
+  },
   "XTqDUMqK14": {
     "defaultMessage": "Hyperlocalise gốc"
   },
@@ -14494,6 +14776,9 @@
   },
   "Xc6qahwRY8": {
     "defaultMessage": "Tài khoản của bạn đã đăng nhập, nhưng lời mời vào không gian làm việc này هنوز chưa được xác nhận."
+  },
+  "XcFjhy5gkF": {
+    "defaultMessage": "GPT-6 Astra (Nhanh)"
   },
   "XcO+si/Q8F": {
     "defaultMessage": "Nhóm"
@@ -14735,8 +15020,14 @@
   "YBk75aHrs3": {
     "defaultMessage": "Đã kiểm tra các bản dịch và trình giữ chỗ còn thiếu"
   },
+  "YCP+NsYk19": {
+    "defaultMessage": "Translator"
+  },
   "YCRoGFQJBc": {
     "defaultMessage": "Loops"
+  },
+  "YCaD+nC2OM": {
+    "defaultMessage": "Bạn muốn các lượt trao đổi ngắn hơn và phản hồi nhanh hơn."
   },
   "YDQwelYneJ": {
     "defaultMessage": "ID mục nhập Contentful"
@@ -14755,6 +15046,9 @@
   },
   "YEpKGG3Nzw": {
     "defaultMessage": "Logo Hyperlocalise"
+  },
+  "YGFB2mB2iu": {
+    "defaultMessage": "Chọn số lượng mô hình muốn hiển thị"
   },
   "YGfWnIp6A9": {
     "defaultMessage": "Đang tải các vấn đề"
@@ -14825,6 +15119,9 @@
   "YOYL3H2qOe": {
     "defaultMessage": "Locale"
   },
+  "YP1eohi/Yy": {
+    "defaultMessage": "Bạn muốn nghe nhịp điệu và độ dài của một câu."
+  },
   "YPT/4ux3Z/": {
     "defaultMessage": "Chỉ thủ công"
   },
@@ -14884,6 +15181,9 @@
   },
   "YbMmg9p0CC": {
     "defaultMessage": "Nhập tên."
+  },
+  "YcN/e0CkeC": {
+    "defaultMessage": "Bản nháp ({locale})"
   },
   "YcomzE3n8l": {
     "defaultMessage": "yêu cầu nhánh"
@@ -15206,6 +15506,9 @@
   "ZM4eC/SiqK": {
     "defaultMessage": "Không thể xác minh kênh này ngay lúc này. Vui lòng thử lại."
   },
+  "ZMuADiRtdx": {
+    "defaultMessage": "Viết lách"
+  },
   "ZNAwtFUkzx": {
     "defaultMessage": "Audited"
   },
@@ -15278,6 +15581,9 @@
   "ZWQ+8S8rpv": {
     "defaultMessage": "Đang chạy"
   },
+  "ZWsiVHYRoy": {
+    "defaultMessage": "Tất cả mức độ ưu tiên"
+  },
   "ZXPdUvtPkF": {
     "defaultMessage": "Gán các giá trị vào ngữ cảnh quy trình làm việc."
   },
@@ -15329,11 +15635,17 @@
   "Zh1+GZ3Hje": {
     "defaultMessage": "Thêm tệp"
   },
+  "Zhasquwx2x": {
+    "defaultMessage": "Tìm kiếm mô hình"
+  },
   "ZhhmEl6FUY": {
     "defaultMessage": "Chưa có lần nhập nào"
   },
   "ZiWVuGHeQL": {
     "defaultMessage": "Không có bảng thuật ngữ của nhà cung cấp"
+  },
+  "Zjsr28k65x": {
+    "defaultMessage": "Bảng đánh giá nhiều thông tin, có chức năng phê duyệt hàng loạt và theo dõi vấn đề QA"
   },
   "ZkAl1q2it8": {
     "defaultMessage": "Xử lý như hình ảnh"
@@ -15382,6 +15694,9 @@
   },
   "Zq6yckXsZ1": {
     "defaultMessage": "Tìm kiếm kho lưu trữ"
+  },
+  "ZqN2yepK3V": {
+    "defaultMessage": "Bạn muốn nhận phản hồi nhanh hơn từ mô hình OpenAI này."
   },
   "Zr6ABmqsLb": {
     "defaultMessage": "Cờ mới"
@@ -15665,6 +15980,9 @@
   "aLFMn9nbVZ": {
     "defaultMessage": "Một tiếng nói. Mọi thị trường."
   },
+  "aLPGvNH2mO": {
+    "defaultMessage": "Đang chờ xử lý"
+  },
   "aLgr7cq8Pf": {
     "defaultMessage": "Xuất biên soạn"
   },
@@ -15785,6 +16103,9 @@
   "akMqVdhYbU": {
     "defaultMessage": "Thử"
   },
+  "akrLncuXTs": {
+    "defaultMessage": "Bạn muốn dùng cùng một trợ lý viết Luna, nhưng nhận phản hồi nhanh hơn."
+  },
   "alKFWoCQYb": {
     "defaultMessage": "Download"
   },
@@ -15878,6 +16199,9 @@
   "b/Vd04dNDW": {
     "defaultMessage": "Hyperlocalise"
   },
+  "b/ulx7nVXu": {
+    "defaultMessage": "Bản ghi âm cần được chuyển thành nội dung mà bạn có thể bản địa hóa."
+  },
   "b04WpJPIZh": {
     "defaultMessage": "Từ khóa"
   },
@@ -15898,6 +16222,9 @@
   },
   "b20aCSFLbS": {
     "defaultMessage": "Search"
+  },
+  "b2N5Ti6nmm": {
+    "defaultMessage": "Nhà thiết kế"
   },
   "b2YL8gmkMg": {
     "defaultMessage": "{count, plural, one {# kết quả tìm kiếm tự nhiên} other {# kết quả tìm kiếm tự nhiên}}"
@@ -16016,11 +16343,17 @@
   "bIhHNqhcPu": {
     "defaultMessage": "Lưu & bản địa hóa"
   },
+  "bIozEMK8ly": {
+    "defaultMessage": "Nhập · {timestamp}"
+  },
   "bJPgIG0M7T": {
     "defaultMessage": "Branch"
   },
   "bKVGEe8Imh": {
     "defaultMessage": "Danh sách kiểm tra"
+  },
+  "bL+wwPFNwO": {
+    "defaultMessage": "Đầu vào {index}"
   },
   "bL4rc4u2xS": {
     "defaultMessage": "Liên kết tài khoản Crowdin của bạn trong mục Tích hợp trên Hyperlocalise, sau đó mở lại tab này."
@@ -16141,6 +16474,9 @@
   },
   "beO/JeLdTY": {
     "defaultMessage": "Ứng dụng & Tính năng"
+  },
+  "bex2oneg24": {
+    "defaultMessage": "Lịch sử nhập/xuất khẩu"
   },
   "bf/8sd/M64": {
     "defaultMessage": "Save"
@@ -16289,6 +16625,9 @@
   "c/AGJRFp4G": {
     "defaultMessage": "Nhập JSON hợp lệ."
   },
+  "c0/sujExf3": {
+    "defaultMessage": "Hợp nhất"
+  },
   "c0YVbiffzK": {
     "defaultMessage": "Không có ngôn ngữ đích nào khả dụng cho tệp tác vụ này."
   },
@@ -16364,6 +16703,9 @@
   "cAVXvKrNnE": {
     "defaultMessage": "Save"
   },
+  "cAyguvo6I8": {
+    "defaultMessage": "GPT-5.6 Terra (Nhanh)"
+  },
   "cBjVvDkrw1": {
     "defaultMessage": "Truy vấn & tự động hóa"
   },
@@ -16408,6 +16750,9 @@
   },
   "cHNG0eH0rr": {
     "defaultMessage": "Hiện chưa có bản kiểm tra bản địa hóa nào được đính kèm với tên miền này."
+  },
+  "cHYsUGiY4s": {
+    "defaultMessage": "Hình ảnh tĩnh từ một bản mô tả ngắn"
   },
   "cHvtlHrefQ": {
     "defaultMessage": "Hình ảnh nguồn"
@@ -16885,6 +17230,9 @@
   },
   "dMFejDlTkV": {
     "defaultMessage": "Ghi chú"
+  },
+  "dO1TC3x3LJ": {
+    "defaultMessage": "GPT-6 Sol (Nhanh)"
   },
   "dOPqWy+7LT": {
     "defaultMessage": "Thêm đối thủ cạnh tranh"
@@ -17441,6 +17789,9 @@
   "ebI/JnzL7S": {
     "defaultMessage": "Tự động hóa"
   },
+  "ebSc/SgRuM": {
+    "defaultMessage": "OpenAI"
+  },
   "ecBrADENW6": {
     "defaultMessage": "Trạng thái: {status}"
   },
@@ -17561,6 +17912,9 @@
   "ewtw4dTf/D": {
     "defaultMessage": "Tạo một thử nghiệm, chọn người có thể xem thử nghiệm đó, rồi bật khi bạn đã sẵn sàng."
   },
+  "exjYr2VS99": {
+    "defaultMessage": "Di chuyển đầu ra {index} xuống dưới"
+  },
   "extNy23p4p": {
     "defaultMessage": "Tìm kiếm khóa, nguồn hoặc bản dịch…"
   },
@@ -17647,6 +18001,9 @@
   },
   "f3VeQ5EI+p": {
     "defaultMessage": "Lọc khái niệm"
+  },
+  "f3pu4K7abu": {
+    "defaultMessage": "Other"
   },
   "f3sl/ZbsET": {
     "defaultMessage": "Thêm các phiên bản và những thay đổi trên trang web mà mỗi phiên bản sẽ kích hoạt."
@@ -17788,6 +18145,9 @@
   },
   "fPUMESAd94": {
     "defaultMessage": "For data processing agreement requests, contact: {email}"
+  },
+  "fPXZYLvS43": {
+    "defaultMessage": "Luna nhanh hơn cho cùng các tác vụ trò chuyện, dịch thuật và lập trình. Được bao gồm trong các gói trả phí, và mức sử dụng sẽ được trừ vào hạn mức AI hằng tháng của bạn. Kết nối khóa OpenAI của riêng bạn nếu bạn muốn OpenAI tính phí thay thế."
   },
   "fQ1jKCCGwH": {
     "defaultMessage": "Khóa"
@@ -17987,6 +18347,9 @@
   "fxgs/d7//D": {
     "defaultMessage": "Trước tiên hãy tạo một dự án, sau đó nhập các issue vào Truy vấn."
   },
+  "fxjFqNjim9": {
+    "defaultMessage": "Tài khoản của bạn"
+  },
   "fxy2Q92Fyj": {
     "defaultMessage": "Tìm kiếm có thể đọc nội dung đó"
   },
@@ -18058,6 +18421,9 @@
   },
   "g3WGoqC7FR": {
     "defaultMessage": "Nhập CSV"
+  },
+  "g3fJsc2Zam": {
+    "defaultMessage": "Có. Bạn có thể chuyển đổi giữa các gói Free, Starter và Growth trong mục thanh toán khi nhu cầu sử dụng tăng lên. Các thay đổi đối với gói Enterprise sẽ được xử lý thông qua người liên hệ phụ trách tài khoản của bạn."
   },
   "g4IjA7F0HP": {
     "defaultMessage": "Không thể tạo lại hình ảnh"
@@ -18665,6 +19031,9 @@
   "hRNM7K3gMN": {
     "defaultMessage": "Đã sử dụng {count} nguồn"
   },
+  "hRiPxjtqBZ": {
+    "defaultMessage": "Kết nối khóa Gemini và sử dụng Pro cho những bản nháp khó hơn. Google sẽ tính phí cho mức sử dụng này. Khoản này không trừ vào tín dụng AI hằng tháng của bạn."
+  },
   "hSMtpPxb+x": {
     "defaultMessage": "Tất cả đánh giá"
   },
@@ -18902,6 +19271,9 @@
   "hzccK8c1vn": {
     "defaultMessage": "Notion"
   },
+  "i+L328OqBg": {
+    "defaultMessage": "Lọc theo mức độ ưu tiên"
+  },
   "i/10E+WnLM": {
     "defaultMessage": "Miền này đã chặn trình thu thập dữ liệu, nên chúng tôi không chấm điểm trang web."
   },
@@ -18929,6 +19301,9 @@
   "i4MOxqTP9L": {
     "defaultMessage": "Review SLA"
   },
+  "i5+63y5ddc": {
+    "defaultMessage": "Chẩn đoán"
+  },
   "i6eUIFDSYw": {
     "defaultMessage": "Mở trình chỉnh sửa"
   },
@@ -18941,11 +19316,17 @@
   "i6ut53Z7X2": {
     "defaultMessage": "Trường hợp sử dụng"
   },
+  "i70eKYLUvJ": {
+    "defaultMessage": "Billing"
+  },
   "i7F4qIlR4E": {
     "defaultMessage": "Đã bật"
   },
   "i7dxDvInjb": {
     "defaultMessage": "Select"
+  },
+  "i8AxYRXb9E": {
+    "defaultMessage": "Phản hồi nhanh hơn từ Luna"
   },
   "i8B+GP5gs5": {
     "defaultMessage": "Jira"
@@ -19274,6 +19655,9 @@
   "ipVFcJ8AtN": {
     "defaultMessage": "Hãy tạo một dự án trước, sau đó nhập các issue vào Bảng vấn đề của dự án đó."
   },
+  "ipXlmfoH58": {
+    "defaultMessage": "Không có mức độ ưu tiên"
+  },
   "iqtybHn407": {
     "defaultMessage": "Video"
   },
@@ -19328,6 +19712,9 @@
   "iy6eNjNsls": {
     "defaultMessage": "Khóa API"
   },
+  "iyT4BT4yAG": {
+    "defaultMessage": "Không có chẩn đoán."
+  },
   "iyeC0lBvav": {
     "defaultMessage": "Đã đăng bình luận"
   },
@@ -19348,6 +19735,9 @@
   },
   "j+qma/tVWn": {
     "defaultMessage": "Dự án đã bị xóa"
+  },
+  "j/Jwj8Alm7": {
+    "defaultMessage": "Đã hoàn tất"
   },
   "j0WZLPTpqA": {
     "defaultMessage": "Tự động hóa xử lý các bước lặp đi lặp lại giữa khâu soạn nội dung, duyệt và phát hành để đội ngũ của bạn có thể tập trung vào chất lượng. Hiện có quyền truy cập sớm. Đặt lịch demo để xem tính năng này trên hệ thống của bạn."
@@ -19603,6 +19993,9 @@
   },
   "jbZqr4hs7O": {
     "defaultMessage": "Cancelled"
+  },
+  "jcSSc4wiBK": {
+    "defaultMessage": "Lọc"
   },
   "jd3LwSKaUe": {
     "defaultMessage": "Đã xóa thành viên khỏi nhóm"
@@ -19985,6 +20378,9 @@
   "kRgGKX2G/s": {
     "defaultMessage": "Connect"
   },
+  "kRkY9YXl2W": {
+    "defaultMessage": "Hiển thị tất cả mô hình"
+  },
   "kRw106UBLA": {
     "defaultMessage": "Nhấn vào phiên bản thị trường mà bạn muốn giữ lại."
   },
@@ -20242,6 +20638,9 @@
   },
   "l+wMmn4Krw": {
     "defaultMessage": "Không thể tải các kết nối Semrush."
+  },
+  "l//f5K3F+p": {
+    "defaultMessage": "ByteDance"
   },
   "l0LaeWZhOk": {
     "defaultMessage": "Thuật ngữ được sử dụng thay thế"
@@ -20711,6 +21110,9 @@
   "mCX+DFnK+p": {
     "defaultMessage": "Resources"
   },
+  "mCz1OMRk2y": {
+    "defaultMessage": "Giúp giải quyết vấn đề gì"
+  },
   "mDNDpO0mIA": {
     "defaultMessage": "Hyperlocalise is an AI workforce that acts like your team of local experts.<desktopOnly><lineBreak></lineBreak>It understands market nuance, then translates and transcreates.</desktopOnly>"
   },
@@ -20870,6 +21272,9 @@
   "mWmRyMvedC": {
     "defaultMessage": "{actor} đã chuyển từ {previousStatus} sang {nextStatus}"
   },
+  "mWtA0VdJue": {
+    "defaultMessage": "Không có đề xuất nào phù hợp."
+  },
   "mX/u4fe+7s": {
     "defaultMessage": "Hiển thị {pageStart}–{pageEnd} trong tổng số {glossaryTotal} bảng thuật ngữ"
   },
@@ -20947,6 +21352,9 @@
   },
   "ml60MI46D3": {
     "defaultMessage": "Thay đổi kích thước bảng điều khiển thông tin dịch thuật"
+  },
+  "mlKUWelgXh": {
+    "defaultMessage": "Không thành công"
   },
   "mlbMDyLQpv": {
     "defaultMessage": "Đã nhận bản tóm tắt · 4 thị trường, 12 tài sản"
@@ -21098,6 +21506,9 @@
   "n4hpRZLl37": {
     "defaultMessage": "Thêm trường hợp"
   },
+  "n5ZuB985rS": {
+    "defaultMessage": "Bản nháp dài hơn và đánh giá"
+  },
   "n5bYPU3uSK": {
     "defaultMessage": "Các bản cập nhật sản phẩm diễn ra nhanh hơn bản dịch trung tâm trợ giúp. Các đội ngũ hỗ trợ gánh chịu chi phí khi các bài viết bản địa hóa bị chậm so với tiến độ."
   },
@@ -21152,6 +21563,9 @@
   "nE0iR4v6Zt": {
     "defaultMessage": "Di động"
   },
+  "nE395mfy0y": {
+    "defaultMessage": "Chưa có lần nhập hoặc xuất nào được thực hiện."
+  },
   "nE4gAmZP2R": {
     "defaultMessage": "Tạo và quản lý khóa API để truy cập theo chương trình vào các tác vụ dịch và tài nguyên không gian làm việc. Bảo mật khóa và thường xuyên thay đổi chúng."
   },
@@ -21205,6 +21619,9 @@
   },
   "nLGLyaeThi": {
     "defaultMessage": "Locale"
+  },
+  "nLIx9rcSZg": {
+    "defaultMessage": "All"
   },
   "nMNoXhRMk/": {
     "defaultMessage": "Không thể xóa thành viên khỏi nhóm."
@@ -21434,6 +21851,9 @@
   "nn0iMJAwx4": {
     "defaultMessage": "Acme · Đánh giá thương hiệu"
   },
+  "nn5/Lv4WBX": {
+    "defaultMessage": "GPT-6.1 Sol"
+  },
   "nn5YVrUh9W": {
     "defaultMessage": "Đã đính kèm dự án Bộ nhớ dịch"
   },
@@ -21568,6 +21988,9 @@
   },
   "oAaG6RQRA7": {
     "defaultMessage": "Chọn một hoặc nhiều tệp dự án hiện có. Mỗi tệp sẽ bắt đầu một lần chạy riêng."
+  },
+  "oAdWI3pqoy": {
+    "defaultMessage": "Cách diễn đạt cần được chú ý kỹ hơn."
   },
   "oAg3HpyTvd": {
     "defaultMessage": "Chạy kiểm tra QA"
@@ -21743,6 +22166,9 @@
   "oY6BbYTIO4": {
     "defaultMessage": "Xóa"
   },
+  "oYlQkAtEBG": {
+    "defaultMessage": "Xem báo cáo"
+  },
   "oZKIJnBlXM": {
     "defaultMessage": "Daily"
   },
@@ -21896,6 +22322,9 @@
   "ow+0+l1ZrI": {
     "defaultMessage": "Rõ ràng. Gần gũi. Tự tin."
   },
+  "ow1T0+Vk+a": {
+    "defaultMessage": "Trò chuyện, dịch thuật và lập trình"
+  },
   "owW1Hvk/pe": {
     "defaultMessage": "Tôi có cần thay thế TMS của mình không?"
   },
@@ -21904,6 +22333,9 @@
   },
   "oyu4JeYlD+": {
     "defaultMessage": "Biết ý định"
+  },
+  "ozEbWfdaHV": {
+    "defaultMessage": "Trạng thái: {value}"
   },
   "ozFSiYX+w7": {
     "defaultMessage": "Hủy"
@@ -21946,6 +22378,9 @@
   },
   "p2ZEW4INMa": {
     "defaultMessage": "Glossaries"
+  },
+  "p2iBQGftoM": {
+    "defaultMessage": "Fish Audio"
   },
   "p39kEDtTvU": {
     "defaultMessage": "Enabled"
@@ -22094,6 +22529,9 @@
   "pMpF//U8ui": {
     "defaultMessage": "Remove"
   },
+  "pMxqNDgaiR": {
+    "defaultMessage": "Tệp nguồn"
+  },
   "pNA+bX2Ulk": {
     "defaultMessage": "Trình chỉnh sửa nội dung / Hàng đợi đánh giá"
   },
@@ -22157,8 +22595,14 @@
   "pV8l9BOlkk": {
     "defaultMessage": "Trước tiên, hãy tạo một dự án."
   },
+  "pVd6AgLLSN": {
+    "defaultMessage": "Giá Starter và Growth được niêm yết theo tháng. Giá Enterprise được tùy chỉnh và thống nhất trong buổi demo."
+  },
   "pW1y7yrfkU": {
     "defaultMessage": "Thao tác cho {name}"
+  },
+  "pWIlwfK6L5": {
+    "defaultMessage": "Một hình ảnh tĩnh là chưa đủ cho chiến dịch."
   },
   "pWLMdEuyPH": {
     "defaultMessage": "{requestedLocale} không phải là ngôn ngữ đích cho tệp này. Nhấp đúp vào một tệp hoặc sử dụng Mở Trình chỉnh sửa để chỉnh sửa {targetLocale}."
@@ -22502,6 +22946,9 @@
   "qAtz8sLMpD": {
     "defaultMessage": "Đánh giá thủ công trong TMS của bạn trước khi xuất bản lại lên Canva"
   },
+  "qAz1fyJVWy": {
+    "defaultMessage": "Báo cáo trao đổi"
+  },
   "qBA6a2d2LM": {
     "defaultMessage": "Tên miền của bạn"
   },
@@ -22519,6 +22966,9 @@
   },
   "qDJ1AfMuj+": {
     "defaultMessage": "QA Thương hiệu"
+  },
+  "qDPDjijqjg": {
+    "defaultMessage": "Đã bao gồm"
   },
   "qFVbPH/1i/": {
     "defaultMessage": "Không thể tải từ điển kiểm tra chính tả."
@@ -22628,6 +23078,9 @@
   "qWkW//wsRc": {
     "defaultMessage": "Mời thành viên không thành công"
   },
+  "qWuPZZeIC0": {
+    "defaultMessage": "Các bản nháp khó hơn"
+  },
   "qXmUZikt+0": {
     "defaultMessage": "Chưa chọn lần chạy tác nhân nào"
   },
@@ -22636,6 +23089,9 @@
   },
   "qYH/VTnW7r": {
     "defaultMessage": "Hộp thư đến"
+  },
+  "qYSoW7SGAG": {
+    "defaultMessage": "Quay lại lịch sử nhập/xuất"
   },
   "qZPWtL4H2F": {
     "defaultMessage": "Vận hành nội dung đa ngôn ngữ, hợp nhất. <muted>Giảm chi phí vận hành, thâm nhập thị trường nhanh hơn và tăng doanh thu từ mọi ngôn ngữ bạn triển khai.</muted>"
@@ -22841,11 +23297,17 @@
   "r3j9bzJdAk": {
     "defaultMessage": "Không thể tải các mối quan hệ"
   },
+  "r4DslyI+Ba": {
+    "defaultMessage": "Phản hồi nhanh hơn khi viết"
+  },
   "r6HEWfXC5D": {
     "defaultMessage": "Connect an Ahrefs MCP API key for SEO data in automations."
   },
   "r6Ldwc5qHk": {
     "defaultMessage": "Tiếng Nga (Nga)"
+  },
+  "r6qom0JjbO": {
+    "defaultMessage": "Kết nối khóa API trong AI Engine trên gói Starter, Growth hoặc Enterprise. Hỏi đáp, Dịch thuật, Lập trình, dịch tệp và tự động hóa sử dụng mặc định của không gian làm việc. Giọng nói, phiên âm, hình ảnh và video vẫn được bao gồm."
   },
   "r7/0syRDA9": {
     "defaultMessage": "bắt buộc"
@@ -22873,6 +23335,9 @@
   },
   "r9CtFkZBBj": {
     "defaultMessage": "Kết nối GitHub và Slack để agent có thể tự động xác thực các thay đổi và thông báo cho nhóm của bạn."
+  },
+  "r9FOHZyK+0": {
+    "defaultMessage": "Đường dẫn thành công đầu tiên"
   },
   "r9cem/tyVw": {
     "defaultMessage": "Succeeded"
@@ -22945,6 +23410,12 @@
   },
   "rJRBMWgpmE": {
     "defaultMessage": "Địa chỉ người gửi"
+  },
+  "rK02Gg9nl5": {
+    "defaultMessage": "Các gói trả phí bao gồm các mô hình viết, giọng nói, nghe, hình ảnh và video. Các mô hình này sử dụng hạn mức AI hằng tháng của bạn. Hãy kết nối với OpenAI, Anthropic hoặc Gemini nếu bạn muốn chi phí sử dụng mô hình viết được tính vào tài khoản của dịch vụ đó."
+  },
+  "rKDq5xVpUS": {
+    "defaultMessage": "Thêm đầu vào"
   },
   "rLDtsiqRXk": {
     "defaultMessage": "Đã kiểm tra trước khi chiến dịch toàn cầu được triển khai"
@@ -23069,6 +23540,9 @@
   "raG3uRf8nJ": {
     "defaultMessage": "Đang hoạt động"
   },
+  "rc9DBDztDD": {
+    "defaultMessage": "Các mô hình mà nhóm của bạn có thể sử dụng"
+  },
   "rcANTRobpQ": {
     "defaultMessage": "Role"
   },
@@ -23177,6 +23651,9 @@
   "rw4HCHelCR": {
     "defaultMessage": "Dịch trong cuộc trò chuyện"
   },
+  "rwrbMkzbhM": {
+    "defaultMessage": "Người xem xét"
+  },
   "rxbmdOIAMH": {
     "defaultMessage": "Gửi tới Slack"
   },
@@ -23188,6 +23665,9 @@
   },
   "rywDd6XWpM": {
     "defaultMessage": "Cấp độ không gian làm việc"
+  },
+  "rzB2qvVXWW": {
+    "defaultMessage": "Bạn muốn sử dụng mô hình OpenAI này để trò chuyện, dịch thuật hoặc lập trình."
   },
   "rzRd9sk8q6": {
     "defaultMessage": "Đã tạo dự án"
@@ -23627,6 +24107,9 @@
   "t11/mMIbiZ": {
     "defaultMessage": "Dịch các trường Contentful được phát hiện, chạy kiểm tra QA và ghi lại các bản nháp để xem xét."
   },
+  "t1MgIE0AON": {
+    "defaultMessage": "Video ngắn từ bản tóm tắt brief"
+  },
   "t1gNC2Fo+D": {
     "defaultMessage": "Tài khoản của bạn không có quyền mở trang này."
   },
@@ -23696,6 +24179,9 @@
   "t9u0C/3PvD": {
     "defaultMessage": "Đặt lịch demo. Chúng tôi sẽ xác nhận điều kiện và giới thiệu mức giá dành cho startup, giảm 80% so với gói Growth."
   },
+  "t9wxr1NNC0": {
+    "defaultMessage": "Kết nối khóa Anthropic và sử dụng Sonnet cho các bản nháp dài hơn và ghi chú đánh giá. Anthropic tính phí cho việc sử dụng này. Phí này không trừ vào hạn mức tín dụng AI hằng tháng của bạn."
+  },
   "tAIkYXyE7a": {
     "defaultMessage": "Một phòng thí nghiệm kết nối với bức tranh lớn hơn."
   },
@@ -23737,6 +24223,9 @@
   },
   "tI6FJ9DXvD": {
     "defaultMessage": "Đã đọc"
+  },
+  "tIBFMHgcgW": {
+    "defaultMessage": "P1"
   },
   "tIIkL73dX1": {
     "defaultMessage": "Đã tìm thấy 12 khoảng trống có ý định cao trong DE"
@@ -23881,6 +24370,9 @@
   },
   "tcEBE8+x0p": {
     "defaultMessage": "MB"
+  },
+  "tdAVe+ZkeJ": {
+    "defaultMessage": "Nhập · {filename}"
   },
   "te38CqnzSy": {
     "defaultMessage": "Lần chạy của tác nhân"
@@ -24341,6 +24833,9 @@
   "up9lzQ6bIP": {
     "defaultMessage": "Khám phá phần còn lại"
   },
+  "upsJCx/arg": {
+    "defaultMessage": "Bạn muốn một mô hình Google cẩn trọng hơn để xử lý những bản nháp khó hơn."
+  },
   "uqGZNAVfVF": {
     "defaultMessage": "Add"
   },
@@ -24502,6 +24997,9 @@
   },
   "vB15JCGjFn": {
     "defaultMessage": "Đa ngôn ngữ"
+  },
+  "vB4gk8khYa": {
+    "defaultMessage": "Thu gọn {status}"
   },
   "vB9oObJ76R": {
     "defaultMessage": "Các chỉnh sửa lớp văn bản của bạn sẽ được lưu trước khi bản địa hóa hình ảnh."
@@ -24785,6 +25283,9 @@
   "vp6YtfmYlV": {
     "defaultMessage": "Cảnh báo định dạng & QA ({count, plural, one {# vấn đề} other {# vấn đề}})"
   },
+  "vp7tRvtQmV": {
+    "defaultMessage": "Trình tự"
+  },
   "vq7ib8WdUv": {
     "defaultMessage": "Tóm tắt chiến dịch"
   },
@@ -24986,6 +25487,9 @@
   "wCH+Hr/sNP": {
     "defaultMessage": "Hyperlab"
   },
+  "wCP+A1rntn": {
+    "defaultMessage": "Video"
+  },
   "wDUtJytI6K": {
     "defaultMessage": "Chọn tất cả"
   },
@@ -25075,6 +25579,9 @@
   },
   "wRrp5VzBUC": {
     "defaultMessage": "Tạo không gian làm việc"
+  },
+  "wSnroAJcQo": {
+    "defaultMessage": "Xuất biên soạn"
   },
   "wSu0+cW+hv": {
     "defaultMessage": "Hủy"
@@ -25394,6 +25901,9 @@
   "x7lBWitDFc": {
     "defaultMessage": "Không thể chạy lại quá trình kiểm tra."
   },
+  "x7rTF4CYcT": {
+    "defaultMessage": "Phiên bản nhanh hơn dành cho trò chuyện, dịch thuật và lập trình. Được bao gồm trong các gói trả phí; mức sử dụng sẽ được trừ vào hạn mức AI hằng tháng của bạn. Kết nối khóa OpenAI của riêng bạn nếu bạn muốn OpenAI tính phí trực tiếp thay vì vậy."
+  },
   "x86tb6Gc1r": {
     "defaultMessage": "Mở trong Claude"
   },
@@ -25480,6 +25990,9 @@
   },
   "xHmiZAvHuU": {
     "defaultMessage": "Hôm nay, Hỏi, Dịch và Lập trình sử dụng mô hình mặc định của không gian làm việc. Chuyển văn bản thành giọng nói, Chép lời, Tạo hình ảnh và Tạo video sử dụng các mô hình đi kèm. Tùy chọn ghi đè theo từng khả năng sẽ sớm ra mắt."
+  },
+  "xHpeWF3wBJ": {
+    "defaultMessage": "P0"
   },
   "xI2rMhHb7n": {
     "defaultMessage": "Project"
@@ -25742,6 +26255,9 @@
   "xvA/BI5vJc": {
     "defaultMessage": "Đi đến bảng điều khiển"
   },
+  "xwmJvqOv1C": {
+    "defaultMessage": "Điều phối nhiều luồng thực thi đầu vào."
+  },
   "xwmd6KI0M4": {
     "defaultMessage": "Đã hoàn tất"
   },
@@ -25771,6 +26287,9 @@
   },
   "y+bELTU1GC": {
     "defaultMessage": "Markdown"
+  },
+  "y+ijUpauzH": {
+    "defaultMessage": "Đầu ra thực thi"
   },
   "y+opIciqLH": {
     "defaultMessage": "Đối thủ cạnh tranh"
@@ -26063,6 +26582,9 @@
   "yj2BSHV6l8": {
     "defaultMessage": "Sử dụng OpenAI, Claude, Gemini hoặc một nhà cung cấp khác mà không bị khóa chặt ngăn xếp của bạn vào một nhà cung cấp mô hình duy nhất."
   },
+  "yj4HofLXjM": {
+    "defaultMessage": "Không có mô hình nào phù hợp"
+  },
   "ykDxLMM1xO": {
     "defaultMessage": "Định nghĩa, ngữ cảnh hoặc câu ví dụ"
   },
@@ -26330,6 +26852,9 @@
   "zMY6O3OGwK": {
     "defaultMessage": "Mở menu tài khoản của {name}"
   },
+  "zN4XlAxGFa": {
+    "defaultMessage": "GPT-6.1 Sol (Nhanh)"
+  },
   "zNif9FKga+": {
     "defaultMessage": "Ngôn ngữ"
   },
@@ -26456,6 +26981,9 @@
   "zg0fvgxUv4": {
     "defaultMessage": "Được sử dụng trong URL và phạm vi dự án. Chỉ sử dụng chữ cái viết thường, số và dấu gạch ngang."
   },
+  "zgB7RcHWk8": {
+    "defaultMessage": "Anthropic"
+  },
   "zhUOSqs0dW": {
     "defaultMessage": "Xác thực phân đoạn đã trả về phản hồi không hợp lệ."
   },
@@ -26503,6 +27031,9 @@
   },
   "zliOrjr0oj": {
     "defaultMessage": "Job"
+  },
+  "zljXhBmvix": {
+    "defaultMessage": "Kết quả đầu ra {index}"
   },
   "zmDlBGpSk8": {
     "defaultMessage": "Hạ tầng AI dành cho vận hành nội dung đa ngôn ngữ"
