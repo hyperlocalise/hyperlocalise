@@ -83,6 +83,7 @@ export function ContentEditorEditorShortcutHintBar({ isMac }: { isMac: boolean }
             ))}
           </KbdGroup>
           <span>{label}</span>
+          <span className="sr-only">({keys.join(" + ")})</span>
         </span>
       ))}
     </div>

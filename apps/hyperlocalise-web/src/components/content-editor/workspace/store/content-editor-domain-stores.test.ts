@@ -604,4 +604,43 @@ describe("ContentEditorWorkspaceUiStore", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("preserves legacy view-mode preference in localStorage when adaptive mode is enabled", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => {
+          if (key === "content-editor-workspace-view-mode:v1") return "side-by-side";
+          return null;
+        }),
+        setItem,
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("text");
+
+      // Default persona is translator, layout becomes comfortable
+      expect(ui.viewMode).toBe("comfortable");
+      expect(ui.resolvedPersona).toBe("translator");
+
+      // writeCatWorkspaceViewMode should NOT have been called with "comfortable"
+      expect(setItem).not.toHaveBeenCalledWith(
+        "content-editor-workspace-view-mode:v1",
+        "comfortable",
+      );
+
+      // Switching persona to reviewer should also not overwrite the legacy view-mode key
+      ui.setWorkspacePersona("reviewer", "text");
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(setItem).not.toHaveBeenCalledWith(
+        "content-editor-workspace-view-mode:v1",
+        "side-by-side",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

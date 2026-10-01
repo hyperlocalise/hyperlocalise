@@ -107,7 +107,7 @@ export class ContentEditorWorkspaceUiStore {
 
   setViewMode(mode: ContentEditorWorkspaceViewMode) {
     this.viewMode = mode;
-    if (this.#persistViewMode) {
+    if (this.#persistViewMode && !this.adaptiveWorkspaceEnabled) {
       writeCatWorkspaceViewMode(mode);
     }
     if (mode !== "side-by-side") {

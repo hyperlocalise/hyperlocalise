@@ -155,6 +155,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       prevPersonaRef.current = currentPersona;
       if (currentPersona === "reviewer") {
         setActivePanel("queue");
+        store.setSelectionMode(true);
       } else if (currentPersona === "translator") {
         setActivePanel("edit");
       }
@@ -733,7 +734,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           queueFilter={queueFilter}
           checkedSegmentIds={checkedSegmentIds}
           onToggleSegmentChecked={onToggleSegmentChecked}
-          showSelection={store.selectionMode || isReviewerPersona}
+          showSelection={store.selectionMode}
           isFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueListLoading}
           pagination={queuePagination}

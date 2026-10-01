@@ -619,4 +619,38 @@ describe("ContentEditorWorkspaceContainer UI", () => {
 
     expect(screen.queryByRole("button", { name: "Workspace mode" })).not.toBeInTheDocument();
   });
+
+  it("allows toggling selectionMode off and on in reviewer mode", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          adaptiveWorkspaceEnabled
+        />
+      </>,
+    );
+
+    // Switch to Reviewer persona
+    const personaButton = await waitFor(() =>
+      screen.getByRole("button", { name: "Workspace mode" }),
+    );
+    await user.click(personaButton);
+    const reviewerOption = await screen.findByRole("menuitemradio", { name: "Reviewer" });
+    await user.click(reviewerOption);
+
+    // In Reviewer mode, selection checkbox starts checked
+    const selectionCheckbox = await screen.findByLabelText("Show bulk selection checkboxes");
+    expect(selectionCheckbox).toBeChecked();
+
+    // User can uncheck the checkbox to turn selection mode off
+    await user.click(selectionCheckbox);
+    expect(selectionCheckbox).not.toBeChecked();
+
+    // User can check the checkbox again to turn selection mode on
+    await user.click(selectionCheckbox);
+    expect(selectionCheckbox).toBeChecked();
+  });
 });
