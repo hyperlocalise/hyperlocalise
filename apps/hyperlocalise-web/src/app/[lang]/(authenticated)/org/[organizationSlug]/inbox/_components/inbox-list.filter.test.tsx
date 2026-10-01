@@ -40,8 +40,7 @@ function renderInboxList() {
           notifications={issueNotificationsFixture}
           onLoadMoreNotifications={vi.fn()}
           onMarkAllRead={vi.fn()}
-          onSelectConversation={vi.fn()}
-          onSelectNotification={vi.fn()}
+          onSelectItem={vi.fn()}
           selection={{ kind: "conversation", id: conversationsFixture[0]!.id }}
           unreadNotificationCount={2}
         />
@@ -109,8 +108,7 @@ describe("InboxList filters", () => {
             notifications={issueNotificationsFixture.filter((notification) => notification.readAt)}
             onLoadMoreNotifications={onLoadMoreNotifications}
             onMarkAllRead={vi.fn()}
-            onSelectConversation={vi.fn()}
-            onSelectNotification={vi.fn()}
+            onSelectItem={vi.fn()}
             selection={null}
             unreadNotificationCount={2}
           />
@@ -148,8 +146,7 @@ describe("InboxList filters", () => {
           onFiltersChange={(nextFilters) => store.setFilters(nextFilters)}
           onLoadMoreNotifications={vi.fn()}
           onMarkAllRead={vi.fn()}
-          onSelectConversation={vi.fn()}
-          onSelectNotification={vi.fn()}
+          onSelectItem={vi.fn()}
           selection={{ kind: "conversation", id: conversationsFixture[0]!.id }}
           unreadNotificationCount={2}
         />
@@ -177,6 +174,6 @@ describe("InboxList filters", () => {
 
     expect(screen.queryByText("Translate homepage hero copy")).not.toBeInTheDocument();
     expect(screen.getByText("Checkout CTA tone feels off")).toBeInTheDocument();
-    expect(filters.at(-1)).toEqual({ read: "unread", type: "all" });
+    expect(filters.at(-1)).toEqual({ priority: "all", read: "unread", type: "all" });
   });
 });

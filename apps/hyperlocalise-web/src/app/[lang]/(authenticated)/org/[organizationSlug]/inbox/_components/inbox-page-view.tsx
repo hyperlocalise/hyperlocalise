@@ -20,7 +20,7 @@ import { ConversationPanel } from "./conversation-panel";
 import { inboxChatSplitPaneClassName } from "./inbox-chat-split-pane";
 import type { ChatComposerSendOptions } from "./inbox-api";
 import { InboxIssuePanel } from "./inbox-issue-panel";
-import { InboxList, type InboxSelection } from "./inbox-list";
+import { InboxList, type InboxListItemSelection, type InboxSelection } from "./inbox-list";
 import type { InboxListFilters } from "./inbox-list-filters";
 import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
@@ -56,8 +56,7 @@ export function InboxPageView({
   onFiltersChange,
   onLoadMoreNotifications,
   onMarkAllRead,
-  onSelectConversation,
-  onSelectNotification,
+  onSelectItem,
   onDeletedQuery,
   canDeleteQueries = false,
   onSendMessage,
@@ -91,8 +90,7 @@ export function InboxPageView({
   onFiltersChange?: (filters: InboxListFilters) => void;
   onLoadMoreNotifications: () => void;
   onMarkAllRead: () => void;
-  onSelectConversation: (conversationId: string) => void;
-  onSelectNotification: (notificationId: string) => void;
+  onSelectItem: (selection: InboxListItemSelection) => void;
   onDeletedQuery?: () => void;
   canDeleteQueries?: boolean;
   onSendMessage: (
@@ -143,8 +141,7 @@ export function InboxPageView({
             onFiltersChange={onFiltersChange}
             onLoadMoreNotifications={onLoadMoreNotifications}
             onMarkAllRead={onMarkAllRead}
-            onSelectConversation={onSelectConversation}
-            onSelectNotification={onSelectNotification}
+            onSelectItem={onSelectItem}
             selection={selection}
             unreadNotificationCount={unreadNotificationCount}
           />

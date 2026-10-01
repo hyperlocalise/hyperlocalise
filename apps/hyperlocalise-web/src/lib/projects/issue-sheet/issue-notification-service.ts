@@ -24,6 +24,7 @@ import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
 import { userHasIssueProjectAccess } from "./issue-sheet-assignee";
 import { issueSubscriptionService } from "./issue-subscription-service";
+import { priorityColumns, priorityValues, type IssuePriority } from "./issue-list-query";
 
 export const ISSUE_NOTIFICATION_ASSIGNED = "assigned" as const;
 export const ISSUE_NOTIFICATION_MENTIONED = "mentioned" as const;
@@ -46,6 +47,7 @@ export type IssueNotification = {
   organizationId: string;
   projectId: string;
   issueId: string;
+  priority: IssuePriority | null;
   type: IssueNotificationType;
   payload: IssueNotificationPayload;
   actor: IssueNotificationActor | null;
@@ -66,6 +68,10 @@ type IssueContext = {
   assigneeUserId: string | null;
   reporterUserId: string | null;
 };
+
+function normalizeIssuePriority(value: string | null): IssuePriority | null {
+  return value === "P0" || value === "P1" || value === "P2" ? value : null;
+}
 
 function timeBucket(now = new Date(), windowMs = STATUS_DEDUPE_WINDOW_MS): number {
   return Math.floor(now.getTime() / windowMs);
@@ -93,6 +99,7 @@ function mapNotificationRow(row: {
   organizationId: string;
   projectId: string;
   issueId: string;
+  priority: string | null;
   type: string;
   payload: IssueNotificationPayload;
   readAt: Date | null;
@@ -108,6 +115,7 @@ function mapNotificationRow(row: {
     organizationId: row.organizationId,
     projectId: row.projectId,
     issueId: row.issueId,
+    priority: normalizeIssuePriority(row.priority),
     type: row.type as IssueNotificationType,
     payload: row.payload,
     actor: row.actorUserId
@@ -537,6 +545,7 @@ export class IssueNotificationService extends ProjectServiceBase {
         organizationId: schema.issueNotifications.organizationId,
         projectId: schema.issueNotifications.projectId,
         issueId: schema.issueNotifications.issueId,
+        priority: sql<string | null>`${priorityValues.value} #>> '{}'`,
         type: schema.issueNotifications.type,
         payload: schema.issueNotifications.payload,
         readAt: schema.issueNotifications.readAt,
@@ -549,6 +558,21 @@ export class IssueNotificationService extends ProjectServiceBase {
       })
       .from(schema.issueNotifications)
       .innerJoin(schema.projects, eq(schema.issueNotifications.projectId, schema.projects.id))
+      .leftJoin(
+        priorityColumns,
+        and(
+          eq(priorityColumns.organizationId, schema.issueNotifications.organizationId),
+          eq(priorityColumns.projectId, schema.issueNotifications.projectId),
+          eq(priorityColumns.key, "priority"),
+        ),
+      )
+      .leftJoin(
+        priorityValues,
+        and(
+          eq(priorityValues.issueId, schema.issueNotifications.issueId),
+          eq(priorityValues.columnId, priorityColumns.id),
+        ),
+      )
       .leftJoin(schema.users, eq(schema.issueNotifications.actorUserId, schema.users.id))
       .where(where)
       .orderBy(desc(schema.issueNotifications.createdAt), desc(schema.issueNotifications.id))
@@ -582,6 +606,7 @@ export class IssueNotificationService extends ProjectServiceBase {
         organizationId: schema.issueNotifications.organizationId,
         projectId: schema.issueNotifications.projectId,
         issueId: schema.issueNotifications.issueId,
+        priority: sql<string | null>`${priorityValues.value} #>> '{}'`,
         type: schema.issueNotifications.type,
         payload: schema.issueNotifications.payload,
         readAt: schema.issueNotifications.readAt,
@@ -594,6 +619,21 @@ export class IssueNotificationService extends ProjectServiceBase {
       })
       .from(schema.issueNotifications)
       .innerJoin(schema.projects, eq(schema.issueNotifications.projectId, schema.projects.id))
+      .leftJoin(
+        priorityColumns,
+        and(
+          eq(priorityColumns.organizationId, schema.issueNotifications.organizationId),
+          eq(priorityColumns.projectId, schema.issueNotifications.projectId),
+          eq(priorityColumns.key, "priority"),
+        ),
+      )
+      .leftJoin(
+        priorityValues,
+        and(
+          eq(priorityValues.issueId, schema.issueNotifications.issueId),
+          eq(priorityValues.columnId, priorityColumns.id),
+        ),
+      )
       .leftJoin(schema.users, eq(schema.issueNotifications.actorUserId, schema.users.id))
       .where(
         and(

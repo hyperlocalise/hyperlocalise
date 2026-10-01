@@ -45,10 +45,12 @@ import {
   filterInboxIndexItems,
   INBOX_CONVERSATION_TYPE_FILTERS,
   INBOX_NOTIFICATION_TYPE_FILTERS,
+  INBOX_PRIORITY_FILTERS,
   INBOX_READ_FILTERS,
   isInboxListFiltersActive,
   type InboxIndexItem,
   type InboxListFilters,
+  type InboxPriorityFilter,
   type InboxTypeFilter,
 } from "./inbox-list-filters";
 import { inboxListMessages } from "./inbox-list.messages";
@@ -63,6 +65,10 @@ import {
 } from "./inbox-types";
 
 export type { InboxIndexItem };
+
+export type InboxListItemSelection =
+  | { kind: "conversation"; id: string }
+  | { kind: "notification"; id: string };
 
 export type InboxSelection =
   | { kind: "conversation"; id: string }
@@ -183,6 +189,23 @@ function inboxTypeFilterLabel(type: InboxTypeFilter, intl: IntlShape): string {
   }
 }
 
+function inboxPriorityFilterLabel(priority: InboxPriorityFilter, intl: IntlShape): string {
+  switch (priority) {
+    case "all":
+      return intl.formatMessage(inboxListMessages.filterPriorityAll);
+    case "P0":
+      return intl.formatMessage(inboxListMessages.filterPriorityP0);
+    case "P1":
+      return intl.formatMessage(inboxListMessages.filterPriorityP1);
+    case "P2":
+      return intl.formatMessage(inboxListMessages.filterPriorityP2);
+    case "none":
+      return intl.formatMessage(inboxListMessages.filterPriorityNone);
+    default:
+      return assertNever(priority);
+  }
+}
+
 function InboxListFiltersToolbar({
   filters,
   onFiltersChange,
@@ -193,11 +216,12 @@ function InboxListFiltersToolbar({
   onMarkAllRead?: () => void;
 }) {
   const intl = useIntl();
+  const priorityActive = filters.priority !== "all";
   const typeActive = filters.type !== "all";
 
   return (
     <div className="flex shrink-0 flex-col gap-1.5 border-b border-border px-2 py-1.5">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <div
           role="group"
           aria-label={intl.formatMessage(inboxListMessages.filterReadAria)}
@@ -220,56 +244,89 @@ function InboxListFiltersToolbar({
             );
           })}
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                className={cn("gap-1 font-normal", typeActive && "border-grove-400/40")}
-                aria-label={intl.formatMessage(inboxListMessages.filterTypeAria)}
-              />
-            }
-          >
-            <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3" />
-            <span className="max-w-24 truncate">{inboxTypeFilterLabel(filters.type, intl)}</span>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuRadioGroup
-              value={filters.type}
-              onValueChange={(value) =>
-                onFiltersChange({ ...filters, type: value as InboxTypeFilter })
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className={cn("gap-1 font-normal", typeActive && "border-grove-400/40")}
+                  aria-label={intl.formatMessage(inboxListMessages.filterTypeAria)}
+                />
               }
             >
-              <DropdownMenuRadioItem value="all">
-                <FormattedMessage {...inboxListMessages.filterTypeAll} />
-              </DropdownMenuRadioItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>
-                  <FormattedMessage {...inboxListMessages.filterTypeGroupConversations} />
-                </DropdownMenuLabel>
-                {INBOX_CONVERSATION_TYPE_FILTERS.map((type) => (
-                  <DropdownMenuRadioItem key={type} value={type}>
-                    {inboxTypeFilterLabel(type, intl)}
+              <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3" />
+              <span className="max-w-24 truncate">{inboxTypeFilterLabel(filters.type, intl)}</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuRadioGroup
+                value={filters.type}
+                onValueChange={(value) =>
+                  onFiltersChange({ ...filters, type: value as InboxTypeFilter })
+                }
+              >
+                <DropdownMenuRadioItem value="all">
+                  <FormattedMessage {...inboxListMessages.filterTypeAll} />
+                </DropdownMenuRadioItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <FormattedMessage {...inboxListMessages.filterTypeGroupConversations} />
+                  </DropdownMenuLabel>
+                  {INBOX_CONVERSATION_TYPE_FILTERS.map((type) => (
+                    <DropdownMenuRadioItem key={type} value={type}>
+                      {inboxTypeFilterLabel(type, intl)}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <FormattedMessage {...inboxListMessages.filterTypeGroupNotifications} />
+                  </DropdownMenuLabel>
+                  {INBOX_NOTIFICATION_TYPE_FILTERS.map((type) => (
+                    <DropdownMenuRadioItem key={type} value={type}>
+                      {inboxTypeFilterLabel(type, intl)}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className={cn("gap-1 font-normal", priorityActive && "border-grove-400/40")}
+                  aria-label={intl.formatMessage(inboxListMessages.filterPriorityAria)}
+                />
+              }
+            >
+              <span className="max-w-20 truncate">
+                {inboxPriorityFilterLabel(filters.priority, intl)}
+              </span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuRadioGroup
+                value={filters.priority}
+                onValueChange={(value) =>
+                  onFiltersChange({ ...filters, priority: value as InboxPriorityFilter })
+                }
+              >
+                {INBOX_PRIORITY_FILTERS.map((priority) => (
+                  <DropdownMenuRadioItem key={priority} value={priority}>
+                    {inboxPriorityFilterLabel(priority, intl)}
                   </DropdownMenuRadioItem>
                 ))}
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>
-                  <FormattedMessage {...inboxListMessages.filterTypeGroupNotifications} />
-                </DropdownMenuLabel>
-                {INBOX_NOTIFICATION_TYPE_FILTERS.map((type) => (
-                  <DropdownMenuRadioItem key={type} value={type}>
-                    {inboxTypeFilterLabel(type, intl)}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuGroup>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       {onMarkAllRead ? (
         <div className="flex items-center justify-end">
@@ -311,8 +368,7 @@ export const InboxList = memo(function InboxList({
   onFiltersChange,
   onLoadMoreNotifications,
   onMarkAllRead,
-  onSelectConversation,
-  onSelectNotification,
+  onSelectItem,
   selection,
   unreadNotificationCount,
 }: {
@@ -327,8 +383,7 @@ export const InboxList = memo(function InboxList({
   onFiltersChange?: (filters: InboxListFilters) => void;
   onLoadMoreNotifications: () => void;
   onMarkAllRead?: () => void;
-  onSelectConversation: (conversationId: string) => void;
-  onSelectNotification: (notificationId: string) => void;
+  onSelectItem: (selection: InboxListItemSelection) => void;
   selection: InboxSelection;
   unreadNotificationCount: number;
 }) {
@@ -353,7 +408,7 @@ export const InboxList = memo(function InboxList({
     if (!canLoadMoreFilteredPage || isLoadingMoreNotifications) {
       return;
     }
-    const pageKey = `${filters.read}:${filters.type}:${notifications.length}`;
+    const pageKey = `${filters.priority}:${filters.read}:${filters.type}:${notifications.length}`;
     if (autoLoadPageKeyRef.current === pageKey) {
       return;
     }
@@ -362,6 +417,7 @@ export const InboxList = memo(function InboxList({
   }, [
     canLoadMoreFilteredPage,
     filters.read,
+    filters.priority,
     filters.type,
     isLoadingMoreNotifications,
     notifications.length,
@@ -422,7 +478,7 @@ export const InboxList = memo(function InboxList({
                   isSelected={
                     selection?.kind === "conversation" && selection.id === item.conversation.id
                   }
-                  onSelect={onSelectConversation}
+                  onSelect={(id) => onSelectItem({ kind: "conversation", id })}
                 />
               ) : (
                 <NotificationListItem
@@ -431,7 +487,7 @@ export const InboxList = memo(function InboxList({
                   isSelected={
                     selection?.kind === "notification" && selection.id === item.notification.id
                   }
-                  onSelect={onSelectNotification}
+                  onSelect={(id) => onSelectItem({ kind: "notification", id })}
                 />
               ),
             )}

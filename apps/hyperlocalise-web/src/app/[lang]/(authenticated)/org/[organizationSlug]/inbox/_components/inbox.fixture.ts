@@ -220,6 +220,7 @@ export function createInboxIssueNotification(
     organizationId: "org_acme",
     projectId: "project_website",
     issueId: "issue_001",
+    priority: null,
     type: "assigned",
     payload: {
       issueTitle: "Source string needs context",
@@ -238,7 +239,7 @@ export function createInboxIssueNotification(
 }
 
 export const issueNotificationsFixture: InboxIssueNotification[] = [
-  createInboxIssueNotification(),
+  createInboxIssueNotification({ priority: "P0" }),
   createInboxIssueNotification({
     id: "notification_mention_001",
     type: "mentioned",
@@ -255,6 +256,7 @@ export const issueNotificationsFixture: InboxIssueNotification[] = [
       avatarUrl: null,
     },
     readAt: null,
+    priority: "P1",
     createdAt: iso(-1_200_000),
   }),
   createInboxIssueNotification({
@@ -273,6 +275,7 @@ export const issueNotificationsFixture: InboxIssueNotification[] = [
       avatarUrl: null,
     },
     readAt: iso(-600_000),
+    priority: null,
     createdAt: iso(-3_600_000),
   }),
   createInboxIssueNotification({
@@ -291,6 +294,7 @@ export const issueNotificationsFixture: InboxIssueNotification[] = [
       avatarUrl: null,
     },
     readAt: iso(-3_000_000),
+    priority: "P2",
     createdAt: iso(-7_200_000),
   }),
 ];

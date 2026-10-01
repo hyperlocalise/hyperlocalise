@@ -13,12 +13,14 @@
 import type { IssueNotificationType } from "@/lib/database/schema/issue-sheet";
 import type { createApiClient } from "@/lib/api-client";
 import { readApiResponseError } from "@/lib/api-error";
+import type { IssuePriority } from "@/lib/projects/issue-sheet/issue-list-constants";
 
 export type InboxIssueNotification = {
   id: string;
   organizationId: string;
   projectId: string;
   issueId: string;
+  priority: IssuePriority | null;
   type: IssueNotificationType;
   payload: {
     issueTitle: string;
