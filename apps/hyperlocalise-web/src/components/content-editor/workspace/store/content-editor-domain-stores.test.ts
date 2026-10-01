@@ -516,4 +516,50 @@ describe("ContentEditorWorkspaceUiStore", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("isolates saved persona preferences between distinct file families", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => store.get(key) ?? null),
+        setItem: vi.fn((key: string, val: string) => store.set(key, val)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+
+      // Start on text family and save reviewer
+      ui.applyFileFamily("text");
+      ui.setWorkspacePersona("reviewer", "text");
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("reviewer");
+
+      // Switch to image family
+      ui.applyFileFamily("image");
+      // Image has no saved preference yet, defaults to designer
+      expect(ui.resolvedPersona).toBe("designer");
+
+      // Save translator for image family
+      ui.setWorkspacePersona("translator", "image");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("translator");
+
+      // Text preference should still be reviewer
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("reviewer");
+
+      // Switch back to text family
+      ui.applyFileFamily("text");
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.resolvedPersona).toBe("reviewer");
+
+      // Switch back to image family
+      ui.applyFileFamily("image");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(ui.resolvedPersona).toBe("translator");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

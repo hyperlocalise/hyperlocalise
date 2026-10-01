@@ -438,13 +438,19 @@ export function ContentEditorIntelligencePanel({
 
   /**
    * Ref attached to the Translation Memory section element. When scrollToTm is
-   * true the panel scrolls it into view on first mount so the TM matches are
-   * immediately visible in Translator persona without any manual scrolling.
+   * true the panel scrolls it into view so the TM matches are immediately
+   * visible in Translator persona without any manual scrolling.
    */
   const tmSectionRef = useRef<HTMLDivElement>(null);
+  const lastScrolledSegmentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!scrollToTm) {
+      lastScrolledSegmentIdRef.current = null;
+      return;
+    }
+    const currentSegmentKey = segmentId ?? "__default__";
+    if (lastScrolledSegmentIdRef.current === currentSegmentKey) {
       return;
     }
     const el = tmSectionRef.current;
@@ -452,10 +458,9 @@ export function ContentEditorIntelligencePanel({
       return;
     }
     // Use "nearest" so the panel container does not jump if TM is already visible.
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    // Only run on mount — dependency array is intentionally empty.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    el.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+    lastScrolledSegmentIdRef.current = currentSegmentKey;
+  }, [scrollToTm, segmentId, isConcordanceLoading, intelligence.translationMemoryMatches]);
 
   function toggleGlossaryConcept(conceptId: string) {
     setExpandedGlossaryConceptIds((current) => {

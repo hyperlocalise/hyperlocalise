@@ -31,7 +31,7 @@ import { DESIGNER_PERSONA_FILE_FAMILIES } from "./content-editor-workspace-perso
  */
 function availablePersonasForFamily(family: string): readonly ContentEditorWorkspacePersona[] {
   if (DESIGNER_PERSONA_FILE_FAMILIES.has(family as never)) {
-    return ["designer"];
+    return ["designer", "translator"];
   }
   return ["translator", "reviewer"];
 }
@@ -62,7 +62,8 @@ export const ContentEditorWorkspacePersonaSwitcherConnected = observer(
 
     const resolvedValue = store?.ui.resolvedPersona ?? value ?? "translator";
     const resolvedOnChange = store
-      ? (persona: ContentEditorWorkspacePersona) => store.ui.setWorkspacePersona(persona)
+      ? (persona: ContentEditorWorkspacePersona) =>
+          store.ui.setWorkspacePersona(persona, capabilities.family)
       : onChange;
 
     if (!resolvedOnChange) {
