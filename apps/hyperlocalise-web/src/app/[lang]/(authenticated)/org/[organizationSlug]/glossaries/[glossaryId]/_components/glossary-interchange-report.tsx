@@ -12,8 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -22,11 +22,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 
 import { glossaryInterchangeHistoryMessages as messages } from "./glossary-interchange-history.messages";
 import { formatGlossaryInterchangeRunName } from "./glossary-interchange-run-name";
+
+function shouldRetryReport(error: unknown): boolean {
+  if (!(error instanceof GoSvcClientError)) return false;
+  return (
+    error.code === "network_error" ||
+    error.status === 408 ||
+    error.status === 429 ||
+    (error.status !== null && error.status >= 500)
+  );
+}
 
 export function GlossaryInterchangeReport({
   organizationSlug,
@@ -39,18 +50,30 @@ export function GlossaryInterchangeReport({
 }) {
   const intl = useIntl();
   const { client, loading } = useGoSvcClient();
+  const queryClient = useQueryClient();
   const [downloadPending, setDownloadPending] = useState(false);
   const reportQuery = useQuery({
     queryKey: ["glossary-interchange-report", organizationSlug, glossaryId, runId],
     enabled: !loading,
     queryFn: ({ signal }) =>
       client.glossary.report(organizationSlug, glossaryId, runId, { signal }),
-    refetchInterval: (current) =>
-      current.state.data && !["completed", "failed"].includes(current.state.data.report.status)
-        ? 3000
-        : false,
+    retry: (failureCount, error) => failureCount < 3 && shouldRetryReport(error),
+    refetchInterval: (current) => {
+      if (current.state.status === "error") {
+        return shouldRetryReport(current.state.error) ? 3000 : false;
+      }
+      const status = current.state.data?.report.status;
+      return !status || !["completed", "failed"].includes(status) ? 3000 : false;
+    },
   });
   const run = reportQuery.data?.report;
+  useEffect(() => {
+    if (run?.operation === "import" && run.status === "completed") {
+      void queryClient.invalidateQueries({
+        queryKey: ["glossary-concepts-page", organizationSlug, glossaryId],
+      });
+    }
+  }, [glossaryId, organizationSlug, queryClient, run?.operation, run?.status]);
   const glossaryQuery = useQuery({
     queryKey: ["glossary", organizationSlug, glossaryId],
     enabled: !loading,
