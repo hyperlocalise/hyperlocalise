@@ -639,12 +639,14 @@ func decodeXLSX(data []byte) ([]interchangeConcept, []string, error) {
 		}
 		byID[id] = len(concepts)
 		concept := interchangeConcept{ID: id}
-		applyPresentConceptString(&concept.PrimaryTerm, &concept.Present.PrimaryTerm, rowValue(row, conceptHeader, "primaryterm"), conceptHeader, "primaryterm")
+		if primaryTerm := rowValue(row, conceptHeader, "primaryterm"); primaryTerm != "" {
+			applyPresentConceptString(&concept.PrimaryTerm, &concept.Present.PrimaryTerm, primaryTerm, conceptHeader, "primaryterm")
+		}
 		applyPresentConceptString(&concept.Subject, &concept.Present.Subject, rowValue(row, conceptHeader, "subject"), conceptHeader, "subject")
 		applyPresentConceptString(&concept.Definition, &concept.Present.Definition, rowValue(row, conceptHeader, "definition"), conceptHeader, "definition")
 		applyPresentConceptString(&concept.Note, &concept.Present.Note, rowValue(row, conceptHeader, "note"), conceptHeader, "note")
-		applyPresentConceptNullable(&concept.URL, &concept.Present.URL, rowValue(row, conceptHeader, "url"), conceptHeader, "url")
-		applyPresentConceptNullable(&concept.Figure, &concept.Present.Figure, rowValue(row, conceptHeader, "figure"), conceptHeader, "figure")
+		applyPresentConceptString(&concept.URL, &concept.Present.URL, rowValue(row, conceptHeader, "url"), conceptHeader, "url")
+		applyPresentConceptString(&concept.Figure, &concept.Present.Figure, rowValue(row, conceptHeader, "figure"), conceptHeader, "figure")
 		applyPresentConceptBool(&concept.Translatable, &concept.Present.Translatable, rowValue(row, conceptHeader, "translatable"), conceptHeader, "translatable", true)
 		concepts = append(concepts, concept)
 	}
@@ -742,7 +744,9 @@ func decodeCSV(data []byte) ([]interchangeConcept, []string, error) {
 		c := by[id]
 		if c == nil {
 			c = &interchangeConcept{ID: id}
-			applyPresentConceptString(&c.PrimaryTerm, &c.Present.PrimaryTerm, get(r, "primaryterm"), header, "primaryterm")
+			if primaryTerm := get(r, "primaryterm"); primaryTerm != "" {
+				applyPresentConceptString(&c.PrimaryTerm, &c.Present.PrimaryTerm, primaryTerm, header, "primaryterm")
+			}
 			applyPresentConceptString(&c.Subject, &c.Present.Subject, get(r, "subject"), header, "subject")
 			applyPresentConceptString(&c.Definition, &c.Present.Definition, get(r, "definition"), header, "definition")
 			applyPresentConceptString(&c.Note, &c.Present.Note, get(r, "conceptnote"), header, "conceptnote")
@@ -753,8 +757,8 @@ func decodeCSV(data []byte) ([]interchangeConcept, []string, error) {
 			order = append(order, id)
 		}
 		applyPresentConceptBool(&c.Translatable, &c.Present.Translatable, get(r, "translatable"), header, "translatable", true)
-		applyPresentConceptNullable(&c.URL, &c.Present.URL, get(r, "concepturl"), header, "concepturl")
-		applyPresentConceptNullable(&c.Figure, &c.Present.Figure, get(r, "figure"), header, "figure")
+		applyPresentConceptString(&c.URL, &c.Present.URL, get(r, "concepturl"), header, "concepturl")
+		applyPresentConceptString(&c.Figure, &c.Present.Figure, get(r, "figure"), header, "figure")
 		c.Terms = append(c.Terms, interchangeTerm{
 			ID: get(r, "termid"), Locale: locale, Term: term, Description: get(r, "description"), Note: get(r, "termnote"),
 			PartOfSpeech: get(r, "partofspeech"), Gender: get(r, "gender"), TermType: get(r, "termtype"), URL: get(r, "termurl"),
@@ -792,14 +796,6 @@ func headerHas(header map[string]int, keys ...string) bool {
 }
 
 func applyPresentConceptString(dst *string, present *bool, value string, header map[string]int, keys ...string) {
-	if !headerHas(header, keys...) || value == "" {
-		return
-	}
-	*dst = value
-	*present = true
-}
-
-func applyPresentConceptNullable(dst *string, present *bool, value string, header map[string]int, keys ...string) {
 	if !headerHas(header, keys...) {
 		return
 	}
