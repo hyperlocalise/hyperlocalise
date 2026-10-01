@@ -57,9 +57,11 @@ export const ContentEditorWorkspaceViewModeSync = observer(
             contentKind,
             multilingualViewAvailable,
           });
-          const nextMode = clampCatWorkspaceViewMode(viewMode, capabilities);
+          store.ui.applyFileFamily(capabilities.family);
+          const currentMode = viewMode;
+          const nextMode = clampCatWorkspaceViewMode(currentMode, capabilities);
 
-          if (nextMode !== viewMode) {
+          if (nextMode !== currentMode) {
             store.ui.setViewMode(nextMode);
           }
         },

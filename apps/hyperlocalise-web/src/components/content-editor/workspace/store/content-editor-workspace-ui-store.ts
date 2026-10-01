@@ -20,6 +20,7 @@ import {
   type ContentEditorWorkspaceViewMode,
 } from "@/components/content-editor/workspace/content-editor-workspace-view-mode";
 import {
+  DESIGNER_PERSONA_FILE_FAMILIES,
   defaultPersonaForFileFamily,
   readCatWorkspacePersona,
   writeCatWorkspacePersona,
@@ -113,13 +114,23 @@ export class ContentEditorWorkspaceUiStore {
       this.setSideBySideViewport({ visibleSegmentIds: [], loadSegmentIds: [] });
     }
     if (this.adaptiveWorkspaceEnabled && this.#persistViewMode) {
+      const isDesignerFamily = Boolean(
+        this.#currentFileFamily &&
+        DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never),
+      );
       const targetPersona: ContentEditorWorkspacePersona | null =
         mode === "side-by-side"
-          ? "reviewer"
+          ? isDesignerFamily
+            ? null
+            : "reviewer"
           : mode === "comfortable"
-            ? "translator"
+            ? isDesignerFamily
+              ? null
+              : "translator"
             : mode === "file"
-              ? "designer"
+              ? isDesignerFamily
+                ? (this.workspacePersona ?? "designer")
+                : "designer"
               : null;
       if (targetPersona && this.workspacePersona !== targetPersona) {
         this.workspacePersona = targetPersona;
@@ -130,6 +141,14 @@ export class ContentEditorWorkspaceUiStore {
 
   #applyPersonaLayout(persona: ContentEditorWorkspacePersona) {
     if (!this.#persistViewMode) {
+      return;
+    }
+    const isDesignerFamily = Boolean(
+      this.#currentFileFamily &&
+      DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never),
+    );
+    if (isDesignerFamily) {
+      this.setViewMode("file");
       return;
     }
     if (persona === "designer") {
@@ -165,9 +184,11 @@ export class ContentEditorWorkspaceUiStore {
    * current file family so it is restored on future visits, and drives the
    * corresponding workspace layout preset.
    */
-  setWorkspacePersona(persona: ContentEditorWorkspacePersona) {
+  setWorkspacePersona(persona: ContentEditorWorkspacePersona, fileFamily?: string) {
+    const family = fileFamily ?? this.#currentFileFamily ?? "text";
+    this.#currentFileFamily = family;
     this.workspacePersona = persona;
-    writeCatWorkspacePersona(this.#currentFileFamily ?? "text", persona);
+    writeCatWorkspacePersona(family, persona);
     this.#applyPersonaLayout(persona);
   }
 

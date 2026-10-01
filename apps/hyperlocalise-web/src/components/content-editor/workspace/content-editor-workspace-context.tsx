@@ -27,9 +27,8 @@ import {
 } from "./content-editor-workspace-orchestrator";
 import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-view-mode";
 
-const ContentEditorWorkspaceContext = createContext<ContentEditorWorkspaceOrchestrator | null>(
-  null,
-);
+export const ContentEditorWorkspaceContext =
+  createContext<ContentEditorWorkspaceOrchestrator | null>(null);
 
 export function ContentEditorWorkspaceProvider({
   initialState,
