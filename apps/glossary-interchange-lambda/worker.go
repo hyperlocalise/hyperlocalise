@@ -42,6 +42,15 @@ type interchangeImportOptions struct {
 	LocaleMapping map[string]string `json:"localeMapping"`
 }
 
+type interchangeImportDiagnostic struct {
+	Severity string
+	Code     string
+	Message  string
+	Concept  string
+	Term     string
+	Field    string
+}
+
 type interchangeExportOptions struct {
 	Scope            string    `json:"scope"`
 	Locales          []string  `json:"locales"`
@@ -186,22 +195,31 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 	if err := pool.QueryRow(ctx, `select source_locale, locale_coverage from glossaries where id=(select glossary_id from glossary_import_runs where id=$1)`, runID).Scan(&sourceLocale, &localeCoverage); err != nil {
 		return err
 	}
-	knownLocales := map[string]bool{strings.ReplaceAll(sourceLocale, "_", "-"): true}
-	for _, locale := range localeCoverage {
-		knownLocales[strings.ReplaceAll(locale, "_", "-")] = true
-	}
+	configuredLocales := append([]string{sourceLocale}, localeCoverage...)
 	strictLocale := importOptions.StrictLocale == nil || *importOptions.StrictLocale
+	var importDiagnostics []interchangeImportDiagnostic
 	for i := range concepts {
 		for j := range concepts[i].Terms {
-			locale := strings.ReplaceAll(concepts[i].Terms[j].Locale, "_", "-")
-			if mapped := importOptions.LocaleMapping[locale]; mapped != "" {
-				locale = strings.ReplaceAll(mapped, "_", "-")
-			}
-			if strictLocale && !knownLocales[locale] {
+			rawLocale := normalizeGlossaryLocale(concepts[i].Terms[j].Locale)
+			locale, mapped := mappedImportLocale(rawLocale, configuredLocales, importOptions.LocaleMapping)
+			if strictLocale && !containsConfiguredLocale(locale, configuredLocales) {
 				return fmt.Errorf("locale %q is not configured for this glossary", locale)
 			}
 			concepts[i].Terms[j].Locale = locale
+			if mapped && localeKey(rawLocale) != localeKey(locale) {
+				importDiagnostics = append(importDiagnostics, interchangeImportDiagnostic{
+					Severity: "warning",
+					Code:     "locale_mapped",
+					Message:  fmt.Sprintf("Term locale %q was mapped to the glossary locale %q.", rawLocale, locale),
+					Concept:  concepts[i].ID,
+					Term:     concepts[i].Terms[j].ID,
+					Field:    "locale",
+				})
+			}
 		}
+	}
+	if err := persistImportDiagnostics(ctx, pool, runID, importDiagnostics); err != nil {
+		return err
 	}
 	if mode == "preview" {
 		_, err = pool.Exec(ctx, `update glossary_import_runs set status='completed', processing_started_at=null, counts=$2::jsonb, completed_at=now() where id=$1`, runID, json.RawMessage(fmt.Sprintf(`{"concepts":%d,"terms":%d}`, len(concepts), countTerms(concepts))))
@@ -270,6 +288,18 @@ func countTerms(concepts []interchangeConcept) int {
 		total += len(concept.Terms)
 	}
 	return total
+}
+
+func persistImportDiagnostics(ctx context.Context, pool *pgxpool.Pool, runID string, diagnostics []interchangeImportDiagnostic) error {
+	if _, err := pool.Exec(ctx, `delete from glossary_import_report_entries where run_id=$1`, runID); err != nil {
+		return err
+	}
+	for _, diagnostic := range diagnostics {
+		if _, err := pool.Exec(ctx, `insert into glossary_import_report_entries (run_id, severity, code, message, concept_id, term_id, field) values ($1,$2,$3,$4,$5,$6,$7)`, runID, diagnostic.Severity, diagnostic.Code, diagnostic.Message, diagnostic.Concept, diagnostic.Term, diagnostic.Field); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func loadConcepts(ctx context.Context, pool *pgxpool.Pool, glossaryID string) ([]interchangeConcept, error) {
