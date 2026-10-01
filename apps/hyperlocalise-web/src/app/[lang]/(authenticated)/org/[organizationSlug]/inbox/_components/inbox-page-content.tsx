@@ -27,7 +27,12 @@ import { apiClient } from "@/lib/api-client-instance";
 import { InboxPageStoreProvider, useInboxPageStore } from "../store/inbox-page-store-context";
 import { conversationPanelMessages } from "./conversation-panel.messages";
 import { createInboxApi, type ChatComposerSendOptions, type InboxApi } from "./inbox-api";
-import { inboxSelectionsEqual, resolveInboxSelection, type InboxSelection } from "./inbox-list";
+import {
+  inboxSelectionsEqual,
+  resolveInboxSelection,
+  type InboxListItemSelection,
+  type InboxSelection,
+} from "./inbox-list";
 import {
   createInboxNotificationsApi,
   notificationsQueryKey,
@@ -313,25 +318,22 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
     ],
   );
 
-  const onSelectConversation = useCallback(
-    (conversationId: string) => {
-      store.setPendingSelection({ kind: "conversation", id: conversationId });
+  const onSelectItem = useCallback(
+    (item: InboxListItemSelection) => {
+      store.setPendingSelection(item);
       startTransition(() => {
-        router.push(`/org/${organizationSlug}/inbox/${conversationId}`);
+        const path =
+          item.kind === "notification"
+            ? `/org/${organizationSlug}/inbox/notifications/${item.id}`
+            : `/org/${organizationSlug}/inbox/${item.id}`;
+        router.push(path);
       });
-    },
-    [router, organizationSlug, store],
-  );
 
-  const onSelectNotification = useCallback(
-    (notificationId: string) => {
-      store.setPendingSelection({ kind: "notification", id: notificationId });
-      startTransition(() => {
-        router.push(`/org/${organizationSlug}/inbox/notifications/${notificationId}`);
-      });
-      const notification = notifications.find((item) => item.id === notificationId);
-      if (notification && !notification.readAt) {
-        markReadMutation.mutate(notificationId);
+      if (item.kind === "notification") {
+        const notification = notifications.find((candidate) => candidate.id === item.id);
+        if (notification && !notification.readAt) {
+          markReadMutation.mutate(item.id);
+        }
       }
     },
     [router, organizationSlug, notifications, markReadMutation, store],
@@ -423,8 +425,7 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       onFiltersChange={(nextFilters) => store.setFilters(nextFilters)}
       onLoadMoreNotifications={onLoadMoreNotifications}
       onMarkAllRead={onMarkAllRead}
-      onSelectConversation={onSelectConversation}
-      onSelectNotification={onSelectNotification}
+      onSelectItem={onSelectItem}
       onDeletedQuery={onDeletedQuery}
       canDeleteQueries={canDeleteQueries}
       onSendMessage={onSendMessage}

@@ -43,8 +43,7 @@ const meta = {
     notifications: [],
     onLoadMoreNotifications: fn(),
     onMarkAllRead: fn(),
-    onSelectConversation: fn(),
-    onSelectNotification: fn(),
+    onSelectItem: fn(),
     selection: { kind: "conversation", id: conversationsFixture[0].id },
     unreadNotificationCount: 0,
   },
@@ -210,6 +209,37 @@ export const FilterTypeEmail: Story = {
     await userEvent.click(await body.findByRole("menuitemradio", { name: "Email" }));
     await expect(canvas.getByText("Email: Q3 release notes")).toBeInTheDocument();
     await expect(canvas.queryByText("Translate homepage hero copy")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Checkout CTA tone feels off")).not.toBeInTheDocument();
+  },
+};
+
+export const FilterPriorityP0: Story = {
+  args: {
+    notifications: issueNotificationsFixture,
+    unreadNotificationCount: 2,
+    selection: { kind: "notification", id: issueNotificationsFixture[0].id },
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Filter by priority" }));
+    await userEvent.click(await body.findByRole("menuitemradio", { name: "P0" }));
+    await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
+    await expect(canvas.queryByText("Checkout CTA tone feels off")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Translate homepage hero copy")).not.toBeInTheDocument();
+  },
+};
+
+export const FilterNoPriority: Story = {
+  args: {
+    notifications: issueNotificationsFixture,
+    unreadNotificationCount: 2,
+    selection: { kind: "notification", id: issueNotificationsFixture[0].id },
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Filter by priority" }));
+    await userEvent.click(await body.findByRole("menuitemradio", { name: "No priority" }));
+    await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
     await expect(canvas.queryByText("Checkout CTA tone feels off")).not.toBeInTheDocument();
   },
 };

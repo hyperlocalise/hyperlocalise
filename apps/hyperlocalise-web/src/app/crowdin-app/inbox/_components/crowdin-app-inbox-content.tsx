@@ -268,8 +268,11 @@ const CrowdinAppInboxReady = observer(function CrowdinAppInboxReady({
           isLoadingMoreNotifications={false}
           onLoadMoreNotifications={() => undefined}
           onMarkAllRead={() => undefined}
-          onSelectConversation={setSelectedConversationId}
-          onSelectNotification={() => undefined}
+          onSelectItem={(selection) => {
+            if (selection.kind === "conversation") {
+              setSelectedConversationId(selection.id);
+            }
+          }}
           onSendMessage={onSendMessage}
           organizationSlug={session.organizationSlug}
           selectedConversation={selectedConversation}

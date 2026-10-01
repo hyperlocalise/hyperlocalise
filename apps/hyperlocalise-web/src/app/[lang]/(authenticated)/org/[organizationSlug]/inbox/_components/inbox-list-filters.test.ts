@@ -48,6 +48,7 @@ function notification(
       organizationId: "org",
       projectId: "project",
       issueId: "issue",
+      priority: null,
       payload: { issueTitle: "Issue", projectId: "project" },
       actor: null,
       readAt: null,
@@ -76,67 +77,83 @@ function ids(filtered: InboxIndexItem[]) {
 }
 
 describe("isInboxListFiltersActive", () => {
-  it("is inactive when both filters are all", () => {
-    expect(isInboxListFiltersActive({ read: "all", type: "all" })).toBe(false);
+  it("is inactive when all filters are all", () => {
+    expect(isInboxListFiltersActive({ priority: "all", read: "all", type: "all" })).toBe(false);
   });
 
   it("is active when either filter is set", () => {
-    expect(isInboxListFiltersActive({ read: "unread", type: "all" })).toBe(true);
-    expect(isInboxListFiltersActive({ read: "all", type: "mentioned" })).toBe(true);
+    expect(isInboxListFiltersActive({ priority: "all", read: "unread", type: "all" })).toBe(true);
+    expect(isInboxListFiltersActive({ priority: "all", read: "all", type: "mentioned" })).toBe(
+      true,
+    );
+    expect(isInboxListFiltersActive({ priority: "P0", read: "all", type: "all" })).toBe(true);
   });
 });
 
 describe("filterInboxIndexItems", () => {
   it("returns every item when filters are all", () => {
-    expect(ids(filterInboxIndexItems(items, { read: "all", type: "all" }))).toEqual([
-      "chat",
-      "email",
-      "unread-mention",
-      "read-comment",
-    ]);
+    expect(
+      ids(filterInboxIndexItems(items, { priority: "all", read: "all", type: "all" })),
+    ).toEqual(["chat", "email", "unread-mention", "read-comment"]);
   });
 
   it("keeps unread notifications and hides conversations", () => {
-    expect(ids(filterInboxIndexItems(items, { read: "unread", type: "all" }))).toEqual([
-      "unread-mention",
-    ]);
+    expect(
+      ids(filterInboxIndexItems(items, { priority: "all", read: "unread", type: "all" })),
+    ).toEqual(["unread-mention"]);
   });
 
   it("keeps read notifications and conversations", () => {
-    expect(ids(filterInboxIndexItems(items, { read: "read", type: "all" }))).toEqual([
-      "chat",
-      "email",
-      "read-comment",
-    ]);
+    expect(
+      ids(filterInboxIndexItems(items, { priority: "all", read: "read", type: "all" })),
+    ).toEqual(["chat", "email", "read-comment"]);
   });
 
   it("filters conversations by source", () => {
-    expect(ids(filterInboxIndexItems(items, { read: "all", type: "email_agent" }))).toEqual([
-      "email",
-    ]);
+    expect(
+      ids(filterInboxIndexItems(items, { priority: "all", read: "all", type: "email_agent" })),
+    ).toEqual(["email"]);
   });
 
   it("filters notifications by type", () => {
-    expect(ids(filterInboxIndexItems(items, { read: "all", type: "comment" }))).toEqual([
-      "read-comment",
-    ]);
+    expect(
+      ids(filterInboxIndexItems(items, { priority: "all", read: "all", type: "comment" })),
+    ).toEqual(["read-comment"]);
   });
 
   it("combines read and type filters", () => {
-    expect(ids(filterInboxIndexItems(items, { read: "unread", type: "mentioned" }))).toEqual([
-      "unread-mention",
-    ]);
-    expect(ids(filterInboxIndexItems(items, { read: "unread", type: "email_agent" }))).toEqual([]);
+    expect(
+      ids(filterInboxIndexItems(items, { priority: "all", read: "unread", type: "mentioned" })),
+    ).toEqual(["unread-mention"]);
+    expect(
+      ids(filterInboxIndexItems(items, { priority: "all", read: "unread", type: "email_agent" })),
+    ).toEqual([]);
   });
 
   it("filters the broad conversation and notification groups", () => {
-    expect(ids(filterInboxIndexItems(items, { read: "all", type: "conversations" }))).toEqual([
-      "chat",
-      "email",
-    ]);
-    expect(ids(filterInboxIndexItems(items, { read: "all", type: "notifications" }))).toEqual([
-      "unread-mention",
-      "read-comment",
-    ]);
+    expect(
+      ids(filterInboxIndexItems(items, { priority: "all", read: "all", type: "conversations" })),
+    ).toEqual(["chat", "email"]);
+    expect(
+      ids(filterInboxIndexItems(items, { priority: "all", read: "all", type: "notifications" })),
+    ).toEqual(["unread-mention", "read-comment"]);
+  });
+
+  it("filters notifications by priority and excludes conversations", () => {
+    const prioritizedItems = [
+      ...items,
+      notification({ id: "p0", type: "assigned", priority: "P0" }),
+      notification({ id: "p1", type: "assigned", priority: "P1" }),
+    ];
+
+    expect(
+      ids(filterInboxIndexItems(prioritizedItems, { priority: "P0", read: "all", type: "all" })),
+    ).toEqual(["p0"]);
+  });
+
+  it("filters notifications with no priority", () => {
+    expect(
+      ids(filterInboxIndexItems(items, { priority: "none", read: "all", type: "all" })),
+    ).toEqual(["unread-mention", "read-comment"]);
   });
 });
