@@ -217,7 +217,7 @@ function InboxListFiltersToolbar({
 
   return (
     <div className="flex shrink-0 flex-col gap-1.5 border-b border-border px-2 py-1.5">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <div
           role="group"
           aria-label={intl.formatMessage(inboxListMessages.filterReadAria)}
@@ -240,7 +240,7 @@ function InboxListFiltersToolbar({
             );
           })}
         </div>
-        <div className="flex min-w-0 items-center gap-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
