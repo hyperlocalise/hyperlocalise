@@ -320,15 +320,18 @@ func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPa
 		for _, term := range concept.Terms {
 			raw := strings.ReplaceAll(trimGlossaryInput(term.Locale), "_", "-")
 			mapped := raw
+			explicitMappingMatched := false
 			mappedByCrowdin := false
 			if payload.LocaleMapping != nil {
 				if replacement, ok := payload.LocaleMapping[raw]; ok {
+					explicitMappingMatched = true
 					mapped = strings.ReplaceAll(trimGlossaryInput(replacement), "_", "-")
 				} else if replacement, ok := payload.LocaleMapping[term.Locale]; ok {
+					explicitMappingMatched = true
 					mapped = strings.ReplaceAll(trimGlossaryInput(replacement), "_", "-")
 				}
 			}
-			if mapped == raw {
+			if !explicitMappingMatched && strings.EqualFold(payload.Format, "tbx") {
 				if crowdinLocale, ok := resolveCrowdinGlossaryLocale(raw, knownLocales); ok && !strings.EqualFold(crowdinLocale, raw) {
 					mapped = crowdinLocale
 					mappedByCrowdin = true
