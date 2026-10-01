@@ -106,6 +106,7 @@ export function Globe({ className }: { className?: string }) {
     let colors = targetColorsRef.current;
     let fadeTarget = colors;
     let fadeRemaining = 0;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     const getSize = () => Math.max(canvas.offsetWidth, 1);
 
@@ -137,7 +138,8 @@ export function Globe({ className }: { className?: string }) {
       if (colors !== target) {
         colors = fadeGlobeColors(colors, target);
         fadeRemaining *= 1 - THEME_FADE_PER_FRAME;
-        if (fadeRemaining < THEME_FADE_DONE_THRESHOLD) {
+        // Reduced-motion users get the new palette at once, like the page's theme switch.
+        if (reducedMotion.matches || fadeRemaining < THEME_FADE_DONE_THRESHOLD) {
           colors = target;
         }
       }

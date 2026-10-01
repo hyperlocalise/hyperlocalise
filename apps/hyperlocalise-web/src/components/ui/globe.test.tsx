@@ -24,6 +24,7 @@ const globeMocks = vi.hoisted(() => ({
   update: vi.fn(),
   destroy: vi.fn(),
   resolvedTheme: "light",
+  prefersReducedMotion: false,
 }));
 
 vi.mock("cobe", () => ({ default: globeMocks.createGlobe }));
@@ -49,6 +50,7 @@ function lastUpdate() {
 describe("Globe", () => {
   beforeEach(() => {
     globeMocks.resolvedTheme = "light";
+    globeMocks.prefersReducedMotion = false;
     globeMocks.createGlobe.mockReturnValue({
       update: globeMocks.update,
       destroy: globeMocks.destroy,
@@ -58,6 +60,9 @@ describe("Globe", () => {
       return frameCallbacks.length;
     });
     vi.stubGlobal("cancelAnimationFrame", () => {});
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)" && globeMocks.prefersReducedMotion,
+    }));
   });
 
   afterEach(() => {
@@ -94,5 +99,22 @@ describe("Globe", () => {
     expect(frames).toBeGreaterThan(1);
     expect(globeMocks.createGlobe).toHaveBeenCalledTimes(1);
     expect(globeMocks.destroy).not.toHaveBeenCalled();
+  });
+
+  it("applies the new theme colors at once when reduced motion is requested", () => {
+    globeMocks.prefersReducedMotion = true;
+    const { rerender } = render(<Globe />);
+
+    globeMocks.resolvedTheme = "dark";
+    act(() => rerender(<Globe />));
+    runFrame();
+
+    expect(lastUpdate()).toMatchObject({
+      dark: 1,
+      diffuse: 1.2,
+      mapBrightness: 1.2,
+      baseColor: [0.3, 0.3, 0.3],
+      glowColor: [0.1, 0.3, 0.8],
+    });
   });
 });
