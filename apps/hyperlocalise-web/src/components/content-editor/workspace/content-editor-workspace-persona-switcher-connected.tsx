@@ -65,7 +65,9 @@ export const ContentEditorWorkspacePersonaSwitcherConnected = observer(
       ? (persona: ContentEditorWorkspacePersona) => {
           store.ui.setWorkspacePersona(persona, capabilities.family);
           if (persona === "reviewer") {
-            store.setSelectionMode(true);
+            store.setSelectionMode(true, { persist: false });
+          } else {
+            store.setSelectionMode(false, { persist: false });
           }
         }
       : onChange;

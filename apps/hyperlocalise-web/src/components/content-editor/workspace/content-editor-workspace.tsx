@@ -152,12 +152,18 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
 
     const currentPersona = store.ui.resolvedPersona;
     if (prevPersonaRef.current !== currentPersona) {
+      const prevPersona = prevPersonaRef.current;
       prevPersonaRef.current = currentPersona;
       if (currentPersona === "reviewer") {
         setActivePanel("queue");
-        store.setSelectionMode(true);
+        store.setSelectionMode(true, { persist: false });
       } else if (currentPersona === "translator") {
         setActivePanel("edit");
+        if (prevPersona === "reviewer" || prevPersona === null) {
+          store.setSelectionMode(false, { persist: false });
+        }
+      } else if (prevPersona === "reviewer") {
+        store.setSelectionMode(false, { persist: false });
       }
     }
   }, [isAdaptiveEnabled, store, store.ui.resolvedPersona]);

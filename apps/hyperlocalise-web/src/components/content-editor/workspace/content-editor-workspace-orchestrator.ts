@@ -1461,8 +1461,9 @@ export class ContentEditorWorkspaceOrchestrator {
     this.queue.setSearch(search);
   }
 
-  setSelectionMode(enabled: boolean) {
-    this.queue.setSelectionMode(enabled);
+  setSelectionMode(enabled: boolean, options?: { persist?: boolean }) {
+    const shouldPersist = options?.persist ?? !this.ui.adaptiveWorkspaceEnabled;
+    this.queue.setSelectionMode(enabled, { persist: shouldPersist });
   }
 
   attemptPageNavigation(proceed: () => void) {
