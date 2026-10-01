@@ -124,12 +124,12 @@ const campaignPagesState = fromVisualWorkflowDefinition({
   ],
   editor: {
     positions: {
-      brief: { x: 40, y: 160 },
-      draft: { x: 300, y: 160 },
-      localise: { x: 560, y: 160 },
-      check: { x: 820, y: 160 },
-      cms: { x: 1100, y: 40 },
-      slack: { x: 1100, y: 280 },
+      brief: { x: 40, y: 220 },
+      draft: { x: 380, y: 220 },
+      localise: { x: 720, y: 220 },
+      check: { x: 1060, y: 220 },
+      cms: { x: 1400, y: 40 },
+      slack: { x: 1400, y: 370 },
     },
   },
 });
