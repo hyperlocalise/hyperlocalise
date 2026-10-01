@@ -429,11 +429,6 @@ export function NativeGlossaryDetail({
   const allSelected =
     concepts.length > 0 && concepts.every((concept) => selectedConceptIds.has(concept.id));
 
-  const invalidateConcepts = () =>
-    queryClient.invalidateQueries({
-      queryKey: ["glossary-concepts-page", organizationSlug, glossaryId],
-    });
-
   const invalidateProjects = () =>
     queryClient.invalidateQueries({
       queryKey: ["glossary-projects", organizationSlug, glossaryId],
@@ -466,52 +461,14 @@ export function NativeGlossaryDetail({
         strictLocale: true,
         localeMapping: {},
       });
-      for (let attempt = 0; attempt < 450; attempt += 1) {
-        const report = await goSvcClient.glossary.report(
-          organizationSlug,
-          glossaryId,
-          upload.reportId,
-        );
-        if (["completed", "failed", "preview"].includes(report.report.status)) return report;
-        await new Promise((resolve) => setTimeout(resolve, Math.min(2_000, 400 + attempt * 100)));
-      }
-      throw new Error(intl.formatMessage(messages.importTermsFailed));
+      return { reportId: upload.reportId };
     },
-    onSuccess: async (body) => {
-      if (body.report.status === "failed") {
-        const errorDiagnostics = body.entries.filter((entry) => entry.severity === "error");
-        setImportDiagnostics(errorDiagnostics.slice(0, 10));
-        toast.error(
-          intl.formatMessage(messages.termsImportBlocked, { count: errorDiagnostics.length }),
-        );
-        return;
-      }
-      await invalidateConcepts();
-      const errorDiagnostics = body.entries.filter((entry) => entry.severity === "error");
-      // A strict-locale import can legitimately apply zero new terms (for example
-      // when every row targets an unconfigured locale). Keep the dialog open
-      // and show why instead of a misleading "Imported 0 terms" success — but
-      // only when nothing was applied at all, since merge/update imports
-      // report applied work via `updated`/`merged` rather than `imported`.
-      const counts = body.report.counts;
-      const applied =
-        Number(counts.created ?? 0) + Number(counts.updated ?? 0) + Number(counts.merged ?? 0);
-      if (applied === 0 && errorDiagnostics.length > 0) {
-        setImportDiagnostics(errorDiagnostics.slice(0, 10));
-        // Reset the native input so selecting the same (corrected) file still
-        // fires a change event and retries the import.
-        if (glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
-        toast.error(
-          intl.formatMessage(messages.termsImportBlocked, {
-            count: errorDiagnostics.length,
-          }),
-        );
-        return;
-      }
-      setImportDiagnostics([]);
+    onSuccess: ({ reportId }) => {
       setImportDialogOpen(false);
+      setImportDiagnostics([]);
       setImportFile(null);
-      toast.success(intl.formatMessage(messages.termsImported, { count: applied }));
+      if (glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
+      router.push(`${glossaryHref}/imports/${encodeURIComponent(reportId)}`);
     },
     onError: (error) => toast.error(error.message),
   });
@@ -569,38 +526,11 @@ export function NativeGlossaryDetail({
         gender: input.gender,
         createdByUserId: input.createdByUserId,
       });
-      let report;
-      for (let attempt = 0; attempt < 450; attempt += 1) {
-        report = await goSvcClient.glossary.report(organizationSlug, glossaryId, job.reportId);
-        if (["completed", "failed"].includes(report.report.status)) break;
-        await new Promise((resolve) => setTimeout(resolve, Math.min(2_000, 400 + attempt * 100)));
-      }
-      if (!report || report.report.status !== "completed") {
-        throw new Error(intl.formatMessage(messages.exportFailed));
-      }
-      const download = await goSvcClient.glossary.downloadUrl(
-        organizationSlug,
-        glossaryId,
-        job.reportId,
-      );
-      const response = await fetch(download.url);
-      if (!response.ok) throw new Error(intl.formatMessage(messages.exportFailed));
-      const blob = await response.blob();
-      const filename = download.filename ?? `glossary.${input.format}`;
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      return Number(response.headers.get("x-hyperlocalise-export-warning-count") ?? 0);
+      return { reportId: job.reportId };
     },
-    onSuccess: (warningCount) => {
-      if (warningCount > 0) {
-        toast.warning(intl.formatMessage(messages.exportWarnings, { count: warningCount }));
-      } else {
-        toast.success(intl.formatMessage(messages.exportComplete));
-      }
+    onSuccess: ({ reportId }) => {
+      setExportDialogOpen(false);
+      router.push(`${glossaryHref}/imports/${encodeURIComponent(reportId)}`);
     },
     onError: (error) => toast.error(error.message),
   });
@@ -1510,26 +1440,20 @@ export function NativeGlossaryDetail({
               }
               onClick={() => {
                 if (exportScope === "complete") {
-                  exportGlossary.mutate(
-                    { format: exportFormat, scope: "complete" },
-                    { onSuccess: () => setExportDialogOpen(false) },
-                  );
+                  exportGlossary.mutate({ format: exportFormat, scope: "complete" });
                 } else {
-                  exportGlossary.mutate(
-                    {
-                      format: exportFormat,
-                      scope: "filtered",
-                      locales: filteredExportLocales,
-                      search: conceptSearch.trim() || undefined,
-                      modifiedFrom: conceptModifiedFrom,
-                      linguisticStatus: conceptLinguisticStatus || undefined,
-                      partOfSpeech: conceptPartOfSpeech || undefined,
-                      termType: conceptTermType || undefined,
-                      gender: conceptGender || undefined,
-                      createdByUserId: conceptAuthor || undefined,
-                    },
-                    { onSuccess: () => setExportDialogOpen(false) },
-                  );
+                  exportGlossary.mutate({
+                    format: exportFormat,
+                    scope: "filtered",
+                    locales: filteredExportLocales,
+                    search: conceptSearch.trim() || undefined,
+                    modifiedFrom: conceptModifiedFrom,
+                    linguisticStatus: conceptLinguisticStatus || undefined,
+                    partOfSpeech: conceptPartOfSpeech || undefined,
+                    termType: conceptTermType || undefined,
+                    gender: conceptGender || undefined,
+                    createdByUserId: conceptAuthor || undefined,
+                  });
                 }
               }}
             >

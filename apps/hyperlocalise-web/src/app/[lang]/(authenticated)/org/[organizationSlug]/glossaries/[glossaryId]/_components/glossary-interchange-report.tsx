@@ -12,8 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -39,6 +39,7 @@ export function GlossaryInterchangeReport({
 }) {
   const intl = useIntl();
   const { client, loading } = useGoSvcClient();
+  const queryClient = useQueryClient();
   const [downloadPending, setDownloadPending] = useState(false);
   const reportQuery = useQuery({
     queryKey: ["glossary-interchange-report", organizationSlug, glossaryId, runId],
@@ -51,6 +52,13 @@ export function GlossaryInterchangeReport({
         : false,
   });
   const run = reportQuery.data?.report;
+  useEffect(() => {
+    if (run?.operation === "import" && run.status === "completed") {
+      void queryClient.invalidateQueries({
+        queryKey: ["glossary-concepts-page", organizationSlug, glossaryId],
+      });
+    }
+  }, [glossaryId, organizationSlug, queryClient, run?.operation, run?.status]);
   const glossaryQuery = useQuery({
     queryKey: ["glossary", organizationSlug, glossaryId],
     enabled: !loading,
