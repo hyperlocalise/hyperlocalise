@@ -25,10 +25,40 @@ export const glossaryInterchangeHistoryMessages = defineMessages({
     defaultMessage: "Review asynchronous glossary imports and exports.",
     description: "Glossary import and export history description",
   },
+  glossary: {
+    id: "J0n8L9KLms",
+    defaultMessage: "Glossary: {name}",
+    description: "Glossary name shown on import/export history pages",
+  },
+  importRunName: {
+    id: "tdAVe+ZkeJ",
+    defaultMessage: "Import · {filename}",
+    description: "Name of a glossary import run identified by its filename",
+  },
+  exportRunName: {
+    id: "Q6hHUNtw7B",
+    defaultMessage: "Export · {filename}",
+    description: "Name of a glossary export run identified by its filename",
+  },
+  importRunTimestampName: {
+    id: "bIozEMK8ly",
+    defaultMessage: "Import · {timestamp}",
+    description: "Name of a glossary import run identified by its timestamp",
+  },
+  exportRunTimestampName: {
+    id: "5aBQ8ovclg",
+    defaultMessage: "Export · {timestamp}",
+    description: "Name of a glossary export run identified by its timestamp",
+  },
   back: {
     id: "E0aClcxSs/",
     defaultMessage: "Back to glossary",
     description: "Back navigation from glossary interchange history",
+  },
+  backToHistory: {
+    id: "qYSoW7SGAG",
+    defaultMessage: "Back to import/export history",
+    description: "Back navigation from a glossary interchange report",
   },
   loading: {
     id: "R66KfvDVs+",

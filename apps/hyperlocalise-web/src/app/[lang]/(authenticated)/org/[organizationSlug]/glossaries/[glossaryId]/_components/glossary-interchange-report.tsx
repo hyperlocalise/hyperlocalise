@@ -23,7 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
+
 import { glossaryInterchangeHistoryMessages as messages } from "./glossary-interchange-history.messages";
+import { formatGlossaryInterchangeRunName } from "./glossary-interchange-run-name";
 
 export function GlossaryInterchangeReport({
   organizationSlug,
@@ -48,6 +51,12 @@ export function GlossaryInterchangeReport({
         : false,
   });
   const run = reportQuery.data?.report;
+  const glossaryQuery = useQuery({
+    queryKey: ["glossary", organizationSlug, glossaryId],
+    enabled: !loading,
+    queryFn: () => client.glossary.get(organizationSlug, glossaryId),
+  });
+  const runName = run ? formatGlossaryInterchangeRunName(run, intl) : undefined;
 
   const download = async (backup = false) => {
     if (!run) return;
@@ -94,6 +103,12 @@ export function GlossaryInterchangeReport({
           </AlertTitle>
           <AlertDescription />
         </Alert>
+        <Button
+          variant="outline"
+          render={<OrgNavLink href={`/org/${organizationSlug}/glossaries/${glossaryId}/imports`} />}
+        >
+          <FormattedMessage {...messages.backToHistory} />
+        </Button>
       </main>
     );
 
@@ -105,13 +120,18 @@ export function GlossaryInterchangeReport({
     <main className="mx-auto grid w-full max-w-5xl gap-6 py-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <TypographyH1>
-            <FormattedMessage {...messages.reportTitle} />
-          </TypographyH1>
+          <TypographyH1>{runName}</TypographyH1>
           <TypographyP tone="subtle">
+            {glossaryQuery.data?.glossary.name ? `${glossaryQuery.data.glossary.name} · ` : ""}
             {run.operation} · {run.format.toUpperCase()} · {run.status}
           </TypographyP>
         </div>
+        <Button
+          variant="outline"
+          render={<OrgNavLink href={`/org/${organizationSlug}/glossaries/${glossaryId}/imports`} />}
+        >
+          <FormattedMessage {...messages.backToHistory} />
+        </Button>
       </div>
       <section className="grid gap-3 rounded-xl border border-border p-5">
         <div className="flex flex-wrap gap-2">

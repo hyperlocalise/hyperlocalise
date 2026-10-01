@@ -1,6 +1,6 @@
 go_binary(
     name = "glossary-interchange",
-    srcs = ["main.go", "worker.go"],
+    srcs = ["locale.go", "main.go", "worker.go"],
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/glossary-interchange-lambda",
     visibility = ["//visibility:public"],
 )

@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useMemo } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -26,6 +26,7 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 
 import { glossaryInterchangeHistoryMessages as messages } from "./glossary-interchange-history.messages";
+import { formatGlossaryInterchangeRunName } from "./glossary-interchange-run-name";
 
 const PAGE_SIZE = 20;
 
@@ -55,24 +56,17 @@ function RunCard({
   run: GlossaryInterchangeRun;
 }) {
   const intl = useIntl();
-  const filename = run.operation === "export" ? run.resultFilename : run.sourceFilename;
+  const runName = formatGlossaryInterchangeRunName(run, intl);
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <TypographyP weight="medium">
-            {run.operation === "import" ? (
-              <FormattedMessage {...messages.import} />
-            ) : (
-              <FormattedMessage {...messages.export} />
-            )}
-          </TypographyP>
+          <TypographyP weight="medium">{runName}</TypographyP>
           <Badge variant="outline">{run.format.toUpperCase()}</Badge>
           <StatusBadge status={run.status} />
         </div>
         <TypographyP size="xsmall" tone="subtle">
-          {filename ||
-            intl.formatDate(new Date(run.createdAt), { dateStyle: "medium", timeStyle: "short" })}
+          {intl.formatDate(new Date(run.createdAt), { dateStyle: "medium", timeStyle: "short" })}
         </TypographyP>
         {run.errorMessage ? (
           <TypographyP size="xsmall" tone="critical">
@@ -104,6 +98,11 @@ export function GlossaryInterchangeHistory({
 }) {
   const intl = useIntl();
   const { client, loading } = useGoSvcClient();
+  const glossaryQuery = useQuery({
+    queryKey: ["glossary", organizationSlug, glossaryId],
+    enabled: !loading,
+    queryFn: () => client.glossary.get(organizationSlug, glossaryId),
+  });
   const query = useInfiniteQuery({
     queryKey: ["glossary-interchange-runs", organizationSlug, glossaryId],
     enabled: !loading,
@@ -138,7 +137,21 @@ export function GlossaryInterchangeHistory({
           <TypographyP tone="subtle">
             <FormattedMessage {...messages.description} />
           </TypographyP>
+          {glossaryQuery.data?.glossary.name ? (
+            <TypographyP size="xsmall" tone="subtle">
+              <FormattedMessage
+                {...messages.glossary}
+                values={{ name: glossaryQuery.data.glossary.name }}
+              />
+            </TypographyP>
+          ) : null}
         </div>
+        <Button
+          variant="outline"
+          render={<OrgNavLink href={`/org/${organizationSlug}/glossaries/${glossaryId}`} />}
+        >
+          <FormattedMessage {...messages.back} />
+        </Button>
       </div>
       {loading || query.isPending ? (
         <div className="grid gap-3" aria-label={intl.formatMessage(messages.loading)}>
