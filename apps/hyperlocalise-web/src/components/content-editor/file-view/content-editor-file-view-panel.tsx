@@ -191,11 +191,13 @@ export function ContentEditorFileViewPanel({
     intelligence?.componentName,
     intelligence?.filePath,
   ].filter(Boolean);
-  const hasAiContext = Boolean(
-    intelligence?.productMeaning?.trim() ||
-    intelligence?.agentContext?.trim() ||
-    agentBadges.length > 0,
-  );
+  const hasAiContext =
+    adaptiveWorkspaceEnabled &&
+    Boolean(
+      intelligence?.productMeaning?.trim() ||
+      intelligence?.agentContext?.trim() ||
+      agentBadges.length > 0,
+    );
 
   useEffect(() => {
     if (!hasAiContext && aiDrawerOpen) {
@@ -419,7 +421,7 @@ export function ContentEditorFileViewPanel({
                       : contentEditorFileViewMessages.showSource)}
                 />
               </Button>
-              {hasAiContext ? (
+              {adaptiveWorkspaceEnabled && hasAiContext ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -719,7 +721,7 @@ export function ContentEditorFileViewPanel({
           onSubmit={handleGenerateSubmit}
         />
       ) : null}
-      {hasAiContext ? (
+      {adaptiveWorkspaceEnabled && hasAiContext ? (
         <Sheet open={aiDrawerOpen} onOpenChange={setAiDrawerOpen}>
           <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
             <SheetHeader className="border-b border-border px-6 py-4">

@@ -661,4 +661,115 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       expect(screen.getByText("(Localized)")).toBeInTheDocument();
     });
   });
+
+  it("does not render AI Context button or drawer when adaptiveWorkspaceEnabled is false", async () => {
+    const state = createCatImageFileWorkspaceState();
+    const customIntelligence = {
+      ...state.intelligence,
+      productMeaning: "Landing page hero graphic explaining localization workflows",
+      locationBreadcrumb: "Landing > Hero",
+    };
+    state.intelligence = customIntelligence;
+    state.segmentIntelligence = {
+      [state.selectedSegmentId]: customIntelligence,
+    };
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={state}
+          initialViewMode="file"
+          adaptiveWorkspaceEnabled={false}
+        />
+      </>,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "AI asset context" })).toBeNull();
+      expect(screen.queryByText("AI Context")).toBeNull();
+    });
+  });
+
+  it("allows toggling selection mode off in Reviewer mode", async () => {
+    const user = userEvent.setup();
+    const state = createUiCatWorkspaceState();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer initialState={state} adaptiveWorkspaceEnabled />
+      </>,
+    );
+
+    // Open persona switcher and switch to Reviewer
+    const switcher = screen.getByRole("button", { name: "Workspace mode" });
+    await user.click(switcher);
+    const reviewerOption = await screen.findByRole("menuitemradio", { name: "Reviewer" });
+    await user.click(reviewerOption);
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      const workspace = document.querySelector("[data-workspace-persona]");
+      expect(workspace).toHaveAttribute("data-workspace-persona", "reviewer");
+    });
+
+    // In Reviewer mode, selectionMode starts enabled
+    const checkbox = await waitFor(() => {
+      const el = document.querySelector<HTMLInputElement>(
+        'input[type="checkbox"][aria-label="Show bulk selection checkboxes"]',
+      );
+      expect(el).not.toBeNull();
+      expect(el!.checked).toBe(true);
+      return el!;
+    });
+
+    // Clicking the checkbox unchecks it
+    await user.click(checkbox);
+    expect(checkbox.checked).toBe(false);
+
+    // Clicking again turns it back on
+    await user.click(checkbox);
+    expect(checkbox.checked).toBe(true);
+  });
+
+  it("allows selecting Translator on image file without reverting to Designer", async () => {
+    const user = userEvent.setup();
+    const state = createCatImageFileWorkspaceState();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={state}
+          initialViewMode="file"
+          adaptiveWorkspaceEnabled
+        />
+      </>,
+    );
+
+    // Initial persona is Designer
+    await waitFor(() => {
+      const workspace = document.querySelector("[data-workspace-persona]");
+      expect(workspace).toHaveAttribute("data-workspace-persona", "designer");
+    });
+
+    // Open persona switcher
+    const switcher = screen.getByRole("button", { name: "Workspace mode" });
+    await user.click(switcher);
+
+    // Select Translator
+    const translatorOption = await screen.findByRole("menuitemradio", { name: "Translator" });
+    await user.click(translatorOption);
+
+    // Persona updates to translator and does not revert to designer
+    await waitFor(() => {
+      const workspace = document.querySelector("[data-workspace-persona]");
+      expect(workspace).toHaveAttribute("data-workspace-persona", "translator");
+    });
+
+    // Designer badge is no longer rendered in the workspace
+    const workspace = document.querySelector<HTMLElement>("[data-workspace-persona]")!;
+    expect(within(workspace).queryByText("Designer")).toBeNull();
+  });
 });

@@ -831,9 +831,15 @@ export class ContentEditorWorkspaceOrchestrator {
     };
     // Update persona for the new file's content family eagerly (before the
     // snapshot arrives) so the UI reflects the correct layout immediately.
-    this.ui.applyFileFamily(
-      resolveCatFileViewCapabilities({ sourcePath: input.sourcePath }).family,
-    );
+    const currentSegment = this.selectedSegmentView;
+    const initialFamily =
+      input.sourcePath === "*" && currentSegment
+        ? resolveCatFileViewCapabilities({
+            sourcePath: currentSegment.sourcePath,
+            contentKind: currentSegment.contentKind,
+          }).family
+        : resolveCatFileViewCapabilities({ sourcePath: input.sourcePath }).family;
+    this.ui.applyFileFamily(initialFamily);
     this.page.beginFileScopeChange(input.sourcePath, input.targetLocale);
     this.ui.setTranslationViewLoading(true);
     for (const controller of this.controllers) {
@@ -900,11 +906,29 @@ export class ContentEditorWorkspaceOrchestrator {
 
     runInAction(() => {
       this.fileContext = nextFileContext;
+      const initialSegment =
+        (initialSegmentKeyOrId
+          ? (normalizedNext.segments?.find(
+              (s) => s.id === initialSegmentKeyOrId || s.key === initialSegmentKeyOrId,
+            ) ??
+            normalizedNext.queueSegments?.find(
+              (s) => s.id === initialSegmentKeyOrId || s.key === initialSegmentKeyOrId,
+            ))
+          : null) ??
+        normalizedNext.segments?.[0] ??
+        normalizedNext.queueSegments?.[0];
+
+      const initialFamily =
+        nextFileContext.sourcePath === "*" && initialSegment
+          ? resolveCatFileViewCapabilities({
+              sourcePath: initialSegment.sourcePath,
+              contentKind: initialSegment.contentKind,
+            }).family
+          : resolveCatFileViewCapabilities({ sourcePath: nextFileContext.sourcePath }).family;
+
       // Seed the workspace persona for the incoming file's content family so
       // auto-detection and per-family localStorage preferences apply immediately.
-      this.ui.applyFileFamily(
-        resolveCatFileViewCapabilities({ sourcePath: nextFileContext.sourcePath }).family,
-      );
+      this.ui.applyFileFamily(initialFamily);
       this.jobTitle = normalizedNext.jobTitle;
       this.breadcrumbs = normalizedNext.breadcrumbs;
       this.primaryActionLabel = normalizedNext.primaryActionLabel;
