@@ -240,8 +240,8 @@ export const FilterNoPriority: Story = {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("button", { name: "Filter by priority" }));
     await userEvent.click(await body.findByRole("menuitemradio", { name: "No priority" }));
-    await expect(canvas.getByText("Checkout CTA tone feels off")).toBeInTheDocument();
-    await expect(canvas.queryByText("Translate homepage hero copy")).not.toBeInTheDocument();
+    await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
+    await expect(canvas.queryByText("Checkout CTA tone feels off")).not.toBeInTheDocument();
   },
 };
 
