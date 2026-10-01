@@ -63,6 +63,7 @@ const visualCatalogTypeSchema = z.enum([
   "logic.retry",
   "flow.wait",
   "logic.merge",
+  "logic.sequence",
 ]);
 
 const visualNodeConfigSchema = z.discriminatedUnion("kind", [
@@ -275,6 +276,32 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
         }
       }),
     timeoutMs: z.number().int().positive().max(86_400_000).optional(),
+  }),
+  z.object({
+    kind: z.literal("logic.sequence"),
+    outputs: z
+      .array(
+        z.object({
+          id: z.string().trim().min(1).max(128),
+          label: z.string().trim().min(1).max(128),
+        }),
+      )
+      .max(32)
+      .superRefine((outputs, context) => {
+        const ids = new Set<string>();
+
+        for (const [index, output] of outputs.entries()) {
+          if (ids.has(output.id)) {
+            context.addIssue({
+              code: "custom",
+              path: [index, "id"],
+              message: "duplicate_sequence_output_id",
+            });
+          }
+
+          ids.add(output.id);
+        }
+      }),
   }),
 ]);
 

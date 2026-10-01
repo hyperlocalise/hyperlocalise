@@ -17,7 +17,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Add01Icon,
-  ArrowLeft01Icon,
   BookOpenTextIcon,
   Delete02Icon,
   Download01Icon,
@@ -84,16 +83,6 @@ import { cn } from "@/lib/primitives/cn";
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 import { useGlossary } from "./use-glossary";
 
-function arrayBufferToBase64(value: ArrayBuffer) {
-  const bytes = new Uint8Array(value);
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
-  }
-  return btoa(binary);
-}
-
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
@@ -141,7 +130,6 @@ function TermStatusSkeleton({ compact = false }: { compact?: boolean }) {
 function ConceptListSkeleton() {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6" aria-busy="true">
-      <Skeleton className="h-4 w-24 rounded-full" />
       <section className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <Skeleton className="size-5 rounded-md" />
@@ -363,18 +351,18 @@ export function NativeGlossaryDetail({
     queryKey: ["translation-projects", organizationSlug],
     enabled: true,
     queryFn: async () => {
-      try {
-        const body = await goSvcClient.project.list(organizationSlug);
-        return body.projects as Array<{
-          id: string;
-          name: string;
-          sourceLocale: string;
-        }>;
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadProjectsFailed)), {
-          cause: error,
-        });
-      }
+      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.loadProjectsFailed)),
+        );
+      return (await response.json()).projects as Array<{
+        id: string;
+        name: string;
+        sourceLocale: string;
+      }>;
     },
   });
 
@@ -441,11 +429,6 @@ export function NativeGlossaryDetail({
   const allSelected =
     concepts.length > 0 && concepts.every((concept) => selectedConceptIds.has(concept.id));
 
-  const invalidateConcepts = () =>
-    queryClient.invalidateQueries({
-      queryKey: ["glossary-concepts-page", organizationSlug, glossaryId],
-    });
-
   const invalidateProjects = () =>
     queryClient.invalidateQueries({
       queryKey: ["glossary-projects", organizationSlug, glossaryId],
@@ -456,66 +439,36 @@ export function NativeGlossaryDetail({
       const filename = file.name.toLowerCase();
       const isXlsx = filename.endsWith(".xlsx");
       const format = filename.endsWith(".tbx") ? "tbx" : isXlsx ? "xlsx" : "csv";
-      const content = isXlsx ? arrayBufferToBase64(await file.arrayBuffer()) : await file.text();
-      // Stays on Hono until go-svc import matches interchange parity: XLSX is 501,
-      // CSV/TBX drop gender/term type/URLs/metadata/review/flags, and there is no backup.
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].concepts["import"].$post({
-        param: { organizationSlug, glossaryId },
-        json: {
-          format,
-          content,
-          sourceFilename: file.name,
-          contentEncoding: isXlsx ? "base64" : "utf8",
-          mode: "merge",
-          previewForMode: "merge",
-          strictLocale: true,
-          localeMapping: {},
-        },
+      const upload = await goSvcClient.glossary.importUpload(organizationSlug, glossaryId, {
+        format,
+        sourceFilename: file.name,
+        contentType: file.type || "application/octet-stream",
       });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.importTermsFailed)),
-        );
-      return response.json();
-    },
-    onSuccess: async (body) => {
-      await invalidateConcepts();
-      // The import endpoint returns a union of preview and applied shapes;
-      // this mutation always uses mode:"merge", so read the applied counters
-      // defensively.
-      const result = body as {
-        imported?: number;
-        updated?: number;
-        merged?: number;
-        diagnostics?: Array<{ severity: string; code: string; message: string }>;
-      };
-      const errorDiagnostics = (result.diagnostics ?? []).filter(
-        (entry) => entry.severity === "error",
-      );
-      // A strict-locale import can legitimately apply zero new terms (for example
-      // when every row targets an unconfigured locale). Keep the dialog open
-      // and show why instead of a misleading "Imported 0 terms" success — but
-      // only when nothing was applied at all, since merge/update imports
-      // report applied work via `updated`/`merged` rather than `imported`.
-      const applied = (result.imported ?? 0) + (result.updated ?? 0) + (result.merged ?? 0);
-      if (applied === 0 && errorDiagnostics.length > 0) {
-        setImportDiagnostics(errorDiagnostics.slice(0, 10));
-        // Reset the native input so selecting the same (corrected) file still
-        // fires a change event and retries the import.
-        if (glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
-        toast.error(
-          intl.formatMessage(messages.termsImportBlocked, {
-            count: errorDiagnostics.length,
-          }),
-        );
-        return;
+      const headers = new Headers();
+      for (const [name, values] of Object.entries(upload.upload.headers)) {
+        headers.set(name, values.join(","));
       }
-      setImportDiagnostics([]);
+      const uploadResponse = await fetch(upload.upload.url, {
+        method: upload.upload.method,
+        headers,
+        body: file,
+      });
+      if (!uploadResponse.ok) throw new Error(intl.formatMessage(messages.importTermsFailed));
+      await goSvcClient.glossary.importFinalize(organizationSlug, glossaryId, {
+        reportId: upload.reportId,
+        mode: "merge",
+        previewForMode: "merge",
+        strictLocale: true,
+        localeMapping: {},
+      });
+      return { reportId: upload.reportId };
+    },
+    onSuccess: ({ reportId }) => {
       setImportDialogOpen(false);
+      setImportDiagnostics([]);
       setImportFile(null);
-      toast.success(intl.formatMessage(messages.termsImported, { count: result.imported ?? 0 }));
+      if (glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
+      router.push(`${glossaryHref}/imports/${encodeURIComponent(reportId)}`);
     },
     onError: (error) => toast.error(error.message),
   });
@@ -561,47 +514,23 @@ export function NativeGlossaryDetail({
       gender?: string;
       createdByUserId?: string;
     }) => {
-      const params = new URLSearchParams({ format: input.format, scope: input.scope });
-      if (input.scope === "filtered") {
-        for (const locale of input.locales ?? []) params.append("locales", locale);
-        const search = input.search?.trim();
-        if (search) params.set("search", search);
-        if (input.modifiedFrom) params.set("modifiedFrom", input.modifiedFrom);
-        if (input.linguisticStatus) params.set("linguisticStatus", input.linguisticStatus);
-        if (input.partOfSpeech) params.set("partOfSpeech", input.partOfSpeech);
-        if (input.termType) params.set("termType", input.termType);
-        if (input.gender) params.set("gender", input.gender);
-        if (input.createdByUserId) params.set("createdByUserId", input.createdByUserId);
-      }
-      // Stays on Hono: go-svc's export only honours `format` and always emits the
-      // complete glossary, so `scope=filtered` has no equivalent there yet.
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/glossaries/${encodeURIComponent(glossaryId)}/export?${params.toString()}`,
-        { credentials: "include" },
-      );
-      if (!response.ok) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.exportFailed)));
-      }
-      const blob = await response.blob();
-      const disposition = response.headers.get("content-disposition") ?? "";
-      const encodedFilename = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
-      const filename = encodedFilename
-        ? decodeURIComponent(encodedFilename)
-        : `glossary.${input.format}`;
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      return Number(response.headers.get("x-hyperlocalise-export-warning-count") ?? 0);
+      const job = await goSvcClient.glossary.createExport(organizationSlug, glossaryId, {
+        format: input.format,
+        scope: input.scope,
+        locales: input.locales,
+        search: input.search,
+        modifiedFrom: input.modifiedFrom,
+        linguisticStatus: input.linguisticStatus,
+        partOfSpeech: input.partOfSpeech,
+        termType: input.termType,
+        gender: input.gender,
+        createdByUserId: input.createdByUserId,
+      });
+      return { reportId: job.reportId };
     },
-    onSuccess: (warningCount) => {
-      if (warningCount > 0) {
-        toast.warning(intl.formatMessage(messages.exportWarnings, { count: warningCount }));
-      } else {
-        toast.success(intl.formatMessage(messages.exportComplete));
-      }
+    onSuccess: ({ reportId }) => {
+      setExportDialogOpen(false);
+      router.push(`${glossaryHref}/imports/${encodeURIComponent(reportId)}`);
     },
     onError: (error) => toast.error(error.message),
   });
@@ -775,13 +704,6 @@ export function NativeGlossaryDetail({
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <Link
-        href={`/org/${organizationSlug}/glossaries`}
-        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
-        <FormattedMessage {...messages.backToList} />
-      </Link>
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <HugeiconsIcon
@@ -864,6 +786,14 @@ export function NativeGlossaryDetail({
           >
             <HugeiconsIcon icon={WorkHistoryIcon} strokeWidth={1.8} data-icon="inline-start" />
             <FormattedMessage {...messages.glossaryHistory} />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            render={<Link href={`${glossaryHref}/imports`} />}
+          >
+            <HugeiconsIcon icon={WorkHistoryIcon} strokeWidth={1.8} data-icon="inline-start" />
+            <FormattedMessage {...messages.glossaryInterchangeHistory} />
           </Button>
           {canManage ? (
             <Button
@@ -1510,26 +1440,20 @@ export function NativeGlossaryDetail({
               }
               onClick={() => {
                 if (exportScope === "complete") {
-                  exportGlossary.mutate(
-                    { format: exportFormat, scope: "complete" },
-                    { onSuccess: () => setExportDialogOpen(false) },
-                  );
+                  exportGlossary.mutate({ format: exportFormat, scope: "complete" });
                 } else {
-                  exportGlossary.mutate(
-                    {
-                      format: exportFormat,
-                      scope: "filtered",
-                      locales: filteredExportLocales,
-                      search: conceptSearch.trim() || undefined,
-                      modifiedFrom: conceptModifiedFrom,
-                      linguisticStatus: conceptLinguisticStatus || undefined,
-                      partOfSpeech: conceptPartOfSpeech || undefined,
-                      termType: conceptTermType || undefined,
-                      gender: conceptGender || undefined,
-                      createdByUserId: conceptAuthor || undefined,
-                    },
-                    { onSuccess: () => setExportDialogOpen(false) },
-                  );
+                  exportGlossary.mutate({
+                    format: exportFormat,
+                    scope: "filtered",
+                    locales: filteredExportLocales,
+                    search: conceptSearch.trim() || undefined,
+                    modifiedFrom: conceptModifiedFrom,
+                    linguisticStatus: conceptLinguisticStatus || undefined,
+                    partOfSpeech: conceptPartOfSpeech || undefined,
+                    termType: conceptTermType || undefined,
+                    gender: conceptGender || undefined,
+                    createdByUserId: conceptAuthor || undefined,
+                  });
                 }
               }}
             >

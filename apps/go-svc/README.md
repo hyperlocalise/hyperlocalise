@@ -161,6 +161,8 @@ export WORKOS_API_KEY='sk_test_...'
 export WORKOS_CLIENT_ID='client_...'
 # Optional: publishes glossary activity events and checks the queue in /health.
 export ACTIVITY_LOG_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../activity-log'
+# Optional: enables asynchronous glossary import/export publishing and checks the queue in /health.
+export GLOSSARY_INTERCHANGE_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../glossary-interchange'
 go run ./apps/go-svc
 ```
 
@@ -168,7 +170,7 @@ Health check:
 
 ```bash
 curl http://localhost:8080/health
-# {"status":"ok","activity_log":{"status":"disabled"},"valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}
+# {"status":"ok","activity_log":{"status":"disabled"},"glossary_interchange":{"status":"disabled"},"valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}
 ```
 
 When configured, Valkey and PostgreSQL health objects report `status` as
@@ -176,7 +178,16 @@ When configured, Valkey and PostgreSQL health objects report `status` as
 dependency is not configured, its status is `disabled` and no timing is
 reported. The endpoint remains an HTTP 200 liveness check.
 
-The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects `ACTIVITY_LOG_QUEUE_URL` from the activity-log consumer queue output; the service does not resolve the SSM parameter itself.
+The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects queue URLs from infrastructure outputs; the service does not resolve SSM parameters itself. A configured queue publisher reports `ok` or `unavailable` in `/health`; a missing queue URL is reported as `disabled`.
+
+Application deploys use the infra-owned task-definition ARN in
+`/hyperlocalise/prod/ecs/go-svc/task_definition_arn` as their base revision.
+This preserves every infra-managed environment variable, secret, sidecar, and
+resource setting while replacing only the application image and release
+metadata. Do not add production environment variables only to a live ECS task:
+add them through OpenTofu so the handoff revision contains them. If an infra
+apply changes the handoff during an application deploy, the deploy stops with
+the two observed revisions; rerun it after the infra apply settles.
 
 ## Docker / ECS
 
@@ -575,10 +586,11 @@ authorization, project-access, and selection tests in `apps/go-svc`.
 The browser can call `/api/go-svc/v1/orgs/{organizationSlug}/glossaries` and
 `/api/go-svc/v1/orgs/{organizationSlug}/translation-memories` for native library
 CRUD, project attachments, glossary concepts/terms, memory entries, and
-CSV/TBX/TMX (plus glossary XLSX export) interchange. Hono routes remain available
-in parallel. The only deferred interchange path is glossary import-report backup
-download (`GET .../import-reports/{reportId}/backup`), which still returns 501
-because it depends on Vercel Blob / stored file adapters.
+CSV/TBX/TMX (plus glossary XLSX export) interchange. Glossary import and export
+are asynchronous: GoSvc creates a run, signs the upload or download, publishes
+an SQS message, and exposes the run report while the existing
+`apps/glossary-interchange-lambda` worker processes it. Replace imports retain a
+TBX backup reference in `glossary_import_runs`.
 Auth matches dictionary routes: WorkOS session cookie, live membership verification,
 and role checks (`glossaries:write` / `memories:write` for managers; translators may
 contribute to team-controlled native glossaries).
@@ -607,14 +619,16 @@ All paths below are relative to `/v1/orgs/{organizationSlug}`:
 | GET, PATCH, DELETE | `/glossaries/{glossaryId}` | Read, update, or delete |
 | GET, POST | `/glossaries/{glossaryId}/projects` | List or attach projects |
 | DELETE | `/glossaries/{glossaryId}/projects/{projectId}` | Detach a project |
-| GET | `/glossaries/{glossaryId}/export` | Export CSV, TBX, or XLSX |
+| POST | `/glossaries/{glossaryId}/export` | Queue an asynchronous CSV, TBX, or XLSX export |
 | GET | `/glossaries/{glossaryId}/import-reports/{reportId}` | Import report JSON |
-| GET | `/glossaries/{glossaryId}/import-reports/{reportId}/backup` | 501 (Blob deferred) |
+| GET | `/glossaries/{glossaryId}/import-reports/{reportId}/backup` | Download a completed replace-import backup |
 | GET, POST | `/glossaries/{glossaryId}/concepts` | List or create concepts |
 | GET | `/glossaries/{glossaryId}/concepts/page` | Cursor-paginated concepts |
 | GET | `/glossaries/{glossaryId}/concepts/authors` | Distinct concept/term authors |
 | GET | `/glossaries/{glossaryId}/concepts/history` | Glossary history events |
-| POST | `/glossaries/{glossaryId}/concepts/import` | Import CSV/TBX (no Blob backup) |
+| POST | `/glossaries/{glossaryId}/concepts/import/uploads` | Create a signed import upload |
+| POST | `/glossaries/{glossaryId}/concepts/import` | Finalize and queue an asynchronous CSV/TBX/XLSX import |
+| GET | `/glossaries/{glossaryId}/import-reports/{reportId}/download` | Get a signed export download URL |
 | GET, PATCH, DELETE | `/glossaries/{glossaryId}/concepts/{conceptId}` | Concept CRUD |
 | GET, POST | `/glossaries/{glossaryId}/concepts/{conceptId}/terms` | List or create terms |
 | GET | `.../concepts/{conceptId}/terms/page` | Cursor-paginated terms |
@@ -631,3 +645,41 @@ All paths below are relative to `/v1/orgs/{organizationSlug}`:
 | GET | `/translation-memories/{memoryId}/import-attempts/{attemptId}` | Attempt + diagnostics |
 | GET | `.../import-attempts/{attemptId}/report` | JSON report download |
 | GET, PATCH, DELETE | `/translation-memories/{memoryId}/entries/{entryId}` | Entry CRUD (PATCH requires `expectedVersion`) |
+
+## Org inbox: issues, bulk actions, notifications, and mentions
+
+Provides organization-scoped Queries inbox APIs for issues, issue-sheet,
+notifications, notification preferences, and mention suggestions.
+
+Issue and issue-sheet routes use the `queries-board` Autumn gate and existing
+issue-sheet capability model. Notifications, notification preferences, and
+mentions are authenticated organization APIs without an Autumn gate.
+
+Project-backed data is scoped by organization and team membership. Notification
+ownership is enforced in SQL so missing, inaccessible, and other users'
+notifications uniformly return `404 notification_not_found` without leaking
+existence. `POST /notifications/read-all` uses snapshot semantics so
+notifications created during the request remain unread.
+
+`GET /mentions` provides `@`-mention autocomplete for users and issues.
+Issue suggestions are ordered by `updated_at` ascending.
+
+`POST /issues/bulk-actions` processes items independently with per-item outcomes
+and retries transactions on PostgreSQL deadlock or serialization failures
+(`40P01`/`40001`) using bounded jittered backoff.
+
+All paths below are relative to `/v1/orgs/{organizationSlug}`:
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/issues` | Cross-project issue list (`view`, `status`, `issueType`, `priority`, `locale`, `assignee`, `projectId`, `qaCheckType`, `search`, `sort`, `sortDir`, `limit`, `offset`) with a status summary |
+| POST | `/issues/bulk-actions` | Bulk `assign` / `unassign` / `set_status` / `set_priority` / `set_issue_type` across up to 100 deduplicated issues |
+| GET | `/issue-sheet/search` | Title/external-ref picker search, no offset, newest-touched first |
+| GET | `/issue-sheet/{issueId}` | Full issue detail by UUID or `PREFIX-N` identifier, with project name |
+| GET | `/notifications` | Own notifications (`unreadOnly`, `limit`, `offset`), newest first |
+| GET | `/notifications/unread-count` | Live unread count (no persisted counter) |
+| POST | `/notifications/read-all` | Mark all currently-unread, accessible notifications read |
+| GET | `/notifications/{notificationId}` | One owned notification |
+| POST | `/notifications/{notificationId}/read` | Mark one owned notification read (idempotent) |
+| GET, PUT | `/notification-preferences` | Read (app default if unset) or fully replace the caller's email preferences |
+| GET | `/mentions` | `@`-mention autocomplete: org members and issues matching `q` |

@@ -25,6 +25,7 @@ import {
   badRequestResponse,
   conflictResponse,
   forbiddenResponse as sharedForbiddenResponse,
+  internalErrorResponse,
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
@@ -159,6 +160,7 @@ import {
   replaceVideoUrlTranslationBytes,
   setTranslationKeyTreatAsVideo,
 } from "@/lib/projects/files/video-url-translation-service";
+import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import {
   lookupCachedProjectFileStringRepositoryContext,
   lookupProjectFileStringRepositoryContext,
@@ -3520,11 +3522,33 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           ? baseName
           : `${baseName}-${query.locale}`;
         const filename = extension ? `${suffix}${extension}` : `${suffix}.json`;
+        const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
+
+        const lottieDownload = await loadProjectLottieTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          prefilled: result.prefilled,
+        });
+        if (isErr(lottieDownload)) {
+          return internalErrorResponse(
+            c,
+            "lottie_export_failed",
+            "Could not write translations into the Lottie animation.",
+          );
+        }
+        if (lottieDownload.value) {
+          return c.body(new Uint8Array(lottieDownload.value.content), 200, {
+            "Content-Type": lottieDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+          });
+        }
+
         const content = JSON.stringify(result.prefilled, null, 2) + "\n";
 
         return c.body(content, 200, {
           "Content-Type": "application/json; charset=utf-8",
-          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+          "Content-Disposition": contentDisposition,
         });
       },
     )

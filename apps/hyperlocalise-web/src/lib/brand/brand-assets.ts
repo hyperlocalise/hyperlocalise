@@ -84,16 +84,6 @@ export function brandLogomarkSrcForSurface(surface: BrandLogomarkSurface): strin
   }
 }
 
-export function brandLogomarkSrcForTheme(resolvedTheme: string | undefined): string {
-  if (resolvedTheme === "dark") {
-    return brandLogomarkDarkModeSvgSrc;
-  }
-  if (resolvedTheme === "light") {
-    return brandLogomarkLightModeSvgSrc;
-  }
-  return brandLogomarkSrc;
-}
-
 export function brandLogotypoSvgSrcForSurface(surface: BrandLogomarkSurface): string {
   switch (surface) {
     case "light":
@@ -103,14 +93,4 @@ export function brandLogotypoSvgSrcForSurface(surface: BrandLogomarkSurface): st
     default:
       return brandLogotypoSvgSrc;
   }
-}
-
-export function brandLogotypoSvgSrcForTheme(resolvedTheme: string | undefined): string {
-  if (resolvedTheme === "dark") {
-    return brandLogotypoDarkModeSvgSrc;
-  }
-  if (resolvedTheme === "light") {
-    return brandLogotypoLightModeSvgSrc;
-  }
-  return brandLogotypoSvgSrc;
 }

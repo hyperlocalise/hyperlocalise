@@ -588,13 +588,10 @@ export function ProjectFilesPageContentView({
   const canUploadFiles = projectCapabilities.canUploadFiles;
 
   return (
-    <ProjectPageShell className="gap-8">
+    <ProjectPageShell className="gap-4">
       <ProjectSectionHeader
         icon={File01Icon}
         section={intl.formatMessage(messages.sectionTitle)}
-        description={intl.formatMessage(
-          isProviderProject ? messages.descriptionProvider : messages.descriptionNative,
-        )}
         actions={
           canUploadFiles ? (
             <Button

@@ -105,6 +105,26 @@ function mergeNode(): VisualWorkflowRfNode {
   };
 }
 
+function sequenceNode(): VisualWorkflowRfNode {
+  return {
+    id: "sequence",
+    type: "logic.sequence",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("logic.sequence"),
+    data: {
+      catalogType: "logic.sequence",
+      config: {
+        kind: "logic.sequence",
+        outputs: [
+          { id: "email", label: "Email" },
+          { id: "slack", label: "Slack" },
+        ],
+      },
+      runStatus: "idle",
+    },
+  };
+}
+
 describe("VisualWorkflowConfigPanel", () => {
   it("lets operators change the trigger type and delete the step", async () => {
     const user = userEvent.setup();
@@ -353,6 +373,114 @@ describe("VisualWorkflowConfigPanel", () => {
         {
           id: "slack",
           name: "Slack",
+        },
+      ],
+    });
+  });
+
+  it("renames a Sequence output without changing its stable ID", () => {
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={sequenceNode()}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByRole("textbox", {
+        name: "Output 1",
+      }),
+      {
+        target: {
+          value: "Send customer email",
+        },
+      },
+    );
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      kind: "logic.sequence",
+      outputs: [
+        {
+          id: "email",
+          label: "Send customer email",
+        },
+        {
+          id: "slack",
+          label: "Slack",
+        },
+      ],
+    });
+  });
+
+  it("reorders Sequence outputs while preserving their stable IDs", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={sequenceNode()}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Move output 2 up",
+      }),
+    );
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      kind: "logic.sequence",
+      outputs: [
+        {
+          id: "slack",
+          label: "Slack",
+        },
+        {
+          id: "email",
+          label: "Email",
+        },
+      ],
+    });
+  });
+
+  it("removes a Sequence output by its position", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={sequenceNode()}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Remove output 1",
+      }),
+    );
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      kind: "logic.sequence",
+      outputs: [
+        {
+          id: "slack",
+          label: "Slack",
         },
       ],
     });

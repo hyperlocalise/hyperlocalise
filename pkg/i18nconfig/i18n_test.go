@@ -212,6 +212,32 @@ func TestLoad(t *testing.T) {
 			}`,
 		},
 		{
+			name: "valid locale copies from sibling target",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-GB", "en-AU"],
+			    "copies": {"en-AU": "en-GB"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-GB", "en-AU"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+		},
+		{
+			name: "valid locale copies from source",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-AU"],
+			    "copies": {"en-AU": "en-US"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-AU"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+		},
+		{
 			name: "invalid unknown field rejected",
 			content: `{
 			  "locales": {"source": "en-US", "targets": ["es-ES"]},
@@ -272,6 +298,91 @@ func TestLoad(t *testing.T) {
 			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
 			}`,
 			errContains: "cycle detected",
+		},
+		{
+			name: "invalid copies key not in targets",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-GB"],
+			    "copies": {"en-AU": "en-GB"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-GB"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "copy key must exist in locales.targets",
+		},
+		{
+			name: "invalid copies empty origin",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-AU"],
+			    "copies": {"en-AU": ""}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-AU"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "origin must not be empty",
+		},
+		{
+			name: "invalid copies self reference",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-AU"],
+			    "copies": {"en-AU": "en-AU"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-AU"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "self-reference is not allowed",
+		},
+		{
+			name: "invalid copies origin not in targets or source",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-AU"],
+			    "copies": {"en-AU": "en-GB"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-AU"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "must be in locales.targets or locales.source",
+		},
+		{
+			name: "invalid copies origin is itself a copy",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-GB", "en-AU", "en-NZ"],
+			    "copies": {"en-AU": "en-GB", "en-NZ": "en-AU"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-GB"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "is itself a copy locale",
+		},
+		{
+			name: "invalid copies combined with fallbacks on same locale",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-GB", "en-AU"],
+			    "fallbacks": {"en-AU": ["en-GB"]},
+			    "copies": {"en-AU": "en-GB"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-GB"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "must not also be set in locales.fallbacks",
 		},
 		{
 			name: "invalid empty buckets",
@@ -1177,6 +1288,43 @@ cache:
 	}
 	if got := cfg.Cache.ProjectKeyEnv; got != "HYPERLOCALISE_CACHE_PROJECT_KEY" {
 		t.Fatalf("cache project key env=%q", got)
+	}
+}
+
+func TestLoadYAMLLocaleCopies(t *testing.T) {
+	path := writeConfigFileNamed(t, "config.yml", `
+locales:
+  source: en-US
+  targets:
+    - en-GB
+    - en-AU
+  copies:
+    en-AU: en-GB
+buckets:
+  ui:
+    files:
+      - from: lang/{{source}}.json
+        to: lang/{{target}}.json
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-4.1-mini
+`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load yaml config: %v", err)
+	}
+	if got := cfg.Locales.Copies["en-AU"]; got != "en-GB" {
+		t.Fatalf("copies[en-AU]=%q, want en-GB", got)
+	}
+	origin, ok := cfg.Locales.CopyOrigin("en-AU")
+	if !ok || origin != "en-GB" {
+		t.Fatalf("CopyOrigin(en-AU)=(%q, %t), want (en-GB, true)", origin, ok)
+	}
+	if _, ok := cfg.Locales.CopyOrigin("en-GB"); ok {
+		t.Fatalf("CopyOrigin(en-GB) should be unset")
 	}
 }
 

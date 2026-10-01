@@ -79,11 +79,18 @@ const NODE_GAP_X = 340;
 const NODE_GAP_Y = 36;
 
 function quickAddOffsetY(handleId: string | undefined, source: VisualWorkflowRfNode): number {
-  const sourceHeight = source.height ?? getVisualNodeDimensions(source.data.catalogType).height;
+  const sourceHeight =
+    source.height ?? getVisualNodeDimensions(source.data.catalogType, source.data.config).height;
   const branchStep = sourceHeight + NODE_GAP_Y;
 
   if (!handleId || handleId === "true" || handleId === "each") {
     return 0;
+  }
+  if (source.data.config.kind === "logic.sequence") {
+    const outputIndex = source.data.config.outputs.findIndex((output) => output.id === handleId);
+    if (outputIndex >= 0) {
+      return outputIndex * branchStep;
+    }
   }
   if (handleId === "false" || handleId === "done" || handleId === "error") {
     return branchStep;
@@ -249,14 +256,15 @@ export function VisualWorkflowEditor({
           }
         : { x: 120 + currentNodes.length * 24, y: 160 + currentNodes.length * 16 };
 
+      const config = createDefaultConfig(type);
       const nextNode: VisualWorkflowRfNode = {
         id,
         type,
         position,
-        ...getVisualNodeDimensions(type),
+        ...getVisualNodeDimensions(type, config),
         data: {
           catalogType: type,
-          config: createDefaultConfig(type),
+          config,
           runStatus: "idle",
         },
       };

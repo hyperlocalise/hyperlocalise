@@ -12,7 +12,6 @@
  */
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { ProjectsPageContent } from "./_components/projects-page-content";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
@@ -24,11 +23,7 @@ export default function ProjectsPage({
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectsPageLoader params={params} />;
 }
 
 async function ProjectsPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {

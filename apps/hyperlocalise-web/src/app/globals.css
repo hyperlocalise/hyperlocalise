@@ -272,6 +272,21 @@ html,
   font-weight: 600;
 }
 
+/*
+ * Use semantic language metadata for locale-aware typography.
+ * Apply `lang` to specific elements only when their content language differs
+ * from the page-level `<html lang="...">`.
+ *
+ * Korean: `word-break: keep-all` avoids breaking inside words; see
+ * https://developer.mozilla.org/en-US/docs/Web/CSS/word-break and
+ * https://developer.mozilla.org/en-US/docs/Web/CSS/line-break
+ */
+[lang="ko"],
+[lang="ko-KR"] {
+  word-break: keep-all;
+  line-break: normal;
+}
+
 :root,
 .light {
   color-scheme: light;
@@ -843,6 +858,11 @@ html,
 
 ::view-transition-new(app-shell-header) {
   animation: none;
+}
+
+/* Theme switches crossfade the whole page as one snapshot (see theme-toggle.tsx). */
+:root[data-theme-transition] * {
+  view-transition-name: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

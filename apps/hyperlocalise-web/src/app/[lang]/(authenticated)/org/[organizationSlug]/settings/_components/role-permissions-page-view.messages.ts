@@ -25,12 +25,6 @@ export const rolePermissionsPageViewMessages = defineMessages({
     id: "0pg6zXLFtI",
     description: "Role permissions page heading",
   },
-  pageDescription: {
-    defaultMessage:
-      "What each workspace role can do. A mark means allowed. Empty means not allowed.",
-    id: "gy+E1G7FV0",
-    description: "Role permissions page description",
-  },
   backToMembers: {
     defaultMessage: "Members",
     id: "gMK6GFoBBA",

@@ -32,6 +32,54 @@ export type GoSvcDownload = {
   warningCount: number;
 };
 
+export type GlossaryInterchangeRun = {
+  id: string;
+  operation: "import" | "export";
+  status: string;
+  format: "csv" | "tbx" | "xlsx";
+  mode: string;
+  sourceFilename: string | null;
+  resultFilename?: string | null;
+  resultReady?: boolean;
+  counts: GoSvcRecord;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  createdAt: string;
+  processingStartedAt?: string | null;
+  completedAt?: string | null;
+  backupReady?: boolean;
+};
+
+export type GlossaryInterchangeRunsResponse = {
+  runs: GlossaryInterchangeRun[];
+  nextCursor?: string | null;
+};
+
+export type GlossaryInterchangeReport = {
+  report: GlossaryInterchangeRun;
+  entries: Array<{
+    id: string;
+    severity: string;
+    code: string;
+    message: string;
+    sourceRow?: number | null;
+    conceptId?: string | null;
+    termId?: string | null;
+    field?: string | null;
+  }>;
+};
+
+export type GlossaryUploadSession = {
+  reportId: string;
+  status: "upload_pending";
+  upload: {
+    url: string;
+    method: "PUT";
+    headers: Record<string, string[]>;
+    expiresAt: string;
+  };
+};
+
 export type GoSvcErrorBody = {
   error?: string;
   message?: string;
@@ -138,6 +186,19 @@ export type GlossaryProject = {
  */
 export type GlossaryExportQuery = {
   format?: "csv" | "tbx" | "xlsx";
+  scope?: "complete" | "filtered";
+  search?: string;
+  locales?: readonly string[];
+  reviewStatus?: string;
+  termReviewStatus?: string;
+  linguisticStatus?: string;
+  partOfSpeech?: string;
+  termType?: string;
+  gender?: string;
+  provenance?: string;
+  forbidden?: boolean;
+  createdByUserId?: string;
+  modifiedFrom?: string;
 };
 
 export type GlossaryConceptPageQuery = {

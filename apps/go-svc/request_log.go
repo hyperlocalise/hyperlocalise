@@ -215,5 +215,20 @@ func requestLogPath(path string) string {
 	if parts[4] == "members" {
 		return "/v1/orgs/{organizationSlug}/members/{resource}"
 	}
+	if parts[4] == "issues" {
+		return "/v1/orgs/{organizationSlug}/issues/{resource}"
+	}
+	if parts[4] == "issue-sheet" {
+		return "/v1/orgs/{organizationSlug}/issue-sheet/{resource}"
+	}
+	if parts[4] == "notifications" {
+		return "/v1/orgs/{organizationSlug}/notifications/{resource}"
+	}
+	if parts[4] == "notification-preferences" {
+		return "/v1/orgs/{organizationSlug}/notification-preferences"
+	}
+	if parts[4] == "mentions" {
+		return "/v1/orgs/{organizationSlug}/mentions"
+	}
 	return path
 }

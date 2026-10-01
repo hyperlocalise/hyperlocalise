@@ -122,9 +122,6 @@ const DomainResearchShellView = observer(function DomainResearchShellView({
           icon={Globe02Icon}
           label={intl.formatMessage(messages.sectionLabel)}
           title={domain.domainKey}
-          description={intl.formatMessage(messages.shellDescription, {
-            count: domain.locales.length,
-          })}
           actions={
             <>
               <DomainStatusBadge status={domain.status} />

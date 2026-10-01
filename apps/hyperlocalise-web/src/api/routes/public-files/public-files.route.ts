@@ -52,6 +52,7 @@ function asFile(value: unknown) {
 }
 
 type CreatePublicFileRoutesOptions = {
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
@@ -148,6 +149,7 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           uploadSurface: "public_api",
           uploadedByApiKeyId: storedOrganizationApiKeyId(c.var.auth),
           actorUserId: c.var.auth.teamAccess.user.localUserId,
+          deferAfterResponse: options.deferAfterResponse,
           fileStorageAdapter: options.fileStorageAdapter,
         });
         if (isErr(result)) {

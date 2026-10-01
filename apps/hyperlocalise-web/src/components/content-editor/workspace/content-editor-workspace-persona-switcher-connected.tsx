@@ -24,11 +24,14 @@ import { DESIGNER_PERSONA_FILE_FAMILIES } from "./content-editor-workspace-perso
  * Derives the personas that make sense for the current file's content family.
  *
  * - Text files (string queues) → Translator, Reviewer
- * - Visual/office/document files → Designer, Translator
+ * - Visual/office/document files → Designer only (no string queue)
+ *
+ * Designer-only files suppress the switcher entirely (single persona →
+ * ContentEditorWorkspacePersonaSwitcher returns null for length ≤ 1).
  */
 function availablePersonasForFamily(family: string): readonly ContentEditorWorkspacePersona[] {
   if (DESIGNER_PERSONA_FILE_FAMILIES.has(family as never)) {
-    return ["designer", "translator"];
+    return ["designer"];
   }
   return ["translator", "reviewer"];
 }

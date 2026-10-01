@@ -41,12 +41,6 @@ export const domainResearchShellMessages = defineMessages({
     id: "Zln5rf1e7d",
     description: "Missing locale research explanation",
   },
-  shellDescription: {
-    defaultMessage:
-      "{count, plural, one {# locale configured} other {# locales configured}}. Verification applies to the whole domain.",
-    id: "4+P6YOB0GC",
-    description: "Domain research header description",
-  },
   sectionLabel: {
     defaultMessage: "Domains",
     id: "szhXuo8hoK",

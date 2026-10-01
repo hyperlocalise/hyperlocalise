@@ -19,7 +19,10 @@ Exports use Hyperlocalise’s interchange profile: TBX 3 (`TBX-Basic`, DCA style
 
 1. Open **Glossaries** and select a **native** glossary (not a provider read-only glossary).
 2. Use **Import** and choose a TBX, CSV, or XLSX file.
-3. Review the preview report, then confirm. Imports support preview, create, update, merge, and replace modes; destructive modes can create a backup before applying changes.
+3. The file uploads directly to object storage, then the import is queued for asynchronous processing.
+4. Review the preview report, then confirm. Imports support preview, create, update, merge, and replace modes; destructive modes create a downloadable TBX backup before applying changes.
+
+The UI polls the import report until it reaches a terminal state. Refreshing the page is safe: the report ID identifies the durable run and does not re-upload or re-apply the import.
 
 Provider-backed glossaries cannot be imported through this UI. Manage terms in the connected TMS or use a native glossary you control.
 
@@ -28,6 +31,8 @@ Provider-backed glossaries cannot be imported through this UI. Manage terms in t
 1. Open a native glossary, or a **mirrored** provider glossary stored in Hyperlocalise (a synced copy stored in Platform).
 2. Open the actions menu (**⋯**) → **Export**.
 3. Pick **TBX**, **CSV**, or **XLSX** for the full glossary, or use **Export filtered glossary** when the concept list is filtered by search or locale.
+
+Exports are queued asynchronously. When the report is complete, use the signed download link from the report to retrieve the generated file.
 
 Live Crowdin glossaries are read-only in Platform and cannot be exported from the UI.
 

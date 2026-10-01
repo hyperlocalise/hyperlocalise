@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildInboxIndexItems,
+  inboxSelectionsEqual,
   notificationSecondaryText,
   resolveInboxSelection,
 } from "./inbox-list";
@@ -96,6 +97,32 @@ describe("resolveInboxSelection", () => {
         firstNotificationId: "n-2",
       }),
     ).toEqual({ kind: "conversation", id: "c-2" });
+  });
+});
+
+describe("inboxSelectionsEqual", () => {
+  it("matches conversation and notification ids independently", () => {
+    expect(
+      inboxSelectionsEqual(
+        { kind: "conversation", id: "c-1" },
+        { kind: "conversation", id: "c-1" },
+      ),
+    ).toBe(true);
+    expect(
+      inboxSelectionsEqual(
+        { kind: "conversation", id: "c-1" },
+        { kind: "conversation", id: "c-2" },
+      ),
+    ).toBe(false);
+    expect(
+      inboxSelectionsEqual(
+        { kind: "notification", id: "n-1" },
+        { kind: "conversation", id: "n-1" },
+      ),
+    ).toBe(false);
+    expect(inboxSelectionsEqual({ kind: "new" }, { kind: "new" })).toBe(true);
+    expect(inboxSelectionsEqual(null, null)).toBe(true);
+    expect(inboxSelectionsEqual(null, { kind: "new" })).toBe(false);
   });
 });
 

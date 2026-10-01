@@ -95,6 +95,25 @@ export function resolveInboxSelection(input: {
   return null;
 }
 
+export function inboxSelectionsEqual(left: InboxSelection, right: InboxSelection): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (!left || !right) {
+    return false;
+  }
+  if (left.kind === "new" && right.kind === "new") {
+    return true;
+  }
+  if (left.kind === "conversation" && right.kind === "conversation") {
+    return left.id === right.id;
+  }
+  if (left.kind === "notification" && right.kind === "notification") {
+    return left.id === right.id;
+  }
+  return false;
+}
+
 /** Plain-text secondary line for notification rows (strips mention markdown etc.). */
 export function notificationSecondaryText(excerpt: string | undefined, fallback: string): string {
   const source = excerpt?.trim() || fallback;
@@ -283,11 +302,13 @@ function notificationPreviewMessage(type: InboxIssueNotification["type"]): Messa
 export const InboxList = memo(function InboxList({
   conversations,
   currentUser,
+  filters: filtersProp,
   hasMoreNotifications,
   isError,
   isLoading,
   isLoadingMoreNotifications,
   notifications,
+  onFiltersChange,
   onLoadMoreNotifications,
   onMarkAllRead,
   onSelectConversation,
@@ -297,11 +318,13 @@ export const InboxList = memo(function InboxList({
 }: {
   conversations: Conversation[];
   currentUser: InboxCurrentUser;
+  filters?: InboxListFilters;
   hasMoreNotifications: boolean;
   isError: boolean;
   isLoading: boolean;
   isLoadingMoreNotifications: boolean;
   notifications: InboxIssueNotification[];
+  onFiltersChange?: (filters: InboxListFilters) => void;
   onLoadMoreNotifications: () => void;
   onMarkAllRead?: () => void;
   onSelectConversation: (conversationId: string) => void;
@@ -309,7 +332,11 @@ export const InboxList = memo(function InboxList({
   selection: InboxSelection;
   unreadNotificationCount: number;
 }) {
-  const [filters, setFilters] = useState<InboxListFilters>(DEFAULT_INBOX_LIST_FILTERS);
+  const [uncontrolledFilters, setUncontrolledFilters] = useState<InboxListFilters>(
+    DEFAULT_INBOX_LIST_FILTERS,
+  );
+  const filters = filtersProp ?? uncontrolledFilters;
+  const setFilters = onFiltersChange ?? setUncontrolledFilters;
   const allItems = useMemo(
     () => buildInboxIndexItems(conversations, notifications),
     [conversations, notifications],

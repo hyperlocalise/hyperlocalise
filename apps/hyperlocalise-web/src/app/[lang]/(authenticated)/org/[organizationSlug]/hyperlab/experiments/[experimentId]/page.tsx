@@ -15,7 +15,6 @@ import { requireAppCapability } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { HyperlabExperimentDetail } from "../../_components/hyperlab-experiment-detail";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "hyperlabExperimentDetail");
@@ -26,11 +25,7 @@ export default function HyperlabExperimentDetailRoute({
 }: {
   params: Promise<{ organizationSlug: string; experimentId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <HyperlabExperimentDetailRouteLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <HyperlabExperimentDetailRouteLoader params={params} />;
 }
 
 async function HyperlabExperimentDetailRouteLoader({

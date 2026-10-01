@@ -25,12 +25,6 @@ export const dictionariesPageViewMessages = defineMessages({
     id: "iM7becse+M",
     description: "Dictionaries page heading",
   },
-  pageDescription: {
-    defaultMessage:
-      "Allow-lists of brand names and product terms that Hunspell should skip. Attach a library to the projects that should use it.",
-    id: "SWRB7SO8Wa",
-    description: "Dictionaries page description under the heading",
-  },
   dictionaryCount: {
     defaultMessage: "{count, plural, one {# dictionary} other {# dictionaries}}",
     id: "e3gMYEHqTG",

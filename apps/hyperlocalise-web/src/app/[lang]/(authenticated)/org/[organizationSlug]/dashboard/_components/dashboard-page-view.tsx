@@ -464,7 +464,6 @@ export function DashboardPageView({
         icon={DashboardSquare01Icon}
         label={intl.formatMessage(dashboardPageViewMessages.pageLabel)}
         title={intl.formatMessage(dashboardPageViewMessages.pageTitle)}
-        description={intl.formatMessage(dashboardPageViewMessages.pageDescription)}
         actions={
           <Button type="button" className="w-full sm:w-fit" onClick={onNewRequest}>
             <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />

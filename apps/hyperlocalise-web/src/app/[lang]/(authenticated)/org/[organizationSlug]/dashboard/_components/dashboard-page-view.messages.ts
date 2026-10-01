@@ -25,11 +25,6 @@ export const dashboardPageViewMessages = defineMessages({
     id: "6xnpnIBioo",
     description: "Dashboard page heading",
   },
-  pageDescription: {
-    defaultMessage: "A top-down view of localization operations in this workspace.",
-    id: "AIaaCgpWdC",
-    description: "Dashboard page description under the heading",
-  },
   newRequest: {
     defaultMessage: "New request",
     id: "vKq2ly7dxU",

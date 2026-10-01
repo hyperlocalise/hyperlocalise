@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -140,9 +143,10 @@ func TestSerializeGlossaryCSVEscapesFormulas(t *testing.T) {
 }
 
 func TestApplyGlossaryImportLocaleOptions(t *testing.T) {
-	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{"fr-FR"}}
+	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{"de-DE", "fr-FR"}}
 	strict := true
 	payload := glossaryImportPayload{
+		Format:        "tbx",
 		StrictLocale:  &strict,
 		LocaleMapping: map[string]string{"fr": "fr-FR"},
 	}
@@ -156,10 +160,66 @@ func TestApplyGlossaryImportLocaleOptions(t *testing.T) {
 	}}
 	out, diagnostics := applyGlossaryImportLocaleOptions(g, payload, concepts, nil)
 	require.Len(t, out, 1)
-	require.Len(t, out[0].Terms, 2)
+	require.Len(t, out[0].Terms, 3)
 	require.Equal(t, "fr-FR", out[0].Terms[1].Locale)
-	require.NotEmpty(t, diagnostics)
-	require.Equal(t, "unknown_locale", diagnostics[0].Code)
+	require.Equal(t, "de-DE", out[0].Terms[2].Locale)
+	require.Contains(t, diagnostics, glossaryImportDiagnostic{Severity: "warning", Code: "locale_mapped", Message: "Crowdin language ID was mapped to the configured glossary locale", ConceptID: stringPtr("c1"), TermID: stringPtr("t3"), Field: stringPtr("locale")})
+}
+
+func TestResolveCrowdinGlossaryLocaleRejectsAmbiguousBaseLanguage(t *testing.T) {
+	locales := []glossaryLanguage{
+		{Locale: "de-DE"},
+		{Locale: "de-AT"},
+	}
+
+	locale, ok := resolveCrowdinGlossaryLocale("de", locales)
+	require.False(t, ok)
+	require.Empty(t, locale)
+}
+
+func TestResolveCrowdinGlossaryLocalePreservesExactConfiguredLocale(t *testing.T) {
+	locale, ok := resolveCrowdinGlossaryLocale("de", []glossaryLanguage{{Locale: "de"}, {Locale: "de-DE"}})
+	require.True(t, ok)
+	require.Equal(t, "de", locale)
+}
+
+func TestApplyGlossaryImportLocaleOptionsDoesNotUseCrowdinFallbackForCSV(t *testing.T) {
+	strict := true
+	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{"de-DE"}}
+	concepts := []glossaryImportConcept{{
+		ID: "c1",
+		Terms: []glossaryImportTerm{
+			{ID: "t1", Locale: "en-US", Term: "Checkout"},
+			{ID: "t2", Locale: "de", Term: "Kasse"},
+		},
+	}}
+
+	out, diagnostics := applyGlossaryImportLocaleOptions(g, glossaryImportPayload{
+		Format:       "csv",
+		StrictLocale: &strict,
+	}, concepts, nil)
+	require.Len(t, out, 1)
+	require.Len(t, out[0].Terms, 1)
+	require.Equal(t, "en-US", out[0].Terms[0].Locale)
+	require.Contains(t, diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "unknown_locale", Message: "Term locale is not configured for this glossary", ConceptID: stringPtr("c1"), TermID: stringPtr("t2"), Field: stringPtr("locale")})
+}
+
+func TestApplyGlossaryImportLocaleOptionsHonorsExplicitIdentityMapping(t *testing.T) {
+	strict := false
+	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{"de-DE"}}
+	concepts := []glossaryImportConcept{{
+		ID:    "c1",
+		Terms: []glossaryImportTerm{{ID: "t1", Locale: "de", Term: "Kasse"}},
+	}}
+
+	out, diagnostics := applyGlossaryImportLocaleOptions(g, glossaryImportPayload{
+		Format:        "tbx",
+		StrictLocale:  &strict,
+		LocaleMapping: map[string]string{"de": "de"},
+	}, concepts, nil)
+	require.Len(t, out, 1)
+	require.Equal(t, "de", out[0].Terms[0].Locale)
+	require.Empty(t, diagnostics)
 }
 
 func TestGlossaryImportReplaceRejectsParserErrors(t *testing.T) {
@@ -239,14 +299,109 @@ func TestGlossaryImportReportGet(t *testing.T) {
 	reportID := "ffffffff-ffff-4fff-8fff-ffffffffffff"
 	_, err := scope.Pool.Exec(t.Context(), `
         insert into glossary_import_runs (
-            id, organization_id, glossary_id, created_by_user_id, format, mode, status, counts, completed_at
-        ) values ($1, $2, $3, $4, 'csv', 'preview', 'completed', '{"skipped":0}'::jsonb, now())`,
+            id, organization_id, glossary_id, created_by_user_id, format, mode, status, counts, backup_object_key, completed_at
+        ) values ($1, $2, $3, $4, 'csv', 'preview', 'completed', '{"skipped":0}'::jsonb, 'backups/report.tbx', now())`,
 		reportID, scope.OrganizationID, id, scope.UserID)
 	require.NoError(t, err)
 	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports/"+reportID), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"report"`)
 	require.Contains(t, rec.Body.String(), reportID)
+	require.Contains(t, rec.Body.String(), `"backupReady":true`)
+}
+
+func TestGlossaryInterchangeRunsList(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	first := "11111111-1111-4111-8111-111111111111"
+	second := "22222222-2222-4222-8222-222222222222"
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into glossary_import_runs (id, organization_id, glossary_id, created_by_user_id, operation, format, mode, status, source_filename, counts, result_object_key, backup_object_key)
+        values ($1, $2, $3, $4, 'import', 'csv', 'merge', 'completed', 'terms.csv', '{"created":2}'::jsonb, 'results/import.csv', 'backups/import.tbx'),
+               ($5, $2, $3, $4, 'export', 'tbx', 'export', 'queued', null, '{}'::jsonb, null, null)`,
+		first, scope.OrganizationID, id, scope.UserID, second)
+	require.NoError(t, err)
+
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?operation=import"), "")
+	require.Equal(t, 200, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"runs"`)
+	require.Contains(t, rec.Body.String(), first)
+	require.NotContains(t, rec.Body.String(), second)
+	require.Contains(t, rec.Body.String(), `"resultReady":true`)
+	require.Contains(t, rec.Body.String(), `"backupReady":true`)
+}
+
+func TestGlossaryInterchangeRunsListRejectsInvalidOperation(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?operation=sync"), "")
+	require.Equal(t, 400, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "invalid_glossary_interchange_operation")
+}
+
+func TestGlossaryInterchangeRunsListRejectsOversizedStatus(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	status := strings.Repeat("x", 65)
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?status="+url.QueryEscape(status)), "")
+	require.Equal(t, 400, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "invalid_glossary_interchange_status")
+}
+
+func TestGlossaryInterchangeRunsListPaginates(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	base := time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)
+	ids := []string{
+		"11111111-1111-4111-8111-111111111111",
+		"22222222-2222-4222-8222-222222222222",
+		"33333333-3333-4333-8333-333333333333",
+	}
+	for i, runID := range ids {
+		_, err := scope.Pool.Exec(t.Context(), `
+            insert into glossary_import_runs (
+                id, organization_id, glossary_id, created_by_user_id, operation, format, mode, status, counts, created_at
+            ) values ($1, $2, $3, $4, 'import', 'csv', 'merge', 'completed', '{}'::jsonb, $5)`,
+			runID, scope.OrganizationID, id, scope.UserID, base.Add(time.Duration(i)*time.Minute))
+		require.NoError(t, err)
+	}
+
+	firstPage := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?limit=2"), "")
+	require.Equal(t, 200, firstPage.Code, firstPage.Body.String())
+	require.Contains(t, firstPage.Body.String(), ids[2])
+	require.Contains(t, firstPage.Body.String(), ids[1])
+	require.NotContains(t, firstPage.Body.String(), ids[0])
+	require.Contains(t, firstPage.Body.String(), `"hasMore":true`)
+
+	var payload struct {
+		NextCursor *string `json:"nextCursor"`
+	}
+	require.NoError(t, json.Unmarshal(firstPage.Body.Bytes(), &payload))
+	require.NotNil(t, payload.NextCursor)
+	require.NotEmpty(t, *payload.NextCursor)
+
+	secondPage := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?limit=2&cursor="+url.QueryEscape(*payload.NextCursor)), "")
+	require.Equal(t, 200, secondPage.Code, secondPage.Body.String())
+	require.Contains(t, secondPage.Body.String(), ids[0])
+	require.NotContains(t, secondPage.Body.String(), ids[2])
+	require.Contains(t, secondPage.Body.String(), `"hasMore":false`)
+}
+
+func TestGlossaryInterchangeRunsListRejectsInvalidCursor(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?cursor=invalid"), "")
+	require.Equal(t, 400, rec.Code)
+	require.Contains(t, rec.Body.String(), "invalid_glossary_interchange_cursor")
+}
+
+func TestGlossaryInterchangeRunsListRejectsCursorWithInvalidTimestamp(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	cursor := encodeGlossaryPageCursor("not-a-time", "11111111-1111-4111-8111-111111111111")
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+"/import-reports?cursor="+cursor), "")
+	require.Equal(t, 400, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "invalid_glossary_interchange_cursor")
 }
 
 func TestGlossaryInvalidExportFormat(t *testing.T) {

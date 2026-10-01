@@ -191,6 +191,7 @@ type Task struct {
 	Provider        string `json:"provider"`
 	Model           string `json:"model"`
 	TranslationType string `json:"translationType,omitempty"`
+	CopyFrom        string `json:"copyFrom,omitempty"`
 	SystemPrompt    string `json:"systemPrompt,omitempty"`
 	UserPrompt      string `json:"userPrompt,omitempty"`
 	LegacyPrompt    bool   `json:"-"`
@@ -217,6 +218,7 @@ type Task struct {
 	sourceContextFingerprint string
 	sourceFingerprint        string
 	sourceImage              []byte
+	copyFromTargetPath       string
 }
 
 type Failure struct {
@@ -541,12 +543,6 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							return nil, nil, fmt.Errorf("planning tasks: read source image %q: %w", sourcePath, err)
 						}
 						sourceFingerprint := imageLockSourceHash(sourceContent)
-						if selection.Type != config.TranslationTypeLLM {
-							return nil, nil, fmt.Errorf("planning tasks: image source %q in group %q is routed to translation type %q; image localization is only supported with type %q", sourcePath, groupName, selection.Type, config.TranslationTypeLLM)
-						}
-						if strings.ToLower(strings.TrimSpace(selection.LLMProfile.Provider)) != translator.ProviderOpenAI {
-							return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, selection.LLMProfile.Provider, translator.ProviderOpenAI)
-						}
 						if !filterFixes && cap(tasks)-len(tasks) < len(targets) {
 							tasks = slices.Grow(tasks, len(targets))
 						}
@@ -562,6 +558,15 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							outputFormat, err := imageOutputFormat(targetPath)
 							if err != nil {
 								return nil, nil, fmt.Errorf("planning tasks: image target %q: %w", targetPath, err)
+							}
+							_, isCopy := cfg.Locales.CopyOrigin(target)
+							if !isCopy {
+								if selection.Type != config.TranslationTypeLLM {
+									return nil, nil, fmt.Errorf("planning tasks: image source %q in group %q is routed to translation type %q; image localization is only supported with type %q", sourcePath, groupName, selection.Type, config.TranslationTypeLLM)
+								}
+								if strings.ToLower(strings.TrimSpace(selection.LLMProfile.Provider)) != translator.ProviderOpenAI {
+									return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, selection.LLMProfile.Provider, translator.ProviderOpenAI)
+								}
 							}
 							task := Task{
 								Kind:              taskKindImage,
@@ -584,6 +589,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								OutputFormat:      outputFormat,
 								sourceFingerprint: sourceFingerprint,
 								sourceImage:       sourceContent,
+							}
+							if err := s.assignLocaleCopy(cfg, &task, file, sourcePattern, sourcePath); err != nil {
+								return nil, nil, err
 							}
 							precomputeStableTaskCacheFields(&task)
 							if filterFixes {
@@ -682,6 +690,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								task.Provider = selection.MTProfile.Provider
 							}
 
+							if err := s.assignLocaleCopy(cfg, &task, file, sourcePattern, sourcePath); err != nil {
+								return nil, nil, err
+							}
 							precomputeStableTaskCacheFields(&task)
 							if filterFixes {
 								mk := fixTargetMatchKey(task.SourcePath, task.TargetPath, task.TargetLocale, task.EntryKey)

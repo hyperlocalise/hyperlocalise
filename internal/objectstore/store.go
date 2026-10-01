@@ -124,6 +124,29 @@ func (r *Registry) Resolve(locationID string) (Store, error) {
 	return store, nil
 }
 
+// DefaultLocationID returns the configured write location. Callers should use
+// the returned location when creating references that must be readable by a
+// separate worker process.
+func (r *Registry) DefaultLocationID() string {
+	if r == nil {
+		return ""
+	}
+	return r.defaultID
+}
+
+// Presigner resolves a location that supports temporary upload/download URLs.
+func (r *Registry) Presigner(locationID string) (Presigner, error) {
+	store, err := r.Resolve(locationID)
+	if err != nil {
+		return nil, err
+	}
+	signer, ok := store.(Presigner)
+	if !ok {
+		return nil, ErrInvalidInput
+	}
+	return signer, nil
+}
+
 // Put writes to the default and returns the reference callers must persist.
 func (r *Registry) Put(ctx context.Context, input PutInput) (Ref, Info, error) {
 	info, err := r.locations[r.defaultID].Put(ctx, input)

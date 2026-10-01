@@ -17,3 +17,4 @@ export { visualWorkflowRetryDraft } from "@/lib/visual-workflows/fixtures/retry-
 export { visualWorkflowSwitchDeleteDraft } from "@/lib/visual-workflows/fixtures/switch-delete-draft";
 export { visualWorkflowWaitDraft } from "@/lib/visual-workflows/fixtures/wait-draft";
 export { visualWorkflowMergeDraft } from "@/lib/visual-workflows/fixtures/merge-draft";
+export { visualWorkflowSequenceDraft } from "@/lib/visual-workflows/fixtures/sequence-draft";

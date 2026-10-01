@@ -1186,6 +1186,35 @@ export const contentEditorEditorPanelMessages = defineMessages({
   },
 });
 
+export const contentEditorLottieContextPanelMessages = defineMessages({
+  title: {
+    defaultMessage: "Animation preview",
+    id: "RxnCQxP9ZO",
+    description: "Section heading for Lottie animation preview in the CAT intelligence panel",
+  },
+  description: {
+    defaultMessage:
+      "Live preview of the source file with your current translations applied to text layers.",
+    id: "R3s4z9CFzm",
+    description: "Supporting copy for Lottie animation preview in the CAT intelligence panel",
+  },
+  sourcePreview: {
+    defaultMessage: "Source ({locale})",
+    id: "TEuqfRTlCy",
+    description: "Label for the source-locale Lottie preview",
+  },
+  targetPreview: {
+    defaultMessage: "Draft ({locale})",
+    id: "YcN/e0CkeC",
+    description: "Label for the target-locale Lottie preview with draft translations",
+  },
+  previewUnavailable: {
+    defaultMessage: "Preview could not be loaded.",
+    id: "GFW3iHWNfM",
+    description: "Empty state when the Lottie animation preview fails to load",
+  },
+});
+
 export const contentEditorVisualContextPanelMessages = defineMessages({
   title: {
     defaultMessage: "Visual Context",

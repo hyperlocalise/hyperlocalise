@@ -13,12 +13,10 @@
  * Version 2.0 or later.
  */
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Add01Icon,
   ArrowDown01Icon,
-  ArrowLeft01Icon,
   Delete02Icon,
   FilterIcon,
   Link01Icon,
@@ -67,6 +65,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import {
   GenderDisplay,
@@ -461,6 +460,17 @@ export function GlossaryConceptDetail({
     conceptRecord?.primaryTerm ||
     "";
 
+  const conceptBreadcrumbLabel = isCreatingConcept
+    ? intl.formatMessage(messages.addConcept)
+    : sourceTermText || conceptId;
+
+  useAppShellBreadcrumbAppend({
+    id: "glossary-concept-detail",
+    label: conceptBreadcrumbLabel,
+    isLoading:
+      glossaryQuery.isLoading || (!isCreatingConcept && conceptQuery.isLoading && !sourceTermText),
+  });
+
   const goBack = () => router.push(glossaryHref);
 
   const goToNextTermPage = () => {
@@ -743,13 +753,6 @@ export function GlossaryConceptDetail({
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <Link
-        href={glossaryHref}
-        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
-        <FormattedMessage {...messages.backToGlossary} />
-      </Link>
       <section className="grid gap-5 rounded-lg border border-border p-4">
         <div className="grid gap-1">
           <TypographyH1 className="text-2xl" weight="medium">

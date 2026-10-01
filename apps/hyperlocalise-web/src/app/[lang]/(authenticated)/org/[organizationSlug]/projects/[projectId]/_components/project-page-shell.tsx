@@ -82,23 +82,16 @@ export function ProjectPageShell({
 type ProjectSectionHeaderProps = {
   icon: Icon;
   section: string;
-  description: string;
   actions?: ReactNode;
   meta?: ReactNode;
 };
 
-export function ProjectSectionHeader({
-  icon,
-  section,
-  description,
-  actions,
-  meta,
-}: ProjectSectionHeaderProps) {
+export function ProjectSectionHeader({ icon, section, actions, meta }: ProjectSectionHeaderProps) {
   return (
-    <div className="space-y-3">
-      <PageHeader icon={icon} title={section} description={description} actions={actions} />
+    <>
+      <PageHeader icon={icon} title={section} actions={actions} />
       {meta}
-    </div>
+    </>
   );
 }
 

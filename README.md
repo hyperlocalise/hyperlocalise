@@ -135,6 +135,28 @@ jobs:
           upload-artifact: true
 ```
 
+## SQS Lambda workers
+
+Use the `create-sqs-lambda-worker` skill in `.agents/skills/` when adding a
+Go-first SQS-triggered Lambda. It scaffolds the handler contract, partial batch
+failure tests, shared Secrets Manager metadata, build target, and deployment
+handoff. The infrastructure repository provides the matching
+`add-sqs-lambda-worker` skill and reusable OpenTofu module.
+
+The standard deployment action is
+`.github/actions/deploy-lambda-artifact`. It builds a root-level `bootstrap`,
+uploads a versioned S3 artifact, and updates the function named by SSM. Secret
+values stay in Secrets Manager; Lambda receives only ARN, JSON-key, and cache
+metadata through environment variables.
+
+The existing activity-log compatibility wrapper in infrastructure still passes
+the database secret metadata as `DATABASE_URL_SECRET_ARN`,
+`DATABASE_SECRET_KEY`, and `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`. Keep using
+`secretsmanager.ConfigFromEnv` for that worker. New workers composed directly
+from the reusable infrastructure module use explicitly requested generic
+`<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` variables with
+`ConfigsFromEnv("NAME", ...)` and `Collection`.
+
 ### GitHub Action settings
 
 Inputs from [`action.yml`](action.yml):

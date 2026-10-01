@@ -63,7 +63,6 @@ export const ProjectGuideline: Story = {
     }),
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Project")).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Guideline" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Project guidance" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Save changes" })).toBeInTheDocument();

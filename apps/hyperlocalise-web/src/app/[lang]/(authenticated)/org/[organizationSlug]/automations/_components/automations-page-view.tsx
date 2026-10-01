@@ -265,7 +265,6 @@ export function AutomationsPageView({
             : automationsPageViewMessages.pageLabel,
         )}
         title={intl.formatMessage(automationsPageViewMessages.pageTitle)}
-        description={intl.formatMessage(automationsPageViewMessages.pageDescription)}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {visualWorkflowsEnabled && !projectId ? (

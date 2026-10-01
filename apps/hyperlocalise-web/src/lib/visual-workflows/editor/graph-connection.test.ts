@@ -601,4 +601,99 @@ describe("reconnectVisualWorkflowGraphConnection", () => {
 
     expect(result.edges).toEqual([edges[0]]);
   });
+
+  it("preserves Sequence wires when outputs are renamed or reordered", () => {
+    const sequence = node("sequence", "logic.sequence", {
+      config: {
+        kind: "logic.sequence",
+        outputs: [
+          { id: "email", label: "Email" },
+          { id: "slack", label: "Slack" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "email-edge",
+        source: "sequence",
+        target: "email-action",
+        sourceHandle: "email",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+      {
+        id: "slack-edge",
+        source: "sequence",
+        target: "slack-action",
+        sourceHandle: "slack",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ];
+    const result = applyNodeConfigUpdate([sequence], edges, "sequence", {
+      kind: "logic.sequence",
+      outputs: [
+        { id: "slack", label: "Notify Slack" },
+        { id: "email", label: "Send email" },
+      ],
+    });
+
+    expect(result.edges).toEqual(edges);
+  });
+
+  it("removes only wires for deleted Sequence outputs", () => {
+    const sequence = node("sequence", "logic.sequence", {
+      config: {
+        kind: "logic.sequence",
+        outputs: [
+          { id: "email", label: "Email" },
+          { id: "slack", label: "Slack" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "email-edge",
+        source: "sequence",
+        target: "email-action",
+        sourceHandle: "email",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+      {
+        id: "slack-edge",
+        source: "sequence",
+        target: "slack-action",
+        sourceHandle: "slack",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ];
+    const result = applyNodeConfigUpdate([sequence], edges, "sequence", {
+      kind: "logic.sequence",
+      outputs: [{ id: "slack", label: "Slack" }],
+    });
+
+    expect(result.edges).toEqual([edges[1]]);
+  });
+
+  it("grows a Sequence node as outputs are added", () => {
+    const sequence = node("sequence", "logic.sequence", {
+      config: {
+        kind: "logic.sequence",
+        outputs: [{ id: "initial", label: "Initial" }],
+      },
+    });
+    const outputs = Array.from({ length: 10 }, (_, index) => ({
+      id: `output-${index}`,
+      label: `Output ${index + 1}`,
+    }));
+
+    const result = applyNodeConfigUpdate([sequence], [], "sequence", {
+      kind: "logic.sequence",
+      outputs,
+    });
+
+    expect(result.nodes[0]?.height).toBe(376);
+  });
 });

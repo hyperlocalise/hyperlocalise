@@ -50,6 +50,13 @@ func marshalJSONTarget(path string, template []byte, values map[string]string, p
 	if payload == nil {
 		payload = map[string]any{}
 	}
+	if translationfileparser.IsLottiePayload(payload) {
+		content, err := translationfileparser.MarshalLottie(template, values)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
+	}
 
 	allowedValues := values
 	if pruneKeys != nil {
@@ -83,6 +90,12 @@ func marshalJSONTarget(path string, template []byte, values map[string]string, p
 }
 
 func (s *Service) marshalJSONTargetWithFallback(path, sourcePath string, values map[string]string, pruneKeys map[string]struct{}) ([]byte, error) {
+	// Lottie targets are localized copies of the source animation, so always rebuild
+	// from the source to carry over non-text animation changes.
+	if sourceTemplate, srcErr := s.readProjectFile(sourcePath); srcErr == nil && translationfileparser.IsLottieJSON(sourceTemplate) {
+		return marshalJSONTarget(path, sourceTemplate, values, pruneKeys)
+	}
+
 	targetTemplate, err := s.readProjectFile(path)
 	if err == nil {
 		content, marshalErr := marshalJSONTarget(path, targetTemplate, values, pruneKeys)

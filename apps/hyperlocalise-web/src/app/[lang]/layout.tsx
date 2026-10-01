@@ -10,39 +10,26 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 
-import { LocaleDocumentLangScript } from "@/components/root-layout/locale-document-lang-script";
 import { isSupportedAppLocale, normalizeAppLocale } from "@/lib/app-i18n/locales";
 
 type LocaleLayoutProps = {
-  children: React.ReactNode;
+  children: ReactNode;
   params: Promise<{ lang: string }>;
 };
 
-export default function LocaleLayout({ children, params }: LocaleLayoutProps) {
-  return (
-    <>
-      <Suspense>
-        <LocaleParamGate params={params} />
-      </Suspense>
-      {children}
-    </>
-  );
-}
-
-async function LocaleParamGate({ params }: { params: Promise<{ lang: string }> }) {
+export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { lang } = await params;
 
   if (!isSupportedAppLocale(lang)) {
     notFound();
   }
 
-  const locale = normalizeAppLocale(lang);
-  if (!locale) {
+  if (!normalizeAppLocale(lang)) {
     notFound();
   }
 
-  return <LocaleDocumentLangScript locale={locale} />;
+  return children;
 }

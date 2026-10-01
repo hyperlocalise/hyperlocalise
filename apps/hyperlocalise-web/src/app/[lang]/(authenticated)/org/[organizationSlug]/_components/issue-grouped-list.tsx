@@ -255,7 +255,7 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
 }) {
   const intl = useIntl();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const groups = groupIssuesByStatus(issues, { activeStatus, summary });
+  const groups = groupIssuesByStatus(issues, { activeStatus, hasMore, summary });
   // Only a single-status filter hides headers. Do not use groups.length —
   // pagination may have loaded only one status so far while summary spans more.
   const hideHeaders = Boolean(activeStatus);

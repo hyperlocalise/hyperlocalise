@@ -155,6 +155,31 @@ func TestMarshalJSONTargetWithFallback(t *testing.T) {
 	}
 }
 
+func TestMarshalJSONTargetWithFallbackLottieUsesSourceTemplate(t *testing.T) {
+	source := `{"v":"5.7.4","fr":30,"ip":0,"op":60,"layers":[{"ty":5,"nm":"Title","t":{"d":{"k":[{"s":{"t":"Hello","s":36},"t":0}]}},"ks":{"o":{"k":80}}}]}`
+	staleTarget := `{"v":"5.7.4","fr":30,"ip":0,"op":60,"layers":[{"ty":5,"nm":"Title","t":{"d":{"k":[{"s":{"t":"Bonjour","s":36},"t":0}]}},"ks":{"o":{"k":100}}}]}`
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/fr/intro.json":
+			return []byte(staleTarget), nil
+		case "/tmp/en/intro.json":
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, err := svc.marshalJSONTargetWithFallback("/tmp/fr/intro.json", "/tmp/en/intro.json", map[string]string{"layers[0].t.d.k[0].s.t": "Salut"}, nil)
+	if err != nil {
+		t.Fatalf("marshal lottie target: %v", err)
+	}
+	want := strings.Replace(source, `"t":"Hello"`, `"t":"Salut"`, 1)
+	if string(content) != want {
+		t.Fatalf("lottie target mismatch:\n got %s\nwant %s", content, want)
+	}
+}
+
 func TestMarshalJSONTargetWithFallbackJoinError(t *testing.T) {
 	svc := newTestService()
 	svc.readFile = func(path string) ([]byte, error) {

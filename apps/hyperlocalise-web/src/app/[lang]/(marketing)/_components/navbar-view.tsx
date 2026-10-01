@@ -502,13 +502,13 @@ export function NavbarView({ auth }: { auth: NavbarAuthState }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 border-b transition-[background-color,border-color,color,backdrop-filter] duration-300",
+        "sticky top-0 z-40 h-16 border-b transition-[background-color,border-color,color,backdrop-filter] duration-300",
         onHero
           ? "border-transparent bg-transparent text-white"
           : "border-border bg-background/95 text-foreground backdrop-blur supports-[backdrop-filter]:bg-background/80",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex h-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3 lg:gap-8">
           <Logo locale={locale} onHero={onHero} />
           <div

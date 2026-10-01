@@ -97,6 +97,10 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
     return new Set(["completed", "timed_out", "error"]);
   }
 
+  if (node.config.kind === "logic.sequence") {
+    return new Set(node.config.outputs.map((output) => output.id));
+  }
+
   return portIds;
 }
 

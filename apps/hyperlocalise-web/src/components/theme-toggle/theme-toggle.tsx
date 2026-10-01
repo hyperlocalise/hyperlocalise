@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import * as React from "react";
+import { flushSync } from "react-dom";
 import { ComputerIcon, Moon02Icon, Sun01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTheme } from "next-themes";
@@ -61,18 +62,39 @@ function useThemeToggleState() {
       : activeTheme
     : "system";
 
-  return { activeTheme, mounted, setTheme, triggerTheme };
+  const changeTheme = React.useCallback(
+    (nextTheme: ThemeOption) => {
+      if (typeof document.startViewTransition !== "function") {
+        setTheme(nextTheme);
+        return;
+      }
+
+      // Crossfade one snapshot of the page so every surface changes together,
+      // instead of only the elements that happen to have color transitions.
+      const root = document.documentElement;
+      root.dataset.themeTransition = "";
+      const transition = document.startViewTransition(() => {
+        flushSync(() => setTheme(nextTheme));
+      });
+      void transition.finished.finally(() => {
+        delete root.dataset.themeTransition;
+      });
+    },
+    [setTheme],
+  );
+
+  return { activeTheme, mounted, changeTheme, triggerTheme };
 }
 
 function ThemeMenuRadioGroup() {
   const intl = useIntl();
-  const { activeTheme, setTheme } = useThemeToggleState();
+  const { activeTheme, changeTheme } = useThemeToggleState();
 
   return (
     <DropdownMenuRadioGroup
       aria-label={intl.formatMessage(themeToggleMessages.colorThemeAria)}
       value={activeTheme}
-      onValueChange={(value) => setTheme(value as ThemeOption)}
+      onValueChange={(value) => changeTheme(value as ThemeOption)}
     >
       <DropdownMenuRadioItem value="light">
         <HugeiconsIcon icon={Sun01Icon} strokeWidth={2} className="size-4" />
@@ -96,7 +118,7 @@ type ThemeToggleProps = {
 
 export function ThemeToggle({ variant = "dropdown" }: ThemeToggleProps) {
   const intl = useIntl();
-  const { activeTheme, setTheme, triggerTheme } = useThemeToggleState();
+  const { activeTheme, changeTheme, triggerTheme } = useThemeToggleState();
 
   if (variant === "menu") {
     return <ThemeMenuRadioGroup />;
@@ -127,7 +149,7 @@ export function ThemeToggle({ variant = "dropdown" }: ThemeToggleProps) {
         <DropdownMenuRadioGroup
           aria-label={intl.formatMessage(themeToggleMessages.colorThemeAria)}
           value={activeTheme}
-          onValueChange={(value) => setTheme(value as ThemeOption)}
+          onValueChange={(value) => changeTheme(value as ThemeOption)}
         >
           <DropdownMenuRadioItem value="light">
             <HugeiconsIcon icon={Sun01Icon} strokeWidth={2} className="size-4" />

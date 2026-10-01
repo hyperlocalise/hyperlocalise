@@ -75,11 +75,6 @@ export const teamsPageViewMessages = defineMessages({
     id: "sGkYArMEbA",
     description: "Teams page title",
   },
-  pageDescription: {
-    defaultMessage: "Group people into teams to scope projects, jobs, and localization ownership.",
-    id: "zDFrDsXQnc",
-    description: "Teams page description",
-  },
   createTeam: {
     defaultMessage: "Create team",
     id: "kf0aB8NC11",

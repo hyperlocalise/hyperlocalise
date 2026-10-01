@@ -243,6 +243,9 @@ function fileContextFor(
     ...(contentEditorFile.projectTeamSlug
       ? { projectTeamSlug: contentEditorFile.projectTeamSlug }
       : {}),
+    ...(contentEditorFile.lottieSourceUrl
+      ? { lottieSourceUrl: contentEditorFile.lottieSourceUrl }
+      : {}),
   };
 }
 

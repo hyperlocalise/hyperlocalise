@@ -24,6 +24,8 @@
 - `.xml` / `.resx` via `GenericXMLParser` (non-Android generic XML locale files)
 - `.properties` via `JavaPropertiesParser` (Java resource bundles)
 - `.srt` / `.vtt` via `SubtitleParser` (SubRip and WebVTT subtitle cues)
+- `.json` Lottie animations via `JSONParser` content detection (editable text layers only)
+- `.lottie` via `DotLottieParser` (dotLottie zip archives)
 
 ## Strategy API
 
@@ -39,6 +41,22 @@
 - Nested objects are flattened with dotted keys.
   - Example: `{ "home": { "title": "Accueil" } }` -> `home.title=Accueil`
 - Non-string leaf values are rejected.
+
+### Lottie (`.json`)
+
+- `JSONParser` routes documents whose root has `v` (string), `fr`, `ip`, `op` (numbers), and a `layers` array to the Lottie extractor.
+- Extracts text layers (`ty: 5`) from root `layers` and precomposition `assets[].layers`, one entry per text keyframe.
+  - Example: `layers[1].t.d.k[0].s.t=Save more\rtoday`
+- Blank text, shape layers, and text converted to shapes are skipped.
+- `ParseWithContext` returns the layer name, precomposition ID, and keyframe frame (when a layer has several keyframes) as entry context.
+- `MarshalLottie(template, values)` replaces only the text string literals, so formatting, number precision, and key order are preserved byte-for-byte. Unknown keys are ignored.
+
+### dotLottie (`.lottie`)
+
+- `DotLottieParser` opens the zip archive and extracts text from every Lottie animation under `animations/` (v1) or `a/` (v2).
+- Keys are prefixed with the entry path: `a/promo.json#layers[1].t.d.k[0].s.t`.
+- `MarshalDotLottie(template, values)` rebuilds the archive, rewriting only animations with changed text. Other entries (manifest, images, themes, state machines) are copied without recompression, and entry order, compression method, and timestamps are preserved.
+- Theme and slot overrides are not extracted. Animation entries larger than 64 MiB decompressed are rejected.
 
 ### JSONC
 

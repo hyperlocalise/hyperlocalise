@@ -353,7 +353,6 @@ const HyperlabExperimentDetailConnected = observer(function HyperlabExperimentDe
       <HyperlabExperimentQueryBridge snapshot={detailQuery.data} />
       <HyperlabPageShell
         title={experiment?.name ?? intl.formatMessage(messages.experimentsTitle)}
-        description={intl.formatMessage(messages.experimentsDescription)}
         backHref={`/org/${organizationSlug}/hyperlab/experiments`}
         actions={
           experiment && canWrite ? (

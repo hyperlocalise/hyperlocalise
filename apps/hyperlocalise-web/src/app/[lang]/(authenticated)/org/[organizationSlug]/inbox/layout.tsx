@@ -10,14 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ViewTransition } from "react";
+import type { ReactNode } from "react";
 
-import { OrganizationRouteLoading } from "./_components/organization-route-loading";
+import { InboxLayoutContent } from "./_components/inbox-layout-content";
 
-export default function OrganizationLoading() {
+export default function InboxLayout({ children }: { children: ReactNode }) {
   return (
-    <ViewTransition exit="fade-out" default="none">
-      <OrganizationRouteLoading />
-    </ViewTransition>
+    <>
+      <InboxLayoutContent />
+      {children}
+    </>
   );
 }

@@ -831,12 +831,11 @@ export class ContentEditorWorkspaceOrchestrator {
     };
     // Update persona for the new file's content family eagerly (before the
     // snapshot arrives) so the UI reflects the correct layout immediately.
-    const currentSegment = this.selectedSegmentView;
     const initialFamily =
-      input.sourcePath === "*" && currentSegment
+      input.sourcePath === "*" && this.selectedSegmentView
         ? resolveCatFileViewCapabilities({
-            sourcePath: currentSegment.sourcePath,
-            contentKind: currentSegment.contentKind,
+            sourcePath: this.selectedSegmentView.sourcePath,
+            contentKind: this.selectedSegmentView.contentKind,
           }).family
         : resolveCatFileViewCapabilities({ sourcePath: input.sourcePath }).family;
     this.ui.applyFileFamily(initialFamily);
@@ -906,30 +905,30 @@ export class ContentEditorWorkspaceOrchestrator {
 
     runInAction(() => {
       this.fileContext = nextFileContext;
+      // Seed the workspace persona for the incoming file's content family so
+      // auto-detection and per-family localStorage preferences apply immediately.
       const initialSegment =
         (initialSegmentKeyOrId
           ? (normalizedNext.segments?.find(
-              (s) => s.id === initialSegmentKeyOrId || s.key === initialSegmentKeyOrId,
+              (segment) =>
+                segment.id === initialSegmentKeyOrId || segment.key === initialSegmentKeyOrId,
             ) ??
             normalizedNext.queueSegments?.find(
-              (s) => s.id === initialSegmentKeyOrId || s.key === initialSegmentKeyOrId,
+              (segment) =>
+                segment.id === initialSegmentKeyOrId || segment.key === initialSegmentKeyOrId,
             ))
-          : null) ??
+          : undefined) ??
         normalizedNext.segments?.[0] ??
         normalizedNext.queueSegments?.[0];
-
       const initialFamily =
-        nextFileContext.sourcePath === "*" && initialSegment
+        nextFileContext.sourcePath === "*"
           ? resolveCatFileViewCapabilities({
               sourcePath:
-                initialSegment.sourcePath ??
+                initialSegment?.sourcePath ??
                 (initialSegment as { filePath?: string } | undefined)?.filePath,
-              contentKind: initialSegment.contentKind,
+              contentKind: initialSegment?.contentKind,
             }).family
           : resolveCatFileViewCapabilities({ sourcePath: nextFileContext.sourcePath }).family;
-
-      // Seed the workspace persona for the incoming file's content family so
-      // auto-detection and per-family localStorage preferences apply immediately.
       this.ui.applyFileFamily(initialFamily);
       this.jobTitle = normalizedNext.jobTitle;
       this.breadcrumbs = normalizedNext.breadcrumbs;

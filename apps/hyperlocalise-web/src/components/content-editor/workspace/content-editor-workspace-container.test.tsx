@@ -557,7 +557,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     });
   });
 
-  it("renders Designer mode badge and persona switcher in file view when adaptiveWorkspaceEnabled is true", async () => {
+  it("renders Designer mode badge in file view when adaptiveWorkspaceEnabled is true", async () => {
     renderCatWorkspace(
       <>
         <ContentEditorQueueToolbarHost />
@@ -575,9 +575,9 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       expect(workspace).toHaveAttribute("data-workspace-persona", "designer");
     });
 
-    // Persona switcher and Designer badge should be visible
-    expect(screen.getByRole("button", { name: "Workspace mode" })).toBeInTheDocument();
-    expect(screen.getAllByText("Designer").length).toBeGreaterThanOrEqual(2);
+    // Designer badge should be visible, and persona switcher is omitted for file assets
+    expect(screen.queryByRole("button", { name: "Workspace mode" })).not.toBeInTheDocument();
+    expect(screen.getByText("Designer")).toBeInTheDocument();
   });
 
   it("opens the AI Context drawer in file view when the AI Context button is clicked", async () => {
@@ -734,47 +734,27 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     expect(checkbox.checked).toBe(true);
   });
 
-  it("allows selecting Translator on image file without reverting to Designer", async () => {
-    const user = userEvent.setup();
-    const state = createCatImageFileWorkspaceState();
-
+  it("omits the persona switcher for image files even when adaptiveWorkspaceEnabled is true", async () => {
     renderCatWorkspace(
-      <>
-        <ContentEditorQueueToolbarHost />
-        <ContentEditorWorkspaceContainer
-          initialState={state}
-          initialViewMode="file"
-          adaptiveWorkspaceEnabled
-        />
-      </>,
+      <ContentEditorWorkspaceContainer
+        initialState={createCatImageFileWorkspaceState()}
+        adaptiveWorkspaceEnabled
+        editing={{
+          onRegenerateImage: vi.fn(),
+          onUploadImage: vi.fn(),
+        }}
+      />,
     );
 
-    // Initial persona is Designer
-    await waitFor(() => {
-      const workspace = document.querySelector("[data-workspace-persona]");
-      expect(workspace).toHaveAttribute("data-workspace-persona", "designer");
-    });
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /Localised · vi/i })).toBeInTheDocument(),
+    );
 
-    // Open persona switcher
-    const switcher = screen.getByRole("button", { name: "Workspace mode" });
-    await user.click(switcher);
-
-    // Select Translator
-    const translatorOption = await screen.findByRole("menuitemradio", { name: "Translator" });
-    await user.click(translatorOption);
-
-    // Persona updates to translator and does not revert to designer
-    await waitFor(() => {
-      const workspace = document.querySelector("[data-workspace-persona]");
-      expect(workspace).toHaveAttribute("data-workspace-persona", "translator");
-    });
-
-    // Designer badge is no longer rendered in the workspace
-    const workspace = document.querySelector<HTMLElement>("[data-workspace-persona]")!;
-    expect(within(workspace).queryByText("Designer")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Workspace mode" })).not.toBeInTheDocument();
   });
 
   it("scrolls to translation memory in translator persona when adaptive workspace is enabled", async () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
     const scrollIntoViewMock = vi.fn();
     window.Element.prototype.scrollIntoView = scrollIntoViewMock;
     Element.prototype.scrollIntoView = scrollIntoViewMock;
@@ -807,8 +787,13 @@ describe("ContentEditorWorkspaceContainer UI", () => {
         });
       });
     } finally {
-      delete (window.HTMLElement.prototype as unknown as { scrollIntoView?: unknown })
-        .scrollIntoView;
+      if (originalDescriptor) {
+        Object.defineProperty(Element.prototype, "scrollIntoView", originalDescriptor);
+        Object.defineProperty(window.Element.prototype, "scrollIntoView", originalDescriptor);
+      } else {
+        delete (Element.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView;
+        delete (window.Element.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView;
+      }
     }
   });
 });

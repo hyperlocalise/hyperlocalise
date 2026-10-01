@@ -107,7 +107,7 @@ export class ContentEditorWorkspaceUiStore {
 
   setViewMode(mode: ContentEditorWorkspaceViewMode) {
     this.viewMode = mode;
-    if (this.#persistViewMode) {
+    if (this.#persistViewMode && !this.adaptiveWorkspaceEnabled) {
       writeCatWorkspaceViewMode(mode);
     }
     if (mode !== "side-by-side") {
@@ -128,9 +128,7 @@ export class ContentEditorWorkspaceUiStore {
               ? null
               : "translator"
             : mode === "file"
-              ? isDesignerFamily
-                ? (this.workspacePersona ?? "designer")
-                : "designer"
+              ? "designer"
               : null;
       if (targetPersona && this.workspacePersona !== targetPersona) {
         this.workspacePersona = targetPersona;
@@ -141,14 +139,6 @@ export class ContentEditorWorkspaceUiStore {
 
   #applyPersonaLayout(persona: ContentEditorWorkspacePersona) {
     if (!this.#persistViewMode) {
-      return;
-    }
-    const isDesignerFamily = Boolean(
-      this.#currentFileFamily &&
-      DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never),
-    );
-    if (isDesignerFamily) {
-      this.setViewMode("file");
       return;
     }
     if (persona === "designer") {
@@ -166,7 +156,7 @@ export class ContentEditorWorkspaceUiStore {
    * family, falling back to the auto-detected default.
    */
   applyFileFamily(fileFamily: string) {
-    if (this.#currentFileFamily === fileFamily && this.workspacePersona !== null) {
+    if (this.#currentFileFamily === fileFamily) {
       return;
     }
 

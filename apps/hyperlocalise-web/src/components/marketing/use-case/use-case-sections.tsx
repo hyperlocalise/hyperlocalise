@@ -25,8 +25,8 @@ function UseCaseMessage({ messageKey }: { messageKey: UseCaseMessageKey }) {
   return <FormattedMessage {...useCasePageMessages[messageKey]} />;
 }
 
-function formatStepLabel(index: number, offset = 0) {
-  return `0${index + 1 + offset}`;
+function formatStepLabel(index: number) {
+  return `0${index + 1}`;
 }
 
 type UseCaseHeroProps = {
@@ -187,7 +187,7 @@ export function UseCaseCapabilitiesSection({ content }: UseCaseCapabilitiesSecti
           {content.items.slice(4).map((item, index) => (
             <article key={item.titleKey} className="border-t border-border pt-5">
               <div className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
-                {formatStepLabel(index, 4)}
+                {formatStepLabel(index)}
               </div>
               <TypographyH3 className="mt-3 tracking-[-0.03em]" size="xlarge" weight="medium">
                 <UseCaseMessage messageKey={item.titleKey} />

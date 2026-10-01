@@ -129,6 +129,13 @@ export function executeLogicVisualWorkflowNode(input: {
           exhausted: false,
         },
       };
+    case "logic.sequence":
+      return {
+        ok: true,
+        output: {
+          dispatchedOutputIds: node.config.outputs.map((output) => output.id),
+        },
+      };
     default:
       return {
         ok: false,

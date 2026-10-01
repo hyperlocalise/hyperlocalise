@@ -757,6 +757,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
         <ContentEditorIntelligencePanel
           intelligence={selectedSegmentIntelligence}
           segmentId={editorSegment.id}
+          segmentKey={editorSegment.key}
           sourceText={editorSegment.sourceText}
           targetText={editorSegment.targetText}
           sourceLocale={editorSegment.sourceLocale}

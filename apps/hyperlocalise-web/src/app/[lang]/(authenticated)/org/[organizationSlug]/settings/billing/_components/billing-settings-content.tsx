@@ -80,11 +80,7 @@ function BillingSettingsHeader() {
   const intl = useIntl();
 
   return (
-    <SettingsPageHeader
-      eyebrow={intl.formatMessage(billingSettingsContentMessages.pageLabel)}
-      title={intl.formatMessage(billingSettingsContentMessages.pageTitle)}
-      description={intl.formatMessage(billingSettingsContentMessages.pageDescription)}
-    />
+    <SettingsPageHeader title={intl.formatMessage(billingSettingsContentMessages.pageTitle)} />
   );
 }
 

@@ -17,10 +17,12 @@ import type { HomepageFaqItem } from "@/components/marketing/homepage-faq-conten
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
 import { PricingAiFeaturesSection } from "./pricing-ai-features-section";
+import { PricingModelsSection } from "./pricing-models-section";
 import { PricingComparisonMatrix } from "./pricing-comparison-matrix";
 import {
   getPricingAiFeatures,
   getPricingMatrixSections,
+  getPricingModelsSectionContent,
   getPricingPageCopy,
   getPricingPlans,
 } from "./pricing-page-content";
@@ -37,6 +39,7 @@ export function PricingPage({ locale, faqItems }: PricingPageProps) {
   const plans = getPricingPlans(locale);
   const matrixSections = getPricingMatrixSections(locale);
   const aiFeatures = getPricingAiFeatures(locale);
+  const modelsSection = getPricingModelsSectionContent(locale);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -64,6 +67,12 @@ export function PricingPage({ locale, faqItems }: PricingPageProps) {
               includedAriaLabel={copy.includedAriaLabel}
               notIncludedAriaLabel={copy.notIncludedAriaLabel}
             />
+          </div>
+        </section>
+
+        <section className="border-t border-border scroll-mt-24">
+          <div className="px-5 py-20 sm:px-8 sm:py-24 lg:px-10">
+            <PricingModelsSection {...modelsSection} />
           </div>
         </section>
 

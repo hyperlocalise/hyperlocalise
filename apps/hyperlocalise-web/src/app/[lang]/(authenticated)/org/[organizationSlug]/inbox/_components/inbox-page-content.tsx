@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo } from "react";
 import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 import { useIntl } from "react-intl";
@@ -24,9 +24,10 @@ import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stre
 import { isInboxNewRequestPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { createInboxApi, type ChatComposerSendOptions, type InboxApi } from "./inbox-api";
+import { InboxPageStoreProvider, useInboxPageStore } from "../store/inbox-page-store-context";
 import { conversationPanelMessages } from "./conversation-panel.messages";
-import { resolveInboxSelection, type InboxSelection } from "./inbox-list";
+import { createInboxApi, type ChatComposerSendOptions, type InboxApi } from "./inbox-api";
+import { inboxSelectionsEqual, resolveInboxSelection, type InboxSelection } from "./inbox-list";
 import {
   createInboxNotificationsApi,
   notificationsQueryKey,
@@ -57,7 +58,7 @@ function notificationDetailQueryKey(organizationSlug: string, notificationId: st
   return ["issue-notification", organizationSlug, notificationId] as const;
 }
 
-export const InboxPageContent = observer(function InboxPageContent({
+export function InboxPageContent({
   currentUser,
   organizationSlug,
   canDeleteQueries = false,
@@ -70,15 +71,41 @@ export const InboxPageContent = observer(function InboxPageContent({
   inboxApi?: InboxApi;
   notificationsApi?: InboxNotificationsApi;
 }) {
+  return (
+    <InboxPageStoreProvider organizationSlug={organizationSlug}>
+      <InboxPageContentObserver
+        currentUser={currentUser}
+        organizationSlug={organizationSlug}
+        canDeleteQueries={canDeleteQueries}
+        inboxApi={injectedInboxApi}
+        notificationsApi={injectedNotificationsApi}
+      />
+    </InboxPageStoreProvider>
+  );
+}
+
+const InboxPageContentObserver = observer(function InboxPageContentObserver({
+  currentUser,
+  organizationSlug,
+  canDeleteQueries,
+  inboxApi: injectedInboxApi,
+  notificationsApi: injectedNotificationsApi,
+}: {
+  currentUser: InboxCurrentUser;
+  organizationSlug: string;
+  canDeleteQueries: boolean;
+  inboxApi: InboxApi;
+  notificationsApi: InboxNotificationsApi;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const store = useInboxPageStore();
   const urlConversationId = params?.conversationId as string | undefined;
   const urlNotificationId = params?.notificationId as string | undefined;
   const composeNew = isInboxNewRequestPath(pathname);
-  const [composeDraft, setComposeDraft] = useState("");
   const { chatDock } = useAppShellStore();
   const streamManager = getChatStreamManager(organizationSlug, chatDock);
 
@@ -116,7 +143,7 @@ export const InboxPageContent = observer(function InboxPageContent({
   );
   const notificationsTotal = notificationsQuery.data?.pages[0]?.total ?? notifications.length;
 
-  const selection: InboxSelection = useMemo(
+  const urlSelection: InboxSelection = useMemo(
     () =>
       resolveInboxSelection({
         composeNew,
@@ -127,6 +154,24 @@ export const InboxPageContent = observer(function InboxPageContent({
       }),
     [composeNew, conversations, notifications, urlConversationId, urlNotificationId],
   );
+  const selection = store.pendingSelection ?? urlSelection;
+
+  useEffect(() => {
+    if (
+      store.pendingSelection !== undefined &&
+      inboxSelectionsEqual(store.pendingSelection, urlSelection)
+    ) {
+      store.clearPendingSelection();
+    }
+  }, [store, store.pendingSelection, urlSelection]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      store.clearPendingSelection();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [store]);
 
   const selectedConversationId = selection?.kind === "conversation" ? selection.id : "";
   const selectedNotificationId = selection?.kind === "notification" ? selection.id : "";
@@ -236,14 +281,17 @@ export const InboxPageContent = observer(function InboxPageContent({
   const createConversationAsync = createConversationMutation.mutateAsync;
   const onSendMessage = useCallback(
     async (text: string, files: File[], options?: ChatComposerSendOptions) => {
-      if (composeNew) {
+      if (selection?.kind === "new") {
         try {
           const result = await createConversationAsync({ text, files, ...options });
-          setComposeDraft("");
+          store.resetComposeDraft();
           await queryClient.invalidateQueries({
             queryKey: conversationsQueryKey(organizationSlug),
           });
-          router.push(`/org/${organizationSlug}/inbox/${result.conversation.id}`);
+          store.setPendingSelection({ kind: "conversation", id: result.conversation.id });
+          startTransition(() => {
+            router.push(`/org/${organizationSlug}/inbox/${result.conversation.id}`);
+          });
         } catch (error) {
           toast.error(intl.formatMessage(conversationPanelMessages.createFailed));
           throw error;
@@ -253,30 +301,48 @@ export const InboxPageContent = observer(function InboxPageContent({
 
       await mutateAsync({ text, files, ...options });
     },
-    [composeNew, createConversationAsync, intl, mutateAsync, organizationSlug, queryClient, router],
+    [
+      createConversationAsync,
+      intl,
+      mutateAsync,
+      organizationSlug,
+      queryClient,
+      router,
+      selection,
+      store,
+    ],
   );
 
   const onSelectConversation = useCallback(
     (conversationId: string) => {
-      router.push(`/org/${organizationSlug}/inbox/${conversationId}`);
+      store.setPendingSelection({ kind: "conversation", id: conversationId });
+      startTransition(() => {
+        router.push(`/org/${organizationSlug}/inbox/${conversationId}`);
+      });
     },
-    [router, organizationSlug],
+    [router, organizationSlug, store],
   );
 
   const onSelectNotification = useCallback(
     (notificationId: string) => {
-      router.push(`/org/${organizationSlug}/inbox/notifications/${notificationId}`);
+      store.setPendingSelection({ kind: "notification", id: notificationId });
+      startTransition(() => {
+        router.push(`/org/${organizationSlug}/inbox/notifications/${notificationId}`);
+      });
       const notification = notifications.find((item) => item.id === notificationId);
       if (notification && !notification.readAt) {
         markReadMutation.mutate(notificationId);
       }
     },
-    [router, organizationSlug, notifications, markReadMutation],
+    [router, organizationSlug, notifications, markReadMutation, store],
   );
 
   const onDeletedQuery = useCallback(() => {
-    router.push(`/org/${organizationSlug}/inbox`);
-  }, [router, organizationSlug]);
+    store.clearPendingSelection();
+    startTransition(() => {
+      router.push(`/org/${organizationSlug}/inbox`);
+    });
+  }, [router, organizationSlug, store]);
 
   const onMarkAllRead = useCallback(() => {
     markAllReadMutation.mutate();
@@ -339,7 +405,8 @@ export const InboxPageContent = observer(function InboxPageContent({
       conversationsIsError={conversationsQuery.isError}
       conversationsIsLoading={conversationsQuery.isLoading}
       currentUser={currentUser}
-      draft={composeDraft}
+      draft={store.composeDraft}
+      filters={store.filters}
       hasMoreNotifications={hasMoreNotifications}
       isLoadingMoreNotifications={notificationsQuery.isFetchingNextPage}
       isSending={sendMessageMutation.isPending || createConversationMutation.isPending}
@@ -352,7 +419,8 @@ export const InboxPageContent = observer(function InboxPageContent({
       notifications={notifications}
       notificationsIsError={notificationsQuery.isError}
       notificationsIsLoading={notificationsQuery.isLoading}
-      onDraftChange={setComposeDraft}
+      onDraftChange={(draft) => store.setComposeDraft(draft)}
+      onFiltersChange={(nextFilters) => store.setFilters(nextFilters)}
       onLoadMoreNotifications={onLoadMoreNotifications}
       onMarkAllRead={onMarkAllRead}
       onSelectConversation={onSelectConversation}

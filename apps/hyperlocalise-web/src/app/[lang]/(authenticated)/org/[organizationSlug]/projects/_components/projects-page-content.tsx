@@ -379,10 +379,6 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     createProject.mutate(values);
   }
 
-  const pageDescription = hasTmsConnection
-    ? intl.formatMessage(projectsPageContentMessages.pageDescriptionWithTms)
-    : intl.formatMessage(projectsPageContentMessages.pageDescriptionWithoutTms);
-
   const createProjectAction =
     hasTmsPrimaryWorkflow && nativeProjects.length === 0 ? (
       <Button
@@ -468,12 +464,11 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     ) : null;
 
   return (
-    <WorkspacePageShell className="min-w-0 p-4 md:px-8 md:pt-6 md:pb-8 [&>section:first-child]:md:items-start">
+    <WorkspacePageShell className="min-w-0">
       <PageHeader
         icon={GridViewIcon}
         label={intl.formatMessage(projectsPageContentMessages.pageLabel)}
         title={intl.formatMessage(projectsPageContentMessages.pageTitle)}
-        description={pageDescription}
         actions={createProjectAction}
       />
 

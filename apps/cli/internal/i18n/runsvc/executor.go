@@ -55,6 +55,9 @@ type stagedOutput struct {
 	parserMode   string
 	binary       []byte
 	binaryOutput bool
+	// replaceCatalog writes the staged key set as the whole catalog, dropping
+	// destination-only keys instead of merging them.
+	replaceCatalog bool
 }
 
 type executorState struct {

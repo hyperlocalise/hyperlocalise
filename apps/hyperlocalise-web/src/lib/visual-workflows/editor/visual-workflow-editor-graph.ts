@@ -41,13 +41,15 @@ export function replaceVisualWorkflowNodeType(
     return node;
   }
 
+  const config = createDefaultConfig(nextType);
+
   return {
     ...node,
     type: nextType,
-    ...getVisualNodeDimensions(nextType),
+    ...getVisualNodeDimensions(nextType, config),
     data: {
       catalogType: nextType,
-      config: createDefaultConfig(nextType),
+      config,
       runStatus: "idle",
       lastOutput: null,
       lastError: null,
@@ -151,6 +153,32 @@ function reconcileBodyMembershipForType(
   return changed ? next : (nodes as VisualWorkflowRfNode[]);
 }
 
+function collectRemovedSequenceOutputIds(
+  currentOutputs: readonly { id: string }[],
+  nextOutputs: readonly { id: string }[],
+): Set<string> {
+  const nextIds = new Set(nextOutputs.map((output) => output.id));
+
+  return new Set(
+    currentOutputs.map((output) => output.id).filter((outputId) => !nextIds.has(outputId)),
+  );
+}
+
+function pruneSequenceOutputEdges(
+  edges: readonly VisualWorkflowRfEdge[],
+  nodeId: string,
+  removedOutputIds: ReadonlySet<string>,
+): VisualWorkflowRfEdge[] {
+  if (removedOutputIds.size === 0) {
+    return [...edges];
+  }
+
+  return edges.filter(
+    (edge) =>
+      edge.source !== nodeId || !edge.sourceHandle || !removedOutputIds.has(edge.sourceHandle),
+  );
+}
+
 export function reconcileForEachBodyMembership(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
@@ -180,7 +208,13 @@ export function applyNodeConfigUpdate(
 ): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
   const current = nodes.find((node) => node.id === nodeId);
   const nextNodes = nodes.map((node) =>
-    node.id === nodeId ? { ...node, data: { ...node.data, config: nextConfig } } : node,
+    node.id === nodeId
+      ? {
+          ...node,
+          ...getVisualNodeDimensions(node.data.catalogType, nextConfig),
+          data: { ...node.data, config: nextConfig },
+        }
+      : node,
   );
   if (current?.data.config.kind === "logic.switch" && nextConfig.kind === "logic.switch") {
     return {
@@ -200,6 +234,17 @@ export function applyNodeConfigUpdate(
         nodeId,
         collectRemovedMergeInputIds(current.data.config.inputs, nextConfig.inputs),
       ),
+    };
+  }
+  if (current?.data.config.kind === "logic.sequence" && nextConfig.kind === "logic.sequence") {
+    const removedOutputIds = collectRemovedSequenceOutputIds(
+      current.data.config.outputs,
+      nextConfig.outputs,
+    );
+
+    return {
+      nodes: nextNodes,
+      edges: pruneSequenceOutputEdges(edges, nodeId, removedOutputIds),
     };
   }
   return { nodes: nextNodes, edges: [...edges] };

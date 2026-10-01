@@ -147,11 +147,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
       <Rows spacing="4u">
         <Row spacing="2u" align="spaceBetween" alignY="start">
           <div className="min-w-0 flex-1">
-            <SettingsPageHeader
-              eyebrow={intl.formatMessage(apiKeysPageContentMessages.pageLabel)}
-              title={intl.formatMessage(apiKeysPageContentMessages.pageTitle)}
-              description={intl.formatMessage(apiKeysPageContentMessages.pageDescription)}
-            />
+            <SettingsPageHeader title={intl.formatMessage(apiKeysPageContentMessages.pageTitle)} />
           </div>
           <Button
             type="button"

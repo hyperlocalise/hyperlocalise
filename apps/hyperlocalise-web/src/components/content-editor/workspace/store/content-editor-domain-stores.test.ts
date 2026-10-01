@@ -534,30 +534,111 @@ describe("ContentEditorWorkspaceUiStore", () => {
       ui.applyFileFamily("text");
       ui.setWorkspacePersona("reviewer", "text");
       expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.viewMode).toBe("side-by-side");
       expect(store.get("content-editor-workspace-persona:v1:text")).toBe("reviewer");
 
       // Switch to image family
       ui.applyFileFamily("image");
       // Image has no saved preference yet, defaults to designer
       expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
 
-      // Save translator for image family
-      ui.setWorkspacePersona("translator", "image");
-      expect(ui.workspacePersona).toBe("translator");
-      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("translator");
+      // Save designer for image family
+      ui.setWorkspacePersona("designer", "image");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
 
       // Text preference should still be reviewer
       expect(store.get("content-editor-workspace-persona:v1:text")).toBe("reviewer");
 
-      // Switch back to text family
+      // Switch back to text family: restores reviewer persona and side-by-side view
       ui.applyFileFamily("text");
       expect(ui.workspacePersona).toBe("reviewer");
       expect(ui.resolvedPersona).toBe("reviewer");
+      expect(ui.viewMode).toBe("side-by-side");
 
-      // Switch back to image family
+      // Switch back to image family: restores designer persona and file view
       ui.applyFileFamily("image");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("restores saved translator preference when switching from an image file back to a text file", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => store.get(key) ?? null),
+        setItem: vi.fn((key: string, val: string) => store.set(key, val)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+
+      // Start on text family and save translator
+      ui.applyFileFamily("text");
+      ui.setWorkspacePersona("translator", "text");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(ui.viewMode).toBe("comfortable");
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("translator");
+
+      // Switch to image family (layout becomes file view, persona becomes designer)
+      ui.applyFileFamily("image");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+
+      // Switch back to text family: restores saved translator persona and comfortable view
+      ui.applyFileFamily("text");
       expect(ui.workspacePersona).toBe("translator");
       expect(ui.resolvedPersona).toBe("translator");
+      expect(ui.viewMode).toBe("comfortable");
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("translator");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("preserves legacy view-mode preference in localStorage when adaptive mode is enabled", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => {
+          if (key === "content-editor-workspace-view-mode:v1") return "side-by-side";
+          return null;
+        }),
+        setItem,
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("text");
+
+      // Default persona is translator, layout becomes comfortable
+      expect(ui.viewMode).toBe("comfortable");
+      expect(ui.resolvedPersona).toBe("translator");
+
+      // writeCatWorkspaceViewMode should NOT have been called with "comfortable"
+      expect(setItem).not.toHaveBeenCalledWith(
+        "content-editor-workspace-view-mode:v1",
+        "comfortable",
+      );
+
+      // Switching persona to reviewer should also not overwrite the legacy view-mode key
+      ui.setWorkspacePersona("reviewer", "text");
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(setItem).not.toHaveBeenCalledWith(
+        "content-editor-workspace-view-mode:v1",
+        "side-by-side",
+      );
     } finally {
       vi.unstubAllGlobals();
     }

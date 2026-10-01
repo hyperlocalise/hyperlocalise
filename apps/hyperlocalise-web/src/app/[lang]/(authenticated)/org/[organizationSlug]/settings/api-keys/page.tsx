@@ -13,7 +13,6 @@
 import { requireAppCapability } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 import { ApiKeySettingsPageContent } from "../_components/api-keys-page-content";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "settingsApiKeys");
@@ -24,11 +23,7 @@ export default function ApiKeySettingsPage({
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ApiKeySettingsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ApiKeySettingsPageLoader params={params} />;
 }
 
 async function ApiKeySettingsPageLoader({

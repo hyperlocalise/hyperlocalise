@@ -71,6 +71,7 @@ import {
   setCatGlossaryGuidanceStatus,
 } from "./content-editor-glossary-guidance-event";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
+import { ContentEditorLottieContextPanel } from "./content-editor-lottie-context-panel";
 import { ContentEditorVisualContextPanel } from "./content-editor-visual-context-panel";
 
 function PanelSection({
@@ -227,6 +228,7 @@ function TranslationMemoryRow({
 export function ContentEditorIntelligencePanel({
   intelligence,
   segmentId,
+  segmentKey,
   sourceText = "",
   targetText = "",
   sourceLocale,
@@ -257,6 +259,7 @@ export function ContentEditorIntelligencePanel({
 }: {
   intelligence: ContentEditorSegmentIntelligence;
   segmentId?: string;
+  segmentKey?: string;
   sourceText?: string;
   targetText?: string;
   sourceLocale?: string;
@@ -532,6 +535,8 @@ export function ContentEditorIntelligencePanel({
             isLoading={isVisualContextLoading}
             showPanel={showVisualContext}
           />
+
+          <ContentEditorLottieContextPanel activeSegmentKey={segmentKey} />
 
           {showMaxLengthEditor ? (
             <PanelSection

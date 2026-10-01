@@ -20,18 +20,6 @@ export const projectFilesPageContentMessages = defineMessages({
     id: "kvA8//3BBl",
     description: "Section title for the project files page",
   },
-  descriptionProvider: {
-    defaultMessage:
-      "Browse source files from the connected TMS provider, then open one in the Content Editor when it is supported.",
-    id: "ElqTdiMapl",
-    description: "Project files page description for provider-backed projects",
-  },
-  descriptionNative: {
-    defaultMessage:
-      "Upload source files, then open one in the Content Editor to review and edit translations.",
-    id: "uhtYKc3fnS",
-    description: "Project files page description for native Hyperlocalise projects",
-  },
   addFiles: {
     defaultMessage: "Add files",
     id: "Zh1+GZ3Hje",

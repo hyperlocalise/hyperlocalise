@@ -12,7 +12,6 @@
  */
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { JobsPageContent } from "./_components/jobs-page-content";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
@@ -20,11 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
 }
 
 export default function JobsPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
-  return (
-    <OrgPageSuspense>
-      <JobsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <JobsPageLoader params={params} />;
 }
 
 async function JobsPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {

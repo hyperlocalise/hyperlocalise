@@ -43,7 +43,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
-import { createMergeInputId, isTriggerType } from "@/lib/visual-workflows/catalog/node-catalog";
+import {
+  createMergeInputId,
+  createSequenceOutputId,
+  isTriggerType,
+} from "@/lib/visual-workflows/catalog/node-catalog";
 import { createSwitchCaseId } from "@/lib/visual-workflows/schema/switch-cases";
 import {
   isVisualTriggerCatalogType,
@@ -553,6 +557,131 @@ export function VisualWorkflowConfigPanel({
               }
             />
           </>
+        ) : null}
+        {config.kind === "logic.sequence" ? (
+          <div className="grid gap-2">
+            <Label>
+              <FormattedMessage {...messages.sequenceOutputs} />
+            </Label>
+
+            {config.outputs.length === 0 ? (
+              <TypographyP className="text-sm text-muted-foreground">
+                <FormattedMessage {...messages.sequenceOutputsEmpty} />
+              </TypographyP>
+            ) : null}
+
+            {config.outputs.map((output, index) => (
+              <div key={output.id} className="flex items-center gap-2">
+                <Input
+                  aria-label={intl.formatMessage(messages.sequenceOutputLabel, {
+                    index: index + 1,
+                  })}
+                  value={output.label}
+                  placeholder={intl.formatMessage(messages.sequenceOutputLabel, {
+                    index: index + 1,
+                  })}
+                  onChange={(event) => {
+                    const outputs = config.outputs.map((entry, outputIndex) =>
+                      outputIndex === index
+                        ? {
+                            ...entry,
+                            label: event.target.value,
+                          }
+                        : entry,
+                    );
+
+                    onChangeConfig({
+                      ...config,
+                      outputs,
+                    });
+                  }}
+                />
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={index === 0}
+                  aria-label={intl.formatMessage(messages.moveSequenceOutputUp, {
+                    index: index + 1,
+                  })}
+                  onClick={() => {
+                    const outputs = [...config.outputs];
+
+                    [outputs[index - 1], outputs[index]] = [outputs[index]!, outputs[index - 1]!];
+
+                    onChangeConfig({
+                      ...config,
+                      outputs,
+                    });
+                  }}
+                >
+                  <HugeiconsIcon icon={ArrowUp01Icon} className="size-4" strokeWidth={2} />
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={index === config.outputs.length - 1}
+                  aria-label={intl.formatMessage(messages.moveSequenceOutputDown, {
+                    index: index + 1,
+                  })}
+                  onClick={() => {
+                    const outputs = [...config.outputs];
+
+                    [outputs[index], outputs[index + 1]] = [outputs[index + 1]!, outputs[index]!];
+
+                    onChangeConfig({
+                      ...config,
+                      outputs,
+                    });
+                  }}
+                >
+                  <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" strokeWidth={2} />
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={intl.formatMessage(messages.removeSequenceOutput, {
+                    index: index + 1,
+                  })}
+                  onClick={() =>
+                    onChangeConfig({
+                      ...config,
+                      outputs: config.outputs.filter((_, outputIndex) => outputIndex !== index),
+                    })
+                  }
+                >
+                  <HugeiconsIcon icon={Delete02Icon} className="size-4" strokeWidth={2} />
+                </Button>
+              </div>
+            ))}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={config.outputs.length >= 32}
+              onClick={() =>
+                onChangeConfig({
+                  ...config,
+                  outputs: [
+                    ...config.outputs,
+                    {
+                      id: createSequenceOutputId(),
+                      label: `Output ${config.outputs.length + 1}`,
+                    },
+                  ],
+                })
+              }
+            >
+              <HugeiconsIcon icon={PlusSignIcon} className="size-4" strokeWidth={2} />
+              <FormattedMessage {...messages.addSequenceOutput} />
+            </Button>
+          </div>
         ) : null}
         {config.kind === "logic.set" ? (
           <KeyValueEditor

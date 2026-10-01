@@ -13,9 +13,20 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { buildPricingFaqJsonLd, getPricingFaqItems } from "./pricing-faq-content";
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
+import {
+  hyperlocaliseImageModelId,
+  hyperlocaliseTranscribeModelId,
+  hyperlocaliseTtsModelId,
+  hyperlocaliseVideoModelId,
+} from "@/lib/providers/managed-model-ids";
+import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
+import { curatedOpenAiNativeModels } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
+
 import {
   getPricingAiFeatures,
   getPricingMatrixSections,
+  getPricingModelsSectionContent,
   getPricingPlans,
   pricingPlanOrder,
 } from "./pricing-page-content";
@@ -100,6 +111,65 @@ describe("pricing page content", () => {
         expect(row.cells[planId]).toBeTruthy();
       }
     }
+  });
+
+  it("describes included models and BYOK providers in plain language", () => {
+    const section = getPricingModelsSectionContent("en");
+    const catalog = section.models;
+
+    expect(section.heading).toBe("Models your team can use");
+    expect(section.footnote).toContain("AI Engine");
+    expect(catalog[0]?.name).toBe("GPT-6 Luna");
+    expect(catalog[0]?.highlight).toBe("Workspace default");
+    expect(catalog[0]?.story).toContain("monthly AI credit");
+
+    const includedOpenAi = catalog
+      .filter((model) => model.providerId === "openai" && model.job === "write")
+      .map((model) => model.modelId);
+    expect(new Set(includedOpenAi)).toEqual(
+      new Set(curatedOpenAiNativeModels.map((slug) => `openai/${slug}`)),
+    );
+    expect(includedOpenAi).toContain(`openai/${hyperlocaliseAgentModelId}`);
+
+    expect(catalog.find((model) => model.modelId === hyperlocaliseTtsModelId)?.name).toBe(
+      "Fish Audio",
+    );
+    expect(catalog.find((model) => model.modelId === hyperlocaliseTranscribeModelId)?.job).toBe(
+      "listen",
+    );
+    expect(catalog.find((model) => model.modelId === hyperlocaliseImageModelId)?.access).toBe(
+      "included",
+    );
+    expect(catalog.find((model) => model.modelId === hyperlocaliseVideoModelId)?.access).toBe(
+      "included",
+    );
+    expect(
+      new Set(
+        catalog.filter((model) => model.providerId === "anthropic").map((model) => model.modelId),
+      ),
+    ).toEqual(new Set(llmProviderContentEditoralog.anthropic.models));
+    expect(
+      new Set(
+        catalog
+          .filter((model) => model.providerId === "gemini" && model.access === "byok")
+          .map((model) => model.modelId),
+      ),
+    ).toEqual(new Set(llmProviderContentEditoralog.gemini.models));
+    expect(catalog.find((model) => model.modelId === "claude-sonnet-5")?.billingLabel).toBe(
+      "Your account",
+    );
+    expect(catalog.filter((model) => model.recommended).map((model) => model.name)).toEqual([
+      "GPT-6 Luna",
+      "GPT-6 Luna Fast",
+      "GPT-6.1 Sol",
+      "Claude Sonnet 5",
+      "Claude Opus 5.5",
+      "Gemini 3.8 Flash",
+      "Fish Audio",
+      "Gemini transcription",
+      "GPT Image",
+      "Seedance",
+    ]);
   });
 
   it("lists eight AI feature capabilities", () => {

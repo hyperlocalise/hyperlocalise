@@ -15,18 +15,18 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import type { ReactNode } from "react";
 
 import { GA_MEASUREMENT_ID } from "@/lib/analytics/google-analytics";
-import { DEFAULT_APP_LOCALE } from "@/lib/app-i18n/locales";
 
 import { rootHtmlClassName } from "./root-layout-fonts";
 import { RootLayoutProviders } from "./root-layout-providers";
 
 type RootHtmlProps = {
   children: ReactNode;
+  htmlLang: string;
 };
 
-export function RootHtml({ children }: RootHtmlProps) {
+export function RootHtml({ children, htmlLang }: RootHtmlProps) {
   return (
-    <html lang={DEFAULT_APP_LOCALE} className={rootHtmlClassName()} suppressHydrationWarning>
+    <html lang={htmlLang} className={rootHtmlClassName()} suppressHydrationWarning>
       <body>
         <Analytics />
         <RootLayoutProviders>{children}</RootLayoutProviders>

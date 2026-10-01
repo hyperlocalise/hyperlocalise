@@ -19,6 +19,7 @@ import { defineMessages, FormattedMessage, useIntl } from "react-intl";
 import { Card } from "@/components/ui/card";
 import {
   catalogItemByType,
+  getVisualNodeDimensions,
   isTriggerType,
   resolveNodeSubtitle,
   TRIGGER_BADGE_ICON,
@@ -155,7 +156,8 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
     data.catalogType !== "logic.for_each" &&
     data.catalogType !== "logic.retry" &&
     data.catalogType !== "flow.wait" &&
-    data.catalogType !== "logic.merge";
+    data.catalogType !== "logic.merge" &&
+    data.catalogType !== "logic.sequence";
   const title = intl.formatMessage(titleMessage(data.catalogType));
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
   const primaryHandle = getPrimaryExecutionSourceHandle({
@@ -195,10 +197,12 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       : [];
 
   const mergeInputs = data.config.kind === "logic.merge" ? data.config.inputs : [];
+  const sequenceOutputs = data.config.kind === "logic.sequence" ? data.config.outputs : [];
 
   return (
     <Card
       aria-busy={data.runStatus === "running"}
+      style={{ minHeight: getVisualNodeDimensions(data.catalogType, data.config).height }}
       className={cn(
         "relative w-[280px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
         selected ? "ring-2 ring-ring" : null,
@@ -237,8 +241,21 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           aria-label="Execution input"
         />
       )}
-
-      {isIf ? (
+      {data.config.kind === "logic.sequence" ? (
+        sequenceOutputs.map((output, index) => (
+          <Handle
+            aria-label={`Sequence output: ${output.label}`}
+            className={HANDLE_CLASS}
+            id={output.id}
+            key={output.id}
+            position={Position.Right}
+            style={{
+              top: `${((index + 1) / (sequenceOutputs.length + 1)) * 100}%`,
+            }}
+            type="source"
+          />
+        ))
+      ) : isIf ? (
         <>
           <Handle
             className={cn(HANDLE_CLASS, "top-[35%]!")}
@@ -548,6 +565,26 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </div>
       ) : null}
 
+      {data.config.kind === "logic.sequence" ? (
+        <div className="pointer-events-none absolute inset-y-0 right-[-7rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+          {sequenceOutputs.map((output) => (
+            <span key={output.id} className="flex items-center gap-1">
+              {output.label}
+              {data.hideAddAction || output.id === primaryHandle ? null : (
+                <VisualWorkflowQuickAddButton
+                  className="pointer-events-auto size-5"
+                  handleId={output.id}
+                  label={intl.formatMessage(messages.addNodeFromHandle, {
+                    handle: output.label,
+                  })}
+                  onAdd={addFromHandle}
+                />
+              )}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       {showErrorHandle &&
       !isIf &&
       !isSwitch &&
@@ -574,7 +611,8 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </div>
       ) : null}
 
-      {data.hideAddAction ? null : (
+      {data.hideAddAction ||
+      (data.config.kind === "logic.sequence" && sequenceOutputs.length === 0) ? null : (
         <VisualWorkflowQuickAddButton
           className={cn(
             "absolute -right-3 -translate-y-1/2",
@@ -627,5 +665,7 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeWait;
     case "logic.merge":
       return messages.nodeMerge;
+    case "logic.sequence":
+      return messages.nodeSequence;
   }
 }
