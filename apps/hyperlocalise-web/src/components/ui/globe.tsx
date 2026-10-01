@@ -32,20 +32,81 @@ const MARKERS = [
   { location: [26.8206, 30.8025] as [number, number], size: 0.03 }, // Egypt
 ];
 
+type Rgb = [number, number, number];
+
+type GlobeColors = {
+  dark: number;
+  diffuse: number;
+  mapBrightness: number;
+  baseColor: Rgb;
+  glowColor: Rgb;
+};
+
+const LIGHT_GLOBE_COLORS: GlobeColors = {
+  dark: 0,
+  diffuse: 1.5,
+  mapBrightness: 6,
+  baseColor: [1, 1, 1],
+  glowColor: [0.6, 0.7, 1],
+};
+
+const DARK_GLOBE_COLORS: GlobeColors = {
+  dark: 1,
+  diffuse: 1.2,
+  mapBrightness: 1.2,
+  baseColor: [0.3, 0.3, 0.3],
+  glowColor: [0.1, 0.3, 0.8],
+};
+
+/** Share of the remaining color distance covered per frame (visibly settles in ~300ms at 60fps). */
+const THEME_FADE_PER_FRAME = 0.15;
+
+/** Remaining fade share below which colors snap to the target (~0.7s at 60fps). */
+const THEME_FADE_DONE_THRESHOLD = 0.001;
+
+function fadeTowards(from: number, to: number) {
+  return from + (to - from) * THEME_FADE_PER_FRAME;
+}
+
+function fadeRgbTowards(from: Rgb, to: Rgb): Rgb {
+  return [fadeTowards(from[0], to[0]), fadeTowards(from[1], to[1]), fadeTowards(from[2], to[2])];
+}
+
+function fadeGlobeColors(from: GlobeColors, to: GlobeColors): GlobeColors {
+  return {
+    dark: fadeTowards(from.dark, to.dark),
+    diffuse: fadeTowards(from.diffuse, to.diffuse),
+    mapBrightness: fadeTowards(from.mapBrightness, to.mapBrightness),
+    baseColor: fadeRgbTowards(from.baseColor, to.baseColor),
+    glowColor: fadeRgbTowards(from.glowColor, to.glowColor),
+  };
+}
+
 export function Globe({ className }: { className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
+  const themeColors = resolvedTheme === "dark" ? DARK_GLOBE_COLORS : LIGHT_GLOBE_COLORS;
+  const targetColorsRef = useRef(themeColors);
 
   const pointerInteracting = useRef<number | null>(null);
   const pointerInteractionMovement = useRef(0);
   const phiRef = useRef(0);
+
+  // Theme changes retarget the running globe so it fades its own colors
+  // instead of being rebuilt with the new palette in a single frame.
+  useEffect(() => {
+    targetColorsRef.current = themeColors;
+  }, [themeColors]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     let animationFrame: number;
+    let colors = targetColorsRef.current;
+    let fadeTarget = colors;
+    let fadeRemaining = 0;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     const getSize = () => Math.max(canvas.offsetWidth, 1);
 
@@ -55,14 +116,10 @@ export function Globe({ className }: { className?: string }) {
       height: getSize() * 2,
       phi: 0,
       theta: 0.3,
-      dark: isDark ? 1 : 0,
-      diffuse: isDark ? 1.2 : 1.5,
       mapSamples: 16000,
-      mapBrightness: isDark ? 1.2 : 6,
-      baseColor: isDark ? [0.3, 0.3, 0.3] : [1, 1, 1],
       markerColor: [0.2, 0.4, 1],
-      glowColor: isDark ? [0.1, 0.3, 0.8] : [0.6, 0.7, 1],
       markers: MARKERS,
+      ...colors,
     });
 
     const animate = () => {
@@ -70,11 +127,29 @@ export function Globe({ className }: { className?: string }) {
         phiRef.current += 0.003;
       }
 
+      // Track fade progress separately from the palette values, so the fade
+      // still runs when a value happens to match across themes.
+      const target = targetColorsRef.current;
+      if (target !== fadeTarget) {
+        fadeTarget = target;
+        fadeRemaining = 1;
+      }
+
+      if (colors !== target) {
+        colors = fadeGlobeColors(colors, target);
+        fadeRemaining *= 1 - THEME_FADE_PER_FRAME;
+        // Reduced-motion users get the new palette at once, like the page's theme switch.
+        if (reducedMotion.matches || fadeRemaining < THEME_FADE_DONE_THRESHOLD) {
+          colors = target;
+        }
+      }
+
       const size = getSize();
       globe.update({
         phi: phiRef.current,
         width: size * 2,
         height: size * 2,
+        ...colors,
       });
 
       animationFrame = requestAnimationFrame(animate);
@@ -138,7 +213,7 @@ export function Globe({ className }: { className?: string }) {
       canvas.removeEventListener("touchend", onTouchEnd);
       canvas.removeEventListener("touchmove", onTouchMove);
     };
-  }, [isDark]);
+  }, []);
 
   return (
     <canvas

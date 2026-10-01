@@ -13,13 +13,14 @@
  * Version 2.0 or later.
  */
 import Image, { type ImageProps } from "next/image";
-import { useTheme } from "next-themes";
 
 import {
+  brandLogotypoDarkModeSvgSrc,
+  brandLogotypoLightModeSvgSrc,
   brandLogotypoSvgSrcForSurface,
-  brandLogotypoSvgSrcForTheme,
   type BrandLogomarkSurface,
 } from "@/lib/brand/brand-assets";
+import { cn } from "@/lib/primitives/cn";
 
 const LOGOTYPO_WIDTH = 1246;
 const LOGOTYPO_HEIGHT = 231;
@@ -35,12 +36,41 @@ export function BrandLogotypo({
   surface,
   width = LOGOTYPO_WIDTH,
   height = LOGOTYPO_HEIGHT,
+  className,
   ...props
 }: BrandLogotypoProps) {
-  const { resolvedTheme } = useTheme();
-  const src = surface
-    ? brandLogotypoSvgSrcForSurface(surface)
-    : brandLogotypoSvgSrcForTheme(resolvedTheme);
+  if (surface) {
+    return (
+      <Image
+        src={brandLogotypoSvgSrcForSurface(surface)}
+        width={width}
+        height={height}
+        className={className}
+        {...props}
+      />
+    );
+  }
 
-  return <Image src={src} width={width} height={height} {...props} />;
+  // Render both variants and let the `.dark` class pick one, so SSR markup matches every
+  // theme. Both load eagerly so a theme switch never shows a blank logotypo.
+  return (
+    <>
+      <Image
+        src={brandLogotypoLightModeSvgSrc}
+        width={width}
+        height={height}
+        loading="eager"
+        className={cn("dark:hidden", className)}
+        {...props}
+      />
+      <Image
+        src={brandLogotypoDarkModeSvgSrc}
+        width={width}
+        height={height}
+        loading="eager"
+        className={cn("not-dark:hidden", className)}
+        {...props}
+      />
+    </>
+  );
 }

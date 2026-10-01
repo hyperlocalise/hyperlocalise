@@ -860,6 +860,11 @@ html,
   animation: none;
 }
 
+/* Theme switches crossfade the whole page as one snapshot (see theme-toggle.tsx). */
+:root[data-theme-transition] * {
+  view-transition-name: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(*),
   ::view-transition-new(*),
