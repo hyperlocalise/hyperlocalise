@@ -66,6 +66,10 @@ import {
 
 export type { InboxIndexItem };
 
+export type InboxListItemSelection =
+  | { kind: "conversation"; id: string }
+  | { kind: "notification"; id: string };
+
 export type InboxSelection =
   | { kind: "conversation"; id: string }
   | { kind: "notification"; id: string }
@@ -364,8 +368,7 @@ export const InboxList = memo(function InboxList({
   onFiltersChange,
   onLoadMoreNotifications,
   onMarkAllRead,
-  onSelectConversation,
-  onSelectNotification,
+  onSelectItem,
   selection,
   unreadNotificationCount,
 }: {
@@ -380,8 +383,7 @@ export const InboxList = memo(function InboxList({
   onFiltersChange?: (filters: InboxListFilters) => void;
   onLoadMoreNotifications: () => void;
   onMarkAllRead?: () => void;
-  onSelectConversation: (conversationId: string) => void;
-  onSelectNotification: (notificationId: string) => void;
+  onSelectItem: (selection: InboxListItemSelection) => void;
   selection: InboxSelection;
   unreadNotificationCount: number;
 }) {
@@ -476,7 +478,7 @@ export const InboxList = memo(function InboxList({
                   isSelected={
                     selection?.kind === "conversation" && selection.id === item.conversation.id
                   }
-                  onSelect={onSelectConversation}
+                  onSelect={(id) => onSelectItem({ kind: "conversation", id })}
                 />
               ) : (
                 <NotificationListItem
@@ -485,7 +487,7 @@ export const InboxList = memo(function InboxList({
                   isSelected={
                     selection?.kind === "notification" && selection.id === item.notification.id
                   }
-                  onSelect={onSelectNotification}
+                  onSelect={(id) => onSelectItem({ kind: "notification", id })}
                 />
               ),
             )}
