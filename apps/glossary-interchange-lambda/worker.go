@@ -787,8 +787,10 @@ func decodeCSV(data []byte) ([]interchangeConcept, []string, error) {
 			order = append(order, id)
 		}
 		applyPresentConceptBool(&c.Translatable, &c.Present.Translatable, get(r, "translatable"), header, "translatable", true)
-		if len(c.Terms) == 0 {
+		if c.URL == "" {
 			applyPresentConceptString(&c.URL, &c.Present.URL, get(r, "concepturl"), header, "concepturl")
+		}
+		if c.Figure == "" {
 			applyPresentConceptString(&c.Figure, &c.Present.Figure, get(r, "figure"), header, "figure")
 		}
 		c.Terms = append(c.Terms, interchangeTerm{

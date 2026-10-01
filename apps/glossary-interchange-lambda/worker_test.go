@@ -143,6 +143,22 @@ func TestDecodeCSVKeepsConceptFieldsFromFirstTermRow(t *testing.T) {
 	require.True(t, concepts[0].Present.Figure)
 }
 
+func TestDecodeCSVKeepsLaterNonEmptyConceptFields(t *testing.T) {
+	csv := "conceptId,locale,term,conceptUrl,figure\n" +
+		"c1,en-US,Checkout,,\n" +
+		"c1,fr-FR,Payer,https://example.com/checkout,checkout.png\n"
+
+	concepts, diagnostics, err := decodeDocument("csv", []byte(csv))
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	require.Len(t, concepts, 1)
+	require.Len(t, concepts[0].Terms, 2)
+	require.Equal(t, "https://example.com/checkout", concepts[0].URL)
+	require.Equal(t, "checkout.png", concepts[0].Figure)
+	require.True(t, concepts[0].Present.URL)
+	require.True(t, concepts[0].Present.Figure)
+}
+
 func TestDecodeXLSXKeepsOmittedConceptFieldsUnset(t *testing.T) {
 	f := excelize.NewFile()
 	require.NoError(t, f.SetSheetName(f.GetSheetName(0), "Concepts"))
