@@ -600,4 +600,23 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       }
     }
   });
+
+  it("omits the persona switcher for image files even when adaptiveWorkspaceEnabled is true", async () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createCatImageFileWorkspaceState()}
+        adaptiveWorkspaceEnabled
+        editing={{
+          onRegenerateImage: vi.fn(),
+          onUploadImage: vi.fn(),
+        }}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /Localised · vi/i })).toBeInTheDocument(),
+    );
+
+    expect(screen.queryByRole("button", { name: "Workspace mode" })).not.toBeInTheDocument();
+  });
 });

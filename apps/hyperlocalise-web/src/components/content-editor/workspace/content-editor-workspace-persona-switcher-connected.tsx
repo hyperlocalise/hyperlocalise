@@ -31,7 +31,7 @@ import { DESIGNER_PERSONA_FILE_FAMILIES } from "./content-editor-workspace-perso
  */
 function availablePersonasForFamily(family: string): readonly ContentEditorWorkspacePersona[] {
   if (DESIGNER_PERSONA_FILE_FAMILIES.has(family as never)) {
-    return ["designer", "translator"];
+    return ["designer"];
   }
   return ["translator", "reviewer"];
 }

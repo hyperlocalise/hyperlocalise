@@ -45,20 +45,19 @@ export const ContentEditorWorkspaceViewModeSync = observer(
         () => {
           const selected = store.selectedSegmentView;
           return {
-            viewMode: store.ui.viewMode,
             sourcePath: selected?.sourcePath ?? store.fileContext.sourcePath,
             contentKind: selected?.contentKind,
             multilingualViewAvailable: store.ui.multilingualViewAvailable,
           };
         },
-        ({ viewMode, sourcePath, contentKind, multilingualViewAvailable }) => {
+        ({ sourcePath, contentKind, multilingualViewAvailable }) => {
           const capabilities = resolveCatFileViewCapabilities({
             sourcePath,
             contentKind,
             multilingualViewAvailable,
           });
           store.ui.applyFileFamily(capabilities.family);
-          const currentMode = viewMode;
+          const currentMode = store.ui.viewMode;
           const nextMode = clampCatWorkspaceViewMode(currentMode, capabilities);
 
           if (nextMode !== currentMode) {
