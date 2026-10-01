@@ -36,7 +36,12 @@ export async function RootLayoutProviders({ children }: RootLayoutProvidersProps
       <AuthKitProvider initialAuth={initialAuth}>
         <I18nProvider locale={locale}>
           <QueryProvider>
-            <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="light"
+              enableSystem
+              disableTransitionOnChange
+            >
               <TooltipProvider>
                 {children}
                 <Toaster richColors closeButton />
