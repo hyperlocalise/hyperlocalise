@@ -15,6 +15,7 @@
 import { FloppyDiskIcon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import {
@@ -45,6 +46,7 @@ export function ContentEditorOfficeFileViewerPane({
   canEdit = true,
   isBusy = false,
   onSave,
+  saveActionsContainer,
 }: {
   kind: ContentEditorOfficeKind;
   role: "source" | "target";
@@ -56,6 +58,8 @@ export function ContentEditorOfficeFileViewerPane({
   canEdit?: boolean;
   isBusy?: boolean;
   onSave?: (file: File) => void | Promise<void>;
+  /** Element outside the pane that hosts the Save button, such as the File view header. */
+  saveActionsContainer?: HTMLElement | null;
 }) {
   const intl = useIntl();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -189,32 +193,37 @@ export function ContentEditorOfficeFileViewerPane({
     return null;
   }
 
+  const saveButton =
+    role === "target" && onSave ? (
+      <Button
+        type="button"
+        variant="outline"
+        size="xs"
+        disabled={
+          !canEdit ||
+          isBusy ||
+          isSaving ||
+          isMounting ||
+          Boolean(isLoading) ||
+          (useStoryPreview && !previewSnapshot)
+        }
+        onClick={() => void handleSave()}
+      >
+        {isSaving ? (
+          <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
+        ) : (
+          <HugeiconsIcon icon={FloppyDiskIcon} className="size-3" aria-hidden />
+        )}
+        <FormattedMessage {...contentEditorFileViewMessages.saveEdits} />
+      </Button>
+    ) : null;
+
   return (
     <div className="flex min-h-56 flex-col gap-2">
-      {role === "target" && onSave ? (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            disabled={
-              !canEdit ||
-              isBusy ||
-              isSaving ||
-              isMounting ||
-              Boolean(isLoading) ||
-              (useStoryPreview && !previewSnapshot)
-            }
-            onClick={() => void handleSave()}
-          >
-            {isSaving ? (
-              <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
-            ) : (
-              <HugeiconsIcon icon={FloppyDiskIcon} className="size-3" aria-hidden />
-            )}
-            <FormattedMessage {...contentEditorFileViewMessages.saveEdits} />
-          </Button>
-        </div>
+      {saveActionsContainer ? (
+        createPortal(saveButton, saveActionsContainer)
+      ) : saveButton ? (
+        <div className="flex justify-end">{saveButton}</div>
       ) : null}
       <div
         className={cn(

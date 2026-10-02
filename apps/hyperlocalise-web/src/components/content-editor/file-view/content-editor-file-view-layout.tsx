@@ -59,15 +59,16 @@ export function FileViewWorkspaceContent({
   layout,
   children,
 }: {
-  layout: "split" | "single";
+  /** `wide` is a single pane that fills the width two split panes would take. */
+  layout: "split" | "single" | "wide";
   children: ReactNode;
 }) {
   return (
     <div
       className={
-        layout === "split"
-          ? "mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col"
-          : "mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col"
+        layout === "single"
+          ? "mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col"
+          : "mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col"
       }
     >
       {children}

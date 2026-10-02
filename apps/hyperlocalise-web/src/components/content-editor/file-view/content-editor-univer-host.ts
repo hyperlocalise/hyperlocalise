@@ -54,6 +54,8 @@ async function createDocsHost(
       UniverDocsCorePreset({
         container,
         toolbar: !readOnly,
+        // One toolbar row instead of the Start and Insert tabs.
+        ribbonType: "simple",
       }),
     ],
   }) as { univerAPI: UniverApi };

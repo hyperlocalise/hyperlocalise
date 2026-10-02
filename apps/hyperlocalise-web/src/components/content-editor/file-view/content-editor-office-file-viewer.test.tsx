@@ -180,6 +180,22 @@ describe("ContentEditorOfficeFileViewerPane", () => {
     expect(mountHost).not.toHaveBeenCalled();
   });
 
+  it("renders Save in the given container instead of in the pane", async () => {
+    mountHost.mockResolvedValue(createHost());
+    const header = document.createElement("header");
+    document.body.append(header);
+
+    const { container } = render(
+      renderPane("https://example.com/brief.docx", { saveActionsContainer: header }),
+    );
+    await waitForEditorReady();
+
+    const save = screen.getByRole("button", { name: /save edits/i });
+    expect(header).toContainElement(save);
+    expect(container).not.toContainElement(save);
+    header.remove();
+  });
+
   it("previews each paragraph of a story Word file separately", async () => {
     loadSnapshot.mockImplementation(async ({ kind, filename }) => {
       const snapshot = emptyOfficeSnapshot(kind, filename);
