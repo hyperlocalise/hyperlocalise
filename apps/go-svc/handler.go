@@ -65,6 +65,7 @@ type handler struct {
 	qaReports         *qaReportAPI
 	teams             *teamAPI
 	members           *memberAPI
+	apiKeys           *apiKeyAPI
 	issueSheets       *issueSheetAPI
 	notifications     *notificationsAPI
 	activityLogs      *activityLogAPI
@@ -111,6 +112,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.members != nil {
 		h.members.register(mux, verifier)
+	}
+	if h.apiKeys != nil {
+		h.apiKeys.register(mux, verifier)
 	}
 	if h.activityLogs != nil {
 		h.activityLogs.register(mux, verifier)

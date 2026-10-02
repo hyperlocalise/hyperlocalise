@@ -9,17 +9,35 @@ var memberSettingsRoleOrder = []string{
 	"member",
 }
 
+// organizationCapabilityByRole ports the subset of the web policy table
+// (src/api/auth/policy.ts) that go-svc checks. Keep entries in step with it.
 var organizationCapabilityByRole = map[string]map[string]struct{}{
 	"admin": {
 		"workspace:read": {}, "members:invite": {}, "teams:write": {},
+		"projects:read": {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"api_keys:read": {}, "api_keys:write": {},
 	},
 	"localization_manager": {
 		"workspace:read": {}, "members:invite": {}, "teams:write": {},
+		"projects:read": {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"api_keys:read": {}, "api_keys:write": {},
 	},
-	"developer":  {"workspace:read": {}},
-	"reviewer":   {"workspace:read": {}},
-	"translator": {"workspace:read": {}},
-	"member":     {"workspace:read": {}},
+	"developer": {
+		"workspace:read": {},
+		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+	},
+	"reviewer": {
+		"workspace:read": {},
+		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+	},
+	"translator": {
+		"workspace:read": {},
+		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+	},
+	"member": {
+		"workspace:read": {},
+		"projects:read":  {}, "jobs:read": {},
+	},
 }
 
 func hasOrganizationCapability(role, capability string) bool {
