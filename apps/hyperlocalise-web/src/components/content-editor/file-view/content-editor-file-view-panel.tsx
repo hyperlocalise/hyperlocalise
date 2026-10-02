@@ -367,7 +367,7 @@ export function ContentEditorFileViewPanel({
                 />
               </Button>
               <ContentEditorWorkspaceViewSwitcherConnected size="xs" variant="outline" />
-              {isDocumentViewer ? <div ref={setSaveActionsContainer} /> : null}
+              {isDocumentViewer || officeKind ? <div ref={setSaveActionsContainer} /> : null}
               {isDocumentViewer && hasTargetFileActions ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -554,13 +554,15 @@ export function ContentEditorFileViewPanel({
         </div>
       ) : (
         <FileViewWorkspace>
-          <FileViewWorkspaceContent layout={sourcePaneVisible ? "split" : "single"}>
+          <FileViewWorkspaceContent
+            layout={sourcePaneVisible ? "split" : officeKind ? "wide" : "single"}
+          >
             <div className="flex min-h-0 flex-1 flex-col">
               <Columns
                 spacing="3u"
                 height="full"
                 alignY="stretch"
-                align={sourcePaneVisible ? "start" : "center"}
+                align={sourcePaneVisible || officeKind ? "start" : "center"}
                 collapseBelow="large"
               >
                 {sourcePaneVisible ? (
@@ -568,7 +570,9 @@ export function ContentEditorFileViewPanel({
                     <FileViewPaneColumn>{sourcePane}</FileViewPaneColumn>
                   </Column>
                 ) : null}
-                <Column width={sourcePaneVisible ? "1/2" : "containedContent"}>
+                <Column
+                  width={sourcePaneVisible ? "1/2" : officeKind ? "fluid" : "containedContent"}
+                >
                   <FileViewPaneColumn>
                     <FileViewPane
                       title={
@@ -584,11 +588,13 @@ export function ContentEditorFileViewPanel({
                           kind={officeKind}
                           role="target"
                           src={targetSrc}
+                          seedSrc={sourceSrc}
                           filename={displayName}
                           isLoading={isSegmentTargetLoading}
                           canEdit={canEdit}
                           isBusy={isImageBusy}
                           onSave={onUpload}
+                          saveActionsContainer={saveActionsContainer}
                         />
                       ) : (
                         <FileViewUnsupportedPreview />

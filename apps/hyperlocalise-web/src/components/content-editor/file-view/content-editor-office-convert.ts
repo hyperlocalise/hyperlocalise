@@ -12,11 +12,11 @@
  */
 import { BuildTextUtils, LocaleType, type IDocumentData, type IWorkbookData } from "@univerjs/core";
 import { PageElementType, PageType, type ISlideData } from "@univerjs/slides";
-import { Document, Packer, Paragraph, TextRun } from "docx";
 import JSZip from "jszip";
-import mammoth from "mammoth";
 import PptxGenJS from "pptxgenjs";
 
+import { exportDocumentToDocx } from "@/components/content-editor/file-view/content-editor-docx-export";
+import { readDocxDocument } from "@/components/content-editor/file-view/content-editor-docx-import";
 import {
   officeExtensionForViewer,
   officeMimeTypeForViewer,
@@ -73,18 +73,6 @@ function emptyDocumentData(title: string): IDocumentData {
       marginBottom: 72,
       marginLeft: 90,
       marginRight: 90,
-    },
-  };
-}
-
-function documentFromPlainText(title: string, text: string): IDocumentData {
-  const body = BuildTextUtils.transform.fromPlainText(text.trim() ? text : "");
-  const dataStream = body.dataStream.endsWith("\r\n") ? body.dataStream : `${body.dataStream}\r\n`;
-  return {
-    ...emptyDocumentData(title),
-    body: {
-      ...body,
-      dataStream,
     },
   };
 }
@@ -198,9 +186,8 @@ async function importXlsxFile(file: File): Promise<IWorkbookData> {
 }
 
 async function importDocxFile(file: File, title: string): Promise<IDocumentData> {
-  const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.extractRawText({ arrayBuffer });
-  return documentFromPlainText(title, result.value || "");
+  const base = emptyDocumentData(title);
+  return { ...base, ...(await readDocxDocument(await file.arrayBuffer(), base.documentStyle)) };
 }
 
 async function importPptxFile(file: File, title: string): Promise<ISlideData> {
@@ -372,22 +359,8 @@ export async function exportOfficeSnapshotToFile(input: {
   }
 
   if (kind === "docx") {
-    const text = plainTextFromDocument(input.snapshot.data);
-    const paragraphs = (text || "").split(/\n/).map(
-      (line) =>
-        new Paragraph({
-          children: [new TextRun(line)],
-        }),
-    );
-    const document = new Document({
-      sections: [
-        {
-          children: paragraphs.length > 0 ? paragraphs : [new Paragraph({ children: [] })],
-        },
-      ],
-    });
-    const buffer = await Packer.toBuffer(document);
-    return new File([toArrayBuffer(buffer)], filename, { type: mimeType });
+    const blob = await exportDocumentToDocx(input.snapshot.data);
+    return new File([blob], filename, { type: mimeType });
   }
 
   const pptx = new PptxGenJS();
