@@ -149,13 +149,7 @@ export function InboxPageView({
             onLoadMoreNotifications={onLoadMoreNotifications}
             onMarkAllRead={onMarkAllRead}
             onSelectItem={onSelectItem}
-            itemHref={
-              itemHref ??
-              ((item) =>
-                item.kind === "notification"
-                  ? `/org/${organizationSlug}/inbox/notifications/${item.id}`
-                  : `/org/${organizationSlug}/inbox/${item.id}`)
-            }
+            itemHref={itemHref}
             selection={selection}
             unreadNotificationCount={unreadNotificationCount}
           />

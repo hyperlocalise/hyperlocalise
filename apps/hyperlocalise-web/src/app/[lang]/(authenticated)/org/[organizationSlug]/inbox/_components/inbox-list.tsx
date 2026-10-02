@@ -388,7 +388,7 @@ export const InboxList = memo(function InboxList({
   onLoadMoreNotifications: () => void;
   onMarkAllRead?: () => void;
   onSelectItem: (selection: InboxListItemSelection) => void;
-  itemHref: InboxItemHref;
+  itemHref?: InboxItemHref;
   selection: InboxSelection;
   unreadNotificationCount: number;
 }) {
@@ -483,7 +483,7 @@ export const InboxList = memo(function InboxList({
                   isSelected={
                     selection?.kind === "conversation" && selection.id === item.conversation.id
                   }
-                  href={itemHref({ kind: "conversation", id: item.conversation.id })}
+                  href={itemHref?.({ kind: "conversation", id: item.conversation.id })}
                   onSelect={(id) => onSelectItem({ kind: "conversation", id })}
                 />
               ) : (
@@ -493,7 +493,7 @@ export const InboxList = memo(function InboxList({
                   isSelected={
                     selection?.kind === "notification" && selection.id === item.notification.id
                   }
-                  href={itemHref({ kind: "notification", id: item.notification.id })}
+                  href={itemHref?.({ kind: "notification", id: item.notification.id })}
                   onSelect={(id) => onSelectItem({ kind: "notification", id })}
                 />
               ),
@@ -658,7 +658,7 @@ const ConversationListItem = memo(function ConversationListItem({
 }: {
   conversation: Conversation;
   currentUser: InboxCurrentUser;
-  href: string;
+  href?: string;
   isSelected: boolean;
   onSelect: (conversationId: string) => void;
 }) {
@@ -673,13 +673,8 @@ const ConversationListItem = memo(function ConversationListItem({
     : intl.formatMessage(inboxListMessages.noMessagesYet);
   const visual = getConversationListItemVisual(conversation.source, intl);
 
-  return (
-    <Link
-      href={href}
-      aria-current={isSelected ? "page" : undefined}
-      onNavigate={() => onSelect(conversation.id)}
-      className={cn(listItemClassName(isSelected), "no-underline")}
-    >
+  const content = (
+    <>
       <InboxListItemAvatar visual={visual}>
         {participantAvatar.imageUrl ? (
           <AvatarImage src={participantAvatar.imageUrl} alt={participantAvatar.alt} />
@@ -693,7 +688,28 @@ const ConversationListItem = memo(function ConversationListItem({
         subtitle={preview}
         timestamp={formatRelativeTime(conversation.lastMessageAt, intl)}
       />
+    </>
+  );
+  const className = cn(listItemClassName(isSelected), "no-underline");
+
+  return href ? (
+    <Link
+      href={href}
+      aria-current={isSelected ? "page" : undefined}
+      onNavigate={() => onSelect(conversation.id)}
+      className={className}
+    >
+      {content}
     </Link>
+  ) : (
+    <button
+      type="button"
+      aria-current={isSelected ? "page" : undefined}
+      onClick={() => onSelect(conversation.id)}
+      className={className}
+    >
+      {content}
+    </button>
   );
 });
 
@@ -703,7 +719,7 @@ const NotificationListItem = memo(function NotificationListItem({
   isSelected,
   onSelect,
 }: {
-  href: string;
+  href?: string;
   notification: InboxIssueNotification;
   isSelected: boolean;
   onSelect: (notificationId: string) => void;
@@ -738,14 +754,25 @@ const NotificationListItem = memo(function NotificationListItem({
     </>
   );
 
-  return (
+  const className = cn(listItemClassName(isSelected, isUnread), "no-underline");
+
+  return href ? (
     <Link
       href={href}
       aria-current={isSelected ? "page" : undefined}
       onNavigate={() => onSelect(notification.id)}
-      className={cn(listItemClassName(isSelected, isUnread), "no-underline")}
+      className={className}
     >
       {content}
     </Link>
+  ) : (
+    <button
+      type="button"
+      aria-current={isSelected ? "page" : undefined}
+      onClick={() => onSelect(notification.id)}
+      className={className}
+    >
+      {content}
+    </button>
   );
 });
