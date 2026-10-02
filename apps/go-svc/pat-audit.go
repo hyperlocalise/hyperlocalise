@@ -18,10 +18,7 @@ const (
 	patRevokeReasonMembershipRemoved = "membership_removed"
 )
 
-var (
-	errPatAuditDisabled = errors.New("pat audit: logger does not record info level")
-	errPatAuditUnsafe   = errors.New("pat audit: payload contains forbidden fields")
-)
+var errPatAuditUnsafe = errors.New("pat audit: payload contains forbidden fields")
 
 var patAuditSafeTargetKeys = map[string]struct{}{
 	"type": {}, "id": {}, "organizationId": {}, "ownerUserId": {}, "keyPrefix": {}, "permissions": {},
@@ -117,11 +114,7 @@ func (a patAuditor) emit(ctx context.Context, action string, attrs ...slog.Attr)
 }
 
 func writeDefaultPatAudit(ctx context.Context, record slog.Record) error {
-	handler := slog.Default().Handler()
-	if !handler.Enabled(ctx, record.Level) {
-		return errPatAuditDisabled
-	}
-	return handler.Handle(ctx, record)
+	return slog.Default().Handler().Handle(ctx, record)
 }
 
 func assertSafePatAudit(audit slog.Attr) error {

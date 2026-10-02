@@ -172,7 +172,7 @@ func TestEmitPatCreatedRefusesPlaintextAsPrefix(t *testing.T) {
 	require.False(t, written)
 }
 
-func TestDefaultPatAuditFailsClosedWhenInfoIsDisabled(t *testing.T) {
+func TestDefaultPatAuditWritesWhenInfoIsDisabled(t *testing.T) {
 	var buf bytes.Buffer
 	previous := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
@@ -181,8 +181,10 @@ func TestDefaultPatAuditFailsClosedWhenInfoIsDisabled(t *testing.T) {
 	err := patAuditor{}.emitPatCreated(t.Context(), patCreatedAuditInput{
 		actorUserID: "user-1", ownerUserID: "user-1", organizationID: "org-1", tokenID: "token-1", keyPrefix: "hl_AbCde",
 	})
-	require.ErrorIs(t, err, errPatAuditDisabled)
-	require.Empty(t, buf.String())
+	require.NoError(t, err)
+	entry, _, _ := decodePatAudit(t, &buf)
+	require.Equal(t, patCreatedAuditAction, entry["msg"])
+	require.Equal(t, "INFO", entry["level"])
 }
 
 func TestAssertSafePatAuditRejectsForbiddenFields(t *testing.T) {

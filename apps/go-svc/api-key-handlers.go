@@ -135,7 +135,7 @@ func invalidAPIKeyPayload(issues []apiKeyValidationIssue) error {
 
 type createAPIKeyRequest struct {
 	name        string
-	permissions []string 
+	permissions []string
 }
 
 func parseCreateAPIKeyBody(r *http.Request) (createAPIKeyRequest, error) {

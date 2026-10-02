@@ -213,7 +213,8 @@ func TestAPIKeyCreateNeverLogsSecrets(t *testing.T) {
 	require.NotContains(t, logs, "secret-body-marker-1")
 
 	buf.Reset()
-	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	env.audit.fail = errors.New("audit sink unavailable")
+	env.api.audit = env.audit.auditor()
 	rec := env.request(env.owner, http.MethodPost, "", `{"name":"secret-body-marker-2"}`,
 		"Authorization", "Bearer secret-header-marker")
 	require.Equal(t, http.StatusInternalServerError, rec.Code, rec.Body.String())
