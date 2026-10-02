@@ -119,6 +119,23 @@ describe("installRequiredSandboxToolsCommand", () => {
     );
     expect(installRequiredSandboxToolsCommand).toContain("command -v hl >/dev/null 2>&1");
   });
+
+  it("installs curl before GitHub release downloaders on Ubuntu images", () => {
+    expect(installRequiredSandboxToolsCommand).toContain(
+      "apt-get update && apt-get install -y curl ca-certificates",
+    );
+    expect(installRequiredSandboxToolsCommand).toContain("dnf install -y curl");
+    const curlAptIndex = installRequiredSandboxToolsCommand.indexOf(
+      "apt-get update && apt-get install -y curl ca-certificates",
+    );
+    // curl must land before the ripgrep/hl install blocks that call the release helpers.
+    expect(curlAptIndex).toBeLessThan(
+      installRequiredSandboxToolsCommand.indexOf("if ! command -v rg >/dev/null 2>&1; then"),
+    );
+    expect(curlAptIndex).toBeLessThan(
+      installRequiredSandboxToolsCommand.indexOf("if ! command -v hl >/dev/null 2>&1; then"),
+    );
+  });
 });
 
 describe("createConfiguredVercelSandbox", () => {
