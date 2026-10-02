@@ -87,7 +87,7 @@ func (api *memberAPI) revokeOrganizationMembershipAccess(ctx context.Context, ac
 	}
 
 	for _, key := range revoked {
-		_ = patAuditor{}.emitPatRevoked(ctx, patRevokedAuditInput{
+		err := patAuditor{}.emitPatRevoked(ctx, patRevokedAuditInput{
 			actorUserID:    actor.userID,
 			ownerUserID:    &member.localUserID,
 			organizationID: actor.organizationID,
@@ -95,6 +95,7 @@ func (api *memberAPI) revokeOrganizationMembershipAccess(ctx context.Context, ac
 			keyPrefix:      key.keyPrefix,
 			reason:         patRevokeReasonMembershipRemoved,
 		})
+		logPatAuditFailure(ctx, patRevokedAuditAction, actor.organizationID, key.id, err)
 		api.enqueueMemberActivity(ctx, actor, "personal_access_token_revoked", "personal_access_token", key.id, map[string]any{
 			"keyPrefix": key.keyPrefix,
 			"reason":    patRevokeReasonMembershipRemoved,

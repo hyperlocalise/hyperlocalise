@@ -366,3 +366,17 @@ func TestParseCreateAPIKeyBodyNullFields(t *testing.T) {
 		require.Contains(t, string(encoded), "expected", body)
 	}
 }
+
+func TestAPIKeyLogPathHidesCustomerIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"/v1/orgs/customer-name/api-keys",
+		"/v1/orgs/customer-name/api-keys/7f1c9d1e-4b2a-4c3d-8e5f-0a1b2c3d4e5f",
+	} {
+		safe := requestLogPath(path)
+		require.Equal(t, "/v1/orgs/{organizationSlug}/api-keys/{resource}", safe)
+		require.NotContains(t, safe, "customer-name")
+		require.NotContains(t, safe, "7f1c9d1e")
+	}
+}

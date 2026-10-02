@@ -363,7 +363,7 @@ func (api *apiKeyAPI) revokeAPIKey(ctx context.Context, actor organizationActor,
 		return err
 	}
 
-	_ = api.audit.emitPatRevoked(ctx, patRevokedAuditInput{
+	err = api.audit.emitPatRevoked(ctx, patRevokedAuditInput{
 		actorUserID:    actor.userID,
 		ownerUserID:    ownerUserID,
 		organizationID: organizationID,
@@ -371,6 +371,7 @@ func (api *apiKeyAPI) revokeAPIKey(ctx context.Context, actor organizationActor,
 		keyPrefix:      keyPrefix,
 		reason:         patRevokeReasonManual,
 	})
+	logPatAuditFailure(ctx, patRevokedAuditAction, organizationID, tokenID, err)
 	api.publishActivity(ctx, activityLogEventInput{
 		ActorUserID:    actor.userID,
 		EventType:      "personal_access_token_revoked",

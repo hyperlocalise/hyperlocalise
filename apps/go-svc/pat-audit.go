@@ -117,6 +117,18 @@ func writeDefaultPatAudit(ctx context.Context, record slog.Record) error {
 	return slog.Default().Handler().Handle(ctx, record)
 }
 
+func logPatAuditFailure(ctx context.Context, action, organizationID, tokenID string, err error) {
+	if err == nil {
+		return
+	}
+	slog.ErrorContext(ctx, "pat_audit_emit_failed",
+		"action", action,
+		"organization_id", organizationID,
+		"token_id", tokenID,
+		"error", err,
+	)
+}
+
 func assertSafePatAudit(audit slog.Attr) error {
 	for _, attr := range audit.Value.Group() {
 		if attr.Key == "target" {

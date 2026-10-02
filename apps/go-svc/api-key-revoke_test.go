@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -353,4 +354,74 @@ func TestAPIKeyMembershipRemovalWaitsForCreateAndRevokes(t *testing.T) {
 	require.NoError(t, <-removal)
 	created := decodeAPIKeyBody[apiKeyCreateResponse](t, rec)
 	require.NotNil(t, env.revokedAt(t, created.APIKey.ID), "removal must revoke the token it waited for")
+}
+
+type failingPatRevokedHandler struct{ slog.Handler }
+
+func (h failingPatRevokedHandler) Handle(ctx context.Context, record slog.Record) error {
+	if record.Message == patRevokedAuditAction {
+		return errors.New("audit sink unavailable")
+	}
+	return h.Handler.Handle(ctx, record)
+}
+
+func captureFailingPatRevokedLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(failingPatRevokedHandler{slog.NewJSONHandler(&lockedWriter{w: &buf}, nil)}))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	return &buf
+}
+
+func requirePatAuditFailureLogged(t *testing.T, logs string, organizationID, tokenID string) {
+	t.Helper()
+	var found map[string]any
+	for _, line := range strings.Split(strings.TrimSpace(logs), "\n") {
+		var entry map[string]any
+		if json.Unmarshal([]byte(line), &entry) == nil && entry["msg"] == "pat_audit_emit_failed" {
+			found = entry
+		}
+	}
+	require.NotNil(t, found, logs)
+	require.Equal(t, "ERROR", found["level"])
+	require.Equal(t, patRevokedAuditAction, found["action"])
+	require.Equal(t, organizationID, found["organization_id"])
+	require.Equal(t, tokenID, found["token_id"])
+	require.Equal(t, "audit sink unavailable", found["error"])
+}
+
+func TestAPIKeyRevokeReportsAuditFailureWithoutUndoingRevocation(t *testing.T) {
+	env := newAPIKeyTestEnv(t, "admin")
+	created := env.mustCreate(t, env.owner, `{"name":"audit down"}`).APIKey
+	buf := captureFailingPatRevokedLogs(t)
+	env.api.audit = patAuditor{}
+
+	rec := env.request(env.owner, http.MethodDelete, "/"+created.ID, "")
+	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
+	require.NotNil(t, env.revokedAt(t, created.ID))
+	require.Len(t, revokedActivity(env), 1)
+
+	logs := buf.String()
+	requirePatAuditFailureLogged(t, logs, env.scope.OrganizationID, created.ID)
+	require.NotContains(t, logs, created.Key)
+	require.NotContains(t, logs, hashAPIKey(created.Key))
+}
+
+func TestMembershipRemovalReportsPatAuditFailure(t *testing.T) {
+	env := newAPIKeyTestEnv(t, "admin")
+	member := env.addMember(t, "member")
+	created := env.mustCreate(t, member, `{"name":"leaving"}`).APIKey
+	buf := captureFailingPatRevokedLogs(t)
+
+	members := &memberAPI{pool: env.scope.Pool}
+	require.NoError(t, members.revokeOrganizationMembershipAccess(t.Context(),
+		memberActor{userID: env.owner.userID, organizationID: env.scope.OrganizationID},
+		organizationMember{localUserID: member.userID, role: "member"}))
+	require.NotNil(t, env.revokedAt(t, created.ID))
+
+	logs := buf.String()
+	requirePatAuditFailureLogged(t, logs, env.scope.OrganizationID, created.ID)
+	require.NotContains(t, logs, created.Key)
+	require.NotContains(t, logs, hashAPIKey(created.Key))
 }
