@@ -19,7 +19,6 @@ import type {
   ContentEditorPptxBase,
 } from "@/components/content-editor/file-view/content-editor-office-convert";
 import { mountPptxTextForm } from "@/components/content-editor/file-view/content-editor-pptx-text-form";
-import { blockSlideEditing } from "@/components/content-editor/file-view/content-editor-slides-read-only";
 
 export type ContentEditorUniverHostHandle = {
   getSnapshot: () => ContentEditorOfficeSnapshot;
@@ -185,12 +184,10 @@ async function createSlidesHost(
   const unit = univer.createUnit(UniverInstanceType.UNIVER_SLIDE, data) as {
     getSnapshot: () => ISlideData;
   };
-  const allowSlideEditing = readOnly ? blockSlideEditing(container) : null;
 
   return {
     getSnapshot: () => ({ kind: "pptx", data: unit.getSnapshot() }),
     dispose: () => {
-      allowSlideEditing?.();
       univer.dispose();
     },
   };
