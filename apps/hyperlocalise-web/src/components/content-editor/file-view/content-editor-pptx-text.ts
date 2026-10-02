@@ -15,7 +15,14 @@ import JSZip from "jszip";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 /** One slide paragraph with visible text, addressed by its slide part and position. */
-export type PptxTextUnit = { id: string; text: string };
+export type PptxTextUnit = {
+  id: string;
+  text: string;
+  /** The `id` of the shape or table frame the paragraph belongs to, as written in the slide. */
+  shapeId: string | null;
+  /** Position of the paragraph's top-level object among the slide's objects, from 0. */
+  elementIndex: number | null;
+};
 
 /** The paragraphs of one slide, in the order they appear in the slide part. */
 export type PptxSlideText = { partName: string; units: PptxTextUnit[] };
@@ -40,6 +47,14 @@ const PPTX_BREAK_TAG = "a:br";
 const PPTX_HYPERLINK_TAG = "a:hlinkClick";
 /** Fallback copies for older PowerPoint versions repeat the primary content. */
 const PPTX_FALLBACK_TAG = "mc:Fallback";
+const PPTX_SHAPE_TREE_TAG = "p:spTree";
+const PPTX_SHAPE_NAME_TAG = "p:cNvPr";
+/** Children of the shape tree that describe the tree itself, not an object on the slide. */
+const PPTX_SHAPE_TREE_PROPERTY_TAGS: ReadonlySet<string> = new Set([
+  "p:nvGrpSpPr",
+  "p:grpSpPr",
+  "p:extLst",
+]);
 const PPTX_LINE_BREAK = "\n";
 
 // Quoted attribute values may contain `>`, so they are matched as a whole.
@@ -62,6 +77,7 @@ const XML_NONCHARACTER_CODES: ReadonlySet<number> = new Set([0xfffe, 0xffff]);
 const RELATIONSHIP_ID_ATTRIBUTE_PATTERN = /(?:^|\s)Id\s*=\s*(?:"([^"]*)"|'([^']*)')/;
 const RELATIONSHIP_TARGET_ATTRIBUTE_PATTERN = /(?:^|\s)Target\s*=\s*(?:"([^"]*)"|'([^']*)')/;
 const SLIDE_RELATIONSHIP_ATTRIBUTE_PATTERN = /(?:^|\s)r:id\s*=\s*(?:"([^"]*)"|'([^']*)')/;
+const SHAPE_ID_ATTRIBUTE_PATTERN = /(?:^|\s)id\s*=\s*(?:"([^"]*)"|'([^']*)')/;
 
 type RunNode = {
   kind: "run";
@@ -74,7 +90,12 @@ type RunNode = {
 };
 type BreakNode = { kind: "break"; start: number; end: number };
 type ParagraphNode = RunNode | BreakNode;
-type Paragraph = { index: number; nodes: ParagraphNode[] };
+type Paragraph = {
+  index: number;
+  nodes: ParagraphNode[];
+  shapeId: string | null;
+  elementIndex: number | null;
+};
 
 function decodeXmlText(value: string): string {
   return value.replace(XML_ENTITY_PATTERN, (match, decimal, hex, named) => {
@@ -112,10 +133,13 @@ function scanParagraphs(xml: string): Paragraph[] {
   let breakStart: number | null = null;
   let propertiesStart: number | null = null;
   let textStart: number | null = null;
+  let shapeTreeDepth: number | null = null;
+  let elementIndex: number | null = null;
+  let shapeId: string | null = null;
 
   XML_TAG_PATTERN.lastIndex = 0;
   for (let match = XML_TAG_PATTERN.exec(xml); match; match = XML_TAG_PATTERN.exec(xml)) {
-    const [raw, closing, name, , selfClosing] = match;
+    const [raw, closing, name, attributes = "", selfClosing] = match;
     const start = match.index;
     const end = start + raw.length;
     const isClose = closing === "/";
@@ -135,10 +159,30 @@ function scanParagraphs(xml: string): Paragraph[] {
       continue;
     }
 
+    if (!isClose) {
+      if (shapeTreeDepth === null) {
+        if (name === PPTX_SHAPE_TREE_TAG && !isSelfClosing) {
+          shapeTreeDepth = elementDepth;
+        }
+      } else if (elementDepth === shapeTreeDepth + 1 && !PPTX_SHAPE_TREE_PROPERTY_TAGS.has(name)) {
+        elementIndex = elementIndex === null ? 0 : elementIndex + 1;
+        shapeId = null;
+      }
+      // A shape names itself before its text, so the last id seen is the paragraph's shape.
+      if (name === PPTX_SHAPE_NAME_TAG) {
+        shapeId = attributeValue(attributes, SHAPE_ID_ATTRIBUTE_PATTERN);
+      }
+    }
+
     if (name === PPTX_PARAGRAPH_TAG) {
       if (isClose) {
         if (paragraph && elementDepth === paragraph.depth) {
-          paragraphs.push({ index: paragraph.index, nodes: paragraph.nodes });
+          paragraphs.push({
+            index: paragraph.index,
+            nodes: paragraph.nodes,
+            shapeId: paragraph.shapeId,
+            elementIndex: paragraph.elementIndex,
+          });
           paragraph = null;
           run = null;
         }
@@ -147,7 +191,7 @@ function scanParagraphs(xml: string): Paragraph[] {
         const index = paragraphCount;
         paragraphCount += 1;
         if (!isSelfClosing && !paragraph && fallbackDepth === 0) {
-          paragraph = { index, depth: elementDepth, nodes: [] };
+          paragraph = { index, depth: elementDepth, nodes: [], shapeId, elementIndex };
           breakStart = null;
           propertiesStart = null;
           textStart = null;
@@ -352,7 +396,16 @@ export async function extractPptxSlideTexts(
       partName: part.name,
       units: scanParagraphs(part.xml).flatMap((paragraph) => {
         const text = paragraphText(paragraph);
-        return text.trim() === "" ? [] : [{ id: unitId(part.name, paragraph.index), text }];
+        return text.trim() === ""
+          ? []
+          : [
+              {
+                id: unitId(part.name, paragraph.index),
+                text,
+                shapeId: paragraph.shapeId,
+                elementIndex: paragraph.elementIndex,
+              },
+            ];
       }),
     })),
   );

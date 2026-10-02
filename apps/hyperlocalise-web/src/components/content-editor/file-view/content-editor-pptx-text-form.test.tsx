@@ -19,14 +19,18 @@ import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import type { PptxSlideText } from "./content-editor-pptx-text";
 import { mountPptxTextForm } from "./content-editor-pptx-text-form";
 
+function unit(id: string, text: string) {
+  return { id, text, shapeId: null, elementIndex: null };
+}
+
 const SLIDES: PptxSlideText[] = [
-  { partName: "ppt/slides/slide2.xml", units: [{ id: "ppt/slides/slide2.xml#0", text: "Cover" }] },
+  { partName: "ppt/slides/slide2.xml", units: [unit("ppt/slides/slide2.xml#0", "Cover")] },
   { partName: "ppt/slides/slide3.xml", units: [] },
   {
     partName: "ppt/slides/slide1.xml",
     units: [
-      { id: "ppt/slides/slide1.xml#0", text: "Quarterly review" },
-      { id: "ppt/slides/slide1.xml#3", text: "North\nSouth" },
+      unit("ppt/slides/slide1.xml#0", "Quarterly review"),
+      unit("ppt/slides/slide1.xml#3", "North\nSouth"),
     ],
   },
 ];

@@ -65,6 +65,30 @@ async function edit(
 }
 
 describe("extractPptxSlideTexts", () => {
+  it("records the shape and the top-level object each paragraph belongs to", async () => {
+    const slides = await extractPptxSlideTexts(await buildPptxFixture());
+    if (isErr(slides)) {
+      throw new Error(`extract failed: ${slides.error.code}`);
+    }
+
+    const content = slides.value.find((slide) => slide.partName === CONTENT_SLIDE_PART);
+    expect(
+      content?.units.map((unit) => [unit.text.split("\n")[0], unit.shapeId, unit.elementIndex]),
+    ).toEqual([
+      ["Quarterly review", "2", 0],
+      ["Revenue grew 12% this quarter & costs fell.", "3", 1],
+      ["Read the full report", "3", 1],
+      ["North", "3", 1],
+      // Table cells share the table frame's id; objects without text still count.
+      ["Plan", "6", 4],
+      ["Price", "6", 4],
+      ["Pro", "6", 4],
+      ["$10", "6", 4],
+      // A shape that does not name itself has no id of its own.
+      ["Margin formula", null, 5],
+    ]);
+  });
+
   it("lists slide paragraphs with visible text, in presentation order", async () => {
     const slides = await extractPptxSlideTexts(await buildPptxFixture());
     if (isErr(slides)) {
