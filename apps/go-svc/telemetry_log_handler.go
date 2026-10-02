@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
+	ddtracer "github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -43,6 +45,11 @@ func (h *datadogLogHandler) Handle(ctx context.Context, record slog.Record) erro
 		out.AddAttrs(
 			slog.String("dd.trace_id", sc.TraceID().String()),
 			slog.String("dd.span_id", sc.SpanID().String()),
+		)
+	} else if span, ok := ddtracer.SpanFromContext(ctx); ok {
+		out.AddAttrs(
+			slog.String("dd.trace_id", span.Context().TraceID()),
+			slog.String("dd.span_id", fmt.Sprintf("%016x", span.Context().SpanID())),
 		)
 	}
 

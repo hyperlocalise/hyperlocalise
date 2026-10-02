@@ -20,8 +20,9 @@ COPY internal ./internal
 COPY apps/go-svc ./apps/go-svc
 
 RUN go mod download
+RUN go install github.com/DataDog/orchestrion@v1.13.1
 RUN CGO_ENABLED=1 GOOS=linux go build -tags cgo_hunspell -o /dev/null ./apps/go-svc/internal/hunspell
-RUN CGO_ENABLED=1 GOOS=linux go build -tags cgo_hunspell -trimpath -ldflags="-s -w" -o /service ./apps/go-svc
+RUN CGO_ENABLED=1 GOOS=linux orchestrion go build -tags cgo_hunspell -trimpath -ldflags="-s -w" -o /service ./apps/go-svc
 
 RUN set -eux; \
     triplet="$(gcc -dumpmachine)"; \
