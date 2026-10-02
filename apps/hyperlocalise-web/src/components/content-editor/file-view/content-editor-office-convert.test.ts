@@ -12,15 +12,9 @@
  */
 // @vitest-environment happy-dom
 
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it } from "vite-plus/test";
 
-import {
-  BuildTextUtils,
-  HorizontalAlign,
-  NamedStyleType,
-  PresetListType,
-  type IDocumentData,
-} from "@univerjs/core";
+import { BuildTextUtils, PresetListType, type IDocumentData } from "@univerjs/core";
 import {
   AlignmentType,
   Document,
@@ -37,25 +31,13 @@ import {
 import JSZip from "jszip";
 import PptxGenJS from "pptxgenjs";
 
+import { buildStyledDocxFixture } from "./content-editor-docx-import.fixture";
 import {
   decodeXmlTextEntities,
   emptyOfficeSnapshot,
   exportOfficeSnapshotToFile,
   loadOfficeSnapshotFromFile,
-  plainTextFromDocument,
 } from "./content-editor-office-convert";
-
-// Tests load mammoth's Node build, which reads `buffer` where the browser build reads `arrayBuffer`.
-vi.mock("mammoth", async (importOriginal) => {
-  const { default: mammoth } = await importOriginal<{ default: typeof import("mammoth") }>();
-  return {
-    default: {
-      ...mammoth,
-      convertToHtml: (input: { arrayBuffer: ArrayBuffer }, options?: object) =>
-        mammoth.convertToHtml({ buffer: Buffer.from(input.arrayBuffer) }, options),
-    },
-  };
-});
 
 const STEPS_NUMBERING = {
   config: [
@@ -95,6 +77,7 @@ async function documentXml(file: File) {
 /** The parts of a document that should survive a save, without generated ids. */
 function documentShape(data: IDocumentData) {
   return {
+    page: data.documentStyle,
     stream: data.body?.dataStream,
     paragraphs: data.body?.paragraphs?.map((paragraph) => ({
       startIndex: paragraph.startIndex,
@@ -148,92 +131,6 @@ describe("cat-office-convert", () => {
     expect(file.name).toBe("brief.docx");
     expect(file.type).toContain("wordprocessingml");
     expect(file.size).toBeGreaterThan(0);
-  });
-
-  it("keeps headings, alignment, and text formatting from a docx file", async () => {
-    const data = await loadDocx([
-      new Paragraph({
-        heading: HeadingLevel.HEADING_1,
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun("Quarterly brief")],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.RIGHT,
-        children: [
-          new TextRun("Click "),
-          new TextRun({ text: "Save", bold: true }),
-          new TextRun({ text: " now", italics: true, underline: {} }),
-        ],
-      }),
-      new Paragraph("Plain line"),
-    ]);
-
-    expect(plainTextFromDocument(data)).toBe("Quarterly brief\rClick Save now\rPlain line");
-    expect(data.body?.paragraphs?.map((paragraph) => paragraph.paragraphStyle)).toMatchObject([
-      { namedStyleType: NamedStyleType.HEADING_1, horizontalAlign: HorizontalAlign.CENTER },
-      { horizontalAlign: HorizontalAlign.RIGHT },
-      undefined,
-    ]);
-    expect(data.body?.textRuns).toMatchObject([
-      { st: 22, ed: 26, ts: { bl: 1 } },
-      { st: 26, ed: 30, ts: { it: 1, ul: { s: 1 } } },
-    ]);
-  });
-
-  it("keeps nested lists and links from a docx file", async () => {
-    const data = await loadDocx([
-      new Paragraph({ bullet: { level: 0 }, children: [new TextRun("First point")] }),
-      new Paragraph({ bullet: { level: 1 }, children: [new TextRun("Nested point")] }),
-      new Paragraph({
-        children: [
-          new ExternalHyperlink({
-            link: "https://example.com",
-            children: [new TextRun("our site")],
-          }),
-        ],
-      }),
-    ]);
-
-    expect(plainTextFromDocument(data)).toBe("First point\rNested point\rour site");
-    expect(data.body?.paragraphs?.map((paragraph) => paragraph.bullet)).toMatchObject([
-      { listType: PresetListType.BULLET_LIST, nestingLevel: 0 },
-      { listType: PresetListType.BULLET_LIST, nestingLevel: 1 },
-      undefined,
-    ]);
-    expect(data.body?.customRanges).toMatchObject([
-      { properties: { url: "https://example.com/" } },
-    ]);
-  });
-
-  it("fits docx tables to the page and aligns cell text", async () => {
-    const data = await loadDocx([
-      new Table({
-        rows: [
-          new TableRow({
-            children: [
-              new TableCell({ children: [new Paragraph("Plan")] }),
-              new TableCell({
-                children: [
-                  new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("$20")] }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
-    ]);
-
-    const [table] = Object.values(data.tableSource ?? {});
-    const textWidth = 595.3 - 90 - 90;
-    expect(table?.size.width.v).toBeCloseTo(textWidth);
-    expect(table?.tableColumns.map((column) => column.size.width.v)).toEqual([
-      expect.closeTo(textWidth / 2),
-      expect.closeTo(textWidth / 2),
-    ]);
-    // A table always has a paragraph before and after it.
-    expect(
-      data.body?.paragraphs?.map((paragraph) => paragraph.paragraphStyle?.horizontalAlign),
-    ).toEqual([undefined, undefined, HorizontalAlign.RIGHT, undefined]);
   });
 
   it("keeps a document's structure and formatting across save and reopen", async () => {
@@ -293,6 +190,20 @@ describe("cat-office-convert", () => {
     expect(opened.body?.tables).toHaveLength(1);
   });
 
+  it("keeps style-based size, colour, and alignment across save and reopen", async () => {
+    const opened = await loadDocxFile(new File([await buildStyledDocxFixture()], "report.docx"));
+
+    const saved = await saveDocx(opened);
+    const reopened = await loadDocxFile(saved);
+
+    expect(documentShape(reopened)).toEqual(documentShape(opened));
+    const xml = await documentXml(saved);
+    expect(xml).toContain('<w:sz w:val="36"/>');
+    expect(xml).toContain('<w:color w:val="FF0000"/>');
+    expect(xml).toContain('<w:jc w:val="center"/>');
+    expect(xml).toContain("<w:tab/>");
+  });
+
   it("writes page size, column widths, and separate numbering for each ordered list", async () => {
     const opened = await loadDocx([
       new Paragraph({
@@ -321,7 +232,7 @@ describe("cat-office-convert", () => {
     expect(xml).toContain('<w:pgSz w:w="11906" w:h="16838"');
     // Unformatted text must not switch off what a paragraph style turns on.
     expect(xml).not.toContain('w:val="false"');
-    expect(xml.match(/<w:gridCol w:w="4153"\/>/g)).toHaveLength(2);
+    expect(xml.match(/<w:gridCol w:w="4513"\/>/g)).toHaveLength(2);
     const numberingIds = [...xml.matchAll(/<w:numId w:val="(\d+)"\/>/g)].map((match) => match[1]);
     expect(numberingIds).toHaveLength(2);
     expect(new Set(numberingIds).size).toBe(2);

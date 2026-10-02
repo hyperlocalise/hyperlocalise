@@ -16,6 +16,7 @@ import {
   CustomRangeType,
   DataStreamTreeTokenType,
   HorizontalAlign,
+  NAMED_STYLE_MAP,
   NamedStyleType,
   type IBullet,
   type IDocumentData,
@@ -29,6 +30,8 @@ import {
   LevelFormat,
   Packer,
   Paragraph,
+  ShadingType,
+  Tab,
   Table,
   TableCell,
   TableRow,
@@ -38,6 +41,7 @@ import {
 
 /** Univer measures documents in points; Word measures in twentieths of a point. */
 const TWIPS_PER_POINT = 20;
+const HALF_POINTS_PER_POINT = 2;
 const ORDERED_LIST = "ordered";
 const LIST_LEVELS = 9;
 const LIST_INDENT = 720;
@@ -74,6 +78,7 @@ type Cursor = { position: number };
 
 const {
   PARAGRAPH,
+  TAB,
   TABLE_START,
   TABLE_ROW_START,
   TABLE_ROW_END,
@@ -162,17 +167,50 @@ function flag(value: BooleanNumber | undefined): boolean | undefined {
   return value === undefined ? undefined : value === BooleanNumber.TRUE;
 }
 
-function textRun(text: string, style: ITextStyle | undefined, isLink: boolean): TextRun {
+/** Univer colours are `#RRGGBB` or `rgb(r, g, b)`; Word wants `RRGGBB`. */
+function wordColor(color: ITextStyle["cl"]): string | undefined {
+  const rgb = color?.rgb;
+  if (!rgb) {
+    return undefined;
+  }
+  const hex = /^#?([0-9a-f]{6})$/i.exec(rgb)?.[1];
+  if (hex) {
+    return hex.toUpperCase();
+  }
+  const channels = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(rgb)?.slice(1, 4);
+  return channels
+    ?.map((channel) => Number(channel).toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
+}
+
+function textRun(text: string, style: ITextStyle | undefined): TextRun {
+  const fill = wordColor(style?.bg);
   return new TextRun({
-    text,
+    // Word needs a tab element; a tab character inside text is not a tab stop.
+    children: text.split(TAB).flatMap((part, index) => (index === 0 ? [part] : [new Tab(), part])),
     bold: flag(style?.bl),
     italics: flag(style?.it),
     underline: style?.ul?.s === BooleanNumber.TRUE ? {} : undefined,
     strike: flag(style?.st?.s),
     subScript: style?.va === BaselineOffset.SUBSCRIPT || undefined,
     superScript: style?.va === BaselineOffset.SUPERSCRIPT || undefined,
-    style: isLink ? "Hyperlink" : undefined,
+    size: style?.fs ? Math.round(style.fs * HALF_POINTS_PER_POINT) : undefined,
+    font: style?.ff ?? undefined,
+    color: wordColor(style?.cl),
+    shading: fill ? { type: ShadingType.CLEAR, color: "auto", fill } : undefined,
   });
+}
+
+/** A Word style that matches how Univer draws a heading, so it looks the same in both. */
+function headingStyle(type: NamedStyleType) {
+  const style = NAMED_STYLE_MAP[type];
+  return {
+    run: {
+      size: style?.fs ? style.fs * HALF_POINTS_PER_POINT : undefined,
+      bold: flag(style?.bl),
+    },
+  };
 }
 
 function pageProperties({
@@ -200,8 +238,8 @@ function pageProperties({
 
 /**
  * Writes a Univer document as a Word file. It carries what the docx import brings in: headings,
- * alignment, bold, italic, underline, strikethrough, sub and superscript, lists, links, and
- * tables. Other formatting is not written.
+ * alignment, text size, colour, highlight, font, bold, italic, underline, strikethrough, sub and
+ * superscript, lists, links, and tables. Other formatting is not written.
  */
 export async function exportDocumentToDocx(data: IDocumentData): Promise<Blob> {
   const stream = data.body?.dataStream ?? "";
@@ -261,7 +299,7 @@ export async function exportDocumentToDocx(data: IDocumentData): Promise<Blob> {
         continue;
       }
       const style = textRuns.find((run) => run.st <= from && to <= run.ed)?.ts;
-      const run = textRun(text, style, Boolean(link));
+      const run = textRun(text, style);
       if (link) {
         openLink ??= { url: link.url, runs: [] };
         openLink.runs.push(run);
@@ -324,6 +362,16 @@ export async function exportDocumentToDocx(data: IDocumentData): Promise<Blob> {
 
   const children = buildBlocks(readBlocks(stream, { position: 0 }));
   const document = new Document({
+    styles: {
+      default: {
+        title: headingStyle(NamedStyleType.TITLE),
+        heading1: headingStyle(NamedStyleType.HEADING_1),
+        heading2: headingStyle(NamedStyleType.HEADING_2),
+        heading3: headingStyle(NamedStyleType.HEADING_3),
+        heading4: headingStyle(NamedStyleType.HEADING_4),
+        heading5: headingStyle(NamedStyleType.HEADING_5),
+      },
+    },
     numbering: {
       config: [
         {
