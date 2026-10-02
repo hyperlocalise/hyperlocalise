@@ -141,7 +141,7 @@ Every log record written while a request span is active carries five top-level s
 |---|---|---|
 | `dd.trace_id` | Active span's `SpanContext.TraceID()` (32-char lowercase hex) | A valid span is active in the logging call's context |
 | `dd.span_id` | Active span's `SpanContext.SpanID()` (16-char lowercase hex) | Same as above |
-| `dd.service` | Hardcoded `"go-svc"` — the same constant as `service.name` above | Always |
+| `dd.service` | `DD_SERVICE`, falling back to `"go-svc"` — the same value as `service.name` above | Always |
 | `dd.env` | `DD_ENV` — the same source as `deployment.environment.name` above | `DD_ENV` is set |
 | `dd.version` | `DD_VERSION` — the same source as `service.version` above | `DD_VERSION` is set |
 

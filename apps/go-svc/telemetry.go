@@ -24,8 +24,13 @@ type serviceResourceInfo struct {
 }
 
 func loadServiceResourceInfo() serviceResourceInfo {
+	service := strings.TrimSpace(os.Getenv("DD_SERVICE"))
+	if service == "" {
+		service = otelServiceName
+	}
+
 	return serviceResourceInfo{
-		name:    otelServiceName,
+		name:    service,
 		version: strings.TrimSpace(os.Getenv("DD_VERSION")),
 		env:     strings.TrimSpace(os.Getenv("DD_ENV")),
 	}
@@ -36,7 +41,7 @@ func loadServiceResourceInfo() serviceResourceInfo {
 // while Orchestrion-instrumented dependencies use the native Datadog API.
 func initTelemetry(ctx context.Context) (shutdown func(context.Context) error, err error) {
 	_ = ctx
-	provider := ddotel.NewTracerProvider(ddtracer.WithService(otelServiceName))
+	provider := ddotel.NewTracerProvider(ddtracer.WithService(loadServiceResourceInfo().name))
 	otel.SetTracerProvider(provider)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
