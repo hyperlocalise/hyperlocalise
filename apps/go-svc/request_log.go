@@ -188,6 +188,9 @@ func appendNewAttrs(dst []any, extra []any) []any {
 // Log route shapes instead of customer-provided path segments.
 func requestLogPath(path string) string {
 	parts := strings.Split(path, "/")
+	if len(parts) >= 4 && parts[1] == "v1" && parts[2] == "projects" {
+		return "/v1/projects/{projectId}/{resource}"
+	}
 	if len(parts) < 5 || parts[1] != "v1" || parts[2] != "orgs" {
 		return path
 	}

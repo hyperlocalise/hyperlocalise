@@ -78,21 +78,57 @@ func resolveOrganizationActor(
 	if err != nil {
 		return actor, err
 	}
-	// Read WorkOS on every request: cached local roles alone cannot grant access.
+	actor.role, err = verifyLiveOrganizationMembership(ctx, lookup, membershipID, claims.UserID, workosOrg)
+	return actor, err
+}
+
+func resolveOrganizationActorByID(
+	ctx context.Context,
+	db dictionaryDB,
+	lookup organizationMembershipLookup,
+	localUserID, organizationID string,
+) (organizationActor, error) {
+	var actor organizationActor
+	var workosUserID, membershipID, workosOrg string
+	err := db.QueryRow(ctx, `select u.id, o.id, u.workos_user_id, m.workos_membership_id, o.workos_organization_id
+        from users u join organization_memberships m on m.user_id=u.id join organizations o on o.id=m.organization_id
+        where u.id=$1 and o.id=$2 and o.lifecycle_status='active'
+        and m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing')`,
+		localUserID, organizationID).Scan(&actor.userID, &actor.organizationID, &workosUserID, &membershipID, &workosOrg)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return organizationActor{}, organizationAccessDenied()
+	}
+	if err != nil {
+		return organizationActor{}, err
+	}
+	if strings.HasPrefix(workosUserID, "invited_user_") {
+		return organizationActor{}, organizationAccessDenied()
+	}
+	actor.role, err = verifyLiveOrganizationMembership(ctx, lookup, membershipID, workosUserID, workosOrg)
+	if err != nil {
+		return organizationActor{}, err
+	}
+	return actor, nil
+}
+
+func verifyLiveOrganizationMembership(
+	ctx context.Context,
+	lookup organizationMembershipLookup,
+	membershipID, workosUserID, workosOrganizationID string,
+) (string, error) {
 	if lookup == nil {
-		return actor, organizationMembershipLookupFailed()
+		return "", organizationMembershipLookupFailed()
 	}
 	member, err := lookup(ctx, membershipID)
 	if err != nil {
 		var apiErr *workos.APIError
 		if errors.As(err, &apiErr) && apiErr.StatusCode == 404 {
-			return actor, organizationAccessDenied()
+			return "", organizationAccessDenied()
 		}
-		return actor, organizationMembershipLookupFailed()
+		return "", organizationMembershipLookupFailed()
 	}
-	if member == nil || member.ID != membershipID || member.UserID != claims.UserID || member.OrganizationID != workosOrg || member.Status != "active" || member.Role == nil || !isKnownOrganizationRole(member.Role.Slug) {
-		return actor, organizationAccessDenied()
+	if member == nil || member.ID != membershipID || member.UserID != workosUserID || member.OrganizationID != workosOrganizationID || member.Status != "active" || member.Role == nil || !isKnownOrganizationRole(member.Role.Slug) {
+		return "", organizationAccessDenied()
 	}
-	actor.role = member.Role.Slug
-	return actor, nil
+	return member.Role.Slug, nil
 }
