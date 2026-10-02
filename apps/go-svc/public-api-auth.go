@@ -221,7 +221,7 @@ func (a *publicAPIAuth) touchAPIKeyLastUsedAt(ctx context.Context, apiKeyID stri
 	go func() {
 		touchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), publicAPILastUsedTimeout)
 		defer cancel()
-		if _, err := a.pool.Exec(touchCtx, `...`, apiKeyID); err != nil {
+		if _, err := a.pool.Exec(touchCtx, `update organization_api_keys set last_used_at = now(), updated_at = now() where id = $1`, apiKeyID); err != nil {
 			slog.DebugContext(touchCtx, "api_key_last_used_update_failed")
 		}
 	}()
