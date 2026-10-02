@@ -20,8 +20,14 @@ import { ContentEditorTestProviders } from "@/components/content-editor/shared/c
 import { isErr } from "@/lib/primitives/result/results";
 
 import { ContentEditorOfficeFileViewerPane } from "./content-editor-office-file-viewer";
+import { mountPptxSlideViewer } from "./content-editor-pptx-slide-viewer";
 import { applyPptxTextEdits, extractPptxSlideTexts } from "./content-editor-pptx-text";
 import { buildPptxFixture } from "./content-editor-pptx-text.fixture";
+
+// The slide viewer draws on canvas with WebAssembly, which happy-dom does not provide.
+vi.mock("./content-editor-pptx-slide-viewer", () => ({ mountPptxSlideViewer: vi.fn() }));
+
+const mountSlideViewer = vi.mocked(mountPptxSlideViewer);
 
 const SOURCE_URL = "https://example.com/source.pptx";
 const TARGET_URL = "https://example.com/target.pptx";
@@ -66,6 +72,20 @@ function renderTargetPane(input: {
   );
 }
 
+function renderSourcePane() {
+  return render(
+    <ContentEditorTestProviders>
+      <ContentEditorOfficeFileViewerPane
+        kind="pptx"
+        role="source"
+        src={SOURCE_URL}
+        filename="quarterly-review.pptx"
+        canEdit={false}
+      />
+    </ContentEditorTestProviders>,
+  );
+}
+
 describe("ContentEditorOfficeFileViewerPane with a PowerPoint file", () => {
   const fetchDeck = vi.fn<(url: string) => Promise<Response>>();
 
@@ -76,10 +96,12 @@ describe("ContentEditorOfficeFileViewerPane with a PowerPoint file", () => {
         : new Response(await buildPptxFixture()),
     );
     vi.stubGlobal("fetch", fetchDeck);
+    mountSlideViewer.mockResolvedValue({ dispose: vi.fn<() => void>() });
   });
 
   afterEach(() => {
     fetchDeck.mockReset();
+    mountSlideViewer.mockReset();
     vi.unstubAllGlobals();
   });
 
@@ -115,18 +137,22 @@ describe("ContentEditorOfficeFileViewerPane with a PowerPoint file", () => {
     ]);
   });
 
-  it("lists the source deck's paragraphs read-only", async () => {
-    render(
-      <ContentEditorTestProviders>
-        <ContentEditorOfficeFileViewerPane
-          kind="pptx"
-          role="source"
-          src={SOURCE_URL}
-          filename="quarterly-review.pptx"
-          canEdit={false}
-        />
-      </ContentEditorTestProviders>,
-    );
+  it("draws the source deck as slides", async () => {
+    renderSourcePane();
+
+    await waitFor(() => {
+      expect(mountSlideViewer).toHaveBeenCalledTimes(1);
+    });
+    const [container, content] = mountSlideViewer.mock.calls[0]!;
+    expect(container).toBeInstanceOf(HTMLElement);
+    expect((await slideTexts(content))[1]?.[0]).toBe("Quarterly review");
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /save edits/i })).not.toBeInTheDocument();
+  });
+
+  it("lists the source deck's paragraphs read-only when its slides cannot be drawn", async () => {
+    mountSlideViewer.mockRejectedValue(new Error("unsupported deck"));
+    renderSourcePane();
 
     const title = await screen.findByRole("textbox", { name: "Quarterly review" });
     expect(title).toHaveAttribute("readonly");
@@ -144,23 +170,27 @@ describe("ContentEditorOfficeFileViewerPane with a PowerPoint file", () => {
       "$10",
       "Margin formula",
     ]);
-    expect(screen.queryByRole("button", { name: /save edits/i })).not.toBeInTheDocument();
   });
 
-  it("lists a locked translation read-only and does not seed an empty one", async () => {
+  it("draws a locked translation as slides and does not seed an empty one", async () => {
     const onSave = vi.fn<(file: File) => void>();
     const { unmount } = renderTargetPane({ src: TARGET_URL, canEdit: false, onSave });
 
-    expect(await screen.findByRole("textbox", { name: "Acme SARL" })).toHaveAttribute("readonly");
+    await waitFor(() => {
+      expect(mountSlideViewer).toHaveBeenCalledTimes(1);
+    });
+    expect((await slideTexts(mountSlideViewer.mock.calls[0]![1]))[0]).toEqual(["Acme SARL"]);
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /save edits/i })).toBeDisabled();
     unmount();
     fetchDeck.mockClear();
+    mountSlideViewer.mockClear();
 
     renderTargetPane({ src: null, canEdit: false, onSave });
 
     expect(await screen.findByText(/no translated file/i)).toBeInTheDocument();
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(fetchDeck).not.toHaveBeenCalled();
+    expect(mountSlideViewer).not.toHaveBeenCalled();
   });
 
   it("opens the translated deck instead of the source once one is stored", async () => {

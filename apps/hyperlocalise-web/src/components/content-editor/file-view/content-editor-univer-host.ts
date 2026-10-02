@@ -18,6 +18,7 @@ import type {
   ContentEditorOfficeSnapshot,
   ContentEditorPptxBase,
 } from "@/components/content-editor/file-view/content-editor-office-convert";
+import { mountPptxSlideViewer } from "@/components/content-editor/file-view/content-editor-pptx-slide-viewer";
 import { mountPptxTextForm } from "@/components/content-editor/file-view/content-editor-pptx-text-form";
 
 export type ContentEditorUniverHostHandle = {
@@ -118,10 +119,9 @@ async function createSheetsHost(
 }
 
 /**
- * Univer slides 1.0.2 ships without its in-place text editor mounted and draws only the last
- * line of a text box, so it can neither edit nor show a deck's text. A deck read from a file
- * is shown as one field per paragraph instead, read-only or editable, and the edits travel
- * with the snapshot to be written back into that file.
+ * Univer slides 1.0.2 ships without its in-place text editor mounted, so it cannot edit a
+ * deck's text. An editable deck is shown as one field per paragraph instead, and the edits
+ * travel with the snapshot to be written back into the file it was read from.
  */
 function createPptxTextHost(
   container: HTMLElement,
@@ -134,6 +134,23 @@ function createPptxTextHost(
     getSnapshot: () => ({ ...snapshot, edits: form.getEdits() }),
     dispose: form.dispose,
   };
+}
+
+/** A read-only deck is drawn as its slides. A deck that cannot be drawn lists its text. */
+async function createPptxSlideHost(
+  container: HTMLElement,
+  snapshot: ContentEditorPptxSnapshot,
+  base: ContentEditorPptxBase,
+  signal?: AbortSignal,
+): Promise<ContentEditorUniverHostHandle> {
+  try {
+    const viewer = await mountPptxSlideViewer(container, base.content, { signal });
+    return { getSnapshot: () => snapshot, dispose: viewer.dispose };
+  } catch {
+    signal?.throwIfAborted();
+    container.replaceChildren();
+    return createPptxTextHost(container, snapshot, base, true);
+  }
 }
 
 async function createSlidesHost(
@@ -205,9 +222,12 @@ function createHost(
     case "xlsx":
       return createSheetsHost(mountNode, snapshot.data, readOnly, signal);
     case "pptx":
-      return snapshot.base
-        ? Promise.resolve(createPptxTextHost(mountNode, snapshot, snapshot.base, readOnly))
-        : createSlidesHost(mountNode, snapshot.data, readOnly, signal);
+      if (!snapshot.base) {
+        return createSlidesHost(mountNode, snapshot.data, readOnly, signal);
+      }
+      return readOnly
+        ? createPptxSlideHost(mountNode, snapshot, snapshot.base, signal)
+        : Promise.resolve(createPptxTextHost(mountNode, snapshot, snapshot.base, false));
   }
 }
 
