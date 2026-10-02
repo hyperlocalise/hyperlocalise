@@ -219,7 +219,7 @@ export function ContentEditorOfficeFileViewerPane({
     ) : null;
 
   return (
-    <div className="flex min-h-56 flex-col gap-2">
+    <div className="flex h-full min-h-56 flex-col gap-2">
       {saveActionsContainer ? (
         createPortal(saveButton, saveActionsContainer)
       ) : saveButton ? (
@@ -227,7 +227,7 @@ export function ContentEditorOfficeFileViewerPane({
       ) : null}
       <div
         className={cn(
-          "relative min-h-72 overflow-hidden border border-border bg-background",
+          "relative min-h-72 flex-1 overflow-hidden border border-border bg-background",
           !src && readOnly && role === "target" ? "border-dashed" : "",
         )}
       >
@@ -249,10 +249,11 @@ export function ContentEditorOfficeFileViewerPane({
         {useStoryPreview && previewSnapshot ? (
           <ContentEditorOfficeFilePreview
             snapshot={previewSnapshot}
-            className="max-h-[28rem] overflow-y-auto"
+            className="absolute inset-0 overflow-y-auto"
           />
         ) : (
-          <div ref={containerRef} className="h-[28rem] w-full" />
+          // Univer sizes itself to its container, so the container fills the pane.
+          <div ref={containerRef} className="absolute inset-0" />
         )}
       </div>
     </div>
