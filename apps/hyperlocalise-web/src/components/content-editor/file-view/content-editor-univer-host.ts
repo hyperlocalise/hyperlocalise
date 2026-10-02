@@ -16,13 +16,17 @@ import type { ISlideData } from "@univerjs/slides";
 import type {
   ContentEditorOfficeKind,
   ContentEditorOfficeSnapshot,
+  ContentEditorPptxBase,
 } from "@/components/content-editor/file-view/content-editor-office-convert";
+import { mountPptxTextForm } from "@/components/content-editor/file-view/content-editor-pptx-text-form";
 import { blockSlideEditing } from "@/components/content-editor/file-view/content-editor-slides-read-only";
 
 export type ContentEditorUniverHostHandle = {
   getSnapshot: () => ContentEditorOfficeSnapshot;
   dispose: () => void;
 };
+
+type ContentEditorPptxSnapshot = Extract<ContentEditorOfficeSnapshot, { kind: "pptx" }>;
 
 type UniverApi = {
   createDocument: (data?: Partial<IDocumentData>) => unknown;
@@ -114,6 +118,23 @@ async function createSheetsHost(
   };
 }
 
+/**
+ * Univer slides 1.0.2 ships without its in-place text editor mounted, so text cannot be typed
+ * on the slide canvas. An editable deck is shown as one field per paragraph instead, and the
+ * edits travel with the snapshot to be written back into the file it was read from.
+ */
+function createPptxTextHost(
+  container: HTMLElement,
+  snapshot: ContentEditorPptxSnapshot,
+  base: ContentEditorPptxBase,
+): ContentEditorUniverHostHandle {
+  const form = mountPptxTextForm(container, base.slides);
+  return {
+    getSnapshot: () => ({ ...snapshot, edits: form.getEdits() }),
+    dispose: form.dispose,
+  };
+}
+
 async function createSlidesHost(
   container: HTMLElement,
   data: ISlideData,
@@ -185,7 +206,9 @@ function createHost(
     case "xlsx":
       return createSheetsHost(mountNode, snapshot.data, readOnly, signal);
     case "pptx":
-      return createSlidesHost(mountNode, snapshot.data, readOnly, signal);
+      return !readOnly && snapshot.base
+        ? Promise.resolve(createPptxTextHost(mountNode, snapshot, snapshot.base))
+        : createSlidesHost(mountNode, snapshot.data, readOnly, signal);
   }
 }
 
