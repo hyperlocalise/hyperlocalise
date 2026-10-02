@@ -321,13 +321,13 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   const onSelectItem = useCallback(
     (item: InboxListItemSelection) => {
       store.setPendingSelection(item);
-      startTransition(() => {
-        const path =
-          item.kind === "notification"
-            ? `/org/${organizationSlug}/inbox/notifications/${item.id}`
-            : `/org/${organizationSlug}/inbox/${item.id}`;
+      const path =
+        item.kind === "notification"
+          ? `/org/${organizationSlug}/inbox/notifications/${item.id}`
+          : `/org/${organizationSlug}/inbox/${item.id}`;
+      if (item.kind === "conversation") {
         router.push(path);
-      });
+      }
 
       if (item.kind === "notification") {
         const notification = notifications.find((candidate) => candidate.id === item.id);

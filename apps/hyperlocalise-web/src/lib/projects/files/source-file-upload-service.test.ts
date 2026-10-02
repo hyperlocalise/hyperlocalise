@@ -18,12 +18,14 @@ const {
   dbTransactionMock,
   enqueueFileUploadedActivityMock,
   enqueueSourceFileIngestAfterUploadMock,
+  loggerWarnMock,
 } = vi.hoisted(() => ({
   createRepositorySourceFileVersionMock: vi.fn(),
   createStoredFileMock: vi.fn(),
   dbTransactionMock: vi.fn(),
   enqueueFileUploadedActivityMock: vi.fn(),
   enqueueSourceFileIngestAfterUploadMock: vi.fn(),
+  loggerWarnMock: vi.fn(),
 }));
 
 vi.mock("@/lib/database/client", () => ({
@@ -54,14 +56,29 @@ vi.mock("./source-file-ingest", () => ({
 }));
 
 vi.mock("@/lib/log", () => ({
-  createLogger: vi.fn(() => ({ warn: vi.fn() })),
+  createLogger: vi.fn(() => ({ warn: loggerWarnMock })),
 }));
 
 import { uploadSourceFile } from "./source-file-upload-service";
 
+const uploadInput = {
+  organizationId: "org_1",
+  project: { id: "project_1", source: "native" } as never,
+  file: {
+    filename: "en.json",
+    contentType: "application/json",
+    content: new Uint8Array([123, 125]),
+  },
+  sourcePath: "lang/en-US.json",
+  uploadSurface: "public_api" as const,
+  uploadedByApiKeyId: "key_1",
+  actorUserId: "user_1",
+};
+
 describe("uploadSourceFile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     dbTransactionMock.mockImplementation(async (callback) => callback("tx"));
     createStoredFileMock.mockResolvedValue({
       id: "file_1",
@@ -86,17 +103,7 @@ describe("uploadSourceFile", () => {
     const deferAfterResponse = vi.fn();
 
     const result = await uploadSourceFile({
-      organizationId: "org_1",
-      project: { id: "project_1", source: "native" } as never,
-      file: {
-        filename: "en.json",
-        contentType: "application/json",
-        content: new Uint8Array([123, 125]),
-      },
-      sourcePath: "lang/en-US.json",
-      uploadSurface: "public_api",
-      uploadedByApiKeyId: "key_1",
-      actorUserId: "user_1",
+      ...uploadInput,
       deferAfterResponse,
     });
 
@@ -113,5 +120,75 @@ describe("uploadSourceFile", () => {
 
     resolveEnqueue();
     await deferredPromise;
+  });
+
+  it("fire-and-forgets ingest enqueue when deferAfterResponse is omitted", async () => {
+    enqueueSourceFileIngestAfterUploadMock.mockResolvedValueOnce(undefined);
+
+    const result = await uploadSourceFile(uploadInput);
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { destination: "native", file: { id: "file_1", sourceFileVersionId: "version_1" } },
+    });
+    expect(enqueueSourceFileIngestAfterUploadMock).toHaveBeenCalledTimes(1);
+    expect(enqueueSourceFileIngestAfterUploadMock).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      storedFileId: "file_1",
+      sourceFileVersionId: "version_1",
+      sourcePath: "lang/en-US.json",
+      sourceHash: "hash_1",
+      targetAutomationId: undefined,
+    });
+  });
+
+  it("keeps the upload successful when deferred ingest enqueue rejects", async () => {
+    enqueueSourceFileIngestAfterUploadMock.mockRejectedValueOnce(new Error("workflow unavailable"));
+    const deferAfterResponse = vi.fn();
+
+    const result = await uploadSourceFile({
+      ...uploadInput,
+      deferAfterResponse,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+
+    const deferredTask = deferAfterResponse.mock.calls[0]?.[0] as () => Promise<unknown>;
+    await expect(deferredTask()).resolves.toBeUndefined();
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      {
+        projectId: "project_1",
+        sourceFileVersionId: "version_1",
+        error: "workflow unavailable",
+      },
+      "source-file-upload source ingest enqueue failed",
+    );
+  });
+
+  it("keeps the upload successful when deferred ingest enqueue times out", async () => {
+    vi.useFakeTimers();
+    enqueueSourceFileIngestAfterUploadMock.mockReturnValueOnce(new Promise(() => {}));
+    const deferAfterResponse = vi.fn();
+
+    const result = await uploadSourceFile({
+      ...uploadInput,
+      deferAfterResponse,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+
+    const deferredTask = deferAfterResponse.mock.calls[0]?.[0] as () => Promise<unknown>;
+    const deferredPromise = deferredTask();
+    await vi.advanceTimersByTimeAsync(10_000);
+    await expect(deferredPromise).resolves.toBeUndefined();
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      {
+        projectId: "project_1",
+        sourceFileVersionId: "version_1",
+        error: "source file ingest enqueue timed out after 10000ms",
+      },
+      "source-file-upload source ingest enqueue failed",
+    );
   });
 });

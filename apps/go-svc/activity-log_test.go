@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -222,6 +224,26 @@ func TestActivityLogFilterFingerprintStable(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, left, right)
+}
+
+func TestActivityLogFilterFingerprintEmptyEventTypesMatchNil(t *testing.T) {
+	empty, err := activityLogFilterFingerprint(activityLogQuery{eventTypes: []string{}, limit: 50, rangeKey: "all"})
+	require.NoError(t, err)
+	nilTypes, err := activityLogFilterFingerprint(activityLogQuery{eventTypes: nil, limit: 50, rangeKey: "all"})
+	require.NoError(t, err)
+	require.Equal(t, nilTypes, empty)
+
+	query, err := parseActivityLogQuery(url.Values{})
+	require.NoError(t, err)
+	require.NotNil(t, query.eventTypes)
+	require.Empty(t, query.eventTypes)
+	parsed, err := activityLogFilterFingerprint(query)
+	require.NoError(t, err)
+	require.Equal(t, nilTypes, parsed)
+
+	// Historical default-query cursors hashed "eventTypes":null, not [].
+	sum := sha256.Sum256([]byte(`{"actor":null,"eventTypes":null,"projectId":null,"range":"all","sourcePath":null}`))
+	require.Equal(t, hex.EncodeToString(sum[:]), empty)
 }
 
 func TestActivityLogRequiresSession(t *testing.T) {

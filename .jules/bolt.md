@@ -439,3 +439,7 @@
 ## 2027-09-29 - IndexByte Checks over ContainsAny in String Parsing Fast-Paths
 **Learning:** In string parsing routines (such as unquoting quoted text in `parsePOQuoted`), calling `strings.ContainsAny(inner, "\\\"")` incurs runtime table lookup overhead and character scanning. Replacing `strings.ContainsAny` with direct `strings.IndexByte(inner, '\\') < 0 && strings.IndexByte(inner, '"') < 0` calls allows Go's standard library to execute SIMD-accelerated byte search routines, yielding a ~35% speedup on parsing and ~23% speedup on marshaling without altering behavior.
 **Action:** Use multi-call `strings.IndexByte` for small sets of static single-byte signals instead of `strings.ContainsAny` in performance-critical string unquoting/parsing paths.
+
+## 2027-10-01 - Typed Structs over Map Allocations in JSON Fingerprinting
+**Learning:** In JSON serialization for query fingerprinting (`activityLogFilterFingerprint`), 1) replacing `map[string]string` for nested objects (such as `user` actor filters) with a typed Go struct (`activityLogUserActorPayload`) eliminates heap map allocations and map key reflection; 2) checking `slices.IsSorted` on candidate slices avoids slice cloning and sorting when elements are already sorted or <= 1 in length.
+**Action:** Replace dynamic `map[string]string` instances with typed Go structs for JSON payload encoding, and check `slices.IsSorted` before cloning or sorting slices.

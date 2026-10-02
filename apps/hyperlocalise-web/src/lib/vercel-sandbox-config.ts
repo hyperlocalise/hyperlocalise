@@ -165,6 +165,15 @@ export const installRequiredSandboxToolsCommand = [
   installRipgrepFromGithubRelease,
   installHyperlocaliseFromGithubRelease,
   installChromiumSystemDependenciesFunction,
+  // The default Ubuntu image ships without curl, which the GitHub release
+  // installers below and attachment downloads rely on.
+  "if ! command -v curl >/dev/null 2>&1; then",
+  "  if command -v apt-get >/dev/null 2>&1; then",
+  "    apt-get update && apt-get install -y curl ca-certificates",
+  "  elif command -v dnf >/dev/null 2>&1; then",
+  "    dnf install -y curl",
+  "  fi",
+  "fi",
   "if ! command -v rg >/dev/null 2>&1; then",
   "  if command -v apt-get >/dev/null 2>&1; then",
   "    apt-get update && apt-get install -y ripgrep",

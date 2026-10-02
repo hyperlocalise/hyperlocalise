@@ -169,11 +169,12 @@ describe("InboxPageContent item switching", () => {
 
     renderInbox(createInboxApi(listMessages));
 
-    await user.click(await screen.findByRole("button", { name: /Otto Klein assigned you/i }));
-
-    expect(navigation.push).toHaveBeenCalledWith(
+    const issueItem = await screen.findByRole("link", { name: /Otto Klein assigned you/i });
+    expect(issueItem).toHaveAttribute(
+      "href",
       `/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
     );
+    await user.click(issueItem);
     expect(await screen.findByText("Issue panel: issue_001")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
   });
