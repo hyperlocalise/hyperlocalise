@@ -10,7 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { BuildTextUtils, LocaleType, type IDocumentData, type IWorkbookData } from "@univerjs/core";
+import {
+  BuildTextUtils,
+  HorizontalAlign,
+  LocaleType,
+  type IDocumentData,
+  type IWorkbookData,
+} from "@univerjs/core";
 import { PageElementType, PageType, type ISlideData } from "@univerjs/slides";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import JSZip from "jszip";
@@ -73,18 +79,6 @@ function emptyDocumentData(title: string): IDocumentData {
       marginBottom: 72,
       marginLeft: 90,
       marginRight: 90,
-    },
-  };
-}
-
-function documentFromPlainText(title: string, text: string): IDocumentData {
-  const body = BuildTextUtils.transform.fromPlainText(text.trim() ? text : "");
-  const dataStream = body.dataStream.endsWith("\r\n") ? body.dataStream : `${body.dataStream}\r\n`;
-  return {
-    ...emptyDocumentData(title),
-    body: {
-      ...body,
-      dataStream,
     },
   };
 }
@@ -197,10 +191,161 @@ async function importXlsxFile(file: File): Promise<IWorkbookData> {
   });
 }
 
+type MammothElement = { type: string; alignment?: string; children?: MammothElement[] };
+
+const DOCX_ALIGNMENTS: Record<string, HorizontalAlign> = {
+  center: HorizontalAlign.CENTER,
+  right: HorizontalAlign.RIGHT,
+  end: HorizontalAlign.RIGHT,
+  both: HorizontalAlign.JUSTIFIED,
+  distribute: HorizontalAlign.JUSTIFIED,
+};
+
+const ALIGNMENT_MARKER = "hl-align-";
+const HTML_BLOCKS = "p,h1,h2,h3,h4,h5,h6";
+
+const DOCX_STYLE_MAP = [
+  // Univer's converter reads <em> as bold, and mammoth drops underline unless mapped.
+  "i => i",
+  "u => u",
+  "p[style-name='Title'] => h1:fresh",
+  ...[HorizontalAlign.CENTER, HorizontalAlign.RIGHT, HorizontalAlign.JUSTIFIED].map(
+    (align) => `r[style-name='${ALIGNMENT_MARKER}${align}'] => span.${ALIGNMENT_MARKER}${align}`,
+  ),
+];
+
+/**
+ * mammoth's HTML has no alignment, so each aligned paragraph gets a marker run that the style
+ * map turns into a span. `prepareDocxHtml` reads the spans back and removes them.
+ */
+function markParagraphAlignment(element: MammothElement): MammothElement {
+  const children = element.children?.map(markParagraphAlignment);
+  if (!children) {
+    return element;
+  }
+  const align = element.type === "paragraph" ? DOCX_ALIGNMENTS[element.alignment ?? ""] : undefined;
+  if (!align) {
+    return { ...element, children };
+  }
+  const marker = {
+    type: "run",
+    styleName: `${ALIGNMENT_MARKER}${align}`,
+    children: [{ type: "text", value: "\u200b" }],
+  };
+  return { ...element, children: [...children, marker] };
+}
+
+/**
+ * Shapes mammoth's HTML so Univer's converter makes exactly one paragraph per block element,
+ * and returns the alignment of each block in document order.
+ */
+function prepareDocxHtml(html: string) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  // The docs preset has no image plugin, so image blocks would not render.
+  doc.querySelectorAll("img").forEach((image) => image.remove());
+
+  for (const marker of doc.querySelectorAll(`span[class^="${ALIGNMENT_MARKER}"]`)) {
+    const block = marker.closest(`${HTML_BLOCKS},li`);
+    block?.setAttribute("data-align", marker.className.slice(ALIGNMENT_MARKER.length));
+    marker.remove();
+    if (block && !block.hasChildNodes()) {
+      block.remove();
+    }
+  }
+
+  // The converter ends a paragraph only when <li> closes, which merges an item with its sub-list.
+  for (const item of doc.querySelectorAll("li")) {
+    const paragraph = doc.createElement("p");
+    while (item.firstChild && !["UL", "OL"].includes(item.firstChild.nodeName)) {
+      paragraph.append(item.firstChild);
+    }
+    if (paragraph.hasChildNodes()) {
+      paragraph.setAttribute("data-align", item.getAttribute("data-align") ?? "");
+      item.prepend(paragraph);
+    }
+  }
+
+  for (const cell of doc.querySelectorAll("td,th")) {
+    if (!cell.querySelector(HTML_BLOCKS)) {
+      const paragraph = doc.createElement("p");
+      paragraph.append(...cell.childNodes);
+      cell.append(paragraph);
+    }
+  }
+
+  // The converter puts a paragraph before and after a table that has none; make them explicit.
+  for (const table of doc.querySelectorAll("table")) {
+    const previous = table.previousElementSibling;
+    if (!previous || previous.tagName === "TABLE") {
+      table.before(doc.createElement("p"));
+    }
+    if (!table.nextElementSibling) {
+      table.after(doc.createElement("p"));
+    }
+  }
+
+  return {
+    html: doc.body.innerHTML,
+    alignments: [...doc.body.querySelectorAll(HTML_BLOCKS)].map(
+      (block) => Number(block.getAttribute("data-align")) || undefined,
+    ),
+  };
+}
+
+/**
+ * Builds a document from mammoth's HTML with Univer's paste converter, which keeps headings,
+ * lists, tables, links, and bold, italic, and underline.
+ */
+async function documentFromDocxHtml(title: string, docxHtml: string): Promise<IDocumentData> {
+  const { convertClipboardHtmlToDocumentData } = await import("@univerjs/docs-ui");
+  const base = emptyDocumentData(title);
+  const { html, alignments } = prepareDocxHtml(docxHtml);
+  const converted = convertClipboardHtmlToDocumentData(html, base.id);
+  if (!converted.body?.dataStream) {
+    return base;
+  }
+
+  // Blocks and paragraphs pair up in order. If the counts differ they cannot be matched, so
+  // alignment is left out.
+  const paragraphs = converted.body.paragraphs ?? [];
+  if (paragraphs.length === alignments.length) {
+    alignments.forEach((horizontalAlign, index) => {
+      if (horizontalAlign) {
+        paragraphs[index].paragraphStyle = { ...paragraphs[index].paragraphStyle, horizontalAlign };
+      }
+    });
+  }
+  return fitTablesToPage({ ...converted, ...base, body: converted.body });
+}
+
+/** The converter sizes tables for a wider page, so they are scaled down to the text width. */
+function fitTablesToPage(document: IDocumentData): IDocumentData {
+  const { pageSize, marginLeft = 0, marginRight = 0 } = document.documentStyle;
+  const textWidth = (pageSize?.width ?? 0) - marginLeft - marginRight;
+  for (const table of Object.values(document.tableSource ?? {})) {
+    const scale = textWidth / table.size.width.v;
+    if (scale > 0 && scale < 1) {
+      table.size.width.v = textWidth;
+      for (const column of table.tableColumns) {
+        column.size.width.v *= scale;
+      }
+    }
+  }
+  return document;
+}
+
 async function importDocxFile(file: File, title: string): Promise<IDocumentData> {
   const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.extractRawText({ arrayBuffer });
-  return documentFromPlainText(title, result.value || "");
+  const result = await mammoth.convertToHtml(
+    { arrayBuffer },
+    {
+      styleMap: DOCX_STYLE_MAP,
+      transformDocument: markParagraphAlignment,
+      // Images are removed from the HTML, so skip encoding them.
+      convertImage: mammoth.images.imgElement(async () => ({ src: "" })),
+    },
+  );
+  return documentFromDocxHtml(title, result.value);
 }
 
 async function importPptxFile(file: File, title: string): Promise<ISlideData> {

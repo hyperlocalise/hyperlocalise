@@ -10,10 +10,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+// @vitest-environment happy-dom
+
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { BuildTextUtils } from "@univerjs/core";
-import { Document, Packer, Paragraph } from "docx";
+import { BuildTextUtils, HorizontalAlign, NamedStyleType, PresetListType } from "@univerjs/core";
+import {
+  AlignmentType,
+  Document,
+  ExternalHyperlink,
+  HeadingLevel,
+  Packer,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+} from "docx";
 import PptxGenJS from "pptxgenjs";
 
 import {
@@ -30,11 +43,23 @@ vi.mock("mammoth", async (importOriginal) => {
   return {
     default: {
       ...mammoth,
-      extractRawText: (input: { arrayBuffer: ArrayBuffer }) =>
-        mammoth.extractRawText({ buffer: Buffer.from(input.arrayBuffer) }),
+      convertToHtml: (input: { arrayBuffer: ArrayBuffer }, options?: object) =>
+        mammoth.convertToHtml({ buffer: Buffer.from(input.arrayBuffer) }, options),
     },
   };
 });
+
+async function loadDocx(children: (Paragraph | Table)[]) {
+  const buffer = await Packer.toBuffer(new Document({ sections: [{ children }] }));
+  const snapshot = await loadOfficeSnapshotFromFile({
+    kind: "docx",
+    file: new File([new Uint8Array(buffer)], "brief.docx"),
+  });
+  if (snapshot.kind !== "docx") {
+    throw new Error("expected docx snapshot");
+  }
+  return snapshot.data;
+}
 
 describe("cat-office-convert", () => {
   it("decodes XML text entities without double-unescaping", () => {
@@ -67,24 +92,90 @@ describe("cat-office-convert", () => {
     expect(file.size).toBeGreaterThan(0);
   });
 
-  it("loads paragraph text from a docx file", async () => {
-    const buffer = await Packer.toBuffer(
-      new Document({
-        sections: [{ children: [new Paragraph("Quarterly brief"), new Paragraph("Hello world")] }],
+  it("keeps headings, alignment, and text formatting from a docx file", async () => {
+    const data = await loadDocx([
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun("Quarterly brief")],
       }),
-    );
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [
+          new TextRun("Click "),
+          new TextRun({ text: "Save", bold: true }),
+          new TextRun({ text: " now", italics: true, underline: {} }),
+        ],
+      }),
+      new Paragraph("Plain line"),
+    ]);
 
-    const snapshot = await loadOfficeSnapshotFromFile({
-      kind: "docx",
-      file: new File([new Uint8Array(buffer)], "brief.docx"),
-    });
+    expect(plainTextFromDocument(data)).toBe("Quarterly brief\rClick Save now\rPlain line");
+    expect(data.body?.paragraphs?.map((paragraph) => paragraph.paragraphStyle)).toMatchObject([
+      { namedStyleType: NamedStyleType.HEADING_1, horizontalAlign: HorizontalAlign.CENTER },
+      { horizontalAlign: HorizontalAlign.RIGHT },
+      undefined,
+    ]);
+    expect(data.body?.textRuns).toMatchObject([
+      { st: 22, ed: 26, ts: { bl: 1 } },
+      { st: 26, ed: 30, ts: { it: 1, ul: { s: 1 } } },
+    ]);
+  });
 
-    if (snapshot.kind !== "docx") {
-      throw new Error("expected docx snapshot");
-    }
-    const text = plainTextFromDocument(snapshot.data);
-    expect(text).toContain("Quarterly brief");
-    expect(text).toContain("Hello world");
+  it("keeps nested lists and links from a docx file", async () => {
+    const data = await loadDocx([
+      new Paragraph({ bullet: { level: 0 }, children: [new TextRun("First point")] }),
+      new Paragraph({ bullet: { level: 1 }, children: [new TextRun("Nested point")] }),
+      new Paragraph({
+        children: [
+          new ExternalHyperlink({
+            link: "https://example.com",
+            children: [new TextRun("our site")],
+          }),
+        ],
+      }),
+    ]);
+
+    expect(plainTextFromDocument(data)).toBe("First point\rNested point\rour site");
+    expect(data.body?.paragraphs?.map((paragraph) => paragraph.bullet)).toMatchObject([
+      { listType: PresetListType.BULLET_LIST, nestingLevel: 0 },
+      { listType: PresetListType.BULLET_LIST, nestingLevel: 1 },
+      undefined,
+    ]);
+    expect(data.body?.customRanges).toMatchObject([
+      { properties: { url: "https://example.com/" } },
+    ]);
+  });
+
+  it("fits docx tables to the page and aligns cell text", async () => {
+    const data = await loadDocx([
+      new Table({
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph("Plan")] }),
+              new TableCell({
+                children: [
+                  new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("$20")] }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ]);
+
+    const [table] = Object.values(data.tableSource ?? {});
+    const textWidth = 595.3 - 90 - 90;
+    expect(table?.size.width.v).toBeCloseTo(textWidth);
+    expect(table?.tableColumns.map((column) => column.size.width.v)).toEqual([
+      expect.closeTo(textWidth / 2),
+      expect.closeTo(textWidth / 2),
+    ]);
+    // A table always has a paragraph before and after it.
+    expect(
+      data.body?.paragraphs?.map((paragraph) => paragraph.paragraphStyle?.horizontalAlign),
+    ).toEqual([undefined, undefined, HorizontalAlign.RIGHT, undefined]);
   });
 
   it("exports a pptx file from a slide snapshot", async () => {
