@@ -14,10 +14,19 @@ export const E2E_BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 
 export const E2E_DEFAULT_LOCALE = "en";
 
+export function e2eUrl(path: string) {
+  return new URL(path, E2E_BASE_URL).toString();
+}
+
+export function organizationPath(organizationSlug: string, suffix = "") {
+  const normalized = suffix === "" || suffix.startsWith("/") ? suffix : `/${suffix}`;
+  return `/${E2E_DEFAULT_LOCALE}/org/${organizationSlug}${normalized}`;
+}
+
 export function organizationDashboardPath(organizationSlug: string) {
-  return `/${E2E_DEFAULT_LOCALE}/org/${organizationSlug}/dashboard`;
+  return organizationPath(organizationSlug, "/dashboard");
 }
 
 export function organizationProjectsPath(organizationSlug: string) {
-  return `/${E2E_DEFAULT_LOCALE}/org/${organizationSlug}/projects`;
+  return organizationPath(organizationSlug, "/projects");
 }
