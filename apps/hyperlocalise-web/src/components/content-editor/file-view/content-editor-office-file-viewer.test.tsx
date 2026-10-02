@@ -179,4 +179,20 @@ describe("ContentEditorOfficeFileViewerPane", () => {
     expect(loadSnapshot).not.toHaveBeenCalled();
     expect(mountHost).not.toHaveBeenCalled();
   });
+
+  it("previews each paragraph of a story Word file separately", async () => {
+    loadSnapshot.mockImplementation(async ({ kind, filename }) => {
+      const snapshot = emptyOfficeSnapshot(kind, filename);
+      if (snapshot.kind === "docx") {
+        snapshot.data.body = { dataStream: "Product brief\rShips in May\r\n" };
+      }
+      return snapshot;
+    });
+
+    render(renderPane("/storybook/cat/docs/product-brief.target.docx"));
+
+    expect(await screen.findByText("Product brief")).toBeVisible();
+    expect(screen.getByText("Ships in May")).toBeVisible();
+    expect(mountHost).not.toHaveBeenCalled();
+  });
 });
