@@ -10,7 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { IDocumentData, IWorkbookData } from "@univerjs/core";
+import type { IDocumentData, IWorkbookData, Univer } from "@univerjs/core";
+import type { IRender } from "@univerjs/engine-render";
 import type { ISlideData } from "@univerjs/slides";
 
 import type {
@@ -38,6 +39,36 @@ type UniverApi = {
 /** `UnitAction.Edit` from `@univerjs/protocol`, which this app does not depend on directly. */
 const UNIT_ACTION_EDIT = 1;
 
+/**
+ * Univer draws a blinking cursor wherever the page was last clicked, even when the document
+ * cannot be edited. This clears the cursor as soon as it appears. A dragged selection is left
+ * alone, so text can still be copied.
+ */
+async function hideCursor(univer: Univer, unitId: string): Promise<void> {
+  const { IRenderManagerService } = await import("@univerjs/engine-render");
+  const { DocSelectionRenderService } = await import("@univerjs/docs-ui");
+  const renders = univer.__getInjector().get(IRenderManagerService);
+
+  function watch(render: IRender) {
+    if (render.unitId !== unitId) {
+      return;
+    }
+    const selection = render.with(DocSelectionRenderService);
+    selection.textSelectionInner$.subscribe((current) => {
+      if (current?.textRanges.some((range) => range.collapsed)) {
+        selection.removeAllRanges();
+      }
+    });
+  }
+
+  const render = renders.getRenderUnitById(unitId);
+  if (render) {
+    watch(render);
+  } else {
+    renders.created$.subscribe(watch);
+  }
+}
+
 async function createDocsHost(
   container: HTMLElement,
   data: IDocumentData,
@@ -51,7 +82,7 @@ async function createDocsHost(
   await import("@univerjs/preset-docs-core/lib/index.css");
   signal?.throwIfAborted();
 
-  const { univerAPI } = createUniver({
+  const { univer, univerAPI } = createUniver({
     locale: LocaleType.EN_US,
     locales: {
       [LocaleType.EN_US]: mergeLocales(UniverPresetDocsCoreEnUS),
@@ -64,12 +95,13 @@ async function createDocsHost(
         ribbonType: "simple",
       }),
     ],
-  }) as { univerAPI: UniverApi };
+  }) as { univer: Univer; univerAPI: UniverApi };
 
   univerAPI.createDocument(data);
   if (readOnly) {
     // Hiding the toolbar leaves the page itself editable, so the edit permission is switched off.
     await univerAPI.getActiveDocument?.()?.getPermission().setPoint(UNIT_ACTION_EDIT, false);
+    await hideCursor(univer, data.id);
   }
 
   return {
