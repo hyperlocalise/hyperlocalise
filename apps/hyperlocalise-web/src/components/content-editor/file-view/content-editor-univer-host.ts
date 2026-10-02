@@ -20,6 +20,7 @@ import type {
 } from "@/components/content-editor/file-view/content-editor-office-convert";
 import { mountPptxSlideViewer } from "@/components/content-editor/file-view/content-editor-pptx-slide-viewer";
 import { mountPptxTextForm } from "@/components/content-editor/file-view/content-editor-pptx-text-form";
+import { mountPptxTranslationEditor } from "@/components/content-editor/file-view/content-editor-pptx-translation-editor";
 
 export type ContentEditorUniverHostHandle = {
   getSnapshot: () => ContentEditorOfficeSnapshot;
@@ -120,20 +121,29 @@ async function createSheetsHost(
 
 /**
  * Univer slides 1.0.2 ships without its in-place text editor mounted, so it cannot edit a
- * deck's text. An editable deck is shown as one field per paragraph instead, and the edits
- * travel with the snapshot to be written back into the file it was read from.
+ * deck's text. An editable deck is shown as its slides beside one field per paragraph, and
+ * the edits travel with the snapshot to be written back into the file it was read from.
  */
-function createPptxTextHost(
+function createPptxEditorHost(
   container: HTMLElement,
   snapshot: ContentEditorPptxSnapshot,
   base: ContentEditorPptxBase,
-  readOnly: boolean,
 ): ContentEditorUniverHostHandle {
-  const form = mountPptxTextForm(container, base.slides, { readOnly });
+  const editor = mountPptxTranslationEditor(container, base);
   return {
-    getSnapshot: () => ({ ...snapshot, edits: form.getEdits() }),
-    dispose: form.dispose,
+    getSnapshot: () => ({ ...snapshot, edits: editor.getEdits() }),
+    dispose: editor.dispose,
   };
+}
+
+/** Lists a deck's text read-only, for a deck whose slides cannot be drawn. */
+function createPptxTextListHost(
+  container: HTMLElement,
+  snapshot: ContentEditorPptxSnapshot,
+  base: ContentEditorPptxBase,
+): ContentEditorUniverHostHandle {
+  const form = mountPptxTextForm(container, base.slides, { readOnly: true });
+  return { getSnapshot: () => snapshot, dispose: form.dispose };
 }
 
 /** A read-only deck is drawn as its slides. A deck that cannot be drawn lists its text. */
@@ -149,7 +159,7 @@ async function createPptxSlideHost(
   } catch {
     signal?.throwIfAborted();
     container.replaceChildren();
-    return createPptxTextHost(container, snapshot, base, true);
+    return createPptxTextListHost(container, snapshot, base);
   }
 }
 
@@ -227,7 +237,7 @@ function createHost(
       }
       return readOnly
         ? createPptxSlideHost(mountNode, snapshot, snapshot.base, signal)
-        : Promise.resolve(createPptxTextHost(mountNode, snapshot, snapshot.base, false));
+        : Promise.resolve(createPptxEditorHost(mountNode, snapshot, snapshot.base));
   }
 }
 

@@ -20,14 +20,18 @@ import { ContentEditorTestProviders } from "@/components/content-editor/shared/c
 import { isErr } from "@/lib/primitives/result/results";
 
 import { ContentEditorOfficeFileViewerPane } from "./content-editor-office-file-viewer";
-import { mountPptxSlideViewer } from "./content-editor-pptx-slide-viewer";
+import { mountPptxSlidePreview, mountPptxSlideViewer } from "./content-editor-pptx-slide-viewer";
 import { applyPptxTextEdits, extractPptxSlideTexts } from "./content-editor-pptx-text";
 import { buildPptxFixture } from "./content-editor-pptx-text.fixture";
 
 // The slide viewer draws on canvas with WebAssembly, which happy-dom does not provide.
-vi.mock("./content-editor-pptx-slide-viewer", () => ({ mountPptxSlideViewer: vi.fn() }));
+vi.mock("./content-editor-pptx-slide-viewer", () => ({
+  mountPptxSlideViewer: vi.fn(),
+  mountPptxSlidePreview: vi.fn(),
+}));
 
 const mountSlideViewer = vi.mocked(mountPptxSlideViewer);
+const mountSlidePreview = vi.mocked(mountPptxSlidePreview);
 
 const SOURCE_URL = "https://example.com/source.pptx";
 const TARGET_URL = "https://example.com/target.pptx";
@@ -97,11 +101,17 @@ describe("ContentEditorOfficeFileViewerPane with a PowerPoint file", () => {
     );
     vi.stubGlobal("fetch", fetchDeck);
     mountSlideViewer.mockResolvedValue({ dispose: vi.fn<() => void>() });
+    mountSlidePreview.mockResolvedValue({
+      reload: vi.fn<() => Promise<void>>(async () => undefined),
+      showSlide: vi.fn<() => void>(),
+      dispose: vi.fn<() => void>(),
+    });
   });
 
   afterEach(() => {
     fetchDeck.mockReset();
     mountSlideViewer.mockReset();
+    mountSlidePreview.mockReset();
     vi.unstubAllGlobals();
   });
 

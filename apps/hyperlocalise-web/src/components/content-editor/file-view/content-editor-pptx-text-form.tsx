@@ -24,14 +24,20 @@ export type ContentEditorPptxTextFormHandle = {
   dispose: () => void;
 };
 
-function PptxTextForm({
+/** The attribute that carries a field's unit id, so a field can be found by its paragraph. */
+export const PPTX_UNIT_ID_ATTRIBUTE = "data-pptx-unit-id";
+
+export function PptxTextForm({
   slides,
   readOnly,
   onChange,
+  onFocusSlide,
 }: {
   slides: readonly PptxSlideText[];
   readOnly: boolean;
   onChange: (unitId: string, text: string) => void;
+  /** Called with the slide's part name when one of its fields takes focus. */
+  onFocusSlide?: (partName: string) => void;
 }) {
   return (
     <ol className="flex h-full flex-col gap-4 overflow-y-auto p-3">
@@ -52,6 +58,8 @@ function PptxTextForm({
                 readOnly={readOnly}
                 className={cn("min-h-9 rounded-md py-2", readOnly && "bg-transparent")}
                 onChange={(event) => onChange(unit.id, event.target.value)}
+                onFocus={() => onFocusSlide?.(slide.partName)}
+                {...{ [PPTX_UNIT_ID_ATTRIBUTE]: unit.id }}
               />
             ))}
           </div>
@@ -59,6 +67,21 @@ function PptxTextForm({
       ))}
     </ol>
   );
+}
+
+/** The field values that differ from the file, by unit id. */
+export function changedPptxUnits(
+  slides: readonly PptxSlideText[],
+  values: ReadonlyMap<string, string>,
+): Record<string, string> {
+  const edits: Record<string, string> = {};
+  for (const unit of slides.flatMap((slide) => slide.units)) {
+    const text = values.get(unit.id);
+    if (text !== undefined && text !== unit.text) {
+      edits[unit.id] = text;
+    }
+  }
+  return edits;
 }
 
 /**
@@ -82,16 +105,7 @@ export function mountPptxTextForm(
   );
 
   return {
-    getEdits: () => {
-      const edits: Record<string, string> = {};
-      for (const unit of slides.flatMap((slide) => slide.units)) {
-        const text = values.get(unit.id);
-        if (text !== undefined && text !== unit.text) {
-          edits[unit.id] = text;
-        }
-      }
-      return edits;
-    },
+    getEdits: () => changedPptxUnits(slides, values),
     // The pane disposes editors while React commits, when a root cannot unmount synchronously.
     dispose: () => queueMicrotask(() => root.unmount()),
   };
