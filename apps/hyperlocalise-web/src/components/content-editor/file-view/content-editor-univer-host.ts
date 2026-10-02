@@ -36,12 +36,14 @@ async function createDocsHost(
   container: HTMLElement,
   data: IDocumentData,
   readOnly: boolean,
+  signal?: AbortSignal,
 ): Promise<ContentEditorUniverHostHandle> {
   const { UniverDocsCorePreset } = await import("@univerjs/preset-docs-core");
   const UniverPresetDocsCoreEnUS = (await import("@univerjs/preset-docs-core/locales/en-US"))
     .default;
   const { createUniver, LocaleType, mergeLocales } = await import("@univerjs/presets");
   await import("@univerjs/preset-docs-core/lib/index.css");
+  signal?.throwIfAborted();
 
   const { univerAPI } = createUniver({
     locale: LocaleType.EN_US,
@@ -74,12 +76,14 @@ async function createSheetsHost(
   container: HTMLElement,
   data: IWorkbookData,
   readOnly: boolean,
+  signal?: AbortSignal,
 ): Promise<ContentEditorUniverHostHandle> {
   const { UniverSheetsCorePreset } = await import("@univerjs/preset-sheets-core");
   const UniverPresetSheetsCoreEnUS = (await import("@univerjs/preset-sheets-core/locales/en-US"))
     .default;
   const { createUniver, LocaleType, mergeLocales } = await import("@univerjs/presets");
   await import("@univerjs/preset-sheets-core/lib/index.css");
+  signal?.throwIfAborted();
 
   const { univerAPI } = createUniver({
     locale: LocaleType.EN_US,
@@ -113,6 +117,7 @@ async function createSlidesHost(
   container: HTMLElement,
   data: ISlideData,
   readOnly: boolean,
+  signal?: AbortSignal,
 ): Promise<ContentEditorUniverHostHandle> {
   const { LocaleType, Univer, UniverInstanceType, mergeLocales } = await import("@univerjs/core");
   const { UniverRenderEnginePlugin } = await import("@univerjs/engine-render");
@@ -132,6 +137,7 @@ async function createSlidesHost(
   await import("@univerjs/ui/lib/index.css");
   await import("@univerjs/docs-ui/lib/index.css");
   await import("@univerjs/slides-ui/lib/index.css");
+  signal?.throwIfAborted();
 
   const univer = new Univer({
     locale: LocaleType.EN_US,
@@ -164,18 +170,47 @@ async function createSlidesHost(
   };
 }
 
+function createHost(
+  mountNode: HTMLElement,
+  snapshot: ContentEditorOfficeSnapshot,
+  readOnly: boolean,
+  signal?: AbortSignal,
+): Promise<ContentEditorUniverHostHandle> {
+  switch (snapshot.kind) {
+    case "docx":
+      return createDocsHost(mountNode, snapshot.data, readOnly, signal);
+    case "xlsx":
+      return createSheetsHost(mountNode, snapshot.data, readOnly, signal);
+    case "pptx":
+      return createSlidesHost(mountNode, snapshot.data, readOnly, signal);
+  }
+}
+
 export async function mountCatUniverHost(input: {
   container: HTMLElement;
   snapshot: ContentEditorOfficeSnapshot;
   readOnly: boolean;
+  signal?: AbortSignal;
 }): Promise<ContentEditorUniverHostHandle> {
-  switch (input.snapshot.kind) {
-    case "docx":
-      return createDocsHost(input.container, input.snapshot.data, input.readOnly);
-    case "xlsx":
-      return createSheetsHost(input.container, input.snapshot.data, input.readOnly);
-    case "pptx":
-      return createSlidesHost(input.container, input.snapshot.data, input.readOnly);
+  // Univer renders its own React root into the element it is given and may finish unmounting
+  // after dispose() returns. Each editor gets its own element, removed as a whole, so nothing
+  // clears DOM out from under a root that is still unmounting.
+  const mountNode = document.createElement("div");
+  mountNode.className = "h-full w-full";
+  input.container.append(mountNode);
+
+  try {
+    const host = await createHost(mountNode, input.snapshot, input.readOnly, input.signal);
+    return {
+      getSnapshot: host.getSnapshot,
+      dispose: () => {
+        host.dispose();
+        mountNode.remove();
+      },
+    };
+  } catch (error) {
+    mountNode.remove();
+    throw error;
   }
 }
 

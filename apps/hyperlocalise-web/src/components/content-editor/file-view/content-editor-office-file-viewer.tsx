@@ -14,7 +14,7 @@
  */
 import { FloppyDiskIcon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import {
@@ -69,28 +69,24 @@ export function ContentEditorOfficeFileViewerPane({
       ? intl.formatMessage(contentEditorFileViewMessages.sourceEmpty)
       : intl.formatMessage(contentEditorFileViewMessages.targetEmpty);
 
-  const mountEditor = useEffectEvent(async (snapshot: ContentEditorOfficeSnapshot) => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
-    hostRef.current?.dispose();
-    hostRef.current = null;
-    container.replaceChildren();
-    hostRef.current = await mountCatUniverHost({
-      container,
-      snapshot,
-      readOnly,
-    });
-  });
-
   useEffect(() => {
-    let cancelled = false;
+    const abortController = new AbortController();
+    const { signal } = abortController;
+
+    async function mountEditor(snapshot: ContentEditorOfficeSnapshot) {
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+      const host = await mountCatUniverHost({ container, snapshot, readOnly, signal });
+      if (signal.aborted) {
+        host.dispose();
+        return;
+      }
+      hostRef.current = host;
+    }
 
     async function run() {
-      hostRef.current?.dispose();
-      hostRef.current = null;
-      containerRef.current?.replaceChildren();
       setPreviewSnapshot(null);
 
       if (isLoading) {
@@ -110,17 +106,17 @@ export function ContentEditorOfficeFileViewerPane({
         setError(null);
         try {
           const snapshot = emptyOfficeSnapshot(kind, filename);
-          if (cancelled) {
+          if (signal.aborted) {
             return;
           }
           await mountEditor(snapshot);
         } catch (mountError) {
-          if (cancelled) {
+          if (signal.aborted) {
             return;
           }
           setError(mountError instanceof Error ? mountError.message : String(mountError));
         } finally {
-          if (!cancelled) {
+          if (!signal.aborted) {
             setIsMounting(false);
           }
         }
@@ -135,7 +131,7 @@ export function ContentEditorOfficeFileViewerPane({
           src,
           filename,
         });
-        if (cancelled) {
+        if (signal.aborted) {
           return;
         }
         if (useStoryPreview) {
@@ -144,12 +140,12 @@ export function ContentEditorOfficeFileViewerPane({
         }
         await mountEditor(snapshot);
       } catch (mountError) {
-        if (cancelled) {
+        if (signal.aborted) {
           return;
         }
         setError(mountError instanceof Error ? mountError.message : String(mountError));
       } finally {
-        if (!cancelled) {
+        if (!signal.aborted) {
           setIsMounting(false);
         }
       }
@@ -158,11 +154,11 @@ export function ContentEditorOfficeFileViewerPane({
     void run();
 
     return () => {
-      cancelled = true;
+      abortController.abort();
       hostRef.current?.dispose();
       hostRef.current = null;
     };
-  }, [filename, isLoading, kind, mountEditor, readOnly, src, useStoryPreview]);
+  }, [filename, isLoading, kind, readOnly, src, useStoryPreview]);
 
   async function handleSave() {
     if (!onSave) {
