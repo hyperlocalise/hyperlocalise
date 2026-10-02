@@ -316,8 +316,12 @@ type activityLogUserActorPayload struct {
 func activityLogFilterFingerprint(query activityLogQuery) (string, error) {
 	// BOLT OPTIMIZATION: Avoid unnecessary slice allocations when eventTypes is already sorted,
 	// and replace map[string]string with a typed struct to avoid map heap allocations during json.Marshal.
+	// Keep a zero-length filter as nil so json.Marshal emits "eventTypes":null and matches
+	// cursors issued before the sorted-slice fast path.
 	var eventTypes []string
-	if len(query.eventTypes) > 1 && !slices.IsSorted(query.eventTypes) {
+	if len(query.eventTypes) == 0 {
+		eventTypes = nil
+	} else if len(query.eventTypes) > 1 && !slices.IsSorted(query.eventTypes) {
 		eventTypes = slices.Clone(query.eventTypes)
 		slices.Sort(eventTypes)
 	} else {
