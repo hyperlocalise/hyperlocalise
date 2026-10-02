@@ -12,6 +12,7 @@
  */
 import { apiClient } from "@/lib/api-client-instance";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import type { QaCheckPolicy } from "./qa-policy";
 
 type OrgParams = { organizationSlug: string };
 type ProjectParams = OrgParams & { projectId: string };
@@ -22,6 +23,7 @@ type WorkspaceFindingsQuery = PageQuery & {
   locale?: string;
   checkType?: string;
   severity?: string;
+  status?: string;
 };
 
 type QaReportResponse<T> = Omit<Response, "json"> & { json(): Promise<T> };
@@ -52,6 +54,8 @@ export type WorkspaceQaReportRow = {
       byCheckType: Record<string, number>;
       bySeverity: Record<string, number>;
       byLocale: Record<string, number>;
+      checkVersion?: number;
+      skippedChecksByLocale?: Record<string, string[]>;
     };
     errorCode: string | null;
     errorMessage: string | null;
@@ -77,6 +81,10 @@ export type WorkspaceQaFinding = {
   sourceText: string;
   targetText: string;
   editorHref: string;
+  status?: "open" | "ignored" | "resolved";
+  ignoreReason?: string | null;
+  issueIdentifier?: string | null;
+  needsRecheck?: boolean;
 };
 
 export type ProjectQaReport = {
@@ -92,6 +100,8 @@ export type ProjectQaReport = {
     byCheckType: Record<string, number>;
     bySeverity: Record<string, number>;
     byLocale: Record<string, number>;
+    checkVersion?: number;
+    skippedChecksByLocale?: Record<string, string[]>;
   };
   errorCode: string | null;
   errorMessage: string | null;
@@ -115,6 +125,10 @@ export type ProjectQaFinding = {
   sourceText: string;
   targetText: string;
   editorHref: string;
+  status?: "open" | "ignored" | "resolved";
+  ignoreReason?: string | null;
+  issueIdentifier?: string | null;
+  needsRecheck?: boolean;
 };
 
 export function createProjectQaReportClient(goSvcClient: GoSvcClient) {
@@ -124,6 +138,7 @@ export function createProjectQaReportClient(goSvcClient: GoSvcClient) {
         reports: ProjectQaReport[];
         settings: {
           cadence: "off" | "daily";
+          checks: QaCheckPolicy;
           lastRunAt: string | null;
           canRun: boolean;
           canManageSchedule: boolean;
@@ -140,7 +155,7 @@ export function createProjectQaReportClient(goSvcClient: GoSvcClient) {
       json,
     }: {
       param: ProjectParams;
-      json: { cadence: "off" | "daily" };
+      json: { cadence?: "off" | "daily"; checks?: QaCheckPolicy };
     }) =>
       goSvcClient.qaReport.project.updateSettings(
         param.organizationSlug,
@@ -149,6 +164,7 @@ export function createProjectQaReportClient(goSvcClient: GoSvcClient) {
       ) as Promise<{
         settings: {
           cadence: "off" | "daily";
+          checks: QaCheckPolicy;
           lastRunAt: string | null;
           canRun: boolean;
           canManageSchedule: boolean;
@@ -160,13 +176,19 @@ export function createProjectQaReportClient(goSvcClient: GoSvcClient) {
       query = {},
     }: {
       param: RunParams;
-      query?: PageQuery & { locale?: string; checkType?: string; severity?: string };
+      query?: PageQuery & {
+        locale?: string;
+        checkType?: string;
+        severity?: string;
+        status?: string;
+      };
     }) =>
       goSvcClient.qaReport.project.get(param.organizationSlug, param.projectId, param.runId, {
         ...pageQuery(query),
         ...(query.locale ? { locale: query.locale } : {}),
         ...(query.checkType ? { checkType: query.checkType } : {}),
         ...(query.severity ? { severity: query.severity } : {}),
+        ...(query.status ? { status: query.status } : {}),
       }) as Promise<{
         report: ProjectQaReport;
         findings: ProjectQaFinding[];
@@ -233,6 +255,7 @@ export function createWorkspaceQaReportClient(goSvcClient: GoSvcClient) {
         ...(query.locale ? { locale: query.locale } : {}),
         ...(query.checkType ? { checkType: query.checkType } : {}),
         ...(query.severity ? { severity: query.severity } : {}),
+        ...(query.status ? { status: query.status } : {}),
       }) as Promise<{
         findings: WorkspaceQaFinding[];
         total: number;

@@ -15,15 +15,18 @@ import (
 var (
 	translationQaCheckTypes = map[string]struct{}{
 		"not_localized": {}, "whitespace_only": {}, "same_as_source": {}, "escaped_char_mismatch": {},
-		"length": {}, "placeholder_mismatch": {}, "glossary_violation": {},
+		"length": {}, "placeholder_mismatch": {}, "glossary_violation": {}, "format": {}, "spelling": {},
+		"numbers_mismatch": {}, "punctuation_mismatch": {}, "character_case_mismatch": {},
 	}
 	translationQaSeverities = map[string]struct{}{"error": {}, "warning": {}}
 )
 
 type qaSummary struct {
-	ByCheckType map[string]int `json:"byCheckType"`
-	BySeverity  map[string]int `json:"bySeverity"`
-	ByLocale    map[string]int `json:"byLocale"`
+	ByCheckType           map[string]int      `json:"byCheckType"`
+	BySeverity            map[string]int      `json:"bySeverity"`
+	ByLocale              map[string]int      `json:"byLocale"`
+	SkippedChecksByLocale map[string][]string `json:"skippedChecksByLocale,omitempty"`
+	CheckVersion          int                 `json:"checkVersion,omitempty"`
 }
 
 func emptyQaSummary() qaSummary {
@@ -197,6 +200,10 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
 		return nil, 0, err
 	}
 
+	status, err := qaFindingStatus(r)
+	if err != nil {
+		return nil, 0, err
+	}
 	projectFilter := any(nil)
 	if projectID != "" {
 		projectFilter = projectID
@@ -242,6 +249,10 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
         and f.run_id = lr.id
         and ` + formatQaProjectTeamAccessSQL(6, 7, 1)
 
+	if status != "" && status != "all" {
+		queryArgs = append(queryArgs, status)
+		filterSQL += " and f.status = $8"
+	}
 	countSQL := `with ` + latestRunSQL + `
         select count(*)::int
         from translation_qa_findings f
@@ -258,8 +269,8 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
         inner join latest_succeeded_qa_run lr on lr.id = f.run_id
         inner join projects p on p.id = f.project_id
         where ` + filterSQL + `
-        order by p.name, f.target_locale, f.key, f.id
-        limit $8 offset $9`
+        order by f.severity, p.name, f.target_locale, f.key, f.id
+        limit $` + strconv.Itoa(len(queryArgs)+1) + ` offset $` + strconv.Itoa(len(queryArgs)+2)
 
 	var total int
 	if err := api.pool.QueryRow(ctx, countSQL, queryArgs...).Scan(&total); err != nil {
@@ -314,6 +325,10 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
 		})
 	}
 	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	rows.Close()
+	if err := api.enrichQaFindings(ctx, actor.organizationID, findings); err != nil {
 		return nil, 0, err
 	}
 	return map[string]any{

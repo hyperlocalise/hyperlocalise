@@ -13,58 +13,39 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { FormattedMessage, useIntl } from "react-intl";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 import { toast } from "sonner";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TypographyP } from "@/components/ui/typography";
-import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import { QA_FINDING_PROMOTE_BATCH_SIZE } from "@/lib/qa/qa-finding-issue-bridge";
 import {
   createProjectQaReportClient,
   createWorkspaceQaReportClient,
+  type ProjectQaFinding,
 } from "@/lib/qa/qa-report-client";
+import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
+import { qaMessages as m } from "./qa.messages";
+import { qaFindingsTableMessages as originalMessages } from "./qa-findings-table.messages";
+import { QaNotice } from "./qa-status";
 
-import { qaFindingsTableMessages as messages } from "./qa-findings-table.messages";
-
-type PromoteFindingsResponse = {
-  results: Array<{ findingId: string; issueId: string; identifier: string; created: boolean }>;
-};
-
-export type QaFindingRow = {
-  id: string;
-  runId: string;
-  projectId: string;
+export type QaFindingRow = Omit<ProjectQaFinding, "sourcePath" | "category" | "relatedTokens"> & {
   projectName?: string;
-  key: string;
-  targetLocale: string;
-  checkType: string;
-  severity: "error" | "warning";
-  message: string;
-  sourceText: string;
-  targetText: string;
-  editorHref: string;
+  sourcePath?: string | null;
+  category?: string;
+  relatedTokens?: string[];
 };
-
-type QaFindingsTableProps = {
-  organizationSlug: string;
-  findings: QaFindingRow[];
-  total: number;
-  shownCount: number;
-  canPromote: boolean;
-  promoteScope: "workspace" | "project";
-  projectId?: string;
-  hasMore?: boolean;
-  isLoadingMore?: boolean;
-  onLoadMore?: () => void;
-  onPromoted?: () => void;
-};
-
+export function qaCheckLabel(check: string, intl: ReturnType<typeof useIntl>) {
+  return intl.formatMessage(
+    (translationQaCheckTypes as readonly string[]).includes(check)
+      ? m[check as TranslationQaCheckType]
+      : m.check,
+  );
+}
 export function QaFindingsTable({
   organizationSlug,
   findings,
@@ -77,206 +58,331 @@ export function QaFindingsTable({
   isLoadingMore,
   onLoadMore,
   onPromoted,
-}: QaFindingsTableProps) {
+}: {
+  organizationSlug: string;
+  findings: QaFindingRow[];
+  total: number;
+  shownCount: number;
+  canPromote: boolean;
+  promoteScope: "workspace" | "project";
+  projectId?: string;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
+  onPromoted?: () => void;
+}) {
   const intl = useIntl();
-  const { client: goSvcClient } = useGoSvcClient();
-  const projectQaReportClient = useMemo(
-    () => createProjectQaReportClient(goSvcClient),
-    [goSvcClient],
+  const { client } = useGoSvcClient();
+  const queryClient = useQueryClient();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showWhitespace, setShowWhitespace] = useState(false);
+  const [ignoringId, setIgnoringId] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const eligible = findings.filter(
+    (f) => (f.status ?? "open") === "open" && !f.needsRecheck && !f.issueIdentifier,
   );
-  const workspaceQaReportClient = useMemo(
-    () => createWorkspaceQaReportClient(goSvcClient),
-    [goSvcClient],
-  );
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const allSelected = findings.length > 0 && findings.every((row) => selectedIds.has(row.id));
-
-  const promoteMutation = useMutation({
-    mutationFn: async (findingIds: string[]) => {
-      const results: PromoteFindingsResponse["results"] = [];
-      for (let offset = 0; offset < findingIds.length; offset += QA_FINDING_PROMOTE_BATCH_SIZE) {
-        const chunk = findingIds.slice(offset, offset + QA_FINDING_PROMOTE_BATCH_SIZE);
-        let response;
-        if (promoteScope === "project" && projectId) {
-          response = await projectQaReportClient.promoteFindings({
-            param: { organizationSlug, projectId },
-            json: { findingIds: chunk },
-          });
-        } else {
-          response = await workspaceQaReportClient.promoteFindings({
-            param: { organizationSlug },
-            json: { findingIds: chunk },
-          });
-        }
-        results.push(...response.results);
-      }
-      return { results };
-    },
-    onSuccess: (data: PromoteFindingsResponse) => {
-      const created = data.results.filter((row) => row.created).length;
-      const linked = data.results.length - created;
-      toast.success(intl.formatMessage(messages.promoteSuccess, { created, linked }));
-      setSelectedIds(new Set());
-      onPromoted?.();
-    },
-    onError: (error) => {
-      toast.error(goSvcErrorMessage(error, intl.formatMessage(messages.promoteError)));
+  const selected = eligible.filter((f) => selectedIds.has(f.id));
+  async function refresh() {
+    await Promise.all(
+      [
+        "project-qa-reports",
+        "workspace-qa-findings",
+        "workspace-qa-reports",
+        "cat-qa-scan-findings",
+      ].map((key) => queryClient.invalidateQueries({ queryKey: [key, organizationSlug] })),
+    );
+    onPromoted?.();
+  }
+  const review = useMutation({
+    mutationFn: ({
+      id,
+      status,
+      reason: reviewReason,
+    }: {
+      id: string;
+      status: "open" | "ignored";
+      reason?: string;
+    }) =>
+      client.qaReport.findings.review(organizationSlug, id, { status, reason: reviewReason ?? "" }),
+    onSuccess: async () => {
+      setIgnoringId(null);
+      setReason("");
+      await refresh();
     },
   });
-
-  const selectedCount = useMemo(
-    () => findings.filter((row) => selectedIds.has(row.id)).length,
-    [findings, selectedIds],
+  const promote = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (let offset = 0; offset < ids.length; offset += 100) {
+        const json = { findingIds: ids.slice(offset, offset + 100) };
+        if (promoteScope === "project" && projectId)
+          await createProjectQaReportClient(client).promoteFindings({
+            param: { organizationSlug, projectId },
+            json,
+          });
+        else
+          await createWorkspaceQaReportClient(client).promoteFindings({
+            param: { organizationSlug },
+            json,
+          });
+      }
+    },
+    onSuccess: async () => {
+      setSelectedIds(new Set());
+      await refresh();
+    },
+    onError: () => {
+      toast.error(intl.formatMessage(originalMessages.promoteError));
+      void refresh();
+    },
+  });
+  const groups = Map.groupBy(findings, (f) =>
+    JSON.stringify([f.projectId, f.sourcePath, f.key, f.targetLocale]),
   );
-
   return (
-    <div className="flex flex-col gap-3">
-      {canPromote ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            size="sm"
-            className="rounded-full"
-            disabled={selectedCount === 0 || promoteMutation.isPending}
-            onClick={() => {
-              const findingIds = findings
-                .filter((row) => selectedIds.has(row.id))
-                .map((row) => row.id);
-              promoteMutation.mutate(findingIds);
-            }}
-          >
-            <FormattedMessage
-              {...messages.createIssues}
-              values={{ count: selectedCount > 0 ? selectedCount : undefined }}
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={showWhitespace}
+            onCheckedChange={(value) => setShowWhitespace(value === true)}
+          />
+          {intl.formatMessage(m.showWhitespace)}
+        </label>
+        {canPromote ? (
+          <>
+            <Checkbox
+              aria-label={intl.formatMessage(m.selectLoaded)}
+              checked={
+                selected.length === 0
+                  ? false
+                  : selected.length === eligible.length
+                    ? true
+                    : "indeterminate"
+              }
+              onCheckedChange={(checked) =>
+                setSelectedIds(checked ? new Set(eligible.map((f) => f.id)) : new Set())
+              }
             />
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="rounded-full"
-            disabled={findings.length === 0 || promoteMutation.isPending}
-            onClick={() => {
-              promoteMutation.mutate(findings.map((row) => row.id));
-            }}
-          >
-            <FormattedMessage {...messages.createIssuesPage} />
-          </Button>
-        </div>
-      ) : null}
-
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full min-w-[800px] text-left text-sm">
-          <thead className="bg-muted text-muted-foreground">
-            <tr>
-              {canPromote ? (
-                <th className="w-10 px-3 py-2">
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedIds(new Set(findings.map((row) => row.id)));
-                      } else {
-                        setSelectedIds(new Set());
-                      }
-                    }}
-                    aria-label={intl.formatMessage(messages.selectAll)}
-                  />
-                </th>
-              ) : null}
-              {findings.some((row) => row.projectName) ? (
-                <th className="px-3 py-2 font-medium">
-                  <FormattedMessage {...messages.project} />
-                </th>
-              ) : null}
-              <th className="px-3 py-2 font-medium">
-                <FormattedMessage {...messages.key} />
-              </th>
-              <th className="px-3 py-2 font-medium">
-                <FormattedMessage {...messages.locale} />
-              </th>
-              <th className="px-3 py-2 font-medium">
-                <FormattedMessage {...messages.check} />
-              </th>
-              <th className="px-3 py-2 font-medium">
-                <FormattedMessage {...messages.source} />
-              </th>
-              <th className="px-3 py-2 font-medium">
-                <FormattedMessage {...messages.target} />
-              </th>
-              <th className="px-3 py-2 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {findings.map((finding) => (
-              <tr key={finding.id} className="border-t border-border">
-                {canPromote ? (
-                  <td className="px-3 py-2 align-top">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!selected.length || promote.isPending}
+              onClick={() => promote.mutate(selected.map((f) => f.id))}
+            >
+              {intl.formatMessage(m.createSelected, { count: selected.length })}
+            </Button>
+          </>
+        ) : null}
+      </div>
+      {review.isError ? <QaNotice message={intl.formatMessage(m.reviewError)} /> : null}
+      {[...groups.entries()].map(([groupId, rows]) => {
+        const first = rows[0]!;
+        return (
+          <section key={groupId} className="flex flex-col gap-3 border-b border-border py-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="break-words text-sm font-medium">{first.key}</p>
+                <p className="text-xs text-muted-foreground">
+                  {[first.projectName, first.sourcePath, first.targetLocale]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+              <Button
+                nativeButton={false}
+                render={<Link href={first.editorHref} />}
+                variant="outline"
+                size="sm"
+              >
+                {intl.formatMessage(m.review)}
+              </Button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">{intl.formatMessage(m.source)}</p>
+                <QaText
+                  text={first.sourceText}
+                  tokens={rows.flatMap((f) => f.relatedTokens ?? [])}
+                  visibleWhitespace={showWhitespace}
+                />
+              </div>
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">{intl.formatMessage(m.target)}</p>
+                <QaText
+                  text={first.targetText}
+                  tokens={rows.flatMap((f) => f.relatedTokens ?? [])}
+                  visibleWhitespace={showWhitespace}
+                />
+              </div>
+            </div>
+            {rows.map((finding) => (
+              <div key={finding.id} className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {canPromote && eligible.some((f) => f.id === finding.id) ? (
                     <Checkbox
                       checked={selectedIds.has(finding.id)}
-                      onCheckedChange={(checked) => {
+                      aria-label={intl.formatMessage(m.select, {
+                        key: finding.key,
+                        locale: finding.targetLocale,
+                        check: qaCheckLabel(finding.checkType, intl),
+                      })}
+                      onCheckedChange={(checked) =>
                         setSelectedIds((current) => {
                           const next = new Set(current);
-                          if (checked) {
-                            next.add(finding.id);
-                          } else {
-                            next.delete(finding.id);
-                          }
+                          if (checked) next.add(finding.id);
+                          else next.delete(finding.id);
                           return next;
-                        });
-                      }}
-                      aria-label={finding.key}
+                        })
+                      }
                     />
-                  </td>
-                ) : null}
-                {finding.projectName ? (
-                  <td className="px-3 py-2 align-top">{finding.projectName}</td>
-                ) : null}
-                <td className="px-3 py-2 align-top font-medium">{finding.key}</td>
-                <td className="px-3 py-2 align-top">{finding.targetLocale}</td>
-                <td className="px-3 py-2 align-top">
+                  ) : null}
                   <Badge variant={finding.severity === "error" ? "destructive" : "warning"}>
-                    {finding.checkType}
+                    {intl.formatMessage(m[finding.severity])}
                   </Badge>
-                  <TypographyP size="xsmall" tone="subtle">
-                    {finding.message}
-                  </TypographyP>
-                </td>
-                <td className="max-w-56 px-3 py-2 align-top break-words">{finding.sourceText}</td>
-                <td className="max-w-56 px-3 py-2 align-top break-words">{finding.targetText}</td>
-                <td className="px-3 py-2 align-top">
-                  <Button
-                    nativeButton={false}
-                    render={<Link href={finding.editorHref} />}
-                    variant="ghost"
-                    size="sm"
+                  <span className="text-sm font-medium">
+                    {qaCheckLabel(finding.checkType, intl)}
+                  </span>
+                  <Badge variant="outline">{intl.formatMessage(m[finding.status ?? "open"])}</Badge>
+                  {finding.issueIdentifier ? (
+                    <Link
+                      className="text-sm underline"
+                      href={`/org/${encodeURIComponent(organizationSlug)}/issues/${encodeURIComponent(finding.issueIdentifier)}`}
+                    >
+                      {intl.formatMessage(m.linkedIssue, { identifier: finding.issueIdentifier })}
+                    </Link>
+                  ) : null}
+                  {canPromote && finding.status !== "resolved" && !finding.needsRecheck ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={review.isPending}
+                      onClick={() => {
+                        review.reset();
+                        if (finding.status === "ignored")
+                          review.mutate({ id: finding.id, status: "open" });
+                        else {
+                          setIgnoringId(finding.id);
+                          setReason("");
+                        }
+                      }}
+                    >
+                      {intl.formatMessage(finding.status === "ignored" ? m.undo : m.ignore)}
+                    </Button>
+                  ) : null}
+                </div>
+                <p className="text-sm whitespace-pre-wrap break-words">{finding.message}</p>
+                {finding.ignoreReason ? (
+                  <p className="text-xs text-muted-foreground">{finding.ignoreReason}</p>
+                ) : null}
+                {finding.needsRecheck ? (
+                  <p className="text-xs text-muted-foreground">
+                    {intl.formatMessage(m.needsRecheck)}
+                  </p>
+                ) : null}
+                {ignoringId === finding.id ? (
+                  <form
+                    className="flex max-w-xl flex-col gap-3"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      review.mutate({ id: finding.id, status: "ignored", reason });
+                    }}
                   >
-                    <FormattedMessage {...messages.openEditor} />
-                  </Button>
-                </td>
-              </tr>
+                    <Field>
+                      <FieldLabel htmlFor={`reason-${finding.id}`}>
+                        {intl.formatMessage(m.reason)}
+                      </FieldLabel>
+                      <Input
+                        id={`reason-${finding.id}`}
+                        value={reason}
+                        onChange={(event) => setReason(event.target.value)}
+                        required
+                        maxLength={1000}
+                      />
+                      <FieldDescription>{intl.formatMessage(m.ignoreHelp)}</FieldDescription>
+                    </Field>
+                    <div className="flex gap-2">
+                      <Button size="sm" type="submit" disabled={!reason.trim() || review.isPending}>
+                        {intl.formatMessage(m.saveIgnore)}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        type="button"
+                        onClick={() => setIgnoringId(null)}
+                      >
+                        {intl.formatMessage(m.cancel)}
+                      </Button>
+                    </div>
+                  </form>
+                ) : null}
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <TypographyP size="xsmall" tone="subtle">
-          <FormattedMessage {...messages.shown} values={{ shown: shownCount, total }} />
-        </TypographyP>
+          </section>
+        );
+      })}
+      <div className="flex items-center gap-3">
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {intl.formatMessage(m.shown, { shown: shownCount, total })}
+        </p>
         {hasMore ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="rounded-full"
-            disabled={isLoadingMore}
-            onClick={onLoadMore}
-          >
-            <FormattedMessage {...(isLoadingMore ? messages.loadingMore : messages.loadMore)} />
+          <Button variant="outline" size="sm" disabled={isLoadingMore} onClick={onLoadMore}>
+            {intl.formatMessage(isLoadingMore ? m.loading : m.more)}
           </Button>
         ) : null}
       </div>
     </div>
+  );
+}
+export function QaText({
+  text,
+  tokens,
+  visibleWhitespace,
+}: {
+  text: string;
+  tokens: string[];
+  visibleWhitespace: boolean;
+}) {
+  const intl = useIntl();
+  const matchingTokens = [...new Set(tokens)].filter(Boolean).sort((a, b) => b.length - a.length);
+  const chunks: { text: string; highlight: boolean }[] = [];
+  for (let index = 0; index < text.length;) {
+    const token = matchingTokens.find((value) => text.startsWith(value, index));
+    if (token) {
+      chunks.push({ text: token, highlight: true });
+      index += token.length;
+    } else {
+      const previous = chunks.at(-1);
+      if (previous && !previous.highlight) previous.text += text[index];
+      else chunks.push({ text: text[index]!, highlight: false });
+      index++;
+    }
+  }
+  const display = (value: string) =>
+    visibleWhitespace
+      ? value
+          .replaceAll(" ", "·")
+          .replaceAll("\t", "⇥")
+          .replaceAll("\n", "↵\n")
+          .replaceAll("\r", "␍")
+      : value;
+  return (
+    <p dir="auto" className="text-sm whitespace-pre-wrap break-words">
+      {text ? (
+        chunks.map((chunk, index) =>
+          chunk.highlight ? (
+            <mark
+              key={index}
+              className="rounded bg-accent text-accent-foreground underline decoration-dotted"
+            >
+              {display(chunk.text)}
+            </mark>
+          ) : (
+            <span key={index}>{display(chunk.text)}</span>
+          ),
+        )
+      ) : (
+        <span className="text-muted-foreground">{intl.formatMessage(m.emptyText)}</span>
+      )}
+    </p>
   );
 }

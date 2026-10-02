@@ -126,6 +126,12 @@ export const projects = pgTable(
     qaScanCadence: text("qa_scan_cadence", { enum: ["off", "daily"] })
       .notNull()
       .default("off"),
+    qaCheckPolicy: jsonb("qa_check_policy")
+      .$type<import("@/lib/qa/qa-policy").QaCheckPolicy>()
+      .notNull()
+      .default(
+        sql`'{"not_localized":{"enabled":true,"severity":"error"},"whitespace_only":{"enabled":true,"severity":"warning"},"same_as_source":{"enabled":true,"severity":"warning"},"escaped_char_mismatch":{"enabled":true,"severity":"warning"},"length":{"enabled":true,"severity":"error"},"placeholder_mismatch":{"enabled":true,"severity":"error"},"glossary_violation":{"enabled":true,"severity":"warning"},"format":{"enabled":true,"severity":"error"},"spelling":{"enabled":true,"severity":"warning"},"numbers_mismatch":{"enabled":false,"severity":"warning"},"punctuation_mismatch":{"enabled":false,"severity":"warning"},"character_case_mismatch":{"enabled":false,"severity":"warning"}}'::jsonb`,
+      ),
     qaScanLastRunAt: timestamp("qa_scan_last_run_at", { withTimezone: true }),
     // When the project record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

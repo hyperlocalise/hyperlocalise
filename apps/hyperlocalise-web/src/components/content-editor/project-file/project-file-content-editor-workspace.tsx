@@ -15,6 +15,7 @@
 import { NativeTargetProvider } from "./content-editor-native-target-context";
 import { ContentEditorPageWindowProvider } from "./content-editor-page-window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AlertCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -40,6 +41,8 @@ import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 import { cn } from "@/lib/primitives/cn";
+import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
+import { applyEditorQaPolicy, DEFAULT_QA_POLICY } from "@/lib/qa/qa-policy";
 
 import {
   resolveAvailableCatQueueFilters,
@@ -158,6 +161,16 @@ export function ProjectFileContentEditorWorkspace({
 }) {
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
+  const qaPolicyQuery = useQuery({
+    queryKey: ["project-qa-reports", organizationSlug, projectId],
+    queryFn: () =>
+      createProjectQaReportClient(goSvcClient).listReports({
+        param: { organizationSlug, projectId },
+      }),
+    enabled: Boolean(organizationSlug && projectId),
+    staleTime: 30_000,
+  });
+  const qaPolicy = qaPolicyQuery.data?.settings.checks ?? DEFAULT_QA_POLICY;
   const aiFeaturesAccess = useAiFeaturesAccess();
   const aiFeaturesAllowed = aiFeaturesAccess.status === "allowed";
   const upgradePlanHref =
@@ -376,6 +389,7 @@ export function ProjectFileContentEditorWorkspace({
           acceptedWords: spellcheckDictionary.acceptedWords,
           signal: options?.signal,
           intl,
+          policy: qaPolicy,
         },
         goSvcClient,
       );
@@ -395,19 +409,71 @@ export function ProjectFileContentEditorWorkspace({
             message: validation.error.message,
             category: "qa" as const,
           },
-          ...glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
+          ...applyEditorQaPolicy(
+            glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
+            qaPolicy,
+          ),
         ];
       }
 
       return [
         ...validation.value,
-        ...glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
+        ...applyEditorQaPolicy(
+          glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
+          qaPolicy,
+        ),
       ];
     },
-    [goSvcClient, intl, sourcePath, spellcheckDictionary.acceptedWords],
+    [goSvcClient, intl, qaPolicy, sourcePath, spellcheckDictionary.acceptedWords],
   );
 
   const isNativeProject = !contentEditorFile?.provider;
+  const assertQaSaveAllowed = useCallback(
+    async (
+      segment: { sourceText: string; sourcePath?: string | null; maxLength?: number | null },
+      locale: string,
+      value: string,
+    ) => {
+      if (!isNativeProject) return;
+      const policyResult = await qaPolicyQuery.refetch();
+      if (!policyResult.data) {
+        throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.qaValidationRequired));
+      }
+      const policy = policyResult.data.settings.checks;
+      const validation = await fetchCatSegmentValidation(
+        {
+          sourceText: segment.sourceText,
+          targetText: value,
+          sourcePath: segment.sourcePath ?? sourcePath,
+          targetLocale: locale,
+          maxLength: segment.maxLength ?? undefined,
+          acceptedWords: spellcheckDictionary.acceptedWords,
+          intl,
+          policy,
+        },
+        goSvcClient,
+      );
+      if (!validation.ok) {
+        throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.qaValidationRequired));
+      }
+      const failures = validation.value.filter((check) => check.status === "fail");
+      if (failures.length > 0) {
+        throw new Error(
+          intl.formatMessage(projectFileCatWorkspaceMessages.qaBlockedSave, {
+            checks: failures.map((check) => check.label).join(", "),
+          }),
+        );
+      }
+    },
+    [
+      goSvcClient,
+      intl,
+      isNativeProject,
+      qaPolicyQuery,
+      sourcePath,
+      spellcheckDictionary.acceptedWords,
+    ],
+  );
   const { runQaChecks } = useCatScanFindings({
     organizationSlug,
     projectId,
@@ -474,6 +540,7 @@ export function ProjectFileContentEditorWorkspace({
         return "reviewed" as const;
       }
 
+      if (segment) await assertQaSaveAllowed(segment, targetLocale, targetText);
       const translation = await saveTranslation({
         externalStringId: segmentId,
         text: targetText,
@@ -493,6 +560,7 @@ export function ProjectFileContentEditorWorkspace({
       sourcePath,
       targetLocale,
       goSvcClient,
+      assertQaSaveAllowed,
     ],
   );
 
@@ -504,6 +572,10 @@ export function ProjectFileContentEditorWorkspace({
         );
       }
 
+      const segment = contentEditorFile.segments.find(
+        (entry) => entry.externalStringId === segmentId,
+      );
+      if (segment) await assertQaSaveAllowed(segment, targetLocale, targetText);
       await saveTranslation({
         externalStringId: segmentId,
         text: targetText,
@@ -511,7 +583,7 @@ export function ProjectFileContentEditorWorkspace({
       });
       return "needs_review" as const;
     },
-    [contentEditorFile?.canEditTranslations, intl, saveTranslation],
+    [assertQaSaveAllowed, contentEditorFile, intl, saveTranslation, targetLocale],
   );
 
   const handleAddComment = useCallback(
@@ -845,6 +917,7 @@ export function ProjectFileContentEditorWorkspace({
             intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
           );
         }
+        await assertQaSaveAllowed(segment, locale, text);
         await saveTranslation({
           externalStringId: segment.id,
           targetLocale: locale,
@@ -867,6 +940,7 @@ export function ProjectFileContentEditorWorkspace({
     [
       intl,
       saveTranslation,
+      assertQaSaveAllowed,
       isNativeProject,
       organizationSlug,
       projectId,

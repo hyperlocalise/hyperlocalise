@@ -12,11 +12,12 @@ import (
 )
 
 type Request struct {
-	SourceText string
-	TargetText string
-	SourcePath string
-	MaxLength  int
-	Modes      []string `json:"modes,omitempty"`
+	SourceText   string
+	TargetText   string
+	SourcePath   string
+	MaxLength    int
+	TargetLocale string
+	Modes        []string `json:"modes,omitempty"`
 }
 
 type Check struct {

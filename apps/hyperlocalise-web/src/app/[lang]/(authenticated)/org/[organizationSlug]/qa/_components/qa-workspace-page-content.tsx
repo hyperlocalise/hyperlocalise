@@ -15,64 +15,21 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormattedMessage, useIntl } from "react-intl";
-
-import { QaFindingsTable } from "@/components/qa/qa-findings-table";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
+import { QaFindingsTable, qaCheckLabel } from "@/components/qa/qa-findings-table";
+import { QaFilter } from "@/components/qa/qa-filter";
+import { QaNotice, QaRunStatus } from "@/components/qa/qa-status";
+import { qaMessages as m } from "@/components/qa/qa.messages";
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { TypographyP } from "@/components/ui/typography";
-import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
+import { translationQaCheckTypes } from "@/lib/qa/types";
 import { createWorkspaceQaReportClient } from "@/lib/qa/qa-report-client";
-
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { qaWorkspaceMessages as messages } from "../qa-workspace.messages";
-
-const FINDINGS_PAGE_SIZE = 50;
-
-type WorkspaceQaRow = {
-  projectId: string;
-  projectName: string;
-  cadence: "off" | "daily";
-  lastRunAt: string | null;
-  report: {
-    status: "queued" | "running" | "succeeded" | "failed";
-    findingCount: number;
-    errorCount: number;
-    warningCount: number;
-    completedAt: string | null;
-    summary: {
-      byCheckType: Record<string, number>;
-      byLocale: Record<string, number>;
-    };
-  } | null;
-};
-
-type WorkspaceFinding = {
-  id: string;
-  runId: string;
-  projectId: string;
-  projectName: string;
-  key: string;
-  targetLocale: string;
-  checkType: string;
-  severity: "error" | "warning";
-  message: string;
-  sourceText: string;
-  targetText: string;
-  editorHref: string;
-};
 
 export function QaWorkspacePageContent({
   organizationSlug,
@@ -82,319 +39,213 @@ export function QaWorkspacePageContent({
   canPromoteFindings: boolean;
 }) {
   const intl = useIntl();
-  const queryClient = useQueryClient();
-  const { client: goSvcClient } = useGoSvcClient();
-  const workspaceQaReportClient = useMemo(
-    () => createWorkspaceQaReportClient(goSvcClient),
-    [goSvcClient],
-  );
+  const { client } = useGoSvcClient();
+  const api = useMemo(() => createWorkspaceQaReportClient(client), [client]);
   const [locale, setLocale] = useState("all");
   const [checkType, setCheckType] = useState("all");
   const [projectId, setProjectId] = useState("all");
-
+  const [severity, setSeverity] = useState("all");
+  const [status, setStatus] = useState("open");
   const reportsQuery = useQuery({
     queryKey: ["workspace-qa-reports", organizationSlug],
-    queryFn: async () => {
-      try {
-        const response = await workspaceQaReportClient.listReports({
-          param: { organizationSlug },
-        });
-        return response as { reports: WorkspaceQaRow[] };
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadError)), {
-          cause: error,
-        });
-      }
-    },
-    refetchInterval: (queryState) =>
-      queryState.state.data?.reports.some(
-        (row) => row.report?.status === "running" || row.report?.status === "queued",
+    queryFn: () => api.listReports({ param: { organizationSlug } }),
+    refetchInterval: (query) =>
+      query.state.data?.reports.some((row) =>
+        ["running", "queued"].includes(row.report?.status ?? ""),
       )
         ? 2000
         : false,
   });
-
+  const reports = reportsQuery.data?.reports ?? [];
+  const revision = reports
+    .map(
+      (row) =>
+        `${row.projectId}:${row.report?.id}:${row.report?.status}:${row.report?.completedAt}`,
+    )
+    .join("|");
   const findingsQuery = useInfiniteQuery({
-    queryKey: ["workspace-qa-findings", organizationSlug, locale, checkType, projectId],
-    queryFn: async ({ pageParam }) => {
-      try {
-        const response = await workspaceQaReportClient.listFindings({
-          param: { organizationSlug },
-          query: {
-            locale: locale === "all" ? undefined : locale,
-            checkType: isQaCheckType(checkType) ? checkType : undefined,
-            projectId: projectId === "all" ? undefined : projectId,
-            limit: String(FINDINGS_PAGE_SIZE),
-            offset: String(pageParam),
-          },
-        });
-        return response as {
-          findings: WorkspaceFinding[];
-          total: number;
-        };
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadError)), {
-          cause: error,
-        });
-      }
-    },
+    queryKey: [
+      "workspace-qa-findings",
+      organizationSlug,
+      revision,
+      locale,
+      checkType,
+      projectId,
+      severity,
+      status,
+    ],
+    enabled: reportsQuery.isSuccess,
     initialPageParam: 0,
-    getNextPageParam: (lastPage, pages) => {
-      const loaded = pages.reduce((count, page) => count + page.findings.length, 0);
-      return loaded < lastPage.total ? loaded : undefined;
+    queryFn: ({ pageParam }) =>
+      api.listFindings({
+        param: { organizationSlug },
+        query: {
+          locale: locale === "all" ? undefined : locale,
+          checkType: checkType === "all" ? undefined : checkType,
+          projectId: projectId === "all" ? undefined : projectId,
+          severity: severity === "all" ? undefined : severity,
+          status,
+          limit: "50",
+          offset: String(pageParam),
+        },
+      }),
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((sum, page) => sum + page.findings.length, 0);
+      return loaded < last.total ? loaded : undefined;
     },
   });
-
-  const reports = reportsQuery.data?.reports ?? [];
   const findings = findingsQuery.data?.pages.flatMap((page) => page.findings) ?? [];
-  const findingsTotal = findingsQuery.data?.pages[0]?.total ?? 0;
-
-  const localeOptions = useMemo(() => {
-    const values = new Set<string>();
-    for (const row of reports) {
-      for (const key of Object.keys(row.report?.summary.byLocale ?? {})) {
-        values.add(key);
-      }
-    }
-    return [...values].sort();
-  }, [reports]);
-
-  const invalidateFindings = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["workspace-qa-findings", organizationSlug] }),
-      queryClient.invalidateQueries({ queryKey: ["workspace-qa-reports", organizationSlug] }),
-    ]);
-  };
-
+  const locales = [
+    ...new Set(reports.flatMap((row) => Object.keys(row.report?.summary.byLocale ?? {}))),
+  ].sort();
+  const all = { value: "all", label: intl.formatMessage(m.all) };
   return (
     <WorkspacePageShell>
       <PageHeader icon={CheckmarkCircle02Icon} title={intl.formatMessage(messages.title)} />
-
-      <section className="flex flex-col gap-3">
-        <TypographyP size="small" weight="medium">
-          <FormattedMessage {...messages.portfolioTitle} />
-        </TypographyP>
-        {reportsQuery.isError ? (
-          <TypographyP tone="subtle">{intl.formatMessage(messages.loadError)}</TypographyP>
-        ) : null}
-        {reports.length === 0 && reportsQuery.isSuccess ? (
-          <TypographyP tone="subtle">{intl.formatMessage(messages.empty)}</TypographyP>
-        ) : null}
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <p className="max-w-3xl text-sm text-muted-foreground">
+        {intl.formatMessage(m.workspaceHelp)}
+      </p>
+      {reportsQuery.isError ? (
+        <QaNotice
+          message={intl.formatMessage(m.loadError)}
+          onRetry={() => {
+            void reportsQuery.refetch();
+          }}
+        />
+      ) : null}
+      {reportsQuery.isPending ? (
+        <Skeleton className="h-24 w-full" aria-label={intl.formatMessage(m.loading)} />
+      ) : null}
+      <Tabs defaultValue="findings" className="gap-6">
+        <TabsList variant="line">
+          <TabsTrigger value="findings">{intl.formatMessage(m.findings)}</TabsTrigger>
+          <TabsTrigger value="projects">{intl.formatMessage(m.projects)}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="findings" className="flex flex-col gap-5">
+          <div className="flex flex-wrap gap-3">
+            <QaFilter
+              label={intl.formatMessage(m.projects)}
+              value={projectId}
+              onChange={setProjectId}
+              options={[
+                all,
+                ...reports.map((row) => ({ value: row.projectId, label: row.projectName })),
+              ]}
+            />
+            <QaFilter
+              label={intl.formatMessage(m.language)}
+              value={locale}
+              onChange={setLocale}
+              options={[all, ...locales.map((value) => ({ value, label: value }))]}
+            />
+            <QaFilter
+              label={intl.formatMessage(m.check)}
+              value={checkType}
+              onChange={setCheckType}
+              options={[
+                all,
+                ...translationQaCheckTypes.map((value) => ({
+                  value,
+                  label: qaCheckLabel(value, intl),
+                })),
+              ]}
+            />
+            <QaFilter
+              label={intl.formatMessage(m.severity)}
+              value={severity}
+              onChange={setSeverity}
+              options={[
+                all,
+                ...(["error", "warning"] as const).map((value) => ({
+                  value,
+                  label: intl.formatMessage(m[value]),
+                })),
+              ]}
+            />
+            <QaFilter
+              label={intl.formatMessage(m.status)}
+              value={status}
+              onChange={setStatus}
+              options={[
+                all,
+                ...(["open", "ignored", "resolved"] as const).map((value) => ({
+                  value,
+                  label: intl.formatMessage(m[value]),
+                })),
+              ]}
+            />
+          </div>
+          {findingsQuery.isPending && reportsQuery.isSuccess ? (
+            <Skeleton className="h-40 w-full" aria-label={intl.formatMessage(m.loading)} />
+          ) : null}
+          {findingsQuery.isError ? (
+            <QaNotice
+              message={intl.formatMessage(m.loadError)}
+              onRetry={() => {
+                void findingsQuery.refetch();
+              }}
+            />
+          ) : null}
+          {findingsQuery.isSuccess && !findings.length ? (
+            <div className="flex items-center gap-3">
+              <p className="text-sm">{intl.formatMessage(m.noMatches)}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setLocale("all");
+                  setCheckType("all");
+                  setProjectId("all");
+                  setSeverity("all");
+                  setStatus("all");
+                }}
+              >
+                {intl.formatMessage(m.clearFilters)}
+              </Button>
+            </div>
+          ) : null}
+          {findings.length ? (
+            <QaFindingsTable
+              key={`${projectId}-${locale}-${checkType}-${severity}-${status}`}
+              organizationSlug={organizationSlug}
+              findings={findings}
+              total={findingsQuery.data?.pages[0]?.total ?? 0}
+              shownCount={findings.length}
+              canPromote={canPromoteFindings}
+              promoteScope="workspace"
+              hasMore={findingsQuery.hasNextPage}
+              isLoadingMore={findingsQuery.isFetchingNextPage}
+              onLoadMore={() => {
+                void findingsQuery.fetchNextPage();
+              }}
+            />
+          ) : null}
+        </TabsContent>
+        <TabsContent value="projects" className="flex flex-col gap-4">
+          {reportsQuery.isSuccess && !reports.length ? (
+            <p className="text-sm">{intl.formatMessage(messages.empty)}</p>
+          ) : null}
           {reports.map((row) => (
-            <Card key={row.projectId} className="rounded-2xl border-border bg-muted py-0 ring-0">
-              <CardHeader className="px-5 pt-5 pb-0">
-                <CardTitle className="text-base font-medium">{row.projectName}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3 px-5 pt-3 pb-5">
-                <TypographyP size="small" tone="subtle">
-                  {workspaceQaHeadline(intl, row.report)}
-                </TypographyP>
-                {row.report?.status === "succeeded" ? (
-                  <>
-                    <TypographyP size="xsmall" tone="subtle">
-                      {intl.formatMessage(messages.counts, {
-                        errors: row.report.errorCount,
-                        warnings: row.report.warningCount,
-                      })}
-                    </TypographyP>
-                    <QaSummaryChips
-                      byLocale={row.report.summary.byLocale}
-                      byCheckType={row.report.summary.byCheckType}
-                    />
-                  </>
-                ) : null}
-                {row.lastRunAt ? (
-                  <TypographyP size="xsmall" tone="subtle">
-                    {intl.formatMessage(messages.lastRun, {
-                      date: intl.formatDate(row.lastRunAt, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      }),
-                    })}
-                  </TypographyP>
-                ) : null}
-                <TypographyP size="xsmall" tone="subtle">
-                  <FormattedMessage
-                    {...(row.cadence === "daily" ? messages.daily : messages.manual)}
-                  />
-                </TypographyP>
-                <Button
-                  nativeButton={false}
-                  render={<Link href={buildProjectPath(organizationSlug, row.projectId, "qa")} />}
-                  variant="outline"
-                  size="sm"
-                  className="w-fit rounded-full"
-                >
-                  <FormattedMessage {...messages.openProject} />
-                </Button>
-              </CardContent>
-            </Card>
+            <div
+              key={row.projectId}
+              className="flex flex-wrap items-start justify-between gap-4 border-b border-border py-4"
+            >
+              <div className="flex flex-col gap-2">
+                <h3 className="text-sm font-medium">{row.projectName}</h3>
+                <QaRunStatus report={row.report ?? undefined} />
+              </div>
+              <Button
+                nativeButton={false}
+                render={<Link href={buildProjectPath(organizationSlug, row.projectId, "qa")} />}
+                variant="outline"
+                size="sm"
+              >
+                {intl.formatMessage(messages.openProject)}
+              </Button>
+            </div>
           ))}
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <TypographyP size="small" weight="medium">
-            <FormattedMessage {...messages.findingsQueueTitle} />
-          </TypographyP>
-          <TypographyP size="xsmall" tone="subtle">
-            <FormattedMessage {...messages.findingsQueueDescription} />
-          </TypographyP>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Select
-            value={projectId}
-            onValueChange={(value) => {
-              if (value) {
-                setProjectId(value);
-              }
-            }}
-          >
-            <SelectTrigger className="w-52">
-              <SelectValue placeholder={intl.formatMessage(messages.allProjects)} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" label={intl.formatMessage(messages.allProjects)}>
-                {intl.formatMessage(messages.allProjects)}
-              </SelectItem>
-              {reports.map((row) => (
-                <SelectItem key={row.projectId} value={row.projectId} label={row.projectName}>
-                  {row.projectName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={locale}
-            onValueChange={(value) => {
-              if (value) {
-                setLocale(value);
-              }
-            }}
-          >
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder={intl.formatMessage(messages.allLocales)} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" label={intl.formatMessage(messages.allLocales)}>
-                {intl.formatMessage(messages.allLocales)}
-              </SelectItem>
-              {localeOptions.map((value) => (
-                <SelectItem key={value} value={value} label={value}>
-                  {value}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={checkType}
-            onValueChange={(value) => {
-              if (value) {
-                setCheckType(value);
-              }
-            }}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder={intl.formatMessage(messages.allChecks)} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" label={intl.formatMessage(messages.allChecks)}>
-                {intl.formatMessage(messages.allChecks)}
-              </SelectItem>
-              {translationQaCheckTypes.map((value) => (
-                <SelectItem key={value} value={value} label={value}>
-                  {value}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {findingsQuery.isSuccess && findings.length === 0 ? (
-          <TypographyP tone="subtle">{intl.formatMessage(messages.noFindings)}</TypographyP>
-        ) : null}
-
-        {findings.length > 0 ? (
-          <QaFindingsTable
-            organizationSlug={organizationSlug}
-            findings={findings}
-            total={findingsTotal}
-            shownCount={findings.length}
-            canPromote={canPromoteFindings}
-            promoteScope="workspace"
-            hasMore={findingsQuery.hasNextPage}
-            isLoadingMore={findingsQuery.isFetchingNextPage}
-            onLoadMore={() => {
-              void findingsQuery.fetchNextPage();
-            }}
-            onPromoted={invalidateFindings}
-          />
-        ) : null}
-      </section>
+        </TabsContent>
+      </Tabs>
     </WorkspacePageShell>
   );
-}
-
-function QaSummaryChips({
-  byLocale,
-  byCheckType,
-}: {
-  byLocale: Record<string, number>;
-  byCheckType: Record<string, number>;
-}) {
-  const localeEntries = Object.entries(byLocale)
-    .filter(([, count]) => count > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4);
-  const checkEntries = Object.entries(byCheckType)
-    .filter(([, count]) => count > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4);
-
-  if (localeEntries.length === 0 && checkEntries.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      {localeEntries.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {localeEntries.map(([locale, count]) => (
-            <Badge key={locale} variant="outline" className="rounded-full font-normal">
-              {locale} · {count}
-            </Badge>
-          ))}
-        </div>
-      ) : null}
-      {checkEntries.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {checkEntries.map(([check, count]) => (
-            <Badge key={check} variant="secondary" className="rounded-full font-normal">
-              {check} · {count}
-            </Badge>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function isQaCheckType(value: string): value is TranslationQaCheckType {
-  return (translationQaCheckTypes as readonly string[]).includes(value);
-}
-
-function workspaceQaHeadline(intl: ReturnType<typeof useIntl>, report: WorkspaceQaRow["report"]) {
-  if (!report) {
-    return intl.formatMessage(messages.neverRun);
-  }
-  if (report.status === "failed") {
-    return intl.formatMessage(messages.failed);
-  }
-  if (report.status === "running" || report.status === "queued") {
-    return intl.formatMessage(messages.running);
-  }
-  return intl.formatMessage(messages.findings, { count: report.findingCount });
 }

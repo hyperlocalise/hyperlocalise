@@ -18,6 +18,7 @@ type nativeQaProject struct {
 	ID              string
 	QaScanCadence   string
 	QaScanLastRunAt *time.Time
+	QaCheckPolicy   []byte
 }
 
 type qaRunRow struct {
@@ -62,12 +63,12 @@ func (api *qaReportAPI) ownedNativeProject(ctx context.Context, actor qaReportAc
 	var project nativeQaProject
 	var source string
 	err := api.pool.QueryRow(ctx, `
-        select p.id, p.source, p.qa_scan_cadence, p.qa_scan_last_run_at
+        select p.id, p.source, p.qa_scan_cadence, p.qa_scan_last_run_at, p.qa_check_policy
         from projects p
         where p.id = $1 and p.organization_id = $2
         and `+formatQaProjectTeamAccessSQL(3, 4, 2),
 		projectID, actor.organizationID, actor.canWriteProjectTeam(), actor.userID,
-	).Scan(&project.ID, &source, &project.QaScanCadence, &project.QaScanLastRunAt)
+	).Scan(&project.ID, &source, &project.QaScanCadence, &project.QaScanLastRunAt, &project.QaCheckPolicy)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nativeQaProject{}, missingQaProject()
 	}
@@ -80,9 +81,12 @@ func (api *qaReportAPI) ownedNativeProject(ctx context.Context, actor qaReportAc
 	return project, nil
 }
 
-func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *time.Time) map[string]any {
+func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *time.Time, policy []byte) map[string]any {
+	checks := map[string]qaCheckSetting{}
+	_ = json.Unmarshal(policy, &checks)
 	return map[string]any{
 		"cadence":           cadence,
+		"checks":            checks,
 		"lastRunAt":         formatQaReportTime(lastRunAt),
 		"canRun":            actor.canJobCreate(),
 		"canManageSchedule": actor.canProjectWrite(),
@@ -142,7 +146,7 @@ func (api *qaReportAPI) listProjectQaReports(ctx context.Context, actor qaReport
 	}
 	return map[string]any{
 		"reports":  reports,
-		"settings": qaReportSettingsPayload(actor, project.QaScanCadence, project.QaScanLastRunAt),
+		"settings": qaReportSettingsPayload(actor, project.QaScanCadence, project.QaScanLastRunAt, project.QaCheckPolicy),
 	}, 200, nil
 }
 
@@ -165,7 +169,31 @@ func (api *qaReportAPI) getTranslationQaRun(ctx context.Context, organizationID,
 }
 
 type qaSettingsBody struct {
-	Cadence string `json:"cadence"`
+	Cadence *string                   `json:"cadence"`
+	Checks  map[string]qaCheckSetting `json:"checks"`
+}
+
+type qaCheckSetting struct {
+	Enabled  bool   `json:"enabled"`
+	Severity string `json:"severity"`
+}
+
+var qaPolicyCheckTypes = map[string]struct{}{
+	"not_localized": {}, "whitespace_only": {}, "same_as_source": {}, "escaped_char_mismatch": {},
+	"length": {}, "placeholder_mismatch": {}, "glossary_violation": {}, "format": {}, "spelling": {},
+	"numbers_mismatch": {}, "punctuation_mismatch": {}, "character_case_mismatch": {},
+}
+
+func validQaPolicy(checks map[string]qaCheckSetting) bool {
+	if len(checks) != len(qaPolicyCheckTypes) {
+		return false
+	}
+	for key, rule := range checks {
+		if _, ok := qaPolicyCheckTypes[key]; !ok || (rule.Severity != "error" && rule.Severity != "warning") {
+			return false
+		}
+	}
+	return true
 }
 
 func (api *qaReportAPI) patchProjectQaSettings(ctx context.Context, actor qaReportActor, project nativeQaProject, r *http.Request) (any, int, error) {
@@ -173,24 +201,32 @@ func (api *qaReportAPI) patchProjectQaSettings(ctx context.Context, actor qaRepo
 	if err := readQaReportBody(r, &body); err != nil {
 		return nil, 0, err
 	}
-	cadence := strings.TrimSpace(body.Cadence)
-	if cadence != "off" && cadence != "daily" {
+	cadence := project.QaScanCadence
+	if body.Cadence != nil {
+		cadence = strings.TrimSpace(*body.Cadence)
+	}
+	if (cadence != "off" && cadence != "daily") || (body.Checks != nil && !validQaPolicy(body.Checks)) {
 		return nil, 0, qaReportFailure(400, "invalid_qa_report_settings", "Invalid QA report settings")
 	}
 	var lastRunAt *time.Time
+	var policy []byte
+	var policyArg any
+	if body.Checks != nil {
+		policyArg, _ = json.Marshal(body.Checks)
+	}
 	err := api.pool.QueryRow(ctx, `
         update projects
-        set qa_scan_cadence = $3
+        set qa_scan_cadence = $3, qa_check_policy = coalesce($4::jsonb, qa_check_policy)
         where organization_id = $1 and id = $2
-        returning qa_scan_cadence, qa_scan_last_run_at`,
-		actor.organizationID, project.ID, cadence).Scan(&cadence, &lastRunAt)
+        returning qa_scan_cadence, qa_scan_last_run_at, qa_check_policy`,
+		actor.organizationID, project.ID, cadence, policyArg).Scan(&cadence, &lastRunAt, &policy)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, missingQaProject()
 	}
 	if err != nil {
 		return nil, 0, err
 	}
-	settings := qaReportSettingsPayload(actor, cadence, lastRunAt)
+	settings := qaReportSettingsPayload(actor, cadence, lastRunAt, policy)
 	settings["canManageSchedule"] = true
 	return map[string]any{"settings": settings}, 200, nil
 }
@@ -293,6 +329,15 @@ func (api *qaReportAPI) getProjectQaRunDetail(ctx context.Context, actor qaRepor
 		arg++
 	}
 
+	status, err := qaFindingStatus(r)
+	if err != nil {
+		return nil, 0, err
+	}
+	if status != "" && status != "all" {
+		filterSQL += fmt.Sprintf(" and status = $%d", arg)
+		filters = append(filters, status)
+		arg++
+	}
 	var total int
 	countSQL := `select count(*)::int from translation_qa_findings where ` + filterSQL
 	if err := api.pool.QueryRow(ctx, countSQL, filters...).Scan(&total); err != nil {
@@ -304,7 +349,7 @@ func (api *qaReportAPI) getProjectQaRunDetail(ctx context.Context, actor qaRepor
                related_tokens, source_text, target_text
         from translation_qa_findings
         where ` + filterSQL + `
-        order by target_locale, key, id
+        order by severity, target_locale, key, id
         limit $` + strconv.Itoa(arg) + ` offset $` + strconv.Itoa(arg+1)
 	listArgs := append(filters, limit, offset)
 	rows, err := api.pool.Query(ctx, listSQL, listArgs...)
@@ -349,6 +394,10 @@ func (api *qaReportAPI) getProjectQaRunDetail(ctx context.Context, actor qaRepor
 		})
 	}
 	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	rows.Close()
+	if err := api.enrichQaFindings(ctx, actor.organizationID, findings); err != nil {
 		return nil, 0, err
 	}
 	return map[string]any{

@@ -116,8 +116,8 @@ func TestQAModesEscapedChar(t *testing.T) {
 
 func TestKnownQAModes(t *testing.T) {
 	modes := KnownQAModes()
-	if len(modes) != 4 {
-		t.Fatalf("expected 4 known QA modes, got %v", modes)
+	if len(modes) != 7 {
+		t.Fatalf("expected 7 known QA modes, got %v", modes)
 	}
 	found := false
 	for _, mode := range modes {

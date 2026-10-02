@@ -35,6 +35,8 @@ export type TranslationQaSummary = {
   byCheckType: Record<string, number>;
   bySeverity: Record<string, number>;
   byLocale: Record<string, number>;
+  skippedChecksByLocale?: Record<string, string[]>;
+  checkVersion?: number;
 };
 
 /**
@@ -51,6 +53,10 @@ export const translationQaRuns = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     trigger: text("trigger").$type<TranslationQaRunTrigger>().notNull(),
+    checkPolicy: jsonb("check_policy")
+      .$type<import("@/lib/qa/qa-policy").QaCheckPolicy>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     status: text("status").$type<TranslationQaRunStatus>().notNull().default("queued"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
@@ -111,6 +117,13 @@ export const translationQaFindings = pgTable(
     checkType: text("check_type").notNull(),
     severity: text("severity").$type<TranslationQaSeverity>().notNull(),
     category: text("category").notNull(),
+    status: text("status").$type<"open" | "ignored" | "resolved">().notNull().default("open"),
+    ignoreReason: text("ignore_reason"),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    ruleVersion: integer("rule_version").notNull().default(1),
     message: text("message").notNull(),
     relatedTokens: jsonb("related_tokens").$type<string[]>().notNull().default([]),
     sourceText: text("source_text").notNull(),

@@ -15,6 +15,16 @@
 import { defineMessages } from "react-intl";
 
 export const projectFileCatWorkspaceMessages = defineMessages({
+  qaBlockedSave: {
+    defaultMessage: "Fix the QA errors before saving: {checks}",
+    id: "uJX/OOWNsW",
+    description: "Error shown when an enabled QA Error check blocks a translation save",
+  },
+  qaValidationRequired: {
+    defaultMessage: "QA validation is unavailable. Try saving again.",
+    id: "4n7Lcs2Egh",
+    description: "Error shown when QA rules cannot be checked before saving",
+  },
   validationUnavailableLabel: {
     defaultMessage: "Validation unavailable",
     id: "Rp1ZcGydYx",

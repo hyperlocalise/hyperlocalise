@@ -18,6 +18,11 @@ export const translationQaCheckTypes = [
   "length",
   "placeholder_mismatch",
   "glossary_violation",
+  "format",
+  "spelling",
+  "numbers_mismatch",
+  "punctuation_mismatch",
+  "character_case_mismatch",
 ] as const;
 
 export type TranslationQaCheckType = (typeof translationQaCheckTypes)[number];
@@ -58,7 +63,7 @@ export type TranslationQaSegmentInput = {
 export type TranslationQaCheck = {
   checkType: TranslationQaCheckType;
   severity: TranslationQaSeverity;
-  category: "qa" | "length" | "placeholder" | "glossary";
+  category: "qa" | "length" | "placeholder" | "glossary" | "syntax" | "spelling";
   message: string;
   relatedTokens: string[];
 };
@@ -67,4 +72,6 @@ export type TranslationQaSummary = {
   byCheckType: Partial<Record<TranslationQaCheckType, number>>;
   bySeverity: Partial<Record<TranslationQaSeverity, number>>;
   byLocale: Record<string, number>;
+  skippedChecksByLocale?: Record<string, string[]>;
+  checkVersion?: number;
 };
