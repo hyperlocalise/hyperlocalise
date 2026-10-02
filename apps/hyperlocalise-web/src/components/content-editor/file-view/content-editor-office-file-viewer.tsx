@@ -39,6 +39,7 @@ export function ContentEditorOfficeFileViewerPane({
   kind,
   role,
   src,
+  seedSrc,
   filename,
   isLoading,
   canEdit = true,
@@ -48,6 +49,8 @@ export function ContentEditorOfficeFileViewerPane({
   kind: ContentEditorOfficeKind;
   role: "source" | "target";
   src?: string | null;
+  /** Source file an editable Word target opens when it has no translated file yet. */
+  seedSrc?: string | null;
   filename: string;
   isLoading?: boolean;
   canEdit?: boolean;
@@ -61,8 +64,9 @@ export function ContentEditorOfficeFileViewerPane({
   const [isMounting, setIsMounting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [previewSnapshot, setPreviewSnapshot] = useState<ContentEditorOfficeSnapshot | null>(null);
-  const useStoryPreview = isCatStoryOfficeAssetUrl(src);
   const readOnly = role === "source" || !canEdit;
+  const loadSrc = src ?? (kind === "docx" && !readOnly ? seedSrc : null);
+  const useStoryPreview = isCatStoryOfficeAssetUrl(loadSrc);
 
   const emptyLabel =
     role === "source"
@@ -95,7 +99,7 @@ export function ContentEditorOfficeFileViewerPane({
         return;
       }
 
-      if (!src) {
+      if (!loadSrc) {
         if (readOnly) {
           setIsMounting(false);
           setError(null);
@@ -128,7 +132,7 @@ export function ContentEditorOfficeFileViewerPane({
       try {
         const snapshot = await loadOfficeSnapshotFromUrl({
           kind,
-          src,
+          src: loadSrc,
           filename,
         });
         if (signal.aborted) {
@@ -158,7 +162,7 @@ export function ContentEditorOfficeFileViewerPane({
       hostRef.current?.dispose();
       hostRef.current = null;
     };
-  }, [filename, isLoading, kind, readOnly, src, useStoryPreview]);
+  }, [filename, isLoading, kind, loadSrc, readOnly, useStoryPreview]);
 
   async function handleSave() {
     if (!onSave) {

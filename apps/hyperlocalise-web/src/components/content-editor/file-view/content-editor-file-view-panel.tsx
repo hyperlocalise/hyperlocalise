@@ -584,6 +584,7 @@ export function ContentEditorFileViewPanel({
                           kind={officeKind}
                           role="target"
                           src={targetSrc}
+                          seedSrc={sourceSrc}
                           filename={displayName}
                           isLoading={isSegmentTargetLoading}
                           canEdit={canEdit}
