@@ -11,8 +11,8 @@ The Univer slides editor (1.0.2) can neither carry the edit nor show the text. I
 ## Decisions
 
 - Read slide text from the package itself: one unit per paragraph that has visible text, from shapes and table cells, with slides in presentation order. A line break inside a paragraph is a line break in the unit.
-- A pane shows a deck as one field per paragraph, grouped by slide number, instead of a Univer instance. A field maps to exactly one paragraph, so a save never has to match lines to paragraphs and is never refused.
-- A read-only pane shows the same fields without accepting edits, so source and target line up field for field. Its text can still be selected and copied.
+- An editable pane shows a deck as one field per paragraph, grouped by slide number, instead of a Univer instance. A field maps to exactly one paragraph, so a save never has to match lines to paragraphs and is never refused.
+- A read-only pane draws the deck's slides with `@silurus/ooxml` (office-open-xml-viewer), a read-only viewer that runs in the browser: one scrolling column of slides, fitted to the pane's width, with selectable text. It draws what Univer slides cannot: other shapes, charts, tables, backgrounds, and layout and master inheritance. A deck it cannot draw falls back to the same fields as the editable pane, without accepting edits.
 - On save, write each changed field back into its paragraph inside the file the pane was opened from. Unchanged paragraphs and every other part of the package are carried over as they are.
 - An edited paragraph keeps a single run's formatting, the run that held most of its text, preferring runs that are not links. Bold words and links inside an edited paragraph are lost; they are kept in paragraphs that were not edited.
 - Speaker notes, layouts, masters, charts, diagrams, and fields such as slide numbers are not editable and are carried over.
@@ -21,4 +21,4 @@ The Univer slides editor (1.0.2) can neither carry the edit nor show the text. I
 
 ## Validation
 
-Unit tests cover extraction, write-back, the editable and read-only panes, and the round trip from source deck to saved translation. Seeding, editing, saving, and reopening a saved deck were also checked in a browser. The packages tested were generated or written by hand, not authored in PowerPoint, Keynote, or Google Slides.
+Unit tests cover extraction, write-back, the editable and read-only panes, and the round trip from source deck to saved translation. Seeding, editing, saving, reopening a saved deck, and the drawn slides in a source pane and a locked target were also checked in Firefox through a temporary Storybook story. The viewer was not checked in the Next.js build or the running app. The packages tested were generated or written by hand, not authored in PowerPoint, Keynote, or Google Slides.
