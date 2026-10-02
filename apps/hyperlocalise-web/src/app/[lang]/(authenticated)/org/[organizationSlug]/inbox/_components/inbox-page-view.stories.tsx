@@ -25,6 +25,7 @@ import {
   messagesFixture,
 } from "./inbox.fixture";
 import { InboxPageView } from "./inbox-page-view";
+import type { InboxItemHref } from "./inbox-list";
 import { issueSheetMswHandlers } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-msw-handlers";
 
 const meta = {
@@ -90,6 +91,10 @@ export const MixedConversationAndNotifications: Story = {
   args: {
     notifications: issueNotificationsFixture,
     unreadNotificationCount: 2,
+    itemHref: ((item) =>
+      item.kind === "notification"
+        ? `/org/acme/inbox/notifications/${item.id}`
+        : `/org/acme/inbox/${item.id}`) satisfies InboxItemHref,
   },
   render: (args) => {
     const [selection, setSelection] = useState(args.selection);

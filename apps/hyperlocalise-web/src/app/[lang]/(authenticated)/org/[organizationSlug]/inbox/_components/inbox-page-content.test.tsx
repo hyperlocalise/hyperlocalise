@@ -67,6 +67,15 @@ vi.mock("next/link", () => ({
       {...props}
       href={href}
       onClick={(event) => {
+        if (
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
+          return;
+        }
         event.preventDefault();
         onNavigate?.();
         navigation.push(href);
@@ -206,6 +215,33 @@ describe("InboxPageContent item switching", () => {
     );
     expect(await screen.findByText("Issue panel: issue_001")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
+  });
+
+  it("leaves modified clicks to the browser without changing inbox state", async () => {
+    renderInbox(createInboxApi(async () => messagesFixture));
+
+    const issueItem = await screen.findByRole("link", { name: /Otto Klein assigned you/i });
+    issueItem.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0, ctrlKey: true }));
+
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(screen.queryByText("Issue panel: issue_001")).not.toBeInTheDocument();
+  });
+
+  it("includes the locale in notification links", async () => {
+    const user = userEvent.setup();
+    navigation.pathname = `/en/org/acme/inbox/${firstConversation.id}`;
+
+    renderInbox(createInboxApi(async () => messagesFixture));
+
+    const issueItem = await screen.findByRole("link", { name: /Otto Klein assigned you/i });
+    expect(issueItem).toHaveAttribute(
+      "href",
+      `/en/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
+    );
+    await user.click(issueItem);
+    expect(navigation.push).toHaveBeenCalledWith(
+      `/en/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
+    );
   });
 
   it("sends a reply after leaving /new before the route updates", async () => {
