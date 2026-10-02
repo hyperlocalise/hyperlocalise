@@ -201,20 +201,116 @@ describe("InboxPageContent item switching", () => {
   it("opens an assigned issue in the issue pane instead of the chat pane", async () => {
     const user = userEvent.setup();
     const listMessages = vi.fn(async () => messagesFixture);
+    const notificationId = issueNotificationsFixture[0]!.id;
+    let notificationIsRead = false;
+    const markRead = vi.fn(async () => {
+      notificationIsRead = true;
+      return { id: notificationId, readAt: new Date().toISOString() };
+    });
+    const injectedNotificationsApi: InboxNotificationsApi = {
+      ...notificationsApi,
+      list: async () => ({
+        notifications: issueNotificationsFixture.map((notification) =>
+          notification.id === notificationId
+            ? { ...notification, readAt: notificationIsRead ? new Date().toISOString() : null }
+            : notification,
+        ),
+        total: issueNotificationsFixture.length,
+      }),
+      markRead,
+    };
 
-    renderInbox(createInboxApi(listMessages));
+    navigation.push.mockImplementation((href: string) => {
+      navigation.pathname = href;
+      navigation.conversationId = undefined;
+      navigation.notificationId = notificationId;
+    });
+
+    renderInbox(createInboxApi(listMessages), injectedNotificationsApi);
 
     const issueItem = await screen.findByRole("link", { name: /Otto Klein assigned you/i });
-    expect(issueItem).toHaveAttribute(
-      "href",
-      `/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
-    );
+    expect(issueItem).toHaveAttribute("href", `/org/acme/inbox/notifications/${notificationId}`);
     await user.click(issueItem);
-    expect(navigation.push).toHaveBeenCalledWith(
-      `/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
-    );
+    expect(navigation.push).toHaveBeenCalledWith(`/org/acme/inbox/notifications/${notificationId}`);
+    await waitFor(() => expect(markRead).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Issue panel: issue_001")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
+  });
+
+  it("does not retry a failed read mutation while the notification route stays open", async () => {
+    const notificationId = issueNotificationsFixture[0]!.id;
+    navigation.conversationId = undefined;
+    navigation.notificationId = notificationId;
+    navigation.pathname = `/org/acme/inbox/notifications/${notificationId}`;
+    const markRead = vi.fn().mockRejectedValue(new Error("offline"));
+    const injectedNotificationsApi: InboxNotificationsApi = {
+      ...notificationsApi,
+      markRead,
+    };
+
+    renderInbox(
+      createInboxApi(async () => messagesFixture),
+      injectedNotificationsApi,
+    );
+
+    await waitFor(() => expect(markRead).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(markRead).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a newly clicked notification selected while the route updates", async () => {
+    const user = userEvent.setup();
+    const firstNotificationId = issueNotificationsFixture[0]!.id;
+    const secondNotificationId = "notification_mention_001";
+    const notifications = issueNotificationsFixture.map((notification) =>
+      notification.id === secondNotificationId
+        ? { ...notification, issueId: "issue_002" }
+        : notification,
+    );
+    const readAtById = new Map(
+      notifications.map((notification) => [notification.id, notification.readAt]),
+    );
+    const list = vi.fn(async () => ({
+      notifications: notifications.map((notification) => ({
+        ...notification,
+        readAt: readAtById.get(notification.id) ?? null,
+      })),
+      total: notifications.length,
+    }));
+    const markRead = vi.fn(async (_organizationSlug: string, notificationId: string) => {
+      const readAt = new Date().toISOString();
+      readAtById.set(notificationId, readAt);
+      return { id: notificationId, readAt };
+    });
+    navigation.conversationId = undefined;
+    navigation.notificationId = firstNotificationId;
+    navigation.pathname = `/org/acme/inbox/notifications/${firstNotificationId}`;
+    navigation.push.mockImplementation((href: string) => {
+      setTimeout(() => {
+        navigation.conversationId = undefined;
+        navigation.notificationId = secondNotificationId;
+        navigation.pathname = href;
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }, 20);
+    });
+    const injectedNotificationsApi: InboxNotificationsApi = {
+      ...notificationsApi,
+      getById: async () => notifications[0]!,
+      list,
+      markRead,
+    };
+
+    renderInbox(
+      createInboxApi(async () => messagesFixture),
+      injectedNotificationsApi,
+    );
+
+    await user.click(await screen.findByRole("link", { name: /Checkout CTA tone feels off/i }));
+
+    await waitFor(() => expect(navigation.notificationId).toBe(secondNotificationId));
+    await waitFor(() => expect(markRead).toHaveBeenCalledWith("acme", secondNotificationId));
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(3));
+    expect(await screen.findByText("Issue panel: issue_002")).toBeInTheDocument();
   });
 
   it("leaves modified clicks to the browser without changing inbox state", async () => {

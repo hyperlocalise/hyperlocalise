@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { startTransition, useCallback, useEffect, useMemo } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 import { useIntl } from "react-intl";
@@ -211,6 +211,7 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       !selectedNotificationFromList,
   });
   const selectedNotification = selectedNotificationFromList ?? selectedNotificationQuery.data;
+  const markReadAttemptedNotificationIdRef = useRef<string | null>(null);
 
   const messagesQuery = useQuery({
     queryKey: messagesQueryKey(selectedConversationId),
@@ -334,15 +335,8 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   const onSelectItem = useCallback(
     (item: InboxListItemSelection) => {
       store.setPendingSelection(item);
-
-      if (item.kind === "notification") {
-        const notification = notifications.find((candidate) => candidate.id === item.id);
-        if (notification && !notification.readAt) {
-          markReadMutation.mutate(item.id);
-        }
-      }
     },
-    [notifications, markReadMutation, store],
+    [store],
   );
 
   const onDeletedQuery = useCallback(() => {
@@ -397,12 +391,20 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   ]);
 
   useEffect(() => {
+    if (markReadAttemptedNotificationIdRef.current !== urlNotificationId) {
+      markReadAttemptedNotificationIdRef.current = null;
+    }
+  }, [urlNotificationId]);
+
+  useEffect(() => {
     if (
       urlNotificationId &&
       selectedNotification &&
       !selectedNotification.readAt &&
-      !markReadMutation.isPending
+      !markReadMutation.isPending &&
+      markReadAttemptedNotificationIdRef.current !== urlNotificationId
     ) {
+      markReadAttemptedNotificationIdRef.current = urlNotificationId;
       markReadMutation.mutate(urlNotificationId);
     }
   }, [urlNotificationId, selectedNotification, markReadMutation]);
