@@ -266,6 +266,8 @@ async function createSlidesHost(
   univer.registerPlugin(UniverUIPlugin, {
     container,
     toolbar: !readOnly,
+    // One toolbar row instead of the Start and Insert tabs, as for Word files.
+    ribbonType: "simple",
   });
   univer.registerPlugin(UniverDocsPlugin);
   univer.registerPlugin(UniverDocsUIPlugin);
