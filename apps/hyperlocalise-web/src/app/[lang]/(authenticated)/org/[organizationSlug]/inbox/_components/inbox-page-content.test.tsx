@@ -261,19 +261,43 @@ describe("InboxPageContent item switching", () => {
   it("keeps a newly clicked notification selected while the route updates", async () => {
     const user = userEvent.setup();
     const firstNotificationId = issueNotificationsFixture[0]!.id;
+    const secondNotificationId = "notification_mention_001";
     const notifications = issueNotificationsFixture.map((notification) =>
-      notification.id === "notification_mention_001"
+      notification.id === secondNotificationId
         ? { ...notification, issueId: "issue_002" }
         : notification,
     );
+    const readAtById = new Map(
+      notifications.map((notification) => [notification.id, notification.readAt]),
+    );
+    const list = vi.fn(async () => ({
+      notifications: notifications.map((notification) => ({
+        ...notification,
+        readAt: readAtById.get(notification.id) ?? null,
+      })),
+      total: notifications.length,
+    }));
+    const markRead = vi.fn(async (_organizationSlug: string, notificationId: string) => {
+      const readAt = new Date().toISOString();
+      readAtById.set(notificationId, readAt);
+      return { id: notificationId, readAt };
+    });
     navigation.conversationId = undefined;
     navigation.notificationId = firstNotificationId;
     navigation.pathname = `/org/acme/inbox/notifications/${firstNotificationId}`;
+    navigation.push.mockImplementation((href: string) => {
+      setTimeout(() => {
+        navigation.conversationId = undefined;
+        navigation.notificationId = secondNotificationId;
+        navigation.pathname = href;
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }, 20);
+    });
     const injectedNotificationsApi: InboxNotificationsApi = {
       ...notificationsApi,
       getById: async () => notifications[0]!,
-      list: async () => ({ notifications, total: notifications.length }),
-      markRead: async () => ({ id: firstNotificationId, readAt: new Date().toISOString() }),
+      list,
+      markRead,
     };
 
     renderInbox(
@@ -283,6 +307,9 @@ describe("InboxPageContent item switching", () => {
 
     await user.click(await screen.findByRole("link", { name: /Checkout CTA tone feels off/i }));
 
+    await waitFor(() => expect(navigation.notificationId).toBe(secondNotificationId));
+    await waitFor(() => expect(markRead).toHaveBeenCalledWith("acme", secondNotificationId));
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(3));
     expect(await screen.findByText("Issue panel: issue_002")).toBeInTheDocument();
   });
 
