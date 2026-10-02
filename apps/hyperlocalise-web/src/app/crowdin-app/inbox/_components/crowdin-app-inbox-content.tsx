@@ -273,6 +273,8 @@ const CrowdinAppInboxReady = observer(function CrowdinAppInboxReady({
               setSelectedConversationId(selection.id);
             }
           }}
+          // The embedded inbox owns selection in local state; keep its rows in-place.
+          itemHref={undefined}
           onSendMessage={onSendMessage}
           organizationSlug={session.organizationSlug}
           selectedConversation={selectedConversation}

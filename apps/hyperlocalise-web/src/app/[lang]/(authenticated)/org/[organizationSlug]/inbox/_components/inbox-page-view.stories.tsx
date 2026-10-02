@@ -10,9 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn } from "storybook/test";
+import { expect, fn, userEvent } from "storybook/test";
 
 import {
   conversationsFixture,
@@ -25,6 +25,7 @@ import {
   messagesFixture,
 } from "./inbox.fixture";
 import { InboxPageView } from "./inbox-page-view";
+import type { InboxItemHref } from "./inbox-list";
 import { issueSheetMswHandlers } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-msw-handlers";
 
 const meta = {
@@ -82,6 +83,75 @@ export const Default: Story = {
     await expect(canvas.getByText("Translate homepage hero copy")).toBeInTheDocument();
     await expect(
       canvas.getByText("Can you localize the hero section for French and German?"),
+    ).toBeInTheDocument();
+  },
+};
+
+export const MixedConversationAndNotifications: Story = {
+  args: {
+    notifications: issueNotificationsFixture,
+    unreadNotificationCount: 2,
+    itemHref: ((item) =>
+      item.kind === "notification"
+        ? `/org/acme/inbox/notifications/${item.id}`
+        : `/org/acme/inbox/${item.id}`) satisfies InboxItemHref,
+  },
+  render: (args) => {
+    const [selection, setSelection] = useState(args.selection);
+    const selectedConversation =
+      selection?.kind === "conversation"
+        ? args.conversations.find((conversation) => conversation.id === selection.id)
+        : undefined;
+    const selectedNotification =
+      selection?.kind === "notification"
+        ? args.notifications.find((notification) => notification.id === selection.id)
+        : undefined;
+
+    return (
+      <InboxPageView
+        {...args}
+        jobs={selectedConversation ? args.jobs : []}
+        messages={selectedConversation?.id === args.conversations[0]?.id ? args.messages : []}
+        onSelectItem={setSelection}
+        selectedConversation={selectedConversation}
+        selectedNotification={selectedNotification}
+        selection={selection}
+      />
+    );
+  },
+  parameters: {
+    msw: {
+      handlers: issueSheetMswHandlers,
+    },
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/acme/inbox/${conversationsFixture[0].id}`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("button", { name: "All" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Filter by type" })).toBeInTheDocument();
+    await expect(canvas.getByText("Translate homepage hero copy")).toBeInTheDocument();
+    await expect(canvas.getByText("Email: Q3 release notes")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Otto Klein assigned you to Source string needs context"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Mina Chen mentioned you in Checkout CTA tone feels off"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Mark all as read" })).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Can you localize the hero section for French and German?"),
+    ).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("link", { name: /Email: Q3 release notes/ }));
+    await expect(canvas.getAllByText("Email: Q3 release notes")).toHaveLength(2);
+
+    await userEvent.click(canvas.getByRole("link", { name: /Otto Klein assigned you/i }));
+    await expect(
+      await canvas.findByDisplayValue("Source string needs context"),
     ).toBeInTheDocument();
   },
 };

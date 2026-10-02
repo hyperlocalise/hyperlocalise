@@ -1,10 +1,7 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
-	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -43,49 +40,6 @@ func TestMemberAuthz(t *testing.T) {
 	require.True(t, isWorkosNotFoundError(&workosHTTPError{status: 404}))
 	require.False(t, isWorkosNotFoundError(&workosHTTPError{status: 500}))
 	require.False(t, isWorkosNotFoundError(errors.New("workos: HTTP 404")))
-}
-
-func TestEmitPatRevokedWritesHighSeverityAudit(t *testing.T) {
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewJSONHandler(&buf, nil))
-	previous := slog.Default()
-	slog.SetDefault(logger)
-	t.Cleanup(func() { slog.SetDefault(previous) })
-
-	emitPatRevoked(t.Context(), patRevokedAuditInput{
-		actorUserID:    "actor-1",
-		ownerUserID:    "owner-1",
-		organizationID: "org-1",
-		tokenID:        "token-1",
-		keyPrefix:      "hl_AbCd",
-		reason:         patRevokeReasonMembershipRemoved,
-	})
-
-	var entry map[string]any
-	require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
-	require.Equal(t, patRevokedAuditAction, entry["msg"])
-	audit, ok := entry["audit"].(map[string]any)
-	require.True(t, ok)
-	require.Equal(t, patRevokedAuditAction, audit["action"])
-	require.Equal(t, patRevokedAuditSeverity, audit["severity"])
-	require.Equal(t, "success", audit["outcome"])
-	require.Equal(t, patRevokeReasonMembershipRemoved, audit["reason"])
-	require.Equal(t, float64(patRevokedAuditSchemaVersion), audit["version"])
-	actor, ok := audit["actor"].(map[string]any)
-	require.True(t, ok)
-	require.Equal(t, "user", actor["type"])
-	require.Equal(t, "actor-1", actor["id"])
-	target, ok := audit["target"].(map[string]any)
-	require.True(t, ok)
-	require.Equal(t, patRevokedAuditTarget, target["type"])
-	require.Equal(t, "token-1", target["id"])
-	require.Equal(t, "org-1", target["organizationId"])
-	require.Equal(t, "owner-1", target["ownerUserId"])
-	require.Equal(t, "hl_AbCd", target["keyPrefix"])
-	serialized := buf.String()
-	require.NotContains(t, serialized, "keyHash")
-	require.NotContains(t, serialized, "key_hash")
-	require.NotContains(t, serialized, "@example.com")
 }
 
 func ptr(value string) *string {

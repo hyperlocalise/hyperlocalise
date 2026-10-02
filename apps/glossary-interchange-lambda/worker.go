@@ -409,7 +409,10 @@ func saveConcept(ctx context.Context, tx pgx.Tx, glossaryID string, c interchang
 	if _, err := uuid.Parse(stableID); err == nil {
 		lookupErr = tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and id=$2 and archived_at is null`, glossaryID, stableID).Scan(&conceptID)
 	}
-	if lookupErr == pgx.ErrNoRows {
+	// Only match on an explicitly supplied primary term. Decode may derive
+	// PrimaryTerm from the first term when the cell is blank; using that for
+	// identity would merge unrelated concepts because primary_term is not unique.
+	if lookupErr == pgx.ErrNoRows && shouldLookupConceptByPrimaryTerm(c) {
 		lookupErr = tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and primary_term=$2 and archived_at is null limit 1`, glossaryID, c.PrimaryTerm).Scan(&conceptID)
 	}
 	if lookupErr != nil && lookupErr != pgx.ErrNoRows {
@@ -426,7 +429,11 @@ func saveConcept(ctx context.Context, tx pgx.Tx, glossaryID string, c interchang
 		if c.Present.Translatable {
 			translatable = c.Translatable
 		}
-		if err := tx.QueryRow(ctx, `insert into glossary_concepts (glossary_id,primary_term,subject,definition,translatable,note,url,figure) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`, glossaryID, c.PrimaryTerm, c.Subject, c.Definition, translatable, c.Note, c.URL, c.Figure).Scan(&conceptID); err != nil {
+		primaryTerm := c.PrimaryTerm
+		if strings.TrimSpace(primaryTerm) == "" && len(c.Terms) > 0 {
+			primaryTerm = c.Terms[0].Term
+		}
+		if err := tx.QueryRow(ctx, `insert into glossary_concepts (glossary_id,primary_term,subject,definition,translatable,note,url,figure) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`, glossaryID, primaryTerm, c.Subject, c.Definition, translatable, c.Note, c.URL, c.Figure).Scan(&conceptID); err != nil {
 			return counts, err
 		}
 		counts.ConceptsCreated = 1
@@ -705,6 +712,15 @@ func decodeXLSX(data []byte) ([]interchangeConcept, []string, error) {
 			CaseSensitive: strings.ToLower(rowValue(row, termHeader, "casesensitive")) == "true", Forbidden: strings.ToLower(rowValue(row, termHeader, "forbidden")) == "true",
 		})
 	}
+	// Match CSV/TBX and the native importer: derive primaryTerm from the first
+	// term when the Concepts sheet left it blank. Do not mark Present so merge
+	// still treats an empty primaryTerm cell as omitted, and identity lookup
+	// does not treat the derived value as a supplied primary term.
+	for i := range concepts {
+		if concepts[i].PrimaryTerm == "" && len(concepts[i].Terms) > 0 {
+			concepts[i].PrimaryTerm = concepts[i].Terms[0].Term
+		}
+	}
 	return concepts, diagnostics, nil
 }
 
@@ -818,6 +834,10 @@ func rowIsBlank(row []string) bool {
 
 func glossaryTermBelongsToOtherConcept(existingConceptID, targetConceptID string) bool {
 	return existingConceptID != targetConceptID
+}
+
+func shouldLookupConceptByPrimaryTerm(c interchangeConcept) bool {
+	return c.Present.PrimaryTerm && strings.TrimSpace(c.PrimaryTerm) != ""
 }
 
 func headerHas(header map[string]int, keys ...string) bool {

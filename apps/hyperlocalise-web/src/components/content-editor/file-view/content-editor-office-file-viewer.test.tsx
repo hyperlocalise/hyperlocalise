@@ -46,7 +46,10 @@ function createHost(): ContentEditorUniverHostHandle {
   };
 }
 
-function renderPane(src: string) {
+function renderPane(
+  src: string | null,
+  props: Partial<Parameters<typeof ContentEditorOfficeFileViewerPane>[0]> = {},
+) {
   return (
     <ContentEditorTestProviders>
       <ContentEditorOfficeFileViewerPane
@@ -55,6 +58,7 @@ function renderPane(src: string) {
         src={src}
         filename="brief.docx"
         onSave={() => undefined}
+        {...props}
       />
     </ContentEditorTestProviders>
   );
@@ -141,5 +145,70 @@ describe("ContentEditorOfficeFileViewerPane", () => {
       expect(stale.dispose).toHaveBeenCalledTimes(1);
     });
     expect(current.dispose).not.toHaveBeenCalled();
+  });
+
+  it("opens the source in an editable Word target that has no translated file", async () => {
+    mountHost.mockResolvedValue(createHost());
+
+    render(renderPane(null, { seedSrc: "https://example.com/source.docx" }));
+    await waitForEditorReady();
+
+    expect(loadSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({ src: "https://example.com/source.docx" }),
+    );
+  });
+
+  it("opens the translated file when one exists", async () => {
+    mountHost.mockResolvedValue(createHost());
+
+    render(
+      renderPane("https://example.com/target.docx", { seedSrc: "https://example.com/source.docx" }),
+    );
+    await waitForEditorReady();
+
+    expect(loadSnapshot).toHaveBeenCalledTimes(1);
+    expect(loadSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({ src: "https://example.com/target.docx" }),
+    );
+  });
+
+  it("does not open the source in a read-only target", async () => {
+    render(renderPane(null, { seedSrc: "https://example.com/source.docx", canEdit: false }));
+
+    expect(await screen.findByText("No translated file yet")).toBeVisible();
+    expect(loadSnapshot).not.toHaveBeenCalled();
+    expect(mountHost).not.toHaveBeenCalled();
+  });
+
+  it("renders Save in the given container instead of in the pane", async () => {
+    mountHost.mockResolvedValue(createHost());
+    const header = document.createElement("header");
+    document.body.append(header);
+
+    const { container } = render(
+      renderPane("https://example.com/brief.docx", { saveActionsContainer: header }),
+    );
+    await waitForEditorReady();
+
+    const save = screen.getByRole("button", { name: /save edits/i });
+    expect(header).toContainElement(save);
+    expect(container).not.toContainElement(save);
+    header.remove();
+  });
+
+  it("previews each paragraph of a story Word file separately", async () => {
+    loadSnapshot.mockImplementation(async ({ kind, filename }) => {
+      const snapshot = emptyOfficeSnapshot(kind, filename);
+      if (snapshot.kind === "docx") {
+        snapshot.data.body = { dataStream: "Product brief\rShips in May\r\n" };
+      }
+      return snapshot;
+    });
+
+    render(renderPane("/storybook/cat/docs/product-brief.target.docx"));
+
+    expect(await screen.findByText("Product brief")).toBeVisible();
+    expect(screen.getByText("Ships in May")).toBeVisible();
+    expect(mountHost).not.toHaveBeenCalled();
   });
 });

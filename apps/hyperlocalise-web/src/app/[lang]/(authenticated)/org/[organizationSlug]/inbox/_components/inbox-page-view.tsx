@@ -20,7 +20,12 @@ import { ConversationPanel } from "./conversation-panel";
 import { inboxChatSplitPaneClassName } from "./inbox-chat-split-pane";
 import type { ChatComposerSendOptions } from "./inbox-api";
 import { InboxIssuePanel } from "./inbox-issue-panel";
-import { InboxList, type InboxListItemSelection, type InboxSelection } from "./inbox-list";
+import {
+  InboxList,
+  type InboxItemHref,
+  type InboxListItemSelection,
+  type InboxSelection,
+} from "./inbox-list";
 import type { InboxListFilters } from "./inbox-list-filters";
 import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
@@ -49,6 +54,7 @@ export function InboxPageView({
   jobsIsLoading,
   messages,
   messagesIsLoading,
+  itemHref,
   notifications,
   notificationsIsError,
   notificationsIsLoading,
@@ -83,6 +89,7 @@ export function InboxPageView({
   jobsIsLoading: boolean;
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
+  itemHref?: InboxItemHref;
   notifications: InboxIssueNotification[];
   notificationsIsError: boolean;
   notificationsIsLoading: boolean;
@@ -142,6 +149,7 @@ export function InboxPageView({
             onLoadMoreNotifications={onLoadMoreNotifications}
             onMarkAllRead={onMarkAllRead}
             onSelectItem={onSelectItem}
+            itemHref={itemHref}
             selection={selection}
             unreadNotificationCount={unreadNotificationCount}
           />

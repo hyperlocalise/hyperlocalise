@@ -15,7 +15,26 @@ type activityLogTargetInput struct {
 }
 
 func activityLogTargetKey(kind, id string) string {
-	return kind + ":" + id
+	switch kind {
+	case "project":
+		return "project:" + id
+	case "glossary":
+		return "glossary:" + id
+	case "translation_memory":
+		return "translation_memory:" + id
+	case "job":
+		return "job:" + id
+	case "automation":
+		return "automation:" + id
+	case "membership":
+		return "membership:" + id
+	case "file":
+		return "file:" + id
+	case "string_segment":
+		return "string_segment:" + id
+	default:
+		return kind + ":" + id
+	}
 }
 
 func payloadTargetDisplayName(payload map[string]any) *string {

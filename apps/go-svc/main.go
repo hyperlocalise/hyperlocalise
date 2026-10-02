@@ -98,6 +98,7 @@ func main() {
 		seats:     fallbackMemberSeats{limit: localSeatFallbackLimit},
 		analytics: newGAProductUsageTrackerFromEnv(),
 	}
+	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{}
 	h.notifications = &notificationsAPI{}
 	h.activityLogs = &activityLogAPI{}
@@ -154,6 +155,7 @@ func main() {
 		h.notifications.pool = traced
 		h.teams.pool = traced
 		h.members.pool = traced
+		h.apiKeys.pool = traced
 		h.activityLogs.pool = traced
 		h.contentEditor.pool = traced
 		h.projects.pool = traced
@@ -202,6 +204,7 @@ func main() {
 	h.qaReports.membership = membershipLookup
 	h.teams.membership = membershipLookup
 	h.members.membership = membershipLookup
+	h.apiKeys.membership = membershipLookup
 	h.issueSheets.membership = membershipLookup
 	h.notifications.membership = membershipLookup
 	h.activityLogs.membership = membershipLookup

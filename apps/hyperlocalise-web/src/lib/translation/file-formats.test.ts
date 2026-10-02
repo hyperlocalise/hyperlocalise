@@ -57,6 +57,13 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("captions.vtt")).toBe("vtt");
     expect(inferSupportedFileTranslationFileFormat("captions.srt")).toBe("srt");
     expect(inferSupportedFileTranslationFileFormat("captions.vtt")).toBe("vtt");
+    expect(inferSupportedTranslationFileFormat("hero.lottie")).toBe("lottie");
+    expect(inferSupportedFileTranslationFileFormat("hero.lottie")).toBe("lottie");
+    expect(inferSupportedSourceUploadFormat("animations/hero.lottie")).toBe("lottie");
+    expect(isSupportedSourceUploadFormat("hero.lottie")).toBe(true);
+    // Lottie is key-extractable (not a binary whole-file CAT unit).
+    expect(isBinaryTranslationFileFormat("lottie")).toBe(false);
+    expect(isWholeFileTranslationFileFormat("lottie")).toBe(false);
   });
 
   it("infers CLI-supported image formats separately", () => {
@@ -132,6 +139,7 @@ describe("translation file formats", () => {
         ".json",
         ".srt",
         ".vtt",
+        ".lottie",
         ".png",
         ".mp4",
         ".docx",

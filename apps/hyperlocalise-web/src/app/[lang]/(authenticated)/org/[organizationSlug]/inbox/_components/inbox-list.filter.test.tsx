@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -33,6 +33,7 @@ function renderInboxList() {
         <InboxList
           conversations={conversationsFixture}
           currentUser={currentUserFixture}
+          itemHref={(item) => `/inbox/${item.kind}/${item.id}`}
           hasMoreNotifications={false}
           isError={false}
           isLoading={false}
@@ -101,6 +102,7 @@ describe("InboxList filters", () => {
           <InboxList
             conversations={[]}
             currentUser={currentUserFixture}
+            itemHref={(item) => `/inbox/${item.kind}/${item.id}`}
             hasMoreNotifications
             isError={false}
             isLoading={false}
@@ -137,6 +139,7 @@ describe("InboxList filters", () => {
         <InboxList
           conversations={conversationsFixture}
           currentUser={currentUserFixture}
+          itemHref={(item) => `/inbox/${item.kind}/${item.id}`}
           filters={store.filters}
           hasMoreNotifications={false}
           isError={false}
@@ -175,5 +178,35 @@ describe("InboxList filters", () => {
     expect(screen.queryByText("Translate homepage hero copy")).not.toBeInTheDocument();
     expect(screen.getByText("Checkout CTA tone feels off")).toBeInTheDocument();
     expect(filters.at(-1)).toEqual({ priority: "all", read: "unread", type: "all" });
+  });
+
+  it("does not select a notification on modified link clicks", () => {
+    const onSelectItem = vi.fn();
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <div className="h-[32rem] w-full max-w-sm">
+          <InboxList
+            conversations={[]}
+            currentUser={currentUserFixture}
+            hasMoreNotifications={false}
+            isError={false}
+            isLoading={false}
+            isLoadingMoreNotifications={false}
+            notifications={issueNotificationsFixture}
+            itemHref={(item) => `/notifications/${item.id}`}
+            onLoadMoreNotifications={vi.fn()}
+            onSelectItem={onSelectItem}
+            selection={null}
+            unreadNotificationCount={0}
+          />
+        </div>
+      </IntlProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: /Otto Klein assigned you/i }), {
+      ctrlKey: true,
+    });
+
+    expect(onSelectItem).not.toHaveBeenCalled();
   });
 });

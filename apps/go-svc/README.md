@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs (parallel to Hono), and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs, personal API key management, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public browser routes are served at `https://api.hyperlocalise.com/v1/...` from `GoSvcClient` callers (Bearer token, CORS). The Next.js server calls `/v1/...` or `/ofrep/...` at the same origin via `GO_SVC_URL` (typically `https://api.hyperlocalise.com` in production).
 
@@ -448,6 +448,47 @@ Invite and pending-role updates send WorkOS invitations. Active memberships
 sync role and removal through WorkOS organization memberships. Successful
 mutations write `member_invited`, `member_invite_resent`, `member_role_changed`,
 and `member_removed` events to `organization_activity_events`.
+
+## Personal API keys
+
+Go serves user-owned personal access tokens at
+`/v1/orgs/{organizationSlug}/api-keys`. Authentication requires an active
+WorkOS organization membership.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/api-keys` | List accessible tokens |
+| POST | `/api-keys` | Create a token owned by the caller |
+| DELETE | `/api-keys/{apiKeyId}` | Revoke an accessible token |
+
+Members may manage their own tokens. `admin` and `localization_manager` may
+also list and revoke other members' tokens through `api_keys:read` and
+`api_keys:write`.
+
+- **Storage.** Tokens use the `hl_` prefix with 32 random bytes encoded as
+  base64url. Only the SHA-256 digest and 8-character display prefix are stored.
+  Plaintext is returned once on creation and is never logged or persisted.
+- **Scopes.** Tokens support `jobs:read`, `jobs:write`, `files:read`, and
+  `files:write`, capped by the owner's role. Omitting `permissions` grants all
+  scopes available to that role.
+- **Issuance.** Creation locks the caller's membership row to serialize against
+  membership removal. A token is never committed active unless its
+  `pat.created` audit record succeeds.
+- **Revocation.** Revocation is idempotent and race-safe. Concurrent revocations
+  emit a single `pat.revoked` audit record and activity event.
+- **Listing.** Tokens are ordered by `created_at`, then `id`. Ownerless legacy
+  tokens are reported as revoked.
+
+Create and revoke publish `personal_access_token_created` and
+`personal_access_token_revoked` activity events. Publishing failures are logged
+without failing the request.
+
+Tests cover authorization, validation, audit failure, log hygiene, concurrent
+revocation, and membership-removal races:
+
+```bash
+go test -race ./apps/go-svc -run 'APIKey|PatAudit|EmitPat'
+```
 
 ## Teams
 
