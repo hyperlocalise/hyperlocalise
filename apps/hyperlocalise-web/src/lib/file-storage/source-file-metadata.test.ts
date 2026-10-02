@@ -39,4 +39,8 @@ describe("sourceContentType", () => {
     expect(sourceContentType("assets/hero.png")).toBe("image/png");
     expect(sourceContentType("unknown.bin")).toBe("application/octet-stream");
   });
+
+  it("maps dotLottie archives to the zip+dotlottie MIME type", () => {
+    expect(sourceContentType("animations/hero.lottie")).toBe("application/zip+dotlottie");
+  });
 });

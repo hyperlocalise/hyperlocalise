@@ -620,6 +620,7 @@ All paths below are relative to `/v1/orgs/{organizationSlug}`:
 | GET, POST | `/glossaries/{glossaryId}/projects` | List or attach projects |
 | DELETE | `/glossaries/{glossaryId}/projects/{projectId}` | Detach a project |
 | POST | `/glossaries/{glossaryId}/export` | Queue an asynchronous CSV, TBX, or XLSX export |
+| GET | `/glossaries/{glossaryId}/import-reports` | List import/export runs (`limit`, `cursor`, optional `operation`, `status`) |
 | GET | `/glossaries/{glossaryId}/import-reports/{reportId}` | Import report JSON |
 | GET | `/glossaries/{glossaryId}/import-reports/{reportId}/backup` | Download a completed replace-import backup |
 | GET, POST | `/glossaries/{glossaryId}/concepts` | List or create concepts |
