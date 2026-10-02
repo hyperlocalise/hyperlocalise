@@ -53,6 +53,7 @@
     "@react-email/render": "^2.1.0",
     "@rive-app/react-webgl2": "^4.35.0",
     "@shadcn/react": "^0.3.1",
+    "@silurus/ooxml": "^0.88.0",
     "@streamdown/cjk": "^1.0.3",
     "@streamdown/code": "^1.1.1",
     "@streamdown/math": "^1.0.2",

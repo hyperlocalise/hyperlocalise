@@ -17,12 +17,18 @@ import type { ISlideData } from "@univerjs/slides";
 import type {
   ContentEditorOfficeKind,
   ContentEditorOfficeSnapshot,
+  ContentEditorPptxBase,
 } from "@/components/content-editor/file-view/content-editor-office-convert";
+import { mountPptxSlideViewer } from "@/components/content-editor/file-view/content-editor-pptx-slide-viewer";
+import { mountPptxTextForm } from "@/components/content-editor/file-view/content-editor-pptx-text-form";
+import { mountPptxTranslationEditor } from "@/components/content-editor/file-view/content-editor-pptx-translation-editor";
 
 export type ContentEditorUniverHostHandle = {
   getSnapshot: () => ContentEditorOfficeSnapshot;
   dispose: () => void;
 };
+
+type ContentEditorPptxSnapshot = Extract<ContentEditorOfficeSnapshot, { kind: "pptx" }>;
 
 type UniverApi = {
   createDocument: (data?: Partial<IDocumentData>) => unknown;
@@ -178,6 +184,50 @@ async function createSheetsHost(
   };
 }
 
+/**
+ * Univer slides 1.0.2 ships without its in-place text editor mounted, so it cannot edit a
+ * deck's text. An editable deck is shown as its slides beside one field per paragraph, and
+ * the edits travel with the snapshot to be written back into the file it was read from.
+ */
+function createPptxEditorHost(
+  container: HTMLElement,
+  snapshot: ContentEditorPptxSnapshot,
+  base: ContentEditorPptxBase,
+): ContentEditorUniverHostHandle {
+  const editor = mountPptxTranslationEditor(container, base);
+  return {
+    getSnapshot: () => ({ ...snapshot, edits: editor.getEdits() }),
+    dispose: editor.dispose,
+  };
+}
+
+/** Lists a deck's text read-only, for a deck whose slides cannot be drawn. */
+function createPptxTextListHost(
+  container: HTMLElement,
+  snapshot: ContentEditorPptxSnapshot,
+  base: ContentEditorPptxBase,
+): ContentEditorUniverHostHandle {
+  const form = mountPptxTextForm(container, base.slides, { readOnly: true });
+  return { getSnapshot: () => snapshot, dispose: form.dispose };
+}
+
+/** A read-only deck is drawn as its slides. A deck that cannot be drawn lists its text. */
+async function createPptxSlideHost(
+  container: HTMLElement,
+  snapshot: ContentEditorPptxSnapshot,
+  base: ContentEditorPptxBase,
+  signal?: AbortSignal,
+): Promise<ContentEditorUniverHostHandle> {
+  try {
+    const viewer = await mountPptxSlideViewer(container, base.content, { signal });
+    return { getSnapshot: () => snapshot, dispose: viewer.dispose };
+  } catch {
+    signal?.throwIfAborted();
+    container.replaceChildren();
+    return createPptxTextListHost(container, snapshot, base);
+  }
+}
+
 async function createSlidesHost(
   container: HTMLElement,
   data: ISlideData,
@@ -216,6 +266,8 @@ async function createSlidesHost(
   univer.registerPlugin(UniverUIPlugin, {
     container,
     toolbar: !readOnly,
+    // One toolbar row instead of the Start and Insert tabs, as for Word files.
+    ribbonType: "simple",
   });
   univer.registerPlugin(UniverDocsPlugin);
   univer.registerPlugin(UniverDocsUIPlugin);
@@ -257,7 +309,12 @@ function createHost(
     case "xlsx":
       return createSheetsHost(mountNode, snapshot.data, readOnly, signal);
     case "pptx":
-      return createSlidesHost(mountNode, snapshot.data, readOnly, signal);
+      if (!snapshot.base) {
+        return createSlidesHost(mountNode, snapshot.data, readOnly, signal);
+      }
+      return readOnly
+        ? createPptxSlideHost(mountNode, snapshot, snapshot.base, signal)
+        : Promise.resolve(createPptxEditorHost(mountNode, snapshot, snapshot.base));
   }
 }
 

@@ -51,7 +51,7 @@ export function ContentEditorOfficeFileViewerPane({
   kind: ContentEditorOfficeKind;
   role: "source" | "target";
   src?: string | null;
-  /** Source file an editable Word target opens when it has no translated file yet. */
+  /** Source file an editable target starts from when no translated file exists. */
   seedSrc?: string | null;
   filename: string;
   isLoading?: boolean;
@@ -69,7 +69,7 @@ export function ContentEditorOfficeFileViewerPane({
   const [isSaving, setIsSaving] = useState(false);
   const [previewSnapshot, setPreviewSnapshot] = useState<ContentEditorOfficeSnapshot | null>(null);
   const readOnly = role === "source" || !canEdit;
-  const loadSrc = src ?? (kind === "docx" && !readOnly ? seedSrc : null);
+  const loadSrc = src ?? (readOnly ? null : seedSrc);
   const useStoryPreview = isCatStoryOfficeAssetUrl(loadSrc);
 
   const emptyLabel =
