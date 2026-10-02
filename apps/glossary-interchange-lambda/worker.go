@@ -409,10 +409,10 @@ func saveConcept(ctx context.Context, tx pgx.Tx, glossaryID string, c interchang
 	if _, err := uuid.Parse(stableID); err == nil {
 		lookupErr = tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and id=$2 and archived_at is null`, glossaryID, stableID).Scan(&conceptID)
 	}
-	// Never match on an empty primary term — that collapses unrelated concepts
-	// when XLSX/CSV rows omit primaryTerm (native importer derives it from the
-	// first term and skips blank lookups the same way).
-	if lookupErr == pgx.ErrNoRows && shouldLookupConceptByPrimaryTerm(c.PrimaryTerm) {
+	// Only match on an explicitly supplied primary term. Decode may derive
+	// PrimaryTerm from the first term when the cell is blank; using that for
+	// identity would merge unrelated concepts because primary_term is not unique.
+	if lookupErr == pgx.ErrNoRows && shouldLookupConceptByPrimaryTerm(c) {
 		lookupErr = tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and primary_term=$2 and archived_at is null limit 1`, glossaryID, c.PrimaryTerm).Scan(&conceptID)
 	}
 	if lookupErr != nil && lookupErr != pgx.ErrNoRows {
@@ -714,7 +714,8 @@ func decodeXLSX(data []byte) ([]interchangeConcept, []string, error) {
 	}
 	// Match CSV/TBX and the native importer: derive primaryTerm from the first
 	// term when the Concepts sheet left it blank. Do not mark Present so merge
-	// still treats an empty primaryTerm cell as omitted rather than a clear.
+	// still treats an empty primaryTerm cell as omitted, and identity lookup
+	// does not treat the derived value as a supplied primary term.
 	for i := range concepts {
 		if concepts[i].PrimaryTerm == "" && len(concepts[i].Terms) > 0 {
 			concepts[i].PrimaryTerm = concepts[i].Terms[0].Term
@@ -835,8 +836,8 @@ func glossaryTermBelongsToOtherConcept(existingConceptID, targetConceptID string
 	return existingConceptID != targetConceptID
 }
 
-func shouldLookupConceptByPrimaryTerm(primaryTerm string) bool {
-	return strings.TrimSpace(primaryTerm) != ""
+func shouldLookupConceptByPrimaryTerm(c interchangeConcept) bool {
+	return c.Present.PrimaryTerm && strings.TrimSpace(c.PrimaryTerm) != ""
 }
 
 func headerHas(header map[string]int, keys ...string) bool {
