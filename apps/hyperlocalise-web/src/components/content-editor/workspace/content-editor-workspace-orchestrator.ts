@@ -795,6 +795,10 @@ export class ContentEditorWorkspaceOrchestrator {
     targetLocale: string;
   }) {
     const filename = input.sourcePath.split("/").pop() ?? input.sourcePath;
+    // Capture the outgoing segment before clearing the queue — for All Files
+    // workspaces (sourcePath === "*") selectedSegmentView becomes undefined once
+    // the queue meta and selectedSegmentId are cleared below, so we read it first.
+    const outgoingSegment = input.sourcePath === "*" ? this.selectedSegmentView : undefined;
     this.fileScopeGeneration += 1;
     this.reviewSequence += 1;
     this.validationSequence += 1;
@@ -831,13 +835,12 @@ export class ContentEditorWorkspaceOrchestrator {
     };
     // Update persona for the new file's content family eagerly (before the
     // snapshot arrives) so the UI reflects the correct layout immediately.
-    const initialFamily =
-      input.sourcePath === "*" && this.selectedSegmentView
-        ? resolveCatFileViewCapabilities({
-            sourcePath: this.selectedSegmentView.sourcePath,
-            contentKind: this.selectedSegmentView.contentKind,
-          }).family
-        : resolveCatFileViewCapabilities({ sourcePath: input.sourcePath }).family;
+    const initialFamily = outgoingSegment
+      ? resolveCatFileViewCapabilities({
+          sourcePath: outgoingSegment.sourcePath,
+          contentKind: outgoingSegment.contentKind,
+        }).family
+      : resolveCatFileViewCapabilities({ sourcePath: input.sourcePath }).family;
     this.ui.applyFileFamily(initialFamily);
     this.page.beginFileScopeChange(input.sourcePath, input.targetLocale);
     this.ui.setTranslationViewLoading(true);

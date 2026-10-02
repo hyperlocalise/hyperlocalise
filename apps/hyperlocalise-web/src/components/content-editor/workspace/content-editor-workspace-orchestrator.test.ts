@@ -1426,4 +1426,60 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
     expect(store.queueSegments.map((segment) => segment.id)).toEqual(["seg-01"]);
     expect(store.page.showFileSidebar).toBe(true);
   });
+
+  it("captures the outgoing image segment family before clearing the queue in an All Files workspace", () => {
+    // Arrange: All Files workspace with an image segment selected.
+    const imageSegmentId = "img-01";
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: imageSegmentId,
+        fileContext: {
+          sourcePath: "*",
+          filename: "*",
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          providerKind: null,
+          canEditTranslations: true,
+          canAddComments: true,
+        },
+        segments: [
+          {
+            id: imageSegmentId,
+            index: 1,
+            key: "hero",
+            sourceText: "",
+            targetText: "",
+            sourceLocale: "en-US",
+            targetLocale: "fr-FR",
+            status: "pending",
+            sourcePath: "assets/hero.png",
+            contentKind: "image_file",
+          },
+        ],
+        queueSegments: [
+          {
+            id: imageSegmentId,
+            index: 1,
+            key: "hero",
+            sourceText: "",
+            sourcePath: "assets/hero.png",
+            contentKind: "image_file",
+          },
+        ],
+      }),
+    );
+    store.ui.setAdaptiveWorkspaceEnabled(true);
+
+    // Act: switch to a different locale — sourcePath stays "*".
+    store.prepareFileScopeChange({
+      sourcePath: "*",
+      sourceLocale: "en-US",
+      targetLocale: "de-DE",
+    });
+
+    // Assert: the outgoing image segment must have set the designer family, not
+    // text.  Without the fix selectedSegmentView would be undefined after
+    // clearing the queue and the family would always fall back to "text".
+    expect(store.ui.workspacePersona).toBe("designer");
+  });
 });
