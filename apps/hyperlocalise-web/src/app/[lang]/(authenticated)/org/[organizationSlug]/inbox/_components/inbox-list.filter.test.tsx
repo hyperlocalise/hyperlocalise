@@ -33,6 +33,7 @@ function renderInboxList() {
         <InboxList
           conversations={conversationsFixture}
           currentUser={currentUserFixture}
+          itemHref={(item) => `/inbox/${item.kind}/${item.id}`}
           hasMoreNotifications={false}
           isError={false}
           isLoading={false}
@@ -101,6 +102,7 @@ describe("InboxList filters", () => {
           <InboxList
             conversations={[]}
             currentUser={currentUserFixture}
+            itemHref={(item) => `/inbox/${item.kind}/${item.id}`}
             hasMoreNotifications
             isError={false}
             isLoading={false}
@@ -137,6 +139,7 @@ describe("InboxList filters", () => {
         <InboxList
           conversations={conversationsFixture}
           currentUser={currentUserFixture}
+          itemHref={(item) => `/inbox/${item.kind}/${item.id}`}
           filters={store.filters}
           hasMoreNotifications={false}
           isError={false}
@@ -190,7 +193,7 @@ describe("InboxList filters", () => {
             isLoading={false}
             isLoadingMoreNotifications={false}
             notifications={issueNotificationsFixture}
-            notificationHref={(notificationId) => `/notifications/${notificationId}`}
+            itemHref={(item) => `/notifications/${item.id}`}
             onLoadMoreNotifications={vi.fn()}
             onSelectItem={onSelectItem}
             selection={null}

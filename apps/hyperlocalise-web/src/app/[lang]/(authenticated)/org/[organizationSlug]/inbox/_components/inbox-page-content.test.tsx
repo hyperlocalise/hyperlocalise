@@ -15,6 +15,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -49,6 +50,40 @@ vi.mock("next/navigation", () => ({
   }),
   usePathname: () => navigation.pathname,
   useRouter: () => ({ push: navigation.push }),
+}));
+
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+    onNavigate,
+    ...props
+  }: {
+    children: ReactNode;
+    href: string;
+    onNavigate?: () => void;
+  }) => (
+    <a
+      {...props}
+      href={href}
+      onClick={(event) => {
+        if (
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
+          return;
+        }
+        event.preventDefault();
+        onNavigate?.();
+        navigation.push(href);
+      }}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("@/lib/billing/use-ai-features-access", () => ({
@@ -150,7 +185,7 @@ describe("InboxPageContent item switching", () => {
     );
     expect(firstMessagePreviews.length).toBeGreaterThan(1);
 
-    await user.click(screen.getByRole("button", { name: /Email: Q3 release notes/ }));
+    await user.click(screen.getByRole("link", { name: /Email: Q3 release notes/ }));
 
     expect(navigation.push).toHaveBeenCalledWith(`/org/acme/inbox/${secondConversation.id}`);
     expect(navigation.conversationId).toBe(firstConversation.id);
@@ -175,8 +210,38 @@ describe("InboxPageContent item switching", () => {
       `/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
     );
     await user.click(issueItem);
+    expect(navigation.push).toHaveBeenCalledWith(
+      `/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
+    );
     expect(await screen.findByText("Issue panel: issue_001")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
+  });
+
+  it("leaves modified clicks to the browser without changing inbox state", async () => {
+    renderInbox(createInboxApi(async () => messagesFixture));
+
+    const issueItem = await screen.findByRole("link", { name: /Otto Klein assigned you/i });
+    issueItem.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0, ctrlKey: true }));
+
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(screen.queryByText("Issue panel: issue_001")).not.toBeInTheDocument();
+  });
+
+  it("includes the locale in notification links", async () => {
+    const user = userEvent.setup();
+    navigation.pathname = `/en/org/acme/inbox/${firstConversation.id}`;
+
+    renderInbox(createInboxApi(async () => messagesFixture));
+
+    const issueItem = await screen.findByRole("link", { name: /Otto Klein assigned you/i });
+    expect(issueItem).toHaveAttribute(
+      "href",
+      `/en/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
+    );
+    await user.click(issueItem);
+    expect(navigation.push).toHaveBeenCalledWith(
+      `/en/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
+    );
   });
 
   it("sends a reply after leaving /new before the route updates", async () => {
@@ -192,7 +257,7 @@ describe("InboxPageContent item switching", () => {
 
     renderInbox(inboxApi);
 
-    await user.click(await screen.findByRole("button", { name: /Translate homepage hero copy/ }));
+    await user.click(await screen.findByRole("link", { name: /Translate homepage hero copy/ }));
     expect(navigation.push).toHaveBeenCalledWith(`/org/acme/inbox/${firstConversation.id}`);
     expect(navigation.pathname).toBe("/org/acme/inbox/new");
 

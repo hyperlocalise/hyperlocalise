@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stream-manager";
 import { isInboxNewRequestPath } from "@/components/app-shell/navigation-config";
+import { normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { InboxPageStoreProvider, useInboxPageStore } from "../store/inbox-page-store-context";
@@ -30,6 +31,7 @@ import { createInboxApi, type ChatComposerSendOptions, type InboxApi } from "./i
 import {
   inboxSelectionsEqual,
   resolveInboxSelection,
+  type InboxItemHref,
   type InboxListItemSelection,
   type InboxSelection,
 } from "./inbox-list";
@@ -111,6 +113,17 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   const urlConversationId = params?.conversationId as string | undefined;
   const urlNotificationId = params?.notificationId as string | undefined;
   const composeNew = isInboxNewRequestPath(pathname);
+  const itemHref: InboxItemHref = useCallback(
+    (item) => {
+      const path =
+        item.kind === "notification"
+          ? `/org/${organizationSlug}/inbox/notifications/${item.id}`
+          : `/org/${organizationSlug}/inbox/${item.id}`;
+      const locale = normalizeAppLocale(pathname.split("/")[1] ?? "");
+      return locale ? `/${locale}${path}` : path;
+    },
+    [organizationSlug, pathname],
+  );
   const { chatDock } = useAppShellStore();
   const streamManager = getChatStreamManager(organizationSlug, chatDock);
 
@@ -321,13 +334,6 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   const onSelectItem = useCallback(
     (item: InboxListItemSelection) => {
       store.setPendingSelection(item);
-      const path =
-        item.kind === "notification"
-          ? `/org/${organizationSlug}/inbox/notifications/${item.id}`
-          : `/org/${organizationSlug}/inbox/${item.id}`;
-      if (item.kind === "conversation") {
-        router.push(path);
-      }
 
       if (item.kind === "notification") {
         const notification = notifications.find((candidate) => candidate.id === item.id);
@@ -336,7 +342,7 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
         }
       }
     },
-    [router, organizationSlug, notifications, markReadMutation, store],
+    [notifications, markReadMutation, store],
   );
 
   const onDeletedQuery = useCallback(() => {
@@ -418,6 +424,7 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       jobsIsLoading={jobsQuery.isLoading}
       messages={messages}
       messagesIsLoading={messagesQuery.isLoading}
+      itemHref={itemHref}
       notifications={notifications}
       notificationsIsError={notificationsQuery.isError}
       notificationsIsLoading={notificationsQuery.isLoading}
