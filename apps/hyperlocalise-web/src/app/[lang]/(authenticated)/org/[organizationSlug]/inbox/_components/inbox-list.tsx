@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Chat01Icon, FilterIcon, SparklesIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
@@ -738,7 +738,18 @@ const NotificationListItem = memo(function NotificationListItem({
       <Link
         href={href}
         aria-current={isSelected ? "page" : undefined}
-        onClick={() => onSelect(notification.id)}
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          if (
+            event.button !== 0 ||
+            event.metaKey ||
+            event.altKey ||
+            event.ctrlKey ||
+            event.shiftKey
+          ) {
+            return;
+          }
+          onSelect(notification.id);
+        }}
         className={cn(listItemClassName(isSelected, isUnread), "no-underline")}
       >
         {content}
