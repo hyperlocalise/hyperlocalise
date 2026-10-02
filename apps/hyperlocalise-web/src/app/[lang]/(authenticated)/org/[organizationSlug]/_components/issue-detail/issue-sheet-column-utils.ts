@@ -80,3 +80,47 @@ export function buildCustomColumnDrafts(
   }
   return drafts;
 }
+
+function customColumnDraftRecordsEqual(
+  left: Record<string, string>,
+  right: Record<string, string>,
+) {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every((key) => Object.hasOwn(right, key) && left[key] === right[key])
+  );
+}
+
+export function reconcileSameIssueCustomColumnDrafts(
+  issue: IssueDetailIssue,
+  columns: IssueSheetColumn[],
+  baselineDrafts: Record<string, string>,
+  currentDrafts: Record<string, string>,
+): {
+  nextBaselineDrafts: Record<string, string>;
+  nextDrafts: Record<string, string>;
+} {
+  const nextBaselineDrafts = { ...baselineDrafts };
+  const nextDrafts = { ...currentDrafts };
+
+  for (const column of columns.filter(isDraftableCustomColumn)) {
+    const saved = customColumnValueFromIssue(issue, column.key);
+    const previousBaseline = baselineDrafts[column.key];
+    nextBaselineDrafts[column.key] = saved;
+
+    const shouldRefreshDraft =
+      !Object.hasOwn(currentDrafts, column.key) || currentDrafts[column.key] === previousBaseline;
+    if (shouldRefreshDraft) {
+      nextDrafts[column.key] = saved;
+    }
+  }
+
+  return {
+    nextBaselineDrafts: customColumnDraftRecordsEqual(baselineDrafts, nextBaselineDrafts)
+      ? baselineDrafts
+      : nextBaselineDrafts,
+    nextDrafts: customColumnDraftRecordsEqual(currentDrafts, nextDrafts) ? currentDrafts : nextDrafts,
+  };
+}

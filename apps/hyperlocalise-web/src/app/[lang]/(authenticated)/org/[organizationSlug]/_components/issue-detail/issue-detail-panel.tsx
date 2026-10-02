@@ -105,6 +105,7 @@ import {
   isMainContentCustomColumn,
   isSidebarCustomColumn,
   listDetailPanelColumns,
+  reconcileSameIssueCustomColumnDrafts,
 } from "./issue-sheet-column-utils";
 import { IssueTypePicker, type IssueTypeValue } from "./issue-type-picker";
 import { IssueWatchControl } from "./issue-watch-control";
@@ -386,34 +387,24 @@ export const IssueDetailPanel = forwardRef<
       return;
     }
 
-    const missingColumns = draftableColumns.filter(
-      (column) => !Object.hasOwn(baseline.drafts, column.key),
-    );
-    if (missingColumns.length === 0) {
-      return;
-    }
-
-    const nextBaselineDrafts = { ...baseline.drafts };
-    for (const column of missingColumns) {
-      nextBaselineDrafts[column.key] = customColumnValueFromIssue(issue, column.key);
-    }
     customColumnBaselineRef.current = {
       issueId: issue.id,
-      drafts: nextBaselineDrafts,
+      drafts: reconcileSameIssueCustomColumnDrafts(
+        issue,
+        draftableColumns,
+        baseline.drafts,
+        customColumnDraftsRef.current,
+      ).nextBaselineDrafts,
     };
 
-    setCustomColumnDrafts((current) => {
-      const next = { ...current };
-      let changed = false;
-      for (const column of missingColumns) {
-        const saved = customColumnValueFromIssue(issue, column.key);
-        if (!(column.key in next)) {
-          next[column.key] = saved;
-          changed = true;
-        }
-      }
-      return changed ? next : current;
-    });
+    setCustomColumnDrafts((current) =>
+      reconcileSameIssueCustomColumnDrafts(
+        issue,
+        draftableColumns,
+        baseline.drafts,
+        current,
+      ).nextDrafts,
+    );
   }, [issue, detailColumns]);
 
   useEffect(() => {
