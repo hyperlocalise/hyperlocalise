@@ -237,6 +237,55 @@ describe("InboxPageContent item switching", () => {
     expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
   });
 
+  it("does not retry a failed read mutation while the notification route stays open", async () => {
+    const notificationId = issueNotificationsFixture[0]!.id;
+    navigation.conversationId = undefined;
+    navigation.notificationId = notificationId;
+    navigation.pathname = `/org/acme/inbox/notifications/${notificationId}`;
+    const markRead = vi.fn().mockRejectedValue(new Error("offline"));
+    const injectedNotificationsApi: InboxNotificationsApi = {
+      ...notificationsApi,
+      markRead,
+    };
+
+    renderInbox(
+      createInboxApi(async () => messagesFixture),
+      injectedNotificationsApi,
+    );
+
+    await waitFor(() => expect(markRead).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(markRead).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a newly clicked notification selected while the route updates", async () => {
+    const user = userEvent.setup();
+    const firstNotificationId = issueNotificationsFixture[0]!.id;
+    const notifications = issueNotificationsFixture.map((notification) =>
+      notification.id === "notification_mention_001"
+        ? { ...notification, issueId: "issue_002" }
+        : notification,
+    );
+    navigation.conversationId = undefined;
+    navigation.notificationId = firstNotificationId;
+    navigation.pathname = `/org/acme/inbox/notifications/${firstNotificationId}`;
+    const injectedNotificationsApi: InboxNotificationsApi = {
+      ...notificationsApi,
+      getById: async () => notifications[0]!,
+      list: async () => ({ notifications, total: notifications.length }),
+      markRead: async () => ({ id: firstNotificationId, readAt: new Date().toISOString() }),
+    };
+
+    renderInbox(
+      createInboxApi(async () => messagesFixture),
+      injectedNotificationsApi,
+    );
+
+    await user.click(await screen.findByRole("link", { name: /Checkout CTA tone feels off/i }));
+
+    expect(await screen.findByText("Issue panel: issue_002")).toBeInTheDocument();
+  });
+
   it("leaves modified clicks to the browser without changing inbox state", async () => {
     renderInbox(createInboxApi(async () => messagesFixture));
 
