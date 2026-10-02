@@ -26,6 +26,7 @@ import { ContentEditorEditorCommentsSection } from "./content-editor-editor-comm
 import { ContentEditorEditorFormatChecksSection } from "./content-editor-editor-format-checks-section";
 import { ContentEditorEditorHeader } from "./content-editor-editor-header";
 import { useContentEditorEditorHotkeys } from "./content-editor-editor-hotkeys";
+import { ContentEditorEditorShortcutHintBar } from "./content-editor-editor-shortcut-hint-bar";
 import {
   ContentEditorEditorImageSourceSection,
   ContentEditorEditorImageTargetSection,
@@ -99,6 +100,7 @@ export function ContentEditorEditorPanel({
   onRegenerateImage,
   onUploadImage,
   onToggleLocked,
+  showKeyboardHints = false,
 }: ContentEditorEditorPanelProps) {
   const intl = useIntl();
   const isMac = useIsMac();
@@ -274,6 +276,7 @@ export function ContentEditorEditorPanel({
           />
         </div>
       </div>
+      {showKeyboardHints ? <ContentEditorEditorShortcutHintBar isMac={isMac} /> : null}
     </div>
   );
 }

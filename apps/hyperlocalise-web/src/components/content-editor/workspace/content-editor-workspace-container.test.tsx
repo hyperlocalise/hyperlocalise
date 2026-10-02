@@ -23,6 +23,7 @@ import {
 } from "@/components/content-editor/file-view/content-editor-file-view.fixture";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import {
+  contentEditorIntelligenceFixture,
   contentEditorSegmentsFixture,
   createContentEditorWorkspaceState,
   mockValidateFormat,
@@ -553,6 +554,214 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     await waitFor(() => {
       const workspace = document.querySelector("[data-workspace-persona]");
       expect(workspace).toHaveAttribute("data-workspace-persona", "translator");
+    });
+  });
+
+  it("scrolls to translation memory in translator persona when adaptive workspace is enabled", async () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
+    const scrollIntoViewMock = vi.fn();
+    window.Element.prototype.scrollIntoView = scrollIntoViewMock;
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+
+    try {
+      renderCatWorkspace(
+        <>
+          <ContentEditorQueueToolbarHost />
+          <ContentEditorWorkspaceContainer
+            initialState={createContentEditorWorkspaceState({
+              selectedSegmentId: "seg-02",
+              segments: contentEditorSegmentsFixture.filter((segment) =>
+                ["seg-01", "seg-02", "seg-03"].includes(segment.id),
+              ),
+              segmentIntelligence: {
+                "seg-02": contentEditorIntelligenceFixture,
+              },
+            })}
+            adaptiveWorkspaceEnabled
+          />
+        </>,
+      );
+
+      await screen.findByText("Translation memory");
+
+      await waitFor(() => {
+        expect(scrollIntoViewMock).toHaveBeenCalledWith({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      });
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(Element.prototype, "scrollIntoView", originalDescriptor);
+        Object.defineProperty(window.Element.prototype, "scrollIntoView", originalDescriptor);
+      } else {
+        delete (Element.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView;
+        delete (window.Element.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView;
+      }
+    }
+  });
+
+  it("omits the persona switcher for image files even when adaptiveWorkspaceEnabled is true", async () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createCatImageFileWorkspaceState()}
+        adaptiveWorkspaceEnabled
+        editing={{
+          onRegenerateImage: vi.fn(),
+          onUploadImage: vi.fn(),
+        }}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /Localised · vi/i })).toBeInTheDocument(),
+    );
+
+    expect(screen.queryByRole("button", { name: "Workspace mode" })).not.toBeInTheDocument();
+  });
+
+  it("allows toggling selectionMode off and on in reviewer mode", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          adaptiveWorkspaceEnabled
+        />
+      </>,
+    );
+
+    // Switch to Reviewer persona
+    const personaButton = await waitFor(() =>
+      screen.getByRole("button", { name: "Workspace mode" }),
+    );
+    await user.click(personaButton);
+    const reviewerOption = await screen.findByRole("menuitemradio", { name: "Reviewer" });
+    await user.click(reviewerOption);
+
+    // In Reviewer mode, selection checkbox starts checked
+    const selectionCheckbox = await screen.findByLabelText("Show bulk selection checkboxes");
+    expect(selectionCheckbox).toBeChecked();
+
+    // User can uncheck the checkbox to turn selection mode off
+    await user.click(selectionCheckbox);
+    expect(selectionCheckbox).not.toBeChecked();
+
+    // User can check the checkbox again to turn selection mode on
+    await user.click(selectionCheckbox);
+    expect(selectionCheckbox).toBeChecked();
+  });
+
+  it("turns off selectionMode and does not pollute queue preference when switching from Reviewer to Translator", async () => {
+    const user = userEvent.setup();
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+
+    try {
+      renderCatWorkspace(
+        <>
+          <ContentEditorQueueToolbarHost />
+          <ContentEditorWorkspaceContainer
+            initialState={createUiCatWorkspaceState()}
+            adaptiveWorkspaceEnabled
+          />
+        </>,
+      );
+
+      // Switch to Reviewer persona
+      const personaButton = await waitFor(() =>
+        screen.getByRole("button", { name: "Workspace mode" }),
+      );
+      await user.click(personaButton);
+      const reviewerOption = await screen.findByRole("menuitemradio", { name: "Reviewer" });
+      await user.click(reviewerOption);
+
+      await waitFor(() => {
+        const workspace = document.querySelector("[data-workspace-persona]");
+        expect(workspace).toHaveAttribute("data-workspace-persona", "reviewer");
+      });
+
+      // In Reviewer mode, selection checkbox is checked
+      const selectionCheckbox = await screen.findByLabelText("Show bulk selection checkboxes");
+      expect(selectionCheckbox).toBeChecked();
+
+      // Entering Reviewer must NOT have saved "true" to the general queue preference
+      expect(setItem).not.toHaveBeenCalledWith("content-editor-queue:selection-mode:v1", "true");
+
+      // Switch back to Translator persona (menu is still open)
+      const translatorOption = await screen.findByRole("menuitemradio", { name: "Translator" });
+      await user.click(translatorOption);
+
+      await waitFor(() => {
+        const workspace = document.querySelector("[data-workspace-persona]");
+        expect(workspace).toHaveAttribute("data-workspace-persona", "translator");
+      });
+
+      // Selection checkbox should now be unchecked
+      await waitFor(() => {
+        const currentCheckbox = document.querySelector<HTMLInputElement>(
+          'input[type="checkbox"][aria-label="Show bulk selection checkboxes"]',
+        );
+        expect(currentCheckbox).not.toBeNull();
+        expect(currentCheckbox!.checked).toBe(false);
+      });
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
+  it("preserves multilingual view choice in adaptive workspace when multilingual config is provided", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          adaptiveWorkspaceEnabled
+          multilingual={{
+            organizationSlug: "org",
+            projectId: "proj",
+            sourcePath: "app.json",
+            sourceLocale: "en",
+            targetLocales: ["vi", "ja"],
+          }}
+        />
+      </>,
+    );
+
+    // Open view switcher and select Multilingual
+    const viewButton = await waitFor(() =>
+      screen.getByRole("button", { name: "Content Editor view mode" }),
+    );
+    await user.click(viewButton);
+    const multilingualOption = await screen.findByRole("menuitemradio", { name: "Multilingual" });
+    await user.click(multilingualOption);
+
+    // Multilingual table header should appear
+    await waitFor(() => {
+      expect(screen.getByRole("table")).toBeInTheDocument();
+    });
+  });
+
+  it("preserves saved selection mode preference when opening an adaptive text workspace", async () => {
+    window.localStorage.setItem("content-editor-queue:selection-mode:v1", "true");
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          adaptiveWorkspaceEnabled
+        />
+      </>,
+    );
+
+    // Initial persona is Translator; selection mode saved as true must not be forced off on mount
+    await waitFor(() => {
+      const selectionCheckbox = screen.getByLabelText("Show bulk selection checkboxes");
+      expect(selectionCheckbox).toBeChecked();
     });
   });
 });

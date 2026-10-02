@@ -74,9 +74,11 @@ export class ContentEditorQueueStore {
     this.search = search;
   }
 
-  setSelectionMode(enabled: boolean) {
+  setSelectionMode(enabled: boolean, options?: { persist?: boolean }) {
     this.selectionMode = enabled;
-    writeCatQueueSelectionModePreference(enabled);
+    if (options?.persist ?? true) {
+      writeCatQueueSelectionModePreference(enabled);
+    }
     if (!enabled) {
       this.clearChecked();
     }

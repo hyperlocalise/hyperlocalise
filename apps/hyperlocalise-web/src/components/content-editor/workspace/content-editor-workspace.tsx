@@ -152,14 +152,21 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
 
     const currentPersona = store.ui.resolvedPersona;
     if (prevPersonaRef.current !== currentPersona) {
+      const prevPersona = prevPersonaRef.current;
       prevPersonaRef.current = currentPersona;
       if (currentPersona === "reviewer") {
         setActivePanel("queue");
-      } else if (currentPersona === "translator") {
-        setActivePanel("edit");
+        store.setSelectionMode(true, { persist: false });
+      } else {
+        if (currentPersona === "translator") {
+          setActivePanel("edit");
+        }
+        if (prevPersona === "reviewer") {
+          store.setSelectionMode(false, { persist: false });
+        }
       }
     }
-  }, [isAdaptiveEnabled, store.ui.resolvedPersona]);
+  }, [isAdaptiveEnabled, store, store.ui.resolvedPersona]);
 
   const isSideBySideDesktop = viewMode === "side-by-side" && !isCompact;
   const isFileView = viewMode === "file";
@@ -707,6 +714,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onNext={navigation.onNextSegment}
           hasPreviousSegment={hasPreviousSegment}
           hasNextSegment={hasNextSegment}
+          showKeyboardHints={isAdaptiveEnabled && store.ui.isTranslatorPersona}
         />
       </ContentEditorPanelErrorBoundary>
     );
@@ -732,7 +740,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           queueFilter={queueFilter}
           checkedSegmentIds={checkedSegmentIds}
           onToggleSegmentChecked={onToggleSegmentChecked}
-          showSelection={store.selectionMode || isReviewerPersona}
+          showSelection={store.selectionMode}
           isFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueListLoading}
           pagination={queuePagination}
@@ -785,6 +793,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               : undefined
           }
           onGlossaryTermAdded={() => onReloadConcordance?.(editorSegment.id)}
+          scrollToTm={isAdaptiveEnabled && store.ui.isTranslatorPersona}
         />
       </ContentEditorPanelErrorBoundary>
     );

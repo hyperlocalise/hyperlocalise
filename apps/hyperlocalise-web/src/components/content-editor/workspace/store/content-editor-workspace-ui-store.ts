@@ -20,6 +20,7 @@ import {
   type ContentEditorWorkspaceViewMode,
 } from "@/components/content-editor/workspace/content-editor-workspace-view-mode";
 import {
+  DESIGNER_PERSONA_FILE_FAMILIES,
   defaultPersonaForFileFamily,
   readCatWorkspacePersona,
   writeCatWorkspacePersona,
@@ -100,24 +101,53 @@ export class ContentEditorWorkspaceUiStore {
     }
     this.adaptiveWorkspaceEnabled = enabled;
     if (enabled && this.#currentFileFamily) {
-      this.#applyPersonaLayout(this.resolvedPersona);
+      const isDesignerFamily = Boolean(
+        this.#currentFileFamily &&
+        DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never),
+      );
+      if (isDesignerFamily) {
+        this.#applyPersonaLayout(this.resolvedPersona, { persistViewMode: false });
+      } else {
+        const savedViewMode = readCatWorkspaceViewMode();
+        if (savedViewMode === "multilingual" && this.multilingualViewAvailable) {
+          this.setViewMode("multilingual", { persistViewMode: false });
+        } else {
+          this.#applyPersonaLayout(this.resolvedPersona, { persistViewMode: false });
+        }
+      }
     }
   }
 
-  setViewMode(mode: ContentEditorWorkspaceViewMode) {
+  setViewMode(mode: ContentEditorWorkspaceViewMode, options?: { persistViewMode?: boolean }) {
+    const previousMode = this.viewMode;
     this.viewMode = mode;
-    if (this.#persistViewMode) {
-      writeCatWorkspaceViewMode(mode);
+    const shouldPersistViewMode = (options?.persistViewMode ?? true) && this.#persistViewMode;
+    if (shouldPersistViewMode) {
+      if (
+        !this.adaptiveWorkspaceEnabled ||
+        mode === "multilingual" ||
+        (previousMode === "multilingual" && mode !== "file")
+      ) {
+        writeCatWorkspaceViewMode(mode);
+      }
     }
     if (mode !== "side-by-side") {
       this.setSideBySideViewport({ visibleSegmentIds: [], loadSegmentIds: [] });
     }
     if (this.adaptiveWorkspaceEnabled && this.#persistViewMode) {
+      const isDesignerFamily = Boolean(
+        this.#currentFileFamily &&
+        DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never),
+      );
       const targetPersona: ContentEditorWorkspacePersona | null =
         mode === "side-by-side"
-          ? "reviewer"
+          ? isDesignerFamily
+            ? null
+            : "reviewer"
           : mode === "comfortable"
-            ? "translator"
+            ? isDesignerFamily
+              ? null
+              : "translator"
             : mode === "file"
               ? "designer"
               : null;
@@ -128,16 +158,19 @@ export class ContentEditorWorkspaceUiStore {
     }
   }
 
-  #applyPersonaLayout(persona: ContentEditorWorkspacePersona) {
+  #applyPersonaLayout(
+    persona: ContentEditorWorkspacePersona,
+    options?: { persistViewMode?: boolean },
+  ) {
     if (!this.#persistViewMode) {
       return;
     }
     if (persona === "designer") {
-      this.setViewMode("file");
+      this.setViewMode("file", options);
     } else if (persona === "reviewer") {
-      this.setViewMode("side-by-side");
+      this.setViewMode("side-by-side", options);
     } else if (persona === "translator") {
-      this.setViewMode("comfortable");
+      this.setViewMode("comfortable", options);
     }
   }
 
@@ -147,7 +180,7 @@ export class ContentEditorWorkspaceUiStore {
    * family, falling back to the auto-detected default.
    */
   applyFileFamily(fileFamily: string) {
-    if (this.#currentFileFamily === fileFamily && this.workspacePersona !== null) {
+    if (this.#currentFileFamily === fileFamily) {
       return;
     }
 
@@ -156,7 +189,19 @@ export class ContentEditorWorkspaceUiStore {
     this.workspacePersona = stored;
 
     if (this.adaptiveWorkspaceEnabled) {
-      this.#applyPersonaLayout(this.resolvedPersona);
+      const isDesignerFamily = Boolean(
+        fileFamily && DESIGNER_PERSONA_FILE_FAMILIES.has(fileFamily as never),
+      );
+      if (isDesignerFamily) {
+        this.#applyPersonaLayout(this.resolvedPersona, { persistViewMode: false });
+      } else {
+        const savedViewMode = readCatWorkspaceViewMode();
+        if (savedViewMode === "multilingual" && this.multilingualViewAvailable) {
+          this.setViewMode("multilingual", { persistViewMode: false });
+        } else {
+          this.#applyPersonaLayout(this.resolvedPersona, { persistViewMode: false });
+        }
+      }
     }
   }
 
@@ -165,9 +210,11 @@ export class ContentEditorWorkspaceUiStore {
    * current file family so it is restored on future visits, and drives the
    * corresponding workspace layout preset.
    */
-  setWorkspacePersona(persona: ContentEditorWorkspacePersona) {
+  setWorkspacePersona(persona: ContentEditorWorkspacePersona, fileFamily?: string) {
+    const family = fileFamily ?? this.#currentFileFamily ?? "text";
+    this.#currentFileFamily = family;
     this.workspacePersona = persona;
-    writeCatWorkspacePersona(this.#currentFileFamily ?? "text", persona);
+    writeCatWorkspacePersona(family, persona);
     this.#applyPersonaLayout(persona);
   }
 
@@ -198,5 +245,14 @@ export class ContentEditorWorkspaceUiStore {
       return;
     }
     this.multilingualViewAvailable = available;
+    if (available && this.adaptiveWorkspaceEnabled && this.#persistViewMode) {
+      const isDesignerFamily = Boolean(
+        this.#currentFileFamily &&
+        DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never),
+      );
+      if (!isDesignerFamily && readCatWorkspaceViewMode() === "multilingual") {
+        this.setViewMode("multilingual", { persistViewMode: false });
+      }
+    }
   }
 }

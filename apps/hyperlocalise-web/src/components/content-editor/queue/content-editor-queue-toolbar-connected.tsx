@@ -132,9 +132,7 @@ export const ContentEditorQueueToolbarConnected = observer(
         queueSort={queueSort}
         onQueueSortChange={onQueueSortChange ? handleSortChange : undefined}
         availableQueueSorts={availableQueueSorts}
-        selectionMode={
-          store.selectionMode || (adaptiveWorkspaceEnabled && store.ui.isReviewerPersona)
-        }
+        selectionMode={store.selectionMode}
         onSelectionModeChange={(enabled) => store.setSelectionMode(enabled)}
         selectedCount={store.checkedSegmentIds.size}
         visibleCount={visibleCount}
@@ -155,6 +153,7 @@ export const ContentEditorQueueToolbarConnected = observer(
         onDownloadFilteredView={onDownloadFilteredView}
         isDownloadingFilteredView={isDownloadingFilteredView}
         adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
+        resolvedPersona={adaptiveWorkspaceEnabled ? store.ui.resolvedPersona : undefined}
       />
     );
 

@@ -795,6 +795,10 @@ export class ContentEditorWorkspaceOrchestrator {
     targetLocale: string;
   }) {
     const filename = input.sourcePath.split("/").pop() ?? input.sourcePath;
+    // Capture the outgoing segment before clearing the queue — for All Files
+    // workspaces (sourcePath === "*") selectedSegmentView becomes undefined once
+    // the queue meta and selectedSegmentId are cleared below, so we read it first.
+    const outgoingSegment = input.sourcePath === "*" ? this.selectedSegmentView : undefined;
     this.fileScopeGeneration += 1;
     this.reviewSequence += 1;
     this.validationSequence += 1;
@@ -831,9 +835,13 @@ export class ContentEditorWorkspaceOrchestrator {
     };
     // Update persona for the new file's content family eagerly (before the
     // snapshot arrives) so the UI reflects the correct layout immediately.
-    this.ui.applyFileFamily(
-      resolveCatFileViewCapabilities({ sourcePath: input.sourcePath }).family,
-    );
+    const initialFamily = outgoingSegment
+      ? resolveCatFileViewCapabilities({
+          sourcePath: outgoingSegment.sourcePath,
+          contentKind: outgoingSegment.contentKind,
+        }).family
+      : resolveCatFileViewCapabilities({ sourcePath: input.sourcePath }).family;
+    this.ui.applyFileFamily(initialFamily);
     this.page.beginFileScopeChange(input.sourcePath, input.targetLocale);
     this.ui.setTranslationViewLoading(true);
     for (const controller of this.controllers) {
@@ -902,9 +910,29 @@ export class ContentEditorWorkspaceOrchestrator {
       this.fileContext = nextFileContext;
       // Seed the workspace persona for the incoming file's content family so
       // auto-detection and per-family localStorage preferences apply immediately.
-      this.ui.applyFileFamily(
-        resolveCatFileViewCapabilities({ sourcePath: nextFileContext.sourcePath }).family,
-      );
+      const initialSegment =
+        (initialSegmentKeyOrId
+          ? (normalizedNext.segments?.find(
+              (segment) =>
+                segment.id === initialSegmentKeyOrId || segment.key === initialSegmentKeyOrId,
+            ) ??
+            normalizedNext.queueSegments?.find(
+              (segment) =>
+                segment.id === initialSegmentKeyOrId || segment.key === initialSegmentKeyOrId,
+            ))
+          : undefined) ??
+        normalizedNext.segments?.[0] ??
+        normalizedNext.queueSegments?.[0];
+      const initialFamily =
+        nextFileContext.sourcePath === "*"
+          ? resolveCatFileViewCapabilities({
+              sourcePath:
+                initialSegment?.sourcePath ??
+                (initialSegment as { filePath?: string } | undefined)?.filePath,
+              contentKind: initialSegment?.contentKind,
+            }).family
+          : resolveCatFileViewCapabilities({ sourcePath: nextFileContext.sourcePath }).family;
+      this.ui.applyFileFamily(initialFamily);
       this.jobTitle = normalizedNext.jobTitle;
       this.breadcrumbs = normalizedNext.breadcrumbs;
       this.primaryActionLabel = normalizedNext.primaryActionLabel;
@@ -1436,8 +1464,9 @@ export class ContentEditorWorkspaceOrchestrator {
     this.queue.setSearch(search);
   }
 
-  setSelectionMode(enabled: boolean) {
-    this.queue.setSelectionMode(enabled);
+  setSelectionMode(enabled: boolean, options?: { persist?: boolean }) {
+    const shouldPersist = options?.persist ?? !this.ui.adaptiveWorkspaceEnabled;
+    this.queue.setSelectionMode(enabled, { persist: shouldPersist });
   }
 
   attemptPageNavigation(proceed: () => void) {

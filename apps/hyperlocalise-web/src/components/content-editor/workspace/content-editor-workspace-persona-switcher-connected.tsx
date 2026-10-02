@@ -62,7 +62,14 @@ export const ContentEditorWorkspacePersonaSwitcherConnected = observer(
 
     const resolvedValue = store?.ui.resolvedPersona ?? value ?? "translator";
     const resolvedOnChange = store
-      ? (persona: ContentEditorWorkspacePersona) => store.ui.setWorkspacePersona(persona)
+      ? (persona: ContentEditorWorkspacePersona) => {
+          store.ui.setWorkspacePersona(persona, capabilities.family);
+          if (persona === "reviewer") {
+            store.setSelectionMode(true, { persist: false });
+          } else {
+            store.setSelectionMode(false, { persist: false });
+          }
+        }
       : onChange;
 
     if (!resolvedOnChange) {

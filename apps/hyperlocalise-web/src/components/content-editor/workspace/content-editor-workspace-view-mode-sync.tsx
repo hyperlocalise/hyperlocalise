@@ -45,22 +45,23 @@ export const ContentEditorWorkspaceViewModeSync = observer(
         () => {
           const selected = store.selectedSegmentView;
           return {
-            viewMode: store.ui.viewMode,
             sourcePath: selected?.sourcePath ?? store.fileContext.sourcePath,
             contentKind: selected?.contentKind,
             multilingualViewAvailable: store.ui.multilingualViewAvailable,
           };
         },
-        ({ viewMode, sourcePath, contentKind, multilingualViewAvailable }) => {
+        ({ sourcePath, contentKind, multilingualViewAvailable }) => {
           const capabilities = resolveCatFileViewCapabilities({
             sourcePath,
             contentKind,
             multilingualViewAvailable,
           });
-          const nextMode = clampCatWorkspaceViewMode(viewMode, capabilities);
+          store.ui.applyFileFamily(capabilities.family);
+          const currentMode = store.ui.viewMode;
+          const nextMode = clampCatWorkspaceViewMode(currentMode, capabilities);
 
-          if (nextMode !== viewMode) {
-            store.ui.setViewMode(nextMode);
+          if (nextMode !== currentMode) {
+            store.ui.setViewMode(nextMode, { persistViewMode: false });
           }
         },
         { fireImmediately: true },

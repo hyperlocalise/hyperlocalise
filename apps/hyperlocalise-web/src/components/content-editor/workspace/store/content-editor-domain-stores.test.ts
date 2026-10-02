@@ -18,6 +18,7 @@ import { ContentEditorQueueStore } from "./content-editor-queue-store";
 import { ContentEditorSegmentDraft } from "./content-editor-segment-draft";
 import { ContentEditorSegmentStore } from "./content-editor-segment-store";
 import { ContentEditorWorkspaceUiStore } from "./content-editor-workspace-ui-store";
+import { ContentEditorWorkspaceOrchestrator } from "../content-editor-workspace-orchestrator";
 
 const queueSegments = [
   { id: "seg-01", index: 1, key: "first", sourceText: "First" },
@@ -512,6 +513,270 @@ describe("ContentEditorWorkspaceUiStore", () => {
         "content-editor-workspace-persona:v1:text",
         "reviewer",
       );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("isolates saved persona preferences between distinct file families", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => store.get(key) ?? null),
+        setItem: vi.fn((key: string, val: string) => store.set(key, val)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+
+      // Start on text family and save reviewer
+      ui.applyFileFamily("text");
+      ui.setWorkspacePersona("reviewer", "text");
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("reviewer");
+
+      // Switch to image family
+      ui.applyFileFamily("image");
+      // Image has no saved preference yet, defaults to designer
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+
+      // Save designer for image family
+      ui.setWorkspacePersona("designer", "image");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
+
+      // Text preference should still be reviewer
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("reviewer");
+
+      // Switch back to text family: restores reviewer persona and side-by-side view
+      ui.applyFileFamily("text");
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.resolvedPersona).toBe("reviewer");
+      expect(ui.viewMode).toBe("side-by-side");
+
+      // Switch back to image family: restores designer persona and file view
+      ui.applyFileFamily("image");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("restores saved translator preference when switching from an image file back to a text file", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => store.get(key) ?? null),
+        setItem: vi.fn((key: string, val: string) => store.set(key, val)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+
+      // Start on text family and save translator
+      ui.applyFileFamily("text");
+      ui.setWorkspacePersona("translator", "text");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(ui.viewMode).toBe("comfortable");
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("translator");
+
+      // Switch to image family (layout becomes file view, persona becomes designer)
+      ui.applyFileFamily("image");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+
+      // Switch back to text family: restores saved translator persona and comfortable view
+      ui.applyFileFamily("text");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(ui.resolvedPersona).toBe("translator");
+      expect(ui.viewMode).toBe("comfortable");
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("translator");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("preserves legacy view-mode preference in localStorage when adaptive mode is enabled", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => {
+          if (key === "content-editor-workspace-view-mode:v1") return "side-by-side";
+          return null;
+        }),
+        setItem,
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("text");
+
+      // Default persona is translator, layout becomes comfortable
+      expect(ui.viewMode).toBe("comfortable");
+      expect(ui.resolvedPersona).toBe("translator");
+
+      // writeCatWorkspaceViewMode should NOT have been called with "comfortable"
+      expect(setItem).not.toHaveBeenCalledWith(
+        "content-editor-workspace-view-mode:v1",
+        "comfortable",
+      );
+
+      // Switching persona to reviewer should also not overwrite the legacy view-mode key
+      ui.setWorkspacePersona("reviewer", "text");
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(setItem).not.toHaveBeenCalledWith(
+        "content-editor-workspace-view-mode:v1",
+        "side-by-side",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("saves and preserves multilingual view choice in adaptive workspace without overwriting on file family apply", () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => storage.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.setMultilingualViewAvailable(true);
+      ui.applyFileFamily("text");
+
+      // User selects multilingual in view switcher
+      ui.setViewMode("multilingual");
+      expect(ui.viewMode).toBe("multilingual");
+      // Multilingual choice is saved to localStorage
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Navigating to an image segment in a mixed-file workspace applies designer layout (file view)
+      ui.applyFileFamily("image");
+      expect(ui.viewMode).toBe("file");
+      // The automatic switch to file view must NOT overwrite the stored multilingual preference
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Returning to a text segment restores the user's chosen multilingual view
+      ui.applyFileFamily("text");
+      expect(ui.viewMode).toBe("multilingual");
+
+      // Reopening workspace (new instance reading stored viewMode)
+      const reopenedUi = new ContentEditorWorkspaceUiStore();
+      expect(reopenedUi.viewMode).toBe("multilingual");
+      reopenedUi.setAdaptiveWorkspaceEnabled(true);
+      reopenedUi.setMultilingualViewAvailable(true);
+      // Applying file family must preserve multilingual layout instead of overriding with translator persona
+      reopenedUi.applyFileFamily("text");
+      expect(reopenedUi.viewMode).toBe("multilingual");
+
+      // Explicitly selecting another view mode updates the saved preference
+      reopenedUi.setViewMode("comfortable");
+      expect(reopenedUi.viewMode).toBe("comfortable");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("comfortable");
+
+      // Switching to image and back to text now restores the persona preference (comfortable), not multilingual
+      reopenedUi.applyFileFamily("image");
+      expect(reopenedUi.viewMode).toBe("file");
+      reopenedUi.applyFileFamily("text");
+      expect(reopenedUi.viewMode).toBe("comfortable");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not restore multilingual when multilingualViewAvailable is false and preserves stored preference", () => {
+    const storage = new Map<string, string>([
+      ["content-editor-workspace-view-mode:v1", "multilingual"],
+    ]);
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => storage.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+      },
+    });
+
+    try {
+      // Workspace has no multilingual configuration
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.setMultilingualViewAvailable(false);
+
+      // Navigating to an image file in mixed workspace
+      ui.applyFileFamily("image");
+      expect(ui.viewMode).toBe("file");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Moving to a text segment: since multilingual is unavailable, it falls back to persona layout
+      // and does NOT attempt to set multilingual or overwrite the stored preference in localStorage
+      ui.applyFileFamily("text");
+      expect(ui.viewMode).toBe("comfortable");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // When view-mode sync clamps with { persistViewMode: false }, the stored preference is also preserved
+      ui.setViewMode("side-by-side", { persistViewMode: false });
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Opening another workspace where multilingual IS available restores the choice
+      const multiUi = new ContentEditorWorkspaceUiStore();
+      multiUi.setAdaptiveWorkspaceEnabled(true);
+      multiUi.setMultilingualViewAvailable(true);
+      multiUi.applyFileFamily("text");
+      expect(multiUi.viewMode).toBe("multilingual");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not persist selectionMode to localStorage when adaptiveWorkspaceEnabled is true and clears on translator switch", () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => storage.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+      },
+    });
+
+    try {
+      const orchestrator = new ContentEditorWorkspaceOrchestrator();
+      orchestrator.ui.setAdaptiveWorkspaceEnabled(true);
+
+      // In adaptive workspace, orchestrator.setSelectionMode defaults to persist: false
+      orchestrator.setSelectionMode(true);
+      expect(orchestrator.queue.selectionMode).toBe(true);
+      expect(storage.get("content-editor-queue:selection-mode:v1")).toBeUndefined();
+
+      // Check some segments
+      orchestrator.queue.toggleChecked("seg-1", true);
+      orchestrator.queue.toggleChecked("seg-2", true);
+      expect(orchestrator.queue.checkedSegmentIds.size).toBe(2);
+
+      // Switching off selection mode clears checked segments without writing to localStorage
+      orchestrator.setSelectionMode(false);
+      expect(orchestrator.queue.selectionMode).toBe(false);
+      expect(orchestrator.queue.checkedSegmentIds.size).toBe(0);
+      expect(storage.get("content-editor-queue:selection-mode:v1")).toBeUndefined();
+
+      // Outside adaptive mode, setting selection mode DOES persist to localStorage
+      orchestrator.ui.setAdaptiveWorkspaceEnabled(false);
+      orchestrator.setSelectionMode(true);
+      expect(storage.get("content-editor-queue:selection-mode:v1")).toBe("true");
     } finally {
       vi.unstubAllGlobals();
     }

@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft01Icon,
   BookOpenTextIcon,
@@ -255,6 +255,7 @@ export function ContentEditorIntelligencePanel({
   onUseTmMatch,
   onSetMaxLength,
   onGlossaryTermAdded,
+  scrollToTm = false,
 }: {
   intelligence: ContentEditorSegmentIntelligence;
   segmentId?: string;
@@ -285,6 +286,11 @@ export function ContentEditorIntelligencePanel({
   onUseTmMatch?: (match: ContentEditorTranslationMemoryMatch) => void;
   onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
   onGlossaryTermAdded?: () => void;
+  /**
+   * When true, the panel scrolls to the Translation Memory section on mount.
+   * Enabled in Translator persona so TM matches are immediately visible.
+   */
+  scrollToTm?: boolean;
 }) {
   const intl = useIntl();
   const [pendingLowMatch, setPendingLowMatch] =
@@ -429,6 +435,32 @@ export function ContentEditorIntelligencePanel({
       window.removeEventListener(CAT_GLOSSARY_GUIDANCE_OPEN_EVENT, handleOpenGlossaryGuidance);
     };
   }, []);
+
+  /**
+   * Ref attached to the Translation Memory section element. When scrollToTm is
+   * true the panel scrolls it into view so the TM matches are immediately
+   * visible in Translator persona without any manual scrolling.
+   */
+  const tmSectionRef = useRef<HTMLDivElement>(null);
+  const lastScrolledSegmentIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!scrollToTm) {
+      lastScrolledSegmentIdRef.current = null;
+      return;
+    }
+    const currentSegmentKey = segmentId ?? "__default__";
+    if (lastScrolledSegmentIdRef.current === currentSegmentKey) {
+      return;
+    }
+    const el = tmSectionRef.current;
+    if (!el) {
+      return;
+    }
+    // Use "nearest" so the panel container does not jump if TM is already visible.
+    el.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+    lastScrolledSegmentIdRef.current = currentSegmentKey;
+  }, [scrollToTm, segmentId, isConcordanceLoading, intelligence.translationMemoryMatches]);
 
   function toggleGlossaryConcept(conceptId: string) {
     setExpandedGlossaryConceptIds((current) => {
@@ -631,25 +663,27 @@ export function ContentEditorIntelligencePanel({
           {!isConcordanceLoading &&
           intelligence.translationMemoryMatches &&
           intelligence.translationMemoryMatches.length > 0 ? (
-            <PanelSection
-              title={intl.formatMessage(contentEditorIntelligencePanelMessages.translationMemory)}
-            >
-              <div className="overflow-hidden rounded-2xl bg-muted">
-                <ul className="divide-y divide-border">
-                  {intelligence.translationMemoryMatches.map((match) => (
-                    <TranslationMemoryRow
-                      key={match.id}
-                      match={match}
-                      onUse={
-                        canEditTranslations && !isTranslationLocked && onUseTmMatch
-                          ? handleUseTmMatch
-                          : undefined
-                      }
-                    />
-                  ))}
-                </ul>
-              </div>
-            </PanelSection>
+            <div ref={tmSectionRef}>
+              <PanelSection
+                title={intl.formatMessage(contentEditorIntelligencePanelMessages.translationMemory)}
+              >
+                <div className="overflow-hidden rounded-2xl bg-muted">
+                  <ul className="divide-y divide-border">
+                    {intelligence.translationMemoryMatches.map((match) => (
+                      <TranslationMemoryRow
+                        key={match.id}
+                        match={match}
+                        onUse={
+                          canEditTranslations && !isTranslationLocked && onUseTmMatch
+                            ? handleUseTmMatch
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </ul>
+                </div>
+              </PanelSection>
+            </div>
           ) : null}
         </div>
       </ScrollArea>
