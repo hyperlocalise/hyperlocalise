@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs, personal API key management, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs, personal API key management, database-backed public translation download, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public browser routes are served at `https://api.hyperlocalise.com/v1/...` from `GoSvcClient` callers (Bearer token, CORS). The Next.js server calls `/v1/...` or `/ofrep/...` at the same origin via `GO_SVC_URL` (typically `https://api.hyperlocalise.com` in production).
 
@@ -31,7 +31,9 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `WORKOS_API_HOSTNAME` | `api.workos.com` | WorkOS API host used for session refresh and JWKS (`/sso/jwks/{client_id}`). Point at the WorkOS emulator in local e2e. |
 | `WORKOS_API_HTTPS` | `true` | Set `false` for the local emulator. |
 | `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
-| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, member, issue-sheet, and Hyperlab OFREP evaluate routes. |
+| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, member, issue-sheet, public translation download, and Hyperlab OFREP evaluate routes. |
+| `WORKOS_AUTHKIT_DOMAIN` | _(unset)_ | AuthKit domain without a scheme (for example `your-app.authkit.app`). Sets the Agent Registration JWT issuer (`https://{domain}`) and JWKS (`https://{domain}/.well-known/jwks.json`) for the public translation download. When unset, agent bearer tokens are rejected with 401; `X-API-Key` tokens still work. |
+| `HYPERLOCALISE_PUBLIC_APP_URL` | _(unset)_ | Public web app URL (for example `https://hyperlocalise.com`). Its origin adds `{origin}/api/v1` and `{origin}/mcp` to the accepted Agent Registration JWT audiences (alongside `WORKOS_CLIENT_ID`) and is used in the `WWW-Authenticate` resource-metadata URL. When unset, the challenge falls back to the request origin. |
 | `VALKEY_ENDPOINT` | _(unset)_ | Valkey hostname. When set without `VALKEY_URL`, go-svc builds a URL from this endpoint, `VALKEY_PORT`, and `VALKEY_TLS`. |
 | `VALKEY_PORT` | `6379` | Valkey port used with `VALKEY_ENDPOINT`. |
 | `VALKEY_TLS` | _(unset)_ | Set to `required`, `true`, or `enabled` to use `rediss://` with `VALKEY_ENDPOINT`; other values use `redis://`. |
@@ -163,6 +165,9 @@ export WORKOS_CLIENT_ID='client_...'
 export ACTIVITY_LOG_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../activity-log'
 # Optional: enables asynchronous glossary import/export publishing and checks the queue in /health.
 export GLOSSARY_INTERCHANGE_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../glossary-interchange'
+# Optional: accept Agent Registration JWTs on the public translation download.
+export WORKOS_AUTHKIT_DOMAIN='your-app.authkit.app'
+export HYPERLOCALISE_PUBLIC_APP_URL='http://localhost:3000'
 go run ./apps/go-svc
 ```
 
@@ -215,6 +220,7 @@ For tracing, the ECS task definition sets `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, 
 | `POST` | `/v1/domains/gsc/sites` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | List verified Search Console properties for a minted access token |
 | `POST` | `/v1/domains/gsc/performance` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Query Search Analytics clicks, impressions, CTR, and position |
 | `POST` | `/v1/domains/gsc/inspect` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Inspect one URL against a Search Console property |
+| `GET` | `/v1/projects/{projectId}/translations/download` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `files:read` | Download one source file's translations for a locale as JSON |
 | `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 
@@ -272,6 +278,44 @@ Japanese, and Korean text is approximated per character, while Thai, Lao,
 Khmer, and Myanmar text may be under-counted. As a result,
 `translationProgress` and `approvalProgress` should be treated as approximate
 for these source locales.
+
+## Public translation download
+
+`GET /v1/projects/{projectId}/translations/download?sourcePath=...&locale=...`
+builds and downloads a source file's translations from PostgreSQL.
+
+**Authentication.** Supply either a personal access token in `X-API-Key` or a
+WorkOS Agent Registration bearer JWT. The token must include `files:read`, and
+access is limited by the owner's current organization role and team membership.
+Unknown, revoked, and ownerless personal access tokens return the same 401
+response. Membership is verified through WorkOS; lookup failures return 503.
+
+**Response.** The project must be accessible to the authenticated user:
+workspace-wide for `admin` and `localization_manager`, otherwise through team
+membership. Projects without a team are treated as belonging to the default
+team.
+
+Every source key is included. Missing, rejected, and blank translations fall
+back to the source text, as does visible `needs_review` text that repeats a
+multi-word source. There is no key limit.
+
+The response is formatted as two-space-indented JSON with a trailing newline
+and served as `application/json; charset=utf-8` with an attachment filename
+derived from the source path and locale. All source formats are returned with a
+JSON body while retaining their original file extension.
+
+| Status | `error` | When |
+|--------|---------|------|
+| 400 | `invalid_translation_payload` | `sourcePath` or `locale` is missing, invalid, too long, or repeated |
+| 404 | `project_not_found` | Project id is invalid or the project is not accessible |
+| 404 | `source_file_not_found` | No source file exists at the requested path |
+| 404 | `translations_not_found` | The source file has no translation keys |
+| 501 | `not_implemented` | Lottie translation download is not supported |
+| 503 | `workos_membership_lookup_failed` | WorkOS membership could not be verified |
+
+Lottie sources (`.lottie`, or `.json` containing only Lottie text keys) are not
+supported because native download does not use Blob storage. Responses include
+`Cache-Control: no-store`.
 
 ## Content editor (CAT)
 
