@@ -45,7 +45,7 @@ type patCreatedAuditInput struct {
 
 type patRevokedAuditInput struct {
 	actorUserID, organizationID, tokenID, keyPrefix, reason string
-	ownerUserID *string
+	ownerUserID                                             *string
 }
 
 func (a patAuditor) emitPatCreated(ctx context.Context, input patCreatedAuditInput) error {
