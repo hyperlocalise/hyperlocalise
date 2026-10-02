@@ -375,14 +375,10 @@ export const IssueDetailPanel = forwardRef<
       return;
     }
 
+    const draftableColumns = detailColumns.filter(isDraftableCustomColumn);
     const baseline = customColumnBaselineRef.current;
 
-    const draftableColumns = detailColumns.filter(isDraftableCustomColumn);
-    const baselineMatchesColumns =
-      baseline?.issueId === issue.id &&
-      draftableColumns.every((column) => Object.hasOwn(baseline.drafts, column.key));
-
-    if (!baselineMatchesColumns) {
+    if (!baseline || baseline.issueId !== issue.id) {
       hydratedDraftIssueIdRef.current = null;
       const drafts = buildCustomColumnDrafts(issue, draftableColumns);
       customColumnBaselineRef.current = { issueId: issue.id, drafts };
@@ -390,27 +386,31 @@ export const IssueDetailPanel = forwardRef<
       return;
     }
 
+    const missingColumns = draftableColumns.filter(
+      (column) => !Object.hasOwn(baseline.drafts, column.key),
+    );
+    if (missingColumns.length === 0) {
+      return;
+    }
+
+    const nextBaselineDrafts = { ...baseline.drafts };
+    for (const column of missingColumns) {
+      nextBaselineDrafts[column.key] = customColumnValueFromIssue(issue, column.key);
+    }
+    customColumnBaselineRef.current = {
+      issueId: issue.id,
+      drafts: nextBaselineDrafts,
+    };
+
     setCustomColumnDrafts((current) => {
       const next = { ...current };
       let changed = false;
-      for (const column of draftableColumns) {
+      for (const column of missingColumns) {
         const saved = customColumnValueFromIssue(issue, column.key);
-        const baselineDraft = baseline.drafts[column.key];
         if (!(column.key in next)) {
           next[column.key] = saved;
           changed = true;
-          continue;
         }
-        if (next[column.key] === baselineDraft) {
-          next[column.key] = saved;
-          changed = true;
-        }
-      }
-      if (changed) {
-        customColumnBaselineRef.current = {
-          issueId: issue.id,
-          drafts: buildCustomColumnDrafts(issue, draftableColumns),
-        };
       }
       return changed ? next : current;
     });
@@ -429,16 +429,20 @@ export const IssueDetailPanel = forwardRef<
     const baseline = draftBaselineRef.current;
     const customColumnBaseline = customColumnBaselineRef.current;
     const draftableColumns = detailColumns.filter(isDraftableCustomColumn);
+    const customColumnDraftsInitialized = draftableColumns.every((column) =>
+      Object.hasOwn(customColumnDrafts, column.key),
+    );
     const isDraftStateHydrated =
-      hydratedDraftIssueIdRef.current === issue.id ||
-      (baseline?.issueId === issue.id &&
-        customColumnBaseline?.issueId === issue.id &&
-        titleDraft === baseline.title &&
-        descriptionDraft === baseline.description &&
-        ownerNoteDraft === baseline.ownerNote &&
-        draftableColumns.every(
-          (column) => customColumnDrafts[column.key] === customColumnBaseline.drafts[column.key],
-        ));
+      customColumnDraftsInitialized &&
+      (hydratedDraftIssueIdRef.current === issue.id ||
+        (baseline?.issueId === issue.id &&
+          customColumnBaseline?.issueId === issue.id &&
+          titleDraft === baseline.title &&
+          descriptionDraft === baseline.description &&
+          ownerNoteDraft === baseline.ownerNote &&
+          draftableColumns.every(
+            (column) => customColumnDrafts[column.key] === customColumnBaseline.drafts[column.key],
+          )));
 
     if (!isDraftStateHydrated) {
       onDirtyChange(false);

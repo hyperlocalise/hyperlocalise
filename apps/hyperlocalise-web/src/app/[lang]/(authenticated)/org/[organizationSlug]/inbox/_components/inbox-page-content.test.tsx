@@ -263,6 +263,7 @@ describe("InboxPageContent item switching", () => {
 
     expect(navigation.push).toHaveBeenCalledWith(`/org/acme/inbox/notifications/${notificationId}`);
     expect(await screen.findByText("Issue panel: issue_001")).toBeInTheDocument();
+    await waitFor(() => expect(navigation.notificationId).toBe(notificationId));
     expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
   });
 
