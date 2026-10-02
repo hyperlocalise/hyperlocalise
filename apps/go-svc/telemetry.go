@@ -2,32 +2,19 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 
+	ddotel "github.com/DataDog/dd-trace-go/v2/ddtrace/opentelemetry"
+	ddtracer "github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 )
 
 const (
 	otelServiceName     = "go-svc"
 	otelInstrumentation = "github.com/hyperlocalise/hyperlocalise/apps/go-svc"
 )
-
-func telemetryEnabled() bool {
-	if strings.EqualFold(strings.TrimSpace(os.Getenv("OTEL_SDK_DISABLED")), "true") {
-		return false
-	}
-	ep := strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
-	epTraces := strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"))
-	return ep != "" || epTraces != ""
-}
 
 // serviceResourceInfo holds service identity shared by tracing and log correlation.
 type serviceResourceInfo struct {
@@ -44,41 +31,19 @@ func loadServiceResourceInfo() serviceResourceInfo {
 	}
 }
 
-// initTelemetry configures OTLP tracing and returns a caller-bounded shutdown function.
+// initTelemetry starts Datadog's tracer and installs its OpenTelemetry bridge.
+// The bridge keeps the existing route-safe custom middleware on the OTel API,
+// while Orchestrion-instrumented dependencies use the native Datadog API.
 func initTelemetry(ctx context.Context) (shutdown func(context.Context) error, err error) {
-	if !telemetryEnabled() {
-		return nil, nil
-	}
-
-	exporter, err := otlptracehttp.New(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("telemetry: OTLP HTTP exporter: %w", err)
-	}
-
-	info := loadServiceResourceInfo()
-	attrs := []attribute.KeyValue{semconv.ServiceName(info.name)}
-	if info.version != "" {
-		attrs = append(attrs, semconv.ServiceVersion(info.version))
-	}
-	if info.env != "" {
-		attrs = append(attrs, semconv.DeploymentEnvironmentNameKey.String(info.env))
-	}
-
-	res, err := resource.New(ctx, resource.WithAttributes(attrs...))
-	if err != nil {
-		_ = exporter.Shutdown(ctx)
-		return nil, fmt.Errorf("telemetry: resource: %w", err)
-	}
-
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter),
-		sdktrace.WithResource(res),
-	)
-	otel.SetTracerProvider(tp)
+	_ = ctx
+	provider := ddotel.NewTracerProvider(ddtracer.WithService(otelServiceName))
+	otel.SetTracerProvider(provider)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
 
-	return tp.Shutdown, nil
+	return func(context.Context) error {
+		return provider.Shutdown()
+	}, nil
 }

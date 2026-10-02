@@ -100,27 +100,29 @@ go-svc, including the `Engine` interface, request and response types,
 configuration, and typed errors. Vendor MT integrations use this package as
 library clients; it does not expose an HTTP route.
 
-### OpenTelemetry / Tracing
+### Datadog tracing
 
-go-svc instruments inbound HTTP requests with OpenTelemetry and exports spans over OTLP/HTTP, reusing the same SDK and exporter as the CLI's telemetry (`apps/cli/internal/cliotel`) rather than a separate Datadog-specific stack. Tracing is a no-op unless an OTLP endpoint is configured.
+go-svc is instrumented at compile time with Datadog Orchestrion. The build rewrites supported Go libraries to create Datadog spans, while the service's route-safe HTTP middleware remains in place for inbound request spans. The Datadog tracer runtime sends spans directly to the Datadog Agent over port `8126`; this is separate from the optional OpenTelemetry/OTLP receiver exposed by the ECS sidecar.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ | Base OTLP endpoint (traces are exported over HTTP via `otlptracehttp`). Tracing stays disabled if neither this nor `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set. |
-| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | _(unset)_ | Traces-specific OTLP endpoint, if it differs from the base endpoint above. |
-| `OTEL_SDK_DISABLED` | _(unset)_ | Set to `true` to force tracing off even if an endpoint is configured. |
+| `DD_TRACE_AGENT_URL` | `http://127.0.0.1:8126` | Datadog Agent trace intake URL. In ECS this points to the Datadog sidecar. |
+| `DD_TRACE_ENABLED` | `true` | Set to `false` to disable Datadog tracing. |
+| `DD_SERVICE` | `go-svc` | Datadog service name. |
+| `DD_ENV` | _(unset)_ | Datadog deployment environment. |
+| `DD_VERSION` | _(unset)_ | Datadog release/image version. The ECS deploy action sets this to the immutable image tag. |
 
-Unlike the CLI, there is no separate app-specific opt-in flag: go-svc traces whenever an OTLP endpoint is present. `service.version` and `deployment.environment.name` are read from the ECS/Datadog environment variables:
+`service.version` and `deployment.environment.name` are represented in Datadog by `DD_VERSION` and `DD_ENV`:
 
 | Resource attribute | Source | Behavior when unset |
 |---|---|---|
-| `service.name` | Hardcoded to `go-svc` | n/a |
+| `service.name` | `DD_SERVICE` | `go-svc` |
 | `service.version` | `DD_VERSION` | Attribute omitted (not sent as `"unknown"`) |
 | `deployment.environment.name` | `DD_ENV` | Attribute omitted (not sent as `"unknown"`) |
 
 **Deployment prerequisite**: the ECS task definition must set `DD_VERSION` to the exact immutable image tag and `DD_ENV` to the deployment environment. The ECS deployment workflow updates `DD_VERSION` whenever it replaces the application image.
 
-**Datadog Agent / Collector setup**: point `OTEL_EXPORTER_OTLP_ENDPOINT` at the Datadog Agent's native OTLP/HTTP receiver (default `http://<agent-host>:4318`) or at an OpenTelemetry Collector configured with a Datadog exporter. go-svc only speaks OTLP/HTTP, matching the CLI's exporter choice — there is no gRPC exporter in this repo.
+**Datadog Agent setup**: the ECS task definition must expose the Agent trace intake endpoint to the application container. In the current ECS task this is `http://127.0.0.1:8126`. The application does not need `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` for this tracing path.
 
 What's traced:
 
@@ -145,7 +147,7 @@ Every log record written while a request span is active carries five top-level s
 
 Enrichment happens in one `slog.Handler` wrapper (`telemetry_log_handler.go`) installed as the default logger in `main.go`. It reads `dd.service`/`dd.env`/`dd.version` from the same `loadServiceResourceInfo()` helper `initTelemetry` uses for the trace Resource (`telemetry.go`), so the log fields and the trace's resource attributes can never diverge. `dd.trace_id`/`dd.span_id` are added only when the log call's `context.Context` carries a valid span — startup/background logs never get fabricated IDs, and the existing JSON shape, redaction-by-omission behavior, and bounded-route (`requestLogPath`) handling are unchanged; the handler only adds fields, never removes or rewrites existing ones.
 
-IDs are emitted in OpenTelemetry's native hex format — there's no decimal conversion, since go-svc has no `dd-trace-go`/`ddtrace` dependency. See [`DATADOG.md`](./DATADOG.md) for what Datadog-side setup this depends on and the post-deploy verification checklist.
+IDs are emitted using Datadog's native trace context and are available to both Orchestrion-created spans and the route middleware through the Datadog/OpenTelemetry bridge. See [`DATADOG.md`](./DATADOG.md) for the Datadog-side setup and post-deploy verification checklist.
 
 ## Local development
 
@@ -199,7 +201,7 @@ Production ECS builds use `apps/go-svc/Dockerfile.ecs`. The image:
 
 Set the required WorkOS variables in the ECS task's runtime secret. Use the same `WORKOS_COOKIE_PASSWORD` as `hyperlocalise-web`.
 
-For tracing, the ECS task definition sets `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `DD_VERSION`, and `DD_ENV`. The ECS deployment workflow updates `DD_VERSION` to the exact immutable image tag for each release (see [OpenTelemetry / Tracing](#opentelemetry--tracing) above).
+For tracing, the ECS task definition sets `DD_TRACE_AGENT_URL`, `DD_TRACE_ENABLED`, `DD_SERVICE`, `DD_VERSION`, and `DD_ENV`. The ECS deployment workflow updates `DD_VERSION` to the exact immutable image tag for each release (see [Datadog tracing](#datadog-tracing) above).
 
 ## API
 
