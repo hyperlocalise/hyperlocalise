@@ -14,7 +14,7 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "@figma/plugin-typings": "^1.139.0",
+    "@figma/plugin-typings": "^1.140.0",
     "@testing-library/react": "16.3.3",
     "@types/node": "24.13.3",
     "@types/react": "19.2.18",
