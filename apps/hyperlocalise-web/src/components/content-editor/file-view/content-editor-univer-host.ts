@@ -27,10 +27,16 @@ type UniverApi = {
   createDocument: (data?: Partial<IDocumentData>) => unknown;
   createWorkbook: (data?: Partial<IWorkbookData>) => unknown;
   createUnit?: (type: number, data: unknown) => unknown;
-  getActiveDocument?: () => { save: () => IDocumentData } | null;
+  getActiveDocument?: () => {
+    save: () => IDocumentData;
+    getPermission: () => { setPoint: (action: number, value: boolean) => Promise<void> };
+  } | null;
   getActiveWorkbook?: () => { save: () => IWorkbookData } | null;
   dispose: () => void;
 };
+
+/** `UnitAction.Edit` from `@univerjs/protocol`, which this app does not depend on directly. */
+const UNIT_ACTION_EDIT = 1;
 
 async function createDocsHost(
   container: HTMLElement,
@@ -61,6 +67,10 @@ async function createDocsHost(
   }) as { univerAPI: UniverApi };
 
   univerAPI.createDocument(data);
+  if (readOnly) {
+    // Hiding the toolbar leaves the page itself editable, so the edit permission is switched off.
+    await univerAPI.getActiveDocument?.()?.getPermission().setPoint(UNIT_ACTION_EDIT, false);
+  }
 
   return {
     getSnapshot: () => {
@@ -172,6 +182,16 @@ async function createSlidesHost(
   };
 }
 
+/**
+ * Univer clips its toolbar and relies on moving tools into the overflow menu. The toolbar is
+ * made scrollable so every tool, and the overflow menu itself, stays reachable if that falls short.
+ */
+const MOUNT_NODE_CLASS = [
+  "h-full w-full",
+  "[&_[data-u-comp=ribbon-toolbar]]:overflow-x-auto!",
+  "[&_[data-u-comp=ribbon-toolbar]]:[scrollbar-width:thin]!",
+].join(" ");
+
 function createHost(
   mountNode: HTMLElement,
   snapshot: ContentEditorOfficeSnapshot,
@@ -198,7 +218,7 @@ export async function mountCatUniverHost(input: {
   // after dispose() returns. Each editor gets its own element, removed as a whole, so nothing
   // clears DOM out from under a root that is still unmounting.
   const mountNode = document.createElement("div");
-  mountNode.className = "h-full w-full";
+  mountNode.className = MOUNT_NODE_CLASS;
   input.container.append(mountNode);
 
   try {
