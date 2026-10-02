@@ -15,6 +15,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY go.mod go.sum ./
+COPY orchestrion.tool.go ./
 COPY third_party ./third_party
 COPY internal ./internal
 COPY apps/go-svc ./apps/go-svc
