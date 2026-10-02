@@ -172,7 +172,9 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       }),
     [composeNew, conversations, notifications, urlConversationId, urlNotificationId],
   );
-  const selection = store.pendingSelection ?? urlSelection;
+  // Once a notification route is active, it must win over any optimistic
+  // selection left behind while the link transition was in flight.
+  const selection = urlNotificationId ? urlSelection : (store.pendingSelection ?? urlSelection);
 
   useEffect(() => {
     if (
@@ -334,15 +336,8 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   const onSelectItem = useCallback(
     (item: InboxListItemSelection) => {
       store.setPendingSelection(item);
-
-      if (item.kind === "notification") {
-        const notification = notifications.find((candidate) => candidate.id === item.id);
-        if (notification && !notification.readAt) {
-          markReadMutation.mutate(item.id);
-        }
-      }
     },
-    [notifications, markReadMutation, store],
+    [store],
   );
 
   const onDeletedQuery = useCallback(() => {

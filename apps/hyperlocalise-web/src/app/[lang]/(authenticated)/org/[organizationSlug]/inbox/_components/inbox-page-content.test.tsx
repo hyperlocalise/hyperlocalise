@@ -201,18 +201,38 @@ describe("InboxPageContent item switching", () => {
   it("opens an assigned issue in the issue pane instead of the chat pane", async () => {
     const user = userEvent.setup();
     const listMessages = vi.fn(async () => messagesFixture);
+    const notificationId = issueNotificationsFixture[0]!.id;
+    let notificationIsRead = false;
+    const markRead = vi.fn(async () => {
+      notificationIsRead = true;
+      return { id: notificationId, readAt: new Date().toISOString() };
+    });
+    const injectedNotificationsApi: InboxNotificationsApi = {
+      ...notificationsApi,
+      list: async () => ({
+        notifications: issueNotificationsFixture.map((notification) =>
+          notification.id === notificationId
+            ? { ...notification, readAt: notificationIsRead ? new Date().toISOString() : null }
+            : notification,
+        ),
+        total: issueNotificationsFixture.length,
+      }),
+      markRead,
+    };
 
-    renderInbox(createInboxApi(listMessages));
+    navigation.push.mockImplementation((href: string) => {
+      navigation.pathname = href;
+      navigation.conversationId = undefined;
+      navigation.notificationId = notificationId;
+    });
+
+    renderInbox(createInboxApi(listMessages), injectedNotificationsApi);
 
     const issueItem = await screen.findByRole("link", { name: /Otto Klein assigned you/i });
-    expect(issueItem).toHaveAttribute(
-      "href",
-      `/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
-    );
+    expect(issueItem).toHaveAttribute("href", `/org/acme/inbox/notifications/${notificationId}`);
     await user.click(issueItem);
-    expect(navigation.push).toHaveBeenCalledWith(
-      `/org/acme/inbox/notifications/${issueNotificationsFixture[0]!.id}`,
-    );
+    expect(navigation.push).toHaveBeenCalledWith(`/org/acme/inbox/notifications/${notificationId}`);
+    await waitFor(() => expect(markRead).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Issue panel: issue_001")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
   });
