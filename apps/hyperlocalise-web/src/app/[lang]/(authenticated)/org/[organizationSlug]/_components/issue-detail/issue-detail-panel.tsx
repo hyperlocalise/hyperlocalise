@@ -397,13 +397,10 @@ export const IssueDetailPanel = forwardRef<
       ).nextBaselineDrafts,
     };
 
-    setCustomColumnDrafts((current) =>
-      reconcileSameIssueCustomColumnDrafts(
-        issue,
-        draftableColumns,
-        baseline.drafts,
-        current,
-      ).nextDrafts,
+    setCustomColumnDrafts(
+      (current) =>
+        reconcileSameIssueCustomColumnDrafts(issue, draftableColumns, baseline.drafts, current)
+          .nextDrafts,
     );
   }, [issue, detailColumns]);
 

@@ -121,6 +121,8 @@ export function reconcileSameIssueCustomColumnDrafts(
     nextBaselineDrafts: customColumnDraftRecordsEqual(baselineDrafts, nextBaselineDrafts)
       ? baselineDrafts
       : nextBaselineDrafts,
-    nextDrafts: customColumnDraftRecordsEqual(currentDrafts, nextDrafts) ? currentDrafts : nextDrafts,
+    nextDrafts: customColumnDraftRecordsEqual(currentDrafts, nextDrafts)
+      ? currentDrafts
+      : nextDrafts,
   };
 }
