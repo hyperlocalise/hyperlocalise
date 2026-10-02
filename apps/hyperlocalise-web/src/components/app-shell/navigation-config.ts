@@ -34,6 +34,7 @@ import {
   Bookmark01Icon,
   CenterFocusIcon,
   ChartHistogramIcon,
+  Chat01Icon,
   CheckmarkCircle02Icon,
   Copy01Icon,
   CubeIcon,
@@ -143,6 +144,21 @@ export function buildGlobalNavigationGroups(
   return [
     {
       items: [
+        {
+          label: intl.formatMessage({
+            defaultMessage: "New Request",
+            id: "VtO24sqmBM",
+            description: "Sidebar navigation item to start a new localisation request",
+          }),
+          href: org("inbox/new"),
+          exact: true,
+          icon: Chat01Icon,
+          description: intl.formatMessage({
+            defaultMessage: "Ask the localisation agent to prepare work",
+            id: "z45OPLD254",
+            description: "Sidebar description for the New Request navigation item",
+          }),
+        },
         {
           label: intl.formatMessage({
             defaultMessage: "Overview",

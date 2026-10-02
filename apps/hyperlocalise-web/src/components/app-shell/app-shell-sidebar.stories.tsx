@@ -39,6 +39,7 @@ type Story = StoryObj<typeof meta>;
 
 export const GlobalNavigation: Story = {
   play: async ({ canvas }) => {
+    await expect(canvas.getByRole("link", { name: "New Request" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Overview" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Inbox" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Projects" })).toBeInTheDocument();
@@ -59,6 +60,23 @@ export const InboxActive: Story = {
   play: async ({ canvas }) => {
     const inboxLink = canvas.getByRole("link", { name: "Inbox" });
     await expect(inboxLink.querySelector("[data-active]")).toBeTruthy();
+  },
+};
+
+export const NewRequestActive: Story = {
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/${APP_SHELL_STORY_ORGANIZATION_SLUG}/inbox/new`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    const newRequestLink = canvas.getByRole("link", { name: "New Request" });
+    await expect(newRequestLink.querySelector("[data-active]")).toBeTruthy();
+    const inboxLink = canvas.getByRole("link", { name: "Inbox" });
+    await expect(inboxLink.querySelector("[data-active]")).toBeFalsy();
   },
 };
 

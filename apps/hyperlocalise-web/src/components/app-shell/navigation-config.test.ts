@@ -205,6 +205,8 @@ describe("path builders", () => {
     const items = groups.flatMap((group) => group.items);
     const byLabel = new Map(items.map((item) => [item.label, item]));
 
+    expect(byLabel.get("New Request")?.href).toBe("/org/acme/inbox/new");
+    expect(byLabel.get("New Request")?.exact).toBe(true);
     expect(byLabel.get("Overview")?.href).toBe("/org/acme/dashboard");
     expect(byLabel.get("Projects")?.href).toBe("/org/acme/projects");
     expect(byLabel.get("Inbox")?.href).toBe("/org/acme/inbox");
@@ -228,7 +230,11 @@ describe("path builders", () => {
       "Content Intelligence",
       undefined,
     ]);
-    expect(groups[0]?.items.map((item) => item.label)).toEqual(["Overview", "Projects"]);
+    expect(groups[0]?.items.map((item) => item.label)).toEqual([
+      "New Request",
+      "Overview",
+      "Projects",
+    ]);
     expect(groups[1]?.items.map((item) => item.label)).toEqual([
       "Inbox",
       "My Jobs",
