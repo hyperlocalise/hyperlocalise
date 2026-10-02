@@ -36,6 +36,7 @@ const meta = {
   args: {
     conversations: conversationsFixture,
     currentUser: currentUserFixture,
+    itemHref: (item) => `/inbox/${item.kind}/${item.id}`,
     isLoading: false,
     isError: false,
     hasMoreNotifications: false,
