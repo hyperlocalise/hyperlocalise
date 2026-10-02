@@ -134,6 +134,44 @@ describe("extractPptxSlideTexts", () => {
     expect(await extractTexts(deck)).toEqual([["Pricing", "Plan", "Price", "Pro", "$10"]]);
   });
 
+  it("reads slides that bind DrawingML and PresentationML to other prefixes", async () => {
+    const zip = new JSZip();
+    zip.file(
+      "ppt/presentation.xml",
+      `<pres:presentation xmlns:pres="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:rel="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><pres:sldIdLst><pres:sldId id="256" rel:id="rId2"/></pres:sldIdLst></pres:presentation>`,
+    );
+    zip.file(
+      "ppt/_rels/presentation.xml.rels",
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/></Relationships>`,
+    );
+    zip.file(
+      "ppt/slides/slide1.xml",
+      `<pres:sld xmlns:pres="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:d="http://schemas.openxmlformats.org/drawingml/2006/main"><pres:cSld><pres:spTree><pres:sp><pres:nvSpPr><pres:cNvPr id="2" name="Title"/></pres:nvSpPr><pres:spPr/><pres:txBody><d:p><d:r><d:rPr lang="en-US"/><d:t>Hello</d:t></d:r></d:p></pres:txBody></pres:sp></pres:spTree></pres:cSld></pres:sld>`,
+    );
+    const deck = await zip.generateAsync({ type: "uint8array" });
+
+    expect(await extractTexts(deck)).toEqual([["Hello"]]);
+    const saved = await edit(deck, { Hello: "Bonjour" });
+    expect(await extractTexts(saved)).toEqual([["Bonjour"]]);
+    expect((await readEntries(saved))["ppt/slides/slide1.xml"]).toContain("<d:t>Bonjour</d:t>");
+    expect((await readEntries(saved))["ppt/slides/slide1.xml"]).not.toContain("<a:t>");
+  });
+
+  it("does not treat markup inside comments as slide text", async () => {
+    const zip = new JSZip();
+    zip.file("ppt/presentation.xml", "<p:presentation/>");
+    zip.file(
+      "ppt/slides/slide1.xml",
+      `<p:sld><p:cSld><p:spTree><!-- <a:p><a:r><a:t>Commented</a:t></a:r></a:p> --><p:sp><p:spPr/><p:txBody><a:p><a:r><a:t>Visible</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>`,
+    );
+    const deck = await zip.generateAsync({ type: "uint8array" });
+
+    expect(await extractTexts(deck)).toEqual([["Visible"]]);
+    const slide = (await readEntries(await edit(deck, { Visible: "Vu" })))["ppt/slides/slide1.xml"];
+    expect(slide).toContain("<!-- <a:p><a:r><a:t>Commented</a:t></a:r></a:p> -->");
+    expect(slide).toContain("<a:t>Vu</a:t>");
+  });
+
   it("falls back to part numbers when the presentation lists no slides", async () => {
     const zip = new JSZip();
     zip.file("ppt/presentation.xml", "<p:presentation/>");
@@ -241,7 +279,7 @@ describe("applyPptxTextEdits", () => {
     expect((await extractTexts(saved))[1]).toContain("Pro\nPlus\ttier");
   });
 
-  it("edits table cells and leaves fallback copies alone", async () => {
+  it("edits table cells and both copies of an alternate-content paragraph", async () => {
     const saved = await edit(await buildPptxFixture(), {
       Price: "Prix",
       "Margin formula": "Formule de marge",
@@ -253,14 +291,13 @@ describe("applyPptxTextEdits", () => {
       `<mc:Choice Requires="a14"><p:sp><p:spPr/><p:txBody><a:bodyPr/><a:p><a:r><a:t>Formule de marge</a:t>`,
     );
     expect(slide).toContain(
-      `<mc:Fallback><p:sp><p:spPr/><p:txBody><a:bodyPr/><a:p><a:r><a:t>Margin formula</a:t>`,
+      `<mc:Fallback><p:sp><p:spPr/><p:txBody><a:bodyPr/><a:p><a:r><a:t>Formule de marge</a:t>`,
     );
     expect(slide.length).toBe(
       PPTX_FIXTURE_CONTENT_SLIDE.length +
         "Prix".length -
         "Price".length +
-        "Formule de marge".length -
-        "Margin formula".length,
+        2 * ("Formule de marge".length - "Margin formula".length),
     );
   });
 

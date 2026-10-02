@@ -27,8 +27,25 @@ import { extractPptxSlideTexts } from "./content-editor-pptx-text";
 import { buildPptxFixture } from "./content-editor-pptx-text.fixture";
 import { mountPptxTranslationEditor } from "./content-editor-pptx-translation-editor";
 
+const applyEdits = vi.hoisted(() => ({
+  impl: vi.fn(),
+  actual: null as null | typeof import("./content-editor-pptx-text").applyPptxTextEdits,
+}));
+
 // The slide preview draws on canvas with WebAssembly, which happy-dom does not provide.
 vi.mock("./content-editor-pptx-slide-viewer", () => ({ mountPptxSlidePreview: vi.fn() }));
+vi.mock("./content-editor-pptx-text", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./content-editor-pptx-text")>();
+  applyEdits.actual = actual.applyPptxTextEdits;
+  applyEdits.impl.mockImplementation(actual.applyPptxTextEdits);
+  return {
+    ...actual,
+    applyPptxTextEdits: (
+      content: Uint8Array | ArrayBuffer,
+      edits: Readonly<Record<string, string>>,
+    ) => applyEdits.impl(content, edits),
+  };
+});
 
 const mountPreview = vi.mocked(mountPptxSlidePreview);
 const CONTENT_SLIDE_PART = "ppt/slides/slide1.xml";
@@ -66,6 +83,8 @@ describe("mountPptxTranslationEditor", () => {
       dispose: vi.fn<ContentEditorPptxSlidePreviewHandle["dispose"]>(),
     };
     mountPreview.mockResolvedValue(preview);
+    applyEdits.impl.mockReset();
+    applyEdits.impl.mockImplementation((content, edits) => applyEdits.actual!(content, edits));
   });
 
   afterEach(() => {
@@ -147,5 +166,70 @@ describe("mountPptxTranslationEditor", () => {
       expect(preview.dispose).toHaveBeenCalledTimes(1);
     });
     expect(container.querySelector("textarea")).toBeNull();
+  });
+
+  it("disposes a preview that finishes mounting after the editor is gone", async () => {
+    let finishMount: (handle: ContentEditorPptxSlidePreviewHandle) => void = () => undefined;
+    mountPreview.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishMount = resolve;
+        }),
+    );
+
+    const editor = await mount();
+    await act(async () => {
+      editor.dispose();
+    });
+    await act(async () => {
+      finishMount(preview);
+    });
+
+    expect(preview.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not let a slower earlier rewrite replace a later preview", async () => {
+    const user = userEvent.setup();
+    let releaseFirst: (() => void) | undefined;
+    applyEdits.impl.mockImplementation(async (content, edits) => {
+      const result = await applyEdits.actual!(content, edits);
+      if (applyEdits.impl.mock.calls.length === 1) {
+        await new Promise<void>((resolve) => {
+          releaseFirst = resolve;
+        });
+      }
+      return result;
+    });
+
+    await mount();
+    const title = screen.getByRole("textbox", { name: "Quarterly review" });
+    await user.clear(title);
+    await user.type(title, "First");
+
+    await waitFor(
+      () => {
+        expect(applyEdits.impl).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 3000 },
+    );
+
+    await user.clear(title);
+    await user.type(title, "Second");
+
+    await waitFor(
+      () => {
+        expect(applyEdits.impl).toHaveBeenCalledTimes(2);
+        expect(preview.reload).toHaveBeenCalled();
+      },
+      { timeout: 3000 },
+    );
+    expect(await slideTexts(preview.reload.mock.calls.at(-1)![0])).toContain("Second");
+
+    await act(async () => {
+      releaseFirst?.();
+    });
+
+    expect(preview.reload).toHaveBeenCalledTimes(1);
+    expect(await slideTexts(preview.reload.mock.calls[0]![0])).toContain("Second");
   });
 });

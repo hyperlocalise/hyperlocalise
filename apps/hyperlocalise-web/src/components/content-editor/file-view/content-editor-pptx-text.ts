@@ -37,23 +37,25 @@ const PPTX_PRESENTATION_PART = "ppt/presentation.xml";
 const PPTX_PRESENTATION_RELS_PART = "ppt/_rels/presentation.xml.rels";
 const PPTX_PRESENTATION_DIRECTORY = "ppt";
 const PPTX_SLIDE_PART_PATTERN = /^ppt\/slides\/slide(\d+)\.xml$/;
-const PPTX_SLIDE_ID_TAG = "p:sldId";
-const PPTX_RELATIONSHIP_TAG = "Relationship";
-const PPTX_PARAGRAPH_TAG = "a:p";
-const PPTX_RUN_TAG = "a:r";
-const PPTX_RUN_PROPERTIES_TAG = "a:rPr";
-const PPTX_TEXT_TAG = "a:t";
-const PPTX_BREAK_TAG = "a:br";
-const PPTX_HYPERLINK_TAG = "a:hlinkClick";
-/** Fallback copies for older PowerPoint versions repeat the primary content. */
-const PPTX_FALLBACK_TAG = "mc:Fallback";
-const PPTX_SHAPE_TREE_TAG = "p:spTree";
-const PPTX_SHAPE_NAME_TAG = "p:cNvPr";
+/** Local names only: a valid package may bind these namespaces to any prefix. */
+const PPTX_SLIDE_ID_LOCAL = "sldId";
+const PPTX_RELATIONSHIP_LOCAL = "Relationship";
+const PPTX_PARAGRAPH_LOCAL = "p";
+const PPTX_RUN_LOCAL = "r";
+const PPTX_RUN_PROPERTIES_LOCAL = "rPr";
+const PPTX_TEXT_LOCAL = "t";
+const PPTX_BREAK_LOCAL = "br";
+const PPTX_HYPERLINK_LOCAL = "hlinkClick";
+const PPTX_ALTERNATE_CONTENT_LOCAL = "AlternateContent";
+const PPTX_CHOICE_LOCAL = "Choice";
+const PPTX_FALLBACK_LOCAL = "Fallback";
+const PPTX_SHAPE_TREE_LOCAL = "spTree";
+const PPTX_SHAPE_NAME_LOCAL = "cNvPr";
 /** Children of the shape tree that describe the tree itself, not an object on the slide. */
-const PPTX_SHAPE_TREE_PROPERTY_TAGS: ReadonlySet<string> = new Set([
-  "p:nvGrpSpPr",
-  "p:grpSpPr",
-  "p:extLst",
+const PPTX_SHAPE_TREE_PROPERTY_LOCALS: ReadonlySet<string> = new Set([
+  "nvGrpSpPr",
+  "grpSpPr",
+  "extLst",
 ]);
 const PPTX_LINE_BREAK = "\n";
 
@@ -76,26 +78,121 @@ const OTHER_LINE_BREAK_CODES: ReadonlySet<number> = new Set([0x0b, 0x0d, 0x2028]
 const XML_NONCHARACTER_CODES: ReadonlySet<number> = new Set([0xfffe, 0xffff]);
 const RELATIONSHIP_ID_ATTRIBUTE_PATTERN = /(?:^|\s)Id\s*=\s*(?:"([^"]*)"|'([^']*)')/;
 const RELATIONSHIP_TARGET_ATTRIBUTE_PATTERN = /(?:^|\s)Target\s*=\s*(?:"([^"]*)"|'([^']*)')/;
-const SLIDE_RELATIONSHIP_ATTRIBUTE_PATTERN = /(?:^|\s)r:id\s*=\s*(?:"([^"]*)"|'([^']*)')/;
+/** The numeric slide id is unprefixed `id`; the relationship is a prefixed `id` (`r:id`). */
+const SLIDE_RELATIONSHIP_ATTRIBUTE_PATTERN = /(?:^|\s)[\w.-]+:id\s*=\s*(?:"([^"]*)"|'([^']*)')/;
 const SHAPE_ID_ATTRIBUTE_PATTERN = /(?:^|\s)id\s*=\s*(?:"([^"]*)"|'([^']*)')/;
 
 type RunNode = {
   kind: "run";
   start: number;
   end: number;
-  /** The run's `a:rPr` element as written, or an empty string. */
+  /** The run's `rPr` element as written, or an empty string. */
   properties: string;
   text: string;
   isLink: boolean;
+  prefix: string;
+  textPrefix: string;
 };
-type BreakNode = { kind: "break"; start: number; end: number };
+type BreakNode = { kind: "break"; start: number; end: number; prefix: string };
 type ParagraphNode = RunNode | BreakNode;
 type Paragraph = {
   index: number;
   nodes: ParagraphNode[];
   shapeId: string | null;
   elementIndex: number | null;
+  /** True when this is the Fallback copy of a Choice paragraph, not a field of its own. */
+  isFallbackCopy: boolean;
 };
+
+type AlternateFrame = {
+  choiceIndices: number[];
+  fallbackCursor: number;
+  choiceDepth: number;
+  fallbackDepth: number;
+};
+
+type XmlTag = {
+  raw: string;
+  isClose: boolean;
+  isSelfClosing: boolean;
+  localName: string;
+  prefix: string;
+  attributes: string;
+  start: number;
+  end: number;
+};
+
+function xmlLocalName(qualifiedName: string): string {
+  const colon = qualifiedName.indexOf(":");
+  return colon === -1 ? qualifiedName : qualifiedName.slice(colon + 1);
+}
+
+function xmlPrefix(qualifiedName: string): string {
+  const colon = qualifiedName.indexOf(":");
+  return colon === -1 ? "" : qualifiedName.slice(0, colon);
+}
+
+function qualifiedName(prefix: string, localName: string): string {
+  return prefix === "" ? localName : `${prefix}:${localName}`;
+}
+
+/** Comments and CDATA are not markup; tags written inside them are left alone. */
+function xmlSkipRanges(xml: string): Array<{ start: number; end: number }> {
+  const ranges: Array<{ start: number; end: number }> = [];
+  let index = 0;
+  while (index < xml.length) {
+    const commentStart = xml.indexOf("<!--", index);
+    const cdataStart = xml.indexOf("<![CDATA[", index);
+    const isComment = commentStart !== -1 && (cdataStart === -1 || commentStart < cdataStart);
+    const start = isComment ? commentStart : cdataStart;
+    if (start === -1) {
+      break;
+    }
+    const openLength = isComment ? 4 : 9;
+    const closer = isComment ? "-->" : "]]>";
+    const close = xml.indexOf(closer, start + openLength);
+    if (close === -1) {
+      ranges.push({ start, end: xml.length });
+      break;
+    }
+    ranges.push({ start, end: close + closer.length });
+    index = close + closer.length;
+  }
+  return ranges;
+}
+
+function isInRanges(ranges: readonly { start: number; end: number }[], index: number): boolean {
+  for (const range of ranges) {
+    if (index < range.start) {
+      return false;
+    }
+    if (index < range.end) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function walkXmlTags(xml: string, visit: (tag: XmlTag) => void) {
+  const skipped = xmlSkipRanges(xml);
+  XML_TAG_PATTERN.lastIndex = 0;
+  for (let match = XML_TAG_PATTERN.exec(xml); match; match = XML_TAG_PATTERN.exec(xml)) {
+    if (isInRanges(skipped, match.index)) {
+      continue;
+    }
+    const [raw, closing, name, attributes = "", selfClosing] = match;
+    visit({
+      raw,
+      isClose: closing === "/",
+      isSelfClosing: selfClosing === "/",
+      localName: xmlLocalName(name),
+      prefix: xmlPrefix(name),
+      attributes,
+      start: match.index,
+      end: match.index + raw.length,
+    });
+  }
+}
 
 function decodeXmlText(value: string): string {
   return value.replace(XML_ENTITY_PATTERN, (match, decimal, hex, named) => {
@@ -120,30 +217,26 @@ function attributeValue(attributes: string, pattern: RegExp): string | null {
 
 /**
  * Walks every tag once and collects, per paragraph, the runs and line breaks that are its
- * direct children. Matching on whole tag names keeps table markup such as `a:tbl` and `a:tc`
- * out of the text, and fields such as slide numbers are not runs, so they are left alone.
+ * direct children. Matching on local names keeps table markup such as `tbl` and `tc` out of
+ * the text, and fields such as slide numbers are not runs, so they are left alone.
  */
 function scanParagraphs(xml: string): Paragraph[] {
   const paragraphs: Paragraph[] = [];
   let paragraphCount = 0;
   let depth = 0;
-  let fallbackDepth = 0;
   let paragraph: (Paragraph & { depth: number }) | null = null;
   let run: Omit<RunNode, "end"> | null = null;
   let breakStart: number | null = null;
+  let breakPrefix = "";
   let propertiesStart: number | null = null;
   let textStart: number | null = null;
   let shapeTreeDepth: number | null = null;
   let elementIndex: number | null = null;
   let shapeId: string | null = null;
+  const alternateStack: AlternateFrame[] = [];
 
-  XML_TAG_PATTERN.lastIndex = 0;
-  for (let match = XML_TAG_PATTERN.exec(xml); match; match = XML_TAG_PATTERN.exec(xml)) {
-    const [raw, closing, name, attributes = "", selfClosing] = match;
-    const start = match.index;
-    const end = start + raw.length;
-    const isClose = closing === "/";
-    const isSelfClosing = selfClosing === "/";
+  walkXmlTags(xml, (tag) => {
+    const { raw, isClose, isSelfClosing, localName, prefix, attributes, start, end } = tag;
     if (isClose) {
       depth -= 1;
     }
@@ -152,29 +245,49 @@ function scanParagraphs(xml: string): Paragraph[] {
       depth += 1;
     }
 
-    if (name === PPTX_FALLBACK_TAG) {
+    if (localName === PPTX_ALTERNATE_CONTENT_LOCAL) {
       if (!isSelfClosing) {
-        fallbackDepth += isClose ? -1 : 1;
+        if (isClose) {
+          alternateStack.pop();
+        } else {
+          alternateStack.push({
+            choiceIndices: [],
+            fallbackCursor: 0,
+            choiceDepth: 0,
+            fallbackDepth: 0,
+          });
+        }
       }
-      continue;
+    } else {
+      const frame = alternateStack.at(-1);
+      if (frame && !isSelfClosing) {
+        if (localName === PPTX_CHOICE_LOCAL) {
+          frame.choiceDepth += isClose ? -1 : 1;
+        } else if (localName === PPTX_FALLBACK_LOCAL) {
+          frame.fallbackDepth += isClose ? -1 : 1;
+        }
+      }
     }
 
     if (!isClose) {
       if (shapeTreeDepth === null) {
-        if (name === PPTX_SHAPE_TREE_TAG && !isSelfClosing) {
+        if (localName === PPTX_SHAPE_TREE_LOCAL && !isSelfClosing) {
           shapeTreeDepth = elementDepth;
         }
-      } else if (elementDepth === shapeTreeDepth + 1 && !PPTX_SHAPE_TREE_PROPERTY_TAGS.has(name)) {
+      } else if (
+        elementDepth === shapeTreeDepth + 1 &&
+        !PPTX_SHAPE_TREE_PROPERTY_LOCALS.has(localName)
+      ) {
         elementIndex = elementIndex === null ? 0 : elementIndex + 1;
         shapeId = null;
       }
       // A shape names itself before its text, so the last id seen is the paragraph's shape.
-      if (name === PPTX_SHAPE_NAME_TAG) {
+      if (localName === PPTX_SHAPE_NAME_LOCAL) {
         shapeId = attributeValue(attributes, SHAPE_ID_ATTRIBUTE_PATTERN);
       }
     }
 
-    if (name === PPTX_PARAGRAPH_TAG) {
+    if (localName === PPTX_PARAGRAPH_LOCAL) {
       if (isClose) {
         if (paragraph && elementDepth === paragraph.depth) {
           paragraphs.push({
@@ -182,49 +295,73 @@ function scanParagraphs(xml: string): Paragraph[] {
             nodes: paragraph.nodes,
             shapeId: paragraph.shapeId,
             elementIndex: paragraph.elementIndex,
+            isFallbackCopy: paragraph.isFallbackCopy,
           });
           paragraph = null;
           run = null;
         }
       } else {
+        const frame = alternateStack.at(-1);
+        const inFallback = (frame?.fallbackDepth ?? 0) > 0;
+        const inChoice = (frame?.choiceDepth ?? 0) > 0 && !inFallback;
         // Every paragraph is counted, so a unit id stays valid whatever is skipped.
-        const index = paragraphCount;
+        const counted = paragraphCount;
         paragraphCount += 1;
-        if (!isSelfClosing && !paragraph && fallbackDepth === 0) {
-          paragraph = { index, depth: elementDepth, nodes: [], shapeId, elementIndex };
+        const reused = inFallback ? frame?.choiceIndices[frame.fallbackCursor++] : undefined;
+        if (inChoice && frame) {
+          frame.choiceIndices.push(counted);
+        }
+        if (!isSelfClosing && !paragraph) {
+          paragraph = {
+            index: reused ?? counted,
+            depth: elementDepth,
+            nodes: [],
+            shapeId,
+            elementIndex,
+            isFallbackCopy: reused !== undefined,
+          };
           breakStart = null;
           propertiesStart = null;
           textStart = null;
         }
       }
-      continue;
+      return;
     }
 
     if (!paragraph) {
-      continue;
+      return;
     }
     const childDepth = elementDepth - paragraph.depth;
 
-    if (name === PPTX_RUN_TAG && childDepth === 1) {
+    if (localName === PPTX_RUN_LOCAL && childDepth === 1) {
       if (isClose) {
         if (run) {
           paragraph.nodes.push({ ...run, end });
           run = null;
         }
       } else if (!isSelfClosing) {
-        run = { kind: "run", start, properties: "", text: "", isLink: false };
+        run = {
+          kind: "run",
+          start,
+          properties: "",
+          text: "",
+          isLink: false,
+          prefix,
+          textPrefix: prefix,
+        };
       }
-    } else if (name === PPTX_BREAK_TAG && childDepth === 1) {
+    } else if (localName === PPTX_BREAK_LOCAL && childDepth === 1) {
       if (isSelfClosing) {
-        paragraph.nodes.push({ kind: "break", start, end });
+        paragraph.nodes.push({ kind: "break", start, end, prefix });
       } else if (!isClose) {
         breakStart = start;
+        breakPrefix = prefix;
       } else if (breakStart !== null) {
-        paragraph.nodes.push({ kind: "break", start: breakStart, end });
+        paragraph.nodes.push({ kind: "break", start: breakStart, end, prefix: breakPrefix });
         breakStart = null;
       }
     } else if (run) {
-      if (name === PPTX_RUN_PROPERTIES_TAG && childDepth === 2) {
+      if (localName === PPTX_RUN_PROPERTIES_LOCAL && childDepth === 2) {
         if (isSelfClosing) {
           run.properties = raw;
         } else if (!isClose) {
@@ -233,18 +370,20 @@ function scanParagraphs(xml: string): Paragraph[] {
           run.properties = xml.slice(propertiesStart, end);
           propertiesStart = null;
         }
-      } else if (name === PPTX_TEXT_TAG && childDepth === 2) {
+      } else if (localName === PPTX_TEXT_LOCAL && childDepth === 2) {
         if (isClose && textStart !== null) {
           run.text += decodeXmlText(xml.slice(textStart, start));
+          run.textPrefix = prefix;
           textStart = null;
         } else if (!isClose && !isSelfClosing) {
           textStart = end;
+          run.textPrefix = prefix;
         }
-      } else if (name === PPTX_HYPERLINK_TAG) {
+      } else if (localName === PPTX_HYPERLINK_LOCAL) {
         run.isLink = true;
       }
     }
-  }
+  });
 
   return paragraphs;
 }
@@ -298,14 +437,13 @@ function resolvePartName(directory: string, target: string): string {
   return segments.join("/");
 }
 
-function matchTags(xml: string, tagName: string): string[] {
+function matchTags(xml: string, localName: string): string[] {
   const attributes: string[] = [];
-  XML_TAG_PATTERN.lastIndex = 0;
-  for (let match = XML_TAG_PATTERN.exec(xml); match; match = XML_TAG_PATTERN.exec(xml)) {
-    if (match[1] !== "/" && match[2] === tagName) {
-      attributes.push(match[3] ?? "");
+  walkXmlTags(xml, (tag) => {
+    if (!tag.isClose && tag.localName === localName) {
+      attributes.push(tag.attributes);
     }
-  }
+  });
   return attributes;
 }
 
@@ -315,7 +453,7 @@ function matchTags(xml: string, tagName: string): string[] {
  */
 function slidePartNames(zip: JSZip, presentationXml: string, relationshipsXml: string): string[] {
   const targets = new Map<string, string>();
-  for (const attributes of matchTags(relationshipsXml, PPTX_RELATIONSHIP_TAG)) {
+  for (const attributes of matchTags(relationshipsXml, PPTX_RELATIONSHIP_LOCAL)) {
     const id = attributeValue(attributes, RELATIONSHIP_ID_ATTRIBUTE_PATTERN);
     const target = attributeValue(attributes, RELATIONSHIP_TARGET_ATTRIBUTE_PATTERN);
     if (id && target) {
@@ -323,7 +461,7 @@ function slidePartNames(zip: JSZip, presentationXml: string, relationshipsXml: s
     }
   }
 
-  const listed = matchTags(presentationXml, PPTX_SLIDE_ID_TAG).flatMap((attributes) => {
+  const listed = matchTags(presentationXml, PPTX_SLIDE_ID_LOCAL).flatMap((attributes) => {
     const target = targets.get(
       attributeValue(attributes, SLIDE_RELATIONSHIP_ATTRIBUTE_PATTERN) ?? "",
     );
@@ -395,6 +533,9 @@ export async function extractPptxSlideTexts(
     loaded.value.parts.map((part) => ({
       partName: part.name,
       units: scanParagraphs(part.xml).flatMap((paragraph) => {
+        if (paragraph.isFallbackCopy) {
+          return [];
+        }
         const text = paragraphText(paragraph);
         return text.trim() === ""
           ? []
@@ -449,12 +590,20 @@ function paragraphReplacements(paragraph: Paragraph, text: string): Replacement[
   if (!receiver) {
     return [];
   }
+  const breakPrefix =
+    paragraph.nodes.find((node): node is BreakNode => node.kind === "break")?.prefix ??
+    receiver.prefix;
+  const runTag = qualifiedName(receiver.prefix, PPTX_RUN_LOCAL);
+  const textTag = qualifiedName(receiver.textPrefix, PPTX_TEXT_LOCAL);
+  const breakTag = qualifiedName(breakPrefix, PPTX_BREAK_LOCAL);
   const value = text
     .split(PPTX_LINE_BREAK)
     .map((line) =>
-      line === "" ? "" : `<a:r>${receiver.properties}<a:t>${encodeXmlText(line)}</a:t></a:r>`,
+      line === ""
+        ? ""
+        : `<${runTag}>${receiver.properties}<${textTag}>${encodeXmlText(line)}</${textTag}></${runTag}>`,
     )
-    .join("<a:br/>");
+    .join(`<${breakTag}/>`);
   return paragraph.nodes.map((node) => ({
     start: node.start,
     end: node.end,

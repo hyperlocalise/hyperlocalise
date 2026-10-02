@@ -61,6 +61,7 @@ function PptxTranslationEditor({
   const formRef = useRef<HTMLDivElement>(null);
   const preview = useRef<ContentEditorPptxSlidePreviewHandle | null>(null);
   const redrawTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const redrawGeneration = useRef(0);
   const shownSlide = useRef<string | null>(null);
   const [previewFailed, setPreviewFailed] = useState(false);
 
@@ -92,6 +93,10 @@ function PptxTranslationEditor({
       signal: abortController.signal,
     }).then(
       (handle) => {
+        if (abortController.signal.aborted) {
+          handle.dispose();
+          return;
+        }
         preview.current = handle;
       },
       () => {
@@ -104,6 +109,7 @@ function PptxTranslationEditor({
 
     return () => {
       abortController.abort();
+      redrawGeneration.current += 1;
       if (redrawTimer.current) {
         clearTimeout(redrawTimer.current);
       }
@@ -118,8 +124,12 @@ function PptxTranslationEditor({
       clearTimeout(redrawTimer.current);
     }
     redrawTimer.current = setTimeout(() => {
+      const generation = ++redrawGeneration.current;
       void applyPptxTextEdits(base.content, changedPptxUnits(base.slides, values)).then(
         (edited) => {
+          if (generation !== redrawGeneration.current) {
+            return;
+          }
           if (!isErr(edited)) {
             // A redraw that fails leaves the previous slides in place.
             void preview.current?.reload(edited.value).catch(() => undefined);
