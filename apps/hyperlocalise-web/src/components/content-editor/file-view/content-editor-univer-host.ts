@@ -69,6 +69,24 @@ async function hideCursor(univer: Univer, unitId: string): Promise<void> {
   }
 }
 
+/** Space Univer keeps on each side of the page, with room for its scrollbar. */
+const PAGE_GUTTER = 24;
+const MIN_FIT_ZOOM = 0.5;
+
+/**
+ * The zoom at which the whole page width fits the container when the document opens. It never
+ * enlarges the page, and stops shrinking at `MIN_FIT_ZOOM` so text stays readable.
+ */
+function fitZoomRatio(container: HTMLElement, data: IDocumentData): number | undefined {
+  const pageWidth = data.documentStyle.pageSize?.width;
+  if (!pageWidth || container.clientWidth <= 0) {
+    return undefined;
+  }
+  const fit = container.clientWidth / (pageWidth + PAGE_GUTTER * 2);
+  // Whole percentages, rounded down so the page never ends up a pixel too wide.
+  return Math.min(1, Math.max(MIN_FIT_ZOOM, Math.floor(fit * 100) / 100));
+}
+
 async function createDocsHost(
   container: HTMLElement,
   data: IDocumentData,
@@ -97,7 +115,10 @@ async function createDocsHost(
     ],
   }) as { univer: Univer; univerAPI: UniverApi };
 
-  univerAPI.createDocument(data);
+  const zoomRatio = fitZoomRatio(container, data);
+  univerAPI.createDocument(
+    zoomRatio === undefined ? data : { ...data, settings: { ...data.settings, zoomRatio } },
+  );
   if (readOnly) {
     // Hiding the toolbar leaves the page itself editable, so the edit permission is switched off.
     await univerAPI.getActiveDocument?.()?.getPermission().setPoint(UNIT_ACTION_EDIT, false);
