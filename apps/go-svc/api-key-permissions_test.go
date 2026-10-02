@@ -56,10 +56,24 @@ func TestOrganizationCapabilityMapKeepsMemberCapabilities(t *testing.T) {
 	t.Parallel()
 
 	managers := map[string]bool{"admin": true, "localization_manager": true}
+	jobWriters := map[string]bool{
+		"admin": true, "localization_manager": true,
+		"developer": true, "reviewer": true, "translator": true,
+	}
 	for _, role := range memberSettingsRoleOrder {
 		require.True(t, hasOrganizationCapability(role, "workspace:read"), role)
+		require.True(t, hasOrganizationCapability(role, "projects:read"), role)
+		require.True(t, hasOrganizationCapability(role, "jobs:read"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "members:invite"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "teams:write"), role)
+		require.Equal(t, managers[role], hasOrganizationCapability(role, "api_keys:read"), role)
+		require.Equal(t, managers[role], hasOrganizationCapability(role, "api_keys:write"), role)
+		require.Equal(t, jobWriters[role], hasOrganizationCapability(role, "jobs:create"), role)
+		require.Equal(t, jobWriters[role], hasOrganizationCapability(role, "jobs:write"), role)
 	}
+	require.False(t, hasOrganizationCapability("member", "jobs:create"))
+	require.False(t, hasOrganizationCapability("member", "jobs:write"))
+	require.False(t, hasOrganizationCapability("developer", "api_keys:read"))
 	require.False(t, hasOrganizationCapability("unknown", "workspace:read"))
+	require.False(t, hasOrganizationCapability("admin", "not-a-capability"))
 }

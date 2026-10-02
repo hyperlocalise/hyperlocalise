@@ -246,6 +246,38 @@ func TestActivityLogFilterFingerprintEmptyEventTypesMatchNil(t *testing.T) {
 	require.Equal(t, hex.EncodeToString(sum[:]), empty)
 }
 
+func TestActivityLogFilterFingerprintUserActorMatchesHistoricalJSON(t *testing.T) {
+	// Typed activityLogUserActorPayload must keep the same JSON shape as the
+	// former map[string]string encoder so existing pagination cursors stay valid.
+	fingerprint, err := activityLogFilterFingerprint(activityLogQuery{
+		actor:      &activityLogActorFilter{kind: "user", userID: testActivityActorUser},
+		eventTypes: []string{"project_created", "project_deleted"},
+		rangeKey:   "24h",
+	})
+	require.NoError(t, err)
+
+	sum := sha256.Sum256([]byte(
+		`{"actor":{"kind":"user","userId":"` + testActivityActorUser + `"},` +
+			`"eventTypes":["project_created","project_deleted"],` +
+			`"projectId":null,"range":"24h","sourcePath":null}`,
+	))
+	require.Equal(t, hex.EncodeToString(sum[:]), fingerprint)
+
+	sortedInput := []string{"project_created", "project_deleted"}
+	alreadySorted, err := activityLogFilterFingerprint(activityLogQuery{
+		eventTypes: sortedInput,
+		rangeKey:   "all",
+	})
+	require.NoError(t, err)
+	unsorted, err := activityLogFilterFingerprint(activityLogQuery{
+		eventTypes: []string{"project_deleted", "project_created"},
+		rangeKey:   "all",
+	})
+	require.NoError(t, err)
+	require.Equal(t, alreadySorted, unsorted)
+	require.Equal(t, []string{"project_created", "project_deleted"}, sortedInput)
+}
+
 func TestActivityLogRequiresSession(t *testing.T) {
 	api, scope := activityLogTestAPI(t, "admin")
 	mux := http.NewServeMux()

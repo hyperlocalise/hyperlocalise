@@ -518,6 +518,49 @@ describe("ContentEditorWorkspaceUiStore", () => {
     }
   });
 
+  it("keeps designer persona when adaptive view mode switches away from file on designer families", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => store.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => store.set(key, value)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("image");
+      // Applying a designer family runs file-view sync, which materializes the designer persona.
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
+
+      // Text families map side-by-side → reviewer and comfortable → translator.
+      // Designer families must keep the designer persona so image/video layout stays intact.
+      ui.setViewMode("side-by-side");
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
+
+      ui.setViewMode("comfortable");
+      expect(ui.viewMode).toBe("comfortable");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
+
+      ui.setViewMode("file");
+      expect(ui.viewMode).toBe("file");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("isolates saved persona preferences between distinct file families", () => {
     const store = new Map<string, string>();
     vi.stubGlobal("window", {

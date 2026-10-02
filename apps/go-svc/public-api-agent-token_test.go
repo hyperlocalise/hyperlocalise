@@ -195,3 +195,19 @@ func TestIsCompactJWT(t *testing.T) {
 		require.False(t, isCompactJWT(value), value)
 	}
 }
+
+func TestPublicAppOrigin(t *testing.T) {
+	require.Equal(t, "https://app.example.test", publicAppOrigin("https://app.example.test/some/path"))
+	require.Equal(t, "https://app.example.test", publicAppOrigin(" https://app.example.test/ "))
+	require.Equal(t, "http://localhost:3000", publicAppOrigin("http://localhost:3000/auth/callback"))
+	require.Equal(t, "", publicAppOrigin(""))
+	require.Equal(t, "", publicAppOrigin("   "))
+	require.Equal(t, "", publicAppOrigin("app.example.test"))
+	require.Equal(t, "", publicAppOrigin("/relative/path"))
+	require.Equal(t, "", publicAppOrigin("://missing-host"))
+}
+
+func TestNewAgentAccessTokenVerifierOmitsBlankPublicOrigin(t *testing.T) {
+	verifier := newAgentAccessTokenVerifier(testAuthkitDomain, testWorkOSClientID, "not-a-url")
+	require.Equal(t, []string{testWorkOSClientID}, verifier.audiences)
+}
