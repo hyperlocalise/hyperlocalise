@@ -21,7 +21,7 @@ import {
 import { beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { readDocxDocument } from "./content-editor-docx-import";
-import { buildStyledDocxFixture } from "./content-editor-docx-import.fixture";
+import { buildDocxWithBody, buildStyledDocxFixture } from "./content-editor-docx-import.fixture";
 
 const A4 = { pageSize: { width: 595.3, height: 841.9 }, marginLeft: 90, marginRight: 90 };
 
@@ -97,6 +97,7 @@ describe("readDocxDocument", () => {
   it("keeps empty paragraphs, tabs, and split runs as one piece of text", () => {
     expect(document.body?.dataStream).toContain("Callout text\rOverride\r\rBullet\r");
     expect(document.body?.dataStream).toContain("See\tthe docs\r");
+    expect(document.body?.dataStream).toContain("Line one\u2028Line two\r");
     expect(document.body?.textRuns?.filter((run) => run.ts?.fs === 16)).toHaveLength(1);
   });
 
@@ -146,8 +147,36 @@ describe("readDocxDocument", () => {
         [0, 0],
         [undefined, undefined],
       ],
+      [
+        [undefined, undefined],
+        [undefined, undefined],
+      ],
     ]);
     expect(document.body?.dataStream).toContain("Merged across\r\n");
+  });
+
+  it("keeps a row that starts after the first column in its own column", () => {
+    // The row skips one grid column, so its only cell is the second of the row.
+    expect(document.body?.dataStream).toContain(
+      "\u001b\u001c\r\n\u001d\u001cOffset\r\n\u001d\u000e",
+    );
+  });
+
+  it("caps table spans that claim more columns than Word allows", async () => {
+    const huge = await readDocxDocument(
+      await buildDocxWithBody(
+        `<w:tbl><w:tr><w:trPr><w:gridBefore w:val="4000000000"/></w:trPr>
+          <w:tc><w:tcPr><w:gridSpan w:val="4000000000"/></w:tcPr><w:p><w:r><w:t>Wide</w:t></w:r></w:p></w:tc>
+        </w:tr><w:tr>
+          <w:tc><w:tcPr><w:gridSpan w:val="4000000000"/></w:tcPr><w:p><w:r><w:t>Wide</w:t></w:r></w:p></w:tc>
+        </w:tr></w:tbl>`,
+      ),
+      A4,
+    );
+
+    const [table] = Object.values(huge.tableSource ?? {});
+    expect(table?.tableColumns).toHaveLength(63);
+    expect(table?.tableRows[1]?.tableCells[0]).toMatchObject({ rowSpan: 1, columnSpan: 63 });
   });
 
   it("reads the page size and margins", () => {

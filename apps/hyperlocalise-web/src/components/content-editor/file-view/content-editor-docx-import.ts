@@ -29,6 +29,11 @@ import JSZip from "jszip";
 const TWIPS_PER_POINT = 20;
 const HALF_POINTS_PER_POINT = 2;
 const MAX_STYLE_DEPTH = 20;
+/** Word's own limit. Larger values in a file are malformed or hostile. */
+const MAX_TABLE_COLUMNS = 63;
+const MAX_LIST_LEVEL = 8;
+/** A line break inside a paragraph. Univer starts a new line at this character. */
+export const LINE_SEPARATOR = "\u2028";
 
 type DocumentStyle = IDocumentData["documentStyle"];
 
@@ -123,6 +128,12 @@ function toggleOf(parent: Element | undefined, name: string): boolean | undefine
   return !(value === "0" || value === "false" || value === "off" || value === "none");
 }
 
+/** Reads a count from the file, which may be missing, malformed, or absurdly large. */
+function countOf(value: string | undefined, fallback: number, max: number): number {
+  const count = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(count) && count >= 0 ? Math.min(count, max) : fallback;
+}
+
 function hexColor(value: string | null | undefined): string | undefined {
   return value && /^[0-9a-f]{6}$/i.test(value) ? `#${value.toUpperCase()}` : undefined;
 }
@@ -165,7 +176,7 @@ function readParagraphFormat(properties: Element | undefined): ParagraphFormat {
         ? undefined
         : numId === "0"
           ? null
-          : { numId, level: Number(valueOf(numbering, "ilvl") ?? 0) },
+          : { numId, level: countOf(valueOf(numbering, "ilvl"), 0, MAX_LIST_LEVEL) },
   });
 }
 
@@ -277,6 +288,12 @@ function readPage(section: Element | undefined, defaults: DocumentStyle): Docume
   };
 }
 
+/** Page and column breaks are layout, not text, and are left out. */
+function isLineBreak(element: Element): boolean {
+  const type = element.getAttribute("w:type");
+  return type === null || type === "textWrapping";
+}
+
 function textStyleOf(format: RunFormat, isHeading: boolean): ITextStyle {
   const { TRUE, FALSE } = BooleanNumber;
   return defined<ITextStyle>({
@@ -300,9 +317,18 @@ function readTableGrid(table: Element): GridCell[][] {
   const grid: GridCell[][] = [];
   for (const row of childrenOf(table, "tr")) {
     const cells: GridCell[] = [];
+    // A row can start after the first grid columns. Univer needs a cell at every position.
+    const skipped = countOf(valueOf(childOf(row, "trPr"), "gridBefore"), 0, MAX_TABLE_COLUMNS);
+    for (let column = 0; column < skipped; column += 1) {
+      cells.push({ columnSpan: 1, rowSpan: 1 });
+    }
     for (const cell of childrenOf(row, "tc")) {
+      const remaining = MAX_TABLE_COLUMNS - cells.length;
+      if (remaining <= 0) {
+        break;
+      }
       const properties = childOf(cell, "tcPr");
-      const span = Math.max(1, Number(valueOf(properties, "gridSpan") ?? 1));
+      const span = Math.max(1, countOf(valueOf(properties, "gridSpan"), 1, remaining));
       const merge = childOf(properties, "vMerge");
       const continuesAbove = merge !== undefined && merge.getAttribute("w:val") !== "restart";
       if (continuesAbove) {
@@ -445,9 +471,8 @@ export async function readDocxDocument(
         text += (node.textContent ?? "").replace(CONTROL_CHARACTERS, "");
       } else if (node.localName === "tab") {
         text += DataStreamTreeTokenType.TAB;
-      } else if (node.localName === "br" && !node.getAttribute("w:type")) {
-        // A line break inside a paragraph has no Univer equivalent here.
-        text += " ";
+      } else if (node.localName === "cr" || (node.localName === "br" && isLineBreak(node))) {
+        text += LINE_SEPARATOR;
       } else if (node.localName === "noBreakHyphen") {
         text += "‑";
       }

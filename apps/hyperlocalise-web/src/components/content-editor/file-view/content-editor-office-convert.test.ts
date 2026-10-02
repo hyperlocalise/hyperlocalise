@@ -202,6 +202,9 @@ describe("cat-office-convert", () => {
     expect(xml).toContain('<w:color w:val="FF0000"/>');
     expect(xml).toContain('<w:jc w:val="center"/>');
     expect(xml).toContain("<w:tab/>");
+    expect(xml).toMatch(
+      /Line one<\/w:t><\/w:r><w:r>(<w:rPr>.*?<\/w:rPr>)?<w:br\/><w:t[^>]*>Line two/,
+    );
   });
 
   it("writes page size, column widths, and separate numbering for each ordered list", async () => {

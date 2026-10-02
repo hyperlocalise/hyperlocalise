@@ -79,10 +79,12 @@ ${paragraph(
   `<w:r><w:tab/></w:r>`,
   `<w:hyperlink r:id="rId7">${run("the docs")}</w:hyperlink>`,
 )}
+${paragraph("", `<w:r><w:t>Line one</w:t><w:br/><w:t>Line two</w:t></w:r>`)}
 <w:tbl><w:tblGrid><w:gridCol w:w="3000"/><w:gridCol w:w="6000"/></w:tblGrid>
 <w:tr>${cell("Merged across", `<w:gridSpan w:val="2"/>`)}</w:tr>
 <w:tr>${cell("Tall", `<w:vMerge w:val="restart"/>`)}${cell("B")}</w:tr>
 <w:tr>${cell("", `<w:vMerge/>`)}${cell("C")}</w:tr>
+<w:tr><w:trPr><w:gridBefore w:val="1"/></w:trPr>${cell("Offset")}</w:tr>
 </w:tbl>
 <w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>
 </w:body></w:document>`;
@@ -98,5 +100,15 @@ export async function buildStyledDocxFixture(): Promise<ArrayBuffer> {
   zip.file("word/styles.xml", STYLES);
   zip.file("word/numbering.xml", NUMBERING);
   zip.file("word/_rels/document.xml.rels", RELATIONSHIPS);
+  return zip.generateAsync({ type: "arraybuffer" });
+}
+
+/** A Word file with only a document body, for cases the styled fixture does not cover. */
+export async function buildDocxWithBody(body: string): Promise<ArrayBuffer> {
+  const zip = new JSZip();
+  zip.file(
+    "word/document.xml",
+    `${XML_HEADER}<w:document ${NAMESPACES}><w:body>${body}</w:body></w:document>`,
+  );
   return zip.generateAsync({ type: "arraybuffer" });
 }

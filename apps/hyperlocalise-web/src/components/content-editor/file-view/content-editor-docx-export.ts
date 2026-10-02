@@ -39,6 +39,8 @@ import {
   WidthType,
 } from "docx";
 
+import { LINE_SEPARATOR } from "@/components/content-editor/file-view/content-editor-docx-import";
+
 /** Univer measures documents in points; Word measures in twentieths of a point. */
 const TWIPS_PER_POINT = 20;
 const HALF_POINTS_PER_POINT = 2;
@@ -184,22 +186,29 @@ function wordColor(color: ITextStyle["cl"]): string | undefined {
     .toUpperCase();
 }
 
-function textRun(text: string, style: ITextStyle | undefined): TextRun {
+/** One Word run per line of `text`, since a line break is written at the start of a run. */
+function wordRuns(text: string, style: ITextStyle | undefined): TextRun[] {
   const fill = wordColor(style?.bg);
-  return new TextRun({
-    // Word needs a tab element; a tab character inside text is not a tab stop.
-    children: text.split(TAB).flatMap((part, index) => (index === 0 ? [part] : [new Tab(), part])),
-    bold: flag(style?.bl),
-    italics: flag(style?.it),
-    underline: style?.ul?.s === BooleanNumber.TRUE ? {} : undefined,
-    strike: flag(style?.st?.s),
-    subScript: style?.va === BaselineOffset.SUBSCRIPT || undefined,
-    superScript: style?.va === BaselineOffset.SUPERSCRIPT || undefined,
-    size: style?.fs ? Math.round(style.fs * HALF_POINTS_PER_POINT) : undefined,
-    font: style?.ff ?? undefined,
-    color: wordColor(style?.cl),
-    shading: fill ? { type: ShadingType.CLEAR, color: "auto", fill } : undefined,
-  });
+  return text.split(LINE_SEPARATOR).map(
+    (line, index) =>
+      new TextRun({
+        break: index === 0 ? undefined : 1,
+        // Word needs a tab element; a tab character inside text is not a tab stop.
+        children: line
+          .split(TAB)
+          .flatMap((part, tabIndex) => (tabIndex === 0 ? [part] : [new Tab(), part])),
+        bold: flag(style?.bl),
+        italics: flag(style?.it),
+        underline: style?.ul?.s === BooleanNumber.TRUE ? {} : undefined,
+        strike: flag(style?.st?.s),
+        subScript: style?.va === BaselineOffset.SUBSCRIPT || undefined,
+        superScript: style?.va === BaselineOffset.SUPERSCRIPT || undefined,
+        size: style?.fs ? Math.round(style.fs * HALF_POINTS_PER_POINT) : undefined,
+        font: style?.ff ?? undefined,
+        color: wordColor(style?.cl),
+        shading: fill ? { type: ShadingType.CLEAR, color: "auto", fill } : undefined,
+      }),
+  );
 }
 
 /** A Word style that matches how Univer draws a heading, so it looks the same in both. */
@@ -299,12 +308,12 @@ export async function exportDocumentToDocx(data: IDocumentData): Promise<Blob> {
         continue;
       }
       const style = textRuns.find((run) => run.st <= from && to <= run.ed)?.ts;
-      const run = textRun(text, style);
+      const runs = wordRuns(text, style);
       if (link) {
         openLink ??= { url: link.url, runs: [] };
-        openLink.runs.push(run);
+        openLink.runs.push(...runs);
       } else {
-        children.push(run);
+        children.push(...runs);
       }
     }
     if (openLink) {
