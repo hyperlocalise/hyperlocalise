@@ -179,7 +179,7 @@ overrides:
   form-data: 4.0.6
   axios@^1.0.0: 1.20.0
   fast-uri: 3.1.7
-  '@xmldom/xmldom': 0.9.12
+  '@xmldom/xmldom': 0.8.15
   browserslist: 4.28.8
   linkify-it: 5.0.2
   '@zwight/exceljs>uuid': 11.1.1
@@ -297,6 +297,9 @@ importers:
       '@shadcn/react':
         specifier: ^0.3.1
         version: 0.3.1(@types/react@19.2.18)(react@19.2.8)
+      '@silurus/ooxml':
+        specifier: ^0.88.0
+        version: 0.88.0
       '@streamdown/cjk':
         specifier: ^1.0.3
         version: 1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.3)(micromark@4.0.3(supports-color@8.1.1))(react@19.2.8)(supports-color@8.1.1)(unified@11.0.5)
@@ -4223,6 +4226,9 @@ packages:
   '@shikijs/vscode-textmate@10.0.2':
     resolution: {integrity: sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg==}
 
+  '@silurus/ooxml@0.88.0':
+    resolution: {integrity: sha512-dhMs1/U5fB5bh/Hv8BNTgCsHVNOl+qkquohsROblku7jghsmd1BZAE//LR6omB7aCVLGJ3sp4IqzqdkgT5wicQ==}
+
   '@sindresorhus/fnv1a@3.1.0':
     resolution: {integrity: sha512-KV321z5m/0nuAg83W1dPLy85HpHDk7Sdi4fJbwvacWsEhAh+rZUW4ZfGcXmUIvjZg4ss2bcwNlRhJ7GBEUG08w==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
@@ -5890,9 +5896,9 @@ packages:
     resolution: {integrity: sha512-y5ArHvQ7BVule/+L9yE2nYMhceiJhgsqo58lOfnisQ7bg+Kjfmkgr7JBuVFiTkl+ErdShpp829QstZQyLugl8g==}
     engines: {node: '>=20'}
 
-  '@xmldom/xmldom@0.9.12':
-    resolution: {integrity: sha512-5AXjrcMClTryPe9LgZrygpB1lj7s0S9E0+W+AHaVKAVyHanafK86iPSvG5xHVSp/jC+VH1UXu0TAEmY279xH7A==}
-    engines: {node: '>=14.6'}
+  '@xmldom/xmldom@0.8.15':
+    resolution: {integrity: sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA==}
+    engines: {node: '>=10.0.0'}
 
   '@xyflow/react@12.12.0':
     resolution: {integrity: sha512-74oXI0Rgm1Eu33cHQAd74J6oVgCH9mbFyTVQbsGgp2kmWwh0HdtBr2VP04z8mbPD+M/xO69nqG5dDEt7/EN2rQ==}
@@ -14545,6 +14551,8 @@ snapshots:
 
   '@shikijs/vscode-textmate@10.0.2': {}
 
+  '@silurus/ooxml@0.88.0': {}
+
   '@sindresorhus/fnv1a@3.1.0': {}
 
   '@sindresorhus/is@7.2.0': {}
@@ -16550,7 +16558,7 @@ snapshots:
     dependencies:
       system-architecture: 1.0.0
 
-  '@xmldom/xmldom@0.9.12': {}
+  '@xmldom/xmldom@0.8.15': {}
 
   '@xyflow/react@12.12.0(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
@@ -19281,7 +19289,7 @@ snapshots:
 
   mammoth@1.13.0:
     dependencies:
-      '@xmldom/xmldom': 0.9.12
+      '@xmldom/xmldom': 0.8.15
       argparse: 1.0.10
       base64-js: 1.5.1
       dingbat-to-unicode: 1.0.2

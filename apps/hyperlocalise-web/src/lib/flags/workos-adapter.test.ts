@@ -231,9 +231,9 @@ describe("filterNavigationByWorkspaceFlags", () => {
     expect(itemLabels).not.toContain("Guideline");
     expect(itemLabels).not.toContain("Reports");
     expect(itemLabels).not.toContain("Automations");
-    expect(itemLabels).not.toContain("New Request");
     expect(itemLabels).not.toContain("AI Engine");
     expect(itemLabels).not.toContain("Domains");
+    expect(itemLabels).toContain("New Request");
     expect(itemLabels).toContain("Projects");
     expect(itemLabels).toContain("Settings");
   });
@@ -254,6 +254,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));
 
+    expect(itemLabels).toContain("New Request");
     expect(itemLabels).toContain("Guideline");
     expect(itemLabels).toContain("Queries");
     expect(itemLabels).toContain("Reports");
@@ -291,6 +292,7 @@ describe("groupPreviewNavigationGroups", () => {
     expect(workspaceGroup?.items.map((item) => item.label)).not.toContain("Queries");
     expect(workspaceGroup?.items.map((item) => item.label)).toContain("Inbox");
     expect(workspaceGroup?.items.map((item) => item.label)).toContain("QA");
+    expect(promotedLabels).toContain("New Request");
     expect(promotedLabels).toContain("Overview");
     expect(promotedLabels).toContain("Projects");
     expect(promotedLabels).not.toContain("Reports");

@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { startTransition, useCallback, useEffect, useMemo } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 import { useIntl } from "react-intl";
@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stream-manager";
 import { isInboxNewRequestPath } from "@/components/app-shell/navigation-config";
+import { normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { InboxPageStoreProvider, useInboxPageStore } from "../store/inbox-page-store-context";
@@ -30,6 +31,7 @@ import { createInboxApi, type ChatComposerSendOptions, type InboxApi } from "./i
 import {
   inboxSelectionsEqual,
   resolveInboxSelection,
+  type InboxItemHref,
   type InboxListItemSelection,
   type InboxSelection,
 } from "./inbox-list";
@@ -111,6 +113,17 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   const urlConversationId = params?.conversationId as string | undefined;
   const urlNotificationId = params?.notificationId as string | undefined;
   const composeNew = isInboxNewRequestPath(pathname);
+  const itemHref: InboxItemHref = useCallback(
+    (item) => {
+      const path =
+        item.kind === "notification"
+          ? `/org/${organizationSlug}/inbox/notifications/${item.id}`
+          : `/org/${organizationSlug}/inbox/${item.id}`;
+      const locale = normalizeAppLocale(pathname.split("/")[1] ?? "");
+      return locale ? `/${locale}${path}` : path;
+    },
+    [organizationSlug, pathname],
+  );
   const { chatDock } = useAppShellStore();
   const streamManager = getChatStreamManager(organizationSlug, chatDock);
 
@@ -198,6 +211,7 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       !selectedNotificationFromList,
   });
   const selectedNotification = selectedNotificationFromList ?? selectedNotificationQuery.data;
+  const markReadAttemptedNotificationIdRef = useRef<string | null>(null);
 
   const messagesQuery = useQuery({
     queryKey: messagesQueryKey(selectedConversationId),
@@ -321,22 +335,8 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   const onSelectItem = useCallback(
     (item: InboxListItemSelection) => {
       store.setPendingSelection(item);
-      const path =
-        item.kind === "notification"
-          ? `/org/${organizationSlug}/inbox/notifications/${item.id}`
-          : `/org/${organizationSlug}/inbox/${item.id}`;
-      if (item.kind === "conversation") {
-        router.push(path);
-      }
-
-      if (item.kind === "notification") {
-        const notification = notifications.find((candidate) => candidate.id === item.id);
-        if (notification && !notification.readAt) {
-          markReadMutation.mutate(item.id);
-        }
-      }
     },
-    [router, organizationSlug, notifications, markReadMutation, store],
+    [store],
   );
 
   const onDeletedQuery = useCallback(() => {
@@ -391,12 +391,20 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   ]);
 
   useEffect(() => {
+    if (markReadAttemptedNotificationIdRef.current !== urlNotificationId) {
+      markReadAttemptedNotificationIdRef.current = null;
+    }
+  }, [urlNotificationId]);
+
+  useEffect(() => {
     if (
       urlNotificationId &&
       selectedNotification &&
       !selectedNotification.readAt &&
-      !markReadMutation.isPending
+      !markReadMutation.isPending &&
+      markReadAttemptedNotificationIdRef.current !== urlNotificationId
     ) {
+      markReadAttemptedNotificationIdRef.current = urlNotificationId;
       markReadMutation.mutate(urlNotificationId);
     }
   }, [urlNotificationId, selectedNotification, markReadMutation]);
@@ -418,6 +426,7 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       jobsIsLoading={jobsQuery.isLoading}
       messages={messages}
       messagesIsLoading={messagesQuery.isLoading}
+      itemHref={itemHref}
       notifications={notifications}
       notificationsIsError={notificationsQuery.isError}
       notificationsIsLoading={notificationsQuery.isLoading}

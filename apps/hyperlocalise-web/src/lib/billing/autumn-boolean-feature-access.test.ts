@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const checkMock = vi.hoisted(() => vi.fn());
 
@@ -24,8 +24,27 @@ import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { isAutumnBooleanFeatureEnabled } from "@/lib/billing/autumn-boolean-feature-access";
 
 describe("isAutumnBooleanFeatureEnabled", () => {
+  beforeEach(() => {
+    vi.stubEnv("LOCAL_AUTUMN_FEATURES_ENABLED", "false");
+  });
+
   afterEach(() => {
     checkMock.mockReset();
+    vi.unstubAllEnvs();
+  });
+
+  it("allows local feature-gated surfaces when the explicit development override is enabled", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("LOCAL_AUTUMN_FEATURES_ENABLED", "true");
+
+    await expect(
+      isAutumnBooleanFeatureEnabled({
+        organizationId: "org_1",
+        featureId: autumnFeatureIds.queriesBoard,
+        autumnApiKey: "am_sk_test",
+      }),
+    ).resolves.toBe(true);
+    expect(checkMock).not.toHaveBeenCalled();
   });
 
   it("returns true in tests when autumnApiKey is omitted", async () => {

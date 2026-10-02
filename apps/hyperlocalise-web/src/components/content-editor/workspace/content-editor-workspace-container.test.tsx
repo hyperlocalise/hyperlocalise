@@ -796,6 +796,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       }
     }
   });
+
   it("turns off selectionMode and does not pollute queue preference when switching from Reviewer to Translator", async () => {
     const user = userEvent.setup();
     const setItem = vi.spyOn(Storage.prototype, "setItem");

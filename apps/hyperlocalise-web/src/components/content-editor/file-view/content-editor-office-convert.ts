@@ -12,35 +12,40 @@
  */
 import { BuildTextUtils, LocaleType, type IDocumentData, type IWorkbookData } from "@univerjs/core";
 import { PageElementType, PageType, type ISlideData } from "@univerjs/slides";
-import { Document, Packer, Paragraph, TextRun } from "docx";
-import JSZip from "jszip";
-import mammoth from "mammoth";
 import PptxGenJS from "pptxgenjs";
 
+import { exportDocumentToDocx } from "@/components/content-editor/file-view/content-editor-docx-export";
+import { readDocxDocument } from "@/components/content-editor/file-view/content-editor-docx-import";
 import {
   officeExtensionForViewer,
   officeMimeTypeForViewer,
 } from "@/components/content-editor/file-view/content-editor-office-mime";
+import {
+  applyPptxTextEdits,
+  extractPptxSlideTexts,
+  type PptxSlideText,
+} from "@/components/content-editor/file-view/content-editor-pptx-text";
+import { isErr } from "@/lib/primitives/result/results";
 
 export type ContentEditorOfficeKind = "docx" | "xlsx" | "pptx";
+
+/** The PowerPoint file a pptx snapshot was read from, with the text of each of its slides. */
+export type ContentEditorPptxBase = { content: Uint8Array; slides: PptxSlideText[] };
 
 export type ContentEditorOfficeSnapshot =
   | { kind: "docx"; data: IDocumentData }
   | { kind: "xlsx"; data: IWorkbookData }
-  | { kind: "pptx"; data: ISlideData };
+  | {
+      kind: "pptx";
+      /** Slide text for display only. */
+      data: ISlideData;
+      base?: ContentEditorPptxBase;
+      /** Edited paragraph text by unit id. Save writes it back into `base`. */
+      edits?: Readonly<Record<string, string>>;
+    };
 
 function randomId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-/** Decode common XML text entities. `&amp;` must be last to avoid double-unescaping. */
-export function decodeXmlTextEntities(value: string): string {
-  return value
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, "&");
 }
 
 function toUint8Array(value: ArrayBuffer | ArrayBufferView | Iterable<number>): Uint8Array {
@@ -73,18 +78,6 @@ function emptyDocumentData(title: string): IDocumentData {
       marginBottom: 72,
       marginLeft: 90,
       marginRight: 90,
-    },
-  };
-}
-
-function documentFromPlainText(title: string, text: string): IDocumentData {
-  const body = BuildTextUtils.transform.fromPlainText(text.trim() ? text : "");
-  const dataStream = body.dataStream.endsWith("\r\n") ? body.dataStream : `${body.dataStream}\r\n`;
-  return {
-    ...emptyDocumentData(title),
-    body: {
-      ...body,
-      dataStream,
     },
   };
 }
@@ -128,6 +121,7 @@ function emptySlideData(title: string): ISlideData {
   };
 }
 
+/** One text box per slide. A slide without text stays blank. */
 function slideDataFromTexts(title: string, slideTexts: string[]): ISlideData {
   const texts = slideTexts.length > 0 ? slideTexts : [title || "Untitled presentation"];
   const pageOrder: string[] = [];
@@ -144,22 +138,24 @@ function slideDataFromTexts(title: string, slideTexts: string[]): ISlideData {
       title: `Slide ${index + 1}`,
       description: "",
       pageBackgroundFill: { rgb: "#FFFFFF" },
-      pageElements: {
-        [elementId]: {
-          id: elementId,
-          zIndex: 1,
-          left: 80,
-          top: 120,
-          width: 800,
-          height: 320,
-          title: `Content ${index + 1}`,
-          description: "",
-          type: PageElementType.TEXT,
-          richText: {
-            text: slideText,
-          },
-        },
-      },
+      pageElements: slideText
+        ? {
+            [elementId]: {
+              id: elementId,
+              zIndex: 1,
+              left: 80,
+              top: 120,
+              width: 800,
+              height: 320,
+              title: `Content ${index + 1}`,
+              description: "",
+              type: PageElementType.TEXT,
+              richText: {
+                text: slideText,
+              },
+            },
+          }
+        : {},
     };
   });
 
@@ -198,36 +194,26 @@ async function importXlsxFile(file: File): Promise<IWorkbookData> {
 }
 
 async function importDocxFile(file: File, title: string): Promise<IDocumentData> {
-  const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.extractRawText({ arrayBuffer });
-  return documentFromPlainText(title, result.value || "");
+  const base = emptyDocumentData(title);
+  return { ...base, ...(await readDocxDocument(await file.arrayBuffer(), base.documentStyle)) };
 }
 
-async function importPptxFile(file: File, title: string): Promise<ISlideData> {
-  const zip = await JSZip.loadAsync(await file.arrayBuffer());
-  const slidePaths = Object.keys(zip.files)
-    .filter((name) => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
-    .toSorted((a, b) => {
-      const aNum = Number(a.match(/slide(\d+)\.xml$/i)?.[1] ?? 0);
-      const bNum = Number(b.match(/slide(\d+)\.xml$/i)?.[1] ?? 0);
-      return aNum - bNum;
-    });
-
-  const slideTexts: string[] = [];
-  for (const slidePath of slidePaths) {
-    const xml = await zip.file(slidePath)?.async("string");
-    if (!xml) {
-      continue;
-    }
-    const matches = [...xml.matchAll(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g)];
-    const text = matches
-      .map((match) => decodeXmlTextEntities(match[1]).trim())
-      .filter(Boolean)
-      .join("\n");
-    slideTexts.push(text || `Slide ${slideTexts.length + 1}`);
+async function importPptxFile(
+  file: File,
+  title: string,
+): Promise<{ data: ISlideData; base: ContentEditorPptxBase }> {
+  const content = new Uint8Array(await file.arrayBuffer());
+  const slides = await extractPptxSlideTexts(content);
+  if (isErr(slides)) {
+    throw new Error("This PowerPoint file could not be read");
   }
-
-  return slideDataFromTexts(title, slideTexts);
+  return {
+    data: slideDataFromTexts(
+      title,
+      slides.value.map((slide) => slide.units.map((unit) => unit.text).join("\n")),
+    ),
+    base: { content, slides: slides.value },
+  };
 }
 
 export async function loadOfficeSnapshotFromUrl(input: {
@@ -251,7 +237,7 @@ export async function loadOfficeSnapshotFromFile(input: {
     case "xlsx":
       return { kind: "xlsx", data: await importXlsxFile(input.file) };
     case "pptx":
-      return { kind: "pptx", data: await importPptxFile(input.file, title) };
+      return { kind: "pptx", ...(await importPptxFile(input.file, title)) };
   }
 }
 
@@ -372,24 +358,23 @@ export async function exportOfficeSnapshotToFile(input: {
   }
 
   if (kind === "docx") {
-    const text = plainTextFromDocument(input.snapshot.data);
-    const paragraphs = (text || "").split(/\n/).map(
-      (line) =>
-        new Paragraph({
-          children: [new TextRun(line)],
-        }),
-    );
-    const document = new Document({
-      sections: [
-        {
-          children: paragraphs.length > 0 ? paragraphs : [new Paragraph({ children: [] })],
-        },
-      ],
-    });
-    const buffer = await Packer.toBuffer(document);
-    return new File([toArrayBuffer(buffer)], filename, { type: mimeType });
+    const blob = await exportDocumentToDocx(input.snapshot.data);
+    return new File([blob], filename, { type: mimeType });
   }
 
+  if (input.snapshot.base) {
+    // Only edited paragraphs are rewritten, so layout, images, tables, and formatting are kept.
+    const edited = await applyPptxTextEdits(
+      input.snapshot.base.content,
+      input.snapshot.edits ?? {},
+    );
+    if (isErr(edited)) {
+      throw new Error("The PowerPoint file could not be saved");
+    }
+    return new File([toArrayBuffer(edited.value)], filename, { type: mimeType });
+  }
+
+  // Without a source or target file there is no deck to keep, so build a plain one.
   const pptx = new PptxGenJS();
   const slides = plainTextsFromSlide(input.snapshot.data);
   for (const slideText of slides.length > 0 ? slides : [""]) {

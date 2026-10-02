@@ -14,7 +14,8 @@
  */
 import { FloppyDiskIcon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import {
@@ -39,20 +40,26 @@ export function ContentEditorOfficeFileViewerPane({
   kind,
   role,
   src,
+  seedSrc,
   filename,
   isLoading,
   canEdit = true,
   isBusy = false,
   onSave,
+  saveActionsContainer,
 }: {
   kind: ContentEditorOfficeKind;
   role: "source" | "target";
   src?: string | null;
+  /** Source file an editable target starts from when no translated file exists. */
+  seedSrc?: string | null;
   filename: string;
   isLoading?: boolean;
   canEdit?: boolean;
   isBusy?: boolean;
   onSave?: (file: File) => void | Promise<void>;
+  /** Element outside the pane that hosts the Save button, such as the File view header. */
+  saveActionsContainer?: HTMLElement | null;
 }) {
   const intl = useIntl();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -61,36 +68,33 @@ export function ContentEditorOfficeFileViewerPane({
   const [isMounting, setIsMounting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [previewSnapshot, setPreviewSnapshot] = useState<ContentEditorOfficeSnapshot | null>(null);
-  const useStoryPreview = isCatStoryOfficeAssetUrl(src);
   const readOnly = role === "source" || !canEdit;
+  const loadSrc = src ?? (readOnly ? null : seedSrc);
+  const useStoryPreview = isCatStoryOfficeAssetUrl(loadSrc);
 
   const emptyLabel =
     role === "source"
       ? intl.formatMessage(contentEditorFileViewMessages.sourceEmpty)
       : intl.formatMessage(contentEditorFileViewMessages.targetEmpty);
 
-  const mountEditor = useEffectEvent(async (snapshot: ContentEditorOfficeSnapshot) => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
-    hostRef.current?.dispose();
-    hostRef.current = null;
-    container.replaceChildren();
-    hostRef.current = await mountCatUniverHost({
-      container,
-      snapshot,
-      readOnly,
-    });
-  });
-
   useEffect(() => {
-    let cancelled = false;
+    const abortController = new AbortController();
+    const { signal } = abortController;
+
+    async function mountEditor(snapshot: ContentEditorOfficeSnapshot) {
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+      const host = await mountCatUniverHost({ container, snapshot, readOnly, signal });
+      if (signal.aborted) {
+        host.dispose();
+        return;
+      }
+      hostRef.current = host;
+    }
 
     async function run() {
-      hostRef.current?.dispose();
-      hostRef.current = null;
-      containerRef.current?.replaceChildren();
       setPreviewSnapshot(null);
 
       if (isLoading) {
@@ -99,7 +103,7 @@ export function ContentEditorOfficeFileViewerPane({
         return;
       }
 
-      if (!src) {
+      if (!loadSrc) {
         if (readOnly) {
           setIsMounting(false);
           setError(null);
@@ -110,17 +114,17 @@ export function ContentEditorOfficeFileViewerPane({
         setError(null);
         try {
           const snapshot = emptyOfficeSnapshot(kind, filename);
-          if (cancelled) {
+          if (signal.aborted) {
             return;
           }
           await mountEditor(snapshot);
         } catch (mountError) {
-          if (cancelled) {
+          if (signal.aborted) {
             return;
           }
           setError(mountError instanceof Error ? mountError.message : String(mountError));
         } finally {
-          if (!cancelled) {
+          if (!signal.aborted) {
             setIsMounting(false);
           }
         }
@@ -132,10 +136,10 @@ export function ContentEditorOfficeFileViewerPane({
       try {
         const snapshot = await loadOfficeSnapshotFromUrl({
           kind,
-          src,
+          src: loadSrc,
           filename,
         });
-        if (cancelled) {
+        if (signal.aborted) {
           return;
         }
         if (useStoryPreview) {
@@ -144,12 +148,12 @@ export function ContentEditorOfficeFileViewerPane({
         }
         await mountEditor(snapshot);
       } catch (mountError) {
-        if (cancelled) {
+        if (signal.aborted) {
           return;
         }
         setError(mountError instanceof Error ? mountError.message : String(mountError));
       } finally {
-        if (!cancelled) {
+        if (!signal.aborted) {
           setIsMounting(false);
         }
       }
@@ -158,11 +162,11 @@ export function ContentEditorOfficeFileViewerPane({
     void run();
 
     return () => {
-      cancelled = true;
+      abortController.abort();
       hostRef.current?.dispose();
       hostRef.current = null;
     };
-  }, [filename, isLoading, kind, mountEditor, readOnly, src, useStoryPreview]);
+  }, [filename, isLoading, kind, loadSrc, readOnly, useStoryPreview]);
 
   async function handleSave() {
     if (!onSave) {
@@ -189,36 +193,41 @@ export function ContentEditorOfficeFileViewerPane({
     return null;
   }
 
+  const saveButton =
+    role === "target" && onSave ? (
+      <Button
+        type="button"
+        variant="outline"
+        size="xs"
+        disabled={
+          !canEdit ||
+          isBusy ||
+          isSaving ||
+          isMounting ||
+          Boolean(isLoading) ||
+          (useStoryPreview && !previewSnapshot)
+        }
+        onClick={() => void handleSave()}
+      >
+        {isSaving ? (
+          <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
+        ) : (
+          <HugeiconsIcon icon={FloppyDiskIcon} className="size-3" aria-hidden />
+        )}
+        <FormattedMessage {...contentEditorFileViewMessages.saveEdits} />
+      </Button>
+    ) : null;
+
   return (
-    <div className="flex min-h-56 flex-col gap-2">
-      {role === "target" && onSave ? (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            disabled={
-              !canEdit ||
-              isBusy ||
-              isSaving ||
-              isMounting ||
-              Boolean(isLoading) ||
-              (useStoryPreview && !previewSnapshot)
-            }
-            onClick={() => void handleSave()}
-          >
-            {isSaving ? (
-              <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
-            ) : (
-              <HugeiconsIcon icon={FloppyDiskIcon} className="size-3" aria-hidden />
-            )}
-            <FormattedMessage {...contentEditorFileViewMessages.saveEdits} />
-          </Button>
-        </div>
+    <div className="flex h-full min-h-56 flex-col gap-2">
+      {saveActionsContainer ? (
+        createPortal(saveButton, saveActionsContainer)
+      ) : saveButton ? (
+        <div className="flex justify-end">{saveButton}</div>
       ) : null}
       <div
         className={cn(
-          "relative min-h-72 overflow-hidden border border-border bg-background",
+          "relative min-h-72 flex-1 overflow-hidden border border-border bg-background",
           !src && readOnly && role === "target" ? "border-dashed" : "",
         )}
       >
@@ -240,10 +249,11 @@ export function ContentEditorOfficeFileViewerPane({
         {useStoryPreview && previewSnapshot ? (
           <ContentEditorOfficeFilePreview
             snapshot={previewSnapshot}
-            className="max-h-[28rem] overflow-y-auto"
+            className="absolute inset-0 overflow-y-auto"
           />
         ) : (
-          <div ref={containerRef} className="h-[28rem] w-full" />
+          // Univer sizes itself to its container, so the container fills the pane.
+          <div ref={containerRef} className="absolute inset-0" />
         )}
       </div>
     </div>

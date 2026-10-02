@@ -98,11 +98,13 @@ func main() {
 		seats:     fallbackMemberSeats{limit: localSeatFallbackLimit},
 		analytics: newGAProductUsageTrackerFromEnv(),
 	}
+	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{}
 	h.notifications = &notificationsAPI{}
 	h.activityLogs = &activityLogAPI{}
 	h.contentEditor = &editorCatAPI{}
 	h.projects = &projectAPI{activityLog: activityLogPublisher}
+	h.publicTranslations = &publicTranslationsAPI{auth: newPublicAPIAuthFromEnv(nil, nil)}
 	if autumnKey := strings.TrimSpace(os.Getenv("AUTUMN_API_KEY")); autumnKey != "" {
 		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
 			log.Printf("configure autumn: %v", err)
@@ -154,9 +156,11 @@ func main() {
 		h.notifications.pool = traced
 		h.teams.pool = traced
 		h.members.pool = traced
+		h.apiKeys.pool = traced
 		h.activityLogs.pool = traced
 		h.contentEditor.pool = traced
 		h.projects.pool = traced
+		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
 		if err != nil {
@@ -202,11 +206,13 @@ func main() {
 	h.qaReports.membership = membershipLookup
 	h.teams.membership = membershipLookup
 	h.members.membership = membershipLookup
+	h.apiKeys.membership = membershipLookup
 	h.issueSheets.membership = membershipLookup
 	h.notifications.membership = membershipLookup
 	h.activityLogs.membership = membershipLookup
 	h.contentEditor.membership = membershipLookup
 	h.projects.membership = membershipLookup
+	h.publicTranslations.auth.membership = membershipLookup
 	h.workspace.membership = membershipLookup
 
 	mux := http.NewServeMux()

@@ -1,26 +1,26 @@
 # Datadog APM runbook
 
-This app uses the OpenTelemetry SDK directly, not `dd-trace-go` — spans are exported over OTLP/HTTP to a Datadog Agent or an OpenTelemetry Collector configured with a Datadog exporter. See `README.md`'s "OpenTelemetry / Tracing" and "Datadog log correlation" sections for what's emitted and exactly where each value comes from.
+This app uses Datadog's compile-time Go instrumentation with Orchestrion. Orchestrion rewrites supported dependencies during the ECS build, and the generated code uses the `dd-trace-go/v2` runtime to send spans to the Datadog Agent. See `README.md`'s "Datadog tracing" and "Datadog log correlation" sections for the application behavior.
 
 ## What this repo controls vs. what's external
 
 Controlled here:
 
-- OTel SDK setup, span creation, and resource attributes (`telemetry.go`, `telemetry_middleware.go`).
+- Datadog tracer setup and the OpenTelemetry bridge used by the route-safe middleware (`telemetry.go`, `telemetry_middleware.go`).
+- The Orchestrion tool manifest and ECS compile-time instrumentation (`orchestrion.tool.go`, `Dockerfile.ecs`).
 - The `dd.trace_id` / `dd.span_id` / `dd.service` / `dd.env` / `dd.version` log correlation fields (`telemetry_log_handler.go`).
 
 External to this repo — there is no Terraform, Kubernetes, or Datadog pipeline configuration checked in anywhere in this monorepo:
 
-- The actual value of `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, set in the ECS task definition, pointing at a Datadog Agent's OTLP/HTTP receiver or a Collector with a Datadog exporter.
-- Whether that Agent/Collector is configured to ingest OTel-native IDs (128-bit hex trace ID, 64-bit hex span ID) for both traces and log correlation, as opposed to legacy 64-bit decimal APM ingestion. Datadog's current documentation states native OTel hex IDs are supported for log-trace correlation, but this repo has no visibility into, or control over, how the receiving end is actually configured — confirm this post-deploy (see Verification below), don't assume it from the docs alone.
+- The actual ECS task value of `DD_TRACE_AGENT_URL`, which must resolve to the Datadog Agent's APM intake endpoint (`http://127.0.0.1:8126` for the current sidecar).
 - Any Datadog-side log pipeline, remapper, or facet configuration for the `dd.*` attributes — none of it is repo-managed; it lives entirely in the Datadog UI.
 - Whether the ECS deployment task definition receives the exact immutable image tag as `DD_VERSION` and the deployment environment as `DD_ENV` — these values are owned by the infrastructure repository and deployment workflow.
 
 ## ECS enablement
 
-The ECS task definition sets `DD_ENV` and `DD_VERSION`. The deployment workflow updates `DD_VERSION` to the exact immutable image tag whenever a new image is deployed, so the application logs and OTel resource attributes identify the running image.
+The ECS task definition sets `DD_TRACE_AGENT_URL`, `DD_TRACE_ENABLED`, `DD_SERVICE`, `DD_ENV`, and `DD_VERSION`. The deployment workflow updates `DD_VERSION` to the exact immutable image tag whenever a new image is deployed, so the application logs and Datadog traces identify the running image.
 
-Set `OTEL_EXPORTER_OTLP_ENDPOINT` (or the traces-specific `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) to the Datadog Agent's or Collector's OTLP/HTTP receiver. Tracing — and therefore log correlation, since `dd.trace_id` / `dd.span_id` only ever appear on a log record when a span is active — is a complete no-op until one of these is set.
+Set `DD_TRACE_AGENT_URL` to the Datadog Agent's APM intake endpoint and keep `DD_TRACE_ENABLED=true`. Tracing — and therefore log correlation, since `dd.trace_id` / `dd.span_id` only ever appear on a log record when a span is active — is a no-op when tracing is disabled.
 
 ## Data-safety rules
 
@@ -30,7 +30,7 @@ Unchanged from the existing tracing guarantees documented in the README: span at
 
 **Verifiable in this repo**: the correlation mechanism itself — see `telemetry_log_handler_test.go` and the end-to-end test in `request_log_test.go` — via `go test ./apps/go-svc/...`.
 
-**Must be verified after deployment**, since the Datadog Agent/Collector endpoint and how it ingests these IDs are external to this repo:
+**Must be verified after deployment**, since the Datadog Agent endpoint and Datadog log pipeline are external to this repo:
 
 1. Issue one known request against a deployed environment.
 2. Locate its APM trace in Datadog.
@@ -41,4 +41,4 @@ Unchanged from the existing tracing guarantees documented in the README: span at
 
 ## Rollback
 
-Unset `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (or set `OTEL_SDK_DISABLED=true`) and redeploy to stop tracing entirely. Logs keep emitting `dd.service` / `dd.env` / `dd.version` (harmless without a matching trace) but never `dd.trace_id` / `dd.span_id`, since no span will ever be active. No code change or Datadog-side action is required to stop this service's log correlation.
+Set `DD_TRACE_ENABLED=false` and redeploy to stop tracing entirely. Logs keep emitting `dd.service` / `dd.env` / `dd.version` (harmless without a matching trace) but never `dd.trace_id` / `dd.span_id`, since no span will ever be active. No code change or Datadog-side action is required to stop this service's log correlation.

@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs (parallel to Hono), and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs, personal API key management, database-backed public translation download, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public browser routes are served at `https://api.hyperlocalise.com/v1/...` from `GoSvcClient` callers (Bearer token, CORS). The Next.js server calls `/v1/...` or `/ofrep/...` at the same origin via `GO_SVC_URL` (typically `https://api.hyperlocalise.com` in production).
 
@@ -31,7 +31,9 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `WORKOS_API_HOSTNAME` | `api.workos.com` | WorkOS API host used for session refresh and JWKS (`/sso/jwks/{client_id}`). Point at the WorkOS emulator in local e2e. |
 | `WORKOS_API_HTTPS` | `true` | Set `false` for the local emulator. |
 | `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
-| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, member, issue-sheet, and Hyperlab OFREP evaluate routes. |
+| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, member, issue-sheet, public translation download, and Hyperlab OFREP evaluate routes. |
+| `WORKOS_AUTHKIT_DOMAIN` | _(unset)_ | AuthKit domain without a scheme (for example `your-app.authkit.app`). Sets the Agent Registration JWT issuer (`https://{domain}`) and JWKS (`https://{domain}/.well-known/jwks.json`) for the public translation download. When unset, agent bearer tokens are rejected with 401; `X-API-Key` tokens still work. |
+| `HYPERLOCALISE_PUBLIC_APP_URL` | _(unset)_ | Public web app URL (for example `https://hyperlocalise.com`). Its origin adds `{origin}/api/v1` and `{origin}/mcp` to the accepted Agent Registration JWT audiences (alongside `WORKOS_CLIENT_ID`) and is used in the `WWW-Authenticate` resource-metadata URL. When unset, the challenge falls back to the request origin. |
 | `VALKEY_ENDPOINT` | _(unset)_ | Valkey hostname. When set without `VALKEY_URL`, go-svc builds a URL from this endpoint, `VALKEY_PORT`, and `VALKEY_TLS`. |
 | `VALKEY_PORT` | `6379` | Valkey port used with `VALKEY_ENDPOINT`. |
 | `VALKEY_TLS` | _(unset)_ | Set to `required`, `true`, or `enabled` to use `rediss://` with `VALKEY_ENDPOINT`; other values use `redis://`. |
@@ -100,27 +102,29 @@ go-svc, including the `Engine` interface, request and response types,
 configuration, and typed errors. Vendor MT integrations use this package as
 library clients; it does not expose an HTTP route.
 
-### OpenTelemetry / Tracing
+### Datadog tracing
 
-go-svc instruments inbound HTTP requests with OpenTelemetry and exports spans over OTLP/HTTP, reusing the same SDK and exporter as the CLI's telemetry (`apps/cli/internal/cliotel`) rather than a separate Datadog-specific stack. Tracing is a no-op unless an OTLP endpoint is configured.
+go-svc is instrumented at compile time with Datadog Orchestrion. The build rewrites supported Go libraries to create Datadog spans, while the service's route-safe HTTP middleware remains in place for inbound request spans. The Datadog tracer runtime sends spans directly to the Datadog Agent over port `8126`; this is separate from the optional OpenTelemetry/OTLP receiver exposed by the ECS sidecar.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ | Base OTLP endpoint (traces are exported over HTTP via `otlptracehttp`). Tracing stays disabled if neither this nor `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set. |
-| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | _(unset)_ | Traces-specific OTLP endpoint, if it differs from the base endpoint above. |
-| `OTEL_SDK_DISABLED` | _(unset)_ | Set to `true` to force tracing off even if an endpoint is configured. |
+| `DD_TRACE_AGENT_URL` | `http://127.0.0.1:8126` | Datadog Agent trace intake URL. In ECS this points to the Datadog sidecar. |
+| `DD_TRACE_ENABLED` | `true` | Set to `false` to disable Datadog tracing. |
+| `DD_SERVICE` | `go-svc` | Datadog service name. |
+| `DD_ENV` | _(unset)_ | Datadog deployment environment. |
+| `DD_VERSION` | _(unset)_ | Datadog release/image version. The ECS deploy action sets this to the immutable image tag. |
 
-Unlike the CLI, there is no separate app-specific opt-in flag: go-svc traces whenever an OTLP endpoint is present. `service.version` and `deployment.environment.name` are read from the ECS/Datadog environment variables:
+`service.version` and `deployment.environment.name` are represented in Datadog by `DD_VERSION` and `DD_ENV`:
 
 | Resource attribute | Source | Behavior when unset |
 |---|---|---|
-| `service.name` | Hardcoded to `go-svc` | n/a |
+| `service.name` | `DD_SERVICE` | `go-svc` |
 | `service.version` | `DD_VERSION` | Attribute omitted (not sent as `"unknown"`) |
 | `deployment.environment.name` | `DD_ENV` | Attribute omitted (not sent as `"unknown"`) |
 
 **Deployment prerequisite**: the ECS task definition must set `DD_VERSION` to the exact immutable image tag and `DD_ENV` to the deployment environment. The ECS deployment workflow updates `DD_VERSION` whenever it replaces the application image.
 
-**Datadog Agent / Collector setup**: point `OTEL_EXPORTER_OTLP_ENDPOINT` at the Datadog Agent's native OTLP/HTTP receiver (default `http://<agent-host>:4318`) or at an OpenTelemetry Collector configured with a Datadog exporter. go-svc only speaks OTLP/HTTP, matching the CLI's exporter choice — there is no gRPC exporter in this repo.
+**Datadog Agent setup**: the ECS task definition must expose the Agent trace intake endpoint to the application container. In the current ECS task this is `http://127.0.0.1:8126`. The application does not need `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` for this tracing path.
 
 What's traced:
 
@@ -139,13 +143,13 @@ Every log record written while a request span is active carries five top-level s
 |---|---|---|
 | `dd.trace_id` | Active span's `SpanContext.TraceID()` (32-char lowercase hex) | A valid span is active in the logging call's context |
 | `dd.span_id` | Active span's `SpanContext.SpanID()` (16-char lowercase hex) | Same as above |
-| `dd.service` | Hardcoded `"go-svc"` — the same constant as `service.name` above | Always |
+| `dd.service` | `DD_SERVICE`, falling back to `"go-svc"` — the same value as `service.name` above | Always |
 | `dd.env` | `DD_ENV` — the same source as `deployment.environment.name` above | `DD_ENV` is set |
 | `dd.version` | `DD_VERSION` — the same source as `service.version` above | `DD_VERSION` is set |
 
 Enrichment happens in one `slog.Handler` wrapper (`telemetry_log_handler.go`) installed as the default logger in `main.go`. It reads `dd.service`/`dd.env`/`dd.version` from the same `loadServiceResourceInfo()` helper `initTelemetry` uses for the trace Resource (`telemetry.go`), so the log fields and the trace's resource attributes can never diverge. `dd.trace_id`/`dd.span_id` are added only when the log call's `context.Context` carries a valid span — startup/background logs never get fabricated IDs, and the existing JSON shape, redaction-by-omission behavior, and bounded-route (`requestLogPath`) handling are unchanged; the handler only adds fields, never removes or rewrites existing ones.
 
-IDs are emitted in OpenTelemetry's native hex format — there's no decimal conversion, since go-svc has no `dd-trace-go`/`ddtrace` dependency. See [`DATADOG.md`](./DATADOG.md) for what Datadog-side setup this depends on and the post-deploy verification checklist.
+IDs are emitted using Datadog's native trace context and are available to both Orchestrion-created spans and the route middleware through the Datadog/OpenTelemetry bridge. See [`DATADOG.md`](./DATADOG.md) for the Datadog-side setup and post-deploy verification checklist.
 
 ## Local development
 
@@ -163,6 +167,9 @@ export WORKOS_CLIENT_ID='client_...'
 export ACTIVITY_LOG_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../activity-log'
 # Optional: enables asynchronous glossary import/export publishing and checks the queue in /health.
 export GLOSSARY_INTERCHANGE_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../glossary-interchange'
+# Optional: accept Agent Registration JWTs on the public translation download.
+export WORKOS_AUTHKIT_DOMAIN='your-app.authkit.app'
+export HYPERLOCALISE_PUBLIC_APP_URL='http://localhost:3000'
 go run ./apps/go-svc
 ```
 
@@ -199,7 +206,7 @@ Production ECS builds use `apps/go-svc/Dockerfile.ecs`. The image:
 
 Set the required WorkOS variables in the ECS task's runtime secret. Use the same `WORKOS_COOKIE_PASSWORD` as `hyperlocalise-web`.
 
-For tracing, the ECS task definition sets `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `DD_VERSION`, and `DD_ENV`. The ECS deployment workflow updates `DD_VERSION` to the exact immutable image tag for each release (see [OpenTelemetry / Tracing](#opentelemetry--tracing) above).
+For tracing, the ECS task definition sets `DD_TRACE_AGENT_URL`, `DD_TRACE_ENABLED`, `DD_SERVICE`, `DD_VERSION`, and `DD_ENV`. The ECS deployment workflow updates `DD_VERSION` to the exact immutable image tag for each release (see [Datadog tracing](#datadog-tracing) above).
 
 ## API
 
@@ -215,6 +222,7 @@ For tracing, the ECS task definition sets `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, 
 | `POST` | `/v1/domains/gsc/sites` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | List verified Search Console properties for a minted access token |
 | `POST` | `/v1/domains/gsc/performance` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Query Search Analytics clicks, impressions, CTR, and position |
 | `POST` | `/v1/domains/gsc/inspect` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Inspect one URL against a Search Console property |
+| `GET` | `/v1/projects/{projectId}/translations/download` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `files:read` | Download one source file's translations for a locale as JSON |
 | `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 
@@ -272,6 +280,44 @@ Japanese, and Korean text is approximated per character, while Thai, Lao,
 Khmer, and Myanmar text may be under-counted. As a result,
 `translationProgress` and `approvalProgress` should be treated as approximate
 for these source locales.
+
+## Public translation download
+
+`GET /v1/projects/{projectId}/translations/download?sourcePath=...&locale=...`
+builds and downloads a source file's translations from PostgreSQL.
+
+**Authentication.** Supply either a personal access token in `X-API-Key` or a
+WorkOS Agent Registration bearer JWT. The token must include `files:read`, and
+access is limited by the owner's current organization role and team membership.
+Unknown, revoked, and ownerless personal access tokens return the same 401
+response. Membership is verified through WorkOS; lookup failures return 503.
+
+**Response.** The project must be accessible to the authenticated user:
+workspace-wide for `admin` and `localization_manager`, otherwise through team
+membership. Projects without a team are treated as belonging to the default
+team.
+
+Every source key is included. Missing, rejected, and blank translations fall
+back to the source text, as does visible `needs_review` text that repeats a
+multi-word source. There is no key limit.
+
+The response is formatted as two-space-indented JSON with a trailing newline
+and served as `application/json; charset=utf-8` with an attachment filename
+derived from the source path and locale. All source formats are returned with a
+JSON body while retaining their original file extension.
+
+| Status | `error` | When |
+|--------|---------|------|
+| 400 | `invalid_translation_payload` | `sourcePath` or `locale` is missing, invalid, too long, or repeated |
+| 404 | `project_not_found` | Project id is invalid or the project is not accessible |
+| 404 | `source_file_not_found` | No source file exists at the requested path |
+| 404 | `translations_not_found` | The source file has no translation keys |
+| 501 | `not_implemented` | Lottie translation download is not supported |
+| 503 | `workos_membership_lookup_failed` | WorkOS membership could not be verified |
+
+Lottie sources (`.lottie`, or `.json` containing only Lottie text keys) are not
+supported because native download does not use Blob storage. Responses include
+`Cache-Control: no-store`.
 
 ## Content editor (CAT)
 
@@ -448,6 +494,47 @@ Invite and pending-role updates send WorkOS invitations. Active memberships
 sync role and removal through WorkOS organization memberships. Successful
 mutations write `member_invited`, `member_invite_resent`, `member_role_changed`,
 and `member_removed` events to `organization_activity_events`.
+
+## Personal API keys
+
+Go serves user-owned personal access tokens at
+`/v1/orgs/{organizationSlug}/api-keys`. Authentication requires an active
+WorkOS organization membership.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/api-keys` | List accessible tokens |
+| POST | `/api-keys` | Create a token owned by the caller |
+| DELETE | `/api-keys/{apiKeyId}` | Revoke an accessible token |
+
+Members may manage their own tokens. `admin` and `localization_manager` may
+also list and revoke other members' tokens through `api_keys:read` and
+`api_keys:write`.
+
+- **Storage.** Tokens use the `hl_` prefix with 32 random bytes encoded as
+  base64url. Only the SHA-256 digest and 8-character display prefix are stored.
+  Plaintext is returned once on creation and is never logged or persisted.
+- **Scopes.** Tokens support `jobs:read`, `jobs:write`, `files:read`, and
+  `files:write`, capped by the owner's role. Omitting `permissions` grants all
+  scopes available to that role.
+- **Issuance.** Creation locks the caller's membership row to serialize against
+  membership removal. A token is never committed active unless its
+  `pat.created` audit record succeeds.
+- **Revocation.** Revocation is idempotent and race-safe. Concurrent revocations
+  emit a single `pat.revoked` audit record and activity event.
+- **Listing.** Tokens are ordered by `created_at`, then `id`. Ownerless legacy
+  tokens are reported as revoked.
+
+Create and revoke publish `personal_access_token_created` and
+`personal_access_token_revoked` activity events. Publishing failures are logged
+without failing the request.
+
+Tests cover authorization, validation, audit failure, log hygiene, concurrent
+revocation, and membership-removal races:
+
+```bash
+go test -race ./apps/go-svc -run 'APIKey|PatAudit|EmitPat'
+```
 
 ## Teams
 

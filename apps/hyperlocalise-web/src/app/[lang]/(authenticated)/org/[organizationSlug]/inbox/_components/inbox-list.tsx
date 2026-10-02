@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { memo, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Chat01Icon, FilterIcon, SparklesIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
@@ -70,6 +70,8 @@ export type { InboxIndexItem };
 export type InboxListItemSelection =
   | { kind: "conversation"; id: string }
   | { kind: "notification"; id: string };
+
+export type InboxItemHref = (item: InboxListItemSelection) => string;
 
 export type InboxSelection =
   | { kind: "conversation"; id: string }
@@ -370,7 +372,7 @@ export const InboxList = memo(function InboxList({
   onLoadMoreNotifications,
   onMarkAllRead,
   onSelectItem,
-  notificationHref,
+  itemHref,
   selection,
   unreadNotificationCount,
 }: {
@@ -386,7 +388,7 @@ export const InboxList = memo(function InboxList({
   onLoadMoreNotifications: () => void;
   onMarkAllRead?: () => void;
   onSelectItem: (selection: InboxListItemSelection) => void;
-  notificationHref?: (notificationId: string) => string;
+  itemHref?: InboxItemHref;
   selection: InboxSelection;
   unreadNotificationCount: number;
 }) {
@@ -481,6 +483,7 @@ export const InboxList = memo(function InboxList({
                   isSelected={
                     selection?.kind === "conversation" && selection.id === item.conversation.id
                   }
+                  href={itemHref?.({ kind: "conversation", id: item.conversation.id })}
                   onSelect={(id) => onSelectItem({ kind: "conversation", id })}
                 />
               ) : (
@@ -490,7 +493,7 @@ export const InboxList = memo(function InboxList({
                   isSelected={
                     selection?.kind === "notification" && selection.id === item.notification.id
                   }
-                  href={notificationHref?.(item.notification.id)}
+                  href={itemHref?.({ kind: "notification", id: item.notification.id })}
                   onSelect={(id) => onSelectItem({ kind: "notification", id })}
                 />
               ),
@@ -649,11 +652,13 @@ function ConversationListSkeleton() {
 const ConversationListItem = memo(function ConversationListItem({
   conversation,
   currentUser,
+  href,
   isSelected,
   onSelect,
 }: {
   conversation: Conversation;
   currentUser: InboxCurrentUser;
+  href?: string;
   isSelected: boolean;
   onSelect: (conversationId: string) => void;
 }) {
@@ -668,13 +673,8 @@ const ConversationListItem = memo(function ConversationListItem({
     : intl.formatMessage(inboxListMessages.noMessagesYet);
   const visual = getConversationListItemVisual(conversation.source, intl);
 
-  return (
-    <button
-      type="button"
-      aria-pressed={isSelected}
-      onClick={() => onSelect(conversation.id)}
-      className={listItemClassName(isSelected)}
-    >
+  const content = (
+    <>
       <InboxListItemAvatar visual={visual}>
         {participantAvatar.imageUrl ? (
           <AvatarImage src={participantAvatar.imageUrl} alt={participantAvatar.alt} />
@@ -688,6 +688,27 @@ const ConversationListItem = memo(function ConversationListItem({
         subtitle={preview}
         timestamp={formatRelativeTime(conversation.lastMessageAt, intl)}
       />
+    </>
+  );
+  const className = cn(listItemClassName(isSelected), "no-underline");
+
+  return href ? (
+    <Link
+      href={href}
+      aria-current={isSelected ? "page" : undefined}
+      onNavigate={() => onSelect(conversation.id)}
+      className={className}
+    >
+      {content}
+    </Link>
+  ) : (
+    <button
+      type="button"
+      aria-current={isSelected ? "page" : undefined}
+      onClick={() => onSelect(conversation.id)}
+      className={className}
+    >
+      {content}
     </button>
   );
 });
@@ -733,36 +754,23 @@ const NotificationListItem = memo(function NotificationListItem({
     </>
   );
 
-  if (href) {
-    return (
-      <Link
-        href={href}
-        aria-current={isSelected ? "page" : undefined}
-        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-          if (
-            event.button !== 0 ||
-            event.metaKey ||
-            event.altKey ||
-            event.ctrlKey ||
-            event.shiftKey
-          ) {
-            return;
-          }
-          onSelect(notification.id);
-        }}
-        className={cn(listItemClassName(isSelected, isUnread), "no-underline")}
-      >
-        {content}
-      </Link>
-    );
-  }
+  const className = cn(listItemClassName(isSelected, isUnread), "no-underline");
 
-  return (
+  return href ? (
+    <Link
+      href={href}
+      aria-current={isSelected ? "page" : undefined}
+      onNavigate={() => onSelect(notification.id)}
+      className={className}
+    >
+      {content}
+    </Link>
+  ) : (
     <button
       type="button"
-      aria-pressed={isSelected}
+      aria-current={isSelected ? "page" : undefined}
       onClick={() => onSelect(notification.id)}
-      className={listItemClassName(isSelected, isUnread)}
+      className={className}
     >
       {content}
     </button>

@@ -52,30 +52,32 @@ type validateSegmentResponse struct {
 }
 
 type handler struct {
-	validate          func(segmentvalidate.Request) []segmentvalidate.Check
-	spellChecker      SpellChecker
-	ofrep             *experiment.OFREPHandler
-	research          researchService
-	gsc               gscService
-	objects           *objectstore.Registry
-	guidelines        *guidelines.Service
-	dictionaries      *dictionaryAPI
-	glossaries        *glossaryAPI
-	memories          *memoryAPI
-	qaReports         *qaReportAPI
-	teams             *teamAPI
-	members           *memberAPI
-	issueSheets       *issueSheetAPI
-	notifications     *notificationsAPI
-	activityLogs      *activityLogAPI
-	activityLog       activityLogPublisher
-	contentEditor     *editorCatAPI
-	projects          *projectAPI
-	workspace         *workspaceAPI
-	autumn            *autumn.Client
-	knowledgeMemories *knowledgeMemoryAPI
-	valkey            valkeyHealthClient
-	postgres          healthPinger
+	validate           func(segmentvalidate.Request) []segmentvalidate.Check
+	spellChecker       SpellChecker
+	ofrep              *experiment.OFREPHandler
+	research           researchService
+	gsc                gscService
+	objects            *objectstore.Registry
+	guidelines         *guidelines.Service
+	dictionaries       *dictionaryAPI
+	glossaries         *glossaryAPI
+	memories           *memoryAPI
+	qaReports          *qaReportAPI
+	teams              *teamAPI
+	members            *memberAPI
+	apiKeys            *apiKeyAPI
+	issueSheets        *issueSheetAPI
+	notifications      *notificationsAPI
+	activityLogs       *activityLogAPI
+	activityLog        activityLogPublisher
+	contentEditor      *editorCatAPI
+	projects           *projectAPI
+	publicTranslations *publicTranslationsAPI
+	workspace          *workspaceAPI
+	autumn             *autumn.Client
+	knowledgeMemories  *knowledgeMemoryAPI
+	valkey             valkeyHealthClient
+	postgres           healthPinger
 }
 
 func newHandler() *handler {
@@ -112,6 +114,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	if h.members != nil {
 		h.members.register(mux, verifier)
 	}
+	if h.apiKeys != nil {
+		h.apiKeys.register(mux, verifier)
+	}
 	if h.activityLogs != nil {
 		h.activityLogs.register(mux, verifier)
 	}
@@ -120,6 +125,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.projects != nil {
 		h.projects.register(mux, verifier)
+	}
+	if h.publicTranslations != nil {
+		h.publicTranslations.register(mux)
 	}
 	if h.workspace != nil {
 		h.registerDomainResearch(mux, verifier)

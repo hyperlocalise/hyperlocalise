@@ -10,26 +10,124 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+// @vitest-environment happy-dom
+
 import { describe, expect, it } from "vite-plus/test";
 
-import { BuildTextUtils } from "@univerjs/core";
+import { BuildTextUtils, PresetListType, type IDocumentData } from "@univerjs/core";
+import {
+  AlignmentType,
+  Document,
+  ExternalHyperlink,
+  HeadingLevel,
+  LevelFormat,
+  Packer,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+} from "docx";
+import JSZip from "jszip";
 import PptxGenJS from "pptxgenjs";
 
+import { isErr } from "@/lib/primitives/result/results";
+
+import { buildStyledDocxFixture } from "./content-editor-docx-import.fixture";
 import {
-  decodeXmlTextEntities,
   emptyOfficeSnapshot,
   exportOfficeSnapshotToFile,
   loadOfficeSnapshotFromFile,
+  plainTextsFromSlide,
 } from "./content-editor-office-convert";
+import { extractPptxSlideTexts } from "./content-editor-pptx-text";
+import { PPTX_FIXTURE_ENTRIES, buildPptxFixture } from "./content-editor-pptx-text.fixture";
+
+const STEPS_NUMBERING = {
+  config: [
+    {
+      reference: "steps",
+      levels: [
+        { level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.START },
+      ],
+    },
+  ],
+};
+
+async function loadDocxFile(file: File) {
+  const snapshot = await loadOfficeSnapshotFromFile({ kind: "docx", file });
+  if (snapshot.kind !== "docx") {
+    throw new Error("expected docx snapshot");
+  }
+  return snapshot.data;
+}
+
+async function loadDocx(children: (Paragraph | Table)[]) {
+  const buffer = await Packer.toBuffer(
+    new Document({ numbering: STEPS_NUMBERING, sections: [{ children }] }),
+  );
+  return loadDocxFile(new File([new Uint8Array(buffer)], "brief.docx"));
+}
+
+function saveDocx(data: IDocumentData) {
+  return exportOfficeSnapshotToFile({ snapshot: { kind: "docx", data }, filename: "brief.docx" });
+}
+
+async function documentXml(file: File) {
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  return (await zip.file("word/document.xml")?.async("string")) ?? "";
+}
+
+/** The parts of a document that should survive a save, without generated ids. */
+function documentShape(data: IDocumentData) {
+  return {
+    page: data.documentStyle,
+    stream: data.body?.dataStream,
+    paragraphs: data.body?.paragraphs?.map((paragraph) => ({
+      startIndex: paragraph.startIndex,
+      heading: paragraph.paragraphStyle?.namedStyleType,
+      align: paragraph.paragraphStyle?.horizontalAlign,
+      list: paragraph.bullet && [paragraph.bullet.listType, paragraph.bullet.nestingLevel],
+    })),
+    textRuns: data.body?.textRuns?.map(({ st, ed, ts }) => ({ st, ed, ts })),
+    links: data.body?.customRanges?.map((range) => [
+      range.startIndex,
+      range.endIndex,
+      range.properties?.url,
+    ]),
+    tables: data.body?.tables?.map((table) => ({
+      startIndex: table.startIndex,
+      endIndex: table.endIndex,
+      columns: data.tableSource?.[table.tableId]?.tableColumns.map((column) => column.size.width.v),
+      spans: data.tableSource?.[table.tableId]?.tableRows.map((row) =>
+        row.tableCells.map((cell) => [cell.rowSpan, cell.columnSpan]),
+      ),
+    })),
+  };
+}
+
+const PPTX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
+async function loadPptxFixtureSnapshot() {
+  const snapshot = await loadOfficeSnapshotFromFile({
+    kind: "pptx",
+    file: new File([await buildPptxFixture()], "quarterly-review.pptx", { type: PPTX_MIME_TYPE }),
+  });
+  if (snapshot.kind !== "pptx" || !snapshot.base) {
+    throw new Error("expected a pptx snapshot read from a file");
+  }
+  return { snapshot, base: snapshot.base };
+}
+
+async function slideTextsOfFile(file: File): Promise<string[][]> {
+  const slides = await extractPptxSlideTexts(await file.arrayBuffer());
+  if (isErr(slides)) {
+    throw new Error(`extract failed: ${slides.error.code}`);
+  }
+  return slides.value.map((slide) => slide.units.map((unit) => unit.text));
+}
 
 describe("cat-office-convert", () => {
-  it("decodes XML text entities without double-unescaping", () => {
-    expect(decodeXmlTextEntities("A &amp; B")).toBe("A & B");
-    expect(decodeXmlTextEntities("&lt;tag&gt;")).toBe("<tag>");
-    expect(decodeXmlTextEntities("&amp;lt;")).toBe("&lt;");
-    expect(decodeXmlTextEntities("&quot;hi&#39;")).toBe("\"hi'");
-  });
-
   it("builds empty snapshots for each office kind", () => {
     expect(emptyOfficeSnapshot("docx", "brief.docx").kind).toBe("docx");
     expect(emptyOfficeSnapshot("xlsx", "rates.xlsx").kind).toBe("xlsx");
@@ -53,7 +151,115 @@ describe("cat-office-convert", () => {
     expect(file.size).toBeGreaterThan(0);
   });
 
-  it("exports a pptx file from a slide snapshot", async () => {
+  it("keeps a document's structure and formatting across save and reopen", async () => {
+    const opened = await loadDocx([
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun("Quarterly brief")],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.BOTH,
+        children: [
+          new TextRun("Click "),
+          new TextRun({ text: "Save", bold: true }),
+          new TextRun({ text: " now", italics: true, underline: {} }),
+          new TextRun({ text: " or not", strike: true }),
+          new TextRun({ text: "2", superScript: true }),
+          new TextRun(" at "),
+          new ExternalHyperlink({
+            link: "https://example.com",
+            children: [new TextRun("our site")],
+          }),
+          new TextRun("."),
+        ],
+      }),
+      new Paragraph({ bullet: { level: 0 }, children: [new TextRun("First point")] }),
+      new Paragraph({ bullet: { level: 1 }, children: [new TextRun("Nested point")] }),
+      new Paragraph({
+        numbering: { reference: "steps", level: 0 },
+        children: [new TextRun("Step one")],
+      }),
+      new Paragraph({
+        numbering: { reference: "steps", level: 0 },
+        children: [new TextRun("Step two")],
+      }),
+      new Table({
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph("Plan")] }),
+              new TableCell({
+                children: [
+                  new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("$20")] }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("After the table")] }),
+    ]);
+
+    const reopened = await loadDocxFile(await saveDocx(opened));
+
+    expect(documentShape(reopened)).toEqual(documentShape(opened));
+    expect(opened.body?.paragraphs?.[4]?.bullet?.listType).toBe(PresetListType.ORDER_LIST);
+    expect(opened.body?.tables).toHaveLength(1);
+  });
+
+  it("keeps style-based size, colour, and alignment across save and reopen", async () => {
+    const opened = await loadDocxFile(new File([await buildStyledDocxFixture()], "report.docx"));
+
+    const saved = await saveDocx(opened);
+    const reopened = await loadDocxFile(saved);
+
+    expect(documentShape(reopened)).toEqual(documentShape(opened));
+    const xml = await documentXml(saved);
+    expect(xml).toContain('<w:sz w:val="36"/>');
+    expect(xml).toContain('<w:color w:val="FF0000"/>');
+    expect(xml).toContain('<w:jc w:val="center"/>');
+    expect(xml).toContain("<w:tab/>");
+    expect(xml).toMatch(
+      /Line one<\/w:t><\/w:r><w:r>(<w:rPr>.*?<\/w:rPr>)?<w:br\/><w:t[^>]*>Line two/,
+    );
+  });
+
+  it("writes page size, column widths, and separate numbering for each ordered list", async () => {
+    const opened = await loadDocx([
+      new Paragraph({
+        numbering: { reference: "steps", level: 0 },
+        children: [new TextRun("One")],
+      }),
+      new Paragraph("Between the lists"),
+      new Paragraph({
+        numbering: { reference: "steps", level: 0, instance: 1 },
+        children: [new TextRun("One again")],
+      }),
+      new Table({
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph("Plan")] }),
+              new TableCell({ children: [new Paragraph("Price")] }),
+            ],
+          }),
+        ],
+      }),
+    ]);
+
+    const xml = await documentXml(await saveDocx(opened));
+
+    expect(xml).toContain('<w:pgSz w:w="11906" w:h="16838"');
+    // Unformatted text must not switch off what a paragraph style turns on.
+    expect(xml).not.toContain('w:val="false"');
+    expect(xml.match(/<w:gridCol w:w="4513"\/>/g)).toHaveLength(2);
+    const numberingIds = [...xml.matchAll(/<w:numId w:val="(\d+)"\/>/g)].map((match) => match[1]);
+    expect(numberingIds).toHaveLength(2);
+    expect(new Set(numberingIds).size).toBe(2);
+  });
+
+  it("builds a plain pptx file from a slide snapshot that has no file", async () => {
     const snapshot = emptyOfficeSnapshot("pptx", "deck.pptx");
     const file = await exportOfficeSnapshotToFile({
       snapshot,
@@ -107,5 +313,112 @@ describe("cat-office-convert", () => {
 
     expect(slideText).toContain("Localization progress");
     expect(slideText).toContain("Q1 review for customer-facing strings and assets.");
+  });
+
+  it("shows one text box per slide, in presentation order, without table markup", async () => {
+    const { snapshot, base } = await loadPptxFixtureSnapshot();
+
+    expect(plainTextsFromSlide(snapshot.data)).toEqual([
+      "Acme Corp",
+      [
+        "Quarterly review",
+        "Revenue grew 12% this quarter & costs fell.",
+        "Read the full report",
+        "North\nSouth",
+        "Plan",
+        "Price",
+        "Pro",
+        "$10",
+        "Margin formula",
+      ].join("\n"),
+    ]);
+    expect(base.slides.map((slide) => slide.units.length)).toEqual([1, 9]);
+  });
+
+  it("leaves a slide without text blank", async () => {
+    const pptx = new PptxGenJS();
+    pptx.addSlide().addText("Cover", { x: 0.5, y: 0.5, w: 9, h: 1 });
+    pptx.addSlide();
+    const buffer = (await pptx.write({ outputType: "arraybuffer" })) as ArrayBuffer;
+
+    const snapshot = await loadOfficeSnapshotFromFile({
+      kind: "pptx",
+      file: new File([buffer], "deck.pptx", { type: PPTX_MIME_TYPE }),
+    });
+
+    if (snapshot.kind !== "pptx") {
+      throw new Error("expected pptx snapshot");
+    }
+    const pages = snapshot.data.body?.pageOrder.map((pageId) => snapshot.data.body?.pages[pageId]);
+    expect(pages?.map((page) => Object.keys(page?.pageElements ?? {}).length)).toEqual([1, 0]);
+  });
+
+  it("rejects a pptx file that cannot be read", async () => {
+    await expect(
+      loadOfficeSnapshotFromFile({ kind: "pptx", file: new File(["not a deck"], "deck.pptx") }),
+    ).rejects.toThrow("This PowerPoint file could not be read");
+  });
+
+  it("saves an unedited pptx snapshot as the file it was read from", async () => {
+    const { snapshot } = await loadPptxFixtureSnapshot();
+
+    const file = await exportOfficeSnapshotToFile({ snapshot, filename: "quarterly-review.pptx" });
+
+    expect(file.name).toBe("quarterly-review.pptx");
+    expect(file.type).toBe(PPTX_MIME_TYPE);
+    const zip = await JSZip.loadAsync(await file.arrayBuffer());
+    const entries: Record<string, string> = {};
+    for (const [name, entry] of Object.entries(zip.files)) {
+      entries[name] = await entry.async("string");
+    }
+    expect(entries).toEqual(PPTX_FIXTURE_ENTRIES);
+  });
+
+  it("writes edited slide text back and reads it again", async () => {
+    const { snapshot, base } = await loadPptxFixtureSnapshot();
+    const [cover, content] = base.slides;
+    const edits = {
+      [cover!.units[0]!.id]: "Acme SARL",
+      [content!.units[0]!.id]: "Revue trimestrielle",
+      [content!.units[5]!.id]: "Prix",
+    };
+
+    const file = await exportOfficeSnapshotToFile({
+      snapshot: { ...snapshot, edits },
+      filename: "quarterly-review.pptx",
+    });
+
+    expect(await slideTextsOfFile(file)).toEqual([
+      ["Acme SARL"],
+      [
+        "Revue trimestrielle",
+        "Revenue grew 12% this quarter & costs fell.",
+        "Read the full report",
+        "North\nSouth",
+        "Plan",
+        "Prix",
+        "Pro",
+        "$10",
+        "Margin formula",
+      ],
+    ]);
+
+    // The saved file opens as the next base, so a second save builds on the first.
+    const reloaded = await loadOfficeSnapshotFromFile({ kind: "pptx", file });
+    if (reloaded.kind !== "pptx" || !reloaded.base) {
+      throw new Error("expected a pptx snapshot read from a file");
+    }
+    const second = await exportOfficeSnapshotToFile({
+      snapshot: { ...reloaded, edits: { [reloaded.base.slides[1]!.units[4]!.id]: "Offre" } },
+      filename: "quarterly-review.pptx",
+    });
+    expect((await slideTextsOfFile(second))[1]?.slice(0, 6)).toEqual([
+      "Revue trimestrielle",
+      "Revenue grew 12% this quarter & costs fell.",
+      "Read the full report",
+      "North\nSouth",
+      "Offre",
+      "Prix",
+    ]);
   });
 });

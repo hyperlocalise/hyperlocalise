@@ -105,6 +105,7 @@ import {
   isMainContentCustomColumn,
   isSidebarCustomColumn,
   listDetailPanelColumns,
+  reconcileSameIssueCustomColumnDrafts,
 } from "./issue-sheet-column-utils";
 import { IssueTypePicker, type IssueTypeValue } from "./issue-type-picker";
 import { IssueWatchControl } from "./issue-watch-control";
@@ -318,6 +319,7 @@ export const IssueDetailPanel = forwardRef<
     issueId: string;
     drafts: Record<string, string>;
   } | null>(null);
+  const hydratedDraftIssueIdRef = useRef<string | null>(null);
   titleDraftRef.current = titleDraft;
   descriptionDraftRef.current = descriptionDraft;
   ownerNoteDraftRef.current = ownerNoteDraft;
@@ -342,6 +344,7 @@ export const IssueDetailPanel = forwardRef<
     const baseline = draftBaselineRef.current;
 
     if (!baseline || baseline.issueId !== issue.id) {
+      hydratedDraftIssueIdRef.current = null;
       draftBaselineRef.current = {
         issueId: issue.id,
         title: issue.title,
@@ -367,6 +370,7 @@ export const IssueDetailPanel = forwardRef<
 
   useEffect(() => {
     if (!issue) {
+      hydratedDraftIssueIdRef.current = null;
       setCustomColumnDrafts({});
       customColumnBaselineRef.current = null;
       return;
@@ -376,36 +380,28 @@ export const IssueDetailPanel = forwardRef<
     const baseline = customColumnBaselineRef.current;
 
     if (!baseline || baseline.issueId !== issue.id) {
+      hydratedDraftIssueIdRef.current = null;
       const drafts = buildCustomColumnDrafts(issue, draftableColumns);
       customColumnBaselineRef.current = { issueId: issue.id, drafts };
       setCustomColumnDrafts(drafts);
       return;
     }
 
-    setCustomColumnDrafts((current) => {
-      const next = { ...current };
-      let changed = false;
-      for (const column of draftableColumns) {
-        const saved = customColumnValueFromIssue(issue, column.key);
-        const baselineDraft = baseline.drafts[column.key];
-        if (!(column.key in next)) {
-          next[column.key] = saved;
-          changed = true;
-          continue;
-        }
-        if (next[column.key] === baselineDraft) {
-          next[column.key] = saved;
-          changed = true;
-        }
-      }
-      if (changed) {
-        customColumnBaselineRef.current = {
-          issueId: issue.id,
-          drafts: buildCustomColumnDrafts(issue, draftableColumns),
-        };
-      }
-      return changed ? next : current;
-    });
+    customColumnBaselineRef.current = {
+      issueId: issue.id,
+      drafts: reconcileSameIssueCustomColumnDrafts(
+        issue,
+        draftableColumns,
+        baseline.drafts,
+        customColumnDraftsRef.current,
+      ).nextBaselineDrafts,
+    };
+
+    setCustomColumnDrafts(
+      (current) =>
+        reconcileSameIssueCustomColumnDrafts(issue, draftableColumns, baseline.drafts, current)
+          .nextDrafts,
+    );
   }, [issue, detailColumns]);
 
   useEffect(() => {
@@ -413,9 +409,35 @@ export const IssueDetailPanel = forwardRef<
       return;
     }
     if (!issue) {
+      hydratedDraftIssueIdRef.current = null;
       onDirtyChange(false);
       return;
     }
+
+    const baseline = draftBaselineRef.current;
+    const customColumnBaseline = customColumnBaselineRef.current;
+    const draftableColumns = detailColumns.filter(isDraftableCustomColumn);
+    const customColumnDraftsInitialized = draftableColumns.every((column) =>
+      Object.hasOwn(customColumnDrafts, column.key),
+    );
+    const isDraftStateHydrated =
+      customColumnDraftsInitialized &&
+      (hydratedDraftIssueIdRef.current === issue.id ||
+        (baseline?.issueId === issue.id &&
+          customColumnBaseline?.issueId === issue.id &&
+          titleDraft === baseline.title &&
+          descriptionDraft === baseline.description &&
+          ownerNoteDraft === baseline.ownerNote &&
+          draftableColumns.every(
+            (column) => customColumnDrafts[column.key] === customColumnBaseline.drafts[column.key],
+          )));
+
+    if (!isDraftStateHydrated) {
+      onDirtyChange(false);
+      return;
+    }
+
+    hydratedDraftIssueIdRef.current = issue.id;
     onDirtyChange(
       isIssueDraftDirty(
         issue,
@@ -439,7 +461,7 @@ export const IssueDetailPanel = forwardRef<
   useImperativeHandle(ref, () => ({
     isDirty: () => {
       const current = issueRef.current;
-      if (!current) {
+      if (!current || hydratedDraftIssueIdRef.current !== current.id) {
         return false;
       }
       return isIssueDraftDirty(

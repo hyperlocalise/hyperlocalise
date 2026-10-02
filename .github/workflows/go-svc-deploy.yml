@@ -9,6 +9,7 @@ on:
       - Dockerfile.vercel
       - go.mod
       - go.sum
+      - orchestrion.tool.go
       - third_party/**
       - internal/**
       - apps/go-svc/**
