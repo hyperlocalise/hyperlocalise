@@ -1,5 +1,5 @@
 {
-  "id": "b0886f43-7a39-4781-afb8-27f4618f3867",
+  "id": "677854d5-53ea-4330-83b5-c187f0ea5fb6",
   "prevId": "a8059fd8-fc47-44e8-9c6d-50e4d775a8fb",
   "version": "7",
   "dialect": "postgresql",
@@ -3970,6 +3970,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'off'"
+        },
+        "qa_check_policy": {
+          "name": "qa_check_policy",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{\"not_localized\":{\"enabled\":true,\"severity\":\"error\"},\"whitespace_only\":{\"enabled\":true,\"severity\":\"warning\"},\"same_as_source\":{\"enabled\":true,\"severity\":\"warning\"},\"escaped_char_mismatch\":{\"enabled\":true,\"severity\":\"warning\"},\"length\":{\"enabled\":true,\"severity\":\"error\"},\"placeholder_mismatch\":{\"enabled\":true,\"severity\":\"error\"},\"glossary_violation\":{\"enabled\":true,\"severity\":\"warning\"},\"format\":{\"enabled\":true,\"severity\":\"error\"},\"spelling\":{\"enabled\":true,\"severity\":\"warning\"},\"numbers_mismatch\":{\"enabled\":false,\"severity\":\"warning\"},\"punctuation_mismatch\":{\"enabled\":false,\"severity\":\"warning\"},\"character_case_mismatch\":{\"enabled\":false,\"severity\":\"warning\"}}'::jsonb"
         },
         "qa_scan_last_run_at": {
           "name": "qa_scan_last_run_at",
@@ -19775,6 +19782,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "check_policy": {
+          "name": "check_policy",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "status": {
           "name": "status",
