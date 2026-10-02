@@ -190,46 +190,52 @@ describe("mountPptxTranslationEditor", () => {
 
   it("does not let a slower earlier rewrite replace a later preview", async () => {
     const user = userEvent.setup();
-    let releaseFirst: (() => void) | undefined;
-    applyEdits.impl.mockImplementation(async (content, edits) => {
-      const result = await applyEdits.actual!(content, edits);
-      if (applyEdits.impl.mock.calls.length === 1) {
-        await new Promise<void>((resolve) => {
-          releaseFirst = resolve;
-        });
-      }
-      return result;
-    });
+    const pending: Array<() => Promise<void>> = [];
+    applyEdits.impl.mockImplementation(
+      (content: Uint8Array | ArrayBuffer, edits: Readonly<Record<string, string>>) =>
+        new Promise((resolve, reject) => {
+          pending.push(async () => {
+            try {
+              resolve(await applyEdits.actual!(content, edits));
+            } catch (error) {
+              reject(error);
+            }
+          });
+        }),
+    );
 
     await mount();
     const title = screen.getByRole("textbox", { name: "Quarterly review" });
     await user.clear(title);
     await user.type(title, "First");
-
-    await waitFor(
-      () => {
-        expect(applyEdits.impl).toHaveBeenCalledTimes(1);
-      },
-      { timeout: 3000 },
-    );
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 600);
+      });
+    });
+    expect(pending.length).toBeGreaterThan(0);
+    const earlier = pending.splice(0);
 
     await user.clear(title);
     await user.type(title, "Second");
-
-    await waitFor(
-      () => {
-        expect(applyEdits.impl).toHaveBeenCalledTimes(2);
-        expect(preview.reload).toHaveBeenCalled();
-      },
-      { timeout: 3000 },
-    );
-    expect(await slideTexts(preview.reload.mock.calls.at(-1)![0])).toContain("Second");
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 600);
+      });
+    });
+    expect(pending.length).toBeGreaterThan(0);
+    const later = pending.splice(0);
 
     await act(async () => {
-      releaseFirst?.();
+      await Promise.all(later.map((finish) => finish()));
     });
+    expect(preview.reload).toHaveBeenCalled();
+    expect(await slideTexts(preview.reload.mock.calls.at(-1)![0])).toContain("Second");
+    const reloads = preview.reload.mock.calls.length;
 
-    expect(preview.reload).toHaveBeenCalledTimes(1);
-    expect(await slideTexts(preview.reload.mock.calls[0]![0])).toContain("Second");
+    await act(async () => {
+      await Promise.all(earlier.map((finish) => finish()));
+    });
+    expect(preview.reload).toHaveBeenCalledTimes(reloads);
   });
 });
