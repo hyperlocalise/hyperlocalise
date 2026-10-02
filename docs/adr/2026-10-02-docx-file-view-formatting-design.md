@@ -10,16 +10,20 @@ File view read a Word file as plain text and saved by building a new file from t
 
 - Word files follow the Markdown flow: a read-only source, an editable target, and a save that exports whatever the editor holds.
 - An editable target with no translated file opens the source document. Nothing is stored until the first save. A read-only viewer still sees the empty state.
-- Reading goes through `mammoth`'s HTML output and Univer's paste converter. Both are open source and already installed.
-- The reader and the writer cover the same set, so what the editor shows survives a save: headings, alignment, bold, italic, underline, strikethrough, sub and superscript, bulleted and numbered lists with nesting, links, and tables.
-- The saved file is built from the editor's document, not from the original package. Anything outside the set above is lost on the first save: fonts, sizes, colours, images, headers and footers, page setup, empty paragraphs, and the document's own styles.
+- A reader of our own parses the Word XML, resolves style inheritance, and builds the editor's document directly. `mammoth` was tried first and dropped for File view: it never reads text size or colour, and it only sees formatting set directly on the text, not formatting that comes from a style.
+- The reader and the writer cover the same set, so what the editor shows survives a save:
+  - headings and titles, alignment
+  - text size, colour, highlight, font, bold, italic, underline, strikethrough, sub and superscript
+  - bulleted and numbered lists with nesting, links
+  - tables with column widths and merged cells
+  - page size and margins, empty paragraphs
+- The saved file is built from the editor's document, not from the original package. Formatting is written on the text itself, and the file's styles are replaced. Anything outside the set above is lost on the first save: images, headers and footers, line and paragraph spacing, indents, theme fonts, table borders and shading, and tracked changes.
 
 ## Not decided
 
-- Carrying untouched parts of the source package (styles, page setup, headers and footers) into the saved file.
-- Replacing `mammoth` with a reader that also keeps fonts, sizes, colours, and column widths.
+- Carrying untouched parts of the source package (headers and footers, images) into the saved file.
 - Unsaved-changes status and blocking approval until edits are saved, as Markdown has.
 
 ## Validation
 
-Unit tests open a generated document, save it, reopen it, and compare structure and formatting. Opening, editing, saving, and reopening was checked in Firefox through a temporary Storybook story. It was not checked in the running app against stored files, or with documents written by Word.
+Unit tests read a hand-written Word package whose size, colour, and alignment come from styles, then save it, reopen it, and compare. Opening, saving, and reopening that package was checked in Firefox through a temporary Storybook story. It was not checked in the running app against stored files, or with documents written by Word itself.
