@@ -237,6 +237,36 @@ describe("InboxPageContent item switching", () => {
     expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
   });
 
+  it("keeps an issue selected while switching from a conversation before the route updates", async () => {
+    const user = userEvent.setup();
+    const notificationId = issueNotificationsFixture[0]!.id;
+    const injectedNotificationsApi: InboxNotificationsApi = {
+      ...notificationsApi,
+      markRead: vi.fn(async () => ({ id: notificationId, readAt: new Date().toISOString() })),
+    };
+
+    navigation.push.mockImplementation((href: string) => {
+      setTimeout(() => {
+        navigation.conversationId = undefined;
+        navigation.notificationId = notificationId;
+        navigation.pathname = href;
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }, 20);
+    });
+
+    renderInbox(
+      createInboxApi(async () => messagesFixture),
+      injectedNotificationsApi,
+    );
+
+    await user.click(await screen.findByRole("link", { name: /Otto Klein assigned you/i }));
+
+    expect(navigation.push).toHaveBeenCalledWith(`/org/acme/inbox/notifications/${notificationId}`);
+    expect(await screen.findByText("Issue panel: issue_001")).toBeInTheDocument();
+    await waitFor(() => expect(navigation.notificationId).toBe(notificationId));
+    expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
+  });
+
   it("does not retry a failed read mutation while the notification route stays open", async () => {
     const notificationId = issueNotificationsFixture[0]!.id;
     navigation.conversationId = undefined;
