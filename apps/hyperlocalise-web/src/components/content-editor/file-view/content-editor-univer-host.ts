@@ -119,16 +119,18 @@ async function createSheetsHost(
 }
 
 /**
- * Univer slides 1.0.2 ships without its in-place text editor mounted, so text cannot be typed
- * on the slide canvas. An editable deck is shown as one field per paragraph instead, and the
- * edits travel with the snapshot to be written back into the file it was read from.
+ * Univer slides 1.0.2 ships without its in-place text editor mounted and draws only the last
+ * line of a text box, so it can neither edit nor show a deck's text. A deck read from a file
+ * is shown as one field per paragraph instead, read-only or editable, and the edits travel
+ * with the snapshot to be written back into that file.
  */
 function createPptxTextHost(
   container: HTMLElement,
   snapshot: ContentEditorPptxSnapshot,
   base: ContentEditorPptxBase,
+  readOnly: boolean,
 ): ContentEditorUniverHostHandle {
-  const form = mountPptxTextForm(container, base.slides);
+  const form = mountPptxTextForm(container, base.slides, { readOnly });
   return {
     getSnapshot: () => ({ ...snapshot, edits: form.getEdits() }),
     dispose: form.dispose,
@@ -206,8 +208,8 @@ function createHost(
     case "xlsx":
       return createSheetsHost(mountNode, snapshot.data, readOnly, signal);
     case "pptx":
-      return !readOnly && snapshot.base
-        ? Promise.resolve(createPptxTextHost(mountNode, snapshot, snapshot.base))
+      return snapshot.base
+        ? Promise.resolve(createPptxTextHost(mountNode, snapshot, snapshot.base, readOnly))
         : createSlidesHost(mountNode, snapshot.data, readOnly, signal);
   }
 }

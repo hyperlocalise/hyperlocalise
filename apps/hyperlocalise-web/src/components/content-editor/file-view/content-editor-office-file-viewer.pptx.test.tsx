@@ -46,7 +46,11 @@ async function buildTranslatedFixture(): Promise<ArrayBuffer> {
   return copy.buffer;
 }
 
-function renderTargetPane(input: { src: string | null; onSave: (file: File) => void }) {
+function renderTargetPane(input: {
+  src: string | null;
+  canEdit?: boolean;
+  onSave: (file: File) => void;
+}) {
   return render(
     <ContentEditorTestProviders>
       <ContentEditorOfficeFileViewerPane
@@ -55,6 +59,7 @@ function renderTargetPane(input: { src: string | null; onSave: (file: File) => v
         src={input.src}
         seedSrc={SOURCE_URL}
         filename="quarterly-review.pptx"
+        canEdit={input.canEdit}
         onSave={input.onSave}
       />
     </ContentEditorTestProviders>,
@@ -108,6 +113,54 @@ describe("ContentEditorOfficeFileViewerPane with a PowerPoint file", () => {
         "Margin formula",
       ],
     ]);
+  });
+
+  it("lists the source deck's paragraphs read-only", async () => {
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorOfficeFileViewerPane
+          kind="pptx"
+          role="source"
+          src={SOURCE_URL}
+          filename="quarterly-review.pptx"
+          canEdit={false}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const title = await screen.findByRole("textbox", { name: "Quarterly review" });
+    expect(title).toHaveAttribute("readonly");
+    expect(
+      screen.getAllByRole("textbox").map((field) => (field as HTMLTextAreaElement).value),
+    ).toEqual([
+      "Acme Corp",
+      "Quarterly review",
+      "Revenue grew 12% this quarter & costs fell.",
+      "Read the full report",
+      "North\nSouth",
+      "Plan",
+      "Price",
+      "Pro",
+      "$10",
+      "Margin formula",
+    ]);
+    expect(screen.queryByRole("button", { name: /save edits/i })).not.toBeInTheDocument();
+  });
+
+  it("lists a locked translation read-only and does not seed an empty one", async () => {
+    const onSave = vi.fn<(file: File) => void>();
+    const { unmount } = renderTargetPane({ src: TARGET_URL, canEdit: false, onSave });
+
+    expect(await screen.findByRole("textbox", { name: "Acme SARL" })).toHaveAttribute("readonly");
+    expect(screen.getByRole("button", { name: /save edits/i })).toBeDisabled();
+    unmount();
+    fetchDeck.mockClear();
+
+    renderTargetPane({ src: null, canEdit: false, onSave });
+
+    expect(await screen.findByText(/no translated file/i)).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(fetchDeck).not.toHaveBeenCalled();
   });
 
   it("opens the translated deck instead of the source once one is stored", async () => {

@@ -16,6 +16,7 @@ import { createRoot } from "react-dom/client";
 
 import type { PptxSlideText } from "@/components/content-editor/file-view/content-editor-pptx-text";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/primitives/cn";
 
 export type ContentEditorPptxTextFormHandle = {
   /** Text that differs from the file, by unit id. */
@@ -25,9 +26,11 @@ export type ContentEditorPptxTextFormHandle = {
 
 function PptxTextForm({
   slides,
+  readOnly,
   onChange,
 }: {
   slides: readonly PptxSlideText[];
+  readOnly: boolean;
   onChange: (unitId: string, text: string) => void;
 }) {
   return (
@@ -40,12 +43,14 @@ function PptxTextForm({
           <div className="flex min-h-9 min-w-0 flex-1 flex-col gap-2 border-l border-border pl-3">
             {slide.units.map((unit) => (
               // The text as stored in the file names the field and shows again once it is cleared.
+              // A read-only field keeps the size of an editable one and its text can be selected.
               <Textarea
                 key={unit.id}
                 aria-label={unit.text}
                 placeholder={unit.text}
                 defaultValue={unit.text}
-                className="min-h-9 rounded-md py-2"
+                readOnly={readOnly}
+                className={cn("min-h-9 rounded-md py-2", readOnly && "bg-transparent")}
                 onChange={(event) => onChange(unit.id, event.target.value)}
               />
             ))}
@@ -59,16 +64,21 @@ function PptxTextForm({
 /**
  * Shows a deck as one numbered group per slide with a field per paragraph, so every edit maps
  * to exactly one paragraph of the file. A line break in a field is a line break in the
- * paragraph.
+ * paragraph. A read-only form lists the same fields, so two panes line up field for field.
  */
 export function mountPptxTextForm(
   container: HTMLElement,
   slides: readonly PptxSlideText[],
+  options: { readOnly: boolean },
 ): ContentEditorPptxTextFormHandle {
   const values = new Map<string, string>();
   const root = createRoot(container);
   root.render(
-    <PptxTextForm slides={slides} onChange={(unitId, text) => values.set(unitId, text)} />,
+    <PptxTextForm
+      slides={slides}
+      readOnly={options.readOnly}
+      onChange={(unitId, text) => values.set(unitId, text)}
+    />,
   );
 
   return {

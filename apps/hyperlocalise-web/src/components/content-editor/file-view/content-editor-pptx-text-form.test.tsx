@@ -43,8 +43,8 @@ describe("mountPptxTextForm", () => {
     container.remove();
   });
 
-  async function mount() {
-    const form = await act(async () => mountPptxTextForm(container, SLIDES));
+  async function mount(options = { readOnly: false }) {
+    const form = await act(async () => mountPptxTextForm(container, SLIDES, options));
     return form;
   }
 
@@ -74,6 +74,22 @@ describe("mountPptxTextForm", () => {
     await user.type(cover, "{Backspace}");
 
     expect(form.getEdits()).toEqual({ "ppt/slides/slide1.xml#0": "Revue\ntrimestrielle" });
+  });
+
+  it("lists the same fields without accepting edits when read-only", async () => {
+    const user = userEvent.setup();
+    const form = await mount({ readOnly: true });
+
+    const groups = screen.getAllByRole("listitem");
+    expect(groups.map((group) => group.querySelectorAll("textarea").length)).toEqual([1, 0, 2]);
+    const title = screen.getByRole("textbox", { name: "Quarterly review" });
+    // A read-only field, unlike a disabled one, keeps its text selectable.
+    expect(title).toHaveAttribute("readonly");
+    expect(title).toBeEnabled();
+    await user.type(title, " 2026");
+
+    expect(title).toHaveValue("Quarterly review");
+    expect(form.getEdits()).toEqual({});
   });
 
   it("removes the fields when disposed", async () => {
