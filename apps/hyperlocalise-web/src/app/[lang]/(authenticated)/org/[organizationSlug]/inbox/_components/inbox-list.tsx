@@ -12,9 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Chat01Icon, FilterIcon, SparklesIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import Link from "next/link";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -369,6 +370,7 @@ export const InboxList = memo(function InboxList({
   onLoadMoreNotifications,
   onMarkAllRead,
   onSelectItem,
+  notificationHref,
   selection,
   unreadNotificationCount,
 }: {
@@ -384,6 +386,7 @@ export const InboxList = memo(function InboxList({
   onLoadMoreNotifications: () => void;
   onMarkAllRead?: () => void;
   onSelectItem: (selection: InboxListItemSelection) => void;
+  notificationHref?: (notificationId: string) => string;
   selection: InboxSelection;
   unreadNotificationCount: number;
 }) {
@@ -487,6 +490,7 @@ export const InboxList = memo(function InboxList({
                   isSelected={
                     selection?.kind === "notification" && selection.id === item.notification.id
                   }
+                  href={notificationHref?.(item.notification.id)}
                   onSelect={(id) => onSelectItem({ kind: "notification", id })}
                 />
               ),
@@ -689,10 +693,12 @@ const ConversationListItem = memo(function ConversationListItem({
 });
 
 const NotificationListItem = memo(function NotificationListItem({
+  href,
   notification,
   isSelected,
   onSelect,
 }: {
+  href?: string;
   notification: InboxIssueNotification;
   isSelected: boolean;
   onSelect: (notificationId: string) => void;
@@ -708,14 +714,8 @@ const NotificationListItem = memo(function NotificationListItem({
   const isUnread = !notification.readAt;
   const avatarLabel = actorName.slice(0, 1).toUpperCase() || "?";
   const visual = getNotificationListItemVisual(notification.type, intl);
-
-  return (
-    <button
-      type="button"
-      aria-pressed={isSelected}
-      onClick={() => onSelect(notification.id)}
-      className={listItemClassName(isSelected, isUnread)}
-    >
+  const content = (
+    <>
       <InboxListItemAvatar visual={visual}>
         {notification.actor?.avatarUrl ? (
           <AvatarImage src={notification.actor.avatarUrl} alt={actorName} />
@@ -730,6 +730,41 @@ const NotificationListItem = memo(function NotificationListItem({
         timestamp={formatRelativeTime(notification.createdAt, intl)}
         titleWeight={isUnread ? "bold" : "regular"}
       />
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        aria-current={isSelected ? "page" : undefined}
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          if (
+            event.button !== 0 ||
+            event.metaKey ||
+            event.altKey ||
+            event.ctrlKey ||
+            event.shiftKey
+          ) {
+            return;
+          }
+          onSelect(notification.id);
+        }}
+        className={cn(listItemClassName(isSelected, isUnread), "no-underline")}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      aria-pressed={isSelected}
+      onClick={() => onSelect(notification.id)}
+      className={listItemClassName(isSelected, isUnread)}
+    >
+      {content}
     </button>
   );
 });

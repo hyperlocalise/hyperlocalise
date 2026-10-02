@@ -24,6 +24,8 @@ Exports use Hyperlocalise’s interchange profile: TBX 3 (`TBX-Basic`, DCA style
 
 The UI polls the import report until it reaches a terminal state. Refreshing the page is safe: the report ID identifies the durable run and does not re-upload or re-apply the import.
 
+Open **Import/export history** from the glossary detail page to review past and in-flight runs. The list shows imports and exports with format, status, timestamps, and error summaries. Active runs refresh automatically. Open a run to read the full report. Completed exports offer a download; completed **replace** imports offer a TBX backup when one was created. You can leave the page while a run is queued—the history entry remains after the dialog closes.
+
 Provider-backed glossaries cannot be imported through this UI. Manage terms in the connected TMS or use a native glossary you control.
 
 ## Export in Platform
@@ -50,6 +52,7 @@ Use your TMS or the Hyperlocalise **CLI** for provider-native glossary downloads
 - **TBX** is the best interchange with other terminology tools.
 - **XLSX** is easiest for manual review and bulk edits in a spreadsheet.
 - **CSV** works well for scripts and narrow column-based tooling.
+- **Crowdin TBX** often uses short language IDs such as `de` while your glossary configures region-qualified locales such as `de-DE`. Platform maps those IDs to a matching configured locale when the mapping is unambiguous; terms are stored under your configured locale code.
 
 ## Check the result
 

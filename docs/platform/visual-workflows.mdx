@@ -8,7 +8,7 @@ Visual workflows compose fixed automation steps on a canvas. Open **Automations 
 ## Build and connect data
 
 1. Choose a manual, scheduled, GitHub, or source-upload trigger.
-2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, or Retry nodes.
+2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, Sequence, or Retry nodes.
 3. Connect execution order on the canvas.
 4. Open a node's **Inputs** section. Select a typed literal, an upstream field, or a text template. Use **Configuration** for provider and action settings.
 5. Review **Outputs** for expected fields. Test results show actual redacted values.
@@ -20,6 +20,8 @@ HTTP JSON responses have an unknown shape until you declare output fields such a
 ## Loops and branching
 
 **For each** requires an array. Connect **Each item** to the body, select the body nodes in the inspector, and connect **Done** to the next step. Body nodes can read the loop's `item` and `index`. Configure collected output bindings to expose `iterationOutputs` after the loop. Items run sequentially; an empty array follows Done with an empty result. Nested loops are not supported.
+
+**Sequence** runs multiple downstream paths in a fixed order. Add named outputs on the node, connect one path to each output handle, and list the outputs in the order they should run. The workflow finishes the first path completely before starting the next. Use it when later steps must wait for earlier paths to finish, for example sending Slack before email.
 
 **Retry** wraps steps that may fail with transient errors. Connect **Attempt** to the body (same body-selection pattern as **For each**). Connect **Succeeded** when the body finishes without a retryable failure, or **Exhausted** when all attempts are used. Defaults are 3 attempts, a 1 second initial delay, 2× backoff, and jitter; the cap is 10 attempts. Only configured error codes retry (defaults include HTTP and node execution failures). Delays between attempts use durable backoff so runs survive restarts.
 

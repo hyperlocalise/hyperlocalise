@@ -895,15 +895,10 @@ export class HyperlocaliseCliRunner {
     // read bytes instead so CAT / pull persist valid Unicode.
     const outputPath = `/tmp/hl-entries-${randomUUID()}.json`;
     try {
-      const result = await this.lifecycle.runCommand(
-        sandboxId,
-        "bash",
-        [
-          "-lc",
-          `hl entries ${shellQuote(path)}${localeFlag}${sourceFlag}${srxFlag} > ${shellQuote(outputPath)}`,
-        ],
-        { env: getSandboxTranslationEnv() },
-      );
+      const result = await this.lifecycle.runCommand(sandboxId, "bash", [
+        "-lc",
+        `hl entries ${shellQuote(path)}${localeFlag}${sourceFlag}${srxFlag} > ${shellQuote(outputPath)}`,
+      ]);
       if (result.exitCode !== 0) {
         return { ok: false, exitCode: result.exitCode, output: result.output };
       }

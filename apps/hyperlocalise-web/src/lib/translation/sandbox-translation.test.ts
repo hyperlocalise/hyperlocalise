@@ -436,7 +436,8 @@ describe("sandbox command runner", () => {
           /^hl entries 'lang\/vi-VN\.json' > '\/tmp\/hl-entries-[0-9a-f-]+\.json'$/,
         ),
       ],
-      env: { OPENAI_API_KEY: "test-openai-api-key" },
+      // Parsing needs no model credentials, so ingest works without an LLM key.
+      env: undefined,
       detached: true,
     });
     expect(readFileToBuffer).toHaveBeenCalledWith({

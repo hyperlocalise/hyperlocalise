@@ -80,6 +80,7 @@ func TestDecodeCSVKeepsOmittedConceptFieldsUnset(t *testing.T) {
 	require.Equal(t, "c1", concepts[0].ID)
 	require.Equal(t, "Checkout", concepts[0].PrimaryTerm)
 	require.False(t, concepts[0].Present.PrimaryTerm)
+	require.False(t, shouldLookupConceptByPrimaryTerm(concepts[0]))
 	require.False(t, concepts[0].Present.Subject)
 	require.False(t, concepts[0].Present.Definition)
 	require.False(t, concepts[0].Present.Translatable)
@@ -97,6 +98,7 @@ func TestDecodeCSVMarksSuppliedConceptFieldsPresent(t *testing.T) {
 	require.Empty(t, diagnostics)
 	require.Len(t, concepts, 1)
 	require.True(t, concepts[0].Present.PrimaryTerm)
+	require.True(t, shouldLookupConceptByPrimaryTerm(concepts[0]))
 	require.True(t, concepts[0].Present.Subject)
 	require.True(t, concepts[0].Present.Definition)
 	require.True(t, concepts[0].Present.Translatable)
@@ -180,11 +182,65 @@ func TestDecodeXLSXKeepsOmittedConceptFieldsUnset(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, diagnostics)
 	require.Len(t, concepts, 1)
+	require.Equal(t, "Alpha", concepts[0].PrimaryTerm)
 	require.False(t, concepts[0].Present.PrimaryTerm)
 	require.False(t, concepts[0].Present.Subject)
 	require.False(t, concepts[0].Present.Definition)
 	require.False(t, concepts[0].Present.Translatable)
 	require.False(t, concepts[0].Present.Note)
+}
+
+func TestDecodeXLSXDerivesDistinctPrimaryTermsWhenBlank(t *testing.T) {
+	f := excelize.NewFile()
+	require.NoError(t, f.SetSheetName(f.GetSheetName(0), "Concepts"))
+	_, err := f.NewSheet("Terms")
+	require.NoError(t, err)
+	require.NoError(t, f.SetCellValue("Concepts", "A1", "conceptId"))
+	require.NoError(t, f.SetCellValue("Concepts", "B1", "primaryTerm"))
+	require.NoError(t, f.SetCellValue("Concepts", "A2", "concept-a"))
+	require.NoError(t, f.SetCellValue("Concepts", "A3", "concept-b"))
+	require.NoError(t, f.SetCellValue("Terms", "A1", "conceptId"))
+	require.NoError(t, f.SetCellValue("Terms", "B1", "locale"))
+	require.NoError(t, f.SetCellValue("Terms", "C1", "term"))
+	require.NoError(t, f.SetCellValue("Terms", "A2", "concept-a"))
+	require.NoError(t, f.SetCellValue("Terms", "B2", "en-US"))
+	require.NoError(t, f.SetCellValue("Terms", "C2", "Checkout"))
+	require.NoError(t, f.SetCellValue("Terms", "A3", "concept-b"))
+	require.NoError(t, f.SetCellValue("Terms", "B3", "en-US"))
+	require.NoError(t, f.SetCellValue("Terms", "C3", "Invoice"))
+
+	var buf bytes.Buffer
+	require.NoError(t, f.Write(&buf))
+
+	concepts, diagnostics, err := decodeDocument("xlsx", buf.Bytes())
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	require.Len(t, concepts, 2)
+	require.Equal(t, "Checkout", concepts[0].PrimaryTerm)
+	require.Equal(t, "Invoice", concepts[1].PrimaryTerm)
+	require.False(t, concepts[0].Present.PrimaryTerm)
+	require.False(t, concepts[1].Present.PrimaryTerm)
+	require.False(t, shouldLookupConceptByPrimaryTerm(concepts[0]))
+	require.False(t, shouldLookupConceptByPrimaryTerm(concepts[1]))
+}
+
+func TestShouldLookupConceptByPrimaryTermRequiresSuppliedValue(t *testing.T) {
+	require.False(t, shouldLookupConceptByPrimaryTerm(interchangeConcept{PrimaryTerm: "Checkout"}))
+	require.False(t, shouldLookupConceptByPrimaryTerm(interchangeConcept{
+		PrimaryTerm: "Checkout",
+		Present:     conceptFieldPresence{PrimaryTerm: false},
+	}))
+	require.False(t, shouldLookupConceptByPrimaryTerm(interchangeConcept{
+		PrimaryTerm: "   ",
+		Present:     conceptFieldPresence{PrimaryTerm: true},
+	}))
+	require.False(t, shouldLookupConceptByPrimaryTerm(interchangeConcept{
+		Present: conceptFieldPresence{PrimaryTerm: true},
+	}))
+	require.True(t, shouldLookupConceptByPrimaryTerm(interchangeConcept{
+		PrimaryTerm: "Checkout",
+		Present:     conceptFieldPresence{PrimaryTerm: true},
+	}))
 }
 
 func TestDecodeXLSXMarksEmptyConceptFieldsPresent(t *testing.T) {
@@ -214,6 +270,7 @@ func TestDecodeXLSXMarksEmptyConceptFieldsPresent(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, diagnostics)
 	require.Len(t, concepts, 1)
+	require.Equal(t, "Alpha", concepts[0].PrimaryTerm)
 	require.False(t, concepts[0].Present.PrimaryTerm)
 	require.True(t, concepts[0].Present.Subject)
 	require.True(t, concepts[0].Present.Definition)
