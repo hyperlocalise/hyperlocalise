@@ -33,6 +33,15 @@ export async function isAutumnBooleanFeatureEnabled(input: {
   featureId: AutumnBooleanFeatureId;
   autumnApiKey?: string;
 }): Promise<boolean> {
+  // Local Autumn sandboxes may not contain product features yet. Keep this
+  // opt-in and development-only so production remains fail-closed.
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.LOCAL_AUTUMN_FEATURES_ENABLED === "true"
+  ) {
+    return true;
+  }
+
   if (process.env.NODE_ENV === "test" && input.autumnApiKey === undefined) {
     return true;
   }
