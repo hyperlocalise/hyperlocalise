@@ -10,9 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { BuildTextUtils } from "@univerjs/core";
+import { Document, Packer, Paragraph } from "docx";
 import PptxGenJS from "pptxgenjs";
 
 import {
@@ -20,7 +21,20 @@ import {
   emptyOfficeSnapshot,
   exportOfficeSnapshotToFile,
   loadOfficeSnapshotFromFile,
+  plainTextFromDocument,
 } from "./content-editor-office-convert";
+
+// Tests load mammoth's Node build, which reads `buffer` where the browser build reads `arrayBuffer`.
+vi.mock("mammoth", async (importOriginal) => {
+  const { default: mammoth } = await importOriginal<{ default: typeof import("mammoth") }>();
+  return {
+    default: {
+      ...mammoth,
+      extractRawText: (input: { arrayBuffer: ArrayBuffer }) =>
+        mammoth.extractRawText({ buffer: Buffer.from(input.arrayBuffer) }),
+    },
+  };
+});
 
 describe("cat-office-convert", () => {
   it("decodes XML text entities without double-unescaping", () => {
@@ -51,6 +65,26 @@ describe("cat-office-convert", () => {
     expect(file.name).toBe("brief.docx");
     expect(file.type).toContain("wordprocessingml");
     expect(file.size).toBeGreaterThan(0);
+  });
+
+  it("loads paragraph text from a docx file", async () => {
+    const buffer = await Packer.toBuffer(
+      new Document({
+        sections: [{ children: [new Paragraph("Quarterly brief"), new Paragraph("Hello world")] }],
+      }),
+    );
+
+    const snapshot = await loadOfficeSnapshotFromFile({
+      kind: "docx",
+      file: new File([new Uint8Array(buffer)], "brief.docx"),
+    });
+
+    if (snapshot.kind !== "docx") {
+      throw new Error("expected docx snapshot");
+    }
+    const text = plainTextFromDocument(snapshot.data);
+    expect(text).toContain("Quarterly brief");
+    expect(text).toContain("Hello world");
   });
 
   it("exports a pptx file from a slide snapshot", async () => {
