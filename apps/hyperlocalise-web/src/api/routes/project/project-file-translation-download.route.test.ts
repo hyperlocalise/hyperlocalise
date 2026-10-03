@@ -58,14 +58,19 @@ async function sourceFileFixture(sourcePath: string) {
     sourcePath,
   });
   const headers = await authHeadersFor(fixture.identity);
-  const query = new URLSearchParams({ sourcePath, locale: LOCALE });
 
   return {
     ...fixture,
     sourceFile,
     download: () =>
-      app.request(
-        `/api/orgs/${fixture.identity.organization.slug}/projects/${fixture.project.id}/files/translations/download?${query}`,
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files.translations.download.$get(
+        {
+          param: {
+            organizationSlug: fixture.identity.organization.slug ?? "missing-slug",
+            projectId: fixture.project.id,
+          },
+          query: { sourcePath, locale: LOCALE },
+        },
         { headers },
       ),
   };
