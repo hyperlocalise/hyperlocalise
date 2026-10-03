@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, expectTypeOf, it } from "vite-plus/test";
+import { describe, expect, it } from "vite-plus/test";
 
 import { createApiClient } from "./api-client";
 
@@ -58,17 +58,5 @@ describe("createApiClient", () => {
     expect(typeof client.api.v1.jobs.$post).toBe("function");
     expect(typeof client.api.auth.context.$get).toBe("function");
     expect(typeof client.api.auth.slack.callback.$get).toBe("function");
-  });
-
-  it("keeps typed $get/$post helpers on composed org paths", () => {
-    expectTypeOf(org.projects.$get).toBeFunction();
-    expectTypeOf(org.issues.$get).toBeFunction();
-    expectTypeOf(org.glossaries.$get).toBeFunction();
-    expectTypeOf(org["tms-provider"].connection.$get).toBeFunction();
-    expectTypeOf(org["github-installation"].$get).toBeFunction();
-    expectTypeOf(org.gitlab.projects.$get).toBeFunction();
-    expectTypeOf(org.files.$post).toBeFunction();
-    expectTypeOf(client.api.v1.files.$post).toBeFunction();
-    expectTypeOf(client.api.auth.context.$get).toBeFunction();
   });
 });

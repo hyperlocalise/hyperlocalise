@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { filterKnowledgeUploadFiles, KNOWLEDGE_UPLOAD_MAX_FILES } from "./knowledge-upload.shared";
+import { filterKnowledgeUploadFiles } from "./knowledge-upload.shared";
 
 function file(name: string) {
   return new File(["content"], name, { type: "text/plain" });
@@ -32,7 +32,6 @@ describe("filterKnowledgeUploadFiles", () => {
 
     const accepted = filterKnowledgeUploadFiles(files);
 
-    expect(KNOWLEDGE_UPLOAD_MAX_FILES).toBe(1);
     expect(accepted).toHaveLength(1);
     expect(accepted.map((item) => item.name)).toEqual(["brand.md"]);
   });

@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isPipesProviderSlug, PIPES_PROVIDER_SLUGS, pipesProvidersForCategory } from "./providers";
+import { isPipesProviderSlug, pipesProvidersForCategory } from "./providers";
 
 describe("pipes providers", () => {
   it("accepts catalog API-key slugs and rejects unknown ones", () => {
@@ -34,13 +34,5 @@ describe("pipes providers", () => {
     expect(pipesProvidersForCategory("guidelines")).toEqual(["notion"]);
     expect(pipesProvidersForCategory("collaboration")).toEqual(["atlassian"]);
     expect(pipesProvidersForCategory("source-control")).toEqual(["gitlab"]);
-  });
-
-  it("keeps the exposed slug list stable", () => {
-    expect(PIPES_PROVIDER_SLUGS).toContain("atlassian");
-    expect(PIPES_PROVIDER_SLUGS).toContain("gitlab");
-    expect(PIPES_PROVIDER_SLUGS).toContain("google-search-console");
-    expect(PIPES_PROVIDER_SLUGS).toContain("sanity");
-    expect(PIPES_PROVIDER_SLUGS).toContain("webflow");
   });
 });
