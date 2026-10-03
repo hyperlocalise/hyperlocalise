@@ -355,7 +355,7 @@ describe("ContentEditorSideBySideRow", () => {
 
     expect(screen.queryByText(/0 characters/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Generate AI suggestion/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Query$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Manage queries$/i })).toBeInTheDocument();
   });
 
   it("shows a loading status while format checks are loading", () => {
@@ -744,7 +744,7 @@ describe("ContentEditorSideBySideRow", () => {
     renderRow({ isDirty: false, onAddToIssueSheet });
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^Query$/i }));
+    await user.click(screen.getByRole("button", { name: /^Manage queries$/i }));
     expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
   });
 

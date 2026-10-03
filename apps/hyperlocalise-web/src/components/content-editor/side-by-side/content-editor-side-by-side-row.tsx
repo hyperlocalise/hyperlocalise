@@ -16,6 +16,8 @@ import {
   Copy01Icon,
   EraserIcon,
   Image01Icon,
+  Message01Icon,
+  SaveIcon,
   TranslateIcon,
   Video01Icon,
 } from "@hugeicons/core-free-icons";
@@ -367,7 +369,11 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
           onClick={onSaveDraft}
           disabled={!canTriggerApprove}
         >
-          {isSavingDraft ? <Spinner className="size-3" /> : null}
+          {isSavingDraft ? (
+            <Spinner className="size-3" />
+          ) : (
+            <HugeiconsIcon icon={SaveIcon} className="size-3.5" strokeWidth={2} />
+          )}
           <FormattedMessage {...contentEditorEditorPanelMessages.draftAction} />
         </Button>
       ) : null}
@@ -383,6 +389,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
           onClick={onAddToIssueSheet}
           disabled={isActionBlocked}
         >
+          <HugeiconsIcon icon={Message01Icon} className="size-3.5" strokeWidth={2} />
           <FormattedMessage {...contentEditorEditorPanelMessages.queryAction} />
         </Button>
       ) : null}

@@ -1072,8 +1072,8 @@ export const contentEditorEditorPanelMessages = defineMessages({
     description: "Primary action to approve the current CAT translation",
   },
   saveAsDraft: {
-    defaultMessage: "Save as draft",
-    id: "YdeVnuUNms",
+    defaultMessage: "Save draft",
+    id: "/entAaFkYZ",
     description: "Secondary action to save the current translation without approving it",
   },
   findContextTitle: {
@@ -1097,8 +1097,8 @@ export const contentEditorEditorPanelMessages = defineMessages({
     description: "Button to look up repository context for the current string",
   },
   addToIssueSheet: {
-    defaultMessage: "Queries",
-    id: "C5PXkfW5jk",
+    defaultMessage: "Manage queries",
+    id: "8RLL1pvpVI",
     description: "Button to open Queries for the current CAT segment",
   },
   refreshContextTitle: {
@@ -1147,14 +1147,14 @@ export const contentEditorEditorPanelMessages = defineMessages({
     description: "Loading label while an AI translation suggestion is generated",
   },
   draftAction: {
-    defaultMessage: "Draft",
-    id: "qlnx9FQUcg",
+    defaultMessage: "Save draft",
+    id: "4FiXJbyF1T",
     description: "Secondary action to save the current translation as a draft",
   },
   queryAction: {
-    defaultMessage: "Query",
-    id: "ROKj0LtX6V",
-    description: "Secondary action to open a query for the current CAT segment",
+    defaultMessage: "Manage queries",
+    id: "Pn9lHJsKF0",
+    description: "Secondary action to manage queries for the current CAT segment",
   },
   aiReasoning: {
     defaultMessage: "<b>Reasoning:</b> {reasoning}",

@@ -345,7 +345,7 @@ describe("IssueSheetCreateIssueDialog", () => {
     });
 
     await user.type(screen.getByLabelText("Title"), "First issue");
-    await user.click(screen.getByRole("button", { name: "Create issue" }));
+    await user.click(screen.getByRole("button", { name: "Create query" }));
 
     await waitFor(() => expect(screen.getByLabelText("Title")).toHaveValue(""));
     expect(screen.getByRole("button", { name: "Select assignee" })).toHaveTextContent("Mina Chen");
@@ -431,7 +431,7 @@ describe("IssueSheetCreateIssueDialog", () => {
     renderDialog({ onOpenChange, onCreated });
 
     await user.type(screen.getByLabelText("Title"), "Broken CTA");
-    await user.click(screen.getByRole("button", { name: "Create issue" }));
+    await user.click(screen.getByRole("button", { name: "Create query" }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -463,7 +463,7 @@ describe("IssueSheetCreateIssueDialog", () => {
 
     await user.type(screen.getByLabelText("Title"), "Manual issue");
     await user.type(screen.getByLabelText("Description"), "## Follow-up{Enter}{Enter}");
-    await user.click(screen.getByRole("button", { name: "Create issue" }));
+    await user.click(screen.getByRole("button", { name: "Create query" }));
 
     await waitFor(() =>
       expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true),
@@ -492,7 +492,7 @@ describe("IssueSheetCreateIssueDialog", () => {
     await openSubmenuItem(user, "Set Component");
     const componentInput = await screen.findByLabelText("Component");
     fireEvent.change(componentInput, { target: { value: "  checkout  " } });
-    await user.click(screen.getByRole("button", { name: "Create issue" }));
+    await user.click(screen.getByRole("button", { name: "Create query" }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
 
@@ -519,7 +519,7 @@ describe("IssueSheetCreateIssueDialog", () => {
     renderDialog({ onOpenChange, onCreated, createMore: true });
 
     await user.type(screen.getByLabelText("Title"), "First issue");
-    await user.click(screen.getByRole("button", { name: "Create issue" }));
+    await user.click(screen.getByRole("button", { name: "Create query" }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
     expect(onOpenChange).not.toHaveBeenCalled();

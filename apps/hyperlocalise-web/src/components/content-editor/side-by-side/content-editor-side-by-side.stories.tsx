@@ -184,7 +184,7 @@ export const Default: Story = {
     });
     await expect(canvas.getByText(/Format & QA checks/i)).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("tab", { name: "Details" }));
-    await expect(canvas.getByRole("button", { name: /^Query$/i })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /^Manage queries$/i })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Find context/i })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /^Approve/i })).not.toBeInTheDocument();
     await expect(canvas.queryByText(/ICU structure/i)).not.toBeInTheDocument();
@@ -214,9 +214,9 @@ export const DirtySaveActions: Story = {
     await waitFor(() =>
       expect(canvas.getByRole("button", { name: /^Approve/i })).toBeInTheDocument(),
     );
-    await expect(canvas.getByRole("button", { name: /^Draft$/i })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /^Save draft$/i })).toBeInTheDocument();
 
-    await userEvent.click(canvas.getByRole("button", { name: /^Draft$/i }));
+    await userEvent.click(canvas.getByRole("button", { name: /^Save draft$/i }));
     await expect(args.review?.onSaveDraft).toHaveBeenCalled();
 
     await waitFor(() =>

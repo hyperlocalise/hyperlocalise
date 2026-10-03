@@ -12,6 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { Message01Icon, SaveIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -82,7 +84,11 @@ export function ContentEditorEditorActions({
           onClick={onSaveDraft}
           disabled={!canTriggerApprove}
         >
-          {isSavingDraft ? <Spinner className="size-4" /> : null}
+          {isSavingDraft ? (
+            <Spinner className="size-4" />
+          ) : (
+            <HugeiconsIcon icon={SaveIcon} className="size-4" strokeWidth={2} />
+          )}
           <FormattedMessage {...contentEditorEditorPanelMessages.saveAsDraft} />
         </Button>
       ) : null}
@@ -112,6 +118,7 @@ export function ContentEditorEditorActions({
           onClick={onAddToIssueSheet}
           disabled={isNavigationBlocked}
         >
+          <HugeiconsIcon icon={Message01Icon} className="size-4" strokeWidth={2} />
           <FormattedMessage {...contentEditorEditorPanelMessages.addToIssueSheet} />
         </Button>
       ) : null}
