@@ -49,16 +49,17 @@ export function glossaryFormatChecksForSegment(
   for (const term of glossaryTerms) {
     if (term.forbidden) {
       evaluatedTermCount += 1;
-      if (containsGlossaryTerm(targetText, term.source)) {
+      const forbiddenTerm = term.target.trim() || term.source;
+      if (containsGlossaryTerm(targetText, forbiddenTerm)) {
         checks.push({
           id: `glossary-forbidden-${term.id}`,
           label: intl.formatMessage(contentEditorGlossaryChecksMessages.forbiddenTermLabel),
           status: "fail",
           message: intl.formatMessage(contentEditorGlossaryChecksMessages.forbiddenTermMessage, {
-            term: term.source,
+            term: forbiddenTerm,
           }),
           category: "glossary",
-          relatedTokens: [term.source],
+          relatedTokens: [forbiddenTerm],
         });
       }
       continue;
