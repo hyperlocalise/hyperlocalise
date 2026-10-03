@@ -274,6 +274,8 @@ export class ContentEditorWorkspaceOrchestrator {
   validationSequence = 0;
   reviewSequence = 0;
   fileScopeGeneration = 0;
+  /** Identity of the file and locale the workspace data belongs to. */
+  fileScopeKey: string | null = null;
   readonly queueViewCache = new WeakMap<ContentEditorQueueSegment, ContentEditorSegment>();
   private controllers: WorkspaceControllerLifecycle[] = [];
   private dirtyStateDisposer?: IReactionDisposer;
@@ -783,6 +785,22 @@ export class ContentEditorWorkspaceOrchestrator {
     this.preSaveTargetTexts = new Map();
     this.localStatusOverrides = new Map();
     this.ingestQueue(initialState, initialSegmentKeyOrId);
+  }
+
+  /**
+   * Records the open file and locale, and resets workspace data when they differ
+   * from the last ones seen. The key lives here, not in a component, because the
+   * workspace view can remount between two files while this store stays mounted.
+   */
+  syncFileScope(
+    fileScopeKey: string,
+    input: { sourcePath: string; sourceLocale: string; targetLocale: string },
+  ) {
+    const previousKey = this.fileScopeKey;
+    this.fileScopeKey = fileScopeKey;
+    if (previousKey !== null && previousKey !== fileScopeKey) {
+      this.prepareFileScopeChange(input);
+    }
   }
 
   /**

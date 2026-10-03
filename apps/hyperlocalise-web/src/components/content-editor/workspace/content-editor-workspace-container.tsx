@@ -14,7 +14,7 @@
  */
 import type { ContentEditorMultilingualConfig } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import { observer } from "mobx-react-lite";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
@@ -221,6 +221,9 @@ const ContentEditorWorkspaceContainerObserver = observer(
     const isQueueBulkBlocked =
       Boolean(resolvedQueueDataPending) || !store.hasIngestedQueueSnapshot(queueSnapshot ?? null);
 
+    // Until the store is reset for this file, its selected segment is the previous file's.
+    const isFileScopeSynced = !fileScopeKey || store.fileScopeKey === fileScopeKey;
+
     return (
       <>
         <ContentEditorChatDockPageContextBridge projectId={lazySegment?.projectId} />
@@ -238,7 +241,12 @@ const ContentEditorWorkspaceContainerObserver = observer(
           snapshot={queueSnapshot ?? null}
           initialSegmentKeyOrId={initialSegmentKeyOrId}
         />
-        {lazySegment ? <ContentEditorWorkspaceLazySegmentSync {...lazySegment} /> : null}
+        {lazySegment ? (
+          <ContentEditorWorkspaceLazySegmentSync
+            {...lazySegment}
+            enabled={lazySegment.enabled && isFileScopeSynced}
+          />
+        ) : null}
 
         <ContentEditorQueueToolbarConnected
           onQueueSearchChange={onQueueSearchChange}
@@ -434,24 +442,12 @@ function ContentEditorFileScopeSync({
   sourceLocale: string;
   targetLocale: string;
 }) {
-  const lastScopeKeyRef = useRef<string | null>(null);
-
   useLayoutEffect(() => {
     if (!fileScopeKey) {
       return;
     }
 
-    if (lastScopeKeyRef.current === null) {
-      lastScopeKeyRef.current = fileScopeKey;
-      return;
-    }
-
-    if (lastScopeKeyRef.current === fileScopeKey) {
-      return;
-    }
-
-    lastScopeKeyRef.current = fileScopeKey;
-    store.prepareFileScopeChange({ sourcePath, sourceLocale, targetLocale });
+    store.syncFileScope(fileScopeKey, { sourcePath, sourceLocale, targetLocale });
   }, [fileScopeKey, sourceLocale, sourcePath, store, targetLocale]);
 
   return null;

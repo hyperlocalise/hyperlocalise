@@ -1427,6 +1427,26 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
     expect(store.page.showFileSidebar).toBe(true);
   });
 
+  it("resets only when the file scope key changes after the first one", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }),
+    );
+    const nextFile = {
+      sourcePath: "locales/next.json",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+    };
+
+    store.syncFileScope("first", nextFile);
+    store.syncFileScope("first", nextFile);
+    expect(store.selectedSegmentId).toBe("seg-02");
+
+    store.syncFileScope("second", nextFile);
+    expect(store.fileScopeKey).toBe("second");
+    expect(store.selectedSegmentId).toBe("");
+    expect(store.queueSegments).toEqual([]);
+  });
+
   it("shows the next file's rows when a native queue window was set for the previous file", () => {
     const previousFile = createContentEditorWorkspaceState({
       selectedSegmentId: "seg-01",
