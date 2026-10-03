@@ -70,11 +70,15 @@ import {
 } from "./content-editor-team-glossary";
 import {
   CAT_GLOSSARY_GUIDANCE_OPEN_EVENT,
+  EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS,
   setCatGlossaryGuidanceStatus,
 } from "./content-editor-glossary-guidance-event";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
 import { ContentEditorLottieContextPanel } from "./content-editor-lottie-context-panel";
 import { ContentEditorVisualContextPanel } from "./content-editor-visual-context-panel";
+
+const EMPTY_CONTRIBUTOR_TEAMS: ContentEditorContributorTeam[] = [];
+const EMPTY_TEAM_GLOSSARIES: ContentEditorTeamGlossaryOption[] = [];
 
 function GlossaryGuidanceEmptyState({ sourceText }: { sourceText: string }) {
   const source = emptyStateSourceLabel(sourceText);
@@ -269,9 +273,9 @@ export function ContentEditorIntelligencePanel({
   targetLocale,
   organizationSlug,
   projectId,
-  contributorTeams = [],
+  contributorTeams = EMPTY_CONTRIBUTOR_TEAMS,
   projectTeamId,
-  teamGlossaries = [],
+  teamGlossaries = EMPTY_TEAM_GLOSSARIES,
   canContributeTeamGlossary = false,
   teamName,
   projectTeamSlug,
@@ -433,27 +437,29 @@ export function ContentEditorIntelligencePanel({
       ).length,
     };
   }, [visibleGlossaryConcepts]);
+  const firstVisibleGlossaryConceptId = visibleGlossaryConcepts[0]?.id;
   const [expandedGlossaryConceptIds, setExpandedGlossaryConceptIds] = useState<Set<string>>(
-    () => new Set(visibleGlossaryConcepts[0] ? [visibleGlossaryConcepts[0].id] : []),
+    () => new Set(firstVisibleGlossaryConceptId ? [firstVisibleGlossaryConceptId] : []),
   );
 
   useEffect(() => {
     setExpandedGlossaryConceptIds(
-      new Set(visibleGlossaryConcepts[0] ? [visibleGlossaryConcepts[0].id] : []),
+      new Set(firstVisibleGlossaryConceptId ? [firstVisibleGlossaryConceptId] : []),
     );
-  }, [glossaryConceptKey, visibleGlossaryConcepts]);
+  }, [glossaryConceptKey, firstVisibleGlossaryConceptId]);
 
+  const { matchCount, preferredCount, notRecommendedCount } = glossaryGuidanceStatus;
   useEffect(() => {
     setCatGlossaryGuidanceStatus(
       isConcordanceLoading
-        ? { preferredCount: 0, notRecommendedCount: 0, matchCount: 0 }
-        : glossaryGuidanceStatus,
+        ? EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS
+        : { matchCount, preferredCount, notRecommendedCount },
     );
 
     return () => {
-      setCatGlossaryGuidanceStatus({ preferredCount: 0, notRecommendedCount: 0, matchCount: 0 });
+      setCatGlossaryGuidanceStatus(EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS);
     };
-  }, [glossaryConceptKey, glossaryGuidanceStatus, isConcordanceLoading]);
+  }, [isConcordanceLoading, matchCount, preferredCount, notRecommendedCount]);
 
   useEffect(() => {
     if (isTranslationLocked) {
