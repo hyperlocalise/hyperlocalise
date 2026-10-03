@@ -615,6 +615,42 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "DCeid5ejmn",
     description: "Empty state when Contentful target locales cannot be chosen yet",
   },
+  skillsSection: {
+    defaultMessage: "Skills",
+    id: "DIG49VapuX",
+    description: "Section heading for automation skills",
+  },
+  addSkill: {
+    defaultMessage: "Add Skill",
+    id: "hb3XPziYiC",
+    description: "Button to open the add-skill menu",
+  },
+  skillsEmpty: {
+    defaultMessage: "Pick what this automation should do. Each skill adds the tools it needs.",
+    id: "xYhoLiHtTw",
+    description: "Hint shown in the skills section when no skill is attached",
+  },
+  removeSkill: {
+    defaultMessage: "Remove skill {name}",
+    id: "W/GIC1a+rE",
+    description: "Accessible label for the button that detaches a skill from the automation",
+  },
+  skillOtherTriggerShortcut: {
+    defaultMessage: "Other trigger",
+    id: "PLm70+Vo7Q",
+    description: "Shortcut hint when a skill does not work with the selected trigger",
+  },
+  fromSkillBadge: {
+    defaultMessage: "From skill",
+    id: "dyqxYYUMI3",
+    description: "Badge on a tool row that an attached skill needs",
+  },
+  instructionsWithSkillsPlaceholder: {
+    defaultMessage:
+      "Optional. Add anything specific to your team: tone, report format, what to ignore.",
+    id: "kzwi13YrTF",
+    description: "Placeholder for the automation instructions textarea when a skill is attached",
+  },
   toolsSection: {
     defaultMessage: "Tools",
     id: "Z39eNFe81L",

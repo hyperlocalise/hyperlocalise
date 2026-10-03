@@ -184,8 +184,7 @@ export function addSkillToWorkspaceAutomationForm(
 
   const firstTrigger = skill.triggers[0];
   const needsOwnTrigger =
-    firstTrigger !== undefined &&
-    !workspaceAutomationSkillSupportsTrigger(skill, form.triggerMode);
+    firstTrigger !== undefined && !workspaceAutomationSkillSupportsTrigger(skill, form.triggerMode);
   const withTrigger: WorkspaceAutomationFormState = needsOwnTrigger
     ? {
         ...form,

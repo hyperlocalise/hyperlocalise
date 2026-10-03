@@ -27,6 +27,7 @@ import {
   EnvelopeIcon,
   MagnifyingGlassIcon,
   SlackLogoIcon,
+  SparkleIcon,
   CheckSquareIcon,
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
@@ -108,6 +109,17 @@ import {
   type WorkspaceAutomationGithubTriggerEvent,
   type WorkspaceAutomationRunRecord,
 } from "@/lib/agents/workspace-automation-types";
+import {
+  addSkillToWorkspaceAutomationForm,
+  listWorkspaceAutomationFormSkillTools,
+  removeSkillFromWorkspaceAutomationForm,
+  resolveWorkspaceAutomationSkillAvailability,
+  type WorkspaceAutomationSkillDefaults,
+} from "@/lib/agents/workspace-automation-skill-form";
+import {
+  resolveWorkspaceAutomationSkills,
+  WORKSPACE_AUTOMATION_SKILLS,
+} from "@/lib/agents/workspace-automation-skills";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import {
   applyWorkspaceAutomationProjectSelection,
@@ -356,13 +368,24 @@ function EditorRow({
 
 function DeleteToolButton({
   disabled,
+  fromSkill,
   label,
   onClick,
 }: {
   disabled?: boolean;
+  /** The tool belongs to an attached skill, so it is removed by removing the skill. */
+  fromSkill?: boolean;
   label: string;
   onClick: () => void;
 }) {
+  if (fromSkill) {
+    return (
+      <Badge variant="secondary">
+        <FormattedMessage {...workspaceAutomationFormMessages.fromSkillBadge} />
+      </Badge>
+    );
+  }
+
   return (
     <Button
       type="button"
@@ -1994,6 +2017,107 @@ function ContentfulTargetLocalesPicker({
   );
 }
 
+function SkillsSettings({
+  defaults,
+  disabled,
+  error,
+  form,
+  onChange,
+}: {
+  defaults: WorkspaceAutomationSkillDefaults;
+  disabled?: boolean;
+  error?: string;
+  form: WorkspaceAutomationFormState;
+  onChange: (next: WorkspaceAutomationFormState) => void;
+}) {
+  const intl = useIntl();
+  const attachedSkills = resolveWorkspaceAutomationSkills(form.skillIds);
+
+  return (
+    <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.skillsSection)}>
+      <EditorPanel>
+        {attachedSkills.length === 0 ? (
+          <p className="border-b border-border px-3 py-3 text-xs text-muted-foreground">
+            <FormattedMessage {...workspaceAutomationFormMessages.skillsEmpty} />
+          </p>
+        ) : null}
+        {attachedSkills.map((skill) => (
+          <EditorRow
+            key={skill.id}
+            icon={<SparkleIcon className="size-4" />}
+            title={skill.name}
+            description={`${skill.description} ${skill.grants}`}
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeSkill, {
+                  name: skill.name,
+                })}
+                onClick={() => onChange(removeSkillFromWorkspaceAutomationForm(form, skill.id))}
+              />
+            }
+          />
+        ))}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="w-full"
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={disabled}
+                className="flex h-10 w-full shrink justify-start rounded-none px-3 text-muted-foreground hover:bg-muted hover:text-foreground"
+              />
+            }
+          >
+            <PlusIcon className="size-4" />
+            <FormattedMessage {...workspaceAutomationFormMessages.addSkill} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="max-h-(--available-height) w-96 overflow-y-auto"
+            align="start"
+            sideOffset={2}
+          >
+            {WORKSPACE_AUTOMATION_SKILLS.map((skill) => {
+              const availability = resolveWorkspaceAutomationSkillAvailability(form, skill);
+              return (
+                <DropdownMenuItem
+                  key={skill.id}
+                  disabled={availability !== "available"}
+                  className="items-start"
+                  onClick={() =>
+                    onChange(addSkillToWorkspaceAutomationForm(form, skill.id, defaults))
+                  }
+                >
+                  <SparkleIcon className="mt-0.5 size-4 shrink-0" />
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span>{skill.name}</span>
+                    <span className="text-xs text-pretty text-muted-foreground">
+                      {skill.description}
+                    </span>
+                  </span>
+                  {availability === "attached" ? (
+                    <DropdownMenuHint>
+                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                    </DropdownMenuHint>
+                  ) : availability === "trigger_mismatch" ? (
+                    <DropdownMenuHint>
+                      <FormattedMessage
+                        {...workspaceAutomationFormMessages.skillOtherTriggerShortcut}
+                      />
+                    </DropdownMenuHint>
+                  ) : null}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </EditorPanel>
+      <FieldError message={error} />
+    </EditorSection>
+  );
+}
+
 function ToolsSettings({
   automationId,
   canUpdateKnowledgeMemory,
@@ -2065,6 +2189,7 @@ function ToolsSettings({
   const createNativeTmsJobTargetLocalesFieldId = "create-native-tms-job-target-locales";
   const intl = useIntl();
   const [memoriesOpen, setMemoriesOpen] = useState(false);
+  const skillTools = listWorkspaceAutomationFormSkillTools(form);
 
   return (
     <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.toolsSection)}>
@@ -2152,6 +2277,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                fromSkill={skillTools.has("use_github_repository")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeGithubRepoTool)}
                 onClick={() =>
                   onChange({
@@ -2326,6 +2452,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                fromSkill={skillTools.has("notify_github_comment")}
                 label={intl.formatMessage(
                   workspaceAutomationFormMessages.removeGithubCommentNotifications,
                 )}
@@ -2374,6 +2501,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                fromSkill={skillTools.has("notify_slack")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeSlackNotifications)}
                 onClick={() => onChange({ ...form, slackEnabled: false, slackChannelId: "" })}
               />
@@ -2419,6 +2547,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                fromSkill={skillTools.has("notify_email")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeEmailNotifications)}
                 onClick={() =>
                   onChange({
@@ -2541,6 +2670,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                fromSkill={skillTools.has("run_contentful_translation")}
                 label={intl.formatMessage(
                   workspaceAutomationFormMessages.removeContentfulTranslate,
                 )}
@@ -2720,6 +2850,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                fromSkill={skillTools.has("use_crowdin")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeCrowdinTool)}
                 onClick={() =>
                   onChange({
@@ -2776,6 +2907,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                fromSkill={skillTools.has("create_native_tms_job")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeCreateJob)}
                 onClick={() =>
                   onChange({
@@ -2851,6 +2983,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                fromSkill={skillTools.has("assign_translate_with_agent")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeTranslateWithAgent)}
                 onClick={() =>
                   onChange({
@@ -3131,6 +3264,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                fromSkill={skillTools.has("use_web_search")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeWebSearchTool)}
                 onClick={() =>
                   onChange({
@@ -3613,6 +3747,15 @@ export function WorkspaceAutomationEditor({
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";
+  const skillDefaults: WorkspaceAutomationSkillDefaults = {
+    githubInstallationRepositoryId: resolveDefaultGithubRepositoryId(form, repositories),
+    crowdinProjectId: defaultCrowdinProjectId(
+      form,
+      collectCrowdinProjects(projectsQuery.data ?? [], crowdinLiveProjects),
+    ),
+    contentfulConnectionId:
+      contentfulConnections.length === 1 ? contentfulConnections[0]?.id : undefined,
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -3717,6 +3860,14 @@ export function WorkspaceAutomationEditor({
             repositories={repositories}
           />
 
+          <SkillsSettings
+            defaults={skillDefaults}
+            disabled={disabled}
+            error={errors.skills}
+            form={form}
+            onChange={onChange}
+          />
+
           <EditorSection
             title={intl.formatMessage(workspaceAutomationFormMessages.agentInstructionsSection)}
           >
@@ -3727,7 +3878,9 @@ export function WorkspaceAutomationEditor({
                 disabled={disabled}
                 className="relative z-0 min-h-80 resize-y rounded-xl border-border bg-muted pb-10 font-sans text-sm leading-6"
                 placeholder={intl.formatMessage(
-                  workspaceAutomationFormMessages.instructionsPlaceholder,
+                  form.skillIds.length > 0
+                    ? workspaceAutomationFormMessages.instructionsWithSkillsPlaceholder
+                    : workspaceAutomationFormMessages.instructionsPlaceholder,
                 )}
                 onChange={(event) => onChange({ ...form, instructions: event.target.value })}
               />

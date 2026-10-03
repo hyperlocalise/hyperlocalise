@@ -16,6 +16,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, within } from "storybook/test";
 
 import { Button } from "@/components/ui/button";
+import { addSkillToWorkspaceAutomationForm } from "@/lib/agents/workspace-automation-skill-form";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
@@ -211,6 +212,40 @@ export const CreateFromContentfulTemplate: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByDisplayValue("Translate Contentful article")).toBeInTheDocument();
     await expect(canvas.getByText("Contentful")).toBeInTheDocument();
+  },
+};
+
+export const AddSkillEnablesTools: Story = {
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await expect(
+      canvas.getByText("Pick what this automation should do. Each skill adds the tools it needs."),
+    ).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
+    await userEvent.click(await body.findByRole("menuitem", { name: /^Research the web/ }));
+    await expect(
+      canvas.getByText(/Searches the public web\. Changes nothing\./),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("From skill")).toBeInTheDocument();
+    await expect(canvas.getByText("1 tool")).toBeInTheDocument();
+  },
+};
+
+export const CreateWithSkills: Story = {
+  args: {
+    form: ["review-translation-changes", "post-to-slack"].reduce(
+      (form, skillId) => addSkillToWorkspaceAutomationForm(form, skillId),
+      { ...createEmptyAutomationFormFixture(), name: "Review translations" },
+    ),
+  },
+  play: async ({ canvas, userEvent }) => {
+    await expect(canvas.getByText("Review translation changes")).toBeInTheDocument();
+    await expect(canvas.getAllByText("From skill")).toHaveLength(2);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Remove skill Post results to Slack" }),
+    );
+    await expect(canvas.getAllByText("From skill")).toHaveLength(1);
+    await expect(canvas.getByText("1 tool")).toBeInTheDocument();
   },
 };
 
