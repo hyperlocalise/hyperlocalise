@@ -29,6 +29,7 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { getAgentProviderOptions } from "@/lib/providers/language-model";
 
 import { evalModel } from "./eval-model";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 export { evalModel } from "./eval-model";
 
@@ -136,6 +137,7 @@ export function createEvalConversationAgent(scenario: EvalScenario) {
   );
 
   return new ToolLoopAgent<never, ToolSet>({
+    telemetry: createAiTelemetry("evaluation-judge"),
     model: evalModel,
     instructions: buildConversationSkillInstructions({
       surface: runtime.surface,

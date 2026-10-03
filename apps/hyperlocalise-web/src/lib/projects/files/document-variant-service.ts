@@ -15,6 +15,7 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { getStoredFileContent } from "@/lib/file-storage/records";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 import { getManagedLanguageModel } from "@/lib/providers/language-model";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -132,6 +133,7 @@ export async function localizeAndStoreDocumentVariant(input: {
   try {
     const result = await generateText({
       model,
+      telemetry: createAiTelemetry("document-variant-generation"),
       prompt: buildDocumentLocalizationPrompt({
         sourceLocale: input.sourceLocale,
         targetLocale: input.targetLocale,

@@ -19,6 +19,7 @@ import { z } from "zod";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { db, schema } from "@/lib/database/client";
 import type { LlmProvider } from "@/lib/database/types";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 import {
   getManagedLanguageModel,
   hyperlocaliseManagedGatewayModelId,
@@ -468,6 +469,7 @@ export class StringTranslationEngine {
     const invocationId = randomUUID();
     const { output, usage } = await generateText({
       model: this.model,
+      telemetry: createAiTelemetry("translation-generation"),
       output: Output.object({ schema: stringTranslationOutputSchema }),
       instructions: this.promptPolicy.buildSystemInstructions({
         mode: "string",
@@ -541,6 +543,7 @@ export class ContentEditorRecommendationEngine {
   ): Promise<ContentEditorAiRecommendationResult> {
     const { output } = await generateText({
       model: this.model,
+      telemetry: createAiTelemetry("content-editor-recommendation"),
       abortSignal: options?.signal,
       output: Output.object({ schema: contentEditorAiRecommendationOutputSchema }),
       instructions: this.promptPolicy.buildSystemInstructions({

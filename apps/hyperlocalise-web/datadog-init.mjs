@@ -22,3 +22,12 @@ if (!process.env.DD_VERSION && process.env.VERCEL_GIT_COMMIT_SHA) {
 }
 
 await import("dd-trace/initialize.mjs");
+
+const [{ default: tracer }, { redactLlmObsContent }] = await Promise.all([
+  import("dd-trace"),
+  import("./datadog-content-policy.mjs"),
+]);
+
+// The AI SDK policy suppresses content before telemetry events are emitted.
+// This processor is the final fail-closed boundary before LLMObs export.
+tracer.llmobs.registerProcessor(redactLlmObsContent);
