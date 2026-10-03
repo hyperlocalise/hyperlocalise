@@ -14,223 +14,144 @@
  */
 import type { ReactNode } from "react";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
-import { ArrowUpRight01Icon, LanguageSquareIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import type { UseQueryResult } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { TypographyP } from "@/components/ui/typography";
-
 import { isLiveProviderMemoryId } from "@/lib/providers/jobs/tms-provider-resource-id";
-import { ProviderKindBadge } from "../../_components/workspace-files-shared";
-import { toneClass } from "../../_components/workspace-resource-shared";
+
+import type { WorkspaceGroupedTableColumn } from "../../_components/workspace-grouped-table";
 import type { MemoryListRow } from "./memory-list";
-import { providerLabel } from "./memory-list";
 import { translationMemoriesTableMessages } from "./translation-memories-table.messages";
 
-function SourceLabel({ memory }: { memory: MemoryListRow }) {
-  if (memory.source === "native") {
-    return (
-      <span className="text-xs text-muted-foreground">
-        <FormattedMessage {...translationMemoriesTableMessages.sourceWorkspace} />
-      </span>
-    );
-  }
-
-  if (memory.externalProviderKind) {
-    return <ProviderKindBadge kind={memory.externalProviderKind} />;
-  }
-
-  return (
-    <span className="text-xs text-muted-foreground">
-      <FormattedMessage {...translationMemoriesTableMessages.sourceExternalTms} />
-    </span>
-  );
-}
-
-function CapabilityBadge({ memory }: { memory: MemoryListRow }) {
-  const tone =
-    memory.capabilityMode === "reference_only"
-      ? "watch"
-      : memory.capabilityMode === "live_search"
-        ? "info"
-        : "safe";
-
-  return (
-    <Badge variant="outline" className={toneClass(tone)}>
-      {memory.capabilityLabel}
-    </Badge>
-  );
-}
-
-function MemoryRow({
+function MemoryNameCell({
   memory,
   organizationSlug,
 }: {
   memory: MemoryListRow;
   organizationSlug: string;
 }) {
-  const intl = useIntl();
-  const sourceDetail =
+  const className = "truncate font-medium text-foreground underline-offset-2 hover:underline";
+
+  if (!isLiveProviderMemoryId(memory.id)) {
+    return (
+      <OrgNavLink
+        href={`/org/${organizationSlug}/translation-memories/${memory.id}`}
+        prefetch
+        className={className}
+      >
+        {memory.name}
+      </OrgNavLink>
+    );
+  }
+
+  if (memory.externalUrl) {
+    return (
+      <a href={memory.externalUrl} target="_blank" rel="noreferrer" className={className}>
+        {memory.name}
+      </a>
+    );
+  }
+
+  return <span className="truncate font-medium text-foreground">{memory.name}</span>;
+}
+
+function MemoryProjectsCell({
+  memory,
+  organizationSlug,
+  intl,
+}: {
+  memory: MemoryListRow;
+  organizationSlug: string;
+  intl: ReturnType<typeof useIntl>;
+}) {
+  const label =
     memory.source === "native"
-      ? intl.formatMessage(translationMemoriesTableMessages.updatedAt, {
-          timestamp: memory.updatedAt,
-        })
-      : [
-          memory.externalProviderKind
-            ? providerLabel(memory.externalProviderKind)
-            : intl.formatMessage(translationMemoriesTableMessages.providerFallback),
-          memory.externalProjectId
-            ? intl.formatMessage(translationMemoriesTableMessages.projectId, {
-                projectId: memory.externalProjectId,
-              })
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" · ");
+      ? (memory.projectCount ?? 0) === 0
+        ? intl.formatMessage(translationMemoriesTableMessages.allProjects)
+        : intl.formatMessage(translationMemoriesTableMessages.usedInProjects, {
+            count: memory.projectCount ?? 0,
+          })
+      : (memory.externalProjectName ??
+        (memory.externalProjectId
+          ? intl.formatMessage(translationMemoriesTableMessages.projectId, {
+              projectId: memory.externalProjectId,
+            })
+          : "—"));
+
+  if (memory.projectLinkId) {
+    return (
+      <OrgNavLink
+        href={`/org/${organizationSlug}/projects/${memory.projectLinkId}`}
+        prefetch
+        className="block truncate underline-offset-2 hover:text-foreground hover:underline"
+        title={label}
+      >
+        {label}
+      </OrgNavLink>
+    );
+  }
 
   return (
-    <div className="grid gap-3 px-5 py-4 md:grid-cols-[1.4fr_1fr_0.9fr_0.9fr] md:items-center">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <HugeiconsIcon
-            icon={LanguageSquareIcon}
-            strokeWidth={1.7}
-            className="size-4 shrink-0 text-muted-foreground"
-          />
-          {isLiveProviderMemoryId(memory.id) ? (
-            <span className="truncate text-sm font-medium text-foreground">{memory.name}</span>
-          ) : (
-            <OrgNavLink
-              href={`/org/${organizationSlug}/translation-memories/${memory.id}`}
-              prefetch
-              className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
-            >
-              {memory.name}
-            </OrgNavLink>
-          )}
-          <SourceLabel memory={memory} />
-        </div>
-        <TypographyP className="mt-1" size="xsmall" tone="subtle">
-          {sourceDetail}
-        </TypographyP>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {memory.projectLinkId ? (
-            <OrgNavLink
-              href={`/org/${organizationSlug}/projects/${memory.projectLinkId}`}
-              prefetch
-              className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            >
-              <FormattedMessage {...translationMemoriesTableMessages.viewLinkedProject} />
-            </OrgNavLink>
-          ) : memory.externalProjectId ? (
-            <span className="text-xs text-muted-foreground">
-              <FormattedMessage
-                {...translationMemoriesTableMessages.externalProject}
-                values={{ projectId: memory.externalProjectId }}
-              />
-            </span>
-          ) : null}
-          {memory.externalUrl ? (
-            <a
-              href={memory.externalUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <FormattedMessage {...translationMemoriesTableMessages.openInProvider} />
-              <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={1.7} className="size-3.5" />
-            </a>
-          ) : null}
-        </div>
-      </div>
-      <TypographyP size="small" tone="subtle">
-        {memory.localeSummary}
-      </TypographyP>
-      <TypographyP size="small" tone="subtle">
-        <FormattedMessage
-          {...translationMemoriesTableMessages.segmentCount}
-          values={{ countLabel: memory.segmentCountLabel }}
-        />
-      </TypographyP>
-      <div className="flex flex-wrap gap-2">
-        <CapabilityBadge memory={memory} />
-      </div>
-    </div>
+    <span className="block truncate" title={label}>
+      {label}
+    </span>
   );
 }
 
-export function TranslationMemoriesTable({
-  memories,
-  memoriesQuery,
-  organizationSlug,
-  emptyTitle,
-  emptyDescription,
-  emptyAction,
-}: {
-  memories: MemoryListRow[];
-  memoriesQuery: Pick<
-    UseQueryResult<unknown, Error>,
-    "isLoading" | "isError" | "isSuccess" | "error"
-  >;
-  organizationSlug: string;
-  emptyTitle: string;
-  emptyDescription: string;
-  emptyAction?: ReactNode;
-}) {
+export type TranslationMemoriesTableQuery = {
+  isLoading: boolean;
+  isError: boolean;
+  isSuccess: boolean;
+  error: Error | null;
+  refetch?: () => void;
+};
+
+export function useTranslationMemoriesTableColumns(): WorkspaceGroupedTableColumn[] {
   const intl = useIntl();
 
-  return (
-    <section
-      aria-label={intl.formatMessage(translationMemoriesTableMessages.sectionLabel)}
-      className="min-w-0"
-    >
-      {memoriesQuery.isLoading ? (
-        <TypographyP className="py-8" size="small" tone="subtle">
-          <FormattedMessage {...translationMemoriesTableMessages.loading} />
-        </TypographyP>
-      ) : null}
+  return [
+    {
+      id: "name",
+      label: intl.formatMessage(translationMemoriesTableMessages.nameColumn),
+    },
+    {
+      id: "segments",
+      label: intl.formatMessage(translationMemoriesTableMessages.segmentsColumn),
+      className: "w-36",
+    },
+    {
+      id: "languages",
+      label: intl.formatMessage(translationMemoriesTableMessages.languagesColumn),
+      className: "w-56",
+    },
+    {
+      id: "projects",
+      label: intl.formatMessage(translationMemoriesTableMessages.projectsColumn),
+      className: "w-48",
+    },
+  ];
+}
 
-      {memoriesQuery.isError ? (
-        <div className="py-8">
-          <TypographyP className="text-flame-100" size="small" weight="medium">
-            <FormattedMessage {...translationMemoriesTableMessages.loadFailed} />
-          </TypographyP>
-          <TypographyP className="mt-1" size="xsmall" tone="subtle">
-            {memoriesQuery.error instanceof Error
-              ? memoriesQuery.error.message
-              : intl.formatMessage(translationMemoriesTableMessages.loadFailedFallback)}
-          </TypographyP>
-        </div>
-      ) : null}
-
-      {memoriesQuery.isSuccess && memories.length === 0 ? (
-        <div className="space-y-3 py-10">
-          <TypographyP size="small" weight="medium" tone="content">
-            {emptyTitle}
-          </TypographyP>
-          <TypographyP className="max-w-xl leading-6" size="small" tone="subtle">
-            {emptyDescription}
-          </TypographyP>
-          {emptyAction}
-        </div>
-      ) : null}
-
-      {memoriesQuery.isSuccess && memories.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-border">
-          {memories.map((memory, index) => (
-            <div key={memory.id}>
-              <MemoryRow memory={memory} organizationSlug={organizationSlug} />
-              {index < memories.length - 1 ? <Separator className="bg-skeleton" /> : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </section>
-  );
+export function renderMemoryTableCells(
+  memory: MemoryListRow,
+  organizationSlug: string,
+  intl: ReturnType<typeof useIntl>,
+): ReactNode[] {
+  return [
+    <MemoryNameCell key="name" memory={memory} organizationSlug={organizationSlug} />,
+    <span key="segments" className="tabular-nums">
+      {memory.segmentCountLabel}
+    </span>,
+    <span key="languages" className="block truncate" title={memory.localeSummary}>
+      {memory.localeSummary || "—"}
+    </span>,
+    <MemoryProjectsCell
+      key="projects"
+      memory={memory}
+      organizationSlug={organizationSlug}
+      intl={intl}
+    />,
+  ];
 }
 
 export function TranslationMemoriesEmptyAction({

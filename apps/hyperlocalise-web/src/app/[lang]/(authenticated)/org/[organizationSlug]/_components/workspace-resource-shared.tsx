@@ -37,6 +37,74 @@ export function WorkspacePageShell({ children, className, ...props }: WorkspaceP
   );
 }
 
+export function WorkspaceResourceSection({
+  title,
+  count,
+  headerActions,
+  children,
+}: {
+  title: string;
+  count?: number;
+  headerActions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section aria-label={title} className="flex min-w-0 flex-col gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-sm font-medium text-foreground">
+          {title}
+          {count === undefined ? null : (
+            <span className="ml-2 font-normal tabular-nums text-muted-foreground">{count}</span>
+          )}
+        </h2>
+        {headerActions ? <div className="min-w-0 sm:max-w-sm">{headerActions}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function WorkspaceResourceListFrame({
+  children,
+  className,
+  ...props
+}: ComponentProps<"div">) {
+  return (
+    <div className={cn("overflow-hidden rounded-lg border border-border", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export function WorkspaceResourceEmpty({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-3 px-4 py-8">
+      <div className="space-y-1">
+        <TypographyP size="small" weight="medium" tone="content">
+          {title}
+        </TypographyP>
+        {description ? (
+          <TypographyP className="max-w-lg text-pretty" size="small" tone="subtle">
+            {description}
+          </TypographyP>
+        ) : null}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export const workspaceResourceRowClassName =
+  "grid gap-2 px-4 py-3 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_8rem] md:items-center";
+
 export function WorkspaceFilterField({
   label,
   className,

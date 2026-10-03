@@ -100,6 +100,16 @@ export const glossariesTableMessages = defineMessages({
     id: "KMxAKNLBFq",
     description: "Term count shown for a glossary row",
   },
+  nameColumn: {
+    defaultMessage: "Name",
+    id: "/dRL1ccCZi",
+    description: "Column header for glossary name",
+  },
+  projectsColumn: {
+    defaultMessage: "Projects",
+    id: "iYCf73JxiN",
+    description: "Column header for glossary project assignment",
+  },
   languagesLabel: {
     defaultMessage: "Languages",
     id: "uHYoEcEwFx",

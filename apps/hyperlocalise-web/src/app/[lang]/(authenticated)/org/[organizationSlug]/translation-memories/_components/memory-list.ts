@@ -57,6 +57,8 @@ export type MemoryListRow = {
   lastSyncErrorAt: string | null;
   lastSyncErrorMessage: string | null;
   updatedAt: string;
+  projectCount: number | null;
+  externalProjectName: string | null;
   projectLinkId: string | null;
 };
 
@@ -165,6 +167,8 @@ export function mapMemoryToListRow(
     updatedAt:
       formatRelativeTimestamp(memory.updatedAt) ??
       resolveMessage(intl, memoryListMessages.unavailableTimestamp),
+    projectCount: memory.projectCount ?? 0,
+    externalProjectName: null,
     projectLinkId: lookupKey ? (projectIdByExternalKey.get(lookupKey) ?? null) : null,
   };
 }
@@ -198,6 +202,8 @@ export function mapLiveTmsProviderMemoryToListRow(
     lastSyncErrorAt: null,
     lastSyncErrorMessage: null,
     updatedAt: resolveMessage(intl, memoryListMessages.unavailableTimestamp),
+    projectCount: null,
+    externalProjectName: memory.projectName?.trim() || null,
     projectLinkId: encodeProviderProjectId({
       providerKind,
       externalProjectId: memory.externalProjectId,
