@@ -50,6 +50,27 @@ export const translationMemoriesPageViewMessages = defineMessages({
     id: "xYeE5w8BlW",
     description: "Placeholder for the translation memories search field",
   },
+  nativeSectionTitle: {
+    defaultMessage: "Hyperlocalise",
+    id: "Vd8rri53Cw",
+    description: "Heading for workspace translation memories",
+  },
+  nativeEmptyTitle: {
+    defaultMessage: "No Hyperlocalise memories",
+    id: "JnkMlPrbgO",
+    description: "Empty state title for workspace translation memories",
+  },
+  externalEmptyTitle: {
+    defaultMessage: "No {provider} memories",
+    id: "3F7R48zqwN",
+    description: "Empty state title for provider translation memories",
+  },
+  nativeEmptyDescription: {
+    defaultMessage:
+      "Hyperlocalise memories created here stay available to every project you attach.",
+    id: "pj3dDbWu7o",
+    description: "Empty state description for workspace translation memories",
+  },
   sourceLabel: {
     defaultMessage: "Source",
     id: "/AcaMGSbw2",
@@ -159,8 +180,8 @@ export const translationMemoriesPageViewMessages = defineMessages({
   },
   emptyDescriptionWithProvider: {
     defaultMessage:
-      "Provider translation memories appear here after sync. Connect or resync a TMS provider from Integrations if you expected to see one.",
-    id: "ZwXdX+nC9a",
+      "{provider} translation memories appear here after sync. Connect or resync from Integrations if you expected to see one.",
+    id: "CkyeuxhCTF",
     description: "Empty state description when a TMS provider is connected but no memories exist",
   },
   emptyDescriptionWithoutProvider: {

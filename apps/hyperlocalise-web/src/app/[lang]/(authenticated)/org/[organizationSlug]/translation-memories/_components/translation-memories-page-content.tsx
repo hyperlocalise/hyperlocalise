@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -46,7 +46,6 @@ import {
   mapMemoryToListRow,
   providerLabel,
   type ApiMemory,
-  type MemoryListRow,
 } from "./memory-list";
 import type { TmsProviderLiveTranslationMemory } from "@/lib/providers/jobs/tms-provider-live";
 import {
@@ -66,11 +65,11 @@ class CreateMemoryImportError extends Error {
   }
 }
 
-const memoriesQueryKey = (organizationSlug: string, page: number) => [
-  "translation-memories",
-  organizationSlug,
-  page,
-];
+const workspaceMemoriesQueryKey = (
+  organizationSlug: string,
+  source: "native" | "external_tms",
+  projectFilter: string,
+) => ["translation-memories", organizationSlug, source, projectFilter] as const;
 const projectsQueryKey = (organizationSlug: string) => [
   "translation-memory-projects",
   organizationSlug,
@@ -84,8 +83,7 @@ function createEmptyMemoryForm(): MemoryCreateForm {
   return { name: "", description: "", importFile: null };
 }
 
-function useMemoryFilters(
-  memories: MemoryListRow[],
+function useMemoryListFilterState(
   searchParams: URLSearchParams,
   options?: { ignoreSyncFilter?: boolean },
 ) {
@@ -104,19 +102,8 @@ function useMemoryFilters(
     Boolean(options?.ignoreSyncFilter),
   );
 
-  const filteredMemories = useMemo(
-    () =>
-      filterMemoryListRows(memories, {
-        searchQuery,
-        sourceFilter,
-        providerFilter,
-        syncFilter: effectiveSyncFilter,
-      }),
-    [memories, searchQuery, sourceFilter, providerFilter, effectiveSyncFilter],
-  );
-
   const activeFilterCount = [sourceFilter, providerFilter, effectiveSyncFilter].filter(
-    (f) => f !== "all",
+    (filter) => filter !== "all",
   ).length;
 
   function clearFilters() {
@@ -135,9 +122,40 @@ function useMemoryFilters(
     setProviderFilter,
     syncFilter: effectiveSyncFilter,
     setSyncFilter,
-    filteredMemories,
     activeFilterCount,
     clearFilters,
+  };
+}
+
+async function fetchWorkspaceMemories(
+  organizationSlug: string,
+  intl: ReturnType<typeof useIntl>,
+  page: number,
+  source: "native" | "external_tms",
+  projectFilter: string,
+) {
+  const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$get({
+    param: { organizationSlug },
+    query: {
+      limit: String(MEMORIES_PAGE_SIZE),
+      offset: String((page - 1) * MEMORIES_PAGE_SIZE),
+      source,
+      ...(projectFilter !== "all" ? { projectId: projectFilter } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      intl.formatMessage(translationMemoriesPageContentMessages.loadMemoriesFailed, {
+        status: response.status,
+      }),
+    );
+  }
+
+  const body = await response.json();
+  return {
+    memories: body.memories as ApiMemory[],
+    total: body.total as number,
   };
 }
 
@@ -152,16 +170,27 @@ export function TranslationMemoriesPageContent({
   const router = useOrgRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
+  const { client: goSvcClient } = useGoSvcClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createForm, setCreateForm] = useState<MemoryCreateForm>(() => createEmptyMemoryForm());
   const [createErrors, setCreateErrors] = useState<{ name?: string; importFile?: string }>({});
   const [selectedExternalProjectId, setSelectedExternalProjectId] = useState("");
   const [projectFilter, setProjectFilter] = useState("all");
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
-  const { client: goSvcClient } = useGoSvcClient();
   const useLiveProviderMemories = Boolean(activeTmsProvider);
-  const allowCreateMemories = canCreateMemories && !useLiveProviderMemories;
+  const allowCreateMemories = canCreateMemories;
+  const {
+    searchQuery,
+    setSearchQuery,
+    sourceFilter,
+    setSourceFilter,
+    providerFilter,
+    setProviderFilter,
+    syncFilter,
+    setSyncFilter,
+    activeFilterCount,
+    clearFilters,
+  } = useMemoryListFilterState(searchParams, { ignoreSyncFilter: useLiveProviderMemories });
 
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
@@ -205,69 +234,63 @@ export function TranslationMemoriesPageContent({
     },
   });
 
-  const memoriesQuery = useQuery({
+  const nativeMemoriesQuery = useInfiniteQuery({
+    queryKey: workspaceMemoriesQueryKey(organizationSlug, "native", projectFilter),
+    initialPageParam: 1,
+    enabled: sourceFilter !== "external_tms",
+    queryFn: ({ pageParam }) =>
+      fetchWorkspaceMemories(organizationSlug, intl, pageParam, "native", projectFilter),
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((count, page) => count + page.memories.length, 0);
+      return loaded < lastPage.total ? pages.length + 1 : undefined;
+    },
+  });
+
+  const persistedExternalMemoriesQuery = useInfiniteQuery({
+    queryKey: workspaceMemoriesQueryKey(organizationSlug, "external_tms", projectFilter),
+    initialPageParam: 1,
+    enabled: !useLiveProviderMemories && sourceFilter !== "native",
+    queryFn: ({ pageParam }) =>
+      fetchWorkspaceMemories(organizationSlug, intl, pageParam, "external_tms", projectFilter),
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((count, page) => count + page.memories.length, 0);
+      return loaded < lastPage.total ? pages.length + 1 : undefined;
+    },
+  });
+
+  const liveMemoriesQuery = useQuery({
     queryKey: [
-      ...memoriesQueryKey(organizationSlug, page),
-      useLiveProviderMemories ? "live" : "native",
+      "translation-memories",
+      organizationSlug,
+      "live",
       selectedExternalProjectId,
-      projectFilter,
+      activeTmsProvider?.providerKind,
     ],
-    enabled: !useLiveProviderMemories || Boolean(selectedExternalProjectId),
+    enabled: useLiveProviderMemories && Boolean(selectedExternalProjectId),
     queryFn: async () => {
-      if (useLiveProviderMemories && activeTmsProvider) {
-        const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"][
-          "translation-memories"
-        ].$get({
-          param: { organizationSlug },
-          query: {
-            externalProjectId: selectedExternalProjectId,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            intl.formatMessage(translationMemoriesPageContentMessages.loadProviderMemoriesFailed, {
-              status: response.status,
-            }),
-          );
-        }
-
-        const body = (await response.json()) as {
-          translationMemories: TmsProviderLiveTranslationMemory[];
-        };
-        const liveRows = body.translationMemories.map((memory) =>
-          mapLiveTmsProviderMemoryToListRow(memory, activeTmsProvider.providerKind, intl),
-        );
-
-        return {
-          memories: [] as ApiMemory[],
-          liveRows,
-          total: liveRows.length,
-        };
-      }
-
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$get({
+      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"][
+        "translation-memories"
+      ].$get({
         param: { organizationSlug },
         query: {
-          limit: String(MEMORIES_PAGE_SIZE),
-          offset: String((page - 1) * MEMORIES_PAGE_SIZE),
-          ...(projectFilter !== "all" ? { projectId: projectFilter } : {}),
+          externalProjectId: selectedExternalProjectId,
         },
       });
 
       if (!response.ok) {
         throw new Error(
-          intl.formatMessage(translationMemoriesPageContentMessages.loadMemoriesFailed, {
+          intl.formatMessage(translationMemoriesPageContentMessages.loadProviderMemoriesFailed, {
             status: response.status,
           }),
         );
       }
 
-      const body = await response.json();
-      return {
-        memories: body.memories as ApiMemory[],
-        total: body.total as number,
+      const body = (await response.json()) as {
+        translationMemories: TmsProviderLiveTranslationMemory[];
       };
+      return body.translationMemories.map((memory) =>
+        mapLiveTmsProviderMemoryToListRow(memory, activeTmsProvider!.providerKind, intl),
+      );
     },
   });
 
@@ -395,26 +418,99 @@ export function TranslationMemoriesPageContent({
     [projectsQuery.data],
   );
 
-  const memories = useMemo(() => {
-    if (useLiveProviderMemories) {
-      return memoriesQuery.data?.liveRows ?? [];
+  const listFilters = useMemo(
+    () => ({
+      searchQuery,
+      sourceFilter,
+      providerFilter,
+      syncFilter,
+    }),
+    [searchQuery, sourceFilter, providerFilter, syncFilter],
+  );
+
+  const nativeMemoryRows = useMemo(
+    () =>
+      (nativeMemoriesQuery.data?.pages ?? []).flatMap((page) =>
+        page.memories.map((memory) => mapMemoryToListRow(memory, projectIdByExternalKey, intl)),
+      ),
+    [intl, nativeMemoriesQuery.data?.pages, projectIdByExternalKey],
+  );
+  const persistedExternalMemoryRows = useMemo(
+    () =>
+      (persistedExternalMemoriesQuery.data?.pages ?? []).flatMap((page) =>
+        page.memories.map((memory) => mapMemoryToListRow(memory, projectIdByExternalKey, intl)),
+      ),
+    [intl, persistedExternalMemoriesQuery.data?.pages, projectIdByExternalKey],
+  );
+  const loadedMemories = useMemo(
+    () => [...nativeMemoryRows, ...persistedExternalMemoryRows, ...(liveMemoriesQuery.data ?? [])],
+    [liveMemoriesQuery.data, nativeMemoryRows, persistedExternalMemoryRows],
+  );
+  const providerKinds = useMemo(() => {
+    const kinds = new Set<string>();
+    for (const memory of loadedMemories) {
+      if (memory.externalProviderKind) {
+        kinds.add(memory.externalProviderKind);
+      }
     }
-
-    return (memoriesQuery.data?.memories ?? []).map((memory) =>
-      mapMemoryToListRow(memory, projectIdByExternalKey, intl),
+    return [...kinds].sort((left, right) =>
+      providerLabel(left).localeCompare(providerLabel(right)),
     );
-  }, [
-    intl,
-    memoriesQuery.data?.liveRows,
-    memoriesQuery.data?.memories,
-    projectIdByExternalKey,
-    useLiveProviderMemories,
-  ]);
+  }, [loadedMemories]);
+  const hasExternalMemories = loadedMemories.some((memory) => memory.source === "external_tms");
 
-  const memoryTotal = memoriesQuery.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(memoryTotal / MEMORIES_PAGE_SIZE));
-  const pageStart = memoryTotal === 0 ? 0 : (page - 1) * MEMORIES_PAGE_SIZE + 1;
-  const pageEnd = Math.min(page * MEMORIES_PAGE_SIZE, memoryTotal);
+  const nativeMemories = useMemo(
+    () => filterMemoryListRows(nativeMemoryRows, listFilters),
+    [listFilters, nativeMemoryRows],
+  );
+  const persistedExternalMemories = useMemo(
+    () => filterMemoryListRows(persistedExternalMemoryRows, listFilters),
+    [listFilters, persistedExternalMemoryRows],
+  );
+  const liveExternalMemories = useMemo(
+    () => filterMemoryListRows(liveMemoriesQuery.data ?? [], listFilters),
+    [liveMemoriesQuery.data, listFilters],
+  );
+  const externalMemories = useLiveProviderMemories
+    ? liveExternalMemories
+    : persistedExternalMemories;
+
+  const nativeTotal = searchQuery.trim()
+    ? nativeMemories.length
+    : (nativeMemoriesQuery.data?.pages[0]?.total ?? nativeMemories.length);
+  const externalTotal = useLiveProviderMemories
+    ? liveExternalMemories.length
+    : searchQuery.trim()
+      ? persistedExternalMemories.length
+      : (persistedExternalMemoriesQuery.data?.pages[0]?.total ?? persistedExternalMemories.length);
+  const nativeQueryState = {
+    isLoading: nativeMemoriesQuery.isLoading,
+    isError: nativeMemoriesQuery.isError,
+    isSuccess: nativeMemoriesQuery.isSuccess,
+    error: nativeMemoriesQuery.error,
+    refetch: () => {
+      void nativeMemoriesQuery.refetch();
+    },
+  };
+  const externalQueryState = useLiveProviderMemories
+    ? {
+        isLoading: Boolean(selectedExternalProjectId) && liveMemoriesQuery.isLoading,
+        isError: liveMemoriesQuery.isError,
+        isSuccess: !selectedExternalProjectId || liveMemoriesQuery.isSuccess,
+        error: liveMemoriesQuery.error,
+        refetch: () => {
+          void liveMemoriesQuery.refetch();
+        },
+      }
+    : {
+        isLoading: persistedExternalMemoriesQuery.isLoading,
+        isError: persistedExternalMemoriesQuery.isError,
+        isSuccess: persistedExternalMemoriesQuery.isSuccess,
+        error: persistedExternalMemoriesQuery.error,
+        refetch: () => {
+          void persistedExternalMemoriesQuery.refetch();
+        },
+      };
 
   const filterProjects = useMemo(
     () =>
@@ -424,56 +520,25 @@ export function TranslationMemoriesPageContent({
     [projectsQuery.data],
   );
 
-  const providerKinds = useMemo(() => {
-    const kinds = new Set<string>();
-    for (const memory of memories) {
-      if (memory.externalProviderKind) {
-        kinds.add(memory.externalProviderKind);
-      }
-    }
-    return [...kinds].sort((a, b) => providerLabel(a).localeCompare(providerLabel(b)));
-  }, [memories]);
+  const serverNativeTotal = nativeMemoriesQuery.data?.pages[0]?.total ?? 0;
+  const serverExternalTotal = persistedExternalMemoriesQuery.data?.pages[0]?.total ?? 0;
+  const hasLoadedMemories =
+    loadedMemories.length > 0 ||
+    (projectFilter !== "all" && (serverNativeTotal > 0 || serverExternalTotal > 0));
 
-  const {
-    searchQuery,
-    setSearchQuery,
-    sourceFilter,
-    setSourceFilter,
-    providerFilter,
-    setProviderFilter,
-    syncFilter,
-    setSyncFilter,
-    filteredMemories,
-    activeFilterCount,
-    clearFilters,
-  } = useMemoryFilters(memories, searchParams, {
-    ignoreSyncFilter: useLiveProviderMemories,
-  });
-
-  useEffect(() => {
-    setPage(1);
-  }, [
-    organizationSlug,
-    searchQuery,
-    sourceFilter,
-    providerFilter,
-    syncFilter,
-    selectedExternalProjectId,
-    projectFilter,
-  ]);
+  const listsReady =
+    (sourceFilter === "external_tms" || nativeQueryState.isSuccess) &&
+    (sourceFilter === "native" || externalQueryState.isSuccess);
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 || activeFilterCount > 0 || projectFilter !== "all";
+  const showNoFilterMatches =
+    listsReady && nativeMemories.length + externalMemories.length === 0 && hasActiveFilters;
 
   useEffect(() => {
     setSelectedExternalProjectId("");
     setProjectFilter("all");
   }, [organizationSlug, useLiveProviderMemories]);
 
-  useEffect(() => {
-    if (memoriesQuery.isSuccess && page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [memoriesQuery.isSuccess, page, totalPages]);
-
-  const hasExternalMemories = memories.some((memory) => memory.source === "external_tms");
   const connectedCredentials = (credentialsQuery.data ?? []).filter(
     (credential) => credential.validationStatus === "connected",
   );
@@ -501,23 +566,23 @@ export function TranslationMemoriesPageContent({
     createMemory.mutate(createForm);
   }
 
-  function openImportMemory() {
-    setCreateErrors({});
-    setCreateDialogOpen(true);
-  }
-
   return (
     <TranslationMemoriesPageView
       organizationSlug={organizationSlug}
-      memories={filteredMemories}
-      memoryTotal={memoryTotal}
-      isLoading={memoriesQuery.isLoading}
-      isError={memoriesQuery.isError}
-      isSuccess={memoriesQuery.isSuccess}
-      error={memoriesQuery.error}
+      nativeMemories={nativeMemories}
+      externalMemories={externalMemories}
+      nativeTotal={nativeTotal}
+      externalTotal={externalTotal}
+      nativeQuery={nativeQueryState}
+      externalQuery={externalQueryState}
       allowCreateMemories={allowCreateMemories}
       hasConnectedProvider={hasConnectedProvider}
       useLiveProviderMemories={useLiveProviderMemories}
+      connectedProviderKinds={
+        useLiveProviderMemories && activeTmsProvider
+          ? [activeTmsProvider.providerKind]
+          : [...new Set(connectedCredentials.map((credential) => credential.providerKind))]
+      }
       selectedExternalProjectId={selectedExternalProjectId}
       onSelectedExternalProjectIdChange={setSelectedExternalProjectId}
       searchQuery={searchQuery}
@@ -533,22 +598,25 @@ export function TranslationMemoriesPageContent({
       onSyncFilterChange={setSyncFilter}
       providerKinds={providerKinds}
       hasExternalMemories={hasExternalMemories}
-      hasMemories={memories.length > 0 || (projectFilter !== "all" && memoryTotal === 0)}
-      activeFilterCount={activeFilterCount + (projectFilter === "all" ? 0 : 1)}
-      showNoFilterMatches={
-        memoriesQuery.isSuccess &&
-        ((memories.length > 0 && filteredMemories.length === 0) ||
-          (projectFilter !== "all" && memoryTotal === 0))
-      }
+      hasMemories={hasLoadedMemories}
+      showNoFilterMatches={showNoFilterMatches}
+      hasActiveFilters={hasActiveFilters}
       onClearFilters={() => {
         clearFilters();
         setProjectFilter("all");
       }}
-      page={page}
-      totalPages={totalPages}
-      pageStart={pageStart}
-      pageEnd={pageEnd}
-      onPageChange={setPage}
+      nativeHasMore={Boolean(nativeMemoriesQuery.hasNextPage)}
+      nativeIsLoadingMore={nativeMemoriesQuery.isFetchingNextPage}
+      onNativeLoadMore={() => {
+        void nativeMemoriesQuery.fetchNextPage();
+      }}
+      externalHasMore={
+        useLiveProviderMemories ? false : Boolean(persistedExternalMemoriesQuery.hasNextPage)
+      }
+      externalIsLoadingMore={persistedExternalMemoriesQuery.isFetchingNextPage}
+      onExternalLoadMore={() => {
+        void persistedExternalMemoriesQuery.fetchNextPage();
+      }}
       createDialogOpen={createDialogOpen}
       onCreateDialogOpenChange={setCreateDialogOpen}
       createForm={createForm}
@@ -556,7 +624,10 @@ export function TranslationMemoriesPageContent({
       createErrors={createErrors}
       isCreating={createMemory.isPending}
       onSubmitCreateMemory={submitCreateMemory}
-      onImportMemory={openImportMemory}
+      onImportMemory={() => {
+        setCreateErrors({});
+        setCreateDialogOpen(true);
+      }}
     />
   );
 }

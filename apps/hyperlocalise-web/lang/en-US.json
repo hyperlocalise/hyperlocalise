@@ -371,6 +371,10 @@
     "defaultMessage": "This glossary does not expose local history.",
     "description": "Glossary history unavailable state description"
   },
+  "+krrXyjc74": {
+    "defaultMessage": "Translation units",
+    "description": "Column header for translation memory segment count"
+  },
   "+l38vFeeBu": {
     "defaultMessage": "Summer campaign",
     "description": "Campaign name in the language review mock"
@@ -823,6 +827,10 @@
     "defaultMessage": "Repositories",
     "description": "Table header for GitHub repository names"
   },
+  "/dRL1ccCZi": {
+    "defaultMessage": "Name",
+    "description": "Column header for glossary name"
+  },
   "/e6ibZCuf5": {
     "defaultMessage": "Create a job with context, files, locales, and assignees.",
     "description": "Create job dialog accessible description"
@@ -1106,6 +1114,10 @@
   "0Kd+BaMKpW": {
     "defaultMessage": "Export CSV",
     "description": "Keyword research screen: export"
+  },
+  "0L3Yw4+ww7": {
+    "defaultMessage": "Collapse {group}",
+    "description": "Accessible label to collapse a grouped workspace table section"
   },
   "0LOTblqWHo": {
     "defaultMessage": "{count, plural, one {# model} other {# models}}",
@@ -2463,6 +2475,10 @@
     "defaultMessage": "Imported",
     "description": "Audit event label for an imported translation memory entry"
   },
+  "36DEQtJShc": {
+    "defaultMessage": "Retry",
+    "description": "Button to retry loading a grouped workspace table section"
+  },
   "36gU2d3aFl": {
     "defaultMessage": "Billing",
     "description": "Billing settings link in the user menu"
@@ -2486,6 +2502,10 @@
   "3AZyKoWt8Y": {
     "defaultMessage": "Status set to {status}",
     "description": "Toast after changing experiment status"
+  },
+  "3B+Q6o17x+": {
+    "defaultMessage": "Could not load this group.",
+    "description": "Error heading when a grouped workspace table section fails to load"
   },
   "3BQQgDQPHy": {
     "defaultMessage": "Failed to load provider credentials ({status})",
@@ -3622,6 +3642,10 @@
   "5Xs2gSCUMi": {
     "defaultMessage": "Settings",
     "description": "App shell breadcrumb title for the settings page"
+  },
+  "5Y+QcRLqFA": {
+    "defaultMessage": "Projects",
+    "description": "Column header for translation memory projects"
   },
   "5Y40FWbqCY": {
     "defaultMessage": "Projects",
@@ -5975,6 +5999,10 @@
     "defaultMessage": "Response",
     "description": "Section title for API response schema"
   },
+  "A9V2j23Vmp": {
+    "defaultMessage": "Load more",
+    "description": "Button to load more rows in a grouped workspace table"
+  },
   "AA0EuR+/cx": {
     "defaultMessage": "TMS",
     "description": "Automation product visual workflow destination name"
@@ -6318,6 +6346,10 @@
   "B+FxSZUvzp": {
     "defaultMessage": "{locales} +{count}",
     "description": "Locale coverage summary showing the first locales plus how many more are not listed"
+  },
+  "B/7LPBxPvS": {
+    "defaultMessage": "Workspace memories created here stay available to every project you attach.",
+    "description": "Empty state description for workspace translation memories"
   },
   "B17gDUeMj6": {
     "defaultMessage": "Applied while drafting Q2 global launch campaign",
@@ -7106,6 +7138,10 @@
   "CT9/X7v9OM": {
     "defaultMessage": "Link",
     "description": "Bubble menu button to add or remove a hyperlink"
+  },
+  "CTI9kmmWqH": {
+    "defaultMessage": "{count, plural, one {# project} other {# projects}}",
+    "description": "Workspace project attachment count for a translation memory"
   },
   "CUMVPg+yCv": {
     "defaultMessage": "How it works",
@@ -11347,6 +11383,10 @@
     "defaultMessage": "We'll email you an invite to a shared channel with Hyperlocalise.",
     "description": "Overview Slack Connect card description before the first invite"
   },
+  "LfGusfCcXm": {
+    "defaultMessage": "Languages",
+    "description": "Column header for translation memory languages"
+  },
   "LfRnarhSYl": {
     "defaultMessage": "None",
     "description": "HTTP node auth none option"
@@ -12578,6 +12618,10 @@
   "O+Rhddgv8v": {
     "defaultMessage": "Descending",
     "description": "Issue list sort direction descending"
+  },
+  "O+SyRYA2GG": {
+    "defaultMessage": "Loading...",
+    "description": "Pending label while a grouped workspace table loads more rows"
   },
   "O+ldw8Aj3z": {
     "defaultMessage": "Unknown",
@@ -17535,6 +17579,10 @@
     "defaultMessage": "Save as draft",
     "description": "Secondary action to save the current translation without approving it"
   },
+  "YeHqxQ/NY/": {
+    "defaultMessage": "Expand {group}",
+    "description": "Accessible label to expand a grouped workspace table section"
+  },
   "YeNii+JHGo": {
     "defaultMessage": "Edit team",
     "description": "Title of the edit team dialog on the teams list page"
@@ -17774,6 +17822,10 @@
   "Z7KSDtyO43": {
     "defaultMessage": "Sending…",
     "description": "Send button label while a public web chat message is in flight"
+  },
+  "Z7pKHoBx5a": {
+    "defaultMessage": "Name",
+    "description": "Column header for translation memory name"
   },
   "Z8vLB9dxFv": {
     "defaultMessage": "Source",
@@ -21375,6 +21427,10 @@
     "defaultMessage": "Failed to search glossary and TM.",
     "description": "Fallback error when glossary and translation memory lookup fails"
   },
+  "gGmKq7vzB0": {
+    "defaultMessage": "Workspace memories",
+    "description": "Heading for workspace translation memories"
+  },
   "gHgMNG7oQS": {
     "defaultMessage": "Route work to reviewers inside your existing workflow",
     "description": "Capability 4 title for the product-localisation use case"
@@ -22279,6 +22335,10 @@
     "defaultMessage": "Invite teammates to assign localization ownership before work moves through the workspace.",
     "description": "Empty state description for the workspace members list"
   },
+  "i1K5RtvMOq": {
+    "defaultMessage": "All",
+    "description": "Projects cell when a workspace translation memory is available to every project"
+  },
   "i1PMbnhRAE": {
     "defaultMessage": "Language review",
     "description": "Status heading in the language review mock"
@@ -22562,6 +22622,10 @@
   "iXddAxYfyx": {
     "defaultMessage": "{arg} · {type}",
     "description": "ICU plural/select block argument and type summary in the CAT target editor"
+  },
+  "iYCf73JxiN": {
+    "defaultMessage": "Projects",
+    "description": "Column header for glossary project assignment"
   },
   "iZaQ7K2itB": {
     "defaultMessage": "Enter URL...",
@@ -25619,6 +25683,10 @@
     "defaultMessage": "Regenerate",
     "description": "Button to regenerate an existing AI translation recommendation"
   },
+  "oh23JqGlqV": {
+    "defaultMessage": "Try again.",
+    "description": "Fallback error when a grouped workspace table section fails without a message"
+  },
   "oh6mSziyuU": {
     "defaultMessage": "Connect Crowdin for your Hyperlocalise workspace, then reopen this tab from Crowdin.",
     "description": "Body when no Hyperlocalise org maps to this Crowdin org"
@@ -28119,6 +28187,10 @@
     "defaultMessage": "Source",
     "description": "Jobs list column header for job source provider"
   },
+  "th8gAYZJWo": {
+    "defaultMessage": "No workspace memories",
+    "description": "Empty state title for workspace translation memories"
+  },
   "thAleOBSL6": {
     "defaultMessage": "Provider link",
     "description": "Detail row label for the external provider URL"
@@ -28210,6 +28282,10 @@
   "tx+ZfdCJg6": {
     "defaultMessage": "Could not read the saved SRX XML. Showing a starter ruleset — review before saving.",
     "description": "Banner when stored custom SRX XML fails to parse"
+  },
+  "txugXfZlUW": {
+    "defaultMessage": "Provider memories",
+    "description": "Heading for provider translation memories"
   },
   "tzNTVPZse0": {
     "defaultMessage": "Clear all",
@@ -29310,6 +29386,10 @@
   "w7U8I+r5dS": {
     "defaultMessage": "Request a Demo",
     "description": "Marketing navbar call-to-action to request a demo"
+  },
+  "w7aL/44AbR": {
+    "defaultMessage": "No provider memories",
+    "description": "Empty state title for provider translation memories"
   },
   "w7sk9jcVLD": {
     "defaultMessage": "asset management",

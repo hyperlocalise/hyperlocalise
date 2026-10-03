@@ -44,16 +44,21 @@ import {
 } from "@/lib/memory/decode-import-file";
 
 import { TmsLiveProjectPicker } from "../../_components/tms-live-project-picker";
+import { groupByTmsProvider } from "../../_components/tms-resource-groups";
+import { WorkspaceGroupedTable } from "../../_components/workspace-grouped-table";
 import {
   PageHeader,
   WorkspaceFilterField,
   workspaceFilterTriggerClassName,
+  WorkspacePageShell,
 } from "../../_components/workspace-resource-shared";
 import type { MemoryListRow } from "./memory-list";
 import { providerLabel } from "./memory-list";
 import {
+  renderMemoryTableCells,
   TranslationMemoriesEmptyAction,
-  TranslationMemoriesTable,
+  useTranslationMemoriesTableColumns,
+  type TranslationMemoriesTableQuery,
 } from "./translation-memories-table";
 import { translationMemoriesPageViewMessages } from "./translation-memories-page-view.messages";
 
@@ -67,15 +72,16 @@ export type MemoryCreateForm = {
 
 export function TranslationMemoriesPageView({
   organizationSlug,
-  memories,
-  memoryTotal,
-  isLoading,
-  isError,
-  isSuccess,
-  error,
+  nativeMemories,
+  externalMemories,
+  nativeTotal,
+  externalTotal: _externalTotal,
+  nativeQuery,
+  externalQuery,
   allowCreateMemories,
   hasConnectedProvider,
   useLiveProviderMemories,
+  connectedProviderKinds,
   selectedExternalProjectId,
   onSelectedExternalProjectIdChange,
   searchQuery,
@@ -92,14 +98,15 @@ export function TranslationMemoriesPageView({
   providerKinds,
   hasExternalMemories,
   hasMemories,
-  activeFilterCount,
   showNoFilterMatches,
+  hasActiveFilters,
   onClearFilters,
-  page,
-  totalPages,
-  pageStart,
-  pageEnd,
-  onPageChange,
+  nativeHasMore,
+  nativeIsLoadingMore,
+  onNativeLoadMore,
+  externalHasMore,
+  externalIsLoadingMore,
+  onExternalLoadMore,
   createDialogOpen,
   onCreateDialogOpenChange,
   createForm,
@@ -110,15 +117,16 @@ export function TranslationMemoriesPageView({
   onImportMemory,
 }: {
   organizationSlug: string;
-  memories: MemoryListRow[];
-  memoryTotal: number;
-  isLoading: boolean;
-  isError: boolean;
-  isSuccess: boolean;
-  error: Error | null;
+  nativeMemories: MemoryListRow[];
+  externalMemories: MemoryListRow[];
+  nativeTotal: number;
+  externalTotal: number;
+  nativeQuery: TranslationMemoriesTableQuery;
+  externalQuery: TranslationMemoriesTableQuery;
   allowCreateMemories: boolean;
   hasConnectedProvider: boolean;
   useLiveProviderMemories: boolean;
+  connectedProviderKinds?: readonly string[];
   selectedExternalProjectId: string;
   onSelectedExternalProjectIdChange: (value: string) => void;
   searchQuery: string;
@@ -135,14 +143,15 @@ export function TranslationMemoriesPageView({
   providerKinds: string[];
   hasExternalMemories: boolean;
   hasMemories: boolean;
-  activeFilterCount: number;
   showNoFilterMatches: boolean;
+  hasActiveFilters: boolean;
   onClearFilters: () => void;
-  page: number;
-  totalPages: number;
-  pageStart: number;
-  pageEnd: number;
-  onPageChange: (page: number) => void;
+  nativeHasMore: boolean;
+  nativeIsLoadingMore: boolean;
+  onNativeLoadMore: () => void;
+  externalHasMore: boolean;
+  externalIsLoadingMore: boolean;
+  onExternalLoadMore: () => void;
   createDialogOpen: boolean;
   onCreateDialogOpenChange: (open: boolean) => void;
   createForm: MemoryCreateForm;
@@ -153,14 +162,18 @@ export function TranslationMemoriesPageView({
   onImportMemory: () => void;
 }) {
   const intl = useIntl();
+  const columns = useTranslationMemoriesTableColumns();
   const liveProjectSelectionRequired = useLiveProviderMemories && !selectedExternalProjectId;
-
+  const showNativeSection = sourceFilter === "all" || sourceFilter === "native";
+  const showExternalSection = sourceFilter === "all" || sourceFilter === "external_tms";
+  const nativeSectionTitle = intl.formatMessage(
+    translationMemoriesPageViewMessages.nativeSectionTitle,
+  );
   const sourceFilterLabels = {
     all: intl.formatMessage(translationMemoriesPageViewMessages.sourceAll),
     native: intl.formatMessage(translationMemoriesPageViewMessages.sourceNative),
     external_tms: intl.formatMessage(translationMemoriesPageViewMessages.sourceExternalTms),
   } as const;
-
   const syncFilterLabels = {
     all: intl.formatMessage(translationMemoriesPageViewMessages.syncAll),
     synced: intl.formatMessage(translationMemoriesPageViewMessages.syncSynced),
@@ -168,42 +181,42 @@ export function TranslationMemoriesPageView({
     syncing: intl.formatMessage(translationMemoriesPageViewMessages.syncSyncing),
     error: intl.formatMessage(translationMemoriesPageViewMessages.syncError),
   } as const;
-
-  const emptyTitle = hasConnectedProvider
-    ? intl.formatMessage(translationMemoriesPageViewMessages.emptyTitle)
-    : intl.formatMessage(translationMemoriesPageViewMessages.emptyTitleConnectProvider);
-  const emptyDescription = hasConnectedProvider
-    ? intl.formatMessage(translationMemoriesPageViewMessages.emptyDescriptionWithProvider)
-    : intl.formatMessage(translationMemoriesPageViewMessages.emptyDescriptionWithoutProvider);
-
-  const memoryCountLabel =
-    isSuccess && memoryTotal > 0
-      ? intl.formatMessage(translationMemoriesPageViewMessages.memoryCount, {
-          count: memoryTotal,
-        })
-      : undefined;
-
-  const memoriesQuery = { isLoading, isError, isSuccess, error };
   const allProvidersLabel = intl.formatMessage(translationMemoriesPageViewMessages.providerAll);
   const allProjectsLabel = intl.formatMessage(translationMemoriesPageViewMessages.projectAll);
   const selectedProjectName =
     projectFilter === "all"
       ? allProjectsLabel
       : (projects.find((project) => project.id === projectFilter)?.name ?? allProjectsLabel);
-
+  const filtersReady =
+    (!showNativeSection || nativeQuery.isSuccess) &&
+    (!showExternalSection || externalQuery.isSuccess);
+  const providerGroups = groupByTmsProvider({
+    items: liveProjectSelectionRequired ? [] : externalMemories,
+    connectedKinds: connectedProviderKinds ?? [],
+  });
+  const liveProviderKind = useLiveProviderMemories ? (connectedProviderKinds?.[0] ?? null) : null;
+  const nativeEmptyTitle = allowCreateMemories
+    ? intl.formatMessage(translationMemoriesPageViewMessages.emptyTitle)
+    : intl.formatMessage(translationMemoriesPageViewMessages.nativeEmptyTitle);
+  const nativeEmptyDescription = allowCreateMemories
+    ? intl.formatMessage(translationMemoriesPageViewMessages.emptyDescriptionCreate)
+    : intl.formatMessage(translationMemoriesPageViewMessages.nativeEmptyDescription);
+  const providerConnectAction = !hasConnectedProvider ? (
+    <TranslationMemoriesEmptyAction organizationSlug={organizationSlug} />
+  ) : undefined;
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+    <WorkspacePageShell className="gap-6">
       <PageHeader
         icon={Database01Icon}
         label={intl.formatMessage(translationMemoriesPageViewMessages.pageLabel)}
         title={intl.formatMessage(translationMemoriesPageViewMessages.pageTitle)}
-        statusLabel={memoryCountLabel}
         actions={
           allowCreateMemories ? (
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={onImportMemory}
                 className="w-full sm:w-fit"
               >
@@ -212,6 +225,7 @@ export function TranslationMemoriesPageView({
               </Button>
               <Button
                 type="button"
+                size="sm"
                 onClick={() => onCreateDialogOpenChange(true)}
                 className="w-full sm:w-fit"
               >
@@ -223,17 +237,7 @@ export function TranslationMemoriesPageView({
         }
       />
 
-      {useLiveProviderMemories ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
-          <TmsLiveProjectPicker
-            organizationSlug={organizationSlug}
-            value={selectedExternalProjectId}
-            onValueChange={onSelectedExternalProjectIdChange}
-          />
-        </div>
-      ) : null}
-
-      {isSuccess && (hasMemories || projects.length > 0) ? (
+      {hasActiveFilters || (filtersReady && (hasMemories || projects.length > 0)) ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
           <WorkspaceFilterField
             label={intl.formatMessage(translationMemoriesPageViewMessages.searchLabel)}
@@ -244,7 +248,7 @@ export function TranslationMemoriesPageView({
                 translationMemoriesPageViewMessages.searchPlaceholder,
               )}
               value={searchQuery}
-              onChange={(e) => onSearchQueryChange(e.target.value)}
+              onChange={(event) => onSearchQueryChange(event.target.value)}
               className="w-full"
             />
           </WorkspaceFilterField>
@@ -306,7 +310,6 @@ export function TranslationMemoriesPageView({
               </Select>
             </WorkspaceFilterField>
           ) : null}
-
           {hasExternalMemories && sourceFilter !== "native" ? (
             <WorkspaceFilterField
               label={intl.formatMessage(translationMemoriesPageViewMessages.providerLabel)}
@@ -334,7 +337,6 @@ export function TranslationMemoriesPageView({
               </Select>
             </WorkspaceFilterField>
           ) : null}
-
           {hasExternalMemories && sourceFilter !== "native" && !useLiveProviderMemories ? (
             <WorkspaceFilterField
               label={intl.formatMessage(translationMemoriesPageViewMessages.syncLabel)}
@@ -369,8 +371,7 @@ export function TranslationMemoriesPageView({
               </Select>
             </WorkspaceFilterField>
           ) : null}
-
-          {activeFilterCount > 0 ? (
+          {hasActiveFilters ? (
             <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
               <FormattedMessage {...translationMemoriesPageViewMessages.clearFilters} />
             </Button>
@@ -397,85 +398,97 @@ export function TranslationMemoriesPageView({
         </div>
       ) : null}
 
-      {liveProjectSelectionRequired ? (
-        <div className="space-y-3 py-10">
-          <TypographyP size="small" weight="medium" tone="content">
-            <FormattedMessage {...translationMemoriesPageViewMessages.chooseTmsProjectTitle} />
-          </TypographyP>
-          <TypographyP className="max-w-xl leading-6" size="small" tone="subtle">
-            <FormattedMessage
-              {...translationMemoriesPageViewMessages.chooseTmsProjectDescription}
-            />
-          </TypographyP>
-        </div>
-      ) : (
-        <TranslationMemoriesTable
-          memories={memories}
-          memoriesQuery={memoriesQuery}
-          organizationSlug={organizationSlug}
-          emptyTitle={
-            allowCreateMemories
-              ? intl.formatMessage(translationMemoriesPageViewMessages.emptyTitle)
-              : emptyTitle
-          }
-          emptyDescription={
-            allowCreateMemories
-              ? intl.formatMessage(translationMemoriesPageViewMessages.emptyDescriptionCreate)
-              : emptyDescription
-          }
-          emptyAction={
-            allowCreateMemories ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
-                  <FormattedMessage {...translationMemoriesPageViewMessages.createMemory} />
-                </Button>
-                <Button type="button" size="sm" variant="outline" onClick={onImportMemory}>
-                  <FormattedMessage {...translationMemoriesPageViewMessages.importMemory} />
-                </Button>
-              </div>
-            ) : (
-              <TranslationMemoriesEmptyAction organizationSlug={organizationSlug} />
-            )
-          }
-        />
-      )}
-
-      {!liveProjectSelectionRequired && isSuccess && memoryTotal > MEMORIES_PAGE_SIZE ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">
-            <FormattedMessage
-              {...translationMemoriesPageViewMessages.paginationSummary}
-              values={{ pageStart, pageEnd, memoryTotal }}
-            />
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={page <= 1}
-              onClick={() => onPageChange(Math.max(1, page - 1))}
-            >
-              <FormattedMessage {...translationMemoriesPageViewMessages.previousPage} />
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              <FormattedMessage
-                {...translationMemoriesPageViewMessages.paginationPage}
-                values={{ page, totalPages }}
-              />
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={page >= totalPages}
-              onClick={() => onPageChange(page + 1)}
-            >
-              <FormattedMessage {...translationMemoriesPageViewMessages.nextPage} />
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      <WorkspaceGroupedTable
+        ariaLabel={intl.formatMessage(translationMemoriesPageViewMessages.pageTitle)}
+        columns={columns}
+        getRowId={(memory) => memory.id}
+        renderCells={(memory) => renderMemoryTableCells(memory, organizationSlug, intl)}
+        groups={[
+          ...(showNativeSection
+            ? [
+                {
+                  id: "hyperlocalise",
+                  title: nativeSectionTitle,
+                  accent: "workspace" as const,
+                  count: nativeTotal,
+                  items: nativeMemories,
+                  query: nativeQuery,
+                  emptyTitle: nativeEmptyTitle,
+                  emptyDescription: nativeEmptyDescription,
+                  emptyAction: allowCreateMemories ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => onCreateDialogOpenChange(true)}
+                      >
+                        <FormattedMessage {...translationMemoriesPageViewMessages.createMemory} />
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={onImportMemory}>
+                        <FormattedMessage {...translationMemoriesPageViewMessages.importMemory} />
+                      </Button>
+                    </div>
+                  ) : !hasConnectedProvider ? (
+                    <TranslationMemoriesEmptyAction organizationSlug={organizationSlug} />
+                  ) : undefined,
+                  hasMore: nativeHasMore,
+                  isLoadingMore: nativeIsLoadingMore,
+                  onLoadMore: onNativeLoadMore,
+                },
+              ]
+            : []),
+          ...(showExternalSection
+            ? providerGroups.map((group, index) => ({
+                id: group.id,
+                title: group.title,
+                accent: "provider" as const,
+                count: liveProjectSelectionRequired ? 0 : group.items.length,
+                items: group.items,
+                query: liveProjectSelectionRequired
+                  ? { isLoading: false, isError: false, isSuccess: true, error: null }
+                  : externalQuery,
+                emptyTitle: liveProjectSelectionRequired
+                  ? intl.formatMessage(translationMemoriesPageViewMessages.chooseTmsProjectTitle)
+                  : !hasConnectedProvider
+                    ? intl.formatMessage(
+                        translationMemoriesPageViewMessages.emptyTitleConnectProvider,
+                      )
+                    : intl.formatMessage(translationMemoriesPageViewMessages.externalEmptyTitle, {
+                        provider: group.title,
+                      }),
+                emptyDescription: liveProjectSelectionRequired
+                  ? intl.formatMessage(
+                      translationMemoriesPageViewMessages.chooseTmsProjectDescription,
+                    )
+                  : !hasConnectedProvider
+                    ? intl.formatMessage(
+                        translationMemoriesPageViewMessages.emptyDescriptionWithoutProvider,
+                      )
+                    : intl.formatMessage(
+                        translationMemoriesPageViewMessages.emptyDescriptionWithProvider,
+                        {
+                          provider: group.title,
+                        },
+                      ),
+                emptyAction: liveProjectSelectionRequired ? undefined : providerConnectAction,
+                headerActions:
+                  liveProviderKind && group.id === liveProviderKind ? (
+                    <TmsLiveProjectPicker
+                      organizationSlug={organizationSlug}
+                      value={selectedExternalProjectId}
+                      onValueChange={onSelectedExternalProjectIdChange}
+                    />
+                  ) : undefined,
+                hasMore:
+                  !liveProjectSelectionRequired &&
+                  externalHasMore &&
+                  index === providerGroups.length - 1,
+                isLoadingMore: externalIsLoadingMore,
+                onLoadMore: onExternalLoadMore,
+              }))
+            : []),
+        ]}
+      />
 
       <Dialog open={createDialogOpen} onOpenChange={onCreateDialogOpenChange}>
         <DialogContent className="sm:max-w-lg">
@@ -600,6 +613,6 @@ export function TranslationMemoriesPageView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </main>
+    </WorkspacePageShell>
   );
 }
