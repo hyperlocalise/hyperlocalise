@@ -154,6 +154,8 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
 	}
 	route("GET "+cat+"/queue", api.getQueue)
+	route("GET "+cat+"/groups", api.getStringGroups)
+	route("GET "+cat+"/groups/{groupId}/members", api.getStringGroupMembers)
 	route("POST "+cat+"/targets", api.getSegmentTargets)
 	route("GET "+cat+"/activity-logs", api.listActivityLogs)
 	route("GET "+cat, api.getFile)
