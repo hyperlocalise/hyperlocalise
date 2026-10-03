@@ -56,7 +56,6 @@ export function ContentEditorSegmentMaxLengthEditor({
 }) {
   const intl = useIntl();
   const inputRef = useRef<HTMLInputElement>(null);
-  const skipBlurCommitRef = useRef(false);
   const [draft, setDraft] = useState(maxLength != null ? String(maxLength) : "");
   const [error, setError] = useState<string | null>(null);
 
@@ -176,9 +175,9 @@ export function ContentEditorSegmentMaxLengthEditor({
             setDraft(event.currentTarget.value);
             setError(null);
           }}
-          onBlur={() => {
-            if (skipBlurCommitRef.current) {
-              skipBlurCommitRef.current = false;
+          onBlur={(event) => {
+            const nextFocus = event.relatedTarget;
+            if (nextFocus instanceof Element && nextFocus.closest("[data-max-length-clear]")) {
               return;
             }
             if (hasChanges) {
@@ -222,11 +221,7 @@ export function ContentEditorSegmentMaxLengthEditor({
             size="sm"
             className="h-8"
             disabled={isSaving}
-            onPointerDown={(event) => {
-              if (event.button === 0) {
-                skipBlurCommitRef.current = true;
-              }
-            }}
+            data-max-length-clear=""
             onClick={() => void handleClear()}
           >
             <FormattedMessage {...contentEditorIntelligencePanelMessages.maxLengthClear} />
