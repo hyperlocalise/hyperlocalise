@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -48,9 +49,13 @@ func (api *editorCatAPI) getSegmentGroupVariants(r *http.Request, actor editorCa
 	if err != nil {
 		return nil, 0, err
 	}
-	keyID, err := parseEditorCatUUID(r.PathValue("externalStringId"))
+	sourcePath, err := requireEditorCatQuery(query, "sourcePath", 2048)
 	if err != nil {
-		return nil, 0, editorCatFailure(404, "cat_segment_not_found", "CAT segment not found")
+		return nil, 0, err
+	}
+	keyID, err := api.requireTranslationKey(r, actor, project, sourcePath, r.PathValue("externalStringId"))
+	if err != nil {
+		return nil, 0, err
 	}
 	scope := editorCatSaveGroupScope{SourcePath: scopePath, SourcePaths: parseEditorCatSourcePaths(query.Get("groupSourcePaths"))}
 	ids, err := api.editorCatGroupOccurrenceIDs(r, actor, project, keyID, scope)
@@ -136,7 +141,13 @@ func (api *editorCatAPI) editorCatGroupOccurrenceIDs(r *http.Request, actor edit
         where k.organization_id=$1 and k.project_id=$2
             and ($3='*' or f.source_path=$3)
             and (cardinality($4::text[])=0 or f.source_path=any($4::text[]))
-            and `+identity+` = (select `+identity+` from project_translation_keys k where k.id=$5)
+            and `+identity+` = (
+                select `+identity+`
+                from project_translation_keys rk
+                join repository_source_files rf on rf.id=rk.repository_source_file_id
+                    and rf.organization_id=rk.organization_id and rf.project_id=rk.project_id
+                where rk.organization_id=$1 and rk.project_id=$2 and rk.id=$5
+            )
         order by k.id
         limit $6`, actor.organizationID, project.ID, trimEditorCat(scope.SourcePath), paths, keyID, editorCatMaxGroupSaveOccurrences+1)
 	if err != nil {
@@ -218,6 +229,21 @@ func editorCatLockedKeyIDs(r *http.Request, tx pgx.Tx, actor editorCatActor, pro
 		locked[id] = true
 	}
 	return locked, rows.Err()
+}
+
+func editorCatValidateTargetText(sourceText, sourcePath, targetText, targetLocale string, maxLength *int) error {
+	limit := 0
+	if maxLength != nil && *maxLength > 0 {
+		limit = *maxLength
+	}
+	for _, check := range segmentvalidate.ValidateSegment(segmentvalidate.Request{
+		SourceText: sourceText, TargetText: targetText, SourcePath: sourcePath, MaxLength: limit, TargetLocale: targetLocale,
+	}) {
+		if check.Status == segmentvalidate.StatusFail {
+			return editorCatFailure(422, "group_member_validation_failed", sourcePath+": "+check.Message)
+		}
+	}
+	return nil
 }
 
 func insertEditorCatActivity(ctx context.Context, db dictionaryDB, actor editorCatActor, eventType, segmentID string, payload map[string]any) {

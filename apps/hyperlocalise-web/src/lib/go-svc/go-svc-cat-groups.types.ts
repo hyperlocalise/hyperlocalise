@@ -26,6 +26,8 @@ export interface CatGroupVariant {
 
 export interface CatGroupVariantsQuery {
   targetLocale: string;
+  /** File path of the grouped row's representative segment, or `"*"`. */
+  sourcePath: string;
   /** Queue scope of the grouped row: a file path or `"*"`. */
   groupSourcePath: string;
   groupSourcePaths?: string;

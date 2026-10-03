@@ -319,6 +319,22 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		if lockedIDs[occurrenceID] {
 			continue
 		}
+		var occurrenceSourceText, occurrencePath string
+		var occurrenceMaxLength *int
+		err = tx.QueryRow(r.Context(), `
+            select k.source_text, coalesce(f.source_path, $4), k.max_length
+            from project_translation_keys k
+            left join repository_source_files f on f.id=k.repository_source_file_id
+                and f.organization_id=k.organization_id and f.project_id=k.project_id
+            where k.organization_id=$1 and k.project_id=$2 and k.id=$3`,
+			actor.organizationID, project.ID, occurrenceID, sourcePath,
+		).Scan(&occurrenceSourceText, &occurrencePath, &occurrenceMaxLength)
+		if err != nil {
+			return nil, 0, err
+		}
+		if err = editorCatValidateTargetText(occurrenceSourceText, occurrencePath, body.Text, targetLocale, occurrenceMaxLength); err != nil {
+			return nil, 0, err
+		}
 		var beforeRevision string
 		err = tx.QueryRow(r.Context(), `select xmin::text from project_translations where translation_key_id=$1 and target_locale=$2 for update`, occurrenceID, targetLocale).Scan(&beforeRevision)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -326,7 +342,7 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		} else if err != nil {
 			return nil, 0, err
 		}
-		var id, text, savedStatus, afterRevision, occurrencePath string
+		var id, text, savedStatus, afterRevision string
 		err = tx.QueryRow(r.Context(), `
             with saved as (
                 insert into project_translations (

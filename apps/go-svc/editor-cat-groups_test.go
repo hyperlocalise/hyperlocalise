@@ -129,7 +129,7 @@ func TestEditorCatGroupVariantsListDivergentTranslationsAndSaveOneVariant(t *tes
 	mustEditorCatTranslation(t, scope, second, "fr", "Adhérent", "draft")
 
 	readVariants := func() []editorCatGroupVariant {
-		path := editorCatPathFor(scope, "/files/detail/cat/segments/"+first+"/variants?targetLocale=fr&groupSourcePath=a.json")
+		path := editorCatPathFor(scope, "/files/detail/cat/segments/"+first+"/variants?targetLocale=fr&sourcePath=a.json&groupSourcePath=a.json")
 		rec := editorCatRequestScope(api, scope, http.MethodGet, path, "")
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 		var body struct {
@@ -167,6 +167,39 @@ func TestEditorCatGroupVariantsListDivergentTranslationsAndSaveOneVariant(t *tes
 	queue = readGroupedCatQueue(t, api, scope, "sourcePath=a.json")
 	require.Equal(t, "reviewed", *queue.Segments[0].GroupStatus)
 	require.Empty(t, queue.Segments[0].DivergentLocales)
+}
+
+func TestEditorCatGroupedSaveValidatesEachOccurrenceMaxLength(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	file := mustEditorCatSourceFile(t, scope, "a.json")
+	first := mustEditorCatKey(t, scope, file, "member.a", "Member")
+	second := mustEditorCatKey(t, scope, file, "member.b", "Member")
+	_, err := scope.Pool.Exec(t.Context(), `update project_translation_keys set max_length=20 where id=$1`, first)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `update project_translation_keys set max_length=5 where id=$1`, second)
+	require.NoError(t, err)
+
+	body := `{"sourcePath":"a.json","targetLocale":"fr","externalStringId":"` + first + `","text":"123456","group":{"sourcePath":"a.json"}}`
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/translations"), body)
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
+
+	var count int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select count(*) from project_translations where translation_key_id=$1`, second).Scan(&count))
+	require.Zero(t, count)
+}
+
+func TestEditorCatGroupVariantsRejectsForeignSegment(t *testing.T) {
+	foreign := testenv.Seed(t, testenv.Options{Role: "translator", WithProject: true})
+	foreignFile := mustEditorCatSourceFile(t, foreign, "a.json")
+	foreignKey := mustEditorCatKey(t, foreign, foreignFile, "member.foreign", "Member")
+
+	api, scope := editorCatTestAPI(t, "translator")
+	file := mustEditorCatSourceFile(t, scope, "a.json")
+	mustEditorCatKey(t, scope, file, "member.local", "Member")
+
+	path := editorCatPathFor(scope, "/files/detail/cat/segments/"+foreignKey+"/variants?targetLocale=fr&sourcePath=a.json&groupSourcePath=a.json")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, path, "")
+	require.Equal(t, http.StatusNotFound, rec.Code, rec.Body.String())
 }
 
 func TestEditorCatGroupedSaveRejectsLockedRepresentative(t *testing.T) {

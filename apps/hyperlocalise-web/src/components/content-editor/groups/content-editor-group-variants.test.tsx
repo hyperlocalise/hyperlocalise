@@ -87,7 +87,7 @@ describe("ContentEditorGroupVariantsGate", () => {
       "acme",
       "p1",
       "k1",
-      { targetLocale: "fr", groupSourcePath: "*" },
+      { targetLocale: "fr", sourcePath: "*", groupSourcePath: "*" },
       expect.anything(),
     );
   });

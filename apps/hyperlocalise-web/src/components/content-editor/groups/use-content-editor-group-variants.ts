@@ -57,6 +57,7 @@ export function useContentEditorGroupVariants(input: {
         input.segment.id,
         {
           targetLocale: input.locale,
+          sourcePath: grouping!.sourcePath,
           groupSourcePath: grouping!.sourcePath,
           ...(grouping!.sourcePaths ? { groupSourcePaths: grouping!.sourcePaths } : {}),
         },
