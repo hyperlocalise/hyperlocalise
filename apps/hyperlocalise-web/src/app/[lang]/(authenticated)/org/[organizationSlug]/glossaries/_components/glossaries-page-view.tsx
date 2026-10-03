@@ -14,7 +14,6 @@
  */
 import { BookOpenTextIcon, Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -44,29 +43,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 
 import { TmsLiveProjectPicker } from "../../_components/tms-live-project-picker";
+import { WorkspaceGroupedTable } from "../../_components/workspace-grouped-table";
 import {
   PageHeader,
   WorkspaceFilterField,
+  WorkspacePageShell,
   workspaceFilterTriggerClassName,
 } from "../../_components/workspace-resource-shared";
 import type { GlossaryListRow } from "./glossary-list";
 import {
   GlossariesEmptyAction,
-  GlossariesTable,
+  renderGlossaryTableCells,
+  useGlossariesTableColumns,
   type GlossariesTableQuery,
 } from "./glossaries-table";
 import { glossariesPageViewMessages } from "./glossaries-page-view.messages";
@@ -81,61 +75,10 @@ export type GlossaryCreateForm = {
   projectIds: string[];
 };
 
-function GlossariesWorkspaceEmptyState({
-  organizationSlug,
-  allowCreateGlossaries,
-  hasConnectedProvider,
-  onCreateGlossary,
-}: {
-  organizationSlug: string;
-  allowCreateGlossaries: boolean;
-  hasConnectedProvider: boolean;
-  onCreateGlossary: () => void;
-}) {
-  return (
-    <Empty className="items-start gap-6 border border-border bg-muted/40 px-6 py-10 text-left sm:px-10">
-      <EmptyHeader className="items-start gap-3 text-left">
-        <EmptyMedia
-          variant="icon"
-          className="size-11 rounded-xl border border-border bg-background text-subtle-foreground [&_svg:not([class*='size-'])]:size-5"
-        >
-          <HugeiconsIcon icon={BookOpenTextIcon} strokeWidth={1.7} aria-hidden="true" />
-        </EmptyMedia>
-        <EmptyTitle className="text-xl font-medium text-foreground text-balance">
-          <FormattedMessage {...glossariesPageViewMessages.workspaceEmptyTitle} />
-        </EmptyTitle>
-        <EmptyDescription className="max-w-2xl text-sm leading-6 text-muted-foreground text-pretty">
-          <FormattedMessage {...glossariesPageViewMessages.workspaceEmptyDescription} />
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent className="items-start gap-3 text-left sm:flex-row sm:items-center">
-        {allowCreateGlossaries ? (
-          <Button type="button" onClick={onCreateGlossary}>
-            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-            <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
-          </Button>
-        ) : null}
-        <Button
-          nativeButton={false}
-          render={<Link href={`/org/${organizationSlug}/integrations`} />}
-          variant={allowCreateGlossaries ? "outline" : "default"}
-        >
-          <FormattedMessage
-            {...(hasConnectedProvider
-              ? glossariesPageViewMessages.openIntegrations
-              : glossariesPageViewMessages.connectProvider)}
-          />
-        </Button>
-      </EmptyContent>
-    </Empty>
-  );
-}
-
 export function GlossariesPageView({
   organizationSlug,
   nativeGlossaries,
   externalGlossaries,
-  glossaryTotal,
   nativeTotal,
   externalTotal,
   nativeQuery,
@@ -151,14 +94,12 @@ export function GlossariesPageView({
   hasActiveFilters,
   activeFilterCount,
   onClearFilters,
-  page,
-  totalPages,
-  pageStart,
-  pageEnd,
-  onPageChange,
-  crowdinPage,
-  crowdinHasMore,
-  onCrowdinPageChange,
+  nativeHasMore,
+  nativeIsLoadingMore,
+  onNativeLoadMore,
+  externalHasMore,
+  externalIsLoadingMore,
+  onExternalLoadMore,
   crowdinOrderBy,
   onCrowdinOrderByChange,
   createDialogOpen,
@@ -173,7 +114,6 @@ export function GlossariesPageView({
   organizationSlug: string;
   nativeGlossaries: GlossaryListRow[];
   externalGlossaries: GlossaryListRow[];
-  glossaryTotal: number;
   nativeTotal: number;
   externalTotal: number;
   nativeQuery: GlossariesTableQuery;
@@ -189,14 +129,12 @@ export function GlossariesPageView({
   hasActiveFilters: boolean;
   activeFilterCount: number;
   onClearFilters: () => void;
-  page: number;
-  totalPages: number;
-  pageStart: number;
-  pageEnd: number;
-  onPageChange: (page: number) => void;
-  crowdinPage: number;
-  crowdinHasMore: boolean;
-  onCrowdinPageChange: (page: number) => void;
+  nativeHasMore: boolean;
+  nativeIsLoadingMore: boolean;
+  onNativeLoadMore: () => void;
+  externalHasMore: boolean;
+  externalIsLoadingMore: boolean;
+  onExternalLoadMore: () => void;
   crowdinOrderBy: string;
   onCrowdinOrderByChange: (orderBy: string) => void;
   createDialogOpen: boolean;
@@ -209,6 +147,7 @@ export function GlossariesPageView({
   onSubmitCreateGlossary: () => void;
 }) {
   const intl = useIntl();
+  const columns = useGlossariesTableColumns();
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
   const liveProjectSelectionRequired =
     useLiveProviderGlossaries && !useLiveCrowdinGlossaries && !selectedExternalProjectId;
@@ -248,18 +187,10 @@ export function GlossariesPageView({
   const externalSectionTitle = useLiveCrowdinGlossaries
     ? intl.formatMessage(glossariesPageViewMessages.crowdinSectionTitle)
     : intl.formatMessage(glossariesPageViewMessages.externalSectionTitle);
-  const glossaryCountLabel =
-    glossaryTotal > 0
-      ? intl.formatMessage(glossariesPageViewMessages.glossaryCount, {
-          count: glossaryTotal,
-        })
-      : undefined;
   const hasAnyResults = nativeTotal > 0 || externalTotal > 0;
   const queriesHaveNoResults = nativeQuery.isSuccess && externalQuery.isSuccess && !hasAnyResults;
-  const showWorkspaceEmptyState =
-    queriesHaveNoResults && !hasActiveFilters && !useLiveProviderGlossaries;
   const liveProviderControls = useLiveProviderGlossaries ? (
-    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-end">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
       <TmsLiveProjectPicker
         organizationSlug={organizationSlug}
         value={selectedExternalProjectId}
@@ -312,16 +243,16 @@ export function GlossariesPageView({
     </div>
   ) : null;
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+    <WorkspacePageShell className="gap-6">
       <PageHeader
         icon={BookOpenTextIcon}
         label={intl.formatMessage(glossariesPageViewMessages.pageLabel)}
         title={intl.formatMessage(glossariesPageViewMessages.pageTitle)}
-        statusLabel={glossaryCountLabel}
         actions={
-          allowCreateGlossaries && !showWorkspaceEmptyState ? (
+          allowCreateGlossaries ? (
             <Button
               type="button"
+              size="sm"
               onClick={() => onCreateDialogOpenChange(true)}
               className="w-full sm:w-fit"
             >
@@ -331,22 +262,20 @@ export function GlossariesPageView({
           ) : null
         }
       >
-        {hasAnyResults || hasActiveFilters || nativeQuery.isLoading || externalQuery.isLoading ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
-            <Input
-              aria-label={intl.formatMessage(glossariesPageViewMessages.searchLabel)}
-              placeholder={intl.formatMessage(glossariesPageViewMessages.searchPlaceholder)}
-              value={searchQuery}
-              onChange={(e) => onSearchQueryChange(e.target.value)}
-              className="w-full sm:max-w-xs"
-            />
-            {activeFilterCount > 0 ? (
-              <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
-                <FormattedMessage {...glossariesPageViewMessages.clearFilters} />
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+          <Input
+            aria-label={intl.formatMessage(glossariesPageViewMessages.searchLabel)}
+            placeholder={intl.formatMessage(glossariesPageViewMessages.searchPlaceholder)}
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            className="w-full sm:max-w-xs"
+          />
+          {activeFilterCount > 0 ? (
+            <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
+              <FormattedMessage {...glossariesPageViewMessages.clearFilters} />
+            </Button>
+          ) : null}
+        </div>
       </PageHeader>
 
       {queriesHaveNoResults && hasActiveFilters ? (
@@ -368,179 +297,54 @@ export function GlossariesPageView({
         </div>
       ) : null}
 
-      {showWorkspaceEmptyState ? (
-        <GlossariesWorkspaceEmptyState
-          organizationSlug={organizationSlug}
-          allowCreateGlossaries={allowCreateGlossaries}
-          hasConnectedProvider={hasConnectedProvider}
-          onCreateGlossary={() => onCreateDialogOpenChange(true)}
-        />
-      ) : null}
-
-      {!showWorkspaceEmptyState ? (
-        <div className="grid gap-8">
-          <GlossariesTable
-            glossaries={nativeGlossaries}
-            glossariesQuery={nativeQuery}
-            organizationSlug={organizationSlug}
-            title={nativeSectionTitle}
-            count={nativeTotal}
-            emptyTitle={nativeEmptyTitle}
-            emptyDescription={nativeEmptyDescription}
-            emptyAction={
-              allowCreateGlossaries ? (
-                <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
-                  <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
-                </Button>
-              ) : undefined
-            }
-          />
-          {liveProjectSelectionRequired ? (
-            <section aria-label={externalSectionTitle} className="min-w-0">
-              <div className="mb-3 flex flex-col items-start gap-3">
-                <h2 className="text-sm font-semibold tracking-[-0.01em] text-foreground">
-                  {externalSectionTitle}
-                </h2>
-                <div className="w-full">{liveProviderControls}</div>
-              </div>
-              <div className="space-y-3 rounded-lg border border-border px-5 py-8">
-                <TypographyP size="small" weight="medium" tone="content">
-                  <FormattedMessage {...glossariesPageViewMessages.chooseTmsProjectTitle} />
-                </TypographyP>
-                <TypographyP className="max-w-xl leading-6" size="small" tone="subtle">
-                  <FormattedMessage {...glossariesPageViewMessages.chooseTmsProjectDescription} />
-                </TypographyP>
-              </div>
-            </section>
-          ) : (
-            <GlossariesTable
-              glossaries={externalGlossaries}
-              glossariesQuery={externalQuery}
-              organizationSlug={organizationSlug}
-              title={externalSectionTitle}
-              headerActions={liveProviderControls}
-              headerActionsBelowTitle
-              count={externalTotal}
-              emptyTitle={externalEmptyTitle}
-              emptyDescription={externalEmptyDescription}
-              emptyAction={
-                !hasConnectedProvider ? (
-                  <GlossariesEmptyAction organizationSlug={organizationSlug} />
-                ) : undefined
-              }
-            />
-          )}
-        </div>
-      ) : null}
-
-      {useLiveProviderGlossaries && nativeQuery.isSuccess && nativeTotal > GLOSSARIES_PAGE_SIZE ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">
-            <FormattedMessage
-              {...glossariesPageViewMessages.paginationSummary}
-              values={{ pageStart, pageEnd, glossaryTotal: nativeTotal }}
-            />
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={page <= 1}
-              onClick={() => onPageChange(Math.max(1, page - 1))}
-            >
-              <FormattedMessage {...glossariesPageViewMessages.previousPage} />
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              <FormattedMessage
-                {...glossariesPageViewMessages.paginationPage}
-                values={{ page, totalPages }}
-              />
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={page >= totalPages}
-              onClick={() => onPageChange(page + 1)}
-            >
-              <FormattedMessage {...glossariesPageViewMessages.nextPage} />
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      {useLiveCrowdinGlossaries &&
-      externalQuery.isSuccess &&
-      (crowdinPage > 1 || crowdinHasMore) ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">
-            <FormattedMessage
-              {...glossariesPageViewMessages.crowdinPaginationSummary}
-              values={{ page: crowdinPage }}
-            />
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={crowdinPage <= 1}
-              onClick={() => onCrowdinPageChange(Math.max(1, crowdinPage - 1))}
-            >
-              <FormattedMessage {...glossariesPageViewMessages.previousPage} />
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={!crowdinHasMore}
-              onClick={() => onCrowdinPageChange(crowdinPage + 1)}
-            >
-              <FormattedMessage {...glossariesPageViewMessages.nextPage} />
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      {!useLiveCrowdinGlossaries &&
-      !useLiveProviderGlossaries &&
-      glossaryTotal > GLOSSARIES_PAGE_SIZE ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">
-            <FormattedMessage
-              {...glossariesPageViewMessages.paginationSummary}
-              values={{ pageStart, pageEnd, glossaryTotal }}
-            />
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={page <= 1}
-              onClick={() => onPageChange(Math.max(1, page - 1))}
-            >
-              <FormattedMessage {...glossariesPageViewMessages.previousPage} />
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              <FormattedMessage
-                {...glossariesPageViewMessages.paginationPage}
-                values={{ page, totalPages }}
-              />
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={page >= totalPages}
-              onClick={() => onPageChange(page + 1)}
-            >
-              <FormattedMessage {...glossariesPageViewMessages.nextPage} />
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      <WorkspaceGroupedTable
+        ariaLabel={intl.formatMessage(glossariesPageViewMessages.pageTitle)}
+        columns={columns}
+        getRowId={(glossary) => glossary.id}
+        renderCells={(glossary) => renderGlossaryTableCells(glossary, organizationSlug, intl)}
+        groups={[
+          {
+            id: "workspace",
+            title: nativeSectionTitle,
+            count: nativeTotal,
+            items: nativeGlossaries,
+            query: nativeQuery,
+            emptyTitle: nativeEmptyTitle,
+            emptyDescription: nativeEmptyDescription,
+            emptyAction: allowCreateGlossaries ? (
+              <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
+                <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
+              </Button>
+            ) : undefined,
+            hasMore: nativeHasMore,
+            isLoadingMore: nativeIsLoadingMore,
+            onLoadMore: onNativeLoadMore,
+          },
+          {
+            id: "provider",
+            title: externalSectionTitle,
+            count: liveProjectSelectionRequired ? 0 : externalTotal,
+            items: liveProjectSelectionRequired ? [] : externalGlossaries,
+            query: liveProjectSelectionRequired
+              ? { isLoading: false, isError: false, isSuccess: true, error: null }
+              : externalQuery,
+            emptyTitle: liveProjectSelectionRequired
+              ? intl.formatMessage(glossariesPageViewMessages.chooseTmsProjectTitle)
+              : externalEmptyTitle,
+            emptyDescription: liveProjectSelectionRequired
+              ? intl.formatMessage(glossariesPageViewMessages.chooseTmsProjectDescription)
+              : externalEmptyDescription,
+            emptyAction:
+              !liveProjectSelectionRequired && !hasConnectedProvider ? (
+                <GlossariesEmptyAction organizationSlug={organizationSlug} />
+              ) : undefined,
+            headerActions: liveProviderControls,
+            hasMore: liveProjectSelectionRequired ? false : externalHasMore,
+            isLoadingMore: externalIsLoadingMore,
+            onLoadMore: onExternalLoadMore,
+          },
+        ]}
+      />
 
       <Dialog open={createDialogOpen} onOpenChange={onCreateDialogOpenChange}>
         <DialogContent className="max-h-[min(85dvh,42rem)] overflow-y-auto sm:max-w-lg">
@@ -686,6 +490,6 @@ export function GlossariesPageView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </main>
+    </WorkspacePageShell>
   );
 }

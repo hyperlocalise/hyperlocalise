@@ -19,6 +19,11 @@ import {
 } from "./translation-memories.fixture";
 import { TranslationMemoriesPageView } from "./translation-memories-page-view";
 
+const nativeMemories = translationMemoriesFixture.filter((memory) => memory.source === "native");
+const externalMemories = translationMemoriesFixture.filter(
+  (memory) => memory.source === "external_tms",
+);
+
 const meta = {
   title: "App/TranslationMemories/Page",
   component: TranslationMemoriesPageView,
@@ -27,12 +32,12 @@ const meta = {
   },
   args: {
     organizationSlug: "acme",
-    memories: translationMemoriesFixture,
-    memoryTotal: translationMemoriesFixture.length,
-    isLoading: false,
-    isError: false,
-    isSuccess: true,
-    error: null,
+    nativeMemories,
+    externalMemories,
+    nativeTotal: nativeMemories.length,
+    externalTotal: externalMemories.length,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     allowCreateMemories: true,
     hasConnectedProvider: true,
     useLiveProviderMemories: false,
@@ -40,29 +45,14 @@ const meta = {
     onSelectedExternalProjectIdChange: fn(),
     searchQuery: "",
     onSearchQueryChange: fn(),
-    sourceFilter: "all",
-    onSourceFilterChange: fn(),
-    projectFilter: "all",
-    onProjectFilterChange: fn(),
-    projects: [
-      { id: "project-marketing", name: "Marketing Site" },
-      { id: "project-docs", name: "Docs" },
-    ],
-    providerFilter: "all",
-    onProviderFilterChange: fn(),
-    syncFilter: "all",
-    onSyncFilterChange: fn(),
-    providerKinds: ["phrase", "crowdin"],
-    hasExternalMemories: true,
-    hasMemories: true,
-    activeFilterCount: 0,
-    showNoFilterMatches: false,
+    hasActiveFilters: false,
     onClearFilters: fn(),
-    page: 1,
-    totalPages: 1,
-    pageStart: 1,
-    pageEnd: translationMemoriesFixture.length,
-    onPageChange: fn(),
+    nativeHasMore: false,
+    nativeIsLoadingMore: false,
+    onNativeLoadMore: fn(),
+    externalHasMore: false,
+    externalIsLoadingMore: false,
+    onExternalLoadMore: fn(),
     createDialogOpen: false,
     onCreateDialogOpenChange: fn(),
     createForm: createEmptyMemoryFormFixture(),
@@ -80,8 +70,16 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Translation Memories" })).toBeInTheDocument();
-    await expect(canvas.getByText("All projects")).toBeInTheDocument();
+    await expect(canvas.getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("columnheader", { name: "Translation units" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("columnheader", { name: "Languages" })).toBeInTheDocument();
+    await expect(canvas.getByRole("columnheader", { name: "Projects" })).toBeInTheDocument();
+    await expect(canvas.getByText("Workspace memories")).toBeInTheDocument();
+    await expect(canvas.getByText("Provider memories")).toBeInTheDocument();
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();
+    await expect(canvas.getByText("All")).toBeInTheDocument();
     await expect(canvas.getByText("Phrase TM")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin Memory")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Import TMX or CSV" })).toBeInTheDocument();
@@ -90,32 +88,28 @@ export const Default: Story = {
 
 export const Loading: Story = {
   args: {
-    memories: [],
-    memoryTotal: 0,
-    projects: [],
-    isLoading: true,
-    isSuccess: false,
-    pageStart: 0,
-    pageEnd: 0,
-    providerKinds: [],
-    hasExternalMemories: false,
-    hasMemories: false,
+    nativeMemories: [],
+    externalMemories: [],
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: true, isError: false, isSuccess: false, error: null },
+    externalQuery: { isLoading: true, isError: false, isSuccess: false, error: null },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Loading translation memories...")).toBeInTheDocument();
+    await expect(canvas.getByRole("table", { name: "Translation Memories" })).toBeInTheDocument();
+    await expect(canvas.getByText("Workspace memories")).toBeInTheDocument();
+    await expect(canvas.getByText("Provider memories")).toBeInTheDocument();
   },
 };
 
 export const Empty: Story = {
   args: {
-    memories: [],
-    memoryTotal: 0,
-    projects: [],
-    pageStart: 0,
-    pageEnd: 0,
-    providerKinds: [],
-    hasExternalMemories: false,
-    hasMemories: false,
+    nativeMemories: [],
+    externalMemories: [],
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("No translation memories yet")).toBeInTheDocument();
@@ -132,15 +126,14 @@ export const Empty: Story = {
 
 export const NoProviderConnected: Story = {
   args: {
-    memories: [],
-    memoryTotal: 0,
+    nativeMemories: [],
+    externalMemories: [],
+    nativeTotal: 0,
+    externalTotal: 0,
     allowCreateMemories: false,
     hasConnectedProvider: false,
-    pageStart: 0,
-    pageEnd: 0,
-    providerKinds: [],
-    hasExternalMemories: false,
-    hasMemories: false,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Connect a TMS provider")).toBeInTheDocument();
@@ -171,33 +164,36 @@ export const CreateDialogOpen: Story = {
 
 export const LoadError: Story = {
   args: {
-    memories: [],
-    memoryTotal: 0,
-    isError: true,
-    isSuccess: false,
-    error: new Error("The translation memories API returned a 500."),
-    pageStart: 0,
-    pageEnd: 0,
-    providerKinds: [],
-    hasExternalMemories: false,
-    hasMemories: false,
+    nativeMemories: [],
+    externalMemories: [],
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: {
+      isLoading: false,
+      isError: true,
+      isSuccess: false,
+      error: new Error("The translation memories API returned a 500."),
+    },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Translation memories failed to load.")).toBeInTheDocument();
+    await expect(canvas.getByText("Could not load this group.")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("The translation memories API returned a 500."),
+    ).toBeInTheDocument();
   },
 };
 
 export const LiveProjectSelectionRequired: Story = {
   args: {
-    memories: [],
-    memoryTotal: 0,
+    nativeMemories: [],
+    externalMemories: [],
+    nativeTotal: 0,
+    externalTotal: 0,
     useLiveProviderMemories: true,
     allowCreateMemories: false,
-    pageStart: 0,
-    pageEnd: 0,
-    providerKinds: [],
-    hasExternalMemories: false,
-    hasMemories: false,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Choose a TMS project")).toBeInTheDocument();
@@ -206,11 +202,13 @@ export const LiveProjectSelectionRequired: Story = {
 
 export const NoFilterMatches: Story = {
   args: {
-    memories: [],
-    showNoFilterMatches: true,
-    hasMemories: true,
-    activeFilterCount: 1,
-    sourceFilter: "native",
+    nativeMemories: [],
+    externalMemories: [],
+    nativeTotal: 0,
+    externalTotal: 0,
+    hasActiveFilters: true,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
   },
   play: async ({ canvas }) => {
     await expect(
@@ -218,5 +216,20 @@ export const NoFilterMatches: Story = {
         content.includes("No translation memories match your filters."),
       ),
     ).toBeInTheDocument();
+  },
+};
+
+export const LoadMore: Story = {
+  args: {
+    nativeHasMore: true,
+    externalHasMore: true,
+  },
+  play: async ({ canvas, args, userEvent }) => {
+    const loadMoreButtons = canvas.getAllByRole("button", { name: "Load more" });
+    await expect(loadMoreButtons).toHaveLength(2);
+    await userEvent.click(loadMoreButtons[0]!);
+    await expect(args.onNativeLoadMore).toHaveBeenCalledTimes(1);
+    await userEvent.click(loadMoreButtons[1]!);
+    await expect(args.onExternalLoadMore).toHaveBeenCalledTimes(1);
   },
 };

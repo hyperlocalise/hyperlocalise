@@ -50,6 +50,31 @@ export const translationMemoriesPageViewMessages = defineMessages({
     id: "xYeE5w8BlW",
     description: "Placeholder for the translation memories search field",
   },
+  nativeSectionTitle: {
+    defaultMessage: "Workspace memories",
+    id: "gGmKq7vzB0",
+    description: "Heading for workspace translation memories",
+  },
+  externalSectionTitle: {
+    defaultMessage: "Provider memories",
+    id: "txugXfZlUW",
+    description: "Heading for provider translation memories",
+  },
+  nativeEmptyTitle: {
+    defaultMessage: "No workspace memories",
+    id: "th8gAYZJWo",
+    description: "Empty state title for workspace translation memories",
+  },
+  externalEmptyTitle: {
+    defaultMessage: "No provider memories",
+    id: "w7aL/44AbR",
+    description: "Empty state title for provider translation memories",
+  },
+  nativeEmptyDescription: {
+    defaultMessage: "Workspace memories created here stay available to every project you attach.",
+    id: "B/7LPBxPvS",
+    description: "Empty state description for workspace translation memories",
+  },
   sourceLabel: {
     defaultMessage: "Source",
     id: "/AcaMGSbw2",

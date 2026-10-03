@@ -35,6 +35,11 @@ export const translationMemoriesTableMessages = defineMessages({
     id: "0Jtniw8gvd",
     description: "Fallback error when translation memories fail to load without a message",
   },
+  retry: {
+    defaultMessage: "Retry",
+    id: "tOPXiwB7yH",
+    description: "Button to retry loading translation memories",
+  },
   sourceWorkspace: {
     defaultMessage: "Workspace",
     id: "AEwGvK/0C4",
@@ -74,6 +79,31 @@ export const translationMemoriesTableMessages = defineMessages({
     defaultMessage: "Open in provider",
     id: "ScCeTTRmLH",
     description: "Link to open a translation memory in the external TMS provider",
+  },
+  nameColumn: {
+    defaultMessage: "Name",
+    id: "Z7pKHoBx5a",
+    description: "Column header for translation memory name",
+  },
+  segmentsColumn: {
+    defaultMessage: "Translation units",
+    id: "+krrXyjc74",
+    description: "Column header for translation memory segment count",
+  },
+  languagesColumn: {
+    defaultMessage: "Languages",
+    id: "LfGusfCcXm",
+    description: "Column header for translation memory languages",
+  },
+  projectsColumn: {
+    defaultMessage: "Projects",
+    id: "5Y+QcRLqFA",
+    description: "Column header for translation memory projects",
+  },
+  allProjects: {
+    defaultMessage: "All",
+    id: "i1K5RtvMOq",
+    description: "Projects cell when a workspace translation memory is available to every project",
   },
   segmentCount: {
     defaultMessage: "{countLabel} segments",
