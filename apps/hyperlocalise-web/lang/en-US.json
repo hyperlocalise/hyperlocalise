@@ -7139,6 +7139,10 @@
     "defaultMessage": "Link",
     "description": "Bubble menu button to add or remove a hyperlink"
   },
+  "CTI9kmmWqH": {
+    "defaultMessage": "{count, plural, one {# project} other {# projects}}",
+    "description": "Workspace project attachment count for a translation memory"
+  },
   "CUMVPg+yCv": {
     "defaultMessage": "How it works",
     "description": "Use case page workflow section label"

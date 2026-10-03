@@ -112,6 +112,28 @@ type MemoryListResult = {
   total: number;
 };
 
+async function listMemoryProjectCounts(memoryIds: string[]) {
+  const counts = new Map<string, number>();
+  if (memoryIds.length === 0) {
+    return counts;
+  }
+
+  const rows = await db
+    .select({
+      memoryId: schema.projectMemories.memoryId,
+      value: count(),
+    })
+    .from(schema.projectMemories)
+    .where(inArray(schema.projectMemories.memoryId, memoryIds))
+    .groupBy(schema.projectMemories.memoryId);
+
+  for (const row of rows) {
+    counts.set(row.memoryId, row.value);
+  }
+
+  return counts;
+}
+
 type MemoryStore = {
   list(auth: ApiAuthContext, query?: ListMemoryQuery): Promise<MemoryListResult>;
   create(auth: ApiAuthContext, payload: CreateMemoryBody): Promise<Memory>;
@@ -193,9 +215,12 @@ const memoryStore: MemoryStore = {
             ),
           )
       : null;
-    const where = projectMemoryIds
-      ? and(accessWhere, inArray(schema.memories.id, projectMemoryIds))
-      : accessWhere;
+    const sourceWhere = query?.source ? eq(schema.memories.source, query.source) : undefined;
+    const where = and(
+      accessWhere,
+      projectMemoryIds ? inArray(schema.memories.id, projectMemoryIds) : undefined,
+      sourceWhere,
+    );
 
     const [memories, totalRow] = await Promise.all([
       db
@@ -540,13 +565,25 @@ export function createMemoryRoutes() {
     .get("/", validateListMemoryQuery, async (c) => {
       const query = c.req.valid("query");
       const { memories, total } = await memoryStore.list(c.var.auth, query);
-      const records = await mapWithConcurrency(memories, 10, async (memory) =>
-        toMemoryRecord(
-          memory,
-          memoryCapabilitiesForPersistedMemory(c.var.auth, memory).capabilities,
+      const [records, projectCounts] = await Promise.all([
+        mapWithConcurrency(memories, 10, async (memory) =>
+          toMemoryRecord(
+            memory,
+            memoryCapabilitiesForPersistedMemory(c.var.auth, memory).capabilities,
+          ),
         ),
+        listMemoryProjectCounts(memories.map((memory) => memory.id)),
+      ]);
+      return c.json(
+        {
+          memories: records.map((record) => ({
+            ...record,
+            projectCount: projectCounts.get(record.id) ?? 0,
+          })),
+          total,
+        },
+        200,
       );
-      return c.json({ memories: records, total }, 200);
     })
     .post("/", validateCreateMemoryBody, async (c) => {
       if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {

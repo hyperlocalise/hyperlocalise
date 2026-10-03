@@ -344,7 +344,70 @@ describe("memoryRoutes", () => {
       memories: Array<{ id: string; name: string }>;
     };
     expect(body.total).toBe(1);
-    expect(body.memories).toEqual([expect.objectContaining({ id: matchingMemory.id })]);
+    expect(body.memories).toEqual([
+      expect.objectContaining({ id: matchingMemory.id, projectCount: 1 }),
+    ]);
+  });
+
+  it("filters translation memories by source and includes project counts", async () => {
+    const { identity, organization, user } = await fixture.createLocalWorkosIdentity();
+    const [nativeMemory, providerMemory] = await db
+      .insert(schema.memories)
+      .values([
+        {
+          organizationId: organization.id,
+          createdByUserId: user.id,
+          name: "Workspace TM",
+          description: "",
+          source: "native",
+        },
+        {
+          organizationId: organization.id,
+          createdByUserId: user.id,
+          name: "Provider TM",
+          description: "",
+          source: "external_tms",
+          externalProviderKind: "phrase",
+          externalProjectId: "phrase-9",
+          externalMemoryId: "tm-9",
+        },
+      ])
+      .returning();
+
+    const headers = await fixture.authHeadersFor(identity);
+    const nativeResponse = await client.api.orgs[":organizationSlug"]["translation-memories"].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { limit: "50", offset: "0", source: "native" },
+      },
+      { headers },
+    );
+    const providerResponse = await client.api.orgs[":organizationSlug"][
+      "translation-memories"
+    ].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { limit: "50", offset: "0", source: "external_tms" },
+      },
+      { headers },
+    );
+
+    expect(nativeResponse.status).toBe(200);
+    expect(providerResponse.status).toBe(200);
+    const nativeBody = (await nativeResponse.json()) as {
+      total: number;
+      memories: Array<{ id: string; projectCount: number }>;
+    };
+    const providerBody = (await providerResponse.json()) as {
+      total: number;
+      memories: Array<{ id: string }>;
+    };
+    expect(nativeBody.total).toBe(1);
+    expect(nativeBody.memories).toEqual([
+      expect.objectContaining({ id: nativeMemory.id, projectCount: 0 }),
+    ]);
+    expect(providerBody.total).toBe(1);
+    expect(providerBody.memories).toEqual([expect.objectContaining({ id: providerMemory.id })]);
   });
 
   it("removes project attachments when deleting a translation memory", async () => {

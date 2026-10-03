@@ -74,14 +74,19 @@ export function renderGlossaryTableCells(
               projectId: glossary.externalProjectId,
             })
           : "—"));
+  const nameClassName = "truncate font-medium text-foreground underline-offset-2 hover:underline";
   const name = glossary.detailId ? (
     <OrgNavLink
       href={`/org/${organizationSlug}/glossaries/${glossary.detailId}`}
       prefetch
-      className="truncate font-medium text-foreground underline-offset-2 hover:underline"
+      className={nameClassName}
     >
       {glossary.name}
     </OrgNavLink>
+  ) : glossary.externalUrl ? (
+    <a href={glossary.externalUrl} target="_blank" rel="noreferrer" className={nameClassName}>
+      {glossary.name}
+    </a>
   ) : (
     <span className="truncate font-medium text-foreground">{glossary.name}</span>
   );
@@ -94,9 +99,21 @@ export function renderGlossaryTableCells(
     <span key="languages" className="block truncate" title={languages}>
       {languages || "—"}
     </span>,
-    <span key="projects" className="block truncate" title={projects}>
-      {projects}
-    </span>,
+    glossary.projectLinkId ? (
+      <OrgNavLink
+        key="projects"
+        href={`/org/${organizationSlug}/projects/${glossary.projectLinkId}`}
+        prefetch
+        className="block truncate underline-offset-2 hover:text-foreground hover:underline"
+        title={projects}
+      >
+        {projects}
+      </OrgNavLink>
+    ) : (
+      <span key="projects" className="block truncate" title={projects}>
+        {projects}
+      </span>
+    ),
   ];
 }
 

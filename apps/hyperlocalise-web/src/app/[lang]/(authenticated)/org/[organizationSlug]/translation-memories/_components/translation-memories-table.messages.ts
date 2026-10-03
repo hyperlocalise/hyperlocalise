@@ -105,6 +105,11 @@ export const translationMemoriesTableMessages = defineMessages({
     id: "i1K5RtvMOq",
     description: "Projects cell when a workspace translation memory is available to every project",
   },
+  usedInProjects: {
+    defaultMessage: "{count, plural, one {# project} other {# projects}}",
+    id: "CTI9kmmWqH",
+    description: "Workspace project attachment count for a translation memory",
+  },
   segmentCount: {
     defaultMessage: "{countLabel} segments",
     id: "oK3y5p7erk",

@@ -70,12 +70,12 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Translation Memories" })).toBeInTheDocument();
-    await expect(canvas.getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
-    await expect(
-      canvas.getByRole("columnheader", { name: "Translation units" }),
-    ).toBeInTheDocument();
-    await expect(canvas.getByRole("columnheader", { name: "Languages" })).toBeInTheDocument();
-    await expect(canvas.getByRole("columnheader", { name: "Projects" })).toBeInTheDocument();
+    await expect(canvas.getAllByRole("columnheader", { name: "Name" })).toHaveLength(2);
+    await expect(canvas.getAllByRole("columnheader", { name: "Translation units" })).toHaveLength(
+      2,
+    );
+    await expect(canvas.getAllByRole("columnheader", { name: "Languages" })).toHaveLength(2);
+    await expect(canvas.getAllByRole("columnheader", { name: "Projects" })).toHaveLength(2);
     await expect(canvas.getByText("Workspace memories")).toBeInTheDocument();
     await expect(canvas.getByText("Provider memories")).toBeInTheDocument();
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();
@@ -181,6 +181,23 @@ export const LoadError: Story = {
     await expect(
       canvas.getByText("The translation memories API returned a 500."),
     ).toBeInTheDocument();
+  },
+};
+
+export const LoadMoreFailed: Story = {
+  args: {
+    nativeQuery: {
+      isLoading: false,
+      isError: true,
+      isSuccess: false,
+      error: new Error("The next page failed to load."),
+    },
+    nativeHasMore: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Product UI")).toBeInTheDocument();
+    await expect(canvas.getByText("The next page failed to load.")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Load more" })).toBeNull();
   },
 };
 

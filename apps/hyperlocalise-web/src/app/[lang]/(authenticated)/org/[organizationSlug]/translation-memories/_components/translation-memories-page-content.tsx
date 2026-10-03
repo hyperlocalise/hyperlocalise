@@ -20,6 +20,8 @@ import { toast } from "sonner";
 
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   memoryImportFormatFromFilename,
   readMemoryImportFile,
@@ -30,6 +32,7 @@ import { TMX_MAX_IMPORT_CONTENT_CHARS } from "@/lib/memory/tmx/tmx-constants";
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
 import {
+  buildProjectIdByExternalKey,
   filterMemoryListRows,
   mapLiveTmsProviderMemoryToListRow,
   mapMemoryToListRow,
@@ -53,10 +56,11 @@ class CreateMemoryImportError extends Error {
   }
 }
 
-const workspaceMemoriesQueryKey = (organizationSlug: string) => [
-  "translation-memories",
+const workspaceMemoriesQueryKey = (organizationSlug: string, source: "native" | "external_tms") =>
+  ["translation-memories", organizationSlug, source] as const;
+const projectsQueryKey = (organizationSlug: string) => [
+  "translation-memory-projects",
   organizationSlug,
-  "workspace",
 ];
 const credentialsQueryKey = (organizationSlug: string) => [
   "translation-memory-credentials",
@@ -65,6 +69,36 @@ const credentialsQueryKey = (organizationSlug: string) => [
 
 function createEmptyMemoryForm(): MemoryCreateForm {
   return { name: "", description: "", importFile: null };
+}
+
+async function fetchWorkspaceMemories(
+  organizationSlug: string,
+  intl: ReturnType<typeof useIntl>,
+  page: number,
+  source: "native" | "external_tms",
+) {
+  const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$get({
+    param: { organizationSlug },
+    query: {
+      limit: String(MEMORIES_PAGE_SIZE),
+      offset: String((page - 1) * MEMORIES_PAGE_SIZE),
+      source,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      intl.formatMessage(translationMemoriesPageContentMessages.loadMemoriesFailed, {
+        status: response.status,
+      }),
+    );
+  }
+
+  const body = await response.json();
+  return {
+    memories: body.memories as ApiMemory[],
+    total: body.total as number,
+  };
 }
 
 export function TranslationMemoriesPageContent({
@@ -77,6 +111,7 @@ export function TranslationMemoriesPageContent({
   const intl = useIntl();
   const router = useOrgRouter();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createForm, setCreateForm] = useState<MemoryCreateForm>(() => createEmptyMemoryForm());
   const [createErrors, setCreateErrors] = useState<{ name?: string; importFile?: string }>({});
@@ -85,6 +120,25 @@ export function TranslationMemoriesPageContent({
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
   const useLiveProviderMemories = Boolean(activeTmsProvider);
   const allowCreateMemories = canCreateMemories;
+
+  const projectsQuery = useQuery({
+    queryKey: projectsQueryKey(organizationSlug),
+    enabled: !useLiveProviderMemories,
+    queryFn: async () => {
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects;
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.loadProjectsFailed),
+          ),
+          { cause: error },
+        );
+      }
+    },
+  });
 
   const credentialsQuery = useQuery({
     queryKey: credentialsQueryKey(organizationSlug),
@@ -109,32 +163,22 @@ export function TranslationMemoriesPageContent({
     },
   });
 
-  const workspaceMemoriesQuery = useInfiniteQuery({
-    queryKey: workspaceMemoriesQueryKey(organizationSlug),
+  const nativeMemoriesQuery = useInfiniteQuery({
+    queryKey: workspaceMemoriesQueryKey(organizationSlug, "native"),
     initialPageParam: 1,
-    queryFn: async ({ pageParam }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$get({
-        param: { organizationSlug },
-        query: {
-          limit: String(MEMORIES_PAGE_SIZE),
-          offset: String((pageParam - 1) * MEMORIES_PAGE_SIZE),
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          intl.formatMessage(translationMemoriesPageContentMessages.loadMemoriesFailed, {
-            status: response.status,
-          }),
-        );
-      }
-
-      const body = await response.json();
-      return {
-        memories: body.memories as ApiMemory[],
-        total: body.total as number,
-      };
+    queryFn: ({ pageParam }) => fetchWorkspaceMemories(organizationSlug, intl, pageParam, "native"),
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((count, page) => count + page.memories.length, 0);
+      return loaded < lastPage.total ? pages.length + 1 : undefined;
     },
+  });
+
+  const persistedExternalMemoriesQuery = useInfiniteQuery({
+    queryKey: workspaceMemoriesQueryKey(organizationSlug, "external_tms"),
+    initialPageParam: 1,
+    enabled: !useLiveProviderMemories,
+    queryFn: ({ pageParam }) =>
+      fetchWorkspaceMemories(organizationSlug, intl, pageParam, "external_tms"),
     getNextPageParam: (lastPage, pages) => {
       const loaded = pages.reduce((count, page) => count + page.memories.length, 0);
       return loaded < lastPage.total ? pages.length + 1 : undefined;
@@ -296,12 +340,9 @@ export function TranslationMemoriesPageContent({
     },
   });
 
-  const workspaceRows = useMemo(
-    () =>
-      (workspaceMemoriesQuery.data?.pages ?? []).flatMap((page) =>
-        page.memories.map((memory) => mapMemoryToListRow(memory, new Map(), intl)),
-      ),
-    [intl, workspaceMemoriesQuery.data?.pages],
+  const projectIdByExternalKey = useMemo(
+    () => buildProjectIdByExternalKey(projectsQuery.data ?? []),
+    [projectsQuery.data],
   );
 
   const searchFilters = {
@@ -314,18 +355,22 @@ export function TranslationMemoriesPageContent({
   const nativeMemories = useMemo(
     () =>
       filterMemoryListRows(
-        workspaceRows.filter((memory) => memory.source === "native"),
+        (nativeMemoriesQuery.data?.pages ?? []).flatMap((page) =>
+          page.memories.map((memory) => mapMemoryToListRow(memory, projectIdByExternalKey, intl)),
+        ),
         searchFilters,
       ),
-    [searchQuery, workspaceRows],
+    [intl, nativeMemoriesQuery.data?.pages, projectIdByExternalKey, searchQuery],
   );
   const persistedExternalMemories = useMemo(
     () =>
       filterMemoryListRows(
-        workspaceRows.filter((memory) => memory.source === "external_tms"),
+        (persistedExternalMemoriesQuery.data?.pages ?? []).flatMap((page) =>
+          page.memories.map((memory) => mapMemoryToListRow(memory, projectIdByExternalKey, intl)),
+        ),
         searchFilters,
       ),
-    [searchQuery, workspaceRows],
+    [intl, persistedExternalMemoriesQuery.data?.pages, projectIdByExternalKey, searchQuery],
   );
   const liveExternalMemories = useMemo(
     () => filterMemoryListRows(liveMemoriesQuery.data ?? [], searchFilters),
@@ -335,15 +380,21 @@ export function TranslationMemoriesPageContent({
     ? liveExternalMemories
     : persistedExternalMemories;
 
-  const nativeTotal = nativeMemories.length;
-  const externalTotal = externalMemories.length;
+  const nativeTotal = searchQuery.trim()
+    ? nativeMemories.length
+    : (nativeMemoriesQuery.data?.pages[0]?.total ?? nativeMemories.length);
+  const externalTotal = useLiveProviderMemories
+    ? liveExternalMemories.length
+    : searchQuery.trim()
+      ? persistedExternalMemories.length
+      : (persistedExternalMemoriesQuery.data?.pages[0]?.total ?? persistedExternalMemories.length);
   const nativeQueryState = {
-    isLoading: workspaceMemoriesQuery.isLoading,
-    isError: workspaceMemoriesQuery.isError,
-    isSuccess: workspaceMemoriesQuery.isSuccess,
-    error: workspaceMemoriesQuery.error,
+    isLoading: nativeMemoriesQuery.isLoading,
+    isError: nativeMemoriesQuery.isError,
+    isSuccess: nativeMemoriesQuery.isSuccess,
+    error: nativeMemoriesQuery.error,
     refetch: () => {
-      void workspaceMemoriesQuery.refetch();
+      void nativeMemoriesQuery.refetch();
     },
   };
   const externalQueryState = useLiveProviderMemories
@@ -356,7 +407,15 @@ export function TranslationMemoriesPageContent({
           void liveMemoriesQuery.refetch();
         },
       }
-    : nativeQueryState;
+    : {
+        isLoading: persistedExternalMemoriesQuery.isLoading,
+        isError: persistedExternalMemoriesQuery.isError,
+        isSuccess: persistedExternalMemoriesQuery.isSuccess,
+        error: persistedExternalMemoriesQuery.error,
+        refetch: () => {
+          void persistedExternalMemoriesQuery.refetch();
+        },
+      };
 
   useEffect(() => {
     setSelectedExternalProjectId("");
@@ -407,17 +466,17 @@ export function TranslationMemoriesPageContent({
       onSearchQueryChange={setSearchQuery}
       hasActiveFilters={searchQuery.trim().length > 0}
       onClearFilters={() => setSearchQuery("")}
-      nativeHasMore={Boolean(workspaceMemoriesQuery.hasNextPage)}
-      nativeIsLoadingMore={workspaceMemoriesQuery.isFetchingNextPage}
+      nativeHasMore={Boolean(nativeMemoriesQuery.hasNextPage)}
+      nativeIsLoadingMore={nativeMemoriesQuery.isFetchingNextPage}
       onNativeLoadMore={() => {
-        void workspaceMemoriesQuery.fetchNextPage();
+        void nativeMemoriesQuery.fetchNextPage();
       }}
       externalHasMore={
-        useLiveProviderMemories ? false : Boolean(workspaceMemoriesQuery.hasNextPage)
+        useLiveProviderMemories ? false : Boolean(persistedExternalMemoriesQuery.hasNextPage)
       }
-      externalIsLoadingMore={workspaceMemoriesQuery.isFetchingNextPage}
+      externalIsLoadingMore={persistedExternalMemoriesQuery.isFetchingNextPage}
       onExternalLoadMore={() => {
-        void workspaceMemoriesQuery.fetchNextPage();
+        void persistedExternalMemoriesQuery.fetchNextPage();
       }}
       createDialogOpen={createDialogOpen}
       onCreateDialogOpenChange={setCreateDialogOpen}

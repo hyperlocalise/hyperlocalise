@@ -23,6 +23,81 @@ import type { WorkspaceGroupedTableColumn } from "../../_components/workspace-gr
 import type { MemoryListRow } from "./memory-list";
 import { translationMemoriesTableMessages } from "./translation-memories-table.messages";
 
+function MemoryNameCell({
+  memory,
+  organizationSlug,
+}: {
+  memory: MemoryListRow;
+  organizationSlug: string;
+}) {
+  const className = "truncate font-medium text-foreground underline-offset-2 hover:underline";
+
+  if (!isLiveProviderMemoryId(memory.id)) {
+    return (
+      <OrgNavLink
+        href={`/org/${organizationSlug}/translation-memories/${memory.id}`}
+        prefetch
+        className={className}
+      >
+        {memory.name}
+      </OrgNavLink>
+    );
+  }
+
+  if (memory.externalUrl) {
+    return (
+      <a href={memory.externalUrl} target="_blank" rel="noreferrer" className={className}>
+        {memory.name}
+      </a>
+    );
+  }
+
+  return <span className="truncate font-medium text-foreground">{memory.name}</span>;
+}
+
+function MemoryProjectsCell({
+  memory,
+  organizationSlug,
+  intl,
+}: {
+  memory: MemoryListRow;
+  organizationSlug: string;
+  intl: ReturnType<typeof useIntl>;
+}) {
+  const label =
+    memory.source === "native"
+      ? (memory.projectCount ?? 0) === 0
+        ? intl.formatMessage(translationMemoriesTableMessages.allProjects)
+        : intl.formatMessage(translationMemoriesTableMessages.usedInProjects, {
+            count: memory.projectCount ?? 0,
+          })
+      : (memory.externalProjectName ??
+        (memory.externalProjectId
+          ? intl.formatMessage(translationMemoriesTableMessages.projectId, {
+              projectId: memory.externalProjectId,
+            })
+          : "—"));
+
+  if (memory.projectLinkId) {
+    return (
+      <OrgNavLink
+        href={`/org/${organizationSlug}/projects/${memory.projectLinkId}`}
+        prefetch
+        className="block truncate underline-offset-2 hover:text-foreground hover:underline"
+        title={label}
+      >
+        {label}
+      </OrgNavLink>
+    );
+  }
+
+  return (
+    <span className="block truncate" title={label}>
+      {label}
+    </span>
+  );
+}
+
 export type TranslationMemoriesTableQuery = {
   isLoading: boolean;
   isError: boolean;
@@ -62,38 +137,20 @@ export function renderMemoryTableCells(
   organizationSlug: string,
   intl: ReturnType<typeof useIntl>,
 ): ReactNode[] {
-  const isLive = isLiveProviderMemoryId(memory.id);
-  const projects =
-    memory.source === "native"
-      ? intl.formatMessage(translationMemoriesTableMessages.allProjects)
-      : memory.externalProjectId
-        ? intl.formatMessage(translationMemoriesTableMessages.projectId, {
-            projectId: memory.externalProjectId,
-          })
-        : "—";
-  const name = isLive ? (
-    <span className="truncate font-medium text-foreground">{memory.name}</span>
-  ) : (
-    <OrgNavLink
-      href={`/org/${organizationSlug}/translation-memories/${memory.id}`}
-      prefetch
-      className="truncate font-medium text-foreground underline-offset-2 hover:underline"
-    >
-      {memory.name}
-    </OrgNavLink>
-  );
-
   return [
-    name,
+    <MemoryNameCell key="name" memory={memory} organizationSlug={organizationSlug} />,
     <span key="segments" className="tabular-nums">
       {memory.segmentCountLabel}
     </span>,
     <span key="languages" className="block truncate" title={memory.localeSummary}>
       {memory.localeSummary || "—"}
     </span>,
-    <span key="projects" className="block truncate" title={projects}>
-      {projects}
-    </span>,
+    <MemoryProjectsCell
+      key="projects"
+      memory={memory}
+      organizationSlug={organizationSlug}
+      intl={intl}
+    />,
   ];
 }
 

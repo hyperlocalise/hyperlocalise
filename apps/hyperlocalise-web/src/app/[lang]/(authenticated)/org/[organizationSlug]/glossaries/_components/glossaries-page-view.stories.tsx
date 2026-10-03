@@ -75,10 +75,10 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Glossaries" })).toBeInTheDocument();
-    await expect(canvas.getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
-    await expect(canvas.getByRole("columnheader", { name: "Terms" })).toBeInTheDocument();
-    await expect(canvas.getByRole("columnheader", { name: "Languages" })).toBeInTheDocument();
-    await expect(canvas.getByRole("columnheader", { name: "Projects" })).toBeInTheDocument();
+    await expect(canvas.getAllByRole("columnheader", { name: "Name" })).toHaveLength(2);
+    await expect(canvas.getAllByRole("columnheader", { name: "Terms" })).toHaveLength(2);
+    await expect(canvas.getAllByRole("columnheader", { name: "Languages" })).toHaveLength(2);
+    await expect(canvas.getAllByRole("columnheader", { name: "Projects" })).toHaveLength(2);
     await expect(canvas.getByText("Workspace glossaries")).toBeInTheDocument();
     await expect(canvas.getByText("Provider glossaries")).toBeInTheDocument();
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();

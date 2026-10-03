@@ -257,6 +257,7 @@ export function GlossariesPageContent({
       organizationSlug,
       selectedExternalProjectId,
       activeTmsProvider?.providerKind,
+      filters.searchQuery,
     ],
     enabled:
       useLiveProviderGlossaries && !useLiveCrowdinGlossaries && Boolean(selectedExternalProjectId),
