@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { resolveCatFileViewCapabilities } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
 
 export function isNativeContentEditorProviderKind(
   providerKind: string | null | undefined,
@@ -29,6 +30,11 @@ export function isContentEditorGroupingAvailable(
   file?: {
     provider?: { kind?: string | null } | null;
   } | null,
+  sourcePath?: string | null,
 ): boolean {
-  return file != null && isNativeContentEditorFile(file);
+  if (file == null || !isNativeContentEditorFile(file)) {
+    return false;
+  }
+
+  return resolveCatFileViewCapabilities({ sourcePath }).family === "text";
 }

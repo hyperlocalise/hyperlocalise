@@ -46,10 +46,22 @@ describe("isNativeContentEditorFile", () => {
 });
 
 describe("isContentEditorGroupingAvailable", () => {
-  it("requires a loaded native file", () => {
-    expect(isContentEditorGroupingAvailable(null)).toBe(false);
-    expect(isContentEditorGroupingAvailable(undefined)).toBe(false);
-    expect(isContentEditorGroupingAvailable({ provider: { kind: "native" } })).toBe(true);
-    expect(isContentEditorGroupingAvailable({ provider: { kind: "crowdin" } })).toBe(false);
+  const nativeFile = { provider: { kind: "native" } };
+
+  it("requires a loaded native text file", () => {
+    expect(isContentEditorGroupingAvailable(null, "menu.json")).toBe(false);
+    expect(isContentEditorGroupingAvailable(undefined, "menu.json")).toBe(false);
+    expect(isContentEditorGroupingAvailable(nativeFile, "menu.json")).toBe(true);
+    expect(isContentEditorGroupingAvailable(nativeFile, "*")).toBe(true);
+    expect(isContentEditorGroupingAvailable({ provider: { kind: "crowdin" } }, "menu.json")).toBe(
+      false,
+    );
+  });
+
+  it("keeps grouping off for native media, office, and document files", () => {
+    expect(isContentEditorGroupingAvailable(nativeFile, "hero.png")).toBe(false);
+    expect(isContentEditorGroupingAvailable(nativeFile, "clip.mp4")).toBe(false);
+    expect(isContentEditorGroupingAvailable(nativeFile, "brief.docx")).toBe(false);
+    expect(isContentEditorGroupingAvailable(nativeFile, "readme.md")).toBe(false);
   });
 });

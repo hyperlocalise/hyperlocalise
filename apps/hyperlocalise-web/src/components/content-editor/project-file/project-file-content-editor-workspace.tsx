@@ -1114,7 +1114,7 @@ export function ProjectFileContentEditorWorkspace({
 
             <ContentEditorGroupingView
               canEdit={Boolean(contentEditorFile?.canEditTranslations)}
-              enabled={isContentEditorGroupingAvailable(contentEditorFile)}
+              enabled={isContentEditorGroupingAvailable(contentEditorFile, sourcePath)}
               client={goSvcClient}
               organizationSlug={organizationSlug}
               projectId={projectId}

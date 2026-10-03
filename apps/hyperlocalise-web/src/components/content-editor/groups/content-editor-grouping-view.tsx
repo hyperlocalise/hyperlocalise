@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import { Activity, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useQuery } from "@tanstack/react-query";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
@@ -76,7 +77,7 @@ function GroupingViewState({
   const [ready, setReady] = useState(false);
   const [defaultView, setDefaultView] = useState<View | null>(null);
   const [openedDirectly, setOpenedDirectly] = useState(Boolean(initialSegmentKey));
-  const [toolbarHostPresent, setToolbarHostPresent] = useState<boolean | null>(null);
+  const [toolbarHost, setToolbarHost] = useState<HTMLElement | null | undefined>(undefined);
   useEffect(() => {
     setOpenedDirectly(Boolean(initialSegmentKey));
   }, [initialSegmentKey]);
@@ -90,7 +91,7 @@ function GroupingViewState({
     setReady(true);
   }, [storageKey]);
   useEffect(() => {
-    setToolbarHostPresent(Boolean(document.getElementById(CAT_QUEUE_TOOLBAR_HOST_ID)));
+    setToolbarHost(document.getElementById(CAT_QUEUE_TOOLBAR_HOST_ID));
   }, []);
   const behavior = useQuery({
     queryKey: ["cat-grouping-default", scope.organizationSlug, scope.projectId],
@@ -130,10 +131,13 @@ function GroupingViewState({
     [changeView, preference, view],
   );
   if (!ready || (!preference && !defaultView && !openedDirectly)) return <GroupLoading />;
-  const showInlineSwitcher = view === "grouped" || toolbarHostPresent === false;
+  const switcher =
+    toolbarHost === undefined ? null : (
+      <ContentEditorGroupingViewSwitcher compact={Boolean(toolbarHost)} />
+    );
   return (
     <ContentEditorGroupingProvider value={grouping}>
-      {showInlineSwitcher ? <ContentEditorGroupingViewSwitcher /> : null}
+      {toolbarHost ? createPortal(switcher, toolbarHost) : switcher}
       <Activity mode={view === "individual" ? "visible" : "hidden"}>{children}</Activity>
       {view === "grouped" ? (
         <ContentEditorGroupBrowser

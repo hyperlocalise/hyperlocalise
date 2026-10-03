@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 // @vitest-environment happy-dom
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { useEffect, useState } from "react";
@@ -104,12 +104,14 @@ describe("personal string view", () => {
     expect(await screen.findByRole("textbox", { name: "Translation" })).toHaveValue("Bonjour");
   });
 
-  it("leaves the string view control to the queue toolbar when that host is mounted", async () => {
+  it("keeps the string view control in the header host when file view hides the queue toolbar", async () => {
     document.body.insertAdjacentHTML("beforeend", `<div id="${CAT_QUEUE_TOOLBAR_HOST_ID}"></div>`);
     localStorage.setItem(STORAGE_KEY, "individual");
     setup(false);
     expect(await screen.findByRole("textbox", { name: "Translation" })).toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "String view" })).not.toBeInTheDocument();
+    const host = document.getElementById(CAT_QUEUE_TOOLBAR_HOST_ID);
+    expect(host).not.toBeNull();
+    expect(within(host!).getByRole("combobox", { name: "String view" })).toBeInTheDocument();
   });
 
   it("opens a direct segment link in the individual editor without rewriting preference", async () => {
