@@ -118,9 +118,9 @@ function PanelSection({
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-3">
+    <section className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
+        <h3 className="text-sm font-medium text-foreground">{title}</h3>
         {action}
       </div>
       {children}
@@ -128,11 +128,12 @@ function PanelSection({
   );
 }
 
-const intelligenceMutedPanelClassName = "overflow-hidden rounded-2xl bg-muted px-3.5 py-3";
+const intelligenceSurfaceClassName =
+  "overflow-hidden rounded-lg border border-border bg-background px-3.5 py-3";
 
 function ConcordanceSkeleton() {
   return (
-    <div className="space-y-3 rounded-2xl bg-muted p-3.5">
+    <div className="space-y-3 rounded-lg border border-border bg-background p-3.5">
       <Skeleton className="h-4 w-32 rounded-full bg-skeleton" />
       <Skeleton className="h-4 w-full rounded-full bg-skeleton" />
       <Skeleton className="h-4 w-10/12 rounded-full bg-skeleton" />
@@ -188,9 +189,9 @@ function tmMatchBadgeTone(matchKind: ContentEditorTmMatchKind | undefined) {
   switch (matchKind) {
     case "exact":
     case "context":
-      return "border-grove-300/25 bg-grove-300/10 text-grove-300";
+      return "border-grove-700/40 bg-grove-100 text-grove-900";
     default:
-      return "border-bud-500/25 bg-bud-500/10 text-bud-300";
+      return "border-beam-700/40 bg-beam-100 text-beam-900";
   }
 }
 
@@ -227,32 +228,30 @@ function TranslationMemoryRow({
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span
             className={cn(
-              "rounded-full border px-2 py-0.5 text-[11px] font-medium tabular-nums",
+              "rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums",
               tmMatchBadgeTone(match.matchKind),
             )}
           >
             {tmMatchBadgeLabel(match, intl)}
           </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
           {match.contextLabel ? (
-            <span className="max-w-28 truncate text-xs text-muted-foreground">
+            <span className="max-w-36 truncate text-xs text-subtle-foreground">
               {match.contextLabel}
             </span>
           ) : null}
-          {onUse ? (
-            <Button variant="ghost" size="sm" onClick={() => onUse(match)}>
-              <FormattedMessage {...contentEditorIntelligencePanelMessages.useTmMatch} />
-            </Button>
-          ) : null}
         </div>
+        {onUse ? (
+          <Button variant="outline" size="sm" className="h-8 shrink-0" onClick={() => onUse(match)}>
+            <FormattedMessage {...contentEditorIntelligencePanelMessages.useTmMatch} />
+          </Button>
+        ) : null}
       </div>
       <div className="space-y-1">
-        <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
-          {formatInternalMarkupForDisplay(match.sourceText)}
-        </p>
         <p className="text-pretty text-sm leading-relaxed text-foreground">
           {formatInternalMarkupForDisplay(match.targetText)}
+        </p>
+        <p className="text-pretty text-xs leading-relaxed text-subtle-foreground">
+          {formatInternalMarkupForDisplay(match.sourceText)}
         </p>
       </div>
     </li>
@@ -285,6 +284,7 @@ export function ContentEditorIntelligencePanel({
   canEditTranslations = true,
   isTranslationLocked = false,
   canLookupFreshContext = true,
+  embedded = false,
   onRefreshContext,
   onUseTmMatch,
   onSetMaxLength,
@@ -316,6 +316,7 @@ export function ContentEditorIntelligencePanel({
   canEditTranslations?: boolean;
   isTranslationLocked?: boolean;
   canLookupFreshContext?: boolean;
+  embedded?: boolean;
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: ContentEditorTranslationMemoryMatch) => void;
   onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
@@ -548,18 +549,27 @@ export function ContentEditorIntelligencePanel({
   const showGlobalEmpty =
     !isConcordanceLoading && visibleGlossaryConcepts.length === 0 && !hasTeamSections;
 
+  const canEditMaxLength = canEditTranslations && !isTranslationLocked && Boolean(onSetMaxLength);
+
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-border">
-      <div className="border-b border-border px-4 py-3">
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-col bg-background",
+        embedded ? "" : "lg:border-l lg:border-border",
+      )}
+    >
+      <div className={cn("px-4 py-3", embedded ? "pt-3" : "border-b border-border")}>
         <div className="flex items-center gap-2">
-          <HugeiconsIcon icon={BulbIcon} className="size-4 text-bud-300" />
+          <HugeiconsIcon icon={BulbIcon} className="size-4 text-foreground" />
           <h2 className="text-sm font-semibold text-foreground">
             <FormattedMessage {...contentEditorIntelligencePanelMessages.panelTitle} />
           </h2>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          <FormattedMessage {...contentEditorIntelligencePanelMessages.panelDescription} />
-        </p>
+        {embedded ? null : (
+          <p className="mt-1 text-xs text-subtle-foreground">
+            <FormattedMessage {...contentEditorIntelligencePanelMessages.panelDescription} />
+          </p>
+        )}
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
@@ -576,21 +586,20 @@ export function ContentEditorIntelligencePanel({
             <PanelSection
               title={intl.formatMessage(contentEditorIntelligencePanelMessages.maxLengthTitle)}
             >
-              <div className={intelligenceMutedPanelClassName}>
-                <ContentEditorSegmentMaxLengthEditor
-                  maxLength={intelligence.maxLength}
-                  canEdit={canEditTranslations && !isTranslationLocked && Boolean(onSetMaxLength)}
-                  isSaving={isMaxLengthSaving}
-                  onSave={onSetMaxLength ?? (async () => undefined)}
-                />
-              </div>
+              <ContentEditorSegmentMaxLengthEditor
+                maxLength={intelligence.maxLength}
+                canEdit={canEditMaxLength}
+                isSaving={isMaxLengthSaving}
+                characterCount={targetText.length}
+                onSave={onSetMaxLength ?? (async () => undefined)}
+              />
             </PanelSection>
           ) : null}
 
           <PanelSection
             title={intl.formatMessage(contentEditorIntelligencePanelMessages.fileContextTitle)}
           >
-            <div className={intelligenceMutedPanelClassName}>
+            <div className={intelligenceSurfaceClassName}>
               {hasFileContext ? (
                 <MarkdownContent
                   value={intelligence.productMeaning ?? ""}
@@ -600,7 +609,7 @@ export function ContentEditorIntelligencePanel({
                   )}
                 />
               ) : (
-                <p className="text-sm leading-relaxed text-muted-foreground">
+                <p className="text-sm leading-relaxed text-subtle-foreground">
                   <FormattedMessage {...contentEditorIntelligencePanelMessages.noFileContext} />
                 </p>
               )}
@@ -628,7 +637,7 @@ export function ContentEditorIntelligencePanel({
                 ) : null
               }
             >
-              <div className={intelligenceMutedPanelClassName}>
+              <div className={intelligenceSurfaceClassName}>
                 {isLookingUpContext ? (
                   <AgentContextSkeleton />
                 ) : hasAgentContext ? (
@@ -674,7 +683,7 @@ export function ContentEditorIntelligencePanel({
                     ) : null}
                   </div>
                 ) : (
-                  <p className="text-sm leading-relaxed text-muted-foreground">
+                  <p className="text-sm leading-relaxed text-subtle-foreground">
                     <FormattedMessage
                       {...contentEditorIntelligencePanelMessages.noRepositoryContext}
                     />
@@ -701,7 +710,7 @@ export function ContentEditorIntelligencePanel({
               <PanelSection
                 title={intl.formatMessage(contentEditorIntelligencePanelMessages.translationMemory)}
               >
-                <div className="overflow-hidden rounded-2xl bg-muted">
+                <div className="overflow-hidden rounded-lg border border-border bg-background">
                   <ul className="divide-y divide-border">
                     {intelligence.translationMemoryMatches.map((match) => (
                       <TranslationMemoryRow

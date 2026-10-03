@@ -85,6 +85,29 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     ).toBeInTheDocument();
   });
 
+  it("lets reviewers set a character limit on native projects", async () => {
+    const user = userEvent.setup();
+    const onSetMaxLength = vi.fn().mockResolvedValue(undefined);
+
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        initialViewMode="comfortable"
+        editing={{ onSetMaxLength }}
+        services={{ validateFormat: mockValidateFormat }}
+      />,
+    );
+
+    const input = await screen.findByRole("spinbutton", { name: "Character limit" });
+    await user.clear(input);
+    await user.type(input, "32");
+    await user.tab();
+
+    await waitFor(() => {
+      expect(onSetMaxLength).toHaveBeenCalledWith("seg-02", 32);
+    });
+  });
+
   it("starts in comfortable view when initialViewMode is comfortable", async () => {
     window.localStorage.setItem("content-editor-workspace-view-mode:v1", "side-by-side");
 

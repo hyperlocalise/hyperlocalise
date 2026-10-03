@@ -220,6 +220,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         onUseTmMatch={onUseTmMatch}
         onSetMaxLength={segment.isLocked ? undefined : onSetMaxLength}
         onGlossaryTermAdded={onGlossaryTermAdded}
+        embedded
       />
     );
     const qaPanel =
@@ -253,6 +254,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
           onAddComment={onAddComment}
           onOpenIssueSheet={onOpenIssueSheet}
           onResolveComment={onResolveComment}
+          variant="inspector"
         />
       </>
     );
@@ -305,8 +307,14 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
           <div className="flex min-h-0 flex-1 flex-col">
             {qaPanel}
             <div className="min-h-0 flex-1">{intelligencePanel}</div>
-            <div className="max-h-[45%] min-h-0 overflow-y-auto">
-              <Box paddingX="2u" paddingBottom="2u">
+            <div
+              className={
+                (segment.comments?.length ?? 0) > 0
+                  ? "max-h-[40%] min-h-0 overflow-y-auto border-t border-border"
+                  : "shrink-0 border-t border-border"
+              }
+            >
+              <Box paddingX="2u" paddingY="2u">
                 {commentsPanel}
               </Box>
             </div>

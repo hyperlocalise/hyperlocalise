@@ -45,11 +45,13 @@ export function ContentEditorSegmentMaxLengthEditor({
   maxLength,
   canEdit,
   isSaving = false,
+  characterCount,
   onSave,
 }: {
   maxLength?: number;
   canEdit: boolean;
   isSaving?: boolean;
+  characterCount?: number;
   onSave: (maxLength: number | null) => void | Promise<void>;
 }) {
   const intl = useIntl();
@@ -83,15 +85,21 @@ export function ContentEditorSegmentMaxLengthEditor({
     return parsed;
   }
 
-  async function handleSave() {
+  async function commitDraft() {
     const parsed = validateDraft();
     if (parsed === undefined) {
       return;
     }
 
+    const nextValue = parsed;
+    const currentValue = maxLength ?? null;
+    if (nextValue === currentValue) {
+      return;
+    }
+
     setError(null);
     try {
-      await onSave(parsed);
+      await onSave(nextValue);
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -117,27 +125,38 @@ export function ContentEditorSegmentMaxLengthEditor({
 
   const parsedDraft = parseMaxLengthDraft(draft);
   const hasChanges = (maxLength ?? null) !== (draft.trim().length === 0 ? null : parsedDraft);
+  const usedCountClassName =
+    maxLength != null && characterCount != null && characterCount > maxLength
+      ? "text-sm font-medium text-destructive tabular-nums"
+      : "text-sm text-subtle-foreground tabular-nums";
 
   if (!canEdit) {
     return (
-      <p className="text-sm text-muted-foreground">
-        {maxLength != null && maxLength > 0 ? (
-          <FormattedMessage
-            {...contentEditorIntelligencePanelMessages.maxLengthCurrent}
-            values={{ maxLength }}
-          />
-        ) : (
-          <FormattedMessage {...contentEditorIntelligencePanelMessages.maxLengthPlaceholder} />
-        )}
-      </p>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <p className="text-sm text-foreground">
+          {maxLength != null && maxLength > 0 ? (
+            <FormattedMessage
+              {...contentEditorIntelligencePanelMessages.maxLengthCurrent}
+              values={{ maxLength }}
+            />
+          ) : (
+            <FormattedMessage {...contentEditorIntelligencePanelMessages.maxLengthPlaceholder} />
+          )}
+        </p>
+        {characterCount != null ? (
+          <p className={usedCountClassName}>
+            <FormattedMessage
+              {...contentEditorIntelligencePanelMessages.maxLengthUsed}
+              values={{ count: characterCount }}
+            />
+          </p>
+        ) : null}
+      </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        <FormattedMessage {...contentEditorIntelligencePanelMessages.maxLengthDescription} />
-      </p>
+    <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Input
           ref={inputRef}
@@ -147,26 +166,50 @@ export function ContentEditorSegmentMaxLengthEditor({
           inputMode="numeric"
           value={draft}
           placeholder={intl.formatMessage(
-            contentEditorIntelligencePanelMessages.maxLengthPlaceholder,
+            contentEditorIntelligencePanelMessages.maxLengthInputPlaceholder,
           )}
           aria-label={intl.formatMessage(contentEditorIntelligencePanelMessages.maxLengthTitle)}
-          className="h-8 w-28 tabular-nums"
+          className="h-9 w-24 border-border bg-background text-foreground tabular-nums"
           disabled={isSaving}
           onChange={(event) => {
             setDraft(event.currentTarget.value);
             setError(null);
           }}
+          onBlur={() => {
+            if (hasChanges) {
+              void commitDraft();
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              void commitDraft();
+            }
+          }}
         />
-        <Button
-          type="button"
-          size="sm"
-          className="h-8"
-          disabled={isSaving || !hasChanges}
-          onClick={() => void handleSave()}
-        >
-          {isSaving ? <Spinner className="size-3.5" /> : null}
-          <FormattedMessage {...contentEditorIntelligencePanelMessages.maxLengthSave} />
-        </Button>
+        <span className="text-sm text-subtle-foreground">
+          <FormattedMessage {...contentEditorIntelligencePanelMessages.maxLengthUnit} />
+        </span>
+        {characterCount != null ? (
+          <span className={usedCountClassName}>
+            <FormattedMessage
+              {...contentEditorIntelligencePanelMessages.maxLengthUsed}
+              values={{ count: characterCount }}
+            />
+          </span>
+        ) : null}
+        {hasChanges ? (
+          <Button
+            type="button"
+            size="sm"
+            className="h-8"
+            disabled={isSaving}
+            onClick={() => void commitDraft()}
+          >
+            {isSaving ? <Spinner className="size-3.5" /> : null}
+            <FormattedMessage {...contentEditorIntelligencePanelMessages.maxLengthSave} />
+          </Button>
+        ) : null}
         {maxLength != null && maxLength > 0 ? (
           <Button
             type="button"

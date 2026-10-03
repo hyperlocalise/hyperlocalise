@@ -59,6 +59,7 @@ import type {
   ContentEditorSegmentCommentInput,
   ContentEditorSegmentIntelligence,
 } from "@/components/content-editor/shared/types";
+import { isNativeContentEditorFile } from "@/components/content-editor/shared/content-editor-native-project";
 import { ContentEditorWorkspaceContainer } from "@/components/content-editor/workspace/content-editor-workspace-container";
 import {
   attemptCatPageNavigation,
@@ -427,7 +428,7 @@ export function ProjectFileContentEditorWorkspace({
     [goSvcClient, intl, qaPolicy, sourcePath, spellcheckDictionary.acceptedWords],
   );
 
-  const isNativeProject = !contentEditorFile?.provider;
+  const isNativeProject = isNativeContentEditorFile(contentEditorFile);
   const glossaryTermsForQaGate = useCallback(
     async (sourceText: string, targetLocale: string): Promise<ContentEditorGlossaryTerm[]> => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[

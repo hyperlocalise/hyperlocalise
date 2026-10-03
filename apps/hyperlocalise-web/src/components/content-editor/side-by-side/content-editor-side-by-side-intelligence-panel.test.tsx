@@ -105,6 +105,25 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
     expect(screen.queryByRole("button", { name: /Find context/i })).not.toBeInTheDocument();
   });
 
+  it("lets reviewers set a character limit", async () => {
+    const user = userEvent.setup();
+    const onSetMaxLength = vi.fn().mockResolvedValue(undefined);
+
+    renderIntelligencePanel({
+      showMaxLengthEditor: true,
+      onSetMaxLength,
+    });
+
+    const input = screen.getByRole("spinbutton", { name: "Character limit" });
+    await user.clear(input);
+    await user.type(input, "32");
+    await user.tab();
+
+    await waitFor(() => {
+      expect(onSetMaxLength).toHaveBeenCalledWith(32);
+    });
+  });
+
   it("shows QA details in the sidebar", () => {
     renderIntelligencePanel({
       formatChecks: [
