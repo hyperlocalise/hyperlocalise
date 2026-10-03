@@ -144,30 +144,43 @@ describe("ProjectIssueTemplatesPanel", () => {
   });
 
   it("flags a bound assignee who is no longer assignable, without dropping the binding silently", async () => {
+    const onDirtyChange = vi.fn();
     renderPanel(
       templateConfigResponse({
         assigneeByTemplate: [
           { templateKey: "tpl_qa_failure", userId: "user_departed", assignable: false },
         ],
       }),
+      { onDirtyChange },
     );
     await waitFor(() => {
       expect(screen.getByText("No longer has access")).toBeInTheDocument();
     });
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenCalledWith(false);
+    });
+    expect(onDirtyChange).not.toHaveBeenCalledWith(true);
+    expect(screen.getByRole("button", { name: "Save template settings" })).toBeDisabled();
   });
 
   it("does not flag a bound assignee who is still assignable", async () => {
+    const onDirtyChange = vi.fn();
     renderPanel(
       templateConfigResponse({
         assigneeByTemplate: [
           { templateKey: "tpl_qa_failure", userId: "user_mina", assignable: true },
         ],
       }),
+      { onDirtyChange },
     );
     await waitFor(() => {
       expect(screen.getByLabelText("Default template")).toBeInTheDocument();
     });
     expect(screen.queryByText("No longer has access")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenCalledWith(false);
+    });
+    expect(onDirtyChange).not.toHaveBeenCalledWith(true);
   });
 
   it("sends the full config object on save, not just the changed field", async () => {
@@ -219,6 +232,8 @@ describe("ProjectIssueTemplatesPanel", () => {
       expect(screen.getByText("No longer has access")).toBeInTheDocument();
     });
 
+    await user.click(screen.getByLabelText("Default template"));
+    await user.click(await screen.findByRole("option", { name: "QA failure" }));
     await user.click(screen.getByRole("button", { name: "Save template settings" }));
 
     await waitFor(() => expect(putCalls).toHaveLength(1));
@@ -226,6 +241,9 @@ describe("ProjectIssueTemplatesPanel", () => {
       defaultTemplateKey: string | null;
       assigneeByTemplate: Record<string, string>;
     };
-    expect(body).toEqual({ defaultTemplateKey: null, assigneeByTemplate: {} });
+    expect(body).toEqual({
+      defaultTemplateKey: "tpl_qa_failure",
+      assigneeByTemplate: {},
+    });
   });
 });

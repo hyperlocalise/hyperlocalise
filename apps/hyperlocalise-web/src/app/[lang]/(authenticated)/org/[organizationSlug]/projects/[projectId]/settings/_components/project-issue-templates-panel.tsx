@@ -54,7 +54,14 @@ function assigneeMapsEqual(left: Record<string, string>, right: Record<string, s
   return true;
 }
 
-function draftAssigneeMapForCompare(
+function isUnchangedStaleAssignee(
+  serverBinding: IssueSheetTemplateConfig["assigneeByTemplate"][number] | undefined,
+  userId: string,
+): boolean {
+  return Boolean(serverBinding && !serverBinding.assignable && serverBinding.userId === userId);
+}
+
+function assigneeMapForCompare(
   assigneeByTemplate: Record<string, string>,
   serverBindings: IssueSheetTemplateConfig["assigneeByTemplate"],
 ): Record<string, string> {
@@ -63,8 +70,7 @@ function draftAssigneeMapForCompare(
   );
   return Object.fromEntries(
     Object.entries(assigneeByTemplate).filter(([templateKey, userId]) => {
-      const serverBinding = serverBindingByTemplate.get(templateKey);
-      return !(serverBinding && !serverBinding.assignable && serverBinding.userId === userId);
+      return !isUnchangedStaleAssignee(serverBindingByTemplate.get(templateKey), userId);
     }),
   );
 }
@@ -78,10 +84,16 @@ function issueSheetTemplateDraftIsDirty(
     return true;
   }
 
-  const serverMap = Object.fromEntries(
-    config.assigneeByTemplate.map((binding) => [binding.templateKey, binding.userId]),
+  // Compare the same filtered shape on both sides. An unchanged no-longer-assignable binding
+  // stays in draft state so the picker can flag it, but it is not an edit — excluding it from
+  // the draft only would mark Settings dirty on open and let Save wipe the stored assignment.
+  const serverMap = assigneeMapForCompare(
+    Object.fromEntries(
+      config.assigneeByTemplate.map((binding) => [binding.templateKey, binding.userId]),
+    ),
+    config.assigneeByTemplate,
   );
-  const draftMap = draftAssigneeMapForCompare(assigneeByTemplate, config.assigneeByTemplate);
+  const draftMap = assigneeMapForCompare(assigneeByTemplate, config.assigneeByTemplate);
   return !assigneeMapsEqual(draftMap, serverMap);
 }
 
@@ -140,8 +152,7 @@ export function ProjectIssueTemplatesPanel({
       // again, blocking a save that never touched this field.
       const assigneeByTemplateToSave = Object.fromEntries(
         Object.entries(assigneeByTemplate).filter(([templateKey, userId]) => {
-          const serverBinding = serverBindingByTemplate.get(templateKey);
-          return !(serverBinding && !serverBinding.assignable && serverBinding.userId === userId);
+          return !isUnchangedStaleAssignee(serverBindingByTemplate.get(templateKey), userId);
         }),
       );
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
@@ -236,7 +247,7 @@ export function ProjectIssueTemplatesPanel({
             // no-longer-assignable — picking any member from the (already-filtered-to-assignable)
             // picker below replaces it and clears this.
             const isStale = Boolean(
-              serverBinding && !serverBinding.assignable && draftUserId === serverBinding.userId,
+              draftUserId && isUnchangedStaleAssignee(serverBinding, draftUserId),
             );
 
             return (
