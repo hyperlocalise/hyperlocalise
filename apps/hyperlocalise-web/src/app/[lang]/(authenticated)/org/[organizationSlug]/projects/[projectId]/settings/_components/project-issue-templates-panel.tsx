@@ -222,9 +222,10 @@ export function ProjectIssueTemplatesPanel({
         </div>
       </Field>
 
-      <div>
+      <div className="flex justify-end border-t border-border pt-4">
         <Button
           type="button"
+          size="sm"
           disabled={configQuery.isLoading || saveMutation.isPending}
           onClick={() => saveMutation.mutate()}
         >

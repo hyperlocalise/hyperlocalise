@@ -244,7 +244,7 @@ export function WebChatPage({
                 className={cn(
                   "max-w-[85%] rounded-2xl px-4 py-3 text-sm",
                   message.senderType === "user"
-                    ? "self-end bg-foreground text-background"
+                    ? "self-end bg-primary text-primary-foreground"
                     : "self-start bg-muted text-foreground",
                 )}
               >

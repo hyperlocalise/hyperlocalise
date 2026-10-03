@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { IntlProvider } from "react-intl";
@@ -35,6 +35,7 @@ const { useProjectPageQueryMock, patchMock, updateMock, toastErrorMock, toastSuc
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/en/org/acme/projects/project_1/settings",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("sonner", () => ({
@@ -191,6 +192,11 @@ function renderSettings(project: ProjectListRow = createProject()) {
   );
 }
 
+async function openSection(user: ReturnType<typeof userEvent.setup>, name: string) {
+  const nav = await screen.findByRole("navigation", { name: "Project settings sections" });
+  await user.click(within(nav).getByRole("button", { name: new RegExp(`^${name}`) }));
+}
+
 afterEach(() => {
   vi.clearAllMocks();
 });
@@ -205,6 +211,7 @@ beforeEach(() => {
 
 describe("ProjectSettingsPageContent", () => {
   it("renders when the shared project query returns a raw API row", async () => {
+    const user = userEvent.setup();
     renderSettings({
       id: "project_1",
       name: "Tourmatic",
@@ -218,21 +225,49 @@ describe("ProjectSettingsPageContent", () => {
 
     expect(await screen.findByRole("heading", { name: "General" })).toBeInTheDocument();
     expect(screen.getByLabelText("Description")).toHaveValue("Ops notes");
-    expect(screen.getByLabelText("Style guide")).toHaveValue("Keep product names in English.");
     expect(screen.getByRole("button", { name: "Save general settings" })).toBeDisabled();
+
+    await openSection(user, "Style guide");
+    expect(screen.getByLabelText("Style guide")).toHaveValue("Keep product names in English.");
   });
 
-  it("keeps section save actions disabled until that section is dirty", async () => {
+  it("shows one section at a time and keeps save actions disabled until dirty", async () => {
+    const user = userEvent.setup();
     renderSettings();
 
     expect(await screen.findByRole("button", { name: "Save general settings" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Save style guide" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Save locales" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Save settings" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "General" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Locales" })).not.toBeInTheDocument();
+
+    await openSection(user, "Style guide");
     expect(screen.getByRole("heading", { name: "Style guide" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save style guide" })).toBeDisabled();
+    expect(screen.queryByRole("heading", { name: "General" })).not.toBeInTheDocument();
+
+    await openSection(user, "Locales");
     expect(screen.getByRole("heading", { name: "Locales" })).toBeInTheDocument();
-    expect(document.querySelectorAll("[data-slot=project-settings-section-icon]")).toHaveLength(3);
+    expect(screen.getByRole("button", { name: "Save locales" })).toBeDisabled();
+    expect(new URL(window.location.href).searchParams.get("section")).toBe("locales");
+  });
+
+  it("marks sections with unsaved edits in the nav", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    const nav = await screen.findByRole("navigation", { name: "Project settings sections" });
+    expect(within(nav).queryByText("Unsaved changes")).not.toBeInTheDocument();
+
+    const identifier = await screen.findByLabelText("Identifier");
+    await user.type(identifier, "x");
+
+    expect(
+      within(within(nav).getByRole("button", { name: /^General/ })).getByText("Unsaved changes"),
+    ).toBeInTheDocument();
+
+    await openSection(user, "Locales");
+    await openSection(user, "General");
+    expect(screen.getByLabelText("Identifier")).toHaveValue("TMX");
   });
 
   it("saves an updated identifier from the general section only", async () => {
@@ -244,7 +279,6 @@ describe("ProjectSettingsPageContent", () => {
     await user.type(identifier, "new");
 
     expect(screen.getByRole("button", { name: "Save general settings" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Save locales" })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Save general settings" }));
 
@@ -262,9 +296,9 @@ describe("ProjectSettingsPageContent", () => {
     const user = userEvent.setup();
     renderSettings();
 
+    await openSection(user, "Locales");
     await user.click(await screen.findByRole("button", { name: /Japanese \(Japan\) \(ja-JP\)/i }));
     expect(screen.getByRole("button", { name: "Save locales" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Save general settings" })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Save locales" }));
 
@@ -345,6 +379,8 @@ describe("ProjectSettingsPageContent", () => {
 
     expect(await screen.findByLabelText("Identifier")).toHaveValue("EDIT");
     expect(screen.getByRole("button", { name: "Save general settings" })).toBeEnabled();
+
+    await openSection(user, "Locales");
     expect(screen.getByRole("button", { name: "Save locales" })).toBeDisabled();
   });
 
@@ -378,6 +414,7 @@ describe("ProjectSettingsPageContent", () => {
     const user = userEvent.setup();
     renderSettings();
 
+    await openSection(user, "Style guide");
     const styleGuide = await screen.findByLabelText("Style guide");
     expect(styleGuide).toHaveAttribute("id", "translation-context");
     await user.clear(styleGuide);
@@ -420,16 +457,17 @@ describe("ProjectSettingsPageContent", () => {
 
     expect(identifier).toBeDisabled();
 
+    await openSection(user, "Locales");
     await user.click(await screen.findByRole("button", { name: /Japanese \(Japan\) \(ja-JP\)/i }));
     await user.click(screen.getByRole("button", { name: "Save locales" }));
 
-    expect(screen.getByLabelText("Identifier")).toBeDisabled();
     expect(updateMock).toHaveBeenCalledTimes(2);
 
     resolveLocales({
       project: createProject({ identifier: "NEW", targetLocales: ["de-DE", "fr-FR", "ja-JP"] }),
     });
     await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Locales saved"));
+    await openSection(user, "General");
     expect(screen.getByLabelText("Identifier")).toBeDisabled();
     expect(screen.getByLabelText("Identifier")).toHaveValue("NEW");
 
@@ -452,7 +490,9 @@ describe("ProjectSettingsPageContent", () => {
     await user.clear(identifier);
     await user.type(identifier, "ext");
 
-    expect(screen.queryByRole("button", { name: "Save locales" })).not.toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "Project settings sections" });
+    expect(within(nav).queryByRole("button", { name: "Style guide" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("button", { name: "CLI & CI" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save general settings" }));
 
     await waitFor(() => expect(patchMock).toHaveBeenCalled());
