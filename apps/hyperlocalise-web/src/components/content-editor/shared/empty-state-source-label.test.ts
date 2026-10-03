@@ -14,6 +14,8 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { emptyStateSourceLabel } from "./empty-state-source-label";
 
+const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
+
 describe("emptyStateSourceLabel", () => {
   it("returns null when the source is blank", () => {
     expect(emptyStateSourceLabel("  \n")).toBeNull();
@@ -24,11 +26,20 @@ describe("emptyStateSourceLabel", () => {
     expect(emptyStateSourceLabel("  Save\nchanges  ")).toBe("Save changes");
   });
 
+  it("formats internal markup sentinels before quoting the source", () => {
+    expect(emptyStateSourceLabel(`Click ${md0}here`)).toBe("Click MD#0here");
+  });
+
   it("truncates a long source without a trailing space before the ellipsis", () => {
     const source = "word ".repeat(30);
     const label = emptyStateSourceLabel(source);
     expect(label).toHaveLength(80);
     expect(label?.endsWith("…")).toBe(true);
     expect(label?.endsWith(" …")).toBe(false);
+  });
+
+  it("truncates on grapheme boundaries instead of splitting surrogate pairs", () => {
+    const source = `${"a".repeat(78)}👍 more source`;
+    expect(emptyStateSourceLabel(source)).toBe(`${"a".repeat(78)}👍…`);
   });
 });

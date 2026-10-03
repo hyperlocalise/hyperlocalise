@@ -11,16 +11,32 @@
  * Version 2.0 or later.
  */
 
+import { formatInternalMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-internal-markup";
+
 const EMPTY_STATE_SOURCE_MAX_LENGTH = 80;
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+function truncateSourceLabel(text: string) {
+  const graphemes: string[] = [];
+  for (const { segment } of graphemeSegmenter.segment(text)) {
+    graphemes.push(segment);
+    if (graphemes.length > EMPTY_STATE_SOURCE_MAX_LENGTH) {
+      break;
+    }
+  }
+  if (graphemes.length <= EMPTY_STATE_SOURCE_MAX_LENGTH) {
+    return text;
+  }
+  return `${graphemes.slice(0, EMPTY_STATE_SOURCE_MAX_LENGTH - 1).join("").trimEnd()}…`;
+}
 
 /** Short, single-line source excerpt for empty states that must name the string. */
 export function emptyStateSourceLabel(sourceText: string | null | undefined) {
-  const normalized = sourceText?.replace(/\s+/g, " ").trim() ?? "";
+  const normalized = formatInternalMarkupForDisplay(sourceText ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!normalized) {
     return null;
   }
-  if (normalized.length <= EMPTY_STATE_SOURCE_MAX_LENGTH) {
-    return normalized;
-  }
-  return `${normalized.slice(0, EMPTY_STATE_SOURCE_MAX_LENGTH - 1).trimEnd()}…`;
+  return truncateSourceLabel(normalized);
 }

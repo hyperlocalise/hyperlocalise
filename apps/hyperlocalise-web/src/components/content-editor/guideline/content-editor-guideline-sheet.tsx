@@ -33,7 +33,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { readApiError } from "@/lib/api-error";
 
 import { contentEditorGuidelineSheetMessages as messages } from "./content-editor-guideline-sheet.messages";
@@ -112,9 +112,12 @@ function GuidelineDocument({
       ) : null}
 
       {isError ? (
-        <p className="p-5 text-sm text-pretty text-flame-100">
-          <FormattedMessage {...messages.loadError} />
-        </p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 py-16 text-center">
+          <p className="text-sm text-pretty text-flame-100">
+            <FormattedMessage {...messages.loadError} />
+          </p>
+          {action}
+        </div>
       ) : null}
 
       {!isLoading && !isError && value.trim() ? (
@@ -232,7 +235,6 @@ export function ContentEditorGuidelineSheet({
       actionLabel: MessageDescriptor | null;
     }
   >;
-  const activeDocument = documentByTab[tab];
   const descriptionByTab = {
     "style-guide": messages.descriptionStyleGuide,
     "project-guideline": messages.descriptionProjectGuideline,
@@ -287,9 +289,15 @@ export function ContentEditorGuidelineSheet({
             </TabsList>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col p-4">
-            <GuidelineDocument {...activeDocument} onNavigate={close} />
-          </div>
+          <TabsContent value="style-guide" className="flex min-h-0 flex-1 flex-col p-4">
+            <GuidelineDocument {...documentByTab["style-guide"]} onNavigate={close} />
+          </TabsContent>
+          <TabsContent value="project-guideline" className="flex min-h-0 flex-1 flex-col p-4">
+            <GuidelineDocument {...documentByTab["project-guideline"]} onNavigate={close} />
+          </TabsContent>
+          <TabsContent value="workspace-guideline" className="flex min-h-0 flex-1 flex-col p-4">
+            <GuidelineDocument {...documentByTab["workspace-guideline"]} onNavigate={close} />
+          </TabsContent>
         </Tabs>
       </SheetContent>
     </Sheet>

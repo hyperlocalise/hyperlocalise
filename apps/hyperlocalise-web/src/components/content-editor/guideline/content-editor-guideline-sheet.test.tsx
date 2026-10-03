@@ -62,7 +62,15 @@ import { ContentEditorGuidelineSheet } from "./content-editor-guideline-sheet";
 
 function renderSheet(
   project: { translationContextValue: string; source: "native" | "external_tms" } | undefined,
-  options?: { isLoading?: boolean; isError?: boolean; canWriteProjects?: boolean },
+  options?: {
+    isLoading?: boolean;
+    isError?: boolean;
+    canWriteProjects?: boolean;
+    getKnowledgeMemory?: (input: { projectId?: string }) => Promise<{
+      ok: boolean;
+      json?: () => Promise<{ knowledgeMemory?: { content: string } }>;
+    }>;
+  },
 ) {
   useProjectPageQueryMock.mockReturnValue({
     isLoading: options?.isLoading ?? false,
@@ -70,10 +78,13 @@ function renderSheet(
     isError: options?.isError ?? false,
     data: project,
   });
-  getKnowledgeMemoryMock.mockResolvedValue({
-    ok: true,
-    json: async () => ({ knowledgeMemory: { content: "" } }),
-  });
+  getKnowledgeMemoryMock.mockImplementation(
+    options?.getKnowledgeMemory ??
+      (async () => ({
+        ok: true,
+        json: async () => ({ knowledgeMemory: { content: "" } }),
+      })),
+  );
 
   function Wrapper({ children }: { children: ReactNode }) {
     return (
@@ -108,6 +119,7 @@ describe("ContentEditorGuidelineSheet", () => {
     renderSheet({ translationContextValue: "", source: "native" });
 
     expect(screen.getByRole("dialog", { name: "Guideline" })).toBeTruthy();
+    expect(screen.getByRole("tabpanel")).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Workspace guideline" })).toBeTruthy();
     expect(screen.getByText("No style guide yet. Add one in project settings.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Edit in settings" })).toHaveAttribute(
@@ -138,5 +150,29 @@ describe("ContentEditorGuidelineSheet", () => {
 
     expect(screen.getByText("No style guide yet. Add one in project settings.")).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Edit in settings" })).toBeNull();
+  });
+
+  it("keeps the selected tab action when the guideline fails to load", async () => {
+    const user = userEvent.setup();
+    renderSheet(
+      { translationContextValue: "Keep names in English.", source: "native" },
+      {
+        getKnowledgeMemory: async ({ projectId }) => {
+          if (projectId) {
+            return { ok: false };
+          }
+          return { ok: true, json: async () => ({ knowledgeMemory: { content: "" } }) };
+        },
+      },
+    );
+
+    await user.click(screen.getByRole("tab", { name: "Project guideline" }));
+
+    expect(await screen.findByText("Unable to load this guideline.")).toBeTruthy();
+    expect(screen.getByRole("tabpanel")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open project guideline" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1/knowledge",
+    );
   });
 });

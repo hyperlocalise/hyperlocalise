@@ -65,10 +65,12 @@ function GuidelineSheetStory({
 
 const meta = {
   title: "CAT/Guideline sheet",
-  component: ContentEditorGuidelineSheet,
+  component: GuidelineSheetStory,
   parameters: { layout: "fullscreen" },
-  render: () => <GuidelineSheetStory styleGuide="" />,
-} satisfies Meta<typeof ContentEditorGuidelineSheet>;
+  args: {
+    styleGuide: "",
+  },
+} satisfies Meta<typeof GuidelineSheetStory>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -76,9 +78,7 @@ type Story = StoryObj<typeof meta>;
 export const Empty: Story = {};
 
 export const WithStyleGuide: Story = {
-  render: () => (
-    <GuidelineSheetStory
-      styleGuide={"Keep product names in English.\n\nUse sentence case for buttons."}
-    />
-  ),
+  args: {
+    styleGuide: "Keep product names in English.\n\nUse sentence case for buttons.",
+  },
 };
