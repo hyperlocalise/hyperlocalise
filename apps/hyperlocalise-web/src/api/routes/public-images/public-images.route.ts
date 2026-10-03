@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import path from "node:path";
 import { validator } from "hono/validator";
@@ -18,9 +17,8 @@ import { validator } from "hono/validator";
 import { requireApiKeyPermission, type ApiKeyAuthVariables } from "@/api/auth/api-key";
 import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
 import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
-import { db, schema } from "@/lib/database/client";
-import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
+import { loadProjectFileVariant } from "@/lib/projects/files/file-variant-download";
 
 import {
   downloadPublicImageQuerySchema,
@@ -59,67 +57,6 @@ function downloadFilename(sourcePath: string, locale: string) {
 type CreatePublicImageRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;
 };
-
-type ProjectFileVariantDownload = {
-  body: ReadableStream;
-  contentType: string;
-};
-
-async function loadProjectFileVariant(input: {
-  organizationId: string;
-  projectId: string;
-  sourcePath: string;
-  locale: string;
-  fileStorageAdapter?: FileStorageAdapter;
-}): Promise<ProjectFileVariantDownload | null> {
-  const [variant] = await db
-    .select({
-      storedFileId: schema.projectImageVariants.storedFileId,
-    })
-    .from(schema.projectImageVariants)
-    .where(
-      and(
-        eq(schema.projectImageVariants.organizationId, input.organizationId),
-        eq(schema.projectImageVariants.projectId, input.projectId),
-        eq(schema.projectImageVariants.sourcePath, input.sourcePath),
-        eq(schema.projectImageVariants.targetLocale, input.locale),
-      ),
-    )
-    .limit(1);
-
-  if (!variant?.storedFileId) {
-    return null;
-  }
-
-  const [file] = await db
-    .select({
-      storageKey: schema.storedFiles.storageKey,
-      contentType: schema.storedFiles.contentType,
-    })
-    .from(schema.storedFiles)
-    .where(
-      and(
-        eq(schema.storedFiles.id, variant.storedFileId),
-        eq(schema.storedFiles.organizationId, input.organizationId),
-      ),
-    )
-    .limit(1);
-
-  if (!file) {
-    return null;
-  }
-
-  const adapter = input.fileStorageAdapter ?? getFileStorageAdapter();
-  const storedObject = await adapter.get({ keyOrUrl: file.storageKey });
-  if (!storedObject) {
-    return null;
-  }
-
-  return {
-    body: storedObject.body,
-    contentType: storedObject.contentType ?? file.contentType ?? "application/octet-stream",
-  };
-}
 
 export function createPublicImageRoutes(options: CreatePublicImageRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
