@@ -12,12 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  AlertCircleIcon,
-  CheckmarkCircle02Icon,
-  InformationCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -31,18 +25,7 @@ import {
 import { contentEditorFormatChecksMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
 
-function FormatCheckIcon({ status }: { status: ContentEditorFormatCheck["status"] }) {
-  const className = cn("size-4 shrink-0", formatCheckStatusClass(status));
-
-  switch (status) {
-    case "pass":
-      return <HugeiconsIcon icon={CheckmarkCircle02Icon} className={className} />;
-    case "fail":
-      return <HugeiconsIcon icon={AlertCircleIcon} className={className} />;
-    default:
-      return <HugeiconsIcon icon={InformationCircleIcon} className={className} />;
-  }
-}
+import { ContentEditorFormatCheckStatusIcon } from "./content-editor-format-check-status-icon";
 
 function formatCheckStatusLabel(
   status: ContentEditorFormatCheck["status"],
@@ -83,7 +66,7 @@ export function ContentEditorFormatChecks({ checks }: { checks: ContentEditorFor
               formatCheckRowBackgroundClass(check.status),
             )}
           >
-            <FormatCheckIcon status={check.status} />
+            <ContentEditorFormatCheckStatusIcon status={check.status} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm font-medium text-foreground">{check.label}</p>

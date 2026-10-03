@@ -18,11 +18,14 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import { createContentEditorWorkspaceState } from "@/components/content-editor/shared/content-editor.fixture";
 import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
+import { ContentEditorWorkspaceContext } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { createCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-orchestrator";
 
 import { ContentEditorSideBySideRow } from "./content-editor-side-by-side-row";
 
 function renderRow(overrides: Partial<Parameters<typeof ContentEditorSideBySideRow>[0]> = {}) {
   const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+  const workspace = createCatWorkspace(state);
   const segment = state.segments!.find((item) => item.id === "seg-02")!;
 
   const props: Parameters<typeof ContentEditorSideBySideRow>[0] = {
@@ -41,7 +44,12 @@ function renderRow(overrides: Partial<Parameters<typeof ContentEditorSideBySideR
 
   return {
     props,
-    ...renderWithContentEditorProviders(<ContentEditorSideBySideRow {...props} />),
+    workspace,
+    ...renderWithContentEditorProviders(
+      <ContentEditorWorkspaceContext.Provider value={workspace}>
+        <ContentEditorSideBySideRow {...props} />
+      </ContentEditorWorkspaceContext.Provider>,
+    ),
   };
 }
 
@@ -50,7 +58,7 @@ describe("ContentEditorSideBySideRow", () => {
     renderRow();
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Save as draft/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Draft/i })).toBeInTheDocument();
   });
 
   it("uses the provider primary action label when provided", () => {
@@ -130,7 +138,7 @@ describe("ContentEditorSideBySideRow", () => {
     renderRow({ isDirty: false });
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Save as draft/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Draft/i })).toBeInTheDocument();
   });
 
   it("hides approve actions when the focused row has no target text", () => {
@@ -144,7 +152,7 @@ describe("ContentEditorSideBySideRow", () => {
     renderRow({ segment, isDirty: false });
 
     expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Save as draft/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Draft/i })).not.toBeInTheDocument();
   });
 
   it("hides approve actions when the row is not focused", () => {
@@ -182,13 +190,13 @@ describe("ContentEditorSideBySideRow", () => {
     expect(onApprove).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onSaveDraft when Save as draft is clicked", async () => {
+  it("calls onSaveDraft when Draft is clicked", async () => {
     const user = userEvent.setup();
     const onSaveDraft = vi.fn();
 
     renderRow({ onSaveDraft });
 
-    await user.click(screen.getByRole("button", { name: /Save as draft/i }));
+    await user.click(screen.getByRole("button", { name: /Draft/i }));
     expect(onSaveDraft).toHaveBeenCalledTimes(1);
   });
 
@@ -196,7 +204,7 @@ describe("ContentEditorSideBySideRow", () => {
     renderRow({ onSaveDraft: undefined });
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Save as draft/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Draft/i })).not.toBeInTheDocument();
   });
 
   it("hides approve when the target is empty even if the row is dirty", () => {
@@ -219,7 +227,7 @@ describe("ContentEditorSideBySideRow", () => {
   ])("allows saving while advisory work runs %j", (pending) => {
     renderRow(pending);
     expect(screen.getByRole("button", { name: /Approve/i })).not.toBeDisabled();
-    expect(screen.getByRole("button", { name: /Save as draft/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /Draft/i })).not.toBeDisabled();
   });
 
   it("shows copy source and clear for focused text rows", async () => {
@@ -268,7 +276,7 @@ describe("ContentEditorSideBySideRow", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows AI recommendation when enabled for focused text rows", async () => {
+  it("keeps AI suggestion collapsed until the reviewer requests it", async () => {
     const user = userEvent.setup();
     const onUseAiSuggestion = vi.fn();
     const onGenerateAiRecommendation = vi.fn();
@@ -282,14 +290,18 @@ describe("ContentEditorSideBySideRow", () => {
       onGenerateAiRecommendation,
     });
 
-    expect(screen.getByText(/AI recommendation/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Generate AI suggestion/i })).toBeInTheDocument();
+    expect(screen.queryByText(intelligence.aiSuggestion!)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Generate AI suggestion/i }));
+    expect(onGenerateAiRecommendation).not.toHaveBeenCalled();
     expect(screen.getByText(intelligence.aiSuggestion!)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Use$/i }));
     expect(onUseAiSuggestion).toHaveBeenCalledTimes(1);
   });
 
-  it("hides AI recommendation when not focused", () => {
+  it("hides the AI suggestion action when not focused", () => {
     const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
 
     renderRow({
@@ -297,10 +309,13 @@ describe("ContentEditorSideBySideRow", () => {
       canUseAiRecommendation: true,
       intelligence: state.intelligence!,
       onUseAiSuggestion: vi.fn(),
+      onGenerateAiRecommendation: vi.fn(),
     });
 
     expect(screen.getByRole("button", { name: /Copy source/i })).toBeInTheDocument();
-    expect(screen.queryByText(/AI recommendation/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Generate AI suggestion/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows character count for focused text rows", () => {
@@ -316,14 +331,178 @@ describe("ContentEditorSideBySideRow", () => {
     expect(screen.getByText("5/80 characters")).toBeInTheDocument();
   });
 
-  it("shows a loading icon while format checks are loading", () => {
+  it("shows a loading status while format checks are loading", () => {
     renderRow({ isFormatChecksLoading: true, formatChecks: [] });
 
     expect(screen.getByRole("status", { name: /Checking format & QA/i })).toBeInTheDocument();
   });
 
-  it("shows a spelling warning icon and details for focused text rows", async () => {
+  it("shows a loading status instead of a stale Fix action while format checks reload", () => {
     renderRow({
+      isFormatChecksLoading: true,
+      segment: {
+        ...createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
+          (item) => item.id === "seg-02",
+        )!,
+        targetText: "Drive the product",
+      },
+      formatChecks: [
+        {
+          id: "spelling",
+          label: "Spelling",
+          status: "warn",
+          message: '"Drive" may be misspelled. Suggestions: Diverse.',
+          category: "spelling",
+          relatedTokens: ["Drive", "Diverse"],
+        },
+      ],
+    });
+
+    expect(screen.getByRole("status", { name: /Checking format & QA/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Fix$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Spelling:/)).not.toBeInTheDocument();
+  });
+
+  it("replaces a missing glossary term only as a whole word", async () => {
+    const onTargetChange = vi.fn();
+    const segment = {
+      ...createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
+        (item) => item.id === "seg-02",
+      )!,
+      targetText: "Saved. Please Save now.",
+    };
+    const formatChecks = [
+      {
+        id: "glossary-missing-term-1",
+        label: "Glossary",
+        status: "warn" as const,
+        message: 'Glossary term "Save" requires "Speichern".',
+        category: "glossary" as const,
+        relatedTokens: ["Save", "Speichern"],
+      },
+    ];
+
+    const { unmount } = renderRow({ onTargetChange, segment, formatChecks });
+
+    await userEvent.setup().click(screen.getByRole("button", { name: /^Fix$/i }));
+    expect(onTargetChange).toHaveBeenCalledWith("Saved. Please Speichern now.");
+
+    unmount();
+    onTargetChange.mockClear();
+    renderRow({
+      onTargetChange,
+      segment: { ...segment, targetText: "Please Saved the file" },
+      formatChecks,
+    });
+
+    expect(screen.getByText(/Glossary:/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Fix$/i })).not.toBeInTheDocument();
+  });
+
+  it("colors the highlighted token with the first issue, not a later failure", () => {
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      targetText: "Drive the product",
+    };
+
+    renderRow({
+      isFocused: false,
+      segment,
+      formatChecks: [
+        {
+          id: "spelling",
+          label: "Spelling",
+          status: "warn",
+          message: '"Drive" may be misspelled.',
+          category: "spelling",
+          relatedTokens: ["Drive", "Diverse"],
+        },
+        {
+          id: "length",
+          label: "Length",
+          status: "fail",
+          message: "Too long",
+          category: "length",
+        },
+      ],
+    });
+
+    const mark = document.querySelector("[data-qa-highlight]");
+    expect(mark).toHaveTextContent("Drive");
+    expect(mark?.className).toContain("bg-warning/25");
+    expect(mark?.className).not.toContain("bg-destructive/20");
+  });
+
+  it("highlights a token that follows a blank line in the target editor", async () => {
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      targetText: "Before\n\nAfter the gap",
+    };
+
+    renderRow({
+      segment,
+      formatChecks: [
+        {
+          id: "spelling",
+          label: "Spelling",
+          status: "fail",
+          message: '"After" may be misspelled.',
+          category: "spelling",
+          relatedTokens: ["After"],
+        },
+      ],
+    });
+
+    const mark = await waitFor(() => {
+      const highlighted = document.querySelector(".tiptap [data-qa-highlight]");
+      expect(highlighted).toBeTruthy();
+      return highlighted as HTMLElement;
+    });
+    expect(mark.textContent).toBe("After");
+    expect(mark.className).toContain("bg-destructive/20");
+  });
+
+  it("highlights a glossary source term only when it is a whole word", () => {
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      targetText: "Saved. Please Save now.",
+    };
+
+    renderRow({
+      isFocused: false,
+      segment,
+      formatChecks: [
+        {
+          id: "glossary-missing-term-1",
+          label: "Glossary",
+          status: "warn",
+          message: 'Glossary term "Save" requires "Speichern".',
+          category: "glossary",
+          relatedTokens: ["Save", "Speichern"],
+        },
+      ],
+    });
+
+    const marks = document.querySelectorAll("[data-qa-highlight]");
+    expect(marks).toHaveLength(1);
+    expect(marks[0]).toHaveTextContent("Save");
+    expect(marks[0]?.previousSibling?.textContent).toBe("Saved. Please ");
+  });
+
+  it("shows the first spelling issue inline on focused text rows", async () => {
+    const onTargetChange = vi.fn();
+
+    renderRow({
+      onTargetChange,
+      segment: {
+        ...createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
+          (item) => item.id === "seg-02",
+        )!,
+        targetText: "Drive the product",
+      },
       formatChecks: [
         {
           id: "format-parity",
@@ -336,31 +515,57 @@ describe("ContentEditorSideBySideRow", () => {
           id: "spelling",
           label: "Spelling",
           status: "warn",
-          message: "Possible misspelling: recieve.",
+          message: '"Drive" may be misspelled. Suggestions: Diverse.',
           category: "spelling",
-          relatedTokens: ["recieve"],
+          relatedTokens: ["Drive", "Diverse"],
         },
       ],
     });
 
-    const icon = screen.getByRole("button", { name: /Format & QA warning/i });
-    expect(icon).toBeInTheDocument();
-    expect(icon).toHaveAttribute("data-status", "warn");
-    await userEvent.setup().click(icon);
-    expect(screen.getByText("Spelling")).toBeInTheDocument();
-    expect(screen.getByText("Possible misspelling: recieve.")).toBeInTheDocument();
-    expect(screen.queryByText("Placeholders & markup")).not.toBeInTheDocument();
+    expect(screen.getByText(/Spelling:/)).toBeInTheDocument();
+    expect(screen.getByText(/"Drive" may be misspelled/)).toBeInTheDocument();
+    expect(screen.getByText(/Suggested: “Diverse”/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Format & QA warning/i })).not.toBeInTheDocument();
+
+    await userEvent.setup().click(screen.getByRole("button", { name: /^Fix$/i }));
+    expect(onTargetChange).toHaveBeenCalledWith("Diverse the product");
   });
 
-  it("shows a format check warning icon and details for focused text rows", async () => {
+  it("does not offer Fix when related tokens are a placeholder list", () => {
     renderRow({
+      segment: {
+        ...createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
+          (item) => item.id === "seg-02",
+        )!,
+        targetText: "Hello {name} {count}",
+      },
       formatChecks: [
         {
-          id: "check-placeholders",
-          label: "Placeholders & markup",
-          status: "pass",
-          message: "No placeholders required.",
+          id: "scan-placeholder-mismatch",
+          label: "Placeholders",
+          status: "fail",
+          message: "Target is missing placeholders ({name}).",
           category: "placeholder",
+          relatedTokens: ["{name}", "{count}"],
+        },
+      ],
+    });
+
+    expect(screen.getByText(/Placeholders:/)).toBeInTheDocument();
+    expect(screen.queryByText(/Suggested:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Fix$/i })).not.toBeInTheDocument();
+  });
+
+  it("shows the first issue and a count for additional QA issues", async () => {
+    const { workspace } = renderRow({
+      formatChecks: [
+        {
+          id: "spelling",
+          label: "Spelling",
+          status: "warn",
+          message: '"Drive" may be misspelled.',
+          category: "spelling",
+          relatedTokens: ["Drive"],
         },
         {
           id: "check-terminology",
@@ -369,20 +574,23 @@ describe("ContentEditorSideBySideRow", () => {
           message: "Ambiguous noun: review",
           category: "terminology",
         },
+        {
+          id: "length",
+          label: "Length",
+          status: "fail",
+          message: "Too long",
+          category: "length",
+        },
       ],
     });
 
-    const icon = screen.getByRole("button", { name: /Format & QA warning/i });
-    expect(icon).toBeInTheDocument();
-    expect(icon).toHaveAttribute("data-status", "warn");
-    await userEvent.setup().click(icon);
-    expect(screen.getByText("Terminology consistency")).toBeInTheDocument();
-    expect(screen.getByText("Ambiguous noun: review")).toBeInTheDocument();
-    expect(screen.queryByText("Placeholders & markup")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Format & QA checks/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Spelling:/)).toBeInTheDocument();
+    expect(screen.queryByText("Terminology consistency")).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: /\+2 more/i }));
+    expect(workspace.ui.qaDetailsRevealNonce).toBe(1);
   });
 
-  it("shows a format check icon without details on inactive text rows", () => {
+  it("shows a QA count on collapsed rows without the issue text", () => {
     renderRow({
       isFocused: false,
       isHovered: false,
@@ -397,13 +605,30 @@ describe("ContentEditorSideBySideRow", () => {
       ],
     });
 
-    const icon = screen.getByRole("button", { name: /Format & QA failed/i });
-    expect(icon).toBeInTheDocument();
-    expect(icon).toHaveAttribute("data-status", "fail");
+    const status = screen.getByRole("button", { name: /Format & QA failed/i });
+    expect(status).toHaveAttribute("data-status", "fail");
+    expect(status).toHaveTextContent("1");
     expect(screen.queryByText("Terminology consistency")).not.toBeInTheDocument();
   });
 
-  it("keeps hovered rows stable and opens checks only on explicit activation", async () => {
+  it("shows a clear QA mark on collapsed rows when every check passed", () => {
+    renderRow({
+      isFocused: false,
+      formatChecks: [
+        {
+          id: "check-placeholders",
+          label: "Placeholders & markup",
+          status: "pass",
+          message: "No placeholders required.",
+          category: "placeholder",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("button", { name: /No QA issues/i })).toBeInTheDocument();
+  });
+
+  it("keeps hovered rows compact and does not reveal QA details", () => {
     renderRow({
       isFocused: false,
       isHovered: true,
@@ -418,14 +643,13 @@ describe("ContentEditorSideBySideRow", () => {
       ],
     });
 
-    expect(screen.getByRole("button", { name: /Format & QA warning/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Format & QA warning/i })).toHaveTextContent("1");
     expect(screen.queryByText("Terminology consistency")).not.toBeInTheDocument();
-    await userEvent.setup().click(screen.getByRole("button", { name: /Format & QA warning/i }));
-    expect(await screen.findByText("Terminology consistency")).toBeInTheDocument();
   });
 
-  it("prefers the loading icon over a stale format check result", () => {
+  it("prefers the loading status over a stale format check result on collapsed rows", () => {
     renderRow({
+      isFocused: false,
       isFormatChecksLoading: true,
       formatChecks: [
         {
@@ -442,13 +666,14 @@ describe("ContentEditorSideBySideRow", () => {
     expect(screen.queryByRole("button", { name: /Format & QA warning/i })).not.toBeInTheDocument();
   });
 
-  it("hides format check icons when there are no issues", () => {
-    renderRow({ formatChecks: [] });
+  it("hides QA status when there are no checks", () => {
+    renderRow({ isFocused: false, formatChecks: [] });
 
     expect(screen.queryByRole("button", { name: /Format & QA/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /No QA issues/i })).not.toBeInTheDocument();
   });
 
-  it("hides format check icons when every check passed", () => {
+  it("hides inline QA when every check passed on a focused row", () => {
     renderRow({
       formatChecks: [
         {
@@ -461,7 +686,7 @@ describe("ContentEditorSideBySideRow", () => {
       ],
     });
 
-    expect(screen.queryByRole("button", { name: /Format & QA/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("Placeholders & markup")).not.toBeInTheDocument();
   });
 
   it("hides ICU structure summary when the source has no ICU blocks", () => {
@@ -492,7 +717,7 @@ describe("ContentEditorSideBySideRow", () => {
     renderRow({ isDirty: false, onAddToIssueSheet });
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^Queries$/i }));
+    await user.click(screen.getByRole("button", { name: /^Query$/i }));
     expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
   });
 
@@ -516,7 +741,7 @@ describe("ContentEditorSideBySideRow", () => {
 
     expect(screen.getByText(/Upload/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Save as draft/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Draft/i })).not.toBeInTheDocument();
   });
 
   it("enables approve for image segments with a target asset", () => {
@@ -575,7 +800,7 @@ describe("ContentEditorSideBySideRow", () => {
 
     expect(screen.getByText(/Upload/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Save as draft/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Draft/i })).not.toBeInTheDocument();
   });
 
   it("enables approve for video segments with a target asset", () => {

@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Extension, type Extensions } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -37,7 +38,62 @@ import {
   contentEditorMessageTokenToneClass,
   type ContentEditorMessageTokenVisualKind,
 } from "@/components/content-editor/message-format/content-editor-message-token-styles";
+import { glossaryTermRanges } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import { contentEditorTargetEditorMessages } from "@/components/content-editor/shared/content-editor.messages";
+
+const TEXT_BLOCK_SEPARATOR = "\n";
+const TEXT_LEAF_TEXT = "\n";
+
+type TextOffsetRange = {
+  offsetStart: number;
+  offsetEnd: number;
+  posStart: number;
+};
+
+function documentSearchText(doc: ProseMirrorNode) {
+  return doc.textBetween(0, doc.content.size, TEXT_BLOCK_SEPARATOR, TEXT_LEAF_TEXT);
+}
+
+/**
+ * Map offsets in `documentSearchText` back to document positions.
+ * `textBetween` inserts the block separator before every textblock after the
+ * first, including empty paragraphs, so a blank line contributes two newlines.
+ */
+export function contentEditorTextOffsetRanges(doc: ProseMirrorNode): TextOffsetRange[] {
+  const textRanges: TextOffsetRange[] = [];
+  let offset = 0;
+  let seenSeparatorBlock = false;
+
+  doc.descendants((node, pos) => {
+    const leafText = node.isLeaf && !node.isText ? TEXT_LEAF_TEXT : "";
+    const isSeparatorBlock =
+      node.isBlock && ((node.isLeaf && leafText.length > 0) || node.isTextblock);
+
+    if (isSeparatorBlock) {
+      if (seenSeparatorBlock) {
+        offset += TEXT_BLOCK_SEPARATOR.length;
+      } else {
+        seenSeparatorBlock = true;
+      }
+    }
+
+    if (node.isText && node.text) {
+      textRanges.push({
+        offsetStart: offset,
+        offsetEnd: offset + node.text.length,
+        posStart: pos,
+      });
+      offset += node.text.length;
+      return;
+    }
+
+    if (leafText) {
+      offset += leafText.length;
+    }
+  });
+
+  return textRanges;
+}
 
 function textDocFromValue(value: string) {
   const lines = value.split("\n");
@@ -94,6 +150,50 @@ function decorationRangesForToken(
   });
 }
 
+function createQaHighlightExtension(
+  getHighlight: () => { tokens: string[]; status: "warn" | "fail"; wholeTerm: boolean },
+) {
+  return Extension.create({
+    name: "contentEditorQaHighlights",
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey("contentEditorQaHighlights"),
+          props: {
+            decorations(state) {
+              const { tokens, status, wholeTerm } = getHighlight();
+              if (tokens.length === 0) {
+                return DecorationSet.empty;
+              }
+
+              const textRanges = contentEditorTextOffsetRanges(state.doc);
+              const text = documentSearchText(state.doc);
+              const decorations = highlightRangesForTokens(text, tokens, wholeTerm).flatMap(
+                (range) =>
+                  decorationRangesForToken(textRanges, {
+                    id: `qa-${range.start}`,
+                    kind: "argument",
+                    name: "qa",
+                    literal: "",
+                    start: range.start,
+                    end: range.end,
+                  }).map(({ from, to }) =>
+                    Decoration.inline(from, to, {
+                      class: qaHighlightClassName(status),
+                      "data-qa-highlight": "true",
+                    }),
+                  ),
+              );
+
+              return DecorationSet.create(state.doc, decorations);
+            },
+          },
+        }),
+      ];
+    },
+  });
+}
+
 function createCatMessageFormatExtension() {
   return Extension.create({
     name: "contentEditorMessageFormatDecorations",
@@ -106,35 +206,8 @@ function createCatMessageFormatExtension() {
           props: {
             decorations(state) {
               if (state.doc === previousDocument) return previousDecorations;
-              const textRanges: Array<{
-                offsetStart: number;
-                offsetEnd: number;
-                posStart: number;
-              }> = [];
-              let offset = 0;
-              let prevNodeEnd = -1;
-
-              state.doc.descendants((node, pos) => {
-                if (!node.isText || !node.text) {
-                  return;
-                }
-
-                // Account for the "\n" block separator that textBetween inserts
-                // between consecutive text nodes that belong to different blocks.
-                if (prevNodeEnd !== -1 && pos !== prevNodeEnd) {
-                  offset += 1;
-                }
-
-                textRanges.push({
-                  offsetStart: offset,
-                  offsetEnd: offset + node.text.length,
-                  posStart: pos,
-                });
-                offset += node.text.length;
-                prevNodeEnd = pos + node.text.length;
-              });
-
-              const text = state.doc.textBetween(0, state.doc.content.size, "\n", "\n");
+              const textRanges = contentEditorTextOffsetRanges(state.doc);
+              const text = documentSearchText(state.doc);
               const analysis = analyzeCatMessageFormat(text);
               const decorations: Decoration[] = [];
 
@@ -206,12 +279,99 @@ function presentTokenSignatures(analysis: ContentEditorMessageAnalysis) {
   return new Set(analysis.tokens.map((token) => contentEditorMessageTokenSignature(token)));
 }
 
+function highlightRangesForTokens(text: string, tokens: string[], wholeTerm = false) {
+  const ranges: Array<{ start: number; end: number }> = [];
+  for (const token of tokens) {
+    if (!token) {
+      continue;
+    }
+    if (wholeTerm) {
+      ranges.push(...glossaryTermRanges(text, token));
+      continue;
+    }
+    let from = 0;
+    while (from < text.length) {
+      const index = text.indexOf(token, from);
+      if (index < 0) {
+        break;
+      }
+      ranges.push({ start: index, end: index + token.length });
+      from = index + token.length;
+    }
+  }
+  return ranges.toSorted((first, second) => first.start - second.start);
+}
+
+function qaHighlightClassName(status: "warn" | "fail" = "warn") {
+  return cn(
+    "box-decoration-clone rounded-sm",
+    status === "fail" ? "bg-destructive/20" : "bg-warning/25",
+  );
+}
+
+function renderHighlightedPlainText(
+  text: string,
+  tokens: string[],
+  status: "warn" | "fail",
+  keyPrefix: string,
+  wholeTerm: boolean,
+) {
+  const ranges = highlightRangesForTokens(text, tokens, wholeTerm);
+  if (ranges.length === 0) {
+    return text;
+  }
+
+  const parts: Array<{ key: string; text: string; highlighted: boolean }> = [];
+  let cursor = 0;
+  ranges.forEach((range, index) => {
+    if (range.start < cursor) {
+      return;
+    }
+    if (cursor < range.start) {
+      parts.push({
+        key: `${keyPrefix}-text-${cursor}`,
+        text: text.slice(cursor, range.start),
+        highlighted: false,
+      });
+    }
+    parts.push({
+      key: `${keyPrefix}-mark-${index}`,
+      text: text.slice(range.start, range.end),
+      highlighted: true,
+    });
+    cursor = range.end;
+  });
+  if (cursor < text.length) {
+    parts.push({
+      key: `${keyPrefix}-text-${cursor}`,
+      text: text.slice(cursor),
+      highlighted: false,
+    });
+  }
+
+  return parts.map((part) =>
+    part.highlighted ? (
+      <mark key={part.key} data-qa-highlight="true" className={qaHighlightClassName(status)}>
+        {part.text}
+      </mark>
+    ) : (
+      <span key={part.key}>{part.text}</span>
+    ),
+  );
+}
+
 export function ContentEditorMessagePreview({
   message,
   className,
+  highlightTokens = [],
+  highlightStatus = "warn",
+  highlightWholeTerm = false,
 }: {
   message: string;
   className?: string;
+  highlightTokens?: string[];
+  highlightStatus?: "warn" | "fail";
+  highlightWholeTerm?: boolean;
 }) {
   const analysis = useMemo(() => analyzeCatMessageFormat(message), [message]);
   const ranges = analysis.tokens
@@ -226,7 +386,17 @@ export function ContentEditorMessagePreview({
     }, []);
 
   if (ranges.length === 0) {
-    return <span className={className}>{message}</span>;
+    return (
+      <span className={className}>
+        {renderHighlightedPlainText(
+          message,
+          highlightTokens,
+          highlightStatus,
+          "plain",
+          highlightWholeTerm,
+        )}
+      </span>
+    );
   }
 
   let cursor = 0;
@@ -265,7 +435,15 @@ export function ContentEditorMessagePreview({
             {part.text}
           </span>
         ) : (
-          <span key={part.key}>{part.text}</span>
+          <span key={part.key}>
+            {renderHighlightedPlainText(
+              part.text,
+              highlightTokens,
+              highlightStatus,
+              part.key,
+              highlightWholeTerm,
+            )}
+          </span>
         ),
       )}
     </span>
@@ -333,6 +511,9 @@ export function ContentEditorTargetEditor({
   inline = false,
   autoFocus = false,
   ariaLabel,
+  highlightTokens,
+  highlightStatus = "warn",
+  highlightWholeTerm = false,
   onChange,
 }: {
   sourceText: string;
@@ -343,11 +524,24 @@ export function ContentEditorTargetEditor({
   inline?: boolean;
   autoFocus?: boolean;
   ariaLabel?: string;
+  highlightTokens?: string[];
+  highlightStatus?: "warn" | "fail";
+  highlightWholeTerm?: boolean;
   onChange: (value: string) => void;
 }) {
   const intl = useIntl();
   const valueRef = useRef(value);
   valueRef.current = value;
+  const highlightRef = useRef({
+    tokens: highlightTokens ?? [],
+    status: highlightStatus,
+    wholeTerm: highlightWholeTerm,
+  });
+  highlightRef.current = {
+    tokens: highlightTokens ?? [],
+    status: highlightStatus,
+    wholeTerm: highlightWholeTerm,
+  };
   const sourceAnalysis = useMemo(() => analyzeCatMessageFormat(sourceText), [sourceText]);
   const targetAnalysis = useMemo(() => analyzeCatMessageFormat(value), [value]);
   const parityIssues = useMemo(
@@ -364,7 +558,10 @@ export function ContentEditorTargetEditor({
   const isOverMaxLength = maxLength !== undefined && characterCount > maxLength;
 
   const editor = useEditor({
-    extensions: contentEditorTargetEditorExtensions,
+    extensions: [
+      ...contentEditorTargetEditorExtensions,
+      createQaHighlightExtension(() => highlightRef.current),
+    ],
     content: textDocFromValue(value),
     editable: !disabled,
     immediatelyRender: false,
@@ -381,7 +578,7 @@ export function ContentEditorTargetEditor({
       attributes: {
         class: cn(
           compact
-            ? "min-h-10 px-3 py-2 text-sm leading-relaxed text-foreground focus:outline-none"
+            ? "min-h-8 px-2.5 py-1.5 text-sm leading-snug text-foreground focus:outline-none"
             : "min-h-36 px-4 py-4 text-lg leading-relaxed text-foreground focus:outline-none md:text-lg",
           "whitespace-pre-wrap break-words",
         ),
@@ -420,6 +617,16 @@ export function ContentEditorTargetEditor({
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus("end");
   }, [autoFocus, editor]);
+
+  const highlightTokenKey = (highlightTokens ?? []).join("\0");
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    editor.view.dispatch(editor.state.tr.setMeta("contentEditorQaHighlights", highlightTokenKey));
+  }, [editor, highlightStatus, highlightTokenKey, highlightWholeTerm]);
 
   function insertToken(token: ContentEditorMessageToken) {
     if (!editor || disabled) {
@@ -461,7 +668,7 @@ export function ContentEditorTargetEditor({
           <div
             className={cn(
               "text-muted-foreground",
-              compact ? "min-h-10 px-3 py-2 text-sm" : "min-h-36 px-4 py-4 text-lg",
+              compact ? "min-h-8 px-2.5 py-1.5 text-sm" : "min-h-36 px-4 py-4 text-lg",
             )}
           />
         )}

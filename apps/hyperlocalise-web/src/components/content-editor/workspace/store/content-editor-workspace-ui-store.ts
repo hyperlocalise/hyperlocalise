@@ -35,6 +35,8 @@ export class ContentEditorWorkspaceUiStore {
   visibleSideBySideSegmentIds: string[] = [];
   /** Rendered side-by-side rows, including overscan. Used to fetch translations. */
   loadSideBySideSegmentIds: string[] = [];
+  /** Bumped when the reviewer asks to open the full QA list in the sidebar. */
+  qaDetailsRevealNonce = 0;
   /** True when the workspace was given a multilingual table configuration. */
   multilingualViewAvailable = false;
   // Explicit initial modes (e.g. marketing demos) must not overwrite the
@@ -216,6 +218,10 @@ export class ContentEditorWorkspaceUiStore {
     this.workspacePersona = persona;
     writeCatWorkspacePersona(family, persona);
     this.#applyPersonaLayout(persona);
+  }
+
+  revealQaDetails() {
+    this.qaDetailsRevealNonce += 1;
   }
 
   setSideBySideViewport(input: { visibleSegmentIds: string[]; loadSegmentIds: string[] }) {

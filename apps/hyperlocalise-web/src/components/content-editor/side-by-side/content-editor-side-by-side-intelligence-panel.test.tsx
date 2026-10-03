@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -21,7 +21,8 @@ import {
   createContentEditorWorkspaceState,
 } from "@/components/content-editor/shared/content-editor.fixture";
 import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
-import { ContentEditorWorkspaceProvider } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { ContentEditorWorkspaceContext } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { createCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-orchestrator";
 
 import { ContentEditorSideBySideIntelligencePanel } from "./content-editor-side-by-side-intelligence-panel";
 
@@ -29,6 +30,7 @@ function renderIntelligencePanel(
   overrides: Partial<Parameters<typeof ContentEditorSideBySideIntelligencePanel>[0]> = {},
 ) {
   const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+  const workspace = createCatWorkspace(state);
   const segment = state.segments!.find((item) => item.id === "seg-02")!;
 
   const props = {
@@ -54,10 +56,11 @@ function renderIntelligencePanel(
 
   return {
     props,
+    workspace,
     ...renderWithContentEditorProviders(
-      <ContentEditorWorkspaceProvider initialState={state}>
+      <ContentEditorWorkspaceContext.Provider value={workspace}>
         <ContentEditorSideBySideIntelligencePanel {...props} />
-      </ContentEditorWorkspaceProvider>,
+      </ContentEditorWorkspaceContext.Provider>,
     ),
   };
 }
@@ -100,5 +103,66 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
     renderIntelligencePanel({ onAskQuestion: undefined });
 
     expect(screen.queryByRole("button", { name: /Find context/i })).not.toBeInTheDocument();
+  });
+
+  it("shows QA details in the sidebar", () => {
+    renderIntelligencePanel({
+      formatChecks: [
+        {
+          id: "spelling",
+          label: "Spelling",
+          status: "warn",
+          message: '"Drive" may be misspelled.',
+          category: "spelling",
+          relatedTokens: ["Drive"],
+        },
+      ],
+    });
+
+    expect(screen.getByText(/Format & QA checks/i)).toBeInTheDocument();
+    expect(screen.getByText("Spelling")).toBeInTheDocument();
+  });
+
+  it("keeps a long QA list scrollable inside the sidebar", () => {
+    renderIntelligencePanel({
+      formatChecks: Array.from({ length: 12 }, (_, index) => ({
+        id: `qa-check-${index}`,
+        label: `Check ${index + 1}`,
+        status: "fail" as const,
+        message: `Finding ${index + 1}`,
+        category: "qa" as const,
+      })),
+    });
+
+    const qaSection = document.querySelector("[data-qa-details]");
+    expect(qaSection).toHaveClass("max-h-[40%]", "overflow-y-auto");
+    expect(screen.getByText("Check 1")).toBeInTheDocument();
+    expect(screen.getByText("Check 12")).toBeInTheDocument();
+  });
+
+  it("scrolls the QA section when the workspace UI store reveals details", async () => {
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+    const { workspace } = renderIntelligencePanel({
+      formatChecks: [
+        {
+          id: "spelling",
+          label: "Spelling",
+          status: "warn",
+          message: '"Drive" may be misspelled.',
+          category: "spelling",
+          relatedTokens: ["Drive"],
+        },
+      ],
+    });
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    workspace.ui.revealQaDetails();
+
+    await waitFor(() => {
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+    });
   });
 });

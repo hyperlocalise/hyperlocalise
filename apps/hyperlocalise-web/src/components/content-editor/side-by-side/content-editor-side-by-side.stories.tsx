@@ -143,13 +143,15 @@ export const Default: Story = {
     await expect(canvas.getByRole("textbox", { name: "Target translation" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Copy source/i })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Clear target/i })).toBeInTheDocument();
-    await expect(canvas.getByText(/AI recommendation/i)).toBeInTheDocument();
-    await waitFor(
-      () => expect(canvas.getByRole("img", { name: /Format & QA warning/i })).toBeInTheDocument(),
-      { timeout: 3000 },
-    );
-    await expect(canvas.queryByText(/Format & QA checks/i)).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: /^Queries$/i })).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: /Generate AI suggestion/i }),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/AI recommendation/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(canvas.getByText(/Terminology consistency/i)).toBeInTheDocument(), {
+      timeout: 3000,
+    });
+    await expect(canvas.getByText(/Format & QA checks/i)).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /^Query$/i })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Find context/i })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /^Approve/i })).not.toBeInTheDocument();
     await expect(canvas.queryByText(/ICU structure/i)).not.toBeInTheDocument();
@@ -179,9 +181,9 @@ export const DirtySaveActions: Story = {
     await waitFor(() =>
       expect(canvas.getByRole("button", { name: /^Approve/i })).toBeInTheDocument(),
     );
-    await expect(canvas.getByRole("button", { name: /Save as draft/i })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /^Draft$/i })).toBeInTheDocument();
 
-    await userEvent.click(canvas.getByRole("button", { name: /Save as draft/i }));
+    await userEvent.click(canvas.getByRole("button", { name: /^Draft$/i }));
     await expect(args.review?.onSaveDraft).toHaveBeenCalled();
 
     await waitFor(() =>
