@@ -13,10 +13,15 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  applyProjectSettingsSection,
   createProjectFormFromRow,
   projectFormHasErrors,
+  projectSettingsSectionIsDirty,
+  reconcileProjectForm,
   toProjectPayload,
+  toProjectSectionPayload,
   validateProjectForm,
+  validateProjectSettingsSection,
 } from "./project-form";
 import { mapProjectToListRow, type ApiProject } from "./project-list";
 
@@ -137,6 +142,117 @@ describe("project form helpers", () => {
       ),
     ).toEqual({
       identifier: "EXT",
+    });
+  });
+
+  it("builds a payload for only the dirty settings section", () => {
+    const values = {
+      name: "  Docs  ",
+      identifier: "docs",
+      description: "  Product docs  ",
+      translationContext: "  Keep it crisp.  ",
+      sourceLocale: "en",
+      targetLocales: ["fr-fr", "de-DE"],
+    };
+
+    expect(toProjectSectionPayload(values, "general")).toEqual({
+      name: "Docs",
+      description: "Product docs",
+      identifier: "DOCS",
+    });
+    expect(toProjectSectionPayload(values, "styleGuide")).toEqual({
+      translationContext: "Keep it crisp.",
+    });
+    expect(toProjectSectionPayload(values, "locales")).toEqual({
+      sourceLocale: "en",
+      targetLocales: ["fr-FR", "de-DE"],
+    });
+    expect(toProjectSectionPayload(values, "general", { identifierOnly: true })).toEqual({
+      identifier: "DOCS",
+    });
+  });
+
+  it("tracks dirty state per settings section", () => {
+    const baseline = createProjectFormFromRow(mapProjectToListRow(createProject()));
+    const values = {
+      ...baseline,
+      name: "Renamed",
+      translationContext: "New voice",
+      targetLocales: ["ja-JP"],
+    };
+
+    expect(projectSettingsSectionIsDirty("general", values, baseline)).toBe(true);
+    expect(projectSettingsSectionIsDirty("styleGuide", values, baseline)).toBe(true);
+    expect(projectSettingsSectionIsDirty("locales", values, baseline)).toBe(true);
+    expect(projectSettingsSectionIsDirty("general", baseline, baseline)).toBe(false);
+    expect(
+      projectSettingsSectionIsDirty("general", { ...baseline, name: "Renamed" }, baseline, {
+        identifierOnly: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("validates only the fields in the settings section being saved", () => {
+    const values = {
+      name: "   ",
+      identifier: "123",
+      description: "",
+      translationContext: "x".repeat(20_001),
+      sourceLocale: "en-US",
+      targetLocales: ["en-us"],
+    };
+
+    expect(validateProjectSettingsSection("general", values)).toEqual({
+      name: "Project name is required.",
+      identifier: "Use 1–10 letters or numbers, starting with a letter (e.g. HL).",
+    });
+    expect(validateProjectSettingsSection("styleGuide", values)).toEqual({
+      translationContext: "Translation context must be 20,000 characters or fewer.",
+    });
+    expect(validateProjectSettingsSection("locales", values)).toEqual({
+      targetLocales: "Remove the source locale from target locales.",
+    });
+  });
+
+  it("keeps dirty fields when reconciling a newer project snapshot", () => {
+    const project = mapProjectToListRow(createProject());
+    const baseline = createProjectFormFromRow(project);
+    const current = {
+      ...baseline,
+      name: "Local rename",
+      identifier: "EDIT",
+    };
+    const nextProject = mapProjectToListRow(
+      createProject({
+        name: "Website Launch",
+        identifier: "WL",
+        sourceLocale: "ja-JP",
+        targetLocales: ["ko-KR"],
+        translationContext: "Server style guide",
+      }),
+    );
+
+    const reconciled = reconcileProjectForm(current, baseline, nextProject);
+
+    expect(reconciled.values.name).toBe("Local rename");
+    expect(reconciled.values.identifier).toBe("EDIT");
+    expect(reconciled.values.sourceLocale).toBe("ja-JP");
+    expect(reconciled.values.targetLocales).toEqual(["ko-KR"]);
+    expect(reconciled.values.translationContext).toBe("Server style guide");
+    expect(reconciled.baseline.sourceLocale).toBe("ja-JP");
+  });
+
+  it("applies a saved section without clearing other drafts", () => {
+    const baseline = createProjectFormFromRow(mapProjectToListRow(createProject()));
+    const current = {
+      ...baseline,
+      name: "Local rename",
+      targetLocales: ["ja-JP"],
+    };
+
+    expect(applyProjectSettingsSection(current, current, "locales")).toEqual({
+      ...current,
+      targetLocales: ["ja-JP"],
     });
   });
 });

@@ -17,6 +17,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import { BreadcrumbLink } from "@/components/ui/breadcrumb";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
 import { breadcrumbCrumbSelectorMessages as messages } from "./breadcrumb-crumb-selector.messages";
+import { OrgNavLink } from "./org-nav-link";
 
 export type BreadcrumbCrumbSelectorOption = {
   value: string;
@@ -41,6 +43,7 @@ type BreadcrumbCrumbSelectorProps = {
   label: string;
   options: readonly BreadcrumbCrumbSelectorOption[];
   onSelect: (value: string) => void;
+  href?: string;
   isLoading?: boolean;
   isError?: boolean;
   menuLabel?: string;
@@ -48,11 +51,38 @@ type BreadcrumbCrumbSelectorProps = {
   disabled?: boolean;
 };
 
+function CrumbLabel({ href, isLast, label }: { href?: string; isLast: boolean; label: string }) {
+  if (href && !isLast) {
+    return (
+      <BreadcrumbLink
+        render={<OrgNavLink href={href} />}
+        className="block truncate text-sm font-medium text-muted-foreground hover:text-foreground"
+        title={label}
+      >
+        {label}
+      </BreadcrumbLink>
+    );
+  }
+
+  return (
+    <span
+      className={cn(
+        "block truncate font-semibold text-foreground",
+        isLast ? "text-base" : "text-sm",
+      )}
+      title={label}
+    >
+      {label}
+    </span>
+  );
+}
+
 export function BreadcrumbCrumbSelector({
   value,
   label,
   options,
   onSelect,
+  href,
   isLoading = false,
   isError = false,
   menuLabel,
@@ -60,70 +90,65 @@ export function BreadcrumbCrumbSelector({
   disabled = false,
 }: BreadcrumbCrumbSelectorProps) {
   const hasMultipleOptions = options.length > 1;
+  const showSwitcher = hasMultipleOptions || isLoading || isError;
 
-  if (!hasMultipleOptions && !isLoading) {
-    return (
-      <span
-        className={cn(
-          "block truncate font-semibold text-foreground",
-          isLast ? "text-base" : "text-sm",
-        )}
-        title={label}
-      >
-        {label}
-      </span>
-    );
+  const labelNode = <CrumbLabel href={href} isLast={isLast} label={label} />;
+
+  if (!showSwitcher) {
+    return labelNode;
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        disabled={disabled || isLoading}
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            className={cn(
-              "h-auto max-w-full gap-1 px-0 py-0 font-semibold hover:bg-transparent",
-              isLast
-                ? "text-base text-foreground hover:text-foreground"
-                : "text-sm font-medium text-muted-foreground hover:text-foreground",
-            )}
-          />
-        }
-      >
-        {isLoading ? (
-          <Skeleton aria-hidden className={cn("rounded-md", isLast ? "h-5 w-28" : "h-4 w-24")} />
-        ) : (
-          <span className="truncate">{label}</span>
-        )}
-        <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5 shrink-0" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="min-w-56" align="start">
-        <DropdownMenuGroup>
-          {menuLabel ? <DropdownMenuLabel>{menuLabel}</DropdownMenuLabel> : null}
-          {isError ? (
-            <DropdownMenuItem disabled>
-              <FormattedMessage {...messages.loadError} />
-            </DropdownMenuItem>
-          ) : null}
-          {!isLoading && !isError && options.length === 0 ? (
-            <DropdownMenuItem disabled>
-              <FormattedMessage {...messages.empty} />
-            </DropdownMenuItem>
-          ) : null}
-          {options.map((option) => (
-            <DropdownMenuItem key={option.value} onClick={() => onSelect(option.value)}>
-              <span className="truncate">{option.label}</span>
-              {option.value === value ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...messages.selected} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <span className="inline-flex min-w-0 max-w-full items-center gap-0.5">
+      {labelNode}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          disabled={disabled || isLoading}
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className={cn(
+                "shrink-0 text-muted-foreground hover:bg-transparent hover:text-foreground",
+                isLast ? "text-foreground" : undefined,
+              )}
+            />
+          }
+        >
+          {isLoading ? (
+            <Skeleton aria-hidden className="size-3.5 rounded-sm" />
+          ) : (
+            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5" />
+          )}
+          {menuLabel ? <span className="sr-only">{menuLabel}</span> : null}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="min-w-56" align="start">
+          <DropdownMenuGroup>
+            {menuLabel ? <DropdownMenuLabel>{menuLabel}</DropdownMenuLabel> : null}
+            {isError ? (
+              <DropdownMenuItem disabled>
+                <FormattedMessage {...messages.loadError} />
+              </DropdownMenuItem>
+            ) : null}
+            {!isLoading && !isError && options.length === 0 ? (
+              <DropdownMenuItem disabled>
+                <FormattedMessage {...messages.empty} />
+              </DropdownMenuItem>
+            ) : null}
+            {options.map((option) => (
+              <DropdownMenuItem key={option.value} onClick={() => onSelect(option.value)}>
+                <span className="truncate">{option.label}</span>
+                {option.value === value ? (
+                  <DropdownMenuHint>
+                    <FormattedMessage {...messages.selected} />
+                  </DropdownMenuHint>
+                ) : null}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </span>
   );
 }

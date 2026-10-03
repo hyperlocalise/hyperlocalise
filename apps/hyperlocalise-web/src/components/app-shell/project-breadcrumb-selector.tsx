@@ -61,22 +61,30 @@ export function ProjectBreadcrumbSelector({
     },
   });
 
+  const options = projectsQuery.data ?? [];
+  const resolvedOptions =
+    options.some((project) => project.value === projectId) || !projectId
+      ? options
+      : [{ value: projectId, label: projectName }, ...options];
+
   function handleSelect(nextProjectId: string) {
     if (nextProjectId === projectId) {
       return;
     }
 
-    const nextPath = section
-      ? buildProjectPath(organizationSlug, nextProjectId, section)
-      : buildProjectPath(organizationSlug, nextProjectId);
-    router.push(nextPath);
+    router.push(
+      section
+        ? buildProjectPath(organizationSlug, nextProjectId, section)
+        : buildProjectPath(organizationSlug, nextProjectId),
+    );
   }
 
   return (
     <BreadcrumbCrumbSelector
       value={projectId}
       label={projectName}
-      options={projectsQuery.data ?? []}
+      href={buildProjectPath(organizationSlug, projectId)}
+      options={resolvedOptions}
       onSelect={handleSelect}
       isLoading={projectsQuery.isPending}
       isError={projectsQuery.isError}

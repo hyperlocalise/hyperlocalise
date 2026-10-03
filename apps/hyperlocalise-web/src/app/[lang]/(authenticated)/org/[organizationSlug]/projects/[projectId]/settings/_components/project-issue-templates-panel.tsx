@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { File01Icon } from "@hugeicons/core-free-icons";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import {
@@ -39,8 +39,8 @@ import {
   useIssueSheetTemplateConfigQuery,
   type IssueSheetTemplateConfig,
 } from "../../../../_components/issue-detail/use-issue-sheet-template-config-query";
-import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { projectIssueTemplatesPanelMessages as messages } from "./project-issue-templates-panel.messages";
+import { ProjectSettingsSectionHeading } from "./project-settings-section-heading";
 
 const NO_TEMPLATE_VALUE = "__no_template__";
 
@@ -136,14 +136,12 @@ export function ProjectIssueTemplatesPanel({
 
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
-      <div>
-        <ProjectSectionTitle>
-          <FormattedMessage {...messages.title} />
-        </ProjectSectionTitle>
-        <TypographyP className="mt-1" size="small" tone="subtle">
-          <FormattedMessage {...messages.description} />
-        </TypographyP>
-      </div>
+      <ProjectSettingsSectionHeading
+        icon={File01Icon}
+        tone="beam"
+        title={<FormattedMessage {...messages.title} />}
+        description={<FormattedMessage {...messages.description} />}
+      />
 
       <Field className="gap-1.5">
         <FieldLabel htmlFor="default-issue-template">

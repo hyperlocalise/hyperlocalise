@@ -14,7 +14,13 @@
  */
 import { HugeiconsIcon } from "@hugeicons/react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { SaveIcon, Settings01Icon } from "@hugeicons/core-free-icons";
+import {
+  LanguageSquareIcon,
+  Link01Icon,
+  QuillWrite01Icon,
+  SaveIcon,
+  Settings01Icon,
+} from "@hugeicons/core-free-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -32,16 +38,19 @@ import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { isEncodedProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
-import { useAppShellHeaderAction } from "@/components/app-shell/store/use-app-shell-header-action";
 
 import {
+  applyProjectSettingsSection,
   createProjectFormFromRow,
+  mergeProjectSettingsSectionErrors,
   projectFormHasErrors,
-  projectFormRequiresLocales,
-  toProjectPayload,
-  validateProjectForm,
+  projectSettingsSectionIsDirty,
+  reconcileProjectForm,
+  toProjectSectionPayload,
+  validateProjectSettingsSection,
   type ProjectFormErrors,
   type ProjectFormValues,
+  type ProjectSettingsSection,
 } from "../../../_components/project-form";
 import type { ProjectListRow } from "../../../_components/project-list";
 import {
@@ -51,7 +60,6 @@ import {
 import {
   ProjectPageShell,
   ProjectSectionHeader,
-  ProjectSectionTitle,
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
 import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
@@ -59,6 +67,7 @@ import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel
 import { ProjectIssueColumnsSettings } from "./project-issue-columns-settings";
 import { ProjectContentEditorBehaviorSettings } from "./project-content-editor-behavior-settings";
 import { projectSettingsPageContentMessages } from "./project-settings-page-content.messages";
+import { ProjectSettingsSectionHeading } from "./project-settings-section-heading";
 
 const providerLabels: Record<NonNullable<ProjectListRow["externalProviderKind"]>, string> = {
   crowdin: "Crowdin",
@@ -173,6 +182,31 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
   );
 }
 
+function ProjectSettingsSectionSave({
+  isSaving,
+  disabled,
+  ariaLabel,
+}: {
+  isSaving: boolean;
+  disabled: boolean;
+  ariaLabel: string;
+}) {
+  return (
+    <Button type="submit" disabled={disabled || isSaving} aria-label={ariaLabel}>
+      {isSaving ? (
+        <Spinner />
+      ) : (
+        <HugeiconsIcon icon={SaveIcon} className="size-4" strokeWidth={2} />
+      )}
+      {isSaving ? (
+        <FormattedMessage {...projectSettingsPageContentMessages.saving} />
+      ) : (
+        <FormattedMessage {...projectSettingsPageContentMessages.saveSettings} />
+      )}
+    </Button>
+  );
+}
+
 function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
   if (project.source === "native") {
     return null;
@@ -182,19 +216,19 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
 
   return (
     <section className="rounded-lg border border-border bg-muted p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <ProjectSectionTitle>
-            <FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionTitle} />
-          </ProjectSectionTitle>
-          <TypographyP className="mt-1" size="small" tone="subtle">
-            <FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionDescription} />
-          </TypographyP>
-        </div>
-        {project.externalProviderKind ? (
-          <Badge variant="outline">{providerLabels[project.externalProviderKind]}</Badge>
-        ) : null}
-      </div>
+      <ProjectSettingsSectionHeading
+        icon={Link01Icon}
+        tone="beam"
+        title={<FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionTitle} />}
+        description={
+          <FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionDescription} />
+        }
+        actions={
+          project.externalProviderKind ? (
+            <Badge variant="outline">{providerLabels[project.externalProviderKind]}</Badge>
+          ) : null
+        }
+      />
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <DetailRow label="External project ID" value={project.externalProjectId} />
         <DetailRow label="Status" value={project.isActive ? "Active" : "Inactive"} />
@@ -229,10 +263,40 @@ export function ProjectSettingsPageContent({
   const { client: goSvcClient } = useGoSvcClient();
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const project = projectQuery.data;
-  const formRef = useRef<HTMLFormElement>(null);
   const [values, setValues] = useState<ProjectFormValues | null>(null);
+  const [baseline, setBaseline] = useState<ProjectFormValues | null>(null);
   const [errors, setErrors] = useState<ProjectFormErrors>({});
   const [syncedFingerprint, setSyncedFingerprint] = useState<string | null>(null);
+  const [pendingSections, setPendingSections] = useState<ReadonlySet<ProjectSettingsSection>>(
+    () => new Set(),
+  );
+  const valuesRef = useRef(values);
+  const baselineRef = useRef(baseline);
+  const pendingSectionsRef = useRef(pendingSections);
+  valuesRef.current = values;
+  baselineRef.current = baseline;
+  pendingSectionsRef.current = pendingSections;
+
+  function setSectionPending(section: ProjectSettingsSection, pending: boolean) {
+    const current = pendingSectionsRef.current;
+    if (pending === current.has(section)) {
+      return;
+    }
+
+    const next = new Set(current);
+    if (pending) {
+      next.add(section);
+    } else {
+      next.delete(section);
+    }
+
+    pendingSectionsRef.current = next;
+    setPendingSections(next);
+  }
+
+  function isSavingSection(section: ProjectSettingsSection) {
+    return pendingSections.has(section);
+  }
 
   useEffect(() => {
     if (!project) {
@@ -244,21 +308,35 @@ export function ProjectSettingsPageContent({
       return;
     }
 
-    setValues(createProjectFormFromRow(project));
-    setErrors({});
+    const currentValues = valuesRef.current;
+    const currentBaseline = baselineRef.current;
+    if (currentValues && currentBaseline) {
+      const reconciled = reconcileProjectForm(currentValues, currentBaseline, project);
+      setValues(reconciled.values);
+      setBaseline(reconciled.baseline);
+    } else {
+      const next = createProjectFormFromRow(project);
+      setValues(next);
+      setBaseline(next);
+      setErrors({});
+    }
     setSyncedFingerprint(fingerprint);
   }, [project, syncedFingerprint]);
 
   const updateProject = useMutation({
-    mutationFn: async (nextValues: ProjectFormValues) => {
+    mutationFn: async ({
+      nextValues,
+      section,
+    }: {
+      nextValues: ProjectFormValues;
+      section: ProjectSettingsSection;
+    }) => {
       if (!project) {
         throw new Error("Project is not loaded yet");
       }
 
-      const payload = toProjectPayload(nextValues, {
-        mode: "edit",
-        includeLocales: project.source === "native",
-        includeMetadata: project.source === "native",
+      const payload = toProjectSectionPayload(nextValues, section, {
+        identifierOnly: project.source !== "native",
       });
 
       if (project.source === "native") {
@@ -282,72 +360,87 @@ export function ProjectSettingsPageContent({
 
       return response.json();
     },
-    onSuccess: async () => {
+  });
+
+  async function saveSection(section: ProjectSettingsSection, nextValues: ProjectFormValues) {
+    setSectionPending(section, true);
+
+    try {
+      await updateProject.mutateAsync({ nextValues, section });
+      setValues((current) =>
+        current ? applyProjectSettingsSection(current, nextValues, section) : current,
+      );
+      setBaseline((current) =>
+        current ? applyProjectSettingsSection(current, nextValues, section) : current,
+      );
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: projectPageQueryKey(organizationSlug, projectId),
         }),
         queryClient.invalidateQueries({ queryKey: projectsQueryKey(organizationSlug) }),
       ]);
-      toast.success("Project settings saved");
-    },
-    onError: (error) => {
+      toast.success(
+        intl.formatMessage(
+          section === "general"
+            ? projectSettingsPageContentMessages.generalSaved
+            : section === "styleGuide"
+              ? projectSettingsPageContentMessages.styleGuideSaved
+              : projectSettingsPageContentMessages.localesSaved,
+        ),
+      );
+    } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to update project settings");
-    },
-  });
-
-  const isSaving = updateProject.isPending;
-  const metadataEditable = project?.source === "native";
-  const formReady = Boolean(project && values && !projectQuery.isLoading);
-  useAppShellHeaderAction({
-    id: "project-settings-save",
-    visible: formReady,
-    render: () => (
-      <Button
-        type="button"
-        disabled={isSaving}
-        onClick={() => {
-          formRef.current?.requestSubmit();
-        }}
-      >
-        {isSaving ? (
-          <Spinner />
-        ) : (
-          <HugeiconsIcon icon={SaveIcon} className="size-4" strokeWidth={2} />
-        )}
-        {isSaving ? (
-          <FormattedMessage {...projectSettingsPageContentMessages.saving} />
-        ) : (
-          <FormattedMessage {...projectSettingsPageContentMessages.saveSettings} />
-        )}
-      </Button>
-    ),
-  });
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!values || !project) return;
-
-    const nextErrors = validateProjectForm(values, {
-      requireLocales: projectFormRequiresLocales("edit", project.source),
-      requireIdentifier: true,
-      intl,
-    });
-    setErrors(nextErrors);
-
-    if (projectFormHasErrors(nextErrors)) {
-      const message = firstProjectFormErrorMessage(nextErrors);
-      if (message) {
-        toast.error(message);
-      }
-      focusFirstProjectFormError(nextErrors);
-      return;
+    } finally {
+      setSectionPending(section, false);
     }
-
-    updateProject.mutate(values);
   }
 
-  if (projectQuery.isLoading || !values) {
+  const metadataEditable = project?.source === "native";
+
+  function updateField<K extends keyof ProjectFormValues>(field: K, value: ProjectFormValues[K]) {
+    setValues((current) => (current ? { ...current, [field]: value } : current));
+    setErrors((current) => {
+      if (!current[field]) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function handleSectionSubmit(section: ProjectSettingsSection) {
+    return (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!values || !project || !baseline || pendingSectionsRef.current.has(section)) {
+        return;
+      }
+
+      const identifierOnly = project.source !== "native";
+      if (!projectSettingsSectionIsDirty(section, values, baseline, { identifierOnly })) {
+        return;
+      }
+
+      const nextErrors = validateProjectSettingsSection(section, values, {
+        requireIdentifier: true,
+        intl,
+      });
+      setErrors((current) => mergeProjectSettingsSectionErrors(current, section, nextErrors));
+
+      if (projectFormHasErrors(nextErrors)) {
+        const message = firstProjectFormErrorMessage(nextErrors);
+        if (message) {
+          toast.error(message);
+        }
+        focusFirstProjectFormError(nextErrors);
+        return;
+      }
+
+      void saveSection(section, values);
+    };
+  }
+
+  if (projectQuery.isLoading || !values || !baseline) {
     return (
       <ProjectPageShell>
         <TypographyP size="small" tone="subtle">
@@ -368,132 +461,144 @@ export function ProjectSettingsPageContent({
   }
 
   const localesEditable = project.source === "native";
+  const identifierOnly = !metadataEditable;
+  const generalDirty = projectSettingsSectionIsDirty("general", values, baseline, {
+    identifierOnly,
+  });
+  const styleGuideDirty = projectSettingsSectionIsDirty("styleGuide", values, baseline);
+  const localesDirty = projectSettingsSectionIsDirty("locales", values, baseline);
 
   return (
     <ProjectPageShell>
       <ProjectSectionHeader icon={Settings01Icon} section="Settings" />
 
-      <form id="project-settings-form" ref={formRef} onSubmit={handleSubmit} className="grid gap-5">
+      <div className="grid gap-5">
         <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <ProjectSectionTitle>
-                <FormattedMessage {...projectSettingsPageContentMessages.generalTitle} />
-              </ProjectSectionTitle>
-              <TypographyP className="mt-1" size="small" tone="subtle">
+          <form onSubmit={handleSectionSubmit("general")} className="grid gap-4">
+            <ProjectSettingsSectionHeading
+              icon={Settings01Icon}
+              tone="dew"
+              title={<FormattedMessage {...projectSettingsPageContentMessages.generalTitle} />}
+              description={
                 <FormattedMessage {...projectSettingsPageContentMessages.generalDescription} />
-              </TypographyP>
-            </div>
-            {!metadataEditable ? (
-              <Badge variant="outline">
-                <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
-              </Badge>
-            ) : null}
-          </div>
-          <Field className="gap-1.5">
-            <FieldLabel htmlFor="project-name">
-              <FormattedMessage {...projectSettingsPageContentMessages.nameLabel} />
-            </FieldLabel>
-            <Input
-              id="project-name"
-              value={values.name}
-              disabled={isSaving || !metadataEditable}
-              onChange={(event) =>
-                setValues((current) =>
-                  current ? { ...current, name: event.target.value } : current,
-                )
               }
-              aria-invalid={Boolean(errors.name)}
-            />
-            <FieldError errors={errors.name ? [{ message: errors.name }] : undefined} />
-          </Field>
-          <Field className="gap-1.5">
-            <FieldLabel htmlFor="project-identifier">
-              <FormattedMessage {...projectSettingsPageContentMessages.identifierLabel} />
-            </FieldLabel>
-            <Input
-              id="project-identifier"
-              value={values.identifier}
-              disabled={isSaving}
-              className="font-mono uppercase"
-              onChange={(event) =>
-                setValues((current) =>
-                  current ? { ...current, identifier: event.target.value.toUpperCase() } : current,
-                )
+              actions={
+                !metadataEditable ? (
+                  <Badge variant="outline">
+                    <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
+                  </Badge>
+                ) : null
               }
-              aria-invalid={Boolean(errors.identifier)}
             />
-            <FieldDescription>
-              <FormattedMessage {...projectSettingsPageContentMessages.identifierHelp} />
-            </FieldDescription>
-            <FieldError errors={errors.identifier ? [{ message: errors.identifier }] : undefined} />
-          </Field>
-          <Field className="gap-1.5">
-            <FieldLabel htmlFor="project-description">
-              <FormattedMessage {...projectSettingsPageContentMessages.descriptionLabel} />
-            </FieldLabel>
-            <Textarea
-              id="project-description"
-              value={values.description}
-              disabled={isSaving || !metadataEditable}
-              onChange={(event) =>
-                setValues((current) =>
-                  current ? { ...current, description: event.target.value } : current,
-                )
-              }
-              aria-invalid={Boolean(errors.description)}
-              className="min-h-24"
+            <Field className="gap-1.5">
+              <FieldLabel htmlFor="project-name">
+                <FormattedMessage {...projectSettingsPageContentMessages.nameLabel} />
+              </FieldLabel>
+              <Input
+                id="project-name"
+                value={values.name}
+                disabled={isSavingSection("general") || !metadataEditable}
+                onChange={(event) => updateField("name", event.target.value)}
+                aria-invalid={Boolean(errors.name)}
+              />
+              <FieldError errors={errors.name ? [{ message: errors.name }] : undefined} />
+            </Field>
+            <Field className="gap-1.5">
+              <FieldLabel htmlFor="project-identifier">
+                <FormattedMessage {...projectSettingsPageContentMessages.identifierLabel} />
+              </FieldLabel>
+              <Input
+                id="project-identifier"
+                value={values.identifier}
+                disabled={isSavingSection("general")}
+                className="font-mono uppercase"
+                onChange={(event) => updateField("identifier", event.target.value.toUpperCase())}
+                aria-invalid={Boolean(errors.identifier)}
+              />
+              <FieldDescription>
+                <FormattedMessage {...projectSettingsPageContentMessages.identifierHelp} />
+              </FieldDescription>
+              <FieldError
+                errors={errors.identifier ? [{ message: errors.identifier }] : undefined}
+              />
+            </Field>
+            <Field className="gap-1.5">
+              <FieldLabel htmlFor="project-description">
+                <FormattedMessage {...projectSettingsPageContentMessages.descriptionLabel} />
+              </FieldLabel>
+              <Textarea
+                id="project-description"
+                value={values.description}
+                disabled={isSavingSection("general") || !metadataEditable}
+                onChange={(event) => updateField("description", event.target.value)}
+                aria-invalid={Boolean(errors.description)}
+                className="min-h-24"
+              />
+              <FieldDescription>
+                <FormattedMessage {...projectSettingsPageContentMessages.descriptionHelp} />
+              </FieldDescription>
+              <FieldError
+                errors={errors.description ? [{ message: errors.description }] : undefined}
+              />
+            </Field>
+            <ProjectSettingsSectionSave
+              isSaving={isSavingSection("general")}
+              disabled={!generalDirty}
+              ariaLabel={intl.formatMessage(projectSettingsPageContentMessages.saveGeneralSettings)}
             />
-            <FieldDescription>
-              <FormattedMessage {...projectSettingsPageContentMessages.descriptionHelp} />
-            </FieldDescription>
-            <FieldError
-              errors={errors.description ? [{ message: errors.description }] : undefined}
-            />
-          </Field>
+          </form>
         </section>
 
         {metadataEditable ? (
           <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
-            <div>
-              <ProjectSectionTitle>
-                <FormattedMessage {...projectSettingsPageContentMessages.styleGuideTitle} />
-              </ProjectSectionTitle>
-              <TypographyP className="mt-1" size="small" tone="subtle">
-                <FormattedMessage {...projectSettingsPageContentMessages.styleGuideDescription} />
-              </TypographyP>
-            </div>
-            <Field className="gap-1.5" data-invalid={Boolean(errors.translationContext)}>
-              <MarkdownEditor
-                id="translation-context"
-                value={values.translationContext}
-                disabled={isSaving}
-                onChange={(translationContext) =>
-                  setValues((current) => (current ? { ...current, translationContext } : current))
+            <form onSubmit={handleSectionSubmit("styleGuide")} className="grid gap-4">
+              <ProjectSettingsSectionHeading
+                icon={QuillWrite01Icon}
+                tone="grove"
+                title={<FormattedMessage {...projectSettingsPageContentMessages.styleGuideTitle} />}
+                description={
+                  <FormattedMessage {...projectSettingsPageContentMessages.styleGuideDescription} />
                 }
-                ariaLabel={intl.formatMessage(projectSettingsPageContentMessages.styleGuideLabel)}
-                placeholder={intl.formatMessage(
-                  projectSettingsPageContentMessages.styleGuidePlaceholder,
+              />
+              <Field className="gap-1.5" data-invalid={Boolean(errors.translationContext)}>
+                <MarkdownEditor
+                  id="translation-context"
+                  value={values.translationContext}
+                  disabled={isSavingSection("styleGuide")}
+                  onChange={(translationContext) =>
+                    updateField("translationContext", translationContext)
+                  }
+                  ariaLabel={intl.formatMessage(projectSettingsPageContentMessages.styleGuideLabel)}
+                  placeholder={intl.formatMessage(
+                    projectSettingsPageContentMessages.styleGuidePlaceholder,
+                  )}
+                  className="[&_.tiptap]:min-h-36"
+                />
+                <FieldError
+                  errors={
+                    errors.translationContext ? [{ message: errors.translationContext }] : undefined
+                  }
+                />
+              </Field>
+              <ProjectSettingsSectionSave
+                isSaving={isSavingSection("styleGuide")}
+                disabled={!styleGuideDirty}
+                ariaLabel={intl.formatMessage(
+                  projectSettingsPageContentMessages.saveStyleGuideSettings,
                 )}
-                className="[&_.tiptap]:min-h-36"
               />
-              <FieldError
-                errors={
-                  errors.translationContext ? [{ message: errors.translationContext }] : undefined
-                }
-              />
-            </Field>
+            </form>
           </section>
         ) : null}
 
         <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <ProjectSectionTitle>
-                <FormattedMessage {...projectSettingsPageContentMessages.localesTitle} />
-              </ProjectSectionTitle>
-              <TypographyP className="mt-1" size="small" tone="subtle">
-                {localesEditable ? (
+          <form onSubmit={handleSectionSubmit("locales")} className="grid gap-4">
+            <ProjectSettingsSectionHeading
+              icon={LanguageSquareIcon}
+              tone="spruce"
+              title={<FormattedMessage {...projectSettingsPageContentMessages.localesTitle} />}
+              description={
+                localesEditable ? (
                   <FormattedMessage
                     {...projectSettingsPageContentMessages.localesEditableDescription}
                   />
@@ -501,44 +606,49 @@ export function ProjectSettingsPageContent({
                   <FormattedMessage
                     {...projectSettingsPageContentMessages.localesReadOnlyDescription}
                   />
-                )}
-              </TypographyP>
-            </div>
-            {!localesEditable ? (
-              <Badge variant="outline">
-                <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
-              </Badge>
-            ) : null}
-          </div>
-          {localesEditable ? (
-            <>
-              <ProjectSourceLocalePicker
-                value={values.sourceLocale}
-                onChange={(sourceLocale) =>
-                  setValues((current) => (current ? { ...current, sourceLocale } : current))
-                }
-                disabled={isSaving}
-                error={errors.sourceLocale}
-              />
-              <ProjectTargetLocalesPicker
-                value={values.targetLocales}
-                sourceLocale={values.sourceLocale}
-                onChange={(targetLocales) =>
-                  setValues((current) => (current ? { ...current, targetLocales } : current))
-                }
-                disabled={isSaving}
-                error={errors.targetLocales}
-              />
-            </>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              <DetailRow label="Source locale" value={project.sourceLocale} />
-              <DetailRow
-                label="Target locales"
-                value={project.targetLocales.length > 0 ? project.targetLocales.join(", ") : null}
-              />
-            </div>
-          )}
+                )
+              }
+              actions={
+                !localesEditable ? (
+                  <Badge variant="outline">
+                    <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
+                  </Badge>
+                ) : null
+              }
+            />
+            {localesEditable ? (
+              <>
+                <ProjectSourceLocalePicker
+                  value={values.sourceLocale}
+                  onChange={(sourceLocale) => updateField("sourceLocale", sourceLocale)}
+                  disabled={isSavingSection("locales")}
+                  error={errors.sourceLocale}
+                />
+                <ProjectTargetLocalesPicker
+                  value={values.targetLocales}
+                  sourceLocale={values.sourceLocale}
+                  onChange={(targetLocales) => updateField("targetLocales", targetLocales)}
+                  disabled={isSavingSection("locales")}
+                  error={errors.targetLocales}
+                />
+                <ProjectSettingsSectionSave
+                  isSaving={isSavingSection("locales")}
+                  disabled={!localesDirty}
+                  ariaLabel={intl.formatMessage(
+                    projectSettingsPageContentMessages.saveLocalesSettings,
+                  )}
+                />
+              </>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                <DetailRow label="Source locale" value={project.sourceLocale} />
+                <DetailRow
+                  label="Target locales"
+                  value={project.targetLocales.length > 0 ? project.targetLocales.join(", ") : null}
+                />
+              </div>
+            )}
+          </form>
         </section>
 
         <ProjectSourceDetails project={project} />
@@ -554,7 +664,7 @@ export function ProjectSettingsPageContent({
         {project.source === "native" ? (
           <ProjectNativeConnectCliPanel organizationSlug={organizationSlug} projectId={projectId} />
         ) : null}
-      </form>
+      </div>
 
       {/* Live provider projects have no persisted project row for CAT policy. */}
       {!isEncodedProviderProjectId(project.id) ? (

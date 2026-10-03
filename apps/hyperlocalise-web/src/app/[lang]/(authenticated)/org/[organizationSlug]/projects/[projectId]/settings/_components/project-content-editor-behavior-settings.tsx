@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { PencilEdit01Icon } from "@hugeicons/core-free-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -33,8 +34,8 @@ import { TypographyP } from "@/components/ui/typography";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
-import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { projectContentEditorBehaviorMessages } from "./project-content-editor-behavior-settings.messages";
+import { ProjectSettingsSectionHeading } from "./project-settings-section-heading";
 
 type ContentEditorBehavior = {
   automaticallyGroupIdenticalStrings: boolean;
@@ -145,14 +146,12 @@ export function ProjectContentEditorBehaviorSettings({
 
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
-      <div>
-        <ProjectSectionTitle>
-          <FormattedMessage {...projectContentEditorBehaviorMessages.title} />
-        </ProjectSectionTitle>
-        <TypographyP className="mt-1" size="small" tone="subtle">
-          <FormattedMessage {...projectContentEditorBehaviorMessages.description} />
-        </TypographyP>
-      </div>
+      <ProjectSettingsSectionHeading
+        icon={PencilEdit01Icon}
+        tone="grove"
+        title={<FormattedMessage {...projectContentEditorBehaviorMessages.title} />}
+        description={<FormattedMessage {...projectContentEditorBehaviorMessages.description} />}
+      />
       <div className="flex items-start justify-between gap-6 rounded-md border border-border bg-background p-4">
         <div className="min-w-0">
           <label htmlFor="automatic-identical-string-grouping" className="text-sm font-medium">

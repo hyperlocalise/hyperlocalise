@@ -204,7 +204,20 @@ beforeEach(() => {
 });
 
 describe("ProjectSettingsPageContent", () => {
-  it("saves an updated identifier via the header Save settings action", async () => {
+  it("keeps section save actions disabled until that section is dirty", async () => {
+    renderSettings();
+
+    expect(await screen.findByRole("button", { name: "Save general settings" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save style guide" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save locales" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save settings" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "General" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Style guide" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Locales" })).toBeInTheDocument();
+    expect(document.querySelectorAll("[data-slot=project-settings-section-icon]")).toHaveLength(3);
+  });
+
+  it("saves an updated identifier from the general section only", async () => {
     const user = userEvent.setup();
     renderSettings();
 
@@ -212,16 +225,37 @@ describe("ProjectSettingsPageContent", () => {
     await user.clear(identifier);
     await user.type(identifier, "new");
 
-    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    expect(screen.getByRole("button", { name: "Save general settings" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save locales" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Save general settings" }));
 
     await waitFor(() => expect(updateMock).toHaveBeenCalled());
-    expect(updateMock).toHaveBeenCalledWith(
-      "acme",
-      "project_1",
-      expect.objectContaining({ identifier: "NEW" }),
-    );
+    expect(updateMock).toHaveBeenCalledWith("acme", "project_1", {
+      name: "Tourmatic",
+      description: "",
+      identifier: "NEW",
+    });
     expect(patchMock).not.toHaveBeenCalled();
-    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Project settings saved"));
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("General settings saved"));
+  });
+
+  it("saves locale changes from the locales section", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.click(await screen.findByRole("button", { name: /Japanese \(Japan\) \(ja-JP\)/i }));
+    expect(screen.getByRole("button", { name: "Save locales" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save general settings" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Save locales" }));
+
+    await waitFor(() => expect(updateMock).toHaveBeenCalled());
+    expect(updateMock).toHaveBeenCalledWith("acme", "project_1", {
+      sourceLocale: "en-US",
+      targetLocales: ["de-DE", "fr-FR", "ja-JP"],
+    });
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Locales saved"));
   });
 
   it("shows a toast and skips PATCH when the identifier is invalid", async () => {
@@ -232,7 +266,7 @@ describe("ProjectSettingsPageContent", () => {
     await user.clear(identifier);
     await user.type(identifier, "123");
 
-    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    await user.click(screen.getByRole("button", { name: "Save general settings" }));
 
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(
@@ -268,7 +302,35 @@ describe("ProjectSettingsPageContent", () => {
     expect(await screen.findByLabelText("Identifier")).toHaveValue("EDIT");
   });
 
-  it("hides Save settings while the project is still loading", () => {
+  it("keeps dirty general edits when a newer locale snapshot arrives", async () => {
+    const user = userEvent.setup();
+    const project = createProject();
+    const view = renderSettings(project);
+
+    const identifier = await screen.findByLabelText("Identifier");
+    await user.clear(identifier);
+    await user.type(identifier, "edit");
+
+    mockProjectQuery({
+      ...project,
+      updated: "May 1, 2026",
+      sourceLocale: "ja-JP",
+      targetLocales: ["ko-KR"],
+    });
+    view.rerender(
+      <ProjectSettingsPageContent
+        organizationSlug="acme"
+        projectId={project.id}
+        canManageCatBehavior
+      />,
+    );
+
+    expect(await screen.findByLabelText("Identifier")).toHaveValue("EDIT");
+    expect(screen.getByRole("button", { name: "Save general settings" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save locales" })).toBeDisabled();
+  });
+
+  it("hides section save actions while the project is still loading", () => {
     mockProjectQuery(undefined, { isLoading: true });
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -289,7 +351,8 @@ describe("ProjectSettingsPageContent", () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.queryByRole("button", { name: "Save settings" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save general settings" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save locales" })).not.toBeInTheDocument();
     expect(screen.getByText("Loading project settings...")).toBeInTheDocument();
   });
 
@@ -302,15 +365,83 @@ describe("ProjectSettingsPageContent", () => {
     await user.clear(styleGuide);
     await user.type(styleGuide, "Keep product names in English.");
 
-    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    await user.click(screen.getByRole("button", { name: "Save style guide" }));
 
     await waitFor(() => expect(updateMock).toHaveBeenCalled());
-    expect(updateMock).toHaveBeenCalledWith(
-      "acme",
-      "project_1",
-      expect.objectContaining({
-        translationContext: "Keep product names in English.",
+    expect(updateMock).toHaveBeenCalledWith("acme", "project_1", {
+      translationContext: "Keep product names in English.",
+    });
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Style guide saved"));
+  });
+
+  it("keeps a pending general save locked while another section saves", async () => {
+    const user = userEvent.setup();
+    let resolveGeneral!: (value: unknown) => void;
+    let resolveLocales!: (value: unknown) => void;
+    const generalSave = new Promise((resolve) => {
+      resolveGeneral = resolve;
+    });
+    const localesSave = new Promise((resolve) => {
+      resolveLocales = resolve;
+    });
+    updateMock.mockImplementation(
+      (_organizationSlug: string, _projectId: string, payload: object) => {
+        if ("identifier" in payload) {
+          return generalSave;
+        }
+        return localesSave;
+      },
+    );
+
+    renderSettings();
+
+    const identifier = await screen.findByLabelText("Identifier");
+    await user.clear(identifier);
+    await user.type(identifier, "new");
+    await user.click(screen.getByRole("button", { name: "Save general settings" }));
+
+    expect(identifier).toBeDisabled();
+
+    await user.click(await screen.findByRole("button", { name: /Japanese \(Japan\) \(ja-JP\)/i }));
+    await user.click(screen.getByRole("button", { name: "Save locales" }));
+
+    expect(screen.getByLabelText("Identifier")).toBeDisabled();
+    expect(updateMock).toHaveBeenCalledTimes(2);
+
+    resolveLocales({
+      project: createProject({ identifier: "NEW", targetLocales: ["de-DE", "fr-FR", "ja-JP"] }),
+    });
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Locales saved"));
+    expect(screen.getByLabelText("Identifier")).toBeDisabled();
+    expect(screen.getByLabelText("Identifier")).toHaveValue("NEW");
+
+    resolveGeneral({ project: createProject({ identifier: "NEW" }) });
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("General settings saved"));
+    expect(screen.getByLabelText("Identifier")).toBeEnabled();
+    expect(screen.getByLabelText("Identifier")).toHaveValue("NEW");
+  });
+
+  it("saves only the identifier for provider-managed projects", async () => {
+    const user = userEvent.setup();
+    renderSettings(
+      createProject({
+        source: "external_tms",
+        externalProviderKind: "crowdin",
       }),
     );
+
+    const identifier = await screen.findByLabelText("Identifier");
+    await user.clear(identifier);
+    await user.type(identifier, "ext");
+
+    expect(screen.queryByRole("button", { name: "Save locales" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save general settings" }));
+
+    await waitFor(() => expect(patchMock).toHaveBeenCalled());
+    expect(patchMock).toHaveBeenCalledWith({
+      param: { organizationSlug: "acme", projectId: "project_1" },
+      json: { identifier: "EXT" },
+    });
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });

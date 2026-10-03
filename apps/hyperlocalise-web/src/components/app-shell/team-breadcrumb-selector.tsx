@@ -64,6 +64,7 @@ export function TeamBreadcrumbSelector({
     <BreadcrumbCrumbSelector
       value={teamId}
       label={teamName}
+      href={buildTeamPath(organizationSlug, teamId)}
       options={teamsQuery.data ?? []}
       onSelect={handleSelect}
       isLoading={teamsQuery.isPending}
