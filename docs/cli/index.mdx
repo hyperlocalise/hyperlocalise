@@ -1,89 +1,73 @@
 ---
-title: "Hyperlocalise: the all-in-one localization CLI"
+title: "Hyperlocalise CLI"
 sidebarTitle: "CLI overview"
-description: "One CLI for Crowdin, Lokalise, Phrase Strings, Smartling, and local AI translation. Upload sources, download translations, check files, and automate CI."
+description: "Connect your repository to Hyperlocalise Platform. Sync source files, manage translation and review with your team, and bring translations back into your release workflow."
 ---
 
-One CLI for your localization stack. Hyperlocalise combines local AI translation,
-translation checks, and commands for Crowdin, Lokalise, Phrase Strings, and
-Smartling in one installation. Work in your repository, automate CI, and connect
-to Hyperlocalise Platform when you need a shared workspace.
+Bring Hyperlocalise Platform into your development workflow. Use Hyperlocalise CLI
+to upload source files from your repository and pull translations back into your
+app. Your team manages translation, review, and language resources in one shared
+workspace, while you keep delivery in Git and CI.
 
-## One CLI for your TMS workflows
+## Start with Hyperlocalise Platform
 
-Use the command family for your provider. Each has its own authentication,
-configuration, and supported operations.
-
-| Your platform | What you can do | Start here |
-| --- | --- | --- |
-| Crowdin | Upload sources, download approved translations, manage branches, and exchange glossary/TM files | [Crowdin CLI workflows](/cli/commands/crowdin) |
-| Lokalise | Upload locale files, wait for imports, and download translations | [Lokalise CLI workflows](/cli/commands/lokalise) |
-| Phrase Strings | Reuse supported `.phrase.yml` settings to push sources and pull translations | [Phrase Strings CLI workflows](/cli/commands/phrase) |
-| Smartling | Upload sources, inspect file status, and download published translations | [Smartling CLI workflows](/cli/commands/smartling) |
-| POEditor or LILT AI | Sync flat JSON translation entries through an experimental adapter | [TMS integrations](/cli/storage/overview) |
-| Hyperlocalise Platform | Upload source files and retrieve existing project translations | [Connect the CLI](/platform/cli) |
-
-You can use local translation without a TMS or Platform account. Choose an
-[AI provider](/cli/providers/overview) independently of your translation platform.
-See the [compatibility matrix](/cli/storage/overview) before moving an existing
-script: one CLI does not mean every provider has identical commands or features.
-
-## Start translating
+For teams, we recommend pairing the CLI with Hyperlocalise Platform. Developers
+keep working with files and pull requests; translators and managers work in the
+same project without needing a local CLI setup.
 
 <CardGroup cols={2}>
-    <Card title="Install the CLI" icon="terminal" href="/cli/getting-started/install">
-        Install Hyperlocalise and verify your setup.
+    <Card title="Open Hyperlocalise" icon="arrow-up-right-from-square" href="https://www.hyperlocalise.com">
+        Create a project and bring your team’s multilingual content into one workspace.
     </Card>
-    <Card title="Translate your first file" icon="language" href="/cli/getting-started/quickstart">
-        Follow one complete example from source file to translated output.
-    </Card>
-    <Card title="Find your file format" icon="file-code" href="/cli/reference/formats/overview">
-        Browse configuration examples and limitations for each supported format.
-    </Card>
-    <Card title="Configure your project" icon="sliders" href="/cli/configuration/i18n-config">
-        Set locales, file mappings, and translation providers.
+    <Card title="Connect your repository" icon="terminal" href="/platform/cli">
+        Install the CLI, connect your project, and sync your first source file.
     </Card>
 </CardGroup>
 
-## The everyday workflow
+## From source files to your next release
 
-1. Map source files to target paths in `i18n.yml`.
-2. Preview the translation plan with `hyperlocalise run --dry-run`.
-3. Generate translations with `hyperlocalise run`.
-4. Review the diff and run `hyperlocalise check`.
-5. Commit the translated files and `.hyperlocalise.lock.json`.
+1. [Create a project](/platform/projects/create-project) and choose your target languages.
+2. [Install the CLI](/cli/getting-started/install) and [connect your project](/platform/cli).
+3. Preview your upload with `hyperlocalise sync push --dry-run`, then upload with `hyperlocalise sync push`.
+4. [Start a translation](/platform/translation/start) and [review it with your team](/platform/cat) in Platform.
+5. Preview the download with `hyperlocalise sync pull --dry-run`, then retrieve translations with `hyperlocalise sync pull`.
+6. Review the file changes and deliver them through your existing release process.
 
-The lockfile records translation progress so later runs can skip completed work.
-See [local translation](/cli/workflows/local-generation) for the full workflow.
+Source uploads and translation runs are separate steps. Set up a
+[Source upload automation](/platform/automations) when you want uploads to trigger
+translation. Pull retrieves project translations; review their readiness before release.
 
-## Choose your next step
+## Give your team a shared workflow
 
-| Your goal | Where to go |
+| What you need | How Hyperlocalise Platform helps |
 | --- | --- |
-| Understand the files in a project | [Project layout](/cli/getting-started/first-project) |
-| Translate a React Intl app | [React Intl tutorial](/cli/guides/react-intl) |
-| Update existing translations | [Translate changed strings](/cli/workflows/translate-changed-strings) |
-| Choose a hosted or local model | [AI providers](/cli/providers/overview) |
-| Share files with your Platform workspace | [Connect the CLI to Platform](/platform/cli) |
-| Review translations in a TMS | [TMS curation workflow](/cli/workflows/tms-curation-loop) |
-| Run localization in CI | [CI automation](/cli/workflows/ci-automation) |
-| Look up a command | [Command reference](/cli/commands/overview) |
-| Resolve a failed run | [Common errors](/cli/troubleshooting/common-errors) |
+| Review beyond Git diffs | [Review translations](/platform/cat) in a shared editor |
+| Consistent language across content | Manage [glossaries](/platform/glossary-import-export) and [translation memory](/platform/translation-memory-import-export) |
+| Repeatable translation work | Configure [automations](/platform/automations) around your project |
+| Visibility into translation runs | [Track jobs and recover failures](/platform/translation/jobs) |
+| Repository and CI delivery | [Push sources and pull translations](/platform/cli) with the CLI |
 
-Check the [stability matrix](/cli/reference/stability-matrix) before adopting
-experimental sync or evaluation workflows in production.
+## Other ways to use the CLI
 
-## Is Hyperlocalise the best localization CLI for your team?
+You can also translate local files with your own AI provider or connect an
+existing TMS. Choose the workflow that fits the project you already have.
 
-Choose Hyperlocalise when you want local AI translation, Git-based review, and
-multiple TMS command families in one tool. Compare the supported operations with
-your actual scripts: a provider's official CLI may be a better fit when you need
-its full API surface or exact flag compatibility. See [why Hyperlocalise](/cli/getting-started/why-hyperlocalise)
-for selection criteria and [TMS integrations](/cli/storage/overview) for limits.
+<CardGroup cols={2}>
+    <Card title="Translate a file locally" icon="language" href="/cli/getting-started/quickstart">
+        Generate translations with your AI provider and review the output in Git.
+    </Card>
+    <Card title="Connect an existing TMS" icon="arrows-rotate" href="/cli/storage/overview">
+        Explore supported commands for Crowdin, Lokalise, Phrase Strings, and Smartling.
+    </Card>
+</CardGroup>
 
-## Can I use one CLI with every TMS?
+[Compare workflows and credentials](/cli/getting-started/workflows) or check the
+[stability matrix](/cli/reference/stability-matrix) before adopting experimental features.
 
-Hyperlocalise supports the providers listed above. It does not include an adapter
-for every TMS, and file workflows differ from entry sync. For an unlisted provider,
-use its own supported import/export workflow; local translation support alone does
-not establish a direct integration.
+## Find what you need
+
+- [File formats](/cli/reference/formats/overview): supported formats and configuration examples.
+- [Configuration](/cli/configuration/i18n-config): locales, file mappings, and credentials.
+- [CI automation](/cli/workflows/ci-automation): add the CLI to your delivery workflow.
+- [Command reference](/cli/commands/overview): flags and behavior for each command.
+- [Common errors](/cli/troubleshooting/common-errors): diagnose configuration and sync failures.

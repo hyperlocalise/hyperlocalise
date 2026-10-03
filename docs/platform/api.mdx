@@ -1,11 +1,12 @@
 ---
-title: "Public API"
+title: "Files and translation jobs API"
+sidebarTitle: "Files and jobs"
 description: "HTTP API for the same multilingual content operations pipeline the CLI uses."
 ---
 
-The public API is the machine edge of Hyperlocalise Platform. It is the contract the [CLI](/platform/cli) uses to upload sources and download translations. Use it from your own scripts when you need the same operations without the CLI.
+Use this API to upload source files, create translation jobs, check progress, and retrieve translated files. It is also the API used by [Platform CLI sync](/platform/cli).
 
-There is no published OpenAPI spec yet. The routes below are the `/api/v1` surface Platform actually serves.
+For identity, project discovery, and Queries, use the separate [Projects and Queries API](/platform/developers/projects-and-queries). See [Choose an API](/platform/developers/api-overview) for base URLs and authentication. The OpenAPI document for that API does not describe these file and job routes.
 
 ## Base URL
 

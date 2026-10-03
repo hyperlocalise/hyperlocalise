@@ -1,0 +1,239 @@
+---
+title: "MCP tool reference"
+description: "Inputs, behavior, permissions, and errors for Hyperlocalise MCP tools."
+---
+
+[Connect your agent](/platform/mcp) before using these tools. Tool availability and successful actions depend on your workspace access.
+
+## Endpoint and discovery
+
+| Resource                            | Path                                            |
+| ----------------------------------- | ----------------------------------------------- |
+| MCP transport (Streamable HTTP)     | `POST /mcp`                                     |
+| OAuth authorization server metadata | `GET /.well-known/oauth-authorization-server`   |
+| Protected resource metadata (MCP)   | `GET /.well-known/oauth-protected-resource/mcp` |
+| Dynamic client registration         | `POST /mcp/register` (when enabled)             |
+
+OAuth authorize, token, and consent flows live under `/mcp/authorize`, `/mcp/token`, and related paths.
+
+## Available tools
+
+Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<code>", "message": "..." }`.
+
+### Projects and glossaries
+
+| Tool                       | Description                                                                                                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_projects`            | List accessible projects (`limit`, default 20, max 50)                                                                                                                  |
+| `get_project`              | Project details by `projectId`                                                                                                                                          |
+| `list_files`               | List source files in a project (`projectId`, `limit` default 20 max 50, `offset`, optional `search`)                                                                    |
+| `list_translations`        | Paginated CAT queue of translation keys (`projectId`, optional `sourcePath`, `targetLocale`, `search`, `queueFilter`, `queueSort`, `limit` default 20 max 50, `offset`) |
+| `get_translation`          | Full CAT detail for one translation key (`projectId`, `translationKeyId`, `targetLocale`)                                                                               |
+| `update_translation`       | Save a target translation and optionally approve it (`projectId`, `translationKeyId`, `targetLocale`, `targetText`, optional `approve`)                                 |
+| `get_project_status`       | Locale coverage counts by `projectId`, with optional `sourcePath`                                                                                                       |
+| `list_glossaries`          | List glossaries linked to accessible projects                                                                                                                           |
+| `get_glossary_entries`     | Concept-linked terms for a `glossaryId` (`limit`, default 50, max 100)                                                                                                  |
+| `query_glossary`           | Ranked concept-linked hits for a source string and locale pair                                                                                                          |
+| `create_glossary_concept`  | Create concept-linked source and target terms in a native glossary                                                                                                      |
+| `upload_sources`           | Upload a source file to a project using UTF-8 `content` or binary `contentBase64`                                                                                       |
+| `download_translations`    | Download a reconstructed UTF-8 target file (`projectId`, `sourcePath`, `locale`)                                                                                        |
+| `query_translation_memory` | Search approved translation-memory entries for exact and lexical matches, optionally scoped by project or memory                                                        |
+| `get_knowledge_memory`     | Read organization-wide or project-specific `Memory.md` guidelines                                                                                                       |
+
+`list_files` returns metadata only: `id` (stored file or source-file id), `sourcePath`, `filename`, `contentType`, `byteSize`, `updatedAt`, and `sourceLocale` when known. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`. The tool does not return file contents. Inaccessible projects return `project_not_found`. Use the listed `sourcePath` values for later upload, download, or `run_workflow` calls.
+
+`list_translations` is the CAT queue for agents. It lists native overlay keys so you can find untranslated, needs-review, or matching strings without opening the Content Editor. Each row is compact: `id`, `key`, `sourcePath`, `sourceText`, `targetLocale`, `targetText`, `status`, `maxLength`, and `isHidden`. The response includes `total`, pagination (`hasMore`, `nextOffset`), and `coverageSource: "native_overlay"`. It does not include TM or glossary hits.
+
+`get_translation` is the detail view for a translation returned by `list_translations`. Pass the row's `id` as `translationKeyId` together with its `projectId` and `targetLocale`. The tool returns source and target text, locales, status, context, maximum length, and linked Board issue identifiers. A key without a target translation is returned with `targetText` and `status` set to `null`.
+
+`upload_sources` uploads one source file using the same native or external TMS path as `POST /v1/files`. Provide exactly one of `content` or `contentBase64`. Native uploads are queued for background ingestion so their keys become available to `list_translations`. The maximum payload size is 25 MiB. This tool does not create a translation job; use `run_workflow` for that.
+
+`download_translations` reconstructs a JSON-compatible target file using the same native translation data as the public API and CLI `sync pull`. The response includes `filename`, `contentType`, `locale`, `sourcePath`, and UTF-8 `content`. Keys without a target translation use their source text as a fallback. Formats without a supported UTF-8 reconstruction path return `unsupported_binary_download` instead of JSON content with an incorrect extension.
+
+Optional filters match the Content Editor queue:
+
+- `sourcePath` — one file. Use `*` or omit it to list every file in the project.
+- `targetLocale` — one locale. When omitted, the tool returns one row per project target locale.
+- `search` — case-insensitive match on key, source text, context, or target text.
+- `queueFilter` — `all`, `untranslated`, `needs_review`, `approved` (same as CAT `reviewed`), `has_issues`, plus the other Content Editor filters.
+- `queueSort` — `file_order` (default) or `untranslated_first`.
+
+`update_translation` uses the same text constraints, segment locks, permissions, and native save/approve path as the Content Editor. It saves drafts by default; pass `approve: true` to save and approve as the authenticated MCP user. Placeholder or ICU failures return `invalid_translation` with structured `issues` and do not save. Provider-only live CAT writes return `provider_cat_unsupported` unless a native overlay is available.
+
+Read-only roles may list. Translation writes require an admin or localization manager. Missing or inaccessible projects, including cross-team and cross-organization reads, return `project_not_found`.
+
+For TMS-backed projects the tool still returns native overlay keys (`coverageSource: "native_overlay"`). Live Crowdin, Phrase, Lokalise, or Smartling listing is out of scope. Use the provider CAT or CLI for live provider strings.
+
+`get_project_status` answers “how done is French?” without paging translations. It returns `sourceLocale`, `targetLocales`, and per-locale counts: `total`, `translated`, `untranslated`, `needsReview`, `approved`, and `hidden`. Counts match Content Editor queue filters on the native key overlay. Hidden keys stay in `total` and, when they have no target text, in `untranslated`, because that is how the native CAT server filter counts them.
+
+When you pass `sourcePath`, the tool still returns project-wide locale totals and adds a `files` row for that path. The response includes counts only. It never includes source or target text.
+
+For TMS-backed projects the tool still returns native overlay counts (`coverageSource: "native_overlay"`). It does not fetch live provider statistics. Use the provider CAT or CLI for Crowdin, Phrase, Lokalise, or Smartling progress.
+
+Inaccessible projects return `project_not_found`.
+
+`query_glossary` looks up a source string instead of paging a whole glossary. Pass `sourceText`, `sourceLocale`, and `targetLocale`. Optional `projectId` limits the search to glossaries linked to that project. Optional `glossaryId` searches one glossary. `limit` defaults to 10 and maxes at 20.
+
+Each hit includes `glossaryId`, `conceptId`, `sourceTerm`, `targetTerm`, `forbidden`, `status`, `partOfSpeech`, `caseSensitive`, and a description truncated to 500 characters. `forbidden` is true when the matched source term or the preferred target is prohibited. Case-sensitive entries only match the stored casing.
+
+The search is the same native concordance path used in-app: an OR candidate query, then a source-text containment filter. A sentence such as `Proceed to checkout` still matches a `checkout` term.
+
+Native pairs come from concept-linked terms. Leftover `source_term` / `target_term` rows are ignored. Provider glossaries stay read-only; an inaccessible, non-UUID, or provider `glossaryId` returns `glossary_not_found`. An inaccessible `projectId` returns `{ "terms": [] }`.
+
+`create_glossary_concept` adds one source term and one target term to a new concept in a native glossary. Provide `glossaryId`, `sourceLocale`, `sourceTerm`, `targetLocale`, and `targetTerm`; optional fields include `description`, `partOfSpeech`, and `forbidden`. The response contains `conceptId`, `sourceTermId`, and `targetTermId`. When `forbidden` is true, the target term is stored as not recommended so glossary searches and translation review can tell agents not to use it.
+
+Creating glossary concepts requires glossary-management permission. Missing or inaccessible glossaries return `glossary_not_found`, provider-synced glossaries return `glossary_read_only`, and a term already present for the same locale in the glossary returns `duplicate_glossary_concept_term`.
+
+### Translation memory search
+
+`query_translation_memory` searches previously approved translations for a source segment.
+
+Required input:
+
+- `sourceText`
+- `sourceLocale`
+- `targetLocale`
+
+Optional input:
+
+- `projectId` restricts the search to translation memories linked to an accessible project.
+- `memoryId` restricts the search to one accessible translation memory.
+- `limit` controls the number of results from 1 to 20 and defaults to 10.
+
+The tool first searches for an exact match using normalized source text. If no exact match exists, it falls back to lexical full-text search. Results are ranked and returned with `memoryId`, `sourceText`, `targetText`, `locale`, and `similarity` when available.
+
+Only approved memory entries are returned. When `projectId` is provided, unlinked memories are excluded. Missing or inaccessible projects return `project_not_found`. Missing, inaccessible, malformed, or project-unlinked memories return `memory_not_found`.
+
+Provider-backed translation memories use entries already stored or synchronized in Hyperlocalise. This tool does not initiate a live provider search.
+
+### Knowledge memory
+
+`get_knowledge_memory` reads the guidance that an agent should follow before translating content or filing issues. It is read-only; hosted MCP does not expose knowledge-memory writes.
+
+Organization scope is the default:
+
+```json
+{
+  "scope": "organization"
+}
+```
+
+To read project-specific guidance, provide an accessible project ID:
+
+```json
+{
+  "scope": "project",
+  "projectId": "project-id"
+}
+```
+
+The response includes `scope`, `content`, `updatedAt`, `truncated`, and `projectId` for project-scoped reads. A knowledge memory that has not been created returns an empty `content` string and is not an error. Content longer than the MCP-safe response limit is truncated and returns `truncated: true`.
+
+Project reads use the authenticated member's normal project access. Missing or inaccessible projects return `project_not_found` without exposing whether the project exists.
+
+### Board (issues)
+
+| Tool                  | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `list_issues`         | Filter, sort, and paginate workspace Board items                  |
+| `get_issue`           | Full issue by `projectId` and `issueId` (`HL-123` or legacy UUID) |
+| `list_issue_comments` | Comment threads for one issue with cursor pagination              |
+| `create_issue`        | Create an issue in an accessible project                          |
+| `update_issue`        | Update mutable fields on one issue                                |
+
+`create_issue` and `update_issue` require a role that can write translations back (admin or localization manager). Other roles receive `forbidden`.
+
+`create_issue` accepts optional `idempotencyKey`. When set, Hyperlocalise stores the issue under `mcp:<key>` and returns the same issue on retry unless the payload changes.
+
+`list_issues` supports the same filters as the workspace Board API, including `view`, `status`, `issueType`, `priority`, `locale`, `assignee`, `projectId`, `search`, `sort`, `sortDir`, `limit` (max 50), and `offset`.
+
+`list_issue_comments` requires `projectId` and `issueId`. Optional `limit` (1–100) and `cursor` paginate comment threads. Root comments are ordered chronologically; each root is followed by its replies in chronological order. The response includes `comments` (each with `id`, `body`, `author`, `parentId`, mention ids, and timestamps) and `nextCursor` when more threads exist. Inaccessible projects or issues return `issue_not_found`. A bad cursor returns `invalid_comment_cursor`.
+
+### Jobs
+
+| Tool           | Description                                                                                        |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| `run_workflow` | Create and enqueue a string or file translation job                                                |
+| `list_jobs`    | Recent translation jobs (`projectId`, `sourcePath`, `status`, `limit` default 20 max 50, `offset`) |
+| `get_job`      | Job status by `jobId`. Poll after `run_workflow` until the job is terminal.                        |
+
+`run_workflow` starts durable Platform translation work and returns without waiting for translation to finish. Use `type: "string"` with `sourceText`, or `type: "file"` with exactly one of `sourceFileId` and `sourcePath` plus `fileFormat`. Both variants require `projectId`, the project's `sourceLocale`, and one or more configured `targetLocales`. String jobs also accept optional `context` and `maxLength`; both variants accept optional `metadata`.
+
+The response contains `jobId`, `type`, `status` (`queued` or `enqueued`), and `workflowRunIds` when the queue provides them. Poll `get_job` with the returned `jobId` for completion. For file jobs, use `list_files` to discover a source id or path first.
+
+Pass an optional `idempotencyKey` when a client may retry the same request. Reusing the key for the same organization, project, and payload returns the existing job instead of creating another one. Reusing it with a different payload returns `idempotency_conflict`. If a prior attempt committed the job but stopped before submitting it to the workflow queue, a retry submits that queued job.
+
+Creating jobs requires the same job-creation permission and AI feature availability as Platform Jobs. Project and file lookups are scoped to the authenticated organization and project. Locale mismatches return `invalid_job_payload`; missing files return `file_not_found`. Usage or organization budget failures retain their existing billing error codes. Queue failures return `job_queue_unavailable`.
+
+`list_jobs` finds recent translation jobs so you can call `get_job` without already knowing a job id. It defaults to `kind = translation`. Optional filters:
+
+- `projectId` — jobs on one accessible project. An inaccessible or missing project returns `project_not_found`.
+- `sourcePath` — latest file translation jobs for that path, using the same lookup as `GET /v1/jobs/latest`. Without `status`, this returns succeeded file jobs for the path, newest first.
+- `status` — `queued`, `running`, `succeeded`, `failed`, `waiting_for_review`, or `cancelled`.
+
+Omit `projectId` to list jobs across every project you can access. Organization-wide roles see every project in the workspace. Team members only see jobs on their teams' projects.
+
+Each job is compact: `id`, `projectId`, `type`, `status`, `createdAt`, `completedAt`, and a truncated `lastError`. The list does not include input, outcome, or output file bodies. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`.
+
+`get_job` returns the public job envelope: `id`, `projectId`, `type`, `kind`, `status`, timestamps, and `lastError`. Status values include `queued`, `running`, `succeeded`, and `failed`. Completed file jobs also include `outputFiles` with `{ fileId, locale, filename }` so you can pass those ids to `download_translations` or file reads.
+
+Missing or inaccessible jobs, including jobs from another organization, return `job_not_found`.
+
+### Zernio ads
+
+These tools use a Zernio API key saved under **Integrations**. They never return the secret. If the organization has one enabled, valid connection, the ads tools use it. If it has more than one, pass `connectionId` from `zernio_list_connections`.
+
+| Tool                      | Description                                                                                                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `zernio_list_connections` | List Zernio connections for this organization (id, display name, enabled, validation status, masked suffix)                                                   |
+| `zernio_list_accounts`    | List social and ads accounts for a connected key (`connectionId` optional)                                                                                    |
+| `zernio_list_ads`         | Read the campaign → ad set → ad tree (`connectionId` optional, optional `accountId`)                                                                          |
+| `zernio_get_ad`           | Get one ad by `adId` (`connectionId` optional)                                                                                                                |
+| `zernio_create_ad`        | Create a campaign, ad set, and ad via `POST /v1/ads/create`. Send `idempotencyKey` on retries. Default new ads to `PAUSED` unless you set `status: "ACTIVE"`. |
+| `zernio_create_campaign`  | Create a campaign shell without its first ad set. Later ads join with `existingCampaignId` on `zernio_create_ad`.                                             |
+
+`zernio_create_ad` requires `accountId`, `adAccountId`, and `name`. Optional fields include `goal`, `budgetAmount`, `budgetType`, `headline`, `body`, `linkUrl`, `imageUrl`, `callToAction`, `status`, `existingCampaignId`, `adSetId`, `targeting`, `extra`, `idempotencyKey`, and `validateOnly`. Omitted `status` is sent as `PAUSED`. Reuse `idempotencyKey` only when retrying the same create. If omitted, Hyperlocalise generates a unique key per call and retries a timeout once with that key. Create tools require `ai_actions:run` (not the read-only `member` role).
+
+No connection returns `zernio_connection_not_found`. Several valid connections without `connectionId` return `zernio_connection_ambiguous`. A disabled or unvalidated connection returns `zernio_not_connected`.
+
+See [Integrations](/platform/integrations#other-external-services).
+
+
+## Troubleshooting
+
+| Symptom                                        | Likely cause                                                                                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Consent page loops or `invalid_request`        | Stale OAuth cookies; sign out and retry, or use a private window                                                                     |
+| `registration_disabled` on `/api/mcp/register` | Dynamic registration is off in production; use a client that supports metadata-based client IDs                                      |
+| `forbidden` on issue tools                     | Your role is read-only for write-back operations                                                                                     |
+| `issue_not_found`                              | Wrong `projectId`, issue id, or missing project access                                                                               |
+| `invalid_comment_cursor`                       | Stale or malformed `cursor` on `list_issue_comments`                                                                                 |
+| `job_not_found`                                | Wrong `jobId`, missing project access, or a job from another organization                                                            |
+| `invalid_job_payload`                          | Source or target locales do not match the project, or the translation job input is invalid                                           |
+| `file_not_found`                               | The requested source file does not exist in the accessible project                                                                   |
+| `job_queue_unavailable`                        | The translation job was created but could not be submitted to the workflow queue                                                     |
+| `idempotency_conflict`                         | The supplied idempotency key is already associated with a different workflow payload                                                 |
+| `ai_features_required`                         | AI translation features are not available for the organization                                                                       |
+| `ai_features_check_failed`                     | Hyperlocalise could not verify AI feature availability                                                                               |
+| `project_not_found`                            | Wrong `projectId` or missing project access on project-scoped tools, including `query_translation_memory` and `get_knowledge_memory` |
+| `glossary_not_found`                           | Wrong `glossaryId`, missing glossary access, or a provider glossary on `query_glossary`                                              |
+| `glossary_read_only`                           | `create_glossary_concept` targeted a provider-synced glossary                                                                        |
+| `duplicate_glossary_concept_term`              | A source or target term already exists for the same locale in the native glossary                                                    |
+| `translation_not_found`                        | Wrong or inaccessible project, translation key, target locale, or a hidden key                                                       |
+| `translation_locked`                           | The requested translation segment is locked in the Content Editor                                                                    |
+| `invalid_translation`                          | Target text has a blocking placeholder or ICU validation error                                                                       |
+| `provider_cat_unsupported`                     | The requested operation targets a provider-only live CAT string without a supported native overlay                                   |
+| Agent cannot reach local Platform                 | Use `http://localhost:3000/mcp` and ensure the dev server is running                                                                 |
+| `invalid_file_payload`                         | Upload content is missing, malformed, oversized, or contains conflicting input fields                                                |
+| `unsupported_file`                             | The uploaded source path uses an unsupported translation file format                                                                 |
+| `source_upload_failed`                         | The native or external TMS source upload failed                                                                                      |
+| `source_file_not_found`                        | The requested source path does not exist in the accessible project                                                                   |
+| `translations_not_found`                       | The source file has no translation keys available to reconstruct                                                                     |
+| `source_file_too_large`                        | The translation reconstruction exceeds the public API key limit                                                                      |
+| `unsupported_binary_download`                  | The reconstructed file cannot be returned as UTF-8 text                                                                              |
+| `memory_not_found`                             | `query_translation_memory` targeted a missing, inaccessible, malformed, or project-unlinked translation memory                       |
+
+
+## Next
+
+Return to [MCP setup](/platform/mcp) or [review translations](/platform/cat).

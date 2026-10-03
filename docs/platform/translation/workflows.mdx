@@ -1,0 +1,39 @@
+---
+title: "Choose a translation workflow"
+sidebarTitle: "Translation workflows"
+description: "Choose between one-off AI requests, existing translations, recurring automations, and connected TMS workflows."
+---
+
+Choose a workflow based on where your content lives and how often it changes. Each path ends with review and delivery.
+
+| You want to… | Use | First step |
+| --- | --- | --- |
+| Translate a small batch on demand | An AI request for named files and locales | [Start a translation](/platform/translation/start) |
+| Bring finished translations into a native project | Translation-file import | [Import existing translations](/platform/translation/import) |
+| Repeat work after uploads or on a schedule | A saved automation | [Create an automation](/platform/automation/create-automation) |
+| Keep localization in your existing TMS | A supported provider connection | [TMS integrations](/platform/tms) |
+| Control the workflow from a repository or application | CLI or public API | [Developer integrations](/platform/developers/overview) |
+
+## For your first batch
+
+Follow [Your first translation](/platform/getting-started). Use a small source file and one target language so you can inspect the entire result. Add terminology and tone guidance before requesting more work.
+
+## For recurring content
+
+Test a manual cycle first. Then configure an automation for the project and trigger you need. Avoid submitting a manual request for a batch already handled by a source-upload automation.
+
+[Content sync](/platform/automation/content-sync) moves repository content. Check its configured direction and behavior rather than assuming that connecting GitHub also starts translation.
+
+## For existing translations
+
+Import target files against their matching native source files. Imported translations are marked approved, so verify them before importing. To reuse sentence pairs across content instead, [import a translation memory](/platform/translation-memory-import-export).
+
+For offline review, [export a filtered queue](/platform/guides/review-handoff). That export does not automatically apply later edits or approvals back to Platform.
+
+## Agree on the review gate
+
+Generation success means the job completed. Before delivery, check untranslated strings, quality issues, and the agreed review scope. Use [roles and permissions](/platform/workspace/roles) to assign approval responsibilities.
+
+## Next
+
+[Start a translation](/platform/translation/start), [track the job](/platform/translation/jobs), and [review the result](/platform/cat).

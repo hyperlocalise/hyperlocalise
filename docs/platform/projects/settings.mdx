@@ -1,0 +1,41 @@
+---
+title: "Manage project settings"
+sidebarTitle: "Project settings"
+description: "Update project details, identify the source connection, and configure Content Editor behavior."
+---
+
+Open **Projects**, select the project, and open **Settings**. Check **Source connection** first: native projects and connected TMS projects have different editable settings.
+
+## Update project details
+
+In **General**, review **Name**, **Identifier**, and **Description**. Use the name to help teammates find the project and the description for scope, ownership, or release notes. The identifier is the prefix for new issue IDs, such as `HL-12`, and must be unique within the workspace. Changing it keeps existing issue IDs. Follow the identifier requirements shown in the form.
+
+Select **Save settings** after editing. Reopen the settings to confirm the saved values. If a field is read-only, check the project's source connection and your [permissions](/platform/workspace/roles).
+
+## Manage languages
+
+Use **Locales** to change the source and target locales of a native project. Provider-owned languages are managed in the connected TMS. Follow [Manage project languages](/platform/projects/languages), especially before changing a source language.
+
+## Configure review behavior
+
+Under **Translation & Content Editor behavior**, use **Automatically group identical strings** to control grouping of identical source text. Review the confirmation before changing it. Identical text can have different meanings in different contexts, so agree on grouping with your reviewers.
+
+For tone and terminology, configure [guidelines, glossaries, and translation memories](/platform/knowledge).
+
+## Connect delivery tools
+
+For a native project, **Connect CLI & CI** shows the project ID and sample `i18n.yml`. Follow [Connect the CLI](/platform/cli) to configure credentials, source paths, and target paths.
+
+Use **Open in provider** for settings owned by a connected TMS. See [TMS integrations](/platform/tms) for provider capability boundaries.
+
+## Before deleting a project
+
+Download the content you need to retain and inspect jobs, automations, and delivery configurations that refer to the project. Read the deletion confirmation before proceeding.
+
+<Warning>
+Project deletion is permanent. Jobs, files, and shared context linked to the project lose their project association. Do not treat deletion as a reversible archive action.
+</Warning>
+
+## Next
+
+Check [project access](/platform/projects/access), [upload source files](/platform/projects/files), or [prepare a review handoff](/platform/guides/review-handoff).

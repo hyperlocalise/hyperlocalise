@@ -10,11 +10,23 @@ Use this page to decide which capabilities are safe for production defaults and 
 | Area | Scope | Status | Notes |
 | --- | --- | --- | --- |
 | LLM provider layer | OpenAI, Azure OpenAI, Gemini, Anthropic, AWS Bedrock, LM Studio, Groq, Ollama | Stable | Primary generation path for `run`. |
-| Translation routing / MT | `translation.default`/`translation.rules` + `mt.profiles` (Google, DeepL) | Experimental | Only `google` and `deepl` are wired up; `mt.profiles` has unused Microsoft/Amazon-shaped fields. MT has no automatic fallback to an LLM profile on failure. |
+| Translation routing / MT | `translation.default`/`translation.rules` + `mt.profiles` (Google, DeepL) | Experimental | Supported MT providers are Google and DeepL. MT has no automatic fallback to an LLM profile on failure. |
 | Plan-first + lockfile | `run --dry-run`, deterministic planning, `.hyperlocalise.lock.json` checkpoints | Stable | Recommended default for CI and PR review flows. |
-| TMS adapters | Crowdin, LILT AI, Lokalise, Phrase, POEditor, Smartling | Experimental | `sync push` / `sync pull` contracts may evolve. Push now uses fresh remote baselines and entry-level mutation where supported, but adapter concurrency guarantees still vary. Pin CLI versions in CI. |
+| TMS entry sync | `sync` with `storage.adapter`: Crowdin, LILT AI, Lokalise, Phrase, POEditor, Smartling | Experimental | `sync push` / `sync pull` contracts may evolve. Push now uses fresh remote baselines and entry-level mutation where supported, but adapter concurrency guarantees still vary. Pin CLI versions in CI. |
 | Eval framework | `eval run`, `eval compare`, quality/regression scoring | Experimental | Report schema and scoring can change between releases. |
 | CI-ready status labels | `ready`, `needs review`, `missing` derived from `status` CSV | Experimental | Label mapping is stable for current docs, but classification semantics may evolve. |
+
+## Provider file commands and Platform sync
+
+The experimental TMS entry-sync label applies to `sync` with `storage.adapter`. It does not describe every command that talks to the same provider.
+
+| Workflow | How to evaluate it |
+| --- | --- |
+| `crowdin`, `lokalise`, `phrase`, and `smartling` file commands | Check the provider command's supported operations and compatibility notes. These are separate from entry sync; do not assume parity with an official CLI. |
+| `sync` with a `hyperlocalise` block | Follow [Platform file sync](/platform/cli). Push uploads sources; pull retrieves translations. Generation and approval are separate steps. |
+| Additional AI providers | Use [provider-specific setup](/cli/providers/overview). A provider's presence in the catalog does not extend the stable designation above to unlisted providers. |
+
+Pin a tested CLI release in production automation and verify the exact workflow on representative content before expanding it.
 
 ## Recommended rollout policy
 

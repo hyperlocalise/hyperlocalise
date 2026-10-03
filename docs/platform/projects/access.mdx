@@ -1,0 +1,40 @@
+---
+title: "Manage project access"
+sidebarTitle: "Project access"
+description: "Check workspace membership, team access, and permissions before handing off project work."
+---
+
+Project access answers which content a person can open. Their workspace role answers what they can do with that content. Check both when inviting someone or diagnosing a missing action.
+
+## Give a teammate access
+
+1. [Invite the person to the workspace](/platform/workspace/members) with the role and team appropriate for their work.
+2. Ask them to accept the invitation with the invited email address.
+3. For a team-scoped project, confirm they belong to the team that can access it. Add existing workspace members from the team's **Add team member** action.
+4. Share the project, source file, and target locale. Ask the teammate to confirm they can open the content.
+5. Confirm their role supports the requested task before handing off approval or administration work.
+
+Organization-wide roles can have broader access than team-scoped members. Use the [role guide](/platform/workspace/roles) and **Members** → **Role permissions** to inspect available actions.
+
+## Check connected TMS access
+
+A Platform role does not grant permissions in an external TMS. If a connected project is missing or read-only, verify the provider account and its project permissions as well as Platform access. Follow [connection troubleshooting](/platform/help/connections).
+
+## Change or remove access
+
+Review team membership when a person's responsibilities change. Removing a team member removes their access to projects scoped to that team; other access may still apply through their workspace role.
+
+To remove workspace access, follow [member removal](/platform/workspace/members). Personal tokens inherit the owner's current access, so inspect tools and automations that depend on that person's credentials.
+
+## A project or action is missing
+
+| Symptom | Check |
+| --- | --- |
+| The workspace is missing | The invitation was accepted using the correct email address. |
+| The project is missing | The selected workspace and team membership are correct. |
+| Content opens but approval is unavailable | The member has an approval-capable role and, for connected content, the required provider permission. |
+| A token cannot access a project | Both the token's scopes and its owner's current access permit the operation. |
+
+## Next
+
+[Prepare a review handoff](/platform/guides/review-handoff) once reviewers can open the intended content. Use [access troubleshooting](/platform/help/access) if access still fails.

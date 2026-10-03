@@ -3,6 +3,21 @@ title: "i18n config"
 description: "Field-by-field guide for the i18n config file used by run, status, and sync commands."
 ---
 
+## Start here
+
+For your first project, copy the tested configuration from [Translate your first file](/cli/getting-started/quickstart). You need only source and target locales, a source-to-target file mapping, and an AI provider profile.
+
+| Change you want to make | Read |
+| --- | --- |
+| Add languages | [Locales](#locales) |
+| Map files and output paths | [Buckets](#buckets) and [path templates](/cli/configuration/path-templates) |
+| Select models and credentials | [LLM profiles](#llm-profiles) and [provider credentials](/cli/configuration/provider-credentials) |
+| Change prompts, segmentation, or context memory | [Tune translation behavior](/cli/guides/translation-behavior) |
+| Connect a Platform project | [Connect the CLI](/platform/cli) |
+| Route particular content to a different engine | [Translation routing](#translation-routing) |
+
+The sections below are the complete field reference. Add advanced settings only when your workflow needs them.
+
 ## File overview
 
 `i18n.yml` controls locales, file mapping, model profiles, and optional advanced routing. `i18n.jsonc` is still supported for compatibility.

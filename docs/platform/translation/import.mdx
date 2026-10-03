@@ -1,0 +1,53 @@
+---
+title: "Import existing translations"
+description: "Upload a translated file for a native source file and verify the imported target language."
+---
+
+Use **Import translations** when you already have a translated file for content stored in a native project. The importer matches translation keys to the selected source file.
+
+## Before you start
+
+- Upload the matching [source file](/platform/projects/files) first.
+- Add the [target locale](/platform/projects/languages) to the project.
+- Prepare a supported translation file with the same keys and compatible structure as the source.
+- Confirm your role and project access allow translation writes.
+
+<Warning>
+Imported translations replace existing text for matching keys in the selected locale, including previously approved text, and are marked approved. Verify the translated file before importing and download any existing target content you need to retain.
+</Warning>
+
+A translation-file import is different from [importing a translation memory](/platform/translation-memory-import-export). A memory supplies reusable suggestions; this import writes translations for a particular source file and locale.
+
+## Import the target file
+
+1. Open **Projects**, select the native project, and open **Files**.
+2. Open the source file's context menu and select **Import translations**. You can also use the action in the file detail panel.
+3. Check the source path shown in the dialog.
+4. Select **Target locale**. Check the selection even if a locale is already selected.
+5. Under **Translation file**, select **Choose file** and choose the translated file.
+6. Select **Import**.
+
+The confirmation says the import has started. Translations appear after processing completes; the confirmation alone does not prove the target content is ready.
+
+Keys that do not match the source and empty or whitespace-only target values are skipped. An import does not add new source keys.
+
+## Verify the result
+
+Open the source file with the imported target locale in the [Content Editor](/platform/cat). Compare representative keys and translations with the file you supplied. Check untranslated strings separately, then [download the target file](/platform/translation/download) and test it in its destination application.
+
+Repeat for each source file and target locale you need to import.
+
+## Resolve import problems
+
+| Symptom | What to check |
+| --- | --- |
+| No target locales are available | Add the target language in project settings, then reopen the import dialog. |
+| The file format is unsupported | Check the source path and [Platform format capabilities](/platform/file-formats). Upload support alone does not guarantee translation-import support. |
+| Expected translations are missing | Wait for processing, then confirm the source file, selected locale, and matching keys. |
+| The action fails or is unavailable | Check [access](/platform/help/access). For provider-owned files, use the connected TMS's import workflow. |
+
+If the same failure returns, [contact support](/platform/help/contact-support) with the source path, locale, timestamp, and error message.
+
+## Next
+
+[Review translations](/platform/cat) or continue the [migration checklist](/platform/getting-started/moving-to-hyperlocalise).

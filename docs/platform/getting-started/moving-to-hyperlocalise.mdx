@@ -1,0 +1,43 @@
+---
+title: "Moving to Hyperlocalise"
+description: "Choose between connecting an existing TMS and moving files and language resources into native Platform projects."
+---
+
+Start with a small, representative project. Verify its languages, keys, translations, and delivery before moving the rest of your content.
+
+## Choose how to start
+
+| Approach | Use it when | What to expect |
+| --- | --- | --- |
+| Connect your existing TMS | Your provider remains the owner of source files and languages | Work through the provider capabilities exposed by [TMS integrations](/platform/tms) |
+| Create a native project | You want to manage source files and translations in Platform | Upload sources, import target files, and configure resources and access |
+
+Connecting a TMS does not migrate its projects into native storage. Glossary and translation-memory exchange do not migrate tasks, permissions, history, or review state.
+
+## Prepare the content
+
+Export and retain the original source files, target files, glossaries, and translation memories from your current system. Record source and target locales, file paths, and the source revision used for each translation.
+
+Check [supported formats](/platform/file-formats). Use source files with stable keys and target files whose keys match those sources. Decide how locale variants such as `pt-BR` map to the languages in your product.
+
+## Move a pilot project
+
+1. [Create a project](/platform/projects/create-project) and configure its languages.
+2. [Upload the source files](/platform/projects/files) and confirm their paths.
+3. [Import existing translations](/platform/translation/import) for one target locale at a time.
+4. [Import a glossary](/platform/glossary-import-export) and [translation memory](/platform/translation-memory-import-export), then link the resources to the intended project.
+5. Add [guidelines](/platform/knowledge/guidelines) and configure [team access](/platform/projects/access).
+
+<Warning>
+Translation-file imports mark matching translations approved. Review the files before importing; do not use import to preserve an unreviewed draft status from another system.
+</Warning>
+
+## Verify before switching delivery
+
+Open representative strings in the [Content Editor](/platform/cat). Compare keys, target locales, placeholders, terminology, and any missing translations with your exports. [Download target files](/platform/translation/download) and test them in your application.
+
+Recreate the required [automations](/platform/automation/create-automation) and delivery configuration, then test one source update. Coordinate when the previous system stops writing so two workflows do not compete for the same destination.
+
+## Next
+
+Follow [For localization managers](/platform/getting-started/managers) to organize the team, or [For developers](/platform/getting-started/developers) to connect delivery. [Contact support](/platform/help/contact-support) if a required import format or provider capability is unavailable.

@@ -1,0 +1,41 @@
+---
+title: "For developers"
+description: "Connect source files to Platform, verify a translation cycle, and bring reviewed translations back into your product."
+---
+
+Start by sending one source file through upload, translation, review, and retrieval. Once you have verified its keys, placeholders, and output format, connect that cycle to your repository or application.
+
+## 1. Check the content contract
+
+Compare [Platform file formats](/platform/file-formats) with the format your application uses. Platform upload, Content Editor support, and CLI parsing have different capabilities.
+
+Keep source paths and translation keys stable. An updated source upload is a complete snapshot; read [Update source content](/platform/guides/update-source-content) before automating uploads.
+
+## 2. Choose an interface
+
+| Your workflow | Start here |
+| --- | --- |
+| Repository files and CI | [Platform CLI connection](/platform/cli) |
+| Application-controlled upload, jobs, and downloads | [Public API](/platform/api) |
+| An AI agent working with your workspace | [Hosted MCP](/platform/mcp) |
+| Repository events or scheduled file movement | [GitHub connection](/platform/connections/github) and [content sync](/platform/automation/content-sync) |
+
+Use organization API keys for shared CI workflows and personal tokens for supported tools acting as you. Hosted MCP uses OAuth. Follow the [credential instructions](/platform/settings#api-keys) for your chosen interface.
+
+## 3. Verify one complete cycle
+
+1. [Create a native project](/platform/projects/create-project) with the application's source and target locales.
+2. Upload a small source file and confirm its path.
+3. [Request a translation](/platform/translation/start) and wait for its job to finish.
+4. Have an authorized reviewer [check and approve](/platform/cat) the result.
+5. Retrieve the target file and load it in the application.
+
+Verify keys, placeholder substitutions, plural behavior, and locale filenames. Upload success, generation success, and human approval are separate checkpoints.
+
+## 4. Add automation
+
+Use the [GitHub localization tutorial](/platform/tutorials/github-localisation-workflow) or a framework-specific guide from [Developer integrations](/platform/developers/overview). Inspect errors before retrying work that could create another job or external action.
+
+## Next
+
+Choose a [translation workflow](/platform/translation/workflows) with your localization team and agree on the review gate before enabling recurring delivery.
