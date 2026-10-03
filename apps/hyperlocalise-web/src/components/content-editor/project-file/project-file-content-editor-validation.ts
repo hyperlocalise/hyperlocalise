@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { QA_MODES } from "@/lib/qa/check-catalogue";
-import { applyEditorQaPolicy, type QaCheckPolicy } from "@/lib/qa/qa-policy";
+import { applyEditorQaPolicy, DEFAULT_QA_POLICY, type QaCheckPolicy } from "@/lib/qa/qa-policy";
 import { createContentEditorRequestScheduler } from "@/components/content-editor/shared/content-editor-request-scheduler";
 import { z } from "zod";
 
@@ -102,9 +102,8 @@ export async function fetchCatSegmentValidation(
   );
   const targetLocale = input.targetLocale.trim();
   const canRequestSpelling = isBcp47LanguageTag(targetLocale);
-  const availableModes = input.policy
-    ? CAT_SEGMENT_QA_MODES.filter((mode) => input.policy?.[mode].enabled)
-    : CAT_SEGMENT_QA_MODES;
+  const modePolicy = input.policy ?? DEFAULT_QA_POLICY;
+  const availableModes = CAT_SEGMENT_QA_MODES.filter((mode) => modePolicy[mode].enabled);
   const modes =
     canRequestSpelling && CAT_SEGMENT_SPELLING_ENABLED
       ? availableModes

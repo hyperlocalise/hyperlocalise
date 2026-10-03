@@ -12,7 +12,11 @@
  */
 import { z } from "zod";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
-import type { TranslationQaCheck, TranslationQaSegmentInput } from "./types";
+import type {
+  TranslationQaCheck,
+  TranslationQaCheckType,
+  TranslationQaSegmentInput,
+} from "./types";
 import { validateTranslationSegment } from "./validate-segment";
 
 import { QA_MODES } from "./check-catalogue";
@@ -65,25 +69,36 @@ export async function validateScanSegment(
   const checks: TranslationQaCheck[] = parsed.data.checks
     .filter((check) => check.status !== "pass")
     .map((check) => ({
-      checkType:
-        CHECK_TYPES[check.id as keyof typeof CHECK_TYPES] ??
-        (check.category === "spelling" ? "spelling" : "format"),
+      checkType: scanCheckType(check),
       severity: check.status === "fail" ? "error" : "warning",
-      category:
-        check.category === "spelling"
-          ? "spelling"
-          : check.category === "length"
-            ? "length"
-            : check.category === "qa"
-              ? "qa"
-              : "syntax",
+      category: scanCheckCategory(check),
       message: check.message,
       relatedTokens: check.relatedTokens ?? [],
     }));
+  const goReportedPlaceholder = checks.some((check) => check.checkType === "placeholder_mismatch");
   checks.push(
-    ...validateTranslationSegment(input).filter(
-      (check) => check.checkType === "glossary_violation",
-    ),
+    ...validateTranslationSegment(input).filter((check) => {
+      if (check.checkType === "glossary_violation") return true;
+      // Go's placeholder failures are the primary result. Keep the TypeScript
+      // check when Go did not report one, so disabling format cannot drop it.
+      return check.checkType === "placeholder_mismatch" && !goReportedPlaceholder;
+    }),
   );
   return { checks: applyQaPolicy(checks, policy), skippedChecks: parsed.data.skippedModes ?? [] };
+}
+
+function scanCheckType(check: { id: string; category?: string }): TranslationQaCheckType {
+  const known = CHECK_TYPES[check.id as keyof typeof CHECK_TYPES];
+  if (known) return known;
+  if (check.category === "spelling") return "spelling";
+  if (check.category === "placeholder") return "placeholder_mismatch";
+  return "format";
+}
+
+function scanCheckCategory(check: { category?: string }): TranslationQaCheck["category"] {
+  if (check.category === "spelling") return "spelling";
+  if (check.category === "length") return "length";
+  if (check.category === "qa") return "qa";
+  if (check.category === "placeholder") return "placeholder";
+  return "syntax";
 }

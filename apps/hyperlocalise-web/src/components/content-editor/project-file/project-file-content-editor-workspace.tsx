@@ -428,6 +428,26 @@ export function ProjectFileContentEditorWorkspace({
   );
 
   const isNativeProject = !contentEditorFile?.provider;
+  const glossaryTermsForQaGate = useCallback(
+    async (sourceText: string, targetLocale: string): Promise<ContentEditorGlossaryTerm[]> => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.concordance.$post({
+        param: { organizationSlug, projectId },
+        json: {
+          sourceLocale,
+          targetLocale,
+          sourceText,
+        },
+      });
+      if (response.status !== 200) {
+        throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.qaValidationRequired));
+      }
+      const body = await response.json();
+      return body.concordance.glossaryTerms;
+    },
+    [intl, organizationSlug, projectId, sourceLocale],
+  );
   const assertQaSaveAllowed = useCallback(
     async (
       segment: { sourceText: string; sourcePath?: string | null; maxLength?: number | null },
@@ -436,7 +456,7 @@ export function ProjectFileContentEditorWorkspace({
     ) => {
       if (!isNativeProject) return;
       const policyResult = await qaPolicyQuery.refetch();
-      if (!policyResult.data) {
+      if (!policyResult.isSuccess || !policyResult.data) {
         throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.qaValidationRequired));
       }
       const policy = policyResult.data.settings.checks;
@@ -456,7 +476,21 @@ export function ProjectFileContentEditorWorkspace({
       if (!validation.ok) {
         throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.qaValidationRequired));
       }
-      const failures = validation.value.filter((check) => check.status === "fail");
+      const glossarySetting = policy.glossary_violation;
+      const glossaryTerms =
+        glossarySetting.enabled &&
+        glossarySetting.severity === "error" &&
+        segment.sourceText.trim() &&
+        value.trim()
+          ? await glossaryTermsForQaGate(segment.sourceText, locale)
+          : [];
+      const failures = [
+        ...validation.value,
+        ...applyEditorQaPolicy(
+          glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
+          policy,
+        ),
+      ].filter((check) => check.status === "fail");
       if (failures.length > 0) {
         throw new Error(
           intl.formatMessage(projectFileCatWorkspaceMessages.qaBlockedSave, {
@@ -467,6 +501,7 @@ export function ProjectFileContentEditorWorkspace({
     },
     [
       goSvcClient,
+      glossaryTermsForQaGate,
       intl,
       isNativeProject,
       qaPolicyQuery,

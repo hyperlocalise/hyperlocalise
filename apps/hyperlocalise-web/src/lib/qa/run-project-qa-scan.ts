@@ -18,15 +18,16 @@ import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-g
 import type { TranslationQaScanQueue } from "@/lib/workflow/types";
 
 import { emptyTranslationQaSummary } from "./qa-report-store";
-import type {
-  TranslationQaCheckType,
-  TranslationQaRunTrigger,
-  TranslationQaSeverity,
+import {
+  translationQaCheckTypes,
+  type TranslationQaCheckType,
+  type TranslationQaRunTrigger,
+  type TranslationQaSeverity,
 } from "./types";
 import { validateScanSegment, QA_CHECK_VERSION } from "./scan-segment-validation";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
-import { DEFAULT_QA_POLICY } from "./qa-policy";
+import { DEFAULT_QA_POLICY, type QaCheckPolicy } from "./qa-policy";
 
 const logger = createLogger("translation-qa-scan");
 export const KEY_PAGE_SIZE = 250;
@@ -245,22 +246,14 @@ export async function scanTranslationQaPage(input: {
       join spellcheck_word_library_words w on w.library_id = d.id
       where p.organization_id = ${input.organizationId} and p.project_id = ${input.projectId}
       order by p.priority, w.created_at, w.id`);
+  const acceptedWordsByLocale = acceptedSpellcheckWordsByLocale(wordRows.rows);
   const skippedChecksByLocale: Record<string, string[]> = {};
   const requests = keys.flatMap((key) => locales.map((targetLocale) => ({ key, targetLocale })));
   const results = await mapWithConcurrency(requests, 8, async ({ key, targetLocale }) => {
     const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
     const targetText = translation?.text ?? "";
-    const acceptedWords = capResolvedSpellcheckWords([
-      ...new Set(
-        wordRows.rows
-          .filter(
-            (row) =>
-              row.locale.toLowerCase().replaceAll("_", "-") ===
-              targetLocale.toLowerCase().replaceAll("_", "-"),
-          )
-          .map((row) => row.word),
-      ),
-    ]);
+    const acceptedWords =
+      acceptedWordsByLocale.get(normalizeQaSpellcheckLocale(targetLocale)) ?? [];
     const { checks, skippedChecks } = await validateScanSegment(
       {
         sourceText: key.sourceText,
@@ -408,11 +401,14 @@ export async function completeTranslationQaScan(input: {
     return { ok: true as const, alreadyCompleted: true as const };
   }
 
-  // Older snapshots become fixed only after a complete recheck no longer finds
-  // that check for the translation. Skipped spelling must never resolve findings.
+  // Older snapshots become fixed only after this run rechecked that check and
+  // no longer finds it. Disabled policy checks were not rechecked, including
+  // spelling turned off in policy. Skipped spelling was not rechecked either.
+  const disabledCheckTypes = disabledQaCheckTypes(run.checkPolicy);
   await db.execute(sql`update translation_qa_findings old set status = 'resolved', reviewed_at = ${completedAt}
       where old.organization_id = ${input.organizationId} and old.project_id = ${input.projectId}
       and old.run_id <> ${input.runId} and old.status = 'open'
+      and not (${JSON.stringify(disabledCheckTypes)}::jsonb ? old.check_type)
       and not (old.check_type = 'spelling' and ${JSON.stringify(run.summary.skippedChecksByLocale ?? {})}::jsonb ? old.target_locale)
       and not exists (select 1 from translation_qa_findings current
           where current.run_id = ${input.runId} and current.translation_key_id = old.translation_key_id
@@ -598,6 +594,40 @@ async function touchTranslationQaRun(runId: string) {
 
 function uniqueSortedLocales(locales: readonly string[]) {
   return [...new Set(locales)].toSorted();
+}
+
+function disabledQaCheckTypes(policy: QaCheckPolicy | null | undefined) {
+  const resolved = policy ? { ...DEFAULT_QA_POLICY, ...policy } : DEFAULT_QA_POLICY;
+  return translationQaCheckTypes.filter((checkType) => !resolved[checkType].enabled);
+}
+
+function normalizeQaSpellcheckLocale(locale: string) {
+  return locale.toLowerCase().replaceAll("_", "-");
+}
+
+function acceptedSpellcheckWordsByLocale(rows: readonly { locale: string; word: string }[]) {
+  const wordsByLocale = new Map<string, string[]>();
+  const seenByLocale = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const locale = normalizeQaSpellcheckLocale(row.locale);
+    let words = wordsByLocale.get(locale);
+    let seen = seenByLocale.get(locale);
+    if (!words || !seen) {
+      words = [];
+      seen = new Set();
+      wordsByLocale.set(locale, words);
+      seenByLocale.set(locale, seen);
+    }
+    if (seen.has(row.word)) continue;
+    seen.add(row.word);
+    words.push(row.word);
+  }
+
+  const accepted = new Map<string, string[]>();
+  for (const [locale, words] of wordsByLocale) {
+    accepted.set(locale, capResolvedSpellcheckWords(words));
+  }
+  return accepted;
 }
 
 function isUniqueViolation(error: unknown) {

@@ -17,12 +17,23 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
+const { validateSegment } = vi.hoisted(() => ({
+  validateSegment: vi.fn(),
+}));
+
+vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
+  createGoSvcServerClient: () => ({
+    qaReport: { validateSegment },
+  }),
+}));
+
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import type { TranslationQaScanQueue } from "@/lib/workflow/types";
 
+import { DEFAULT_QA_POLICY } from "./qa-policy";
 import { emptyTranslationQaSummary } from "./qa-report-store";
 import {
   claimTranslationQaRun,
@@ -37,6 +48,22 @@ import {
 const authFixture = createAuthTestFixture();
 
 beforeAll(async () => {
+  validateSegment.mockImplementation(async (body: { targetText?: string }) => {
+    if (body.targetText?.trim()) {
+      return { checks: [], skippedModes: [] };
+    }
+    return {
+      checks: [
+        {
+          id: "qa-not-localized",
+          status: "fail",
+          message: "Target value is empty.",
+          category: "qa",
+        },
+      ],
+      skippedModes: [],
+    };
+  });
   await db.$client.query("select 1");
 });
 
@@ -454,6 +481,131 @@ describe("run-project-qa-scan claim and reclaim", () => {
       warningCount: 0,
       summary: { byCheckType: {}, bySeverity: {}, byLocale: {} },
     });
+  });
+
+  it("keeps open findings that this run did not recheck", async () => {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+    const [key] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "greeting",
+        sourceText: "Hello",
+        normalizedSourceText: "hello",
+      })
+      .returning({ id: schema.projectTranslationKeys.id });
+
+    const [previousRun] = await db
+      .insert(schema.translationQaRuns)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        trigger: "manual",
+        status: "succeeded",
+        createdByUserId: user.id,
+        summary: emptyTranslationQaSummary(),
+        completedAt: new Date(),
+      })
+      .returning({ id: schema.translationQaRuns.id });
+
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    expect(claimed).toMatchObject({ ok: true });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+
+    await db
+      .update(schema.translationQaRuns)
+      .set({
+        checkPolicy: {
+          ...DEFAULT_QA_POLICY,
+          glossary_violation: { enabled: false, severity: "warning" },
+        },
+        summary: {
+          ...emptyTranslationQaSummary(),
+          skippedChecksByLocale: { "de-DE": ["spelling"] },
+        },
+      })
+      .where(eq(schema.translationQaRuns.id, claimed.runId));
+
+    const finding = {
+      runId: previousRun!.id,
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: key!.id,
+      key: "greeting",
+      sourceText: "Hello",
+      targetText: "Hello",
+      severity: "warning" as const,
+      relatedTokens: [] as string[],
+      message: "Earlier finding",
+    };
+    await db.insert(schema.translationQaFindings).values([
+      {
+        ...finding,
+        targetLocale: "de-DE",
+        checkType: "spelling",
+        category: "spelling",
+      },
+      {
+        ...finding,
+        targetLocale: "fr-FR",
+        checkType: "spelling",
+        category: "spelling",
+      },
+      {
+        ...finding,
+        targetLocale: "de-DE",
+        checkType: "glossary_violation",
+        category: "glossary",
+      },
+      {
+        ...finding,
+        targetLocale: "de-DE",
+        checkType: "not_localized",
+        category: "qa",
+        severity: "error",
+      },
+    ]);
+
+    await expect(
+      completeTranslationQaScan({
+        runId: claimed.runId,
+        organizationId: organization.id,
+        projectId: project.id,
+      }),
+    ).resolves.toEqual({ ok: true, alreadyCompleted: false });
+
+    const findings = await db
+      .select({
+        checkType: schema.translationQaFindings.checkType,
+        targetLocale: schema.translationQaFindings.targetLocale,
+        status: schema.translationQaFindings.status,
+      })
+      .from(schema.translationQaFindings)
+      .where(eq(schema.translationQaFindings.runId, previousRun!.id));
+
+    expect(findings).toEqual(
+      expect.arrayContaining([
+        { checkType: "spelling", targetLocale: "de-DE", status: "open" },
+        { checkType: "spelling", targetLocale: "fr-FR", status: "resolved" },
+        { checkType: "glossary_violation", targetLocale: "de-DE", status: "open" },
+        { checkType: "not_localized", targetLocale: "de-DE", status: "resolved" },
+      ]),
+    );
   });
 });
 
