@@ -15,7 +15,9 @@ import type { GoSvcDownload, GoSvcErrorBody, GoSvcRequestOptions } from "./go-sv
 export const DEFAULT_GO_SVC_BASE_URL = "https://api.hyperlocalise.com";
 
 export type GoSvcClientOptions = {
-  getAccessToken: () => string | null | undefined | Promise<string | null | undefined>;
+  getAccessToken?: () => string | null | undefined | Promise<string | null | undefined>;
+  /** Server-only authentication for internal background-workflow endpoints. */
+  getServiceToken?: () => string | Promise<string>;
   baseUrl?: string;
   fetch?: typeof fetch;
 };
@@ -51,26 +53,38 @@ export class GoSvcRequest {
 
   private readonly getAccessToken: GoSvcClientOptions["getAccessToken"];
   private readonly fetch: typeof fetch;
+  private readonly getServiceToken: GoSvcClientOptions["getServiceToken"];
 
   constructor(options: GoSvcClientOptions) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_GO_SVC_BASE_URL);
+    if (options.getAccessToken && options.getServiceToken)
+      throw new TypeError("Choose session or service authentication");
     this.getAccessToken = options.getAccessToken;
+    this.getServiceToken = options.getServiceToken;
     this.fetch = options.fetch ?? globalThis.fetch;
   }
 
   async response(path: string, request: GoSvcJsonRequest = {}): Promise<Response> {
-    const token = String((await this.getAccessToken()) ?? "").trim();
-    if (!token) {
-      throw new GoSvcClientError({
-        code: "missing_access_token",
-        message: "A WorkOS access token is required",
-      });
+    const headers = new Headers({ Accept: "application/json" });
+    if (this.getServiceToken) {
+      if (!path.startsWith("/internal/"))
+        throw new TypeError("Service authentication is restricted to internal go-svc routes");
+      const token = String(await this.getServiceToken()).trim();
+      if (!token)
+        throw new GoSvcClientError({
+          code: "missing_service_token",
+          message: "A service token is required",
+        });
+      headers.set("X-Go-Svc-Research-Token", token);
+    } else {
+      const token = String((await this.getAccessToken?.()) ?? "").trim();
+      if (!token)
+        throw new GoSvcClientError({
+          code: "missing_access_token",
+          message: "A WorkOS access token is required",
+        });
+      headers.set("Authorization", `Bearer ${token}`);
     }
-
-    const headers = new Headers({
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    });
     let body: BodyInit | undefined;
     if (request.body !== undefined) {
       headers.set("Content-Type", "application/json");

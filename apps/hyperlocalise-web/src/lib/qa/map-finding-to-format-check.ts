@@ -18,6 +18,11 @@ import type {
 import type { TranslationQaCheckType, TranslationQaSeverity } from "./types";
 
 const CHECK_LABELS: Record<TranslationQaCheckType, string> = {
+  format: "Format & ICU",
+  spelling: "Spelling",
+  numbers_mismatch: "Numbers",
+  punctuation_mismatch: "Punctuation",
+  character_case_mismatch: "Capitalization",
   not_localized: "Translation",
   whitespace_only: "Whitespace",
   same_as_source: "Same as source",
@@ -28,6 +33,11 @@ const CHECK_LABELS: Record<TranslationQaCheckType, string> = {
 };
 
 const CHECK_CATEGORIES: Record<TranslationQaCheckType, ContentEditorFormatCheckCategory> = {
+  format: "syntax",
+  spelling: "spelling",
+  numbers_mismatch: "qa",
+  punctuation_mismatch: "qa",
+  character_case_mismatch: "qa",
   not_localized: "qa",
   whitespace_only: "qa",
   same_as_source: "qa",
@@ -39,6 +49,11 @@ const CHECK_CATEGORIES: Record<TranslationQaCheckType, ContentEditorFormatCheckC
 
 /** IDs that match go-svc so CAT can dedupe live and scan rows. */
 export const SCAN_FORMAT_CHECK_IDS: Record<TranslationQaCheckType, string> = {
+  format: "scan-format",
+  spelling: "spelling",
+  numbers_mismatch: "qa-numbers-mismatch",
+  punctuation_mismatch: "qa-punctuation-mismatch",
+  character_case_mismatch: "qa-character-case-mismatch",
   not_localized: "qa-not-localized",
   whitespace_only: "qa-whitespace-only",
   same_as_source: "qa-same-as-source",

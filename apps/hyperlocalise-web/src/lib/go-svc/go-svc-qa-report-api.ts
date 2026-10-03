@@ -10,7 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { GoSvcQuery, GoSvcRecord, GoSvcRequestOptions } from "./go-svc-client.types";
+import type {
+  ValidateSegmentBody,
+  ValidateSegmentResult,
+  GoSvcQuery,
+  GoSvcRecord,
+  GoSvcRequestOptions,
+} from "./go-svc-client.types";
 import { orgPath, type GoSvcRequest } from "./go-svc-request";
 
 export class GoSvcQaReportApi {
@@ -20,6 +26,14 @@ export class GoSvcQaReportApi {
   constructor(private readonly request: GoSvcRequest) {
     this.findings = new GoSvcQaReportFindingsApi(request);
     this.project = new GoSvcProjectQaReportApi(request);
+  }
+
+  validateSegment(body: ValidateSegmentBody, options: GoSvcRequestOptions = {}) {
+    return this.request.json<ValidateSegmentResult>("/internal/qa/validate-segment", {
+      method: "POST",
+      body,
+      ...options,
+    });
   }
 
   list(organizationSlug: string, options: GoSvcRequestOptions = {}) {
@@ -35,6 +49,13 @@ export class GoSvcQaReportFindingsApi {
       query,
       ...options,
     });
+  }
+
+  review(organizationSlug: string, findingId: string, body: GoSvcRecord) {
+    return this.request.json<GoSvcRecord>(
+      orgPath(organizationSlug, "qa-reports", "findings", findingId),
+      { method: "PATCH", body },
+    );
   }
 
   promote(organizationSlug: string, body: GoSvcRecord, options: GoSvcRequestOptions = {}) {

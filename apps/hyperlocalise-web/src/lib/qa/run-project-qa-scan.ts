@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, count, eq, gt, inArray, lt } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, lt, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
@@ -18,12 +18,16 @@ import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-g
 import type { TranslationQaScanQueue } from "@/lib/workflow/types";
 
 import { emptyTranslationQaSummary } from "./qa-report-store";
-import type {
-  TranslationQaCheckType,
-  TranslationQaRunTrigger,
-  TranslationQaSeverity,
+import {
+  translationQaCheckTypes,
+  type TranslationQaCheckType,
+  type TranslationQaRunTrigger,
+  type TranslationQaSeverity,
 } from "./types";
-import { validateTranslationSegment } from "./validate-segment";
+import { validateScanSegment, QA_CHECK_VERSION } from "./scan-segment-validation";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
+import { DEFAULT_QA_POLICY, type QaCheckPolicy } from "./qa-policy";
 
 const logger = createLogger("translation-qa-scan");
 export const KEY_PAGE_SIZE = 250;
@@ -236,43 +240,59 @@ export async function scanTranslationQaPage(input: {
     pendingFindings = [];
   }
 
-  for (const key of keys) {
-    for (const targetLocale of locales) {
-      const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
-      const targetText = translation?.text ?? "";
-      const checks = validateTranslationSegment({
+  const wordRows = await db.execute<{ locale: string; word: string }>(sql`
+      select w.locale, w.word from project_spellcheck_word_libraries p
+      join spellcheck_word_libraries d on d.id = p.library_id and d.status = 'active'
+      join spellcheck_word_library_words w on w.library_id = d.id
+      where p.organization_id = ${input.organizationId} and p.project_id = ${input.projectId}
+      order by p.priority, w.created_at, w.id`);
+  const acceptedWordsByLocale = acceptedSpellcheckWordsByLocale(wordRows.rows);
+  const skippedChecksByLocale: Record<string, string[]> = {};
+  const requests = keys.flatMap((key) => locales.map((targetLocale) => ({ key, targetLocale })));
+  const results = await mapWithConcurrency(requests, 8, async ({ key, targetLocale }) => {
+    const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
+    const targetText = translation?.text ?? "";
+    const acceptedWords =
+      acceptedWordsByLocale.get(normalizeQaSpellcheckLocale(targetLocale)) ?? [];
+    const { checks, skippedChecks } = await validateScanSegment(
+      {
         sourceText: key.sourceText,
         targetText,
         sourcePath: key.sourcePath,
         maxLength: key.maxLength,
         targetLocale,
         glossaryTerms,
-      });
-
-      for (const check of checks) {
-        pendingFindings.push({
-          runId: input.runId,
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          translationKeyId: key.translationKeyId,
-          translationId: translation?.id ?? null,
-          sourcePath: key.sourcePath,
-          key: key.key,
-          targetLocale,
-          checkType: check.checkType,
-          severity: check.severity,
-          category: check.category,
-          message: check.message,
-          relatedTokens: check.relatedTokens,
-          sourceText: key.sourceText,
-          targetText,
-        });
-        if (pendingFindings.length >= FINDING_INSERT_CHUNK) {
-          await flushFindings();
-        }
-      }
-    }
+      },
+      acceptedWords,
+      run.checkPolicy ?? DEFAULT_QA_POLICY,
+    );
+    if (skippedChecks.length) skippedChecksByLocale[targetLocale] = skippedChecks;
+    return checks.map((check) => ({
+      runId: input.runId,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyId: key.translationKeyId,
+      translationId: translation?.id ?? null,
+      sourcePath: key.sourcePath,
+      key: key.key,
+      targetLocale,
+      checkType: check.checkType,
+      severity: check.severity,
+      category: check.category,
+      message: check.message,
+      relatedTokens: check.relatedTokens,
+      sourceText: key.sourceText,
+      targetText,
+      ruleVersion: QA_CHECK_VERSION,
+    }));
+  });
+  for (const finding of results.flat()) {
+    pendingFindings.push(finding);
+    if (pendingFindings.length >= FINDING_INSERT_CHUNK) await flushFindings();
   }
+  await db.execute(sql`update translation_qa_runs set summary = jsonb_set(summary, '{skippedChecksByLocale}',
+      coalesce(summary->'skippedChecksByLocale', '{}'::jsonb) || ${JSON.stringify(skippedChecksByLocale)}::jsonb)
+      where id = ${input.runId}`);
 
   await flushFindings();
   await touchTranslationQaRun(input.runId);
@@ -339,6 +359,18 @@ export async function completeTranslationQaScan(input: {
     }
   }
 
+  // Carry exceptions only for the exact text, rule version and diagnostic. A changed
+  // translation or rule automatically returns to the review queue.
+  await db.execute(sql`update translation_qa_findings f set status = 'ignored',
+      ignore_reason = previous.ignore_reason, reviewed_at = previous.reviewed_at,
+      reviewed_by_user_id = previous.reviewed_by_user_id
+      from translation_qa_findings previous
+      where f.run_id = ${input.runId} and previous.run_id <> f.run_id
+      and previous.organization_id = f.organization_id and previous.project_id = f.project_id
+      and previous.translation_key_id = f.translation_key_id and previous.target_locale = f.target_locale
+      and previous.check_type = f.check_type and previous.message = f.message
+      and previous.source_text = f.source_text and previous.target_text = f.target_text
+      and previous.rule_version = f.rule_version and previous.status = 'ignored'`);
   const completedAt = new Date();
   const updated = await db
     .update(schema.translationQaRuns)
@@ -348,7 +380,13 @@ export async function completeTranslationQaScan(input: {
       findingCount: findingRows.length,
       errorCount,
       warningCount,
-      summary: { byCheckType, bySeverity, byLocale },
+      summary: {
+        byCheckType,
+        bySeverity,
+        byLocale,
+        checkVersion: QA_CHECK_VERSION,
+        skippedChecksByLocale: run.summary.skippedChecksByLocale ?? {},
+      },
       completedAt,
     })
     .where(
@@ -363,6 +401,18 @@ export async function completeTranslationQaScan(input: {
     return { ok: true as const, alreadyCompleted: true as const };
   }
 
+  // Older snapshots become fixed only after this run rechecked that check and
+  // no longer finds it. Disabled policy checks were not rechecked, including
+  // spelling turned off in policy. Skipped spelling was not rechecked either.
+  const disabledCheckTypes = disabledQaCheckTypes(run.checkPolicy);
+  await db.execute(sql`update translation_qa_findings old set status = 'resolved', reviewed_at = ${completedAt}
+      where old.organization_id = ${input.organizationId} and old.project_id = ${input.projectId}
+      and old.run_id <> ${input.runId} and old.status = 'open'
+      and not (${JSON.stringify(disabledCheckTypes)}::jsonb ? old.check_type)
+      and not (old.check_type = 'spelling' and ${JSON.stringify(run.summary.skippedChecksByLocale ?? {})}::jsonb ? old.target_locale)
+      and not exists (select 1 from translation_qa_findings current
+          where current.run_id = ${input.runId} and current.translation_key_id = old.translation_key_id
+          and current.target_locale = old.target_locale and current.check_type = old.check_type)`);
   await db
     .update(schema.projects)
     .set({ qaScanLastRunAt: completedAt })
@@ -446,12 +496,23 @@ export async function claimTranslationQaRun(input: {
   });
 
   try {
+    const [projectPolicy] = await db
+      .select({ policy: schema.projects.qaCheckPolicy })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.id, input.projectId),
+          eq(schema.projects.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1);
     const [run] = await db
       .insert(schema.translationQaRuns)
       .values({
         organizationId: input.organizationId,
         projectId: input.projectId,
         trigger: input.trigger,
+        checkPolicy: projectPolicy?.policy ?? DEFAULT_QA_POLICY,
         status: "running",
         createdByUserId: input.createdByUserId ?? null,
         summary: emptyTranslationQaSummary(),
@@ -509,7 +570,11 @@ async function loadNativeQaProject(input: {
 
 async function loadRunningQaScan(runId: string) {
   const [run] = await db
-    .select({ id: schema.translationQaRuns.id })
+    .select({
+      id: schema.translationQaRuns.id,
+      summary: schema.translationQaRuns.summary,
+      checkPolicy: schema.translationQaRuns.checkPolicy,
+    })
     .from(schema.translationQaRuns)
     .where(
       and(eq(schema.translationQaRuns.id, runId), eq(schema.translationQaRuns.status, "running")),
@@ -529,6 +594,40 @@ async function touchTranslationQaRun(runId: string) {
 
 function uniqueSortedLocales(locales: readonly string[]) {
   return [...new Set(locales)].toSorted();
+}
+
+function disabledQaCheckTypes(policy: QaCheckPolicy | null | undefined) {
+  const resolved = policy ? { ...DEFAULT_QA_POLICY, ...policy } : DEFAULT_QA_POLICY;
+  return translationQaCheckTypes.filter((checkType) => !resolved[checkType].enabled);
+}
+
+function normalizeQaSpellcheckLocale(locale: string) {
+  return locale.toLowerCase().replaceAll("_", "-");
+}
+
+function acceptedSpellcheckWordsByLocale(rows: readonly { locale: string; word: string }[]) {
+  const wordsByLocale = new Map<string, string[]>();
+  const seenByLocale = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const locale = normalizeQaSpellcheckLocale(row.locale);
+    let words = wordsByLocale.get(locale);
+    let seen = seenByLocale.get(locale);
+    if (!words || !seen) {
+      words = [];
+      seen = new Set();
+      wordsByLocale.set(locale, words);
+      seenByLocale.set(locale, seen);
+    }
+    if (seen.has(row.word)) continue;
+    seen.add(row.word);
+    words.push(row.word);
+  }
+
+  const accepted = new Map<string, string[]>();
+  for (const [locale, words] of wordsByLocale) {
+    accepted.set(locale, capResolvedSpellcheckWords(words));
+  }
+  return accepted;
 }
 
 function isUniqueViolation(error: unknown) {

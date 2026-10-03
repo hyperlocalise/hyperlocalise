@@ -9,6 +9,7 @@ go_library(
         "kinds.go",
         "profile.go",
         "qa.go",
+        "qa_locale.go",
         "validate.go",
         "webvtt_markup.go",
     ],

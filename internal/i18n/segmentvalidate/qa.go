@@ -7,6 +7,9 @@ const (
 	QAModeWhitespaceOnly = "whitespace_only"
 	QAModeNotLocalized   = "not_localized"
 	QAModeEscapedChar    = "escaped_char_mismatch"
+	QAModeNumbers        = "numbers_mismatch"
+	QAModePunctuation    = "punctuation_mismatch"
+	QAModeCharacterCase  = "character_case_mismatch"
 )
 
 // KnownQAModes lists supported optional QA mode identifiers.
@@ -16,6 +19,9 @@ func KnownQAModes() []string {
 		QAModeWhitespaceOnly,
 		QAModeNotLocalized,
 		QAModeEscapedChar,
+		QAModeNumbers,
+		QAModePunctuation,
+		QAModeCharacterCase,
 	}
 }
 
@@ -26,6 +32,7 @@ func qaChecks(checks []Check, req Request) []Check {
 
 	// Parse active modes with local flags to avoid allocating a mode set.
 	var hasNotLocalized, hasWhitespaceOnly, hasSameAsSource, hasEscapedChar bool
+	var hasNumbers, hasPunctuation, hasCase bool
 	for _, mode := range req.Modes {
 		mode = strings.TrimSpace(mode)
 		switch mode {
@@ -37,10 +44,16 @@ func qaChecks(checks []Check, req Request) []Check {
 			hasSameAsSource = true
 		case QAModeEscapedChar:
 			hasEscapedChar = true
+		case QAModeNumbers:
+			hasNumbers = true
+		case QAModePunctuation:
+			hasPunctuation = true
+		case QAModeCharacterCase:
+			hasCase = true
 		}
 	}
 
-	if !hasNotLocalized && !hasWhitespaceOnly && !hasSameAsSource && !hasEscapedChar {
+	if !hasNotLocalized && !hasWhitespaceOnly && !hasSameAsSource && !hasEscapedChar && !hasNumbers && !hasPunctuation && !hasCase {
 		return checks
 	}
 
@@ -63,6 +76,21 @@ func qaChecks(checks []Check, req Request) []Check {
 	}
 	if hasEscapedChar {
 		if check, include := escapedCharCheck(req.SourceText, req.TargetText); include {
+			checks = append(checks, check)
+		}
+	}
+	if hasNumbers {
+		if check, include := numberMismatchCheck(req.SourceText, req.TargetText); include {
+			checks = append(checks, check)
+		}
+	}
+	if hasPunctuation {
+		if check, include := punctuationMismatchCheck(req.SourceText, req.TargetText); include {
+			checks = append(checks, check)
+		}
+	}
+	if hasCase {
+		if check, include := caseMismatchCheck(req.SourceText, req.TargetText, req.TargetLocale); include {
 			checks = append(checks, check)
 		}
 	}

@@ -15,80 +15,25 @@
 import { useMemo, useState } from "react";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormattedMessage, useIntl } from "react-intl";
-import { toast } from "sonner";
-
-import { QaFindingsTable } from "@/components/qa/qa-findings-table";
+import { useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { TypographyP } from "@/components/ui/typography";
-import { readApiResponseError } from "@/lib/api-error";
-import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
-import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
+import { Skeleton } from "@/components/ui/skeleton";
+import { QaFindingsTable, qaCheckLabel } from "@/components/qa/qa-findings-table";
+import { QaFilter } from "@/components/qa/qa-filter";
+import { QaNotice, QaRunStatus } from "@/components/qa/qa-status";
+import { qaMessages as m } from "@/components/qa/qa.messages";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
+import { DEFAULT_QA_POLICY, type QaCheckPolicy } from "@/lib/qa/qa-policy";
 import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
-
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
 import { qaProjectMessages as messages } from "../qa-project.messages";
 
-type QaReport = {
-  id: string;
-  status: string;
-  trigger: "manual" | "scheduled";
-  segmentCount: number;
-  findingCount: number;
-  errorCount: number;
-  warningCount: number;
-  completedAt: string | null;
-  createdAt: string;
-  summary: {
-    byCheckType: Record<string, number>;
-    bySeverity: Record<string, number>;
-    byLocale: Record<string, number>;
-  };
-};
-
-type QaFinding = {
-  id: string;
-  runId: string;
-  key: string;
-  sourcePath: string | null;
-  targetLocale: string;
-  checkType: string;
-  severity: "error" | "warning";
-  message: string;
-  sourceText: string;
-  targetText: string;
-  editorHref: string;
-};
-
-type QaListResponse = {
-  reports: QaReport[];
-  settings: {
-    cadence: "off" | "daily";
-    lastRunAt: string | null;
-    canRun: boolean;
-    canManageSchedule: boolean;
-  };
-};
-
-type QaDetailResponse = {
-  report: QaReport;
-  findings: QaFinding[];
-  total: number;
-};
-
-const FINDINGS_PAGE_SIZE = 100;
-
+const PAGE_SIZE = 100;
 export function QaProjectPageContent({
   organizationSlug,
   projectId,
@@ -100,117 +45,104 @@ export function QaProjectPageContent({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const { client: goSvcClient } = useGoSvcClient();
-  const projectQaReportClient = useMemo(
-    () => createProjectQaReportClient(goSvcClient),
-    [goSvcClient],
-  );
+  const { client } = useGoSvcClient();
+  const api = useMemo(() => createProjectQaReportClient(client), [client]);
+  const [tab, setTab] = useState("findings");
   const [locale, setLocale] = useState("all");
   const [checkType, setCheckType] = useState("all");
+  const [severity, setSeverity] = useState("all");
+  const [status, setStatus] = useState("open");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [draftPolicy, setDraftPolicy] = useState<QaCheckPolicy | null>(null);
   const listKey = ["project-qa-reports", organizationSlug, projectId];
-
-  const listQuery = useQuery({
+  const param = { organizationSlug, projectId };
+  const list = useQuery({
     queryKey: listKey,
-    queryFn: async () => {
-      try {
-        const response = await projectQaReportClient.listReports({
-          param: { organizationSlug, projectId },
-        });
-        return response as QaListResponse;
-      } catch (error) {
-        throw normalizeQaError(error, intl.formatMessage(messages.loadError));
-      }
-    },
+    queryFn: () => api.listReports({ param }),
     refetchInterval: (query) =>
-      query.state.data?.reports.some(
-        (report) => report.status === "running" || report.status === "queued",
-      )
+      query.state.data?.reports.some((report) => ["running", "queued"].includes(report.status))
         ? 2000
         : false,
   });
-
-  const latestId = listQuery.data?.reports[0]?.id;
-  const activeRunId = selectedRunId ?? latestId;
-  const detailQuery = useInfiniteQuery({
-    queryKey: [...listKey, activeRunId, locale, checkType],
-    enabled: Boolean(activeRunId),
+  const reports = list.data?.reports ?? [];
+  const report = reports.find((row) => row.id === selectedRunId) ?? reports[0];
+  const running = reports.some((row) => ["running", "queued"].includes(row.status));
+  const settings = list.data?.settings;
+  const detail = useInfiniteQuery({
+    // A changed run state creates a fresh result query, including the final
+    // transition to succeeded. Never leave a cached running snapshot visible.
+    queryKey: [
+      ...listKey,
+      report?.id,
+      report?.status,
+      report?.completedAt,
+      locale,
+      checkType,
+      severity,
+      status,
+    ],
+    enabled: Boolean(report && report.status === "succeeded"),
     initialPageParam: 0,
-    queryFn: async ({ pageParam }) => {
-      try {
-        const response = await projectQaReportClient.getRun({
-          param: { organizationSlug, projectId, runId: activeRunId! },
-          query: {
-            locale: locale === "all" ? undefined : locale,
-            checkType: isQaCheckType(checkType) ? checkType : undefined,
-            limit: String(FINDINGS_PAGE_SIZE),
-            offset: String(pageParam),
-          },
-        });
-        return response as QaDetailResponse;
-      } catch (error) {
-        throw normalizeQaError(error, intl.formatMessage(messages.loadError));
-      }
-    },
-    getNextPageParam: (lastPage, pages) => {
-      const loaded = pages.reduce((count, page) => count + page.findings.length, 0);
-      return loaded < lastPage.total ? loaded : undefined;
+    queryFn: ({ pageParam }) =>
+      api.getRun({
+        param: { ...param, runId: report!.id },
+        query: {
+          locale: locale === "all" ? undefined : locale,
+          checkType: checkType === "all" ? undefined : checkType,
+          severity: severity === "all" ? undefined : severity,
+          status,
+          limit: String(PAGE_SIZE),
+          offset: String(pageParam),
+        },
+      }),
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((sum, page) => sum + page.findings.length, 0);
+      return loaded < last.total ? loaded : undefined;
     },
   });
-  const findings = detailQuery.data?.pages.flatMap((page) => page.findings) ?? [];
-  const findingsTotal = detailQuery.data?.pages[0]?.total ?? 0;
-
-  const runMutation = useMutation({
+  const findings = detail.data?.pages.flatMap((page) => page.findings) ?? [];
+  const start = useMutation({
     mutationFn: async () => {
-      const response = await projectQaReportClient.startScan({
-        param: { organizationSlug, projectId },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(response, intl.formatMessage(messages.runError));
-      }
+      const response = await api.startScan({ param });
+      if (!response.ok) throw new Error("scan_failed");
       return response.json();
     },
     onSuccess: async () => {
-      toast.success(intl.formatMessage(messages.runStarted));
+      setSelectedRunId(null);
+      setTab("findings");
       await queryClient.invalidateQueries({ queryKey: listKey });
     },
-    onError: (error) => {
-      toast.error(goSvcErrorMessage(error, intl.formatMessage(messages.runError)));
-    },
   });
-
-  const scheduleMutation = useMutation({
-    mutationFn: async (cadence: "off" | "daily") => {
-      const response = await projectQaReportClient.updateSettings({
-        param: { organizationSlug, projectId },
-        json: { cadence },
-      });
-      return response;
-    },
+  const settingsMutation = useMutation({
+    mutationFn: (json: { cadence?: "off" | "daily"; checks?: QaCheckPolicy }) =>
+      api.updateSettings({ param, json }),
     onSuccess: async () => {
-      toast.success(intl.formatMessage(messages.scheduleSaved));
+      setDraftPolicy(null);
       await queryClient.invalidateQueries({ queryKey: listKey });
     },
   });
-
-  const reports = listQuery.data?.reports ?? [];
-  const selectedReport = reports.find((report) => report.id === activeRunId) ?? reports[0];
-  const latestSucceededRunId = reports.find((report) => report.status === "succeeded")?.id;
-  const canPromoteActiveReport =
+  const policy = draftPolicy ?? settings?.checks ?? DEFAULT_QA_POLICY;
+  const updateRule = (
+    check: TranslationQaCheckType,
+    change: Partial<QaCheckPolicy[TranslationQaCheckType]>,
+  ) => {
+    setDraftPolicy({ ...policy, [check]: { ...policy[check], ...change } });
+  };
+  const canReview =
     canPromoteFindings &&
-    selectedReport?.status === "succeeded" &&
-    Boolean(latestSucceededRunId) &&
-    activeRunId === latestSucceededRunId;
-  const locales = useMemo(
-    () => Object.keys(selectedReport?.summary.byLocale ?? {}),
-    [selectedReport],
-  );
-  const settings = listQuery.data?.settings;
-  const unsupported = isUnsupportedQaError(listQuery.error);
-  const scanInProgress = reports.some(
-    (report) => report.status === "running" || report.status === "queued",
-  );
-
+    report?.status === "succeeded" &&
+    report.id === reports.find((row) => row.status === "succeeded")?.id;
+  const all = { value: "all", label: intl.formatMessage(m.all) };
+  const filtered =
+    locale !== "all" || checkType !== "all" || severity !== "all" || status !== "all";
+  const resetFilters = () => {
+    setLocale("all");
+    setCheckType("all");
+    setSeverity("all");
+    setStatus("all");
+  };
+  const unsupported =
+    list.error instanceof GoSvcClientError && list.error.code === "qa_scan_not_supported";
   return (
     <ProjectPageShell>
       <ProjectSectionHeader
@@ -218,210 +150,256 @@ export function QaProjectPageContent({
         section={intl.formatMessage(messages.title)}
         actions={
           settings?.canRun ? (
-            <Button
-              size="sm"
-              className="rounded-full"
-              disabled={runMutation.isPending || scanInProgress}
-              onClick={() => runMutation.mutate()}
-            >
-              <FormattedMessage
-                {...(runMutation.isPending || scanInProgress ? messages.running : messages.run)}
-              />
+            <Button size="sm" disabled={running || start.isPending} onClick={() => start.mutate()}>
+              {intl.formatMessage(running || start.isPending ? messages.running : messages.run)}
             </Button>
           ) : null
         }
       />
-
-      {unsupported ? (
-        <TypographyP tone="subtle">{intl.formatMessage(messages.unsupported)}</TypographyP>
+      {list.isPending ? (
+        <Skeleton className="h-24 w-full" aria-label={intl.formatMessage(m.loading)} />
       ) : null}
-
-      {settings ? (
-        <label className="flex items-center gap-3 text-sm">
-          <Switch
-            checked={settings.cadence === "daily"}
-            disabled={!settings.canManageSchedule || scheduleMutation.isPending}
-            onCheckedChange={(checked) => scheduleMutation.mutate(checked ? "daily" : "off")}
-          />
-          <span>
-            <FormattedMessage {...messages.schedule} />
-            <TypographyP size="xsmall" tone="subtle">
-              <FormattedMessage {...messages.scheduleHelp} />
-            </TypographyP>
-          </span>
-        </label>
-      ) : null}
-
-      {selectedReport ? (
-        <div className="grid gap-3 md:grid-cols-4">
-          <Metric
-            label={intl.formatMessage(messages.segments)}
-            value={String(selectedReport.segmentCount)}
-          />
-          <Metric
-            label={intl.formatMessage(messages.errors)}
-            value={String(selectedReport.errorCount)}
-          />
-          <Metric
-            label={intl.formatMessage(messages.warnings)}
-            value={String(selectedReport.warningCount)}
-          />
-          <Metric
-            label={intl.formatMessage(messages.lastRun)}
-            value={
-              selectedReport.completedAt
-                ? intl.formatDate(selectedReport.completedAt, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })
-                : "—"
-            }
-          />
-        </div>
-      ) : listQuery.isSuccess && !unsupported ? (
-        <TypographyP tone="subtle">{intl.formatMessage(messages.empty)}</TypographyP>
-      ) : null}
-
-      {reports.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <TypographyP size="small" weight="medium">
-            <FormattedMessage {...messages.history} />
-          </TypographyP>
-          <div className="flex flex-wrap gap-2">
-            {reports.map((report) => {
-              const selected = report.id === selectedReport?.id;
-              return (
-                <Button
-                  key={report.id}
-                  type="button"
-                  size="sm"
-                  variant={selected ? "secondary" : "outline"}
-                  className="rounded-full"
-                  onClick={() => setSelectedRunId(report.id)}
-                >
-                  {intl.formatDate(report.createdAt, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
-                  {" · "}
-                  {intl.formatMessage(
-                    report.trigger === "scheduled"
-                      ? messages.triggerScheduled
-                      : messages.triggerManual,
-                  )}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-
-      {selectedReport ? (
-        <div className="flex flex-wrap gap-3">
-          <Select
-            value={locale}
-            onValueChange={(value) => {
-              if (value) {
-                setLocale(value);
-              }
-            }}
-          >
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder={intl.formatMessage(messages.allLocales)} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" label={intl.formatMessage(messages.allLocales)}>
-                {intl.formatMessage(messages.allLocales)}
-              </SelectItem>
-              {locales.map((value) => (
-                <SelectItem key={value} value={value} label={value}>
-                  {value}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={checkType}
-            onValueChange={(value) => {
-              if (value) {
-                setCheckType(value);
-              }
-            }}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder={intl.formatMessage(messages.allChecks)} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" label={intl.formatMessage(messages.allChecks)}>
-                {intl.formatMessage(messages.allChecks)}
-              </SelectItem>
-              {translationQaCheckTypes.map((value) => (
-                <SelectItem key={value} value={value} label={value}>
-                  {value}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ) : null}
-
-      {detailQuery.isSuccess && findings.length === 0 ? (
-        <TypographyP tone="subtle">
-          {intl.formatMessage(
-            selectedReport?.status === "running" || selectedReport?.status === "queued"
-              ? messages.scanInProgress
-              : messages.noFindings,
-          )}
-        </TypographyP>
-      ) : null}
-
-      {findings.length > 0 ? (
-        <QaFindingsTable
-          organizationSlug={organizationSlug}
-          findings={findings.map((finding) => ({ ...finding, projectId }))}
-          total={findingsTotal}
-          shownCount={findings.length}
-          canPromote={canPromoteActiveReport}
-          promoteScope="project"
-          projectId={projectId}
-          hasMore={detailQuery.hasNextPage}
-          isLoadingMore={detailQuery.isFetchingNextPage}
-          onLoadMore={() => {
-            void detailQuery.fetchNextPage();
-          }}
+      {list.isError ? (
+        <QaNotice
+          message={intl.formatMessage(unsupported ? messages.unsupported : m.loadError)}
+          onRetry={
+            unsupported
+              ? undefined
+              : () => {
+                  void list.refetch();
+                }
+          }
         />
       ) : null}
+      {start.isError ? (
+        <QaNotice message={intl.formatMessage(messages.runError)} onRetry={() => start.mutate()} />
+      ) : null}
+      {list.isSuccess ? (
+        <Tabs value={tab} onValueChange={(value) => setTab(String(value))} className="gap-6">
+          <TabsList variant="line">
+            <TabsTrigger value="findings">{intl.formatMessage(m.findings)}</TabsTrigger>
+            <TabsTrigger value="settings">{intl.formatMessage(m.settings)}</TabsTrigger>
+            <TabsTrigger value="history">{intl.formatMessage(m.history)}</TabsTrigger>
+          </TabsList>
+          <TabsContent value="findings" className="flex flex-col gap-5">
+            {selectedRunId && report?.id !== reports[0]?.id ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm">{intl.formatMessage(m.older)}</p>
+                <Button variant="outline" size="sm" onClick={() => setSelectedRunId(null)}>
+                  {intl.formatMessage(m.latest)}
+                </Button>
+              </div>
+            ) : null}
+            <QaRunStatus
+              report={report}
+              onRetry={settings?.canRun && !running ? () => start.mutate() : undefined}
+            />
+            {report?.status === "succeeded" ? (
+              <>
+                <p className="text-xs text-muted-foreground">{intl.formatMessage(m.snapshot)}</p>
+                <div className="flex flex-wrap items-end gap-3">
+                  <QaFilter
+                    label={intl.formatMessage(m.language)}
+                    value={locale}
+                    onChange={setLocale}
+                    options={[
+                      all,
+                      ...Object.keys(report.summary.byLocale).map((value) => ({
+                        value,
+                        label: value,
+                      })),
+                    ]}
+                  />
+                  <QaFilter
+                    label={intl.formatMessage(m.check)}
+                    value={checkType}
+                    onChange={setCheckType}
+                    options={[
+                      all,
+                      ...translationQaCheckTypes.map((value) => ({
+                        value,
+                        label: qaCheckLabel(value, intl),
+                      })),
+                    ]}
+                  />
+                  <QaFilter
+                    label={intl.formatMessage(m.severity)}
+                    value={severity}
+                    onChange={setSeverity}
+                    options={[
+                      all,
+                      ...(["error", "warning"] as const).map((value) => ({
+                        value,
+                        label: intl.formatMessage(m[value]),
+                      })),
+                    ]}
+                  />
+                  <QaFilter
+                    label={intl.formatMessage(m.status)}
+                    value={status}
+                    onChange={setStatus}
+                    options={[
+                      all,
+                      ...(["open", "ignored", "resolved"] as const).map((value) => ({
+                        value,
+                        label: intl.formatMessage(m[value]),
+                      })),
+                    ]}
+                  />
+                </div>
+                {detail.isPending ? (
+                  <Skeleton className="h-40 w-full" aria-label={intl.formatMessage(m.loading)} />
+                ) : null}
+                {detail.isError ? (
+                  <QaNotice
+                    message={intl.formatMessage(m.loadError)}
+                    onRetry={() => {
+                      void detail.refetch();
+                    }}
+                  />
+                ) : null}
+                {detail.isSuccess && findings.length === 0 ? (
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm">
+                      {intl.formatMessage(
+                        report.findingCount === 0 && !filtered ? m.clean : m.noMatches,
+                      )}
+                    </p>
+                    {filtered ? (
+                      <Button variant="outline" size="sm" onClick={resetFilters}>
+                        {intl.formatMessage(m.clearFilters)}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+                {findings.length ? (
+                  <QaFindingsTable
+                    key={`${report.id}-${locale}-${checkType}-${severity}-${status}`}
+                    organizationSlug={organizationSlug}
+                    projectId={projectId}
+                    findings={findings}
+                    total={detail.data?.pages[0]?.total ?? 0}
+                    shownCount={findings.length}
+                    canPromote={canReview}
+                    promoteScope="project"
+                    hasMore={detail.hasNextPage}
+                    isLoadingMore={detail.isFetchingNextPage}
+                    onLoadMore={() => {
+                      void detail.fetchNextPage();
+                    }}
+                  />
+                ) : null}
+              </>
+            ) : null}
+          </TabsContent>
+          <TabsContent value="settings" className="flex flex-col gap-6">
+            <Field>
+              <FieldLabel htmlFor="qa-daily">{intl.formatMessage(messages.schedule)}</FieldLabel>
+              <Switch
+                id="qa-daily"
+                checked={settings?.cadence === "daily"}
+                disabled={!settings?.canManageSchedule || settingsMutation.isPending}
+                onCheckedChange={(checked) =>
+                  settingsMutation.mutate({ cadence: checked ? "daily" : "off" })
+                }
+              />
+              <FieldDescription>{intl.formatMessage(messages.scheduleHelp)}</FieldDescription>
+            </Field>
+            {settingsMutation.isError ? (
+              <QaNotice message={intl.formatMessage(m.policyError)} />
+            ) : null}
+            <div className="flex max-w-2xl flex-col gap-3">
+              <h3 className="text-sm font-medium">{intl.formatMessage(m.coverage)}</h3>
+              <p className="text-sm text-muted-foreground">{intl.formatMessage(m.coverageHelp)}</p>
+              <p className="text-xs text-muted-foreground">
+                {intl.formatMessage(m.warningBehavior)}
+              </p>
+              <p className="text-xs text-muted-foreground">{intl.formatMessage(m.errorBehavior)}</p>
+              <div className="flex flex-col divide-y divide-border">
+                {translationQaCheckTypes.map((check) => (
+                  <div
+                    key={check}
+                    className="flex flex-wrap items-center justify-between gap-3 py-3"
+                  >
+                    <Field className="w-auto">
+                      <FieldLabel htmlFor={`qa-rule-${check}`}>
+                        {qaCheckLabel(check, intl)}
+                      </FieldLabel>
+                      <Switch
+                        id={`qa-rule-${check}`}
+                        checked={policy[check].enabled}
+                        disabled={!settings?.canManageSchedule || settingsMutation.isPending}
+                        aria-label={intl.formatMessage(m.enableCheck, {
+                          check: qaCheckLabel(check, intl),
+                        })}
+                        onCheckedChange={(enabled) => updateRule(check, { enabled })}
+                      />
+                    </Field>
+                    <QaFilter
+                      label={intl.formatMessage(m.severity)}
+                      value={policy[check].severity}
+                      onChange={(severity) =>
+                        updateRule(check, { severity: severity as "error" | "warning" })
+                      }
+                      options={(["error", "warning"] as const).map((value) => ({
+                        value,
+                        label: intl.formatMessage(m[value]),
+                      }))}
+                    />
+                  </div>
+                ))}
+              </div>
+              <Button
+                className="w-fit"
+                size="sm"
+                disabled={
+                  !draftPolicy || settingsMutation.isPending || !settings?.canManageSchedule
+                }
+                onClick={() => settingsMutation.mutate({ checks: policy })}
+              >
+                {intl.formatMessage(m.savePolicy)}
+              </Button>
+              {settingsMutation.isSuccess && !draftPolicy ? (
+                <p className="text-sm">{intl.formatMessage(m.policySaved)}</p>
+              ) : null}
+            </div>
+          </TabsContent>
+          <TabsContent value="history" className="flex flex-col gap-3">
+            {reports.length === 0 ? <QaNotice message={intl.formatMessage(m.notScanned)} /> : null}
+            {reports.map((row) => (
+              <div
+                key={row.id}
+                className="flex flex-wrap items-center justify-between gap-3 border-b border-border py-3"
+              >
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm">
+                    {intl.formatDate(row.createdAt, { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {intl.formatMessage(
+                      row.trigger === "scheduled"
+                        ? messages.triggerScheduled
+                        : messages.triggerManual,
+                    )}
+                  </p>
+                  <QaRunStatus report={row} />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedRunId(row.id);
+                    resetFilters();
+                    setTab("findings");
+                  }}
+                >
+                  {intl.formatMessage(m.findings)}
+                </Button>
+              </div>
+            ))}
+          </TabsContent>
+        </Tabs>
+      ) : null}
     </ProjectPageShell>
-  );
-}
-
-function isQaCheckType(value: string): value is TranslationQaCheckType {
-  return (translationQaCheckTypes as readonly string[]).includes(value);
-}
-
-function isUnsupportedQaError(error: unknown) {
-  return error instanceof Error && "code" in error && error.code === "unsupported";
-}
-
-function normalizeQaError(error: unknown, fallback: string) {
-  const normalized = new Error(goSvcErrorMessage(error, fallback), { cause: error });
-  if (error instanceof GoSvcClientError && error.code === "qa_scan_not_supported") {
-    Object.assign(normalized, { code: "unsupported" });
-  }
-  return normalized;
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <Card className="rounded-xl border-border bg-muted py-0 ring-0">
-      <CardContent className="px-4 py-4">
-        <TypographyP size="xsmall" tone="subtle">
-          {label}
-        </TypographyP>
-        <TypographyP size="small" weight="medium">
-          {value}
-        </TypographyP>
-      </CardContent>
-    </Card>
   );
 }

@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { QA_MODES } from "@/lib/qa/check-catalogue";
+import { applyEditorQaPolicy, DEFAULT_QA_POLICY, type QaCheckPolicy } from "@/lib/qa/qa-policy";
 import { createContentEditorRequestScheduler } from "@/components/content-editor/shared/content-editor-request-scheduler";
 import { z } from "zod";
 
@@ -53,13 +55,7 @@ const contentEditorSegmentValidationResponseSchema = z.object({
 
 export const CAT_SEGMENT_SPELLING_MODE = "spelling" as const;
 
-export const CAT_SEGMENT_QA_MODES = [
-  "not_localized",
-  "whitespace_only",
-  "same_as_source",
-  "escaped_char_mismatch",
-  CAT_SEGMENT_SPELLING_MODE,
-] as const;
+export const CAT_SEGMENT_QA_MODES = QA_MODES;
 
 export function isBcp47LanguageTag(value: string): boolean {
   if (!value) {
@@ -93,6 +89,7 @@ export async function fetchCatSegmentValidation(
     acceptedWords?: readonly string[];
     signal?: AbortSignal;
     intl: ContentEditorFormatMessageIntl;
+    policy?: QaCheckPolicy;
   },
   goSvcClient: GoSvcClient,
 ): Promise<Result<ContentEditorFormatCheck[], ContentEditorSegmentValidationError>> {
@@ -105,10 +102,12 @@ export async function fetchCatSegmentValidation(
   );
   const targetLocale = input.targetLocale.trim();
   const canRequestSpelling = isBcp47LanguageTag(targetLocale);
+  const modePolicy = input.policy ?? DEFAULT_QA_POLICY;
+  const availableModes = CAT_SEGMENT_QA_MODES.filter((mode) => modePolicy[mode].enabled);
   const modes =
     canRequestSpelling && CAT_SEGMENT_SPELLING_ENABLED
-      ? CAT_SEGMENT_QA_MODES
-      : CAT_SEGMENT_QA_MODES.filter((mode) => mode !== CAT_SEGMENT_SPELLING_MODE);
+      ? availableModes
+      : availableModes.filter((mode) => mode !== CAT_SEGMENT_SPELLING_MODE);
 
   const responseResult = await fromThrowableAsync(
     scheduleValidation(
@@ -175,5 +174,5 @@ export async function fetchCatSegmentValidation(
     (check) => !(skippedModes.has(CAT_SEGMENT_SPELLING_MODE) && check.category === "spelling"),
   );
 
-  return ok(checks);
+  return ok(input.policy ? applyEditorQaPolicy(checks, input.policy) : checks);
 }

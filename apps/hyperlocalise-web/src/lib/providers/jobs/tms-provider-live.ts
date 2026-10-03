@@ -12,6 +12,7 @@
  */
 import { openJobStatusValues } from "@/api/routes/project/job.schema";
 import { createLogger } from "@/lib/log";
+import { DEFAULT_QA_POLICY } from "@/lib/qa/qa-policy";
 import * as schema from "@/lib/database/schema";
 import type {
   ProjectFileContentEditorComment,
@@ -669,6 +670,7 @@ function buildLiveProviderProject(input: {
     automaticallyGroupIdenticalStrings: false,
     contentEditorGroupingRevision: 0,
     qaScanCadence: "off",
+    qaCheckPolicy: DEFAULT_QA_POLICY,
     qaScanLastRunAt: null,
     createdAt: now,
     updatedAt: now,
