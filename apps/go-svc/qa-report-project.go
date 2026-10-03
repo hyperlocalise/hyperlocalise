@@ -151,6 +151,29 @@ func (api *qaReportAPI) listProjectQaReports(ctx context.Context, actor qaReport
 	}, 200, nil
 }
 
+func (api *qaReportAPI) lastSuccessfulProjectQaRun(ctx context.Context, organizationID, projectID string, beforeRunID uuid.UUID) (any, error) {
+	var row qaRunRow
+	err := api.pool.QueryRow(ctx, `
+        select id, project_id, trigger, status, segment_count, finding_count, error_count, warning_count,
+               summary, error_code, error_message, started_at, completed_at, created_at
+        from translation_qa_runs
+        where organization_id = $1 and project_id = $2 and status = 'succeeded'
+          and created_at <= (select created_at from translation_qa_runs where organization_id = $1 and project_id = $2 and id = $3)
+        order by created_at desc
+        limit 1`, organizationID, projectID, beforeRunID).Scan(
+		&row.ID, &row.ProjectID, &row.Trigger, &row.Status, &row.SegmentCount, &row.FindingCount,
+		&row.ErrorCount, &row.WarningCount, &row.SummaryRaw, &row.ErrorCode, &row.ErrorMessage,
+		&row.StartedAt, &row.CompletedAt, &row.CreatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return serializeQaRunRow(row), nil
+}
+
 func (api *qaReportAPI) getTranslationQaRun(ctx context.Context, organizationID, projectID string, runID uuid.UUID) (qaRunRow, error) {
 	var row qaRunRow
 	err := api.pool.QueryRow(ctx, `

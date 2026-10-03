@@ -25,6 +25,7 @@ type RunStatusReport = Pick<
   | "status"
   | "trigger"
   | "createdAt"
+  | "startedAt"
   | "completedAt"
   | "segmentCount"
   | "errorCount"
@@ -72,7 +73,7 @@ function QaFailureStatus({
       </div>
     );
   }
-  const attemptedAt = report.completedAt ?? report.createdAt;
+  const attemptedAt = report.startedAt ?? report.createdAt;
   return (
     <section
       role="alert"

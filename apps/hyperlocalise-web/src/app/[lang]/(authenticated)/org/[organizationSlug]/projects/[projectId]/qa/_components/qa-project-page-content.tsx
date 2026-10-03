@@ -66,9 +66,12 @@ export function QaProjectPageContent({
   });
   const reports = list.data?.reports ?? [];
   const report = reports.find((row) => row.id === selectedRunId) ?? reports[0];
-  const lastSuccessfulReport = reports.find(
-    (row) => row.status === "succeeded" && (!report || row.createdAt <= report.createdAt),
-  );
+  const lastSuccessful = useQuery({
+    queryKey: [...listKey, "last-successful", report?.id],
+    queryFn: () => api.getLastSuccessful({ param, beforeRunId: report!.id }),
+    enabled: report?.status === "failed",
+  });
+  const lastSuccessfulReport = lastSuccessful.data;
   const running = reports.some((row) => ["running", "queued"].includes(row.status));
   const settings = list.data?.settings;
   const detail = useInfiniteQuery({
@@ -116,6 +119,11 @@ export function QaProjectPageContent({
       setSelectedRunId(null);
       setTab("findings");
       await queryClient.invalidateQueries({ queryKey: listKey });
+    },
+    onError: async (error) => {
+      if (error.message === "qa_scan_in_progress") {
+        await queryClient.invalidateQueries({ queryKey: listKey });
+      }
     },
   });
   const settingsMutation = useMutation({

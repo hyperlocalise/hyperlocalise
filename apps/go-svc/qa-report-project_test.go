@@ -55,3 +55,26 @@ func TestWorkspaceQaReportExposesSafeFailureAndLastSuccess(t *testing.T) {
 	require.Contains(t, projectRec.Body.String(), "qa_scan_processing_failed")
 	require.NotContains(t, projectRec.Body.String(), "private source text")
 }
+
+func TestProjectQaReportFindsLastSuccessBeyondHistoryLimit(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	succeededID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)
+	_, err := scope.Pool.Exec(t.Context(), `update translation_qa_runs set created_at=now() - interval '1 day' where id=$1`, succeededID)
+	require.NoError(t, err)
+
+	var latestFailedID string
+	for i := range 21 {
+		latestFailedID = mustQaRun(t, scope, scope.ProjectID, "failed", 0, 0, 0)
+		_, err = scope.Pool.Exec(t.Context(), `update translation_qa_runs set created_at=now() + ($2 * interval '1 second') where id=$1`, latestFailedID, i)
+		require.NoError(t, err)
+	}
+
+	path := scope.OrgPath("/projects/" + scope.ProjectID + "/qa-reports/last-successful?beforeRunId=" + latestFailedID)
+	rec := qaReportRequest(api, scope, http.MethodGet, path, "")
+	require.Equal(t, http.StatusOK, rec.Code)
+	var response struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	require.Equal(t, succeededID, response.ID)
+}
