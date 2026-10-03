@@ -45,7 +45,7 @@ function LinkedIssuesStoryHost({
   return (
     <div className="flex min-h-[28rem] items-start justify-center bg-background p-8 text-foreground">
       <Button type="button" onClick={() => setOpen(true)}>
-        Open linked issues
+        Open queries
       </Button>
       <ContentEditorLinkedIssuesDialog
         open={open}
@@ -81,13 +81,13 @@ export const WithLinkedIssues: Story = {
   },
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await expect(body.getByText("Linked issues")).toBeInTheDocument();
+    await expect(body.getByText("Queries")).toBeInTheDocument();
     await waitFor(() =>
       expect(body.getByText("Context needed: home.cta.save")).toBeInTheDocument(),
     );
     await expect(body.getByText("Source wording feels ambiguous")).toBeInTheDocument();
-    await expect(body.getByRole("button", { name: "Create issue" })).toBeInTheDocument();
-    await expect(body.getByRole("button", { name: "Link existing" })).toBeInTheDocument();
+    await expect(body.getByRole("button", { name: "Create query" })).toBeInTheDocument();
+    await expect(body.getByRole("button", { name: "Link existing query" })).toBeInTheDocument();
     await expect(body.getAllByRole("button", { name: "Unlink" })).toHaveLength(2);
   },
 };
@@ -101,10 +101,10 @@ export const Empty: Story = {
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     await waitFor(() =>
-      expect(body.getByText("No issues linked to this string yet.")).toBeInTheDocument(),
+      expect(body.getByText("No queries linked to this string yet.")).toBeInTheDocument(),
     );
-    await expect(body.getByRole("button", { name: "Create issue" })).toBeInTheDocument();
-    await expect(body.getByRole("button", { name: "Link existing" })).toBeInTheDocument();
+    await expect(body.getByRole("button", { name: "Create query" })).toBeInTheDocument();
+    await expect(body.getByRole("button", { name: "Link existing query" })).toBeInTheDocument();
   },
 };
 
@@ -119,10 +119,14 @@ export const LinkingUnavailable: Story = {
   },
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await expect(body.getByText("Linked issues")).toBeInTheDocument();
-    await expect(body.getByText("Linking requires a native project string.")).toBeInTheDocument();
-    await expect(body.getByRole("button", { name: "Create issue" })).toBeInTheDocument();
-    await expect(body.queryByRole("button", { name: "Link existing" })).not.toBeInTheDocument();
+    await expect(body.getByText("Queries")).toBeInTheDocument();
+    await expect(
+      body.getByText("Linking queries requires a native project string."),
+    ).toBeInTheDocument();
+    await expect(body.getByRole("button", { name: "Create query" })).toBeInTheDocument();
+    await expect(
+      body.queryByRole("button", { name: "Link existing query" }),
+    ).not.toBeInTheDocument();
   },
 };
 
@@ -134,8 +138,8 @@ export const Loading: Story = {
   },
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await expect(body.getByText("Linked issues")).toBeInTheDocument();
-    await expect(body.getByRole("button", { name: "Create issue" })).toBeInTheDocument();
+    await expect(body.getByText("Queries")).toBeInTheDocument();
+    await expect(body.getByRole("button", { name: "Create query" })).toBeInTheDocument();
     await expect(body.getByRole("status")).toBeInTheDocument();
   },
 };
@@ -149,7 +153,7 @@ export const Error: Story = {
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     await waitFor(() =>
-      expect(body.getByText("Linked issues could not be loaded.")).toBeInTheDocument(),
+      expect(body.getByText("Linked queries could not be loaded.")).toBeInTheDocument(),
     );
   },
 };
@@ -163,10 +167,10 @@ export const CreateFromString: Story = {
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     await waitFor(() =>
-      expect(body.getByText("No issues linked to this string yet.")).toBeInTheDocument(),
+      expect(body.getByText("No queries linked to this string yet.")).toBeInTheDocument(),
     );
 
-    await userEvent.click(body.getByRole("button", { name: "Create issue" }));
+    await userEvent.click(body.getByRole("button", { name: "Create query" }));
     await waitFor(() => expect(body.getByLabelText("Title")).toBeInTheDocument());
     await expect(body.getByDisplayValue(/Context needed: home.cta.save/i)).toBeInTheDocument();
   },

@@ -35,6 +35,10 @@ function renderEditor(
   return { onSave };
 }
 
+function openEditor() {
+  fireEvent.click(screen.getByRole("button", { name: "Set character limit" }));
+}
+
 describe("parseMaxLengthDraft", () => {
   it("accepts whole numbers within the supported range", () => {
     expect(parseMaxLengthDraft("32")).toBe(32);
@@ -55,10 +59,21 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
 
     expect(screen.getByText("Limit: 24 characters")).toBeTruthy();
     expect(screen.queryByRole("spinbutton")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Set character limit" })).toBeNull();
   });
 
-  it("keeps an input visible when no limit is set", () => {
+  it("shows a pencil next to the current limit", () => {
     renderEditor({ maxLength: undefined });
+
+    expect(screen.getByText("No limit")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Set character limit" })).toBeTruthy();
+    expect(screen.queryByRole("spinbutton")).toBeNull();
+  });
+
+  it("opens an input when the pencil is clicked", () => {
+    renderEditor({ maxLength: undefined });
+
+    openEditor();
 
     expect(screen.getByRole("spinbutton", { name: "Character limit" })).toHaveValue(null);
     expect(screen.getByPlaceholderText("e.g. 32")).toBeTruthy();
@@ -67,6 +82,7 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
   it("saves a new max length from the Save button", async () => {
     const { onSave } = renderEditor({ maxLength: 80 });
 
+    openEditor();
     fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "32" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
@@ -77,18 +93,21 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
 
   it("saves on blur and Enter", async () => {
     const { onSave } = renderEditor({ maxLength: undefined });
-    const input = screen.getByRole("spinbutton");
 
-    fireEvent.change(input, { target: { value: "24" } });
-    fireEvent.blur(input);
+    openEditor();
+    const firstInput = screen.getByRole("spinbutton");
+    fireEvent.change(firstInput, { target: { value: "24" } });
+    fireEvent.blur(firstInput);
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(24);
     });
 
     onSave.mockClear();
-    fireEvent.change(input, { target: { value: "40" } });
-    fireEvent.keyDown(input, { key: "Enter" });
+    openEditor();
+    const secondInput = screen.getByRole("spinbutton");
+    fireEvent.change(secondInput, { target: { value: "40" } });
+    fireEvent.keyDown(secondInput, { key: "Enter" });
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(40);
@@ -98,6 +117,7 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
   it("rejects decimal and scientific-notation drafts", async () => {
     const { onSave } = renderEditor({ maxLength: 80 });
 
+    openEditor();
     fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "12.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
@@ -113,6 +133,7 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
       </IntlProvider>,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Set character limit" }));
     fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "32" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
@@ -125,6 +146,7 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
   it("clears the max length", async () => {
     const { onSave } = renderEditor({ maxLength: 80 });
 
+    openEditor();
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
 
     await waitFor(() => {
@@ -134,6 +156,7 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
 
   it("clears an edited draft without saving the typed limit first", async () => {
     const { onSave } = renderEditor({ maxLength: 80 });
+    openEditor();
     const input = screen.getByRole("spinbutton");
     const clear = screen.getByRole("button", { name: "Clear" });
 
@@ -150,7 +173,7 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
 
   it("still saves after Clear when the input was not focused", async () => {
     const { onSave } = renderEditor({ maxLength: 80 });
-    const input = screen.getByRole("spinbutton");
+    openEditor();
     const clear = screen.getByRole("button", { name: "Clear" });
 
     fireEvent.pointerDown(clear);
@@ -161,6 +184,8 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
     });
     onSave.mockClear();
 
+    openEditor();
+    const input = screen.getByRole("spinbutton");
     fireEvent.change(input, { target: { value: "32" } });
     fireEvent.blur(input);
 
@@ -169,9 +194,27 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
     });
   });
 
-  it("shows how many characters are already used", () => {
+  it("shows a meter that flags translations over the limit", () => {
     renderEditor({ maxLength: 20, characterCount: 28 });
 
-    expect(screen.getByText("28 used")).toBeTruthy();
+    expect(screen.getByText("28 / 20 characters")).toBeTruthy();
+    expect(screen.getByText("8 over limit")).toBeTruthy();
+    expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "20");
+  });
+
+  it("shows a meter within the limit", () => {
+    renderEditor({ maxLength: 32, characterCount: 17 });
+
+    expect(screen.getByText("17 / 32 characters")).toBeTruthy();
+    expect(screen.getByText("Within limit")).toBeTruthy();
+    expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "17");
+  });
+
+  it("shows the character count and no limit without a meter", () => {
+    renderEditor({ maxLength: undefined, characterCount: 59 });
+
+    expect(screen.getByText("59 characters")).toBeTruthy();
+    expect(screen.getByText("No limit")).toBeTruthy();
+    expect(screen.queryByRole("meter")).toBeNull();
   });
 });

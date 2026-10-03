@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -105,6 +105,36 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
     expect(screen.queryByRole("button", { name: /Find context/i })).not.toBeInTheDocument();
   });
 
+  it("puts translation memory before character limit and shows a pencil", () => {
+    renderIntelligencePanel({
+      showMaxLengthEditor: true,
+      onSetMaxLength: vi.fn(),
+    });
+
+    const tmHeading = screen.getByRole("heading", { name: "Translation memory" });
+    const limitHeading = screen.getByRole("heading", { name: "Character limit" });
+    expect(tmHeading.compareDocumentPosition(limitHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(screen.getByRole("button", { name: "Set character limit" })).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: "Character limit" })).not.toBeInTheDocument();
+  });
+
+  it("collapses translation memory to two matches behind a show more button", async () => {
+    const user = userEvent.setup();
+    const onUseTmMatch = vi.fn();
+
+    renderIntelligencePanel({ onUseTmMatch });
+
+    expect(screen.getAllByRole("button", { name: "Use" })).toHaveLength(2);
+    await user.click(screen.getByRole("button", { name: /Show 1 more match/i }));
+
+    expect(screen.getAllByRole("button", { name: "Use" })).toHaveLength(3);
+    await user.click(screen.getByRole("button", { name: /Show fewer matches/i }));
+
+    expect(screen.getAllByRole("button", { name: "Use" })).toHaveLength(2);
+  });
+
   it("lets reviewers set a character limit", async () => {
     const user = userEvent.setup();
     const onSetMaxLength = vi.fn().mockResolvedValue(undefined);
@@ -114,6 +144,7 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
       onSetMaxLength,
     });
 
+    await user.click(screen.getByRole("button", { name: "Set character limit" }));
     const input = screen.getByRole("spinbutton", { name: "Character limit" });
     await user.clear(input);
     await user.type(input, "32");
@@ -124,7 +155,51 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
     });
   });
 
-  it("shows QA details in the sidebar", () => {
+  it("shows translation intelligence on the details tab", () => {
+    renderIntelligencePanel();
+
+    expect(screen.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "Translation Intelligence" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Find context/i })).toBeInTheDocument();
+    expect(screen.queryByText("Source text")).not.toBeInTheDocument();
+  });
+
+  it("shows a comment count on the Comments tab", () => {
+    const segment = createContentEditorWorkspaceState({
+      selectedSegmentId: "seg-02",
+    }).segments!.find((item) => item.id === "seg-02")!;
+
+    renderIntelligencePanel({
+      segment: {
+        ...segment,
+        comments: [
+          {
+            id: "comment-1",
+            type: "comment",
+            status: null,
+            text: "Keep this card short on mobile.",
+            createdAt: "2026-06-10T09:15:00.000Z",
+            locale: "vi",
+            author: "Alex Reviewer",
+          },
+          {
+            id: "comment-2",
+            type: "comment",
+            status: null,
+            text: "“Review” means approval, not a rating.",
+            createdAt: "2026-06-11T14:30:00.000Z",
+            locale: "vi",
+            author: "Mina Translator",
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByRole("tab", { name: /Comments/i })).toHaveTextContent("2");
+  });
+
+  it("shows QA details on the QA checks tab with an issue count", async () => {
+    const user = userEvent.setup();
     renderIntelligencePanel({
       formatChecks: [
         {
@@ -138,18 +213,28 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
       ],
     });
 
+    const qaTab = screen.getByRole("tab", { name: /QA checks/i });
+    expect(qaTab).toHaveTextContent("1");
+    expect(screen.queryByText("Spelling")).not.toBeInTheDocument();
+
+    await user.click(qaTab);
+
     expect(screen.getByText(/Format & QA checks/i)).toBeInTheDocument();
     expect(screen.getByText("Spelling")).toBeInTheDocument();
   });
 
-  it("keeps the empty comments composer inside a scrollable height limit", () => {
+  it("keeps the comments composer in its own scrollable tab", async () => {
+    const user = userEvent.setup();
     renderIntelligencePanel({ canAddComment: true });
 
+    await user.click(screen.getByRole("tab", { name: /Comments/i }));
+
     const commentsSection = document.querySelector("[data-inspector-comments]");
-    expect(commentsSection).toHaveClass("max-h-[40%]", "overflow-y-auto", "shrink-0");
+    expect(commentsSection).toHaveClass("overflow-y-auto");
   });
 
-  it("keeps a long QA list scrollable inside the sidebar", () => {
+  it("keeps a long QA list scrollable inside the sidebar", async () => {
+    const user = userEvent.setup();
     renderIntelligencePanel({
       formatChecks: Array.from({ length: 12 }, (_, index) => ({
         id: `qa-check-${index}`,
@@ -160,16 +245,15 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
       })),
     });
 
+    await user.click(screen.getByRole("tab", { name: /QA checks/i }));
+
     const qaSection = document.querySelector("[data-qa-details]");
-    expect(qaSection).toHaveClass("max-h-[40%]", "overflow-y-auto");
+    expect(qaSection).toHaveClass("overflow-y-auto");
     expect(screen.getByText("Check 1")).toBeInTheDocument();
     expect(screen.getByText("Check 12")).toBeInTheDocument();
   });
 
-  it("scrolls the QA section when the workspace UI store reveals details", async () => {
-    const scrollIntoView = vi.fn();
-    HTMLElement.prototype.scrollIntoView = scrollIntoView;
-
+  it("switches to the QA checks tab when the workspace UI store reveals details", async () => {
     const { workspace } = renderIntelligencePanel({
       formatChecks: [
         {
@@ -183,12 +267,16 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
       ],
     });
 
-    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(screen.queryByText("Spelling")).not.toBeInTheDocument();
 
-    workspace.ui.revealQaDetails();
+    act(() => workspace.ui.revealQaDetails());
 
     await waitFor(() => {
-      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+      expect(screen.getByRole("tab", { name: /QA checks/i })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
     });
+    expect(screen.getByText("Spelling")).toBeInTheDocument();
   });
 });

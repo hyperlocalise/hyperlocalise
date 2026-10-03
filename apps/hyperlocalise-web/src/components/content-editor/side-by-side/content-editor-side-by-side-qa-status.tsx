@@ -21,6 +21,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/typography";
 
 import { ContentEditorFormatCheckStatusIcon } from "@/components/content-editor/editor/content-editor-format-check-status-icon";
+import { formatCheckStatusClass } from "@/components/content-editor/segment/content-editor-tone";
 import { contentEditorSideBySidePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
 
@@ -82,7 +83,12 @@ export function ContentEditorSideBySideQaStatus({
       <Box display="inline-flex" alignItems="center" gap="0.5u">
         <ContentEditorFormatCheckStatusIcon status={status ?? "pass"} className="size-3" />
         {status ? (
-          <Text size="xsmall" weight="medium" tagName="span">
+          <Text
+            size="xsmall"
+            weight="medium"
+            tagName="span"
+            className={formatCheckStatusClass(status)}
+          >
             {issues.length}
           </Text>
         ) : null}

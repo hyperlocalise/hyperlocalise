@@ -61,7 +61,7 @@ describe("ContentEditorEditorCommentsSection", () => {
       onOpenIssueSheet: vi.fn(),
     });
 
-    expect(screen.getByRole("button", { name: "Queries" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Manage queries" })).toBeInTheDocument();
   });
 
   it("shows the Issue Sheet CTA when the Issue tab is selected", async () => {
@@ -71,11 +71,11 @@ describe("ContentEditorEditorCommentsSection", () => {
       onOpenIssueSheet: vi.fn(),
     });
 
-    expect(screen.queryByRole("button", { name: "Queries" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Manage queries" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "Issue" }));
 
-    expect(screen.getByRole("button", { name: "Queries" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Manage queries" })).toBeInTheDocument();
   });
 
   it("hides the Issue Sheet CTA on the Comment tab when there are no issue comments", () => {
@@ -86,7 +86,7 @@ describe("ContentEditorEditorCommentsSection", () => {
       onOpenIssueSheet: vi.fn(),
     });
 
-    expect(screen.queryByRole("button", { name: "Queries" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Manage queries" })).not.toBeInTheDocument();
   });
 
   it("hides the Issue Sheet CTA when no handler is provided", () => {
@@ -96,7 +96,7 @@ describe("ContentEditorEditorCommentsSection", () => {
       }),
     });
 
-    expect(screen.queryByRole("button", { name: "Queries" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Manage queries" })).not.toBeInTheDocument();
   });
 
   it("hides the Issue Sheet CTA when issue comments are unsupported", () => {
@@ -108,7 +108,7 @@ describe("ContentEditorEditorCommentsSection", () => {
       onOpenIssueSheet: vi.fn(),
     });
 
-    expect(screen.queryByRole("button", { name: "Queries" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Manage queries" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Issue" })).not.toBeInTheDocument();
   });
 
@@ -123,7 +123,7 @@ describe("ContentEditorEditorCommentsSection", () => {
       onOpenIssueSheet,
     });
 
-    await user.click(screen.getByRole("button", { name: "Queries" }));
+    await user.click(screen.getByRole("button", { name: "Manage queries" }));
 
     expect(onOpenIssueSheet).toHaveBeenCalledTimes(1);
   });
@@ -137,7 +137,7 @@ describe("ContentEditorEditorCommentsSection", () => {
       onOpenIssueSheet: vi.fn(),
     });
 
-    expect(screen.getByRole("button", { name: "Queries" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Manage queries" })).toBeDisabled();
   });
 
   it("disables the Issue Sheet CTA while resolving an issue", () => {
@@ -150,7 +150,7 @@ describe("ContentEditorEditorCommentsSection", () => {
       onOpenIssueSheet: vi.fn(),
     });
 
-    expect(screen.getByRole("button", { name: "Queries" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Manage queries" })).toBeDisabled();
   });
 
   it("posts a plain comment without issue metadata on the Comment tab", async () => {

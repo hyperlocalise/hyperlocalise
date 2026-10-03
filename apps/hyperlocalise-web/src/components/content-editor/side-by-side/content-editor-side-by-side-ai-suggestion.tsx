@@ -12,13 +12,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { SparklesIcon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Column } from "@/components/ui/layout/column";
 import { Columns } from "@/components/ui/layout/columns";
 import { Row } from "@/components/ui/layout/row";
@@ -36,21 +37,59 @@ function GenerateAiSuggestionButton({
   isLoading?: boolean;
   onClick?: () => void;
 }) {
+  const intl = useIntl();
+  const label = intl.formatMessage(contentEditorEditorPanelMessages.generateAiSuggestion);
+
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="xs"
-      onClick={onClick}
-      disabled={!onClick || isLoading}
-    >
-      {isLoading ? (
-        <Spinner className="size-3" />
-      ) : (
-        <HugeiconsIcon icon={SparklesIcon} className="size-3 text-grove-400" aria-hidden />
-      )}
-      <FormattedMessage {...contentEditorEditorPanelMessages.generateAiSuggestion} />
-    </Button>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={onClick}
+              disabled={!onClick || isLoading}
+              aria-label={label}
+            />
+          }
+        >
+          {isLoading ? (
+            <Spinner className="size-4" />
+          ) : (
+            <HugeiconsIcon icon={SparklesIcon} className="size-4 text-grove-900" aria-hidden />
+          )}
+        </TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function wrapAiSuggestion(
+  trigger: ReactNode,
+  panel: ReactNode,
+  renderToolbar?: (trigger: ReactNode) => ReactNode,
+) {
+  const toolbar = renderToolbar ? renderToolbar(trigger) : trigger;
+  if (!panel && !toolbar) {
+    return null;
+  }
+
+  if (!panel) {
+    return toolbar;
+  }
+
+  if (!toolbar) {
+    return panel;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {panel}
+      {toolbar}
+    </div>
   );
 }
 
@@ -60,12 +99,14 @@ export function ContentEditorSideBySideAiSuggestion({
   error,
   onUseAiSuggestion,
   onGenerateAiRecommendation,
+  renderToolbar,
 }: {
   intelligence: ContentEditorSegmentIntelligence;
   isLoading: boolean;
   error?: string;
   onUseAiSuggestion: () => void;
   onGenerateAiRecommendation?: () => void;
+  renderToolbar?: (trigger: ReactNode) => ReactNode;
 }) {
   const upgradeHref = useAiFeaturesUpgradeHref();
   const [hasRequested, setHasRequested] = useState(false);
@@ -77,21 +118,23 @@ export function ContentEditorSideBySideAiSuggestion({
   }
 
   if (upgradeHref) {
-    return (
+    return wrapAiSuggestion(
       <UpgradePlanButton
         organizationSlug={upgradeHref.organizationSlug}
         variant="ghost"
         size="xs"
-      />
+      />,
+      null,
+      renderToolbar,
     );
   }
 
   if (!isOpen) {
     if (!onGenerateAiRecommendation) {
-      return null;
+      return wrapAiSuggestion(null, null, renderToolbar);
     }
 
-    return (
+    return wrapAiSuggestion(
       <GenerateAiSuggestionButton
         onClick={() => {
           setHasRequested(true);
@@ -99,82 +142,102 @@ export function ContentEditorSideBySideAiSuggestion({
             onGenerateAiRecommendation();
           }
         }}
-      />
+      />,
+      null,
+      renderToolbar,
     );
   }
 
   if (isLoading && !suggestion && !error) {
-    return (
-      <Row spacing="0.5u" alignY="center" aria-busy>
-        <Spinner className="size-3" />
-        <Text size="xsmall" tone="subtle">
-          <FormattedMessage {...contentEditorEditorPanelMessages.generatingAiSuggestion} />
-        </Text>
-      </Row>
+    return wrapAiSuggestion(
+      null,
+      <div className="rounded-lg bg-muted/50 px-2.5 py-2">
+        <Row spacing="0.5u" alignY="center" aria-busy>
+          <Spinner className="size-3" />
+          <Text size="xsmall" tone="subtle">
+            <FormattedMessage {...contentEditorEditorPanelMessages.generatingAiSuggestion} />
+          </Text>
+        </Row>
+      </div>,
+      renderToolbar,
     );
   }
 
   if (error) {
-    return (
-      <Columns spacing="0.5u" alignY="center">
-        <Column width="fluid">
-          <Text size="xsmall" tone="critical" lineClamp={1}>
-            {error}
-          </Text>
-        </Column>
-        {onGenerateAiRecommendation ? (
-          <Column width="content">
-            <Button type="button" variant="ghost" size="xs" onClick={onGenerateAiRecommendation}>
-              <FormattedMessage {...contentEditorEditorPanelMessages.regenerate} />
-            </Button>
+    return wrapAiSuggestion(
+      null,
+      <div className="rounded-lg bg-muted/50 px-2.5 py-2">
+        <Columns spacing="0.5u" alignY="center">
+          <Column width="fluid">
+            <Text size="xsmall" tone="critical" lineClamp={1}>
+              {error}
+            </Text>
           </Column>
-        ) : null}
-      </Columns>
+          {onGenerateAiRecommendation ? (
+            <Column width="content">
+              <Button type="button" variant="ghost" size="xs" onClick={onGenerateAiRecommendation}>
+                <FormattedMessage {...contentEditorEditorPanelMessages.regenerate} />
+              </Button>
+            </Column>
+          ) : null}
+        </Columns>
+      </div>,
+      renderToolbar,
     );
   }
 
   if (!suggestion) {
-    return (
-      <GenerateAiSuggestionButton isLoading={isLoading} onClick={onGenerateAiRecommendation} />
+    return wrapAiSuggestion(
+      <GenerateAiSuggestionButton isLoading={isLoading} onClick={onGenerateAiRecommendation} />,
+      null,
+      renderToolbar,
     );
   }
 
-  return (
-    <Columns spacing="0.5u" alignY="start" aria-busy={isLoading}>
-      <Column width="content">
-        <HugeiconsIcon icon={SparklesIcon} className="size-3 text-grove-400" aria-hidden />
-      </Column>
-      <Column width="fluid">
-        <Text size="xsmall" wrapStyle="pretty" lineClamp={2}>
-          {suggestion}
-        </Text>
-      </Column>
-      <Column width="content">
-        <Row spacing="0.5u" alignY="center">
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            onClick={onUseAiSuggestion}
-            disabled={isLoading}
-          >
-            <HugeiconsIcon icon={Tick02Icon} className="size-3" aria-hidden />
-            <FormattedMessage {...contentEditorEditorPanelMessages.use} />
-          </Button>
-          {onGenerateAiRecommendation ? (
+  return wrapAiSuggestion(
+    null,
+    <div className="rounded-lg bg-muted/50 px-2.5 py-2" aria-busy={isLoading}>
+      <Columns spacing="0.5u" alignY="start">
+        <Column width="content">
+          <HugeiconsIcon
+            icon={SparklesIcon}
+            className="mt-0.5 size-3.5 text-grove-900"
+            aria-hidden
+          />
+        </Column>
+        <Column width="fluid">
+          <Text size="xsmall" wrapStyle="pretty" lineClamp={2}>
+            {suggestion}
+          </Text>
+        </Column>
+        <Column width="content">
+          <Row spacing="0.5u" alignY="center">
             <Button
               type="button"
               variant="ghost"
               size="xs"
-              onClick={onGenerateAiRecommendation}
+              onClick={onUseAiSuggestion}
               disabled={isLoading}
             >
-              {isLoading ? <Spinner className="size-3" /> : null}
-              <FormattedMessage {...contentEditorEditorPanelMessages.regenerate} />
+              <HugeiconsIcon icon={Tick02Icon} className="size-3" aria-hidden />
+              <FormattedMessage {...contentEditorEditorPanelMessages.use} />
             </Button>
-          ) : null}
-        </Row>
-      </Column>
-    </Columns>
+            {onGenerateAiRecommendation ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={onGenerateAiRecommendation}
+                disabled={isLoading}
+              >
+                {isLoading ? <Spinner className="size-3" /> : null}
+                <FormattedMessage {...contentEditorEditorPanelMessages.regenerate} />
+              </Button>
+            ) : null}
+          </Row>
+        </Column>
+      </Columns>
+    </div>,
+    renderToolbar,
   );
 }

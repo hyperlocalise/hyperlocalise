@@ -33,10 +33,14 @@ export function ContentEditorFormatCheckStatusIcon({
 
   switch (status) {
     case "pass":
-      return <HugeiconsIcon icon={CheckmarkCircle02Icon} className={iconClassName} />;
+      return (
+        <HugeiconsIcon icon={CheckmarkCircle02Icon} className={iconClassName} strokeWidth={2} />
+      );
     case "fail":
-      return <HugeiconsIcon icon={AlertCircleIcon} className={iconClassName} />;
+      return <HugeiconsIcon icon={AlertCircleIcon} className={iconClassName} strokeWidth={2} />;
     default:
-      return <HugeiconsIcon icon={InformationCircleIcon} className={iconClassName} />;
+      return (
+        <HugeiconsIcon icon={InformationCircleIcon} className={iconClassName} strokeWidth={2} />
+      );
   }
 }

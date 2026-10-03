@@ -85,6 +85,33 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     ).toBeInTheDocument();
   });
 
+  it("reopens a collapsed details panel from the strings toolbar", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          initialViewMode="side-by-side"
+          services={{ validateFormat: mockValidateFormat }}
+        />
+      </>,
+    );
+
+    const [toolbarToggle] = await screen.findAllByRole("button", { name: "Hide details panel" });
+    await user.click(toolbarToggle!);
+    expect(localStorage.getItem("content-editor-details-panel-collapsed:v1")).toBe("true");
+
+    await user.click(await screen.findByRole("button", { name: "Show details panel" }));
+    expect(localStorage.getItem("content-editor-details-panel-collapsed:v1")).toBe("false");
+    expect(
+      screen
+        .getAllByRole("button", { name: "Hide details panel" })
+        .some((button) => button.getAttribute("aria-pressed") === "true"),
+    ).toBe(true);
+  });
+
   it("lets reviewers set a character limit on native projects", async () => {
     const user = userEvent.setup();
     const onSetMaxLength = vi.fn().mockResolvedValue(undefined);
@@ -98,6 +125,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       />,
     );
 
+    await user.click(await screen.findByRole("button", { name: "Set character limit" }));
     const input = await screen.findByRole("spinbutton", { name: "Character limit" });
     await user.clear(input);
     await user.type(input, "32");
@@ -205,8 +233,11 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       />,
     );
 
-    expect(screen.getByText("Source string")).toBeInTheDocument();
+    expect(screen.getByText("Source")).toBeInTheDocument();
     expect(screen.getByText("Translation")).toBeInTheDocument();
+    expect(screen.getByText("en-US")).toBeInTheDocument();
+    expect(screen.getByText("vi")).toBeInTheDocument();
+    expect(screen.queryByText("Key & context")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Loading segments")).toBeInTheDocument();
     expect(screen.queryByLabelText("Loading queue")).not.toBeInTheDocument();
     expect(screen.queryByText("No segments in queue.")).not.toBeInTheDocument();

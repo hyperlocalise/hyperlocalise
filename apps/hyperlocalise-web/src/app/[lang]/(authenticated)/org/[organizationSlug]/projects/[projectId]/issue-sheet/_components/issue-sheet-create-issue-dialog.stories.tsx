@@ -59,14 +59,14 @@ type Story = StoryObj<typeof meta>;
 export const ProjectScoped: Story = {
   play: async ({ canvas, canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await expect(canvas.getByRole("dialog", { name: "New issue" })).toBeInTheDocument();
+    await expect(canvas.getByRole("dialog", { name: "New query" })).toBeInTheDocument();
     await expect(canvas.getByLabelText("Title")).toBeInTheDocument();
     await expect(canvas.getByLabelText("Description")).toBeInTheDocument();
     await expect(canvas.getByLabelText("Status")).toBeInTheDocument();
     await expect(canvas.getByLabelText("Priority")).toBeInTheDocument();
     await expect(canvas.queryByLabelText("Project")).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "More properties" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Create issue" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Create query" })).toBeInTheDocument();
     await expect(body.getByLabelText("Create more")).toBeInTheDocument();
   },
 };
@@ -77,7 +77,7 @@ export const OrganizationScoped: Story = {
   },
   play: async ({ canvas, canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await expect(canvas.getByRole("dialog", { name: "New issue" })).toBeInTheDocument();
+    await expect(canvas.getByRole("dialog", { name: "New query" })).toBeInTheDocument();
     await expect(canvas.getByLabelText("Project")).toBeInTheDocument();
     await expect(canvas.getByText("Select a project")).toBeInTheDocument();
 

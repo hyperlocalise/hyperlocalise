@@ -279,7 +279,11 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               className,
             )}
           >
-            <ContentEditorSideBySidePanelSkeleton className="min-h-0 flex-1" />
+            <ContentEditorSideBySidePanelSkeleton
+              className="min-h-0 flex-1"
+              sourceLocale={store.fileContext.sourceLocale}
+              targetLocale={store.fileContext.targetLocale}
+            />
           </div>
         );
       }
@@ -298,6 +302,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
             intelligence={
               <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-border" />
             }
+            intelligenceCollapsed={store.ui.detailsPanelCollapsed}
           />
         </div>
       );
@@ -458,6 +463,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
+          hasPreviousSegment={hasPreviousSegment}
+          hasNextSegment={hasNextSegment}
+          onPreviousSegment={dependencies.navigation.onPreviousSegment}
+          onNextSegment={dependencies.navigation.onNextSegment}
           onFocusSegment={dependencies.navigation.onSelectSegment}
           onTargetChange={(segmentId, value) => editing.onTargetChange(segmentId, value)}
           onApprove={(segmentId) => {
@@ -891,6 +900,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           queue={renderQueuePanel()}
           editor={renderEditorPanel()}
           intelligence={renderIntelligencePanel()}
+          intelligenceCollapsed={store.ui.detailsPanelCollapsed}
+          onIntelligenceCollapsedChange={(collapsed) =>
+            store.ui.setDetailsPanelCollapsed(collapsed)
+          }
         />
       )}
       {showNativeIssues && organizationSlug && projectId && issueSegment ? (

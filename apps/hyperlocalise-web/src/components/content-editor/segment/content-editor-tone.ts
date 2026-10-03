@@ -88,9 +88,9 @@ export function formatCheckTone(status: ContentEditorFormatCheckStatus): Content
 export function formatCheckRowBackgroundClass(status: ContentEditorFormatCheckStatus) {
   switch (formatCheckTone(status)) {
     case "safe":
-      return "bg-grove-500/10 dark:bg-grove-500/15";
+      return "bg-success/10 dark:bg-success/15";
     case "watch":
-      return "bg-warning/10 dark:bg-warning/20";
+      return "bg-warning/15 dark:bg-warning/20";
     case "risk":
       return "bg-destructive/10 dark:bg-destructive/20";
     default:
@@ -101,13 +101,28 @@ export function formatCheckRowBackgroundClass(status: ContentEditorFormatCheckSt
 export function formatCheckStatusClass(status: ContentEditorFormatCheckStatus) {
   switch (formatCheckTone(status)) {
     case "safe":
-      return "text-grove-900 dark:text-grove-300";
+      return "text-grove-900";
     case "watch":
-      return "text-beam-900 dark:text-warning-foreground";
+      return "text-beam-900";
     case "risk":
-      return "text-destructive";
+      return "text-flame-900";
     default:
-      return "text-info";
+      return "text-blue-900";
+  }
+}
+
+export function formatCheckStatusBadgeVariant(
+  status: ContentEditorFormatCheckStatus,
+): "success" | "warning" | "destructive" | "outline" {
+  switch (formatCheckTone(status)) {
+    case "safe":
+      return "success";
+    case "watch":
+      return "warning";
+    case "risk":
+      return "destructive";
+    default:
+      return "outline";
   }
 }
 

@@ -40,17 +40,27 @@ describe("shouldShowSegmentStatusBadge", () => {
 });
 
 describe("SegmentStatusBadge", () => {
-  it("uses yellow for segments that need review", () => {
+  it("uses an amber pill with a dot for segments that need review", () => {
     renderWithContentEditorProviders(<SegmentStatusBadge status="needs_review" />);
 
-    expect(screen.getByText("Needs review")).toHaveClass("text-warning-foreground");
+    const badge = screen.getByText("Needs review");
+    expect(badge).toHaveClass("bg-beam-100", "text-beam-900", "rounded-full");
+    expect(badge.querySelector("[aria-hidden]")).toHaveClass("bg-beam-700");
   });
 
-  it("uses plain outline styling for untranslated segments", () => {
+  it("uses a green pill with a dot for approved segments", () => {
+    renderWithContentEditorProviders(<SegmentStatusBadge status="reviewed" />);
+
+    const badge = screen.getByText("Approved");
+    expect(badge).toHaveClass("bg-grove-100", "text-grove-900");
+    expect(badge.querySelector("[aria-hidden]")).toHaveClass("bg-grove-700");
+  });
+
+  it("uses a muted pill with a hollow dot for untranslated segments", () => {
     renderWithContentEditorProviders(<SegmentStatusBadge status="pending" />);
 
     const badge = screen.getByText("Untranslated");
-    expect(badge).toHaveClass("text-foreground");
-    expect(badge).not.toHaveClass("text-dew-100");
+    expect(badge).toHaveClass("bg-muted", "text-muted-foreground");
+    expect(badge.querySelector("[aria-hidden]")).toHaveClass("border");
   });
 });

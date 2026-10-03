@@ -99,6 +99,38 @@ export function isValidLocaleInput(input: string): boolean {
   return canonicalizeLocale(input) !== null;
 }
 
+const REGIONAL_INDICATOR_A = 0x1f1e6;
+
+/**
+ * Returns a flag emoji for a BCP-47 locale. Uses an explicit region when
+ * present, otherwise likely subtags (`en` → US, `vi` → VN).
+ */
+export function getLocaleFlagEmoji(locale: string): string | null {
+  const canonical = canonicalizeLocale(locale);
+  if (!canonical) {
+    return null;
+  }
+
+  try {
+    const parsed = new Intl.Locale(canonical);
+    const region = parsed.region ?? parsed.maximize().region;
+    if (!region || region.length !== 2) {
+      return null;
+    }
+
+    const code = region.toUpperCase();
+    const first = code.charCodeAt(0) - 65;
+    const second = code.charCodeAt(1) - 65;
+    if (first < 0 || first > 25 || second < 0 || second > 25) {
+      return null;
+    }
+
+    return String.fromCodePoint(REGIONAL_INDICATOR_A + first, REGIONAL_INDICATOR_A + second);
+  } catch {
+    return null;
+  }
+}
+
 export function getLocaleLabel(locale: string): string {
   const canonical = canonicalizeLocale(locale) ?? locale;
 
