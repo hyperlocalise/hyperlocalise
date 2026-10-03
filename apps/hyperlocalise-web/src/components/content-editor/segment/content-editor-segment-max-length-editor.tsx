@@ -56,6 +56,7 @@ export function ContentEditorSegmentMaxLengthEditor({
 }) {
   const intl = useIntl();
   const inputRef = useRef<HTMLInputElement>(null);
+  const skipBlurCommitRef = useRef(false);
   const [draft, setDraft] = useState(maxLength != null ? String(maxLength) : "");
   const [error, setError] = useState<string | null>(null);
 
@@ -176,6 +177,10 @@ export function ContentEditorSegmentMaxLengthEditor({
             setError(null);
           }}
           onBlur={() => {
+            if (skipBlurCommitRef.current) {
+              skipBlurCommitRef.current = false;
+              return;
+            }
             if (hasChanges) {
               void commitDraft();
             }
@@ -217,6 +222,11 @@ export function ContentEditorSegmentMaxLengthEditor({
             size="sm"
             className="h-8"
             disabled={isSaving}
+            onPointerDown={(event) => {
+              if (event.button === 0) {
+                skipBlurCommitRef.current = true;
+              }
+            }}
             onClick={() => void handleClear()}
           >
             <FormattedMessage {...contentEditorIntelligencePanelMessages.maxLengthClear} />

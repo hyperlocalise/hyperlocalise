@@ -42,6 +42,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
+import { countRunes } from "@/lib/qa/count-runes";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 
 import {
@@ -590,7 +591,7 @@ export function ContentEditorIntelligencePanel({
                 maxLength={intelligence.maxLength}
                 canEdit={canEditMaxLength}
                 isSaving={isMaxLengthSaving}
-                characterCount={targetText.length}
+                characterCount={countRunes(targetText)}
                 onSave={onSetMaxLength ?? (async () => undefined)}
               />
             </PanelSection>

@@ -142,6 +142,13 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
     expect(screen.getByText("Spelling")).toBeInTheDocument();
   });
 
+  it("keeps the empty comments composer inside a scrollable height limit", () => {
+    renderIntelligencePanel({ canAddComment: true });
+
+    const commentsSection = document.querySelector("[data-inspector-comments]");
+    expect(commentsSection).toHaveClass("max-h-[40%]", "overflow-y-auto", "shrink-0");
+  });
+
   it("keeps a long QA list scrollable inside the sidebar", () => {
     renderIntelligencePanel({
       formatChecks: Array.from({ length: 12 }, (_, index) => ({

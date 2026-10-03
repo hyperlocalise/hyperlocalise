@@ -132,6 +132,23 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
     });
   });
 
+  it("clears an edited draft without saving the typed limit first", async () => {
+    const { onSave } = renderEditor({ maxLength: 80 });
+    const input = screen.getByRole("spinbutton");
+    const clear = screen.getByRole("button", { name: "Clear" });
+
+    fireEvent.change(input, { target: { value: "32" } });
+    fireEvent.pointerDown(clear);
+    fireEvent.blur(input);
+    fireEvent.click(clear);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(null);
+    });
+    expect(onSave).not.toHaveBeenCalledWith(32);
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
   it("shows how many characters are already used", () => {
     renderEditor({ maxLength: 20, characterCount: 28 });
 

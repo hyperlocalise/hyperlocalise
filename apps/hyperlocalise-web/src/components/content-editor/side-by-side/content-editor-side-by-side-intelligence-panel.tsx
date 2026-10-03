@@ -310,11 +310,11 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
             {qaPanel}
             <div className="min-h-0 flex-1">{intelligencePanel}</div>
             <div
-              className={
-                (segment.comments?.length ?? 0) > 0
-                  ? "max-h-[40%] min-h-0 overflow-y-auto border-t border-border"
-                  : "shrink-0 border-t border-border"
-              }
+              data-inspector-comments
+              className={cn(
+                "max-h-[40%] min-h-0 overflow-y-auto border-t border-border",
+                (segment.comments?.length ?? 0) === 0 && "shrink-0",
+              )}
             >
               <Box paddingX="2u" paddingY="2u">
                 {commentsPanel}
