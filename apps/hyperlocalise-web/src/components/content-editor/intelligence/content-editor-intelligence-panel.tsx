@@ -651,13 +651,13 @@ export function ContentEditorIntelligencePanel({
           ) : null}
 
           {isConcordanceLoading ? (
-            <>
+            <div ref={tmSectionRef}>
               <PanelSection
                 title={intl.formatMessage(contentEditorIntelligencePanelMessages.translationMemory)}
               >
                 <ConcordanceSkeleton />
               </PanelSection>
-            </>
+            </div>
           ) : null}
 
           {!isConcordanceLoading &&
