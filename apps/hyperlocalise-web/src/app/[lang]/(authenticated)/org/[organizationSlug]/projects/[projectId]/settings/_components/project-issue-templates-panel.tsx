@@ -61,20 +61,6 @@ function isUnchangedStaleAssignee(
   return Boolean(serverBinding && !serverBinding.assignable && serverBinding.userId === userId);
 }
 
-function assigneeMapForCompare(
-  assigneeByTemplate: Record<string, string>,
-  serverBindings: IssueSheetTemplateConfig["assigneeByTemplate"],
-): Record<string, string> {
-  const serverBindingByTemplate = new Map(
-    serverBindings.map((binding) => [binding.templateKey, binding]),
-  );
-  return Object.fromEntries(
-    Object.entries(assigneeByTemplate).filter(([templateKey, userId]) => {
-      return !isUnchangedStaleAssignee(serverBindingByTemplate.get(templateKey), userId);
-    }),
-  );
-}
-
 function issueSheetTemplateDraftIsDirty(
   config: IssueSheetTemplateConfig,
   defaultTemplateKey: string | null,
@@ -84,17 +70,12 @@ function issueSheetTemplateDraftIsDirty(
     return true;
   }
 
-  // Compare the same filtered shape on both sides. An unchanged no-longer-assignable binding
-  // stays in draft state so the picker can flag it, but it is not an edit — excluding it from
-  // the draft only would mark Settings dirty on open and let Save wipe the stored assignment.
-  const serverMap = assigneeMapForCompare(
-    Object.fromEntries(
-      config.assigneeByTemplate.map((binding) => [binding.templateKey, binding.userId]),
-    ),
-    config.assigneeByTemplate,
+  // Compare stored bindings as-is. The draft keeps a no-longer-assignable userId so the picker
+  // can flag it; that match is not an edit. Deleting the key (clearing the assignee) is.
+  const serverMap = Object.fromEntries(
+    config.assigneeByTemplate.map((binding) => [binding.templateKey, binding.userId]),
   );
-  const draftMap = assigneeMapForCompare(assigneeByTemplate, config.assigneeByTemplate);
-  return !assigneeMapsEqual(draftMap, serverMap);
+  return !assigneeMapsEqual(assigneeByTemplate, serverMap);
 }
 
 export function ProjectIssueTemplatesPanel({
@@ -112,22 +93,21 @@ export function ProjectIssueTemplatesPanel({
   const membersQuery = useAssignableIssueMembersQuery({ organizationSlug, projectId });
 
   // Draft mirrors the PUT body shape directly. Re-synced from the server whenever configQuery's
-  // data changes (including after this panel's own save), matching how the rest of this settings
-  // page syncs its form state from the project query — no separate dirty-tracking here.
+  // data identity changes (including after this panel's own save). Sync during render so the
+  // first committed frame never compares an empty draft to stored bindings.
+  const [syncedConfig, setSyncedConfig] = useState<IssueSheetTemplateConfig | null>(null);
   const [defaultTemplateKey, setDefaultTemplateKey] = useState<string | null>(null);
   const [assigneeByTemplate, setAssigneeByTemplate] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (!configQuery.data) {
-      return;
-    }
+  if (configQuery.data && configQuery.data !== syncedConfig) {
+    setSyncedConfig(configQuery.data);
     setDefaultTemplateKey(configQuery.data.defaultTemplateKey);
     setAssigneeByTemplate(
       Object.fromEntries(
         configQuery.data.assigneeByTemplate.map((binding) => [binding.templateKey, binding.userId]),
       ),
     );
-  }, [configQuery.data]);
+  }
 
   const isDirty = useMemo(() => {
     if (!configQuery.data) {
