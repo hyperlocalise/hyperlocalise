@@ -83,6 +83,27 @@ export class GoSvcCatApi {
     );
   }
 
+  applyStringGroup(
+    organizationSlug: string,
+    projectId: string,
+    groupId: string,
+    body: {
+      sourceText: string;
+      targetLocale: string;
+      text: string;
+      members: Pick<CatStringGroupMember, "id" | "sourceRevision" | "translationRevision">[];
+    },
+  ) {
+    return this.request.json<{
+      operationId: string;
+      members: {
+        id: string;
+        sourcePath: string;
+        translation: ProjectFileContentEditorTranslationResponse["translation"];
+      }[];
+    }>(catPath(organizationSlug, projectId, "groups", groupId, "apply"), { method: "POST", body });
+  }
+
   targets(
     organizationSlug: string,
     projectId: string,

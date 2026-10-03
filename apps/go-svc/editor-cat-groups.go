@@ -19,16 +19,18 @@ type editorCatStringGroup struct {
 }
 
 type editorCatGroupMember struct {
-	ID            string  `json:"id"`
-	Key           string  `json:"key"`
-	SourcePath    string  `json:"sourcePath"`
-	Context       *string `json:"context"`
-	MaxLength     *int    `json:"maxLength"`
-	TargetText    string  `json:"targetText"`
-	Status        string  `json:"status"`
-	IsHidden      bool    `json:"isHidden"`
-	IsLocked      bool    `json:"isLocked"`
-	MatchesFilter bool    `json:"matchesFilter"`
+	ID                  string  `json:"id"`
+	Key                 string  `json:"key"`
+	SourcePath          string  `json:"sourcePath"`
+	Context             *string `json:"context"`
+	MaxLength           *int    `json:"maxLength"`
+	TargetText          string  `json:"targetText"`
+	Status              string  `json:"status"`
+	IsHidden            bool    `json:"isHidden"`
+	IsLocked            bool    `json:"isLocked"`
+	MatchesFilter       bool    `json:"matchesFilter"`
+	SourceRevision      string  `json:"sourceRevision"`
+	TranslationRevision string  `json:"translationRevision"`
 }
 
 // Grouping is a read model. Original key identities and locale translations stay intact.
@@ -46,6 +48,7 @@ func editorCatGroupScope(query editorCatQueueQuery, scopedWhere string) string {
 	}
 	return `with scoped as (
         select k.id, k.key, k.source_text, k.context, k.max_length, k.is_hidden,
+ k.xmin::text as source_revision, coalesce(t.xmin::text, 'missing') as translation_revision,
             f.source_path, coalesce(t.text, '') as target_text, coalesce(t.status::text, 'draft') as status,
             exists (select 1 from project_cat_segment_locks l
                 where l.organization_id=$1 and l.project_id=$2 and l.target_locale=$3
@@ -162,7 +165,7 @@ func (api *editorCatAPI) getStringGroupMembers(r *http.Request, actor editorCatA
 	sql := editorCatGroupScope(query, scopedWhere) + `, members as (
         select id, key, source_path as "sourcePath", context, max_length as "maxLength",
             target_text as "targetText", status, is_hidden as "isHidden", is_locked as "isLocked",
-            matches_filter as "matchesFilter"
+            matches_filter as "matchesFilter", source_revision as "sourceRevision", translation_revision as "translationRevision"
         from scoped
     ), page as (select * from members order by "sourcePath", key, id limit $8 offset $9)
     select coalesce((select jsonb_agg(page) from page), '[]'::jsonb), (select count(*) from members)`

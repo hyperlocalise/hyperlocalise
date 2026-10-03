@@ -32,6 +32,8 @@ export interface CatStringGroupMember {
   isHidden: boolean;
   isLocked: boolean;
   matchesFilter: boolean;
+  sourceRevision: string;
+  translationRevision: string;
 }
 
 export interface CatGroupPagination {

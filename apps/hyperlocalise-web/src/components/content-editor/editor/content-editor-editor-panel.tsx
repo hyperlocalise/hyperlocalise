@@ -12,6 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { SegmentActivityButton } from "../activity-log/content-editor-segment-activity";
+
 import { useMemo } from "react";
 import { useIntl } from "react-intl";
 
@@ -225,6 +227,12 @@ export function ContentEditorEditorPanel({
             />
           )}
 
+          <SegmentActivityButton
+            segmentId={segment.id}
+            sourcePath={segment.sourcePath}
+            targetLocale={segment.targetLocale}
+            label={segment.key}
+          />
           <ContentEditorEditorActions
             primaryActionLabel={resolvedPrimaryActionLabel}
             isMac={isMac}

@@ -80,6 +80,7 @@ export type LaterActivityEventType = (typeof LATER_ACTIVITY_EVENT_TYPES)[number]
 export const FILE_SEGMENT_ACTIVITY_EVENT_TYPES = [
   "file_uploaded",
   "file_translations_imported",
+  "string_segment_translation_updated",
   "string_segment_approved",
   "string_segment_status_changed",
   "string_segment_hidden",
@@ -257,6 +258,12 @@ export type ActivityPayloadByEventType = {
   file_translations_imported: FileActivityPayload & {
     targetLocale: string;
   };
+  string_segment_translation_updated: StringSegmentActivityPayload & {
+    beforeText: string;
+    afterText: string;
+    operationId?: string;
+    operationMemberIds?: string[];
+  };
   string_segment_approved: StringSegmentActivityPayload;
   string_segment_status_changed: StringSegmentActivityPayload & {
     nextStatus: string;
@@ -303,6 +310,7 @@ export type ActivityTargetKindByEventType = {
   automation_disabled: "automation";
   file_uploaded: "file";
   file_translations_imported: "file";
+  string_segment_translation_updated: "string_segment";
   string_segment_approved: "string_segment";
   string_segment_status_changed: "string_segment";
   string_segment_hidden: "string_segment";

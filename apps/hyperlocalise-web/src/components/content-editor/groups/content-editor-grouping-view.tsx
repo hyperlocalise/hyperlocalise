@@ -33,6 +33,8 @@ import {
 import { ContentEditorGroupBrowser, GroupLoading } from "./content-editor-group-browser";
 import { groupMessages as m } from "./content-editor-groups.messages";
 
+import { SegmentActivityProvider } from "../activity-log/content-editor-segment-activity";
+
 type View = "individual" | "grouped";
 
 export function ContentEditorGroupingView(props: {
@@ -46,9 +48,20 @@ export function ContentEditorGroupingView(props: {
   navigationGuardRef: ContentEditorPageNavigationGuardRef;
   initialSegmentKey?: string | null;
   enabled: boolean;
+  canEdit?: boolean;
 }) {
   if (!props.enabled) return props.children;
-  return <PersonalGroupingView {...props} />;
+  return (
+    <SegmentActivityProvider
+      client={props.client}
+      organizationSlug={props.organizationSlug}
+      projectId={props.projectId}
+      sourcePath={props.sourcePath}
+      targetLocale={props.targetLocale}
+    >
+      <PersonalGroupingView {...props} />
+    </SegmentActivityProvider>
+  );
 }
 
 function PersonalGroupingView(props: Parameters<typeof ContentEditorGroupingView>[0]) {

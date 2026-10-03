@@ -266,6 +266,28 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		}
 		return nil, 0, err
 	}
+	tx, err := api.pool.Begin(r.Context())
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+	if err = lockEditorCatKeys(r.Context(), tx, actor, project, []string{keyID}); err != nil {
+		return nil, 0, err
+	}
+	var locked bool
+	if err = tx.QueryRow(r.Context(), `select exists(select 1 from project_cat_segment_locks where organization_id=$1 and project_id=$2 and external_string_id=$3 and target_locale=$4)`, actor.organizationID, project.ID, keyID, targetLocale).Scan(&locked); err != nil {
+		return nil, 0, err
+	}
+	if locked {
+		return nil, 0, editorCatFailure(409, "cat_segment_locked", "Segment is locked")
+	}
+	var before, beforeRevision string
+	err = tx.QueryRow(r.Context(), `select text,xmin::text from project_translations where translation_key_id=$1 and target_locale=$2 for update`, keyID, targetLocale).Scan(&before, &beforeRevision)
+	if errors.Is(err, pgx.ErrNoRows) {
+		beforeRevision = "missing"
+	} else if err != nil {
+		return nil, 0, err
+	}
 	status := "draft"
 	var reviewedAt *time.Time
 	var reviewedBy *string
@@ -275,8 +297,8 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		reviewedAt = &now
 		reviewedBy = &actor.userID
 	}
-	var id, text, savedStatus string
-	err = api.pool.QueryRow(r.Context(), `
+	var id, text, savedStatus, afterRevision string
+	err = tx.QueryRow(r.Context(), `
         insert into project_translations (
             organization_id, project_id, translation_key_id, target_locale, text, status, provenance,
             reviewed_by_user_id, reviewed_at
@@ -288,10 +310,16 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
             reviewed_by_user_id=excluded.reviewed_by_user_id,
             reviewed_at=excluded.reviewed_at,
             updated_at=now()
-        returning id, text, status`,
+        returning id, text, status, xmin::text`,
 		actor.organizationID, project.ID, keyID, targetLocale, body.Text, status, reviewedBy, reviewedAt,
-	).Scan(&id, &text, &savedStatus)
+	).Scan(&id, &text, &savedStatus, &afterRevision)
 	if err != nil {
+		return nil, 0, err
+	}
+	if err = insertEditorCatActivity(r.Context(), tx, actor, "string_segment_translation_updated", keyID, map[string]any{"projectId": project.ID, "segmentId": keyID, "sourcePath": sourcePath, "targetLocale": targetLocale, "beforeText": before, "afterText": text, "beforeRevision": beforeRevision, "afterRevision": afterRevision, "nextStatus": savedStatus}); err != nil {
+		return nil, 0, err
+	}
+	if err = tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
 	}
 	if body.Approve != nil && *body.Approve {
@@ -560,12 +588,25 @@ func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, projec
 	if targetLocale == "" || len(ids) == 0 {
 		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
+	tx, err := api.pool.Begin(r.Context())
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+	if project.Source == "native" {
+		if err := lockEditorCatKeys(r.Context(), tx, actor, project, ids); err != nil {
+			return nil, 0, err
+		}
+	}
 	if !body.IsLocked {
-		tag, err := api.pool.Exec(r.Context(), `
+		tag, err := tx.Exec(r.Context(), `
             delete from project_cat_segment_locks
             where organization_id=$1 and project_id=$2 and target_locale=$3 and external_string_id = any($4::text[])`,
 			actor.organizationID, project.ID, targetLocale, ids)
 		if err != nil {
+			return nil, 0, err
+		}
+		if err = tx.Commit(r.Context()); err != nil {
 			return nil, 0, err
 		}
 		api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
@@ -577,7 +618,7 @@ func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, projec
 		})
 		return map[string]any{"contentEditorSegmentLock": map[string]any{"updatedCount": tag.RowsAffected(), "isLocked": false}}, 200, nil
 	}
-	_, err := api.pool.Exec(r.Context(), `
+	_, err = tx.Exec(r.Context(), `
         insert into project_cat_segment_locks (
             organization_id, project_id, target_locale, external_string_id, locked_by_user_id
         )
@@ -587,6 +628,9 @@ func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, projec
         do update set locked_by_user_id=excluded.locked_by_user_id, updated_at=now()`,
 		actor.organizationID, project.ID, targetLocale, ids, actor.userID)
 	if err != nil {
+		return nil, 0, err
+	}
+	if err = tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
 	}
 	api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
