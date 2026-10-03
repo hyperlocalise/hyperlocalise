@@ -40,40 +40,52 @@ func emptyQaSummary() qaSummary {
 func parseWorkspaceFindingsQuery(r *http.Request) (projectID, locale, checkType, severity string, limit, offset int, err error) {
 	limit, offset = 50, 0
 	q := r.URL.Query()
-	if raw := strings.TrimSpace(q.Get("projectId")); raw != "" {
-		projectID = raw
-	}
-	if raw := strings.TrimSpace(q.Get("locale")); raw != "" {
-		if len(raw) > 32 {
-			return "", "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA findings query")
+	if vals, ok := q["projectId"]; ok && len(vals) > 0 {
+		if raw := strings.TrimSpace(vals[0]); raw != "" {
+			projectID = raw
 		}
-		locale = raw
 	}
-	if raw := strings.TrimSpace(q.Get("checkType")); raw != "" {
-		if _, ok := translationQaCheckTypes[raw]; !ok {
-			return "", "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA findings query")
+	if vals, ok := q["locale"]; ok && len(vals) > 0 {
+		if raw := strings.TrimSpace(vals[0]); raw != "" {
+			if len(raw) > 32 {
+				return "", "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA findings query")
+			}
+			locale = raw
 		}
-		checkType = raw
 	}
-	if raw := strings.TrimSpace(q.Get("severity")); raw != "" {
-		if _, ok := translationQaSeverities[raw]; !ok {
-			return "", "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA findings query")
+	if vals, ok := q["checkType"]; ok && len(vals) > 0 {
+		if raw := strings.TrimSpace(vals[0]); raw != "" {
+			if _, ok := translationQaCheckTypes[raw]; !ok {
+				return "", "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA findings query")
+			}
+			checkType = raw
 		}
-		severity = raw
 	}
-	if raw, ok := q["limit"]; ok && strings.TrimSpace(raw[0]) != "" {
-		n, parseErr := strconv.Atoi(strings.TrimSpace(raw[0]))
-		if parseErr != nil || n < 1 || n > 100 {
-			return "", "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA findings query")
+	if vals, ok := q["severity"]; ok && len(vals) > 0 {
+		if raw := strings.TrimSpace(vals[0]); raw != "" {
+			if _, ok := translationQaSeverities[raw]; !ok {
+				return "", "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA findings query")
+			}
+			severity = raw
 		}
-		limit = n
 	}
-	if raw, ok := q["offset"]; ok && strings.TrimSpace(raw[0]) != "" {
-		n, parseErr := strconv.Atoi(strings.TrimSpace(raw[0]))
-		if parseErr != nil || n < 0 {
-			return "", "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA findings query")
+	if vals, ok := q["limit"]; ok && len(vals) > 0 {
+		if raw := strings.TrimSpace(vals[0]); raw != "" {
+			n, parseErr := strconv.Atoi(raw)
+			if parseErr != nil || n < 1 || n > 100 {
+				return "", "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA findings query")
+			}
+			limit = n
 		}
-		offset = n
+	}
+	if vals, ok := q["offset"]; ok && len(vals) > 0 {
+		if raw := strings.TrimSpace(vals[0]); raw != "" {
+			n, parseErr := strconv.Atoi(raw)
+			if parseErr != nil || n < 0 {
+				return "", "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA findings query")
+			}
+			offset = n
+		}
 	}
 	return projectID, locale, checkType, severity, limit, offset, nil
 }
