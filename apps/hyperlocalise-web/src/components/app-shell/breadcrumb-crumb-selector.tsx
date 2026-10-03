@@ -51,15 +51,7 @@ type BreadcrumbCrumbSelectorProps = {
   disabled?: boolean;
 };
 
-function CrumbLabel({
-  href,
-  isLast,
-  label,
-}: {
-  href?: string;
-  isLast: boolean;
-  label: string;
-}) {
+function CrumbLabel({ href, isLast, label }: { href?: string; isLast: boolean; label: string }) {
   if (href && !isLast) {
     return (
       <BreadcrumbLink

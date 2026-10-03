@@ -51,9 +51,7 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
   }),
 }));
 
-function renderSelector(
-  props: Partial<ComponentProps<typeof ProjectBreadcrumbSelector>> = {},
-) {
+function renderSelector(props: Partial<ComponentProps<typeof ProjectBreadcrumbSelector>> = {}) {
   render(
     <QueryClientProvider
       client={

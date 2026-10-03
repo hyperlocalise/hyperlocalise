@@ -30,9 +30,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-function renderSelector(
-  props: Partial<ComponentProps<typeof BreadcrumbCrumbSelector>> = {},
-) {
+function renderSelector(props: Partial<ComponentProps<typeof BreadcrumbCrumbSelector>> = {}) {
   const onSelect = vi.fn();
 
   render(
