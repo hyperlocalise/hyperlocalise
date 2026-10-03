@@ -59,7 +59,10 @@ import type {
   ContentEditorSegmentCommentInput,
   ContentEditorSegmentIntelligence,
 } from "@/components/content-editor/shared/types";
-import { isNativeContentEditorFile } from "@/components/content-editor/shared/content-editor-native-project";
+import {
+  isContentEditorGroupingAvailable,
+  isNativeContentEditorFile,
+} from "@/components/content-editor/shared/content-editor-native-project";
 import { ContentEditorGroupingView } from "../groups/content-editor-grouping-view";
 import { ContentEditorWorkspaceContainer } from "@/components/content-editor/workspace/content-editor-workspace-container";
 import {
@@ -1111,14 +1114,7 @@ export function ProjectFileContentEditorWorkspace({
 
             <ContentEditorGroupingView
               canEdit={Boolean(contentEditorFile?.canEditTranslations)}
-              enabled={
-                Boolean(contentEditorFile) &&
-                isNativeProject &&
-                !contentEditorFile?.segments.some(
-                  (segment) =>
-                    segment.contentKind === "image_file" || segment.contentKind === "video_file",
-                )
-              }
+              enabled={isContentEditorGroupingAvailable(contentEditorFile, sourcePath)}
               client={goSvcClient}
               organizationSlug={organizationSlug}
               projectId={projectId}

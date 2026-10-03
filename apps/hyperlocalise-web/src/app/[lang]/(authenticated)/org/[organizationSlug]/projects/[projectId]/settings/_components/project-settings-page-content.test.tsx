@@ -204,6 +204,24 @@ beforeEach(() => {
 });
 
 describe("ProjectSettingsPageContent", () => {
+  it("renders when the shared project query returns a raw API row", async () => {
+    renderSettings({
+      id: "project_1",
+      name: "Tourmatic",
+      identifier: "TM",
+      description: "Ops notes",
+      translationContext: "Keep product names in English.",
+      source: "native",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    } as ProjectListRow);
+
+    expect(await screen.findByRole("heading", { name: "General" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Description")).toHaveValue("Ops notes");
+    expect(screen.getByLabelText("Style guide")).toHaveValue("Keep product names in English.");
+    expect(screen.getByRole("button", { name: "Save general settings" })).toBeDisabled();
+  });
+
   it("keeps section save actions disabled until that section is dirty", async () => {
     renderSettings();
 

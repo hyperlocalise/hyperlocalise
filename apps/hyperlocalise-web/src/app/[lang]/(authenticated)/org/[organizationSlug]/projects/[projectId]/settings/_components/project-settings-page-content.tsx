@@ -60,6 +60,7 @@ import {
 import {
   ProjectPageShell,
   ProjectSectionHeader,
+  translationProjectQueryKey,
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
 import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
@@ -75,12 +76,6 @@ const providerLabels: Record<NonNullable<ProjectListRow["externalProviderKind"]>
   phrase: "Phrase",
   lokalise: "Lokalise",
 };
-
-const projectPageQueryKey = (organizationSlug: string, projectId: string) => [
-  "translation-project",
-  organizationSlug,
-  projectId,
-];
 
 const projectsQueryKey = (organizationSlug: string) => ["translation-projects", organizationSlug];
 
@@ -125,7 +120,7 @@ function projectFormFingerprint(project: ProjectListRow) {
     project.descriptionValue,
     project.translationContextValue,
     project.sourceLocale ?? "",
-    project.targetLocales.join(","),
+    (project.targetLocales ?? []).join(","),
   ].join("\0");
 }
 
@@ -375,7 +370,7 @@ export function ProjectSettingsPageContent({
       );
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: projectPageQueryKey(organizationSlug, projectId),
+          queryKey: translationProjectQueryKey(organizationSlug, projectId),
         }),
         queryClient.invalidateQueries({ queryKey: projectsQueryKey(organizationSlug) }),
       ]);
@@ -644,7 +639,9 @@ export function ProjectSettingsPageContent({
                 <DetailRow label="Source locale" value={project.sourceLocale} />
                 <DetailRow
                   label="Target locales"
-                  value={project.targetLocales.length > 0 ? project.targetLocales.join(", ") : null}
+                  value={
+                    project.targetLocales?.length > 0 ? project.targetLocales.join(", ") : null
+                  }
                 />
               </div>
             )}

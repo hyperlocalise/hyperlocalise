@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  isContentEditorGroupingAvailable,
   isNativeContentEditorFile,
   isNativeContentEditorProviderKind,
 } from "./content-editor-native-project";
@@ -41,5 +42,26 @@ describe("isNativeContentEditorFile", () => {
 
   it("rejects files attached to an external provider", () => {
     expect(isNativeContentEditorFile({ provider: { kind: "crowdin" } })).toBe(false);
+  });
+});
+
+describe("isContentEditorGroupingAvailable", () => {
+  const nativeFile = { provider: { kind: "native" } };
+
+  it("requires a loaded native text file", () => {
+    expect(isContentEditorGroupingAvailable(null, "menu.json")).toBe(false);
+    expect(isContentEditorGroupingAvailable(undefined, "menu.json")).toBe(false);
+    expect(isContentEditorGroupingAvailable(nativeFile, "menu.json")).toBe(true);
+    expect(isContentEditorGroupingAvailable(nativeFile, "*")).toBe(true);
+    expect(isContentEditorGroupingAvailable({ provider: { kind: "crowdin" } }, "menu.json")).toBe(
+      false,
+    );
+  });
+
+  it("keeps grouping off for native media, office, and document files", () => {
+    expect(isContentEditorGroupingAvailable(nativeFile, "hero.png")).toBe(false);
+    expect(isContentEditorGroupingAvailable(nativeFile, "clip.mp4")).toBe(false);
+    expect(isContentEditorGroupingAvailable(nativeFile, "brief.docx")).toBe(false);
+    expect(isContentEditorGroupingAvailable(nativeFile, "readme.md")).toBe(false);
   });
 });
