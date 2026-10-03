@@ -10,8 +10,10 @@ allowBuilds:
   protobufjs: false
   sharp: false
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@latest
-  vite-plus: latest
+  vite: npm:@voidzero-dev/vite-plus-core@1.0.0
+  vite-plus: 1.0.0
+  vitest: 5.0.1
+  '@vitest/browser-playwright': 5.0.1
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
@@ -23,13 +25,15 @@ minimumReleaseAgeExclude:
   - ai@7.0.37 || 7.0.105
   - '@ai-sdk/provider-utils@5.0.43'
   - '@ai-sdk/provider@4.0.17'
+  - "@mermaid-js/parser@2.0.1"
+  - mermaid@12.1.0
+  - msw@3.0.2
 overrides:
-  vite: "8.2.2"
   # Pin each undici major independently (transitive deps use 6/7/8).
   "undici@^6.0.0": "6.28.0"
   "undici@^7.0.0": "7.29.0"
   "undici@^8.0.0": "8.10.2"
-  devalue: "5.9.2"
+  devalue: "6.0.2"
   qs: "6.16.0"
   "@anthropic-ai/sdk": "0.123.0"
   postcss: "8.5.28"
@@ -55,7 +59,7 @@ overrides:
   "nanoid@^5.0.0": "6.0.1"
   "brace-expansion@^2.0.0": "2.1.4"
   "brace-expansion@^5.0.0": "5.0.9"
-  mermaid: "11.17.2"
+  mermaid: "12.1.0"
   valibot: "1.4.2"
   # eslint-plugin-formatjs imports Binary_Property/*/regex.js; @unicode 2.0.5+ ships .mjs only.
   "@unicode/unicode-17.0.0": "2.0.4"
@@ -66,10 +70,17 @@ overrides:
   # still resolve 1.42.2; dual copies make DecorationSet unassignable to
   # Plugin props.decorations (DecorationSource).
   prosemirror-view: "1.42.3"
+  vite@*: 'catalog:'
+  vitest@*: 'catalog:'
+# formatjs 6 treats `{ typed: true }` overloads as optional, so untyped
+# defineMessages results are branded and no longer assignable to FormattedMessage.
+patchedDependencies:
+  '@formatjs/intl@6.1.2': patches/@formatjs__intl@6.1.2.patch
+  react-intl@12.1.3: patches/react-intl@12.1.3.patch
 peerDependencyRules:
   allowAny:
     - vite
     - vitest
   allowedVersions:
-    vite: "*"
-    vitest: "*"
+    vite: '*'
+    vitest: '*'

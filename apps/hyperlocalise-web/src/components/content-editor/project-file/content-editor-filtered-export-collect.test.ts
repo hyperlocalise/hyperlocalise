@@ -46,11 +46,14 @@ vi.mock("@/lib/projects/content-editor/content-editor-filtered-export", async (i
   };
 });
 
+import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
+
 import { collectCatFilteredExportRows } from "./content-editor-filtered-export-collect";
 
 const intl = {
-  formatMessage: (descriptor: { defaultMessage?: string }) => descriptor.defaultMessage ?? "",
-} as const;
+  formatMessage: ((descriptor: { defaultMessage?: string }) =>
+    descriptor.defaultMessage ?? "") as ContentEditorFormatMessageIntl["formatMessage"],
+};
 
 const baseInput = {
   organizationSlug: "acme",

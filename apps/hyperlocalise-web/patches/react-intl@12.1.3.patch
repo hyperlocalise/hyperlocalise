@@ -1,0 +1,60 @@
+diff --git a/index.d.ts b/index.d.ts
+index 539ed02a576aebb4e94f41a29bb93accf0b40e95..95deab0efba04980149f170cd72f15e916754d87 100644
+--- a/index.d.ts
++++ b/index.d.ts
+@@ -164,13 +164,13 @@ export declare const FormattedListParts: React.FC<Formatter["formatList"] & {
+ }>;
+ //#endregion
+ //#region packages/react-intl/define-message.d.ts
+-export declare function defineMessage<V extends MessageValues = {}, const D extends MessageDescriptor$1 = never>(message: D, options?: {
++export declare function defineMessage<V extends MessageValues = {}, const D extends MessageDescriptor$1 = never>(message: D, options: {
+   typed: true;
+ }): Readonly<D> & Omit<TypedMessageDescriptor$1<NoInfer<V>>, keyof D>;
+ export declare function defineMessage<V extends MessageValues = {}>(message: MessageDescriptor$1 & {
+   id: NonNullable<MessageDescriptor$1["id"]>;
+   defaultMessage: string;
+-}, options?: {
++}, options: {
+   typed: true;
+ }): TypedMessageDescriptor$1<NoInfer<V>> & Readonly<{
+   id: NonNullable<MessageDescriptor$1["id"]>;
+@@ -179,7 +179,7 @@ export declare function defineMessage<V extends MessageValues = {}>(message: Mes
+ export declare function defineMessage<V extends MessageValues = {}>(message: MessageDescriptor$1 & {
+   id: NonNullable<MessageDescriptor$1["id"]>;
+   defaultMessage: NonNullable<MessageDescriptor$1["defaultMessage"]>;
+-}, options?: {
++}, options: {
+   typed: true;
+ }): TypedMessageDescriptor$1<NoInfer<V>> & Readonly<{
+   id: NonNullable<MessageDescriptor$1["id"]>;
+@@ -187,26 +187,26 @@ export declare function defineMessage<V extends MessageValues = {}>(message: Mes
+ }>;
+ export declare function defineMessage<V extends MessageValues = {}>(message: MessageDescriptor$1 & {
+   defaultMessage: string;
+-}, options?: {
++}, options: {
+   typed: true;
+ }): TypedMessageDescriptor$1<NoInfer<V>> & Readonly<{
+   defaultMessage: string;
+ }>;
+ export declare function defineMessage<V extends MessageValues = {}>(message: MessageDescriptor$1 & {
+   defaultMessage: NonNullable<MessageDescriptor$1["defaultMessage"]>;
+-}, options?: {
++}, options: {
+   typed: true;
+ }): TypedMessageDescriptor$1<NoInfer<V>> & Readonly<{
+   defaultMessage: NonNullable<MessageDescriptor$1["defaultMessage"]>;
+ }>;
+ export declare function defineMessage<V extends MessageValues = {}>(message: MessageDescriptor$1 & {
+   id: NonNullable<MessageDescriptor$1["id"]>;
+-}, options?: {
++}, options: {
+   typed: true;
+ }): TypedMessageDescriptor$1<NoInfer<V>> & Readonly<{
+   id: NonNullable<MessageDescriptor$1["id"]>;
+ }>;
+-export declare function defineMessage<V extends MessageValues = {}>(message: MessageDescriptor$1, options?: {
++export declare function defineMessage<V extends MessageValues = {}>(message: MessageDescriptor$1, options: {
+   typed: true;
+ }): TypedMessageDescriptor$1<NoInfer<V>>;
+ export declare function defineMessage<T extends MessageDescriptor$1>(message: T): Readonly<T>;

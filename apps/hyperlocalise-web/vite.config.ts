@@ -72,11 +72,22 @@ const isCi = process.env.CI === "true";
 export default defineConfig({
   cacheDir: ".cache/vite",
   fmt: {
-    ignorePatterns: ["drizzle/**", "pnpm-*.yaml", ...translatedIgnorePatterns],
+    ignorePatterns: [
+      "drizzle/**",
+      "pnpm-*.yaml",
+      "public/mockServiceWorker.js",
+      ...translatedIgnorePatterns,
+    ],
   },
   lint: {
     // Match tsconfig exclude: browser e2e is local-only (vite.e2e.config.ts).
-    ignorePatterns: ["drizzle/**", "pnpm-*.yaml", "src/e2e/**", ...translatedIgnorePatterns],
+    ignorePatterns: [
+      "drizzle/**",
+      "pnpm-*.yaml",
+      "public/mockServiceWorker.js",
+      "src/e2e/**",
+      ...translatedIgnorePatterns,
+    ],
     options: { typeAware: true, typeCheck: true },
     jsPlugins: ["eslint-plugin-formatjs"],
     rules: {
@@ -92,6 +103,11 @@ export default defineConfig({
     ],
   },
   test: {
+    // Vitest v4 compatibility: preserve mock call history.
+    // Remove after tests no longer rely on calls from setup or earlier tests.
+    // https://viteplus.dev/guide/vitest-v5#remove-unneeded-compatibility-settings
+    // https://vitest.dev/guide/migration/#clearmocks-is-enabled-by-default
+    clearMocks: false,
     environment: "node",
     silent: "passed-only",
     pool: "threads",
@@ -99,10 +115,6 @@ export default defineConfig({
     setupFiles: ["./src/test/setup-dom.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["src/e2e/**"],
-    experimental: {
-      fsModuleCache: true,
-      fsModuleCachePath: ".cache/vitest",
-    },
     deps: {
       optimizer: {
         ssr: {
