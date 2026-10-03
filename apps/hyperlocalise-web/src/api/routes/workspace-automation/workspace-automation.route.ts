@@ -502,6 +502,7 @@ export function createWorkspaceAutomationRoutes(
           triggerConfig: payload.triggerConfig,
           repositoryTarget,
           toolConfig: payload.toolConfig,
+          skillIds: "skillIds" in payload ? payload.skillIds : undefined,
           syncConfig: payload.syncConfig,
           nextRunAt: parseNextRunAt(payload.nextRunAt),
         };
@@ -677,6 +678,7 @@ export function createWorkspaceAutomationRoutes(
           triggerConfig: payload.triggerConfig,
           repositoryTarget: payload.repositoryTarget,
           toolConfig: payload.toolConfig,
+          skillIds: payload.skillIds,
           syncConfig: payload.syncConfig,
           nextRunAt: parseNextRunAt(payload.nextRunAt),
         };

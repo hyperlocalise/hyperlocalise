@@ -167,6 +167,33 @@ export function listWorkspaceAutomationSkillTools(
   ];
 }
 
+export type WorkspaceAutomationSkillValidationCode =
+  | "skill_not_found"
+  | "skill_trigger_incompatible"
+  | "skill_tools_required";
+
+/** First problem with the attached skills, or null when they fit the trigger and tool config. */
+export function validateWorkspaceAutomationSkills(input: {
+  skillIds: readonly string[];
+  triggerMode: WorkspaceAutomationSkillTrigger;
+  toolConfig: WorkspaceAutomationToolConfig;
+}): WorkspaceAutomationSkillValidationCode | null {
+  for (const skillId of input.skillIds) {
+    const skill = getWorkspaceAutomationSkill(skillId);
+    if (!skill) {
+      return "skill_not_found";
+    }
+    if (!workspaceAutomationSkillSupportsTrigger(skill, input.triggerMode)) {
+      return "skill_trigger_incompatible";
+    }
+    if (!skill.tools.every((tool) => workspaceAutomationSkillToolEnabled(tool, input.toolConfig))) {
+      return "skill_tools_required";
+    }
+  }
+
+  return null;
+}
+
 export function workspaceAutomationSkillToolEnabled(
   tool: WorkspaceAutomationSkillTool,
   toolConfig: WorkspaceAutomationToolConfig,

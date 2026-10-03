@@ -35,7 +35,19 @@ describe("createWorkspaceAutomationBodySchema", () => {
     }
   });
 
-  it("still requires instructions for agent automations", () => {
+  it("accepts an agent automation with a skill and no instructions", () => {
+    const parsed = createWorkspaceAutomationBodySchema.safeParse({
+      name: "Research brief",
+      triggerConfig: { mode: "manual" },
+      repositoryTarget: { kind: "none" },
+      toolConfig: { webSearch: { enabled: true } },
+      skillIds: ["research-web"],
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("still requires instructions for agent automations without a skill", () => {
     const parsed = createWorkspaceAutomationBodySchema.safeParse({
       name: "Review pull requests",
       triggerConfig: { mode: "manual" },

@@ -19,6 +19,7 @@ import {
   triggerConfigSchema,
   workspaceAutomationConfigSchema,
   workspaceAutomationModelSchema,
+  workspaceAutomationSkillIdsSchema,
   workspaceAutomationStatusSchema,
 } from "@/lib/agents/workspace-automation-types";
 import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
@@ -42,7 +43,8 @@ export const listWorkspaceAutomationsQuerySchema = z.object({
 const agentAutomationCreateFields = {
   status: workspaceAutomationStatusSchema.optional(),
   name: z.string().trim().min(1).max(120),
-  instructions: z.string().trim().min(1).max(20_000),
+  instructions: z.string().trim().max(20_000).default(""),
+  skillIds: workspaceAutomationSkillIdsSchema.optional(),
   model: workspaceAutomationModelSchema.optional(),
   nextRunAt: z.string().datetime().nullable().optional(),
 };
@@ -68,7 +70,12 @@ export const createWorkspaceAutomationBodySchema = z.union([
       ...agentAutomationCreateFields,
       kind: z.literal("agent").optional(),
     })
-    .strict(),
+    .strict()
+    // Attached skills carry the procedure, so instructions are only required without one.
+    .refine((value) => value.instructions.length > 0 || (value.skillIds?.length ?? 0) > 0, {
+      message: "Instructions are required when no skill is attached",
+      path: ["instructions"],
+    }),
 ]);
 
 export const updateWorkspaceAutomationBodySchema = workspaceAutomationConfigSchema
@@ -77,6 +84,7 @@ export const updateWorkspaceAutomationBodySchema = workspaceAutomationConfigSche
     status: workspaceAutomationStatusSchema.optional(),
     name: z.string().trim().min(1).max(120).optional(),
     instructions: z.string().trim().max(20_000).optional(),
+    skillIds: workspaceAutomationSkillIdsSchema.optional(),
     model: workspaceAutomationModelSchema.optional(),
     nextRunAt: z.string().datetime().nullable().optional(),
     syncConfig: contentSyncConfigSchema.optional(),

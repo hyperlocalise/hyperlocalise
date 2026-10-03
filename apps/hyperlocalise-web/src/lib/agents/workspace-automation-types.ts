@@ -25,6 +25,8 @@ import {
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
+import { MAX_WORKSPACE_AUTOMATION_SKILLS } from "./workspace-automation-skills";
+
 export {
   contentSyncConfigSchema,
   contentSyncProviderSchema,
@@ -391,6 +393,15 @@ export const toolConfigSchema = z.preprocess((value) => {
   return migrateLegacyTranslationToolConfig(value as Record<string, unknown>);
 }, toolConfigObjectSchema);
 
+export const workspaceAutomationSkillIdsSchema = z
+  .array(z.string().trim().min(1).max(64))
+  .max(MAX_WORKSPACE_AUTOMATION_SKILLS);
+
+export function normalizeSkillIds(value: unknown): string[] {
+  const parsed = workspaceAutomationSkillIdsSchema.safeParse(value);
+  return parsed.success ? [...new Set(parsed.data)] : [];
+}
+
 export const workspaceAutomationConfigSchema = z.object({
   projectId: optionalProjectIdSchema,
   triggerConfig: triggerConfigSchema,
@@ -465,6 +476,18 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "gitlab_pipes_unavailable";
       message: "WorkOS is not configured, so GitLab cannot connect through Pipes.";
+    }
+  | {
+      code: "skill_not_found";
+      message: "A selected skill is no longer available. Remove it and try again.";
+    }
+  | {
+      code: "skill_trigger_incompatible";
+      message: "A selected skill does not work with this trigger.";
+    }
+  | {
+      code: "skill_tools_required";
+      message: "A selected skill needs a tool that is not enabled.";
     }
   | {
       code: "project_required";
@@ -716,6 +739,7 @@ export type WorkspaceAutomationRecord = {
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
+  skillIds?: string[];
   syncConfig?: ContentSyncConfig | null;
   configVersion: number;
   nextRunAt: string | null;
