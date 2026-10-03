@@ -24,7 +24,6 @@ import {
   AiPaintbrushIcon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
-  Loading03Icon,
   MoreHorizontalIcon,
   SparklesIcon,
   Upload01Icon,
@@ -259,26 +258,6 @@ export function ContentEditorFileViewPanel({
 
   const targetFileActions = (
     <>
-      {onRegenerate && viewerId !== "image" && viewerId !== "video" ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="xs"
-          disabled={!canEdit || isImageBusy || imageLayersDirty}
-          onClick={() => setGenerateDialogOpen(true)}
-        >
-          {isImageBusy ? (
-            <HugeiconsIcon icon={Loading03Icon} className="animate-spin" aria-hidden />
-          ) : (
-            <HugeiconsIcon icon={SparklesIcon} data-icon="inline-start" aria-hidden />
-          )}
-          <FormattedMessage
-            {...(hasTarget
-              ? contentEditorFileViewMessages.regenerate
-              : contentEditorFileViewMessages.generate)}
-          />
-        </Button>
-      ) : null}
       {onUpload && uploadAccept ? (
         <>
           <Button
@@ -455,7 +434,7 @@ export function ContentEditorFileViewPanel({
               ) : null}
               <ContentEditorWorkspaceViewSwitcherConnected size="xs" variant="outline" />
               {isDocumentViewer || officeKind ? <div ref={setSaveActionsContainer} /> : null}
-              {isDocumentViewer && hasTargetFileActions ? (
+              {!isMediaViewer && hasTargetFileActions ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -484,7 +463,7 @@ export function ContentEditorFileViewPanel({
                           />
                         </DropdownMenuItem>
                       ) : null}
-                      {onUpload ? (
+                      {onUpload && uploadAccept ? (
                         <DropdownMenuItem
                           disabled={!canEdit || isImageBusy}
                           onClick={() => uploadInputRef.current?.click()}
@@ -571,96 +550,84 @@ export function ContentEditorFileViewPanel({
           onRegenerate={onRegenerate}
         />
       ) : isDocumentViewer ? (
-        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/30 p-3 sm:p-6 lg:p-8">
-          <div
-            className={cn(
-              "relative mx-auto grid w-full max-w-3xl items-start gap-6",
-              sourcePaneVisible && "max-w-[96rem] lg:grid-cols-2",
-            )}
-          >
-            <AnimatePresence initial={false} mode="popLayout">
-              {sourcePaneVisible ? (
+        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/30">
+          {/* Padding sits inside the scroll container so the sticky toolbar reaches its top edge. */}
+          <div className="p-3 sm:p-6 lg:p-8">
+            <div
+              className={cn(
+                "relative mx-auto grid w-full max-w-3xl items-start gap-6",
+                sourcePaneVisible && "max-w-[96rem] lg:grid-cols-2",
+              )}
+            >
+              <AnimatePresence initial={false} mode="popLayout">
+                {sourcePaneVisible ? (
+                  <motion.section
+                    key="source"
+                    layout="position"
+                    initial={{ opacity: reduceMotion ? 1 : 0, x: reduceMotion ? 0 : -24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{
+                      opacity: reduceMotion ? 1 : 0,
+                      x: reduceMotion ? 0 : -24,
+                      transition: { duration: reduceMotion ? 0 : 0.15 },
+                    }}
+                    transition={documentTransition}
+                    className="order-2 min-w-0 lg:order-none"
+                    aria-label={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
+                      locale: segment.sourceLocale,
+                    })}
+                  >
+                    <h2 className="mb-3 text-sm text-muted-foreground">
+                      <FormattedMessage
+                        {...contentEditorFileViewMessages.sourceHeading}
+                        values={{ locale: segment.sourceLocale }}
+                      />
+                    </h2>
+                    <div className="min-h-[48rem] border border-border/60 bg-card shadow-sm">
+                      <ContentEditorDocumentFileViewerPane
+                        role="source"
+                        src={sourceSrc}
+                        filename={displayName}
+                        canEdit={false}
+                      />
+                    </div>
+                  </motion.section>
+                ) : null}
                 <motion.section
-                  key="source"
-                  layout="position"
-                  initial={{ opacity: reduceMotion ? 1 : 0, x: reduceMotion ? 0 : -24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{
-                    opacity: reduceMotion ? 1 : 0,
-                    x: reduceMotion ? 0 : -24,
-                    transition: { duration: reduceMotion ? 0 : 0.15 },
-                  }}
+                  key="target"
+                  layout={reduceMotion ? false : "position"}
                   transition={documentTransition}
-                  className="order-2 min-w-0 lg:order-none"
-                  aria-label={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
-                    locale: segment.sourceLocale,
+                  className="min-w-0"
+                  aria-label={intl.formatMessage(contentEditorFileViewMessages.targetHeading, {
+                    locale: segment.targetLocale,
                   })}
                 >
                   <h2 className="mb-3 text-sm text-muted-foreground">
                     <FormattedMessage
-                      {...contentEditorFileViewMessages.sourceHeading}
-                      values={{ locale: segment.sourceLocale }}
+                      {...contentEditorFileViewMessages.targetHeading}
+                      values={{ locale: segment.targetLocale }}
                     />
                   </h2>
                   <div className="min-h-[48rem] border border-border/60 bg-card shadow-sm">
                     <ContentEditorDocumentFileViewerPane
-                      role="source"
-                      src={sourceSrc}
+                      key={segment.id}
+                      role="target"
+                      src={targetSrc}
+                      seedSrc={sourceSrc}
                       filename={displayName}
-                      canEdit={false}
+                      isLoading={isSegmentTargetLoading}
+                      canEdit={canEdit}
+                      isBusy={isImageBusy}
+                      onSave={onUpload}
+                      saveActionsContainer={saveActionsContainer}
+                      onReviewBlockedChange={setDocumentReviewBlocked}
+                      selectionAi={selectionAi}
                     />
                   </div>
                 </motion.section>
-              ) : null}
-              <motion.section
-                key="target"
-                layout={reduceMotion ? false : "position"}
-                transition={documentTransition}
-                className="min-w-0"
-                aria-label={intl.formatMessage(contentEditorFileViewMessages.targetHeading, {
-                  locale: segment.targetLocale,
-                })}
-              >
-                <h2 className="mb-3 text-sm text-muted-foreground">
-                  <FormattedMessage
-                    {...contentEditorFileViewMessages.targetHeading}
-                    values={{ locale: segment.targetLocale }}
-                  />
-                </h2>
-                <div className="min-h-[48rem] border border-border/60 bg-card shadow-sm">
-                  <ContentEditorDocumentFileViewerPane
-                    key={segment.id}
-                    role="target"
-                    src={targetSrc}
-                    seedSrc={sourceSrc}
-                    filename={displayName}
-                    isLoading={isSegmentTargetLoading}
-                    canEdit={canEdit}
-                    isBusy={isImageBusy}
-                    onSave={onUpload}
-                    saveActionsContainer={saveActionsContainer}
-                    onReviewBlockedChange={setDocumentReviewBlocked}
-                    selectionAi={selectionAi}
-                  />
-                </div>
-              </motion.section>
-            </AnimatePresence>
+              </AnimatePresence>
+            </div>
           </div>
-          {onUpload ? (
-            <input
-              ref={uploadInputRef}
-              type="file"
-              accept={uploadAccept ?? undefined}
-              className="sr-only"
-              aria-label={intl.formatMessage(contentEditorFileViewMessages.uploadFile)}
-              disabled={!canEdit || isImageBusy}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void onUpload(file);
-                event.currentTarget.value = "";
-              }}
-            />
-          ) : null}
         </div>
       ) : (
         <FileViewWorkspace>
@@ -691,7 +658,6 @@ export function ContentEditorFileViewPanel({
                           values={{ locale: segment.targetLocale }}
                         />
                       }
-                      footer={hasTargetFileActions ? targetFileActions : undefined}
                     >
                       {officeKind ? (
                         <ContentEditorOfficeFileViewerPane
@@ -717,7 +683,22 @@ export function ContentEditorFileViewPanel({
           </FileViewWorkspaceContent>
         </FileViewWorkspace>
       )}
-      {onRegenerate && viewerId !== "image" && viewerId !== "video" ? (
+      {!isMediaViewer && onUpload && uploadAccept ? (
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept={uploadAccept}
+          className="sr-only"
+          aria-label={intl.formatMessage(contentEditorFileViewMessages.uploadFile)}
+          disabled={!canEdit || isImageBusy}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void onUpload(file);
+            event.currentTarget.value = "";
+          }}
+        />
+      ) : null}
+      {onRegenerate && !isMediaViewer ? (
         <ContentEditorFileGenerateDialog
           open={generateDialogOpen}
           onOpenChange={setGenerateDialogOpen}
