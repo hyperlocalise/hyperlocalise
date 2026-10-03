@@ -10,7 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { glossaryTermRanges } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
+import {
+  containsGlossaryTerm,
+  glossaryTermRanges,
+} from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import type {
   ContentEditorFormatCheck,
   ContentEditorFormatCheckStatus,
@@ -89,7 +92,7 @@ export function qaProblemTokenMatches(text: string, problemToken: string, wholeT
     return false;
   }
   if (wholeTerm) {
-    return glossaryTermRanges(text, problemToken).length > 0;
+    return containsGlossaryTerm(text, problemToken);
   }
   return text.includes(problemToken);
 }
