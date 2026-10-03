@@ -183,6 +183,30 @@ func TestQaReportReviewIgnoreAndReopenMatchingFindings(t *testing.T) {
 	require.Nil(t, olderReason)
 }
 
+func TestQaReportReviewKeepsDeletedKeysSeparate(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	ctx := t.Context()
+
+	runID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 2, 2, 0)
+	selectedID := mustQaFinding(t, scope, runID, scope.ProjectID, "deleted-key-a")
+	siblingID := mustQaFinding(t, scope, runID, scope.ProjectID, "deleted-key-b")
+
+	rec := qaReportRequest(api, scope, http.MethodPatch,
+		scope.OrgPath("/qa-reports/findings/"+selectedID),
+		`{"status":"ignored","reason":"False positive for this key only"}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var selectedStatus, siblingStatus string
+	require.NoError(t, scope.Pool.QueryRow(ctx,
+		`select status from translation_qa_findings where id=$1`, selectedID,
+	).Scan(&selectedStatus))
+	require.NoError(t, scope.Pool.QueryRow(ctx,
+		`select status from translation_qa_findings where id=$1`, siblingID,
+	).Scan(&siblingStatus))
+	require.Equal(t, "ignored", selectedStatus)
+	require.Equal(t, "open", siblingStatus)
+}
+
 func TestQaReportReviewRejectsStaleFinding(t *testing.T) {
 	api, scope := qaReportTestAPI(t, "admin")
 	staleRun := uuid.NewString()
