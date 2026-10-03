@@ -62,6 +62,22 @@ type AppShellBreadcrumbProps = {
 
 type SelectorCrumbKind = "project" | "team" | "domain";
 
+function sameBreadcrumbHref(left: string | undefined, right: string | undefined) {
+  if (left === right) {
+    return true;
+  }
+
+  if (!left || !right) {
+    return false;
+  }
+
+  try {
+    return decodeURIComponent(left) === decodeURIComponent(right);
+  } catch {
+    return false;
+  }
+}
+
 function isProjectBreadcrumbCrumb(
   crumb: AppShellBreadcrumbItem,
   index: number,
@@ -74,7 +90,7 @@ function isProjectBreadcrumbCrumb(
   }
 
   const projectHref = buildProjectPath(organizationSlug, projectId);
-  return crumb.href === projectHref || crumb.href === undefined;
+  return sameBreadcrumbHref(crumb.href, projectHref) || crumb.href === undefined;
 }
 
 function isTeamBreadcrumbCrumb(

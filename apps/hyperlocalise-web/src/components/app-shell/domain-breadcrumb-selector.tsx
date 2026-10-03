@@ -69,6 +69,7 @@ export function DomainBreadcrumbSelector({
     <BreadcrumbCrumbSelector
       value={linkedDomainId}
       label={domainName}
+      href={buildDomainPath(organizationSlug, linkedDomainId)}
       options={options}
       onSelect={handleSelect}
       isLoading={domainsQuery.isPending}
