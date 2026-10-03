@@ -374,6 +374,53 @@ describe("ProjectSettingsPageContent", () => {
     await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Style guide saved"));
   });
 
+  it("keeps a pending general save locked while another section saves", async () => {
+    const user = userEvent.setup();
+    let resolveGeneral!: (value: unknown) => void;
+    let resolveLocales!: (value: unknown) => void;
+    const generalSave = new Promise((resolve) => {
+      resolveGeneral = resolve;
+    });
+    const localesSave = new Promise((resolve) => {
+      resolveLocales = resolve;
+    });
+    updateMock.mockImplementation(
+      (_organizationSlug: string, _projectId: string, payload: object) => {
+        if ("identifier" in payload) {
+          return generalSave;
+        }
+        return localesSave;
+      },
+    );
+
+    renderSettings();
+
+    const identifier = await screen.findByLabelText("Identifier");
+    await user.clear(identifier);
+    await user.type(identifier, "new");
+    await user.click(screen.getByRole("button", { name: "Save general settings" }));
+
+    expect(identifier).toBeDisabled();
+
+    await user.click(await screen.findByRole("button", { name: /Japanese \(Japan\) \(ja-JP\)/i }));
+    await user.click(screen.getByRole("button", { name: "Save locales" }));
+
+    expect(screen.getByLabelText("Identifier")).toBeDisabled();
+    expect(updateMock).toHaveBeenCalledTimes(2);
+
+    resolveLocales({
+      project: createProject({ identifier: "NEW", targetLocales: ["de-DE", "fr-FR", "ja-JP"] }),
+    });
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("Locales saved"));
+    expect(screen.getByLabelText("Identifier")).toBeDisabled();
+    expect(screen.getByLabelText("Identifier")).toHaveValue("NEW");
+
+    resolveGeneral({ project: createProject({ identifier: "NEW" }) });
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledWith("General settings saved"));
+    expect(screen.getByLabelText("Identifier")).toBeEnabled();
+    expect(screen.getByLabelText("Identifier")).toHaveValue("NEW");
+  });
+
   it("saves only the identifier for provider-managed projects", async () => {
     const user = userEvent.setup();
     renderSettings(

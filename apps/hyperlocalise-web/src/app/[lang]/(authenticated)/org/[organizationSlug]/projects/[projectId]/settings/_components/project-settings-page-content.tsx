@@ -267,10 +267,36 @@ export function ProjectSettingsPageContent({
   const [baseline, setBaseline] = useState<ProjectFormValues | null>(null);
   const [errors, setErrors] = useState<ProjectFormErrors>({});
   const [syncedFingerprint, setSyncedFingerprint] = useState<string | null>(null);
+  const [pendingSections, setPendingSections] = useState<ReadonlySet<ProjectSettingsSection>>(
+    () => new Set(),
+  );
   const valuesRef = useRef(values);
   const baselineRef = useRef(baseline);
+  const pendingSectionsRef = useRef(pendingSections);
   valuesRef.current = values;
   baselineRef.current = baseline;
+  pendingSectionsRef.current = pendingSections;
+
+  function setSectionPending(section: ProjectSettingsSection, pending: boolean) {
+    const current = pendingSectionsRef.current;
+    if (pending === current.has(section)) {
+      return;
+    }
+
+    const next = new Set(current);
+    if (pending) {
+      next.add(section);
+    } else {
+      next.delete(section);
+    }
+
+    pendingSectionsRef.current = next;
+    setPendingSections(next);
+  }
+
+  function isSavingSection(section: ProjectSettingsSection) {
+    return pendingSections.has(section);
+  }
 
   useEffect(() => {
     if (!project) {
@@ -334,7 +360,13 @@ export function ProjectSettingsPageContent({
 
       return response.json();
     },
-    onSuccess: async (_result, { nextValues, section }) => {
+  });
+
+  async function saveSection(section: ProjectSettingsSection, nextValues: ProjectFormValues) {
+    setSectionPending(section, true);
+
+    try {
+      await updateProject.mutateAsync({ nextValues, section });
       setValues((current) =>
         current ? applyProjectSettingsSection(current, nextValues, section) : current,
       );
@@ -356,13 +388,13 @@ export function ProjectSettingsPageContent({
               : projectSettingsPageContentMessages.localesSaved,
         ),
       );
-    },
-    onError: (error) => {
+    } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to update project settings");
-    },
-  });
+    } finally {
+      setSectionPending(section, false);
+    }
+  }
 
-  const savingSection = updateProject.isPending ? updateProject.variables?.section : undefined;
   const metadataEditable = project?.source === "native";
 
   function updateField<K extends keyof ProjectFormValues>(field: K, value: ProjectFormValues[K]) {
@@ -380,7 +412,7 @@ export function ProjectSettingsPageContent({
   function handleSectionSubmit(section: ProjectSettingsSection) {
     return (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      if (!values || !project || !baseline) {
+      if (!values || !project || !baseline || pendingSectionsRef.current.has(section)) {
         return;
       }
 
@@ -404,7 +436,7 @@ export function ProjectSettingsPageContent({
         return;
       }
 
-      updateProject.mutate({ nextValues: values, section });
+      void saveSection(section, values);
     };
   }
 
@@ -465,7 +497,7 @@ export function ProjectSettingsPageContent({
               <Input
                 id="project-name"
                 value={values.name}
-                disabled={savingSection === "general" || !metadataEditable}
+                disabled={isSavingSection("general") || !metadataEditable}
                 onChange={(event) => updateField("name", event.target.value)}
                 aria-invalid={Boolean(errors.name)}
               />
@@ -478,7 +510,7 @@ export function ProjectSettingsPageContent({
               <Input
                 id="project-identifier"
                 value={values.identifier}
-                disabled={savingSection === "general"}
+                disabled={isSavingSection("general")}
                 className="font-mono uppercase"
                 onChange={(event) => updateField("identifier", event.target.value.toUpperCase())}
                 aria-invalid={Boolean(errors.identifier)}
@@ -497,7 +529,7 @@ export function ProjectSettingsPageContent({
               <Textarea
                 id="project-description"
                 value={values.description}
-                disabled={savingSection === "general" || !metadataEditable}
+                disabled={isSavingSection("general") || !metadataEditable}
                 onChange={(event) => updateField("description", event.target.value)}
                 aria-invalid={Boolean(errors.description)}
                 className="min-h-24"
@@ -510,7 +542,7 @@ export function ProjectSettingsPageContent({
               />
             </Field>
             <ProjectSettingsSectionSave
-              isSaving={savingSection === "general"}
+              isSaving={isSavingSection("general")}
               disabled={!generalDirty}
               ariaLabel={intl.formatMessage(projectSettingsPageContentMessages.saveGeneralSettings)}
             />
@@ -532,7 +564,7 @@ export function ProjectSettingsPageContent({
                 <MarkdownEditor
                   id="translation-context"
                   value={values.translationContext}
-                  disabled={savingSection === "styleGuide"}
+                  disabled={isSavingSection("styleGuide")}
                   onChange={(translationContext) =>
                     updateField("translationContext", translationContext)
                   }
@@ -549,7 +581,7 @@ export function ProjectSettingsPageContent({
                 />
               </Field>
               <ProjectSettingsSectionSave
-                isSaving={savingSection === "styleGuide"}
+                isSaving={isSavingSection("styleGuide")}
                 disabled={!styleGuideDirty}
                 ariaLabel={intl.formatMessage(
                   projectSettingsPageContentMessages.saveStyleGuideSettings,
@@ -589,18 +621,18 @@ export function ProjectSettingsPageContent({
                 <ProjectSourceLocalePicker
                   value={values.sourceLocale}
                   onChange={(sourceLocale) => updateField("sourceLocale", sourceLocale)}
-                  disabled={savingSection === "locales"}
+                  disabled={isSavingSection("locales")}
                   error={errors.sourceLocale}
                 />
                 <ProjectTargetLocalesPicker
                   value={values.targetLocales}
                   sourceLocale={values.sourceLocale}
                   onChange={(targetLocales) => updateField("targetLocales", targetLocales)}
-                  disabled={savingSection === "locales"}
+                  disabled={isSavingSection("locales")}
                   error={errors.targetLocales}
                 />
                 <ProjectSettingsSectionSave
-                  isSaving={savingSection === "locales"}
+                  isSaving={isSavingSection("locales")}
                   disabled={!localesDirty}
                   ariaLabel={intl.formatMessage(
                     projectSettingsPageContentMessages.saveLocalesSettings,
