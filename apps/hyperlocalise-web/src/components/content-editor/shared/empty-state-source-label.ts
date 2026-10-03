@@ -27,7 +27,10 @@ function truncateSourceLabel(text: string) {
   if (graphemes.length <= EMPTY_STATE_SOURCE_MAX_LENGTH) {
     return text;
   }
-  return `${graphemes.slice(0, EMPTY_STATE_SOURCE_MAX_LENGTH - 1).join("").trimEnd()}…`;
+  return `${graphemes
+    .slice(0, EMPTY_STATE_SOURCE_MAX_LENGTH - 1)
+    .join("")
+    .trimEnd()}…`;
 }
 
 /** Short, single-line source excerpt for empty states that must name the string. */
