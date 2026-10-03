@@ -351,6 +351,22 @@ func looksLikeEditorCatVideoURL(value string) bool {
 	return looksLikeEditorCatHTTPURL(value, ".mp4")
 }
 
+// editorCatSourceLooksLikeMediaURLSQL mirrors looksLikeEditorCatImageURL and
+// looksLikeEditorCatVideoURL for SQL grouping (pathname suffix after host).
+func editorCatSourceLooksLikeMediaURLSQL(sourceTextColumn string) string {
+	trimmed := "trim(" + sourceTextColumn + ")"
+	path := "split_part(split_part(lower(regexp_replace(" + trimmed + ", '^https?://[^/?#]+', '', 'i')), '?', 1), '#', 1)"
+	return "(lower(" + trimmed + ") ~ '^https?://' and " + path + " ~ '\\.(png|jpe?g|webp|mp4)$')"
+}
+
+func editorCatGroupSeparatesMediaSQL() string {
+	return "(coalesce(k.metadata->>'contentKind', '') in ('image_url','video_url') or " + editorCatSourceLooksLikeMediaURLSQL("k.source_text") + ")"
+}
+
+func editorCatGroupIdentitySQL() string {
+	return "case when " + editorCatGroupSeparatesMediaSQL() + " then 'media:' || k.id::text else 'text:' || k.source_text end"
+}
+
 type editorCatFileKind string
 
 const (

@@ -141,7 +141,7 @@ function GroupMembers({
         organizationSlug,
         projectId,
         group.id,
-        { ...query, offset, limit: PAGE_LIMIT },
+        { ...query, groupSourceText: group.sourceText, offset, limit: PAGE_LIMIT },
         { signal },
       ),
     gcTime: 60_000,

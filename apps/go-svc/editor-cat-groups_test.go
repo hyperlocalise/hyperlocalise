@@ -120,6 +120,39 @@ func TestEditorCatGroupsKeepMediaSeparateAndScopeMembers(t *testing.T) {
 	require.Equal(t, http.StatusNotImplemented, rec.Code)
 }
 
+func TestEditorCatGroupsKeepDetectedMediaURLsSeparate(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "admin")
+	file := mustEditorCatSourceFile(t, scope, "a.json")
+	mustEditorCatKey(t, scope, file, "one", "https://example.com/image.png")
+	mustEditorCatKey(t, scope, file, "two", "https://example.com/image.png")
+	groups, _ := readCatGroups(t, api, scope, "sourcePath=*")
+	require.Len(t, groups, 2)
+	require.Equal(t, 1, groups[0].OccurrenceCount)
+	require.Equal(t, 1, groups[1].OccurrenceCount)
+}
+
+func TestEditorCatGroupMembersAcceptGroupSourceText(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileA := mustEditorCatSourceFile(t, scope, "a.json")
+	fileB := mustEditorCatSourceFile(t, scope, "b.json")
+	first := mustEditorCatKey(t, scope, fileA, "button.save", "Save")
+	mustEditorCatKey(t, scope, fileB, "menu.save", "Save")
+	groups, _ := readCatGroups(t, api, scope, "sourcePath=*")
+	require.Len(t, groups, 1)
+	group := groups[0]
+	path := editorCatPathFor(scope, "/files/detail/cat/groups/"+group.ID+"/members?sourcePath=*&targetLocale=fr&groupSourceText="+url.QueryEscape(group.SourceText))
+	rec := editorCatRequestScope(api, scope, http.MethodGet, path, "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		Members    []editorCatGroupMember `json:"members"`
+		Pagination editorCatPagination    `json:"pagination"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, 2, body.Pagination.TotalCount)
+	require.Len(t, body.Members, 2)
+	require.Equal(t, first, body.Members[0].ID)
+}
+
 func TestEditorCatGroupQueryRejectsDeferredFilters(t *testing.T) {
 	for _, filter := range []string{"qa_issues", "machine_translated", "with_comments"} {
 		r := httptest.NewRequest(http.MethodGet, "/?sourcePath=*&targetLocale=fr&queueFilter="+filter, nil)

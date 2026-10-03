@@ -109,4 +109,47 @@ describe("personal string view", () => {
     expect(screen.queryByText("Grouped browser")).not.toBeInTheDocument();
     expect(localStorage.getItem(STORAGE_KEY)).toBe("grouped");
   });
+
+  it("returns to the saved grouped view when the segment link is cleared", async () => {
+    localStorage.setItem(STORAGE_KEY, "grouped");
+    const contentEditorBehavior = vi.fn().mockResolvedValue({
+      contentEditorBehavior: {
+        automaticallyGroupIdenticalStrings: true,
+        groupingRevision: 1,
+        canManage: true,
+      },
+    });
+    const client = { project: { contentEditorBehavior } } as unknown as GoSvcClient;
+    const guard = vi.fn((proceed: () => void) => proceed());
+    const { rerender } = renderWithContentEditorProviders(
+      <ContentEditorGroupingView
+        enabled
+        client={client}
+        organizationSlug="acme"
+        projectId="p1"
+        sourcePath="*"
+        targetLocale="fr"
+        navigationGuardRef={{ current: guard }}
+        initialSegmentKey="segment-1"
+      >
+        <p>Individual editor</p>
+      </ContentEditorGroupingView>,
+    );
+    expect(await screen.findByText("Individual editor")).toBeInTheDocument();
+    rerender(
+      <ContentEditorGroupingView
+        enabled
+        client={client}
+        organizationSlug="acme"
+        projectId="p1"
+        sourcePath="menu.json"
+        targetLocale="fr"
+        navigationGuardRef={{ current: guard }}
+        initialSegmentKey={null}
+      >
+        <p>Individual editor</p>
+      </ContentEditorGroupingView>,
+    );
+    expect(await screen.findByText("Grouped browser")).toBeInTheDocument();
+  });
 });

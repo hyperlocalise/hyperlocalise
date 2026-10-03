@@ -70,6 +70,9 @@ function GroupingViewState({
   const [defaultView, setDefaultView] = useState<View | null>(null);
   const [openedDirectly, setOpenedDirectly] = useState(Boolean(initialSegmentKey));
   useEffect(() => {
+    setOpenedDirectly(Boolean(initialSegmentKey));
+  }, [initialSegmentKey]);
+  useEffect(() => {
     try {
       const saved = window.localStorage.getItem(storageKey);
       if (saved === "individual" || saved === "grouped") setPreference(saved);

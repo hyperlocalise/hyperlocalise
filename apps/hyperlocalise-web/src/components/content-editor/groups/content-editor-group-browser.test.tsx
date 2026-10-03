@@ -91,6 +91,7 @@ describe("grouped browsing", () => {
         limit: 25,
         sourcePaths: "a.json,menu.json",
         targetLocale: "fr",
+        groupSourceText: GROUP.sourceText,
       }),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );

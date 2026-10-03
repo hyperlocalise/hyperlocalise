@@ -51,4 +51,6 @@ export interface CatStringGroupsQuery {
   queueSort?: "file_order" | "untranslated_first";
   offset?: number;
   limit?: number;
+  /** Source text from the selected group; narrows member queries in large projects. */
+  groupSourceText?: string;
 }

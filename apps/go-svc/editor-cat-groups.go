@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -33,17 +34,23 @@ type editorCatGroupMember struct {
 // Grouping is a read model. Original key identities and locale translations stay intact.
 // Search/filter matches select groups, not their membership, so inspection can explain
 // both matching and total occurrence counts without hiding conflicting translations.
-func editorCatGroupScope(query editorCatQueueQuery) string {
+func editorCatGroupScope(query editorCatQueueQuery, scopedWhere string) string {
 	filter := editorCatQueueFilterSQL(query.queueFilter, 1, 2, 3)
+	identity := editorCatGroupIdentitySQL()
+	where := `where k.organization_id=$1 and k.project_id=$2
+            and ($4='*' or f.source_path=$4)
+            and (cardinality($5::text[])=0 or f.source_path=any($5::text[]))`
+	if scopedWhere != "" {
+		where += `
+            and (` + scopedWhere + `)`
+	}
 	return `with scoped as (
         select k.id, k.key, k.source_text, k.context, k.max_length, k.is_hidden,
             f.source_path, coalesce(t.text, '') as target_text, coalesce(t.status::text, 'draft') as status,
             exists (select 1 from project_cat_segment_locks l
                 where l.organization_id=$1 and l.project_id=$2 and l.target_locale=$3
                 and l.external_string_id=k.id::text) as is_locked,
-            encode(sha256(convert_to(case
-                when coalesce(k.metadata->>'contentKind', '') in ('image_url','video_url')
-                then 'media:' || k.id::text else 'text:' || k.source_text end, 'UTF8')), 'hex') as group_id,
+            encode(sha256(convert_to(` + identity + `, 'UTF8')), 'hex') as group_id,
             (($6 = '' or k.key ilike $6 escape '\' or k.source_text ilike $6 escape '\'
                 or coalesce(k.context,'') ilike $6 escape '\' or coalesce(t.text,'') ilike $6 escape '\')
                 ` + filter + `) as matches_filter
@@ -52,10 +59,24 @@ func editorCatGroupScope(query editorCatQueueQuery) string {
             and f.organization_id=k.organization_id and f.project_id=k.project_id
         left join project_translations t on t.translation_key_id=k.id
             and t.organization_id=$1 and t.project_id=$2 and t.target_locale=$3
-        where k.organization_id=$1 and k.project_id=$2
-            and ($4='*' or f.source_path=$4)
-            and (cardinality($5::text[])=0 or f.source_path=any($5::text[]))
+        ` + where + `
     )`
+}
+
+func editorCatTextGroupID(sourceText string) string {
+	sum := sha256.Sum256([]byte("text:" + sourceText))
+	return hex.EncodeToString(sum[:])
+}
+
+func editorCatGroupMembersScopedWhere(groupID, groupSourceText string) (scopedWhere string, memberArg any) {
+	separates := editorCatGroupSeparatesMediaSQL()
+	if groupSourceText != "" {
+		if editorCatTextGroupID(groupSourceText) == groupID {
+			return "not " + separates + " and k.source_text = $7", groupSourceText
+		}
+		return separates + " and encode(sha256(convert_to('media:' || k.id::text, 'UTF8')), 'hex') = $7", groupID
+	}
+	return "encode(sha256(convert_to(" + editorCatGroupIdentitySQL() + ", 'UTF8')), 'hex') = $7", groupID
 }
 
 func parseEditorCatGroupQuery(r *http.Request) (editorCatQueueQuery, error) {
@@ -96,7 +117,7 @@ func (api *editorCatAPI) getStringGroups(r *http.Request, actor editorCatActor, 
 	if query.queueSort == "untranslated_first" {
 		order = `"translatedCount" > 0, "approvedCount" = "occurrenceCount", ` + order
 	}
-	sql := editorCatGroupScope(query) + `, grouped as (
+	sql := editorCatGroupScope(query, "") + `, grouped as (
         select group_id as id, source_text as "sourceText", count(*)::int as "occurrenceCount",
             count(*) filter (where matches_filter)::int as "matchingCount",
             count(distinct target_text) filter (where trim(target_text) <> '')::int as "translationVariants",
@@ -136,16 +157,18 @@ func (api *editorCatAPI) getStringGroupMembers(r *http.Request, actor editorCatA
 	if err != nil || len(decoded) != 32 {
 		return nil, 0, editorCatFailure(400, "invalid_group_id", "Invalid string group")
 	}
-	sql := editorCatGroupScope(query) + `, members as (
+	groupSourceText := trimEditorCat(r.URL.Query().Get("groupSourceText"))
+	scopedWhere, memberArg := editorCatGroupMembersScopedWhere(groupID, groupSourceText)
+	sql := editorCatGroupScope(query, scopedWhere) + `, members as (
         select id, key, source_path as "sourcePath", context, max_length as "maxLength",
             target_text as "targetText", status, is_hidden as "isHidden", is_locked as "isLocked",
             matches_filter as "matchesFilter"
-        from scoped where group_id=$7
+        from scoped
     ), page as (select * from members order by "sourcePath", key, id limit $8 offset $9)
     select coalesce((select jsonb_agg(page) from page), '[]'::jsonb), (select count(*) from members)`
 	var raw []byte
 	var total int
-	err = api.pool.QueryRow(r.Context(), sql, append(editorCatGroupArgs(actor, project, query), groupID, query.limit, query.offset)...).Scan(&raw, &total)
+	err = api.pool.QueryRow(r.Context(), sql, append(editorCatGroupArgs(actor, project, query), memberArg, query.limit, query.offset)...).Scan(&raw, &total)
 	if err != nil {
 		return nil, 0, err
 	}
