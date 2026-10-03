@@ -1054,6 +1054,26 @@ export const contentEditorEditorPanelMessages = defineMessages({
     id: "MN2GW5Szxo",
     description: "Button to request an AI translation recommendation",
   },
+  generateAiSuggestion: {
+    defaultMessage: "Generate AI suggestion",
+    id: "uvpc5HKX9c",
+    description: "Compact action to request an AI translation suggestion in side-by-side review",
+  },
+  generatingAiSuggestion: {
+    defaultMessage: "Generating…",
+    id: "8DoP8wQIRZ",
+    description: "Loading label while an AI translation suggestion is generated",
+  },
+  draftAction: {
+    defaultMessage: "Draft",
+    id: "qlnx9FQUcg",
+    description: "Secondary action to save the current translation as a draft",
+  },
+  queryAction: {
+    defaultMessage: "Query",
+    id: "ROKj0LtX6V",
+    description: "Secondary action to open a query for the current CAT segment",
+  },
   aiReasoning: {
     defaultMessage: "<b>Reasoning:</b> {reasoning}",
     id: "TE3bLZyBSZ",
@@ -1350,5 +1370,25 @@ export const contentEditorSideBySidePanelMessages = defineMessages({
     defaultMessage: "Checking format & QA",
     id: "StSqQpNlpj",
     description: "Accessible label while side-by-side format checks are loading",
+  },
+  qaStatusClear: {
+    defaultMessage: "No QA issues",
+    id: "l5Sl5JTMnt",
+    description: "Accessible label when a side-by-side row has no QA issues",
+  },
+  qaIssueSuggested: {
+    defaultMessage: "Suggested: “{suggestion}”",
+    id: "opC1K5h0/W",
+    description: "Inline suggested replacement for the first QA issue",
+  },
+  qaIssueFix: {
+    defaultMessage: "Fix",
+    id: "uuh4ULLgCz",
+    description: "Button to apply the suggested QA replacement",
+  },
+  qaIssueMore: {
+    defaultMessage: "+{count} more",
+    id: "55UxBxUnw3",
+    description: "Button showing additional QA issues and opening the full QA details",
   },
 });

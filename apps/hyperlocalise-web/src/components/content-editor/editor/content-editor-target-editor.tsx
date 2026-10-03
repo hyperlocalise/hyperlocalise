@@ -94,6 +94,74 @@ function decorationRangesForToken(
   });
 }
 
+function createQaHighlightExtension(
+  getHighlight: () => { tokens: string[]; status: "warn" | "fail" },
+) {
+  return Extension.create({
+    name: "contentEditorQaHighlights",
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey("contentEditorQaHighlights"),
+          props: {
+            decorations(state) {
+              const { tokens, status } = getHighlight();
+              if (tokens.length === 0) {
+                return DecorationSet.empty;
+              }
+
+              const textRanges: Array<{
+                offsetStart: number;
+                offsetEnd: number;
+                posStart: number;
+              }> = [];
+              let offset = 0;
+              let prevNodeEnd = -1;
+
+              state.doc.descendants((node, pos) => {
+                if (!node.isText || !node.text) {
+                  return;
+                }
+
+                if (prevNodeEnd !== -1 && pos !== prevNodeEnd) {
+                  offset += 1;
+                }
+
+                textRanges.push({
+                  offsetStart: offset,
+                  offsetEnd: offset + node.text.length,
+                  posStart: pos,
+                });
+                offset += node.text.length;
+                prevNodeEnd = pos + node.text.length;
+              });
+
+              const text = state.doc.textBetween(0, state.doc.content.size, "\n", "\n");
+              const decorations = highlightRangesForTokens(text, tokens).flatMap((range) =>
+                decorationRangesForToken(textRanges, {
+                  id: `qa-${range.start}`,
+                  kind: "argument",
+                  name: "qa",
+                  literal: "",
+                  start: range.start,
+                  end: range.end,
+                }).map(({ from, to }) =>
+                  Decoration.inline(from, to, {
+                    class: qaHighlightClassName(status),
+                    "data-qa-highlight": "true",
+                  }),
+                ),
+              );
+
+              return DecorationSet.create(state.doc, decorations);
+            },
+          },
+        }),
+      ];
+    },
+  });
+}
+
 function createCatMessageFormatExtension() {
   return Extension.create({
     name: "contentEditorMessageFormatDecorations",
@@ -206,12 +274,92 @@ function presentTokenSignatures(analysis: ContentEditorMessageAnalysis) {
   return new Set(analysis.tokens.map((token) => contentEditorMessageTokenSignature(token)));
 }
 
+function highlightRangesForTokens(text: string, tokens: string[]) {
+  const ranges: Array<{ start: number; end: number }> = [];
+  for (const token of tokens) {
+    if (!token) {
+      continue;
+    }
+    let from = 0;
+    while (from < text.length) {
+      const index = text.indexOf(token, from);
+      if (index < 0) {
+        break;
+      }
+      ranges.push({ start: index, end: index + token.length });
+      from = index + token.length;
+    }
+  }
+  return ranges.toSorted((first, second) => first.start - second.start);
+}
+
+function qaHighlightClassName(status: "warn" | "fail" = "warn") {
+  return cn(
+    "box-decoration-clone rounded-sm",
+    status === "fail" ? "bg-destructive/20" : "bg-warning/25",
+  );
+}
+
+function renderHighlightedPlainText(
+  text: string,
+  tokens: string[],
+  status: "warn" | "fail",
+  keyPrefix: string,
+) {
+  const ranges = highlightRangesForTokens(text, tokens);
+  if (ranges.length === 0) {
+    return text;
+  }
+
+  const parts: Array<{ key: string; text: string; highlighted: boolean }> = [];
+  let cursor = 0;
+  ranges.forEach((range, index) => {
+    if (range.start < cursor) {
+      return;
+    }
+    if (cursor < range.start) {
+      parts.push({
+        key: `${keyPrefix}-text-${cursor}`,
+        text: text.slice(cursor, range.start),
+        highlighted: false,
+      });
+    }
+    parts.push({
+      key: `${keyPrefix}-mark-${index}`,
+      text: text.slice(range.start, range.end),
+      highlighted: true,
+    });
+    cursor = range.end;
+  });
+  if (cursor < text.length) {
+    parts.push({
+      key: `${keyPrefix}-text-${cursor}`,
+      text: text.slice(cursor),
+      highlighted: false,
+    });
+  }
+
+  return parts.map((part) =>
+    part.highlighted ? (
+      <mark key={part.key} data-qa-highlight="true" className={qaHighlightClassName(status)}>
+        {part.text}
+      </mark>
+    ) : (
+      <span key={part.key}>{part.text}</span>
+    ),
+  );
+}
+
 export function ContentEditorMessagePreview({
   message,
   className,
+  highlightTokens = [],
+  highlightStatus = "warn",
 }: {
   message: string;
   className?: string;
+  highlightTokens?: string[];
+  highlightStatus?: "warn" | "fail";
 }) {
   const analysis = useMemo(() => analyzeCatMessageFormat(message), [message]);
   const ranges = analysis.tokens
@@ -226,7 +374,11 @@ export function ContentEditorMessagePreview({
     }, []);
 
   if (ranges.length === 0) {
-    return <span className={className}>{message}</span>;
+    return (
+      <span className={className}>
+        {renderHighlightedPlainText(message, highlightTokens, highlightStatus, "plain")}
+      </span>
+    );
   }
 
   let cursor = 0;
@@ -265,7 +417,9 @@ export function ContentEditorMessagePreview({
             {part.text}
           </span>
         ) : (
-          <span key={part.key}>{part.text}</span>
+          <span key={part.key}>
+            {renderHighlightedPlainText(part.text, highlightTokens, highlightStatus, part.key)}
+          </span>
         ),
       )}
     </span>
@@ -333,6 +487,8 @@ export function ContentEditorTargetEditor({
   inline = false,
   autoFocus = false,
   ariaLabel,
+  highlightTokens,
+  highlightStatus = "warn",
   onChange,
 }: {
   sourceText: string;
@@ -343,11 +499,21 @@ export function ContentEditorTargetEditor({
   inline?: boolean;
   autoFocus?: boolean;
   ariaLabel?: string;
+  highlightTokens?: string[];
+  highlightStatus?: "warn" | "fail";
   onChange: (value: string) => void;
 }) {
   const intl = useIntl();
   const valueRef = useRef(value);
   valueRef.current = value;
+  const highlightRef = useRef({
+    tokens: highlightTokens ?? [],
+    status: highlightStatus,
+  });
+  highlightRef.current = {
+    tokens: highlightTokens ?? [],
+    status: highlightStatus,
+  };
   const sourceAnalysis = useMemo(() => analyzeCatMessageFormat(sourceText), [sourceText]);
   const targetAnalysis = useMemo(() => analyzeCatMessageFormat(value), [value]);
   const parityIssues = useMemo(
@@ -364,7 +530,10 @@ export function ContentEditorTargetEditor({
   const isOverMaxLength = maxLength !== undefined && characterCount > maxLength;
 
   const editor = useEditor({
-    extensions: contentEditorTargetEditorExtensions,
+    extensions: [
+      ...contentEditorTargetEditorExtensions,
+      createQaHighlightExtension(() => highlightRef.current),
+    ],
     content: textDocFromValue(value),
     editable: !disabled,
     immediatelyRender: false,
@@ -381,7 +550,7 @@ export function ContentEditorTargetEditor({
       attributes: {
         class: cn(
           compact
-            ? "min-h-10 px-3 py-2 text-sm leading-relaxed text-foreground focus:outline-none"
+            ? "min-h-8 px-2.5 py-1.5 text-sm leading-snug text-foreground focus:outline-none"
             : "min-h-36 px-4 py-4 text-lg leading-relaxed text-foreground focus:outline-none md:text-lg",
           "whitespace-pre-wrap break-words",
         ),
@@ -420,6 +589,16 @@ export function ContentEditorTargetEditor({
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus("end");
   }, [autoFocus, editor]);
+
+  const highlightTokenKey = (highlightTokens ?? []).join("\0");
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    editor.view.dispatch(editor.state.tr.setMeta("contentEditorQaHighlights", highlightTokenKey));
+  }, [editor, highlightStatus, highlightTokenKey]);
 
   function insertToken(token: ContentEditorMessageToken) {
     if (!editor || disabled) {
@@ -461,7 +640,7 @@ export function ContentEditorTargetEditor({
           <div
             className={cn(
               "text-muted-foreground",
-              compact ? "min-h-10 px-3 py-2 text-sm" : "min-h-36 px-4 py-4 text-lg",
+              compact ? "min-h-8 px-2.5 py-1.5 text-sm" : "min-h-36 px-4 py-4 text-lg",
             )}
           />
         )}

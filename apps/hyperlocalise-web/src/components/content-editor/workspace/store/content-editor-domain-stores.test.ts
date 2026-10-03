@@ -383,6 +383,17 @@ describe("ContentEditorWorkspaceUiStore", () => {
     }
   });
 
+  it("reveals QA details through a store signal instead of a window event", () => {
+    const ui = new ContentEditorWorkspaceUiStore();
+
+    expect(ui.qaDetailsRevealNonce).toBe(0);
+
+    ui.revealQaDetails();
+    ui.revealQaDetails();
+
+    expect(ui.qaDetailsRevealNonce).toBe(2);
+  });
+
   it("tracks the virtualized side-by-side viewport and load range", () => {
     const ui = new ContentEditorWorkspaceUiStore();
 

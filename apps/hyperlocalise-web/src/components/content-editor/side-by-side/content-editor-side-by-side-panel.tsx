@@ -337,6 +337,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
           isSavingDraft={isSavingDraft}
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}
+          formatChecks={formatChecks}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={showAgentContext}
