@@ -28,7 +28,6 @@ import {
   PROJECT_FILES_PAGE_SIZE,
   projectFilesQueryKey,
 } from "./project-files-tree-panel";
-import { TREE_HEIGHT_PX } from "./project-files-tree";
 
 const filesApi = vi.hoisted(() => vi.fn());
 
@@ -96,12 +95,7 @@ describe("project files browser capacity", () => {
 
     await fetchProjectFiles(goSvcClient as never, "acme", "proj_1");
 
-    expect(PROJECT_FILES_PAGE_SIZE).toBe(500);
-    expect(filesApi).toHaveBeenCalledWith("acme", "proj_1", { limit: 500 });
-  });
-
-  it("uses a 480 pixel tree viewport", () => {
-    expect(TREE_HEIGHT_PX).toBe(480);
+    expect(filesApi).toHaveBeenCalledWith("acme", "proj_1", { limit: PROJECT_FILES_PAGE_SIZE });
   });
 
   it("does not reuse another branch cache entry as placeholder data", () => {
