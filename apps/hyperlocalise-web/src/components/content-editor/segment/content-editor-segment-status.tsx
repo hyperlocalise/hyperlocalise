@@ -15,13 +15,10 @@
 import type { MessageDescriptor } from "react-intl";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
 
 import { contentEditorSegmentStatusMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorSegmentStatus } from "@/components/content-editor/shared/types";
-
-import { contentEditorToneClass, segmentStatusTone } from "./content-editor-tone";
 
 function getSegmentStatusMessage(status: ContentEditorSegmentStatus): MessageDescriptor {
   switch (status) {
@@ -48,12 +45,26 @@ function queueStatusDotClassName(status: ContentEditorSegmentStatus) {
   return "size-2.5 rounded-full border border-input";
 }
 
-function segmentStatusBadgeVariant(status: ContentEditorSegmentStatus) {
-  if (status === "needs_review") {
-    return "warning" as const;
+function segmentStatusPillClassName(status: ContentEditorSegmentStatus) {
+  switch (status) {
+    case "reviewed":
+      return "bg-grove-100 text-grove-900 dark:bg-grove-500/15 dark:text-grove-300";
+    case "needs_review":
+      return "bg-beam-100 text-beam-900 dark:bg-warning/20 dark:text-warning-foreground";
+    default:
+      return "bg-muted text-muted-foreground";
   }
+}
 
-  return "outline" as const;
+function segmentStatusPillDotClassName(status: ContentEditorSegmentStatus) {
+  switch (status) {
+    case "reviewed":
+      return "bg-grove-700 dark:bg-grove-300";
+    case "needs_review":
+      return "bg-beam-700 dark:bg-warning";
+    default:
+      return "border border-muted-foreground/60 bg-transparent";
+  }
 }
 
 /**
@@ -83,15 +94,20 @@ export function QueueStatusDot({ status }: { status: ContentEditorSegmentStatus 
 }
 
 export function SegmentStatusBadge({ status }: { status: ContentEditorSegmentStatus }) {
-  const variant = segmentStatusBadgeVariant(status);
-  const toneClass =
-    variant === "outline" && status !== "pending"
-      ? cn(contentEditorToneClass(segmentStatusTone(status)))
-      : undefined;
-
   return (
-    <Badge variant={variant} className={toneClass}>
+    <span
+      data-slot="segment-status-badge"
+      data-status={status}
+      className={cn(
+        "inline-flex h-6 w-fit shrink-0 items-center gap-1.5 rounded-full ps-2 pe-2.5 text-xs font-semibold whitespace-nowrap",
+        segmentStatusPillClassName(status),
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn("size-2 shrink-0 rounded-full", segmentStatusPillDotClassName(status))}
+      />
       <FormattedMessage {...getSegmentStatusMessage(status)} />
-    </Badge>
+    </span>
   );
 }

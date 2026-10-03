@@ -98,6 +98,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       />,
     );
 
+    await user.click(await screen.findByRole("button", { name: "Set character limit" }));
     const input = await screen.findByRole("spinbutton", { name: "Character limit" });
     await user.clear(input);
     await user.type(input, "32");
@@ -205,8 +206,11 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       />,
     );
 
-    expect(screen.getByText("Source string")).toBeInTheDocument();
+    expect(screen.getByText("Source")).toBeInTheDocument();
     expect(screen.getByText("Translation")).toBeInTheDocument();
+    expect(screen.getByText("en-US")).toBeInTheDocument();
+    expect(screen.getByText("vi")).toBeInTheDocument();
+    expect(screen.queryByText("Key & context")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Loading segments")).toBeInTheDocument();
     expect(screen.queryByLabelText("Loading queue")).not.toBeInTheDocument();
     expect(screen.queryByText("No segments in queue.")).not.toBeInTheDocument();

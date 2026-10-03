@@ -71,7 +71,33 @@ function createSideBySideState() {
       },
     },
   });
-  const segments = [...(base.segments ?? [])];
+  const segments = [...(base.segments ?? [])].map((segment) =>
+    segment.id === "seg-02"
+      ? {
+          ...segment,
+          comments: [
+            {
+              id: "comment-1",
+              type: "comment" as const,
+              status: null,
+              text: "Keep this card short on mobile.",
+              createdAt: "2026-06-10T09:15:00.000Z",
+              locale: "vi",
+              author: "Alex Reviewer",
+            },
+            {
+              id: "comment-2",
+              type: "comment" as const,
+              status: null,
+              text: "“Review” means approval, not a rating.",
+              createdAt: "2026-06-11T14:30:00.000Z",
+              locale: "vi",
+              author: "Mina Translator",
+            },
+          ],
+        }
+      : segment,
+  );
   const insertAt = Math.max(segments.findIndex((segment) => segment.id === "seg-02") + 1, 0);
   segments.splice(insertAt, 0, treatAsImageSegment);
   const indexedSegments = segments.map((segment, index) => ({
@@ -111,6 +137,7 @@ const sideBySideArgs = {
     onUseAiSuggestion: fn(),
     onTreatAsImage: fn(),
     onTreatAsVideo: fn(),
+    onSetMaxLength: fn(),
   },
   review: {
     onApprove: fn(),
@@ -134,8 +161,11 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByText("Source string")).toBeInTheDocument();
+    await expect(canvas.getByText("Source")).toBeInTheDocument();
     await expect(canvas.getByText("Translation")).toBeInTheDocument();
+    await expect(canvas.getByText("en-US")).toBeInTheDocument();
+    await expect(canvas.getByText("vi")).toBeInTheDocument();
+    await expect(canvas.queryByText("Key & context")).not.toBeInTheDocument();
     await expect(
       canvas.getByRole("separator", { name: "Resize translation intelligence panel" }),
     ).toBeInTheDocument();
@@ -147,10 +177,13 @@ export const Default: Story = {
       canvas.getByRole("button", { name: /Generate AI suggestion/i }),
     ).toBeInTheDocument();
     await expect(canvas.queryByText(/AI recommendation/i)).not.toBeInTheDocument();
+    await expect(canvas.getByRole("tab", { name: /Comments/i })).toHaveTextContent("2");
+    await userEvent.click(canvas.getByRole("tab", { name: /QA checks/i }));
     await waitFor(() => expect(canvas.getByText(/Terminology consistency/i)).toBeInTheDocument(), {
       timeout: 3000,
     });
     await expect(canvas.getByText(/Format & QA checks/i)).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("tab", { name: "Details" }));
     await expect(canvas.getByRole("button", { name: /^Query$/i })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Find context/i })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /^Approve/i })).not.toBeInTheDocument();
@@ -227,7 +260,7 @@ export const ComfortableFallbackOnMobile: Story = {
     await waitFor(() => expect(canvas.getByRole("tab", { name: "Edit" })).toBeInTheDocument());
     await expect(canvas.getByRole("tab", { name: "Queue" })).toBeInTheDocument();
     await expect(canvas.getByRole("tab", { name: "AI" })).toBeInTheDocument();
-    await expect(canvas.queryByText("Source string")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Source")).not.toBeInTheDocument();
   },
 };
 
@@ -239,7 +272,7 @@ export const PersistenceRoundTrip: Story = {
     );
 
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Source string")).toBeInTheDocument();
+    await expect(canvas.getByText("Source")).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole("button", { name: /Side by side/i }));
     await userEvent.click(canvas.getByRole("menuitemradio", { name: /Comfortable/i }));

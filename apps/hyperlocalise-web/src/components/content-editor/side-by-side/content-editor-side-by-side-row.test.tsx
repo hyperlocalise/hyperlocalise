@@ -116,8 +116,11 @@ describe("ContentEditorSideBySideRow", () => {
 
     renderRow({ segmentShareUrl: "https://example.com/segments/seg-02" });
 
+    const copyButton = screen.getByRole("button", { name: /Copy source/i });
     const shareButton = screen.getByRole("button", { name: /Copy link to this segment/i });
-    expect(shareButton).toBeInTheDocument();
+    expect(copyButton.compareDocumentPosition(shareButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
 
     await user.click(shareButton);
     expect(writeText).toHaveBeenCalledWith("https://example.com/segments/seg-02");
@@ -328,7 +331,31 @@ describe("ContentEditorSideBySideRow", () => {
 
     renderRow({ segment });
 
-    expect(screen.getByText("5/80 characters")).toBeInTheDocument();
+    expect(screen.getByText("5 / 80 characters")).toBeInTheDocument();
+    expect(screen.getByText("Within limit")).toBeInTheDocument();
+    expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "5");
+  });
+
+  it("hides an empty character count and keeps Generate AI next to Query", () => {
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      maxLength: undefined,
+      targetText: "",
+    };
+
+    renderRow({
+      segment,
+      canUseAiRecommendation: true,
+      intelligence: state.intelligence!,
+      onUseAiSuggestion: vi.fn(),
+      onGenerateAiRecommendation: vi.fn(),
+      onAddToIssueSheet: vi.fn(),
+    });
+
+    expect(screen.queryByText(/0 characters/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Generate AI suggestion/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Query$/i })).toBeInTheDocument();
   });
 
   it("shows a loading status while format checks are loading", () => {
@@ -395,7 +422,7 @@ describe("ContentEditorSideBySideRow", () => {
       formatChecks,
     });
 
-    expect(screen.getByText(/Glossary:/)).toBeInTheDocument();
+    expect(screen.getByText("Glossary")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Fix$/i })).not.toBeInTheDocument();
   });
 
@@ -522,7 +549,7 @@ describe("ContentEditorSideBySideRow", () => {
       ],
     });
 
-    expect(screen.getByText(/Spelling:/)).toBeInTheDocument();
+    expect(screen.getByText("Spelling")).toBeInTheDocument();
     expect(screen.getByText(/"Drive" may be misspelled/)).toBeInTheDocument();
     expect(screen.getByText(/Suggested: “Diverse”/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Format & QA warning/i })).not.toBeInTheDocument();
@@ -551,7 +578,7 @@ describe("ContentEditorSideBySideRow", () => {
       ],
     });
 
-    expect(screen.getByText(/Placeholders:/)).toBeInTheDocument();
+    expect(screen.getByText("Placeholders")).toBeInTheDocument();
     expect(screen.queryByText(/Suggested:/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Fix$/i })).not.toBeInTheDocument();
   });
@@ -584,7 +611,7 @@ describe("ContentEditorSideBySideRow", () => {
       ],
     });
 
-    expect(screen.getByText(/Spelling:/)).toBeInTheDocument();
+    expect(screen.getByText("Spelling")).toBeInTheDocument();
     expect(screen.queryByText("Terminology consistency")).not.toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole("button", { name: /\+2 more/i }));
     expect(workspace.ui.qaDetailsRevealNonce).toBe(1);

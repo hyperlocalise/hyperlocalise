@@ -13,6 +13,8 @@
  * Version 2.0 or later.
  */
 import { useEffect, useRef, useState } from "react";
+import { PencilEdit01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 
 import { contentEditorIntelligencePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
+
+import { ContentEditorCharacterMeter } from "./content-editor-character-meter";
 
 const MAX_SEGMENT_LENGTH = 100_000;
 
@@ -47,22 +51,33 @@ export function ContentEditorSegmentMaxLengthEditor({
   isSaving = false,
   characterCount,
   onSave,
+  onFinishEditing,
 }: {
   maxLength?: number;
   canEdit: boolean;
   isSaving?: boolean;
   characterCount?: number;
   onSave: (maxLength: number | null) => void | Promise<void>;
+  onFinishEditing?: () => void;
 }) {
   const intl = useIntl();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(maxLength != null ? String(maxLength) : "");
   const [error, setError] = useState<string | null>(null);
+  const showEditor = canEdit && isEditing;
 
   useEffect(() => {
     setDraft(maxLength != null ? String(maxLength) : "");
     setError(null);
+    setIsEditing(false);
   }, [maxLength]);
+
+  useEffect(() => {
+    if (showEditor) {
+      inputRef.current?.focus();
+    }
+  }, [showEditor]);
 
   function validateDraft(): number | null | undefined {
     const trimmed = draft.trim();
@@ -94,12 +109,16 @@ export function ContentEditorSegmentMaxLengthEditor({
     const nextValue = parsed;
     const currentValue = maxLength ?? null;
     if (nextValue === currentValue) {
+      setIsEditing(false);
+      onFinishEditing?.();
       return;
     }
 
     setError(null);
     try {
       await onSave(nextValue);
+      setIsEditing(false);
+      onFinishEditing?.();
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -114,6 +133,8 @@ export function ContentEditorSegmentMaxLengthEditor({
     setError(null);
     try {
       await onSave(null);
+      setIsEditing(false);
+      onFinishEditing?.();
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -130,26 +151,38 @@ export function ContentEditorSegmentMaxLengthEditor({
       ? "text-sm font-medium text-destructive tabular-nums"
       : "text-sm text-subtle-foreground tabular-nums";
 
-  if (!canEdit) {
+  if (!showEditor) {
     return (
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className="text-sm text-foreground">
-          {maxLength != null && maxLength > 0 ? (
-            <FormattedMessage
-              {...contentEditorIntelligencePanelMessages.maxLengthCurrent}
-              values={{ maxLength }}
-            />
-          ) : (
-            <FormattedMessage {...contentEditorIntelligencePanelMessages.maxLengthPlaceholder} />
-          )}
-        </p>
+      <div className="flex items-center gap-3">
         {characterCount != null ? (
-          <p className={usedCountClassName}>
-            <FormattedMessage
-              {...contentEditorIntelligencePanelMessages.maxLengthUsed}
-              values={{ count: characterCount }}
-            />
+          <ContentEditorCharacterMeter
+            count={characterCount}
+            maxLength={maxLength}
+            className="flex-1"
+          />
+        ) : (
+          <p className="flex-1 text-sm text-foreground">
+            {maxLength != null && maxLength > 0 ? (
+              <FormattedMessage
+                {...contentEditorIntelligencePanelMessages.maxLengthCurrent}
+                values={{ maxLength }}
+              />
+            ) : (
+              <FormattedMessage {...contentEditorIntelligencePanelMessages.maxLengthPlaceholder} />
+            )}
           </p>
+        )}
+        {canEdit ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            className="size-7"
+            aria-label={intl.formatMessage(contentEditorIntelligencePanelMessages.maxLengthEdit)}
+            onClick={() => setIsEditing(true)}
+          >
+            <HugeiconsIcon icon={PencilEdit01Icon} className="size-3.5 text-beam-700" />
+          </Button>
         ) : null}
       </div>
     );
@@ -182,12 +215,22 @@ export function ContentEditorSegmentMaxLengthEditor({
             }
             if (hasChanges) {
               void commitDraft();
+              return;
             }
+            setIsEditing(false);
+            onFinishEditing?.();
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
               void commitDraft();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              setDraft(maxLength != null ? String(maxLength) : "");
+              setError(null);
+              setIsEditing(false);
+              onFinishEditing?.();
             }
           }}
         />

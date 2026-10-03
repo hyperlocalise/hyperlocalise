@@ -39,6 +39,7 @@ import {
   type ContentEditorMessageTokenVisualKind,
 } from "@/components/content-editor/message-format/content-editor-message-token-styles";
 import { glossaryTermRanges } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
+import { ContentEditorCharacterMeter } from "@/components/content-editor/segment/content-editor-character-meter";
 import { contentEditorTargetEditorMessages } from "@/components/content-editor/shared/content-editor.messages";
 
 const TEXT_BLOCK_SEPARATOR = "\n";
@@ -640,12 +641,17 @@ export function ContentEditorTargetEditor({
       .run();
   }
 
+  const showCharacterCount = !inline && (maxLength !== undefined || characterCount > 0);
+  const characterCountLabel = showCharacterCount ? (
+    <ContentEditorCharacterMeter count={characterCount} maxLength={maxLength} variant="compact" />
+  ) : null;
+
   return (
-    <div className={cn("space-y-2", compact && "space-y-1.5")}>
+    <div className={cn(!compact && "space-y-2")}>
       <div
         className={cn(
           compact
-            ? "rounded-lg border border-border bg-background transition-colors"
+            ? "overflow-hidden rounded-lg border border-border bg-background transition-colors"
             : "rounded-2xl border border-border bg-background shadow-sm transition-colors",
           "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
           "[&_.cat-mf-token]:rounded-md [&_.cat-mf-token]:px-1 [&_.cat-mf-token]:py-0.5 [&_.cat-mf-token]:font-mono [&_.cat-mf-token]:text-[0.9em]",
@@ -672,40 +678,15 @@ export function ContentEditorTargetEditor({
             )}
           />
         )}
+        {compact && characterCountLabel ? (
+          <div className="flex justify-end border-t border-border/70 px-2.5 py-1">
+            {characterCountLabel}
+          </div>
+        ) : null}
       </div>
 
-      {!inline ? (
-        <div className="flex justify-end px-1">
-          <p
-            className={cn(
-              "text-xs tabular-nums",
-              isOverMaxLength ? "font-medium text-destructive" : "text-muted-foreground",
-            )}
-            aria-live="polite"
-            aria-label={
-              maxLength !== undefined
-                ? intl.formatMessage(contentEditorTargetEditorMessages.characterCountAria, {
-                    count: characterCount,
-                    maxLength,
-                  })
-                : intl.formatMessage(contentEditorTargetEditorMessages.characterCountOnlyAria, {
-                    count: characterCount,
-                  })
-            }
-          >
-            {maxLength !== undefined ? (
-              <FormattedMessage
-                {...contentEditorTargetEditorMessages.characterCount}
-                values={{ count: characterCount, maxLength }}
-              />
-            ) : (
-              <FormattedMessage
-                {...contentEditorTargetEditorMessages.characterCountOnly}
-                values={{ count: characterCount }}
-              />
-            )}
-          </p>
-        </div>
+      {!compact && characterCountLabel ? (
+        <div className="flex justify-end px-1">{characterCountLabel}</div>
       ) : null}
 
       {sourceTokens.length > 0 && !inline ? (

@@ -14,11 +14,15 @@
  */
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSpellcheckDictionaryContext } from "@/components/content-editor/project-file/spellcheck-dictionary-context";
 import { cn } from "@/lib/primitives/cn";
 
-import { formatCheckStatusClass } from "@/components/content-editor/segment/content-editor-tone";
+import {
+  formatCheckRowBackgroundClass,
+  formatCheckStatusBadgeVariant,
+} from "@/components/content-editor/segment/content-editor-tone";
 import { contentEditorFormatChecksMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
 
@@ -56,19 +60,20 @@ export function ContentEditorFormatChecks({ checks }: { checks: ContentEditorFor
     <div className="overflow-hidden rounded-lg border border-border">
       <ul className="divide-y divide-border">
         {checks.map((check) => (
-          <li key={check.id} className="flex items-start gap-3 bg-background px-3 py-3">
+          <li
+            key={check.id}
+            className={cn(
+              "flex items-start gap-3 px-3 py-3",
+              formatCheckRowBackgroundClass(check.status),
+            )}
+          >
             <ContentEditorFormatCheckStatusIcon status={check.status} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm font-medium text-foreground">{check.label}</p>
-                <span
-                  className={cn(
-                    "shrink-0 text-xs font-medium",
-                    formatCheckStatusClass(check.status),
-                  )}
-                >
+                <Badge variant={formatCheckStatusBadgeVariant(check.status)} className="shrink-0">
                   {formatCheckStatusLabel(check.status, intl)}
-                </span>
+                </Badge>
               </div>
               <p className="mt-1 text-sm leading-relaxed text-subtle-foreground">{check.message}</p>
               {check.category === "spelling" &&

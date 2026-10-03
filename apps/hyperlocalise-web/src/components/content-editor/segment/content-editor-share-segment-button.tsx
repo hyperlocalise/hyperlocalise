@@ -18,6 +18,7 @@ import { useState } from "react";
 import { useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 
@@ -26,10 +27,17 @@ export function ContentEditorShareSegmentButton({
   size = "icon-sm",
 }: {
   segmentShareUrl: string;
-  size?: "icon-sm" | "icon-xs";
+  size?: "icon-sm" | "icon-xs" | "icon";
 }) {
   const intl = useIntl();
   const [shareLinkState, setShareLinkState] = useState<"idle" | "copied" | "error">("idle");
+  const tooltip =
+    shareLinkState === "copied"
+      ? intl.formatMessage(contentEditorEditorPanelMessages.shareSegmentCopied)
+      : shareLinkState === "error"
+        ? intl.formatMessage(contentEditorEditorPanelMessages.shareSegmentFailed)
+        : intl.formatMessage(contentEditorEditorPanelMessages.shareSegment);
+  const iconClassName = size === "icon-xs" ? "size-3.5" : "size-5";
 
   async function handleShareSegment() {
     if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
@@ -48,25 +56,28 @@ export function ContentEditorShareSegmentButton({
   }
 
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size={size}
-      onClick={() => void handleShareSegment()}
-      aria-label={intl.formatMessage(contentEditorEditorPanelMessages.shareSegmentAria)}
-      title={
-        shareLinkState === "copied"
-          ? intl.formatMessage(contentEditorEditorPanelMessages.shareSegmentCopied)
-          : shareLinkState === "error"
-            ? intl.formatMessage(contentEditorEditorPanelMessages.shareSegmentFailed)
-            : intl.formatMessage(contentEditorEditorPanelMessages.shareSegment)
-      }
-    >
-      {shareLinkState === "copied" ? (
-        <HugeiconsIcon icon={Tick02Icon} className="size-4" />
-      ) : (
-        <HugeiconsIcon icon={LinkSquare02Icon} className="size-4" />
-      )}
-    </Button>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size={size}
+              className="shrink-0"
+              onClick={() => void handleShareSegment()}
+              aria-label={intl.formatMessage(contentEditorEditorPanelMessages.shareSegmentAria)}
+            />
+          }
+        >
+          {shareLinkState === "copied" ? (
+            <HugeiconsIcon icon={Tick02Icon} className={iconClassName} />
+          ) : (
+            <HugeiconsIcon icon={LinkSquare02Icon} className={iconClassName} />
+          )}
+        </TooltipTrigger>
+        <TooltipContent>{tooltip}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

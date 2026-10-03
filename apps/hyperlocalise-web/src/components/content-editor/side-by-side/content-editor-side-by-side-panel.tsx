@@ -12,10 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ArrowLeft01Icon, ArrowRight01Icon, File01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { observer } from "mobx-react-lite";
 import { useCallback, useMemo } from "react";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
@@ -37,26 +40,140 @@ import type {
 } from "@/components/content-editor/shared/types";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import { ContentEditorSideBySideResizableLayout } from "@/components/content-editor/workspace/content-editor-workspace-resizable-layout";
+import { getLocaleFlagEmoji } from "@/lib/i18n/locales";
 
+import {
+  SIDE_BY_SIDE_GRID_CLASS_NAME,
+  SIDE_BY_SIDE_SOURCE_AREA_CLASS_NAME,
+  SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME,
+  SIDE_BY_SIDE_TARGET_AREA_CLASS_NAME,
+} from "./content-editor-side-by-side-grid";
 import { ContentEditorSideBySideIntelligencePanel } from "./content-editor-side-by-side-intelligence-panel";
 import { ContentEditorSideBySideVirtualList } from "./content-editor-side-by-side-virtual-list";
 
-export function ContentEditorSideBySidePanelSkeleton({ className }: { className?: string }) {
+function LocaleTag({ locale }: { locale?: string }) {
+  if (!locale) {
+    return null;
+  }
+  const flag = getLocaleFlagEmoji(locale);
+  return (
+    <span className="inline-flex items-center gap-1 rounded bg-muted px-1 py-px font-mono text-[10px] font-normal tracking-normal normal-case">
+      {flag ? <span aria-hidden="true">{flag}</span> : null}
+      {locale}
+    </span>
+  );
+}
+
+function SideBySideColumnHeader({
+  sourceLocale,
+  targetLocale,
+}: {
+  sourceLocale?: string;
+  targetLocale?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        SIDE_BY_SIDE_GRID_CLASS_NAME,
+        "shrink-0 border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+      )}
+    >
+      <p className={cn(SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME, "hidden @3xl:block")}>
+        <FormattedMessage {...contentEditorSideBySidePanelMessages.statusColumn} />
+      </p>
+      <p className={cn(SIDE_BY_SIDE_SOURCE_AREA_CLASS_NAME, "flex items-center gap-1.5")}>
+        <span>
+          <FormattedMessage {...contentEditorSideBySidePanelMessages.sourceColumn} />
+        </span>
+        <LocaleTag locale={sourceLocale} />
+      </p>
+      <p className={cn(SIDE_BY_SIDE_TARGET_AREA_CLASS_NAME, "flex items-center gap-1.5")}>
+        <span>
+          <FormattedMessage {...contentEditorSideBySidePanelMessages.translationColumn} />
+        </span>
+        <LocaleTag locale={targetLocale} />
+      </p>
+    </div>
+  );
+}
+
+function SideBySideFileToolbar({
+  filename,
+  totalCount,
+  position,
+  onPrevious,
+  onNext,
+}: {
+  filename?: string;
+  totalCount: number | null;
+  position: number;
+  onPrevious?: () => void;
+  onNext?: () => void;
+}) {
+  const intl = useIntl();
+  return (
+    <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
+      <HugeiconsIcon icon={File01Icon} className="size-4 shrink-0 text-muted-foreground" />
+      <p className="min-w-0 truncate text-sm font-medium" title={filename}>
+        {filename}
+      </p>
+      {totalCount !== null ? (
+        <Badge variant="outline" className="shrink-0 font-mono tabular-nums">
+          <FormattedMessage
+            {...contentEditorSideBySidePanelMessages.stringCount}
+            values={{ count: totalCount }}
+          />
+        </Badge>
+      ) : null}
+      <div className="ms-auto flex shrink-0 items-center gap-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          className="size-7"
+          disabled={!onPrevious}
+          onClick={onPrevious}
+          aria-label={intl.formatMessage(contentEditorSideBySidePanelMessages.previousString)}
+        >
+          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" />
+        </Button>
+        <p className="min-w-14 text-center font-mono text-xs text-muted-foreground tabular-nums">
+          <FormattedMessage
+            {...contentEditorSideBySidePanelMessages.segmentPosition}
+            values={{ position, total: totalCount ?? "…" }}
+          />
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          className="size-7"
+          disabled={!onNext}
+          onClick={onNext}
+          aria-label={intl.formatMessage(contentEditorSideBySidePanelMessages.nextString)}
+        >
+          <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function ContentEditorSideBySidePanelSkeleton({
+  className,
+  sourceLocale,
+  targetLocale,
+}: {
+  className?: string;
+  sourceLocale?: string;
+  targetLocale?: string;
+}) {
   return (
     <ContentEditorSideBySideResizableLayout
       className={cn("bg-background", className)}
       editor={
-        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-          <div className="shrink-0 border-b border-border px-4 py-3">
-            <div className="grid grid-cols-2 gap-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              <p className="border-r border-border pr-4">
-                <FormattedMessage {...contentEditorSideBySidePanelMessages.sourceColumn} />
-              </p>
-              <p className="pl-4">
-                <FormattedMessage {...contentEditorSideBySidePanelMessages.translationColumn} />
-              </p>
-            </div>
-          </div>
+        <div className="@container flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+          <SideBySideColumnHeader sourceLocale={sourceLocale} targetLocale={targetLocale} />
           <div className="flex min-h-0 flex-1 flex-col">
             <ContentEditorQueueSkeletonList className="px-4 py-3" />
           </div>
@@ -226,23 +343,27 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
     focusedIndex >= 0
       ? (segments[focusedIndex]?.index ?? focusedIndex + 1)
       : (pagination?.offset ?? 0) + 1;
-  const totalSegments = hasMoreQueue ? null : (pagination?.totalCount ?? segments.length);
+  const totalSegments = pagination?.totalCount ?? (hasMoreQueue ? null : segments.length);
+  const previousSegment = focusedIndex > 0 ? segments[focusedIndex - 1] : undefined;
+  const nextSegment = focusedIndex >= 0 ? segments[focusedIndex + 1] : undefined;
+  const fileContext = store.fileContext;
 
   return (
     <ContentEditorSideBySideResizableLayout
       className={cn("bg-background", className)}
       editor={
-        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-          <div className="shrink-0 border-b border-border px-4 py-3">
-            <div className="grid grid-cols-2 gap-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              <p className="border-r border-border pr-4">
-                <FormattedMessage {...contentEditorSideBySidePanelMessages.sourceColumn} />
-              </p>
-              <p className="pl-4">
-                <FormattedMessage {...contentEditorSideBySidePanelMessages.translationColumn} />
-              </p>
-            </div>
-          </div>
+        <div className="@container flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+          <SideBySideFileToolbar
+            filename={fileContext.filename || fileContext.sourcePath}
+            totalCount={totalSegments}
+            position={segmentPosition}
+            onPrevious={previousSegment ? () => onFocusSegment(previousSegment.id) : undefined}
+            onNext={nextSegment ? () => onFocusSegment(nextSegment.id) : undefined}
+          />
+          <SideBySideColumnHeader
+            sourceLocale={fileContext.sourceLocale}
+            targetLocale={fileContext.targetLocale}
+          />
 
           <div className="flex min-h-0 flex-1 flex-col">
             {isTranslationViewLoading && segments.length === 0 ? (
@@ -298,15 +419,6 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
                   values={{
                     count: loadedCount,
                     more: hasMoreQueue ? "+" : "",
-                  }}
-                />
-              </p>
-              <p className="font-mono tabular-nums">
-                <FormattedMessage
-                  {...contentEditorSideBySidePanelMessages.segmentPosition}
-                  values={{
-                    position: segmentPosition,
-                    total: totalSegments ?? `${loadedCount}+`,
                   }}
                 />
               </p>

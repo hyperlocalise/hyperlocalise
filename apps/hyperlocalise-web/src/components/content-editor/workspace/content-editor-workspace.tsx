@@ -279,7 +279,11 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               className,
             )}
           >
-            <ContentEditorSideBySidePanelSkeleton className="min-h-0 flex-1" />
+            <ContentEditorSideBySidePanelSkeleton
+              className="min-h-0 flex-1"
+              sourceLocale={store.fileContext.sourceLocale}
+              targetLocale={store.fileContext.targetLocale}
+            />
           </div>
         );
       }

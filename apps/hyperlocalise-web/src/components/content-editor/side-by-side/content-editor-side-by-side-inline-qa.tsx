@@ -15,14 +15,16 @@
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
-import { Column } from "@/components/ui/layout/column";
-import { Columns } from "@/components/ui/layout/columns";
 import { Row } from "@/components/ui/layout/row";
 import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/typography";
+import { cn } from "@/lib/primitives/cn";
 
 import { ContentEditorFormatCheckStatusIcon } from "@/components/content-editor/editor/content-editor-format-check-status-icon";
-import { formatCheckStatusClass } from "@/components/content-editor/segment/content-editor-tone";
+import {
+  formatCheckRowBackgroundClass,
+  formatCheckStatusClass,
+} from "@/components/content-editor/segment/content-editor-tone";
 import { contentEditorSideBySidePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
@@ -81,68 +83,72 @@ export function ContentEditorSideBySideInlineQa({
     onFix,
   );
 
+  const actions =
+    canFix || moreCount > 0 ? (
+      <Row spacing="0.5u" alignY="center">
+        {canFix ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={() => {
+              onFix?.(
+                applyQaSuggestion(targetText, presented.problemToken!, presented.suggestion!, {
+                  wholeTerm,
+                }),
+              );
+            }}
+          >
+            <FormattedMessage {...contentEditorSideBySidePanelMessages.qaIssueFix} />
+          </Button>
+        ) : null}
+        {moreCount > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={() => workspace.ui.revealQaDetails()}
+          >
+            <FormattedMessage
+              {...contentEditorSideBySidePanelMessages.qaIssueMore}
+              values={{ count: moreCount }}
+            />
+          </Button>
+        ) : null}
+      </Row>
+    ) : null;
+
   return (
-    <Columns spacing="0.5u" alignY="center">
-      <Column width="content">
-        <ContentEditorFormatCheckStatusIcon status={presented.status} className="size-3" />
-      </Column>
-      <Column width="fluid">
-        <Text
-          size="xsmall"
-          lineClamp={1}
-          wrapStyle="pretty"
-          className={formatCheckStatusClass(presented.status)}
-        >
-          <Text tagName="span" size="xsmall" weight="medium" tone="content">
-            {presented.label}:
-          </Text>{" "}
-          {presented.message}
-          {presented.suggestion ? (
-            <>
-              {" · "}
-              <FormattedMessage
-                {...contentEditorSideBySidePanelMessages.qaIssueSuggested}
-                values={{ suggestion: presented.suggestion }}
-              />
-            </>
-          ) : null}
-        </Text>
-      </Column>
-      {canFix || moreCount > 0 ? (
-        <Column width="content">
-          <Row spacing="0.5u" alignY="center">
-            {canFix ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                onClick={() => {
-                  onFix?.(
-                    applyQaSuggestion(targetText, presented.problemToken!, presented.suggestion!, {
-                      wholeTerm,
-                    }),
-                  );
-                }}
-              >
-                <FormattedMessage {...contentEditorSideBySidePanelMessages.qaIssueFix} />
-              </Button>
-            ) : null}
-            {moreCount > 0 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                onClick={() => workspace.ui.revealQaDetails()}
-              >
+    <div className={cn("rounded-md px-2.5 py-2", formatCheckRowBackgroundClass(presented.status))}>
+      <div className="flex items-start gap-2">
+        <ContentEditorFormatCheckStatusIcon
+          status={presented.status}
+          className="mt-0.5 size-3.5 shrink-0"
+        />
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <Text
+            size="xsmall"
+            weight="medium"
+            lineClamp={1}
+            className={formatCheckStatusClass(presented.status)}
+          >
+            {presented.label}
+          </Text>
+          <Text size="xsmall" wrapStyle="pretty" lineClamp={2} className="text-foreground/85">
+            {presented.message}
+            {presented.suggestion ? (
+              <>
+                {" · "}
                 <FormattedMessage
-                  {...contentEditorSideBySidePanelMessages.qaIssueMore}
-                  values={{ count: moreCount }}
+                  {...contentEditorSideBySidePanelMessages.qaIssueSuggested}
+                  values={{ suggestion: presented.suggestion }}
                 />
-              </Button>
+              </>
             ) : null}
-          </Row>
-        </Column>
-      ) : null}
-    </Columns>
+          </Text>
+        </div>
+        {actions ? <div className="-my-0.5 shrink-0">{actions}</div> : null}
+      </div>
+    </div>
   );
 }
