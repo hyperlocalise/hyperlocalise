@@ -90,8 +90,7 @@ export function BreadcrumbCrumbSelector({
   disabled = false,
 }: BreadcrumbCrumbSelectorProps) {
   const hasMultipleOptions = options.length > 1;
-  const canLink = Boolean(href) && !isLast;
-  const showSwitcher = hasMultipleOptions || isLoading || (isError && !canLink);
+  const showSwitcher = hasMultipleOptions || isLoading || isError;
 
   const labelNode = <CrumbLabel href={href} isLast={isLast} label={label} />;
 

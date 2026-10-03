@@ -69,6 +69,19 @@ describe("BreadcrumbCrumbSelector", () => {
     expect(screen.queryByRole("button", { name: "Switch project" })).not.toBeInTheDocument();
   });
 
+  it("keeps the switcher and load error visible when the crumb is also a link", async () => {
+    const user = userEvent.setup();
+    renderSelector({ isError: true, options: [] });
+
+    expect(screen.getByRole("link", { name: "Checkout" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/proj_1",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Switch project" }));
+    expect(screen.getByRole("menuitem", { name: "Unable to load options" })).toBeInTheDocument();
+  });
+
   it("keeps the crumb clickable and lets the user switch among options", async () => {
     const user = userEvent.setup();
     const { onSelect } = renderSelector({
