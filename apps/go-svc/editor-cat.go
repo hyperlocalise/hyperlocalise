@@ -327,7 +327,7 @@ func editorCatAssetPath(organizationSlug, projectID, fileID string) string {
 
 func looksLikeEditorCatHTTPURL(value, extPattern string) bool {
 	trimmed := trimEditorCat(value)
-	if !strings.HasPrefix(strings.ToLower(trimmed), "http://") && !strings.HasPrefix(strings.ToLower(trimmed), "https://") {
+	if !strings.HasPrefix(trimmed, "http://") && !strings.HasPrefix(trimmed, "https://") {
 		return false
 	}
 	parsed, err := url.Parse(trimmed)
@@ -356,7 +356,7 @@ func looksLikeEditorCatVideoURL(value string) bool {
 func editorCatSourceLooksLikeMediaURLSQL(sourceTextColumn string) string {
 	trimmed := "trim(" + sourceTextColumn + ")"
 	path := "split_part(split_part(lower(regexp_replace(" + trimmed + ", '^https?://[^/?#]+', '', 'i')), '?', 1), '#', 1)"
-	return "(lower(" + trimmed + ") ~ '^https?://' and " + path + " ~ '\\.(png|jpe?g|webp|mp4)$')"
+	return "((" + trimmed + " like 'http://%' or " + trimmed + " like 'https://%') and " + path + " ~ '\\.(png|jpe?g|webp|mp4)$')"
 }
 
 func editorCatGroupSeparatesMediaSQL() string {

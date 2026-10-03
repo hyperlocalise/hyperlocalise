@@ -157,7 +157,7 @@ func (api *editorCatAPI) getStringGroupMembers(r *http.Request, actor editorCatA
 	if err != nil || len(decoded) != 32 {
 		return nil, 0, editorCatFailure(400, "invalid_group_id", "Invalid string group")
 	}
-	groupSourceText := trimEditorCat(r.URL.Query().Get("groupSourceText"))
+	groupSourceText := r.URL.Query().Get("groupSourceText")
 	scopedWhere, memberArg := editorCatGroupMembersScopedWhere(groupID, groupSourceText)
 	sql := editorCatGroupScope(query, scopedWhere) + `, members as (
         select id, key, source_path as "sourcePath", context, max_length as "maxLength",

@@ -120,6 +120,16 @@ func TestEditorCatGroupsKeepMediaSeparateAndScopeMembers(t *testing.T) {
 	require.Equal(t, http.StatusNotImplemented, rec.Code)
 }
 
+func TestEditorCatGroupsTreatUppercaseSchemeImageURLsAsText(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "admin")
+	file := mustEditorCatSourceFile(t, scope, "a.json")
+	mustEditorCatKey(t, scope, file, "one", "HTTP://example.com/image.png")
+	mustEditorCatKey(t, scope, file, "two", "HTTP://example.com/image.png")
+	groups, _ := readCatGroups(t, api, scope, "sourcePath=*")
+	require.Len(t, groups, 1)
+	require.Equal(t, 2, groups[0].OccurrenceCount)
+}
+
 func TestEditorCatGroupsKeepDetectedMediaURLsSeparate(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "admin")
 	file := mustEditorCatSourceFile(t, scope, "a.json")
@@ -129,6 +139,19 @@ func TestEditorCatGroupsKeepDetectedMediaURLsSeparate(t *testing.T) {
 	require.Len(t, groups, 2)
 	require.Equal(t, 1, groups[0].OccurrenceCount)
 	require.Equal(t, 1, groups[1].OccurrenceCount)
+}
+
+func TestEditorCatGroupMembersPreserveSourceTextWhitespace(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	file := mustEditorCatSourceFile(t, scope, "a.json")
+	mustEditorCatKey(t, scope, file, "button.save", "Save ")
+	groups, _ := readCatGroups(t, api, scope, "sourcePath=*")
+	require.Len(t, groups, 1)
+	group := groups[0]
+	require.Equal(t, "Save ", group.SourceText)
+	path := editorCatPathFor(scope, "/files/detail/cat/groups/"+group.ID+"/members?sourcePath=*&targetLocale=fr&groupSourceText="+url.QueryEscape(group.SourceText))
+	rec := editorCatRequestScope(api, scope, http.MethodGet, path, "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 }
 
 func TestEditorCatGroupMembersAcceptGroupSourceText(t *testing.T) {
