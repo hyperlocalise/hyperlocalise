@@ -223,6 +223,7 @@ export function TranslationMemoriesPageView({
           {
             id: "workspace",
             title: nativeSectionTitle,
+            accent: "workspace",
             count: nativeTotal,
             items: nativeMemories,
             query: nativeQuery,
@@ -245,6 +246,7 @@ export function TranslationMemoriesPageView({
           {
             id: "provider",
             title: externalSectionTitle,
+            accent: "provider",
             count: liveProjectSelectionRequired ? 0 : externalTotal,
             items: liveProjectSelectionRequired ? [] : externalMemories,
             query: liveProjectSelectionRequired

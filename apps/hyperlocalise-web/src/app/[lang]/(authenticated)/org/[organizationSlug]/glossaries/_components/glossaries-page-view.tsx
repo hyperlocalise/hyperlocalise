@@ -306,6 +306,7 @@ export function GlossariesPageView({
           {
             id: "workspace",
             title: nativeSectionTitle,
+            accent: "workspace",
             count: nativeTotal,
             items: nativeGlossaries,
             query: nativeQuery,
@@ -323,6 +324,7 @@ export function GlossariesPageView({
           {
             id: "provider",
             title: externalSectionTitle,
+            accent: "provider",
             count: liveProjectSelectionRequired ? 0 : externalTotal,
             items: liveProjectSelectionRequired ? [] : externalGlossaries,
             query: liveProjectSelectionRequired
