@@ -25,6 +25,8 @@ import { useMemo, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { SegmentActivityButton } from "../activity-log/content-editor-segment-activity";
+
 import { Button } from "@/components/ui/button";
 import { Box } from "@/components/ui/layout/box";
 import { Column } from "@/components/ui/layout/column";
@@ -309,6 +311,12 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
 
   const reviewActions = showActionBar ? (
     <Box display="flex" flexWrap="wrap" alignItems="center" gap="0.5u">
+      <SegmentActivityButton
+        segmentId={segment.id}
+        sourcePath={segment.sourcePath}
+        targetLocale={segment.targetLocale}
+        label={segment.key}
+      />
       {showReviewActions ? (
         <>
           <Button

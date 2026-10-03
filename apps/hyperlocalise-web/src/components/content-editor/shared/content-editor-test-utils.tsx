@@ -29,11 +29,18 @@ function createTestQueryClient() {
   });
 }
 
-export function ContentEditorTestProviders({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(() => createTestQueryClient());
+export function ContentEditorTestProviders({
+  children,
+  queryClient,
+}: {
+  children: ReactNode;
+  queryClient?: QueryClient;
+}) {
+  const [ownedQueryClient] = useState(() => createTestQueryClient());
+  const client = queryClient ?? ownedQueryClient;
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={client}>
       <IntlProvider locale="en" messages={{}}>
         {children}
       </IntlProvider>
@@ -43,10 +50,13 @@ export function ContentEditorTestProviders({ children }: { children: ReactNode }
 
 export function renderWithContentEditorProviders(
   ui: ReactElement,
-  options?: Omit<RenderOptions, "wrapper">,
+  options?: Omit<RenderOptions, "wrapper"> & { queryClient?: QueryClient },
 ) {
+  const { queryClient, ...renderOptions } = options ?? {};
   return render(ui, {
-    wrapper: ContentEditorTestProviders,
-    ...options,
+    wrapper: ({ children }) => (
+      <ContentEditorTestProviders queryClient={queryClient}>{children}</ContentEditorTestProviders>
+    ),
+    ...renderOptions,
   });
 }

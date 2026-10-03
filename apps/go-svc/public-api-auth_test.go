@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 	"github.com/workos/workos-go/v10"
 )
@@ -178,7 +179,11 @@ func mustPublicAPIKey(t *testing.T, scope *testenv.Scope, opts publicAPIKeyOptio
 func apiKeyLastUsedAt(t *testing.T, scope *testenv.Scope, id string) *time.Time {
 	t.Helper()
 	var lastUsedAt *time.Time
-	require.NoError(t, scope.Pool.QueryRow(context.Background(), `select last_used_at from organization_api_keys where id=$1`, id).Scan(&lastUsedAt))
+	err := scope.Pool.QueryRow(context.Background(), `select last_used_at from organization_api_keys where id=$1`, id).Scan(&lastUsedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	require.NoError(t, err)
 	return lastUsedAt
 }
 

@@ -36,6 +36,9 @@ import type {
 } from "@/lib/go-svc/go-svc-cat-groups.types";
 import { groupMessages as m } from "./content-editor-groups.messages";
 
+import { SegmentActivityButton } from "../activity-log/content-editor-segment-activity";
+import { ContentEditorGroupApply } from "./content-editor-group-apply";
+
 const PAGE_LIMIT = 25;
 const FILTERS = [
   "all",
@@ -125,12 +128,14 @@ function GroupMembers({
   projectId,
   group,
   query,
+  canEdit,
 }: {
   client: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   group: CatStringGroup;
   query: CatStringGroupsQuery;
+  canEdit?: boolean;
 }) {
   const intl = useIntl();
   const [offset, setOffset] = useState(0);
@@ -153,9 +158,22 @@ function GroupMembers({
           <FormattedMessage {...m.members} />
         </h2>
         <p className="whitespace-pre-wrap break-words text-sm">{group.sourceText}</p>
-        <p className="text-pretty text-xs text-muted-foreground">
-          <FormattedMessage {...m.readOnly} />
-        </p>
+        <div className="flex flex-wrap gap-2">
+          <SegmentActivityButton
+            groupId={group.id}
+            sourcePaths={query.sourcePaths}
+            label={group.sourceText}
+          />
+          {canEdit ? (
+            <ContentEditorGroupApply
+              client={client}
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              group={group}
+              query={query}
+            />
+          ) : null}
+        </div>
       </div>
       {members.isPending ? (
         <GroupLoading />
@@ -166,7 +184,14 @@ function GroupMembers({
           <ul className="flex flex-col gap-3 px-4">
             {members.data.members.map((member) => (
               <li key={member.id} className="flex flex-col gap-2 rounded-lg border p-3">
-                <p className="break-all font-mono text-xs">{member.key}</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="break-all font-mono text-xs">{member.key}</p>
+                  <SegmentActivityButton
+                    segmentId={member.id}
+                    sourcePath={member.sourcePath}
+                    label={member.key}
+                  />
+                </div>
                 <p className="break-all text-xs text-muted-foreground">{member.sourcePath}</p>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">
@@ -230,6 +255,7 @@ export function ContentEditorGroupBrowser({
   sourcePath,
   sourcePaths,
   targetLocale,
+  canEdit,
 }: {
   client: GoSvcClient;
   organizationSlug: string;
@@ -237,6 +263,7 @@ export function ContentEditorGroupBrowser({
   sourcePath: string;
   sourcePaths?: string;
   targetLocale: string;
+  canEdit?: boolean;
 }) {
   const intl = useIntl();
   const [search, setSearch] = useState("");
@@ -398,6 +425,7 @@ export function ContentEditorGroupBrowser({
         </section>
         {selected ? (
           <GroupMembers
+            canEdit={canEdit}
             key={`${selected.id}:${debouncedSearch}:${filter}`}
             client={client}
             organizationSlug={organizationSlug}

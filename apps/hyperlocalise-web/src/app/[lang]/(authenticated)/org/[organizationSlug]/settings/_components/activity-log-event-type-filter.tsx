@@ -127,6 +127,7 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
     icon: TextFontIcon,
     label: messages.stringSegmentEventGroup,
     eventTypes: [
+      "string_segment_translation_updated",
       "string_segment_approved",
       "string_segment_status_changed",
       "string_segment_hidden",
@@ -172,6 +173,10 @@ const eventTypeLabels = {
   automation_disabled: messages.automationDisabledEventType,
   file_uploaded: messages.fileUploadedEventType,
   file_translations_imported: messages.fileTranslationsImportedEventType,
+  string_segment_translation_updated: {
+    defaultMessage: "Updated translation",
+    description: "Translation edit activity",
+  },
   string_segment_approved: messages.stringSegmentApprovedEventType,
   string_segment_status_changed: messages.stringSegmentStatusChangedEventType,
   string_segment_hidden: messages.stringSegmentHiddenEventType,

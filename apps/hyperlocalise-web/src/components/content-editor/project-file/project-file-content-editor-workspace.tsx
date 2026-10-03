@@ -1110,6 +1110,7 @@ export function ProjectFileContentEditorWorkspace({
             ) : null}
 
             <ContentEditorGroupingView
+              canEdit={Boolean(contentEditorFile?.canEditTranslations)}
               enabled={
                 Boolean(contentEditorFile) &&
                 isNativeProject &&

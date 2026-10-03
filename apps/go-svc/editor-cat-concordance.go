@@ -127,6 +127,7 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 	eventTypes := []string{
 		"file_uploaded",
 		"file_translations_imported",
+		"string_segment_translation_updated",
 		"string_segment_approved",
 		"string_segment_status_changed",
 		"string_segment_hidden",
@@ -135,7 +136,14 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 		"string_segment_unlocked",
 		"string_segment_commented",
 	}
+	segmentID := query.Get("segmentId")
+	targetLocale := query.Get("targetLocale")
+	groupID := query.Get("groupId")
+	sourcePaths := query.Get("sourcePaths")
 	fingerprint := "cat:" + project.ID + ":" + sourcePath
+	if segmentID != "" || targetLocale != "" || groupID != "" || sourcePaths != "" {
+		fingerprint += ":" + segmentID + ":" + targetLocale + ":" + groupID + ":" + sourcePaths
+	}
 	args := []any{actor.organizationID, eventTypes, project.ID}
 	conditions := []string{
 		"e.organization_id = $1",
@@ -146,6 +154,43 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 	if !isEditorCatAllFiles(sourcePath) {
 		conditions = append(conditions, "e.payload->>'sourcePath' = $"+strconv.Itoa(argN))
 		args = append(args, sourcePath)
+		argN++
+	}
+	if segmentID != "" {
+		conditions = append(conditions, "e.payload->>'segmentId' = $"+strconv.Itoa(argN))
+		args = append(args, segmentID)
+		argN++
+	}
+	if targetLocale != "" {
+		conditions = append(conditions, "(e.payload->>'targetLocale' = $"+strconv.Itoa(argN)+" or e.payload->>'targetLocale' is null)")
+		args = append(args, targetLocale)
+		argN++
+	}
+	if sourcePaths != "" {
+		conditions = append(conditions, "e.payload->>'sourcePath' = any($"+strconv.Itoa(argN)+"::text[])")
+		args = append(args, strings.Split(sourcePaths, ","))
+		argN++
+	}
+	if groupID != "" {
+		groupArg := strconv.Itoa(argN)
+		conditions = append(conditions, `(
+            e.payload->>'groupId' = $`+groupArg+`
+            OR (
+                coalesce(nullif(e.payload->>'groupId', ''), '') = ''
+                AND exists (
+                    select 1
+                    from project_translation_keys k
+                    join repository_source_files f on f.id = k.repository_source_file_id
+                        and f.organization_id = k.organization_id
+                        and f.project_id = k.project_id
+                    where k.organization_id = e.organization_id
+                        and k.project_id = $3
+                        and k.id::text = coalesce(nullif(e.payload->>'segmentId', ''), e.target_id)
+                        and encode(sha256(convert_to(`+editorCatGroupIdentitySQL()+`, 'UTF8')), 'hex') = $`+groupArg+`
+                )
+            )
+        )`)
+		args = append(args, groupID)
 		argN++
 	}
 	if cursor := trimEditorCat(query.Get("cursor")); cursor != "" {

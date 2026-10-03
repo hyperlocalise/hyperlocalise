@@ -310,6 +310,13 @@ export const projectFileCatQuerySchema = z.object({
 });
 
 export const projectFileCatActivityLogQuerySchema = z.object({
+  segmentId: z.string().uuid().optional(),
+  groupId: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
+  targetLocale: z.string().min(1).max(128).optional(),
+  sourcePaths: z.string().optional(),
   cursor: z.string().trim().min(1).max(2048).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   sourcePath: z.string().trim().min(1).max(2048),
