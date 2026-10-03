@@ -17,6 +17,17 @@ import type {
 
 const SUGGESTIONS_SUFFIX_RE = /\s*Suggestions?:\s*.+$/i;
 const SUGGESTIONS_CAPTURE_RE = /Suggestions?:\s*(.+?)\.?$/i;
+const SPELLING_CHECK_ID_RE = /^(spelling|spelling-.+)$/;
+const GLOSSARY_MISSING_CHECK_ID_RE = /^glossary-missing-/;
+
+/** Spelling and missing glossary terms store [problem, replacement, ...]. Other checks list offenders. */
+function hasQaReplacementSemantics(check: ContentEditorFormatCheck) {
+  return (
+    check.category === "spelling" ||
+    SPELLING_CHECK_ID_RE.test(check.id) ||
+    GLOSSARY_MISSING_CHECK_ID_RE.test(check.id)
+  );
+}
 
 export function actionableFormatChecks(checks: readonly ContentEditorFormatCheck[]) {
   return checks.filter((check) => check.status !== "pass");
@@ -46,12 +57,15 @@ export function presentQaIssue(check: ContentEditorFormatCheck): {
 } {
   const related = check.relatedTokens ?? [];
   const problemToken = related[0] || undefined;
-  let suggestion = related[1] || undefined;
-  if (!suggestion) {
-    const match = check.message.match(SUGGESTIONS_CAPTURE_RE);
-    const firstSuggestion = match?.[1]?.split(",")[0]?.trim();
-    if (firstSuggestion) {
-      suggestion = firstSuggestion;
+  let suggestion: string | undefined;
+  if (hasQaReplacementSemantics(check)) {
+    suggestion = related[1] || undefined;
+    if (!suggestion) {
+      const match = check.message.match(SUGGESTIONS_CAPTURE_RE);
+      const firstSuggestion = match?.[1]?.split(",")[0]?.trim();
+      if (firstSuggestion) {
+        suggestion = firstSuggestion;
+      }
     }
   }
 

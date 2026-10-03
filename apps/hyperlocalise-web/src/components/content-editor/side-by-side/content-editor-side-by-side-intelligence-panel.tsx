@@ -154,7 +154,12 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
       if (qaDetailsRevealNonce === 0) {
         return;
       }
-      qaSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const qaSection = qaSectionRef.current;
+      if (!qaSection) {
+        return;
+      }
+      qaSection.scrollTop = 0;
+      qaSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }, [qaDetailsRevealNonce]);
 
     if (!segment || !intelligence) {
@@ -219,7 +224,11 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
     );
     const qaPanel =
       isFormatChecksLoading || formatChecks.length > 0 ? (
-        <div ref={qaSectionRef} className="shrink-0 border-b border-border" data-qa-details>
+        <div
+          ref={qaSectionRef}
+          className="min-h-0 max-h-[40%] overflow-y-auto border-b border-border"
+          data-qa-details
+        >
           <Box paddingX="2u" paddingY="1.5u">
             <ContentEditorEditorFormatChecksSection
               formatChecks={formatChecks}

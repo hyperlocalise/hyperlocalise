@@ -78,6 +78,52 @@ describe("content-editor-side-by-side-qa", () => {
     ).toBe("Diverse");
   });
 
+  it("keeps a glossary missing-term pair as a replacement suggestion", () => {
+    expect(
+      presentQaIssue({
+        id: "glossary-missing-term-1",
+        label: "Glossary",
+        status: "warn",
+        message: 'Glossary term "Cancel" requires "Stornierung".',
+        category: "glossary",
+        relatedTokens: ["Cancel", "Stornierung"],
+      }).suggestion,
+    ).toBe("Stornierung");
+  });
+
+  it("does not treat token lists as replacements", () => {
+    expect(
+      presentQaIssue({
+        id: "qa-escaped-char-mismatch",
+        label: "Escaped characters",
+        status: "warn",
+        message: "Target introduces escaped characters (\\t, \\n) that are not in the source.",
+        category: "qa",
+        relatedTokens: ["\\t", "\\n"],
+      }).suggestion,
+    ).toBeUndefined();
+    expect(
+      presentQaIssue({
+        id: "scan-placeholder-mismatch",
+        label: "Placeholders",
+        status: "fail",
+        message: "Target is missing placeholders ({name}).",
+        category: "placeholder",
+        relatedTokens: ["{name}", "{count}"],
+      }).suggestion,
+    ).toBeUndefined();
+    expect(
+      presentQaIssue({
+        id: "scan-placeholder-mismatch",
+        label: "Placeholders",
+        status: "fail",
+        message: "Target is missing placeholders ({name}). Suggestions: {count}.",
+        category: "placeholder",
+        relatedTokens: ["{name}"],
+      }).suggestion,
+    ).toBeUndefined();
+  });
+
   it("replaces the first problem token when applying a suggestion", () => {
     expect(applyQaSuggestion("Drive the product", "Drive", "Diverse")).toBe("Diverse the product");
     expect(applyQaSuggestion("No match", "Drive", "Diverse")).toBe("No match");

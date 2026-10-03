@@ -123,6 +123,23 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
     expect(screen.getByText("Spelling")).toBeInTheDocument();
   });
 
+  it("keeps a long QA list scrollable inside the sidebar", () => {
+    renderIntelligencePanel({
+      formatChecks: Array.from({ length: 12 }, (_, index) => ({
+        id: `qa-check-${index}`,
+        label: `Check ${index + 1}`,
+        status: "fail" as const,
+        message: `Finding ${index + 1}`,
+        category: "qa" as const,
+      })),
+    });
+
+    const qaSection = document.querySelector("[data-qa-details]");
+    expect(qaSection).toHaveClass("max-h-[40%]", "overflow-y-auto");
+    expect(screen.getByText("Check 1")).toBeInTheDocument();
+    expect(screen.getByText("Check 12")).toBeInTheDocument();
+  });
+
   it("scrolls the QA section when the workspace UI store reveals details", async () => {
     const scrollIntoView = vi.fn();
     HTMLElement.prototype.scrollIntoView = scrollIntoView;

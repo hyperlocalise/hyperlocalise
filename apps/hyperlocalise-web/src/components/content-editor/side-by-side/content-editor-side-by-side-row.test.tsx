@@ -376,6 +376,31 @@ describe("ContentEditorSideBySideRow", () => {
     expect(onTargetChange).toHaveBeenCalledWith("Diverse the product");
   });
 
+  it("does not offer Fix when related tokens are a placeholder list", () => {
+    renderRow({
+      segment: {
+        ...createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
+          (item) => item.id === "seg-02",
+        )!,
+        targetText: "Hello {name} {count}",
+      },
+      formatChecks: [
+        {
+          id: "scan-placeholder-mismatch",
+          label: "Placeholders",
+          status: "fail",
+          message: "Target is missing placeholders ({name}).",
+          category: "placeholder",
+          relatedTokens: ["{name}", "{count}"],
+        },
+      ],
+    });
+
+    expect(screen.getByText(/Placeholders:/)).toBeInTheDocument();
+    expect(screen.queryByText(/Suggested:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Fix$/i })).not.toBeInTheDocument();
+  });
+
   it("shows the first issue and a count for additional QA issues", async () => {
     const { workspace } = renderRow({
       formatChecks: [
