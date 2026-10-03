@@ -20,6 +20,12 @@ import {
   type ContentEditorWorkspaceViewMode,
 } from "@/components/content-editor/workspace/content-editor-workspace-view-mode";
 import {
+  readCatDetailsPanelCollapsed,
+  readCatFilesPanelCollapsed,
+  writeCatDetailsPanelCollapsed,
+  writeCatFilesPanelCollapsed,
+} from "@/components/content-editor/workspace/content-editor-workspace-panel-state";
+import {
   DESIGNER_PERSONA_FILE_FAMILIES,
   defaultPersonaForFileFamily,
   readCatWorkspacePersona,
@@ -39,6 +45,10 @@ export class ContentEditorWorkspaceUiStore {
   qaDetailsRevealNonce = 0;
   /** True when the workspace was given a multilingual table configuration. */
   multilingualViewAvailable = false;
+  /** Left file tree pane is collapsed to zero width. */
+  filesPanelCollapsed = readCatFilesPanelCollapsed();
+  /** Right segment details pane is collapsed to zero width. */
+  detailsPanelCollapsed = readCatDetailsPanelCollapsed();
   // Explicit initial modes (e.g. marketing demos) must not overwrite the
   // visitor's real CAT workspace preference.
   #persistViewMode: boolean;
@@ -220,7 +230,38 @@ export class ContentEditorWorkspaceUiStore {
     this.#applyPersonaLayout(persona);
   }
 
+  setFilesPanelCollapsed(collapsed: boolean, options?: { persist?: boolean }) {
+    if (this.filesPanelCollapsed === collapsed) {
+      return;
+    }
+
+    this.filesPanelCollapsed = collapsed;
+    if (options?.persist ?? true) {
+      writeCatFilesPanelCollapsed(collapsed);
+    }
+  }
+
+  toggleFilesPanel() {
+    this.setFilesPanelCollapsed(!this.filesPanelCollapsed);
+  }
+
+  setDetailsPanelCollapsed(collapsed: boolean, options?: { persist?: boolean }) {
+    if (this.detailsPanelCollapsed === collapsed) {
+      return;
+    }
+
+    this.detailsPanelCollapsed = collapsed;
+    if (options?.persist ?? true) {
+      writeCatDetailsPanelCollapsed(collapsed);
+    }
+  }
+
+  toggleDetailsPanel() {
+    this.setDetailsPanelCollapsed(!this.detailsPanelCollapsed);
+  }
+
   revealQaDetails() {
+    this.setDetailsPanelCollapsed(false);
     this.qaDetailsRevealNonce += 1;
   }
 

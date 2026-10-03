@@ -302,6 +302,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
             intelligence={
               <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-border" />
             }
+            intelligenceCollapsed={store.ui.detailsPanelCollapsed}
           />
         </div>
       );
@@ -895,6 +896,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           queue={renderQueuePanel()}
           editor={renderEditorPanel()}
           intelligence={renderIntelligencePanel()}
+          intelligenceCollapsed={store.ui.detailsPanelCollapsed}
+          onIntelligenceCollapsedChange={(collapsed) =>
+            store.ui.setDetailsPanelCollapsed(collapsed)
+          }
         />
       )}
       {showNativeIssues && organizationSlug && projectId && issueSegment ? (

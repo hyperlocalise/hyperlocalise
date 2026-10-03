@@ -42,6 +42,35 @@ describe("ContentEditorComfortableResizableLayout", () => {
     expect(screen.getByText("Editor pane")).toBeInTheDocument();
     expect(screen.getByText("Intelligence pane")).toBeInTheDocument();
   });
+
+  it("collapses the intelligence panel when requested", () => {
+    const { rerender } = renderWithContentEditorProviders(
+      <div style={{ width: 1280, height: 900 }}>
+        <ContentEditorComfortableResizableLayout
+          queue={<div>Queue pane</div>}
+          editor={<div>Editor pane</div>}
+          intelligence={<div>Intelligence pane</div>}
+          intelligenceCollapsed={false}
+        />
+      </div>,
+    );
+
+    const expandedFlexGrow = screen.getByTestId("intelligence").style.flexGrow;
+    expect(Number(expandedFlexGrow)).toBeGreaterThan(0);
+
+    rerender(
+      <div style={{ width: 1280, height: 900 }}>
+        <ContentEditorComfortableResizableLayout
+          queue={<div>Queue pane</div>}
+          editor={<div>Editor pane</div>}
+          intelligence={<div>Intelligence pane</div>}
+          intelligenceCollapsed
+        />
+      </div>,
+    );
+
+    expect(Number(screen.getByTestId("intelligence").style.flexGrow)).toBe(0);
+  });
 });
 
 describe("ContentEditorSideBySideResizableLayout", () => {

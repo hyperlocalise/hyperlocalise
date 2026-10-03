@@ -20,6 +20,10 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { cn } from "@/lib/primitives/cn";
 
 import { contentEditorWorkspaceViewMessages } from "./content-editor-workspace.messages";
+import {
+  CAT_PANEL_COLLAPSED_SIZE,
+  useContentEditorCollapsiblePanel,
+} from "./use-content-editor-collapsible-panel";
 
 export const CAT_COMFORTABLE_LAYOUT_ID = "content-editor-workspace-comfortable";
 export const CAT_SIDE_BY_SIDE_LAYOUT_ID = "content-editor-workspace-side-by-side";
@@ -43,11 +47,15 @@ export function ContentEditorComfortableResizableLayout({
   queue,
   editor,
   intelligence,
+  intelligenceCollapsed,
+  onIntelligenceCollapsedChange,
   className,
 }: {
   queue: ReactNode;
   editor: ReactNode;
   intelligence: ReactNode;
+  intelligenceCollapsed?: boolean;
+  onIntelligenceCollapsedChange?: (collapsed: boolean) => void;
   className?: string;
 }) {
   const intl = useIntl();
@@ -55,6 +63,10 @@ export function ContentEditorComfortableResizableLayout({
     id: CAT_COMFORTABLE_LAYOUT_ID,
     panelIds: [...COMFORTABLE_PANEL_IDS],
     onlySaveAfterUserInteractions: true,
+  });
+  const intelligencePanel = useContentEditorCollapsiblePanel({
+    collapsed: intelligenceCollapsed,
+    onCollapsedChange: onIntelligenceCollapsedChange,
   });
 
   return (
@@ -94,6 +106,10 @@ export function ContentEditorComfortableResizableLayout({
         defaultSize={INTELLIGENCE_DEFAULT_SIZE}
         minSize={INTELLIGENCE_MIN_SIZE}
         maxSize={INTELLIGENCE_MAX_SIZE}
+        collapsible
+        collapsedSize={CAT_PANEL_COLLAPSED_SIZE}
+        panelRef={intelligencePanel.panelRef}
+        onResize={intelligencePanel.onResize}
         className="min-h-0 min-w-0 overflow-hidden"
       >
         <ContentEditorResizablePane>{intelligence}</ContentEditorResizablePane>
@@ -105,10 +121,14 @@ export function ContentEditorComfortableResizableLayout({
 export function ContentEditorSideBySideResizableLayout({
   editor,
   intelligence,
+  intelligenceCollapsed,
+  onIntelligenceCollapsedChange,
   className,
 }: {
   editor: ReactNode;
   intelligence: ReactNode;
+  intelligenceCollapsed?: boolean;
+  onIntelligenceCollapsedChange?: (collapsed: boolean) => void;
   className?: string;
 }) {
   const intl = useIntl();
@@ -116,6 +136,10 @@ export function ContentEditorSideBySideResizableLayout({
     id: CAT_SIDE_BY_SIDE_LAYOUT_ID,
     panelIds: [...SIDE_BY_SIDE_PANEL_IDS],
     onlySaveAfterUserInteractions: true,
+  });
+  const intelligencePanel = useContentEditorCollapsiblePanel({
+    collapsed: intelligenceCollapsed,
+    onCollapsedChange: onIntelligenceCollapsedChange,
   });
 
   return (
@@ -142,6 +166,10 @@ export function ContentEditorSideBySideResizableLayout({
         defaultSize={INTELLIGENCE_DEFAULT_SIZE}
         minSize={INTELLIGENCE_MIN_SIZE}
         maxSize={INTELLIGENCE_MAX_SIZE}
+        collapsible
+        collapsedSize={CAT_PANEL_COLLAPSED_SIZE}
+        panelRef={intelligencePanel.panelRef}
+        onResize={intelligencePanel.onResize}
         className="min-h-0 min-w-0 overflow-hidden"
       >
         <ContentEditorResizablePane>{intelligence}</ContentEditorResizablePane>

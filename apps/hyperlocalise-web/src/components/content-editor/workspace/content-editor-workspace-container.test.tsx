@@ -85,6 +85,33 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     ).toBeInTheDocument();
   });
 
+  it("reopens a collapsed details panel from the strings toolbar", async () => {
+    const user = userEvent.setup();
+
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          initialViewMode="side-by-side"
+          services={{ validateFormat: mockValidateFormat }}
+        />
+      </>,
+    );
+
+    const [toolbarToggle] = await screen.findAllByRole("button", { name: "Hide details panel" });
+    await user.click(toolbarToggle!);
+    expect(localStorage.getItem("content-editor-details-panel-collapsed:v1")).toBe("true");
+
+    await user.click(await screen.findByRole("button", { name: "Show details panel" }));
+    expect(localStorage.getItem("content-editor-details-panel-collapsed:v1")).toBe("false");
+    expect(
+      screen
+        .getAllByRole("button", { name: "Hide details panel" })
+        .some((button) => button.getAttribute("aria-pressed") === "true"),
+    ).toBe(true);
+  });
+
   it("lets reviewers set a character limit on native projects", async () => {
     const user = userEvent.setup();
     const onSetMaxLength = vi.fn().mockResolvedValue(undefined);

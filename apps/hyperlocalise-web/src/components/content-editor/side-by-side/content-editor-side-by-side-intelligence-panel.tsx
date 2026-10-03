@@ -14,6 +14,8 @@
  */
 import { observer } from "mobx-react-lite";
 import { useState } from "react";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -47,6 +49,7 @@ import type {
   ContentEditorTranslationMemoryMatch,
 } from "@/components/content-editor/shared/types";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { contentEditorWorkspaceViewMessages } from "@/components/content-editor/workspace/content-editor-workspace.messages";
 
 import { actionableFormatChecks } from "./content-editor-side-by-side-qa";
 
@@ -291,6 +294,16 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
                 {commentCount > 0 ? <TabCount count={commentCount} tone="count" /> : null}
               </TabsTrigger>
             </TabsList>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="ms-auto size-8 shrink-0"
+              aria-label={intl.formatMessage(contentEditorWorkspaceViewMessages.hideDetailsPanel)}
+              onClick={() => workspace.ui.setDetailsPanelCollapsed(true)}
+            >
+              <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+            </Button>
           </div>
 
           <TabsContent value="details" className="flex min-h-0 flex-col">

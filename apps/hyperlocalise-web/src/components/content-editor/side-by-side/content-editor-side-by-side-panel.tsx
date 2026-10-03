@@ -351,6 +351,8 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   return (
     <ContentEditorSideBySideResizableLayout
       className={cn("bg-background", className)}
+      intelligenceCollapsed={store.ui.detailsPanelCollapsed}
+      onIntelligenceCollapsedChange={(collapsed) => store.ui.setDetailsPanelCollapsed(collapsed)}
       editor={
         <div className="@container flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
           <SideBySideFileToolbar

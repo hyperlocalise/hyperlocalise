@@ -15,6 +15,14 @@
 import { observer } from "mobx-react-lite";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { SidebarRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useIntl } from "react-intl";
+
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/primitives/cn";
+import { contentEditorWorkspaceViewMessages } from "@/components/content-editor/workspace/content-editor-workspace.messages";
 
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 
@@ -70,6 +78,7 @@ export const ContentEditorQueueToolbarConnected = observer(
     /** Gate for the adaptive workspace persona switcher. Off by default. */
     adaptiveWorkspaceEnabled?: boolean;
   }) {
+    const intl = useIntl();
     const store = useContentEditorWorkspace();
     const [host, setHost] = useState<HTMLElement | null | undefined>(undefined);
 
@@ -120,41 +129,80 @@ export const ContentEditorQueueToolbarConnected = observer(
       return null;
     }
 
+    const showDetailsToggle =
+      store.ui.viewMode === "comfortable" || store.ui.viewMode === "side-by-side";
+    const detailsToggleLabel = intl.formatMessage(
+      store.ui.detailsPanelCollapsed
+        ? contentEditorWorkspaceViewMessages.showDetailsPanel
+        : contentEditorWorkspaceViewMessages.hideDetailsPanel,
+    );
+
     const toolbar = (
-      <ContentEditorQueueToolbar
-        search={store.queueSearch}
-        onSearchChange={onQueueSearchChange ? handleSearchChange : undefined}
-        isSearching={isSearching}
-        isQueueLoading={isQueueLoading}
-        queueFilter={store.queueFilter}
-        onQueueFilterChange={handleFilterChange}
-        availableQueueFilters={availableQueueFilters}
-        queueSort={queueSort}
-        onQueueSortChange={onQueueSortChange ? handleSortChange : undefined}
-        availableQueueSorts={availableQueueSorts}
-        selectionMode={store.selectionMode}
-        onSelectionModeChange={(enabled) => store.setSelectionMode(enabled)}
-        selectedCount={store.checkedSegmentIds.size}
-        visibleCount={visibleCount}
-        onSelectAllVisible={onSelectAllVisible}
-        onClearChecked={() => store.clearChecked()}
-        onBulkApprove={onBulkApprove}
-        onBulkSkip={onBulkSkip}
-        onBulkHide={onBulkHide}
-        onBulkUnhide={onBulkUnhide}
-        onBulkLock={onBulkLock}
-        onBulkUnlock={onBulkUnlock}
-        isBulkActionPending={store.isBulkActionPending}
-        bulkProgress={
-          store.isBulkActionPending && store.bulkTotalCount > 0
-            ? `${store.bulkCompletedCount}/${store.bulkTotalCount}`
-            : undefined
-        }
-        onDownloadFilteredView={onDownloadFilteredView}
-        isDownloadingFilteredView={isDownloadingFilteredView}
-        adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
-        resolvedPersona={adaptiveWorkspaceEnabled ? store.ui.resolvedPersona : undefined}
-      />
+      <>
+        <ContentEditorQueueToolbar
+          search={store.queueSearch}
+          onSearchChange={onQueueSearchChange ? handleSearchChange : undefined}
+          isSearching={isSearching}
+          isQueueLoading={isQueueLoading}
+          queueFilter={store.queueFilter}
+          onQueueFilterChange={handleFilterChange}
+          availableQueueFilters={availableQueueFilters}
+          queueSort={queueSort}
+          onQueueSortChange={onQueueSortChange ? handleSortChange : undefined}
+          availableQueueSorts={availableQueueSorts}
+          selectionMode={store.selectionMode}
+          onSelectionModeChange={(enabled) => store.setSelectionMode(enabled)}
+          selectedCount={store.checkedSegmentIds.size}
+          visibleCount={visibleCount}
+          onSelectAllVisible={onSelectAllVisible}
+          onClearChecked={() => store.clearChecked()}
+          onBulkApprove={onBulkApprove}
+          onBulkSkip={onBulkSkip}
+          onBulkHide={onBulkHide}
+          onBulkUnhide={onBulkUnhide}
+          onBulkLock={onBulkLock}
+          onBulkUnlock={onBulkUnlock}
+          isBulkActionPending={store.isBulkActionPending}
+          bulkProgress={
+            store.isBulkActionPending && store.bulkTotalCount > 0
+              ? `${store.bulkCompletedCount}/${store.bulkTotalCount}`
+              : undefined
+          }
+          onDownloadFilteredView={onDownloadFilteredView}
+          isDownloadingFilteredView={isDownloadingFilteredView}
+          adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
+          resolvedPersona={adaptiveWorkspaceEnabled ? store.ui.resolvedPersona : undefined}
+        />
+        {showDetailsToggle ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    className={cn(
+                      "hidden size-8 shrink-0 lg:inline-flex",
+                      !store.ui.detailsPanelCollapsed && "bg-muted",
+                    )}
+                    aria-pressed={!store.ui.detailsPanelCollapsed}
+                    aria-label={detailsToggleLabel}
+                    onClick={() => store.ui.toggleDetailsPanel()}
+                  />
+                }
+              >
+                <HugeiconsIcon
+                  icon={SidebarRight01Icon}
+                  className="size-4 text-foreground"
+                  strokeWidth={2}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{detailsToggleLabel}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : null}
+      </>
     );
 
     if (host === undefined) {
