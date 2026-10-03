@@ -20,11 +20,20 @@ export const contentEditorGuidelineSheetMessages = defineMessages({
     id: "ZVjGHNckcC",
     description: "Title for the content editor guideline sheet",
   },
-  description: {
-    defaultMessage:
-      "Workspace guidance, project style guide, and project guideline for this translation.",
-    id: "WaEocpHxEP",
-    description: "Description for the content editor guideline sheet",
+  descriptionStyleGuide: {
+    defaultMessage: "Tone, terminology, and formatting for this project.",
+    id: "9e9a/69ACn",
+    description: "Description for the style guide tab in the editor guideline sheet",
+  },
+  descriptionProjectGuideline: {
+    defaultMessage: "Rules translators follow on this project.",
+    id: "qBKA0q2hmg",
+    description: "Description for the project guideline tab in the editor guideline sheet",
+  },
+  descriptionWorkspaceGuideline: {
+    defaultMessage: "Rules shared by every project in this workspace.",
+    id: "o4QwHRAiJ4",
+    description: "Description for the workspace guideline tab in the editor guideline sheet",
   },
   tabStyleGuide: {
     defaultMessage: "Style guide",

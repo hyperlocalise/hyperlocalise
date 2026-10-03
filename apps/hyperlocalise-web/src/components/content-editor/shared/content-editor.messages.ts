@@ -586,11 +586,22 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     description: "Accessible label for closing the glossary guidance panel",
   },
   glossaryGuidanceEmptyTitle: {
+    defaultMessage: 'No glossary matches for "{source}"',
+    id: "+KL8RSQ32r",
+    description: "Empty state title naming the CAT source text when no glossary concepts match",
+  },
+  glossaryGuidanceEmptyDescription: {
+    defaultMessage: 'No project glossary concepts match "{source}".',
+    id: "9dnrQOGzUr",
+    description:
+      "Empty state description naming the CAT source text when no glossary concepts match",
+  },
+  glossaryGuidanceEmptyTitleUnnamed: {
     defaultMessage: "No glossary matches",
     id: "fdAK5CKbNL",
     description: "Empty state title for the glossary guidance panel",
   },
-  glossaryGuidanceEmptyDescription: {
+  glossaryGuidanceEmptyDescriptionUnnamed: {
     defaultMessage: "No project glossary concepts match this string.",
     id: "4DQSOq1CB0",
     description: "Empty state description for the glossary guidance panel",

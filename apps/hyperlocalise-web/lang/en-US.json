@@ -191,6 +191,10 @@
     "defaultMessage": "Provider title",
     "description": "Row label for the external provider job title"
   },
+  "+KL8RSQ32r": {
+    "defaultMessage": "No glossary matches for \"{source}\"",
+    "description": "Empty state title naming the CAT source text when no glossary concepts match"
+  },
   "+KX/fjdtO4": {
     "defaultMessage": "Cadence",
     "description": "Label for schedule cadence on scheduled trigger node"
@@ -3439,6 +3443,10 @@
     "defaultMessage": "Updated {updated} issue(s)",
     "description": "Toast after a fully successful issue bulk action"
   },
+  "57DpzgJvLI": {
+    "defaultMessage": "No issues for \"{source}\"",
+    "description": "Empty-state title naming the CAT source text when the segment has no linked issues"
+  },
   "57UDNEMoCB": {
     "defaultMessage": "Note",
     "description": "Translation reporting label"
@@ -5678,6 +5686,14 @@
   "9d14HnH3r+": {
     "defaultMessage": "approved a string",
     "description": "Action for a string approval activity"
+  },
+  "9dnrQOGzUr": {
+    "defaultMessage": "No project glossary concepts match \"{source}\".",
+    "description": "Empty state description naming the CAT source text when no glossary concepts match"
+  },
+  "9e9a/69ACn": {
+    "defaultMessage": "Tone, terminology, and formatting for this project.",
+    "description": "Description for the style guide tab in the editor guideline sheet"
   },
   "9fd2S51TS6": {
     "defaultMessage": "Units read",
@@ -16531,10 +16547,6 @@
     "defaultMessage": "GitHub status check",
     "description": "Section heading for GitHub status check settings"
   },
-  "WaEocpHxEP": {
-    "defaultMessage": "Workspace guidance, project style guide, and project guideline for this translation.",
-    "description": "Description for the content editor guideline sheet"
-  },
   "Wbm7kwzdGk": {
     "defaultMessage": "Open Editor",
     "description": "Button to open the selected project file in the Content Editor"
@@ -16718,6 +16730,10 @@
   "Ww6hf/sreW": {
     "defaultMessage": "Translation memories failed to load.",
     "description": "Error heading when translation memories fail to load"
+  },
+  "WxA0j2W+Ol": {
+    "defaultMessage": "Create an issue to track work on \"{source}\".",
+    "description": "Empty-state description naming the CAT source text when the segment has no linked issues"
   },
   "Wy1vE+UJqV": {
     "defaultMessage": "Multilingual keyword research",
@@ -25287,6 +25303,10 @@
     "defaultMessage": "String Commented",
     "description": "Activity log event type label for string comments"
   },
+  "o4QwHRAiJ4": {
+    "defaultMessage": "Rules shared by every project in this workspace.",
+    "description": "Description for the workspace guideline tab in the editor guideline sheet"
+  },
   "o5RLnUXcEq": {
     "defaultMessage": "Startmate",
     "description": "Startmate name shown in the backed-by section"
@@ -26498,6 +26518,10 @@
   "qBHY8te/JC": {
     "defaultMessage": "The companies that win open product and marketing in new markets in days, not after a long setup cycle. Speed matters when the opportunity is in front of you.",
     "description": "Story beat body: enter markets quickly when opportunity appears"
+  },
+  "qBKA0q2hmg": {
+    "defaultMessage": "Rules translators follow on this project.",
+    "description": "Description for the project guideline tab in the editor guideline sheet"
   },
   "qCIzGw7LDA": {
     "defaultMessage": "Localize behavioral email and in-app messages in Customer.io.",

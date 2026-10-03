@@ -29,8 +29,9 @@ import {
   IssueSheetCreateIssueDialog,
   type IssueSheetCreateStringLink,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/issue-sheet/_components/issue-sheet-create-issue-dialog";
-import { Button } from "@/components/ui/button";
 import { isOpenIssueStatus } from "@/components/content-editor/queue/content-editor-queue-filter";
+import { emptyStateSourceLabel } from "@/components/content-editor/shared/empty-state-source-label";
+import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
@@ -256,16 +257,7 @@ export function ContentEditorEditorIssuesSection({
               }),
             );
           }}
-          empty={
-            <div className="px-1 py-2">
-              <p className="text-sm font-medium text-foreground">
-                <FormattedMessage {...messages.emptyTitle} />
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                <FormattedMessage {...messages.emptyDescription} />
-              </p>
-            </div>
-          }
+          empty={<IssuesEmptyState sourceText={stringLink?.defaultTitle} />}
           error={<FormattedMessage {...messages.loadError} />}
         />
       </div>
@@ -284,6 +276,29 @@ export function ContentEditorEditorIssuesSection({
         />
       ) : null}
     </IssuePanelFrame>
+  );
+}
+
+function IssuesEmptyState({ sourceText }: { sourceText?: string }) {
+  const source = emptyStateSourceLabel(sourceText);
+
+  return (
+    <div className="px-1 py-2">
+      <p className="text-sm font-medium text-foreground">
+        {source ? (
+          <FormattedMessage {...messages.emptyTitle} values={{ source }} />
+        ) : (
+          <FormattedMessage {...messages.emptyTitleUnnamed} />
+        )}
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {source ? (
+          <FormattedMessage {...messages.emptyDescription} values={{ source }} />
+        ) : (
+          <FormattedMessage {...messages.emptyDescriptionUnnamed} />
+        )}
+      </p>
+    </div>
   );
 }
 

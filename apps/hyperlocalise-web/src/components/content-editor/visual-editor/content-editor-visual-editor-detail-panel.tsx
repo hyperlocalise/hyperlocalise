@@ -195,6 +195,7 @@ export function ContentEditorVisualEditorDetailPanel({
         <div className="border-t border-border [&>div]:lg:border-l-0">
           <ContentEditorIntelligencePanel
             intelligence={intelligence}
+            sourceText={segment.sourceText}
             targetText={segment.targetText}
             showAgentContext={false}
             showVisualContext={false}
