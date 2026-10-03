@@ -37,6 +37,8 @@ import {
 import type { EmailProviderSlug } from "@/lib/email/constants";
 import { parseSlackConversationId } from "./slack/channel-query";
 import { isValidAutomationTimeZone } from "./automation-time-zones";
+import { applySkillToolsToWorkspaceAutomationForm } from "./workspace-automation-skill-form";
+import { validateWorkspaceAutomationSkills } from "./workspace-automation-skills";
 import {
   getWorkspaceAutomationTemplate,
   type WorkspaceAutomationTemplate,
@@ -54,6 +56,7 @@ export type WorkspaceAutomationFormState = {
   kind: WorkspaceAutomationKind;
   name: string;
   instructions: string;
+  skillIds: string[];
   model: WorkspaceAutomationModel;
   status: "active" | "paused";
   projectId: string;
@@ -157,6 +160,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "ahrefs"
     | "crowdinProjectId"
     | "scheduledTimezone"
+    | "skills"
     | "syncConnectionId"
     | "syncProviderFolder"
     | "syncProjectFolder"
@@ -166,6 +170,10 @@ export type WorkspaceAutomationFieldErrors = Partial<
 >;
 
 export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
+  skill_not_found: "A selected skill is no longer available. Remove it and try again.",
+  skill_trigger_incompatible:
+    "A selected skill does not work with this trigger. Remove it or change the trigger.",
+  skill_tools_required: "A selected skill needs a tool that was removed. Add the skill again.",
   github_repository_target_required: "Choose a GitHub repository before enabling GitHub tools.",
   gitlab_repository_target_required: "Choose a GitLab project before enabling GitLab tools.",
   gitlab_github_exclusive: "GitHub and GitLab cannot be enabled on the same automation.",
@@ -248,6 +256,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     kind: DEFAULT_WORKSPACE_AUTOMATION_KIND,
     name: "",
     instructions: "",
+    skillIds: [],
     model: DEFAULT_WORKSPACE_AUTOMATION_MODEL,
     status: "active",
     projectId: "",
@@ -337,6 +346,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     kind: resolveWorkspaceAutomationKind(automation.kind),
     name: automation.name,
     instructions: automation.instructions,
+    skillIds: automation.skillIds ?? [],
     syncProvider: automation.syncConfig?.provider ?? "github",
     syncConnectionId: automation.syncConfig?.connectionId ?? "",
     syncResourceKey: automation.syncConfig?.resourceKey ?? "",
@@ -440,11 +450,12 @@ export function applyTemplateToWorkspaceAutomationFormState(
   base: WorkspaceAutomationFormState,
   template: WorkspaceAutomationTemplate,
 ): WorkspaceAutomationFormState {
-  return {
+  return applySkillToolsToWorkspaceAutomationForm({
     ...base,
     ...template.defaultForm,
     name: template.defaultForm.name ?? template.name,
     instructions: template.defaultForm.instructions ?? template.instructions,
+    skillIds: template.defaultForm.skillIds ?? base.skillIds,
     pushBranches: template.defaultForm.pushBranches ?? base.pushBranches,
     githubEvents: template.defaultForm.githubEvents ?? base.githubEvents,
     emailRecipients: template.defaultForm.emailRecipients ?? base.emailRecipients,
@@ -452,7 +463,7 @@ export function applyTemplateToWorkspaceAutomationFormState(
       template.defaultForm.contentfulContentTypeIds ?? base.contentfulContentTypeIds,
     contentfulTargetLocales:
       template.defaultForm.contentfulTargetLocales ?? base.contentfulTargetLocales,
-  };
+  });
 }
 
 export function applyWorkspaceAutomationProjectSelection(
@@ -480,6 +491,7 @@ export type WorkspaceAutomationAgentWritePayload = {
   kind?: "agent";
   name: string;
   instructions: string;
+  skillIds: string[];
   model: WorkspaceAutomationModel;
   status: "active" | "paused";
   projectId?: string;
@@ -736,6 +748,7 @@ export function formStateToWorkspaceAutomationPayload(
   return {
     name: form.name.trim(),
     instructions: form.instructions.trim(),
+    skillIds: form.skillIds,
     model: resolveWorkspaceAutomationModel(form.model),
     status: form.status,
     ...(projectId ? { projectId } : {}),
@@ -776,8 +789,18 @@ export function validateWorkspaceAutomationFormState(
     errors.name = "Name is required.";
   }
 
-  if (!form.instructions.trim()) {
-    errors.instructions = "Instructions are required.";
+  if (!form.instructions.trim() && form.skillIds.length === 0) {
+    errors.instructions = "Add a skill or write instructions.";
+  }
+
+  const payload = formStateToWorkspaceAutomationPayload(form);
+  const skillProblem = validateWorkspaceAutomationSkills({
+    skillIds: form.skillIds,
+    triggerMode: form.triggerMode,
+    toolConfig: payload.toolConfig,
+  });
+  if (skillProblem) {
+    errors.skills = WORKSPACE_AUTOMATION_API_ERROR_MESSAGES[skillProblem];
   }
 
   if (workspaceAutomationFormNeedsProject(form) && !form.projectId.trim()) {
@@ -898,6 +921,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
   }
 
   switch (errorCode) {
+    case "skill_not_found":
+    case "skill_trigger_incompatible":
+    case "skill_tools_required":
+      return { skills: message };
     case "github_repository_target_required":
     case "github_repository_not_enabled":
     case "github_repository_archived":
