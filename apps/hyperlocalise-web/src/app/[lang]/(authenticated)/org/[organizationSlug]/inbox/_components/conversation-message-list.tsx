@@ -60,6 +60,7 @@ import type {
   InboxChatStatusData,
   InboxChatToolProgressData,
 } from "@/lib/agent-contracts/inbox-chat-message";
+import { cn } from "@/lib/primitives/cn";
 
 import { conversationMessageListMessages } from "./conversation-message-list.messages";
 import {
@@ -221,7 +222,9 @@ const PersistedMessage = memo(function PersistedMessage({
     >
       <div className="flex flex-col gap-3">
         {message.senderType === "user" ? (
-          <TypographyP className="whitespace-pre-wrap leading-6">{message.text}</TypographyP>
+          <TypographyP className="whitespace-pre-wrap leading-6" tone="inherit" wrapStyle="pretty">
+            {message.text}
+          </TypographyP>
         ) : message.parts && message.parts.length > 0 ? (
           <AssistantMessageParts isStreaming={false} message={toAssistantUIMessage(message)} />
         ) : (
@@ -229,19 +232,38 @@ const PersistedMessage = memo(function PersistedMessage({
             <MessageResponse>{message.text}</MessageResponse>
           </AiElementErrorBoundary>
         )}
-        <MessageAttachments attachments={message.attachments} />
+        <MessageAttachments
+          attachments={message.attachments}
+          inverted={message.senderType === "user"}
+        />
       </div>
     </MessageFrame>
   );
 });
 
-function MessageAttachments({ attachments }: { attachments: ConversationMessage["attachments"] }) {
+function MessageAttachments({
+  attachments,
+  inverted = false,
+}: {
+  attachments: ConversationMessage["attachments"];
+  inverted?: boolean;
+}) {
   if (!attachments?.length) {
     return null;
   }
 
   const imageAttachments = attachments.filter(isImageAttachment);
   const fileAttachments = attachments.filter((attachment) => !isImageAttachment(attachment));
+  const tileClassName = inverted
+    ? "border-primary-foreground/20 bg-primary-foreground/10"
+    : "border-border bg-muted/35";
+  const filenameClassName = inverted
+    ? "border-primary-foreground/20 text-primary-foreground/80 group-hover:text-primary-foreground"
+    : "border-border text-muted-foreground group-hover:text-foreground";
+  const fileLinkClassName = inverted
+    ? "border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/15"
+    : "border-border bg-muted/35 text-foreground hover:bg-muted";
+  const iconClassName = inverted ? "text-primary-foreground/80" : "text-muted-foreground";
 
   return (
     <div className="flex max-w-full flex-col gap-2">
@@ -253,14 +275,16 @@ function MessageAttachments({ attachments }: { attachments: ConversationMessage[
               href={attachment.url}
               target="_blank"
               rel="noreferrer"
-              className="group overflow-hidden rounded-md border border-border bg-muted/35"
+              className={cn("group overflow-hidden rounded-md border", tileClassName)}
             >
               <img
                 src={attachment.url}
                 alt={attachment.filename}
                 className="aspect-video w-full object-contain"
               />
-              <span className="block truncate border-t border-border px-2 py-1.5 text-xs text-muted-foreground group-hover:text-foreground">
+              <span
+                className={cn("block truncate border-t px-2 py-1.5 text-xs", filenameClassName)}
+              >
                 {attachment.filename}
               </span>
             </a>
@@ -273,11 +297,14 @@ function MessageAttachments({ attachments }: { attachments: ConversationMessage[
           href={attachment.url}
           target="_blank"
           rel="noreferrer"
-          className="flex max-w-full items-center gap-2 rounded-md border border-border bg-muted/35 px-3 py-2 text-sm text-foreground hover:bg-muted"
+          className={cn(
+            "flex max-w-full items-center gap-2 rounded-md border px-3 py-2 text-sm",
+            fileLinkClassName,
+          )}
         >
-          <HugeiconsIcon icon={File01Icon} className="size-4 shrink-0 text-muted-foreground" />
+          <HugeiconsIcon icon={File01Icon} className={cn("size-4 shrink-0", iconClassName)} />
           <span className="min-w-0 flex-1 truncate">{attachment.filename}</span>
-          <HugeiconsIcon icon={Download01Icon} className="size-4 shrink-0 text-muted-foreground" />
+          <HugeiconsIcon icon={Download01Icon} className={cn("size-4 shrink-0", iconClassName)} />
         </a>
       ))}
     </div>
@@ -350,7 +377,7 @@ function MessageFrame({
         </Avatar>
       </MessageAvatar>
       <MessageContent className="leading-6">
-        <div className="w-fit max-w-full rounded-lg bg-muted px-4 py-3 text-foreground">
+        <div className="w-fit max-w-full rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
           {children}
         </div>
         <MessageFooter className="px-0">
