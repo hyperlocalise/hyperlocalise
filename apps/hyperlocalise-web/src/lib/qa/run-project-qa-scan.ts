@@ -86,6 +86,10 @@ export async function startTranslationQaScan(input: {
       errorCode: "qa_scan_enqueue_failed",
       errorMessage: error instanceof Error ? error.message : "qa scan could not be queued",
     });
+    logger.error(
+      { runId: run.runId, projectId: input.projectId, errorType: qaScanErrorType(error) },
+      "translation qa scan could not be queued",
+    );
     throw error;
   }
 }
@@ -119,6 +123,7 @@ export async function executeTranslationQaScan(input: {
   organizationId: string;
   projectId: string;
 }) {
+  let failureCode = "qa_scan_processing_failed";
   try {
     let afterKeyId: string | null = null;
     for (let page = 0; page < MAX_SCAN_PAGES; page += 1) {
@@ -132,16 +137,29 @@ export async function executeTranslationQaScan(input: {
       afterKeyId = result.afterKeyId;
     }
 
+    failureCode = "qa_scan_finalization_failed";
     await completeTranslationQaScan(input);
   } catch (error) {
     await failTranslationQaRun({
       runId: input.runId,
-      errorCode: "qa_scan_failed",
+      errorCode: failureCode,
       errorMessage: error instanceof Error ? error.message : "qa scan failed",
     });
-    logger.info({ runId: input.runId, projectId: input.projectId }, "translation qa scan failed");
+    logger.error(
+      {
+        runId: input.runId,
+        projectId: input.projectId,
+        failureCode,
+        errorType: qaScanErrorType(error),
+      },
+      "translation qa scan failed",
+    );
     throw error;
   }
+}
+
+function qaScanErrorType(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
 }
 
 export async function scanTranslationQaPage(input: {
@@ -473,7 +491,7 @@ export async function reclaimStaleTranslationQaRuns(input?: {
     filters.push(eq(schema.translationQaRuns.projectId, input.projectId));
   }
 
-  await db
+  const reclaimed = await db
     .update(schema.translationQaRuns)
     .set({
       status: "failed",
@@ -481,7 +499,17 @@ export async function reclaimStaleTranslationQaRuns(input?: {
       errorMessage: "Scan did not finish before the lease expired.",
       completedAt: new Date(),
     })
-    .where(and(...filters));
+    .where(and(...filters))
+    .returning({
+      runId: schema.translationQaRuns.id,
+      projectId: schema.translationQaRuns.projectId,
+    });
+  for (const run of reclaimed) {
+    logger.error(
+      { runId: run.runId, projectId: run.projectId, failureCode: "qa_scan_stale" },
+      "translation qa scan timed out",
+    );
+  }
 }
 
 export async function claimTranslationQaRun(input: {

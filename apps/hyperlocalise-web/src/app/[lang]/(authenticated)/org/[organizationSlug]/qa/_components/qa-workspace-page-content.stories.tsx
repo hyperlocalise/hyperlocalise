@@ -54,7 +54,9 @@ export const Default: Story = {
     await expect(
       await canvas.findByRole("heading", { name: "Translation QA" }),
     ).toBeInTheDocument();
-    await expect(canvas.getByText(/latest successful scan/)).toBeInTheDocument();
+    await expect(canvas.getByText(/last completed scan/)).toBeInTheDocument();
+    await expect(canvas.getByText("1 project needs attention")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Review projects" })).toBeInTheDocument();
     await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
     await expect(canvas.getByText("Placeholder mismatch")).toBeInTheDocument();
     await expect(canvas.getByText("The translation is missing {count}.")).toBeInTheDocument();
@@ -79,7 +81,7 @@ export const Default: Story = {
       canvas.getByText("Not checked yet. Run a scan to review translation quality."),
     ).toBeInTheDocument();
     await expect(
-      canvas.getByText("Scan failed. These results are incomplete. Retry the scan."),
+      canvas.getByText("The scan stopped while checking translations."),
     ).toBeInTheDocument();
     await expect(canvas.getAllByRole("link", { name: "Open QA" })).toHaveLength(4);
     await expect(canvasElement.querySelector("table")).toBeNull();

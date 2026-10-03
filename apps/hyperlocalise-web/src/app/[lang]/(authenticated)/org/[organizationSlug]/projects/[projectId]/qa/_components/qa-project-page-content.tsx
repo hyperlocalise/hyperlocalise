@@ -66,6 +66,9 @@ export function QaProjectPageContent({
   });
   const reports = list.data?.reports ?? [];
   const report = reports.find((row) => row.id === selectedRunId) ?? reports[0];
+  const lastSuccessfulReport = reports.find(
+    (row) => row.status === "succeeded" && (!report || row.createdAt <= report.createdAt),
+  );
   const running = reports.some((row) => ["running", "queued"].includes(row.status));
   const settings = list.data?.settings;
   const detail = useInfiniteQuery({
@@ -104,7 +107,9 @@ export function QaProjectPageContent({
   const start = useMutation({
     mutationFn: async () => {
       const response = await api.startScan({ param });
-      if (!response.ok) throw new Error("scan_failed");
+      if (!response.ok) {
+        throw new Error(response.status === 409 ? "qa_scan_in_progress" : "qa_scan_start_failed");
+      }
       return response.json();
     },
     onSuccess: async () => {
@@ -149,7 +154,7 @@ export function QaProjectPageContent({
         icon={CheckmarkCircle02Icon}
         section={intl.formatMessage(messages.title)}
         actions={
-          settings?.canRun ? (
+          settings?.canRun && reports[0]?.status !== "failed" ? (
             <Button size="sm" disabled={running || start.isPending} onClick={() => start.mutate()}>
               {intl.formatMessage(running || start.isPending ? messages.running : messages.run)}
             </Button>
@@ -172,7 +177,14 @@ export function QaProjectPageContent({
         />
       ) : null}
       {start.isError ? (
-        <QaNotice message={intl.formatMessage(messages.runError)} onRetry={() => start.mutate()} />
+        <QaNotice
+          message={intl.formatMessage(
+            start.error.message === "qa_scan_in_progress"
+              ? messages.runInProgress
+              : messages.runError,
+          )}
+          onRetry={start.error.message === "qa_scan_in_progress" ? undefined : () => start.mutate()}
+        />
       ) : null}
       {list.isSuccess ? (
         <Tabs value={tab} onValueChange={(value) => setTab(String(value))} className="gap-6">
@@ -193,7 +205,19 @@ export function QaProjectPageContent({
             <QaRunStatus
               report={report}
               onRetry={settings?.canRun && !running ? () => start.mutate() : undefined}
+              isRetrying={start.isPending}
+              lastSuccessfulAt={lastSuccessfulReport?.completedAt}
             />
+            {report?.status === "failed" && lastSuccessfulReport ? (
+              <Button
+                className="w-fit"
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedRunId(lastSuccessfulReport.id)}
+              >
+                {intl.formatMessage(messages.viewLastCompleted)}
+              </Button>
+            ) : null}
             {report?.status === "succeeded" ? (
               <>
                 <p className="text-xs text-muted-foreground">{intl.formatMessage(m.snapshot)}</p>
@@ -382,7 +406,7 @@ export function QaProjectPageContent({
                         : messages.triggerManual,
                     )}
                   </p>
-                  <QaRunStatus report={row} />
+                  <QaRunStatus report={row} compact />
                 </div>
                 <Button
                   variant="outline"
@@ -393,7 +417,13 @@ export function QaProjectPageContent({
                     setTab("findings");
                   }}
                 >
-                  {intl.formatMessage(m.findings)}
+                  {intl.formatMessage(
+                    row.status === "failed"
+                      ? m.viewFailure
+                      : row.status === "succeeded"
+                        ? m.findings
+                        : m.viewStatus,
+                  )}
                 </Button>
               </div>
             ))}

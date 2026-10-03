@@ -31,10 +31,22 @@ export async function completeTranslationQaScanStep(input: TranslationQaScanEven
 
 export async function failTranslationQaScanStep(input: {
   runId: string;
+  projectId: string;
   errorCode: string;
   errorMessage: string;
+  errorType: string;
 }) {
   "use step";
+  const { createLogger } = await import("@/lib/log");
   const { failTranslationQaRun } = await import("@/lib/qa/run-project-qa-scan");
-  return failTranslationQaRun(input);
+  await failTranslationQaRun(input);
+  createLogger("translation-qa-scan").error(
+    {
+      runId: input.runId,
+      projectId: input.projectId,
+      failureCode: input.errorCode,
+      errorType: input.errorType,
+    },
+    "translation qa scan failed",
+  );
 }

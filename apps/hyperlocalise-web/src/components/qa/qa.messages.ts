@@ -79,10 +79,115 @@ export const qaMessages = defineMessages({
     description: "QA review: loadError",
     id: "afqH1Griyu",
   },
-  failed: {
-    defaultMessage: "Scan failed. These results are incomplete. Retry the scan.",
-    description: "QA review: failed",
-    id: "dgawo2bDGy",
+  scanFailed: {
+    defaultMessage: "QA scan failed",
+    description: "QA scan failure heading",
+    id: "GhoCtaHiLJ",
+  },
+  failureQueue: {
+    defaultMessage: "The scan could not start.",
+    description: "QA scan could not be queued",
+    id: "xA3NbKiPOV",
+  },
+  failureStale: {
+    defaultMessage: "The scan stopped responding before it finished.",
+    description: "QA scan timed out",
+    id: "WBb1kW3Nz2",
+  },
+  failureProcessing: {
+    defaultMessage: "The scan stopped while checking translations.",
+    description: "QA scan processing failed",
+    id: "dhHPq13vex",
+  },
+  failureFinalization: {
+    defaultMessage: "The checks finished, but the report could not be saved.",
+    description: "QA report finalization failed",
+    id: "PS2MuzEKTM",
+  },
+  failureUnknown: {
+    defaultMessage: "The scan stopped unexpectedly.",
+    description: "QA scan failure with no classified cause",
+    id: "nkRTkzumcl",
+  },
+  failedNoResults: {
+    defaultMessage: "No findings from this run are available.",
+    description: "QA scan failure result availability",
+    id: "/JNYEjMNVT",
+  },
+  lastCompleted: {
+    defaultMessage: "Last completed scan: {date}",
+    description: "QA last successful scan timestamp",
+    id: "09yHr1a3dj",
+  },
+  completedScanAt: {
+    defaultMessage: "Completed scan: {date}",
+    description: "QA finding scan date",
+    id: "CAjTa5Br2o",
+  },
+  attemptedAt: {
+    defaultMessage: "Attempted",
+    description: "QA run attempted time label",
+    id: "PslOM8EEdU",
+  },
+  trigger: {
+    defaultMessage: "Started by",
+    description: "QA run trigger label",
+    id: "im+pFp1kIC",
+  },
+  triggerManual: {
+    defaultMessage: "A member",
+    description: "QA manual run trigger",
+    id: "OhDSK13yKr",
+  },
+  triggerScheduled: {
+    defaultMessage: "Daily schedule",
+    description: "QA scheduled run trigger",
+    id: "w3VOiHT94r",
+  },
+  retryScan: {
+    defaultMessage: "Retry scan",
+    description: "QA retry failed scan button",
+    id: "OdGJtDZ6jQ",
+  },
+  technicalDetails: {
+    defaultMessage: "Technical details",
+    description: "QA failure diagnostic disclosure",
+    id: "bAkdHjBiWF",
+  },
+  failureCode: {
+    defaultMessage: "Failure code",
+    description: "QA failure code label",
+    id: "59CKJeZUxb",
+  },
+  runId: {
+    defaultMessage: "Run ID",
+    description: "QA run ID label",
+    id: "obN/tl+Sdr",
+  },
+  copyRunId: {
+    defaultMessage: "Copy run ID",
+    description: "QA copy run ID action",
+    id: "G73Dfp2P/t",
+  },
+  copiedRunId: {
+    defaultMessage: "Copied",
+    description: "QA run ID copy confirmation",
+    id: "mGopK1fIld",
+  },
+  copyRunIdFailed: {
+    defaultMessage: "Could not copy. Select the run ID instead.",
+    description: "QA run ID copy failure",
+    id: "kxPNFiSAfY",
+  },
+  viewFailure: {
+    defaultMessage: "View failure",
+    description: "QA run history action to inspect failure",
+    id: "mTsK/KrTgC",
+  },
+  viewStatus: {
+    defaultMessage: "View status",
+    description: "QA run history action to inspect running scan",
+    id: "Z8iMQbn2KB",
   },
   running: {
     defaultMessage: "Checking translations\u2026 Results will refresh when the scan finishes.",
@@ -332,9 +437,9 @@ export const qaMessages = defineMessages({
   },
   workspaceHelp: {
     defaultMessage:
-      "Review findings from each project\u2019s latest successful scan. Check project status for scans that failed, are running, or have never run.",
+      "Review findings from each project's last completed scan. A newer failed scan does not refresh them.",
     description: "QA review: workspaceHelp",
-    id: "Kq4aU8dzI5",
+    id: "FCD/KpD+4M",
   },
   linkedIssue: {
     defaultMessage: "Issue {identifier}",

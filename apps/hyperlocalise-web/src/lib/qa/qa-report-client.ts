@@ -41,6 +41,7 @@ export type WorkspaceQaReportRow = {
   projectName: string;
   cadence: "off" | "daily";
   lastRunAt: string | null;
+  lastSuccessfulAt: string | null;
   report: {
     id: string;
     projectId: string;

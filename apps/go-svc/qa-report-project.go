@@ -109,7 +109,8 @@ func serializeQaRunRow(row qaRunRow) map[string]any {
 		"warningCount": row.WarningCount,
 		"summary":      summary,
 		"errorCode":    row.ErrorCode,
-		"errorMessage": row.ErrorMessage,
+		// Raw exceptions stay in the run row for internal diagnosis by run ID.
+		"errorMessage": nil,
 		"startedAt":    formatQaReportTime(row.StartedAt),
 		"completedAt":  formatQaReportTime(row.CompletedAt),
 		"createdAt":    row.CreatedAt.UTC().Format("2006-01-02T15:04:05.000Z"),

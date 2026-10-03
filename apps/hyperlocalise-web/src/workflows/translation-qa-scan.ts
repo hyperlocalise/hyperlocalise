@@ -30,6 +30,7 @@ export async function translationQaScanWorkflow(event: TranslationQaScanEventDat
   "use workflow";
 
   const { workflowRunId } = getWorkflowMetadata();
+  let failureCode = "qa_scan_processing_failed";
 
   try {
     let afterKeyId: string | null = null;
@@ -46,18 +47,20 @@ export async function translationQaScanWorkflow(event: TranslationQaScanEventDat
       afterKeyId = result.afterKeyId;
     }
 
+    failureCode = "qa_scan_finalization_failed";
     const completed = await completeTranslationQaScanStep(event);
     return { ...completed, workflowRunId };
   } catch (error) {
     await failTranslationQaScanStep({
       runId: event.runId,
-      errorCode: "qa_scan_failed",
+      projectId: event.projectId,
+      errorCode: failureCode,
       errorMessage: formatExecutionError(error),
+      errorType: error instanceof Error ? error.name : typeof error,
     });
     return {
       ok: false as const,
-      code: "qa_scan_failed" as const,
-      message: formatExecutionError(error),
+      code: failureCode,
       workflowRunId,
     };
   }
