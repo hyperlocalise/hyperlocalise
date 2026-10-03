@@ -55,12 +55,15 @@ func (api *qaReportAPI) reviewFindingHandler(r *http.Request, actor qaReportActo
 	if body.Status == "open" {
 		body.Reason = ""
 	}
+	// IS NOT DISTINCT FROM keeps null translation_key_id rows in the same diagnostic
+	// snapshot — plain = never matches null to null, so ignore/reopen would no-op.
 	_, err = api.pool.Exec(r.Context(), `update translation_qa_findings f set status = $3,
         ignore_reason = nullif($4, ''), reviewed_by_user_id = $5, reviewed_at = now()
         from translation_qa_findings selected
         where selected.id = $2 and selected.organization_id = $1
         and f.organization_id = selected.organization_id and f.project_id = selected.project_id
-        and f.translation_key_id = selected.translation_key_id and f.target_locale = selected.target_locale
+        and f.translation_key_id is not distinct from selected.translation_key_id
+        and f.target_locale = selected.target_locale
         and f.check_type = selected.check_type and f.message = selected.message
         and f.source_text = selected.source_text and f.target_text = selected.target_text
         and f.rule_version = selected.rule_version`, actor.organizationID, id, body.Status, body.Reason, actor.userID)
