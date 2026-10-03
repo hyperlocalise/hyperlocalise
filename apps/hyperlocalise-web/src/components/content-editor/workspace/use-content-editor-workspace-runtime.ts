@@ -238,6 +238,9 @@ export function useContentEditorWorkspaceRuntime({
         ? { onRegenerateImage: editingOverrides.onRegenerateImage }
         : {}),
       ...(editingOverrides?.onUploadImage ? { onUploadImage: editingOverrides.onUploadImage } : {}),
+      ...(editingOverrides?.onSetMaxLength
+        ? { onSetMaxLength: editingOverrides.onSetMaxLength }
+        : {}),
     };
 
     const navigation: ContentEditorWorkspaceNavigation = {
@@ -340,6 +343,7 @@ export function useContentEditorWorkspaceRuntime({
     };
   }, [
     editingOverrides?.onRegenerateImage,
+    editingOverrides?.onSetMaxLength,
     editingOverrides?.onTreatAsImage,
     editingOverrides?.onTreatAsVideo,
     editingOverrides?.onUploadImage,

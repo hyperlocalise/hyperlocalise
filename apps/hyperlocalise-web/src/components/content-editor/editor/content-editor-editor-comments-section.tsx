@@ -245,9 +245,7 @@ export function ContentEditorEditorCommentsSection({
 
   return (
     <section
-      className={
-        variant === "inspector" ? "space-y-3" : "space-y-3 border-t border-border pt-5"
-      }
+      className={variant === "inspector" ? "space-y-3" : "space-y-3 border-t border-border pt-5"}
     >
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-medium text-foreground">

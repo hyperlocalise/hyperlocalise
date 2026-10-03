@@ -175,7 +175,9 @@ export const ReadOnly: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Dashboard card", { exact: true })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Use" })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("spinbutton", { name: "Character limit" })).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("spinbutton", { name: "Character limit" }),
+    ).not.toBeInTheDocument();
     await expect(canvas.getByText("No limit")).toBeInTheDocument();
   },
 };

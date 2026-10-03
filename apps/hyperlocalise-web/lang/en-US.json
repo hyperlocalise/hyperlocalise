@@ -23511,10 +23511,6 @@
     "defaultMessage": "Due {due}",
     "description": "Relative due date on a kanban job card"
   },
-  "kQ2nLm8pWx": {
-    "defaultMessage": "e.g. 32",
-    "description": "Placeholder inside the native segment max length input"
-  },
   "kQCAngZDoM": {
     "defaultMessage": "Create projects",
     "description": "Permission row for creating projects"
@@ -24987,10 +24983,6 @@
     "defaultMessage": "Quality monitoring across your stack — not a point-in-time QA tool",
     "description": "Differentiator section title for the localisation-quality-monitoring use case"
   },
-  "nR4tUv7yZa": {
-    "defaultMessage": "characters",
-    "description": "Unit label beside the native segment max length input"
-  },
   "nRQFI6PW+w": {
     "defaultMessage": "Edit comment…",
     "description": "Placeholder while editing an existing issue comment"
@@ -26050,10 +26042,6 @@
   "pS4CYtUU3j": {
     "defaultMessage": "A few things\nyou might ask.",
     "description": "FAQ heading on the multilingual Content Studio product page"
-  },
-  "pS6wXy1bCd": {
-    "defaultMessage": "{count} used",
-    "description": "Current translation character count beside the max length input"
   },
   "pSCJIupsz5": {
     "defaultMessage": "Send",
