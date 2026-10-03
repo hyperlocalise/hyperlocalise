@@ -201,6 +201,9 @@ export function TranslationMemoriesPageView({
   const nativeEmptyDescription = allowCreateMemories
     ? intl.formatMessage(translationMemoriesPageViewMessages.emptyDescriptionCreate)
     : intl.formatMessage(translationMemoriesPageViewMessages.nativeEmptyDescription);
+  const providerConnectAction = !hasConnectedProvider ? (
+    <TranslationMemoriesEmptyAction organizationSlug={organizationSlug} />
+  ) : undefined;
   return (
     <WorkspacePageShell className="gap-6">
       <PageHeader
@@ -234,7 +237,7 @@ export function TranslationMemoriesPageView({
         }
       />
 
-      {filtersReady && (hasMemories || projects.length > 0) ? (
+      {hasActiveFilters || (filtersReady && (hasMemories || projects.length > 0)) ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
           <WorkspaceFilterField
             label={intl.formatMessage(translationMemoriesPageViewMessages.searchLabel)}
@@ -446,19 +449,28 @@ export function TranslationMemoriesPageView({
                   : externalQuery,
                 emptyTitle: liveProjectSelectionRequired
                   ? intl.formatMessage(translationMemoriesPageViewMessages.chooseTmsProjectTitle)
-                  : intl.formatMessage(translationMemoriesPageViewMessages.externalEmptyTitle, {
-                      provider: group.title,
-                    }),
+                  : !hasConnectedProvider
+                    ? intl.formatMessage(
+                        translationMemoriesPageViewMessages.emptyTitleConnectProvider,
+                      )
+                    : intl.formatMessage(translationMemoriesPageViewMessages.externalEmptyTitle, {
+                        provider: group.title,
+                      }),
                 emptyDescription: liveProjectSelectionRequired
                   ? intl.formatMessage(
                       translationMemoriesPageViewMessages.chooseTmsProjectDescription,
                     )
-                  : intl.formatMessage(
-                      translationMemoriesPageViewMessages.emptyDescriptionWithProvider,
-                      {
-                        provider: group.title,
-                      },
-                    ),
+                  : !hasConnectedProvider
+                    ? intl.formatMessage(
+                        translationMemoriesPageViewMessages.emptyDescriptionWithoutProvider,
+                      )
+                    : intl.formatMessage(
+                        translationMemoriesPageViewMessages.emptyDescriptionWithProvider,
+                        {
+                          provider: group.title,
+                        },
+                      ),
+                emptyAction: liveProjectSelectionRequired ? undefined : providerConnectAction,
                 headerActions:
                   liveProviderKind && group.id === liveProviderKind ? (
                     <TmsLiveProjectPicker

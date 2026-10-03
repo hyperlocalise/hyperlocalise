@@ -52,6 +52,16 @@ export function groupByTmsProvider<T extends { externalProviderKind: string | nu
     order.push(kind);
   }
 
+  if (order.length === 0) {
+    return [
+      {
+        id: "unknown",
+        title: tmsProviderTitle("unknown"),
+        items: [],
+      },
+    ];
+  }
+
   return order.map((kind) => ({
     id: kind,
     title: tmsProviderTitle(kind),

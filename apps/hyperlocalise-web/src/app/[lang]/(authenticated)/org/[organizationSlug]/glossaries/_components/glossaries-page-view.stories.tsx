@@ -193,8 +193,34 @@ export const NoProviderConnected: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByText("TMS")).toBeInTheDocument();
     await expect(canvas.getByText("No Hyperlocalise glossaries")).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: "Connect a provider" })).toBeInTheDocument();
+    await expect(canvas.getByText("Connect a TMS provider")).toBeInTheDocument();
+    await expect(
+      canvas.getAllByRole("link", { name: "Connect a provider" }).length,
+    ).toBeGreaterThan(0);
+  },
+};
+
+export const CanCreateWithoutProvider: Story = {
+  args: {
+    nativeGlossaries: [],
+    externalGlossaries: [],
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    allowCreateGlossaries: true,
+    hasConnectedProvider: false,
+    connectedProviderKinds: [],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("TMS")).toBeInTheDocument();
+    await expect(canvas.getByText("Connect a TMS provider")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Connect a provider" })).toHaveAttribute(
+      "href",
+      "/org/acme/integrations",
+    );
   },
 };
 

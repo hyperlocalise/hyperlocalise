@@ -14,7 +14,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -471,6 +471,25 @@ describe("memoryRoutes", () => {
     expect(restrictedProjectResponse.status).toBe(201);
     const restrictedProject = ((await restrictedProjectResponse.json()) as ProjectResponse).project;
 
+    const defaultProjectMemories = await db
+      .select({
+        id: schema.memories.id,
+        projectId: schema.projectMemories.projectId,
+      })
+      .from(schema.projectMemories)
+      .innerJoin(schema.memories, eq(schema.memories.id, schema.projectMemories.memoryId))
+      .where(
+        inArray(schema.projectMemories.projectId, [accessibleProject.id, restrictedProject.id]),
+      );
+    const accessibleDefaultMemory = defaultProjectMemories.find(
+      (row) => row.projectId === accessibleProject.id,
+    );
+    const restrictedDefaultMemory = defaultProjectMemories.find(
+      (row) => row.projectId === restrictedProject.id,
+    );
+    expect(accessibleDefaultMemory).toBeDefined();
+    expect(restrictedDefaultMemory).toBeDefined();
+
     const [sharedMemory] = await db
       .insert(schema.memories)
       .values({
@@ -508,9 +527,14 @@ describe("memoryRoutes", () => {
     const body = (await response.json()) as {
       memories: Array<{ id: string; projectCount: number }>;
     };
-    expect(body.memories).toEqual([
-      expect.objectContaining({ id: sharedMemory.id, projectCount: 1 }),
-    ]);
+    expect(body.memories).toHaveLength(2);
+    expect(body.memories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: sharedMemory.id, projectCount: 1 }),
+        expect.objectContaining({ id: accessibleDefaultMemory!.id, projectCount: 1 }),
+      ]),
+    );
+    expect(body.memories.map((memory) => memory.id)).not.toContain(restrictedDefaultMemory!.id);
   });
 
   it("removes project attachments when deleting a translation memory", async () => {

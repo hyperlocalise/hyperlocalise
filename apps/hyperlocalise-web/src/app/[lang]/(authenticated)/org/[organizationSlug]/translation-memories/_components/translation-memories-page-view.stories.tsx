@@ -154,8 +154,35 @@ export const NoProviderConnected: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByText("TMS")).toBeInTheDocument();
     await expect(canvas.getByText("No Hyperlocalise memories")).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: "Connect a provider" })).toBeInTheDocument();
+    await expect(canvas.getByText("Connect a TMS provider")).toBeInTheDocument();
+    await expect(
+      canvas.getAllByRole("link", { name: "Connect a provider" }).length,
+    ).toBeGreaterThan(0);
+  },
+};
+
+export const CanCreateWithoutProvider: Story = {
+  args: {
+    nativeMemories: [],
+    externalMemories: [],
+    nativeTotal: 0,
+    externalTotal: 0,
+    allowCreateMemories: true,
+    hasConnectedProvider: false,
+    connectedProviderKinds: [],
+    hasMemories: false,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("TMS")).toBeInTheDocument();
+    await expect(canvas.getByText("Connect a TMS provider")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Connect a provider" })).toHaveAttribute(
+      "href",
+      "/org/acme/integrations",
+    );
   },
 };
 
@@ -242,7 +269,9 @@ export const NoFilterMatches: Story = {
     externalMemories: [],
     nativeTotal: 0,
     externalTotal: 0,
+    hasMemories: false,
     hasActiveFilters: true,
+    showNoFilterMatches: true,
     nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
   },
@@ -252,6 +281,38 @@ export const NoFilterMatches: Story = {
         content.includes("No translation memories match your filters."),
       ),
     ).toBeInTheDocument();
+    await expect(canvas.getAllByRole("button", { name: "Clear filters" }).length).toBeGreaterThan(
+      0,
+    );
+  },
+};
+
+export const ExternalSourceWithoutMatches: Story = {
+  args: {
+    nativeMemories: [],
+    externalMemories: [],
+    nativeTotal: 0,
+    externalTotal: 0,
+    hasMemories: false,
+    projects: [],
+    sourceFilter: "external_tms",
+    hasActiveFilters: true,
+    showNoFilterMatches: true,
+    hasConnectedProvider: false,
+    connectedProviderKinds: [],
+    nativeQuery: { isLoading: false, isError: false, isSuccess: false, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Source")).toBeInTheDocument();
+    await expect(
+      canvas.getByText((content) =>
+        content.includes("No translation memories match your filters."),
+      ),
+    ).toBeInTheDocument();
+    await expect(canvas.getAllByRole("button", { name: "Clear filters" }).length).toBeGreaterThan(
+      0,
+    );
   },
 };
 

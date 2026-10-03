@@ -47,12 +47,12 @@ describe("groupByTmsProvider", () => {
     ]);
   });
 
-  it("omits a nameless provider group when nothing is connected", () => {
+  it("keeps a TMS group when nothing is connected", () => {
     expect(
       groupByTmsProvider({
         connectedKinds: [],
         items: [],
       }),
-    ).toEqual([]);
+    ).toEqual([{ id: "unknown", title: "TMS", items: [] }]);
   });
 });

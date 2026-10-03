@@ -178,6 +178,9 @@ export function GlossariesPageView({
     connectedKinds: connectedProviderKinds ?? [],
   });
   const liveProviderKind = useLiveProviderGlossaries ? (connectedProviderKinds?.[0] ?? null) : null;
+  const providerConnectAction = !hasConnectedProvider ? (
+    <GlossariesEmptyAction organizationSlug={organizationSlug} />
+  ) : undefined;
   const hasAnyResults = nativeTotal > 0 || externalTotal > 0;
   const queriesHaveNoResults = nativeQuery.isSuccess && externalQuery.isSuccess && !hasAnyResults;
   const liveProviderControls = useLiveProviderGlossaries ? (
@@ -325,16 +328,21 @@ export function GlossariesPageView({
               : externalQuery,
             emptyTitle: liveProjectSelectionRequired
               ? intl.formatMessage(glossariesPageViewMessages.chooseTmsProjectTitle)
-              : intl.formatMessage(glossariesPageViewMessages.externalEmptyTitle, {
-                  provider: group.title,
-                }),
-            emptyDescription: liveProjectSelectionRequired
-              ? intl.formatMessage(glossariesPageViewMessages.chooseTmsProjectDescription)
-              : useLiveCrowdinGlossaries
-                ? intl.formatMessage(glossariesPageViewMessages.crowdinEmptyDescription)
-                : intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithProvider, {
+              : !hasConnectedProvider
+                ? intl.formatMessage(glossariesPageViewMessages.emptyTitleConnectProvider)
+                : intl.formatMessage(glossariesPageViewMessages.externalEmptyTitle, {
                     provider: group.title,
                   }),
+            emptyDescription: liveProjectSelectionRequired
+              ? intl.formatMessage(glossariesPageViewMessages.chooseTmsProjectDescription)
+              : !hasConnectedProvider
+                ? intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithoutProvider)
+                : useLiveCrowdinGlossaries
+                  ? intl.formatMessage(glossariesPageViewMessages.crowdinEmptyDescription)
+                  : intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithProvider, {
+                      provider: group.title,
+                    }),
+            emptyAction: liveProjectSelectionRequired ? undefined : providerConnectAction,
             headerActions:
               liveProviderKind && group.id === liveProviderKind ? liveProviderControls : undefined,
             hasMore:

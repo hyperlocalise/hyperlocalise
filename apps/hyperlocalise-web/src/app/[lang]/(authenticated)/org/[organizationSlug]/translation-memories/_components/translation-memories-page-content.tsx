@@ -529,10 +529,10 @@ export function TranslationMemoriesPageContent({
   const listsReady =
     (sourceFilter === "external_tms" || nativeQueryState.isSuccess) &&
     (sourceFilter === "native" || externalQueryState.isSuccess);
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 || activeFilterCount > 0 || projectFilter !== "all";
   const showNoFilterMatches =
-    listsReady &&
-    ((loadedMemories.length > 0 && nativeMemories.length + externalMemories.length === 0) ||
-      (projectFilter !== "all" && serverNativeTotal + serverExternalTotal === 0));
+    listsReady && nativeMemories.length + externalMemories.length === 0 && hasActiveFilters;
 
   useEffect(() => {
     setSelectedExternalProjectId("");
@@ -600,9 +600,7 @@ export function TranslationMemoriesPageContent({
       hasExternalMemories={hasExternalMemories}
       hasMemories={hasLoadedMemories}
       showNoFilterMatches={showNoFilterMatches}
-      hasActiveFilters={
-        searchQuery.trim().length > 0 || activeFilterCount > 0 || projectFilter !== "all"
-      }
+      hasActiveFilters={hasActiveFilters}
       onClearFilters={() => {
         clearFilters();
         setProjectFilter("all");
