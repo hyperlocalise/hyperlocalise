@@ -25,7 +25,7 @@
     "react-intl": "^10.2.2"
   },
   "devDependencies": {
-    "@canva/cli": "^2.13.0",
+    "@canva/cli": "^2.13.2",
     "@formatjs/cli": "6.16.23",
     "@formatjs/ts-transformer": "4.4.19",
     "@ngrok/ngrok": "1.7.0",

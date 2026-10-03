@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -24,7 +25,7 @@ func translateWithOpenAICompatibleClient(ctx context.Context, providerName strin
 		Model: openai.ChatModel(strings.TrimSpace(req.Model)),
 	})
 	if err != nil {
-		return "", fmt.Errorf("%s generate text: %w", providerName, err)
+		return "", fmt.Errorf("%s generate text: %w", providerName, withUpstreamAPIMessage(err))
 	}
 
 	output, err := responseText(resp)
@@ -52,7 +53,7 @@ func editImageWithOpenAICompatibleClient(ctx context.Context, providerName strin
 		OutputFormat: openai.ImageEditParamsOutputFormat(strings.ToLower(strings.TrimSpace(req.OutputFormat))),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%s edit image: %w", providerName, err)
+		return nil, fmt.Errorf("%s edit image: %w", providerName, withUpstreamAPIMessage(err))
 	}
 	if resp == nil || len(resp.Data) == 0 {
 		return nil, fmt.Errorf("%s image response: no image returned", providerName)
@@ -148,6 +149,21 @@ func usageFromImagesResponse(resp *openai.ImagesResponse) (Usage, bool) {
 		return Usage{}, false
 	}
 	return usage, true
+}
+
+// openai-go 3.71 keeps Error() to the HTTP status so logs do not include
+// request URLs. Callers still need the provider message (invalid key, unknown
+// model, rate limit) that the previous client included in the error string.
+func withUpstreamAPIMessage(err error) error {
+	var apiErr *openai.Error
+	if !errors.As(err, &apiErr) {
+		return err
+	}
+	message := strings.TrimSpace(apiErr.Message)
+	if message == "" {
+		return err
+	}
+	return fmt.Errorf("%w: %s", err, message)
 }
 
 func rawProviderUsage(raw string) json.RawMessage {
