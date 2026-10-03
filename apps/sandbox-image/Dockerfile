@@ -59,8 +59,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # Keep in sync with apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts
 ARG NODE_MAJOR=24
+ARG RIPGREP_VERSION=15.2.0
 ARG HYPERLOCALISE_VERSION=1.13.0
-ARG PLAYWRIGHT_VERSION=1.61.1
+ARG PLAYWRIGHT_VERSION=1.63.0
 # Optional pin; omit / leave empty to install the latest Volta release.
 ARG VOLTA_VERSION=
 # Matches MANAGED_BROWSER_RUNTIME_DIR in capture-screenshot.ts (web wiring later).
@@ -93,6 +94,19 @@ RUN apt-get update \
     && install -d -o ubuntu -g ubuntu /vercel \
     && usermod --home /vercel ubuntu \
     && chown -R ubuntu:ubuntu /vercel
+
+# Pin ripgrep when apt ships an older package.
+RUN set -eux; \
+    if ! rg --version | grep -Fq "${RIPGREP_VERSION}"; then \
+      curl -fsSL -o /tmp/rg.tar.gz \
+        "https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl.tar.gz"; \
+      tar -xzf /tmp/rg.tar.gz -C /tmp; \
+      install -m 0755 \
+        "/tmp/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl/rg" \
+        /usr/local/bin/rg; \
+      rm -rf /tmp/rg.tar.gz "/tmp/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl"; \
+    fi; \
+    rg --version | grep -Fq "${RIPGREP_VERSION}"
 
 # Node.js latest of the pinned major (same approach as vercel/sandbox/node).
 RUN set -eux; \

@@ -16,7 +16,7 @@ import { env } from "@/lib/env";
 import { isReleaseSandboxVcrImageEnabled } from "@/lib/flags/release-flags";
 
 /** Pinned ripgrep release used when package managers do not ship rg (e.g. Amazon Linux 2023). */
-export const sandboxRipgrepReleaseVersion = "14.1.1";
+export const sandboxRipgrepReleaseVersion = "15.2.0";
 
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
 export const sandboxHyperlocaliseReleaseVersion = "1.13.0";
@@ -25,7 +25,7 @@ export const sandboxHyperlocaliseReleaseVersion = "1.13.0";
  * Pinned Playwright release used for Debian/Ubuntu `install-deps` fallback.
  * Also used as `MANAGED_PLAYWRIGHT_VERSION` in capture-screenshot.ts.
  */
-export const sandboxPlaywrightVersion = "1.61.1";
+export const sandboxPlaywrightVersion = "1.63.0";
 
 /**
  * Amazon Linux 2023 packages required to run Playwright's Ubuntu Chromium

@@ -22,7 +22,7 @@ passwordless sudo), with:
 | Tool | Version source |
 |------|----------------|
 | Node.js + npm + pnpm 11 | latest of major `NODE_MAJOR` (default **24**) |
-| ripgrep (`rg`) | apt |
+| ripgrep (`rg`) | pinned (`RIPGREP_VERSION`; apt + GitHub release fallback) |
 | Volta | `/vercel/.volta` (`VOLTA_VERSION` optional pin) |
 | hyperlocalise CLI (`hl`) | pinned (`HYPERLOCALISE_VERSION`) |
 | Playwright + Chromium | pinned (`PLAYWRIGHT_VERSION`), under `/tmp/hyperlocalise-browser-runtime` |
