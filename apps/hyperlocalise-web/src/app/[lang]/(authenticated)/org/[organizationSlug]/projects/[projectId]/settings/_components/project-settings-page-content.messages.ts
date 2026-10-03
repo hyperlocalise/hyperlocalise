@@ -48,32 +48,32 @@ export const projectSettingsPageContentMessages = defineMessages({
   },
   saveGeneralSettings: {
     defaultMessage: "Save general settings",
-    id: "pK8n2Qw4Lm",
+    id: "dLjdVTBDZx",
     description: "Accessible name for the general project settings save button",
   },
   saveStyleGuideSettings: {
     defaultMessage: "Save style guide",
-    id: "rT5vYc1Hs8",
+    id: "+4lASMLZiO",
     description: "Accessible name for the style guide settings save button",
   },
   saveLocalesSettings: {
     defaultMessage: "Save locales",
-    id: "wN3bUe7Xp2",
+    id: "bvVDo6L8kL",
     description: "Accessible name for the locales settings save button",
   },
   generalSaved: {
     defaultMessage: "General settings saved",
-    id: "aM6dJk9Qo1",
+    id: "83uneIShnG",
     description: "Toast after the general project settings section is saved",
   },
   styleGuideSaved: {
     defaultMessage: "Style guide saved",
-    id: "cF4hLp2Vt7",
+    id: "gx3gSLBIsF",
     description: "Toast after the project style guide is saved",
   },
   localesSaved: {
     defaultMessage: "Locales saved",
-    id: "eH8sRn5Yb3",
+    id: "iEputUZkuD",
     description: "Toast after the project locales are saved",
   },
   loading: {

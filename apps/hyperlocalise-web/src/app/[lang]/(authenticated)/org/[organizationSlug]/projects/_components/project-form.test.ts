@@ -186,12 +186,9 @@ describe("project form helpers", () => {
     expect(projectSettingsSectionIsDirty("locales", values, baseline)).toBe(true);
     expect(projectSettingsSectionIsDirty("general", baseline, baseline)).toBe(false);
     expect(
-      projectSettingsSectionIsDirty(
-        "general",
-        { ...baseline, name: "Renamed" },
-        baseline,
-        { identifierOnly: true },
-      ),
+      projectSettingsSectionIsDirty("general", { ...baseline, name: "Renamed" }, baseline, {
+        identifierOnly: true,
+      }),
     ).toBe(false);
   });
 

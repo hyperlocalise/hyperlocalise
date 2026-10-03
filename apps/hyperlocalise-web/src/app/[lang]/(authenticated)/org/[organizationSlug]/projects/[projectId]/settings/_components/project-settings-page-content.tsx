@@ -519,9 +519,7 @@ export function ProjectSettingsPageContent({
                   <FormattedMessage {...projectSettingsPageContentMessages.styleGuideTitle} />
                 </ProjectSectionTitle>
                 <TypographyP className="mt-1" size="small" tone="subtle">
-                  <FormattedMessage
-                    {...projectSettingsPageContentMessages.styleGuideDescription}
-                  />
+                  <FormattedMessage {...projectSettingsPageContentMessages.styleGuideDescription} />
                 </TypographyP>
               </div>
               <Field className="gap-1.5" data-invalid={Boolean(errors.translationContext)}>
@@ -529,7 +527,9 @@ export function ProjectSettingsPageContent({
                   id="translation-context"
                   value={values.translationContext}
                   disabled={savingSection === "styleGuide"}
-                  onChange={(translationContext) => updateField("translationContext", translationContext)}
+                  onChange={(translationContext) =>
+                    updateField("translationContext", translationContext)
+                  }
                   ariaLabel={intl.formatMessage(projectSettingsPageContentMessages.styleGuideLabel)}
                   placeholder={intl.formatMessage(
                     projectSettingsPageContentMessages.styleGuidePlaceholder,
@@ -538,9 +538,7 @@ export function ProjectSettingsPageContent({
                 />
                 <FieldError
                   errors={
-                    errors.translationContext
-                      ? [{ message: errors.translationContext }]
-                      : undefined
+                    errors.translationContext ? [{ message: errors.translationContext }] : undefined
                   }
                 />
               </Field>
