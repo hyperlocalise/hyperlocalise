@@ -1427,6 +1427,38 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
     expect(store.page.showFileSidebar).toBe(true);
   });
 
+  it("shows the next file's rows when a native queue window was set for the previous file", () => {
+    const previousFile = createContentEditorWorkspaceState({
+      selectedSegmentId: "seg-01",
+      queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+      segments: undefined,
+    });
+    const store = createCatWorkspace(previousFile);
+    store.serverTargetLookup = () => undefined;
+    // A second snapshot of the same file records the queue window.
+    store.ingestQueue({ ...previousFile });
+    expect(store.getQueuePanelSegments("all", true).map((segment) => segment.id)).toEqual([
+      "seg-01",
+    ]);
+
+    store.prepareFileScopeChange({
+      sourcePath: "locales/next.json",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+    });
+    store.ingestQueue(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-09",
+        queueSegments: [{ id: "seg-09", index: 1, key: "other", sourceText: "Other" }],
+        segments: undefined,
+      }),
+    );
+
+    expect(store.getQueuePanelSegments("all", true).map((segment) => segment.id)).toEqual([
+      "seg-09",
+    ]);
+  });
+
   it("captures the outgoing image segment family before clearing the queue in an All Files workspace", () => {
     // Arrange: All Files workspace with an image segment selected.
     const imageSegmentId = "img-01";

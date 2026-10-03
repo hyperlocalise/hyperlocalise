@@ -821,6 +821,8 @@ export class ContentEditorWorkspaceOrchestrator {
     this.preSaveTargetTexts = new Map();
     this.localStatusOverrides = new Map();
     this.applySnapshotQueueMeta([], {});
+    // The window lists the previous file's rows; left in place it hides every row of the next file.
+    this.queueWindowIds = undefined;
     this.selectedSegmentId = "";
     this.formatChecks = [];
     this.segmentFormatChecks = {};
