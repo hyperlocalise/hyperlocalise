@@ -52,7 +52,8 @@ describe("workspace automation view model", () => {
       createNativeTmsJobEnabled: true,
       assignTranslateWithAgentEnabled: true,
     });
-    expect(form?.instructions).toContain("You are a native TMS intake agent");
+    expect(form?.instructions).toBe("");
+    expect(form?.skillIds).toEqual(["translate-uploaded-source"]);
   });
 
   it("does not prefill coming-soon templates", () => {
@@ -255,7 +256,8 @@ describe("workspace automation view model", () => {
       contentfulRunQa: true,
       contentfulWriteDrafts: true,
     });
-    expect(form?.instructions).toContain("You are a Contentful localisation editor");
+    expect(form?.instructions).toBe("");
+    expect(form?.skillIds).toEqual(["translate-contentful-entries"]);
   });
 
   it("prefills the summarize changes daily template", () => {
@@ -275,8 +277,8 @@ describe("workspace automation view model", () => {
       pullTranslationsEnabled: false,
       validationEnabled: false,
     });
-    expect(form?.instructions).toContain("You are a daily localisation briefing agent");
-    expect(form?.instructions).toContain("Digest focus:");
+    expect(form?.instructions).toBe("");
+    expect(form?.skillIds).toEqual(["summarize-localisation-changes", "post-to-slack"]);
   });
 
   it("prefills the daily code-review template", () => {
@@ -294,10 +296,8 @@ describe("workspace automation view model", () => {
       slackEnabled: true,
       webSearchEnabled: false,
     });
-    expect(form?.instructions).toContain("You are a localisation-focused code reviewer");
-    expect(form?.instructions).toContain(
-      "Code-layer review focus (in addition to translation review):",
-    );
+    expect(form?.instructions).toBe("");
+    expect(form?.skillIds).toEqual(["review-translation-changes", "post-to-slack"]);
     expect(
       validateWorkspaceAutomationFormState({
         ...form!,
@@ -322,7 +322,8 @@ describe("workspace automation view model", () => {
       slackEnabled: true,
       githubEnabled: false,
     });
-    expect(form?.instructions).toContain("You are a localisation research analyst");
+    expect(form?.instructions).toBe("");
+    expect(form?.skillIds).toEqual(["research-web", "post-to-slack"]);
     expect(formStateToWorkspaceAutomationPayload(form!).toolConfig.webSearch).toEqual({
       enabled: true,
       provider: "auto",
@@ -346,10 +347,8 @@ describe("workspace automation view model", () => {
       slackEnabled: false,
       validationEnabled: false,
     });
-    expect(form?.instructions).toContain("You are a localisation-focused code reviewer");
-    expect(form?.instructions).toContain(
-      "Code-layer review focus (in addition to translation review):",
-    );
+    expect(form?.instructions).toBe("");
+    expect(form?.skillIds).toEqual(["review-translation-changes", "comment-on-pull-request"]);
     expect(
       validateWorkspaceAutomationFormState({
         ...form!,
@@ -553,7 +552,8 @@ describe("workspace automation view model", () => {
       createNativeTmsJobUseProjectTargetLocales: true,
       assignTranslateWithAgentEnabled: true,
     });
-    expect(form?.instructions).toContain("Translate with agent");
+    expect(form?.instructions).toBe("");
+    expect(form?.skillIds).toEqual(["translate-uploaded-source"]);
 
     const readyForm = {
       ...form!,
