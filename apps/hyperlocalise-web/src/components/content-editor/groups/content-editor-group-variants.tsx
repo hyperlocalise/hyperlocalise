@@ -197,8 +197,12 @@ export function ContentEditorGroupVariantList({
   );
 }
 
+/** Stable across refetches of the same occurrence set, even if the server text changes. */
 function variantIdentity(variant: CatGroupVariant) {
-  return `${variant.occurrences[0]?.id ?? ""}:${variant.text}`;
+  return variant.occurrences
+    .map((occurrence) => occurrence.id)
+    .toSorted()
+    .join(",");
 }
 
 /**

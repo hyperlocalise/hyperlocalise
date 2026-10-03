@@ -19,7 +19,10 @@ import type { CatGroupVariant } from "@/lib/go-svc/go-svc-cat-groups.types";
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 import { renderWithContentEditorProviders } from "../shared/content-editor-test-utils";
 import { ContentEditorGroupingProvider } from "./content-editor-grouping-context";
-import { ContentEditorGroupVariantsGate } from "./content-editor-group-variants";
+import {
+  ContentEditorGroupVariantList,
+  ContentEditorGroupVariantsGate,
+} from "./content-editor-group-variants";
 
 afterEach(cleanup);
 
@@ -130,5 +133,47 @@ describe("ContentEditorGroupVariantsGate", () => {
         occurrences: [occurrence("k1"), occurrence("k2")],
       }),
     );
+  });
+
+  it("keeps an unsaved draft when the server translation text changes", async () => {
+    const variants = [
+      {
+        text: "Membre",
+        isApproved: true,
+        occurrences: [occurrence("k1"), occurrence("k3")],
+      },
+    ];
+    const grouping = {
+      view: "grouped" as const,
+      preference: null,
+      changeView: vi.fn(),
+      client: { cat: { groupVariants: vi.fn() } } as unknown as GoSvcClient,
+      organizationSlug: "acme",
+      projectId: "p1",
+      sourcePath: "*",
+      canEdit: true,
+      saveVariant: vi.fn(),
+    };
+    const { rerender, user } = {
+      ...renderWithContentEditorProviders(
+        <ContentEditorGroupingProvider value={grouping}>
+          <ContentEditorGroupVariantList segment={segment} locale="fr" variants={variants} />
+        </ContentEditorGroupingProvider>,
+      ),
+      user: userEvent.setup(),
+    };
+    const input = screen.getByRole("textbox");
+    await user.clear(input);
+    await user.type(input, "Adhérent");
+    rerender(
+      <ContentEditorGroupingProvider value={grouping}>
+        <ContentEditorGroupVariantList
+          segment={segment}
+          locale="fr"
+          variants={[{ ...variants[0], text: "Membre!" }]}
+        />
+      </ContentEditorGroupingProvider>,
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("Adhérent");
   });
 });

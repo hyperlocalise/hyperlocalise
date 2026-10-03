@@ -263,8 +263,10 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 	if body.Group != nil && (trimEditorCat(body.Group.SourcePath) == "" || len(body.Group.SourcePaths) > editorCatMaxGroupSaveOccurrences || len(body.Group.OccurrenceIDs) > editorCatMaxGroupSaveOccurrences) {
 		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
-	if err := api.rejectIfLocked(r, actor, project, targetLocale, []string{trimEditorCat(body.ExternalStringID)}); err != nil {
-		return nil, 0, err
+	if body.Group == nil {
+		if err := api.rejectIfLocked(r, actor, project, targetLocale, []string{trimEditorCat(body.ExternalStringID)}); err != nil {
+			return nil, 0, err
+		}
 	}
 	keyID, err := api.requireTranslationKey(r, actor, project, sourcePath, body.ExternalStringID)
 	if err != nil {
@@ -273,26 +275,37 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		}
 		return nil, 0, err
 	}
-	keyIDs := []string{keyID}
-	if body.Group != nil {
-		keyIDs, err = api.editorCatGroupOccurrenceIDs(r, actor, project, keyID, *body.Group)
-		if err != nil {
-			return nil, 0, err
-		}
-	}
 	tx, err := api.pool.Begin(r.Context())
 	if err != nil {
 		return nil, 0, err
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
+	keyIDs := []string{keyID}
+	if body.Group != nil {
+		keyIDs, err = api.editorCatGroupOccurrenceIDs(r, actor, project, keyID, *body.Group, tx)
+		if err != nil {
+			return nil, 0, err
+		}
+		keyIDs = uniqueEditorCatIDs(keyIDs, editorCatMaxGroupSaveOccurrences)
+	}
 	if err = lockEditorCatKeys(r.Context(), tx, actor, project, keyIDs); err != nil {
 		return nil, 0, err
+	}
+	if body.Group != nil {
+		current, err := api.editorCatGroupOccurrenceIDs(r, actor, project, keyID, *body.Group, tx)
+		if err != nil {
+			return nil, 0, err
+		}
+		keyIDs = uniqueEditorCatIDs(intersectEditorCatIDs(keyIDs, current), editorCatMaxGroupSaveOccurrences)
+		if len(keyIDs) == 0 {
+			keyIDs = []string{keyID}
+		}
 	}
 	lockedIDs, err := editorCatLockedKeyIDs(r, tx, actor, project, targetLocale, keyIDs)
 	if err != nil {
 		return nil, 0, err
 	}
-	if lockedIDs[keyID] {
+	if body.Group == nil && lockedIDs[canonicalEditorCatID(keyID)] {
 		return nil, 0, editorCatFailure(409, "cat_segment_locked", "Segment is locked")
 	}
 	status := "draft"
@@ -316,7 +329,7 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 	savedIDs := make([]string, 0, len(keyIDs))
 	savedPaths := make([]string, 0, len(keyIDs))
 	for _, occurrenceID := range keyIDs {
-		if lockedIDs[occurrenceID] {
+		if lockedIDs[canonicalEditorCatID(occurrenceID)] {
 			continue
 		}
 		var occurrenceSourceText, occurrencePath string
@@ -332,8 +345,10 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		if err != nil {
 			return nil, 0, err
 		}
-		if err = editorCatValidateTargetText(occurrenceSourceText, occurrencePath, body.Text, targetLocale, occurrenceMaxLength); err != nil {
-			return nil, 0, err
+		if body.Group != nil {
+			if err = editorCatValidateTargetText(occurrenceSourceText, occurrencePath, body.Text, targetLocale, occurrenceMaxLength); err != nil {
+				return nil, 0, err
+			}
 		}
 		var beforeRevision string
 		err = tx.QueryRow(r.Context(), `select xmin::text from project_translations where translation_key_id=$1 and target_locale=$2 for update`, occurrenceID, targetLocale).Scan(&beforeRevision)
@@ -378,7 +393,7 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		insertEditorCatActivity(r.Context(), tx, actor, "string_segment_translation_updated", occurrenceID, payload)
 		savedIDs = append(savedIDs, occurrenceID)
 		savedPaths = append(savedPaths, occurrencePath)
-		if occurrenceID == keyID {
+		if occurrenceID == keyID || saved.ExternalTranslationID == nil {
 			saved = editorCatTranslation{
 				Text:                  text,
 				ExternalTranslationID: &id,
@@ -387,6 +402,9 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 				Revision:              &afterRevision,
 			}
 		}
+	}
+	if len(savedIDs) == 0 {
+		return nil, 0, editorCatFailure(409, "cat_segment_locked", "Segment is locked")
 	}
 	if err = tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
@@ -971,7 +989,7 @@ func uniqueEditorCatIDs(values []string, max int) []string {
 	seen := map[string]bool{}
 	ids := make([]string, 0, len(values))
 	for _, value := range values {
-		id := trimEditorCat(value)
+		id := canonicalEditorCatID(value)
 		if id == "" || seen[id] {
 			continue
 		}

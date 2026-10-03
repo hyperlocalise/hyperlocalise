@@ -186,7 +186,7 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
                     where k.organization_id = e.organization_id
                         and k.project_id = $3
                         and k.id::text = coalesce(nullif(e.payload->>'segmentId', ''), e.target_id)
-                        and encode(sha256(convert_to(`+editorCatGroupIdentitySQL()+`, 'UTF8')), 'hex') = $`+groupArg+`
+                        and encode(sha256(convert_to(`+editorCatGroupIdentitySQL("k")+`, 'UTF8')), 'hex') = $`+groupArg+`
                 )
             )
         )`)

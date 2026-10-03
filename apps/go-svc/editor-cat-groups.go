@@ -58,7 +58,7 @@ func (api *editorCatAPI) getSegmentGroupVariants(r *http.Request, actor editorCa
 		return nil, 0, err
 	}
 	scope := editorCatSaveGroupScope{SourcePath: scopePath, SourcePaths: parseEditorCatSourcePaths(query.Get("groupSourcePaths"))}
-	ids, err := api.editorCatGroupOccurrenceIDs(r, actor, project, keyID, scope)
+	ids, err := api.editorCatGroupOccurrenceIDs(r, actor, project, keyID, scope, api.pool)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -117,7 +117,7 @@ const editorCatMaxGroupSaveOccurrences = 1000
 
 func queryEditorCatGroupID(ctx context.Context, db dictionaryDB, organizationID, projectID, segmentID string) (string, error) {
 	var groupID string
-	err := db.QueryRow(ctx, `select encode(sha256(convert_to(`+editorCatGroupIdentitySQL()+`, 'UTF8')), 'hex')
+	err := db.QueryRow(ctx, `select encode(sha256(convert_to(`+editorCatGroupIdentitySQL("k")+`, 'UTF8')), 'hex')
         from project_translation_keys k
         join repository_source_files f on f.id=k.repository_source_file_id
             and f.organization_id=k.organization_id and f.project_id=k.project_id
@@ -127,27 +127,27 @@ func queryEditorCatGroupID(ctx context.Context, db dictionaryDB, organizationID,
 
 // editorCatGroupOccurrenceIDs returns every key in the queue scope whose source is identical
 // to keyID. Media strings stay separate, so they only match themselves.
-func (api *editorCatAPI) editorCatGroupOccurrenceIDs(r *http.Request, actor editorCatActor, project editorCatProject, keyID string, scope editorCatSaveGroupScope) ([]string, error) {
+func (api *editorCatAPI) editorCatGroupOccurrenceIDs(r *http.Request, actor editorCatActor, project editorCatProject, keyID string, scope editorCatSaveGroupScope, db dictionaryDB) ([]string, error) {
 	paths := scope.SourcePaths
 	if paths == nil {
 		paths = []string{}
 	}
-	identity := editorCatGroupIdentitySQL()
-	rows, err := api.pool.Query(r.Context(), `
+	rows, err := db.Query(r.Context(), `
+        with representative as (
+            select `+editorCatGroupIdentitySQL("rk")+` as group_identity
+            from project_translation_keys rk
+            join repository_source_files rf on rf.id=rk.repository_source_file_id
+                and rf.organization_id=rk.organization_id and rf.project_id=rk.project_id
+            where rk.organization_id=$1 and rk.project_id=$2 and rk.id=$5
+        )
         select k.id::text
         from project_translation_keys k
         join repository_source_files f on f.id=k.repository_source_file_id
             and f.organization_id=k.organization_id and f.project_id=k.project_id
+        join representative r on r.group_identity = `+editorCatGroupIdentitySQL("k")+`
         where k.organization_id=$1 and k.project_id=$2
             and ($3='*' or f.source_path=$3)
             and (cardinality($4::text[])=0 or f.source_path=any($4::text[]))
-            and `+identity+` = (
-                select `+identity+`
-                from project_translation_keys rk
-                join repository_source_files rf on rf.id=rk.repository_source_file_id
-                    and rf.organization_id=rk.organization_id and rf.project_id=rk.project_id
-                where rk.organization_id=$1 and rk.project_id=$2 and rk.id=$5
-            )
         order by k.id
         limit $6`, actor.organizationID, project.ID, trimEditorCat(scope.SourcePath), paths, keyID, editorCatMaxGroupSaveOccurrences+1)
 	if err != nil {
@@ -161,7 +161,7 @@ func (api *editorCatAPI) editorCatGroupOccurrenceIDs(r *http.Request, actor edit
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
-		includesKey = includesKey || id == keyID
+		includesKey = includesKey || canonicalEditorCatID(id) == canonicalEditorCatID(keyID)
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
@@ -176,17 +176,35 @@ func (api *editorCatAPI) editorCatGroupOccurrenceIDs(r *http.Request, actor edit
 	if len(scope.OccurrenceIDs) == 0 {
 		return ids, nil
 	}
-	requested := map[string]bool{keyID: true}
+	requested := map[string]bool{canonicalEditorCatID(keyID): true}
 	for _, id := range scope.OccurrenceIDs {
-		requested[id] = true
+		requested[canonicalEditorCatID(id)] = true
 	}
 	narrowed := make([]string, 0, len(scope.OccurrenceIDs)+1)
 	for _, id := range ids {
-		if requested[id] {
+		if requested[canonicalEditorCatID(id)] {
 			narrowed = append(narrowed, id)
 		}
 	}
 	return narrowed, nil
+}
+
+func intersectEditorCatIDs(selected, current []string) []string {
+	allowed := make(map[string]bool, len(current))
+	for _, id := range current {
+		allowed[canonicalEditorCatID(id)] = true
+	}
+	kept := make([]string, 0, len(selected))
+	seen := map[string]bool{}
+	for _, id := range selected {
+		canonical := canonicalEditorCatID(id)
+		if !allowed[canonical] || seen[canonical] {
+			continue
+		}
+		seen[canonical] = true
+		kept = append(kept, id)
+	}
+	return kept
 }
 
 // Lock key rows in a stable order. Lock mutations use the same rows, including
@@ -213,9 +231,22 @@ func lockEditorCatKeys(ctx context.Context, tx pgx.Tx, actor editorCatActor, pro
 }
 
 func editorCatLockedKeyIDs(r *http.Request, tx pgx.Tx, actor editorCatActor, project editorCatProject, targetLocale string, keyIDs []string) (map[string]bool, error) {
+	ids := make([]string, 0, len(keyIDs))
+	seen := map[string]bool{}
+	for _, id := range keyIDs {
+		id = canonicalEditorCatID(id)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return map[string]bool{}, nil
+	}
 	rows, err := tx.Query(r.Context(), `select external_string_id from project_cat_segment_locks
         where organization_id=$1 and project_id=$2 and target_locale=$3 and external_string_id=any($4::text[])`,
-		actor.organizationID, project.ID, targetLocale, keyIDs)
+		actor.organizationID, project.ID, targetLocale, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +257,7 @@ func editorCatLockedKeyIDs(r *http.Request, tx pgx.Tx, actor editorCatActor, pro
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
-		locked[id] = true
+		locked[canonicalEditorCatID(id)] = true
 	}
 	return locked, rows.Err()
 }

@@ -419,7 +419,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 	if includeSourcePath {
 		join = ` inner join repository_source_files f on f.id = k.repository_source_file_id`
 	}
-	identity := editorCatGroupIdentitySQL()
+	identity := editorCatGroupIdentitySQL("k")
 	countExpr := `count(*)`
 	if query.grouped {
 		countExpr = `count(distinct ` + identity + `)`
@@ -445,6 +445,11 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
             else 2 end`
 		order = rank + `, ` + order
 	}
+	lockLocaleN := ""
+	if query.grouped {
+		listArgs = append(listArgs, query.targetLocale)
+		lockLocaleN = strconv.Itoa(len(listArgs))
+	}
 	listArgs = append(listArgs, query.limit, query.offset)
 	selectCols := `k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.metadata, k.is_hidden`
 	if includeSourcePath {
@@ -459,7 +464,8 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
         order by ` + order + `
         limit $` + limitN + ` offset $` + offsetN
 	if query.grouped {
-		// The representative is the first matching occurrence in queue order.
+		// Prefer an unlocked occurrence so a grouped row stays editable when siblings are.
+		lockedRank := `exists(select 1 from project_cat_segment_locks l where l.organization_id=$1 and l.project_id=$2 and l.target_locale=$` + lockLocaleN + ` and l.external_string_id=k.id::text)`
 		listSQL = `
         with occurrences as (
             select ` + identity + ` as group_identity, count(*)::int as occurrence_count
@@ -468,7 +474,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
             group by 1
         ), matched as (
             select k.id, ` + identity + ` as group_identity,
-                row_number() over (partition by ` + identity + ` order by ` + order + `) as group_rank
+                row_number() over (partition by ` + identity + ` order by ` + lockedRank + `, ` + order + `) as group_rank
             from project_translation_keys k` + join + `
             where ` + where + `
         )
@@ -560,7 +566,7 @@ func (api *editorCatAPI) attachGroupSummaries(r *http.Request, segments []editor
 	}
 	args := append(append([]any(nil), scopeArgs...), ids)
 	idsN := strconv.Itoa(len(args))
-	identity := editorCatGroupIdentitySQL()
+	identity := editorCatGroupIdentitySQL("k")
 	rows, err := api.pool.Query(r.Context(), `
         with reps as (
             select k.id::text as rep_id, `+identity+` as group_identity
