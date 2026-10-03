@@ -18,6 +18,7 @@ import {
   ArrowUp01Icon,
   Delete02Icon,
   EyeIcon,
+  LayoutTable01Icon,
   ViewOffSlashIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -72,7 +73,7 @@ import {
   issueSheetColumnsQueryKey,
   useIssueSheetColumnsQuery,
 } from "../../../../_components/issue-detail/use-issue-sheet-columns-query";
-import { ProjectSectionTitle } from "../../_components/project-page-shell";
+import { ProjectSettingsSectionHeading } from "./project-settings-section-heading";
 import { moveColumnIdInGroup } from "./project-issue-columns-order";
 import {
   mergeSelectOptionsFromLabels,
@@ -409,19 +410,17 @@ export function ProjectIssueColumnsSettings({
 
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <ProjectSectionTitle>
-            <FormattedMessage {...messages.title} />
-          </ProjectSectionTitle>
-          <TypographyP className="mt-1" size="small" tone="subtle">
-            <FormattedMessage {...messages.description} />
-          </TypographyP>
-        </div>
-        <Button type="button" size="sm" onClick={() => setCreateOpen(true)} disabled={isBusy}>
-          <FormattedMessage {...messages.addColumn} />
-        </Button>
-      </div>
+      <ProjectSettingsSectionHeading
+        icon={LayoutTable01Icon}
+        tone="dew"
+        title={<FormattedMessage {...messages.title} />}
+        description={<FormattedMessage {...messages.description} />}
+        actions={
+          <Button type="button" size="sm" onClick={() => setCreateOpen(true)} disabled={isBusy}>
+            <FormattedMessage {...messages.addColumn} />
+          </Button>
+        }
+      />
 
       {columnsQuery.isLoading ? (
         <TypographyP size="small" tone="subtle">

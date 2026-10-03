@@ -211,6 +211,10 @@ describe("ProjectSettingsPageContent", () => {
     expect(screen.getByRole("button", { name: "Save style guide" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save locales" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Save settings" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "General" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Style guide" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Locales" })).toBeInTheDocument();
+    expect(document.querySelectorAll("[data-slot=project-settings-section-icon]")).toHaveLength(3);
   });
 
   it("saves an updated identifier from the general section only", async () => {

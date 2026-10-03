@@ -14,7 +14,13 @@
  */
 import { HugeiconsIcon } from "@hugeicons/react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { SaveIcon, Settings01Icon } from "@hugeicons/core-free-icons";
+import {
+  LanguageSquareIcon,
+  Link01Icon,
+  QuillWrite01Icon,
+  SaveIcon,
+  Settings01Icon,
+} from "@hugeicons/core-free-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -54,7 +60,6 @@ import {
 import {
   ProjectPageShell,
   ProjectSectionHeader,
-  ProjectSectionTitle,
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
 import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
@@ -62,6 +67,7 @@ import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel
 import { ProjectIssueColumnsSettings } from "./project-issue-columns-settings";
 import { ProjectContentEditorBehaviorSettings } from "./project-content-editor-behavior-settings";
 import { projectSettingsPageContentMessages } from "./project-settings-page-content.messages";
+import { ProjectSettingsSectionHeading } from "./project-settings-section-heading";
 
 const providerLabels: Record<NonNullable<ProjectListRow["externalProviderKind"]>, string> = {
   crowdin: "Crowdin",
@@ -210,19 +216,19 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
 
   return (
     <section className="rounded-lg border border-border bg-muted p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <ProjectSectionTitle>
-            <FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionTitle} />
-          </ProjectSectionTitle>
-          <TypographyP className="mt-1" size="small" tone="subtle">
-            <FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionDescription} />
-          </TypographyP>
-        </div>
-        {project.externalProviderKind ? (
-          <Badge variant="outline">{providerLabels[project.externalProviderKind]}</Badge>
-        ) : null}
-      </div>
+      <ProjectSettingsSectionHeading
+        icon={Link01Icon}
+        tone="beam"
+        title={<FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionTitle} />}
+        description={
+          <FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionDescription} />
+        }
+        actions={
+          project.externalProviderKind ? (
+            <Badge variant="outline">{providerLabels[project.externalProviderKind]}</Badge>
+          ) : null
+        }
+      />
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <DetailRow label="External project ID" value={project.externalProjectId} />
         <DetailRow label="Status" value={project.isActive ? "Active" : "Inactive"} />
@@ -437,21 +443,21 @@ export function ProjectSettingsPageContent({
       <div className="grid gap-5">
         <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
           <form onSubmit={handleSectionSubmit("general")} className="grid gap-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <ProjectSectionTitle>
-                  <FormattedMessage {...projectSettingsPageContentMessages.generalTitle} />
-                </ProjectSectionTitle>
-                <TypographyP className="mt-1" size="small" tone="subtle">
-                  <FormattedMessage {...projectSettingsPageContentMessages.generalDescription} />
-                </TypographyP>
-              </div>
-              {!metadataEditable ? (
-                <Badge variant="outline">
-                  <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
-                </Badge>
-              ) : null}
-            </div>
+            <ProjectSettingsSectionHeading
+              icon={Settings01Icon}
+              tone="dew"
+              title={<FormattedMessage {...projectSettingsPageContentMessages.generalTitle} />}
+              description={
+                <FormattedMessage {...projectSettingsPageContentMessages.generalDescription} />
+              }
+              actions={
+                !metadataEditable ? (
+                  <Badge variant="outline">
+                    <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
+                  </Badge>
+                ) : null
+              }
+            />
             <Field className="gap-1.5">
               <FieldLabel htmlFor="project-name">
                 <FormattedMessage {...projectSettingsPageContentMessages.nameLabel} />
@@ -514,14 +520,14 @@ export function ProjectSettingsPageContent({
         {metadataEditable ? (
           <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
             <form onSubmit={handleSectionSubmit("styleGuide")} className="grid gap-4">
-              <div>
-                <ProjectSectionTitle>
-                  <FormattedMessage {...projectSettingsPageContentMessages.styleGuideTitle} />
-                </ProjectSectionTitle>
-                <TypographyP className="mt-1" size="small" tone="subtle">
+              <ProjectSettingsSectionHeading
+                icon={QuillWrite01Icon}
+                tone="grove"
+                title={<FormattedMessage {...projectSettingsPageContentMessages.styleGuideTitle} />}
+                description={
                   <FormattedMessage {...projectSettingsPageContentMessages.styleGuideDescription} />
-                </TypographyP>
-              </div>
+                }
+              />
               <Field className="gap-1.5" data-invalid={Boolean(errors.translationContext)}>
                 <MarkdownEditor
                   id="translation-context"
@@ -555,29 +561,29 @@ export function ProjectSettingsPageContent({
 
         <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
           <form onSubmit={handleSectionSubmit("locales")} className="grid gap-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <ProjectSectionTitle>
-                  <FormattedMessage {...projectSettingsPageContentMessages.localesTitle} />
-                </ProjectSectionTitle>
-                <TypographyP className="mt-1" size="small" tone="subtle">
-                  {localesEditable ? (
-                    <FormattedMessage
-                      {...projectSettingsPageContentMessages.localesEditableDescription}
-                    />
-                  ) : (
-                    <FormattedMessage
-                      {...projectSettingsPageContentMessages.localesReadOnlyDescription}
-                    />
-                  )}
-                </TypographyP>
-              </div>
-              {!localesEditable ? (
-                <Badge variant="outline">
-                  <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
-                </Badge>
-              ) : null}
-            </div>
+            <ProjectSettingsSectionHeading
+              icon={LanguageSquareIcon}
+              tone="spruce"
+              title={<FormattedMessage {...projectSettingsPageContentMessages.localesTitle} />}
+              description={
+                localesEditable ? (
+                  <FormattedMessage
+                    {...projectSettingsPageContentMessages.localesEditableDescription}
+                  />
+                ) : (
+                  <FormattedMessage
+                    {...projectSettingsPageContentMessages.localesReadOnlyDescription}
+                  />
+                )
+              }
+              actions={
+                !localesEditable ? (
+                  <Badge variant="outline">
+                    <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
+                  </Badge>
+                ) : null
+              }
+            />
             {localesEditable ? (
               <>
                 <ProjectSourceLocalePicker
