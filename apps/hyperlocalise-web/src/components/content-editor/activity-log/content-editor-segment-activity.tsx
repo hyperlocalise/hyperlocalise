@@ -277,40 +277,6 @@ function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selectio
                       </Button>
                     ) : null}
                   </div>
-                  {typeof entry.payload.beforeText === "string" &&
-                  typeof entry.payload.afterText === "string" ? (
-                    <details className="mt-2">
-                      <summary>
-                        <FormattedMessage
-                          defaultMessage="View change"
-                          id="n+4aAqsDpY"
-                          description="Expand translation diff"
-                        />
-                      </summary>
-                      <dl className="mt-2 rounded-md bg-muted p-3">
-                        <dt>
-                          <FormattedMessage
-                            defaultMessage="Before"
-                            id="pIjnu92Ow7"
-                            description="Previous translation"
-                          />
-                        </dt>
-                        <dd className="whitespace-pre-wrap break-words">
-                          {entry.payload.beforeText || "—"}
-                        </dd>
-                        <dt className="mt-2">
-                          <FormattedMessage
-                            defaultMessage="After"
-                            id="//KVfq4Tk2"
-                            description="Saved translation"
-                          />
-                        </dt>
-                        <dd className="whitespace-pre-wrap break-words">
-                          {entry.payload.afterText || "—"}
-                        </dd>
-                      </dl>
-                    </details>
-                  ) : null}
                   {typeof entry.payload.nextStatus === "string" ? (
                     <p className="text-xs">{entry.payload.nextStatus}</p>
                   ) : null}

@@ -65,7 +65,8 @@ var forbiddenPayloadKeys = map[string]struct{}{
 	"emailAddress": {}, "fileBody": {}, "fileContents": {}, "hash": {},
 	"keyHash": {}, "key_hash": {}, "prompt": {}, "rawSecret": {},
 	"rawToken": {}, "requestBody": {}, "request_body": {}, "secret": {},
-	"sourceText": {}, "targetText": {}, "token": {}, "transcript": {},
+	"sourceText": {}, "targetText": {}, "beforeText": {}, "afterText": {}, "groupSourceText": {},
+	"token": {}, "transcript": {},
 	"x-api-key": {},
 }
 

@@ -39,9 +39,13 @@ describe("group apply and activity", () => {
       id: "a",
       key: "save",
       sourcePath: "a.json",
+      context: null,
+      maxLength: null,
       targetText: "",
       status: "draft",
+      isHidden: false,
       isLocked: false,
+      matchesFilter: true,
       sourceRevision: "10",
       translationRevision: "missing",
     };
@@ -50,7 +54,10 @@ describe("group apply and activity", () => {
       cat: {
         applyStringGroup,
         stringGroupMembers: vi.fn().mockResolvedValue({
-          members: [member, { ...member, id: "b", sourcePath: "b.json", isLocked: true }],
+          members: [
+            member,
+            { ...member, id: "b", sourcePath: "b.json", isLocked: true, matchesFilter: true },
+          ],
           pagination: { totalCount: 2, hasMore: false },
         }),
       },

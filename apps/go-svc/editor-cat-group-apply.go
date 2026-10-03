@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
@@ -109,8 +110,8 @@ func (api *editorCatAPI) applyStringGroup(r *http.Request, actor editorCatActor,
 				return nil, 0, editorCatFailure(422, "group_member_validation_failed", path+": "+check.Message)
 			}
 		}
-		var before, oldStatus, revision string
-		err = tx.QueryRow(r.Context(), `select text,status::text,xmin::text from project_translations where organization_id=$1 and project_id=$2 and translation_key_id=$3 and target_locale=$4 for update`, actor.organizationID, project.ID, m.ID, body.TargetLocale).Scan(&before, &oldStatus, &revision)
+		var oldStatus, revision string
+		err = tx.QueryRow(r.Context(), `select status::text,xmin::text from project_translations where organization_id=$1 and project_id=$2 and translation_key_id=$3 and target_locale=$4 for update`, actor.organizationID, project.ID, m.ID, body.TargetLocale).Scan(&oldStatus, &revision)
 		if errors.Is(err, pgx.ErrNoRows) {
 			revision = "missing"
 			oldStatus = "draft"
@@ -135,10 +136,9 @@ func (api *editorCatAPI) applyStringGroup(r *http.Request, actor editorCatActor,
 		if err != nil {
 			return nil, 0, err
 		}
-		payload := map[string]any{"projectId": project.ID, "segmentId": m.ID, "sourcePath": path, "targetLocale": body.TargetLocale, "operationId": operationID, "operationMemberIds": ids, "groupSourceText": body.SourceText, "beforeText": before, "afterText": body.Text, "beforeStatus": oldStatus, "nextStatus": "draft", "sourceRevision": sourceRevision, "beforeRevision": revision, "afterRevision": newRevision}
-		if err = insertEditorCatActivity(r.Context(), tx, actor, "string_segment_translation_updated", m.ID, payload); err != nil {
-			return nil, 0, err
-		}
+		groupID := r.PathValue("groupId")
+		payload := map[string]any{"projectId": project.ID, "segmentId": m.ID, "sourcePath": path, "targetLocale": body.TargetLocale, "groupId": groupID, "operationId": operationID, "operationMemberIds": ids, "beforeStatus": oldStatus, "nextStatus": "draft", "sourceRevision": sourceRevision, "beforeRevision": revision, "afterRevision": newRevision}
+		insertEditorCatActivity(r.Context(), tx, actor, "string_segment_translation_updated", m.ID, payload)
 		saved = append(saved, map[string]any{"id": m.ID, "sourcePath": path, "translation": editorCatTranslation{Text: body.Text, ExternalTranslationID: &translationID, Status: "draft", Revision: &newRevision}})
 	}
 	if err = tx.Commit(r.Context()); err != nil {
@@ -147,11 +147,13 @@ func (api *editorCatAPI) applyStringGroup(r *http.Request, actor editorCatActor,
 	return map[string]any{"operationId": operationID, "members": saved}, http.StatusOK, nil
 }
 
-func insertEditorCatActivity(ctx context.Context, db dictionaryDB, actor editorCatActor, eventType, segmentID string, payload map[string]any) error {
+func insertEditorCatActivity(ctx context.Context, db dictionaryDB, actor editorCatActor, eventType, segmentID string, payload map[string]any) {
 	encoded, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		slog.ErrorContext(ctx, "editor_cat_activity_encode_failed", "event_type", eventType)
+		return
 	}
-	_, err = db.Exec(ctx, `insert into organization_activity_events(organization_id,actor_kind,actor_user_id,event_type,target_kind,target_id,payload) values($1,'user',$2,$3,'string_segment',$4,$5::jsonb)`, actor.organizationID, actor.userID, eventType, segmentID, encoded)
-	return err
+	if _, err = db.Exec(ctx, `insert into organization_activity_events(organization_id,actor_kind,actor_user_id,event_type,target_kind,target_id,payload) values($1,'user',$2,$3,'string_segment',$4,$5::jsonb)`, actor.organizationID, actor.userID, eventType, segmentID, encoded); err != nil {
+		slog.ErrorContext(ctx, "editor_cat_activity_insert_failed", "event_type", eventType)
+	}
 }

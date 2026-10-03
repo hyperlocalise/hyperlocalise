@@ -87,7 +87,7 @@ export function ContentEditorGroupApply({
         if (!result.pagination.hasMore) break;
       }
       setMembers(all);
-      setSelected(new Set(all.map((member) => member.id)));
+      setSelected(new Set(all.filter((member) => member.matchesFilter).map((member) => member.id)));
     } catch (err) {
       setError(goSvcErrorMessage(err, fallback));
     } finally {

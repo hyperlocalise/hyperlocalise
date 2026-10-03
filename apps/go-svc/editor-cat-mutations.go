@@ -281,8 +281,8 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 	if locked {
 		return nil, 0, editorCatFailure(409, "cat_segment_locked", "Segment is locked")
 	}
-	var before, beforeRevision string
-	err = tx.QueryRow(r.Context(), `select text,xmin::text from project_translations where translation_key_id=$1 and target_locale=$2 for update`, keyID, targetLocale).Scan(&before, &beforeRevision)
+	var beforeRevision string
+	err = tx.QueryRow(r.Context(), `select xmin::text from project_translations where translation_key_id=$1 and target_locale=$2 for update`, keyID, targetLocale).Scan(&beforeRevision)
 	if errors.Is(err, pgx.ErrNoRows) {
 		beforeRevision = "missing"
 	} else if err != nil {
@@ -316,9 +316,18 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 	if err != nil {
 		return nil, 0, err
 	}
-	if err = insertEditorCatActivity(r.Context(), tx, actor, "string_segment_translation_updated", keyID, map[string]any{"projectId": project.ID, "segmentId": keyID, "sourcePath": sourcePath, "targetLocale": targetLocale, "beforeText": before, "afterText": text, "beforeRevision": beforeRevision, "afterRevision": afterRevision, "nextStatus": savedStatus}); err != nil {
+	var groupID string
+	if err = tx.QueryRow(r.Context(), `select encode(sha256(convert_to(`+editorCatGroupIdentitySQL()+`, 'UTF8')), 'hex')
+        from project_translation_keys k
+        join repository_source_files f on f.id=k.repository_source_file_id
+            and f.organization_id=k.organization_id and f.project_id=k.project_id
+        where k.organization_id=$1 and k.project_id=$2 and k.id=$3`, actor.organizationID, project.ID, keyID).Scan(&groupID); err != nil {
 		return nil, 0, err
 	}
+	insertEditorCatActivity(r.Context(), tx, actor, "string_segment_translation_updated", keyID, map[string]any{
+		"projectId": project.ID, "segmentId": keyID, "sourcePath": sourcePath, "targetLocale": targetLocale,
+		"groupId": groupID, "beforeRevision": beforeRevision, "afterRevision": afterRevision, "nextStatus": savedStatus,
+	})
 	if err = tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
 	}

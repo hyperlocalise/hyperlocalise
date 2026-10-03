@@ -259,10 +259,14 @@ export type ActivityPayloadByEventType = {
     targetLocale: string;
   };
   string_segment_translation_updated: StringSegmentActivityPayload & {
-    beforeText: string;
-    afterText: string;
+    afterRevision?: string;
+    beforeRevision?: string;
+    beforeStatus?: string;
+    groupId?: string;
+    nextStatus?: string;
     operationId?: string;
     operationMemberIds?: string[];
+    sourceRevision?: string;
   };
   string_segment_approved: StringSegmentActivityPayload;
   string_segment_status_changed: StringSegmentActivityPayload & {
@@ -380,6 +384,9 @@ export const FORBIDDEN_ACTIVITY_PAYLOAD_KEYS = [
   "secret",
   "sourceText",
   "targetText",
+  "beforeText",
+  "afterText",
+  "groupSourceText",
   "token",
   "transcript",
   "x-api-key",
