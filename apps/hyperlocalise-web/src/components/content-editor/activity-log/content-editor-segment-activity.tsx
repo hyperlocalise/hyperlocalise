@@ -12,7 +12,7 @@
  * Version 2.0 or later.
  */
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { projectFileCatSegmentTargetQueryKey } from "../project-file/use-content-editor-segment-target";
 
 type Scope = {
   client: GoSvcClient;
@@ -277,6 +278,7 @@ function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selectio
                       </Button>
                     ) : null}
                   </div>
+                  <ActivityTranslationPreview scope={scope} entry={entry} />
                   {typeof entry.payload.nextStatus === "string" ? (
                     <p className="text-xs">{entry.payload.nextStatus}</p>
                   ) : null}
@@ -296,5 +298,127 @@ function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selectio
         ) : null}
       </div>
     </>
+  );
+}
+
+function ActivityTranslationPreview({ scope, entry }: { scope: Scope; entry: Activity }) {
+  const [open, setOpen] = useState(false);
+  if (entry.eventType !== "string_segment_translation_updated") {
+    return null;
+  }
+  const segmentId = typeof entry.payload.segmentId === "string" ? entry.payload.segmentId : null;
+  const sourcePath = typeof entry.payload.sourcePath === "string" ? entry.payload.sourcePath : null;
+  const targetLocale =
+    typeof entry.payload.targetLocale === "string"
+      ? entry.payload.targetLocale
+      : scope.targetLocale;
+  const savedRevision =
+    typeof entry.payload.afterRevision === "string" ? entry.payload.afterRevision : undefined;
+  if (!segmentId || !sourcePath || !targetLocale) {
+    return null;
+  }
+  return (
+    <details
+      className="mt-2"
+      onToggle={(event) => setOpen((event.currentTarget as HTMLDetailsElement).open)}
+    >
+      <summary>
+        <FormattedMessage
+          defaultMessage="View translation"
+          id="QdCjMPan2W"
+          description="Expand translation loaded from the editor"
+        />
+      </summary>
+      {open ? (
+        <ActivityTranslationText
+          scope={scope}
+          segmentId={segmentId}
+          sourcePath={sourcePath}
+          targetLocale={targetLocale}
+          savedRevision={savedRevision}
+        />
+      ) : null}
+    </details>
+  );
+}
+
+function ActivityTranslationText({
+  scope,
+  segmentId,
+  sourcePath,
+  targetLocale,
+  savedRevision,
+}: {
+  scope: Scope;
+  segmentId: string;
+  sourcePath: string;
+  targetLocale: string;
+  savedRevision?: string;
+}) {
+  const target = useQuery({
+    queryKey: projectFileCatSegmentTargetQueryKey({
+      organizationSlug: scope.organizationSlug,
+      projectId: scope.projectId,
+      sourcePath,
+      targetLocale,
+      externalStringId: segmentId,
+    }),
+    queryFn: ({ signal }) =>
+      scope.client.cat.segmentTarget(
+        scope.organizationSlug,
+        scope.projectId,
+        segmentId,
+        { sourcePath, targetLocale },
+        { signal },
+      ),
+    staleTime: 30_000,
+  });
+  if (target.isPending) {
+    return (
+      <p className="mt-2 text-xs text-muted-foreground" role="status">
+        <FormattedMessage
+          defaultMessage="Loading translation…"
+          id="sYhsdplS7o"
+          description="Activity loading"
+        />
+      </p>
+    );
+  }
+  if (target.isError) {
+    return (
+      <p className="mt-2 text-xs text-destructive" role="alert">
+        <FormattedMessage
+          defaultMessage="Translation could not be loaded."
+          id="nS7Aou3HTb"
+          description="Activity load error"
+        />
+      </p>
+    );
+  }
+  const text = target.data?.target?.text ?? "";
+  const currentRevision = target.data?.target?.revision;
+  const unchangedSinceEvent =
+    savedRevision != null &&
+    currentRevision != null &&
+    String(savedRevision) === String(currentRevision);
+  return (
+    <div className="mt-2 rounded-md bg-muted p-3">
+      <p className="text-xs text-muted-foreground">
+        {unchangedSinceEvent ? (
+          <FormattedMessage
+            defaultMessage="Translation saved in this edit"
+            id="9mUgfw4H53"
+            description="Translation text matches the saved revision"
+          />
+        ) : (
+          <FormattedMessage
+            defaultMessage="Current translation on this occurrence"
+            id="hcZfaMjHXW"
+            description="Translation may have changed since this edit"
+          />
+        )}
+      </p>
+      <p className="mt-2 whitespace-pre-wrap break-words text-sm">{text || "—"}</p>
+    </div>
   );
 }

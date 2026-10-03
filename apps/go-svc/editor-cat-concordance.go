@@ -172,7 +172,24 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 		argN++
 	}
 	if groupID != "" {
-		conditions = append(conditions, "e.payload->>'groupId' = $"+strconv.Itoa(argN))
+		groupArg := strconv.Itoa(argN)
+		conditions = append(conditions, `(
+            e.payload->>'groupId' = $`+groupArg+`
+            OR (
+                coalesce(nullif(e.payload->>'groupId', ''), '') = ''
+                AND exists (
+                    select 1
+                    from project_translation_keys k
+                    join repository_source_files f on f.id = k.repository_source_file_id
+                        and f.organization_id = k.organization_id
+                        and f.project_id = k.project_id
+                    where k.organization_id = e.organization_id
+                        and k.project_id = $3
+                        and k.id::text = coalesce(nullif(e.payload->>'segmentId', ''), e.target_id)
+                        and encode(sha256(convert_to(`+editorCatGroupIdentitySQL()+`, 'UTF8')), 'hex') = $`+groupArg+`
+                )
+            )
+        )`)
 		args = append(args, groupID)
 		argN++
 	}

@@ -100,11 +100,11 @@ func (api *editorCatAPI) loadTextTarget(r *http.Request, actor editorCatActor, p
 	if err != nil {
 		return nil, err
 	}
-	var id, text, status string
+	var id, text, status, revision string
 	err = api.pool.QueryRow(r.Context(), `
-        select id, text, status from project_translations
+        select id, text, status, xmin::text from project_translations
         where organization_id=$1 and project_id=$2 and translation_key_id=$3 and target_locale=$4
-        limit 1`, actor.organizationID, project.ID, keyID, targetLocale).Scan(&id, &text, &status)
+        limit 1`, actor.organizationID, project.ID, keyID, targetLocale).Scan(&id, &text, &status, &revision)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -116,6 +116,7 @@ func (api *editorCatAPI) loadTextTarget(r *http.Request, actor editorCatActor, p
 		ExternalTranslationID: &id,
 		IsApproved:            status == "approved",
 		Status:                status,
+		Revision:              &revision,
 	}, nil
 }
 
@@ -316,12 +317,8 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 	if err != nil {
 		return nil, 0, err
 	}
-	var groupID string
-	if err = tx.QueryRow(r.Context(), `select encode(sha256(convert_to(`+editorCatGroupIdentitySQL()+`, 'UTF8')), 'hex')
-        from project_translation_keys k
-        join repository_source_files f on f.id=k.repository_source_file_id
-            and f.organization_id=k.organization_id and f.project_id=k.project_id
-        where k.organization_id=$1 and k.project_id=$2 and k.id=$3`, actor.organizationID, project.ID, keyID).Scan(&groupID); err != nil {
+	groupID, err := queryEditorCatGroupID(r.Context(), tx, actor.organizationID, project.ID, keyID)
+	if err != nil {
 		return nil, 0, err
 	}
 	insertEditorCatActivity(r.Context(), tx, actor, "string_segment_translation_updated", keyID, map[string]any{
@@ -888,6 +885,11 @@ func (api *editorCatAPI) recordEditorCatSegmentActivity(r *http.Request, actor e
 	}
 	for key, value := range activity.extra {
 		payload[key] = value
+	}
+	if groupID, err := queryEditorCatGroupID(r.Context(), api.pool, actor.organizationID, project.ID, activity.segmentID); err == nil && groupID != "" {
+		payload["groupId"] = groupID
+	} else if err != nil {
+		slog.ErrorContext(r.Context(), "editor_cat_activity_group_id_failed", "event_type", activity.eventType)
 	}
 	encoded, err := json.Marshal(payload)
 	if err != nil {

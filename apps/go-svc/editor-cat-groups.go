@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -69,6 +70,16 @@ func editorCatGroupScope(query editorCatQueueQuery, scopedWhere string) string {
 func editorCatTextGroupID(sourceText string) string {
 	sum := sha256.Sum256([]byte("text:" + sourceText))
 	return hex.EncodeToString(sum[:])
+}
+
+func queryEditorCatGroupID(ctx context.Context, db dictionaryDB, organizationID, projectID, segmentID string) (string, error) {
+	var groupID string
+	err := db.QueryRow(ctx, `select encode(sha256(convert_to(`+editorCatGroupIdentitySQL()+`, 'UTF8')), 'hex')
+        from project_translation_keys k
+        join repository_source_files f on f.id=k.repository_source_file_id
+            and f.organization_id=k.organization_id and f.project_id=k.project_id
+        where k.organization_id=$1 and k.project_id=$2 and k.id=$3`, organizationID, projectID, segmentID).Scan(&groupID)
+	return groupID, err
 }
 
 func editorCatGroupMembersScopedWhere(groupID, groupSourceText string) (scopedWhere string, memberArg any) {
