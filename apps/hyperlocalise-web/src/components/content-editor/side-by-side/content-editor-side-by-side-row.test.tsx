@@ -337,6 +337,161 @@ describe("ContentEditorSideBySideRow", () => {
     expect(screen.getByRole("status", { name: /Checking format & QA/i })).toBeInTheDocument();
   });
 
+  it("shows a loading status instead of a stale Fix action while format checks reload", () => {
+    renderRow({
+      isFormatChecksLoading: true,
+      segment: {
+        ...createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
+          (item) => item.id === "seg-02",
+        )!,
+        targetText: "Drive the product",
+      },
+      formatChecks: [
+        {
+          id: "spelling",
+          label: "Spelling",
+          status: "warn",
+          message: '"Drive" may be misspelled. Suggestions: Diverse.',
+          category: "spelling",
+          relatedTokens: ["Drive", "Diverse"],
+        },
+      ],
+    });
+
+    expect(screen.getByRole("status", { name: /Checking format & QA/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Fix$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Spelling:/)).not.toBeInTheDocument();
+  });
+
+  it("replaces a missing glossary term only as a whole word", async () => {
+    const onTargetChange = vi.fn();
+    const segment = {
+      ...createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
+        (item) => item.id === "seg-02",
+      )!,
+      targetText: "Saved. Please Save now.",
+    };
+    const formatChecks = [
+      {
+        id: "glossary-missing-term-1",
+        label: "Glossary",
+        status: "warn" as const,
+        message: 'Glossary term "Save" requires "Speichern".',
+        category: "glossary" as const,
+        relatedTokens: ["Save", "Speichern"],
+      },
+    ];
+
+    const { unmount } = renderRow({ onTargetChange, segment, formatChecks });
+
+    await userEvent.setup().click(screen.getByRole("button", { name: /^Fix$/i }));
+    expect(onTargetChange).toHaveBeenCalledWith("Saved. Please Speichern now.");
+
+    unmount();
+    onTargetChange.mockClear();
+    renderRow({
+      onTargetChange,
+      segment: { ...segment, targetText: "Please Saved the file" },
+      formatChecks,
+    });
+
+    expect(screen.getByText(/Glossary:/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Fix$/i })).not.toBeInTheDocument();
+  });
+
+  it("colors the highlighted token with the first issue, not a later failure", () => {
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      targetText: "Drive the product",
+    };
+
+    renderRow({
+      isFocused: false,
+      segment,
+      formatChecks: [
+        {
+          id: "spelling",
+          label: "Spelling",
+          status: "warn",
+          message: '"Drive" may be misspelled.',
+          category: "spelling",
+          relatedTokens: ["Drive", "Diverse"],
+        },
+        {
+          id: "length",
+          label: "Length",
+          status: "fail",
+          message: "Too long",
+          category: "length",
+        },
+      ],
+    });
+
+    const mark = document.querySelector("[data-qa-highlight]");
+    expect(mark).toHaveTextContent("Drive");
+    expect(mark?.className).toContain("bg-warning/25");
+    expect(mark?.className).not.toContain("bg-destructive/20");
+  });
+
+  it("highlights a token that follows a blank line in the target editor", async () => {
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      targetText: "Before\n\nAfter the gap",
+    };
+
+    renderRow({
+      segment,
+      formatChecks: [
+        {
+          id: "spelling",
+          label: "Spelling",
+          status: "fail",
+          message: '"After" may be misspelled.',
+          category: "spelling",
+          relatedTokens: ["After"],
+        },
+      ],
+    });
+
+    const mark = await waitFor(() => {
+      const highlighted = document.querySelector(".tiptap [data-qa-highlight]");
+      expect(highlighted).toBeTruthy();
+      return highlighted as HTMLElement;
+    });
+    expect(mark.textContent).toBe("After");
+    expect(mark.className).toContain("bg-destructive/20");
+  });
+
+  it("highlights a glossary source term only when it is a whole word", () => {
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      targetText: "Saved. Please Save now.",
+    };
+
+    renderRow({
+      isFocused: false,
+      segment,
+      formatChecks: [
+        {
+          id: "glossary-missing-term-1",
+          label: "Glossary",
+          status: "warn",
+          message: 'Glossary term "Save" requires "Speichern".',
+          category: "glossary",
+          relatedTokens: ["Save", "Speichern"],
+        },
+      ],
+    });
+
+    const marks = document.querySelectorAll("[data-qa-highlight]");
+    expect(marks).toHaveLength(1);
+    expect(marks[0]).toHaveTextContent("Save");
+    expect(marks[0]?.previousSibling?.textContent).toBe("Saved. Please ");
+  });
+
   it("shows the first spelling issue inline on focused text rows", async () => {
     const onTargetChange = vi.fn();
 

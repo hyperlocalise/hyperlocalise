@@ -23,14 +23,24 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function containsGlossaryTerm(text: string, term: string) {
+export function glossaryTermRanges(text: string, term: string) {
   const normalizedTerm = term.trim();
   if (!normalizedTerm) {
-    return false;
+    return [];
   }
 
-  const patternStr = `(?<![${UNICODE_WORD_CHAR}])${escapeRegExp(normalizedTerm)}(?![${UNICODE_WORD_CHAR}])`;
-  return new RegExp(patternStr, "iu").test(text);
+  const pattern = new RegExp(
+    `(?<![${UNICODE_WORD_CHAR}])${escapeRegExp(normalizedTerm)}(?![${UNICODE_WORD_CHAR}])`,
+    "giu",
+  );
+  return Array.from(text.matchAll(pattern), (match) => {
+    const start = match.index ?? 0;
+    return { start, end: start + match[0].length };
+  });
+}
+
+export function containsGlossaryTerm(text: string, term: string) {
+  return glossaryTermRanges(text, term).length > 0;
 }
 
 export function glossaryFormatChecksForSegment(

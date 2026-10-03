@@ -31,6 +31,8 @@ import {
   actionableFormatChecks,
   applyQaSuggestion,
   presentQaIssue,
+  qaProblemTokenMatches,
+  replacesQaTermAsWholeWord,
 } from "./content-editor-side-by-side-qa";
 
 export function ContentEditorSideBySideInlineQa({
@@ -49,7 +51,7 @@ export function ContentEditorSideBySideInlineQa({
   const issues = actionableFormatChecks(formatChecks);
   const firstIssue = issues[0];
 
-  if (isLoading && issues.length === 0) {
+  if (isLoading) {
     return (
       <Row
         spacing="0.5u"
@@ -71,10 +73,11 @@ export function ContentEditorSideBySideInlineQa({
 
   const presented = presentQaIssue(firstIssue);
   const moreCount = issues.length - 1;
+  const wholeTerm = replacesQaTermAsWholeWord(firstIssue);
   const canFix = Boolean(
     presented.problemToken &&
     presented.suggestion &&
-    targetText.includes(presented.problemToken) &&
+    qaProblemTokenMatches(targetText, presented.problemToken, wholeTerm) &&
     onFix,
   );
 
@@ -115,7 +118,9 @@ export function ContentEditorSideBySideInlineQa({
                 size="xs"
                 onClick={() => {
                   onFix?.(
-                    applyQaSuggestion(targetText, presented.problemToken!, presented.suggestion!),
+                    applyQaSuggestion(targetText, presented.problemToken!, presented.suggestion!, {
+                      wholeTerm,
+                    }),
                   );
                 }}
               >

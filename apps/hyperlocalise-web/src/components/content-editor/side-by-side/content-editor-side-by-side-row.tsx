@@ -79,7 +79,7 @@ import { ContentEditorSideBySideInlineQa } from "./content-editor-side-by-side-i
 import {
   actionableFormatChecks,
   qaHighlightTokens,
-  worstActionableFormatCheckStatus,
+  replacesQaTermAsWholeWord,
 } from "./content-editor-side-by-side-qa";
 import { ContentEditorSideBySideQaStatus } from "./content-editor-side-by-side-qa-status";
 
@@ -216,12 +216,13 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
     Boolean(intelligence) &&
     Boolean(onUseAiSuggestion);
   const qaIssues = useMemo(() => actionableFormatChecks(formatChecks), [formatChecks]);
-  const firstQaIssue = qaIssues[0];
+  const firstQaIssue = isFormatChecksLoading ? undefined : qaIssues[0];
+  const highlightWholeTerm = replacesQaTermAsWholeWord(firstQaIssue);
   const highlightTokens = useMemo(
     () => qaHighlightTokens(firstQaIssue, segment.targetText),
     [firstQaIssue, segment.targetText],
   );
-  const highlightStatus = worstActionableFormatCheckStatus(qaIssues) ?? "warn";
+  const highlightStatus = firstQaIssue?.status === "fail" ? "fail" : "warn";
   const showCollapsedQaStatus =
     !isFocused && !isAssetSegment && (isFormatChecksLoading || formatChecks.length > 0);
   const showInlineQa =
@@ -568,6 +569,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                             compact
                             highlightTokens={highlightTokens}
                             highlightStatus={highlightStatus}
+                            highlightWholeTerm={highlightWholeTerm}
                             onChange={onTargetChange}
                           />
                           {showInlineQa ? (
@@ -668,6 +670,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                             message={segment.targetText}
                             highlightTokens={highlightTokens}
                             highlightStatus={highlightStatus}
+                            highlightWholeTerm={highlightWholeTerm}
                           />
                         </Text>
                       ) : (

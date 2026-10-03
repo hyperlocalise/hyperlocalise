@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { glossaryTermRanges } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import type {
   ContentEditorFormatCheck,
   ContentEditorFormatCheckStatus,
@@ -78,7 +79,35 @@ export function presentQaIssue(check: ContentEditorFormatCheck): {
   };
 }
 
-export function applyQaSuggestion(text: string, problemToken: string, suggestion: string) {
+/** Missing glossary checks name a source term, which must match a whole word in the target. */
+export function replacesQaTermAsWholeWord(check: ContentEditorFormatCheck | undefined) {
+  return Boolean(check && GLOSSARY_MISSING_CHECK_ID_RE.test(check.id));
+}
+
+export function qaProblemTokenMatches(text: string, problemToken: string, wholeTerm: boolean) {
+  if (!problemToken) {
+    return false;
+  }
+  if (wholeTerm) {
+    return glossaryTermRanges(text, problemToken).length > 0;
+  }
+  return text.includes(problemToken);
+}
+
+export function applyQaSuggestion(
+  text: string,
+  problemToken: string,
+  suggestion: string,
+  options?: { wholeTerm?: boolean },
+) {
+  if (options?.wholeTerm) {
+    const range = glossaryTermRanges(text, problemToken)[0];
+    if (!range) {
+      return text;
+    }
+    return `${text.slice(0, range.start)}${suggestion}${text.slice(range.end)}`;
+  }
+
   const index = text.indexOf(problemToken);
   if (index < 0) {
     return text;
@@ -88,7 +117,10 @@ export function applyQaSuggestion(text: string, problemToken: string, suggestion
 
 export function qaHighlightTokens(check: ContentEditorFormatCheck | undefined, text: string) {
   const problemToken = check ? presentQaIssue(check).problemToken : undefined;
-  if (!problemToken || !text.includes(problemToken)) {
+  if (
+    !problemToken ||
+    !qaProblemTokenMatches(text, problemToken, replacesQaTermAsWholeWord(check))
+  ) {
     return [];
   }
   return [problemToken];

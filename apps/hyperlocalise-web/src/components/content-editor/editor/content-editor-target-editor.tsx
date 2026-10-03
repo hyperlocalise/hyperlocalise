@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Extension, type Extensions } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -37,7 +38,62 @@ import {
   contentEditorMessageTokenToneClass,
   type ContentEditorMessageTokenVisualKind,
 } from "@/components/content-editor/message-format/content-editor-message-token-styles";
+import { glossaryTermRanges } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import { contentEditorTargetEditorMessages } from "@/components/content-editor/shared/content-editor.messages";
+
+const TEXT_BLOCK_SEPARATOR = "\n";
+const TEXT_LEAF_TEXT = "\n";
+
+type TextOffsetRange = {
+  offsetStart: number;
+  offsetEnd: number;
+  posStart: number;
+};
+
+function documentSearchText(doc: ProseMirrorNode) {
+  return doc.textBetween(0, doc.content.size, TEXT_BLOCK_SEPARATOR, TEXT_LEAF_TEXT);
+}
+
+/**
+ * Map offsets in `documentSearchText` back to document positions.
+ * `textBetween` inserts the block separator before every textblock after the
+ * first, including empty paragraphs, so a blank line contributes two newlines.
+ */
+export function contentEditorTextOffsetRanges(doc: ProseMirrorNode): TextOffsetRange[] {
+  const textRanges: TextOffsetRange[] = [];
+  let offset = 0;
+  let seenSeparatorBlock = false;
+
+  doc.descendants((node, pos) => {
+    const leafText = node.isLeaf && !node.isText ? TEXT_LEAF_TEXT : "";
+    const isSeparatorBlock =
+      node.isBlock && ((node.isLeaf && leafText.length > 0) || node.isTextblock);
+
+    if (isSeparatorBlock) {
+      if (seenSeparatorBlock) {
+        offset += TEXT_BLOCK_SEPARATOR.length;
+      } else {
+        seenSeparatorBlock = true;
+      }
+    }
+
+    if (node.isText && node.text) {
+      textRanges.push({
+        offsetStart: offset,
+        offsetEnd: offset + node.text.length,
+        posStart: pos,
+      });
+      offset += node.text.length;
+      return;
+    }
+
+    if (leafText) {
+      offset += leafText.length;
+    }
+  });
+
+  return textRanges;
+}
 
 function textDocFromValue(value: string) {
   const lines = value.split("\n");
@@ -95,7 +151,7 @@ function decorationRangesForToken(
 }
 
 function createQaHighlightExtension(
-  getHighlight: () => { tokens: string[]; status: "warn" | "fail" },
+  getHighlight: () => { tokens: string[]; status: "warn" | "fail"; wholeTerm: boolean },
 ) {
   return Extension.create({
     name: "contentEditorQaHighlights",
@@ -105,52 +161,28 @@ function createQaHighlightExtension(
           key: new PluginKey("contentEditorQaHighlights"),
           props: {
             decorations(state) {
-              const { tokens, status } = getHighlight();
+              const { tokens, status, wholeTerm } = getHighlight();
               if (tokens.length === 0) {
                 return DecorationSet.empty;
               }
 
-              const textRanges: Array<{
-                offsetStart: number;
-                offsetEnd: number;
-                posStart: number;
-              }> = [];
-              let offset = 0;
-              let prevNodeEnd = -1;
-
-              state.doc.descendants((node, pos) => {
-                if (!node.isText || !node.text) {
-                  return;
-                }
-
-                if (prevNodeEnd !== -1 && pos !== prevNodeEnd) {
-                  offset += 1;
-                }
-
-                textRanges.push({
-                  offsetStart: offset,
-                  offsetEnd: offset + node.text.length,
-                  posStart: pos,
-                });
-                offset += node.text.length;
-                prevNodeEnd = pos + node.text.length;
-              });
-
-              const text = state.doc.textBetween(0, state.doc.content.size, "\n", "\n");
-              const decorations = highlightRangesForTokens(text, tokens).flatMap((range) =>
-                decorationRangesForToken(textRanges, {
-                  id: `qa-${range.start}`,
-                  kind: "argument",
-                  name: "qa",
-                  literal: "",
-                  start: range.start,
-                  end: range.end,
-                }).map(({ from, to }) =>
-                  Decoration.inline(from, to, {
-                    class: qaHighlightClassName(status),
-                    "data-qa-highlight": "true",
-                  }),
-                ),
+              const textRanges = contentEditorTextOffsetRanges(state.doc);
+              const text = documentSearchText(state.doc);
+              const decorations = highlightRangesForTokens(text, tokens, wholeTerm).flatMap(
+                (range) =>
+                  decorationRangesForToken(textRanges, {
+                    id: `qa-${range.start}`,
+                    kind: "argument",
+                    name: "qa",
+                    literal: "",
+                    start: range.start,
+                    end: range.end,
+                  }).map(({ from, to }) =>
+                    Decoration.inline(from, to, {
+                      class: qaHighlightClassName(status),
+                      "data-qa-highlight": "true",
+                    }),
+                  ),
               );
 
               return DecorationSet.create(state.doc, decorations);
@@ -174,35 +206,8 @@ function createCatMessageFormatExtension() {
           props: {
             decorations(state) {
               if (state.doc === previousDocument) return previousDecorations;
-              const textRanges: Array<{
-                offsetStart: number;
-                offsetEnd: number;
-                posStart: number;
-              }> = [];
-              let offset = 0;
-              let prevNodeEnd = -1;
-
-              state.doc.descendants((node, pos) => {
-                if (!node.isText || !node.text) {
-                  return;
-                }
-
-                // Account for the "\n" block separator that textBetween inserts
-                // between consecutive text nodes that belong to different blocks.
-                if (prevNodeEnd !== -1 && pos !== prevNodeEnd) {
-                  offset += 1;
-                }
-
-                textRanges.push({
-                  offsetStart: offset,
-                  offsetEnd: offset + node.text.length,
-                  posStart: pos,
-                });
-                offset += node.text.length;
-                prevNodeEnd = pos + node.text.length;
-              });
-
-              const text = state.doc.textBetween(0, state.doc.content.size, "\n", "\n");
+              const textRanges = contentEditorTextOffsetRanges(state.doc);
+              const text = documentSearchText(state.doc);
               const analysis = analyzeCatMessageFormat(text);
               const decorations: Decoration[] = [];
 
@@ -274,10 +279,14 @@ function presentTokenSignatures(analysis: ContentEditorMessageAnalysis) {
   return new Set(analysis.tokens.map((token) => contentEditorMessageTokenSignature(token)));
 }
 
-function highlightRangesForTokens(text: string, tokens: string[]) {
+function highlightRangesForTokens(text: string, tokens: string[], wholeTerm = false) {
   const ranges: Array<{ start: number; end: number }> = [];
   for (const token of tokens) {
     if (!token) {
+      continue;
+    }
+    if (wholeTerm) {
+      ranges.push(...glossaryTermRanges(text, token));
       continue;
     }
     let from = 0;
@@ -305,8 +314,9 @@ function renderHighlightedPlainText(
   tokens: string[],
   status: "warn" | "fail",
   keyPrefix: string,
+  wholeTerm: boolean,
 ) {
-  const ranges = highlightRangesForTokens(text, tokens);
+  const ranges = highlightRangesForTokens(text, tokens, wholeTerm);
   if (ranges.length === 0) {
     return text;
   }
@@ -355,11 +365,13 @@ export function ContentEditorMessagePreview({
   className,
   highlightTokens = [],
   highlightStatus = "warn",
+  highlightWholeTerm = false,
 }: {
   message: string;
   className?: string;
   highlightTokens?: string[];
   highlightStatus?: "warn" | "fail";
+  highlightWholeTerm?: boolean;
 }) {
   const analysis = useMemo(() => analyzeCatMessageFormat(message), [message]);
   const ranges = analysis.tokens
@@ -376,7 +388,13 @@ export function ContentEditorMessagePreview({
   if (ranges.length === 0) {
     return (
       <span className={className}>
-        {renderHighlightedPlainText(message, highlightTokens, highlightStatus, "plain")}
+        {renderHighlightedPlainText(
+          message,
+          highlightTokens,
+          highlightStatus,
+          "plain",
+          highlightWholeTerm,
+        )}
       </span>
     );
   }
@@ -418,7 +436,13 @@ export function ContentEditorMessagePreview({
           </span>
         ) : (
           <span key={part.key}>
-            {renderHighlightedPlainText(part.text, highlightTokens, highlightStatus, part.key)}
+            {renderHighlightedPlainText(
+              part.text,
+              highlightTokens,
+              highlightStatus,
+              part.key,
+              highlightWholeTerm,
+            )}
           </span>
         ),
       )}
@@ -489,6 +513,7 @@ export function ContentEditorTargetEditor({
   ariaLabel,
   highlightTokens,
   highlightStatus = "warn",
+  highlightWholeTerm = false,
   onChange,
 }: {
   sourceText: string;
@@ -501,6 +526,7 @@ export function ContentEditorTargetEditor({
   ariaLabel?: string;
   highlightTokens?: string[];
   highlightStatus?: "warn" | "fail";
+  highlightWholeTerm?: boolean;
   onChange: (value: string) => void;
 }) {
   const intl = useIntl();
@@ -509,10 +535,12 @@ export function ContentEditorTargetEditor({
   const highlightRef = useRef({
     tokens: highlightTokens ?? [],
     status: highlightStatus,
+    wholeTerm: highlightWholeTerm,
   });
   highlightRef.current = {
     tokens: highlightTokens ?? [],
     status: highlightStatus,
+    wholeTerm: highlightWholeTerm,
   };
   const sourceAnalysis = useMemo(() => analyzeCatMessageFormat(sourceText), [sourceText]);
   const targetAnalysis = useMemo(() => analyzeCatMessageFormat(value), [value]);
@@ -598,7 +626,7 @@ export function ContentEditorTargetEditor({
     }
 
     editor.view.dispatch(editor.state.tr.setMeta("contentEditorQaHighlights", highlightTokenKey));
-  }, [editor, highlightStatus, highlightTokenKey]);
+  }, [editor, highlightStatus, highlightTokenKey, highlightWholeTerm]);
 
   function insertToken(token: ContentEditorMessageToken) {
     if (!editor || disabled) {

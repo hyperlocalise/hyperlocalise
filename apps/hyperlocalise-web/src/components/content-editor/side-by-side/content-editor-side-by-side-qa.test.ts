@@ -129,6 +129,18 @@ describe("content-editor-side-by-side-qa", () => {
     expect(applyQaSuggestion("No match", "Drive", "Diverse")).toBe("No match");
   });
 
+  it("replaces a missing glossary source term only when it is a whole word", () => {
+    expect(
+      applyQaSuggestion("Please Saved the file", "Save", "Speichern", { wholeTerm: true }),
+    ).toBe("Please Saved the file");
+    expect(
+      applyQaSuggestion("Saved. Please Save now.", "Save", "Speichern", { wholeTerm: true }),
+    ).toBe("Saved. Please Speichern now.");
+    expect(
+      applyQaSuggestion("Please save the file", "Save", "Speichern", { wholeTerm: true }),
+    ).toBe("Please Speichern the file");
+  });
+
   it("highlights the problem token only when it appears in the translation", () => {
     const check = {
       id: "spelling",
@@ -141,5 +153,19 @@ describe("content-editor-side-by-side-qa", () => {
     expect(qaHighlightTokens(check, "Drive the product")).toEqual(["Drive"]);
     expect(qaHighlightTokens(check, "Diverse the product")).toEqual([]);
     expect(qaHighlightTokens(undefined, "Drive the product")).toEqual([]);
+  });
+
+  it("does not highlight a glossary source term that only appears inside another word", () => {
+    const check = {
+      id: "glossary-missing-term-1",
+      label: "Glossary",
+      status: "warn" as const,
+      message: 'Glossary term "Save" requires "Speichern".',
+      category: "glossary" as const,
+      relatedTokens: ["Save", "Speichern"],
+    };
+
+    expect(qaHighlightTokens(check, "Please Saved the file")).toEqual([]);
+    expect(qaHighlightTokens(check, "Saved. Please Save now.")).toEqual(["Save"]);
   });
 });
