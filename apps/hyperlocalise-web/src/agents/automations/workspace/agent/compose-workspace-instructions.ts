@@ -18,6 +18,7 @@ import { resolveWorkspaceOrchestratorSharedSkills } from "./workspace-template-m
 
 export function composeWorkspaceAutomationInstructions(input: {
   templateSkillId?: string | null;
+  skillIds?: readonly string[];
   userOverride?: string | null;
   triggerMode: WorkspaceAutomationTriggerConfig["mode"];
   plan: WorkspaceOrchestratorPlan;
@@ -48,9 +49,13 @@ export function composeWorkspaceAutomationInstructions(input: {
 
   const dynamicSections = [enabledToolsSection];
 
-  const skills = input.templateSkillId ? [input.templateSkillId] : [];
+  const skillIds = input.skillIds ?? [];
+  const skills = [
+    ...new Set([...(input.templateSkillId ? [input.templateSkillId] : []), ...skillIds]),
+  ];
   const sharedSkills = resolveWorkspaceOrchestratorSharedSkills({
     templateSkillId: input.templateSkillId,
+    skillIds,
     planTools: input.plan.tools,
   });
 

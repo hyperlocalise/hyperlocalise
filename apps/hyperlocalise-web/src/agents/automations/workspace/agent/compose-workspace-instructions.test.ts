@@ -37,6 +37,22 @@ describe("composeWorkspaceAutomationInstructions", () => {
     expect(instructions).toContain("save_memory tool");
   });
 
+  it("includes attached skill procedures and their shared skills without customer instructions", () => {
+    const instructions = composeWorkspaceAutomationInstructions({
+      triggerMode: "scheduled",
+      plan: { tools: ["use_github_repository", "use_crowdin", "notify_slack"] },
+      skillIds: ["review-translation-changes", "check-crowdin-concordance", "post-to-slack"],
+      userOverride: "",
+    });
+
+    expect(instructions).toContain("## Review translation changes");
+    expect(instructions).toContain("## Check against Crowdin");
+    expect(instructions).toContain("## Post results to Slack");
+    expect(instructions).toContain("## Translation review");
+    expect(instructions).toContain("## Crowdin concordance review");
+    expect(instructions).not.toContain("## Customer instructions");
+  });
+
   it("includes the Slack notifications skill when notify_slack is planned", () => {
     const instructions = composeWorkspaceAutomationInstructions({
       triggerMode: "manual",

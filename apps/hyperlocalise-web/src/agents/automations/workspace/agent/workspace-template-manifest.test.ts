@@ -185,6 +185,26 @@ describe("workspace template manifest", () => {
     expect(instructions).toContain("> Recommendation:");
   });
 
+  it("gives the repo agent only the procedures of skills that use the repository", () => {
+    const instructions = composeGithubRepoInstructions({
+      skillIds: ["review-translation-changes", "research-web", "post-to-slack"],
+    });
+
+    expect(instructions).toContain("## Review translation changes");
+    expect(instructions).toContain("Translation Review Results");
+    expect(instructions).not.toContain("## Research the web");
+    expect(instructions).not.toContain("## Post results to Slack");
+  });
+
+  it("adds shared skills declared by attached skills to orchestrator skills", () => {
+    expect(
+      resolveWorkspaceOrchestratorSharedSkills({
+        skillIds: ["check-crowdin-concordance"],
+        planTools: ["use_crowdin"],
+      }),
+    ).toEqual(["crowdin-concordance-review"]);
+  });
+
   it("adds Crowdin concordance review to orchestrator skills when Crowdin is planned", () => {
     expect(
       resolveWorkspaceOrchestratorSharedSkills({

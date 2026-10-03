@@ -38,6 +38,7 @@ import {
   type WorkspaceOrchestratorPlan,
 } from "./plan";
 import { buildWorkspaceOrchestratorOutputSummary } from "./workspace-orchestrator-output-summary";
+import { resolveRunSkillIds } from "./workspace-skill-instructions";
 
 const logger = createLogger("workspace-orchestrator");
 
@@ -238,6 +239,7 @@ export async function runWorkspaceOrchestrator(input: {
   const plan = buildWorkspaceOrchestratorPlan(automation, { templateSkillId });
   const composedInstructions = composeWorkspaceAutomationInstructions({
     templateSkillId,
+    skillIds: resolveRunSkillIds(run.inputSnapshot),
     userOverride: automation.instructions,
     triggerMode: automation.triggerConfig.mode,
     plan,
