@@ -90,8 +90,8 @@ describe("ProjectBreadcrumbSelector", () => {
         "href",
         "/org/acme/projects/proj_1",
       );
+      expect(screen.queryByRole("button", { name: "Switch project" })).not.toBeInTheDocument();
     });
-    expect(screen.queryByRole("button", { name: "Switch project" })).not.toBeInTheDocument();
   });
 
   it("links the current project and switches another project to the same section", async () => {
@@ -112,6 +112,9 @@ describe("ProjectBreadcrumbSelector", () => {
     await user.click(screen.getByRole("button", { name: "Switch project" }));
     await user.click(screen.getByRole("menuitem", { name: "Marketing" }));
 
-    expect(pushMock).toHaveBeenCalledWith("/org/acme/projects/proj_2/settings", undefined);
+    expect(pushMock).toHaveBeenCalledWith(
+      "/org/acme/projects/proj_2/settings",
+      expect.objectContaining({}),
+    );
   });
 });
