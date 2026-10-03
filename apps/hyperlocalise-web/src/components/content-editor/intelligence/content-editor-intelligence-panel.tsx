@@ -48,6 +48,7 @@ import {
   contentEditorEditorPanelMessages,
   contentEditorIntelligencePanelMessages,
 } from "@/components/content-editor/shared/content-editor.messages";
+import { emptyStateSourceLabel } from "@/components/content-editor/shared/empty-state-source-label";
 import type {
   ContentEditorSegmentIntelligence,
   ContentEditorTmMatchKind,
@@ -73,6 +74,39 @@ import {
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
 import { ContentEditorLottieContextPanel } from "./content-editor-lottie-context-panel";
 import { ContentEditorVisualContextPanel } from "./content-editor-visual-context-panel";
+
+function GlossaryGuidanceEmptyState({ sourceText }: { sourceText: string }) {
+  const source = emptyStateSourceLabel(sourceText);
+
+  return (
+    <>
+      <p className="mt-3 text-base font-medium text-foreground">
+        {source ? (
+          <FormattedMessage
+            {...contentEditorIntelligencePanelMessages.glossaryGuidanceEmptyTitle}
+            values={{ source }}
+          />
+        ) : (
+          <FormattedMessage
+            {...contentEditorIntelligencePanelMessages.glossaryGuidanceEmptyTitleUnnamed}
+          />
+        )}
+      </p>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+        {source ? (
+          <FormattedMessage
+            {...contentEditorIntelligencePanelMessages.glossaryGuidanceEmptyDescription}
+            values={{ source }}
+          />
+        ) : (
+          <FormattedMessage
+            {...contentEditorIntelligencePanelMessages.glossaryGuidanceEmptyDescriptionUnnamed}
+          />
+        )}
+      </p>
+    </>
+  );
+}
 
 function PanelSection({
   title,
@@ -781,16 +815,7 @@ export function ContentEditorIntelligencePanel({
                         className="size-7 text-muted-foreground"
                         aria-hidden="true"
                       />
-                      <p className="mt-3 text-base font-medium text-foreground">
-                        <FormattedMessage
-                          {...contentEditorIntelligencePanelMessages.glossaryGuidanceEmptyTitle}
-                        />
-                      </p>
-                      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                        <FormattedMessage
-                          {...contentEditorIntelligencePanelMessages.glossaryGuidanceEmptyDescription}
-                        />
-                      </p>
+                      <GlossaryGuidanceEmptyState sourceText={sourceText} />
                     </div>
                   ) : (
                     <>

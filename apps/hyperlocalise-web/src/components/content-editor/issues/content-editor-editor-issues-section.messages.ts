@@ -26,11 +26,23 @@ export const contentEditorEditorIssuesSectionMessages = defineMessages({
     description: "Button to create a new issue linked to the current CAT segment",
   },
   emptyTitle: {
+    defaultMessage: 'No issues for "{source}"',
+    id: "57DpzgJvLI",
+    description:
+      "Empty-state title naming the CAT source text when the segment has no linked issues",
+  },
+  emptyDescription: {
+    defaultMessage: 'Create an issue to track work on "{source}".',
+    id: "WxA0j2W+Ol",
+    description:
+      "Empty-state description naming the CAT source text when the segment has no linked issues",
+  },
+  emptyTitleUnnamed: {
     defaultMessage: "No issues for this string",
     id: "JXB2wuhw1Z",
     description: "Empty-state title when the CAT segment has no linked issues",
   },
-  emptyDescription: {
+  emptyDescriptionUnnamed: {
     defaultMessage: "Create an issue to track work on this string.",
     id: "vqmXbSZwqU",
     description: "Empty-state description when the CAT segment has no linked issues",

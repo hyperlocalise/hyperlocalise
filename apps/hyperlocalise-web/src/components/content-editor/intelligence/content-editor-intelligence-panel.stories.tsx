@@ -37,6 +37,11 @@ const teamLinguistsId = "team-linguists";
 const teamDefaultId = "team-default";
 
 const defaultTargetText = contentEditorSegmentsFixture[1]?.targetText ?? "";
+const emptyGlossarySource =
+  contentEditorSegmentsFixture[1]?.sourceText ??
+  "Dashboard card showing how many reviews still need approval.";
+const glossaryEmptyTitle = `No glossary matches for "${emptyGlossarySource}"`;
+const glossaryEmptyDescription = `No project glossary concepts match "${emptyGlossarySource}".`;
 
 const conceptIntelligence: ContentEditorSegmentIntelligence = {
   ...contentEditorIntelligenceFixture,
@@ -71,6 +76,7 @@ const meta = {
   ],
   args: {
     intelligence: conceptIntelligence,
+    sourceText: emptyGlossarySource,
     targetText: defaultTargetText,
     isLookingUpContext: false,
     isConcordanceLoading: false,
@@ -155,10 +161,8 @@ export const Empty: Story = {
       requestCatGlossaryGuidance();
       void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
     });
-    await expect(canvas.getByText("No glossary matches")).toBeInTheDocument();
-    await expect(
-      canvas.getByText("No project glossary concepts match this string."),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(glossaryEmptyTitle)).toBeInTheDocument();
+    await expect(canvas.getByText(glossaryEmptyDescription)).toBeInTheDocument();
   },
 };
 
@@ -211,7 +215,7 @@ export const SourceOnlyConcept: Story = {
       requestCatGlossaryGuidance();
       void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
     });
-    await expect(canvas.getByText("No glossary matches")).toBeInTheDocument();
+    await expect(canvas.getByText(glossaryEmptyTitle)).toBeInTheDocument();
     await expect(canvas.queryByText("Dashboard", { exact: true })).not.toBeInTheDocument();
   },
 };
@@ -230,7 +234,7 @@ export const PrimaryTermFallback: Story = {
       requestCatGlossaryGuidance();
       void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
     });
-    await expect(canvas.getByText("No glossary matches")).toBeInTheDocument();
+    await expect(canvas.getByText(glossaryEmptyTitle)).toBeInTheDocument();
     await expect(canvas.queryByText("API", { exact: true })).not.toBeInTheDocument();
   },
 };
@@ -247,7 +251,7 @@ export const ConceptOnlyEmpty: Story = {
       requestCatGlossaryGuidance();
       void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
     });
-    await expect(canvas.getByText("No glossary matches")).toBeInTheDocument();
+    await expect(canvas.getByText(glossaryEmptyTitle)).toBeInTheDocument();
     await expect(canvas.queryByText("Dashboard", { exact: true })).not.toBeInTheDocument();
     await expect(canvas.queryByText("Bảng điều khiển", { exact: true })).not.toBeInTheDocument();
   },
