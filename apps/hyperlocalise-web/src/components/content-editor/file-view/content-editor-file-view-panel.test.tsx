@@ -29,6 +29,11 @@ vi.mock("motion/react", async (importOriginal) => ({
   AnimatePresence: ({ children }: { children: ReactNode }) => children,
 }));
 
+// The real Office viewer loads Univer; these tests only cover the panel chrome around it.
+vi.mock("./content-editor-office-file-viewer", () => ({
+  ContentEditorOfficeFileViewerPane: () => null,
+}));
+
 function imageSegment(overrides: Partial<ContentEditorSegment> = {}): ContentEditorSegment {
   return {
     id: "img-1",
@@ -135,6 +140,33 @@ describe("ContentEditorFileViewPanel", () => {
     const input = document.querySelector('input[type="file"]');
     expect(input).toBeTruthy();
     await user.upload(input as HTMLInputElement, file);
+
+    expect(onUpload).toHaveBeenCalledWith(file);
+  });
+
+  it("offers Office file upload from the header menu", async () => {
+    const user = userEvent.setup();
+    const onUpload = vi.fn();
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel
+          segment={imageSegment({ contentKind: "document", sourcePath: "brief.docx" })}
+          viewerId="docx"
+          onUpload={onUpload}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const menu = screen.getByRole("button", { name: "File actions" });
+    expect(menu.closest("header")).not.toBeNull();
+    await user.click(menu);
+    expect(
+      await screen.findByRole("menuitem", { name: "Upload translated file" }),
+    ).toBeInTheDocument();
+
+    const file = new File(["docx"], "de-brief.docx");
+    await user.upload(screen.getByLabelText("Upload translated file"), file);
 
     expect(onUpload).toHaveBeenCalledWith(file);
   });

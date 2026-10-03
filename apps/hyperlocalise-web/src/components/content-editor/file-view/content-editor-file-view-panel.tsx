@@ -24,7 +24,6 @@ import {
   AiPaintbrushIcon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
-  Loading03Icon,
   MoreHorizontalIcon,
   SparklesIcon,
   Upload01Icon,
@@ -259,26 +258,6 @@ export function ContentEditorFileViewPanel({
 
   const targetFileActions = (
     <>
-      {onRegenerate && viewerId !== "image" && viewerId !== "video" ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="xs"
-          disabled={!canEdit || isImageBusy || imageLayersDirty}
-          onClick={() => setGenerateDialogOpen(true)}
-        >
-          {isImageBusy ? (
-            <HugeiconsIcon icon={Loading03Icon} className="animate-spin" aria-hidden />
-          ) : (
-            <HugeiconsIcon icon={SparklesIcon} data-icon="inline-start" aria-hidden />
-          )}
-          <FormattedMessage
-            {...(hasTarget
-              ? contentEditorFileViewMessages.regenerate
-              : contentEditorFileViewMessages.generate)}
-          />
-        </Button>
-      ) : null}
       {onUpload && uploadAccept ? (
         <>
           <Button
@@ -455,7 +434,7 @@ export function ContentEditorFileViewPanel({
               ) : null}
               <ContentEditorWorkspaceViewSwitcherConnected size="xs" variant="outline" />
               {isDocumentViewer || officeKind ? <div ref={setSaveActionsContainer} /> : null}
-              {isDocumentViewer && hasTargetFileActions ? (
+              {!isMediaViewer && hasTargetFileActions ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -484,7 +463,7 @@ export function ContentEditorFileViewPanel({
                           />
                         </DropdownMenuItem>
                       ) : null}
-                      {onUpload ? (
+                      {onUpload && uploadAccept ? (
                         <DropdownMenuItem
                           disabled={!canEdit || isImageBusy}
                           onClick={() => uploadInputRef.current?.click()}
@@ -649,21 +628,6 @@ export function ContentEditorFileViewPanel({
               </AnimatePresence>
             </div>
           </div>
-          {onUpload ? (
-            <input
-              ref={uploadInputRef}
-              type="file"
-              accept={uploadAccept ?? undefined}
-              className="sr-only"
-              aria-label={intl.formatMessage(contentEditorFileViewMessages.uploadFile)}
-              disabled={!canEdit || isImageBusy}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void onUpload(file);
-                event.currentTarget.value = "";
-              }}
-            />
-          ) : null}
         </div>
       ) : (
         <FileViewWorkspace>
@@ -694,7 +658,6 @@ export function ContentEditorFileViewPanel({
                           values={{ locale: segment.targetLocale }}
                         />
                       }
-                      footer={hasTargetFileActions ? targetFileActions : undefined}
                     >
                       {officeKind ? (
                         <ContentEditorOfficeFileViewerPane
@@ -720,7 +683,22 @@ export function ContentEditorFileViewPanel({
           </FileViewWorkspaceContent>
         </FileViewWorkspace>
       )}
-      {onRegenerate && viewerId !== "image" && viewerId !== "video" ? (
+      {!isMediaViewer && onUpload && uploadAccept ? (
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept={uploadAccept}
+          className="sr-only"
+          aria-label={intl.formatMessage(contentEditorFileViewMessages.uploadFile)}
+          disabled={!canEdit || isImageBusy}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void onUpload(file);
+            event.currentTarget.value = "";
+          }}
+        />
+      ) : null}
+      {onRegenerate && !isMediaViewer ? (
         <ContentEditorFileGenerateDialog
           open={generateDialogOpen}
           onOpenChange={setGenerateDialogOpen}
