@@ -275,6 +275,7 @@ func TestEditorCatWholeFileKind(t *testing.T) {
 	require.Equal(t, editorCatKindDocument, editorCatSourceKind("readme.md"))
 	require.Equal(t, editorCatKindText, editorCatSourceKind("locales/en.json"))
 	require.True(t, looksLikeEditorCatImageURL("https://cdn.example.com/a.png"))
+	require.False(t, looksLikeEditorCatImageURL("HTTP://example.com/image.png"))
 	require.False(t, looksLikeEditorCatImageURL("not a url"))
 	require.True(t, looksLikeEditorCatVideoURL("https://cdn.example.com/a.mp4"))
 	require.True(t, isEditorCatAllFiles("*"))

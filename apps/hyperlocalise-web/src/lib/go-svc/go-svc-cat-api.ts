@@ -48,8 +48,40 @@ import type {
   ProjectFileStringContextResponse,
 } from "@/api/routes/project/project.schema";
 
+import type {
+  CatStringGroup,
+  CatStringGroupMember,
+  CatGroupPagination,
+  CatStringGroupsQuery,
+} from "./go-svc-cat-groups.types";
+
 export class GoSvcCatApi {
   constructor(private readonly request: GoSvcRequest) {}
+
+  stringGroups(
+    organizationSlug: string,
+    projectId: string,
+    query: CatStringGroupsQuery,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ groups: CatStringGroup[]; pagination: CatGroupPagination }>(
+      catPath(organizationSlug, projectId, "groups"),
+      { query: { ...query }, ...options },
+    );
+  }
+
+  stringGroupMembers(
+    organizationSlug: string,
+    projectId: string,
+    groupId: string,
+    query: CatStringGroupsQuery,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ members: CatStringGroupMember[]; pagination: CatGroupPagination }>(
+      catPath(organizationSlug, projectId, "groups", groupId, "members"),
+      { query: { ...query }, ...options },
+    );
+  }
 
   targets(
     organizationSlug: string,

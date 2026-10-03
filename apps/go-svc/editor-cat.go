@@ -154,6 +154,8 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
 	}
 	route("GET "+cat+"/queue", api.getQueue)
+	route("GET "+cat+"/groups", api.getStringGroups)
+	route("GET "+cat+"/groups/{groupId}/members", api.getStringGroupMembers)
 	route("POST "+cat+"/targets", api.getSegmentTargets)
 	route("GET "+cat+"/activity-logs", api.listActivityLogs)
 	route("GET "+cat, api.getFile)
@@ -325,7 +327,7 @@ func editorCatAssetPath(organizationSlug, projectID, fileID string) string {
 
 func looksLikeEditorCatHTTPURL(value, extPattern string) bool {
 	trimmed := trimEditorCat(value)
-	if !strings.HasPrefix(strings.ToLower(trimmed), "http://") && !strings.HasPrefix(strings.ToLower(trimmed), "https://") {
+	if !strings.HasPrefix(trimmed, "http://") && !strings.HasPrefix(trimmed, "https://") {
 		return false
 	}
 	parsed, err := url.Parse(trimmed)
@@ -347,6 +349,22 @@ func looksLikeEditorCatImageURL(value string) bool {
 
 func looksLikeEditorCatVideoURL(value string) bool {
 	return looksLikeEditorCatHTTPURL(value, ".mp4")
+}
+
+// editorCatSourceLooksLikeMediaURLSQL mirrors looksLikeEditorCatImageURL and
+// looksLikeEditorCatVideoURL for SQL grouping (pathname suffix after host).
+func editorCatSourceLooksLikeMediaURLSQL(sourceTextColumn string) string {
+	trimmed := "trim(" + sourceTextColumn + ")"
+	path := "split_part(split_part(lower(regexp_replace(" + trimmed + ", '^https?://[^/?#]+', '', 'i')), '?', 1), '#', 1)"
+	return "((" + trimmed + " like 'http://%' or " + trimmed + " like 'https://%') and " + path + " ~ '\\.(png|jpe?g|webp|mp4)$')"
+}
+
+func editorCatGroupSeparatesMediaSQL() string {
+	return "(coalesce(k.metadata->>'contentKind', '') in ('image_url','video_url') or " + editorCatSourceLooksLikeMediaURLSQL("k.source_text") + ")"
+}
+
+func editorCatGroupIdentitySQL() string {
+	return "case when " + editorCatGroupSeparatesMediaSQL() + " then 'media:' || k.id::text else 'text:' || k.source_text end"
 }
 
 type editorCatFileKind string
