@@ -24,18 +24,25 @@ import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-st
 
 import type { ProjectListRow } from "../../../_components/project-list";
 
-const { useProjectPageQueryMock, patchMock, updateMock, toastErrorMock, toastSuccessMock } =
-  vi.hoisted(() => ({
-    useProjectPageQueryMock: vi.fn(),
-    patchMock: vi.fn(),
-    updateMock: vi.fn(),
-    toastErrorMock: vi.fn(),
-    toastSuccessMock: vi.fn(),
-  }));
+const {
+  useProjectPageQueryMock,
+  patchMock,
+  updateMock,
+  toastErrorMock,
+  toastSuccessMock,
+  searchParamsState,
+} = vi.hoisted(() => ({
+  useProjectPageQueryMock: vi.fn(),
+  patchMock: vi.fn(),
+  updateMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
+  searchParamsState: { value: new URLSearchParams() },
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/en/org/acme/projects/project_1/settings",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => searchParamsState.value,
 }));
 
 vi.mock("sonner", () => ({
@@ -202,6 +209,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  searchParamsState.value = new URLSearchParams();
   updateMock.mockResolvedValue({ project: createProject({ identifier: "NEW" }) });
   patchMock.mockResolvedValue({
     ok: true,
@@ -229,6 +237,14 @@ describe("ProjectSettingsPageContent", () => {
 
     await openSection(user, "Style guide");
     expect(screen.getByLabelText("Style guide")).toHaveValue("Keep product names in English.");
+  });
+
+  it("opens the section from the section search param on initial load", async () => {
+    searchParamsState.value = new URLSearchParams("section=locales");
+    renderSettings();
+
+    expect(await screen.findByRole("heading", { name: "Locales" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "General" })).not.toBeInTheDocument();
   });
 
   it("shows one section at a time and keeps save actions disabled until dirty", async () => {

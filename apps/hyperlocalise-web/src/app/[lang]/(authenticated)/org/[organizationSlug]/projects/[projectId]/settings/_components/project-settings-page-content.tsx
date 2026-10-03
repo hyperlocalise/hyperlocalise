@@ -275,6 +275,7 @@ export function ProjectSettingsPageContent({
   const [pendingSections, setPendingSections] = useState<ReadonlySet<ProjectSettingsSection>>(
     () => new Set(),
   );
+  const [issueTemplatesDirty, setIssueTemplatesDirty] = useState(false);
   const valuesRef = useRef(values);
   const baselineRef = useRef(baseline);
   const pendingSectionsRef = useRef(pendingSections);
@@ -493,6 +494,7 @@ export function ProjectSettingsPageContent({
   if (generalDirty) dirtyNavItems.add("general");
   if (styleGuideDirty) dirtyNavItems.add("style-guide");
   if (localesDirty) dirtyNavItems.add("locales");
+  if (issueTemplatesDirty) dirtyNavItems.add("issue-templates");
   const activeNavItem = [...visibleNavItems].find((item) => item === requestedNavItem) ?? "general";
 
   function selectNavItem(item: ProjectSettingsNavItemId) {
@@ -718,8 +720,14 @@ export function ProjectSettingsPageContent({
             </section>
           ) : null}
 
-          {activeNavItem === "issue-templates" ? (
-            <ProjectIssueTemplatesPanel organizationSlug={organizationSlug} projectId={projectId} />
+          {hasPersistedProjectRow ? (
+            <div hidden={activeNavItem !== "issue-templates"}>
+              <ProjectIssueTemplatesPanel
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                onDirtyChange={setIssueTemplatesDirty}
+              />
+            </div>
           ) : null}
 
           {activeNavItem === "issue-columns" ? (

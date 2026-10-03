@@ -73,7 +73,10 @@ function mockFetch(getBody: ReturnType<typeof templateConfigResponse> = template
   return { fetchMock, putCalls };
 }
 
-function renderPanel(getBody?: ReturnType<typeof templateConfigResponse>) {
+function renderPanel(
+  getBody?: ReturnType<typeof templateConfigResponse>,
+  options?: { onDirtyChange?: (dirty: boolean) => void },
+) {
   const { fetchMock, putCalls } = mockFetch(getBody);
   vi.stubGlobal("fetch", fetchMock);
 
@@ -83,7 +86,11 @@ function renderPanel(getBody?: ReturnType<typeof templateConfigResponse>) {
   render(
     <QueryClientProvider client={queryClient}>
       <IntlProvider locale="en" messages={{}}>
-        <ProjectIssueTemplatesPanel organizationSlug={organizationSlug} projectId={projectId} />
+        <ProjectIssueTemplatesPanel
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          onDirtyChange={options?.onDirtyChange}
+        />
       </IntlProvider>
     </QueryClientProvider>,
   );
@@ -99,6 +106,27 @@ describe("ProjectIssueTemplatesPanel", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("reports dirty state when the default template changes", async () => {
+    const onDirtyChange = vi.fn();
+    const user = userEvent.setup();
+    renderPanel(undefined, { onDirtyChange });
+
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenCalledWith(false);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Default template")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByLabelText("Default template"));
+    await user.click(await screen.findByRole("option", { name: "QA failure" }));
+
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    });
   });
 
   it("shows no default template when the config is empty", async () => {
@@ -156,6 +184,8 @@ describe("ProjectIssueTemplatesPanel", () => {
       expect(screen.getByLabelText("Default template")).toBeInTheDocument();
     });
 
+    await user.click(screen.getByLabelText("Default template"));
+    await user.click(await screen.findByRole("option", { name: "QA failure" }));
     await user.click(screen.getByRole("button", { name: "Save template settings" }));
 
     await waitFor(() => expect(putCalls).toHaveLength(1));
@@ -166,7 +196,7 @@ describe("ProjectIssueTemplatesPanel", () => {
     // The assignee binding must survive a save that never touched it — PUT is a full-object
     // replace, so re-sending only the field the admin actually changed would silently wipe it.
     expect(body).toEqual({
-      defaultTemplateKey: null,
+      defaultTemplateKey: "tpl_qa_failure",
       assigneeByTemplate: { tpl_qa_failure: "user_mina" },
     });
   });

@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -44,12 +44,55 @@ import { ProjectSettingsSectionHeading } from "./project-settings-section-headin
 
 const NO_TEMPLATE_VALUE = "__no_template__";
 
+function assigneeMapsEqual(left: Record<string, string>, right: Record<string, string>): boolean {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if ((left[key] ?? null) !== (right[key] ?? null)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function draftAssigneeMapForCompare(
+  assigneeByTemplate: Record<string, string>,
+  serverBindings: IssueSheetTemplateConfig["assigneeByTemplate"],
+): Record<string, string> {
+  const serverBindingByTemplate = new Map(
+    serverBindings.map((binding) => [binding.templateKey, binding]),
+  );
+  return Object.fromEntries(
+    Object.entries(assigneeByTemplate).filter(([templateKey, userId]) => {
+      const serverBinding = serverBindingByTemplate.get(templateKey);
+      return !(serverBinding && !serverBinding.assignable && serverBinding.userId === userId);
+    }),
+  );
+}
+
+function issueSheetTemplateDraftIsDirty(
+  config: IssueSheetTemplateConfig,
+  defaultTemplateKey: string | null,
+  assigneeByTemplate: Record<string, string>,
+): boolean {
+  if (defaultTemplateKey !== config.defaultTemplateKey) {
+    return true;
+  }
+
+  const serverMap = Object.fromEntries(
+    config.assigneeByTemplate.map((binding) => [binding.templateKey, binding.userId]),
+  );
+  const draftMap = draftAssigneeMapForCompare(assigneeByTemplate, config.assigneeByTemplate);
+  return !assigneeMapsEqual(draftMap, serverMap);
+}
+
 export function ProjectIssueTemplatesPanel({
   organizationSlug,
   projectId,
+  onDirtyChange,
 }: {
   organizationSlug: string;
   projectId: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -73,6 +116,17 @@ export function ProjectIssueTemplatesPanel({
       ),
     );
   }, [configQuery.data]);
+
+  const isDirty = useMemo(() => {
+    if (!configQuery.data) {
+      return false;
+    }
+    return issueSheetTemplateDraftIsDirty(configQuery.data, defaultTemplateKey, assigneeByTemplate);
+  }, [assigneeByTemplate, configQuery.data, defaultTemplateKey]);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const serverBindingByTemplate = new Map(
     (configQuery.data?.assigneeByTemplate ?? []).map((binding) => [binding.templateKey, binding]),
@@ -226,7 +280,7 @@ export function ProjectIssueTemplatesPanel({
         <Button
           type="button"
           size="sm"
-          disabled={configQuery.isLoading || saveMutation.isPending}
+          disabled={configQuery.isLoading || saveMutation.isPending || !isDirty}
           onClick={() => saveMutation.mutate()}
         >
           {saveMutation.isPending ? <Spinner className="size-4" /> : null}
