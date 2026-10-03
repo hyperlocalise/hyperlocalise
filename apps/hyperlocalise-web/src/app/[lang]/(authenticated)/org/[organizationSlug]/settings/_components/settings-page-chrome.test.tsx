@@ -15,7 +15,7 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vite-plus/test";
 
-import { SettingsLayoutFrame } from "./settings-page-chrome";
+import { SettingsLayoutFrame, SettingsPageBody } from "./settings-page-chrome";
 
 describe("SettingsLayoutFrame", () => {
   it("keeps a flexing content scroll region when the panes stack below md", () => {
@@ -30,5 +30,21 @@ describe("SettingsLayoutFrame", () => {
 
     const contentPane = frame?.lastElementChild;
     expect(contentPane).toHaveClass("min-h-0", "flex-1", "overflow-y-auto");
+
+    const paddedBody = contentPane?.firstElementChild;
+    expect(paddedBody).toHaveClass("pt-8", "pb-12", "ps-8", "pe-12");
+  });
+});
+
+describe("SettingsPageBody", () => {
+  it("constrains form pages without adding its own padding", () => {
+    const { container } = render(
+      <SettingsPageBody>
+        <p>General</p>
+      </SettingsPageBody>,
+    );
+
+    expect(container.firstElementChild).toHaveClass("w-full", "max-w-xl");
+    expect(container.firstElementChild).not.toHaveClass("pt-8", "pb-12", "ps-8", "pe-12");
   });
 });

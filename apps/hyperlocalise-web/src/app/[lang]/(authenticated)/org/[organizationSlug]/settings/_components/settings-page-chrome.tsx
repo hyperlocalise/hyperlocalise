@@ -30,9 +30,7 @@ export function SettingsPageBody({
   width?: "form" | "wide";
 }) {
   return (
-    <Box paddingTop="4u" paddingBottom="6u" paddingStart="4u" paddingEnd="6u">
-      <div className={width === "form" ? "w-full max-w-xl" : "w-full max-w-5xl"}>{children}</div>
-    </Box>
+    <div className={width === "form" ? "w-full max-w-xl" : "w-full max-w-5xl"}>{children}</div>
   );
 }
 
@@ -59,7 +57,11 @@ export function SettingsLayoutFrame({ nav, children }: { nav: ReactNode; childre
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
       <div className="w-full shrink-0 md:h-full md:w-auto">{nav}</div>
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</div>
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <Box paddingTop="4u" paddingBottom="6u" paddingStart="4u" paddingEnd="6u">
+          {children}
+        </Box>
+      </div>
     </div>
   );
 }
