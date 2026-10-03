@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  isContentEditorGroupingAvailable,
   isNativeContentEditorFile,
   isNativeContentEditorProviderKind,
 } from "./content-editor-native-project";
@@ -41,5 +42,14 @@ describe("isNativeContentEditorFile", () => {
 
   it("rejects files attached to an external provider", () => {
     expect(isNativeContentEditorFile({ provider: { kind: "crowdin" } })).toBe(false);
+  });
+});
+
+describe("isContentEditorGroupingAvailable", () => {
+  it("requires a loaded native file", () => {
+    expect(isContentEditorGroupingAvailable(null)).toBe(false);
+    expect(isContentEditorGroupingAvailable(undefined)).toBe(false);
+    expect(isContentEditorGroupingAvailable({ provider: { kind: "native" } })).toBe(true);
+    expect(isContentEditorGroupingAvailable({ provider: { kind: "crowdin" } })).toBe(false);
   });
 });

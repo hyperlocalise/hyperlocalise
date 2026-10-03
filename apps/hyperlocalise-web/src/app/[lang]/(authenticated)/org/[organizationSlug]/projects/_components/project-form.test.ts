@@ -54,6 +54,23 @@ describe("project form helpers", () => {
     });
   });
 
+  it("does not crash dirty checks when the shared project cache is a raw API row", () => {
+    const values = createProjectFormFromRow({
+      id: "project_1234abcd",
+      name: "Website Launch",
+      identifier: "WL",
+      description: "Marketing site refresh",
+      translationContext: "Use a concise launch voice.",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR", "de-DE"],
+    } as ReturnType<typeof mapProjectToListRow>);
+
+    expect(values.description).toBe("Marketing site refresh");
+    expect(values.translationContext).toBe("Use a concise launch voice.");
+    expect(projectSettingsSectionIsDirty("general", values, values)).toBe(false);
+    expect(projectSettingsSectionIsDirty("styleGuide", values, values)).toBe(false);
+  });
+
   it("validates required name and supported field lengths", () => {
     const errors = validateProjectForm({
       name: "   ",

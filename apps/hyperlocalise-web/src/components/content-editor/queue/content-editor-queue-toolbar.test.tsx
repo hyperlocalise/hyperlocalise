@@ -16,6 +16,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
 
+import { ContentEditorGroupingProvider } from "@/components/content-editor/groups/content-editor-grouping-context";
 import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 
 import { ContentEditorQueueToolbar } from "./content-editor-queue-toolbar";
@@ -176,6 +177,30 @@ describe("ContentEditorQueueToolbar", () => {
     expect(onSelectAllVisible).not.toHaveBeenCalled();
     expect(onBulkHide).not.toHaveBeenCalled();
     expect(onBulkApprove).not.toHaveBeenCalled();
+  });
+
+  it("shows the native string view control when grouping is available", () => {
+    renderWithContentEditorProviders(
+      <ContentEditorGroupingProvider
+        value={{
+          view: "individual",
+          preference: null,
+          changeView: vi.fn(),
+        }}
+      >
+        <ContentEditorQueueToolbar queueFilter="all" onQueueFilterChange={vi.fn()} />
+      </ContentEditorGroupingProvider>,
+    );
+
+    expect(screen.getByRole("combobox", { name: "String view" })).toBeInTheDocument();
+  });
+
+  it("hides the string view control when grouping is not available", () => {
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar queueFilter="all" onQueueFilterChange={vi.fn()} />,
+    );
+
+    expect(screen.queryByRole("combobox", { name: "String view" })).not.toBeInTheDocument();
   });
 
   it("shows multi-select checkbox when onSelectionModeChange is provided, even without bulk handlers", () => {

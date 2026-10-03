@@ -24,3 +24,11 @@ export function isNativeContentEditorFile(
 ): boolean {
   return isNativeContentEditorProviderKind(file?.provider?.kind);
 }
+
+export function isContentEditorGroupingAvailable(
+  file?: {
+    provider?: { kind?: string | null } | null;
+  } | null,
+): boolean {
+  return file != null && isNativeContentEditorFile(file);
+}

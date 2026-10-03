@@ -63,12 +63,12 @@ export function createEmptyProjectForm(): ProjectFormValues {
 export function createProjectFormFromRow(project: ProjectListRow): ProjectFormValues {
   return {
     name: project.name,
-    identifier: project.identifier,
-    description: project.descriptionValue,
-    translationContext: project.translationContextValue,
+    identifier: project.identifier ?? "",
+    description: project.descriptionValue ?? project.description ?? "",
+    translationContext: project.translationContextValue ?? project.translationContext ?? "",
     sourceLocale: project.sourceLocale ?? defaultNativeProjectSourceLocale,
     targetLocales:
-      project.targetLocales.length > 0
+      project.targetLocales?.length > 0
         ? project.targetLocales
         : [...defaultNativeProjectTargetLocales],
   };
@@ -214,8 +214,8 @@ export function toProjectPayload(
 
 export type ProjectSettingsSection = "general" | "styleGuide" | "locales";
 
-function normalizedText(value: string) {
-  return value.trim();
+function normalizedText(value: string | undefined) {
+  return (value ?? "").trim();
 }
 
 function normalizedIdentifier(value: string) {

@@ -12,30 +12,25 @@
  * use of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Activity, useEffect, useState, type ReactNode } from "react";
+import { Activity, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useQuery } from "@tanstack/react-query";
-import { FormattedMessage, useIntl } from "react-intl";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { CAT_QUEUE_TOOLBAR_HOST_ID } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import {
   attemptCatPageNavigation,
   type ContentEditorPageNavigationGuardRef,
 } from "../workspace/content-editor-page-navigation-guard";
+import {
+  ContentEditorGroupingProvider,
+  type ContentEditorGroupingViewMode,
+} from "./content-editor-grouping-context";
+import { ContentEditorGroupingViewSwitcher } from "./content-editor-grouping-view-switcher";
 import { ContentEditorGroupBrowser, GroupLoading } from "./content-editor-group-browser";
-import { groupMessages as m } from "./content-editor-groups.messages";
 
 import { SegmentActivityProvider } from "../activity-log/content-editor-segment-activity";
 
-type View = "individual" | "grouped";
+type View = ContentEditorGroupingViewMode;
 
 export function ContentEditorGroupingView(props: {
   client: GoSvcClient;
@@ -77,11 +72,11 @@ function GroupingViewState({
   storageKey,
   ...scope
 }: Parameters<typeof ContentEditorGroupingView>[0] & { storageKey: string }) {
-  const intl = useIntl();
   const [preference, setPreference] = useState<View | null>(null);
   const [ready, setReady] = useState(false);
   const [defaultView, setDefaultView] = useState<View | null>(null);
   const [openedDirectly, setOpenedDirectly] = useState(Boolean(initialSegmentKey));
+  const [toolbarHostPresent, setToolbarHostPresent] = useState<boolean | null>(null);
   useEffect(() => {
     setOpenedDirectly(Boolean(initialSegmentKey));
   }, [initialSegmentKey]);
@@ -94,6 +89,9 @@ function GroupingViewState({
     }
     setReady(true);
   }, [storageKey]);
+  useEffect(() => {
+    setToolbarHostPresent(Boolean(document.getElementById(CAT_QUEUE_TOOLBAR_HOST_ID)));
+  }, []);
   const behavior = useQuery({
     queryKey: ["cat-grouping-default", scope.organizationSlug, scope.projectId],
     queryFn: ({ signal }) =>
@@ -113,47 +111,29 @@ function GroupingViewState({
     );
   }
   const view = openedDirectly ? "individual" : (preference ?? defaultView ?? "individual");
-  const changeView = (next: View | null) =>
-    attemptCatPageNavigation(navigationGuardRef, () => {
-      setOpenedDirectly(false);
-      setPreference(next);
-      try {
-        if (next === null) window.localStorage.removeItem(storageKey);
-        else window.localStorage.setItem(storageKey, next);
-      } catch {
-        /* Keep the view usable when browser storage is disabled. */
-      }
-    });
+  const changeView = useCallback(
+    (next: View | null) =>
+      attemptCatPageNavigation(navigationGuardRef, () => {
+        setOpenedDirectly(false);
+        setPreference(next);
+        try {
+          if (next === null) window.localStorage.removeItem(storageKey);
+          else window.localStorage.setItem(storageKey, next);
+        } catch {
+          /* Keep the view usable when browser storage is disabled. */
+        }
+      }),
+    [navigationGuardRef, storageKey],
+  );
+  const grouping = useMemo(
+    () => ({ view, preference, changeView }),
+    [changeView, preference, view],
+  );
   if (!ready || (!preference && !defaultView && !openedDirectly)) return <GroupLoading />;
+  const showInlineSwitcher = view === "grouped" || toolbarHostPresent === false;
   return (
-    <>
-      <div className="flex flex-wrap items-center gap-2">
-        <Select
-          value={view}
-          onValueChange={(value) => {
-            if (value === "individual" || value === "grouped") changeView(value);
-          }}
-        >
-          <SelectTrigger aria-label={intl.formatMessage(m.view)}>
-            <SelectValue>{intl.formatMessage(m[view])}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="individual">
-                <FormattedMessage {...m.individual} />
-              </SelectItem>
-              <SelectItem value="grouped">
-                <FormattedMessage {...m.grouped} />
-              </SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        {preference ? (
-          <Button variant="ghost" size="sm" onClick={() => changeView(null)}>
-            <FormattedMessage {...m.projectDefault} />
-          </Button>
-        ) : null}
-      </div>
+    <ContentEditorGroupingProvider value={grouping}>
+      {showInlineSwitcher ? <ContentEditorGroupingViewSwitcher /> : null}
       <Activity mode={view === "individual" ? "visible" : "hidden"}>{children}</Activity>
       {view === "grouped" ? (
         <ContentEditorGroupBrowser
@@ -161,6 +141,6 @@ function GroupingViewState({
           {...scope}
         />
       ) : null}
-    </>
+    </ContentEditorGroupingProvider>
   );
 }

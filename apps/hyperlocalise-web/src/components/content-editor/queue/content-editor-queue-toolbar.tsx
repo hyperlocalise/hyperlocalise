@@ -49,6 +49,7 @@ import {
   type ContentEditorQueueSort,
 } from "./content-editor-queue-filter";
 import { contentEditorQueuePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
+import { ContentEditorGroupingViewSwitcher } from "@/components/content-editor/groups/content-editor-grouping-view-switcher";
 import { ContentEditorWorkspaceViewSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-view-switcher-connected";
 import { ContentEditorWorkspacePersonaSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-persona-switcher-connected";
 import type { ContentEditorWorkspacePersona } from "@/components/content-editor/workspace/content-editor-workspace-persona";
@@ -447,6 +448,7 @@ export function ContentEditorQueueToolbar({
         ) : null}
 
         {adaptiveWorkspaceEnabled ? <ContentEditorWorkspacePersonaSwitcherConnected /> : null}
+        <ContentEditorGroupingViewSwitcher compact />
         <ContentEditorWorkspaceViewSwitcherConnected />
       </div>
     </div>

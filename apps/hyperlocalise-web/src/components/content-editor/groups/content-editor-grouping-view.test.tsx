@@ -16,6 +16,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { useEffect, useState } from "react";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { CAT_QUEUE_TOOLBAR_HOST_ID } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import { renderWithContentEditorProviders } from "../shared/content-editor-test-utils";
 import { ContentEditorGroupingView } from "./content-editor-grouping-view";
 
@@ -29,6 +30,7 @@ vi.mock("./content-editor-group-browser", () => ({
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  document.getElementById(CAT_QUEUE_TOOLBAR_HOST_ID)?.remove();
 });
 const STORAGE_KEY = "cat-grouping-v1:user-1:acme:p1";
 
@@ -100,6 +102,14 @@ describe("personal string view", () => {
     expect(screen.queryByRole("textbox", { name: "Translation" })).not.toBeInTheDocument();
     await selectView(user, "Individual strings");
     expect(await screen.findByRole("textbox", { name: "Translation" })).toHaveValue("Bonjour");
+  });
+
+  it("leaves the string view control to the queue toolbar when that host is mounted", async () => {
+    document.body.insertAdjacentHTML("beforeend", `<div id="${CAT_QUEUE_TOOLBAR_HOST_ID}"></div>`);
+    localStorage.setItem(STORAGE_KEY, "individual");
+    setup(false);
+    expect(await screen.findByRole("textbox", { name: "Translation" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "String view" })).not.toBeInTheDocument();
   });
 
   it("opens a direct segment link in the individual editor without rewriting preference", async () => {

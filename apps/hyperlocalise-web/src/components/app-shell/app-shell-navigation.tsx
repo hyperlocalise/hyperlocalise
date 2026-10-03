@@ -32,13 +32,12 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
-import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { cn } from "@/lib/primitives/cn";
-import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   createInboxNotificationsApi,
   notificationsUnreadCountQueryKey,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-notifications-api";
+import { useProjectPageQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-page-shell";
 
 import { appShellNavigationMessages } from "./app-shell-navigation.messages";
 import { OrgNavLink } from "./org-nav-link";
@@ -213,29 +212,8 @@ function ProjectNavigation({
   groups?: readonly NavigationGroup[];
 }) {
   const intl = useIntl();
-  const { client: goSvcClient } = useGoSvcClient();
-  const projectQuery = useQuery({
-    queryKey: ["translation-project", organizationSlug, projectId],
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
     enabled: !projectName && !items && !groups,
-    queryFn: async () => {
-      if (parseProviderProjectId(projectId)) {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-          param: { organizationSlug, projectId },
-        });
-        if (response.status !== 200) {
-          throw new Error(`Failed to load project (${response.status})`);
-        }
-        const body = await response.json();
-        return body.project;
-      }
-
-      try {
-        const body = await goSvcClient.project.get(organizationSlug, projectId);
-        return body.project;
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, "Failed to load project"), { cause: error });
-      }
-    },
   });
 
   const store = useAppShellStore();
