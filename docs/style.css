@@ -1,0 +1,84 @@
+/* Keep the help tree compact and consistent on desktop and mobile. */
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) {
+    --help-nav-text: #475569;
+    --help-nav-heading: #18242e;
+    --help-nav-line: #e2e8f0;
+    --help-nav-hover: #f1f5f9;
+    --help-nav-active: #e8f3ef;
+    --help-nav-accent: #17634f;
+}
+
+.dark :is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) {
+    --help-nav-text: #b5bdc4;
+    --help-nav-heading: #edf1f3;
+    --help-nav-line: #2c353b;
+    --help-nav-hover: #1c252a;
+    --help-nav-active: #1b302a;
+    --help-nav-accent: #a0d9c0;
+}
+
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group {
+    font-size: 14px;
+    line-height: 22px;
+}
+
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group :is(a, button) {
+    min-height: 32px;
+    padding-block: 5px;
+    border-radius: 6px;
+    color: var(--help-nav-text);
+    text-shadow: none;
+}
+
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group :is(a, button):hover {
+    background: var(--help-nav-hover);
+    color: var(--help-nav-heading);
+}
+
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group button {
+    width: 100%;
+    justify-content: space-between;
+}
+
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group > li[data-group-tag] {
+    margin-block: 8px;
+}
+
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group > li[data-group-tag] > button {
+    font-weight: 600;
+    color: var(--help-nav-heading);
+}
+
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group ul {
+    margin-inline-start: 16px;
+    border-inline-start: 1px solid var(--help-nav-line);
+    padding-inline-start: 4px;
+}
+
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group ul :is(a, button) {
+    padding-inline-start: 12px !important;
+}
+
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group a[aria-current="page"] {
+    background: var(--help-nav-active);
+    color: var(--help-nav-accent);
+    font-weight: 600;
+}
+
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group :is(a, button):focus-visible {
+    outline: 2px solid var(--help-nav-accent);
+    outline-offset: -2px;
+}
+
+@media (max-width: 1023px) {
+    #mobile-nav #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group :is(a, button) {
+        min-height: 44px;
+        align-items: center;
+    }
+}
+
+:is(#sidebar, #mobile-nav) #navigation-items:has([data-title="Project management"], [data-title="Configuration"]) .sidebar-group button svg {
+    width: 12px;
+    height: 12px;
+    color: var(--help-nav-text);
+}

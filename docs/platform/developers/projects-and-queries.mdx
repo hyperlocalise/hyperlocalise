@@ -1,0 +1,54 @@
+---
+title: "Projects and Queries API"
+description: "Read your token identity, accessible projects, and workspace Queries with a personal access token."
+---
+
+Use this read-only API for project discovery and Queries. To upload files or create translation jobs, use the separate [Files and jobs API](/platform/api).
+
+## Before you start
+
+Create a [personal access token](/platform/settings#personal-access-tokens) and export it as `HYPERLOCALISE_API_KEY` in your shell. The token inherits its owner's current role and project access.
+
+| Resource | Permission |
+| --- | --- |
+| Projects | `projects:read` or `files:read` |
+| Queries | `queries:read` or `files:read`, plus the workspace's Queries entitlement |
+
+## Verify your identity
+
+```bash
+curl --fail-with-body "https://api.hyperlocalise.com/v1/me"     -H "x-api-key: $HYPERLOCALISE_API_KEY"
+```
+
+The JSON response contains `principal`, including token and workspace identifiers, effective permissions, and entitlements. Verify that it identifies the workspace you intended before requesting its resources.
+
+## List projects
+
+```bash
+curl --fail-with-body "https://api.hyperlocalise.com/v1/projects?limit=20&offset=0"     -H "x-api-key: $HYPERLOCALISE_API_KEY"
+```
+
+Only accessible projects are returned. Use the returned identifiers when requesting a project's details.
+
+## List Queries
+
+```bash
+curl --fail-with-body "https://api.hyperlocalise.com/v1/queries?status=open&limit=20&offset=0"     -H "x-api-key: $HYPERLOCALISE_API_KEY"
+```
+
+Queries support filters including project, status, type, priority, locale, assignee, and search. Follow the API reference for exact fields and allowed values. Use `limit` and `offset` to page through collections.
+
+## Reference and errors
+
+The service exposes its [interactive reference](https://api.hyperlocalise.com/docs) and [OpenAPI document](https://api.hyperlocalise.com/openapi.yaml). These describe Projects and Queries, not the file and translation-job endpoints on `hyperlocalise.com`.
+
+| Status | Next step |
+| --- | --- |
+| `401` | Check the token value and whether it has been revoked. |
+| `403` | Check effective permissions, workspace access, and Queries entitlement. |
+| `404` | Check the resource ID and project access; inaccessible resources also return this status. |
+| `503` | Retry later; if it persists, contact support with the timestamp and error. |
+
+## Next
+
+Use [Files and jobs](/platform/api) to build a translation workflow, or [MCP](/platform/mcp) for an agent connection.

@@ -1,43 +1,72 @@
 ---
 title: "Your first translation"
-description: "Create a Platform project and take one source file through translation, review, and download."
+description: "Use a small sample file to create a project, translate into French, review the result, and download it."
 ---
 
-Start with a small source file and one target language. This walkthrough uses a native Hyperlocalise project, where Platform stores your files and translations. Files and languages in a connected TMS project are managed by that provider.
+Take one source file through upload, translation, review, and download. This walkthrough uses a native project with English (`en-US`) source text and French (`fr-FR`) as the target.
 
-## 1. Sign in and choose a workspace
+## Before you start
 
-Open [Hyperlocalise](https://www.hyperlocalise.com), sign in, and select your organization. If a teammate invited you, accept the invitation using the invited email address. Ask an administrator for project access if the workspace is empty.
+Sign in to [Hyperlocalise](https://www.hyperlocalise.com) and select your workspace. You need permission to create a project and request translation, available workspace usage, and an authorized reviewer for approval. If a teammate invited you, accept using the invited email address.
+
+If your content lives in another TMS, start with [connected projects](/platform/tms). For a role-specific path, see [managers](/platform/getting-started/managers), [translators and reviewers](/platform/getting-started/translators), or [developers](/platform/getting-started/developers).
+
+## 1. Prepare the sample
+
+[Download checkout.json](/samples/checkout.json), or save this content as `checkout.json`:
+
+```json
+{
+    "checkout.title": "Your order",
+    "checkout.continue": "Continue to payment",
+    "checkout.back": "Back to cart"
+}
+```
+
+Keep the keys unchanged. Only the values need translation.
 
 ## 2. Create a project
 
-Open **Projects**, create a project, enter a recognizable name, and choose the source and target locales. Select **Save project**. See [Create a project](/platform/projects/create-project) for language and access details.
+Open **Projects** and select **Create project** (or **Create native project** in a TMS-first workspace). Name it `Checkout`, set the source locale to `en-US`, and keep only `fr-FR` as the target. Select **Save project**.
 
-## 3. Upload a source file
+You should see **Project created** and the project in the list. Open it and confirm its languages. See [Create a project](/platform/projects/create-project) for detailed setup and recovery steps.
 
-Open the project’s **Files**, select **Add files**, choose your file, then select **Upload**. Wait for the upload to finish and confirm that the file appears. Uploading makes the source available; generation is a separate step.
+## 3. Upload the source file
+
+Open **Files**, select **Add files**, and choose `checkout.json`. Review **Ready to upload**, then select **Upload**. Wait for completion and confirm the file appears.
+
+Uploading stores source content. It does not generate translations unless a matching automation is active. For this walkthrough, check whether an automation already handles uploads before submitting the same work manually.
+
+If the file is missing, follow [upload troubleshooting](/platform/help/uploads).
 
 ## 4. Request a translation
 
-Open **New Request** under **Agents**. Specify the project, source path, and target locale. For example:
+Open **New Request** under **Agents** and enter:
 
 ```text
-Translate checkout.json in the Checkout project from en to fr.
-Use the project guideline and glossary. Leave the translations for review.
+Translate checkout.json in the Checkout project from en-US to fr-FR.
+Keep the three translation keys unchanged. Translate only their values.
+Leave the translations for human review.
 ```
 
-Check the selected project and tools before proceeding with the request. Follow the work in **My Jobs** or the project’s jobs. See [Start a translation](/platform/translation/start) if generation is unavailable or fails.
+Check the selected project and available tools before proceeding. Follow the request in **My Jobs** or the project's jobs. Wait for generation to finish; see [Start a translation](/platform/translation/start) and [job recovery](/platform/translation/jobs) if it fails.
 
 ## 5. Review the result
 
-Open the source file in **Files**, choose the target locale, and review it in the [Content Editor](/platform/cat). Check terminology, placeholders, and context before approving. A completed generation job does not mean a reviewer has approved every translation.
+Open `checkout.json` from **Files**, select `fr-FR`, and inspect its three strings in the [Content Editor](/platform/cat). Confirm the target values are French and fit a checkout interface. For example, “Your order” might become “Votre commande”; wording can vary with your guidance.
 
-## 6. Download translations
+Check **Untranslated** and **Has issues** as well as **Needs review**. Ask an authorized reviewer to approve the final text. A completed generation job does not mean the translations have been approved.
 
-Open **Download translations** from the project’s files view. Select your source file and target locale, then select **Download**. Check the resulting file in your application before publishing it.
+## 6. Download and verify
 
-The editor’s queue download exports a filtered segment list. Use [Download translations](/platform/translation/download) when you need the translated source-file format.
+Open **Download translations** from the project's files view. Select `checkout.json` and `fr-FR`, then select **Download**.
 
-## Next steps
+Open the resulting JSON file. Confirm all three keys remain unchanged and their values contain the reviewed French text. Load it in your application before publishing. See [Download translated files](/platform/translation/download) if output is missing or incorrect.
 
-Add [language resources](/platform/knowledge), invite [reviewers](/platform/workspace/members), or [automate the next upload](/platform/automation/create-automation).
+<Note>
+The Content Editor's queue download exports a filtered segment list. Use the project's **Download translations** action when you need the translated source-file format.
+</Note>
+
+## Next
+
+Add [language resources](/platform/knowledge), invite [reviewers](/platform/projects/access), or [automate the next upload](/platform/automation/create-automation). Keep the same source path when you [update the file](/platform/guides/update-source-content).

@@ -3,7 +3,9 @@ title: "Connect the CLI"
 description: "Connect git and CI to Hyperlocalise Platform with an API key."
 ---
 
-The all-in-one Hyperlocalise CLI connects repositories and CI to Platform, and also provides [commands for Crowdin, Lokalise, Phrase Strings, and Smartling](/cli/storage/overview). It talks to Platform over the [public API](/platform/api). There is no `hyperlocalise login` command. You create an API key in Platform and inject it at runtime.
+Connect your repository to Hyperlocalise Platform so your team can translate and review in a shared workspace while you deliver through Git and CI. Upload source files with the CLI, manage translation in Platform, and pull project translations back into your app.
+
+Before you begin, [install Hyperlocalise CLI](/cli/getting-started/install) and [create a project](/platform/projects/create-project). You will connect it with an API key.
 
 ## Create an API key
 
@@ -19,15 +21,38 @@ Default permissions are `files:read`, `files:write`, `jobs:read`, and `jobs:writ
 
 ## Point the CLI at the project
 
-Open the project, then **Settings**. The **Connect CLI & CI** panel shows the **Project ID** and a **Sample i18n.yml**. Copy both.
+Open the project, then **Settings**. The **Connect CLI & CI** panel shows the **Project ID** and a **Sample i18n.yml**. Copy both. Keep the sample file mappings, then adjust them to match your repository.
+
+For example, this configuration uploads `locales/en-US.json` and maps Spanish translations to `locales/es-ES.json`:
 
 ```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    app:
+        files:
+            - from: locales/{{source}}.json
+              to: locales/{{target}}.json
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+
 hyperlocalise:
-  project_id: project_123
-  api_base_url: https://hyperlocalise.com/api
-  api_key_env: HYPERLOCALISE_API_KEY
-  timeout_seconds: 1200
+    project_id: project_123
+    api_base_url: https://hyperlocalise.com/api
+    api_key_env: HYPERLOCALISE_API_KEY
+    timeout_seconds: 1200
 ```
+
+The CLI configuration requires an `llm.profiles` entry. Platform sync does not use it to generate translations or require an OpenAI key; it is used if you also run local translation.
+
+Replace `project_123` with your project ID and save the configuration as `i18n.yml` in your repository root.
 
 You can set `project_id_env` instead of `project_id` when the id should come from the environment. Field details are in [i18n config](/cli/configuration/i18n-config).
 

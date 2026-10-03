@@ -1,0 +1,30 @@
+---
+title: "Choose an API"
+sidebarTitle: "API overview"
+description: "Choose the API for project discovery, Queries, source files, or translation jobs."
+---
+
+Choose the API that serves your task. The two interfaces use different base URLs and expose different resources.
+
+| Task | Base URL | Authentication | Guide |
+| --- | --- | --- | --- |
+| Upload source files, create translation jobs, download translations | `https://hyperlocalise.com/api/v1` | Platform API key or supported personal token in `x-api-key`, with file/job scopes | [Files and jobs](/platform/api) |
+| Read your identity, accessible projects, and Queries | `https://api.hyperlocalise.com/v1` | Personal access token in `x-api-key`, with the required effective permissions | [Projects and Queries](/platform/developers/projects-and-queries) |
+
+[CLI Platform sync](/platform/cli) uses the files and jobs API. Keep its `api_base_url` at `https://hyperlocalise.com/api` unless you are using a separately configured environment. Do not replace it with the Projects and Queries host.
+
+## Choose credentials
+
+Use workspace **Settings** to create the [API key or personal token](/platform/settings) required by your integration. Store its value in your environment or CI secret manager.
+
+Access depends on the credential's permissions and its owner's current workspace and project access. A token does not grant access its owner lacks. Queries also depend on the workspace's entitlement.
+
+## Verify the connection
+
+For Projects and Queries, start with the read-only identity request in its guide, then list accessible projects. For file translation, follow the upload and download examples in [Files and jobs](/platform/api), using one source file and one target locale.
+
+Keep the host, resource, HTTP status, and error code when investigating a failure. For an access problem, check [roles and permissions](/platform/workspace/roles).
+
+## Next
+
+Connect an AI agent through [MCP](/platform/mcp) if you want tool-based access instead of writing HTTP requests.

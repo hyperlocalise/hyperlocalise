@@ -5,19 +5,19 @@ description: "Troubleshoot frequent setup, config, provider, and sync failures."
 
 ## `i18n.yml already exists; use --force to overwrite`
 
-Cause: running `init` where config already exists.
+Your project already has a configuration. Open `i18n.yml` and update its locales, paths, or provider settings, then preview with `hyperlocalise run --dry-run`.
 
-Fix:
+If you deliberately want to replace it with a starter, save a copy first, then run `hyperlocalise init --force`. This overwrites the existing configuration. See [Configure your project](/cli/configuration/i18n-config).
 
-```bash
-hyperlocalise init --force
-```
+## `sync requires top-level "hyperlocalise" or "storage.adapter"`
 
-## `storage config is required`
+Choose the destination before adding configuration:
 
-Cause: `sync` command used without top-level `storage` config.
+- For Hyperlocalise Platform, add the top-level `hyperlocalise` block from [Connect the CLI](/platform/cli).
+- For experimental TMS entry sync, add `storage.adapter` and the provider's `storage.config`. See [TMS integrations](/cli/storage/overview).
+- For provider file operations, use the provider command family, such as `crowdin` or `phrase`, with its own configuration.
 
-Fix: add `storage.adapter` and `storage.config` in `i18n.yml`.
+If both `hyperlocalise` and `storage` are configured, Platform takes precedence. Use separate config files when you need both destinations.
 
 ## `unsupported output format`
 
@@ -26,7 +26,7 @@ Cause: wrong `--output` value.
 Fixes:
 
 - `status`: only `csv`
-- `sync`: `text` or `json`
+- `sync`: `text`, `json`, or `markdown` (also accepts `md`)
 
 ## `unsupported file extension` during `run`
 
@@ -41,9 +41,9 @@ For `.xcstrings`, ensure the catalog has a `strings` object and either a source-
 
 ## Provider auth failures
 
-Cause: missing/invalid env token.
+Check the credentials for the operation you are running. Local generation uses [AI provider credentials](/cli/configuration/provider-credentials); Platform sync uses a [Platform API key](/platform/cli); provider commands use that TMS's credentials.
 
-Fix: re-export token in the same shell session and rerun.
+Confirm the environment variable name in the configuration and set its value in the same shell or CI job. Check the account's access and whether the credential was revoked. Retry only after correcting the cause.
 
 ## Related guides
 

@@ -1,116 +1,50 @@
 ---
-title: "Choose the best localization CLI for your workflow"
+title: "Why use Hyperlocalise CLI with Platform?"
 sidebarTitle: "Why Hyperlocalise?"
-description: "Compare Hyperlocalise with provider-specific CLIs and custom scripts. Choose an all-in-one localization CLI for AI translation, multiple TMS workflows, and CI."
+description: "Keep delivery in your repository and give your team a shared workspace for translation, review, and language resources."
 ---
 
-Hyperlocalise is the all-in-one localization CLI for local AI translation, checks,
-and supported TMS workflows. Use one installation with Crowdin, Lokalise, Phrase
-Strings, or Smartling, and keep translation files in your repository.
+Hyperlocalise CLI connects your codebase to Hyperlocalise Platform. Together, they
+give developers, translators, and managers a shared path from source content to
+translations ready for review and release.
 
-Choose your AI provider, generate drafts, review changes in Git, and send content
-to your translation platform using the appropriate command family. For flat JSON
-catalogs, shared TMS entry sync also supports POEditor and LILT AI.
+## Keep developers and reviewers in sync
 
-## Who this is for
+Upload source files from your repository with `hyperlocalise sync push`. Your team
+can translate and review them in Platform, then you retrieve project translations
+with `hyperlocalise sync pull`. Review the resulting diff before release.
 
-Hyperlocalise is a good fit if your team:
+Developers keep their Git and CI workflow. Reviewers use the
+[translation editor](/platform/cat) without setting up a local development environment.
 
-- keeps translation files in your repository,
-- uses AI drafts as a starting point rather than final output,
-- may use human curation for some workflows but wants it to be optional,
-- wants CI-visible status and quality checks around localization work.
+## Manage more than files
 
-## Why teams choose Hyperlocalise
+Use Platform to organize projects and target languages, maintain glossaries and
+translation memory, and track translation jobs. [Automations](/platform/automations)
+help you repeat translation tasks as content changes.
 
-### 1. Developer velocity with operational guardrails
+A source upload does not automatically generate translations. Start a translation
+request or configure a Source upload automation for that project.
 
-The CLI is designed around plan-first workflows. You can inspect work with `--dry-run`, generate drafts locally, and rerun incrementally with lockfile-backed checkpoints.
+## Connect your release workflow
 
-This reduces repeated translation work while keeping changes reviewable in normal Git diffs.
+Preview sync operations with `--dry-run` before writing files. Keep API keys in
+your CI secret manager and use explicit push and pull steps in your pipeline.
+The [connection guide](/platform/cli) covers configuration and credentials.
 
-### 2. Human curation is supported, not required
+## Start with one project
 
-Hyperlocalise does not assume machine output is production-ready.
+1. [Open Hyperlocalise](https://www.hyperlocalise.com) and [create a project](/platform/projects/create-project).
+2. [Install the CLI](/cli/getting-started/install).
+3. [Connect your repository](/platform/cli) and upload one source file.
+4. Translate and review in Platform, then pull the result into your repository.
 
-The intended loop is straightforward: generate drafts, push to your TMS, curate with human reviewers, then pull curated values back into the repository. This keeps source-of-truth decisions with your localization team.
+## Already have a translation workflow?
 
-If your team needs speed over review in specific pipelines, you can also run a local-only path and publish without TMS sync.
+You can use [local AI translation](/cli/getting-started/quickstart) without a
+Platform account. The CLI also provides [TMS integrations](/cli/storage/overview)
+for supported operations in existing accounts. Check each provider's documented
+commands and limits before replacing an existing script.
 
-### 3. Better visibility for release decisions
-
-Teams can use `status` reports to track translated, needs-review, and untranslated content by locale. For quality experiments, you can run [`eval` (experimental)](/cli/commands/eval) to compare candidate outputs against a baseline in a repeatable format.
-
-### 4. Provider and platform flexibility
-
-You can run multiple LLM providers and integrate with common TMS adapters (for example Crowdin, Lokalise, POEditor, Phrase, Smartling, and LILT AI) without redesigning your entire workflow around one vendor.
-
-## How it fits your existing workflow
-
-A typical path looks like this:
-
-1. Initialize config with [`init`](/cli/commands/init).
-2. Define locales, buckets, and profiles in [`i18n config`](/cli/configuration/i18n-config).
-3. Generate drafts with [`run`](/cli/commands/run).
-4. Optional curation path: choose [provider file commands or shared TMS entry sync](/cli/storage/overview), send content, curate in your TMS, and retrieve the result.
-5. Verify progress with [`status`](/cli/commands/status) before release.
-
-For a full curation sequence, see [TMS curation loop (experimental)](/cli/workflows/tms-curation-loop).
-
-## When the CLI is not the best fit
-
-Use [Hyperlocalise Platform](/) when your team wants infrastructure for multilingual content operations without running the CLI.
-
-The CLI is a poor fit if you:
-
-- cannot run repository-based workflows in developer or CI environments,
-- need every localization operation to stay inside a hosted UI with no local files.
-
-## Which localization CLI is best for your team?
-
-Choose by the operations you need, the files you maintain, and the review process
-you already trust. Hyperlocalise is an all-in-one option for teams combining local
-AI translation, Git-based review, and supported TMS commands.
-
-| Requirement | Hyperlocalise | Provider-specific CLI | Custom scripts |
-| --- | --- | --- | --- |
-| Several TMS providers in one executable | Four provider file command families and six experimental entry-sync adapters | Usually focused on its own provider | Depends on integrations you implement |
-| Local AI translation | `run` with a configured AI provider | Check the vendor's documented capabilities | Build and maintain generation logic |
-| Existing provider configuration | Supported Crowdin and Phrase settings; other file commands use flags | Best starting point for exact vendor configuration behavior | You own parsing and compatibility |
-| Full provider API coverage | Limited to documented operations | Check the official command reference | Implement the endpoints you need |
-| Git/CI delivery | Local files, explicit commands, and reviewable output | Depends on the command and workflow | You maintain retries, outputs, and delivery |
-
-Read the [Crowdin](/cli/commands/crowdin), [Lokalise](/cli/commands/lokalise),
-[Phrase Strings](/cli/commands/phrase), and [Smartling](/cli/commands/smartling)
-comparisons before replacing scripts. The best choice may differ by project;
-Hyperlocalise does not require every team to migrate every operation at once.
-
-## FAQ
-
-### Is Hyperlocalise a replacement for my TMS?
-
-No. Hyperlocalise is built to work with your TMS, not replace it. The intended model is local draft generation plus human curation in your existing translation platform.
-
-### Can I use Hyperlocalise with Crowdin, Lokalise, or POEditor?
-
-Yes. Hyperlocalise supports multiple TMS adapters, including Crowdin, Lokalise, and POEditor (plus Phrase, Smartling, and LILT AI).
-
-### Can this run in CI?
-
-Yes. Teams commonly run planning, generation, and reporting commands in CI to keep localization changes visible in standard release workflows.
-
-### Can I use generated translations without TMS review?
-
-Yes. Local generation writes translated files for your own delivery workflow.
-TMS curation is optional. Review and publish those files through your application's
-release process; running `run` alone does not deploy your application.
-
-## Next steps
-
-New user path: [Install](/cli/getting-started/install) -> [Quickstart](/cli/getting-started/quickstart) -> [i18n config](/cli/configuration/i18n-config)
-
-Evaluation path: [Quickstart](/cli/getting-started/quickstart) -> [`eval` (experimental)](/cli/commands/eval) -> [`status`](/cli/commands/status)
-
-TMS curation path: [TMS integrations](/cli/storage/overview) -> [`sync push` (experimental)](/cli/commands/sync-push) -> [TMS curation loop (experimental)](/cli/workflows/tms-curation-loop) -> [`sync pull` (experimental)](/cli/commands/sync-pull)
-
-Decision support: [Stability matrix](/cli/reference/stability-matrix)
+[Compare the three workflows](/cli/getting-started/workflows) to choose the right
+configuration and credentials for your project.

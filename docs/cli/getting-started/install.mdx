@@ -6,9 +6,9 @@ description: "Installation steps for hyperlocalise, including verification and u
 ## Prerequisites
 
 - macOS or Linux
-- one of: installer script, prebuilt binary, `.deb`/`.rpm` package, or Go toolchain
+- A terminal with `curl` and `bash` for the installer
 
-## Install with the bootstrap script
+## Install the CLI
 
 Use the stable bootstrap URL:
 
@@ -25,19 +25,6 @@ curl -fsSL https://hyperlocalise.com/install | VERSION=v1.2.3 bash
 When you open `https://hyperlocalise.com/install` in a browser, it redirects to this page. Terminal clients such as `curl` receive the installer script flow instead.
 
 The installer script is also attached to each GitHub release so you can review or download the tagged version directly from release assets.
-
-## Install from source (Go)
-
-```bash
-go install github.com/hyperlocalise/hyperlocalise@latest
-```
-
-## Build from repository
-
-```bash
-make bootstrap
-make install
-```
 
 ## Verify install
 
@@ -76,4 +63,6 @@ You can still re-run your original install method if preferred.
 
 ## Next step
 
-[Translate your first file](/cli/getting-started/quickstart) with a complete example.
+[Connect your repository to Hyperlocalise Platform](/platform/cli) to upload sources, work with your team, and pull translations into your app. Start by [creating a project](/platform/projects/create-project) if you do not have one yet.
+
+For a local workflow, [translate your first file](/cli/getting-started/quickstart) with your own AI provider.
