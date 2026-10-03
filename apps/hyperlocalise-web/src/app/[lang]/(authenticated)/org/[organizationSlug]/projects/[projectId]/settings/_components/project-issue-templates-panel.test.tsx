@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -73,7 +73,10 @@ function mockFetch(getBody: ReturnType<typeof templateConfigResponse> = template
   return { fetchMock, putCalls };
 }
 
-function renderPanel(getBody?: ReturnType<typeof templateConfigResponse>) {
+function renderPanel(
+  getBody?: ReturnType<typeof templateConfigResponse>,
+  options?: { onDirtyChange?: (dirty: boolean) => void },
+) {
   const { fetchMock, putCalls } = mockFetch(getBody);
   vi.stubGlobal("fetch", fetchMock);
 
@@ -83,7 +86,11 @@ function renderPanel(getBody?: ReturnType<typeof templateConfigResponse>) {
   render(
     <QueryClientProvider client={queryClient}>
       <IntlProvider locale="en" messages={{}}>
-        <ProjectIssueTemplatesPanel organizationSlug={organizationSlug} projectId={projectId} />
+        <ProjectIssueTemplatesPanel
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          onDirtyChange={options?.onDirtyChange}
+        />
       </IntlProvider>
     </QueryClientProvider>,
   );
@@ -101,6 +108,27 @@ describe("ProjectIssueTemplatesPanel", () => {
     vi.unstubAllGlobals();
   });
 
+  it("reports dirty state when the default template changes", async () => {
+    const onDirtyChange = vi.fn();
+    const user = userEvent.setup();
+    renderPanel(undefined, { onDirtyChange });
+
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenCalledWith(false);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Default template")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByLabelText("Default template"));
+    await user.click(await screen.findByRole("option", { name: "QA failure" }));
+
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    });
+  });
+
   it("shows no default template when the config is empty", async () => {
     renderPanel();
     await waitFor(() => {
@@ -116,30 +144,43 @@ describe("ProjectIssueTemplatesPanel", () => {
   });
 
   it("flags a bound assignee who is no longer assignable, without dropping the binding silently", async () => {
+    const onDirtyChange = vi.fn();
     renderPanel(
       templateConfigResponse({
         assigneeByTemplate: [
           { templateKey: "tpl_qa_failure", userId: "user_departed", assignable: false },
         ],
       }),
+      { onDirtyChange },
     );
     await waitFor(() => {
       expect(screen.getByText("No longer has access")).toBeInTheDocument();
     });
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenCalledWith(false);
+    });
+    expect(onDirtyChange).not.toHaveBeenCalledWith(true);
+    expect(screen.getByRole("button", { name: "Save template settings" })).toBeDisabled();
   });
 
   it("does not flag a bound assignee who is still assignable", async () => {
+    const onDirtyChange = vi.fn();
     renderPanel(
       templateConfigResponse({
         assigneeByTemplate: [
           { templateKey: "tpl_qa_failure", userId: "user_mina", assignable: true },
         ],
       }),
+      { onDirtyChange },
     );
     await waitFor(() => {
       expect(screen.getByLabelText("Default template")).toBeInTheDocument();
     });
     expect(screen.queryByText("No longer has access")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    });
+    expect(screen.getByRole("button", { name: "Save template settings" })).toBeDisabled();
   });
 
   it("sends the full config object on save, not just the changed field", async () => {
@@ -156,6 +197,8 @@ describe("ProjectIssueTemplatesPanel", () => {
       expect(screen.getByLabelText("Default template")).toBeInTheDocument();
     });
 
+    await user.click(screen.getByLabelText("Default template"));
+    await user.click(await screen.findByRole("option", { name: "QA failure" }));
     await user.click(screen.getByRole("button", { name: "Save template settings" }));
 
     await waitFor(() => expect(putCalls).toHaveLength(1));
@@ -166,7 +209,7 @@ describe("ProjectIssueTemplatesPanel", () => {
     // The assignee binding must survive a save that never touched it — PUT is a full-object
     // replace, so re-sending only the field the admin actually changed would silently wipe it.
     expect(body).toEqual({
-      defaultTemplateKey: null,
+      defaultTemplateKey: "tpl_qa_failure",
       assigneeByTemplate: { tpl_qa_failure: "user_mina" },
     });
   });
@@ -189,8 +232,49 @@ describe("ProjectIssueTemplatesPanel", () => {
       expect(screen.getByText("No longer has access")).toBeInTheDocument();
     });
 
+    await user.click(screen.getByLabelText("Default template"));
+    await user.click(await screen.findByRole("option", { name: "QA failure" }));
     await user.click(screen.getByRole("button", { name: "Save template settings" }));
 
+    await waitFor(() => expect(putCalls).toHaveLength(1));
+    const body = JSON.parse(putCalls[0]?.body as string) as {
+      defaultTemplateKey: string | null;
+      assigneeByTemplate: Record<string, string>;
+    };
+    expect(body).toEqual({
+      defaultTemplateKey: "tpl_qa_failure",
+      assigneeByTemplate: {},
+    });
+  });
+
+  it("lets an admin persist clearing a no-longer-assignable assignee without another edit", async () => {
+    const onDirtyChange = vi.fn();
+    const user = userEvent.setup();
+    const { putCalls } = renderPanel(
+      templateConfigResponse({
+        assigneeByTemplate: [
+          { templateKey: "tpl_qa_failure", userId: "user_departed", assignable: false },
+        ],
+      }),
+      { onDirtyChange },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("No longer has access")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Save template settings" })).toBeDisabled();
+
+    const staleRow = screen.getByText("No longer has access").closest("div")?.parentElement;
+    expect(staleRow).not.toBeNull();
+    await user.click(within(staleRow!).getByRole("button", { name: /Select assignee/ }));
+    await user.click(await screen.findByRole("option", { name: "Unassigned" }));
+
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    });
+    expect(screen.getByRole("button", { name: "Save template settings" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Save template settings" }));
     await waitFor(() => expect(putCalls).toHaveLength(1));
     const body = JSON.parse(putCalls[0]?.body as string) as {
       defaultTemplateKey: string | null;

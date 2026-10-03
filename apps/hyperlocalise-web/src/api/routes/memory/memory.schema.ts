@@ -44,6 +44,7 @@ export const listMemoryQuerySchema = z
     limit: z.coerce.number().int().min(1).max(100).default(50),
     offset: z.coerce.number().int().min(0).default(0),
     projectId: projectIdSchema.optional(),
+    source: z.enum(["native", "external_tms"]).optional(),
   })
   .optional();
 
@@ -195,6 +196,7 @@ export const memoryRecordSchema = z.object({
   lastSyncedAt: z.string().datetime().nullable(),
   lastSyncErrorAt: z.string().datetime().nullable(),
   lastSyncErrorMessage: z.string().nullable(),
+  projectCount: z.number().int().nonnegative().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   resourceKind: z.enum(["native", "synced", "live_provider", "reference_only"]).optional(),

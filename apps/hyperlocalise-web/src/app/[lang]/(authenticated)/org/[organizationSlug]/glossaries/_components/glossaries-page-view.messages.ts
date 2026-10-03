@@ -57,34 +57,24 @@ export const glossariesPageViewMessages = defineMessages({
     description: "Empty search state for glossaries, with a clear-search action",
   },
   nativeSectionTitle: {
-    defaultMessage: "Workspace glossaries",
-    id: "dLOnbBe+SR",
+    defaultMessage: "Hyperlocalise",
+    id: "oOO1v0uB+g",
     description: "Heading for workspace glossaries",
   },
-  externalSectionTitle: {
-    defaultMessage: "Provider glossaries",
-    id: "iTLkbt2liA",
-    description: "Heading for persisted provider glossaries",
-  },
-  crowdinSectionTitle: {
-    defaultMessage: "Crowdin glossaries",
-    id: "CckeviPE6F",
-    description: "Heading for live Crowdin glossaries",
-  },
   nativeEmptyTitle: {
-    defaultMessage: "No workspace glossaries",
-    id: "032V4XY9wg",
+    defaultMessage: "No Hyperlocalise glossaries",
+    id: "XPmgxgxPe1",
     description:
       "Empty state title for the workspace glossary section when creation is unavailable",
   },
   nativeEmptyDescription: {
-    defaultMessage: "Workspace glossaries created in this workspace will appear here.",
-    id: "im9nnXP/O2",
+    defaultMessage: "Hyperlocalise glossaries created in this workspace will appear here.",
+    id: "8G85KZYcer",
     description: "Empty state description for workspace glossaries",
   },
   externalEmptyTitle: {
-    defaultMessage: "No provider glossaries",
-    id: "ZiWVuGHeQL",
+    defaultMessage: "No {provider} glossaries",
+    id: "Z+ehClOFAG",
     description: "Empty state title for a connected provider with no glossaries",
   },
   chooseTmsProjectTitle: {
@@ -127,8 +117,8 @@ export const glossariesPageViewMessages = defineMessages({
   },
   emptyDescriptionWithProvider: {
     defaultMessage:
-      "Provider glossaries and term bases appear here after sync. Connect or resync a TMS provider from Integrations if you expected to see one.",
-    id: "6QF9Hq+l1/",
+      "{provider} glossaries and term bases appear here after sync. Connect or resync from Integrations if you expected to see one.",
+    id: "HTSRjgYv0v",
     description: "Empty state description when a TMS provider is connected but no glossaries exist",
   },
   emptyDescriptionWithoutProvider: {

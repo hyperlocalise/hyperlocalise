@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -44,12 +44,48 @@ import { ProjectSettingsSectionHeading } from "./project-settings-section-headin
 
 const NO_TEMPLATE_VALUE = "__no_template__";
 
+function assigneeMapsEqual(left: Record<string, string>, right: Record<string, string>): boolean {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if ((left[key] ?? null) !== (right[key] ?? null)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isUnchangedStaleAssignee(
+  serverBinding: IssueSheetTemplateConfig["assigneeByTemplate"][number] | undefined,
+  userId: string,
+): boolean {
+  return Boolean(serverBinding && !serverBinding.assignable && serverBinding.userId === userId);
+}
+
+function issueSheetTemplateDraftIsDirty(
+  config: IssueSheetTemplateConfig,
+  defaultTemplateKey: string | null,
+  assigneeByTemplate: Record<string, string>,
+): boolean {
+  if (defaultTemplateKey !== config.defaultTemplateKey) {
+    return true;
+  }
+
+  // Compare stored bindings as-is. The draft keeps a no-longer-assignable userId so the picker
+  // can flag it; that match is not an edit. Deleting the key (clearing the assignee) is.
+  const serverMap = Object.fromEntries(
+    config.assigneeByTemplate.map((binding) => [binding.templateKey, binding.userId]),
+  );
+  return !assigneeMapsEqual(assigneeByTemplate, serverMap);
+}
+
 export function ProjectIssueTemplatesPanel({
   organizationSlug,
   projectId,
+  onDirtyChange,
 }: {
   organizationSlug: string;
   projectId: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -57,22 +93,32 @@ export function ProjectIssueTemplatesPanel({
   const membersQuery = useAssignableIssueMembersQuery({ organizationSlug, projectId });
 
   // Draft mirrors the PUT body shape directly. Re-synced from the server whenever configQuery's
-  // data changes (including after this panel's own save), matching how the rest of this settings
-  // page syncs its form state from the project query — no separate dirty-tracking here.
+  // data identity changes (including after this panel's own save). Sync during render so the
+  // first committed frame never compares an empty draft to stored bindings.
+  const [syncedConfig, setSyncedConfig] = useState<IssueSheetTemplateConfig | null>(null);
   const [defaultTemplateKey, setDefaultTemplateKey] = useState<string | null>(null);
   const [assigneeByTemplate, setAssigneeByTemplate] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (!configQuery.data) {
-      return;
-    }
+  if (configQuery.data && configQuery.data !== syncedConfig) {
+    setSyncedConfig(configQuery.data);
     setDefaultTemplateKey(configQuery.data.defaultTemplateKey);
     setAssigneeByTemplate(
       Object.fromEntries(
         configQuery.data.assigneeByTemplate.map((binding) => [binding.templateKey, binding.userId]),
       ),
     );
-  }, [configQuery.data]);
+  }
+
+  const isDirty = useMemo(() => {
+    if (!configQuery.data) {
+      return false;
+    }
+    return issueSheetTemplateDraftIsDirty(configQuery.data, defaultTemplateKey, assigneeByTemplate);
+  }, [assigneeByTemplate, configQuery.data, defaultTemplateKey]);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const serverBindingByTemplate = new Map(
     (configQuery.data?.assigneeByTemplate ?? []).map((binding) => [binding.templateKey, binding]),
@@ -86,8 +132,7 @@ export function ProjectIssueTemplatesPanel({
       // again, blocking a save that never touched this field.
       const assigneeByTemplateToSave = Object.fromEntries(
         Object.entries(assigneeByTemplate).filter(([templateKey, userId]) => {
-          const serverBinding = serverBindingByTemplate.get(templateKey);
-          return !(serverBinding && !serverBinding.assignable && serverBinding.userId === userId);
+          return !isUnchangedStaleAssignee(serverBindingByTemplate.get(templateKey), userId);
         }),
       );
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
@@ -182,7 +227,7 @@ export function ProjectIssueTemplatesPanel({
             // no-longer-assignable — picking any member from the (already-filtered-to-assignable)
             // picker below replaces it and clears this.
             const isStale = Boolean(
-              serverBinding && !serverBinding.assignable && draftUserId === serverBinding.userId,
+              draftUserId && isUnchangedStaleAssignee(serverBinding, draftUserId),
             );
 
             return (
@@ -222,10 +267,11 @@ export function ProjectIssueTemplatesPanel({
         </div>
       </Field>
 
-      <div>
+      <div className="flex justify-end border-t border-border pt-4">
         <Button
           type="button"
-          disabled={configQuery.isLoading || saveMutation.isPending}
+          size="sm"
+          disabled={configQuery.isLoading || saveMutation.isPending || !isDirty}
           onClick={() => saveMutation.mutate()}
         >
           {saveMutation.isPending ? <Spinner className="size-4" /> : null}
