@@ -49,6 +49,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 
 import { TmsLiveProjectPicker } from "../../_components/tms-live-project-picker";
+import { groupByTmsProvider } from "../../_components/tms-resource-groups";
 import { WorkspaceGroupedTable } from "../../_components/workspace-grouped-table";
 import {
   PageHeader,
@@ -87,6 +88,7 @@ export function GlossariesPageView({
   hasConnectedProvider,
   useLiveProviderGlossaries,
   useLiveCrowdinGlossaries,
+  connectedProviderKinds,
   selectedExternalProjectId,
   onSelectedExternalProjectIdChange,
   searchQuery,
@@ -122,6 +124,7 @@ export function GlossariesPageView({
   hasConnectedProvider: boolean;
   useLiveProviderGlossaries: boolean;
   useLiveCrowdinGlossaries: boolean;
+  connectedProviderKinds?: readonly string[];
   selectedExternalProjectId: string;
   onSelectedExternalProjectIdChange: (value: string) => void;
   searchQuery: string;
@@ -169,24 +172,12 @@ export function GlossariesPageView({
   const nativeEmptyDescription = allowCreateGlossaries
     ? intl.formatMessage(glossariesPageViewMessages.emptyDescriptionCreate)
     : intl.formatMessage(glossariesPageViewMessages.nativeEmptyDescription);
-  const externalEmptyTitle = hasConnectedProvider
-    ? intl.formatMessage(
-        useLiveCrowdinGlossaries
-          ? glossariesPageViewMessages.crowdinEmptyTitle
-          : glossariesPageViewMessages.externalEmptyTitle,
-      )
-    : intl.formatMessage(glossariesPageViewMessages.emptyTitleConnectProvider);
-  const externalEmptyDescription = hasConnectedProvider
-    ? intl.formatMessage(
-        useLiveCrowdinGlossaries
-          ? glossariesPageViewMessages.crowdinEmptyDescription
-          : glossariesPageViewMessages.emptyDescriptionWithProvider,
-      )
-    : intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithoutProvider);
   const nativeSectionTitle = intl.formatMessage(glossariesPageViewMessages.nativeSectionTitle);
-  const externalSectionTitle = useLiveCrowdinGlossaries
-    ? intl.formatMessage(glossariesPageViewMessages.crowdinSectionTitle)
-    : intl.formatMessage(glossariesPageViewMessages.externalSectionTitle);
+  const providerGroups = groupByTmsProvider({
+    items: liveProjectSelectionRequired ? [] : externalGlossaries,
+    connectedKinds: connectedProviderKinds ?? [],
+  });
+  const liveProviderKind = useLiveProviderGlossaries ? (connectedProviderKinds?.[0] ?? null) : null;
   const hasAnyResults = nativeTotal > 0 || externalTotal > 0;
   const queriesHaveNoResults = nativeQuery.isSuccess && externalQuery.isSuccess && !hasAnyResults;
   const liveProviderControls = useLiveProviderGlossaries ? (
@@ -304,7 +295,7 @@ export function GlossariesPageView({
         renderCells={(glossary) => renderGlossaryTableCells(glossary, organizationSlug, intl)}
         groups={[
           {
-            id: "workspace",
+            id: "hyperlocalise",
             title: nativeSectionTitle,
             accent: "workspace",
             count: nativeTotal,
@@ -316,35 +307,43 @@ export function GlossariesPageView({
               <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
                 <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
               </Button>
+            ) : !hasConnectedProvider ? (
+              <GlossariesEmptyAction organizationSlug={organizationSlug} />
             ) : undefined,
             hasMore: nativeHasMore,
             isLoadingMore: nativeIsLoadingMore,
             onLoadMore: onNativeLoadMore,
           },
-          {
-            id: "provider",
-            title: externalSectionTitle,
-            accent: "provider",
-            count: liveProjectSelectionRequired ? 0 : externalTotal,
-            items: liveProjectSelectionRequired ? [] : externalGlossaries,
+          ...providerGroups.map((group, index) => ({
+            id: group.id,
+            title: group.title,
+            accent: "provider" as const,
+            count: liveProjectSelectionRequired ? 0 : group.items.length,
+            items: group.items,
             query: liveProjectSelectionRequired
               ? { isLoading: false, isError: false, isSuccess: true, error: null }
               : externalQuery,
             emptyTitle: liveProjectSelectionRequired
               ? intl.formatMessage(glossariesPageViewMessages.chooseTmsProjectTitle)
-              : externalEmptyTitle,
+              : intl.formatMessage(glossariesPageViewMessages.externalEmptyTitle, {
+                  provider: group.title,
+                }),
             emptyDescription: liveProjectSelectionRequired
               ? intl.formatMessage(glossariesPageViewMessages.chooseTmsProjectDescription)
-              : externalEmptyDescription,
-            emptyAction:
-              !liveProjectSelectionRequired && !hasConnectedProvider ? (
-                <GlossariesEmptyAction organizationSlug={organizationSlug} />
-              ) : undefined,
-            headerActions: liveProviderControls,
-            hasMore: liveProjectSelectionRequired ? false : externalHasMore,
+              : useLiveCrowdinGlossaries
+                ? intl.formatMessage(glossariesPageViewMessages.crowdinEmptyDescription)
+                : intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithProvider, {
+                    provider: group.title,
+                  }),
+            headerActions:
+              liveProviderKind && group.id === liveProviderKind ? liveProviderControls : undefined,
+            hasMore:
+              !liveProjectSelectionRequired &&
+              externalHasMore &&
+              index === providerGroups.length - 1,
             isLoadingMore: externalIsLoadingMore,
             onLoadMore: onExternalLoadMore,
-          },
+          })),
         ]}
       />
 

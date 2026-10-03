@@ -508,6 +508,11 @@ export function GlossariesPageContent({
       hasConnectedProvider={hasConnectedProvider}
       useLiveProviderGlossaries={useLiveProviderGlossaries}
       useLiveCrowdinGlossaries={useLiveCrowdinGlossaries}
+      connectedProviderKinds={
+        useLiveProviderGlossaries && activeTmsProvider
+          ? [activeTmsProvider.providerKind]
+          : [...new Set(connectedCredentials.map((credential) => credential.providerKind))]
+      }
       selectedExternalProjectId={selectedExternalProjectId}
       onSelectedExternalProjectIdChange={setSelectedExternalProjectId}
       searchQuery={searchQuery}

@@ -50,11 +50,15 @@ import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import { createTeamTestFixture } from "@/lib/teams/team.fixture";
+import type { TeamResponse } from "@/lib/teams/team.schema";
 
+import type { ProjectResponse } from "../project/project.schema";
 import { createMemoryTestFixture } from "./memory.fixture";
 
 const client = testClient<AppType>(createApp());
 const fixture = createMemoryTestFixture(client);
+const teamFixture = createTeamTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -408,6 +412,105 @@ describe("memoryRoutes", () => {
     ]);
     expect(providerBody.total).toBe(1);
     expect(providerBody.memories).toEqual([expect.objectContaining({ id: providerMemory.id })]);
+  });
+
+  it("counts only project links the caller can access", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const member = fixture.createWorkosIdentityForOrganization(admin.organization, "member");
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+    const organizationId = globalThis.__testApiAuthContext!.activeOrganization.localOrganizationId;
+    const adminUserId = await fixture.getLocalUserId(admin.user.workosUserId);
+    const memberHeaders = await fixture.authHeadersFor(member);
+
+    const accessibleTeamResponse = await teamFixture.createTeamViaApi(admin, {
+      name: "Accessible Team",
+    });
+    expect(accessibleTeamResponse.status).toBe(201);
+    const accessibleTeam = ((await accessibleTeamResponse.json()) as TeamResponse).team;
+
+    const restrictedTeamResponse = await teamFixture.createTeamViaApi(admin, {
+      name: "Restricted Team",
+    });
+    expect(restrictedTeamResponse.status).toBe(201);
+    const restrictedTeam = ((await restrictedTeamResponse.json()) as TeamResponse).team;
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: accessibleTeam.id,
+      userId: await fixture.getLocalUserId(member.user.workosUserId),
+      role: "member",
+    });
+
+    const accessibleProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Accessible Project",
+          teamId: accessibleTeam.id,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(accessibleProjectResponse.status).toBe(201);
+    const accessibleProject = ((await accessibleProjectResponse.json()) as ProjectResponse).project;
+
+    const restrictedProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Restricted Project",
+          teamId: restrictedTeam.id,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(restrictedProjectResponse.status).toBe(201);
+    const restrictedProject = ((await restrictedProjectResponse.json()) as ProjectResponse).project;
+
+    const [sharedMemory] = await db
+      .insert(schema.memories)
+      .values({
+        organizationId,
+        createdByUserId: adminUserId,
+        name: "Shared TM",
+        description: "",
+      })
+      .returning();
+
+    await db.insert(schema.projectMemories).values([
+      {
+        organizationId,
+        projectId: accessibleProject.id,
+        memoryId: sharedMemory.id,
+        priority: 0,
+      },
+      {
+        organizationId,
+        projectId: restrictedProject.id,
+        memoryId: sharedMemory.id,
+        priority: 0,
+      },
+    ]);
+
+    const response = await client.api.orgs[":organizationSlug"]["translation-memories"].$get(
+      {
+        param: { organizationSlug },
+        query: { limit: "50", offset: "0" },
+      },
+      { headers: memberHeaders },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      memories: Array<{ id: string; projectCount: number }>;
+    };
+    expect(body.memories).toEqual([
+      expect.objectContaining({ id: sharedMemory.id, projectCount: 1 }),
+    ]);
   });
 
   it("removes project attachments when deleting a translation memory", async () => {

@@ -112,11 +112,13 @@ type MemoryListResult = {
   total: number;
 };
 
-async function listMemoryProjectCounts(memoryIds: string[]) {
+async function listMemoryProjectCounts(auth: ApiAuthContext, memoryIds: string[]) {
   const counts = new Map<string, number>();
   if (memoryIds.length === 0) {
     return counts;
   }
+
+  const accessibleProjectsWhere = await buildAccessibleProjectsWhere(auth);
 
   const rows = await db
     .select({
@@ -124,7 +126,14 @@ async function listMemoryProjectCounts(memoryIds: string[]) {
       value: count(),
     })
     .from(schema.projectMemories)
-    .where(inArray(schema.projectMemories.memoryId, memoryIds))
+    .innerJoin(schema.projects, eq(schema.projectMemories.projectId, schema.projects.id))
+    .where(
+      and(
+        eq(schema.projectMemories.organizationId, auth.organization.localOrganizationId),
+        inArray(schema.projectMemories.memoryId, memoryIds),
+        accessibleProjectsWhere,
+      ),
+    )
     .groupBy(schema.projectMemories.memoryId);
 
   for (const row of rows) {
@@ -572,7 +581,10 @@ export function createMemoryRoutes() {
             memoryCapabilitiesForPersistedMemory(c.var.auth, memory).capabilities,
           ),
         ),
-        listMemoryProjectCounts(memories.map((memory) => memory.id)),
+        listMemoryProjectCounts(
+          c.var.auth,
+          memories.map((memory) => memory.id),
+        ),
       ]);
       return c.json(
         {

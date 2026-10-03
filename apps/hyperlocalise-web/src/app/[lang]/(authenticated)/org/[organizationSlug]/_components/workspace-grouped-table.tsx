@@ -87,7 +87,10 @@ export function WorkspaceGroupedTable<T>({
         const showRows = hasItems && (group.query.isSuccess || group.query.isError);
         const showEmpty = group.query.isSuccess && !hasItems;
         const showLoadMore =
-          showRows && group.query.isSuccess && group.hasMore && Boolean(group.onLoadMore);
+          group.query.isSuccess &&
+          !group.query.isLoading &&
+          group.hasMore &&
+          Boolean(group.onLoadMore);
 
         return (
           <section

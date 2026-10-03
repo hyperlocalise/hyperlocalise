@@ -40,11 +40,25 @@ const meta = {
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     allowCreateMemories: true,
     hasConnectedProvider: true,
+    connectedProviderKinds: ["phrase", "crowdin"],
     useLiveProviderMemories: false,
     selectedExternalProjectId: "",
     onSelectedExternalProjectIdChange: fn(),
     searchQuery: "",
     onSearchQueryChange: fn(),
+    sourceFilter: "all",
+    onSourceFilterChange: fn(),
+    projectFilter: "all",
+    onProjectFilterChange: fn(),
+    projects: [],
+    providerFilter: "all",
+    onProviderFilterChange: fn(),
+    syncFilter: "all",
+    onSyncFilterChange: fn(),
+    providerKinds: ["phrase", "crowdin"],
+    hasExternalMemories: true,
+    hasMemories: true,
+    showNoFilterMatches: false,
     hasActiveFilters: false,
     onClearFilters: fn(),
     nativeHasMore: false,
@@ -70,14 +84,15 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Translation Memories" })).toBeInTheDocument();
-    await expect(canvas.getAllByRole("columnheader", { name: "Name" })).toHaveLength(2);
+    await expect(canvas.getAllByRole("columnheader", { name: "Name" })).toHaveLength(3);
     await expect(canvas.getAllByRole("columnheader", { name: "Translation units" })).toHaveLength(
-      2,
+      3,
     );
-    await expect(canvas.getAllByRole("columnheader", { name: "Languages" })).toHaveLength(2);
-    await expect(canvas.getAllByRole("columnheader", { name: "Projects" })).toHaveLength(2);
-    await expect(canvas.getByText("Workspace memories")).toBeInTheDocument();
-    await expect(canvas.getByText("Provider memories")).toBeInTheDocument();
+    await expect(canvas.getAllByRole("columnheader", { name: "Languages" })).toHaveLength(3);
+    await expect(canvas.getAllByRole("columnheader", { name: "Projects" })).toHaveLength(3);
+    await expect(canvas.getByText("Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByText("Phrase")).toBeInTheDocument();
+    await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();
     await expect(canvas.getByText("All")).toBeInTheDocument();
     await expect(canvas.getByText("Phrase TM")).toBeInTheDocument();
@@ -97,8 +112,9 @@ export const Loading: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("table", { name: "Translation Memories" })).toBeInTheDocument();
-    await expect(canvas.getByText("Workspace memories")).toBeInTheDocument();
-    await expect(canvas.getByText("Provider memories")).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByText("Phrase")).toBeInTheDocument();
+    await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
   },
 };
 
@@ -132,11 +148,13 @@ export const NoProviderConnected: Story = {
     externalTotal: 0,
     allowCreateMemories: false,
     hasConnectedProvider: false,
+    connectedProviderKinds: [],
     nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Connect a TMS provider")).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByText("No Hyperlocalise memories")).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Connect a provider" })).toBeInTheDocument();
   },
 };
@@ -208,6 +226,7 @@ export const LiveProjectSelectionRequired: Story = {
     nativeTotal: 0,
     externalTotal: 0,
     useLiveProviderMemories: true,
+    connectedProviderKinds: ["phrase"],
     allowCreateMemories: false,
     nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },

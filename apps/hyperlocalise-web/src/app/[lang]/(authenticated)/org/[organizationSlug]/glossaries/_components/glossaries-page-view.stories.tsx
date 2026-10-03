@@ -41,6 +41,7 @@ const meta = {
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     allowCreateGlossaries: true,
     hasConnectedProvider: true,
+    connectedProviderKinds: ["phrase", "crowdin"],
     useLiveProviderGlossaries: false,
     useLiveCrowdinGlossaries: false,
     selectedExternalProjectId: "",
@@ -75,12 +76,13 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Glossaries" })).toBeInTheDocument();
-    await expect(canvas.getAllByRole("columnheader", { name: "Name" })).toHaveLength(2);
-    await expect(canvas.getAllByRole("columnheader", { name: "Terms" })).toHaveLength(2);
-    await expect(canvas.getAllByRole("columnheader", { name: "Languages" })).toHaveLength(2);
-    await expect(canvas.getAllByRole("columnheader", { name: "Projects" })).toHaveLength(2);
-    await expect(canvas.getByText("Workspace glossaries")).toBeInTheDocument();
-    await expect(canvas.getByText("Provider glossaries")).toBeInTheDocument();
+    await expect(canvas.getAllByRole("columnheader", { name: "Name" })).toHaveLength(3);
+    await expect(canvas.getAllByRole("columnheader", { name: "Terms" })).toHaveLength(3);
+    await expect(canvas.getAllByRole("columnheader", { name: "Languages" })).toHaveLength(3);
+    await expect(canvas.getAllByRole("columnheader", { name: "Projects" })).toHaveLength(3);
+    await expect(canvas.getByText("Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByText("Phrase")).toBeInTheDocument();
+    await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();
     await expect(canvas.getByText("Product team terms")).toBeInTheDocument();
     await expect(canvas.getByText("Phrase Term Base")).toBeInTheDocument();
@@ -120,10 +122,11 @@ export const LiveProviderGlossary: Story = {
     allowCreateGlossaries: true,
     useLiveProviderGlossaries: true,
     useLiveCrowdinGlossaries: true,
+    connectedProviderKinds: ["crowdin"],
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Live Crowdin Glossary")).toBeInTheDocument();
-    await expect(canvas.getByText("Crowdin glossaries")).toBeInTheDocument();
+    await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Live Crowdin Glossary" })).toHaveAttribute(
       "href",
       "/org/acme/glossaries/crowdin:glossary:99",
@@ -147,8 +150,9 @@ export const Loading: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("table", { name: "Glossaries" })).toBeInTheDocument();
-    await expect(canvas.getByText("Workspace glossaries")).toBeInTheDocument();
-    await expect(canvas.getByText("Provider glossaries")).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByText("Phrase")).toBeInTheDocument();
+    await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
   },
 };
 
@@ -169,7 +173,8 @@ export const Empty: Story = {
       ),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Create glossary" })).toBeInTheDocument();
-    await expect(canvas.getByText("No provider glossaries")).toBeInTheDocument();
+    await expect(canvas.getByText("No Phrase glossaries")).toBeInTheDocument();
+    await expect(canvas.getByText("No Crowdin glossaries")).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Glossaries" })).toBeInTheDocument();
   },
 };
@@ -184,9 +189,11 @@ export const NoProviderConnected: Story = {
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     allowCreateGlossaries: false,
     hasConnectedProvider: false,
+    connectedProviderKinds: [],
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Connect a TMS provider")).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByText("No Hyperlocalise glossaries")).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Connect a provider" })).toBeInTheDocument();
   },
 };
@@ -255,11 +262,12 @@ export const LiveAllProjects: Story = {
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     useLiveProviderGlossaries: false,
     useLiveCrowdinGlossaries: true,
+    connectedProviderKinds: ["crowdin"],
     allowCreateGlossaries: false,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Workspace glossaries")).toBeInTheDocument();
-    await expect(canvas.getByText("Crowdin glossaries")).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
   },
 };
 
