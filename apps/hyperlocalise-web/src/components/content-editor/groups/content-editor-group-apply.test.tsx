@@ -160,7 +160,7 @@ describe("group apply and activity", () => {
       { queryClient },
     );
     await user.click(screen.getByRole("button", { name: "Activity" }));
-    await user.click(screen.getByText("View translation"));
+    await user.click(await screen.findByText("View translation"));
     expect(await screen.findByText("Enregistrer")).toBeInTheDocument();
     expect(screen.getByText("Translation saved in this edit")).toBeInTheDocument();
     expect(queryClient.getQueryData(queryKey)).toEqual(translation);
@@ -216,7 +216,7 @@ describe("group apply and activity", () => {
       { queryClient },
     );
     await user.click(screen.getByRole("button", { name: "Activity" }));
-    await user.click(screen.getByText("View translation"));
+    await user.click(await screen.findByText("View translation"));
     expect(await screen.findByText("Sauvegarder")).toBeInTheDocument();
     expect(screen.getByText("Current translation on this occurrence")).toBeInTheDocument();
     expect(segmentTarget).not.toHaveBeenCalled();
