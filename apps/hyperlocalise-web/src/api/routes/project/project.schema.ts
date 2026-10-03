@@ -307,6 +307,8 @@ export const projectFileCatQuerySchema = z.object({
   phraseScanSkip: z.coerce.number().int().min(0).optional(),
   sortBucket: z.coerce.number().int().min(0).max(2).optional(),
   sortBucketOffset: z.coerce.number().int().min(0).optional(),
+  /** Native only. Collapses identical source strings into one segment with `occurrenceCount`. */
+  grouped: z.enum(["true"]).optional(),
 });
 
 export const projectFileCatActivityLogQuerySchema = z.object({
@@ -347,6 +349,17 @@ export const projectFileCatTranslationBodySchema = z.object({
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   text: z.string().max(100_000),
   approve: z.boolean().optional(),
+  /**
+   * Native only. Writes the translation to every unlocked identical source string in this
+   * queue scope, or only to `occurrenceIds` when saving one translation variant.
+   */
+  group: z
+    .object({
+      sourcePath: z.string().trim().min(1).max(2048),
+      sourcePaths: z.array(z.string().trim().min(1).max(2048)).max(1000).optional(),
+      occurrenceIds: z.array(z.string().trim().min(1).max(128)).max(1000).optional(),
+    })
+    .optional(),
 });
 
 export const projectFileCatStatusBodySchema = z.object({
@@ -815,6 +828,12 @@ export const projectFileCatSegmentSchema = z.object({
   format: z.string().nullable().optional(),
   externalResourceId: z.string().optional(),
   resourceType: z.enum(["file", "key"]).optional(),
+  /** Grouped queues only: identical source strings in scope, including this one. */
+  occurrenceCount: z.number().int().positive().optional(),
+  /** Grouped rows: least complete status among the occurrences in the queue locale. */
+  groupStatus: z.enum(["pending", "needs_review", "reviewed"]).optional(),
+  /** Grouped rows: locales whose occurrences do not share one translation. */
+  divergentLocales: z.array(z.string()).optional(),
 });
 
 export const projectFileCatSegmentParamsSchema = z.object({

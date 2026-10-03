@@ -64,6 +64,13 @@ import {
   isNativeContentEditorFile,
 } from "@/components/content-editor/shared/content-editor-native-project";
 import { ContentEditorGroupingView } from "../groups/content-editor-grouping-view";
+import type {
+  ContentEditorGroupingController,
+  ContentEditorGroupVariantSaveInput,
+} from "../groups/content-editor-grouping-context";
+import { useContentEditorGroupingMode } from "../groups/use-content-editor-grouping-mode";
+import { isGroupTranslationDivergent } from "../groups/use-content-editor-group-variants";
+import { groupMessages } from "../groups/content-editor-groups.messages";
 import { ContentEditorWorkspaceContainer } from "@/components/content-editor/workspace/content-editor-workspace-container";
 import {
   attemptCatPageNavigation,
@@ -222,6 +229,26 @@ export function ProjectFileContentEditorWorkspace({
     canWriteDictionaries,
   });
   const showLocaleSelector = !targetLocaleProp && (targetLocales?.length ?? 0) > 0;
+  // Decided before the queue loads so the grouped flag never flips the queue key mid-load.
+  const groupingSupported =
+    !externalResourceId && isContentEditorGroupingAvailable({ provider: null }, sourcePath);
+  const groupingMode = useContentEditorGroupingMode({
+    client: goSvcClient,
+    organizationSlug,
+    projectId,
+    enabled: groupingSupported,
+    initialSegmentKey,
+    navigationGuardRef: resolvedPageNavigationGuardRef,
+  });
+  const isGrouped = groupingSupported && groupingMode.view === "grouped";
+  const groupSourcePaths = useMemo(
+    () =>
+      sourcePathsFilter
+        ?.split(",")
+        .map((path) => path.trim())
+        .filter(Boolean),
+    [sourcePathsFilter],
+  );
 
   const {
     contentEditorQuery,
@@ -247,13 +274,14 @@ export function ProjectFileContentEditorWorkspace({
     externalResourceId,
     resourceType,
     targetLocale,
-    enabled: Boolean(targetLocale),
+    enabled: Boolean(targetLocale) && groupingMode.ready,
     initialQueueFilter,
     initialQueueSort,
     initialSearch,
     pageLimit,
     goSvcClient,
     sourcePaths: sourcePathsFilter,
+    grouped: isGrouped,
   });
 
   useContentEditorWorkspaceQuerySync({
@@ -367,6 +395,12 @@ export function ProjectFileContentEditorWorkspace({
     retainedSegmentIdentityRef,
     invalidateQueue,
     goSvcClient,
+    groupScope: isGrouped
+      ? {
+          sourcePath,
+          ...(groupSourcePaths?.length ? { sourcePaths: groupSourcePaths } : {}),
+        }
+      : null,
   });
 
   const workspaceState = useMemo(() => {
@@ -514,6 +548,14 @@ export function ProjectFileContentEditorWorkspace({
       spellcheckDictionary.acceptedWords,
     ],
   );
+  const assertSingleTargetSaveAllowed = useCallback(
+    (segment: { occurrenceCount?: number; divergentLocales?: string[] }, locale: string) => {
+      if (isGrouped && isGroupTranslationDivergent(segment, locale)) {
+        throw new Error(intl.formatMessage(groupMessages.divergentSaveBlocked));
+      }
+    },
+    [intl, isGrouped],
+  );
   const { runQaChecks } = useCatScanFindings({
     organizationSlug,
     projectId,
@@ -580,7 +622,10 @@ export function ProjectFileContentEditorWorkspace({
         return "reviewed" as const;
       }
 
-      if (segment) await assertQaSaveAllowed(segment, targetLocale, targetText);
+      if (segment) {
+        assertSingleTargetSaveAllowed(segment, targetLocale);
+        await assertQaSaveAllowed(segment, targetLocale, targetText);
+      }
       const translation = await saveTranslation({
         externalStringId: segmentId,
         text: targetText,
@@ -601,6 +646,7 @@ export function ProjectFileContentEditorWorkspace({
       targetLocale,
       goSvcClient,
       assertQaSaveAllowed,
+      assertSingleTargetSaveAllowed,
     ],
   );
 
@@ -615,7 +661,10 @@ export function ProjectFileContentEditorWorkspace({
       const segment = contentEditorFile.segments.find(
         (entry) => entry.externalStringId === segmentId,
       );
-      if (segment) await assertQaSaveAllowed(segment, targetLocale, targetText);
+      if (segment) {
+        assertSingleTargetSaveAllowed(segment, targetLocale);
+        await assertQaSaveAllowed(segment, targetLocale, targetText);
+      }
       await saveTranslation({
         externalStringId: segmentId,
         text: targetText,
@@ -623,7 +672,14 @@ export function ProjectFileContentEditorWorkspace({
       });
       return "needs_review" as const;
     },
-    [assertQaSaveAllowed, contentEditorFile, intl, saveTranslation, targetLocale],
+    [
+      assertQaSaveAllowed,
+      assertSingleTargetSaveAllowed,
+      contentEditorFile,
+      intl,
+      saveTranslation,
+      targetLocale,
+    ],
   );
 
   const handleAddComment = useCallback(
@@ -957,6 +1013,7 @@ export function ProjectFileContentEditorWorkspace({
             intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
           );
         }
+        assertSingleTargetSaveAllowed(segment, locale);
         await assertQaSaveAllowed(segment, locale, text);
         await saveTranslation({
           externalStringId: segment.id,
@@ -981,6 +1038,7 @@ export function ProjectFileContentEditorWorkspace({
       intl,
       saveTranslation,
       assertQaSaveAllowed,
+      assertSingleTargetSaveAllowed,
       isNativeProject,
       organizationSlug,
       projectId,
@@ -998,6 +1056,63 @@ export function ProjectFileContentEditorWorkspace({
     ],
   );
 
+  const saveGroupVariant = useCallback(
+    async ({ segment, locale, occurrences, text, approve }: ContentEditorGroupVariantSaveInput) => {
+      if (!contentEditorFile?.canEditTranslations) {
+        throw new Error(
+          intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
+        );
+      }
+      const [representative] = occurrences;
+      if (!representative) return;
+      await assertQaSaveAllowed(segment, locale, text);
+      await saveTranslation({
+        externalStringId: representative.id,
+        targetLocale: locale,
+        text,
+        approve,
+        variant: {
+          sourcePath: representative.sourcePath,
+          occurrenceIds: occurrences.map((occurrence) => occurrence.id),
+        },
+      });
+    },
+    [assertQaSaveAllowed, contentEditorFile?.canEditTranslations, intl, saveTranslation],
+  );
+  const canEditTranslations = Boolean(contentEditorFile?.canEditTranslations);
+  const showGroupingControls =
+    groupingSupported && (!contentEditorFile || isNativeContentEditorFile(contentEditorFile));
+  const grouping = useMemo<ContentEditorGroupingController | null>(
+    () =>
+      showGroupingControls
+        ? {
+            view: groupingMode.view,
+            preference: groupingMode.preference,
+            changeView: groupingMode.changeView,
+            client: goSvcClient,
+            organizationSlug,
+            projectId,
+            sourcePath,
+            ...(sourcePathsFilter ? { sourcePaths: sourcePathsFilter } : {}),
+            canEdit: canEditTranslations,
+            saveVariant: saveGroupVariant,
+          }
+        : null,
+    [
+      canEditTranslations,
+      goSvcClient,
+      groupingMode.changeView,
+      groupingMode.preference,
+      groupingMode.view,
+      organizationSlug,
+      projectId,
+      saveGroupVariant,
+      showGroupingControls,
+      sourcePath,
+      sourcePathsFilter,
+    ],
+  );
+
   if (showLocaleSelector && (targetLocales?.length ?? 0) === 0) {
     return (
       <TypographyP size="small" tone="subtle">
@@ -1008,12 +1123,12 @@ export function ProjectFileContentEditorWorkspace({
 
   const isFullscreen = layout === "fullscreen";
 
+  const isQueueLoading =
+    (contentEditorQuery.isLoading || !groupingMode.ready) && !contentEditorFile;
   const isQueueDataPending =
-    isSearchPending ||
-    (contentEditorQuery.isLoading && !contentEditorFile) ||
-    contentEditorQuery.isPlaceholderData;
-  const isQueueListLoading = contentEditorQuery.isLoading && !contentEditorFile;
-  const isTranslationViewLoading = contentEditorQuery.isLoading && !contentEditorFile;
+    isSearchPending || isQueueLoading || contentEditorQuery.isPlaceholderData;
+  const isQueueListLoading = isQueueLoading;
+  const isTranslationViewLoading = isQueueLoading;
 
   if (contentEditorQuery.isError) {
     return (
@@ -1112,18 +1227,7 @@ export function ProjectFileContentEditorWorkspace({
               </div>
             ) : null}
 
-            <ContentEditorGroupingView
-              canEdit={Boolean(contentEditorFile?.canEditTranslations)}
-              enabled={isContentEditorGroupingAvailable(contentEditorFile, sourcePath)}
-              client={goSvcClient}
-              organizationSlug={organizationSlug}
-              projectId={projectId}
-              sourcePath={sourcePath}
-              sourcePaths={sourcePathsFilter ?? undefined}
-              targetLocale={targetLocale}
-              navigationGuardRef={resolvedPageNavigationGuardRef}
-              initialSegmentKey={initialSegmentKey}
-            >
+            <ContentEditorGroupingView grouping={grouping} targetLocale={targetLocale}>
               <AiFeaturesUpgradeHrefProvider value={upgradePlanHref}>
                 <ContentEditorWorkspaceContainer
                   multilingual={multilingual}

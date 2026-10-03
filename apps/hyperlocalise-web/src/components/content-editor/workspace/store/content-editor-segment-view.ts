@@ -94,6 +94,9 @@ export function toQueueSegment(
     | "looksLikeVideoUrl"
     | "isHidden"
     | "isLocked"
+    | "occurrenceCount"
+    | "groupStatus"
+    | "divergentLocales"
   >,
 ): ContentEditorQueueSegment {
   return {
@@ -114,5 +117,8 @@ export function toQueueSegment(
       : {}),
     ...(segment.isHidden ? { isHidden: true } : {}),
     ...(segment.isLocked ? { isLocked: true } : {}),
+    ...(segment.occurrenceCount ? { occurrenceCount: segment.occurrenceCount } : {}),
+    ...(segment.groupStatus ? { groupStatus: segment.groupStatus } : {}),
+    ...(segment.divergentLocales?.length ? { divergentLocales: segment.divergentLocales } : {}),
   };
 }

@@ -21,6 +21,7 @@ import {
   projectFileCatToWorkspaceState,
   formatCheckForSegment,
   resolveCatFileIdentity,
+  segmentStatusFromTarget,
 } from "./project-file-content-editor-mapper";
 
 const testIntl = getIntlShape("en");
@@ -495,5 +496,24 @@ describe("resolveCatFileIdentity", () => {
       externalResourceId: "crowdin-file",
       resourceType: "file",
     });
+  });
+});
+
+describe("segmentStatusFromTarget", () => {
+  const approved = { text: "Membre", isApproved: true } as Parameters<
+    typeof segmentStatusFromTarget
+  >[1];
+
+  it("caps a grouped row at its least complete occurrence", () => {
+    expect(segmentStatusFromTarget({ hasOpenIssues: false }, approved)).toBe("reviewed");
+    expect(
+      segmentStatusFromTarget({ hasOpenIssues: false, groupStatus: "needs_review" }, approved),
+    ).toBe("needs_review");
+    expect(
+      segmentStatusFromTarget({ hasOpenIssues: false, groupStatus: "pending" }, approved),
+    ).toBe("pending");
+    expect(segmentStatusFromTarget({ hasOpenIssues: false, groupStatus: "reviewed" }, null)).toBe(
+      "pending",
+    );
   });
 });

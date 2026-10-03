@@ -266,28 +266,6 @@ function ProjectOverviewSidebar({
           </Link>
         ) : null}
       </Rows>
-
-      {isNative ? (
-        <Rows spacing="1u">
-          <Separator />
-          <ProjectOverviewSectionLabel>
-            <FormattedMessage {...messages.shipTitle} />
-          </ProjectOverviewSectionLabel>
-          <span className="text-sm leading-tight text-foreground">
-            {project.lastSyncedAt ? (
-              <FormattedMessage
-                {...messages.shipLastSynced}
-                values={{ when: project.lastSyncedAt }}
-              />
-            ) : (
-              <FormattedMessage {...messages.shipNeverSynced} />
-            )}
-          </span>
-          <Link href={settingsHref} className="text-sm font-medium text-primary hover:underline">
-            <FormattedMessage {...messages.shipConnectCli} />
-          </Link>
-        </Rows>
-      ) : null}
     </Rows>
   );
 }

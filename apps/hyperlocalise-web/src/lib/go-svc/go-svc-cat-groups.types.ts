@@ -10,49 +10,23 @@
  * use of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export interface CatStringGroup {
-  id: string;
-  sourceText: string;
-  occurrenceCount: number;
-  matchingCount: number;
-  translationVariants: number;
-  translatedCount: number;
-  approvedCount: number;
-  lockedCount: number;
-}
-
-export interface CatStringGroupMember {
+export interface CatGroupOccurrence {
   id: string;
   key: string;
   sourcePath: string;
-  context: string | null;
-  maxLength: number | null;
-  targetText: string;
-  status: string;
-  isHidden: boolean;
   isLocked: boolean;
-  matchesFilter: boolean;
-  sourceRevision: string;
-  translationRevision: string;
 }
 
-export interface CatGroupPagination {
-  offset: number;
-  limit: number;
-  returnedCount: number;
-  totalCount: number;
-  hasMore: boolean;
+/** One distinct translation shared by some occurrences of an identical source string. */
+export interface CatGroupVariant {
+  text: string;
+  isApproved: boolean;
+  occurrences: CatGroupOccurrence[];
 }
 
-export interface CatStringGroupsQuery {
-  sourcePath: string;
+export interface CatGroupVariantsQuery {
   targetLocale: string;
-  sourcePaths?: string;
-  search?: string;
-  queueFilter?: "all" | "untranslated" | "needs_review" | "reviewed" | "has_issues" | "hidden";
-  queueSort?: "file_order" | "untranslated_first";
-  offset?: number;
-  limit?: number;
-  /** Source text from the selected group; narrows member queries in large projects. */
-  groupSourceText?: string;
+  /** Queue scope of the grouped row: a file path or `"*"`. */
+  groupSourcePath: string;
+  groupSourcePaths?: string;
 }

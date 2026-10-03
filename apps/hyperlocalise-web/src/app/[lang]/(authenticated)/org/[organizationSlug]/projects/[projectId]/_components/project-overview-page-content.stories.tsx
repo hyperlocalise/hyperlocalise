@@ -66,7 +66,6 @@ export const Default: Story = {
       ),
     ).toBeInTheDocument();
     await expect(canvas.getByText("Guidance")).toBeInTheDocument();
-    await expect(canvas.getByText("Sync")).toBeInTheDocument();
     await expect(canvas.getByText("Languages")).toBeInTheDocument();
     await expect(canvas.getByText("French (France)")).toBeInTheDocument();
     await expect(canvas.getByText("German (Germany)")).toBeInTheDocument();
@@ -113,7 +112,6 @@ export const TmsProject: Story = {
       "href",
       "/org/acme/projects/ext%3Acrowdin%3A42/strings",
     );
-    await expect(canvas.queryByText("Sync")).toBeNull();
     await expect(canvas.queryByText("Guidance")).toBeNull();
     await expect(canvas.getByText("Locales")).toBeInTheDocument();
   },

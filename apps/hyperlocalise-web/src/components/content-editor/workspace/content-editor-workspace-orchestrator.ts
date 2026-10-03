@@ -203,7 +203,13 @@ export class ContentEditorWorkspaceOrchestrator {
       isDirty: false,
       status:
         this.localStatusOverrides.get(segmentId) ??
-        segmentStatusFromTarget({ hasOpenIssues: this.segmentHasOpenIssues(segmentId) }, target),
+        segmentStatusFromTarget(
+          {
+            hasOpenIssues: this.segmentHasOpenIssues(segmentId),
+            groupStatus: this.segmentMeta.get(segmentId)?.groupStatus,
+          },
+          target,
+        ),
     };
   }
 
@@ -1036,7 +1042,10 @@ export class ContentEditorWorkspaceOrchestrator {
 
     const targetText = target?.text ?? "";
     const serverStatus = segmentStatusFromTarget(
-      { hasOpenIssues: this.segmentHasOpenIssues(segmentId) },
+      {
+        hasOpenIssues: this.segmentHasOpenIssues(segmentId),
+        groupStatus: this.segmentMeta.get(segmentId)?.groupStatus,
+      },
       target,
     );
     const status = this.localStatusOverrides.get(segmentId) ?? serverStatus;
