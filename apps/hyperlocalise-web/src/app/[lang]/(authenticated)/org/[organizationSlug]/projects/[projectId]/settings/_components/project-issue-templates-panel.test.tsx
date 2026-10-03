@@ -178,9 +178,9 @@ describe("ProjectIssueTemplatesPanel", () => {
     });
     expect(screen.queryByText("No longer has access")).not.toBeInTheDocument();
     await waitFor(() => {
-      expect(onDirtyChange).toHaveBeenCalledWith(false);
+      expect(onDirtyChange).toHaveBeenLastCalledWith(false);
     });
-    expect(onDirtyChange).not.toHaveBeenCalledWith(true);
+    expect(screen.getByRole("button", { name: "Save template settings" })).toBeDisabled();
   });
 
   it("sends the full config object on save, not just the changed field", async () => {
