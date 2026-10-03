@@ -507,19 +507,23 @@ func TestEditorCatSetHidden(t *testing.T) {
 
 func TestEditorCatSetLocked(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
-	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/locked"), `{"sourcePath":"a.json","targetLocale":"fr","externalStringIds":["`+testEditorCatKeyID+`"],"isLocked":true}`)
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	keyID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/locked"), `{"sourcePath":"a.json","targetLocale":"fr","externalStringIds":["`+keyID+`"],"isLocked":true}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"isLocked":true`)
 }
 
 func TestEditorCatUnlock(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	keyID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
 	_, err := scope.Pool.Exec(t.Context(), `
         insert into project_cat_segment_locks (organization_id, project_id, target_locale, external_string_id, locked_by_user_id)
         values ($1, $2, 'fr', $3, $4)`,
-		scope.OrganizationID, scope.ProjectID, testEditorCatKeyID, scope.UserID)
+		scope.OrganizationID, scope.ProjectID, keyID, scope.UserID)
 	require.NoError(t, err)
-	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/locked"), `{"sourcePath":"a.json","targetLocale":"fr","externalStringIds":["`+testEditorCatKeyID+`"],"isLocked":false}`)
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/locked"), `{"sourcePath":"a.json","targetLocale":"fr","externalStringIds":["`+keyID+`"],"isLocked":false}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"isLocked":false`)
 }
