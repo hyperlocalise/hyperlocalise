@@ -23,7 +23,10 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
-import { projectFileCatSegmentTargetQueryKey } from "../project-file/use-content-editor-segment-target";
+import {
+  fetchProjectFileContentEditorSegmentTarget,
+  projectFileCatSegmentTargetQueryKey,
+} from "../project-file/use-content-editor-segment-target";
 
 type Scope = {
   client: GoSvcClient;
@@ -355,6 +358,7 @@ function ActivityTranslationText({
   targetLocale: string;
   savedRevision?: string;
 }) {
+  const intl = useIntl();
   const target = useQuery({
     queryKey: projectFileCatSegmentTargetQueryKey({
       organizationSlug: scope.organizationSlug,
@@ -364,13 +368,16 @@ function ActivityTranslationText({
       externalStringId: segmentId,
     }),
     queryFn: ({ signal }) =>
-      scope.client.cat.segmentTarget(
-        scope.organizationSlug,
-        scope.projectId,
-        segmentId,
-        { sourcePath, targetLocale },
-        { signal },
-      ),
+      fetchProjectFileContentEditorSegmentTarget({
+        organizationSlug: scope.organizationSlug,
+        projectId: scope.projectId,
+        sourcePath,
+        targetLocale,
+        externalStringId: segmentId,
+        intl,
+        signal,
+        goSvcClient: scope.client,
+      }),
     staleTime: 30_000,
   });
   if (target.isPending) {
@@ -395,8 +402,8 @@ function ActivityTranslationText({
       </p>
     );
   }
-  const text = target.data?.target?.text ?? "";
-  const currentRevision = target.data?.target?.revision;
+  const text = target.data?.text ?? "";
+  const currentRevision = target.data?.revision;
   const unchangedSinceEvent =
     savedRevision != null &&
     currentRevision != null &&

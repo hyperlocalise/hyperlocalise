@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 // @vitest-environment happy-dom
+import { QueryClient } from "@tanstack/react-query";
 import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -21,6 +22,7 @@ import {
   SegmentActivityProvider,
   SegmentActivityButton,
 } from "../activity-log/content-editor-segment-activity";
+import { projectFileCatSegmentTargetQueryKey } from "../project-file/use-content-editor-segment-target";
 afterEach(cleanup);
 const group = {
   id: "a".repeat(64),
@@ -109,5 +111,114 @@ describe("group apply and activity", () => {
       expect.objectContaining({ segmentId: "segment", sourcePath: "a.json", targetLocale: "fr" }),
       expect.anything(),
     );
+  });
+  it("stores the editor translation object when activity loads a target", async () => {
+    const user = userEvent.setup();
+    const translation = {
+      revision: "12",
+      text: "Enregistrer",
+      externalTranslationId: "t1",
+      isApproved: false,
+    };
+    const queryKey = projectFileCatSegmentTargetQueryKey({
+      organizationSlug: "acme",
+      projectId: "p1",
+      sourcePath: "a.json",
+      targetLocale: "fr",
+      externalStringId: "segment",
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const segmentTarget = vi.fn().mockResolvedValue({ target: translation });
+    const activityLogs = vi.fn().mockResolvedValue({
+      activityLogs: [
+        {
+          id: "e1",
+          eventType: "string_segment_translation_updated",
+          createdAt: "2026-10-01T00:00:00.000Z",
+          actor: { displayName: "Ada" },
+          payload: {
+            segmentId: "segment",
+            sourcePath: "a.json",
+            targetLocale: "fr",
+            afterRevision: "12",
+          },
+        },
+      ],
+      nextCursor: null,
+    });
+    const client = { cat: { activityLogs, segmentTarget } } as unknown as GoSvcClient;
+    renderWithContentEditorProviders(
+      <SegmentActivityProvider
+        client={client}
+        organizationSlug="acme"
+        projectId="p1"
+        sourcePath="*"
+        targetLocale="fr"
+      >
+        <SegmentActivityButton segmentId="segment" sourcePath="a.json" label="save" />
+      </SegmentActivityProvider>,
+      { queryClient },
+    );
+    await user.click(screen.getByRole("button", { name: "Activity" }));
+    await user.click(screen.getByText("View translation"));
+    expect(await screen.findByText("Enregistrer")).toBeInTheDocument();
+    expect(screen.getByText("Translation saved in this edit")).toBeInTheDocument();
+    expect(queryClient.getQueryData(queryKey)).toEqual(translation);
+  });
+  it("reads a translation already cached by the editor", async () => {
+    const user = userEvent.setup();
+    const translation = {
+      revision: "8",
+      text: "Sauvegarder",
+      externalTranslationId: "t1",
+      isApproved: false,
+    };
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(
+      projectFileCatSegmentTargetQueryKey({
+        organizationSlug: "acme",
+        projectId: "p1",
+        sourcePath: "a.json",
+        targetLocale: "fr",
+        externalStringId: "segment",
+      }),
+      translation,
+    );
+    const segmentTarget = vi.fn();
+    const activityLogs = vi.fn().mockResolvedValue({
+      activityLogs: [
+        {
+          id: "e1",
+          eventType: "string_segment_translation_updated",
+          createdAt: "2026-10-01T00:00:00.000Z",
+          actor: { displayName: "Ada" },
+          payload: {
+            segmentId: "segment",
+            sourcePath: "a.json",
+            targetLocale: "fr",
+            afterRevision: "7",
+          },
+        },
+      ],
+      nextCursor: null,
+    });
+    const client = { cat: { activityLogs, segmentTarget } } as unknown as GoSvcClient;
+    renderWithContentEditorProviders(
+      <SegmentActivityProvider
+        client={client}
+        organizationSlug="acme"
+        projectId="p1"
+        sourcePath="*"
+        targetLocale="fr"
+      >
+        <SegmentActivityButton segmentId="segment" sourcePath="a.json" label="save" />
+      </SegmentActivityProvider>,
+      { queryClient },
+    );
+    await user.click(screen.getByRole("button", { name: "Activity" }));
+    await user.click(screen.getByText("View translation"));
+    expect(await screen.findByText("Sauvegarder")).toBeInTheDocument();
+    expect(screen.getByText("Current translation on this occurrence")).toBeInTheDocument();
+    expect(segmentTarget).not.toHaveBeenCalled();
   });
 });
