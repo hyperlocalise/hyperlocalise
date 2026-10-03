@@ -70,6 +70,7 @@ describe("ContentEditorComfortableResizableLayout", () => {
     );
 
     expect(Number(screen.getByTestId("intelligence").style.flexGrow)).toBe(0);
+    expect(screen.getByText("Intelligence pane").closest("[inert]")).not.toBeNull();
   });
 });
 

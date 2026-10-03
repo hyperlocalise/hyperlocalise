@@ -225,6 +225,10 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   pagination = null,
   hasMoreQueue = false,
   onLoadMoreQueue,
+  hasPreviousSegment,
+  hasNextSegment,
+  onPreviousSegment,
+  onNextSegment,
   onFocusSegment,
   onTargetChange,
   onApprove,
@@ -289,6 +293,10 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   pagination?: ContentEditorQueuePagination | null;
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
+  hasPreviousSegment?: boolean;
+  hasNextSegment?: boolean;
+  onPreviousSegment?: () => void;
+  onNextSegment?: () => void;
   onFocusSegment: (segmentId: string) => void;
   onTargetChange: (segmentId: string, value: string) => void;
   onApprove?: (segmentId: string) => void;
@@ -344,8 +352,6 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
       ? (segments[focusedIndex]?.index ?? focusedIndex + 1)
       : (pagination?.offset ?? 0) + 1;
   const totalSegments = pagination?.totalCount ?? (hasMoreQueue ? null : segments.length);
-  const previousSegment = focusedIndex > 0 ? segments[focusedIndex - 1] : undefined;
-  const nextSegment = focusedIndex >= 0 ? segments[focusedIndex + 1] : undefined;
   const fileContext = store.fileContext;
 
   return (
@@ -359,8 +365,8 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
             filename={fileContext.filename || fileContext.sourcePath}
             totalCount={totalSegments}
             position={segmentPosition}
-            onPrevious={previousSegment ? () => onFocusSegment(previousSegment.id) : undefined}
-            onNext={nextSegment ? () => onFocusSegment(nextSegment.id) : undefined}
+            onPrevious={hasPreviousSegment ? onPreviousSegment : undefined}
+            onNext={hasNextSegment ? onNextSegment : undefined}
           />
           <SideBySideColumnHeader
             sourceLocale={fileContext.sourceLocale}

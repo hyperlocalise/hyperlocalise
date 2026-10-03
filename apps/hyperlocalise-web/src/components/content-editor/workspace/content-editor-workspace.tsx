@@ -463,6 +463,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
+          hasPreviousSegment={hasPreviousSegment}
+          hasNextSegment={hasNextSegment}
+          onPreviousSegment={dependencies.navigation.onPreviousSegment}
+          onNextSegment={dependencies.navigation.onNextSegment}
           onFocusSegment={dependencies.navigation.onSelectSegment}
           onTargetChange={(segmentId, value) => editing.onTargetChange(segmentId, value)}
           onApprove={(segmentId) => {

@@ -39,8 +39,15 @@ const INTELLIGENCE_DEFAULT_SIZE = "22rem";
 const INTELLIGENCE_MIN_SIZE = "16rem";
 const INTELLIGENCE_MAX_SIZE = "40rem";
 
-function ContentEditorResizablePane({ children }: { children: ReactNode }) {
-  return <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">{children}</div>;
+function ContentEditorResizablePane({ children, inert }: { children: ReactNode; inert?: boolean }) {
+  return (
+    <div
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+      inert={inert ? true : undefined}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function ContentEditorComfortableResizableLayout({
@@ -112,7 +119,9 @@ export function ContentEditorComfortableResizableLayout({
         onResize={intelligencePanel.onResize}
         className="min-h-0 min-w-0 overflow-hidden"
       >
-        <ContentEditorResizablePane>{intelligence}</ContentEditorResizablePane>
+        <ContentEditorResizablePane inert={intelligenceCollapsed}>
+          {intelligence}
+        </ContentEditorResizablePane>
       </ResizablePanel>
     </ResizablePanelGroup>
   );
@@ -172,7 +181,9 @@ export function ContentEditorSideBySideResizableLayout({
         onResize={intelligencePanel.onResize}
         className="min-h-0 min-w-0 overflow-hidden"
       >
-        <ContentEditorResizablePane>{intelligence}</ContentEditorResizablePane>
+        <ContentEditorResizablePane inert={intelligenceCollapsed}>
+          {intelligence}
+        </ContentEditorResizablePane>
       </ResizablePanel>
     </ResizablePanelGroup>
   );
