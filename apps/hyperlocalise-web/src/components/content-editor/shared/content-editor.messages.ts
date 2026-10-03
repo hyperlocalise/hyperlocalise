@@ -510,6 +510,21 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     id: "hZ7gIyvYMF",
     description: "Placeholder when a native segment has no max length set",
   },
+  maxLengthInputPlaceholder: {
+    defaultMessage: "e.g. 32",
+    id: "FF6zP5y7+0",
+    description: "Placeholder inside the native segment max length input",
+  },
+  maxLengthUnit: {
+    defaultMessage: "characters",
+    id: "Dli/TBmkEI",
+    description: "Unit label beside the native segment max length input",
+  },
+  maxLengthUsed: {
+    defaultMessage: "{count} used",
+    id: "0wuiRIf04R",
+    description: "Current translation character count beside the max length input",
+  },
   maxLengthSave: {
     defaultMessage: "Save",
     id: "+qqz/QE1GR",

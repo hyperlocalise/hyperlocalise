@@ -105,6 +105,25 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
     expect(screen.queryByRole("button", { name: /Find context/i })).not.toBeInTheDocument();
   });
 
+  it("lets reviewers set a character limit", async () => {
+    const user = userEvent.setup();
+    const onSetMaxLength = vi.fn().mockResolvedValue(undefined);
+
+    renderIntelligencePanel({
+      showMaxLengthEditor: true,
+      onSetMaxLength,
+    });
+
+    const input = screen.getByRole("spinbutton", { name: "Character limit" });
+    await user.clear(input);
+    await user.type(input, "32");
+    await user.tab();
+
+    await waitFor(() => {
+      expect(onSetMaxLength).toHaveBeenCalledWith(32);
+    });
+  });
+
   it("shows QA details in the sidebar", () => {
     renderIntelligencePanel({
       formatChecks: [
@@ -121,6 +140,13 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
 
     expect(screen.getByText(/Format & QA checks/i)).toBeInTheDocument();
     expect(screen.getByText("Spelling")).toBeInTheDocument();
+  });
+
+  it("keeps the empty comments composer inside a scrollable height limit", () => {
+    renderIntelligencePanel({ canAddComment: true });
+
+    const commentsSection = document.querySelector("[data-inspector-comments]");
+    expect(commentsSection).toHaveClass("max-h-[40%]", "overflow-y-auto", "shrink-0");
   });
 
   it("keeps a long QA list scrollable inside the sidebar", () => {

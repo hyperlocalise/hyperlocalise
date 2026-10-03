@@ -33,6 +33,7 @@ import { ContentEditorEditorFormatChecksSection } from "@/components/content-edi
 import { ContentEditorEditorShortcutKbd } from "@/components/content-editor/editor/content-editor-editor-shortcut-kbd";
 import { ContentEditorIntelligencePanel } from "@/components/content-editor/intelligence/content-editor-intelligence-panel";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
+import { isNativeContentEditorProviderKind } from "@/components/content-editor/shared/content-editor-native-project";
 import {
   contentEditorEditorPanelMessages,
   contentEditorSideBySidePanelMessages,
@@ -202,7 +203,8 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         contributorTeams={fileContext.contributorTeams ?? []}
         projectTeamId={fileContext.projectTeamId}
         canContributeTeamGlossary={
-          Boolean(fileContext.canContributeTeamGlossary) && fileContext.providerKind == null
+          Boolean(fileContext.canContributeTeamGlossary) &&
+          isNativeContentEditorProviderKind(fileContext.providerKind)
         }
         teamName={fileContext.teamName}
         projectTeamSlug={fileContext.projectTeamSlug}
@@ -220,6 +222,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         onUseTmMatch={onUseTmMatch}
         onSetMaxLength={segment.isLocked ? undefined : onSetMaxLength}
         onGlossaryTermAdded={onGlossaryTermAdded}
+        embedded
       />
     );
     const qaPanel =
@@ -253,6 +256,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
           onAddComment={onAddComment}
           onOpenIssueSheet={onOpenIssueSheet}
           onResolveComment={onResolveComment}
+          variant="inspector"
         />
       </>
     );
@@ -305,8 +309,14 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
           <div className="flex min-h-0 flex-1 flex-col">
             {qaPanel}
             <div className="min-h-0 flex-1">{intelligencePanel}</div>
-            <div className="max-h-[45%] min-h-0 overflow-y-auto">
-              <Box paddingX="2u" paddingBottom="2u">
+            <div
+              data-inspector-comments
+              className={cn(
+                "max-h-[40%] min-h-0 overflow-y-auto border-t border-border",
+                (segment.comments?.length ?? 0) === 0 && "shrink-0",
+              )}
+            >
+              <Box paddingX="2u" paddingY="2u">
                 {commentsPanel}
               </Box>
             </div>

@@ -66,15 +66,15 @@ function ContentEditorEditorCommentItem({
   onResolveComment?: (commentId: string) => void | Promise<void>;
 }) {
   return (
-    <li className="space-y-1 rounded-lg border border-border p-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+    <li className="space-y-1 rounded-lg border border-border bg-background p-3">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-subtle-foreground">
         {comment.type === "issue" ? (
-          <Badge variant="outline" className="border-flame-200/40 text-flame-100">
+          <Badge variant="outline" className="border-flame-700/40 bg-flame-100/10 text-flame-100">
             <FormattedMessage {...contentEditorEditorPanelMessages.commentIssueLabel} />
           </Badge>
         ) : null}
         {comment.author ? (
-          <span className="font-medium text-subtle-foreground">{comment.author}</span>
+          <span className="font-medium text-foreground">{comment.author}</span>
         ) : null}
         {comment.createdAt ? <span>{formatCommentTimestamp(intl, comment.createdAt)}</span> : null}
         {comment.status ? <span className="capitalize">{comment.status}</span> : null}
@@ -143,7 +143,7 @@ function ContentEditorEditorCommentsList({
 
   if (comments.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-subtle-foreground">
         <FormattedMessage {...contentEditorEditorPanelMessages.noComments} />
       </p>
     );
@@ -178,6 +178,7 @@ export function ContentEditorEditorCommentsSection({
   onAddComment,
   onOpenIssueSheet,
   onResolveComment,
+  variant = "default",
 }: {
   segment: ContentEditorSegment;
   isLoading: boolean;
@@ -190,6 +191,7 @@ export function ContentEditorEditorCommentsSection({
   onAddComment?: (input: ContentEditorSegmentCommentInput) => void | Promise<void>;
   onOpenIssueSheet?: () => void;
   onResolveComment?: (commentId: string) => void | Promise<void>;
+  variant?: "default" | "inspector";
 }) {
   const intl = useIntl();
   const segmentComments = segment.comments ?? [];
@@ -242,15 +244,17 @@ export function ContentEditorEditorCommentsSection({
   }
 
   return (
-    <section className="space-y-3 border-t border-border pt-5">
+    <section
+      className={variant === "inspector" ? "space-y-3" : "space-y-3 border-t border-border pt-5"}
+    >
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-medium text-muted-foreground">
+        <h3 className="text-sm font-medium text-foreground">
           <FormattedMessage {...contentEditorEditorPanelMessages.comments} />
         </h3>
         {isLoading ? (
           <Skeleton className="h-3 w-6 rounded-full bg-skeleton" />
         ) : (
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className="rounded-full border border-border px-2 py-0.5 text-xs font-medium text-foreground tabular-nums">
             {segmentComments.length}
           </span>
         )}
@@ -267,7 +271,7 @@ export function ContentEditorEditorCommentsSection({
       <Textarea
         value={commentDraft}
         onChange={(event) => handleCommentDraftChange(event.currentTarget.value)}
-        className="min-h-20 resize-y rounded-xl border-border bg-muted px-3 py-3 text-sm leading-relaxed"
+        className="min-h-20 resize-y rounded-lg border-border bg-background px-3 py-3 text-sm leading-relaxed text-foreground placeholder:text-subtle-foreground"
         placeholder={intl.formatMessage(contentEditorEditorPanelMessages.commentPlaceholder)}
         disabled={!canAddComment || isPostingComment || isResolvingComment}
         data-cat-comment-input="true"
@@ -286,7 +290,7 @@ export function ContentEditorEditorCommentsSection({
           </Tabs>
           {commentInputType === "issue" ? (
             <div className="flex min-w-48 flex-1 items-center gap-2">
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-subtle-foreground">
                 <FormattedMessage {...contentEditorEditorPanelMessages.issueTypeLabel} />
               </span>
               <IssueTypePicker
@@ -294,7 +298,7 @@ export function ContentEditorEditorCommentsSection({
                 onValueChange={handleIssueTypeChange}
                 disabled={!canAddComment || isPostingComment || isResolvingComment}
                 aria-label={intl.formatMessage(contentEditorEditorPanelMessages.issueTypeLabel)}
-                triggerClassName="h-8 border-border bg-muted"
+                triggerClassName="h-8 border-border bg-background"
               />
             </div>
           ) : null}
@@ -315,7 +319,7 @@ export function ContentEditorEditorCommentsSection({
           <span />
         )}
         <Button
-          variant="ghost"
+          variant={trimmedCommentDraft ? "default" : "outline"}
           size="sm"
           onClick={() => void handleAddComment()}
           disabled={

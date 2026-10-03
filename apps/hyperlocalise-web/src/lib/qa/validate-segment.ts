@@ -12,6 +12,7 @@
  */
 import { validateGlossaryTermsInTranslation } from "@/lib/glossary/validate-glossary-terms-in-translation";
 
+import { countRunes } from "./count-runes";
 import type {
   TranslationQaCheck,
   TranslationQaGlossaryTerm,
@@ -19,14 +20,6 @@ import type {
 } from "./types";
 
 const PLACEHOLDER_PATTERN = /\{[^{}\s]+\}|%\d*\$?[sd]|%\w+/gu;
-
-function countRunes(value: string) {
-  let count = 0;
-  for (const _character of value) {
-    count += 1;
-  }
-  return count;
-}
 
 function collectPlaceholders(value: string) {
   return [...value.matchAll(PLACEHOLDER_PATTERN)].map((match) => match[0]);

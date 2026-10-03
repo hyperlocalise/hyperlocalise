@@ -54,9 +54,17 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
     renderEditor({ canEdit: false, maxLength: 24 });
 
     expect(screen.getByText("Limit: 24 characters")).toBeTruthy();
+    expect(screen.queryByRole("spinbutton")).toBeNull();
   });
 
-  it("saves a new max length", async () => {
+  it("keeps an input visible when no limit is set", () => {
+    renderEditor({ maxLength: undefined });
+
+    expect(screen.getByRole("spinbutton", { name: "Character limit" })).toHaveValue(null);
+    expect(screen.getByPlaceholderText("e.g. 32")).toBeTruthy();
+  });
+
+  it("saves a new max length from the Save button", async () => {
     const { onSave } = renderEditor({ maxLength: 80 });
 
     fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "32" } });
@@ -64,6 +72,26 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(32);
+    });
+  });
+
+  it("saves on blur and Enter", async () => {
+    const { onSave } = renderEditor({ maxLength: undefined });
+    const input = screen.getByRole("spinbutton");
+
+    fireEvent.change(input, { target: { value: "24" } });
+    fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(24);
+    });
+
+    onSave.mockClear();
+    fireEvent.change(input, { target: { value: "40" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(40);
     });
   });
 
@@ -102,5 +130,48 @@ describe("ContentEditorSegmentMaxLengthEditor", () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(null);
     });
+  });
+
+  it("clears an edited draft without saving the typed limit first", async () => {
+    const { onSave } = renderEditor({ maxLength: 80 });
+    const input = screen.getByRole("spinbutton");
+    const clear = screen.getByRole("button", { name: "Clear" });
+
+    fireEvent.change(input, { target: { value: "32" } });
+    fireEvent.blur(input, { relatedTarget: clear });
+    fireEvent.click(clear);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(null);
+    });
+    expect(onSave).not.toHaveBeenCalledWith(32);
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it("still saves after Clear when the input was not focused", async () => {
+    const { onSave } = renderEditor({ maxLength: 80 });
+    const input = screen.getByRole("spinbutton");
+    const clear = screen.getByRole("button", { name: "Clear" });
+
+    fireEvent.pointerDown(clear);
+    fireEvent.click(clear);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(null);
+    });
+    onSave.mockClear();
+
+    fireEvent.change(input, { target: { value: "32" } });
+    fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(32);
+    });
+  });
+
+  it("shows how many characters are already used", () => {
+    renderEditor({ maxLength: 20, characterCount: 28 });
+
+    expect(screen.getByText("28 used")).toBeTruthy();
   });
 });

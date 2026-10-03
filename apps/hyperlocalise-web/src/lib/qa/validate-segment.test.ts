@@ -116,6 +116,17 @@ describe("validateTranslationSegment", () => {
     ]);
   });
 
+  it("counts maxLength in Unicode code points so emoji is one character", () => {
+    expect(
+      validateTranslationSegment({
+        sourceText: "Hi",
+        targetText: "Hi😀",
+        targetLocale: "fr-FR",
+        maxLength: 3,
+      }),
+    ).toEqual([]);
+  });
+
   it("fails when the target drops a repeated placeholder", () => {
     const checks = validateTranslationSegment({
       sourceText: "%s %s",

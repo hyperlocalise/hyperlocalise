@@ -33,6 +33,7 @@ import {
 } from "@/components/content-editor/side-by-side/content-editor-side-by-side-panel";
 import type { ContentEditorWorkspaceViewProps } from "@/components/content-editor/shared/dependencies";
 import { contentEditorWorkspaceMessages } from "@/components/content-editor/shared/content-editor.messages";
+import { isNativeContentEditorProviderKind } from "@/components/content-editor/shared/content-editor-native-project";
 
 import { resolveCatFileViewCapabilities } from "./content-editor-file-view-capabilities";
 import { loadOriginalDocumentContext } from "./content-editor-original-document-context";
@@ -361,7 +362,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       )
     : null;
   const supportsIssueComments = shell.fileContext.providerKind === "crowdin" && canAddComment;
-  const isNativeProject = shell.fileContext.providerKind === null;
+  const isNativeProject = isNativeContentEditorProviderKind(shell.fileContext.providerKind);
   const showNativeIssues = nativeIssuesEnabled && isNativeProject;
   const issueTargetLocale = showNativeIssues ? shell.fileContext.targetLocale : null;
   const editorTranslationKeyId = showNativeIssues

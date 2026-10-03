@@ -62,6 +62,7 @@ export const Default: Story = {
     editing: {
       onTargetChange: fn(),
       onUseAiSuggestion: fn(),
+      onSetMaxLength: fn(),
     },
     review: {
       onApprove: fn(),
