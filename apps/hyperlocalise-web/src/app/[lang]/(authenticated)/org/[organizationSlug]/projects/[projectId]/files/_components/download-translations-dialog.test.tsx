@@ -50,11 +50,11 @@ describe("DownloadTranslationsDialog", () => {
       createObjectURL: createObjectUrlMock,
       revokeObjectURL: revokeObjectUrlMock,
     });
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
-      this: HTMLAnchorElement,
-    ) {
-      expect(this.isConnected).toBe(true);
-    });
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        expect(this.isConnected).toBe(true);
+      });
 
     renderDialog(
       <DownloadTranslationsDialog
