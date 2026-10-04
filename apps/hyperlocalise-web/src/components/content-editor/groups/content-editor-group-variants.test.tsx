@@ -162,11 +162,18 @@ describe("ContentEditorGroupVariantsGate", () => {
     );
   });
 
+  it("keeps the AI recommendation to a header button until a suggestion exists", async () => {
+    setup(divergentVariants, {}, { aiSuggestion: "" });
+    await screen.findByText("2 different translations");
+
+    expect(screen.queryByRole("complementary", { name: "AI recommendation" })).toBeNull();
+  });
+
   it("offers the AI recommendation once for all translations", async () => {
     const { saveVariant, user } = setup(divergentVariants, {}, { aiSuggestion: "Membre" });
     await screen.findByText("2 different translations");
 
-    const recommendation = screen.getByText("AI recommendation").closest("aside") as HTMLElement;
+    const recommendation = screen.getByRole("complementary", { name: "AI recommendation" });
     await user.click(within(recommendation).getByRole("button", { name: /Use in/ }));
     await user.click(await screen.findByRole("menuitem", { name: /Adhérent · 1 occurrence/ }));
     await waitFor(() =>
