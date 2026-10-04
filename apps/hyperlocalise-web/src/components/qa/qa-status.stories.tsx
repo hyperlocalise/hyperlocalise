@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn } from "storybook/test";
+import { expect, fn, userEvent } from "storybook/test";
 
 import { qaFailedReport, qaPartialReport, qaRunningReport, qaWebsiteReport } from "./qa.fixture";
 import { QaRunStatus } from "./qa-status";
@@ -54,10 +54,15 @@ export const Failed: Story = {
     report: qaFailedReport,
   },
   play: async ({ canvas }) => {
+    await expect(canvas.getByRole("heading", { name: "QA scan failed" })).toBeInTheDocument();
     await expect(
-      canvas.getByText("Scan failed. These results are incomplete. Retry the scan."),
+      canvas.getByText("The scan stopped while checking translations."),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Retry scan" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByText("Technical details"));
+    await expect(canvas.getByText("qa_scan_processing_failed")).toBeInTheDocument();
+    await expect(canvas.getByText("run_release")).toBeInTheDocument();
+    await expect(canvas.queryByText("private source text must not appear in the UI")).toBeNull();
   },
 };
 

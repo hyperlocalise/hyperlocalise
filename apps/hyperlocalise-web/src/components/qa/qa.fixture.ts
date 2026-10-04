@@ -103,9 +103,10 @@ export const qaFailedReport = createQaReport({
   id: "run_release",
   projectId: "project_release",
   status: "failed",
-  errorCode: "scan_failed",
-  errorMessage: "Scan failed",
+  errorCode: "qa_scan_processing_failed",
+  errorMessage: "private source text must not appear in the UI",
   startedAt: "2026-10-01T02:00:00.000Z",
+  completedAt: "2026-10-01T02:01:00.000Z",
   createdAt: "2026-10-01T02:00:00.000Z",
 });
 
@@ -275,6 +276,7 @@ export const qaWorkspaceReports: WorkspaceQaReportRow[] = [
     projectName: "Website localization",
     cadence: "daily",
     lastRunAt: qaWebsiteReport.completedAt,
+    lastSuccessfulAt: qaWebsiteReport.completedAt,
     report: qaWebsiteReport,
   },
   {
@@ -282,6 +284,7 @@ export const qaWorkspaceReports: WorkspaceQaReportRow[] = [
     projectName: "Mobile app",
     cadence: "off",
     lastRunAt: null,
+    lastSuccessfulAt: null,
     report: qaRunningReport,
   },
   {
@@ -289,6 +292,7 @@ export const qaWorkspaceReports: WorkspaceQaReportRow[] = [
     projectName: "Help center",
     cadence: "off",
     lastRunAt: null,
+    lastSuccessfulAt: null,
     report: null,
   },
   {
@@ -296,6 +300,7 @@ export const qaWorkspaceReports: WorkspaceQaReportRow[] = [
     projectName: "Release notes",
     cadence: "daily",
     lastRunAt: qaFailedReport.createdAt,
+    lastSuccessfulAt: "2026-09-30T05:00:00.000Z",
     report: qaFailedReport,
   },
 ];

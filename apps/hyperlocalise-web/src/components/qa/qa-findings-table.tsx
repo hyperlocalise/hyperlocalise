@@ -54,6 +54,7 @@ export function QaFindingsTable({
   canPromote,
   promoteScope,
   projectId,
+  lastCompletedByProject,
   hasMore,
   isLoadingMore,
   onLoadMore,
@@ -66,6 +67,7 @@ export function QaFindingsTable({
   canPromote: boolean;
   promoteScope: "workspace" | "project";
   projectId?: string;
+  lastCompletedByProject?: Record<string, string | null>;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
@@ -177,6 +179,7 @@ export function QaFindingsTable({
       {review.isError ? <QaNotice message={intl.formatMessage(m.reviewError)} /> : null}
       {[...groups.entries()].map(([groupId, rows]) => {
         const first = rows[0]!;
+        const completedAt = lastCompletedByProject?.[first.projectId];
         return (
           <section key={groupId} className="flex flex-col gap-3 border-b border-border py-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -187,6 +190,16 @@ export function QaFindingsTable({
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
+                {completedAt ? (
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {intl.formatMessage(m.completedScanAt, {
+                      date: intl.formatDate(completedAt, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }),
+                    })}
+                  </p>
+                ) : null}
               </div>
               <Button
                 nativeButton={false}

@@ -76,6 +76,18 @@ export class GoSvcProjectQaReportApi {
     );
   }
 
+  lastSuccessful(
+    organizationSlug: string,
+    projectId: string,
+    query: GoSvcQuery = {},
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<GoSvcRecord | null>(
+      orgPath(organizationSlug, "projects", projectId, "qa-reports", "last-successful"),
+      { query, ...options },
+    );
+  }
+
   get(
     organizationSlug: string,
     projectId: string,

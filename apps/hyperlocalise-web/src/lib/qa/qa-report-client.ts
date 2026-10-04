@@ -41,6 +41,7 @@ export type WorkspaceQaReportRow = {
   projectName: string;
   cadence: "off" | "daily";
   lastRunAt: string | null;
+  lastSuccessfulAt: string | null;
   report: {
     id: string;
     projectId: string;
@@ -144,6 +145,11 @@ export function createProjectQaReportClient(goSvcClient: GoSvcClient) {
           canManageSchedule: boolean;
         };
       }>,
+
+    getLastSuccessful: ({ param, beforeRunId }: { param: ProjectParams; beforeRunId: string }) =>
+      goSvcClient.qaReport.project.lastSuccessful(param.organizationSlug, param.projectId, {
+        beforeRunId,
+      }) as Promise<ProjectQaReport | null>,
 
     startScan: async ({ param }: StartScanInput) =>
       apiClient.api.orgs[":organizationSlug"].projects[":projectId"]["qa-reports"].$post({

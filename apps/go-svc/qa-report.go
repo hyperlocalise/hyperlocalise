@@ -101,6 +101,7 @@ func (api *qaReportAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("PATCH "+q+"/findings/{findingId}", bindActor(api, (*qaReportAPI).reviewFindingHandler))
 	route("POST "+q+"/findings/promote", bindActor(api, (*qaReportAPI).promoteWorkspaceFindingsHandler))
 	route("GET "+p, bindActor(api, (*qaReportAPI).listProjectQaReportsHandler))
+	route("GET "+p+"/last-successful", bindActor(api, (*qaReportAPI).lastSuccessfulProjectQaRunHandler))
 	route("PATCH "+p+"/settings", bindActor(api, (*qaReportAPI).patchProjectQaSettingsHandler))
 	route("GET "+p+"/latest-findings", bindActor(api, (*qaReportAPI).listProjectLatestFindingsHandler))
 	route("POST "+p+"/findings/promote", bindActor(api, (*qaReportAPI).promoteProjectFindingsHandler))
@@ -208,6 +209,22 @@ func (api *qaReportAPI) listProjectQaReportsHandler(r *http.Request, actor qaRep
 		return nil, 0, err
 	}
 	return api.listProjectQaReports(r.Context(), actor, project)
+}
+
+func (api *qaReportAPI) lastSuccessfulProjectQaRunHandler(r *http.Request, actor qaReportActor) (any, int, error) {
+	project, err := api.withOwnedProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
+	beforeRunID, err := uuid.Parse(r.URL.Query().Get("beforeRunId"))
+	if err != nil {
+		return nil, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
+	}
+	run, err := api.lastSuccessfulProjectQaRun(r.Context(), actor.organizationID, project.ID, beforeRunID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return run, 200, nil
 }
 
 func (api *qaReportAPI) patchProjectQaSettingsHandler(r *http.Request, actor qaReportActor) (any, int, error) {

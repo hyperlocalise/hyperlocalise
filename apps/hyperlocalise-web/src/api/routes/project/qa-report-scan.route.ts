@@ -77,7 +77,8 @@ function serializeRun(run: {
     warningCount: run.warningCount,
     summary: run.summary,
     errorCode: run.errorCode,
-    errorMessage: run.errorMessage,
+    // Raw exceptions stay in the run row for internal diagnosis by run ID.
+    errorMessage: null,
     startedAt: run.startedAt?.toISOString() ?? null,
     completedAt: run.completedAt?.toISOString() ?? null,
     createdAt: run.createdAt.toISOString(),

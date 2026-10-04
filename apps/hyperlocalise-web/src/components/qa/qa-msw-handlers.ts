@@ -166,6 +166,19 @@ export function createQaMswHandlers({
       },
     ),
     http.get(
+      "*/v1/orgs/:organizationSlug/projects/:projectId/qa-reports/last-successful",
+      async ({ request }) => {
+        await maybeWait();
+        const beforeRunId = new URL(request.url).searchParams.get("beforeRunId");
+        const beforeIndex = projectRows.findIndex((row) => row.id === beforeRunId);
+        const report =
+          beforeIndex < 0
+            ? undefined
+            : projectRows.slice(beforeIndex).find((row) => row.status === "succeeded");
+        return HttpResponse.json(report ?? null);
+      },
+    ),
+    http.get(
       "*/v1/orgs/:organizationSlug/projects/:projectId/qa-reports/:runId",
       async ({ params, request }) => {
         await maybeWait();
@@ -292,8 +305,17 @@ export const qaProjectFailedMswHandlers = createQaMswHandlers({
       id: "run_failed",
       projectId: qaWebsiteProjectId,
       status: "failed",
-      errorCode: "scan_failed",
-      errorMessage: "Scan failed",
+      errorCode: "qa_scan_processing_failed",
+      errorMessage: "private source text must not appear in the UI",
+      createdAt: "2026-10-02T08:00:00.000Z",
+      completedAt: "2026-10-02T08:01:00.000Z",
+    }),
+    createQaReport({
+      id: "run_previous_success",
+      projectId: qaWebsiteProjectId,
+      status: "succeeded",
+      createdAt: "2026-10-01T08:00:00.000Z",
+      completedAt: "2026-10-01T08:04:00.000Z",
     }),
   ],
   projectFindings: [],

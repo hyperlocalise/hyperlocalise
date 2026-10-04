@@ -125,10 +125,16 @@ export const Failed: Story = {
   },
   play: async ({ canvas }) => {
     await expect(
-      await canvas.findByText("Scan failed. These results are incomplete. Retry the scan."),
+      await canvas.findByRole("heading", { name: "QA scan failed" }),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Retry" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Run QA check" })).toBeEnabled();
+    await expect(
+      canvas.getByText("The scan stopped while checking translations."),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Retry scan" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "View last completed scan" })).toBeEnabled();
+    await expect(canvas.queryByRole("button", { name: "Run QA check" })).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("tab", { name: "History" }));
+    await expect(canvas.getByRole("button", { name: "View failure" })).toBeInTheDocument();
   },
 };
 

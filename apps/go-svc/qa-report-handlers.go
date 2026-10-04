@@ -95,7 +95,7 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
         with latest_qa_run as (
             select distinct on (project_id)
                 id, project_id, status, trigger, segment_count, finding_count, error_count, warning_count,
-                summary, started_at, completed_at, created_at
+                summary, error_code, started_at, completed_at, created_at
             from translation_qa_runs
             where organization_id = $1
             order by project_id, created_at desc
@@ -103,9 +103,17 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
         select
             p.id, p.name, p.qa_scan_cadence, p.qa_scan_last_run_at,
             r.id, r.status, r.trigger, r.segment_count, r.finding_count, r.error_count, r.warning_count,
-            r.summary, r.started_at, r.completed_at, r.created_at
+            r.summary, r.error_code, r.started_at, r.completed_at, r.created_at,
+            last_success.completed_at
         from projects p
         left join latest_qa_run r on r.project_id = p.id
+        left join lateral (
+            select completed_at
+            from translation_qa_runs
+            where organization_id = $1 and project_id = p.id and status = 'succeeded'
+            order by completed_at desc nulls last, created_at desc
+            limit 1
+        ) last_success on true
         where p.organization_id = $1 and p.source = 'native'
         and `+formatQaProjectTeamAccessSQL(2, 3, 1)+`
         order by p.name`, actor.organizationID, actor.canWriteProjectTeam(), actor.userID)
@@ -134,14 +142,14 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
 	reports := []map[string]any{}
 	for rows.Next() {
 		var projectID, projectName, cadence string
-		var runID, status, trigger *string
+		var runID, status, trigger, errorCode *string
 		var segmentCount, findingCount, errorCount, warningCount *int
 		var summaryRaw []byte
-		var lastRunAt, startedAt, completedAt, runCreatedAt *time.Time
+		var lastRunAt, startedAt, completedAt, runCreatedAt, lastSuccessfulAt *time.Time
 		if err := rows.Scan(
 			&projectID, &projectName, &cadence, &lastRunAt,
 			&runID, &status, &trigger, &segmentCount, &findingCount, &errorCount, &warningCount,
-			&summaryRaw, &startedAt, &completedAt, &runCreatedAt,
+			&summaryRaw, &errorCode, &startedAt, &completedAt, &runCreatedAt, &lastSuccessfulAt,
 		); err != nil {
 			return nil, 0, err
 		}
@@ -152,11 +160,12 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
 			lastRunISO = formatQaReportTime(runCreatedAt)
 		}
 		row := map[string]any{
-			"projectId":   projectID,
-			"projectName": projectName,
-			"cadence":     cadence,
-			"lastRunAt":   lastRunISO,
-			"report":      nil,
+			"projectId":        projectID,
+			"projectName":      projectName,
+			"cadence":          cadence,
+			"lastRunAt":        lastRunISO,
+			"lastSuccessfulAt": formatQaReportTime(lastSuccessfulAt),
+			"report":           nil,
 		}
 		if runID != nil && status != nil {
 			summary := emptyQaSummary()
@@ -184,7 +193,7 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
 				ErrorCount:   derefInt(errorCount),
 				WarningCount: derefInt(warningCount),
 				Summary:      summary,
-				ErrorCode:    nil,
+				ErrorCode:    errorCode,
 				ErrorMessage: nil,
 				StartedAt:    formatQaReportTime(startedAt),
 				CompletedAt:  formatQaReportTime(completedAt),
