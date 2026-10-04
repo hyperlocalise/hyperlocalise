@@ -380,12 +380,16 @@ function OverviewMetricsTray({
   overview,
   automationsVisible,
   isLoading,
+  isError,
   loadingLabel,
+  errorMessage,
 }: {
   overview: WorkspaceOverviewSnapshot;
   automationsVisible: boolean;
   isLoading: boolean;
+  isError: boolean;
   loadingLabel: string;
+  errorMessage: string;
 }) {
   const intl = useIntl();
   const metricCount = automationsVisible ? 4 : 3;
@@ -415,6 +419,12 @@ function OverviewMetricsTray({
           Array.from({ length: metricCount }, (_, index) => (
             <Skeleton key={index} className="min-h-[148px] rounded-xl" />
           ))
+        ) : isError ? (
+          <div className="rounded-xl border border-border bg-card px-4 py-5 sm:col-span-2 xl:col-span-full">
+            <TypographyP size="small" tone="subtle">
+              {errorMessage}
+            </TypographyP>
+          </div>
         ) : (
           <>
             <OverviewMetricCard
@@ -509,7 +519,9 @@ export function DashboardPageView({
         overview={overview}
         automationsVisible={automationsMetricVisible}
         isLoading={metricsStatus.isLoading}
+        isError={metricsStatus.isError}
         loadingLabel={loadingLabel}
+        errorMessage={errorMessage}
       />
 
       {qaAttentionCard}

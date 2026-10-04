@@ -18,7 +18,6 @@ import { apiClient } from "@/lib/api-client-instance";
 import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
 
 import type { ApiProject } from "../projects/_components/project-list";
-import { useActiveTmsProvider } from "./use-active-tms-provider";
 
 export const tmsLiveProjectsQueryKey = (organizationSlug: string) =>
   ["translation-projects", organizationSlug, "tms-live"] as const;
@@ -36,13 +35,9 @@ export async function fetchTmsLiveProjects(organizationSlug: string) {
 }
 
 export function useTmsLiveProjects(organizationSlug: string, options?: { enabled?: boolean }) {
-  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
-  const hasConnection = Boolean(activeTmsProviderQuery.data);
-  const enabled = (options?.enabled ?? true) && hasConnection;
-
   return useQuery({
     queryKey: tmsLiveProjectsQueryKey(organizationSlug),
-    enabled,
+    enabled: options?.enabled ?? true,
     queryFn: () => fetchTmsLiveProjects(organizationSlug),
   });
 }

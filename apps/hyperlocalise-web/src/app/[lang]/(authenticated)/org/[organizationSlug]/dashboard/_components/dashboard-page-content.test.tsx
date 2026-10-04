@@ -196,6 +196,22 @@ describe("DashboardPageContent", () => {
     });
   });
 
+  it("marks metrics as failed instead of leaving zero counts as success", async () => {
+    apiMocks.metrics.mockRejectedValue(new Error("metrics unavailable"));
+    apiMocks.activity.mockResolvedValue({ activity: dashboardOverviewFixture.activity });
+    apiMocks.projects.mockResolvedValue({ projects: [] });
+    apiMocks.board.mockResolvedValue({ board: [] });
+    apiMocks.automations.mockResolvedValue({ automations: [] });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(latestViewProps?.sectionStatus?.metrics?.isError).toBe(true);
+      expect(latestViewProps?.sectionStatus?.activity?.isError).toBe(false);
+      expect(latestViewProps?.overview.metrics.jobs.count).toBe(0);
+    });
+  });
+
   it("does not fetch automations when the feature is off", async () => {
     apiMocks.metrics.mockResolvedValue({ metrics: dashboardOverviewFixture.metrics });
     apiMocks.activity.mockResolvedValue({ activity: [] });

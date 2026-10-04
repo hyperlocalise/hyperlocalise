@@ -10,16 +10,17 @@ import (
 )
 
 const (
-	overviewRequestTimeout     = 30 * time.Second
-	overviewLookbackDays       = 7
-	overviewActivityLimit      = 4
-	overviewProjectLimit       = 2
-	overviewBoardLimit         = 3
-	overviewAutomationLimit    = 3
-	overviewRecentJobsLimit    = 8
-	overviewRecentRunsLimit    = 8
-	workspaceAutomationsFlag   = "workspace-automations"
-	overviewOpenJobStatusesSQL = `'queued', 'running', 'waiting_for_review'`
+	overviewRequestTimeout        = 30 * time.Second
+	overviewLookbackDays          = 7
+	overviewActivityLimit         = 4
+	overviewProjectLimit          = 2
+	overviewProjectCandidateLimit = 20
+	overviewBoardLimit            = 3
+	overviewAutomationLimit       = 3
+	overviewRecentJobsLimit       = 8
+	overviewRecentRunsLimit       = 8
+	workspaceAutomationsFlag      = "workspace-automations"
+	overviewOpenJobStatusesSQL    = `'queued', 'running', 'waiting_for_review'`
 )
 
 type overviewAPI struct {

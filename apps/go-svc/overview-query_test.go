@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -127,6 +128,19 @@ func TestOverviewJobHrefFromEncodedJobID(t *testing.T) {
 	href := overviewJobHref("acme", nil, "ext:crowdin:proj:job")
 	require.NotNil(t, href)
 	require.Equal(t, "/org/acme/projects/ext%3Acrowdin%3Aproj/jobs/ext%3Acrowdin%3Aproj%3Ajob", *href)
+}
+
+func TestOverviewResolvedTitleJSONIncludesSyncDirection(t *testing.T) {
+	encoded, err := json.Marshal(overviewResolvedTitle{
+		Kind:          "sync",
+		ConnectorKind: "github",
+	})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"kind":"sync","direction":null,"connectorKind":"github"}`, string(encoded))
+
+	encoded, err = json.Marshal(overviewResolvedTitle{Kind: "text", Text: "Home page"})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"kind":"text","text":"Home page"}`, string(encoded))
 }
 
 func TestRequestLogPathOverview(t *testing.T) {

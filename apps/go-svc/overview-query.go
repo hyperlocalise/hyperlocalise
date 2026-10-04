@@ -24,6 +24,22 @@ type overviewResolvedTitle struct {
 	ID            string  `json:"id,omitempty"`
 }
 
+func (title overviewResolvedTitle) MarshalJSON() ([]byte, error) {
+	if title.Kind != "sync" {
+		type wire overviewResolvedTitle
+		return json.Marshal(wire(title))
+	}
+	return json.Marshal(struct {
+		Kind          string  `json:"kind"`
+		Direction     *string `json:"direction"`
+		ConnectorKind string  `json:"connectorKind"`
+	}{
+		Kind:          title.Kind,
+		Direction:     title.Direction,
+		ConnectorKind: title.ConnectorKind,
+	})
+}
+
 type overviewActivityItem struct {
 	ID          string                `json:"id"`
 	Kind        string                `json:"kind"`

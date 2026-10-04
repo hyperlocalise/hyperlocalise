@@ -46,9 +46,11 @@ func (api *overviewAPI) listPreviewProjects(ctx context.Context, actor overviewA
         )
         select id, name, source, external_provider_kind, source_locale, target_locales, open_job_count
         from candidates
-        where source = 'external_tms' or source_rank <= $4
+        where (source = 'external_tms' and source_rank <= $5)
+           or (source <> 'external_tms' and source_rank <= $4)
         order by case source when 'external_tms' then 0 else 1 end, source_rank`,
-		actor.organizationID, actor.canReadAllTeams(), actor.userID, overviewProjectLimit)
+		actor.organizationID, actor.canReadAllTeams(), actor.userID, overviewProjectLimit,
+		overviewProjectCandidateLimit)
 	if err != nil {
 		return nil, err
 	}
