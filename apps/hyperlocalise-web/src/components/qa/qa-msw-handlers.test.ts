@@ -18,7 +18,7 @@ import { qaWorkspaceLoadMoreMswHandlers, qaWorkspaceMswHandlers } from "./qa-msw
 const server = setupServer(...qaWorkspaceMswHandlers);
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: "error" });
+  server.listen({ onUnhandledFrame: "error" });
 });
 
 afterEach(() => {
