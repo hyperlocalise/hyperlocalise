@@ -95,6 +95,30 @@ export type DashboardLinkRenderer = (props: {
   onClick?: () => void;
 }) => ReactNode;
 
+export type OverviewSectionStatus = {
+  isLoading?: boolean;
+  isError?: boolean;
+};
+
+export type OverviewSectionStatuses = {
+  metrics?: OverviewSectionStatus;
+  activity?: OverviewSectionStatus;
+  projects?: OverviewSectionStatus;
+  board?: OverviewSectionStatus;
+  automations?: OverviewSectionStatus;
+};
+
+function resolveSectionStatus(
+  section: OverviewSectionStatus | undefined,
+  fallbackLoading: boolean,
+  fallbackError: boolean,
+) {
+  return {
+    isLoading: section?.isLoading ?? fallbackLoading,
+    isError: section?.isError ?? fallbackError,
+  };
+}
+
 function defaultRenderLink({
   href,
   className,
@@ -434,6 +458,7 @@ export function DashboardPageView({
   automationsEnabled = false,
   isLoading = false,
   isError = false,
+  sectionStatus,
   onNewRequest,
   qaAttentionCard,
   slackConnectCard,
@@ -444,6 +469,7 @@ export function DashboardPageView({
   automationsEnabled?: boolean;
   isLoading?: boolean;
   isError?: boolean;
+  sectionStatus?: OverviewSectionStatuses;
   onNewRequest: () => void;
   qaAttentionCard?: ReactNode;
   slackConnectCard?: ReactNode;
@@ -454,8 +480,14 @@ export function DashboardPageView({
   const projectsHref = `/org/${organizationSlug}/projects`;
   const issuesHref = `/org/${organizationSlug}/issues`;
   const automationsHref = `/org/${organizationSlug}/automations`;
-  const automationsVisible =
-    automationsEnabled && (isLoading || overview.metrics.automations !== null);
+  const metricsStatus = resolveSectionStatus(sectionStatus?.metrics, isLoading, isError);
+  const activityStatus = resolveSectionStatus(sectionStatus?.activity, isLoading, isError);
+  const projectsStatus = resolveSectionStatus(sectionStatus?.projects, isLoading, isError);
+  const boardStatus = resolveSectionStatus(sectionStatus?.board, isLoading, isError);
+  const automationsStatus = resolveSectionStatus(sectionStatus?.automations, isLoading, isError);
+  const automationsVisible = automationsEnabled;
+  const automationsMetricVisible =
+    automationsEnabled && (metricsStatus.isLoading || overview.metrics.automations !== null);
   const loadingLabel = intl.formatMessage(dashboardPageViewMessages.loadingWorkspaceOverview);
   const errorMessage = intl.formatMessage(dashboardPageViewMessages.overviewLoadError);
 
@@ -475,8 +507,8 @@ export function DashboardPageView({
 
       <OverviewMetricsTray
         overview={overview}
-        automationsVisible={automationsVisible}
-        isLoading={isLoading}
+        automationsVisible={automationsMetricVisible}
+        isLoading={metricsStatus.isLoading}
         loadingLabel={loadingLabel}
       />
 
@@ -491,8 +523,8 @@ export function DashboardPageView({
             renderLink={renderLink}
           />
           <OverviewFeed
-            isLoading={isLoading}
-            isError={isError}
+            isLoading={activityStatus.isLoading}
+            isError={activityStatus.isError}
             isEmpty={overview.activity.length === 0}
             emptyMessage={intl.formatMessage(dashboardPageViewMessages.activityEmpty)}
             errorMessage={errorMessage}
@@ -512,8 +544,8 @@ export function DashboardPageView({
             renderLink={renderLink}
           />
           <OverviewFeed
-            isLoading={isLoading}
-            isError={isError}
+            isLoading={projectsStatus.isLoading}
+            isError={projectsStatus.isError}
             isEmpty={overview.projects.length === 0}
             emptyMessage={intl.formatMessage(dashboardPageViewMessages.projectsEmpty)}
             errorMessage={errorMessage}
@@ -545,8 +577,8 @@ export function DashboardPageView({
             renderLink={renderLink}
           />
           <OverviewFeed
-            isLoading={isLoading}
-            isError={isError}
+            isLoading={boardStatus.isLoading}
+            isError={boardStatus.isError}
             isEmpty={overview.board.length === 0}
             emptyMessage={intl.formatMessage(dashboardPageViewMessages.boardEmpty)}
             errorMessage={errorMessage}
@@ -567,8 +599,8 @@ export function DashboardPageView({
               renderLink={renderLink}
             />
             <OverviewFeed
-              isLoading={isLoading}
-              isError={isError}
+              isLoading={automationsStatus.isLoading}
+              isError={automationsStatus.isError}
               isEmpty={overview.automations.length === 0}
               emptyMessage={intl.formatMessage(dashboardPageViewMessages.automationsEmpty)}
               errorMessage={errorMessage}

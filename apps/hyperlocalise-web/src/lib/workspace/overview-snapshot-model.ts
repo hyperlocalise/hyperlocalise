@@ -277,3 +277,50 @@ export function mergeOverviewProjectSources<T extends { id: string }>(input: {
 
   return merged;
 }
+
+export type OverviewLiveProjectSource = {
+  id: string;
+  name: string;
+  source?: "native" | "external_tms";
+  externalProviderKind?: string | null;
+  sourceLocale?: string | null;
+  targetLocales?: readonly string[] | null;
+  openJobCount?: number;
+};
+
+export function overviewProjectFromLiveSource(
+  organizationSlug: string,
+  project: OverviewLiveProjectSource,
+  extras?: OverviewProjectItem,
+): OverviewProjectItem {
+  return {
+    id: project.id,
+    name: project.name,
+    source: "external_tms",
+    providerKind: project.externalProviderKind ?? extras?.providerKind ?? null,
+    domain: extras?.domain ?? null,
+    localeRoute: formatOverviewLocaleRoute(project.sourceLocale, project.targetLocales),
+    latestJobTitle: extras?.latestJobTitle ?? null,
+    latestJobAt: extras?.latestJobAt ?? null,
+    openCount: extras?.openCount ?? project.openJobCount ?? 0,
+    failedCount: extras?.failedCount ?? 0,
+    href: extras?.href ?? `/org/${organizationSlug}/projects/${encodeURIComponent(project.id)}`,
+  };
+}
+
+export function mergeOverviewProjectsWithLive(input: {
+  organizationSlug: string;
+  stored: readonly OverviewProjectItem[];
+  live: readonly OverviewLiveProjectSource[];
+}): OverviewProjectItem[] {
+  const storedById = new Map(input.stored.map((project) => [project.id, project]));
+  const live = input.live.map((project) =>
+    overviewProjectFromLiveSource(input.organizationSlug, project, storedById.get(project.id)),
+  );
+
+  return mergeOverviewProjectSources({
+    live,
+    materialized: input.stored.filter((project) => project.source === "external_tms"),
+    native: input.stored.filter((project) => project.source === "native"),
+  }).slice(0, OVERVIEW_PROJECT_LIMIT);
+}

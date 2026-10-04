@@ -104,6 +104,7 @@ func main() {
 	h.activityLogs = &activityLogAPI{}
 	h.contentEditor = &editorCatAPI{}
 	h.projects = &projectAPI{activityLog: activityLogPublisher}
+	h.overview = &overviewAPI{}
 	h.publicTranslations = &publicTranslationsAPI{auth: newPublicAPIAuthFromEnv(nil, nil)}
 	if autumnKey := strings.TrimSpace(os.Getenv("AUTUMN_API_KEY")); autumnKey != "" {
 		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
@@ -160,6 +161,7 @@ func main() {
 		h.activityLogs.pool = traced
 		h.contentEditor.pool = traced
 		h.projects.pool = traced
+		h.overview.pool = traced
 		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
@@ -212,6 +214,8 @@ func main() {
 	h.activityLogs.membership = membershipLookup
 	h.contentEditor.membership = membershipLookup
 	h.projects.membership = membershipLookup
+	h.overview.membership = membershipLookup
+	h.overview.flags = h.workspace.flags
 	h.publicTranslations.auth.membership = membershipLookup
 	h.workspace.membership = membershipLookup
 

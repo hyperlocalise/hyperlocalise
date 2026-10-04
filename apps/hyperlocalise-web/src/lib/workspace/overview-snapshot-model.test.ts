@@ -18,12 +18,14 @@ import {
   fillDailySeries,
   formatOverviewLocaleRoute,
   mergeOverviewProjectSources,
+  mergeOverviewProjectsWithLive,
   overviewJobKindValue,
   rankOverviewActivity,
   resolveOverviewJobTitle,
   shouldIncludeOverviewAutomations,
   utcDayKey,
   type OverviewActivityItem,
+  type OverviewProjectItem,
 } from "./overview-snapshot-model";
 
 function activity(
@@ -173,5 +175,65 @@ describe("overview snapshot helpers", () => {
       "ext:crowdin:300",
       "project_native",
     ]);
+  });
+
+  it("prefers live TMS projects and keeps stored extras for matching ids", () => {
+    const stored: OverviewProjectItem[] = [
+      {
+        id: "ext:crowdin:100",
+        name: "Materialized",
+        source: "external_tms",
+        providerKind: "crowdin",
+        domain: "docs.example",
+        localeRoute: "en → fr-FR",
+        latestJobTitle: { kind: "text", text: "Latest" },
+        latestJobAt: "2026-03-18T12:15:00.000Z",
+        openCount: 2,
+        failedCount: 1,
+        href: "/org/acme/projects/ext%3Acrowdin%3A100",
+      },
+      {
+        id: "project_native",
+        name: "Native",
+        source: "native",
+        providerKind: null,
+        domain: null,
+        localeRoute: "en",
+        latestJobTitle: null,
+        latestJobAt: null,
+        openCount: 0,
+        failedCount: 0,
+        href: "/org/acme/projects/project_native",
+      },
+    ];
+
+    const merged = mergeOverviewProjectsWithLive({
+      organizationSlug: "acme",
+      stored,
+      live: [
+        {
+          id: "ext:crowdin:100",
+          name: "Live docs",
+          externalProviderKind: "crowdin",
+          sourceLocale: "en",
+          targetLocales: ["fr-FR"],
+        },
+        {
+          id: "ext:crowdin:200",
+          name: "Live only",
+          externalProviderKind: "crowdin",
+          sourceLocale: "en",
+          targetLocales: ["de-DE"],
+        },
+      ],
+    });
+
+    expect(merged.map((project) => project.id)).toEqual(["ext:crowdin:100", "ext:crowdin:200"]);
+    expect(merged[0]).toMatchObject({
+      name: "Live docs",
+      domain: "docs.example",
+      openCount: 2,
+      failedCount: 1,
+    });
   });
 });
