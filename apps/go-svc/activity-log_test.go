@@ -340,9 +340,28 @@ func TestActivityLogActorAndRangeFilters(t *testing.T) {
 
 func TestActivityLogUserActorFilter(t *testing.T) {
 	api, scope := activityLogTestAPI(t, "admin")
+	mustActivityEvent(t, scope, "user", "project_created", "project", scope.ProjectID, []byte(`{"name":"Acme App"}`), testActivityTime, &scope.UserID)
+
+	otherUserID := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into users (id, workos_user_id, email, first_name, last_name)
+        values ($1, $2, $3, 'Grace', 'Hopper')`,
+		otherUserID, "user_"+otherUserID, otherUserID+"@example.com")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, otherUserID)
+	})
+	mustActivityEvent(t, scope, "user", "project_deleted", "project", scope.ProjectID, []byte(`{"name":"Other App"}`), testActivityTime.Add(time.Minute), &otherUserID)
+
 	rec := activityLogRequest(api, scope, http.MethodGet,
 		scope.OrgPath("/activity-logs")+"?actor=user:"+scope.UserID)
 	require.Equal(t, 200, rec.Code, rec.Body.String())
+
+	var body activityLogListResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.ActivityLogs, 1)
+	require.Equal(t, "project_created", body.ActivityLogs[0].EventType)
+	require.Equal(t, scope.UserID, *body.ActivityLogs[0].Actor.UserID)
 }
 
 func TestActivityLogAPIKeyActorDetails(t *testing.T) {
@@ -391,6 +410,24 @@ func TestActivityLogAPIKeyActorDetails(t *testing.T) {
 	require.NoError(t, json.Unmarshal(filtered.Body.Bytes(), &filteredBody))
 	require.Len(t, filteredBody.ActivityLogs, 1)
 	require.Equal(t, credentialID, *filteredBody.ActivityLogs[0].Actor.CredentialID)
+
+	byUser := activityLogRequest(api, scope, http.MethodGet,
+		scope.OrgPath("/activity-logs")+"?actor=user:"+scope.UserID)
+	require.Equal(t, 200, byUser.Code, byUser.Body.String())
+	var byUserBody activityLogListResult
+	require.NoError(t, json.Unmarshal(byUser.Body.Bytes(), &byUserBody))
+	require.Len(t, byUserBody.ActivityLogs, 1)
+	require.Equal(t, "api_key", byUserBody.ActivityLogs[0].Actor.Kind)
+	require.Equal(t, scope.UserID, *byUserBody.ActivityLogs[0].Actor.UserID)
+
+	var foundUser bool
+	for _, actor := range body.Actors {
+		if actor.Kind == "user" && actor.UserID != nil && *actor.UserID == scope.UserID {
+			require.Equal(t, "Ada Lovelace", actor.DisplayName)
+			foundUser = true
+		}
+	}
+	require.True(t, foundUser)
 }
 
 func TestActivityLogMembershipPayloadFallback(t *testing.T) {

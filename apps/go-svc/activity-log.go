@@ -576,7 +576,7 @@ func (api *activityLogAPI) listEvents(ctx context.Context, actor activityLogActo
 
 	if query.actor != nil {
 		if query.actor.kind == "user" {
-			conditions = append(conditions, "e.actor_kind = 'user'", "e.actor_user_id = $"+strconv.Itoa(argN))
+			conditions = append(conditions, "e.actor_user_id = $"+strconv.Itoa(argN))
 			args = append(args, query.actor.userID)
 			argN++
 		} else if query.actor.kind == "api_key" && query.actor.credentialID != "" {
@@ -728,7 +728,7 @@ func (api *activityLogAPI) listActors(ctx context.Context, organizationID string
         select distinct e.actor_user_id, u.first_name, u.last_name
         from organization_activity_events e
         inner join users u on u.id = e.actor_user_id
-        where e.organization_id = $1 and e.actor_kind = 'user' and e.actor_user_id is not null`, organizationID)
+        where e.organization_id = $1 and e.actor_user_id is not null`, organizationID)
 	if err != nil {
 		return nil, err
 	}
