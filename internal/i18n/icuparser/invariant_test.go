@@ -1,6 +1,7 @@
 package icuparser
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -452,6 +453,57 @@ func TestNumericPlaceholderInPlaceholders(t *testing.T) {
 	if !found1 {
 		t.Errorf("expected '1' in placeholders, got %v", inv.Placeholders)
 	}
+}
+
+func TestParseInvariantPlaceholdersBeyondInitialCapacity(t *testing.T) {
+	occurrences := PLACEHOLDER_SLICE_CAP + 1
+
+	t.Run("distinct", func(t *testing.T) {
+		want := make([]string, occurrences)
+		var b strings.Builder
+		for i := range want {
+			want[i] = fmt.Sprintf("p%03d", i)
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteByte('{')
+			b.WriteString(want[i])
+			b.WriteByte('}')
+		}
+
+		inv, err := ParseInvariant(b.String())
+		if err != nil {
+			t.Fatalf("ParseInvariant failed: %v", err)
+		}
+		if !slicesEqual(inv.Placeholders, want) {
+			t.Errorf("placeholders = %v, want %v", inv.Placeholders, want)
+		}
+		if cap(inv.Placeholders) <= PLACEHOLDER_SLICE_CAP {
+			t.Errorf("cap = %d, want growth past %d", cap(inv.Placeholders), PLACEHOLDER_SLICE_CAP)
+		}
+	})
+
+	t.Run("repeated", func(t *testing.T) {
+		var b strings.Builder
+		for i := 0; i < occurrences; i++ {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString("{name}")
+		}
+
+		inv, err := ParseInvariant(b.String())
+		if err != nil {
+			t.Fatalf("ParseInvariant failed: %v", err)
+		}
+		want := []string{"name"}
+		if !slicesEqual(inv.Placeholders, want) {
+			t.Errorf("placeholders = %v, want %v", inv.Placeholders, want)
+		}
+		if cap(inv.Placeholders) <= PLACEHOLDER_SLICE_CAP {
+			t.Errorf("cap = %d, want growth past %d", cap(inv.Placeholders), PLACEHOLDER_SLICE_CAP)
+		}
+	})
 }
 
 func TestParseInvariantDeduplicatesPlaceholders(t *testing.T) {

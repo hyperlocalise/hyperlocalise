@@ -28,10 +28,30 @@ func BenchmarkParse(b *testing.B) {
 }
 
 func BenchmarkParseInvariant(b *testing.B) {
-	input := "Click <link>{action}</link> to see {count, plural, one {one message} other {# messages}} in your <b>{folder}</b>."
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_, _ = ParseInvariant(input)
+	benchmarks := []struct {
+		name  string
+		input string
+	}{
+		{
+			// Four placeholder occurrences: action, count, the plural pound, and folder.
+			// This stays within PLACEHOLDER_SLICE_CAP.
+			name:  "AtPlaceholderCapacity",
+			input: "Click <link>{action}</link> to see {count, plural, one {one message} other {# messages}} in your <b>{folder}</b>.",
+		},
+		{
+			// Five placeholder occurrences, one past PLACEHOLDER_SLICE_CAP, so the slice grows.
+			name:  "BeyondPlaceholderCapacity",
+			input: "Click <link>{action}</link> to see {count, plural, one {one message} other {# messages}} in your <b>{folder}</b> for {user}.",
+		},
+	}
+
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				_, _ = ParseInvariant(bm.input)
+			}
+		})
 	}
 }
 

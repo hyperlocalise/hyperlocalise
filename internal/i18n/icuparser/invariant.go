@@ -22,6 +22,13 @@ type BlockSignature struct {
 	Pounds  []int
 }
 
+// PLACEHOLDER_SLICE_CAP is the initial capacity for placeholder occurrences
+// collected before they are sorted and deduplicated. Four fits the usual
+// complex message: a tag argument, a plural argument, that plural's pound,
+// and one nested argument. BenchmarkParseInvariant uses that shape, so the
+// common path allocates once. Messages with more occurrences grow the slice.
+const PLACEHOLDER_SLICE_CAP = 4
+
 func ParseInvariant(s string) (Invariant, error) {
 	// BOLT OPTIMIZATION: Fast path for plain text containing no ICU AST signal characters.
 	if !strings.ContainsAny(s, "{#<}'}") {
@@ -236,7 +243,7 @@ func collectInvariantFromElement(el Element, inv *Invariant, pluralArg string) {
 func appendPlaceholder(inv *Invariant, value string) {
 	if isPlaceholderName(value) {
 		if inv.Placeholders == nil {
-			inv.Placeholders = make([]string, 0, 4)
+			inv.Placeholders = make([]string, 0, PLACEHOLDER_SLICE_CAP)
 		}
 		inv.Placeholders = append(inv.Placeholders, value)
 	}
