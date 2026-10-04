@@ -260,12 +260,25 @@ describe("overview snapshot helpers", () => {
         extrasFor("ext:crowdin:oldest", "Oldest"),
       ],
       live: [
-        { id: "ext:crowdin:oldest", name: "Live oldest", sourceLocale: "en", targetLocales: ["fr-FR"] },
-        { id: "ext:crowdin:older", name: "Live older", sourceLocale: "en", targetLocales: ["de-DE"] },
+        {
+          id: "ext:crowdin:oldest",
+          name: "Live oldest",
+          sourceLocale: "en",
+          targetLocales: ["fr-FR"],
+        },
+        {
+          id: "ext:crowdin:older",
+          name: "Live older",
+          sourceLocale: "en",
+          targetLocales: ["de-DE"],
+        },
       ],
     });
 
-    expect(merged.map((project) => project.id)).toEqual(["ext:crowdin:oldest", "ext:crowdin:older"]);
+    expect(merged.map((project) => project.id)).toEqual([
+      "ext:crowdin:oldest",
+      "ext:crowdin:older",
+    ]);
     expect(merged[0]).toMatchObject({
       name: "Live oldest",
       domain: "ext:crowdin:oldest.example",
