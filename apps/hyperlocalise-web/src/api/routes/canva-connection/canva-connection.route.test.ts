@@ -16,12 +16,22 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
+  enqueueActivityLogEventsMock: vi.fn().mockResolvedValue([]),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+}));
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: mocks.enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: mocks.enqueueActivityLogEventsMock,
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {

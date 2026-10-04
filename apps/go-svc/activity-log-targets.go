@@ -352,6 +352,12 @@ func loadActivityLogTargetViews(
 		if canLinkFile {
 			href = stringPtr("/org/" + organizationSlug + "/projects/" + url.PathEscape(projectID) +
 				"/files/content-editor?sourcePath=" + url.QueryEscape(sourcePath))
+		} else if row.targetKind == "personal_access_token" || row.targetKind == "organization_api_key" {
+			href = stringPtr("/org/" + organizationSlug + "/settings/api-keys")
+		} else if row.targetKind == "integration" {
+			href = stringPtr("/org/" + organizationSlug + "/settings/integrations")
+		} else if row.targetKind == "invitation" || row.targetKind == "membership" {
+			href = stringPtr("/org/" + organizationSlug + "/settings/members")
 		}
 
 		views[key] = activityLogTargetView{

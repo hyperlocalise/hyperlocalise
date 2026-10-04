@@ -207,8 +207,9 @@ func (api *activityLogAPI) serveHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type activityLogActorFilter struct {
-	kind   string // system | agent | api_key | user
-	userID string
+	kind         string // system | agent | api_key | user
+	credentialID string
+	userID       string
 }
 
 type activityLogQuery struct {
@@ -220,10 +221,12 @@ type activityLogQuery struct {
 }
 
 type activityLogActorView struct {
-	CredentialID *string `json:"credentialId"`
-	DisplayName  string  `json:"displayName"`
-	Kind         string  `json:"kind"`
-	UserID       *string `json:"userId"`
+	CredentialID   *string `json:"credentialId"`
+	CredentialName *string `json:"credentialName"`
+	DisplayName    string  `json:"displayName"`
+	KeyPrefix      *string `json:"keyPrefix"`
+	Kind           string  `json:"kind"`
+	UserID         *string `json:"userId"`
 }
 
 type activityLogTargetView struct {
@@ -268,6 +271,12 @@ func parseActivityLogQuery(values url.Values) (activityLogQuery, error) {
 				return query, activityLogFailure(400, "invalid_activity_log_query", "Activity log query is invalid")
 			}
 			query.actor = &activityLogActorFilter{kind: "user", userID: userID}
+		case strings.HasPrefix(raw, "api_key:"):
+			credentialID := strings.TrimPrefix(raw, "api_key:")
+			if uuid.Validate(credentialID) != nil {
+				return query, activityLogFailure(400, "invalid_activity_log_query", "Activity log query is invalid")
+			}
+			query.actor = &activityLogActorFilter{kind: "api_key", credentialID: credentialID}
 		default:
 			return query, activityLogFailure(400, "invalid_activity_log_query", "Activity log query is invalid")
 		}
@@ -314,6 +323,11 @@ type activityLogUserActorPayload struct {
 	UserID string `json:"userId"`
 }
 
+type activityLogAPIKeyActorPayload struct {
+	CredentialID string `json:"credentialId"`
+	Kind         string `json:"kind"`
+}
+
 func activityLogFilterFingerprint(query activityLogQuery) (string, error) {
 	// BOLT OPTIMIZATION: Avoid unnecessary slice allocations when eventTypes is already sorted,
 	// and replace map[string]string with a typed struct to avoid map heap allocations during json.Marshal.
@@ -331,9 +345,12 @@ func activityLogFilterFingerprint(query activityLogQuery) (string, error) {
 
 	var actor any
 	if query.actor != nil {
-		if query.actor.kind == "user" {
+		switch {
+		case query.actor.kind == "user":
 			actor = activityLogUserActorPayload{Kind: "user", UserID: query.actor.userID}
-		} else {
+		case query.actor.kind == "api_key" && query.actor.credentialID != "":
+			actor = activityLogAPIKeyActorPayload{CredentialID: query.actor.credentialID, Kind: "api_key"}
+		default:
 			actor = query.actor.kind
 		}
 	}
@@ -403,16 +420,100 @@ func decodeActivityLogCursor(raw, fingerprint string) (activityLogCursor, error)
 }
 
 func activityLogActorDisplayName(kind string, firstName, lastName *string) string {
+	return activityLogActorDisplayNameWithCredential(kind, firstName, lastName, nil)
+}
+
+func activityLogActorDisplayNameWithCredential(kind string, firstName, lastName *string, credential *activityLogCredentialView) string {
 	switch kind {
 	case "system":
 		return "System"
 	case "agent":
 		return "Agent"
 	case "api_key":
+		person := activityLogPersonName(firstName, lastName)
+		if firstName != nil || lastName != nil {
+			if person != "Deleted user" {
+				return person
+			}
+		}
+		if credential != nil && credential.name != "" {
+			return credential.name
+		}
 		return "API credential"
 	default:
 		return activityLogPersonName(firstName, lastName)
 	}
+}
+
+type activityLogCredentialView struct {
+	id        string
+	name      string
+	keyPrefix string
+}
+
+func activityLogActorViewFromRow(
+	kind string,
+	userID, credentialID, firstName, lastName *string,
+	credential *activityLogCredentialView,
+) activityLogActorView {
+	view := activityLogActorView{
+		CredentialID: credentialID,
+		DisplayName:  activityLogActorDisplayNameWithCredential(kind, firstName, lastName, credential),
+		Kind:         kind,
+		UserID:       userID,
+	}
+	if credential != nil {
+		if credential.name != "" {
+			view.CredentialName = stringPtr(credential.name)
+		}
+		if credential.keyPrefix != "" {
+			view.KeyPrefix = stringPtr(credential.keyPrefix)
+		}
+	}
+	return view
+}
+
+func uniqueActivityLogCredentialIDs(ids []*string) []string {
+	out := make([]string, 0, len(ids))
+	seen := map[string]struct{}{}
+	for _, raw := range ids {
+		if raw == nil {
+			continue
+		}
+		id := strings.TrimSpace(*raw)
+		if uuid.Validate(id) != nil {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
+}
+
+func loadActivityLogCredentialViews(ctx context.Context, pool dictionaryPool, organizationID string, credentialIDs []string) (map[string]activityLogCredentialView, error) {
+	views := map[string]activityLogCredentialView{}
+	if len(credentialIDs) == 0 {
+		return views, nil
+	}
+	rows, err := pool.Query(ctx, `
+        select id::text, name, key_prefix
+        from organization_api_keys
+        where organization_id = $1 and id = any($2::uuid[])`, organizationID, credentialIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var view activityLogCredentialView
+		if err := rows.Scan(&view.id, &view.name, &view.keyPrefix); err != nil {
+			return nil, err
+		}
+		views[view.id] = view
+	}
+	return views, rows.Err()
 }
 
 func activityLogPersonName(firstName, lastName *string) string {
@@ -475,8 +576,12 @@ func (api *activityLogAPI) listEvents(ctx context.Context, actor activityLogActo
 
 	if query.actor != nil {
 		if query.actor.kind == "user" {
-			conditions = append(conditions, "e.actor_kind = 'user'", "e.actor_user_id = $"+strconv.Itoa(argN))
+			conditions = append(conditions, "e.actor_user_id = $"+strconv.Itoa(argN))
 			args = append(args, query.actor.userID)
+			argN++
+		} else if query.actor.kind == "api_key" && query.actor.credentialID != "" {
+			conditions = append(conditions, "e.actor_kind = 'api_key'", "e.actor_credential_id = $"+strconv.Itoa(argN))
+			args = append(args, query.actor.credentialID)
 			argN++
 		} else {
 			conditions = append(conditions, "e.actor_kind = $"+strconv.Itoa(argN))
@@ -562,14 +667,21 @@ func (api *activityLogAPI) listEvents(ctx context.Context, actor activityLogActo
 	}
 
 	targetInputs := make([]activityLogTargetInput, 0, len(page))
+	credentialIDPtrs := make([]*string, 0, len(page))
 	for _, row := range page {
 		targetInputs = append(targetInputs, activityLogTargetInput{
 			targetID:   row.targetID,
 			targetKind: row.targetKind,
 			payload:    row.payload,
 		})
+		credentialIDPtrs = append(credentialIDPtrs, row.actorCredentialID)
 	}
+	credentialIDs := uniqueActivityLogCredentialIDs(credentialIDPtrs)
 	targets, err := loadActivityLogTargetViews(ctx, api.pool, actor.organizationID, actor.organizationSlug, targetInputs)
+	if err != nil {
+		return nil, 0, err
+	}
+	credentials, err := loadActivityLogCredentialViews(ctx, api.pool, actor.organizationID, credentialIDs)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -581,13 +693,14 @@ func (api *activityLogAPI) listEvents(ctx context.Context, actor activityLogActo
 		if !ok {
 			target = activityLogTargetView{ID: row.targetID, Kind: row.targetKind}
 		}
+		var credential *activityLogCredentialView
+		if row.actorCredentialID != nil {
+			if view, found := credentials[*row.actorCredentialID]; found {
+				credential = &view
+			}
+		}
 		activityLogs = append(activityLogs, activityLogListItem{
-			Actor: activityLogActorView{
-				CredentialID: row.actorCredentialID,
-				DisplayName:  activityLogActorDisplayName(row.actorKind, row.userFirstName, row.userLastName),
-				Kind:         row.actorKind,
-				UserID:       row.actorUserID,
-			},
+			Actor:     activityLogActorViewFromRow(row.actorKind, row.actorUserID, row.actorCredentialID, row.userFirstName, row.userLastName, credential),
 			CreatedAt: formatActivityLogTime(row.createdAt),
 			EventType: row.eventType,
 			ID:        row.id,
@@ -611,21 +724,21 @@ func (api *activityLogAPI) listEvents(ctx context.Context, actor activityLogActo
 }
 
 func (api *activityLogAPI) listActors(ctx context.Context, organizationID string) ([]activityLogActorView, error) {
-	rows, err := api.pool.Query(ctx, `
+	userRows, err := api.pool.Query(ctx, `
         select distinct e.actor_user_id, u.first_name, u.last_name
         from organization_activity_events e
         inner join users u on u.id = e.actor_user_id
-        where e.organization_id = $1 and e.actor_kind = 'user' and e.actor_user_id is not null`, organizationID)
+        where e.organization_id = $1 and e.actor_user_id is not null`, organizationID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer userRows.Close()
 
 	actors := make([]activityLogActorView, 0)
-	for rows.Next() {
+	for userRows.Next() {
 		var userID string
 		var firstName, lastName *string
-		if err := rows.Scan(&userID, &firstName, &lastName); err != nil {
+		if err := userRows.Scan(&userID, &firstName, &lastName); err != nil {
 			return nil, err
 		}
 		id := userID
@@ -636,10 +749,63 @@ func (api *activityLogAPI) listActors(ctx context.Context, organizationID string
 			UserID:       &id,
 		})
 	}
-	if err := rows.Err(); err != nil {
+	if err := userRows.Err(); err != nil {
 		return nil, err
 	}
+
+	keyRows, err := api.pool.Query(ctx, `
+        select distinct e.actor_credential_id
+        from organization_activity_events e
+        where e.organization_id = $1 and e.actor_kind = 'api_key' and e.actor_credential_id is not null`, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	credentialIDPtrs := make([]*string, 0)
+	for keyRows.Next() {
+		var credentialID string
+		if err := keyRows.Scan(&credentialID); err != nil {
+			keyRows.Close()
+			return nil, err
+		}
+		id := credentialID
+		credentialIDPtrs = append(credentialIDPtrs, &id)
+	}
+	credentialIDs := uniqueActivityLogCredentialIDs(credentialIDPtrs)
+	if err := keyRows.Err(); err != nil {
+		keyRows.Close()
+		return nil, err
+	}
+	keyRows.Close()
+
+	credentials, err := loadActivityLogCredentialViews(ctx, api.pool, organizationID, credentialIDs)
+	if err != nil {
+		return nil, err
+	}
+	for _, credentialID := range credentialIDs {
+		id := credentialID
+		displayName := "API credential"
+		view := activityLogActorView{
+			CredentialID: &id,
+			DisplayName:  displayName,
+			Kind:         "api_key",
+			UserID:       nil,
+		}
+		if credential, ok := credentials[credentialID]; ok {
+			if credential.name != "" {
+				view.DisplayName = credential.name
+				view.CredentialName = stringPtr(credential.name)
+			}
+			if credential.keyPrefix != "" {
+				view.KeyPrefix = stringPtr(credential.keyPrefix)
+			}
+		}
+		actors = append(actors, view)
+	}
+
 	sort.Slice(actors, func(i, j int) bool {
+		if actors[i].Kind != actors[j].Kind {
+			return actors[i].Kind < actors[j].Kind
+		}
 		return actors[i].DisplayName < actors[j].DisplayName
 	})
 	return actors, nil

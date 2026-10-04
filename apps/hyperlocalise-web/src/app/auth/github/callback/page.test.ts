@@ -12,35 +12,44 @@
  */
 import "dotenv/config";
 
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { redirectMock, getGitHubAppMock, syncInstallationRepositoriesMock, envOverrides } =
-  vi.hoisted(() => ({
-    redirectMock: vi.fn((location: string) => {
-      throw new Error(`redirect:${location}`);
-    }),
-    getGitHubAppMock: vi.fn(() => ({
-      octokit: {
-        rest: {
-          apps: {
-            getInstallation: vi.fn(async () => ({
-              data: {
-                account: {
-                  login: "hyperlocalise",
-                  type: "Organization",
-                },
+const {
+  enqueueActivityLogEventMock,
+  envOverrides,
+  getGitHubAppMock,
+  redirectMock,
+  syncInstallationRepositoriesMock,
+} = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
+  envOverrides: {} as Record<string, string | undefined>,
+  getGitHubAppMock: vi.fn(() => ({
+    octokit: {
+      rest: {
+        apps: {
+          getInstallation: vi.fn(async () => ({
+            data: {
+              account: {
+                login: "hyperlocalise",
+                type: "Organization",
               },
-            })),
-          },
+            },
+          })),
         },
       },
-    })),
-    syncInstallationRepositoriesMock: vi.fn(async () => []),
-    envOverrides: {} as Record<string, string | undefined>,
-  }));
+    },
+  })),
+  redirectMock: vi.fn((location: string) => {
+    throw new Error(`redirect:${location}`);
+  }),
+  syncInstallationRepositoriesMock: vi.fn(async () => []),
+}));
 
 vi.mock("next/navigation", () => ({
   redirect: redirectMock,
@@ -67,9 +76,17 @@ vi.mock("@/lib/agents/github/app", () => ({
   getGitHubApp: getGitHubAppMock,
 }));
 
-vi.mock("@/lib/agents/github/repositories", () => ({
-  syncInstallationRepositories: syncInstallationRepositoriesMock,
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
 }));
+
+vi.mock("@/lib/agents/github/repositories", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/agents/github/repositories")>();
+  return {
+    ...actual,
+    syncInstallationRepositories: syncInstallationRepositoriesMock,
+  };
+});
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import {
@@ -180,6 +197,72 @@ describe("GitHubCallbackPage", () => {
       organizationId: auth.organization.localOrganizationId,
       githubInstallationId: "123456",
     });
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_connected",
+        payload: {
+          connectionId: installation?.id,
+          integrationKind: "github",
+        },
+      }),
+    );
+  });
+
+  it("records a connection when replacing an existing GitHub installation id", async () => {
+    const previousInstallationId = String(randomInt(100_000, 999_999_999));
+    const nextInstallationId = String(randomInt(100_000, 999_999_999));
+    const { auth, slug, state } = await createCallbackState({ role: "admin" });
+    const [existing] = await db
+      .insert(schema.githubInstallations)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        githubInstallationId: previousInstallationId,
+        githubAppId: "123",
+        accountLogin: "previous-account",
+        accountType: "Organization",
+      })
+      .returning({ id: schema.githubInstallations.id });
+
+    await expect(runCallback(state, nextInstallationId)).rejects.toThrow(
+      `redirect:/org/${slug}/integrations?github_connected=1`,
+    );
+
+    const [installation] = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId))
+      .limit(1);
+    expect(installation).toMatchObject({
+      id: existing?.id,
+      githubInstallationId: nextInstallationId,
+    });
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_connected",
+        payload: {
+          connectionId: existing?.id,
+          integrationKind: "github",
+        },
+      }),
+    );
+  });
+
+  it("does not record a new connection when refreshing the same GitHub installation", async () => {
+    const githubInstallationId = String(randomInt(100_000, 999_999_999));
+    const { auth, slug, state } = await createCallbackState({ role: "admin" });
+    await db.insert(schema.githubInstallations).values({
+      organizationId: auth.organization.localOrganizationId,
+      githubInstallationId,
+      githubAppId: "123",
+      accountLogin: "hyperlocalise",
+      accountType: "Organization",
+    });
+
+    await expect(runCallback(state, githubInstallationId)).rejects.toThrow(
+      `redirect:/org/${slug}/integrations?github_connected=1`,
+    );
+
+    expect(enqueueActivityLogEventMock).not.toHaveBeenCalled();
   });
 
   it("persists an installation when the signed state uses a null-slug organization id", async () => {

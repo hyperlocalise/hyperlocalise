@@ -22,13 +22,21 @@ import { db, schema } from "@/lib/database/client";
 
 import { createProviderCredentialTestFixture } from "./provider-credential.fixture";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { enqueueActivityLogEventMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+}));
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -88,6 +96,47 @@ describe("providerCredentialRoutes", () => {
     expect(authContext).toBeDefined();
     expect(storedCredential?.ciphertext).not.toContain("sk-live-provider-key");
     expect(storedCredential?.maskedApiKeySuffix).toBe("••••-key");
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_connected",
+        payload: {
+          connectionId: `${authContext?.organization.localOrganizationId}:openai`,
+          integrationKind: "openai",
+        },
+      }),
+    );
+  });
+
+  it("does not record a new connection when rotating an existing provider credential", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })),
+    );
+
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const firstResponse = await fixture.upsertProviderCredentialViaApi(identity, {
+      provider: "openai",
+      apiKey: "sk-live-provider-key",
+      defaultModel: "gpt-5.5",
+    });
+    expect(firstResponse.status).toBe(200);
+    enqueueActivityLogEventMock.mockClear();
+
+    const updateResponse = await fixture.upsertProviderCredentialViaApi(identity, {
+      provider: "openai",
+      apiKey: "sk-rotated-provider-key",
+      defaultModel: "gpt-5.4",
+    });
+
+    expect(updateResponse.status).toBe(200);
+    await expect(updateResponse.json()).resolves.toMatchObject({
+      providerCredential: {
+        provider: "openai",
+        defaultModel: "gpt-5.4",
+        maskedApiKeySuffix: "••••-key",
+      },
+    });
+    expect(enqueueActivityLogEventMock).not.toHaveBeenCalled();
   });
 
   it("blocks org members from managing provider credentials", async () => {

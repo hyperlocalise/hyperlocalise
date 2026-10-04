@@ -17,6 +17,17 @@ import { randomInt } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
+const { enqueueActivityLogEventMock } = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
+}));
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
+}));
+
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
 import { createGithubWebhookRoutes } from "./github-webhook.route";
@@ -227,5 +238,52 @@ describe("githubWebhookRoutes", () => {
       private: true,
       enabled: false,
     });
+  });
+
+  it("records a disconnection only for the delivery that deletes the installation", async () => {
+    const { auth, githubInstallationId } = await createStoredGithubInstallation(true);
+    const [installation] = await db
+      .select({ id: schema.githubInstallations.id })
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.githubInstallationId, githubInstallationId))
+      .limit(1);
+    const app = createGithubWebhookRoutes({
+      githubWebhookHandler: async () => Response.json({ ok: true }),
+    });
+    const deletedPayload = {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-github-event": "installation",
+      },
+      body: JSON.stringify({
+        action: "deleted",
+        installation: { id: Number(githubInstallationId) },
+      }),
+    };
+
+    const [firstResponse, secondResponse] = await Promise.all([
+      app.request("http://localhost/", deletedPayload),
+      app.request("http://localhost/", deletedPayload),
+    ]);
+
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    const remaining = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.githubInstallationId, githubInstallationId));
+    expect(remaining).toHaveLength(0);
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledTimes(1);
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_disconnected",
+        organizationId: auth.organization.localOrganizationId,
+        payload: {
+          connectionId: installation?.id,
+          integrationKind: "github",
+        },
+      }),
+    );
   });
 });

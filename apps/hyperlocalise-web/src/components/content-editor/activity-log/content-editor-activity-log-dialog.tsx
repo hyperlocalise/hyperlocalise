@@ -173,7 +173,12 @@ export function ContentEditorActivityLogDialog({
               </TypographyP>
             </div>
           ) : (
-            <ActivityLogList activityLogs={activityLogs} now={now} variant="plain" />
+            <ActivityLogList
+              activityLogs={activityLogs}
+              now={now}
+              organizationSlug={organizationSlug}
+              variant="plain"
+            />
           )}
         </div>
 

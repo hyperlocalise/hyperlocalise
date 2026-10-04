@@ -51,5 +51,15 @@ func TestValidateMessageRejectsMismatchedTarget(t *testing.T) {
 
 func TestIsImplementedEventType(t *testing.T) {
 	require.True(t, IsImplementedEventType("project_created"))
+	require.True(t, IsImplementedEventType("string_segment_translation_updated"))
 	require.False(t, IsImplementedEventType("organization_api_key_created"))
+}
+
+func TestValidateMessageAcceptsTranslationUpdated(t *testing.T) {
+	message := validMessage()
+	message.Event.EventType = "string_segment_translation_updated"
+	message.Event.TargetKind = "string_segment"
+	message.Event.Payload = json.RawMessage(`{"fileName":"en.json","name":"en.json","projectId":"project-1","segmentId":"seg-1","sourcePath":"locales/en.json"}`)
+
+	require.NoError(t, ValidateMessage(message))
 }

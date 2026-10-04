@@ -255,14 +255,20 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 		page = events[:limit]
 	}
 	targetInputs := make([]activityLogTargetInput, 0, len(page))
+	credentialIDPtrs := make([]*string, 0, len(page))
 	for _, row := range page {
 		targetInputs = append(targetInputs, activityLogTargetInput{
 			targetID:   row.targetID,
 			targetKind: row.targetKind,
 			payload:    row.payload,
 		})
+		credentialIDPtrs = append(credentialIDPtrs, row.actorCredentialID)
 	}
 	targets, err := loadActivityLogTargetViews(r.Context(), api.pool, actor.organizationID, actor.organizationSlug, targetInputs)
+	if err != nil {
+		return nil, 0, err
+	}
+	credentials, err := loadActivityLogCredentialViews(r.Context(), api.pool, actor.organizationID, uniqueActivityLogCredentialIDs(credentialIDPtrs))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -274,13 +280,14 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 		if !ok {
 			target = activityLogTargetView{ID: row.targetID, Kind: row.targetKind}
 		}
+		var credential *activityLogCredentialView
+		if row.actorCredentialID != nil {
+			if view, found := credentials[*row.actorCredentialID]; found {
+				credential = &view
+			}
+		}
 		items = append(items, activityLogListItem{
-			Actor: activityLogActorView{
-				CredentialID: row.actorCredentialID,
-				DisplayName:  activityLogActorDisplayName(row.actorKind, row.userFirstName, row.userLastName),
-				Kind:         row.actorKind,
-				UserID:       row.actorUserID,
-			},
+			Actor:     activityLogActorViewFromRow(row.actorKind, row.actorUserID, row.actorCredentialID, row.userFirstName, row.userLastName, credential),
 			CreatedAt: formatActivityLogTime(row.createdAt),
 			EventType: row.eventType,
 			ID:        row.id,

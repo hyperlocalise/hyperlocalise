@@ -580,6 +580,37 @@ func TestEditorCatActivityLogs(t *testing.T) {
 	require.Contains(t, *body.ActivityLogs[0].Target.Href, "/files/content-editor?sourcePath=")
 }
 
+func TestEditorCatActivityLogsAPIKeyActor(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	credentialID := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into organization_api_keys (id, organization_id, name, key_hash, key_prefix, created_by_user_id)
+        values ($1, $2, 'CLI deploy', 'hash-cat-cli', 'hl_cat01', $3)`,
+		credentialID, scope.OrganizationID, scope.UserID)
+	require.NoError(t, err)
+	created := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	payload := []byte(`{"fileName":"a.json","name":"a.json","projectId":"` + scope.ProjectID + `","sourcePath":"a.json"}`)
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into organization_activity_events (
+            id, organization_id, actor_kind, actor_user_id, actor_credential_id, event_type, target_kind, target_id, payload, created_at
+        ) values ($1, $2, 'api_key', $3, $4, 'string_segment_commented', 'file', $5, $6::jsonb, $7)`,
+		uuid.NewString(), scope.OrganizationID, scope.UserID, credentialID, uuid.NewString(), payload, created)
+	require.NoError(t, err)
+
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/activity-logs?sourcePath=a.json"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ActivityLogs []activityLogListItem `json:"activityLogs"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.ActivityLogs, 1)
+	require.Equal(t, "api_key", body.ActivityLogs[0].Actor.Kind)
+	require.Equal(t, "Ada Lovelace", body.ActivityLogs[0].Actor.DisplayName)
+	require.Equal(t, credentialID, *body.ActivityLogs[0].Actor.CredentialID)
+	require.Equal(t, "CLI deploy", *body.ActivityLogs[0].Actor.CredentialName)
+	require.Equal(t, "hl_cat01", *body.ActivityLogs[0].Actor.KeyPrefix)
+}
+
 func TestEditorCatActivityLogsInvalidCursor(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/activity-logs?sourcePath=a.json&cursor=%25%25%25"), "")

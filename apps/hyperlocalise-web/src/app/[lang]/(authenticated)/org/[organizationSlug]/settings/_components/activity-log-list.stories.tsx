@@ -53,9 +53,19 @@ const storyNow = new Date("2026-09-04T10:00:00.000Z").getTime();
 const allCategoryActivityLogs: ActivityLogItem[] = V1_ACTIVITY_EVENT_TYPES.map(
   (eventType, index) => ({
     actor: {
+      credentialId: index % 5 === 0 ? "key_storybook" : null,
+      credentialName: index % 5 === 0 ? "CLI deploy" : null,
       displayName: index % 3 === 0 ? "Story Book" : index % 3 === 1 ? "System" : "Translation bot",
-      kind: index % 3 === 0 ? "user" : index % 3 === 1 ? "system" : "agent",
-      userId: index % 3 === 0 ? "user_storybook" : null,
+      keyPrefix: index % 5 === 0 ? "hl_abc12" : null,
+      kind:
+        index % 5 === 0
+          ? "api_key"
+          : index % 3 === 0
+            ? "user"
+            : index % 3 === 1
+              ? "system"
+              : "agent",
+      userId: index % 3 === 0 || index % 5 === 0 ? "user_storybook" : null,
     },
     createdAt: new Date(storyNow - (index + 1) * 60 * 60 * 1000).toISOString(),
     eventType,

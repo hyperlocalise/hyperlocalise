@@ -26,6 +26,8 @@ import {
   deleteOrganizationGitHubInstallationRepositories,
   syncInstallationRepositories,
 } from "@/lib/agents/github/repositories";
+import { enqueueIntegrationConnectedActivity } from "@/lib/activity-log/integration-events";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
 
 const logger = createLogger("github-install-callback");
 
@@ -230,7 +232,10 @@ export async function handleGitHubInstallCallback(
         isNull(schema.githubInstallationStates.consumedAt),
       ),
     )
-    .returning({ id: schema.githubInstallationStates.id });
+    .returning({
+      id: schema.githubInstallationStates.id,
+      userId: schema.githubInstallationStates.userId,
+    });
 
   if (consumedStates.length === 0) {
     const redirectTo = agentErrorRedirect(org, "invalid_state").redirectTo;
@@ -322,11 +327,13 @@ export async function handleGitHubInstallCallback(
     .from(schema.githubInstallations)
     .where(eq(schema.githubInstallations.organizationId, org.id))
     .limit(1);
+  let connectedInstallationId: string | null = null;
 
   try {
     if (existing[0]) {
+      const replacedInstallation = existing[0].githubInstallationId !== githubInstallationId;
       await db.transaction(async (tx) => {
-        if (existing[0].githubInstallationId !== githubInstallationId) {
+        if (replacedInstallation) {
           await deleteOrganizationGitHubInstallationRepositories({
             organizationId: org.id,
             githubInstallationId: existing[0].githubInstallationId,
@@ -345,6 +352,10 @@ export async function handleGitHubInstallCallback(
           })
           .where(eq(schema.githubInstallations.id, existing[0].id));
       });
+
+      if (replacedInstallation) {
+        connectedInstallationId = existing[0].id;
+      }
 
       logger.info(
         { ...orgContext, githubInstallationRowId: existing[0].id, action: "update" },
@@ -383,6 +394,7 @@ export async function handleGitHubInstallCallback(
         return finish(redirectTo, orgContext, "github install callback integration limit blocked");
       }
 
+      connectedInstallationId = insertResult.value?.id ?? null;
       logger.info(
         { ...orgContext, githubInstallationRowId: insertResult.value?.id, action: "insert" },
         "github install callback inserted installation row",
@@ -424,6 +436,15 @@ export async function handleGitHubInstallCallback(
       },
       "github install callback repository sync failed; installation still linked",
     );
+  }
+
+  if (connectedInstallationId) {
+    await enqueueIntegrationConnectedActivity({
+      ...sessionActivityActor(consumedStates[0]?.userId),
+      connectionId: connectedInstallationId,
+      integrationKind: "github",
+      organizationId: org.id,
+    });
   }
 
   const redirectPath = org.slug
