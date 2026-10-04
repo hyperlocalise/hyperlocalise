@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 )
@@ -135,7 +137,7 @@ func yamlMappingKey(node *yaml.Node, parent string) (string, error) {
 		return "", fmt.Errorf("yaml mapping under %q must use scalar string keys, got %s", yamlMappingParentLabel(parent), yamlNodeKindName(node.Kind))
 	}
 	key := node.Value
-	if len(key) > 0 && (key[0] == ' ' || key[0] == '\t' || key[len(key)-1] == ' ' || key[len(key)-1] == '\t') {
+	if yamlKeyHasBoundarySpace(key) {
 		key = strings.TrimSpace(key)
 	}
 	if key == "" {
@@ -145,6 +147,43 @@ func yamlMappingKey(node *yaml.Node, parent string) (string, error) {
 		return "", fmt.Errorf("yaml mapping under %q has unsupported key %q: keys cannot contain '.', '[' or ']'", yamlMappingParentLabel(parent), key)
 	}
 	return key, nil
+}
+
+// yamlKeyHasBoundarySpace reports whether strings.TrimSpace would change key.
+// ASCII separators are detected by byte. Any other leading or trailing byte
+// is decoded and checked with unicode.IsSpace, matching TrimSpace.
+func yamlKeyHasBoundarySpace(key string) bool {
+	if key == "" {
+		return false
+	}
+	return isYAMLTrimSpacePrefix(key) || isYAMLTrimSpaceSuffix(key)
+}
+
+func isASCIITrimSpace(c byte) bool {
+	switch c {
+	case ' ', '\t', '\n', '\v', '\f', '\r':
+		return true
+	default:
+		return false
+	}
+}
+
+func isYAMLTrimSpacePrefix(key string) bool {
+	c := key[0]
+	if c < utf8.RuneSelf {
+		return isASCIITrimSpace(c)
+	}
+	r, _ := utf8.DecodeRuneInString(key)
+	return unicode.IsSpace(r)
+}
+
+func isYAMLTrimSpaceSuffix(key string) bool {
+	c := key[len(key)-1]
+	if c < utf8.RuneSelf {
+		return isASCIITrimSpace(c)
+	}
+	r, _ := utf8.DecodeLastRuneInString(key)
+	return unicode.IsSpace(r)
 }
 
 func yamlMappingParentLabel(parent string) string {
