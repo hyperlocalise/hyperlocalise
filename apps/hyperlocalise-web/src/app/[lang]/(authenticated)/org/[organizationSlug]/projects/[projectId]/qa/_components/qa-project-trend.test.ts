@@ -46,13 +46,14 @@ describe("qaTrendReports", () => {
     ]);
   });
 
-  it("includes a selected successful scan that falls outside the recent window", () => {
+  it("slides a contiguous window so an older selected scan stays next to its neighbors", () => {
     const reports = Array.from({ length: 12 }, (_, index) =>
       succeeded(`run_${index}`, `2026-09-${String(30 - index).padStart(2, "0")}`),
     );
 
     expect(qaTrendReports(reports, "run_11").map((row) => row.id)).toEqual([
       "run_11",
+      "run_10",
       "run_9",
       "run_8",
       "run_7",
@@ -61,8 +62,6 @@ describe("qaTrendReports", () => {
       "run_4",
       "run_3",
       "run_2",
-      "run_1",
-      "run_0",
     ]);
   });
 });

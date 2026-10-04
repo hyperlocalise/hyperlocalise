@@ -14,17 +14,18 @@ import type { ProjectQaReport } from "@/lib/qa/qa-report-client";
 
 const TREND_SCAN_COUNT = 10;
 
-/** Recent successful scans for the trend chart, plus the selected scan when it falls outside that window. */
+/**
+ * A contiguous window of successful scans for the trend chart. Keeps the latest
+ * runs when the selection is among them; otherwise slides so the selected scan
+ * stays in sequence with its neighbors.
+ */
 export function qaTrendReports(
   reports: ProjectQaReport[],
   selectedId: string,
   limit = TREND_SCAN_COUNT,
 ): ProjectQaReport[] {
   const successful = reports.filter((row) => row.status === "succeeded");
-  const recent = successful.slice(0, limit);
-  const selected = successful.find((row) => row.id === selectedId);
-  if (selected && !recent.some((row) => row.id === selected.id)) {
-    recent.push(selected);
-  }
-  return recent.toReversed();
+  const selectedIndex = successful.findIndex((row) => row.id === selectedId);
+  const start = selectedIndex >= limit ? selectedIndex - (limit - 1) : 0;
+  return successful.slice(start, start + limit).toReversed();
 }
