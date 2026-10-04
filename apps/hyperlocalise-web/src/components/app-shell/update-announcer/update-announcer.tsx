@@ -27,6 +27,7 @@ import {
 import { updateAnnouncerMessages } from "./update-announcer.messages";
 import {
   UPDATE_ANNOUNCEMENTS,
+  getNextUpdateAnnouncementScheduleAt,
   getUpdateAnnouncementStorageKey,
   selectUpdateAnnouncement,
   type UpdateAnnouncement,
@@ -34,33 +35,73 @@ import {
 
 type UpdateAnnouncerProps = {
   organizationSlug: string;
+  userId: string;
   announcements?: readonly UpdateAnnouncement[];
 };
 
-function isUpdateAnnouncementDismissed(announcementId: string): boolean {
-  return readBrowserLocalStorageItem(getUpdateAnnouncementStorageKey(announcementId)) !== null;
+/** Node and browsers cap `setTimeout` near 2^31-1 ms; wake early and reschedule when later. */
+const MAX_SCHEDULE_DELAY_MS = 2_147_483_647;
+
+function isUpdateAnnouncementDismissed(userId: string, announcementId: string): boolean {
+  return (
+    readBrowserLocalStorageItem(getUpdateAnnouncementStorageKey(userId, announcementId)) !== null
+  );
 }
 
 /** Product update card anchored under the account menu button in the app shell header. */
 export function UpdateAnnouncer({
   organizationSlug,
+  userId,
   announcements = UPDATE_ANNOUNCEMENTS,
 }: UpdateAnnouncerProps) {
   const intl = useIntl();
   const titleId = useId();
   const [announcement, setAnnouncement] = useState<UpdateAnnouncement | null>(null);
 
+  const selectVisibleAnnouncement = () => {
+    if (!organizationSlug || !userId) {
+      return null;
+    }
+
+    return selectUpdateAnnouncement(announcements, {
+      now: new Date(),
+      isDismissed: (announcementId) => isUpdateAnnouncementDismissed(userId, announcementId),
+    });
+  };
+
   // Dismissals live in localStorage and the window depends on the client clock, so select after mount.
   useEffect(() => {
-    setAnnouncement(
-      organizationSlug
-        ? selectUpdateAnnouncement(announcements, {
-            now: new Date(),
-            isDismissed: isUpdateAnnouncementDismissed,
-          })
-        : null,
-    );
-  }, [announcements, organizationSlug]);
+    if (!organizationSlug || !userId) {
+      setAnnouncement(null);
+      return;
+    }
+
+    let timeoutId: number | undefined;
+
+    const refresh = () => {
+      const now = new Date();
+      setAnnouncement(
+        selectUpdateAnnouncement(announcements, {
+          now,
+          isDismissed: (announcementId) => isUpdateAnnouncementDismissed(userId, announcementId),
+        }),
+      );
+
+      const nextAt = getNextUpdateAnnouncementScheduleAt(announcements, now);
+      if (nextAt) {
+        const delay = Math.max(0, nextAt.getTime() - Date.now()) + 50;
+        timeoutId = window.setTimeout(refresh, Math.min(delay, MAX_SCHEDULE_DELAY_MS));
+      }
+    };
+
+    refresh();
+
+    return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [announcements, organizationSlug, userId]);
 
   if (!announcement) {
     return null;
@@ -69,10 +110,10 @@ export function UpdateAnnouncer({
   const { Preview } = announcement;
   const dismiss = () => {
     writeBrowserLocalStorageItem(
-      getUpdateAnnouncementStorageKey(announcement.id),
+      getUpdateAnnouncementStorageKey(userId, announcement.id),
       new Date().toISOString(),
     );
-    setAnnouncement(null);
+    setAnnouncement(selectVisibleAnnouncement());
   };
 
   return (

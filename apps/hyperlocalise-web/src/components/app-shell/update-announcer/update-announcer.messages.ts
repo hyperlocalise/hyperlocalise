@@ -41,15 +41,4 @@ export const updateAnnouncerMessages = defineMessages({
     id: "GXBIiv5A0x",
     description: "Body of the product update announcement for the Merge strings feature",
   },
-  qaOverviewTitle: {
-    defaultMessage: "A clearer view of translation quality",
-    id: "ZN2JBLuLUD",
-    description: "Title of the product update announcement for the QA overview page",
-  },
-  qaOverviewDescription: {
-    defaultMessage:
-      "The new QA overview charts issues across every project, flags spikes as alerts, and lets you know when a scan finishes.",
-    id: "yil6GR1M8a",
-    description: "Body of the product update announcement for the QA overview page",
-  },
 });

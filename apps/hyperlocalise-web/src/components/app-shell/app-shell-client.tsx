@@ -72,6 +72,7 @@ type AppShellClientProps = {
   canWriteProjects?: boolean;
   canDeleteQueries?: boolean;
   user: {
+    id: string;
     name: string;
     email: string;
     avatarUrl?: string;
@@ -221,7 +222,7 @@ export function AppShellClient({
             </div>
           </SidebarInset>
 
-          <UpdateAnnouncer organizationSlug={organizationSlug} />
+          <UpdateAnnouncer organizationSlug={organizationSlug} userId={user.id} />
 
           <AppShellFooter
             organizationSlug={organizationSlug}

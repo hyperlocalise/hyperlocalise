@@ -55,6 +55,7 @@ export const APP_SHELL_STORY_PROJECT_ID = "project_website";
 export const APP_SHELL_STORY_LINKED_DOMAIN_ID = "hyperlocalise-com";
 
 export const appShellStoryUser = {
+  id: "user_storybook",
   name: "Minh Cung",
   email: "minh.cung@example.com",
   avatarUrl: undefined,

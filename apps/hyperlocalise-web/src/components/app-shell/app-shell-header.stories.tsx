@@ -95,6 +95,7 @@ export const WithUpdateAnnouncement: Story = {
       <AppShellHeaderStoryFrame />
       <UpdateAnnouncer
         organizationSlug={APP_SHELL_STORY_ORGANIZATION_SLUG}
+        userId={appShellStoryUser.id}
         announcements={[
           {
             ...UPDATE_ANNOUNCEMENTS[0]!,
@@ -107,7 +108,9 @@ export const WithUpdateAnnouncement: Story = {
     </>
   ),
   beforeEach: () => {
-    window.localStorage.removeItem(getUpdateAnnouncementStorageKey("storybook-preview"));
+    window.localStorage.removeItem(
+      getUpdateAnnouncementStorageKey(appShellStoryUser.id, "storybook-preview"),
+    );
   },
   play: async ({ canvas }) => {
     await expect(await canvas.findByRole("link", { name: "Try it now" })).toBeInTheDocument();

@@ -12,17 +12,20 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { IntlProvider } from "react-intl";
 
 import { UpdateAnnouncer } from "./update-announcer";
 import {
+  getNextUpdateAnnouncementScheduleAt,
   getUpdateAnnouncementStorageKey,
   selectUpdateAnnouncement,
   type UpdateAnnouncement,
 } from "./update-announcements";
+
+const testUserId = "user_test";
 
 const announcement: UpdateAnnouncement = {
   id: "test-announcement",
@@ -36,7 +39,7 @@ const announcement: UpdateAnnouncement = {
 function renderAnnouncer(announcements: UpdateAnnouncement[] = [announcement]) {
   return render(
     <IntlProvider locale="en" onError={() => {}}>
-      <UpdateAnnouncer organizationSlug="acme" announcements={announcements} />
+      <UpdateAnnouncer organizationSlug="acme" userId={testUserId} announcements={announcements} />
     </IntlProvider>,
   );
 }
@@ -63,7 +66,7 @@ describe("UpdateAnnouncer", () => {
 
     expect(screen.queryByRole("heading", { name: "Something new" })).toBeNull();
     expect(
-      window.localStorage.getItem(getUpdateAnnouncementStorageKey(announcement.id)),
+      window.localStorage.getItem(getUpdateAnnouncementStorageKey(testUserId, announcement.id)),
     ).not.toBeNull();
 
     unmount();
@@ -76,6 +79,53 @@ describe("UpdateAnnouncer", () => {
 
     expect(screen.queryByRole("heading", { name: "Something new" })).toBeNull();
   });
+
+  it("shows the next active announcement after the first is dismissed", async () => {
+    const user = userEvent.setup();
+    const first = {
+      ...announcement,
+      id: "first",
+      title: { ...announcement.title, defaultMessage: "First" },
+    };
+    const second = {
+      ...announcement,
+      id: "second",
+      title: { ...announcement.title, defaultMessage: "Second" },
+    };
+
+    renderAnnouncer([first, second]);
+    await user.click(await screen.findByRole("button", { name: "Not now" }));
+
+    expect(await screen.findByRole("heading", { name: "Second" })).toBeTruthy();
+  });
+
+  it("refreshes when an announcement window opens", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-03T23:59:00Z"));
+
+      renderAnnouncer([
+        {
+          ...announcement,
+          startsAt: "2026-10-04T00:00:00Z",
+        },
+      ]);
+
+      expect(screen.queryByRole("heading", { name: "Something new" })).toBeNull();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(61_000);
+      });
+
+      expect(screen.getByRole("heading", { name: "Something new" })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+beforeEach(() => {
+  vi.useRealTimers();
 });
 
 describe("selectUpdateAnnouncement", () => {
@@ -114,5 +164,26 @@ describe("selectUpdateAnnouncement", () => {
         isDismissed: (id) => id === announcement.id,
       })?.id,
     ).toBe("next");
+  });
+});
+
+describe("getNextUpdateAnnouncementScheduleAt", () => {
+  it("returns the nearest future start or end boundary", () => {
+    const scheduled = {
+      ...announcement,
+      startsAt: "2026-10-01T00:00:00Z",
+      endsAt: "2026-11-01T00:00:00Z",
+    };
+    const now = new Date("2026-10-15T00:00:00Z");
+
+    expect(getNextUpdateAnnouncementScheduleAt([scheduled], now)?.toISOString()).toBe(
+      "2026-11-01T00:00:00.000Z",
+    );
+    expect(
+      getNextUpdateAnnouncementScheduleAt(
+        [{ ...scheduled, startsAt: "2026-10-20T00:00:00Z" }],
+        now,
+      )?.toISOString(),
+    ).toBe("2026-10-20T00:00:00.000Z");
   });
 });

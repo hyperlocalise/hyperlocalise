@@ -14,7 +14,6 @@ import type { ComponentType } from "react";
 import type { MessageDescriptor } from "react-intl";
 
 import { MergeStringsPreview } from "./merge-strings-preview";
-import { QaOverviewPreview } from "./qa-overview-preview";
 import { updateAnnouncerMessages } from "./update-announcer.messages";
 
 export type UpdateAnnouncement = {
@@ -44,16 +43,6 @@ export const UPDATE_ANNOUNCEMENTS: readonly UpdateAnnouncement[] = [
     startsAt: "2026-10-04T00:00:00Z",
     endsAt: "2026-11-04T00:00:00Z",
   },
-  {
-    id: "2026-10-qa-overview",
-    title: updateAnnouncerMessages.qaOverviewTitle,
-    description: updateAnnouncerMessages.qaOverviewDescription,
-    imageSrc: "/images/mesh/mesh-gradient-1788785848827.jpg",
-    Preview: QaOverviewPreview,
-    buildHref: (organizationSlug) => `/org/${organizationSlug}/qa`,
-    startsAt: "2026-10-01T00:00:00Z",
-    endsAt: "2026-11-01T00:00:00Z",
-  },
 ];
 
 export function isUpdateAnnouncementActive(announcement: UpdateAnnouncement, now: Date): boolean {
@@ -80,8 +69,33 @@ export function selectUpdateAnnouncement(
   );
 }
 
-const DISMISSED_STORAGE_KEY_PREFIX = "hl-update-announcement-dismissed:v1:";
+const DISMISSED_STORAGE_KEY_PREFIX = "hl-update-announcement-dismissed:v2:";
 
-export function getUpdateAnnouncementStorageKey(announcementId: string): string {
-  return `${DISMISSED_STORAGE_KEY_PREFIX}${announcementId}`;
+export function getUpdateAnnouncementStorageKey(userId: string, announcementId: string): string {
+  return `${DISMISSED_STORAGE_KEY_PREFIX}${userId}:${announcementId}`;
+}
+
+/** Next `startsAt` or `endsAt` instant after `now` when active selection may change. */
+export function getNextUpdateAnnouncementScheduleAt(
+  announcements: readonly UpdateAnnouncement[],
+  now: Date,
+): Date | null {
+  const nowMs = now.getTime();
+  let nextMs: number | null = null;
+
+  for (const announcement of announcements) {
+    const boundaries = [Date.parse(announcement.startsAt)];
+    if (announcement.endsAt !== undefined) {
+      boundaries.push(Date.parse(announcement.endsAt));
+    }
+
+    for (const boundaryMs of boundaries) {
+      if (boundaryMs <= nowMs) continue;
+      if (nextMs === null || boundaryMs < nextMs) {
+        nextMs = boundaryMs;
+      }
+    }
+  }
+
+  return nextMs === null ? null : new Date(nextMs);
 }
