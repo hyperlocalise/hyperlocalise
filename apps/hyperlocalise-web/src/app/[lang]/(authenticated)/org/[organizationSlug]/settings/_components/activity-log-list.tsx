@@ -78,10 +78,7 @@ const eventActions = {
   automation_disabled: messages.automationDisabledAction,
   file_uploaded: messages.fileUploadedAction,
   file_translations_imported: messages.fileTranslationsImportedAction,
-  string_segment_translation_updated: {
-    defaultMessage: "Updated translation",
-    description: "Translation edit activity",
-  },
+  string_segment_translation_updated: messages.stringSegmentTranslationUpdatedAction,
   string_segment_approved: messages.stringSegmentApprovedAction,
   string_segment_status_changed: messages.stringSegmentStatusChangedAction,
   string_segment_hidden: messages.stringSegmentHiddenAction,

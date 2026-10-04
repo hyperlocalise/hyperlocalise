@@ -176,10 +176,7 @@ const eventTypeLabels = {
   automation_disabled: messages.automationDisabledEventType,
   file_uploaded: messages.fileUploadedEventType,
   file_translations_imported: messages.fileTranslationsImportedEventType,
-  string_segment_translation_updated: {
-    defaultMessage: "Updated translation",
-    description: "Translation edit activity",
-  },
+  string_segment_translation_updated: messages.stringSegmentTranslationUpdatedEventType,
   string_segment_approved: messages.stringSegmentApprovedEventType,
   string_segment_status_changed: messages.stringSegmentStatusChangedEventType,
   string_segment_hidden: messages.stringSegmentHiddenEventType,

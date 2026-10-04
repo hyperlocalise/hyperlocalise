@@ -21211,6 +21211,10 @@
     "defaultMessage": "Glossary guidance",
     "description": "Section heading for glossary term guidance in the intelligence panel"
   },
+  "ee8QZoTHdn": {
+    "defaultMessage": "updated a translation",
+    "description": "Action for a string translation edit activity"
+  },
   "eeAFg4MRde": {
     "defaultMessage": "Source files",
     "description": "Heading for the collapsible source files section"
@@ -27810,6 +27814,10 @@
   "rGfiaZLTZ0": {
     "defaultMessage": "Select all",
     "description": "Button to select all target locales"
+  },
+  "rGgaa02kAU": {
+    "defaultMessage": "String Translation Updated",
+    "description": "Activity log event type label for string translation edits"
   },
   "rHDcSl4Kt4": {
     "defaultMessage": "Use",
