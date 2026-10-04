@@ -13,6 +13,7 @@ description: "Concise reference for the hyperlocalise i18n config schema."
 - `mt` (optional)
 - `storage` (required for `sync`)
 - `cache` (optional)
+- `qa` (optional)
 
 ## `locales`
 
@@ -58,6 +59,10 @@ description: "Concise reference for the hyperlocalise i18n config schema."
 
 - `adapter`: `poeditor` | `lilt` | `lokalise` | `crowdin` | `phrase` | `smartling`
 - `config`: adapter-specific fields
+
+## `qa`
+
+- `policy_file` (string, optional): path to a version `1` QA policy JSON file. `check` uses it when `--qa-policy` is omitted. See [validate](/cli/commands/validate).
 
 ## `cache`
 

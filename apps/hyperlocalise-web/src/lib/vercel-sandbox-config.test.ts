@@ -70,7 +70,9 @@ describe("installQaSpellingSandboxCommand", () => {
   });
 
   it("exits before package installs and GitHub downloads when baked dictionaries verify", () => {
-    const bakedExit = installQaSpellingSandboxCommand.indexOf("if hunspell_baked_dictionaries_ready; then");
+    const bakedExit = installQaSpellingSandboxCommand.indexOf(
+      "if hunspell_baked_dictionaries_ready; then",
+    );
     const packageInstall = installQaSpellingSandboxCommand.indexOf(
       "install_hunspell_fetch_dependencies || exit 1",
     );
