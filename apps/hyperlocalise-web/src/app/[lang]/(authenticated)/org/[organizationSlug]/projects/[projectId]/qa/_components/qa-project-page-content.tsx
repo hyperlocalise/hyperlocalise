@@ -85,7 +85,10 @@ export function QaProjectPageContent({
     queryFn: () => api.getLastSuccessful({ param, beforeRunId: report!.id }),
     enabled: Boolean(report?.status === "failed" && isLatestReport && !lastSuccessfulFromList),
   });
-  const lastSuccessfulReport = lastSuccessfulFromList ?? lastSuccessful.data ?? null;
+  const lastSuccessfulReport =
+    isLatestReport && report?.status === "failed"
+      ? (lastSuccessfulFromList ?? lastSuccessful.data ?? null)
+      : null;
   const running = reports.some((row) => ["running", "queued"].includes(row.status));
   const settings = list.data?.settings;
   const detail = useInfiniteQuery({

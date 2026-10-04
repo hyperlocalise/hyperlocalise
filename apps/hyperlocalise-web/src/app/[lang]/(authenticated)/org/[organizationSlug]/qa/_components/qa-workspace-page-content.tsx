@@ -227,9 +227,11 @@ export function QaWorkspacePageContent({
               }}
             />
           ) : null}
-          {findingsQuery.isSuccess && !findings.length && !selectedFailedWithoutResults ? (
+          {findingsQuery.isSuccess && !findings.length ? (
             <div className="flex items-center gap-3">
-              <p className="text-sm">{intl.formatMessage(m.noMatches)}</p>
+              {!selectedFailedWithoutResults ? (
+                <p className="text-sm">{intl.formatMessage(m.noMatches)}</p>
+              ) : null}
               <Button
                 variant="outline"
                 size="sm"
