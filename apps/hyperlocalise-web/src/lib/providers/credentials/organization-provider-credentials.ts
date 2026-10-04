@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { assertCapability } from "@/api/auth/policy";
 import { db, schema } from "@/lib/database/client";
@@ -107,7 +107,7 @@ export async function upsertOrganizationProviderCredential(input: {
 
   const now = new Date();
   const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(input.apiKey));
-  const [credential] = await db
+  const [row] = await db
     .insert(schema.organizationLlmProviderCredentials)
     .values({
       organizationId: input.organizationId,
@@ -142,9 +142,29 @@ export async function upsertOrganizationProviderCredential(input: {
         updatedAt: now,
       },
     })
-    .returning();
+    .returning({
+      organizationId: schema.organizationLlmProviderCredentials.organizationId,
+      provider: schema.organizationLlmProviderCredentials.provider,
+      defaultModel: schema.organizationLlmProviderCredentials.defaultModel,
+      maskedApiKeySuffix: schema.organizationLlmProviderCredentials.maskedApiKeySuffix,
+      lastValidatedAt: schema.organizationLlmProviderCredentials.lastValidatedAt,
+      createdAt: schema.organizationLlmProviderCredentials.createdAt,
+      updatedAt: schema.organizationLlmProviderCredentials.updatedAt,
+      inserted: sql<boolean>`(xmax = 0)`,
+    });
 
-  return summarizeCredential(credential);
+  return {
+    created: Boolean(row.inserted),
+    credential: {
+      organizationId: row.organizationId,
+      provider: row.provider,
+      defaultModel: row.defaultModel,
+      maskedApiKeySuffix: row.maskedApiKeySuffix,
+      lastValidatedAt: row.lastValidatedAt,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    } satisfies OrganizationProviderCredentialSummary,
+  };
 }
 
 export async function revealOrganizationProviderCredential(input: {

@@ -79,8 +79,9 @@ describe("ActivityLogList", () => {
       "/org/acme/settings/api-keys",
     );
 
-    await user.click(screen.getByRole("button", { name: "Show activity by Ada Lovelace" }));
-    expect(onActorFilter).toHaveBeenCalledWith("user:user-1");
+    expect(
+      screen.queryByRole("button", { name: "Show activity by Ada Lovelace" }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Show activity from CLI deploy" }));
     expect(onActorFilter).toHaveBeenCalledWith("api_key:key-1");
@@ -90,5 +91,31 @@ describe("ActivityLogList", () => {
     expect(screen.getByText("user-1")).toBeInTheDocument();
     expect(screen.getByText("file_uploaded")).toBeInTheDocument();
     expect(screen.getByText("sourcePath").closest("li")).toHaveTextContent("locales/en.json");
+  });
+
+  it("filters user-kind actors by user id", async () => {
+    const onActorFilter = vi.fn();
+    const user = userEvent.setup();
+    renderWithIntl(
+      <ActivityLogList
+        activityLogs={[
+          {
+            ...apiKeyActivity(),
+            actor: {
+              credentialId: null,
+              displayName: "Ada Lovelace",
+              kind: "user",
+              userId: "user-1",
+            },
+          },
+        ]}
+        now={new Date("2026-09-04T10:00:00.000Z").getTime()}
+        onActorFilter={onActorFilter}
+        organizationSlug="acme"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Show activity by Ada Lovelace" }));
+    expect(onActorFilter).toHaveBeenCalledWith("user:user-1");
   });
 });

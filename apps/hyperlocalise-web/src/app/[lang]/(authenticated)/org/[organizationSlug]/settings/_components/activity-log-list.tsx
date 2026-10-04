@@ -166,7 +166,7 @@ function targetDisplayName(item: ActivityLogItem): string | null {
 }
 
 function userFilterValue(actor: ActivityLogActor): string | null {
-  if (actor.userId) {
+  if (actor.kind === "user" && actor.userId) {
     return `user:${actor.userId}`;
   }
   if (actor.kind === "system" || actor.kind === "agent") {

@@ -91,7 +91,7 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
       let changed = false;
       const next = { ...current };
       for (const item of activityLogs) {
-        if (item.actor.userId && item.actor.displayName) {
+        if (item.actor.kind === "user" && item.actor.userId && item.actor.displayName) {
           const value = `user:${item.actor.userId}`;
           if (next[value] !== item.actor.displayName) {
             next[value] = item.actor.displayName;
@@ -119,7 +119,9 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
     const options = new Map(Object.entries(actorLabels));
     for (const page of activityQuery.data?.pages ?? []) {
       for (const item of page.actors) {
-        if (item.userId) options.set(`user:${item.userId}`, item.displayName);
+        if (item.kind === "user" && item.userId) {
+          options.set(`user:${item.userId}`, item.displayName);
+        }
         if (item.credentialId) {
           const label = item.keyPrefix
             ? `${item.displayName} (${item.keyPrefix})`

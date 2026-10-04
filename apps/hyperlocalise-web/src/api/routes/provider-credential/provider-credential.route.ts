@@ -96,20 +96,23 @@ export function createProviderCredentialRoutes() {
       const payload = c.req.valid("json");
 
       try {
-        const providerCredential = await upsertOrganizationProviderCredential({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          userId: c.var.auth.user.localUserId,
-          provider: payload.provider,
-          apiKey: payload.apiKey,
-          defaultModel: payload.defaultModel,
-        });
+        const { created, credential: providerCredential } =
+          await upsertOrganizationProviderCredential({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            provider: payload.provider,
+            apiKey: payload.apiKey,
+            defaultModel: payload.defaultModel,
+          });
 
-        await enqueueIntegrationConnectedActivity({
-          ...sessionActivityActor(c.var.auth.user.localUserId),
-          connectionId: `${c.var.auth.organization.localOrganizationId}:${payload.provider}`,
-          integrationKind: payload.provider,
-          organizationId: c.var.auth.organization.localOrganizationId,
-        });
+        if (created) {
+          await enqueueIntegrationConnectedActivity({
+            ...sessionActivityActor(c.var.auth.user.localUserId),
+            connectionId: `${c.var.auth.organization.localOrganizationId}:${payload.provider}`,
+            integrationKind: payload.provider,
+            organizationId: c.var.auth.organization.localOrganizationId,
+          });
+        }
 
         return c.json({ providerCredential }, 200);
       } catch (error) {
