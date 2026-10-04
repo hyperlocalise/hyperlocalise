@@ -38,7 +38,7 @@ env:
 jobs:
   changed_paths:
     name: Detect changed Lambda paths
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       activity-log: ${{ steps.paths.outputs.activity-log }}
       glossary-interchange: ${{ steps.paths.outputs.glossary-interchange }}
