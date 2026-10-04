@@ -94,6 +94,66 @@ function pairScore(
   return score;
 }
 
+const DIAGONAL = 1;
+const UP = 2;
+const LEFT = 3;
+
+function scoreDocumentBlockAlignment(
+  source: DocumentBlockSignature[],
+  target: DocumentBlockSignature[],
+) {
+  const rows = target.length;
+  const columns = source.length;
+  const sourceTokens = source.map((block) => invariantTokens(block.text));
+  const targetTokens = target.map((block) => invariantTokens(block.text));
+  const width = columns + 1;
+  const scores = new Float64Array((rows + 1) * width);
+  for (let row = 1; row <= rows; row += 1) {
+    for (let column = 1; column <= columns; column += 1) {
+      const up = scores[(row - 1) * width + column];
+      const left = scores[row * width + column - 1];
+      const diagonal =
+        scores[(row - 1) * width + column - 1] +
+        pairScore(
+          source[column - 1],
+          target[row - 1],
+          sourceTokens[column - 1],
+          targetTokens[row - 1],
+        );
+      let best = up;
+      if (left > best) best = left;
+      if (diagonal >= best) best = diagonal;
+      scores[row * width + column] = best;
+    }
+  }
+  return { scores, sourceTokens, targetTokens, width, rows, columns };
+}
+
+function alignmentMove(
+  source: DocumentBlockSignature[],
+  target: DocumentBlockSignature[],
+  sourceTokens: Set<string>[],
+  targetTokens: Set<string>[],
+  scores: Float64Array,
+  width: number,
+  row: number,
+  column: number,
+) {
+  const up = scores[(row - 1) * width + column];
+  const left = scores[row * width + column - 1];
+  const diagonal =
+    scores[(row - 1) * width + column - 1] +
+    pairScore(source[column - 1], target[row - 1], sourceTokens[column - 1], targetTokens[row - 1]);
+  let best = up;
+  let move = UP;
+  if (left > best) {
+    best = left;
+    move = LEFT;
+  }
+  if (diagonal >= best) move = DIAGONAL;
+  return move;
+}
+
 /**
  * Maps each target block to the source block it translates, or `null`.
  * Translations keep the source structure, so blocks are aligned by kind in
@@ -115,46 +175,26 @@ export function alignDocumentBlocks(
     return target.map((block, index) => (source[index]?.kind === block.kind ? index : null));
   }
 
-  const sourceTokens = source.map((block) => invariantTokens(block.text));
-  const targetTokens = target.map((block) => invariantTokens(block.text));
-  const width = columns + 1;
-  const scores = new Float64Array((rows + 1) * width);
-  const moves = new Uint8Array((rows + 1) * width);
-  const DIAGONAL = 1;
-  const UP = 2;
-  const LEFT = 3;
-
+  const matrix = scoreDocumentBlockAlignment(source, target);
+  const moves = new Uint8Array((rows + 1) * matrix.width);
   for (let row = 1; row <= rows; row += 1) {
-    moves[row * width] = UP;
+    moves[row * matrix.width] = UP;
   }
   for (let column = 1; column <= columns; column += 1) {
     moves[column] = LEFT;
   }
-
   for (let row = 1; row <= rows; row += 1) {
     for (let column = 1; column <= columns; column += 1) {
-      const up = scores[(row - 1) * width + column];
-      const left = scores[row * width + column - 1];
-      const diagonal =
-        scores[(row - 1) * width + column - 1] +
-        pairScore(
-          source[column - 1],
-          target[row - 1],
-          sourceTokens[column - 1],
-          targetTokens[row - 1],
-        );
-      let best = up;
-      let move = UP;
-      if (left > best) {
-        best = left;
-        move = LEFT;
-      }
-      if (diagonal >= best) {
-        best = diagonal;
-        move = DIAGONAL;
-      }
-      scores[row * width + column] = best;
-      moves[row * width + column] = move;
+      moves[row * matrix.width + column] = alignmentMove(
+        source,
+        target,
+        matrix.sourceTokens,
+        matrix.targetTokens,
+        matrix.scores,
+        matrix.width,
+        row,
+        column,
+      );
     }
   }
 
@@ -162,7 +202,7 @@ export function alignDocumentBlocks(
   let row = rows;
   let column = columns;
   while (row > 0 && column > 0) {
-    const move = moves[row * width + column];
+    const move = moves[row * matrix.width + column];
     if (move === DIAGONAL) {
       alignment[row - 1] = column - 1;
       row -= 1;
@@ -174,6 +214,82 @@ export function alignDocumentBlocks(
     }
   }
   return alignment;
+}
+
+/**
+ * Source block for `targetIndex` when every best alignment pairs them.
+ * An extra target block of the same kind can tie with leaving it unmatched;
+ * that block has no reliable source.
+ */
+export function reliableDocumentBlockSource(
+  source: DocumentBlockSignature[],
+  target: DocumentBlockSignature[],
+  targetIndex: number,
+): number | null {
+  if (targetIndex < 0 || targetIndex >= target.length || source.length === 0) {
+    return null;
+  }
+  if (source.length * target.length > MAX_ALIGNMENT_CELLS) {
+    return source[targetIndex]?.kind === target[targetIndex].kind ? targetIndex : null;
+  }
+
+  const { scores, sourceTokens, targetTokens, width, rows, columns } = scoreDocumentBlockAlignment(
+    source,
+    target,
+  );
+  const reachable = new Uint8Array(scores.length);
+  reachable[rows * width + columns] = 1;
+  for (let row = rows; row >= 0; row -= 1) {
+    for (let column = columns; column >= 0; column -= 1) {
+      const index = row * width + column;
+      if (!reachable[index]) continue;
+      const score = scores[index];
+      if (row > 0 && scores[(row - 1) * width + column] === score) {
+        reachable[(row - 1) * width + column] = 1;
+      }
+      if (column > 0 && scores[row * width + column - 1] === score) {
+        reachable[row * width + column - 1] = 1;
+      }
+      if (row > 0 && column > 0) {
+        const diagonal =
+          scores[(row - 1) * width + column - 1] +
+          pairScore(
+            source[column - 1],
+            target[row - 1],
+            sourceTokens[column - 1],
+            targetTokens[row - 1],
+          );
+        if (diagonal === score) reachable[(row - 1) * width + column - 1] = 1;
+      }
+    }
+  }
+
+  const row = targetIndex + 1;
+  const sources = new Set<number>();
+  let unmatched = false;
+  for (let column = 0; column <= columns; column += 1) {
+    const index = row * width + column;
+    if (!reachable[index]) continue;
+    const score = scores[index];
+    if (scores[(row - 1) * width + column] === score && reachable[(row - 1) * width + column]) {
+      unmatched = true;
+    }
+    if (column === 0) continue;
+    const diagonal =
+      scores[(row - 1) * width + column - 1] +
+      pairScore(
+        source[column - 1],
+        target[row - 1],
+        sourceTokens[column - 1],
+        targetTokens[row - 1],
+      );
+    if (diagonal === score && reachable[(row - 1) * width + column - 1]) {
+      sources.add(column - 1);
+    }
+  }
+  if (unmatched || sources.size !== 1) return null;
+  for (const sourceIndex of sources) return sourceIndex;
+  return null;
 }
 
 /** A block still reads as its source when it is unchanged and has words to translate. */

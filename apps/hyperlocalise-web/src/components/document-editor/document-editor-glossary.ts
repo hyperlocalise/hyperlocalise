@@ -13,7 +13,7 @@
 import type { Editor } from "@tiptap/core";
 
 import type { DocumentGlossaryTerm } from "./document-editor-assistant.types";
-import { alignDocumentBlocks, type DocumentBlockSignature } from "./document-editor-blocks";
+import { reliableDocumentBlockSource, type DocumentBlockSignature } from "./document-editor-blocks";
 import { documentBlocksFromNode } from "./document-editor-translate";
 
 export type DocumentGlossaryFinding = {
@@ -77,8 +77,11 @@ export function glossaryEntryFromTargetSelection(
   if (blockIndex !== endIndex || blockIndex >= doc.childCount) {
     return { sourceTerm: "", targetTerm };
   }
-  const sourceIndex =
-    alignDocumentBlocks(sourceBlocks, documentBlocksFromNode(doc))[blockIndex] ?? null;
+  const sourceIndex = reliableDocumentBlockSource(
+    sourceBlocks,
+    documentBlocksFromNode(doc),
+    blockIndex,
+  );
   const node = doc.child(blockIndex);
   return {
     sourceTerm: glossarySourceTermFromBlock(

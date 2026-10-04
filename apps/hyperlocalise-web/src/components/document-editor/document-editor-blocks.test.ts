@@ -17,6 +17,7 @@ import {
   documentBlocksFromJson,
   documentHeadings,
   isUntranslatedBlock,
+  reliableDocumentBlockSource,
   type DocumentBlockSignature,
 } from "./document-editor-blocks";
 
@@ -54,6 +55,33 @@ describe("alignDocumentBlocks", () => {
 
   it("returns no matches without a source", () => {
     expect(alignDocumentBlocks([], [p("x")])).toEqual([null]);
+  });
+});
+
+describe("reliableDocumentBlockSource", () => {
+  it("trusts a one-to-one alignment", () => {
+    const source = [h2("Intro"), p("Hello"), p("World")];
+    const target = [h2("Introduction"), p("Bonjour"), p("Monde")];
+
+    expect(reliableDocumentBlockSource(source, target, 0)).toBe(0);
+    expect(reliableDocumentBlockSource(source, target, 1)).toBe(1);
+    expect(reliableDocumentBlockSource(source, target, 2)).toBe(2);
+  });
+
+  it("rejects an extra trailing paragraph that only ties with the previous source paragraph", () => {
+    const source = [h2("Intro"), p("Hello")];
+    const target = [h2("Introduction"), p("Bonjour"), p("Added in the target")];
+
+    expect(reliableDocumentBlockSource(source, target, 0)).toBe(0);
+    expect(reliableDocumentBlockSource(source, target, 1)).toBeNull();
+    expect(reliableDocumentBlockSource(source, target, 2)).toBeNull();
+  });
+
+  it("trusts a pair distinguished by a shared link", () => {
+    const source = [p("Call 555 0100"), p("See https://example.com")];
+    const target = [p("Voir https://example.com")];
+
+    expect(reliableDocumentBlockSource(source, target, 0)).toBe(1);
   });
 });
 

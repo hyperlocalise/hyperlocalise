@@ -152,6 +152,35 @@ describe("glossaryEntryFromTargetSelection", () => {
     });
   });
 
+  it("leaves the source term blank for an extra target paragraph", () => {
+    const source = ["# Dashboard", "", "Open the dashboard to review metrics."].join("\n");
+    const target = [
+      "# Tableau de bord",
+      "",
+      "Ouvrez le tableau de bord pour revoir les métriques.",
+      "",
+      "Note ajoutée seulement dans la cible.",
+    ].join("\n");
+    const current = setup(target);
+    const sourceBlocks = documentBlocksFromJson(parseDocumentMarkdown(source, "markdown"));
+    const selected = selectText(current, "Note ajoutée seulement dans la cible.");
+
+    expect(glossaryEntryFromTargetSelection(current, sourceBlocks, selected)).toEqual({
+      sourceTerm: "",
+      targetTerm: "Note ajoutée seulement dans la cible.",
+    });
+    expect(
+      glossaryEntryFromTargetSelection(
+        current,
+        sourceBlocks,
+        selectText(current, "Tableau de bord"),
+      ),
+    ).toEqual({
+      sourceTerm: "Dashboard",
+      targetTerm: "Tableau de bord",
+    });
+  });
+
   it("leaves the source term blank when the selection crosses blocks", () => {
     const current = setup(TARGET);
     const sourceBlocks = documentBlocksFromJson(parseDocumentMarkdown(SOURCE, "markdown"));
