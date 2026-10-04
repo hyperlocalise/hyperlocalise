@@ -210,6 +210,57 @@ describe("VercelSandboxRuntime", () => {
     expect(script).not.toContain(Buffer.from(content).toString("base64"));
   });
 
+  it("wraps sandbox writeFiles API failures with provider error context", async () => {
+    const apiError = Object.assign(new Error("Status code 400 is not ok"), {
+      response: {
+        status: 400,
+        statusText: "Bad Request",
+        url: "https://vercel.com/api/v2/sandboxes/sessions/sbx_123/fs/write?teamId=team_123",
+      },
+      json: {
+        error: {
+          code: "command_failed",
+          message: "Invalid command payload",
+          requestId: "req_123",
+        },
+      },
+    });
+
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      exitCode: 0,
+      output: async () => "",
+    });
+    sandboxMocks.writeFiles.mockRejectedValueOnce(apiError);
+    sandboxMocks.get
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      })
+      .mockResolvedValueOnce({
+        writeFiles: sandboxMocks.writeFiles,
+      });
+
+    const runtime = new VercelSandboxRuntime("sbx_123");
+    try {
+      await runtime.writeFile(".hyperlocalise-qa/segments.json", "{}");
+      throw new Error("Expected writeFile to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(VercelSandboxCommandError);
+      expect(serializeErrorForLog(error)).toMatchObject({
+        name: "VercelSandboxCommandError",
+        sandboxId: "sbx_123",
+        command: "writeFiles",
+        argCount: 1,
+        responseStatus: 400,
+        responseStatusText: "Bad Request",
+        responseUrl:
+          "https://vercel.com/api/v2/sandboxes/sessions/sbx_123/fs/write?teamId=team_123",
+        providerErrorCode: "command_failed",
+        providerErrorMessage: "Invalid command payload",
+        providerRequestId: "req_123",
+      });
+    }
+  });
+
   it("maps git-metadata write denials from the sandbox guard", async () => {
     sandboxMocks.runCommand.mockResolvedValueOnce({
       exitCode: SANDBOX_WRITE_GIT_METADATA_DENIED,

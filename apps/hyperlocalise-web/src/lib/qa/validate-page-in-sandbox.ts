@@ -13,7 +13,7 @@
 import { z } from "zod";
 
 import { createVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
-import { createLogger, serializeErrorForLog } from "@/lib/log";
+import { createLogger, serializeErrorForLog, type Logger } from "@/lib/log";
 import { installQaSpellingSandboxCommand } from "@/lib/vercel-sandbox-config";
 import type { QaCheckPolicy } from "./qa-policy";
 import type { TranslationQaGlossaryTerm } from "./types";
@@ -30,6 +30,13 @@ export class QaCliUnavailableError extends Error {
   constructor() {
     super("The sandbox CLI does not support hl validate yet");
     this.name = "QaCliUnavailableError";
+  }
+}
+
+export class QaSandboxStopError extends Error {
+  constructor(cause: unknown) {
+    super("QA sandbox stop failed after successful validation", { cause });
+    this.name = "QaSandboxStopError";
   }
 }
 
@@ -64,6 +71,34 @@ async function cleanupQaWorkspaceFiles(workspace: {
   runCommand: (command: string, args: string[]) => Promise<{ exitCode: number }>;
 }) {
   await workspace.runCommand("bash", ["-lc", `rm -rf ${QA_WORKSPACE_DIR}`]).catch(() => undefined);
+}
+
+async function stopQaSandboxWorkspace(input: {
+  workspace: {
+    runCommand: (command: string, args: string[]) => Promise<{ exitCode: number }>;
+    stop: () => Promise<void>;
+  };
+  sandboxId: string | undefined;
+  log: Logger;
+  failedWork: boolean;
+}) {
+  await cleanupQaWorkspaceFiles(input.workspace);
+  try {
+    await input.workspace.stop();
+    input.log.info({ phase: "stop", sandboxId: input.sandboxId }, "qa sandbox workspace stopped");
+  } catch (error) {
+    const payload = {
+      phase: "stop",
+      sandboxId: input.sandboxId,
+      err: serializeErrorForLog(error),
+    };
+    if (input.failedWork) {
+      input.log.warn(payload, "qa sandbox workspace stop failed");
+      return;
+    }
+    input.log.error(payload, "qa sandbox workspace stop failed");
+    throw new QaSandboxStopError(error);
+  }
 }
 
 function utf8Bytes(value: string) {
@@ -262,6 +297,12 @@ export async function validateQaPageInSandbox(input: {
       },
       "qa sandbox page validate completed",
     );
+    await stopQaSandboxWorkspace({
+      workspace,
+      sandboxId,
+      log,
+      failedWork: false,
+    });
     return parsed.data.results;
   } catch (error) {
     if (error instanceof QaCliUnavailableError) {
@@ -273,7 +314,7 @@ export async function validateQaPageInSandbox(input: {
         },
         "qa sandbox cli unavailable",
       );
-    } else {
+    } else if (!(error instanceof QaSandboxStopError)) {
       log.error(
         {
           phase,
@@ -284,19 +325,14 @@ export async function validateQaPageInSandbox(input: {
         "qa sandbox page validate failed",
       );
     }
-    throw error;
-  } finally {
-    if (workspace) {
-      await cleanupQaWorkspaceFiles(workspace);
-      try {
-        await workspace.stop();
-        log.info({ phase: "stop", sandboxId }, "qa sandbox workspace stopped");
-      } catch (error) {
-        log.warn(
-          { phase: "stop", sandboxId, err: serializeErrorForLog(error) },
-          "qa sandbox workspace stop failed",
-        );
-      }
+    if (workspace && !(error instanceof QaSandboxStopError)) {
+      await stopQaSandboxWorkspace({
+        workspace,
+        sandboxId,
+        log,
+        failedWork: true,
+      });
     }
+    throw error;
   }
 }

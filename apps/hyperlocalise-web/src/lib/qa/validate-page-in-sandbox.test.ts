@@ -19,7 +19,11 @@ vi.mock("@/lib/agent-runtime/workspaces/vercel-sandbox-runtime", () => ({
 }));
 
 import { DEFAULT_QA_POLICY } from "./qa-policy";
-import { QaCliUnavailableError, validateQaPageInSandbox } from "./validate-page-in-sandbox";
+import {
+  QaCliUnavailableError,
+  QaSandboxStopError,
+  validateQaPageInSandbox,
+} from "./validate-page-in-sandbox";
 
 describe("validateQaPageInSandbox", () => {
   const writeFile = vi.fn();
@@ -90,6 +94,20 @@ describe("validateQaPageInSandbox", () => {
     });
     writeFile.mockRejectedValueOnce(error);
     await expect(validateQaPageInSandbox(input)).rejects.toBe(error);
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("rejects when stop fails after a successful validation", async () => {
+    stop.mockRejectedValueOnce(new Error("sandbox stop failed"));
+    await expect(validateQaPageInSandbox(input)).rejects.toBeInstanceOf(QaSandboxStopError);
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the validation error when stop also fails", async () => {
+    const writeError = new Error("write failed");
+    writeFile.mockRejectedValueOnce(writeError);
+    stop.mockRejectedValueOnce(new Error("sandbox stop failed"));
+    await expect(validateQaPageInSandbox(input)).rejects.toBe(writeError);
     expect(stop).toHaveBeenCalledOnce();
   });
 });

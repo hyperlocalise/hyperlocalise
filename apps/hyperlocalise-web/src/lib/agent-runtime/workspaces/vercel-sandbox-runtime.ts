@@ -310,7 +310,12 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
     try {
       await sandbox.writeFiles([{ path, content: bytes }]);
     } catch (error) {
-      throw new Error(`Failed to write ${path}`, { cause: error });
+      throw new VercelSandboxCommandError({
+        sandboxId: this.id,
+        command: "writeFiles",
+        args: [path],
+        cause: error,
+      });
     }
   }
 
@@ -358,7 +363,16 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
 
   async stop(): Promise<void> {
     const sandbox = await Sandbox.get({ name: this.id });
-    await sandbox.stop();
+    try {
+      await sandbox.stop();
+    } catch (error) {
+      throw new VercelSandboxCommandError({
+        sandboxId: this.id,
+        command: "stop",
+        args: [],
+        cause: error,
+      });
+    }
   }
 }
 
