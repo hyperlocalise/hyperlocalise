@@ -22,6 +22,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/htmltagparity"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/qavalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
@@ -92,6 +93,7 @@ type checkOptions struct {
 	workers           int
 	quiet             bool
 	dictionaryDir     string
+	qaPolicyFile      string
 }
 
 type checkFinding struct {
@@ -318,6 +320,7 @@ func newCheckLikeCmd(use, short string, fixDefault bool) *cobra.Command {
 	cmd.Flags().IntVar(&o.workers, "workers", 0, "with --fix, number of parallel translation workers (default: number of CPU cores)")
 	cmd.Flags().BoolVar(&o.quiet, "quiet", false, "omit warning-severity findings from output and JSON report; exit 0 when only warnings exist (errors and --fix still use the full result)")
 	cmd.Flags().StringVar(&o.dictionaryDir, "dictionary-dir", "", "directory of per-locale spellcheck allow-lists ({locale}.txt); overrides spellcheck.dictionary_dir")
+	cmd.Flags().StringVar(&o.qaPolicyFile, "qa-policy", "", "versioned cloud QA policy snapshot (overrides qa.policy_file)")
 
 	return cmd
 }
@@ -407,6 +410,34 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	if err != nil {
 		return checkReport{}, fmt.Errorf("resolve config directory: %w", err)
 	}
+	var qaPolicy *qavalidate.Policy
+	qaPolicyPath := o.qaPolicyFile
+	if qaPolicyPath == "" && cfg.QA != nil {
+		qaPolicyPath = cfg.QA.PolicyFile
+	}
+	if qaPolicyPath != "" {
+		if len(o.checks) > 0 || len(o.excludeChecks) > 0 {
+			return checkReport{}, fmt.Errorf("--check and --exclude-check cannot be combined with a QA policy")
+		}
+		if !filepath.IsAbs(qaPolicyPath) {
+			qaPolicyPath = filepath.Join(configRoot, qaPolicyPath)
+		}
+		loaded, err := qavalidate.LoadPolicy(qaPolicyPath)
+		if err != nil {
+			return checkReport{}, fmt.Errorf("load QA policy: %w", err)
+		}
+		qaPolicy = &loaded
+		filtered := enabledChecks[:0]
+		for _, name := range enabledChecks {
+			switch name {
+			case checkNotLocalized, checkSameAsSource, checkWhitespaceOnly, checkEscapedChar, checkPlaceholder:
+				continue
+			default:
+				filtered = append(filtered, name)
+			}
+		}
+		enabledChecks = filtered
+	}
 
 	index, err := buildCheckConfigIndex(cfg, buckets, locales, configRoot)
 	if err != nil {
@@ -431,7 +462,7 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	}
 
 	_, collectSpan := tr.Start(ctx, "check.collect_findings")
-	collected, err := collectCheckFindings(index, enabledChecks, selection, o.prefixID, o.ignoreDuplicateID, prefixIndex)
+	collected, err := collectCheckFindings(ctx, index, enabledChecks, selection, o.prefixID, o.ignoreDuplicateID, prefixIndex, qaPolicy)
 	if err != nil {
 		collectSpan.SetStatus(codes.Error, "collect_findings")
 		collectSpan.End()
@@ -440,6 +471,14 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	collectSpan.End()
 
 	sortCheckFindings(collected.Findings)
+	if qaPolicy != nil {
+		for name, setting := range qaPolicy.Checks {
+			if setting.Enabled {
+				enabledChecks = append(enabledChecks, name)
+			}
+		}
+		slices.Sort(enabledChecks)
+	}
 	return checkReport{
 		Checks:                  enabledChecks,
 		Findings:                collected.Findings,
@@ -961,7 +1000,7 @@ func normalizeCheckChangedKeys(changed map[string]struct{}, prefixIndex packPref
 	return out, nil
 }
 
-func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selection checkSelection, prefixID, ignoreDuplicateID bool, prefixIndex packPrefixIndex) (checkReport, error) {
+func collectCheckFindings(ctx context.Context, index *checkConfigIndex, enabledChecks []string, selection checkSelection, prefixID, ignoreDuplicateID bool, prefixIndex packPrefixIndex, qaPolicy *qavalidate.Policy) (checkReport, error) {
 	parser := translationfileparser.NewDefaultStrategy()
 	resolver := checkLocationResolver{content: make(map[string][]byte)}
 	checkSet := make(map[string]struct{}, len(enabledChecks))
@@ -970,6 +1009,12 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 	}
 
 	var findings []checkFinding
+	var qaSegments []qavalidate.Segment
+	type qaLocation struct {
+		bucket, locale, sourcePath, targetPath, key, sourceValue, targetValue string
+		missing                                                               bool
+	}
+	var qaLocations []qaLocation
 	sourceEntryKeysByPacked := make(map[string]map[string]string)
 	for _, sourceDesc := range index.sources {
 		if !selection.allowsSource(sourceDesc.sourcePath) {
@@ -1019,8 +1064,48 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 			}
 
 			findings = append(findings, collectEntryCheckFindings(&resolver, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceEntries, targetEntries, checkSet, selection)...)
+			if qaPolicy != nil {
+				keys := make([]string, 0, len(sourceEntries))
+				for key := range sourceEntries {
+					keys = append(keys, key)
+				}
+				slices.Sort(keys)
+				for _, key := range keys {
+					if !selection.allowsKey(sourceDesc.sourcePath, key) {
+						continue
+					}
+					targetValue, exists := targetEntries[key]
+					qaSegments = append(qaSegments, qavalidate.Segment{
+						ID: fmt.Sprint(len(qaSegments)), SourceText: sourceEntries[key], TargetText: targetValue,
+						SourcePath: sourceDesc.sourcePath, TargetLocale: target.locale,
+					})
+					qaLocations = append(qaLocations, qaLocation{
+						sourceDesc.bucketName, target.locale,
+						sourceDesc.sourcePath, target.targetPath, key, sourceEntries[key], targetValue, !exists,
+					})
+				}
+			}
 			if selection.shouldRunFileScopedChecks() && hasCheck(checkSet, checkMarkdownAST) && isMarkdownPath(target.targetPath) {
 				findings = append(findings, collectMarkdownASTParityFindings(&resolver, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceContent, targetContent)...)
+			}
+		}
+	}
+	if qaPolicy != nil && len(qaSegments) > 0 {
+		report, err := qavalidate.ValidateBatch(ctx, qaSegments, *qaPolicy)
+		if err != nil {
+			return checkReport{}, err
+		}
+		for i, result := range report.Results {
+			location := qaLocations[i]
+			for _, check := range result.Checks {
+				annotationFile, annotationLine := resolver.resolve(location.sourcePath, location.targetPath,
+					location.key, location.sourceValue, location.targetValue, location.missing)
+				findings = append(findings, checkFinding{
+					Type: check.CheckType, Severity: check.Severity, Bucket: location.bucket,
+					Locale: location.locale, SourceFile: location.sourcePath, TargetFile: location.targetPath,
+					Key: location.key, Message: check.Message, AnnotationFile: annotationFile,
+					AnnotationLine: annotationLine,
+				})
 			}
 		}
 	}

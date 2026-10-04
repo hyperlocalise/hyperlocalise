@@ -51,6 +51,12 @@ type I18NConfig struct {
 	Storage       *StorageConfig          `json:"storage,omitempty"`
 	Cache         CacheConfig             `json:"cache,omitempty"`
 	Spellcheck    *SpellcheckConfig       `json:"spellcheck,omitempty"`
+	QA            *QAConfig               `json:"qa,omitempty"`
+}
+
+// QAConfig points to a local snapshot of the project's cloud QA policy.
+type QAConfig struct {
+	PolicyFile string `json:"policy_file,omitempty"`
 }
 
 // SpellcheckConfig points at resolved per-locale allow-list files.
