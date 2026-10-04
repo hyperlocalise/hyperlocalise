@@ -25,17 +25,49 @@ export type UpdateAnnouncement = {
   /** Optional decorative layer drawn over `imageSrc`. */
   Preview?: ComponentType;
   buildHref: (organizationSlug: string) => string;
+  /** ISO 8601 timestamp; hidden before this instant. */
+  startsAt: string;
+  /** ISO 8601 timestamp; hidden from this instant on. Omit to run until removed. */
+  endsAt?: string;
 };
 
-/** The announcement shown to everyone who hasn't dismissed it. Set to `null` to show nothing. */
-export const CURRENT_UPDATE_ANNOUNCEMENT: UpdateAnnouncement | null = {
-  id: "2026-10-qa-overview",
-  title: updateAnnouncerMessages.qaOverviewTitle,
-  description: updateAnnouncerMessages.qaOverviewDescription,
-  imageSrc: "/images/mesh/mesh-gradient-1788785848827.jpg",
-  Preview: QaOverviewPreview,
-  buildHref: (organizationSlug) => `/org/${organizationSlug}/qa`,
-};
+/** Ordered by priority: the first active, undismissed entry is shown. */
+export const UPDATE_ANNOUNCEMENTS: readonly UpdateAnnouncement[] = [
+  {
+    id: "2026-10-qa-overview",
+    title: updateAnnouncerMessages.qaOverviewTitle,
+    description: updateAnnouncerMessages.qaOverviewDescription,
+    imageSrc: "/images/mesh/mesh-gradient-1788785848827.jpg",
+    Preview: QaOverviewPreview,
+    buildHref: (organizationSlug) => `/org/${organizationSlug}/qa`,
+    startsAt: "2026-10-01T00:00:00Z",
+    endsAt: "2026-11-01T00:00:00Z",
+  },
+];
+
+export function isUpdateAnnouncementActive(announcement: UpdateAnnouncement, now: Date): boolean {
+  const time = now.getTime();
+  if (time < Date.parse(announcement.startsAt)) return false;
+  return announcement.endsAt === undefined || time < Date.parse(announcement.endsAt);
+}
+
+export function selectUpdateAnnouncement(
+  announcements: readonly UpdateAnnouncement[],
+  {
+    now,
+    isDismissed,
+  }: {
+    now: Date;
+    isDismissed: (announcementId: string) => boolean;
+  },
+): UpdateAnnouncement | null {
+  return (
+    announcements.find(
+      (announcement) =>
+        isUpdateAnnouncementActive(announcement, now) && !isDismissed(announcement.id),
+    ) ?? null
+  );
+}
 
 const DISMISSED_STORAGE_KEY_PREFIX = "hl-update-announcement-dismissed:v1:";
 

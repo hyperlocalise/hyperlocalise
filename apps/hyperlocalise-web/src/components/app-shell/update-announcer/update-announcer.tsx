@@ -26,38 +26,43 @@ import {
 
 import { updateAnnouncerMessages } from "./update-announcer.messages";
 import {
-  CURRENT_UPDATE_ANNOUNCEMENT,
+  UPDATE_ANNOUNCEMENTS,
   getUpdateAnnouncementStorageKey,
+  selectUpdateAnnouncement,
   type UpdateAnnouncement,
 } from "./update-announcements";
 
 type UpdateAnnouncerProps = {
   organizationSlug: string;
-  announcement?: UpdateAnnouncement | null;
+  announcements?: readonly UpdateAnnouncement[];
 };
+
+function isUpdateAnnouncementDismissed(announcementId: string): boolean {
+  return readBrowserLocalStorageItem(getUpdateAnnouncementStorageKey(announcementId)) !== null;
+}
 
 /** Product update card anchored under the account menu button in the app shell header. */
 export function UpdateAnnouncer({
   organizationSlug,
-  announcement = CURRENT_UPDATE_ANNOUNCEMENT,
+  announcements = UPDATE_ANNOUNCEMENTS,
 }: UpdateAnnouncerProps) {
   const intl = useIntl();
   const titleId = useId();
-  const [visible, setVisible] = useState(false);
-  const announcementId = announcement?.id ?? null;
+  const [announcement, setAnnouncement] = useState<UpdateAnnouncement | null>(null);
 
+  // Dismissals live in localStorage and the window depends on the client clock, so select after mount.
   useEffect(() => {
-    if (!announcementId || !organizationSlug) {
-      setVisible(false);
-      return;
-    }
-
-    setVisible(
-      readBrowserLocalStorageItem(getUpdateAnnouncementStorageKey(announcementId)) === null,
+    setAnnouncement(
+      organizationSlug
+        ? selectUpdateAnnouncement(announcements, {
+            now: new Date(),
+            isDismissed: isUpdateAnnouncementDismissed,
+          })
+        : null,
     );
-  }, [announcementId, organizationSlug]);
+  }, [announcements, organizationSlug]);
 
-  if (!announcement || !visible) {
+  if (!announcement) {
     return null;
   }
 
@@ -67,7 +72,7 @@ export function UpdateAnnouncer({
       getUpdateAnnouncementStorageKey(announcement.id),
       new Date().toISOString(),
     );
-    setVisible(false);
+    setAnnouncement(null);
   };
 
   return (

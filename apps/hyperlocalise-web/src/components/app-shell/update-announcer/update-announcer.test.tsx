@@ -18,7 +18,11 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 import { IntlProvider } from "react-intl";
 
 import { UpdateAnnouncer } from "./update-announcer";
-import { getUpdateAnnouncementStorageKey, type UpdateAnnouncement } from "./update-announcements";
+import {
+  getUpdateAnnouncementStorageKey,
+  selectUpdateAnnouncement,
+  type UpdateAnnouncement,
+} from "./update-announcements";
 
 const announcement: UpdateAnnouncement = {
   id: "test-announcement",
@@ -26,12 +30,13 @@ const announcement: UpdateAnnouncement = {
   description: { id: "test.description", defaultMessage: "It does a thing." },
   imageSrc: "/images/test.jpg",
   buildHref: (organizationSlug) => `/org/${organizationSlug}/qa`,
+  startsAt: "2000-01-01T00:00:00Z",
 };
 
-function renderAnnouncer() {
+function renderAnnouncer(announcements: UpdateAnnouncement[] = [announcement]) {
   return render(
     <IntlProvider locale="en" onError={() => {}}>
-      <UpdateAnnouncer organizationSlug="acme" announcement={announcement} />
+      <UpdateAnnouncer organizationSlug="acme" announcements={announcements} />
     </IntlProvider>,
   );
 }
@@ -64,5 +69,50 @@ describe("UpdateAnnouncer", () => {
     unmount();
     renderAnnouncer();
     expect(screen.queryByRole("heading", { name: "Something new" })).toBeNull();
+  });
+
+  it("does not render an announcement outside its window", () => {
+    renderAnnouncer([{ ...announcement, startsAt: "2999-01-01T00:00:00Z" }]);
+
+    expect(screen.queryByRole("heading", { name: "Something new" })).toBeNull();
+  });
+});
+
+describe("selectUpdateAnnouncement", () => {
+  const now = new Date("2026-10-15T00:00:00Z");
+  const notDismissed = () => false;
+
+  it("respects the start and end times", () => {
+    const scheduled = { ...announcement, startsAt: "2026-10-01T00:00:00Z" };
+
+    expect(
+      selectUpdateAnnouncement([{ ...scheduled, endsAt: "2026-11-01T00:00:00Z" }], {
+        now,
+        isDismissed: notDismissed,
+      }),
+    ).not.toBeNull();
+    expect(
+      selectUpdateAnnouncement([{ ...scheduled, startsAt: "2026-10-16T00:00:00Z" }], {
+        now,
+        isDismissed: notDismissed,
+      }),
+    ).toBeNull();
+    expect(
+      selectUpdateAnnouncement([{ ...scheduled, endsAt: "2026-10-15T00:00:00Z" }], {
+        now,
+        isDismissed: notDismissed,
+      }),
+    ).toBeNull();
+  });
+
+  it("falls through to the next active announcement when the first is dismissed", () => {
+    const next = { ...announcement, id: "next" };
+
+    expect(
+      selectUpdateAnnouncement([announcement, next], {
+        now,
+        isDismissed: (id) => id === announcement.id,
+      })?.id,
+    ).toBe("next");
   });
 });

@@ -22,7 +22,7 @@ import {
 } from "./app-shell.stories.fixture";
 import { UpdateAnnouncer } from "./update-announcer/update-announcer";
 import {
-  CURRENT_UPDATE_ANNOUNCEMENT,
+  UPDATE_ANNOUNCEMENTS,
   getUpdateAnnouncementStorageKey,
 } from "./update-announcer/update-announcements";
 
@@ -95,7 +95,14 @@ export const WithUpdateAnnouncement: Story = {
       <AppShellHeaderStoryFrame />
       <UpdateAnnouncer
         organizationSlug={APP_SHELL_STORY_ORGANIZATION_SLUG}
-        announcement={{ ...CURRENT_UPDATE_ANNOUNCEMENT!, id: "storybook-preview" }}
+        announcements={[
+          {
+            ...UPDATE_ANNOUNCEMENTS[0]!,
+            id: "storybook-preview",
+            startsAt: "2000-01-01T00:00:00Z",
+            endsAt: undefined,
+          },
+        ]}
       />
     </>
   ),
