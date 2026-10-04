@@ -26,8 +26,9 @@
 #
 # libarchive-tools provides bsdtar, which is linked to /usr/local/bin/tar so
 # fetch-dictionaries.sh (shared with go-svc, unchanged) uses it. Ubuntu 26.04
-# GNU tar returns ENOSYS ("Function not implemented") extracting the
-# LibreOffice archive under linux/amd64 emulation on Docker Desktop.
+# GNU tar returns ENOSYS ("Function not implemented") extracting archives
+# under linux/amd64 emulation on Docker Desktop. The runtime stage calls
+# bsdtar directly for the same reason.
 FROM ubuntu:26.04 AS dictionaries
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -100,12 +101,15 @@ RUN set -eux; \
     if ! rg --version | grep -Fq "${RIPGREP_VERSION}"; then \
       curl -fsSL -o /tmp/rg.tar.gz \
         "https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl.tar.gz"; \
-      tar -xzf /tmp/rg.tar.gz -C /tmp; \
+      bsdtar -xzf /tmp/rg.tar.gz -C /tmp; \
       install -m 0755 \
         "/tmp/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl/rg" \
         /usr/local/bin/rg; \
       rm -rf /tmp/rg.tar.gz "/tmp/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl"; \
     fi; \
+    # dash tracks the first rg lookup (/usr/bin/rg from apt). Drop that so
+    # this check runs /usr/local/bin/rg when the pin was just installed.
+    hash -r; \
     rg --version | grep -Fq "${RIPGREP_VERSION}"
 
 # Node.js latest of the pinned major (same approach as vercel/sandbox/node).
@@ -132,7 +136,7 @@ RUN set -eux; \
       curl -fsSL -o "${TMP}/${ARCHIVE}" \
         "https://github.com/hyperlocalise/hyperlocalise/releases/download/${HYPERLOCALISE_VERSION}/${ARCHIVE}"; \
     fi; \
-    tar -xzf "${TMP}/${ARCHIVE}" -C "${TMP}" hyperlocalise; \
+    bsdtar -xzf "${TMP}/${ARCHIVE}" -C "${TMP}" hyperlocalise; \
     install -m 0755 "${TMP}/hyperlocalise" /usr/local/bin/hyperlocalise; \
     ln -sfn /usr/local/bin/hyperlocalise /usr/local/bin/hl; \
     rm -rf "${TMP}"; \
