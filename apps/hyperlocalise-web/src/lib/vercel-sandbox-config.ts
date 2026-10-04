@@ -13,7 +13,12 @@
 import { Sandbox } from "@vercel/sandbox";
 
 import { env } from "@/lib/env";
-import { isReleaseSandboxVcrImageEnabled } from "@/lib/flags/release-flags";
+import {
+  isHyperlocaliseSandboxVcrImageEnabledForScope,
+  type VercelSandboxImageScope,
+} from "@/lib/flags/release-flags";
+
+export type { VercelSandboxImageScope } from "@/lib/flags/release-flags";
 
 /** Pinned ripgrep release used when package managers do not ship rg (e.g. Amazon Linux 2023). */
 export const sandboxRipgrepReleaseVersion = "15.2.0";
@@ -58,6 +63,11 @@ export const sandboxChromiumDnfPackages = [
 ] as const;
 
 type VercelSandboxCreateOptions = Parameters<typeof Sandbox.create>[0];
+
+export type ConfiguredVercelSandboxCreateOptions = VercelSandboxCreateOptions & {
+  /** Which release gates may select `VERCEL_SANDBOX_IMAGE`. Defaults to `default`. */
+  imageScope?: VercelSandboxImageScope;
+};
 
 /**
  * Default managed image for sandboxes that do not opt into the custom VCR
@@ -202,9 +212,6 @@ export const installRequiredSandboxToolsCommand = [
 /** Ensures Hunspell and the pinned dictionary set are available for QA CLI spelling checks. */
 export const installQaSpellingSandboxCommand = [
   'DICPATH="${DICPATH:-/usr/share/hunspell}"',
-  'if command -v hunspell >/dev/null 2>&1 && [ -f "$DICPATH/en_US.aff" ] && [ -f "$DICPATH/en_US.dic" ]; then',
-  "  exit 0",
-  "fi",
   "run_as_root() {",
   '  if [ "$(id -u)" -eq 0 ]; then',
   '    "$@"',
@@ -213,6 +220,30 @@ export const installQaSpellingSandboxCommand = [
   "  else",
   '    "$@"',
   "  fi",
+  "}",
+  "hunspell_manifest_dictionaries_ready() {",
+  '  local manifest="$1"',
+  "  command -v hunspell >/dev/null 2>&1 || return 1",
+  '  [ -f "$manifest" ] || return 1',
+  "  local rows missing=0",
+  "  rows=\"$(awk '",
+  '    BEGIN { FS = "|" }',
+  "    /^## Supported locales/ { intable = 1; next }",
+  "    intable && /^## / { intable = 0 }",
+  "    intable && /^\\| `/ {",
+  "        aff = $3; dic = $4",
+  '        gsub(/^[ \\t]+|[ \\t]+$/, "", aff); gsub(/`/, "", aff)',
+  '        gsub(/^[ \\t]+|[ \\t]+$/, "", dic); gsub(/`/, "", dic)',
+  '        print aff "\\t" dic',
+  "    }",
+  '  \' "$manifest")"',
+  '  [ -n "$rows" ] || return 1',
+  "  while IFS=$'\\t' read -r aff dic; do",
+  '    if [ ! -f "$DICPATH/$aff" ] || [ ! -f "$DICPATH/$dic" ]; then',
+  "      missing=$((missing + 1))",
+  "    fi",
+  '  done <<<"$rows"',
+  '  [ "$missing" -eq 0 ]',
   "}",
   "if command -v dnf >/dev/null 2>&1; then",
   "  run_as_root dnf install -y hunspell curl tar gawk findutils",
@@ -223,36 +254,45 @@ export const installQaSpellingSandboxCommand = [
   "  exit 1",
   "fi",
   'REPO_ROOT="$(mktemp -d)"',
+  'MANIFEST="$REPO_ROOT/internal/i18n/spellcheck/DICTIONARIES.md"',
   'mkdir -p "$REPO_ROOT/internal/i18n/spellcheck" "$REPO_ROOT/apps/go-svc/build"',
   `HL_TAG="v${sandboxHyperlocaliseReleaseVersion}"`,
-  'curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/${HL_TAG}/internal/i18n/spellcheck/DICTIONARIES.md" -o "$REPO_ROOT/internal/i18n/spellcheck/DICTIONARIES.md" ||',
-  `  curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/v${sandboxHyperlocaliseReleaseVersion}/internal/i18n/spellcheck/DICTIONARIES.md" -o "$REPO_ROOT/internal/i18n/spellcheck/DICTIONARIES.md"`,
+  'curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/${HL_TAG}/internal/i18n/spellcheck/DICTIONARIES.md" -o "$MANIFEST" ||',
+  `  curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/v${sandboxHyperlocaliseReleaseVersion}/internal/i18n/spellcheck/DICTIONARIES.md" -o "$MANIFEST"`,
   'curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/${HL_TAG}/apps/go-svc/build/fetch-dictionaries.sh" -o "$REPO_ROOT/apps/go-svc/build/fetch-dictionaries.sh" ||',
   `  curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/v${sandboxHyperlocaliseReleaseVersion}/apps/go-svc/build/fetch-dictionaries.sh" -o "$REPO_ROOT/apps/go-svc/build/fetch-dictionaries.sh"`,
   'chmod +x "$REPO_ROOT/apps/go-svc/build/fetch-dictionaries.sh"',
+  'if hunspell_manifest_dictionaries_ready "$MANIFEST"; then',
+  "  exit 0",
+  "fi",
   'run_as_root mkdir -p "$DICPATH"',
-  'bash "$REPO_ROOT/apps/go-svc/build/fetch-dictionaries.sh" "$REPO_ROOT" "$DICPATH" "$(mktemp -d)"',
-  'command -v hunspell >/dev/null 2>&1 && [ -f "$DICPATH/en_US.aff" ]',
+  'run_as_root bash "$REPO_ROOT/apps/go-svc/build/fetch-dictionaries.sh" "$REPO_ROOT" "$DICPATH" "$(mktemp -d)"',
+  'hunspell_manifest_dictionaries_ready "$MANIFEST"',
 ].join("\n");
 
 export async function createConfiguredVercelSandbox(
-  options: VercelSandboxCreateOptions = {},
+  options: ConfiguredVercelSandboxCreateOptions = {},
 ): Promise<Sandbox> {
+  const { imageScope = "default", ...sandboxCreateOptions } = options;
   const callerChoosesImageOrRuntime =
-    "runtime" in options || "image" in options || options.source?.type === "snapshot";
+    "runtime" in sandboxCreateOptions ||
+    "image" in sandboxCreateOptions ||
+    sandboxCreateOptions.source?.type === "snapshot";
   const vcrSandboxImage = env.VERCEL_SANDBOX_IMAGE;
   const shouldUseVcrImage =
     !callerChoosesImageOrRuntime &&
     vcrSandboxImage != null &&
     vcrSandboxImage.length > 0 &&
-    (await isReleaseSandboxVcrImageEnabled());
+    (await isHyperlocaliseSandboxVcrImageEnabledForScope(imageScope));
   const shouldUseDefaultImage = !callerChoosesImageOrRuntime && !shouldUseVcrImage;
   const createOptions = {
-    ...options,
+    ...sandboxCreateOptions,
     ...(shouldUseVcrImage ? { image: vcrSandboxImage } : {}),
     ...(shouldUseDefaultImage ? { image: defaultVercelSandboxImage } : {}),
-    ...("snapshotExpiration" in options ? {} : { snapshotExpiration: sandboxSnapshotExpirationMs }),
-    ...("keepLastSnapshots" in options
+    ...("snapshotExpiration" in sandboxCreateOptions
+      ? {}
+      : { snapshotExpiration: sandboxSnapshotExpirationMs }),
+    ...("keepLastSnapshots" in sandboxCreateOptions
       ? {}
       : {
           keepLastSnapshots: {

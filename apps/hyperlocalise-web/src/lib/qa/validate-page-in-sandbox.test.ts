@@ -53,6 +53,7 @@ describe("validateQaPageInSandbox", () => {
     await expect(validateQaPageInSandbox(input)).resolves.toEqual([{ id: "0", checks: [] }]);
     expect(createWorkspace).toHaveBeenCalledWith({
       timeoutMs: 10 * 60 * 1000,
+      imageScope: "qa",
       sandboxOptions: { snapshotExpiration: 0, keepLastSnapshots: { count: 1 } },
     });
     expect(runCommand).toHaveBeenCalledWith("bash", [

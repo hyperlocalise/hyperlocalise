@@ -3,6 +3,7 @@ import { createFlagsDiscoveryEndpoint, getProviderData } from "flags/next";
 import {
   releaseContentEditorAllFilesFlag,
   releaseCatAdaptiveWorkspaceFlag,
+  releaseQaSandboxVcrImageFlag,
   releaseSandboxVcrImageFlag,
 } from "../../../../lib/flags/release-flags";
 import {
@@ -21,5 +22,6 @@ export const GET = createFlagsDiscoveryEndpoint(async () =>
     releaseContentEditorAllFilesFlag,
     releaseCatAdaptiveWorkspaceFlag,
     releaseSandboxVcrImageFlag,
+    releaseQaSandboxVcrImageFlag,
   }),
 );

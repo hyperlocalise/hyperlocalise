@@ -12,7 +12,10 @@
  */
 import { Sandbox } from "@vercel/sandbox";
 
-import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
+import {
+  createConfiguredVercelSandbox,
+  type VercelSandboxImageScope,
+} from "@/lib/vercel-sandbox-config";
 
 import type {
   GitWorkspaceSource,
@@ -343,10 +346,12 @@ export async function createVercelSandboxWorkspace(input: {
   source?: GitWorkspaceSource;
   timeoutMs?: number;
   sandboxOptions?: QaSandboxSnapshotOptions;
+  imageScope?: VercelSandboxImageScope;
 }): Promise<WorkspaceRuntime> {
   const sandbox = await createConfiguredVercelSandbox({
     ...(input.source ? { source: input.source } : {}),
     timeout: input.timeoutMs ?? defaultSandboxTimeoutMs,
+    imageScope: input.imageScope,
     ...input.sandboxOptions,
   });
 

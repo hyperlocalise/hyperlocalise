@@ -71,6 +71,7 @@ export async function validateQaPageInSandbox(input: {
 }) {
   const workspace = await createVercelSandboxWorkspace({
     timeoutMs: SANDBOX_TIMEOUT_MS,
+    imageScope: "qa",
     sandboxOptions: {
       snapshotExpiration: 0,
       keepLastSnapshots: { count: 1 },
