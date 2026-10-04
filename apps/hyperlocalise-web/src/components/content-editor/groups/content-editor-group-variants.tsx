@@ -472,7 +472,7 @@ const VariantEditor = observer(function VariantEditor({
           formatChecks={variant.formatChecks}
           isLoading={variant.isCheckingFormat}
           targetText={text}
-          onFix={variant.canEdit ? (value) => variant.change(value) : undefined}
+          onFix={variant.canEdit && !variant.pending ? (value) => variant.change(value) : undefined}
         />
       ) : null}
       {variant.displayError ? (

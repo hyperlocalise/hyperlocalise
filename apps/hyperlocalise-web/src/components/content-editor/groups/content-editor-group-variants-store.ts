@@ -20,10 +20,13 @@ import type {
   ContentEditorSegment,
 } from "@/components/content-editor/shared/types";
 
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+
 import type { MultilingualDrafts } from "../multilingual/content-editor-multilingual-drafts";
 import type { ContentEditorGroupVariantSaveInput } from "./content-editor-grouping-context";
 
 const FORMAT_CHECK_DELAY_MS = 300;
+const FORMAT_CHECK_CONCURRENCY = 3;
 
 export type ContentEditorGroupVariantAction = "save" | "approve" | "all";
 
@@ -143,7 +146,7 @@ export class ContentEditorGroupVariant {
     return this.text.trim().length > 0;
   }
   get pending() {
-    return this.pendingAction !== null || Boolean(this.draft?.saving);
+    return this.pendingAction !== null || Boolean(this.draft?.saving) || this.group.isApplyingToAll;
   }
   get canSave() {
     return this.canEdit && !this.pending && this.hasText && this.text !== this.savedText;
@@ -174,7 +177,7 @@ export class ContentEditorGroupVariant {
       if (limit == null) continue;
       tightest = tightest == null ? limit : Math.min(tightest, limit);
     }
-    return tightest ?? this.group.segment.maxLength;
+    return tightest;
   }
 
   update(variant: CatGroupVariant) {
@@ -182,6 +185,7 @@ export class ContentEditorGroupVariant {
   }
 
   change(text: string) {
+    if (this.pending) return;
     this.group.drafts.get(this.draftKey, this.variant.text).change(text);
     this.error = null;
     this.scheduleChecks();
@@ -214,6 +218,7 @@ export class ContentEditorGroupVariant {
     const { saveVariant, saveFailedMessage } = this.group.ports;
     if (!saveVariant || occurrences.length === 0) return;
     this.pendingAction = action;
+    if (action === "all") this.group.isApplyingToAll = true;
     this.error = null;
     const { segment, locale } = this.group;
     const write = (text: string) => saveVariant({ segment, locale, occurrences, text, approve });
@@ -232,7 +237,9 @@ export class ContentEditorGroupVariant {
     } finally {
       runInAction(() => {
         this.pendingAction = null;
+        if (action === "all") this.group.isApplyingToAll = false;
       });
+      this.group.flushHeldText();
     }
   }
 
@@ -259,15 +266,16 @@ export class ContentEditorGroupVariant {
     const { segment } = this.group;
     const occurrences = this.unlocked.length > 0 ? this.unlocked : this.variant.occurrences;
     try {
-      const checkGroups = await Promise.all(
-        variantQaContexts(occurrences, segment).map((context) =>
+      const checkGroups = await mapWithConcurrency(
+        variantQaContexts(occurrences, segment),
+        FORMAT_CHECK_CONCURRENCY,
+        (context) =>
           validateFormat(
             { ...segment, sourcePath: context.sourcePath, maxLength: context.maxLength },
             this.text,
             glossaryTerms?.(segment.id),
             { signal: abort.signal },
           ),
-        ),
       );
       if (abort.signal.aborted) return;
       runInAction(() => {
@@ -310,6 +318,7 @@ export class ContentEditorGroupVariants {
   canEdit: boolean;
   isApplyingToAll = false;
   applyError: string | null = null;
+  private heldText: string | null = null;
   ports: ContentEditorGroupVariantsPorts;
 
   constructor(input: {
@@ -327,7 +336,7 @@ export class ContentEditorGroupVariants {
     this.ports = input.ports;
     this.canEdit = input.ports.canEdit;
     this.variants = input.variants.map((variant) => new ContentEditorGroupVariant(this, variant));
-    makeAutoObservable<this, "projectId">(
+    makeAutoObservable<this, "projectId" | "heldText">(
       this,
       {
         segment: false,
@@ -335,6 +344,7 @@ export class ContentEditorGroupVariants {
         drafts: false,
         projectId: false,
         ports: false,
+        heldText: false,
       },
       { autoBind: true },
     );
@@ -428,7 +438,25 @@ export class ContentEditorGroupVariants {
 
   useText(text: string) {
     const target = this.targetVariant;
-    return target ? this.useTextIn(target.id, text) : false;
+    if (!target) return false;
+    if (this.useTextIn(target.id, text)) {
+      this.heldText = null;
+      return true;
+    }
+    if (target.pending) {
+      this.heldText = text;
+      this.focusedVariantId = target.id;
+      return true;
+    }
+    return false;
+  }
+
+  /** Applies text that arrived while every editable translation was busy. */
+  flushHeldText() {
+    const text = this.heldText;
+    if (text == null) return;
+    this.heldText = null;
+    this.useText(text);
   }
 
   async applyTextToAll(text: string) {
@@ -456,6 +484,7 @@ export class ContentEditorGroupVariants {
       runInAction(() => {
         this.isApplyingToAll = false;
       });
+      this.flushHeldText();
     }
   }
 

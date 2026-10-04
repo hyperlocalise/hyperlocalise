@@ -155,6 +155,51 @@ describe("ContentEditorGroupVariants", () => {
     expect(drafts.dirty).toBe(false);
   });
 
+  it("locks every translation editor while applying to all", async () => {
+    let finish!: () => void;
+    const saveVariant = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { group } = createGroup({ saveVariant });
+    const [first, second] = group.variants;
+
+    const applying = group.applyTextToAll("Membre");
+    expect(first!.pending).toBe(true);
+    expect(second!.pending).toBe(true);
+    second!.change("Adhérente");
+    expect(second!.text).toBe("Adhérent");
+
+    finish();
+    await applying;
+    expect(second!.text).toBe("Membre");
+    expect(second!.pending).toBe(false);
+  });
+
+  it("locks other translation editors while one translation is applied to all", async () => {
+    let finish!: () => void;
+    const saveVariant = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { group } = createGroup({ saveVariant });
+    const [first, second] = group.variants;
+
+    const applying = first!.applyToAll();
+    expect(second!.pending).toBe(true);
+    second!.change("Adhérente");
+    expect(second!.text).toBe("Adhérent");
+
+    finish();
+    await applying;
+    expect(second!.text).toBe("Membre");
+    expect(second!.pending).toBe(false);
+  });
+
   it("reconciles other dirty drafts when one translation is applied to all", async () => {
     const { group, drafts } = createGroup();
     const [first, second] = group.variants;
@@ -265,8 +310,7 @@ describe("ContentEditorGroupVariants", () => {
     await vi.advanceTimersByTimeAsync(300);
     expect(deferred).toHaveLength(1);
     deferred.shift()!([]);
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
     expect(first.qaIssues).toEqual([]);
     expect(first.isCheckingFormat).toBe(false);
   });
@@ -311,6 +355,20 @@ describe("ContentEditorGroupVariants", () => {
     ]);
     expect(group.variants[0]!.editorMaxLength).toBe(5);
   });
+
+  it("does not inherit the grouped row's length limit when a variant has none", () => {
+    const drafts = new MultilingualDrafts();
+    const group = new ContentEditorGroupVariants({
+      segment: { ...segment, maxLength: 8 },
+      locale: "fr",
+      projectId: "p1",
+      variants: [{ text: "Adhérent", isApproved: false, occurrences: [occurrence("k2")] }],
+      drafts,
+      ports: { canEdit: true, saveFailedMessage: "Could not save the translation." },
+    });
+
+    expect(group.variants[0]!.editorMaxLength).toBeUndefined();
+  });
 });
 
 describe("ContentEditorGroupVariantsRegistry", () => {
@@ -349,5 +407,52 @@ describe("ContentEditorGroupVariantsRegistry", () => {
     expect(registry.routeText("k1", "fr", "Membre actif")).toBe(true);
     expect(group.variants[0]!.text).toBe("Membre");
     expect(group.variants[1]!.text).toBe("Adhérent");
+  });
+
+  it("holds a match until the busy translation can take it", async () => {
+    let finish!: () => void;
+    const saveVariant = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { group } = createGroup({ saveVariant });
+    const first = group.variants[0]!;
+    first.change("Membre actif");
+    const saving = first.approve();
+    const registry = new ContentEditorGroupVariantsRegistry();
+    registry.register(group);
+
+    expect(registry.routeText("k1", "fr", "Membre retenu")).toBe(true);
+    expect(first.text).toBe("Membre actif");
+
+    finish();
+    await saving;
+    expect(first.text).toBe("Membre retenu");
+  });
+
+  it("holds text that arrives before registration while the target is still saving", async () => {
+    let finish!: () => void;
+    const saveVariant = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { group } = createGroup({ saveVariant });
+    const first = group.variants[0]!;
+    first.change("Membre actif");
+    const saving = first.approve();
+    const registry = new ContentEditorGroupVariantsRegistry();
+    registry.expect("k1", "fr");
+    expect(registry.routeText("k1", "fr", "Membre retenu")).toBe(true);
+
+    registry.register(group);
+    expect(first.text).toBe("Membre actif");
+
+    finish();
+    await saving;
+    expect(first.text).toBe("Membre retenu");
   });
 });
