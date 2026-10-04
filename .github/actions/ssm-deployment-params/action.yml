@@ -32,7 +32,7 @@ runs:
   steps:
     - name: Read deployment parameters
       id: params
-      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9
       env:
         ECR_REPOSITORY_PARAMETER_NAME: ${{ inputs.ecr-parameter-name }}
         ECS_CLUSTER_PARAMETER_NAME: ${{ inputs.ecs-cluster-parameter-name }}
