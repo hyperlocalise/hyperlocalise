@@ -51,6 +51,7 @@ var implementedEventTypes = map[string]string{
 	"automation_disabled":                 "automation",
 	"file_uploaded":                       "file",
 	"file_translations_imported":          "file",
+	"string_segment_translation_updated":  "string_segment",
 	"string_segment_approved":             "string_segment",
 	"string_segment_status_changed":       "string_segment",
 	"string_segment_hidden":               "string_segment",

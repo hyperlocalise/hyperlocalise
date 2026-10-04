@@ -15,6 +15,11 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
+  enqueueIntegrationConnectedActivity,
+  enqueueIntegrationDisconnectedActivity,
+} from "@/lib/activity-log/integration-events";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
+import {
   deleteOrganizationProviderCredential,
   listOrganizationProviderCredentialSummaries,
   revealOrganizationProviderCredential,
@@ -99,6 +104,13 @@ export function createProviderCredentialRoutes() {
           defaultModel: payload.defaultModel,
         });
 
+        await enqueueIntegrationConnectedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          connectionId: `${c.var.auth.organization.localOrganizationId}:${payload.provider}`,
+          integrationKind: payload.provider,
+          organizationId: c.var.auth.organization.localOrganizationId,
+        });
+
         return c.json({ providerCredential }, 200);
       } catch (error) {
         const message = error instanceof Error ? error.message : "provider_validation_failed";
@@ -147,6 +159,13 @@ export function createProviderCredentialRoutes() {
         if (!deleted) {
           return providerCredentialNotFoundResponse(c);
         }
+
+        await enqueueIntegrationDisconnectedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          connectionId: `${c.var.auth.organization.localOrganizationId}:${provider}`,
+          integrationKind: provider,
+          organizationId: c.var.auth.organization.localOrganizationId,
+        });
 
         return c.body(null, 204);
       } catch (error) {

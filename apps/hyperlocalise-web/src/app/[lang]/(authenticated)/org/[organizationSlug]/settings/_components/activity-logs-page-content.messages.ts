@@ -435,6 +435,101 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "MpneVvPxE9",
     description: "Human-readable activity log event sentence",
   },
+  viaApiKey: {
+    defaultMessage: "via {name}",
+    id: "nVpf5SOxZJ",
+    description: "Shows the API key used to perform an activity",
+  },
+  viaApiKeyWithPrefix: {
+    defaultMessage: "via {name} ({prefix})",
+    id: "EKx1s7RxNY",
+    description: "Shows the API key name and prefix used to perform an activity",
+  },
+  filterByActor: {
+    defaultMessage: "Show activity by {name}",
+    id: "XzWD0aBfVa",
+    description: "Accessible label for filtering activity logs to one user",
+  },
+  filterByApiKey: {
+    defaultMessage: "Show activity from {name}",
+    id: "zfkygqA3L+",
+    description: "Accessible label for filtering activity logs to one API key",
+  },
+  viewMember: {
+    defaultMessage: "Open members",
+    id: "gOeFlAhx0F",
+    description: "Link from an activity actor to the workspace members page",
+  },
+  viewApiKeys: {
+    defaultMessage: "Open API keys",
+    id: "OHXGeaHgF2",
+    description: "Link from an activity actor to the workspace API keys page",
+  },
+  showDetails: {
+    defaultMessage: "Show details",
+    id: "/t0AsVdAjV",
+    description: "Expands granular audit fields for one activity",
+  },
+  detailsLabel: {
+    defaultMessage: "Audit details",
+    id: "IlhKG5f3r5",
+    description: "Accessible label for the expanded activity audit panel",
+  },
+  actorKindDetail: {
+    defaultMessage: "Actor kind",
+    id: "dZ204EcI3R",
+    description: "Audit detail label for the actor kind",
+  },
+  userIdDetail: {
+    defaultMessage: "User ID",
+    id: "mv0siYdD9f",
+    description: "Audit detail label for the actor user ID",
+  },
+  credentialIdDetail: {
+    defaultMessage: "API key ID",
+    id: "QxO48L3N9f",
+    description: "Audit detail label for the actor API key ID",
+  },
+  credentialNameDetail: {
+    defaultMessage: "API key name",
+    id: "eJnqaPixXK",
+    description: "Audit detail label for the actor API key name",
+  },
+  keyPrefixDetail: {
+    defaultMessage: "API key prefix",
+    id: "TWTSM0Nfet",
+    description: "Audit detail label for the actor API key prefix",
+  },
+  eventTypeDetail: {
+    defaultMessage: "Event",
+    id: "bKPrJiNBf6",
+    description: "Audit detail label for the activity event type",
+  },
+  targetKindDetail: {
+    defaultMessage: "Target kind",
+    id: "wx9aaNej3W",
+    description: "Audit detail label for the activity target kind",
+  },
+  targetIdDetail: {
+    defaultMessage: "Target ID",
+    id: "Sqn6+LQmY6",
+    description: "Audit detail label for the activity target ID",
+  },
+  occurredAtDetail: {
+    defaultMessage: "Occurred",
+    id: "Pnbp7F2YBu",
+    description: "Audit detail label for the activity timestamp",
+  },
+  payloadDetail: {
+    defaultMessage: "Payload",
+    id: "cF190Fnmgc",
+    description: "Audit detail label for the safe activity payload",
+  },
+  selectedApiKey: {
+    defaultMessage: "Selected API key",
+    id: "TREQw433nk",
+    description: "Fallback label for a selected API key absent from the current activity page",
+  },
   memberInvitedAction: {
     defaultMessage: "invited a member",
     id: "1xfAnPlbdy",

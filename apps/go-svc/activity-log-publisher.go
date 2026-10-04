@@ -24,12 +24,14 @@ const (
 )
 
 type activityLogEventInput struct {
-	ActorUserID    string
-	EventType      string
-	OrganizationID string
-	Payload        map[string]any
-	TargetID       string
-	TargetKind     string
+	ActorCredentialID string
+	ActorKind         string
+	ActorUserID       string
+	EventType         string
+	OrganizationID    string
+	Payload           map[string]any
+	TargetID          string
+	TargetKind        string
 }
 
 type activityLogPublisher interface {
@@ -123,9 +125,12 @@ func (p *sqsActivityLogPublisher) Publish(ctx context.Context, input activityLog
 		return fmt.Errorf("marshal activity log payload: %w", err)
 	}
 
+	actorKind := strings.TrimSpace(input.ActorKind)
+	if actorKind == "" {
+		actorKind = "user"
+	}
 	event := activitylog.Event{
-		ActorUserID:    aws.String(input.ActorUserID),
-		ActorKind:      "user",
+		ActorKind:      actorKind,
 		CreatedAt:      p.clock().UTC().Format(time.RFC3339Nano),
 		EventType:      input.EventType,
 		ID:             p.newEventID(),
@@ -133,6 +138,12 @@ func (p *sqsActivityLogPublisher) Publish(ctx context.Context, input activityLog
 		Payload:        payload,
 		TargetID:       input.TargetID,
 		TargetKind:     input.TargetKind,
+	}
+	if userID := strings.TrimSpace(input.ActorUserID); userID != "" {
+		event.ActorUserID = aws.String(userID)
+	}
+	if credentialID := strings.TrimSpace(input.ActorCredentialID); credentialID != "" {
+		event.ActorCredentialID = aws.String(credentialID)
 	}
 	message := activitylog.Message{
 		Event:         event,

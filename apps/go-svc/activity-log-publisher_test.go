@@ -79,7 +79,9 @@ func TestSQSActivityLogPublisherPublish(t *testing.T) {
 	message, err := activitylog.DecodeMessage([]byte(aws.ToString(client.sendInput.MessageBody)))
 	require.NoError(t, err)
 	require.Equal(t, "glossary_deleted", message.Event.EventType)
+	require.Equal(t, "user", message.Event.ActorKind)
 	require.Equal(t, actorID, aws.ToString(message.Event.ActorUserID))
+	require.Nil(t, message.Event.ActorCredentialID)
 	require.Equal(t, organizationID, message.Event.OrganizationID)
 	require.Equal(t, glossaryID, message.Event.TargetID)
 	require.Equal(t, "2026-09-28T01:02:03.004Z", message.Event.CreatedAt)
@@ -87,6 +89,32 @@ func TestSQSActivityLogPublisherPublish(t *testing.T) {
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(message.Event.Payload, &payload))
 	require.Equal(t, "Product terms", payload["name"])
+}
+
+func TestSQSActivityLogPublisherPublishAPIKeyActor(t *testing.T) {
+	client := &fakeActivityLogSQSClient{}
+	publisher := newSQSActivityLogPublisher(client, "https://sqs.example/queue")
+	publisher.clock = func() time.Time { return time.Date(2026, 9, 28, 1, 2, 3, 4_000_000, time.UTC) }
+	publisher.newEventID = func() string { return "11111111-1111-4111-8111-111111111111" }
+	credentialID := "55555555-5555-4555-8555-555555555555"
+
+	err := publisher.Publish(context.Background(), activityLogEventInput{
+		ActorCredentialID: credentialID,
+		ActorKind:         "api_key",
+		ActorUserID:       "33333333-3333-4333-8333-333333333333",
+		EventType:         "file_uploaded",
+		OrganizationID:    "22222222-2222-4222-8222-222222222222",
+		Payload:           map[string]any{"fileName": "en.json", "name": "en.json", "projectId": "p1", "sourcePath": "en.json"},
+		TargetID:          "p1:en.json",
+		TargetKind:        "file",
+	})
+
+	require.NoError(t, err)
+	message, err := activitylog.DecodeMessage([]byte(aws.ToString(client.sendInput.MessageBody)))
+	require.NoError(t, err)
+	require.Equal(t, "api_key", message.Event.ActorKind)
+	require.Equal(t, credentialID, aws.ToString(message.Event.ActorCredentialID))
+	require.Equal(t, "33333333-3333-4333-8333-333333333333", aws.ToString(message.Event.ActorUserID))
 }
 
 func TestSQSActivityLogPublisherPing(t *testing.T) {

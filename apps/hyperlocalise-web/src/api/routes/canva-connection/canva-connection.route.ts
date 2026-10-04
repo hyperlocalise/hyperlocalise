@@ -16,6 +16,11 @@ import { validator } from "hono/validator";
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import {
+  enqueueIntegrationConnectedActivity,
+  enqueueIntegrationDisconnectedActivity,
+} from "@/lib/activity-log/integration-events";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { completeCanvaConnectionClaim } from "@/lib/canva/connection-claims";
@@ -148,6 +153,12 @@ export function createCanvaConnectionRoutes() {
           status: "created",
           source: "canva",
         });
+        await enqueueIntegrationConnectedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          connectionId: result.connection.id,
+          integrationKind: "canva",
+          organizationId: c.var.auth.organization.localOrganizationId,
+        });
 
         return c.json(
           {
@@ -216,6 +227,13 @@ export function createCanvaConnectionRoutes() {
       if (!deleted) {
         return notFoundResponse(c, "canva_connection_not_found");
       }
+
+      await enqueueIntegrationDisconnectedActivity({
+        ...sessionActivityActor(c.var.auth.user.localUserId),
+        connectionId: params.connectionId,
+        integrationKind: "canva",
+        organizationId: c.var.auth.organization.localOrganizationId,
+      });
 
       return c.body(null, 204);
     })

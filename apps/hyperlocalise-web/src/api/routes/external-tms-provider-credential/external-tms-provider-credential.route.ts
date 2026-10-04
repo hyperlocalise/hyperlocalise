@@ -21,7 +21,11 @@ import { hasCapability } from "@/api/auth/policy";
 import { env } from "@/lib/env";
 import { isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
-import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
+import {
+  enqueueIntegrationConnectedActivity,
+  enqueueIntegrationDisconnectedActivity,
+} from "@/lib/activity-log/integration-events";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
 import {
   withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
@@ -162,18 +166,11 @@ async function enqueueIntegrationConnectedIfCreated(input: {
   integrationKind: string;
 }) {
   if (!input.created) return;
-  await enqueueActivityLogEvent({
-    actorCredentialId: null,
-    actorKind: "user",
-    actorUserId: input.actorUserId,
-    eventType: "integration_connected",
+  await enqueueIntegrationConnectedActivity({
+    ...sessionActivityActor(input.actorUserId),
+    connectionId: input.connectionId,
+    integrationKind: input.integrationKind,
     organizationId: input.organizationId,
-    payload: {
-      connectionId: input.connectionId,
-      integrationKind: input.integrationKind,
-    },
-    targetId: input.connectionId,
-    targetKind: "integration",
   });
 }
 
@@ -2470,18 +2467,11 @@ export function createExternalTmsProviderCredentialRoutes() {
         });
 
         if (!deletedCredentialId) return c.json({ error: "provider_credential_not_found" }, 404);
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
-          actorUserId: c.var.auth.user.localUserId,
-          eventType: "integration_disconnected",
+        await enqueueIntegrationDisconnectedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          connectionId: deletedCredentialId,
+          integrationKind: providerKind.data,
           organizationId: c.var.auth.organization.localOrganizationId,
-          payload: {
-            connectionId: deletedCredentialId,
-            integrationKind: providerKind.data,
-          },
-          targetId: deletedCredentialId,
-          targetKind: "integration",
         });
         return c.body(null, 204);
       } catch (error) {

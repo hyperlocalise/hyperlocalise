@@ -93,6 +93,7 @@ func TestActivityLogInvalidQuery(t *testing.T) {
 	for _, raw := range []string{
 		"?actor=user:",
 		"?actor=user:not-a-uuid",
+		"?actor=api_key:not-a-uuid",
 		"?range=90d",
 		"?limit=0",
 		"?limit=101",
@@ -344,6 +345,54 @@ func TestActivityLogUserActorFilter(t *testing.T) {
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 }
 
+func TestActivityLogAPIKeyActorDetails(t *testing.T) {
+	api, scope := activityLogTestAPI(t, "admin")
+	credentialID := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into organization_api_keys (id, organization_id, name, key_hash, key_prefix, created_by_user_id)
+        values ($1, $2, 'CLI deploy', 'hash-cli-deploy', 'hl_abc12', $3)`,
+		credentialID, scope.OrganizationID, scope.UserID)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into organization_activity_events (
+            id, organization_id, actor_kind, actor_user_id, actor_credential_id, event_type, target_kind, target_id, payload, created_at
+        ) values ($1, $2, 'api_key', $3, $4, 'file_uploaded', 'file', $5, $6::jsonb, $7)`,
+		uuid.NewString(), scope.OrganizationID, scope.UserID, credentialID, testActivityTargetID,
+		[]byte(`{"fileName":"en.json","name":"en.json","projectId":"`+scope.ProjectID+`","sourcePath":"locales/en.json"}`),
+		testActivityTime)
+	require.NoError(t, err)
+
+	rec := activityLogRequest(api, scope, http.MethodGet, scope.OrgPath("/activity-logs"))
+	require.Equal(t, 200, rec.Code, rec.Body.String())
+
+	var body activityLogListResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.ActivityLogs, 1)
+	require.Equal(t, "api_key", body.ActivityLogs[0].Actor.Kind)
+	require.Equal(t, "Ada Lovelace", body.ActivityLogs[0].Actor.DisplayName)
+	require.Equal(t, credentialID, *body.ActivityLogs[0].Actor.CredentialID)
+	require.Equal(t, "CLI deploy", *body.ActivityLogs[0].Actor.CredentialName)
+	require.Equal(t, "hl_abc12", *body.ActivityLogs[0].Actor.KeyPrefix)
+	require.Equal(t, scope.UserID, *body.ActivityLogs[0].Actor.UserID)
+
+	var foundKey bool
+	for _, actor := range body.Actors {
+		if actor.Kind == "api_key" && actor.CredentialID != nil && *actor.CredentialID == credentialID {
+			require.Equal(t, "CLI deploy", actor.DisplayName)
+			foundKey = true
+		}
+	}
+	require.True(t, foundKey)
+
+	filtered := activityLogRequest(api, scope, http.MethodGet,
+		scope.OrgPath("/activity-logs")+"?actor=api_key:"+credentialID)
+	require.Equal(t, 200, filtered.Code, filtered.Body.String())
+	var filteredBody activityLogListResult
+	require.NoError(t, json.Unmarshal(filtered.Body.Bytes(), &filteredBody))
+	require.Len(t, filteredBody.ActivityLogs, 1)
+	require.Equal(t, credentialID, *filteredBody.ActivityLogs[0].Actor.CredentialID)
+}
+
 func TestActivityLogMembershipPayloadFallback(t *testing.T) {
 	api, scope := activityLogTestAPI(t, "admin")
 	memberUserID := uuid.NewString()
@@ -367,6 +416,13 @@ func TestActivityLogMembershipPayloadFallback(t *testing.T) {
 	require.Equal(t, "/org/"+scope.Slug+"/settings/members", *body.ActivityLogs[0].Target.Href)
 }
 
+func TestUniqueActivityLogCredentialIDs(t *testing.T) {
+	valid := "55555555-5555-4555-8555-555555555555"
+	duplicate := valid
+	invalid := "not-a-uuid"
+	require.Equal(t, []string{valid}, uniqueActivityLogCredentialIDs([]*string{nil, &valid, &invalid, &duplicate}))
+}
+
 func TestActivityLogActorDisplayNames(t *testing.T) {
 	require.Equal(t, "System", activityLogActorDisplayName("system", nil, nil))
 	require.Equal(t, "Agent", activityLogActorDisplayName("agent", nil, nil))
@@ -374,6 +430,7 @@ func TestActivityLogActorDisplayNames(t *testing.T) {
 	require.Equal(t, "Deleted user", activityLogActorDisplayName("user", nil, nil))
 	first := "Ada"
 	require.Equal(t, "Ada", activityLogActorDisplayName("user", &first, nil))
+	require.Equal(t, "CLI deploy", activityLogActorDisplayNameWithCredential("api_key", nil, nil, &activityLogCredentialView{name: "CLI deploy"}))
 }
 
 func TestPayloadTargetDisplayName(t *testing.T) {

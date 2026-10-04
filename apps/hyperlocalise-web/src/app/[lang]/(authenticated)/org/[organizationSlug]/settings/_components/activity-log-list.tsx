@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createElement } from "react";
 import Link from "next/link";
 import { useIntl } from "react-intl";
 import {
@@ -33,15 +34,23 @@ import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import { activityLogsPageContentMessages as messages } from "./activity-logs-page-content.messages";
-import { createElement } from "react";
+
+export type ActivityLogActor = {
+  credentialId: string | null;
+  credentialName?: string | null;
+  displayName: string;
+  keyPrefix?: string | null;
+  kind: string;
+  userId: string | null;
+};
 
 export type ActivityLogItem = {
-  actor: { displayName: string; kind: string; userId: string | null };
+  actor: ActivityLogActor;
   createdAt: string;
   eventType: ImplementedActivityEventType;
   id: string;
   payload: Record<string, unknown>;
-  target: { displayName: string | null; href: string | null; kind: string };
+  target: { displayName: string | null; href: string | null; id?: string; kind: string };
 };
 
 const eventActions = {
@@ -156,13 +165,49 @@ function targetDisplayName(item: ActivityLogItem): string | null {
   return null;
 }
 
+function userFilterValue(actor: ActivityLogActor): string | null {
+  if (actor.userId) {
+    return `user:${actor.userId}`;
+  }
+  if (actor.kind === "system" || actor.kind === "agent") {
+    return actor.kind;
+  }
+  return null;
+}
+
+function apiKeyLabel(actor: ActivityLogActor): string | null {
+  if (actor.kind !== "api_key" && !actor.credentialId) {
+    return null;
+  }
+  return actor.credentialName || actor.keyPrefix || actor.credentialId;
+}
+
+function payloadEntries(payload: Record<string, unknown>): Array<[string, string]> {
+  return Object.entries(payload).flatMap(([key, value]) => {
+    if (value == null || value === "") {
+      return [];
+    }
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      return [[key, String(value)]];
+    }
+    if (Array.isArray(value) && value.every((item) => typeof item !== "object")) {
+      return [[key, value.map(String).join(", ")]];
+    }
+    return [];
+  });
+}
+
 export function ActivityLogList({
   activityLogs,
   now = Date.now(),
+  onActorFilter,
+  organizationSlug,
   variant = "card",
 }: {
   activityLogs: ActivityLogItem[];
   now?: number;
+  onActorFilter?: (value: string) => void;
+  organizationSlug?: string;
   variant?: "card" | "plain";
 }) {
   const intl = useIntl();
@@ -174,6 +219,10 @@ export function ActivityLogList({
         const target = displayName ? ` · ${displayName}` : "";
         const relative = relativeTime(item.createdAt, now);
         const visual = activityVisual(item.eventType);
+        const userFilter = userFilterValue(item.actor);
+        const keyLabel = apiKeyLabel(item.actor);
+        const occurredAt = new Date(item.createdAt).toLocaleString();
+        const details = payloadEntries(item.payload);
         return (
           <li
             key={item.id}
@@ -200,6 +249,44 @@ export function ActivityLogList({
                 <Badge variant="outline">{item.actor.kind}</Badge>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                {userFilter && onActorFilter ? (
+                  <button
+                    type="button"
+                    className="underline underline-offset-2 hover:text-foreground"
+                    onClick={() => onActorFilter(userFilter)}
+                    aria-label={intl.formatMessage(messages.filterByActor, {
+                      name: item.actor.displayName,
+                    })}
+                  >
+                    {item.actor.displayName}
+                  </button>
+                ) : null}
+                {keyLabel ? (
+                  item.actor.credentialId && onActorFilter ? (
+                    <button
+                      type="button"
+                      className="underline underline-offset-2 hover:text-foreground"
+                      onClick={() => onActorFilter(`api_key:${item.actor.credentialId}`)}
+                      aria-label={intl.formatMessage(messages.filterByApiKey, { name: keyLabel })}
+                    >
+                      {item.actor.keyPrefix
+                        ? intl.formatMessage(messages.viaApiKeyWithPrefix, {
+                            name: item.actor.credentialName || keyLabel,
+                            prefix: item.actor.keyPrefix,
+                          })
+                        : intl.formatMessage(messages.viaApiKey, { name: keyLabel })}
+                    </button>
+                  ) : (
+                    <span>
+                      {item.actor.keyPrefix
+                        ? intl.formatMessage(messages.viaApiKeyWithPrefix, {
+                            name: item.actor.credentialName || keyLabel,
+                            prefix: item.actor.keyPrefix,
+                          })
+                        : intl.formatMessage(messages.viaApiKey, { name: keyLabel })}
+                    </span>
+                  )
+                ) : null}
                 {item.target.href && displayName ? (
                   <Link
                     className="underline underline-offset-2 hover:text-foreground"
@@ -208,13 +295,130 @@ export function ActivityLogList({
                     {displayName}
                   </Link>
                 ) : null}
-                <span title={new Date(item.createdAt).toLocaleString()}>
+                {organizationSlug && item.actor.userId ? (
+                  <Link
+                    className="underline underline-offset-2 hover:text-foreground"
+                    href={`/org/${organizationSlug}/settings/members`}
+                  >
+                    {intl.formatMessage(messages.viewMember)}
+                  </Link>
+                ) : null}
+                {organizationSlug && item.actor.credentialId ? (
+                  <Link
+                    className="underline underline-offset-2 hover:text-foreground"
+                    href={`/org/${organizationSlug}/settings/api-keys`}
+                  >
+                    {intl.formatMessage(messages.viewApiKeys)}
+                  </Link>
+                ) : null}
+                <span title={occurredAt}>
                   {new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(
                     relative.value,
                     relative.unit,
                   )}
                 </span>
               </div>
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                  {intl.formatMessage(messages.showDetails)}
+                </summary>
+                <dl
+                  className="mt-2 grid gap-1 text-xs text-muted-foreground"
+                  aria-label={intl.formatMessage(messages.detailsLabel)}
+                >
+                  <div>
+                    <dt className="inline font-medium text-foreground">
+                      {intl.formatMessage(messages.actorKindDetail)}
+                    </dt>
+                    {": "}
+                    <dd className="inline font-mono">{item.actor.kind}</dd>
+                  </div>
+                  {item.actor.userId ? (
+                    <div>
+                      <dt className="inline font-medium text-foreground">
+                        {intl.formatMessage(messages.userIdDetail)}
+                      </dt>
+                      {": "}
+                      <dd className="inline font-mono">{item.actor.userId}</dd>
+                    </div>
+                  ) : null}
+                  {item.actor.credentialId ? (
+                    <div>
+                      <dt className="inline font-medium text-foreground">
+                        {intl.formatMessage(messages.credentialIdDetail)}
+                      </dt>
+                      {": "}
+                      <dd className="inline font-mono">{item.actor.credentialId}</dd>
+                    </div>
+                  ) : null}
+                  {item.actor.credentialName ? (
+                    <div>
+                      <dt className="inline font-medium text-foreground">
+                        {intl.formatMessage(messages.credentialNameDetail)}
+                      </dt>
+                      {": "}
+                      <dd className="inline">{item.actor.credentialName}</dd>
+                    </div>
+                  ) : null}
+                  {item.actor.keyPrefix ? (
+                    <div>
+                      <dt className="inline font-medium text-foreground">
+                        {intl.formatMessage(messages.keyPrefixDetail)}
+                      </dt>
+                      {": "}
+                      <dd className="inline font-mono">{item.actor.keyPrefix}</dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt className="inline font-medium text-foreground">
+                      {intl.formatMessage(messages.eventTypeDetail)}
+                    </dt>
+                    {": "}
+                    <dd className="inline font-mono">{item.eventType}</dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-medium text-foreground">
+                      {intl.formatMessage(messages.targetKindDetail)}
+                    </dt>
+                    {": "}
+                    <dd className="inline font-mono">{item.target.kind}</dd>
+                  </div>
+                  {item.target.id ? (
+                    <div>
+                      <dt className="inline font-medium text-foreground">
+                        {intl.formatMessage(messages.targetIdDetail)}
+                      </dt>
+                      {": "}
+                      <dd className="inline font-mono">{item.target.id}</dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt className="inline font-medium text-foreground">
+                      {intl.formatMessage(messages.occurredAtDetail)}
+                    </dt>
+                    {": "}
+                    <dd className="inline">{occurredAt}</dd>
+                  </div>
+                  {details.length > 0 ? (
+                    <div>
+                      <dt className="font-medium text-foreground">
+                        {intl.formatMessage(messages.payloadDetail)}
+                      </dt>
+                      <dd>
+                        <ul className="mt-1 space-y-0.5">
+                          {details.map(([key, value]) => (
+                            <li key={key}>
+                              <span className="font-mono">{key}</span>
+                              {": "}
+                              {value}
+                            </li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </details>
             </div>
           </li>
         );

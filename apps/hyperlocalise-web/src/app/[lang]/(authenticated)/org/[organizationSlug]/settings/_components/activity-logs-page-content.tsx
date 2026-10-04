@@ -31,7 +31,10 @@ import { activityLogsPageContentMessages as messages } from "./activity-logs-pag
 import { SettingsPageBody, SettingsPageHeader } from "./settings-page-chrome";
 
 type ActivityLogActorOption = {
+  credentialId?: string | null;
   displayName: string;
+  keyPrefix?: string | null;
+  kind?: string;
   userId: string | null;
 };
 
@@ -82,19 +85,31 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
   );
 
   useEffect(() => {
-    const discoveredActors = activityLogs.filter(
-      (item) => item.actor.userId && item.actor.displayName,
-    );
-    if (!discoveredActors.length) return;
+    if (!activityLogs.length) return;
 
     setActorLabels((current) => {
       let changed = false;
       const next = { ...current };
-      for (const item of discoveredActors) {
-        const value = `user:${item.actor.userId}`;
-        if (next[value] === item.actor.displayName) continue;
-        next[value] = item.actor.displayName;
-        changed = true;
+      for (const item of activityLogs) {
+        if (item.actor.userId && item.actor.displayName) {
+          const value = `user:${item.actor.userId}`;
+          if (next[value] !== item.actor.displayName) {
+            next[value] = item.actor.displayName;
+            changed = true;
+          }
+        }
+        if (item.actor.credentialId) {
+          const value = `api_key:${item.actor.credentialId}`;
+          const label = item.actor.credentialName
+            ? item.actor.keyPrefix
+              ? `${item.actor.credentialName} (${item.actor.keyPrefix})`
+              : item.actor.credentialName
+            : item.actor.keyPrefix || item.actor.displayName;
+          if (next[value] !== label) {
+            next[value] = label;
+            changed = true;
+          }
+        }
       }
       return changed ? next : current;
     });
@@ -105,10 +120,19 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
     for (const page of activityQuery.data?.pages ?? []) {
       for (const item of page.actors) {
         if (item.userId) options.set(`user:${item.userId}`, item.displayName);
+        if (item.credentialId) {
+          const label = item.keyPrefix
+            ? `${item.displayName} (${item.keyPrefix})`
+            : item.displayName;
+          options.set(`api_key:${item.credentialId}`, label);
+        }
       }
     }
     if (actor.startsWith("user:") && !options.has(actor)) {
       options.set(actor, intl.formatMessage(messages.selectedActor));
+    }
+    if (actor.startsWith("api_key:") && !options.has(actor)) {
+      options.set(actor, intl.formatMessage(messages.selectedApiKey));
     }
     return [...options.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [activityQuery.data?.pages, actor, actorLabels, intl]);
@@ -219,7 +243,12 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
               </TypographyP>
             </Rows>
           ) : (
-            <ActivityLogList activityLogs={activityLogs} now={now} />
+            <ActivityLogList
+              activityLogs={activityLogs}
+              now={now}
+              onActorFilter={setActor}
+              organizationSlug={organizationSlug}
+            />
           )}
         </section>
 
