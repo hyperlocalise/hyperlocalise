@@ -45,7 +45,7 @@ function viewModeIcon(mode: ContentEditorWorkspaceViewMode) {
   return LayoutThreeColumnIcon;
 }
 
-function viewModeLabel(mode: ContentEditorWorkspaceViewMode) {
+export function viewModeLabel(mode: ContentEditorWorkspaceViewMode) {
   if (mode === "multilingual") {
     return contentEditorWorkspaceViewModeMessages.multilingualView;
   }

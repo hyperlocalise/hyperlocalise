@@ -45,7 +45,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ContentEditorEditorShortcutKbd } from "@/components/content-editor/editor/content-editor-editor-shortcut-kbd";
+import { contentEditorFindContextMessages } from "@/components/content-editor/shared/content-editor-chrome.messages";
+import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 import { countRunes } from "@/lib/qa/count-runes";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
@@ -370,7 +374,8 @@ export function ContentEditorIntelligencePanel({
   onUseTmMatch,
   onSetMaxLength,
   onGlossaryTermAdded,
-  headerAction,
+  canTriggerFindContext = false,
+  onFindContext,
   scrollToTm = false,
 }: {
   intelligence: ContentEditorSegmentIntelligence;
@@ -403,7 +408,10 @@ export function ContentEditorIntelligencePanel({
   onUseTmMatch?: (match: ContentEditorTranslationMemoryMatch) => void;
   onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
   onGlossaryTermAdded?: () => void;
-  headerAction?: ReactNode;
+  /** False while another action is in flight or lookup is unavailable. */
+  canTriggerFindContext?: boolean;
+  /** Renders the Find context button in the panel header when provided. */
+  onFindContext?: () => void;
   /**
    * When true, the panel scrolls to the Translation Memory section on mount.
    * Enabled in Translator persona so TM matches are immediately visible.
@@ -411,6 +419,7 @@ export function ContentEditorIntelligencePanel({
   scrollToTm?: boolean;
 }) {
   const intl = useIntl();
+  const isMac = useIsMac();
   const [pendingLowMatch, setPendingLowMatch] =
     useState<ContentEditorTranslationMemoryMatch | null>(null);
   const [isGlossaryPanelOpen, setIsGlossaryPanelOpen] = useState(false);
@@ -599,8 +608,7 @@ export function ContentEditorIntelligencePanel({
   const hasAgentInsight = Boolean(intelligence.agentContext?.trim());
   const hasAttemptedAgentLookup = intelligence.agentContext !== undefined;
   const hasAgentContext = hasAgentInsight || agentBadges.length > 0;
-  const canRefreshAgentContext =
-    hasAttemptedAgentLookup && canLookupFreshContext && onRefreshContext;
+  const isRefreshMode = hasAttemptedAgentLookup && Boolean(onRefreshContext);
 
   function handleUseTmMatch(match: ContentEditorTranslationMemoryMatch) {
     if (!onUseTmMatch) {
@@ -649,13 +657,47 @@ export function ContentEditorIntelligencePanel({
           <h2 className="min-w-0 flex-1 text-sm font-semibold text-foreground">
             <FormattedMessage {...contentEditorIntelligencePanelMessages.panelTitle} />
           </h2>
-          {headerAction}
         </div>
         {embedded ? null : (
           <p className="mt-1 text-xs text-subtle-foreground">
             <FormattedMessage {...contentEditorIntelligencePanelMessages.panelDescription} />
           </p>
         )}
+        {onFindContext ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3 w-full justify-center"
+            onClick={isRefreshMode ? onRefreshContext : onFindContext}
+            disabled={!canTriggerFindContext}
+            title={intl.formatMessage(
+              isRefreshMode
+                ? contentEditorEditorPanelMessages.refreshContextTitle
+                : canLookupFreshContext
+                  ? contentEditorEditorPanelMessages.findContextTitle
+                  : contentEditorEditorPanelMessages.findContextUnavailableTitle,
+            )}
+          >
+            {isLookingUpContext ? (
+              <>
+                <Spinner className="size-3.5" />
+                <FormattedMessage {...contentEditorEditorPanelMessages.findingContext} />
+              </>
+            ) : isRefreshMode ? (
+              <>
+                <HugeiconsIcon icon={RefreshIcon} className="size-3.5" strokeWidth={1.8} />
+                <FormattedMessage {...contentEditorFindContextMessages.refreshContext} />
+              </>
+            ) : (
+              <>
+                <HugeiconsIcon icon={SearchList01Icon} className="size-3.5" strokeWidth={1.8} />
+                <FormattedMessage {...contentEditorEditorPanelMessages.findContext} />
+                <ContentEditorEditorShortcutKbd shortcut="findContext" isMac={isMac} />
+              </>
+            )}
+          </Button>
+        ) : null}
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
@@ -752,23 +794,6 @@ export function ContentEditorIntelligencePanel({
             <PanelSection
               title={intl.formatMessage(contentEditorIntelligencePanelMessages.agentContextTitle)}
               icon={SearchList01Icon}
-              action={
-                canRefreshAgentContext ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="-mr-1.5 size-7 p-0 text-muted-foreground hover:text-foreground"
-                    onClick={onRefreshContext}
-                    disabled={isLookingUpContext}
-                    title={intl.formatMessage(contentEditorEditorPanelMessages.refreshContextTitle)}
-                    aria-label={intl.formatMessage(
-                      contentEditorEditorPanelMessages.refreshContextTitle,
-                    )}
-                  >
-                    <HugeiconsIcon icon={RefreshIcon} className="size-3.5" strokeWidth={1.8} />
-                  </Button>
-                ) : null
-              }
             >
               {isLookingUpContext ? (
                 <AgentContextSkeleton />

@@ -76,13 +76,6 @@ describe("ContentEditorEditorPanel UI", () => {
     expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
   });
 
-  it("disables find context when lookup is unavailable", () => {
-    renderEditorPanel({ canLookupContext: false });
-
-    const findContextButtons = screen.getAllByRole("button", { name: /Find context/i });
-    expect(findContextButtons.every((button) => button.hasAttribute("disabled"))).toBe(true);
-  });
-
   it("shows save draft when draft saving is supported", async () => {
     const user = userEvent.setup();
     const onSaveDraft = vi.fn();
@@ -167,7 +160,6 @@ describe("ContentEditorEditorPanel UI", () => {
     renderEditorPanel({ isLookingUpContext: true });
 
     expect(screen.getByRole("button", { name: /Approve/i })).not.toBeDisabled();
-    expect(screen.getByRole("button", { name: /Finding context/i })).toBeDisabled();
   });
 
   it("renders format check failures for the active segment", () => {

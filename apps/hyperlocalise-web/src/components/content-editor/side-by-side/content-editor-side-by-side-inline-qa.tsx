@@ -27,7 +27,7 @@ import {
 } from "@/components/content-editor/segment/content-editor-tone";
 import { contentEditorSideBySidePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
-import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 
 import {
   actionableFormatChecks,
@@ -49,7 +49,7 @@ export function ContentEditorSideBySideInlineQa({
   onFix?: (nextText: string) => void;
 }) {
   const intl = useIntl();
-  const workspace = useContentEditorWorkspace();
+  const workspace = useOptionalCatWorkspace();
   const issues = actionableFormatChecks(formatChecks);
   const firstIssue = issues[0];
 
@@ -84,7 +84,7 @@ export function ContentEditorSideBySideInlineQa({
   );
 
   const actions =
-    canFix || moreCount > 0 ? (
+    canFix || (moreCount > 0 && workspace) ? (
       <Row spacing="0.5u" alignY="center">
         {canFix ? (
           <Button
@@ -102,7 +102,7 @@ export function ContentEditorSideBySideInlineQa({
             <FormattedMessage {...contentEditorSideBySidePanelMessages.qaIssueFix} />
           </Button>
         ) : null}
-        {moreCount > 0 ? (
+        {moreCount > 0 && workspace ? (
           <Button
             type="button"
             variant="ghost"

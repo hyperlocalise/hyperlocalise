@@ -19,8 +19,8 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { getCatShortcutKeys } from "./content-editor-keyboard-shortcuts";
 
 /**
- * A compact, always-visible strip of keyboard shortcut hints shown in the
- * editor panel when the Translator persona is active. The hints are purely
+ * A compact strip of keyboard shortcut hints shown under the editor panel
+ * unless turned off in the shortcuts dialog. The hints are purely
  * presentational — they do not register hotkeys; those are handled by
  * useContentEditorEditorHotkeys.
  */

@@ -29,11 +29,23 @@ import { DESIGNER_PERSONA_FILE_FAMILIES } from "./content-editor-workspace-perso
  * Designer-only files suppress the switcher entirely (single persona →
  * ContentEditorWorkspacePersonaSwitcher returns null for length ≤ 1).
  */
-function availablePersonasForFamily(family: string): readonly ContentEditorWorkspacePersona[] {
+export function availablePersonasForFamily(
+  family: string,
+): readonly ContentEditorWorkspacePersona[] {
   if (DESIGNER_PERSONA_FILE_FAMILIES.has(family as never)) {
     return ["designer"];
   }
   return ["translator", "reviewer"];
+}
+
+/** Reviewer mode starts with bulk selection on; other personas start with it off. */
+export function applyWorkspacePersona(
+  store: NonNullable<ReturnType<typeof useOptionalCatWorkspace>>,
+  persona: ContentEditorWorkspacePersona,
+  family: string,
+) {
+  store.ui.setWorkspacePersona(persona, family);
+  store.setSelectionMode(persona === "reviewer", { persist: false });
 }
 
 export const ContentEditorWorkspacePersonaSwitcherConnected = observer(
@@ -62,14 +74,8 @@ export const ContentEditorWorkspacePersonaSwitcherConnected = observer(
 
     const resolvedValue = store?.ui.resolvedPersona ?? value ?? "translator";
     const resolvedOnChange = store
-      ? (persona: ContentEditorWorkspacePersona) => {
-          store.ui.setWorkspacePersona(persona, capabilities.family);
-          if (persona === "reviewer") {
-            store.setSelectionMode(true, { persist: false });
-          } else {
-            store.setSelectionMode(false, { persist: false });
-          }
-        }
+      ? (persona: ContentEditorWorkspacePersona) =>
+          applyWorkspacePersona(store, persona, capabilities.family)
       : onChange;
 
     if (!resolvedOnChange) {

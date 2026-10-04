@@ -22,6 +22,7 @@ import { ContentEditorWorkspaceOrchestrator } from "../content-editor-workspace-
 import {
   CAT_DETAILS_PANEL_COLLAPSED_STORAGE_KEY,
   CAT_FILES_PANEL_COLLAPSED_STORAGE_KEY,
+  CAT_SHORTCUT_HINTS_HIDDEN_STORAGE_KEY,
 } from "../content-editor-workspace-panel-state";
 import { CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY } from "../content-editor-workspace-view-mode";
 
@@ -335,6 +336,43 @@ describe("ContentEditorIntelligenceStore", () => {
 });
 
 describe("ContentEditorWorkspaceUiStore", () => {
+  it("opens one toolbar dialog at a time and keeps the export format across openings", () => {
+    const ui = new ContentEditorWorkspaceUiStore();
+
+    expect(ui.chromeDialog).toBeNull();
+    expect(ui.exportFormat).toBe("csv");
+
+    ui.openChromeDialog("export");
+    ui.setExportFormat("xliff");
+    ui.openChromeDialog("shortcuts");
+    expect(ui.chromeDialog).toBe("shortcuts");
+
+    ui.closeChromeDialog();
+    ui.openChromeDialog("export");
+    expect(ui.chromeDialog).toBe("export");
+    expect(ui.exportFormat).toBe("xliff");
+  });
+
+  it("persists the shortcut hint preference", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore("comfortable");
+      expect(ui.shortcutHintsHidden).toBe(false);
+
+      ui.setShortcutHintsHidden(true);
+
+      expect(store.get(CAT_SHORTCUT_HINTS_HIDDEN_STORAGE_KEY)).toBe("true");
+      expect(new ContentEditorWorkspaceUiStore("comfortable").shortcutHintsHidden).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("tracks view mode and page limit", () => {
     const ui = new ContentEditorWorkspaceUiStore();
 

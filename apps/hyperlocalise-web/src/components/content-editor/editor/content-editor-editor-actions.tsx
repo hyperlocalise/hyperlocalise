@@ -12,9 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Message01Icon, SaveIcon } from "@hugeicons/core-free-icons";
+import { SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -27,41 +27,24 @@ export function ContentEditorEditorActions({
   primaryActionLabel,
   isMac,
   canTriggerApprove,
-  canTriggerFindContext,
-  canLookupContext,
   isApproving,
   isSavingDraft,
-  isLookingUpContext,
-  hasPreviousSegment,
-  hasNextSegment,
   onApprove,
   onSaveDraft,
-  onAddToIssueSheet,
-  onAskQuestion,
-  onPrevious,
-  onNext,
   showApprove = true,
 }: {
   primaryActionLabel: string;
   isMac: boolean;
   canTriggerApprove: boolean;
-  canTriggerFindContext: boolean;
-  canLookupContext: boolean;
   isApproving: boolean;
   isSavingDraft: boolean;
-  isLookingUpContext: boolean;
-  hasPreviousSegment: boolean;
-  hasNextSegment: boolean;
   onApprove: () => void;
   onSaveDraft?: () => void;
-  onAddToIssueSheet?: () => void;
-  onAskQuestion: () => void;
-  onPrevious: () => void;
-  onNext: () => void;
   showApprove?: boolean;
 }) {
-  const intl = useIntl();
-  const isNavigationBlocked = isApproving || isSavingDraft;
+  if (!showApprove && !onSaveDraft) {
+    return null;
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -96,54 +79,6 @@ export function ContentEditorEditorActions({
           <FormattedMessage {...contentEditorEditorPanelMessages.saveAsDraft} />
         </Button>
       ) : null}
-      <Button
-        variant="outline"
-        className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
-        onClick={onAskQuestion}
-        disabled={!canTriggerFindContext}
-        title={
-          canLookupContext
-            ? intl.formatMessage(contentEditorEditorPanelMessages.findContextTitle)
-            : intl.formatMessage(contentEditorEditorPanelMessages.findContextUnavailableTitle)
-        }
-      >
-        {isLookingUpContext ? <Spinner className="size-4" /> : null}
-        {isLookingUpContext ? (
-          <FormattedMessage {...contentEditorEditorPanelMessages.findingContext} />
-        ) : (
-          <FormattedMessage {...contentEditorEditorPanelMessages.findContext} />
-        )}
-        <ContentEditorEditorShortcutKbd shortcut="findContext" isMac={isMac} />
-      </Button>
-      {onAddToIssueSheet ? (
-        <Button
-          variant="outline"
-          className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
-          onClick={onAddToIssueSheet}
-          disabled={isNavigationBlocked}
-        >
-          <HugeiconsIcon icon={Message01Icon} className="size-4" strokeWidth={2} />
-          <FormattedMessage {...contentEditorEditorPanelMessages.addToIssueSheet} />
-        </Button>
-      ) : null}
-      <Button
-        variant="ghost"
-        className="hidden lg:inline-flex"
-        onClick={onPrevious}
-        disabled={isNavigationBlocked || !hasPreviousSegment}
-      >
-        <FormattedMessage {...contentEditorEditorPanelMessages.previous} />
-        <ContentEditorEditorShortcutKbd shortcut="previous" isMac={isMac} />
-      </Button>
-      <Button
-        variant="ghost"
-        className="hidden lg:inline-flex"
-        onClick={onNext}
-        disabled={isNavigationBlocked || !hasNextSegment}
-      >
-        <FormattedMessage {...contentEditorEditorPanelMessages.next} />
-        <ContentEditorEditorShortcutKbd shortcut="next" isMac={isMac} />
-      </Button>
     </div>
   );
 }

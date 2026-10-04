@@ -45,6 +45,8 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
   const isFileViewOrDesigner =
     ui.adaptiveWorkspaceEnabled && (ui.isFileView || ui.isDesignerPersona);
   const showFilePicker = page.files.length > 0 || page.allFiles;
+  // The queue toolbar's View and "…" menus own these outside file view.
+  const showChromeShortcuts = ui.isFileView;
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
       <div className="flex min-w-0 shrink-0 items-center gap-2">
@@ -57,7 +59,7 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
           <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
         </Button>
 
-        {page.showFileSidebar ? (
+        {showChromeShortcuts && page.showFileSidebar ? (
           <Button
             type="button"
             variant="ghost"
@@ -106,7 +108,8 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
           />
         ) : null}
 
-        {page.showActivityLog &&
+        {showChromeShortcuts &&
+        page.showActivityLog &&
         page.organizationSlug &&
         page.projectId &&
         page.activitySourcePath ? (

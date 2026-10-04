@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { SegmentActivityButton } from "../activity-log/content-editor-segment-activity";
 import { ContentEditorGroupVariantsGate } from "../groups/content-editor-group-variants";
 import { useHasGroupTranslationVariants } from "../groups/use-content-editor-group-variants";
 
@@ -174,8 +173,10 @@ export function ContentEditorEditorPanel({
         isMac={isMac}
         onPrevious={onPrevious}
         onNext={onNext}
+        isNavigationBlocked={isApproving || isSavingDraft}
         canEditTranslations={canEditTranslations}
         onToggleLocked={onToggleLocked}
+        onAddToIssueSheet={onAddToIssueSheet}
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -228,7 +229,20 @@ export function ContentEditorEditorPanel({
               onRegenerate={onRegenerateImage}
             />
           ) : (
-            <ContentEditorGroupVariantsGate segment={segment} locale={segment.targetLocale}>
+            <ContentEditorGroupVariantsGate
+              segment={segment}
+              locale={segment.targetLocale}
+              ai={
+                canUseAiRecommendation || Boolean(upgradeHref)
+                  ? {
+                      intelligence,
+                      isLoading: isAiSuggestionLoading,
+                      error: aiRecommendationError,
+                      onGenerateAiRecommendation,
+                    }
+                  : undefined
+              }
+            >
               <ContentEditorEditorTargetSection
                 segment={segment}
                 canEditTarget={actionState.canEditTarget}
@@ -240,31 +254,16 @@ export function ContentEditorEditorPanel({
             </ContentEditorGroupVariantsGate>
           )}
 
-          <SegmentActivityButton
-            segmentId={segment.id}
-            sourcePath={segment.sourcePath}
-            targetLocale={segment.targetLocale}
-            label={segment.key}
-          />
           <ContentEditorEditorActions
             primaryActionLabel={resolvedPrimaryActionLabel}
             isMac={isMac}
             canTriggerApprove={actionState.canTriggerApprove}
-            canTriggerFindContext={actionState.canTriggerFindContext}
-            canLookupContext={canLookupContext}
             isApproving={isApproving}
             isSavingDraft={isSavingDraft}
-            isLookingUpContext={isLookingUpContext}
-            hasPreviousSegment={hasPreviousSegment}
-            hasNextSegment={hasNextSegment}
             onApprove={onApprove}
             onSaveDraft={
               isAssetEditorSegment(segment) || hasTranslationVariants ? undefined : onSaveDraft
             }
-            onAddToIssueSheet={onAddToIssueSheet}
-            onAskQuestion={onAskQuestion}
-            onPrevious={onPrevious}
-            onNext={onNext}
             showApprove={!hasTranslationVariants}
           />
 

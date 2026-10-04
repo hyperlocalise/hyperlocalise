@@ -17,6 +17,7 @@ import {
 
 export const CAT_FILES_PANEL_COLLAPSED_STORAGE_KEY = "content-editor-files-panel-collapsed:v1";
 export const CAT_DETAILS_PANEL_COLLAPSED_STORAGE_KEY = "content-editor-details-panel-collapsed:v1";
+export const CAT_SHORTCUT_HINTS_HIDDEN_STORAGE_KEY = "content-editor-shortcut-hints-hidden:v1";
 
 function readCollapsed(key: string) {
   return readBrowserLocalStorageItem(key) === "true";
@@ -40,4 +41,12 @@ export function readCatDetailsPanelCollapsed() {
 
 export function writeCatDetailsPanelCollapsed(collapsed: boolean) {
   writeCollapsed(CAT_DETAILS_PANEL_COLLAPSED_STORAGE_KEY, collapsed);
+}
+
+export function readCatShortcutHintsHidden() {
+  return readCollapsed(CAT_SHORTCUT_HINTS_HIDDEN_STORAGE_KEY);
+}
+
+export function writeCatShortcutHintsHidden(hidden: boolean) {
+  writeCollapsed(CAT_SHORTCUT_HINTS_HIDDEN_STORAGE_KEY, hidden);
 }

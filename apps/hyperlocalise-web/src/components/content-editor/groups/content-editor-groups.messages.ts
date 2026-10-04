@@ -96,6 +96,21 @@ export const groupMessages = defineMessages({
     defaultMessage: "Apply to all",
     description: "Save this translation to every occurrence of the identical source string",
   },
+  applySuggestionToAll: {
+    id: "JDUEGq5LXQ",
+    defaultMessage: "Apply to all",
+    description: "Save the AI recommendation to every occurrence of the identical source string",
+  },
+  useInVariant: {
+    id: "RnWdIPrF1R",
+    defaultMessage: "Use in…",
+    description: "Opens a menu to put the AI recommendation into one translation variant",
+  },
+  useInVariantItem: {
+    id: "iZwiSdUkjV",
+    defaultMessage: "{text} · {count, plural, one {# occurrence} other {# occurrences}}",
+    description: "Menu item naming a translation variant by its text and occurrence count",
+  },
   saveFailed: {
     id: "uC9uH1Yi+P",
     defaultMessage: "Could not save the translation.",
