@@ -80,46 +80,63 @@ func (api *overviewAPI) listRecentJobActivity(ctx context.Context, actor overvie
 	}
 	defer rows.Close()
 
-	items := make([]overviewActivityItem, 0, overviewRecentJobsLimit)
+	type jobActivityRow struct {
+		id, kind, status             string
+		inputPayload                 []byte
+		updatedAt                    time.Time
+		projectID, projectName       *string
+		jobType, externalTitle       *string
+		reviewCriteria               *string
+		syncConnector, syncDirection *string
+	}
+	rowsData := make([]jobActivityRow, 0, overviewRecentJobsLimit)
 	for rows.Next() {
-		var (
-			id, kind, status             string
-			inputPayload                 []byte
-			updatedAt                    time.Time
-			projectID, projectName       *string
-			jobType, externalTitle       *string
-			reviewCriteria               *string
-			syncConnector, syncDirection *string
-		)
+		var row jobActivityRow
 		if err := rows.Scan(
-			&id, &kind, &status, &inputPayload, &updatedAt, &projectID, &projectName,
-			&jobType, &externalTitle, &reviewCriteria, &syncConnector, &syncDirection,
+			&row.id, &row.kind, &row.status, &row.inputPayload, &row.updatedAt, &row.projectID, &row.projectName,
+			&row.jobType, &row.externalTitle, &row.reviewCriteria, &row.syncConnector, &row.syncDirection,
 		); err != nil {
 			return nil, err
 		}
-		jobKind, resolvedType := overviewJobKindValue(kind, stringPointerValue(jobType))
-		items = append(items, overviewActivityItem{
-			ID:   id,
-			Kind: "job",
-			Title: resolveOverviewJobTitle(overviewJobTitleInput{
-				ID:                id,
-				Kind:              kind,
-				InputPayload:      inputPayload,
-				ExternalTitle:     externalTitle,
-				ReviewCriteria:    reviewCriteria,
-				SyncConnectorKind: syncConnector,
-				SyncDirection:     syncDirection,
-			}),
-			ProjectName: projectName,
-			JobKind:     jobKind,
-			JobType:     resolvedType,
-			Status:      status,
-			Href:        overviewJobHref(actor.organizationSlug, projectID, id),
-			UpdatedAt:   overviewISO(updatedAt),
-			Attention:   status == "failed",
+		rowsData = append(rowsData, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	titles := make([]overviewJobTitleInput, 0, len(rowsData))
+	for _, row := range rowsData {
+		titles = append(titles, overviewJobTitleInput{
+			ID:                row.id,
+			Kind:              row.kind,
+			InputPayload:      row.inputPayload,
+			ExternalTitle:     row.externalTitle,
+			ReviewCriteria:    row.reviewCriteria,
+			SyncConnectorKind: row.syncConnector,
+			SyncDirection:     row.syncDirection,
 		})
 	}
-	return items, rows.Err()
+	if err := api.enrichOverviewJobTitleInputs(ctx, actor.organizationID, titles); err != nil {
+		return nil, err
+	}
+
+	items := make([]overviewActivityItem, 0, len(rowsData))
+	for i, row := range rowsData {
+		jobKind, resolvedType := overviewJobKindValue(row.kind, stringPointerValue(row.jobType))
+		items = append(items, overviewActivityItem{
+			ID:          row.id,
+			Kind:        "job",
+			Title:       resolveOverviewJobTitle(titles[i]),
+			ProjectName: row.projectName,
+			JobKind:     jobKind,
+			JobType:     resolvedType,
+			Status:      row.status,
+			Href:        overviewJobHref(actor.organizationSlug, row.projectID, row.id),
+			UpdatedAt:   overviewISO(row.updatedAt),
+			Attention:   row.status == "failed",
+		})
+	}
+	return items, nil
 }
 
 func stringPointerValue(value *string) string {

@@ -24,22 +24,30 @@ type overviewProjectSource struct {
 
 func (api *overviewAPI) listPreviewProjects(ctx context.Context, actor overviewActor) ([]overviewProjectItem, error) {
 	rows, err := api.pool.Query(ctx, `
-        select p.id, p.name, p.source, p.external_provider_kind, p.source_locale, p.target_locales,
-               coalesce(open_jobs.count, 0)
-        from projects p
-        left join (
-            select j.project_id, count(*)::int
-            from jobs j
-            where j.organization_id = $1
-              and j.status in (`+overviewOpenJobStatusesSQL+`)
-            group by j.project_id
-        ) open_jobs on open_jobs.project_id = p.id
-        where p.organization_id = $1
-          and p.source in ('native', 'external_tms')
-          and p.is_active is distinct from false
-          and `+formatQaProjectTeamAccessSQL(2, 3, 1)+`
-        order by case p.source when 'external_tms' then 0 else 1 end, p.updated_at desc
-        limit $4`,
+        with candidates as (
+            select p.id, p.name, p.source, p.external_provider_kind, p.source_locale, p.target_locales,
+                   coalesce(open_jobs.count, 0) as open_job_count,
+                   row_number() over (
+                       partition by case when p.source = 'external_tms' then 0 else 1 end
+                       order by p.updated_at desc
+                   ) as source_rank
+            from projects p
+            left join (
+                select j.project_id, count(*)::int
+                from jobs j
+                where j.organization_id = $1
+                  and j.status in (`+overviewOpenJobStatusesSQL+`)
+                group by j.project_id
+            ) open_jobs on open_jobs.project_id = p.id
+            where p.organization_id = $1
+              and p.source in ('native', 'external_tms')
+              and p.is_active is distinct from false
+              and `+formatQaProjectTeamAccessSQL(2, 3, 1)+`
+        )
+        select id, name, source, external_provider_kind, source_locale, target_locales, open_job_count
+        from candidates
+        where source = 'external_tms' or source_rank <= $4
+        order by case source when 'external_tms' then 0 else 1 end, source_rank`,
 		actor.organizationID, actor.canReadAllTeams(), actor.userID, overviewProjectLimit)
 	if err != nil {
 		return nil, err
@@ -65,6 +73,9 @@ func (api *overviewAPI) listPreviewProjects(ctx context.Context, actor overviewA
 
 	extras, err := api.loadProjectExtras(ctx, actor, ids)
 	if err != nil {
+		return nil, err
+	}
+	if err := api.enrichOverviewLatestJobTitles(ctx, actor.organizationID, extras.latestByProject); err != nil {
 		return nil, err
 	}
 

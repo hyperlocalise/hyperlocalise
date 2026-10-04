@@ -66,6 +66,34 @@ func TestResolveOverviewJobTitle(t *testing.T) {
 			want: overviewResolvedTitle{Kind: "text", Text: "Hello world"},
 		},
 		{
+			name: "legacy path-shaped source file id",
+			job: overviewJobTitleInput{
+				ID:           "job_1",
+				Kind:         "translation",
+				InputPayload: []byte(`{"sourceFileId":"marketing/home.json"}`),
+			},
+			want: overviewResolvedTitle{Kind: "text", Text: "marketing/home.json"},
+		},
+		{
+			name: "stored file display name",
+			job: overviewJobTitleInput{
+				ID:             "job_1",
+				Kind:           "translation",
+				InputPayload:   []byte(`{"sourceFileId":"file_3b017712-ec57-448f-8015-ca282a5a103a"}`),
+				SourceFilename: strPtr("brief.docx"),
+			},
+			want: overviewResolvedTitle{Kind: "text", Text: "brief.docx"},
+		},
+		{
+			name: "internal source file id falls back to job id",
+			job: overviewJobTitleInput{
+				ID:           "job_1",
+				Kind:         "translation",
+				InputPayload: []byte(`{"sourceFileId":"file_3b017712-ec57-448f-8015-ca282a5a103a"}`),
+			},
+			want: overviewResolvedTitle{Kind: "id", ID: "job_1"},
+		},
+		{
 			name: "falls back to id",
 			job:  overviewJobTitleInput{ID: "job_1", Kind: "translation", InputPayload: []byte(`{}`)},
 			want: overviewResolvedTitle{Kind: "id", ID: "job_1"},

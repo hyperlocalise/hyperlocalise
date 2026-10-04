@@ -236,4 +236,46 @@ describe("overview snapshot helpers", () => {
       failedCount: 1,
     });
   });
+
+  it("keeps extras for live projects that are not the newest stored rows", () => {
+    const extrasFor = (id: string, name: string): OverviewProjectItem => ({
+      id,
+      name,
+      source: "external_tms",
+      providerKind: "crowdin",
+      domain: `${id}.example`,
+      localeRoute: "en → fr-FR",
+      latestJobTitle: { kind: "text", text: `${name} job` },
+      latestJobAt: "2026-03-18T12:15:00.000Z",
+      openCount: 4,
+      failedCount: 2,
+      href: `/org/acme/projects/${encodeURIComponent(id)}`,
+    });
+
+    const merged = mergeOverviewProjectsWithLive({
+      organizationSlug: "acme",
+      stored: [
+        extrasFor("ext:crowdin:newest", "Newest"),
+        extrasFor("ext:crowdin:older", "Older"),
+        extrasFor("ext:crowdin:oldest", "Oldest"),
+      ],
+      live: [
+        { id: "ext:crowdin:oldest", name: "Live oldest", sourceLocale: "en", targetLocales: ["fr-FR"] },
+        { id: "ext:crowdin:older", name: "Live older", sourceLocale: "en", targetLocales: ["de-DE"] },
+      ],
+    });
+
+    expect(merged.map((project) => project.id)).toEqual(["ext:crowdin:oldest", "ext:crowdin:older"]);
+    expect(merged[0]).toMatchObject({
+      name: "Live oldest",
+      domain: "ext:crowdin:oldest.example",
+      openCount: 4,
+      failedCount: 2,
+    });
+    expect(merged[1]).toMatchObject({
+      name: "Live older",
+      domain: "ext:crowdin:older.example",
+      failedCount: 2,
+    });
+  });
 });

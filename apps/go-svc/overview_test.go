@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -94,6 +95,35 @@ func TestOverviewRoutes(t *testing.T) {
 		require.True(t, body.Activity[0].Attention)
 	})
 
+	t.Run("resolves stored file display names in activity titles", func(t *testing.T) {
+		api, scope := overviewTestAPI(t, "admin", false)
+		fileID := "file_" + uuid.NewString()
+		_, err := scope.Pool.Exec(t.Context(), `
+            insert into stored_files (
+                id, organization_id, project_id, role, source_kind,
+                storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256
+            ) values ($1, $2, $3, 'source', 'chat_upload', 'test', $1, $1, 'brief.docx', 'application/octet-stream', 12, 'deadbeef')`,
+			fileID, scope.OrganizationID, scope.ProjectID)
+		require.NoError(t, err)
+		jobID := "job_" + scope.ProjectID + "_file"
+		_, err = scope.Pool.Exec(t.Context(), `
+            insert into jobs (id, organization_id, project_id, kind, status, input_payload, created_at, updated_at)
+            values ($1, $2, $3, 'translation', 'succeeded', $4::jsonb, now(), now())`,
+			jobID, scope.OrganizationID, scope.ProjectID,
+			`{"sourceFileId":"`+fileID+`"}`)
+		require.NoError(t, err)
+
+		rec := overviewRequest(api, scope, scope.OrgPath("/overview/activity"))
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var body struct {
+			Activity []overviewActivityItem `json:"activity"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		require.NotEmpty(t, body.Activity)
+		require.Equal(t, jobID, body.Activity[0].ID)
+		require.Equal(t, overviewResolvedTitle{Kind: "text", Text: "brief.docx"}, body.Activity[0].Title)
+	})
+
 	t.Run("returns native projects with extras", func(t *testing.T) {
 		api, scope := overviewTestAPI(t, "admin", false)
 		_, err := scope.Pool.Exec(t.Context(), `
@@ -112,6 +142,65 @@ func TestOverviewRoutes(t *testing.T) {
 		require.Equal(t, scope.ProjectID, body.Projects[0].ID)
 		require.Equal(t, "native", body.Projects[0].Source)
 		require.GreaterOrEqual(t, body.Projects[0].OpenCount, 1)
+	})
+
+	t.Run("loads extras for materialized projects beyond the preview limit", func(t *testing.T) {
+		api, scope := overviewTestAPI(t, "admin", false)
+		older := "ext:crowdin:older"
+		middle := "ext:crowdin:middle"
+		newer := "ext:crowdin:newer"
+		for _, project := range []struct {
+			id, name, identifier string
+			updatedAt            string
+		}{
+			{older, "Older Crowdin", "OLDCRWD", "2026-01-01T00:00:00Z"},
+			{middle, "Middle Crowdin", "MIDCRWD", "2026-02-01T00:00:00Z"},
+			{newer, "Newer Crowdin", "NEWCRWD", "2026-03-01T00:00:00Z"},
+		} {
+			_, err := scope.Pool.Exec(t.Context(), `
+                insert into projects (
+                    id, organization_id, created_by_user_id, name, identifier, source,
+                    external_provider_kind, external_project_id, created_at, updated_at
+                ) values ($1, $2, $3, $4, $5, 'external_tms', 'crowdin', $6, $7, $7)`,
+				project.id, scope.OrganizationID, scope.UserID, project.name, project.identifier,
+				strings.TrimPrefix(project.id, "ext:crowdin:"), project.updatedAt)
+			require.NoError(t, err)
+		}
+		_, err := scope.Pool.Exec(t.Context(), `
+            insert into jobs (id, organization_id, project_id, kind, status, input_payload, created_at, updated_at)
+            values ($1, $2, $3, 'translation', 'failed', '{"sourceText":"Broken"}'::jsonb, $4, $4)`,
+			"job_older_failed", scope.OrganizationID, older, "2026-01-02T00:00:00Z")
+		require.NoError(t, err)
+		_, err = scope.Pool.Exec(t.Context(), `
+            insert into linked_domains (
+                id, organization_id, created_by_user_id, domain_key, domain_slug, source_url,
+                status, verification_token, project_id
+            ) values ($1, $2, $3, $4, $5, $6, 'verified', 'token', $7)`,
+			uuid.NewString(), scope.OrganizationID, scope.UserID,
+			scope.Slug+".docs.example", scope.Slug+"-docs-example",
+			"https://docs.example/", older)
+		require.NoError(t, err)
+
+		rec := overviewRequest(api, scope, scope.OrgPath("/overview/projects"))
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var body struct {
+			Projects []overviewProjectItem `json:"projects"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+
+		byID := make(map[string]overviewProjectItem, len(body.Projects))
+		for _, project := range body.Projects {
+			byID[project.ID] = project
+		}
+		require.Contains(t, byID, older)
+		require.Contains(t, byID, middle)
+		require.Contains(t, byID, newer)
+		require.Equal(t, 1, byID[older].FailedCount)
+		require.NotNil(t, byID[older].Domain)
+		require.Equal(t, scope.Slug+".docs.example", *byID[older].Domain)
+		require.NotNil(t, byID[older].LatestJobTitle)
+		require.Equal(t, "text", byID[older].LatestJobTitle.Kind)
+		require.Equal(t, "Broken", byID[older].LatestJobTitle.Text)
 	})
 
 	t.Run("returns open board issues", func(t *testing.T) {
