@@ -51,6 +51,48 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+function occurrenceMaxLength(maxLength: number | null | undefined) {
+  return maxLength != null && maxLength > 0 ? maxLength : undefined;
+}
+
+function variantQaContexts(occurrences: CatGroupOccurrence[], fallback: ContentEditorSegment) {
+  const seen = new Set<string>();
+  const contexts: { sourcePath: string; maxLength?: number }[] = [];
+  for (const occurrence of occurrences) {
+    const sourcePath = occurrence.sourcePath || fallback.sourcePath || "";
+    const maxLength = occurrenceMaxLength(occurrence.maxLength);
+    const key = `${sourcePath}\0${maxLength ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    contexts.push({ sourcePath, maxLength });
+  }
+  if (contexts.length === 0) {
+    contexts.push({
+      sourcePath: fallback.sourcePath ?? "",
+      maxLength: occurrenceMaxLength(fallback.maxLength),
+    });
+  }
+  return contexts;
+}
+
+const FORMAT_CHECK_STATUS_RANK = { pass: 0, warn: 1, fail: 2 } as const;
+
+function mergeFormatChecks(groups: ContentEditorFormatCheck[][]) {
+  const byId = new Map<string, ContentEditorFormatCheck>();
+  for (const checks of groups) {
+    for (const check of checks) {
+      const current = byId.get(check.id);
+      if (
+        !current ||
+        FORMAT_CHECK_STATUS_RANK[check.status] > FORMAT_CHECK_STATUS_RANK[current.status]
+      ) {
+        byId.set(check.id, check);
+      }
+    }
+  }
+  return [...byId.values()];
+}
+
 /**
  * One distinct translation of a grouped row. Its text lives in the workspace's
  * multilingual draft store so unsaved edits survive refetches and count toward the
@@ -124,6 +166,17 @@ export class ContentEditorGroupVariant {
     return this.formatChecks.filter((check) => check.status !== "pass");
   }
 
+  /** Tightest character limit among the strings this translation can write. */
+  get editorMaxLength() {
+    let tightest: number | undefined;
+    for (const occurrence of this.unlocked.length > 0 ? this.unlocked : this.variant.occurrences) {
+      const limit = occurrenceMaxLength(occurrence.maxLength);
+      if (limit == null) continue;
+      tightest = tightest == null ? limit : Math.min(tightest, limit);
+    }
+    return tightest ?? this.group.segment.maxLength;
+  }
+
   update(variant: CatGroupVariant) {
     this.variant = variant;
   }
@@ -167,7 +220,11 @@ export class ContentEditorGroupVariant {
     const draft = this.draft;
     try {
       if (!draft || this.text === this.savedText) await write(this.text);
-      else await draft.save(write);
+      else {
+        await draft.save(write);
+        if (draft.error !== null) throw new Error(draft.error);
+      }
+      if (action === "all") this.group.reconcileUnlockedDrafts(this.text, this);
     } catch (error) {
       runInAction(() => {
         this.error = errorMessage(error, saveFailedMessage);
@@ -182,6 +239,8 @@ export class ContentEditorGroupVariant {
   scheduleChecks(delayMs = FORMAT_CHECK_DELAY_MS) {
     if (!this.group.ports.services?.validateFormat) return;
     if (this.checkTimer) clearTimeout(this.checkTimer);
+    this.checkAbort?.abort();
+    this.checkAbort = null;
     this.isCheckingFormat = true;
     this.checkTimer = setTimeout(() => void this.runChecks(), delayMs);
   }
@@ -198,13 +257,21 @@ export class ContentEditorGroupVariant {
     this.checkAbort = abort;
     this.isCheckingFormat = true;
     const { segment } = this.group;
+    const occurrences = this.unlocked.length > 0 ? this.unlocked : this.variant.occurrences;
     try {
-      const checks = await validateFormat(segment, this.text, glossaryTerms?.(segment.id), {
-        signal: abort.signal,
-      });
+      const checkGroups = await Promise.all(
+        variantQaContexts(occurrences, segment).map((context) =>
+          validateFormat(
+            { ...segment, sourcePath: context.sourcePath, maxLength: context.maxLength },
+            this.text,
+            glossaryTerms?.(segment.id),
+            { signal: abort.signal },
+          ),
+        ),
+      );
       if (abort.signal.aborted) return;
       runInAction(() => {
-        this.formatChecks = checks;
+        this.formatChecks = mergeFormatChecks(checkGroups);
       });
     } catch (error) {
       if (abort.signal.aborted || (error as Error)?.name === "AbortError") return;
@@ -378,6 +445,9 @@ export class ContentEditorGroupVariants {
         text,
         approve: false,
       });
+      runInAction(() => {
+        this.reconcileUnlockedDrafts(text);
+      });
     } catch (error) {
       runInAction(() => {
         this.applyError = errorMessage(error, saveFailedMessage);
@@ -386,6 +456,15 @@ export class ContentEditorGroupVariants {
       runInAction(() => {
         this.isApplyingToAll = false;
       });
+    }
+  }
+
+  /** After a write that covered every unlocked occurrence, drop leftover dirty drafts. */
+  reconcileUnlockedDrafts(text: string, except?: ContentEditorGroupVariant) {
+    for (const variant of this.variants) {
+      if (variant === except || variant.unlocked.length === 0) continue;
+      const draft = variant.draft ?? this.drafts.get(variant.draftKey, variant.variant.text);
+      draft.accept(text);
     }
   }
 }
@@ -402,6 +481,8 @@ export class ContentEditorGroupVariantsRegistry {
   private readonly groups = observable.map<string, ContentEditorGroupVariants>([], {
     deep: false,
   });
+  private readonly expected = observable.set<string>();
+  private readonly heldText = observable.map<string, string>();
   services: ContentEditorGroupVariantsServices = {};
 
   constructor() {
@@ -412,9 +493,53 @@ export class ContentEditorGroupVariantsRegistry {
     this.services = services;
   }
 
+  /** The single-target editor is hidden while this row's variant editors load or stay mounted. */
+  expect(segmentId: string, locale: string) {
+    const key = registryKey(segmentId, locale);
+    this.expected.add(key);
+    return () => {
+      this.expected.delete(key);
+    };
+  }
+
+  takeHeldText(segmentId: string, locale: string) {
+    const key = registryKey(segmentId, locale);
+    const text = this.heldText.get(key);
+    this.heldText.delete(key);
+    return text;
+  }
+
+  dropHeld(segmentId: string, locale: string) {
+    this.heldText.delete(registryKey(segmentId, locale));
+  }
+
+  /**
+   * Puts text in the translation being edited. Returns true when the single-target draft
+   * must not receive it: a group is mounted, or variant editors are expected and the text
+   * is held until they register.
+   */
+  routeText(segmentId: string, locale: string, text: string) {
+    const key = registryKey(segmentId, locale);
+    const group = this.groups.get(key);
+    if (group) {
+      group.useText(text);
+      return true;
+    }
+    if (this.expected.has(key)) {
+      this.heldText.set(key, text);
+      return true;
+    }
+    return false;
+  }
+
   register(group: ContentEditorGroupVariants) {
     const key = registryKey(group.segment.id, group.locale);
     this.groups.set(key, group);
+    const held = this.heldText.get(key);
+    if (held) {
+      this.heldText.delete(key);
+      group.useText(held);
+    }
     return () => {
       if (this.groups.get(key) === group) this.unregister(key);
     };

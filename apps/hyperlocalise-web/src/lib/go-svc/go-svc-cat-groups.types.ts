@@ -15,6 +15,8 @@ export interface CatGroupOccurrence {
   key: string;
   sourcePath: string;
   isLocked: boolean;
+  /** Present when the key has a character limit; omitted or non-positive means none. */
+  maxLength?: number | null;
 }
 
 /** One distinct translation shared by some occurrences of an identical source string. */

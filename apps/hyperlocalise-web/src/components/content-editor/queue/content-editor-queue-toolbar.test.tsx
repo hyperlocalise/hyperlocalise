@@ -203,6 +203,32 @@ describe("ContentEditorQueueToolbar", () => {
     expect(onBulkApprove).not.toHaveBeenCalled();
   });
 
+  it("disables select-all while a bulk action is pending", async () => {
+    const user = userEvent.setup();
+    const onSelectAllVisible = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        selectionMode
+        onSelectionModeChange={vi.fn()}
+        visibleCount={12}
+        selectedCount={3}
+        isBulkActionPending
+        onSelectAllVisible={onSelectAllVisible}
+        onClearChecked={vi.fn()}
+        onBulkApprove={vi.fn()}
+      />,
+    );
+
+    const selectAll = screen.getByRole("button", { name: /Select all visible/ });
+    expect(selectAll).toBeDisabled();
+    expect(screen.getByRole("button", { name: "More" })).toBeDisabled();
+
+    await user.click(selectAll);
+
+    expect(onSelectAllVisible).not.toHaveBeenCalled();
+  });
+
   it("shows the Select toggle when onSelectionModeChange is provided, even without bulk handlers", async () => {
     const user = userEvent.setup();
     const onSelectionModeChange = vi.fn();

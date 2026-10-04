@@ -220,7 +220,7 @@ export function useContentEditorWorkspaceRuntime({
   const dependencies = useMemo<ContentEditorWorkspaceDependencies>(() => {
     const sendTextToGroupVariant = (segmentId: string, text: string) => {
       const locale = store.getSegmentView(segmentId)?.targetLocale;
-      return Boolean(locale && store.groupVariants.get(segmentId, locale)?.useText(text));
+      return Boolean(locale && store.groupVariants.routeText(segmentId, locale, text));
     };
     const editing: ContentEditorWorkspaceEditing = {
       onTargetChange: (segmentId: string, value: string) => {

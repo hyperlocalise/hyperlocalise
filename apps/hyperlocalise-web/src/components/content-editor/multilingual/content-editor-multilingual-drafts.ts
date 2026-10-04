@@ -35,6 +35,14 @@ export class MultilingualDraft {
     this.text = text;
     this.error = null;
   }
+
+  /** Treats `text` as the saved baseline, including writes that did not go through `save`. */
+  accept(text: string) {
+    this.text = text;
+    this.savedText = text;
+    this.error = null;
+    this.requestedText = null;
+  }
   cancel() {
     this.requestedText = null;
     this.error = null;

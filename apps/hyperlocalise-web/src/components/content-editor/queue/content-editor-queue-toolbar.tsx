@@ -132,7 +132,7 @@ export function ContentEditorQueueToolbar({
       size="sm"
       className="h-8 text-xs"
       onClick={onSelectAllVisible}
-      disabled={selectableVisibleCount === 0}
+      disabled={selectableVisibleCount === 0 || isBulkActionPending}
     >
       <FormattedMessage
         {...contentEditorBulkBarMessages.selectAllVisible}
@@ -361,7 +361,7 @@ function ContentEditorBulkBar({
             {moreActions.length > 0 && onClearChecked ? <DropdownMenuSeparator /> : null}
             {onClearChecked ? (
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={onClearChecked}>
+                <DropdownMenuItem onClick={onClearChecked} disabled={isBulkActionPending}>
                   <FormattedMessage {...contentEditorQueuePanelMessages.bulkClearSelection} />
                 </DropdownMenuItem>
               </DropdownMenuGroup>

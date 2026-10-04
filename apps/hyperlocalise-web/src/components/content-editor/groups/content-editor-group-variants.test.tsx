@@ -167,6 +167,12 @@ describe("ContentEditorGroupVariantsGate", () => {
     await screen.findByText("2 different translations");
 
     const recommendation = screen.getByText("AI recommendation").closest("aside") as HTMLElement;
+    await user.click(within(recommendation).getByRole("button", { name: /Use in/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /Adhérent · 1 occurrence/ }));
+    await waitFor(() =>
+      expect(variantEditors().map((editor) => editor.textContent)).toEqual(["Membre", "Membre"]),
+    );
+
     await user.click(within(recommendation).getByRole("button", { name: "Apply to all" }));
     expect(saveVariant).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -174,12 +180,6 @@ describe("ContentEditorGroupVariantsGate", () => {
         approve: false,
         occurrences: [occurrence("k1"), occurrence("k2")],
       }),
-    );
-
-    await user.click(within(recommendation).getByRole("button", { name: /Use in/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /Adhérent · 1 occurrence/ }));
-    await waitFor(() =>
-      expect(variantEditors().map((editor) => editor.textContent)).toEqual(["Membre", "Membre"]),
     );
   });
 });

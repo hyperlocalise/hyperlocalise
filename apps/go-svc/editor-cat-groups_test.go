@@ -142,6 +142,8 @@ func TestEditorCatGroupVariantsListDivergentTranslationsAndSaveOneVariant(t *tes
 	mustEditorCatTranslation(t, scope, first, "fr", "Membre", "approved")
 	mustEditorCatTranslation(t, scope, second, "fr", "Adhérent", "draft")
 	mustEditorCatTranslation(t, scope, other, "fr", "Autres", "draft")
+	_, err := scope.Pool.Exec(t.Context(), `update project_translation_keys set max_length=12 where id=$1`, first)
+	require.NoError(t, err)
 
 	readVariants := func() []editorCatGroupVariant {
 		path := editorCatPathFor(scope, "/files/detail/cat/segments/"+first+"/variants?targetLocale=fr&sourcePath=a.json&groupSourcePath=a.json")
@@ -157,6 +159,8 @@ func TestEditorCatGroupVariantsListDivergentTranslationsAndSaveOneVariant(t *tes
 	require.Len(t, variants, 3)
 	require.Equal(t, "Membre", variants[0].Text)
 	require.True(t, variants[0].IsApproved)
+	require.NotNil(t, variants[0].Occurrences[0].MaxLength)
+	require.Equal(t, 12, *variants[0].Occurrences[0].MaxLength)
 	require.Equal(t, "Adhérent", variants[1].Text)
 	require.False(t, variants[1].IsApproved)
 	require.Equal(t, "", variants[2].Text)

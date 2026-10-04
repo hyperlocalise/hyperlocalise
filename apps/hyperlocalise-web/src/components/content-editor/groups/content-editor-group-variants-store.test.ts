@@ -13,7 +13,10 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { CatGroupVariant } from "@/lib/go-svc/go-svc-cat-groups.types";
-import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
+import type {
+  ContentEditorFormatCheck,
+  ContentEditorSegment,
+} from "@/components/content-editor/shared/types";
 
 import { MultilingualDrafts } from "../multilingual/content-editor-multilingual-drafts";
 import {
@@ -129,6 +132,41 @@ describe("ContentEditorGroupVariants", () => {
     expect(group.isApplyingToAll).toBe(false);
   });
 
+  it("reconciles dirty drafts after applying a suggestion to every unlocked string", async () => {
+    const { group, drafts } = createGroup();
+    const [first, second] = group.variants;
+    first!.change("Membre actif");
+    second!.change("Adhérente");
+
+    await group.applyTextToAll("Membre");
+
+    expect(first!.text).toBe("Membre");
+    expect(second!.text).toBe("Membre");
+    expect(first!.draft?.dirty).toBe(false);
+    expect(second!.draft?.dirty).toBe(false);
+
+    group.sync([
+      {
+        text: "Membre",
+        isApproved: false,
+        occurrences: [occurrence("k1"), occurrence("k2"), occurrence("k3", true)],
+      },
+    ]);
+    expect(drafts.dirty).toBe(false);
+  });
+
+  it("reconciles other dirty drafts when one translation is applied to all", async () => {
+    const { group, drafts } = createGroup();
+    const [first, second] = group.variants;
+    second!.change("Adhérente");
+
+    await first!.applyToAll();
+
+    expect(second!.text).toBe("Membre");
+    expect(second!.draft?.dirty).toBe(false);
+    expect(drafts.dirty).toBe(false);
+  });
+
   it("surfaces save failures on the translation that failed", async () => {
     const saveVariant = vi.fn().mockRejectedValue(new Error(""));
     const { group } = createGroup({ saveVariant });
@@ -138,6 +176,18 @@ describe("ContentEditorGroupVariants", () => {
 
     expect(second.displayError).toBe("Could not save the translation.");
     expect(group.variants[0]!.displayError).toBeNull();
+  });
+
+  it("surfaces a fallback when a dirty draft save fails without a message", async () => {
+    const saveVariant = vi.fn().mockRejectedValue(new Error(""));
+    const { group } = createGroup({ saveVariant });
+    const second = group.variants[1]!;
+
+    second.change("Adhérente");
+    await second.approve();
+
+    expect(second.displayError).toBe("Could not save the translation.");
+    expect(second.draft?.dirty).toBe(true);
   });
 
   it("keeps unsaved drafts and drops stale translations when the server list changes", () => {
@@ -172,12 +222,94 @@ describe("ContentEditorGroupVariants", () => {
     await vi.runAllTimersAsync();
 
     expect(validateFormat).toHaveBeenCalledTimes(3);
-    expect(validateFormat).toHaveBeenLastCalledWith(segment, "Membre {name}", undefined, {
-      signal: expect.any(AbortSignal),
-    });
+    expect(validateFormat).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: segment.id, sourcePath: "a.json" }),
+      "Membre {name}",
+      undefined,
+      {
+        signal: expect.any(AbortSignal),
+      },
+    );
     expect(first.qaIssues).toEqual([]);
     expect(group.variants[1]!.qaIssues).toHaveLength(1);
     expect(first.isCheckingFormat).toBe(false);
+  });
+
+  it("does not apply an in-flight format check after a later edit is scheduled", async () => {
+    vi.useFakeTimers();
+    const deferred: Array<(checks: ContentEditorFormatCheck[]) => void> = [];
+    const validateFormat = vi.fn(
+      () =>
+        new Promise<ContentEditorFormatCheck[]>((resolve) => {
+          deferred.push(resolve);
+        }),
+    );
+    const { group } = createGroup({ services: { validateFormat } });
+    await vi.runAllTimersAsync();
+    expect(deferred).toHaveLength(2);
+    deferred.shift()!([]);
+    deferred.shift()!([]);
+    await Promise.resolve();
+
+    const first = group.variants[0]!;
+    first.change("Membre {name");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(deferred).toHaveLength(1);
+    const stale = deferred.shift()!;
+
+    first.change("Membre {name}");
+    stale([{ id: "placeholder", label: "Placeholders", status: "fail", message: "stale" }]);
+    await Promise.resolve();
+    expect(first.qaIssues).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(300);
+    expect(deferred).toHaveLength(1);
+    deferred.shift()!([]);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(first.qaIssues).toEqual([]);
+    expect(first.isCheckingFormat).toBe(false);
+  });
+
+  it("validates each distinct occurrence path and length limit", async () => {
+    vi.useFakeTimers();
+    const validateFormat = vi.fn(async (checked: ContentEditorSegment) => [
+      {
+        id: "length",
+        label: checked.maxLength === 5 ? "Too long" : "Length",
+        status: checked.maxLength === 5 ? ("fail" as const) : ("pass" as const),
+        message: checked.sourcePath ?? "",
+      },
+    ]);
+    const { group } = createGroup({ services: { validateFormat } }, [
+      {
+        text: "Membre",
+        isApproved: true,
+        occurrences: [
+          { ...occurrence("k1"), sourcePath: "a.json", maxLength: 20 },
+          { ...occurrence("k2"), sourcePath: "b.po", maxLength: 5 },
+        ],
+      },
+    ]);
+    await vi.runAllTimersAsync();
+
+    expect(validateFormat).toHaveBeenCalledTimes(2);
+    expect(validateFormat).toHaveBeenCalledWith(
+      expect.objectContaining({ sourcePath: "a.json", maxLength: 20 }),
+      "Membre",
+      undefined,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(validateFormat).toHaveBeenCalledWith(
+      expect.objectContaining({ sourcePath: "b.po", maxLength: 5 }),
+      "Membre",
+      undefined,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(group.variants[0]!.qaIssues).toEqual([
+      expect.objectContaining({ id: "length", status: "fail", label: "Too long" }),
+    ]);
+    expect(group.variants[0]!.editorMaxLength).toBe(5);
   });
 });
 
@@ -192,5 +324,30 @@ describe("ContentEditorGroupVariantsRegistry", () => {
 
     unregister();
     expect(registry.get("k1", "fr")).toBeNull();
+  });
+
+  it("holds routed text until the group registers", () => {
+    const registry = new ContentEditorGroupVariantsRegistry();
+    const { group } = createGroup();
+
+    registry.expect("k1", "fr");
+    expect(registry.routeText("k1", "fr", "Membre actif")).toBe(true);
+    expect(group.variants[0]!.text).toBe("Membre");
+
+    registry.register(group);
+    expect(group.variants[0]!.text).toBe("Membre actif");
+    expect(group.focusedVariantId).toBe(group.variants[0]!.id);
+  });
+
+  it("does not leave routed text for the single-target draft once a group is mounted", () => {
+    const registry = new ContentEditorGroupVariantsRegistry();
+    const { group } = createGroup();
+    group.variants[0]!.pendingAction = "save";
+    group.variants[1]!.pendingAction = "save";
+    registry.register(group);
+
+    expect(registry.routeText("k1", "fr", "Membre actif")).toBe(true);
+    expect(group.variants[0]!.text).toBe("Membre");
+    expect(group.variants[1]!.text).toBe("Adhérent");
   });
 });

@@ -165,7 +165,27 @@ function GroupVariantsContent({
   className?: string;
   children: ReactNode;
 }) {
+  const workspace = useOptionalCatWorkspace();
   const variants = useContentEditorGroupVariants({ segment, locale });
+  const hideSingleTarget =
+    variants.isPending || variants.isError || (variants.data?.length ?? 0) > 1;
+
+  useEffect(() => {
+    if (!workspace) return;
+    return () => {
+      workspace.groupVariants.dropHeld(segment.id, locale);
+    };
+  }, [workspace, segment.id, locale]);
+
+  useEffect(() => {
+    if (!workspace) return;
+    if (hideSingleTarget) {
+      return workspace.groupVariants.expect(segment.id, locale);
+    }
+    const held = workspace.groupVariants.takeHeldText(segment.id, locale);
+    if (held) workspace.setTargetText(segment.id, held);
+  }, [workspace, hideSingleTarget, segment.id, locale]);
+
   if (variants.isPending) {
     return (
       <div className={cn("space-y-2", className)}>
@@ -438,7 +458,7 @@ const VariantEditor = observer(function VariantEditor({
       <ContentEditorTargetEditor
         sourceText={segment.sourceText}
         value={text}
-        maxLength={segment.maxLength}
+        maxLength={variant.editorMaxLength}
         compact
         disabled={!variant.canEdit || variant.pending}
         ariaLabel={occurrencesLabel}
