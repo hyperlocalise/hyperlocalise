@@ -13,9 +13,12 @@
 import { z } from "zod";
 
 import { createVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
+import { createLogger, serializeErrorForLog, type Logger } from "@/lib/log";
 import { installQaSpellingSandboxCommand } from "@/lib/vercel-sandbox-config";
 import type { QaCheckPolicy } from "./qa-policy";
 import type { TranslationQaGlossaryTerm } from "./types";
+
+const logger = createLogger("translation-qa-sandbox");
 
 const QA_WORKSPACE_DIR = ".hyperlocalise-qa";
 const INPUT_PATH = `${QA_WORKSPACE_DIR}/segments.json`;
@@ -27,6 +30,13 @@ export class QaCliUnavailableError extends Error {
   constructor() {
     super("The sandbox CLI does not support hl validate yet");
     this.name = "QaCliUnavailableError";
+  }
+}
+
+export class QaSandboxStopError extends Error {
+  constructor(cause: unknown) {
+    super("QA sandbox stop failed after successful validation", { cause });
+    this.name = "QaSandboxStopError";
   }
 }
 
@@ -63,53 +73,207 @@ async function cleanupQaWorkspaceFiles(workspace: {
   await workspace.runCommand("bash", ["-lc", `rm -rf ${QA_WORKSPACE_DIR}`]).catch(() => undefined);
 }
 
+async function stopQaSandboxWorkspace(input: {
+  workspace: {
+    runCommand: (command: string, args: string[]) => Promise<{ exitCode: number }>;
+    stop: () => Promise<void>;
+  };
+  sandboxId: string | undefined;
+  log: Logger;
+  failedWork: boolean;
+}) {
+  await cleanupQaWorkspaceFiles(input.workspace);
+  try {
+    await input.workspace.stop();
+    input.log.info({ phase: "stop", sandboxId: input.sandboxId }, "qa sandbox workspace stopped");
+  } catch (error) {
+    const payload = {
+      phase: "stop",
+      sandboxId: input.sandboxId,
+      err: serializeErrorForLog(error),
+    };
+    if (input.failedWork) {
+      input.log.warn(payload, "qa sandbox workspace stop failed");
+      return;
+    }
+    input.log.error(payload, "qa sandbox workspace stop failed");
+    throw new QaSandboxStopError(error);
+  }
+}
+
+function utf8Bytes(value: string) {
+  return Buffer.byteLength(value, "utf8");
+}
+
+function outputBytes(output: string | undefined) {
+  return output ? utf8Bytes(output) : 0;
+}
+
 export async function validateQaPageInSandbox(input: {
   segments: QaPageSegment[];
   policy: QaCheckPolicy;
   glossaryTerms: TranslationQaGlossaryTerm[];
   acceptedWordsByLocale: Record<string, string[]>;
+  logContext?: {
+    runId?: string;
+    projectId?: string;
+    page?: number;
+  };
 }) {
-  const workspace = await createVercelSandboxWorkspace({
-    timeoutMs: SANDBOX_TIMEOUT_MS,
-    imageScope: "qa",
-    sandboxOptions: {
-      snapshotExpiration: 0,
-      keepLastSnapshots: { count: 1 },
-    },
+  const policyJson = JSON.stringify({
+    version: 1,
+    checks: input.policy,
+    glossaryTerms: input.glossaryTerms,
+    acceptedWordsByLocale: input.acceptedWordsByLocale,
   });
+  const segmentsJson = JSON.stringify({ segments: input.segments });
+  const locales = new Set(input.segments.map((segment) => segment.targetLocale));
+  const acceptedWordCount = Object.values(input.acceptedWordsByLocale).reduce(
+    (count, words) => count + words.length,
+    0,
+  );
+  const log = logger.child({
+    runId: input.logContext?.runId,
+    projectId: input.logContext?.projectId,
+    page: input.logContext?.page,
+  });
+  const pageStartedAt = Date.now();
+  let phase = "create_workspace";
+  let sandboxId: string | undefined;
+
+  log.info(
+    {
+      phase,
+      segmentCount: input.segments.length,
+      localeCount: locales.size,
+      glossaryTermCount: input.glossaryTerms.length,
+      acceptedWordCount,
+      acceptedWordLocaleCount: Object.keys(input.acceptedWordsByLocale).length,
+      policyBytes: utf8Bytes(policyJson),
+      segmentBytes: utf8Bytes(segmentsJson),
+    },
+    "qa sandbox page validate started",
+  );
+
+  let workspace: Awaited<ReturnType<typeof createVercelSandboxWorkspace>> | undefined;
   try {
+    const createStartedAt = Date.now();
+    workspace = await createVercelSandboxWorkspace({
+      timeoutMs: SANDBOX_TIMEOUT_MS,
+      imageScope: "qa",
+      sandboxOptions: {
+        snapshotExpiration: 0,
+        keepLastSnapshots: { count: 1 },
+      },
+    });
+    sandboxId = workspace.id;
+    log.info(
+      { phase, sandboxId, durationMs: Date.now() - createStartedAt },
+      "qa sandbox workspace created",
+    );
+
+    phase = "cli_availability";
+    const availabilityStartedAt = Date.now();
     const availability = await workspace.runCommand("hl", ["validate", "--help"], {
       output: "stdout",
     });
+    log.info(
+      {
+        phase,
+        sandboxId,
+        exitCode: availability.exitCode,
+        outputBytes: outputBytes(availability.output),
+        durationMs: Date.now() - availabilityStartedAt,
+      },
+      "qa sandbox cli_availability completed",
+    );
     if (availability.exitCode !== 0) throw new QaCliUnavailableError();
 
+    phase = "spelling_install";
+    const spellingStartedAt = Date.now();
     const spellingInstall = await workspace.runCommand("bash", [
       "-lc",
       `export DICPATH=/usr/share/hunspell; ${installQaSpellingSandboxCommand}`,
     ]);
+    log.info(
+      {
+        phase,
+        sandboxId,
+        exitCode: spellingInstall.exitCode,
+        outputBytes: outputBytes(spellingInstall.output),
+        durationMs: Date.now() - spellingStartedAt,
+      },
+      "qa sandbox spelling_install completed",
+    );
     if (spellingInstall.exitCode !== 0) {
       throw new Error("QA sandbox spelling dependency installation failed");
     }
 
-    await workspace.writeFile(
-      POLICY_PATH,
-      JSON.stringify({
-        version: 1,
-        checks: input.policy,
-        glossaryTerms: input.glossaryTerms,
-        acceptedWordsByLocale: input.acceptedWordsByLocale,
-      }),
+    phase = "write_policy";
+    const policyStartedAt = Date.now();
+    await workspace.writeFile(POLICY_PATH, policyJson);
+    log.info(
+      {
+        phase,
+        sandboxId,
+        path: POLICY_PATH,
+        bytes: utf8Bytes(policyJson),
+        durationMs: Date.now() - policyStartedAt,
+      },
+      "qa sandbox write_policy completed",
     );
-    await workspace.writeFile(INPUT_PATH, JSON.stringify({ segments: input.segments }));
+
+    phase = "write_segments";
+    const segmentsStartedAt = Date.now();
+    await workspace.writeFile(INPUT_PATH, segmentsJson);
+    log.info(
+      {
+        phase,
+        sandboxId,
+        path: INPUT_PATH,
+        bytes: utf8Bytes(segmentsJson),
+        durationMs: Date.now() - segmentsStartedAt,
+      },
+      "qa sandbox write_segments completed",
+    );
+
+    phase = "validate";
+    const validateStartedAt = Date.now();
     const command = await workspace.runCommand("bash", [
       "-lc",
       `export PATH="$HOME/.local/bin:$PATH"; export DICPATH=/usr/share/hunspell; hl validate --input-file ${INPUT_PATH} --policy-file ${POLICY_PATH} --format json > ${OUTPUT_PATH}`,
     ]);
+    log.info(
+      {
+        phase,
+        sandboxId,
+        exitCode: command.exitCode,
+        outputBytes: outputBytes(command.output),
+        durationMs: Date.now() - validateStartedAt,
+      },
+      "qa sandbox validate completed",
+    );
     if (command.exitCode !== 0) {
       throw new Error(`QA CLI validation failed (exit ${command.exitCode})`);
     }
-    const parsed = outputSchema.safeParse(JSON.parse(await workspace.readFile(OUTPUT_PATH)));
+
+    phase = "read_results";
+    const readStartedAt = Date.now();
+    const reportJson = await workspace.readFile(OUTPUT_PATH);
+    const parsed = outputSchema.safeParse(JSON.parse(reportJson));
     if (!parsed.success || parsed.data.results.length !== input.segments.length) {
+      log.warn(
+        {
+          phase,
+          sandboxId,
+          reportBytes: utf8Bytes(reportJson),
+          resultCount: parsed.success ? parsed.data.results.length : 0,
+          expectedResultCount: input.segments.length,
+          parseSuccess: parsed.success,
+          durationMs: Date.now() - readStartedAt,
+        },
+        "qa sandbox read_results invalid",
+      );
       throw new Error("QA CLI returned an invalid validation report");
     }
     for (const [index, result] of parsed.data.results.entries()) {
@@ -117,9 +281,58 @@ export async function validateQaPageInSandbox(input: {
         throw new Error("QA CLI returned out-of-order validation results");
       }
     }
+    const findingCount = parsed.data.results.reduce(
+      (count, result) => count + result.checks.length,
+      0,
+    );
+    log.info(
+      {
+        phase,
+        sandboxId,
+        reportBytes: utf8Bytes(reportJson),
+        resultCount: parsed.data.results.length,
+        findingCount,
+        durationMs: Date.now() - readStartedAt,
+        pageDurationMs: Date.now() - pageStartedAt,
+      },
+      "qa sandbox page validate completed",
+    );
+    await stopQaSandboxWorkspace({
+      workspace,
+      sandboxId,
+      log,
+      failedWork: false,
+    });
     return parsed.data.results;
-  } finally {
-    await cleanupQaWorkspaceFiles(workspace);
-    await workspace.stop();
+  } catch (error) {
+    if (error instanceof QaCliUnavailableError) {
+      log.warn(
+        {
+          phase,
+          sandboxId,
+          pageDurationMs: Date.now() - pageStartedAt,
+        },
+        "qa sandbox cli unavailable",
+      );
+    } else if (!(error instanceof QaSandboxStopError)) {
+      log.error(
+        {
+          phase,
+          sandboxId,
+          err: serializeErrorForLog(error),
+          pageDurationMs: Date.now() - pageStartedAt,
+        },
+        "qa sandbox page validate failed",
+      );
+    }
+    if (workspace && !(error instanceof QaSandboxStopError)) {
+      await stopQaSandboxWorkspace({
+        workspace,
+        sandboxId,
+        log,
+        failedWork: true,
+      });
+    }
+    throw error;
   }
 }

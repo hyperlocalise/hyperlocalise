@@ -43,6 +43,7 @@ import type {
 
 const providerAgentTranslationQueueLogger = createLogger("provider-agent-translation-queue");
 const issueNotificationEmailQueueLogger = createLogger("issue-notification-email-queue");
+const translationQaScanQueueLogger = createLogger("translation-qa-scan-queue");
 
 export { createTranslationJobEventQueue, createReviewJobEventQueue } from "@/lib/workflow/queues";
 
@@ -231,6 +232,10 @@ export function createTranslationQaScanQueue(): TranslationQaScanQueue {
   return {
     async enqueue(event) {
       if (shouldRunWorkflowInlineLocally()) {
+        translationQaScanQueueLogger.info(
+          { runId: event.runId, projectId: event.projectId },
+          "translation qa scan running inline",
+        );
         const { executeTranslationQaScan } = await import("@/lib/qa/run-project-qa-scan");
         await executeTranslationQaScan(event);
         return { ids: ["local_inline_translation_qa_scan"] };
@@ -238,6 +243,14 @@ export function createTranslationQaScanQueue(): TranslationQaScanQueue {
 
       const { translationQaScanWorkflow } = await import("@/workflows/translation-qa-scan");
       const run = await start(translationQaScanWorkflow, [event]);
+      translationQaScanQueueLogger.info(
+        {
+          runId: event.runId,
+          projectId: event.projectId,
+          workflowRunId: run.runId,
+        },
+        "translation qa scan workflow enqueued",
+      );
       return { ids: [run.runId] };
     },
   };

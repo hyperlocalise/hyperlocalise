@@ -40,6 +40,7 @@ export async function translationQaScanWorkflow(event: TranslationQaScanEventDat
         organizationId: event.organizationId,
         projectId: event.projectId,
         afterKeyId,
+        page,
       });
       if (result.done) {
         break;
