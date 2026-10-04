@@ -17,9 +17,9 @@ import { imageViewerMessages } from "./content-editor-image-viewer.messages";
 import { ContentEditorImageWorkspace } from "./content-editor-image-workspace";
 
 import type { MarkdownSelectionAiConfig } from "@/components/markdown-editor/markdown-selection-ai.types";
+import type { DocumentAssistantServices } from "@/components/document-editor/document-editor-assistant.types";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   PaintBrushIcon,
   ArrowLeftIcon,
@@ -95,8 +95,8 @@ import {
 } from "./content-editor-video-file-viewer";
 import {
   CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT,
-  ContentEditorDocumentFileViewerPane,
-} from "./content-editor-document-file-viewer";
+  ContentEditorDocumentEditorPane,
+} from "./content-editor-document-editor-pane";
 import { contentEditorOfficeUploadAccept } from "./content-editor-office-mime";
 import type { ContentEditorOfficeKind } from "./content-editor-office-convert";
 
@@ -139,6 +139,7 @@ export function ContentEditorFileViewPanel({
   onUpload,
   onRegenerate,
   selectionAi,
+  documentAssistant,
   className,
   adaptiveWorkspaceEnabled = false,
   isDesignerPersona = false,
@@ -160,6 +161,7 @@ export function ContentEditorFileViewPanel({
   onApprove?: () => void;
   onUpload?: (file: File) => void | Promise<void>;
   selectionAi?: MarkdownSelectionAiConfig;
+  documentAssistant?: DocumentAssistantServices;
   onRegenerate?: (input: { instructions?: string }) => void | Promise<void>;
   className?: string;
   adaptiveWorkspaceEnabled?: boolean;
@@ -167,8 +169,6 @@ export function ContentEditorFileViewPanel({
   intelligence?: ContentEditorSegmentIntelligence;
 }) {
   const intl = useIntl();
-  const reduceMotion = useReducedMotion();
-  const documentTransition = { duration: reduceMotion ? 0 : 0.2, ease: "easeOut" as const };
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [imageLayersDirty, setImageLayersDirty] = useState(false);
   const [videoDirty, setVideoDirty] = useState(false);
@@ -545,85 +545,23 @@ export function ContentEditorFileViewPanel({
           onRegenerate={onRegenerate}
         />
       ) : isDocumentViewer ? (
-        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/30">
-          {/* Padding sits inside the scroll container so the sticky toolbar reaches its top edge. */}
-          <div className="p-3 sm:p-6 lg:p-8">
-            <div
-              className={cn(
-                "relative mx-auto grid w-full max-w-3xl items-start gap-6",
-                sourcePaneVisible && "max-w-[96rem] lg:grid-cols-2",
-              )}
-            >
-              <AnimatePresence initial={false} mode="popLayout">
-                {sourcePaneVisible ? (
-                  <motion.section
-                    key="source"
-                    layout="position"
-                    initial={{ opacity: reduceMotion ? 1 : 0, x: reduceMotion ? 0 : -24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{
-                      opacity: reduceMotion ? 1 : 0,
-                      x: reduceMotion ? 0 : -24,
-                      transition: { duration: reduceMotion ? 0 : 0.15 },
-                    }}
-                    transition={documentTransition}
-                    className="order-2 min-w-0 lg:order-none"
-                    aria-label={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
-                      locale: segment.sourceLocale,
-                    })}
-                  >
-                    <h2 className="mb-3 text-sm text-muted-foreground">
-                      <FormattedMessage
-                        {...contentEditorFileViewMessages.sourceHeading}
-                        values={{ locale: segment.sourceLocale }}
-                      />
-                    </h2>
-                    <div className="min-h-[48rem] border border-border/60 bg-card shadow-sm">
-                      <ContentEditorDocumentFileViewerPane
-                        role="source"
-                        src={sourceSrc}
-                        filename={displayName}
-                        canEdit={false}
-                      />
-                    </div>
-                  </motion.section>
-                ) : null}
-                <motion.section
-                  key="target"
-                  layout={reduceMotion ? false : "position"}
-                  transition={documentTransition}
-                  className="min-w-0"
-                  aria-label={intl.formatMessage(contentEditorFileViewMessages.targetHeading, {
-                    locale: segment.targetLocale,
-                  })}
-                >
-                  <h2 className="mb-3 text-sm text-muted-foreground">
-                    <FormattedMessage
-                      {...contentEditorFileViewMessages.targetHeading}
-                      values={{ locale: segment.targetLocale }}
-                    />
-                  </h2>
-                  <div className="min-h-[48rem] border border-border/60 bg-card shadow-sm">
-                    <ContentEditorDocumentFileViewerPane
-                      key={segment.id}
-                      role="target"
-                      src={targetSrc}
-                      seedSrc={sourceSrc}
-                      filename={displayName}
-                      isLoading={isSegmentTargetLoading}
-                      canEdit={canEdit}
-                      isBusy={isImageBusy}
-                      onSave={onUpload}
-                      saveActionsContainer={saveActionsContainer}
-                      onReviewBlockedChange={setDocumentReviewBlocked}
-                      selectionAi={selectionAi}
-                    />
-                  </div>
-                </motion.section>
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
+        <ContentEditorDocumentEditorPane
+          key={segment.id}
+          documentKey={`${segment.id}:${segment.targetLocale}`}
+          sourceSrc={sourceSrc}
+          targetSrc={targetSrc}
+          filename={displayName}
+          sourceLocale={segment.sourceLocale}
+          targetLocale={segment.targetLocale}
+          isLoading={isSegmentTargetLoading}
+          canEdit={canEdit}
+          splitView={sourcePaneVisible}
+          onSave={onUpload}
+          saveActionsContainer={saveActionsContainer}
+          onReviewBlockedChange={setDocumentReviewBlocked}
+          selectionAi={selectionAi}
+          assistant={documentAssistant}
+        />
       ) : (
         <FileViewWorkspace>
           <FileViewWorkspaceContent

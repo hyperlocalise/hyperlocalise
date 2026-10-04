@@ -613,6 +613,65 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
                 }
               : undefined
           }
+          documentAssistant={
+            dependencies.services?.lookupSegmentConcordance &&
+            dependencies.services.generateAiRecommendation &&
+            canApprove &&
+            !editorSegment.isLocked
+              ? {
+                  sourceLocale: editorSegment.sourceLocale,
+                  targetLocale: editorSegment.targetLocale,
+                  lookupConcordance: (sourceText) =>
+                    dependencies.services!.lookupSegmentConcordance!({
+                      ...editorSegment,
+                      sourceText,
+                    }),
+                  glossary:
+                    organizationSlug &&
+                    projectId &&
+                    shell.fileContext.projectTeamId &&
+                    Boolean(shell.fileContext.canContributeTeamGlossary) &&
+                    isNativeProject
+                      ? {
+                          organizationSlug,
+                          projectId,
+                          teamId: shell.fileContext.projectTeamId,
+                          teamName: shell.fileContext.teamName ?? "",
+                          teamGlossaries: shell.fileContext.teamGlossaries ?? [],
+                          canContribute: true,
+                        }
+                      : undefined,
+                  translateBlock: async (input) => {
+                    const originalContext = await loadOriginalDocumentContext(
+                      editorSegment.sourceAssetUrl,
+                      editorSegment.sourceLocale,
+                    );
+                    const result = await dependencies.services!.generateAiRecommendation!(
+                      {
+                        ...editorSegment,
+                        sourceText: input.sourceMarkdown,
+                        contextLabel: [
+                          `Translate this one Markdown block from ${editorSegment.sourceLocale} to ${editorSegment.targetLocale}. Return only the translated block.`,
+                          "Keep the Markdown structure, links, inline code, JSX tags, names, and placeholders intact. Do not wrap the result in code fences. Put explanations in reasoning.",
+                          input.targetMarkdown.trim()
+                            ? `Current translation of this block (improve it, keep what is correct):\n${input.targetMarkdown}`
+                            : "",
+                          input.instructions ? `Reviewer instructions: ${input.instructions}` : "",
+                        ]
+                          .filter(Boolean)
+                          .join("\n\n"),
+                      },
+                      input.targetMarkdown,
+                      { ...selectedSegmentIntelligence, agentContext: originalContext },
+                    );
+                    return {
+                      suggestion: result.aiSuggestion,
+                      reasoning: result.aiReasoning ?? undefined,
+                    };
+                  },
+                }
+              : undefined
+          }
           onRegenerate={
             (capabilities.viewerId === "image" ||
               capabilities.viewerId === "video" ||
