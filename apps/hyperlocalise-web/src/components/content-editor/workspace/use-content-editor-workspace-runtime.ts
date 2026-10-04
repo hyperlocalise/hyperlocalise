@@ -43,7 +43,10 @@ import {
   ContentEditorReviewController,
   type ContentEditorReviewControllerPorts,
 } from "./controllers/content-editor-review-controller";
-import { getAiSuggestionForSegment } from "./store/content-editor-workspace-store-utils";
+import {
+  getAiSuggestionForSegment,
+  glossaryTermsForSegment,
+} from "./store/content-editor-workspace-store-utils";
 
 function getSegmentQueueIndex(
   segments: Pick<ContentEditorSegment, "id" | "key">[],
@@ -173,6 +176,13 @@ export function useContentEditorWorkspaceRuntime({
   }, [intelligenceController, intelligencePorts, reviewController, reviewPorts]);
 
   useEffect(() => {
+    store.groupVariants.setServices({
+      validateFormat,
+      glossaryTerms: (segmentId) => glossaryTermsForSegment(store.shellState, segmentId),
+    });
+  }, [store, validateFormat]);
+
+  useEffect(() => {
     store.attachControllers(intelligenceController, reviewController);
     store.start();
     return () => store.dispose();
@@ -208,6 +218,10 @@ export function useContentEditorWorkspaceRuntime({
   }, [hasMoreQueue, queueFilter, queuePanelSegments, store, usesServerQueueFilter]);
 
   const dependencies = useMemo<ContentEditorWorkspaceDependencies>(() => {
+    const sendTextToGroupVariant = (segmentId: string, text: string) => {
+      const locale = store.getSegmentView(segmentId)?.targetLocale;
+      return Boolean(locale && store.groupVariants.routeText(segmentId, locale, text));
+    };
     const editing: ContentEditorWorkspaceEditing = {
       onTargetChange: (segmentId: string, value: string) => {
         store.setTargetText(segmentId, value);
@@ -222,10 +236,13 @@ export function useContentEditorWorkspaceRuntime({
         if (!aiSuggestion) {
           return;
         }
-        editing.onTargetChange(segmentId, aiSuggestion);
+        if (!sendTextToGroupVariant(segmentId, aiSuggestion)) {
+          editing.onTargetChange(segmentId, aiSuggestion);
+        }
         onUseAiSuggestion?.(segmentId);
       },
       onUseTmMatch: (segmentId: string, match: ContentEditorTranslationMemoryMatch) => {
+        if (sendTextToGroupVariant(segmentId, match.targetText)) return;
         editing.onTargetChange(segmentId, match.targetText);
       },
       ...(editingOverrides?.onTreatAsImage

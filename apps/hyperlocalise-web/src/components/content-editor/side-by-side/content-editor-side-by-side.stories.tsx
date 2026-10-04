@@ -184,7 +184,7 @@ export const Default: Story = {
     });
     await expect(canvas.getByText(/Format & QA checks/i)).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("tab", { name: "Details" }));
-    await expect(canvas.getByRole("button", { name: /^Manage queries$/i })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "String actions" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Find context/i })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /^Approve/i })).not.toBeInTheDocument();
     await expect(canvas.queryByText(/ICU structure/i)).not.toBeInTheDocument();

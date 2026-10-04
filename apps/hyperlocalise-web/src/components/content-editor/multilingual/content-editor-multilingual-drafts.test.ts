@@ -87,6 +87,16 @@ describe("multilingual drafts", () => {
     expect(draft.dirty).toBe(false);
   });
 
+  it("accepts an external write as the new saved baseline", () => {
+    const draft = new MultilingualDraft("original");
+    draft.change("unsaved");
+    draft.accept("applied");
+    expect(draft.text).toBe("applied");
+    expect(draft.savedText).toBe("applied");
+    expect(draft.dirty).toBe(false);
+    expect(draft.error).toBeNull();
+  });
+
   it("isolates language drafts and retains unsaved text during refetch", () => {
     const drafts = new MultilingualDrafts();
     drafts.get("file:key:fr", "French").change("Bonjour");

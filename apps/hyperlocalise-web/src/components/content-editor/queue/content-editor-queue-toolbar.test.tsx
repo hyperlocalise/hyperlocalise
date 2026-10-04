@@ -67,7 +67,8 @@ describe("ContentEditorQueueToolbar", () => {
     expect(screen.getByRole("menuitemradio", { name: "Machine translations" })).toBeInTheDocument();
     expect(screen.getByRole("menuitemradio", { name: "With comments" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Sort queue" }));
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "View options" }));
     await user.click(screen.getByRole("menuitemradio", { name: "Untranslated first" }));
 
     expect(onQueueSortChange).toHaveBeenCalledWith("untranslated_first");
@@ -85,10 +86,26 @@ describe("ContentEditorQueueToolbar", () => {
       />,
     );
 
-    expect(screen.queryByRole("button", { name: "Sort queue" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View options" })).not.toBeInTheDocument();
   });
 
-  it("offers Hide and Unhide when those bulk handlers are provided", async () => {
+  it("keeps search and filter visible until strings are selected", () => {
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        selectionMode
+        onSelectionModeChange={vi.fn()}
+        selectedCount={0}
+        queueFilter="all"
+        onQueueFilterChange={vi.fn()}
+        onBulkApprove={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Filter queue" })).toBeInTheDocument();
+    expect(screen.queryByRole("toolbar", { name: "Bulk actions" })).not.toBeInTheDocument();
+  });
+
+  it("offers Hide and Unhide in the bulk bar More menu", async () => {
     const user = userEvent.setup();
     const onBulkHide = vi.fn();
     const onBulkUnhide = vi.fn();
@@ -97,24 +114,21 @@ describe("ContentEditorQueueToolbar", () => {
       <ContentEditorQueueToolbar
         selectionMode
         onSelectionModeChange={vi.fn()}
+        selectedCount={2}
         onBulkHide={onBulkHide}
         onBulkUnhide={onBulkUnhide}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Queue actions" }));
+    expect(screen.getByRole("toolbar", { name: "Bulk actions" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("menuitem", { name: "Unhide selected" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Hide selected" }));
 
-    expect(screen.getByRole("menuitem", { name: "Hide selected" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
-    expect(screen.getByRole("menuitem", { name: "Unhide selected" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    expect(onBulkHide).toHaveBeenCalled();
   });
 
-  it("offers Lock and Unlock when those bulk handlers are provided", async () => {
+  it("offers Lock and Unlock in the bulk bar More menu", async () => {
     const user = userEvent.setup();
     const onBulkLock = vi.fn();
     const onBulkUnlock = vi.fn();
@@ -123,21 +137,35 @@ describe("ContentEditorQueueToolbar", () => {
       <ContentEditorQueueToolbar
         selectionMode
         onSelectionModeChange={vi.fn()}
+        selectedCount={2}
         onBulkLock={onBulkLock}
         onBulkUnlock={onBulkUnlock}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Queue actions" }));
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("menuitem", { name: "Lock selected" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Unlock selected" }));
 
-    expect(screen.getByRole("menuitem", { name: "Lock selected" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
+    expect(onBulkUnlock).toHaveBeenCalled();
+  });
+
+  it("exits selection mode from the bulk bar", async () => {
+    const user = userEvent.setup();
+    const onSelectionModeChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        selectionMode
+        onSelectionModeChange={onSelectionModeChange}
+        selectedCount={2}
+        onBulkApprove={vi.fn()}
+      />,
     );
-    expect(screen.getByRole("menuitem", { name: "Unlock selected" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+
+    await user.click(screen.getByRole("button", { name: "Done" }));
+
+    expect(onSelectionModeChange).toHaveBeenCalledWith(false);
   });
 
   it("disables select-all and bulk mutate while the queue is still loading placeholder data", async () => {
@@ -159,36 +187,60 @@ describe("ContentEditorQueueToolbar", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Queue actions" }));
+    const selectAll = screen.getByRole("button", { name: /Select all visible/ });
+    const approveSelected = screen.getByRole("button", { name: "Approve selected" });
+    expect(selectAll).toBeDisabled();
+    expect(approveSelected).toBeDisabled();
 
-    const selectAll = screen.getByRole("menuitem", { name: "Select all visible" });
+    await user.click(screen.getByRole("button", { name: "More" }));
     const hideSelected = screen.getByRole("menuitem", { name: "Hide selected" });
-    const approveSelected = screen.getByRole("menuitem", { name: "Approve selected" });
-
-    expect(selectAll).toHaveAttribute("aria-disabled", "true");
     expect(hideSelected).toHaveAttribute("aria-disabled", "true");
-    expect(approveSelected).toHaveAttribute("aria-disabled", "true");
 
-    await user.click(selectAll);
     await user.click(hideSelected);
-    await user.click(approveSelected);
 
     expect(onSelectAllVisible).not.toHaveBeenCalled();
     expect(onBulkHide).not.toHaveBeenCalled();
     expect(onBulkApprove).not.toHaveBeenCalled();
   });
 
-  it("shows multi-select checkbox when onSelectionModeChange is provided, even without bulk handlers", () => {
-    // Regression: previously the checkbox was gated on hasBulkActions which
-    // required at least one bulk handler alongside onSelectionModeChange.
-    // The checkbox must now appear whenever onSelectionModeChange is provided.
+  it("disables select-all while a bulk action is pending", async () => {
+    const user = userEvent.setup();
+    const onSelectAllVisible = vi.fn();
+
     renderWithContentEditorProviders(
       <ContentEditorQueueToolbar
+        selectionMode
         onSelectionModeChange={vi.fn()}
-        // Deliberately omit onBulkApprove, onBulkSkip, onBulkHide, etc.
+        visibleCount={12}
+        selectedCount={3}
+        isBulkActionPending
+        onSelectAllVisible={onSelectAllVisible}
+        onClearChecked={vi.fn()}
+        onBulkApprove={vi.fn()}
       />,
     );
 
-    expect(screen.getByLabelText("Show bulk selection checkboxes")).toBeInTheDocument();
+    const selectAll = screen.getByRole("button", { name: /Select all visible/ });
+    expect(selectAll).toBeDisabled();
+    expect(screen.getByRole("button", { name: "More" })).toBeDisabled();
+
+    await user.click(selectAll);
+
+    expect(onSelectAllVisible).not.toHaveBeenCalled();
+  });
+
+  it("shows the Select toggle when onSelectionModeChange is provided, even without bulk handlers", async () => {
+    const user = userEvent.setup();
+    const onSelectionModeChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar onSelectionModeChange={onSelectionModeChange} />,
+    );
+
+    const selectToggle = screen.getByRole("button", { name: "Select" });
+    expect(selectToggle).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(selectToggle);
+    expect(onSelectionModeChange).toHaveBeenCalledWith(true);
   });
 });

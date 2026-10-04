@@ -727,7 +727,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onNext={navigation.onNextSegment}
           hasPreviousSegment={hasPreviousSegment}
           hasNextSegment={hasNextSegment}
-          showKeyboardHints={isAdaptiveEnabled && store.ui.isTranslatorPersona}
+          showKeyboardHints={!store.ui.shortcutHintsHidden}
         />
       </ContentEditorPanelErrorBoundary>
     );
@@ -798,6 +798,14 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           canEditTranslations={shell.fileContext.canEditTranslations !== false}
           isTranslationLocked={Boolean(editorSegment.isLocked)}
           canLookupFreshContext={canLookupContext}
+          canTriggerFindContext={
+            canLookupContext &&
+            !isApproving &&
+            !isSavingDraft &&
+            !isLookingUpContext &&
+            !isImageBusy
+          }
+          onFindContext={() => review.onAskQuestion(editorSegment.id)}
           onRefreshContext={() => review.onAskQuestion(editorSegment.id, { forceRefresh: true })}
           onUseTmMatch={(match) => editing.onUseTmMatch(editorSegment.id, match)}
           onSetMaxLength={

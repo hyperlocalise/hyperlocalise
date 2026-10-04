@@ -85,7 +85,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     ).toBeInTheDocument();
   });
 
-  it("reopens a collapsed details panel from the strings toolbar", async () => {
+  it("reopens a collapsed details panel from the View menu", async () => {
     const user = userEvent.setup();
 
     renderCatWorkspace(
@@ -99,17 +99,16 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       </>,
     );
 
-    const [toolbarToggle] = await screen.findAllByRole("button", { name: "Hide details panel" });
-    await user.click(toolbarToggle!);
+    await user.click(await screen.findByRole("button", { name: "Hide details panel" }));
     expect(localStorage.getItem("content-editor-details-panel-collapsed:v1")).toBe("true");
 
-    await user.click(await screen.findByRole("button", { name: "Show details panel" }));
+    await user.click(await screen.findByRole("button", { name: "View options" }));
+    const detailsToggle = await screen.findByRole("menuitemcheckbox", { name: "Details panel" });
+    expect(detailsToggle).toHaveAttribute("aria-checked", "false");
+
+    await user.click(detailsToggle);
     expect(localStorage.getItem("content-editor-details-panel-collapsed:v1")).toBe("false");
-    expect(
-      screen
-        .getAllByRole("button", { name: "Hide details panel" })
-        .some((button) => button.getAttribute("aria-pressed") === "true"),
-    ).toBe(true);
+    expect(detailsToggle).toHaveAttribute("aria-checked", "true");
   });
 
   it("lets reviewers set a character limit on native projects", async () => {
@@ -137,6 +136,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
   });
 
   it("starts in comfortable view when initialViewMode is comfortable", async () => {
+    const user = userEvent.setup();
     window.localStorage.setItem("content-editor-workspace-view-mode:v1", "side-by-side");
 
     try {
@@ -148,11 +148,13 @@ describe("ContentEditorWorkspaceContainer UI", () => {
         />,
       );
 
-      const viewModeButton = await waitFor(() =>
-        screen.getByRole("button", { name: "Content Editor view mode" }),
-      );
-      expect(viewModeButton).toHaveTextContent("Comfortable");
       expect(screen.getByText("Translation Intelligence")).toBeInTheDocument();
+      await user.click(await screen.findByRole("button", { name: "View options" }));
+      expect(await screen.findByRole("menuitemradio", { name: "Comfortable" })).toHaveAttribute(
+        "aria-checked",
+        "true",
+      );
+      await user.keyboard("{Escape}");
       expect(screen.queryByText("Source")).not.toBeInTheDocument();
     } finally {
       window.localStorage.removeItem("content-editor-workspace-view-mode:v1");
@@ -415,9 +417,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
 
     expect(screen.queryByRole("button", { name: "Filter queue" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Show multi-select")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Content Editor view mode" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View options" })).not.toBeInTheDocument();
   });
 
   it("omits the multilingual view when no multilingual configuration is given", async () => {
@@ -434,9 +434,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       </>,
     );
 
-    await user.click(
-      await waitFor(() => screen.getByRole("button", { name: "Content Editor view mode" })),
-    );
+    await user.click(await waitFor(() => screen.getByRole("button", { name: "View options" })));
 
     expect(screen.getByRole("menuitemradio", { name: "Side by side" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitemradio", { name: "Multilingual" })).not.toBeInTheDocument();
@@ -463,22 +461,27 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       </>,
     );
 
-    await user.click(
-      await waitFor(() => screen.getByRole("button", { name: "Content Editor view mode" })),
-    );
+    await user.click(await waitFor(() => screen.getByRole("button", { name: "View options" })));
 
     expect(screen.getByRole("menuitemradio", { name: "Multilingual" })).toBeInTheDocument();
   });
 
-  it("omits the persona switcher when adaptiveWorkspaceEnabled is false", async () => {
+  it("omits the persona options when adaptiveWorkspaceEnabled is false", async () => {
+    const user = userEvent.setup();
+
     renderCatWorkspace(
-      <ContentEditorWorkspaceContainer
-        initialState={createUiCatWorkspaceState()}
-        adaptiveWorkspaceEnabled={false}
-      />,
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          adaptiveWorkspaceEnabled={false}
+        />
+      </>,
     );
 
-    expect(screen.queryByRole("button", { name: "Workspace mode" })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "View options" }));
+    expect(await screen.findByRole("menuitemradio", { name: "Comfortable" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitemradio", { name: "Reviewer" })).not.toBeInTheDocument();
   });
 
   it("renders persona switcher and adapts layout to reviewer when adaptiveWorkspaceEnabled is true", async () => {
@@ -494,9 +497,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       </>,
     );
 
-    const personaButton = await waitFor(() =>
-      screen.getByRole("button", { name: "Workspace mode" }),
-    );
+    const personaButton = await waitFor(() => screen.getByRole("button", { name: "View options" }));
     expect(personaButton).toBeInTheDocument();
 
     await user.click(personaButton);
@@ -544,7 +545,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       });
 
       // Switch to Reviewer persona
-      const personaButton = screen.getByRole("button", { name: "Workspace mode" });
+      const personaButton = screen.getByRole("button", { name: "View options" });
       await user.click(personaButton);
       const reviewerOption = await screen.findByRole("menuitemradio", { name: "Reviewer" });
       await user.click(reviewerOption);
@@ -587,9 +588,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     });
 
     // Open view switcher and select Side-by-side
-    const viewButton = await waitFor(() =>
-      screen.getByRole("button", { name: "Content Editor view mode" }),
-    );
+    const viewButton = await waitFor(() => screen.getByRole("button", { name: "View options" }));
     await user.click(viewButton);
     const sideBySideOption = await screen.findByRole("menuitemradio", { name: "Side by side" });
     await user.click(sideBySideOption);
@@ -630,7 +629,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     });
 
     // Designer badge should be visible, and persona switcher is omitted for file assets
-    expect(screen.queryByRole("button", { name: "Workspace mode" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View options" })).not.toBeInTheDocument();
     expect(screen.getByText("Designer")).toBeInTheDocument();
   });
 
@@ -694,7 +693,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     });
 
     // Persona switcher and Designer badge should not be present
-    expect(screen.queryByRole("button", { name: "Workspace mode" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "View options" })).toBeNull();
     expect(screen.queryByText("Designer")).toBeNull();
   });
 
@@ -758,7 +757,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     );
 
     // Open persona switcher and switch to Reviewer
-    const switcher = screen.getByRole("button", { name: "Workspace mode" });
+    const switcher = screen.getByRole("button", { name: "View options" });
     await user.click(switcher);
     const reviewerOption = await screen.findByRole("menuitemradio", { name: "Reviewer" });
     await user.click(reviewerOption);
@@ -770,22 +769,14 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     });
 
     // In Reviewer mode, selectionMode starts enabled
-    const checkbox = await waitFor(() => {
-      const el = document.querySelector<HTMLInputElement>(
-        'input[type="checkbox"][aria-label="Show bulk selection checkboxes"]',
-      );
-      expect(el).not.toBeNull();
-      expect(el!.checked).toBe(true);
-      return el!;
-    });
+    const selectToggle = await screen.findByRole("button", { name: "Select" });
+    expect(selectToggle).toHaveAttribute("aria-pressed", "true");
 
-    // Clicking the checkbox unchecks it
-    await user.click(checkbox);
-    expect(checkbox.checked).toBe(false);
+    await user.click(selectToggle);
+    expect(selectToggle).toHaveAttribute("aria-pressed", "false");
 
-    // Clicking again turns it back on
-    await user.click(checkbox);
-    expect(checkbox.checked).toBe(true);
+    await user.click(selectToggle);
+    expect(selectToggle).toHaveAttribute("aria-pressed", "true");
   });
 
   it("omits the persona switcher for image files even when adaptiveWorkspaceEnabled is true", async () => {
@@ -804,7 +795,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
       expect(screen.getByRole("heading", { name: /Localised · vi/i })).toBeInTheDocument(),
     );
 
-    expect(screen.queryByRole("button", { name: "Workspace mode" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View options" })).not.toBeInTheDocument();
   });
 
   it("scrolls to translation memory in translator persona when adaptive workspace is enabled", async () => {
@@ -868,7 +859,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
 
       // Switch to Reviewer persona
       const personaButton = await waitFor(() =>
-        screen.getByRole("button", { name: "Workspace mode" }),
+        screen.getByRole("button", { name: "View options" }),
       );
       await user.click(personaButton);
       const reviewerOption = await screen.findByRole("menuitemradio", { name: "Reviewer" });
@@ -879,9 +870,10 @@ describe("ContentEditorWorkspaceContainer UI", () => {
         expect(workspace).toHaveAttribute("data-workspace-persona", "reviewer");
       });
 
-      // In Reviewer mode, selection checkbox is checked
-      const selectionCheckbox = await screen.findByLabelText("Show bulk selection checkboxes");
-      expect(selectionCheckbox).toBeChecked();
+      // In Reviewer mode, the Select toggle is on (the View menu is still open, so the
+      // toolbar is outside the accessibility tree)
+      const selectToggle = await screen.findByRole("button", { name: "Select", hidden: true });
+      expect(selectToggle).toHaveAttribute("aria-pressed", "true");
 
       // Entering Reviewer must NOT have saved "true" to the general queue preference
       expect(setItem).not.toHaveBeenCalledWith("content-editor-queue:selection-mode:v1", "true");
@@ -895,13 +887,11 @@ describe("ContentEditorWorkspaceContainer UI", () => {
         expect(workspace).toHaveAttribute("data-workspace-persona", "translator");
       });
 
-      // Selection checkbox should now be unchecked
       await waitFor(() => {
-        const currentCheckbox = document.querySelector<HTMLInputElement>(
-          'input[type="checkbox"][aria-label="Show bulk selection checkboxes"]',
+        expect(screen.getByRole("button", { name: "Select", hidden: true })).toHaveAttribute(
+          "aria-pressed",
+          "false",
         );
-        expect(currentCheckbox).not.toBeNull();
-        expect(currentCheckbox!.checked).toBe(false);
       });
     } finally {
       setItem.mockRestore();
@@ -929,9 +919,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     );
 
     // Open view switcher and select Multilingual
-    const viewButton = await waitFor(() =>
-      screen.getByRole("button", { name: "Content Editor view mode" }),
-    );
+    const viewButton = await waitFor(() => screen.getByRole("button", { name: "View options" }));
     await user.click(viewButton);
     const multilingualOption = await screen.findByRole("menuitemradio", { name: "Multilingual" });
     await user.click(multilingualOption);
@@ -957,8 +945,10 @@ describe("ContentEditorWorkspaceContainer UI", () => {
 
     // Initial persona is Translator; selection mode saved as true must not be forced off on mount
     await waitFor(() => {
-      const selectionCheckbox = screen.getByLabelText("Show bulk selection checkboxes");
-      expect(selectionCheckbox).toBeChecked();
+      expect(screen.getByRole("button", { name: "Select" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
     });
   });
 });

@@ -35,6 +35,7 @@ type Scope = {
   sourcePath: string;
   targetLocale: string;
 };
+export type SegmentActivitySelection = Selection;
 type Selection = {
   segmentId?: string;
   groupId?: string;
@@ -52,18 +53,9 @@ type Activity = {
 };
 const ActivityContext = createContext<((selection: Selection) => void) | null>(null);
 
-export function SegmentActivityButton(props: Selection) {
-  const open = useContext(ActivityContext);
-  if (!open) return null;
-  return (
-    <Button type="button" variant="ghost" size="sm" onClick={() => open(props)}>
-      <FormattedMessage
-        defaultMessage="Activity"
-        id="r05vZ2Pf2x"
-        description="Open segment or group activity"
-      />
-    </Button>
-  );
+/** Returns a function that opens the activity sheet, or null outside a provider. */
+export function useSegmentActivityOpener() {
+  return useContext(ActivityContext);
 }
 
 export function SegmentActivityProvider({ children, ...scope }: Scope & { children: ReactNode }) {

@@ -106,7 +106,7 @@ describe("ContentEditorSideBySideRow", () => {
     expect(screen.queryByText("Untranslated")).not.toBeInTheDocument();
   });
 
-  it("shows the share link button when focused with a share url", async () => {
+  it("copies the string link from the string actions menu when focused", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
@@ -116,25 +116,18 @@ describe("ContentEditorSideBySideRow", () => {
 
     renderRow({ segmentShareUrl: "https://example.com/segments/seg-02" });
 
-    const copyButton = screen.getByRole("button", { name: /Copy source/i });
-    const shareButton = screen.getByRole("button", { name: /Copy link to this segment/i });
-    expect(copyButton.compareDocumentPosition(shareButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-
-    await user.click(shareButton);
+    await user.click(screen.getByRole("button", { name: "String actions" }));
+    await user.click(screen.getByRole("menuitem", { name: /Copy link to this string/i }));
     expect(writeText).toHaveBeenCalledWith("https://example.com/segments/seg-02");
   });
 
-  it("hides the share link button when the row is not focused", () => {
+  it("hides the string actions menu when the row is not focused", () => {
     renderRow({
       isFocused: false,
       segmentShareUrl: "https://example.com/segments/seg-02",
     });
 
-    expect(
-      screen.queryByRole("button", { name: /Copy link to this segment/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "String actions" })).not.toBeInTheDocument();
   });
 
   it("shows approve actions when the focused row has a target and is clean", () => {
@@ -355,7 +348,7 @@ describe("ContentEditorSideBySideRow", () => {
 
     expect(screen.queryByText(/0 characters/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Generate AI suggestion/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Manage queries$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "String actions" })).toBeInTheDocument();
   });
 
   it("shows a loading status while format checks are loading", () => {
@@ -744,7 +737,8 @@ describe("ContentEditorSideBySideRow", () => {
     renderRow({ isDirty: false, onAddToIssueSheet });
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^Manage queries$/i }));
+    await user.click(screen.getByRole("button", { name: "String actions" }));
+    await user.click(screen.getByRole("menuitem", { name: /^Manage queries$/i }));
     expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
   });
 

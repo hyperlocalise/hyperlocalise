@@ -58,6 +58,7 @@ import {
   mergeSegmentIntelligenceOnHydrate,
 } from "./store/content-editor-workspace-store-utils";
 
+import { ContentEditorGroupVariantsRegistry } from "../groups/content-editor-group-variants-store";
 import { MultilingualDrafts } from "../multilingual/content-editor-multilingual-drafts";
 
 export type CreateCatWorkspaceOptions = {
@@ -229,6 +230,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   readonly multilingualDrafts = new MultilingualDrafts();
+  readonly groupVariants = new ContentEditorGroupVariantsRegistry();
   readonly queue = new ContentEditorQueueStore();
   readonly segments = new ContentEditorSegmentStore();
   readonly intelligenceState = new ContentEditorIntelligenceStore();

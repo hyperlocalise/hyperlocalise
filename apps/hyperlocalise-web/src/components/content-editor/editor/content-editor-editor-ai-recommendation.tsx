@@ -14,6 +14,7 @@
  */
 import { RefreshIcon, SparklesIcon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { ReactNode } from "react";
 import { FormattedMessage } from "react-intl";
 
 import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
@@ -31,13 +32,16 @@ export function ContentEditorEditorAiRecommendation({
   error,
   onUseAiSuggestion,
   onGenerateAiRecommendation,
+  useActions,
   className,
 }: {
   intelligence: ContentEditorSegmentIntelligence;
   isLoading: boolean;
   error?: string;
-  onUseAiSuggestion: () => void;
+  onUseAiSuggestion?: () => void;
   onGenerateAiRecommendation?: () => void;
+  /** Replaces the default "Use" button, e.g. to choose which translation receives the text. */
+  useActions?: ReactNode;
   className?: string;
 }) {
   const upgradeHref = useAiFeaturesUpgradeHref();
@@ -93,12 +97,14 @@ export function ContentEditorEditorAiRecommendation({
 
       {showActions ? (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
-          {hasSuggestion ? (
+          {!hasSuggestion ? null : useActions !== undefined ? (
+            useActions
+          ) : (
             <Button variant="outline" size="xs" onClick={onUseAiSuggestion} disabled={isLoading}>
               <HugeiconsIcon icon={Tick02Icon} className="size-3" aria-hidden />
               <FormattedMessage {...contentEditorEditorPanelMessages.use} />
             </Button>
-          ) : null}
+          )}
           {upgradeHref ? (
             <UpgradePlanButton
               organizationSlug={upgradeHref.organizationSlug}

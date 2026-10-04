@@ -27,6 +27,7 @@ type editorCatGroupOccurrence struct {
 	Key        string `json:"key"`
 	SourcePath string `json:"sourcePath"`
 	IsLocked   bool   `json:"isLocked"`
+	MaxLength  *int   `json:"maxLength,omitempty"`
 }
 
 // editorCatGroupVariant is one distinct translation shared by some occurrences of a group.
@@ -63,7 +64,7 @@ func (api *editorCatAPI) getSegmentGroupVariants(r *http.Request, actor editorCa
 		return nil, 0, err
 	}
 	rows, err := api.pool.Query(r.Context(), `
-        select k.id::text, k.key, f.source_path, coalesce(t.text, ''), coalesce(t.status::text, 'draft'),
+        select k.id::text, k.key, f.source_path, k.max_length, coalesce(t.text, ''), coalesce(t.status::text, 'draft'),
             exists(select 1 from project_cat_segment_locks l where l.organization_id=$1 and l.project_id=$2
                 and l.target_locale=$3 and l.external_string_id=k.id::text)
         from project_translation_keys k
@@ -81,7 +82,7 @@ func (api *editorCatAPI) getSegmentGroupVariants(r *http.Request, actor editorCa
 	for rows.Next() {
 		var occurrence editorCatGroupOccurrence
 		var text, status string
-		if err := rows.Scan(&occurrence.ID, &occurrence.Key, &occurrence.SourcePath, &text, &status, &occurrence.IsLocked); err != nil {
+		if err := rows.Scan(&occurrence.ID, &occurrence.Key, &occurrence.SourcePath, &occurrence.MaxLength, &text, &status, &occurrence.IsLocked); err != nil {
 			return nil, 0, err
 		}
 		variant := byText[text]

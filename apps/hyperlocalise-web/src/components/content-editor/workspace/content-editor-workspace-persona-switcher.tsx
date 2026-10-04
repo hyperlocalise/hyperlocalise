@@ -46,7 +46,7 @@ function personaIcon(persona: ContentEditorWorkspacePersona) {
   return AiTranslateIcon;
 }
 
-function personaLabel(persona: ContentEditorWorkspacePersona) {
+export function personaLabel(persona: ContentEditorWorkspacePersona) {
   if (persona === "designer") return contentEditorWorkspacePersonaMessages.designerPersona;
   if (persona === "reviewer") return contentEditorWorkspacePersonaMessages.reviewerPersona;
   return contentEditorWorkspacePersonaMessages.translatorPersona;

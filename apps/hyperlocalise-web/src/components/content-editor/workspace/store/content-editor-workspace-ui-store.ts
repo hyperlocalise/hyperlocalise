@@ -22,8 +22,10 @@ import {
 import {
   readCatDetailsPanelCollapsed,
   readCatFilesPanelCollapsed,
+  readCatShortcutHintsHidden,
   writeCatDetailsPanelCollapsed,
   writeCatFilesPanelCollapsed,
+  writeCatShortcutHintsHidden,
 } from "@/components/content-editor/workspace/content-editor-workspace-panel-state";
 import {
   DESIGNER_PERSONA_FILE_FAMILIES,
@@ -32,6 +34,13 @@ import {
   writeCatWorkspacePersona,
   type ContentEditorWorkspacePersona,
 } from "@/components/content-editor/workspace/content-editor-workspace-persona";
+import {
+  contentEditorFilteredExportFormats,
+  type ContentEditorFilteredExportFormat,
+} from "@/lib/projects/content-editor/content-editor-filtered-export";
+
+/** Dialogs opened from the queue toolbar's "…" menu. */
+export type ContentEditorChromeDialog = "export" | "activity" | "shortcuts";
 
 export class ContentEditorWorkspaceUiStore {
   viewMode: ContentEditorWorkspaceViewMode;
@@ -49,6 +58,12 @@ export class ContentEditorWorkspaceUiStore {
   filesPanelCollapsed = readCatFilesPanelCollapsed();
   /** Right segment details pane is collapsed to zero width. */
   detailsPanelCollapsed = readCatDetailsPanelCollapsed();
+  /** Keyboard shortcut strip under the editor is turned off. */
+  shortcutHintsHidden = readCatShortcutHintsHidden();
+  /** Toolbar dialog currently open, if any. Only one can be open at a time. */
+  chromeDialog: ContentEditorChromeDialog | null = null;
+  /** Format picked in the filtered export dialog; kept across openings. */
+  exportFormat: ContentEditorFilteredExportFormat = contentEditorFilteredExportFormats[0];
   // Explicit initial modes (e.g. marketing demos) must not overwrite the
   // visitor's real CAT workspace preference.
   #persistViewMode: boolean;
@@ -258,6 +273,27 @@ export class ContentEditorWorkspaceUiStore {
 
   toggleDetailsPanel() {
     this.setDetailsPanelCollapsed(!this.detailsPanelCollapsed);
+  }
+
+  setShortcutHintsHidden(hidden: boolean) {
+    if (this.shortcutHintsHidden === hidden) {
+      return;
+    }
+
+    this.shortcutHintsHidden = hidden;
+    writeCatShortcutHintsHidden(hidden);
+  }
+
+  openChromeDialog(dialog: ContentEditorChromeDialog) {
+    this.chromeDialog = dialog;
+  }
+
+  closeChromeDialog() {
+    this.chromeDialog = null;
+  }
+
+  setExportFormat(format: ContentEditorFilteredExportFormat) {
+    this.exportFormat = format;
   }
 
   revealQaDetails() {

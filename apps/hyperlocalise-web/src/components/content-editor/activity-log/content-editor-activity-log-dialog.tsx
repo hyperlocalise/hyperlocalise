@@ -56,8 +56,48 @@ export function ContentEditorActivityLogButton({
   sourcePath: string;
 }) {
   const intl = useIntl();
-  const { client: goSvcClient } = useGoSvcClient();
   const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        className="size-8 shrink-0"
+        aria-label={intl.formatMessage(messages.openAria)}
+        title={intl.formatMessage(messages.openAria)}
+        onClick={() => setOpen(true)}
+      >
+        <HugeiconsIcon icon={HistoryIcon} className="size-4" />
+      </Button>
+
+      <ContentEditorActivityLogDialog
+        open={open}
+        onOpenChange={setOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        sourcePath={sourcePath}
+      />
+    </>
+  );
+}
+
+export function ContentEditorActivityLogDialog({
+  open,
+  onOpenChange,
+  organizationSlug,
+  projectId,
+  sourcePath,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+}) {
+  const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const [now] = useState(() => Date.now());
   const allFiles = isContentEditorAllFilesSourcePath(sourcePath);
 
@@ -89,87 +129,73 @@ export function ContentEditorActivityLogButton({
   );
 
   return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        className="size-8 shrink-0"
-        aria-label={intl.formatMessage(messages.openAria)}
-        title={intl.formatMessage(messages.openAria)}
-        onClick={() => setOpen(true)}
-      >
-        <HugeiconsIcon icon={HistoryIcon} className="size-4" />
-      </Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            <FormattedMessage {...messages.title} />
+          </DialogTitle>
+          <DialogDescription>
+            <FormattedMessage
+              {...(allFiles ? messages.allFilesDescription : messages.description)}
+            />
+          </DialogDescription>
+        </DialogHeader>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              <FormattedMessage {...messages.title} />
-            </DialogTitle>
-            <DialogDescription>
-              <FormattedMessage
-                {...(allFiles ? messages.allFilesDescription : messages.description)}
-              />
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="max-h-[min(28rem,60vh)] overflow-y-auto">
-            {activityQuery.isLoading ? (
-              <div className="flex items-center justify-center gap-2 py-8">
-                <Spinner className="size-4" />
-                <TypographyP size="small" tone="subtle">
-                  <FormattedMessage {...messages.loading} />
-                </TypographyP>
-              </div>
-            ) : activityQuery.isError ? (
-              <div className="flex flex-col items-start gap-3 py-4">
-                <TypographyP size="small" weight="medium" tone="critical">
-                  <FormattedMessage {...messages.loadError} />
-                </TypographyP>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => activityQuery.refetch()}
-                >
-                  <FormattedMessage {...messages.retry} />
-                </Button>
-              </div>
-            ) : activityLogs.length === 0 ? (
-              <div className="flex flex-col gap-1 py-4">
-                <TypographyP size="small" weight="medium" tone="content">
-                  <FormattedMessage {...messages.emptyTitle} />
-                </TypographyP>
-                <TypographyP size="small" tone="subtle">
-                  <FormattedMessage {...messages.emptyDescription} />
-                </TypographyP>
-              </div>
-            ) : (
-              <ActivityLogList activityLogs={activityLogs} now={now} variant="plain" />
-            )}
-          </div>
-
-          {activityQuery.hasNextPage ? (
-            <div className="flex justify-center">
+        <div className="max-h-[min(28rem,60vh)] overflow-y-auto">
+          {activityQuery.isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-8">
+              <Spinner className="size-4" />
+              <TypographyP size="small" tone="subtle">
+                <FormattedMessage {...messages.loading} />
+              </TypographyP>
+            </div>
+          ) : activityQuery.isError ? (
+            <div className="flex flex-col items-start gap-3 py-4">
+              <TypographyP size="small" weight="medium" tone="critical">
+                <FormattedMessage {...messages.loadError} />
+              </TypographyP>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => activityQuery.fetchNextPage()}
-                disabled={activityQuery.isFetchingNextPage}
+                onClick={() => activityQuery.refetch()}
               >
-                {activityQuery.isFetchingNextPage ? (
-                  <Spinner className="size-3.5" />
-                ) : (
-                  <FormattedMessage {...messages.loadMore} />
-                )}
+                <FormattedMessage {...messages.retry} />
               </Button>
             </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-    </>
+          ) : activityLogs.length === 0 ? (
+            <div className="flex flex-col gap-1 py-4">
+              <TypographyP size="small" weight="medium" tone="content">
+                <FormattedMessage {...messages.emptyTitle} />
+              </TypographyP>
+              <TypographyP size="small" tone="subtle">
+                <FormattedMessage {...messages.emptyDescription} />
+              </TypographyP>
+            </div>
+          ) : (
+            <ActivityLogList activityLogs={activityLogs} now={now} variant="plain" />
+          )}
+        </div>
+
+        {activityQuery.hasNextPage ? (
+          <div className="flex justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => activityQuery.fetchNextPage()}
+              disabled={activityQuery.isFetchingNextPage}
+            >
+              {activityQuery.isFetchingNextPage ? (
+                <Spinner className="size-3.5" />
+              ) : (
+                <FormattedMessage {...messages.loadMore} />
+              )}
+            </Button>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -12,14 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  Download01Icon,
-  FilterIcon,
-  MoreHorizontalCircle01Icon,
-  SearchIcon,
-  Sorting01Icon,
-} from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, CheckListIcon, FilterIcon, SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { ReactNode } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -36,10 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  contentEditorFilteredExportFormats,
-  type ContentEditorFilteredExportFormat,
-} from "@/lib/projects/content-editor/content-editor-filtered-export";
+import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -48,35 +41,11 @@ import {
   type ContentEditorQueueFilter,
   type ContentEditorQueueSort,
 } from "./content-editor-queue-filter";
+import { queueFilterMessageByValue } from "./content-editor-queue-filter-messages";
+import { ContentEditorOverflowMenu } from "./content-editor-overflow-menu";
+import { ContentEditorViewMenu } from "./content-editor-view-menu";
+import { contentEditorBulkBarMessages } from "@/components/content-editor/shared/content-editor-chrome.messages";
 import { contentEditorQueuePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
-import { ContentEditorWorkspaceViewSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-view-switcher-connected";
-import { ContentEditorWorkspacePersonaSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-persona-switcher-connected";
-import type { ContentEditorWorkspacePersona } from "@/components/content-editor/workspace/content-editor-workspace-persona";
-
-export const queueFilterMessageByValue: Record<
-  ContentEditorQueueFilter,
-  (typeof contentEditorQueuePanelMessages)[keyof typeof contentEditorQueuePanelMessages]
-> = {
-  all: contentEditorQueuePanelMessages.filterAll,
-  untranslated: contentEditorQueuePanelMessages.filterUntranslated,
-  needs_review: contentEditorQueuePanelMessages.filterNeedsReview,
-  reviewed: contentEditorQueuePanelMessages.filterReviewed,
-  unsaved: contentEditorQueuePanelMessages.filterUnsaved,
-  qa_issues: contentEditorQueuePanelMessages.filterQaIssues,
-  machine_translated: contentEditorQueuePanelMessages.filterMachineTranslated,
-  with_comments: contentEditorQueuePanelMessages.filterWithComments,
-  has_issues: contentEditorQueuePanelMessages.filterHasIssues,
-  skipped: contentEditorQueuePanelMessages.filterSkipped,
-  hidden: contentEditorQueuePanelMessages.filterHidden,
-};
-
-export const queueSortMessageByValue: Record<
-  ContentEditorQueueSort,
-  (typeof contentEditorQueuePanelMessages)[keyof typeof contentEditorQueuePanelMessages]
-> = {
-  file_order: contentEditorQueuePanelMessages.sortFileOrder,
-  untranslated_first: contentEditorQueuePanelMessages.sortUntranslatedFirst,
-};
 
 export function ContentEditorQueueToolbar({
   search = "",
@@ -106,7 +75,6 @@ export function ContentEditorQueueToolbar({
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
   adaptiveWorkspaceEnabled = false,
-  resolvedPersona,
 }: {
   search?: string;
   onSearchChange?: (value: string) => void;
@@ -139,316 +107,284 @@ export function ContentEditorQueueToolbar({
   isQueueLoading?: boolean;
   onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
   isDownloadingFilteredView?: boolean;
-  /** When true, the adaptive workspace persona switcher is rendered. Off by default. */
+  /** When true, the View menu offers the adaptive workspace persona switch. Off by default. */
   adaptiveWorkspaceEnabled?: boolean;
-  /**
-   * The current resolved workspace persona. Used to adjust the selection-mode
-   * button styling in Translator mode to increase its visual prominence.
-   */
-  resolvedPersona?: ContentEditorWorkspacePersona;
 }) {
   const intl = useIntl();
-  // The selection-mode checkbox is shown whenever onSelectionModeChange is provided,
-  // independent of whether any bulk action handler is wired up. This lets users enter
-  // selection mode even in contexts where only some bulk actions are available.
   const canEnterSelectionMode = Boolean(onSelectionModeChange);
-  const hasBulkActions = Boolean(
-    onSelectionModeChange &&
-    (onBulkApprove || onBulkSkip || onBulkHide || onBulkUnhide || onBulkLock || onBulkUnlock),
-  );
+  const isSelecting = canEnterSelectionMode && selectionMode;
+  const showBulkBar = isSelecting && selectedCount > 0;
   const hasActiveFilter = queueFilter !== "all";
-  const hasActiveSort = queueSort !== "file_order";
-  const showSort = Boolean(onQueueSortChange) && availableQueueSorts.includes("untranslated_first");
   // Placeholder reuse or a not-yet-ingested cache hit can keep chrome mounted
   // while the store still holds the previous page — never treat those ids as
   // bulk targets.
   const bulkTargetsReady = !isQueueLoading;
   const selectableVisibleCount = bulkTargetsReady ? visibleCount : 0;
 
+  useHotkeys("escape", () => onSelectionModeChange?.(false), {
+    enabled: isSelecting && !isBulkActionPending,
+  });
+
+  const selectAllButton = onSelectAllVisible ? (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="h-8 text-xs"
+      onClick={onSelectAllVisible}
+      disabled={selectableVisibleCount === 0 || isBulkActionPending}
+    >
+      <FormattedMessage
+        {...contentEditorBulkBarMessages.selectAllVisible}
+        values={{ count: selectableVisibleCount }}
+      />
+    </Button>
+  ) : null;
+
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
-      {onSearchChange ? (
-        <div className="relative min-w-0 flex-1 basis-40">
-          <HugeiconsIcon
-            icon={SearchIcon}
-            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={intl.formatMessage(contentEditorQueuePanelMessages.searchPlaceholder)}
-            aria-label={intl.formatMessage(contentEditorQueuePanelMessages.searchAria)}
-            className="h-8 pl-9 font-mono text-xs"
-          />
-          {isSearching ? (
-            <Spinner className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" />
+      {showBulkBar ? (
+        <ContentEditorBulkBar
+          selectedCount={selectedCount}
+          canMutate={bulkTargetsReady && !isBulkActionPending}
+          isBulkActionPending={isBulkActionPending}
+          bulkProgress={bulkProgress}
+          selectAllButton={selectAllButton}
+          onClearChecked={onClearChecked}
+          onBulkApprove={onBulkApprove}
+          onBulkSkip={onBulkSkip}
+          onBulkHide={onBulkHide}
+          onBulkUnhide={onBulkUnhide}
+          onBulkLock={onBulkLock}
+          onBulkUnlock={onBulkUnlock}
+          onDone={() => onSelectionModeChange?.(false)}
+        />
+      ) : (
+        <>
+          {onSearchChange ? (
+            <div className="relative min-w-0 flex-1 basis-40">
+              <HugeiconsIcon
+                icon={SearchIcon}
+                className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder={intl.formatMessage(contentEditorQueuePanelMessages.searchPlaceholder)}
+                aria-label={intl.formatMessage(contentEditorQueuePanelMessages.searchAria)}
+                className="h-8 pl-9 font-mono text-xs"
+              />
+              {isSearching ? (
+                <Spinner className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" />
+              ) : null}
+            </div>
           ) : null}
-        </div>
-      ) : null}
+
+          {onQueueFilterChange ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-8 shrink-0 gap-1.5 font-normal",
+                      hasActiveFilter && "border-grove-400/40",
+                    )}
+                    aria-label={intl.formatMessage(contentEditorQueuePanelMessages.filterQueueAria)}
+                  />
+                }
+              >
+                <HugeiconsIcon icon={FilterIcon} className="size-3.5" />
+                <span className="text-xs">
+                  <FormattedMessage {...queueFilterMessageByValue[queueFilter]} />
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <FormattedMessage {...contentEditorQueuePanelMessages.filterQueueAria} />
+                  </DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={queueFilter}
+                    onValueChange={(value) =>
+                      onQueueFilterChange(value as ContentEditorQueueFilter)
+                    }
+                  >
+                    {availableQueueFilters.map((filterValue) => (
+                      <DropdownMenuRadioItem key={filterValue} value={filterValue}>
+                        <FormattedMessage {...queueFilterMessageByValue[filterValue]} />
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+
+          {isSelecting ? selectAllButton : null}
+        </>
+      )}
 
       <div className="flex shrink-0 items-center gap-1.5">
-        {onQueueFilterChange ? (
-          <DropdownMenu>
-            {bulkProgress ? (
-              <span role="status" className="text-xs text-muted-foreground tabular-nums">
-                {bulkProgress}
-              </span>
-            ) : null}
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "h-8 gap-1.5 font-normal",
-                    hasActiveFilter && "border-grove-400/40",
-                  )}
-                  aria-label={intl.formatMessage(contentEditorQueuePanelMessages.filterQueueAria)}
-                />
-              }
-            >
-              <HugeiconsIcon icon={FilterIcon} className="size-3.5" />
-              <span className="text-xs">
-                <FormattedMessage {...queueFilterMessageByValue[queueFilter]} />
-              </span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>
-                  <FormattedMessage {...contentEditorQueuePanelMessages.filterQueueAria} />
-                </DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={queueFilter}
-                  onValueChange={(value) => onQueueFilterChange(value as ContentEditorQueueFilter)}
-                >
-                  {availableQueueFilters.map((filterValue) => (
-                    <DropdownMenuRadioItem key={filterValue} value={filterValue}>
-                      <FormattedMessage {...queueFilterMessageByValue[filterValue]} />
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {canEnterSelectionMode && !showBulkBar ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn("h-8 gap-1.5 font-normal", isSelecting && "border-foreground bg-muted")}
+            aria-pressed={isSelecting}
+            onClick={() => onSelectionModeChange?.(!isSelecting)}
+          >
+            <HugeiconsIcon icon={CheckListIcon} className="size-3.5" aria-hidden />
+            <span className="text-xs">
+              <FormattedMessage {...contentEditorBulkBarMessages.select} />
+            </span>
+          </Button>
         ) : null}
+        <ContentEditorViewMenu
+          showPersona={adaptiveWorkspaceEnabled}
+          queueSort={queueSort}
+          onQueueSortChange={onQueueSortChange}
+          availableQueueSorts={availableQueueSorts}
+        />
+        <ContentEditorOverflowMenu
+          filterLabel={intl.formatMessage(queueFilterMessageByValue[queueFilter])}
+          onDownloadFilteredView={onDownloadFilteredView}
+          isDownloadingFilteredView={isDownloadingFilteredView}
+        />
+      </div>
+    </div>
+  );
+}
 
-        {showSort ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "size-8 shrink-0 px-0 font-normal",
-                    hasActiveSort && "border-grove-400/40",
-                  )}
-                  aria-label={intl.formatMessage(contentEditorQueuePanelMessages.sortQueueAria)}
-                />
-              }
-            >
-              <HugeiconsIcon icon={Sorting01Icon} className="size-3.5" />
-              <span className="sr-only">
-                <FormattedMessage {...queueSortMessageByValue[queueSort]} />
-              </span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>
-                  <FormattedMessage {...contentEditorQueuePanelMessages.sortQueueAria} />
-                </DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={queueSort}
-                  onValueChange={(value) => onQueueSortChange?.(value as ContentEditorQueueSort)}
-                >
-                  {availableQueueSorts.map((sortValue) => (
-                    <DropdownMenuRadioItem key={sortValue} value={sortValue}>
-                      <FormattedMessage {...queueSortMessageByValue[sortValue]} />
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
+function ContentEditorBulkBar({
+  selectedCount,
+  canMutate,
+  isBulkActionPending,
+  bulkProgress,
+  selectAllButton,
+  onClearChecked,
+  onBulkApprove,
+  onBulkSkip,
+  onBulkHide,
+  onBulkUnhide,
+  onBulkLock,
+  onBulkUnlock,
+  onDone,
+}: {
+  selectedCount: number;
+  canMutate: boolean;
+  isBulkActionPending: boolean;
+  bulkProgress?: string;
+  selectAllButton: ReactNode;
+  onClearChecked?: () => void;
+  onBulkApprove?: () => void;
+  onBulkSkip?: () => void;
+  onBulkHide?: () => void;
+  onBulkUnhide?: () => void;
+  onBulkLock?: () => void;
+  onBulkUnlock?: () => void;
+  onDone: () => void;
+}) {
+  const intl = useIntl();
+  const moreActions = [
+    { key: "hide", handler: onBulkHide, message: contentEditorQueuePanelMessages.bulkHide },
+    { key: "unhide", handler: onBulkUnhide, message: contentEditorQueuePanelMessages.bulkUnhide },
+    { key: "lock", handler: onBulkLock, message: contentEditorQueuePanelMessages.bulkLock },
+    { key: "unlock", handler: onBulkUnlock, message: contentEditorQueuePanelMessages.bulkUnlock },
+  ].filter((action) => Boolean(action.handler));
 
-        {onDownloadFilteredView ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="size-8 shrink-0 px-0 font-normal"
-                  disabled={isDownloadingFilteredView}
-                  aria-label={intl.formatMessage(
-                    contentEditorQueuePanelMessages.downloadFilteredAria,
-                  )}
-                />
-              }
-            >
-              {isDownloadingFilteredView ? (
-                <Spinner className="size-3.5" />
-              ) : (
-                <HugeiconsIcon icon={Download01Icon} className="size-3.5" />
-              )}
-              <span className="sr-only">
-                <FormattedMessage {...contentEditorQueuePanelMessages.downloadFiltered} />
-              </span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
+  return (
+    <div
+      role="toolbar"
+      aria-label={intl.formatMessage(contentEditorBulkBarMessages.barAria)}
+      className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2 py-0.5"
+    >
+      <span role="status" className="px-1 text-xs font-medium text-foreground tabular-nums">
+        <FormattedMessage
+          {...contentEditorBulkBarMessages.selectedCount}
+          values={{ count: selectedCount }}
+        />
+      </span>
+      {selectAllButton}
+      {onBulkApprove ? (
+        <Button
+          type="button"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={onBulkApprove}
+          disabled={!canMutate}
+        >
+          <FormattedMessage {...contentEditorQueuePanelMessages.bulkApprove} />
+        </Button>
+      ) : null}
+      {onBulkSkip ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={onBulkSkip}
+          disabled={!canMutate}
+        >
+          <FormattedMessage {...contentEditorQueuePanelMessages.bulkSkip} />
+        </Button>
+      ) : null}
+      {moreActions.length > 0 || onClearChecked ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs font-normal"
+                disabled={isBulkActionPending}
+              />
+            }
+          >
+            <FormattedMessage {...contentEditorBulkBarMessages.more} />
+            <HugeiconsIcon icon={ArrowDown01Icon} className="size-3" aria-hidden />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            {moreActions.length > 0 ? (
               <DropdownMenuGroup>
-                <DropdownMenuLabel>
-                  <FormattedMessage
-                    {...contentEditorQueuePanelMessages.downloadFilteredFormatLabel}
-                  />
-                </DropdownMenuLabel>
-                {contentEditorFilteredExportFormats.map((format) => (
-                  <DropdownMenuItem key={format} onClick={() => onDownloadFilteredView(format)}>
-                    {format.toUpperCase()}
+                {moreActions.map((action) => (
+                  <DropdownMenuItem key={action.key} onClick={action.handler} disabled={!canMutate}>
+                    <FormattedMessage {...action.message} />
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-
-        {canEnterSelectionMode ? (
-          <label
-            className={cn(
-              "flex size-8 cursor-pointer items-center justify-center rounded-lg border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-              // Translator persona: use a slightly more prominent outlined style so
-              // bulk-select is clearly accessible as a first-class action.
-              adaptiveWorkspaceEnabled && resolvedPersona === "translator"
-                ? "border-border bg-muted/60 text-foreground"
-                : "border-border",
-            )}
-            title={
-              adaptiveWorkspaceEnabled && resolvedPersona === "translator"
-                ? intl.formatMessage(contentEditorQueuePanelMessages.showSelectionAria)
-                : undefined
-            }
-          >
-            <input
-              type="checkbox"
-              className="size-3.5 rounded border-input accent-foreground"
-              checked={selectionMode}
-              aria-label={intl.formatMessage(contentEditorQueuePanelMessages.showSelectionAria)}
-              onChange={(event) => onSelectionModeChange?.(event.currentTarget.checked)}
-            />
-            <span className="sr-only">
-              <FormattedMessage {...contentEditorQueuePanelMessages.showSelection} />
-            </span>
-          </label>
-        ) : null}
-
-        {selectionMode && hasBulkActions ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  className="size-8 shrink-0"
-                  aria-label={intl.formatMessage(contentEditorQueuePanelMessages.queueActionsAria)}
-                  disabled={isBulkActionPending}
-                />
-              }
-            >
-              {isBulkActionPending ? (
-                <Spinner className="size-3.5" />
-              ) : (
-                <HugeiconsIcon icon={MoreHorizontalCircle01Icon} className="size-4" />
-              )}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
+            ) : null}
+            {moreActions.length > 0 && onClearChecked ? <DropdownMenuSeparator /> : null}
+            {onClearChecked ? (
               <DropdownMenuGroup>
-                <DropdownMenuLabel>
-                  {selectedCount > 0 ? (
-                    <FormattedMessage
-                      {...contentEditorQueuePanelMessages.bulkSelectionSummary}
-                      values={{ count: selectedCount }}
-                    />
-                  ) : (
-                    <FormattedMessage {...contentEditorQueuePanelMessages.queueActionsAria} />
-                  )}
-                </DropdownMenuLabel>
-                {onSelectAllVisible ? (
-                  <DropdownMenuItem
-                    onClick={onSelectAllVisible}
-                    disabled={selectableVisibleCount === 0}
-                  >
-                    <FormattedMessage {...contentEditorQueuePanelMessages.bulkSelectAll} />
-                  </DropdownMenuItem>
-                ) : null}
-                {onClearChecked ? (
-                  <DropdownMenuItem onClick={onClearChecked} disabled={selectedCount === 0}>
-                    <FormattedMessage {...contentEditorQueuePanelMessages.bulkClearSelection} />
-                  </DropdownMenuItem>
-                ) : null}
+                <DropdownMenuItem onClick={onClearChecked} disabled={isBulkActionPending}>
+                  <FormattedMessage {...contentEditorQueuePanelMessages.bulkClearSelection} />
+                </DropdownMenuItem>
               </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                {onBulkApprove ? (
-                  <DropdownMenuItem
-                    onClick={onBulkApprove}
-                    disabled={!bulkTargetsReady || selectedCount === 0}
-                  >
-                    <FormattedMessage {...contentEditorQueuePanelMessages.bulkApprove} />
-                  </DropdownMenuItem>
-                ) : null}
-                {onBulkSkip ? (
-                  <DropdownMenuItem
-                    onClick={onBulkSkip}
-                    disabled={!bulkTargetsReady || selectedCount === 0}
-                  >
-                    <FormattedMessage {...contentEditorQueuePanelMessages.bulkSkip} />
-                  </DropdownMenuItem>
-                ) : null}
-                {onBulkHide ? (
-                  <DropdownMenuItem
-                    onClick={onBulkHide}
-                    disabled={!bulkTargetsReady || selectedCount === 0}
-                  >
-                    <FormattedMessage {...contentEditorQueuePanelMessages.bulkHide} />
-                  </DropdownMenuItem>
-                ) : null}
-                {onBulkUnhide ? (
-                  <DropdownMenuItem
-                    onClick={onBulkUnhide}
-                    disabled={!bulkTargetsReady || selectedCount === 0}
-                  >
-                    <FormattedMessage {...contentEditorQueuePanelMessages.bulkUnhide} />
-                  </DropdownMenuItem>
-                ) : null}
-                {onBulkLock ? (
-                  <DropdownMenuItem
-                    onClick={onBulkLock}
-                    disabled={!bulkTargetsReady || selectedCount === 0}
-                  >
-                    <FormattedMessage {...contentEditorQueuePanelMessages.bulkLock} />
-                  </DropdownMenuItem>
-                ) : null}
-                {onBulkUnlock ? (
-                  <DropdownMenuItem
-                    onClick={onBulkUnlock}
-                    disabled={!bulkTargetsReady || selectedCount === 0}
-                  >
-                    <FormattedMessage {...contentEditorQueuePanelMessages.bulkUnlock} />
-                  </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-
-        {adaptiveWorkspaceEnabled ? <ContentEditorWorkspacePersonaSwitcherConnected /> : null}
-        <ContentEditorWorkspaceViewSwitcherConnected />
-      </div>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+      {isBulkActionPending ? (
+        <span role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Spinner className="size-3" />
+          {bulkProgress ? <span className="tabular-nums">{bulkProgress}</span> : null}
+        </span>
+      ) : null}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="ms-auto h-7 text-xs"
+        onClick={onDone}
+        disabled={isBulkActionPending}
+      >
+        <FormattedMessage {...contentEditorBulkBarMessages.done} />
+      </Button>
     </div>
   );
 }

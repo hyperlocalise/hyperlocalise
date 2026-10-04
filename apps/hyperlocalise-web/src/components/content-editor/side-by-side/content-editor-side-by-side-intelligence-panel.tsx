@@ -25,22 +25,16 @@ import { Column } from "@/components/ui/layout/column";
 import { Columns } from "@/components/ui/layout/columns";
 import { Row } from "@/components/ui/layout/row";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Text } from "@/components/ui/typography";
-import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 
 import { ContentEditorEditorCommentsSection } from "@/components/content-editor/editor/content-editor-editor-comments-section";
 import { ContentEditorEditorFormatChecksSection } from "@/components/content-editor/editor/content-editor-editor-format-checks-section";
-import { ContentEditorEditorShortcutKbd } from "@/components/content-editor/editor/content-editor-editor-shortcut-kbd";
 import { ContentEditorIntelligencePanel } from "@/components/content-editor/intelligence/content-editor-intelligence-panel";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { isNativeContentEditorProviderKind } from "@/components/content-editor/shared/content-editor-native-project";
-import {
-  contentEditorEditorPanelMessages,
-  contentEditorSideBySidePanelMessages,
-} from "@/components/content-editor/shared/content-editor.messages";
+import { contentEditorSideBySidePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type {
   ContentEditorFormatCheck,
   ContentEditorSegment,
@@ -128,7 +122,6 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
     onGlossaryTermAdded?: () => void;
   }) {
     const intl = useIntl();
-    const isMac = useIsMac();
     const workspace = useContentEditorWorkspace();
     const fileContext = workspace.fileContext;
     const qaDetailsRevealNonce = workspace.ui.qaDetailsRevealNonce;
@@ -187,29 +180,6 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
       );
     }
 
-    const findContextButton = onAskQuestion ? (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={onAskQuestion}
-        disabled={!canTriggerFindContext}
-        title={
-          canLookupFreshContext
-            ? intl.formatMessage(contentEditorEditorPanelMessages.findContextTitle)
-            : intl.formatMessage(contentEditorEditorPanelMessages.findContextUnavailableTitle)
-        }
-      >
-        {isLookingUpContext ? <Spinner className="size-3.5" /> : null}
-        {isLookingUpContext ? (
-          <FormattedMessage {...contentEditorEditorPanelMessages.findingContext} />
-        ) : (
-          <FormattedMessage {...contentEditorEditorPanelMessages.findContext} />
-        )}
-        <ContentEditorEditorShortcutKbd shortcut="findContext" isMac={isMac} />
-      </Button>
-    ) : null;
-
     const intelligencePanel = (
       <ContentEditorIntelligencePanel
         intelligence={intelligence}
@@ -244,7 +214,8 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         onUseTmMatch={onUseTmMatch}
         onSetMaxLength={segment.isLocked ? undefined : onSetMaxLength}
         onGlossaryTermAdded={onGlossaryTermAdded}
-        headerAction={findContextButton}
+        canTriggerFindContext={canTriggerFindContext}
+        onFindContext={onAskQuestion}
         embedded
       />
     );

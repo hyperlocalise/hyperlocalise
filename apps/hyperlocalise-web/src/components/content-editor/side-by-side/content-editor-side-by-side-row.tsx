@@ -16,7 +16,6 @@ import {
   Copy01Icon,
   EraserIcon,
   Image01Icon,
-  Message01Icon,
   SaveIcon,
   TranslateIcon,
   Video01Icon,
@@ -27,7 +26,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { SegmentActivityButton } from "../activity-log/content-editor-segment-activity";
+import { useSegmentActivityOpener } from "../activity-log/content-editor-segment-activity";
 import {
   ContentEditorDifferentTranslationsBadge,
   ContentEditorGroupVariantsGate,
@@ -72,7 +71,7 @@ import {
 } from "@/components/content-editor/segment/content-editor-segment-status";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { ContentEditorSegmentTags } from "@/components/content-editor/segment/content-editor-segment-tags";
-import { ContentEditorShareSegmentButton } from "@/components/content-editor/segment/content-editor-share-segment-button";
+import { ContentEditorSegmentActionsMenu } from "@/components/content-editor/segment/content-editor-segment-actions-menu";
 import {
   contentEditorEditorPanelMessages,
   contentEditorSideBySidePanelMessages,
@@ -180,6 +179,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   const intl = useIntl();
   const isMac = useIsMac();
   const upgradeHref = useAiFeaturesUpgradeHref();
+  const openActivity = useSegmentActivityOpener();
   const [isPointerHovered, setIsPointerHovered] = useState(false);
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorEditorPanelMessages.approve);
@@ -244,16 +244,13 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
     !isFocused && !isAssetSegment && (isFormatChecksLoading || formatChecks.length > 0);
   const showInlineQa =
     isFocused && !isAssetSegment && (isFormatChecksLoading || qaIssues.length > 0);
-  const showActionBar = showReviewActions || showIssueSheetAction;
+  const showStringMenu =
+    isFocused && (Boolean(segmentShareUrl) || showIssueSheetAction || Boolean(openActivity));
+  const showActionBar = showReviewActions || showStringMenu;
   const copySourceLabel = intl.formatMessage(contentEditorEditorPanelMessages.copySource);
   const clearTargetLabel = intl.formatMessage(contentEditorEditorPanelMessages.clearTarget);
   const segmentTags = segment.tags ?? [];
   const hasTranslationVariants = useHasGroupTranslationVariants(segment, segment.targetLocale);
-  const showShareButton = isFocused && Boolean(segmentShareUrl);
-  const shareButton =
-    showShareButton && segmentShareUrl ? (
-      <ContentEditorShareSegmentButton segmentShareUrl={segmentShareUrl} size="icon-sm" />
-    ) : null;
   const statusBadges = (
     <Box display="flex" flexWrap="wrap" alignItems="center" gap="0.5u">
       {isTargetLoading || !shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? null : (
@@ -301,32 +298,31 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
         />
       </Button>
     ) : null;
-  const copyClearActions =
-    showCopyClearActions || showShareButton ? (
-      <TooltipProvider>
-        <Box display="flex" alignItems="center" gap="0.5u">
-          {showCopyClearActions ? (
-            <IconActionButton
-              label={copySourceLabel}
-              disabled={isTargetLoading}
-              onClick={() => onTargetChange(segment.sourceText)}
-            >
-              <HugeiconsIcon icon={Copy01Icon} className="size-4" aria-hidden />
-            </IconActionButton>
-          ) : null}
-          {shareButton}
-          {showCopyClearActions ? (
-            <IconActionButton
-              label={clearTargetLabel}
-              disabled={isTargetLoading || segment.targetText.length === 0}
-              onClick={() => onTargetChange("")}
-            >
-              <HugeiconsIcon icon={EraserIcon} className="size-4" aria-hidden />
-            </IconActionButton>
-          ) : null}
-        </Box>
-      </TooltipProvider>
-    ) : null;
+  const copyClearActions = showCopyClearActions ? (
+    <TooltipProvider>
+      <div
+        className={cn(
+          "flex items-center gap-0.5 transition-opacity",
+          !isFocused && "opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100",
+        )}
+      >
+        <IconActionButton
+          label={copySourceLabel}
+          disabled={isTargetLoading}
+          onClick={() => onTargetChange(segment.sourceText)}
+        >
+          <HugeiconsIcon icon={Copy01Icon} className="size-4" aria-hidden />
+        </IconActionButton>
+        <IconActionButton
+          label={clearTargetLabel}
+          disabled={isTargetLoading || segment.targetText.length === 0}
+          onClick={() => onTargetChange("")}
+        >
+          <HugeiconsIcon icon={EraserIcon} className="size-4" aria-hidden />
+        </IconActionButton>
+      </div>
+    </TooltipProvider>
+  ) : null;
 
   useHotkeys(
     "mod+enter",
@@ -387,27 +383,18 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
       ) : null}
     </>
   ) : null;
-  const secondaryActions = showActionBar ? (
-    <>
-      {showIssueSheetAction ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onAddToIssueSheet}
-          disabled={isActionBlocked}
-        >
-          <HugeiconsIcon icon={Message01Icon} className="size-3.5" strokeWidth={2} />
-          <FormattedMessage {...contentEditorEditorPanelMessages.queryAction} />
-        </Button>
-      ) : null}
-      <SegmentActivityButton
-        segmentId={segment.id}
-        sourcePath={segment.sourcePath}
-        targetLocale={segment.targetLocale}
-        label={segment.key}
-      />
-    </>
+  const secondaryActions = showStringMenu ? (
+    <ContentEditorSegmentActionsMenu
+      segmentShareUrl={segmentShareUrl}
+      onAddToIssueSheet={showIssueSheetAction ? onAddToIssueSheet : undefined}
+      isAddToIssueSheetDisabled={isActionBlocked}
+      activity={{
+        segmentId: segment.id,
+        sourcePath: segment.sourcePath,
+        targetLocale: segment.targetLocale,
+        label: segment.key,
+      }}
+    />
   ) : null;
   const renderTargetToolbar = (trigger: ReactNode) => {
     if (!trigger && !showActionBar) {
@@ -430,7 +417,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
     <div
       className={cn(
         SIDE_BY_SIDE_GRID_CLASS_NAME,
-        "gap-y-2 border-b border-border px-4 py-3 transition-colors",
+        "group/row gap-y-2 border-b border-border px-4 py-3 transition-colors",
         isFocused ? "bg-primary/5" : isActive && "bg-muted/40",
       )}
       onMouseEnter={() => setIsPointerHovered(true)}
@@ -544,7 +531,20 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
               ) : isTargetLoading && !segment.targetText.trim() ? (
                 <Skeleton className="h-10 w-full rounded-lg" />
               ) : (
-                <ContentEditorGroupVariantsGate segment={segment} locale={segment.targetLocale}>
+                <ContentEditorGroupVariantsGate
+                  segment={segment}
+                  locale={segment.targetLocale}
+                  ai={
+                    intelligence && (canUseAiRecommendation || Boolean(upgradeHref))
+                      ? {
+                          intelligence,
+                          isLoading: Boolean(isAiSuggestionLoading),
+                          error: aiRecommendationError,
+                          onGenerateAiRecommendation,
+                        }
+                      : undefined
+                  }
+                >
                   <Rows spacing="1.5u">
                     <ContentEditorTargetEditor
                       sourceText={segment.sourceText}

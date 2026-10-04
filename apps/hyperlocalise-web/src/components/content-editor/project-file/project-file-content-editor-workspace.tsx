@@ -422,7 +422,7 @@ export function ProjectFileContentEditorWorkspace({
         {
           sourceText: segment.sourceText,
           targetText: value,
-          sourcePath,
+          sourcePath: segment.sourcePath?.trim() || sourcePath,
           targetLocale: segment.targetLocale,
           maxLength: segment.maxLength,
           acceptedWords: spellcheckDictionary.acceptedWords,
@@ -1065,7 +1065,17 @@ export function ProjectFileContentEditorWorkspace({
       }
       const [representative] = occurrences;
       if (!representative) return;
-      await assertQaSaveAllowed(segment, locale, text);
+      for (const occurrence of occurrences) {
+        await assertQaSaveAllowed(
+          {
+            sourceText: segment.sourceText,
+            sourcePath: occurrence.sourcePath,
+            maxLength: occurrence.maxLength,
+          },
+          locale,
+          text,
+        );
+      }
       await saveTranslation({
         externalStringId: representative.id,
         targetLocale: locale,

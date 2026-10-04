@@ -21,15 +21,12 @@ import { Button } from "@/components/ui/button";
 
 import { ContentEditorHiddenStringBadge } from "@/components/content-editor/segment/content-editor-hidden-string-badge";
 import { ContentEditorLockedStringBadge } from "@/components/content-editor/segment/content-editor-locked-string-badge";
+import { ContentEditorSegmentActionsMenu } from "@/components/content-editor/segment/content-editor-segment-actions-menu";
 import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
 } from "@/components/content-editor/segment/content-editor-segment-status";
-import { ContentEditorShareSegmentButton } from "@/components/content-editor/segment/content-editor-share-segment-button";
-import {
-  contentEditorEditorPanelMessages,
-  contentEditorLockedStringMessages,
-} from "@/components/content-editor/shared/content-editor.messages";
+import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 
 import { getCatShortcutLabel } from "./content-editor-keyboard-shortcuts";
@@ -45,8 +42,10 @@ export function ContentEditorEditorHeader({
   isMac,
   onPrevious,
   onNext,
+  isNavigationBlocked = false,
   canEditTranslations = false,
   onToggleLocked,
+  onAddToIssueSheet,
 }: {
   segment: ContentEditorSegment;
   segmentPosition: number;
@@ -58,8 +57,10 @@ export function ContentEditorEditorHeader({
   isMac: boolean;
   onPrevious: () => void;
   onNext: () => void;
+  isNavigationBlocked?: boolean;
   canEditTranslations?: boolean;
   onToggleLocked?: () => void;
+  onAddToIssueSheet?: () => void;
 }) {
   const intl = useIntl();
 
@@ -87,23 +88,24 @@ export function ContentEditorEditorHeader({
         ) : null}
       </div>
       <div className="flex items-center gap-1">
-        {canEditTranslations && onToggleLocked ? (
-          <Button variant="outline" size="xs" onClick={onToggleLocked}>
-            <FormattedMessage
-              {...(segment.isLocked
-                ? contentEditorLockedStringMessages.unlock
-                : contentEditorLockedStringMessages.lock)}
-            />
-          </Button>
-        ) : null}
-        {segmentShareUrl ? (
-          <ContentEditorShareSegmentButton segmentShareUrl={segmentShareUrl} />
-        ) : null}
+        <ContentEditorSegmentActionsMenu
+          segmentShareUrl={segmentShareUrl}
+          onAddToIssueSheet={onAddToIssueSheet}
+          isAddToIssueSheetDisabled={isNavigationBlocked}
+          isLocked={segment.isLocked}
+          onToggleLocked={canEditTranslations ? onToggleLocked : undefined}
+          activity={{
+            segmentId: segment.id,
+            sourcePath: segment.sourcePath,
+            targetLocale: segment.targetLocale,
+            label: segment.key,
+          }}
+        />
         <Button
           variant="ghost"
           size="icon-sm"
           onClick={onPrevious}
-          disabled={!hasPreviousSegment}
+          disabled={isNavigationBlocked || !hasPreviousSegment}
           aria-label={intl.formatMessage(contentEditorEditorPanelMessages.previousSegmentAria)}
           title={intl.formatMessage(contentEditorEditorPanelMessages.previousSegmentTitle, {
             shortcut: getCatShortcutLabel(isMac, "previous"),
@@ -115,7 +117,7 @@ export function ContentEditorEditorHeader({
           variant="ghost"
           size="icon-sm"
           onClick={onNext}
-          disabled={!hasNextSegment}
+          disabled={isNavigationBlocked || !hasNextSegment}
           aria-label={intl.formatMessage(contentEditorEditorPanelMessages.nextSegmentAria)}
           title={intl.formatMessage(contentEditorEditorPanelMessages.nextSegmentTitle, {
             shortcut: getCatShortcutLabel(isMac, "next"),

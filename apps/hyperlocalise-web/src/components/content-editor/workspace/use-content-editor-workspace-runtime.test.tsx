@@ -180,6 +180,24 @@ describe("useContentEditorWorkspaceRuntime", () => {
     expect(store.getSegmentView("seg-02")?.targetText).toBe("Suggestion IA");
   });
 
+  it("does not write a TM match to the hidden single-target draft while variant editors are expected", () => {
+    const { result, store } = renderController();
+    store.groupVariants.expect("seg-02", "vi");
+
+    act(() => {
+      result.current.dependencies.editing.onUseTmMatch("seg-02", {
+        id: "tm-1",
+        sourceText: "Second",
+        targetText: "Deuxième",
+        matchPercent: 100,
+      });
+    });
+
+    expect(store.getSegmentView("seg-02")?.targetText).toBe("");
+    expect(store.dirtySegmentIds.has("seg-02")).toBe(false);
+    expect(store.groupVariants.takeHeldText("seg-02", "vi")).toBe("Deuxième");
+  });
+
   it("forwards onSetMaxLength from editing overrides", () => {
     const onSetMaxLength = vi.fn();
     const { result } = renderController(undefined, {

@@ -12,7 +12,8 @@
  */
 // @vitest-environment happy-dom
 
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
@@ -27,16 +28,17 @@ describe("HeroFrame", () => {
   });
 
   it("starts the homepage CAT demo in comfortable view without changing the persisted workspace preference", async () => {
+    const user = userEvent.setup();
     window.localStorage.setItem(CAT_VIEW_MODE_STORAGE_KEY, "side-by-side");
 
     renderWithContentEditorProviders(<HeroFrame />);
 
-    const viewModeButton = await waitFor(() =>
-      screen.getByRole("button", { name: "Content Editor view mode" }),
+    expect(await screen.findByText("Translation Intelligence")).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "View options" }));
+    expect(await screen.findByRole("menuitemradio", { name: "Comfortable" })).toHaveAttribute(
+      "aria-checked",
+      "true",
     );
-
-    expect(viewModeButton).toHaveTextContent("Comfortable");
-    expect(screen.getByText("Translation Intelligence")).toBeInTheDocument();
     expect(window.localStorage.getItem(CAT_VIEW_MODE_STORAGE_KEY)).toBe("side-by-side");
   });
 });
