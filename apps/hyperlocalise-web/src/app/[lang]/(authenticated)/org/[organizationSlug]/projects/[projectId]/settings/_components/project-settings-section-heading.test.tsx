@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { Settings01Icon } from "@hugeicons/core-free-icons";
+import { GearIcon } from "@phosphor-icons/react/ssr";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -22,7 +22,7 @@ describe("ProjectSettingsSectionHeading", () => {
   it("renders a colored icon chip next to the section title", () => {
     render(
       <ProjectSettingsSectionHeading
-        icon={Settings01Icon}
+        icon={GearIcon}
         tone="dew"
         title="General"
         description="Name the project"

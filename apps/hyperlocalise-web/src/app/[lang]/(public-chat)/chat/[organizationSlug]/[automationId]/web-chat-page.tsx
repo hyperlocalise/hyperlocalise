@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { DefaultChatTransport, readUIMessageStream, type UIMessage } from "ai";
-import { ImageAdd01Icon, SentIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ImageSquareIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -336,7 +335,7 @@ export function WebChatPage({
                 disabled={sendMutation.isPending}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <HugeiconsIcon icon={ImageAdd01Icon} strokeWidth={1.8} className="size-5" />
+                <ImageSquareIcon className="size-5" />
               </Button>
               <Textarea
                 value={draft}
@@ -360,7 +359,7 @@ export function WebChatPage({
                   sendMutation.isPending ? webChatPageMessages.sending : webChatPageMessages.send,
                 )}
               >
-                <HugeiconsIcon icon={SentIcon} strokeWidth={1.8} className="size-5" />
+                <PaperPlaneTiltIcon className="size-5" />
               </Button>
             </div>
           </form>

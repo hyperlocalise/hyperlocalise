@@ -12,10 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { createElement, useState, type KeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowDown01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -78,7 +77,7 @@ function StatusGroupHeader({
 }) {
   const intl = useIntl();
   const label = issueStatusLabel(intl, status);
-  const chevron = collapsed ? ArrowRight01Icon : ArrowDown01Icon;
+  const chevron = collapsed ? ArrowRightIcon : CaretDownIcon;
 
   return (
     <button
@@ -93,7 +92,7 @@ function StatusGroupHeader({
       )}
       onClick={onToggle}
     >
-      <HugeiconsIcon icon={chevron} strokeWidth={2} className="size-3.5 text-muted-foreground" />
+      {createElement(chevron, { className: "size-3.5 text-muted-foreground" })}
       <IssueStatusIcon status={status} />
       <span>{label}</span>
       <span className="text-muted-foreground tabular-nums">{count}</span>

@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { type ReactNode, useId } from "react";
-import { Globe02Icon } from "@hugeicons/core-free-icons";
+import { GlobeIcon } from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -119,7 +119,7 @@ const DomainResearchShellView = observer(function DomainResearchShellView({
     <WorkspacePageShell className="gap-5">
       <div className={styles.header}>
         <PageHeader
-          icon={Globe02Icon}
+          icon={GlobeIcon}
           label={intl.formatMessage(messages.sectionLabel)}
           title={domain.domainKey}
           actions={

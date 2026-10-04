@@ -12,10 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import { createElement, forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion";
-import { HugeiconsIcon } from "@hugeicons/react";
 
 import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
@@ -109,7 +108,7 @@ export const MarkdownSlashCommandList = forwardRef<
               onClick={() => command(item)}
             >
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background text-muted-foreground">
-                <HugeiconsIcon icon={item.icon} strokeWidth={1.8} className="size-3.5" />
+                {createElement(item.icon, { className: "size-3.5" })}
               </span>
               <span className="min-w-0 flex-1 truncate font-medium leading-5">{item.title}</span>
               {shortcutLabel ? (

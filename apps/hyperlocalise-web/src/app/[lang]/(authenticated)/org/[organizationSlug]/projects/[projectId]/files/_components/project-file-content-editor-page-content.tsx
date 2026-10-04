@@ -15,8 +15,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -333,7 +332,7 @@ function ProjectFileContentEditorPageContentInner({
             <FormattedMessage {...messages.chooseSourceFile} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} />
+            <ArrowLeftIcon />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -383,7 +382,7 @@ function ProjectFileContentEditorPageContentInner({
                 : intl.formatMessage(messages.unableToLoad)}
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} />
+            <ArrowLeftIcon />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -414,7 +413,7 @@ function ProjectFileContentEditorPageContentInner({
             <FormattedMessage {...messages.sourceFileMissing} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} />
+            <ArrowLeftIcon />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -430,7 +429,7 @@ function ProjectFileContentEditorPageContentInner({
             <FormattedMessage {...messages.providerTypeUnsupported} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} />
+            <ArrowLeftIcon />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -489,7 +488,7 @@ function ProjectFileContentEditorPageContentInner({
             <FormattedMessage {...messages.chooseTargetLocale} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} />
+            <ArrowLeftIcon />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>

@@ -12,9 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
-import { ArrowDown01Icon, ArrowUp01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { createElement, useState } from "react";
+import { CaretDownIcon, CaretUpIcon, CopyIcon, CheckIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -189,9 +188,9 @@ function ConceptTermRow({
         onClick={() => void copyTerm()}
       >
         {copyState === "copied" ? (
-          <HugeiconsIcon icon={Tick02Icon} className="size-3" aria-hidden />
+          <CheckIcon className="size-3" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={Copy01Icon} className="size-3" aria-hidden />
+          <CopyIcon className="size-3" aria-hidden />
         )}
         <span className="sr-only">
           {copyState === "copied"
@@ -323,11 +322,10 @@ export function ContentEditorGlossaryConceptCard({
             </Badge>
           ) : null}
         </span>
-        <HugeiconsIcon
-          icon={expanded ? ArrowUp01Icon : ArrowDown01Icon}
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden
-        />
+        {createElement(expanded ? CaretUpIcon : CaretDownIcon, {
+          className: "size-4 shrink-0 text-muted-foreground",
+          "aria-hidden": true,
+        })}
       </button>
 
       {!expanded ? (

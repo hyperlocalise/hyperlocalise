@@ -15,8 +15,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
-import { SentIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PaperPlaneTiltIcon } from "@phosphor-icons/react";
 
 import {
   extractMentionIdsFromMarkdown,
@@ -216,7 +215,7 @@ export function IssueCommentComposer({
             aria-label={intl.formatMessage(messages.send)}
             onClick={() => void handleSubmit()}
           >
-            <HugeiconsIcon icon={SentIcon} strokeWidth={1.8} className="size-3.5" />
+            <PaperPlaneTiltIcon className="size-3.5" />
           </Button>
         </div>
       </div>
@@ -266,7 +265,7 @@ export function IssueCommentComposer({
           aria-label={intl.formatMessage(messages.send)}
           onClick={() => void handleSubmit()}
         >
-          <HugeiconsIcon icon={SentIcon} strokeWidth={1.8} className="size-3.5" />
+          <PaperPlaneTiltIcon className="size-3.5" />
         </Button>
       </div>
     </div>

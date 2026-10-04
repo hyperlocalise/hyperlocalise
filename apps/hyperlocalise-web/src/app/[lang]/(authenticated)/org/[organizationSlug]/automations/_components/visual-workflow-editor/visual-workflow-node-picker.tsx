@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { HugeiconsIcon } from "@hugeicons/react";
-import { useMemo, useState } from "react";
+import { createElement, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Input } from "@/components/ui/input";
@@ -122,7 +121,7 @@ function PickerRow({
       )}
     >
       <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-        <HugeiconsIcon icon={item.icon} className="size-4" strokeWidth={1.8} />
+        {createElement(item.icon, { className: "size-4" })}
       </span>
       <span className="min-w-0">
         <span className="block text-sm font-medium text-foreground">

@@ -13,12 +13,7 @@
  * Version 2.0 or later.
  */
 import { type FormEvent, useEffect, useId, useState } from "react";
-import {
-  CheckmarkCircle02Icon,
-  Copy01Icon,
-  InformationCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckCircleIcon, CopyIcon, InfoIcon } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -356,11 +351,7 @@ export function AddDomainDialog({
                       !active && !complete && "border-border bg-muted/40 text-muted-foreground",
                     )}
                   >
-                    {complete ? (
-                      <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
-                    ) : (
-                      index + 1
-                    )}
+                    {complete ? <CheckCircleIcon /> : index + 1}
                   </span>
                   <span className="truncate">{intl.formatMessage(labels[index]!)}</span>
                   {active ? (
@@ -375,7 +366,7 @@ export function AddDomainDialog({
           </ol>
           {error ? (
             <Alert variant="destructive">
-              <HugeiconsIcon icon={InformationCircleIcon} strokeWidth={1.8} />
+              <InfoIcon />
               <AlertTitle>{intl.formatMessage(messages.errorTitle)}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -486,7 +477,7 @@ export function AddDomainDialog({
                         aria-label={intl.formatMessage(messages.copyTxt)}
                         onClick={() => void copyRecord()}
                       >
-                        <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} />
+                        <CopyIcon />
                       </Button>
                     </dd>
                   </div>
@@ -512,7 +503,7 @@ export function AddDomainDialog({
                         aria-label={intl.formatMessage(messages.copyFile)}
                         onClick={() => void copyRecord()}
                       >
-                        <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} />
+                        <CopyIcon />
                       </Button>
                     </dd>
                   </div>
@@ -531,7 +522,7 @@ export function AddDomainDialog({
                       aria-label={intl.formatMessage(messages.copyMeta)}
                       onClick={() => void copyRecord()}
                     >
-                      <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} />
+                      <CopyIcon />
                     </Button>
                   </div>
                 </div>

@@ -13,12 +13,11 @@
  * Version 2.0 or later.
  */
 import {
-  ArrowUpRight01Icon,
-  Delete02Icon,
-  Edit02Icon,
-  MoreHorizontalCircle01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  ArrowUpRightIcon,
+  TrashIcon,
+  PencilSimpleIcon,
+  DotsThreeCircleIcon,
+} from "@phosphor-icons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -200,7 +199,7 @@ function ProjectRow({
                     }
                     className="text-muted-foreground hover:text-foreground"
                   >
-                    <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={1.8} />
+                    <ArrowUpRightIcon />
                     <span className="sr-only">
                       {intl.formatMessage(projectsTableMessages.openInProviderSrOnly, {
                         projectName: project.name,
@@ -232,7 +231,7 @@ function ProjectRow({
                   />
                 }
               >
-                <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={1.8} />
+                <DotsThreeCircleIcon />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-48">
                 <DropdownMenuGroup>
@@ -243,7 +242,7 @@ function ProjectRow({
                     onClick={() => onEditProject(project)}
                     disabled={isSavingProject}
                   >
-                    <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
+                    <PencilSimpleIcon />
                     <FormattedMessage {...projectsTableMessages.editProject} />
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
@@ -254,7 +253,7 @@ function ProjectRow({
                     onClick={() => onDeleteProject(project)}
                     disabled={isDeletingProject || isSavingProject}
                   >
-                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                    <TrashIcon />
                     <FormattedMessage {...projectsTableMessages.deleteProject} />
                   </DropdownMenuItem>
                 </DropdownMenuGroup>

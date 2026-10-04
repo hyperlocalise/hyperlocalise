@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -454,8 +453,7 @@ export function DomainsPage() {
                 nativeButton={false}
                 render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
               >
-                <FormattedMessage {...messages.requestDemo} />{" "}
-                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                <FormattedMessage {...messages.requestDemo} /> <ArrowRightIcon className="size-4" />
               </Button>
               <Button
                 size="lg"
@@ -559,7 +557,7 @@ export function DomainsPage() {
                   render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
                 >
                   <FormattedMessage {...messages.requestDemo} />{" "}
-                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                  <ArrowRightIcon className="size-4" />
                 </Button>
                 <span className="text-xs text-[#e5edf9]">
                   <FormattedMessage {...messages.ctaNote} />

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, GlobeIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
@@ -95,7 +94,7 @@ const DomainsPageView = observer(function DomainsPageView({
 
   const addDomainAction = allowLinkDomains ? (
     <Button type="button" size="sm" onClick={() => store.openAddDomainDialog()}>
-      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+      <PlusIcon />
       Add a domain
     </Button>
   ) : undefined;
@@ -104,7 +103,7 @@ const DomainsPageView = observer(function DomainsPageView({
     <WorkspacePageShell>
       <div className={styles.header}>
         <PageHeader
-          icon={Globe02Icon}
+          icon={GlobeIcon}
           label="Workspace"
           title="Domains"
           actions={store.hasDomains ? addDomainAction : undefined}

@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
-import { TextFontIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TextTIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -51,11 +50,7 @@ function DictionaryRow({
     <div className="grid gap-3 px-5 py-4 md:grid-cols-[1.6fr_0.8fr_0.8fr] md:items-center">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <HugeiconsIcon
-            icon={TextFontIcon}
-            strokeWidth={1.7}
-            className="size-4 shrink-0 text-muted-foreground"
-          />
+          <TextTIcon className="size-4 shrink-0 text-muted-foreground" />
           <OrgNavLink
             href={`/org/${organizationSlug}/dictionaries/${dictionary.id}`}
             prefetch

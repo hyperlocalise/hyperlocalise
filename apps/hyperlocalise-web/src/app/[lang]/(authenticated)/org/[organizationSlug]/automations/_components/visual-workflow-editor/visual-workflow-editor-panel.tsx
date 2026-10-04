@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Cancel01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { XIcon, PlusIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -53,7 +52,7 @@ export function VisualWorkflowEditorPanel({
           className="absolute end-3 bottom-16 z-10 md:hidden"
           onClick={onOpenPicker}
         >
-          <HugeiconsIcon icon={PlusSignIcon} className="size-4" strokeWidth={2} />
+          <PlusIcon className="size-4" />
           <FormattedMessage {...messages.addNode} />
         </Button>
       )}
@@ -74,7 +73,7 @@ export function VisualWorkflowEditorPanel({
             aria-label={closeLabel}
             onClick={onClose}
           >
-            <HugeiconsIcon icon={Cancel01Icon} className="size-4" strokeWidth={2} />
+            <XIcon className="size-4" />
           </Button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>

@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useId, useMemo, useState } from "react";
-import { Add01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, CaretDownIcon } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -373,7 +372,7 @@ export function ContentEditorAddToGlossary({
               }
             >
               <span className="min-w-0 truncate">{glossaryName}</span>
-              <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="size-3" />
+              <CaretDownIcon className="size-3" />
             </PopoverTrigger>
             <PopoverContent
               align="start"
@@ -423,7 +422,7 @@ export function ContentEditorAddToGlossary({
                           )}`}
                           onSelect={openCreateDialog}
                         >
-                          <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-4" />
+                          <PlusIcon className="size-4" />
                           <FormattedMessage
                             {...contentEditorIntelligencePanelMessages.addToGlossaryCreateOption}
                           />

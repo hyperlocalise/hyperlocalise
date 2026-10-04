@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -59,7 +58,7 @@ export function DomainBrandView({ linkedDomainId }: { linkedDomainId: string }) 
     <div className="grid gap-6">
       <div className="flex justify-end">
         <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+          <PlusIcon />
           <FormattedMessage {...messages.addCta} />
         </Button>
       </div>

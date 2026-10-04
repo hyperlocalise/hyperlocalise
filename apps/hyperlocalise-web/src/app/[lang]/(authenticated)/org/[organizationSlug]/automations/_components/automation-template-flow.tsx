@@ -15,16 +15,15 @@
 
 import { Fragment } from "react";
 import {
-  Clock01Icon,
-  Comment01Icon,
-  Mail01Icon,
-  Search01Icon,
-  CheckmarkCircle02Icon,
-  SparklesIcon,
-  Task01Icon,
-  Upload01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  ClockIcon,
+  ChatTextIcon,
+  EnvelopeIcon,
+  MagnifyingGlassIcon,
+  CheckCircleIcon,
+  SparkleIcon,
+  CheckSquareIcon,
+  UploadSimpleIcon,
+} from "@phosphor-icons/react";
 import { siGithub } from "simple-icons";
 import Image from "next/image";
 
@@ -105,7 +104,7 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
         />
       );
     case "email":
-      return <HugeiconsIcon icon={Mail01Icon} className={iconClassName} strokeWidth={1.8} />;
+      return <EnvelopeIcon className={iconClassName} />;
     case "contentful":
       return (
         <Image
@@ -117,21 +116,19 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
         />
       );
     case "web-search":
-      return <HugeiconsIcon icon={Search01Icon} className={iconClassName} strokeWidth={1.8} />;
+      return <MagnifyingGlassIcon className={iconClassName} />;
     case "web-chat":
-      return <HugeiconsIcon icon={Comment01Icon} className={iconClassName} strokeWidth={1.8} />;
+      return <ChatTextIcon className={iconClassName} />;
     case "upload":
-      return <HugeiconsIcon icon={Upload01Icon} className={iconClassName} strokeWidth={1.8} />;
+      return <UploadSimpleIcon className={iconClassName} />;
     case "job":
-      return <HugeiconsIcon icon={Task01Icon} className={iconClassName} strokeWidth={1.8} />;
+      return <CheckSquareIcon className={iconClassName} />;
     case "translate":
-      return <HugeiconsIcon icon={SparklesIcon} className={iconClassName} strokeWidth={1.8} />;
+      return <SparkleIcon className={iconClassName} />;
     case "validation":
-      return (
-        <HugeiconsIcon icon={CheckmarkCircle02Icon} className={iconClassName} strokeWidth={1.8} />
-      );
+      return <CheckCircleIcon className={iconClassName} />;
     case "schedule":
-      return <HugeiconsIcon icon={Clock01Icon} className={iconClassName} strokeWidth={1.8} />;
+      return <ClockIcon className={iconClassName} />;
   }
 }
 

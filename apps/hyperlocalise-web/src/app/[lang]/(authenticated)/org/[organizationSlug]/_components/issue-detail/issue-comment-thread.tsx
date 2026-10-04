@@ -15,8 +15,7 @@
 import { useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
-import { Delete02Icon, Edit02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 
 import {
   extractMentionIdsFromMarkdown,
@@ -223,7 +222,7 @@ function IssueCommentBody({
                   setIsEditing(true);
                 }}
               >
-                <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} className="size-3.5" />
+                <PencilSimpleIcon className="size-3.5" />
               </Button>
             ) : null}
             {comment.canDelete ? (
@@ -236,7 +235,7 @@ function IssueCommentBody({
                 disabled={deleteComment.isPending}
                 onClick={() => setIsDeleteOpen(true)}
               >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} className="size-3.5" />
+                <TrashIcon className="size-3.5" />
               </Button>
             ) : null}
           </div>

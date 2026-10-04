@@ -15,12 +15,11 @@
 import Link from "next/link";
 import { forwardRef, useImperativeHandle } from "react";
 import {
-  Download01Icon,
-  LeftToRightListBulletIcon,
+  DownloadSimpleIcon,
+  ListBulletsIcon,
   TranslateIcon,
-  Upload01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  UploadSimpleIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
@@ -101,7 +100,7 @@ export const ProjectFileSelectionActions = forwardRef<
           ) : undefined
         }
       >
-        <HugeiconsIcon icon={LeftToRightListBulletIcon} />
+        <ListBulletsIcon />
         <FormattedMessage {...messages.openEditor} />
       </Button>
       {actions.isNativeFile ? (
@@ -119,7 +118,7 @@ export const ProjectFileSelectionActions = forwardRef<
               title={actions.translateDisabledTitle}
               onClick={() => actions.setTranslateDialogOpen(true)}
             >
-              <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
+              <TranslateIcon />
               <FormattedMessage {...messages.translateWithAgent} />
             </Button>
           </AiFeatureAction>
@@ -130,7 +129,7 @@ export const ProjectFileSelectionActions = forwardRef<
             className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
             onClick={() => actions.setImportDialogOpen(true)}
           >
-            <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
+            <UploadSimpleIcon />
             <FormattedMessage {...messages.importTranslations} />
           </Button>
           <Button
@@ -140,7 +139,7 @@ export const ProjectFileSelectionActions = forwardRef<
             className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
             onClick={() => actions.setDownloadDialogOpen(true)}
           >
-            <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
+            <DownloadSimpleIcon />
             <FormattedMessage {...messages.download} />
           </Button>
         </>

@@ -16,8 +16,7 @@ import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { Upload01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { UploadSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -266,7 +265,7 @@ export function TmImportExportPanel({
               {previewImport.isPending ? (
                 <span className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
               ) : (
-                <HugeiconsIcon icon={Upload01Icon} className="size-5" strokeWidth={1.8} />
+                <UploadSimpleIcon className="size-5" />
               )}
               <span className="text-sm font-medium text-foreground">
                 <FormattedMessage {...messages.selectImportFile} />

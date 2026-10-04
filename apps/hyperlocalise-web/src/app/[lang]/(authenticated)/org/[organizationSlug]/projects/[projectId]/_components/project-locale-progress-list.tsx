@@ -14,8 +14,7 @@
  */
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowDown01Icon, SearchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { ProjectLocaleProgressRow } from "@/api/routes/project/project.schema";
@@ -296,9 +295,7 @@ function LocaleProgressItem({
             <span className="hidden w-20 shrink-0 text-end font-mono text-[13px] tabular-nums text-muted-foreground sm:block">
               <FormattedMessage {...remainingMessage} values={{ count: remaining }} />
             </span>
-            <HugeiconsIcon
-              icon={ArrowDown01Icon}
-              strokeWidth={1.8}
+            <CaretDownIcon
               className={cn(
                 "size-4 shrink-0 text-muted-foreground transition-transform",
                 open && "rotate-180",
@@ -397,7 +394,7 @@ export function ProjectLocaleProgressList({
             <Column width="fluid">
               <InputGroup className="max-w-sm">
                 <InputGroupAddon>
-                  <HugeiconsIcon icon={SearchIcon} strokeWidth={1.8} className="size-4" />
+                  <MagnifyingGlassIcon className="size-4" />
                 </InputGroupAddon>
                 <InputGroupInput
                   value={query}

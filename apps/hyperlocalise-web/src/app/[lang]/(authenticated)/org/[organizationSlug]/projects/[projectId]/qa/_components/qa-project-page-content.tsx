@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState } from "react";
-import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
@@ -189,7 +189,7 @@ export function QaProjectPageContent({
   return (
     <ProjectPageShell>
       <ProjectSectionHeader
-        icon={CheckmarkCircle02Icon}
+        icon={CheckCircleIcon}
         section={intl.formatMessage(messages.title)}
         actions={
           settings?.canRun ? (

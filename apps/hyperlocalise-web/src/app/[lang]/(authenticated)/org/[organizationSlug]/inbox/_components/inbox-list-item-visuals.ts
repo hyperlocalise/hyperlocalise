@@ -12,20 +12,18 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ComponentProps } from "react";
 import {
-  Alert02Icon,
-  Chat01Icon,
-  Comment01Icon,
-  Flag01Icon,
-  Mail01Icon,
-  Message01Icon,
-  SlackIcon,
-  SourceCodeIcon,
+  WarningIcon,
+  ChatCircleIcon,
+  ChatTextIcon,
+  FlagIcon,
+  EnvelopeIcon,
+  SlackLogoIcon,
+  CodeIcon,
   UserIcon,
-  UserMultiple02Icon,
-} from "@hugeicons/core-free-icons";
-import type { HugeiconsIcon } from "@hugeicons/react";
+  UsersIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import type { IntlShape } from "react-intl";
 
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
@@ -33,8 +31,6 @@ import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { inboxNotificationsMessages } from "./inbox-notifications.messages";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
 import { getSourceLabel, type Conversation } from "./inbox-types";
-
-type Icon = ComponentProps<typeof HugeiconsIcon>["icon"];
 
 /** Icon colors tuned for `bg-card` badge backgrounds in light and dark themes. */
 const inboxBadgeIconBlue = "text-blue-800 dark:text-blue-900";
@@ -61,31 +57,31 @@ export function getConversationListItemVisual(
   switch (source) {
     case "chat_ui":
       return {
-        typeIcon: Chat01Icon,
+        typeIcon: ChatCircleIcon,
         typeIconLabel,
         badgeClassName: inboxBadgeIconBlue,
       };
     case "web_chat":
       return {
-        typeIcon: Message01Icon,
+        typeIcon: ChatTextIcon,
         typeIconLabel,
         badgeClassName: inboxBadgeIconPurple,
       };
     case "email_agent":
       return {
-        typeIcon: Mail01Icon,
+        typeIcon: EnvelopeIcon,
         typeIconLabel,
         badgeClassName: inboxBadgeIconAmber,
       };
     case "github_agent":
       return {
-        typeIcon: SourceCodeIcon,
+        typeIcon: CodeIcon,
         typeIconLabel,
         badgeClassName: inboxBadgeIconNeutral,
       };
     case "slack_agent":
       return {
-        typeIcon: SlackIcon,
+        typeIcon: SlackLogoIcon,
         typeIconLabel,
         badgeClassName: inboxBadgeIconGreen,
       };
@@ -107,37 +103,37 @@ export function getNotificationListItemVisual(
       };
     case "mentioned":
       return {
-        typeIcon: Message01Icon,
+        typeIcon: ChatTextIcon,
         typeIconLabel: intl.formatMessage(inboxNotificationsMessages.mentionedType),
         badgeClassName: inboxBadgeIconBlue,
       };
     case "comment":
       return {
-        typeIcon: Comment01Icon,
+        typeIcon: ChatTextIcon,
         typeIconLabel: intl.formatMessage(inboxNotificationsMessages.commentType),
         badgeClassName: inboxBadgeIconNeutral,
       };
     case "status_changed":
       return {
-        typeIcon: Flag01Icon,
+        typeIcon: FlagIcon,
         typeIconLabel: intl.formatMessage(inboxNotificationsMessages.statusChangedType),
         badgeClassName: inboxBadgeIconAmber,
       };
     case "assignee_changed":
       return {
-        typeIcon: UserMultiple02Icon,
+        typeIcon: UsersIcon,
         typeIconLabel: intl.formatMessage(inboxNotificationsMessages.assigneeChangedType),
         badgeClassName: inboxBadgeIconPurple,
       };
     case "qa_errors_increased":
       return {
-        typeIcon: Alert02Icon,
+        typeIcon: WarningIcon,
         typeIconLabel: intl.formatMessage(inboxNotificationsMessages.qaErrorsIncreasedType),
         badgeClassName: inboxBadgeIconDestructive,
       };
     case "qa_scan_failed":
       return {
-        typeIcon: Alert02Icon,
+        typeIcon: WarningIcon,
         typeIconLabel: intl.formatMessage(inboxNotificationsMessages.qaScanFailedType),
         badgeClassName: inboxBadgeIconAmber,
       };

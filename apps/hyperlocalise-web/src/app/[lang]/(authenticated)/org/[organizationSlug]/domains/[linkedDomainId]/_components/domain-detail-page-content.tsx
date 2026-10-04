@@ -14,8 +14,7 @@
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, GlobeIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -110,7 +109,7 @@ export function DomainDetailPageContent({
           nativeButton={false}
           render={<OrgNavLink href={`/org/${organizationSlug}/domains`} />}
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.7} className="size-4" />
+          <ArrowLeftIcon className="size-4" />
           <FormattedMessage {...messages.backToDomains} />
         </Button>
       </div>
@@ -132,7 +131,7 @@ export function DomainDetailPageContent({
       {linkedDomain ? (
         <>
           <PageHeader
-            icon={Globe02Icon}
+            icon={GlobeIcon}
             label="Domains"
             title={linkedDomain.domainKey}
             actions={

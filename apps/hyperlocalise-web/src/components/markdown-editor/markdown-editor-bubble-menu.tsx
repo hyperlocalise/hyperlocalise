@@ -12,19 +12,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { createElement, useState } from "react";
 import { MarkdownSelectionAi } from "./markdown-selection-ai";
 import type { MarkdownSelectionAiConfig } from "./markdown-selection-ai.types";
 import type { Editor } from "@tiptap/core";
 import { BubbleMenu } from "@tiptap/react/menus";
 import {
-  Link01Icon,
-  TextBoldIcon,
+  LinkIcon,
+  TextBIcon,
   TextItalicIcon,
   TextStrikethroughIcon,
-  SourceCodeIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+  CodeIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ function BubbleMenuButton({
 }: {
   active: boolean;
   label: string;
-  icon: IconSvgElement;
+  icon: Icon;
   onClick: () => void;
 }) {
   return (
@@ -60,7 +60,7 @@ function BubbleMenuButton({
       }}
       onClick={onClick}
     >
-      <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-3.5" />
+      {createElement(icon, { className: "size-3.5" })}
     </Button>
   );
 }
@@ -104,7 +104,7 @@ export function MarkdownEditorBubbleMenu({
         <BubbleMenuButton
           active={editor.isActive("bold")}
           label={intl.formatMessage(markdownEditorMessages.bubbleBold)}
-          icon={TextBoldIcon}
+          icon={TextBIcon}
           onClick={() => editor.chain().focus().toggleBold().run()}
         />
         <BubbleMenuButton
@@ -122,14 +122,14 @@ export function MarkdownEditorBubbleMenu({
         <BubbleMenuButton
           active={editor.isActive("code")}
           label={intl.formatMessage(markdownEditorMessages.bubbleCode)}
-          icon={SourceCodeIcon}
+          icon={CodeIcon}
           onClick={() => editor.chain().focus().toggleCode().run()}
         />
         <div className="mx-0.5 h-4 w-px bg-border" aria-hidden />
         <BubbleMenuButton
           active={editor.isActive("link")}
           label={intl.formatMessage(markdownEditorMessages.bubbleLink)}
-          icon={Link01Icon}
+          icon={LinkIcon}
           onClick={() => {
             if (editor.isActive("link")) {
               editor.chain().focus().unsetLink().run();

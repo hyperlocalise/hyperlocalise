@@ -12,12 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  Clock01Icon,
-  File01Icon,
-  LanguageSquareIcon,
-  Task01Icon,
-} from "@hugeicons/core-free-icons";
+import { ClockIcon, FileIcon, TranslateIcon, CheckSquareIcon } from "@phosphor-icons/react";
 import type { IntlShape } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -164,11 +159,11 @@ export function jobDetailTaskMetrics(
 
   return [
     {
-      icon: Task01Icon,
+      icon: CheckSquareIcon,
       label: taskLabel,
     },
     {
-      icon: LanguageSquareIcon,
+      icon: TranslateIcon,
       label:
         resolveProviderTaskLanguageLabel(providerKind, payload) ??
         formatLocaleList(
@@ -183,14 +178,14 @@ export function jobDetailTaskMetrics(
         intl.formatMessage(messages.emptyValue),
     },
     {
-      icon: File01Icon,
+      icon: FileIcon,
       label:
         (input.localeReadinessLoading ? intl.formatMessage(messages.loadingProgress) : wordsToDo) ??
         input.sourceFilesMetric ??
         intl.formatMessage(messages.sourceFilesLinked),
     },
     {
-      icon: Clock01Icon,
+      icon: ClockIcon,
       label: intl.formatMessage(messages.updatedAt, {
         date: formatJobDetailDate(input.updatedAt),
       }),

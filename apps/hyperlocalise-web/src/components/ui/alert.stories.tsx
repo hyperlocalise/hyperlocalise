@@ -10,8 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Alert02Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { WarningIcon, InfoIcon } from "@phosphor-icons/react/ssr";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
@@ -30,21 +29,21 @@ export const Overview: Story = {
   render: () => (
     <div className="flex max-w-3xl flex-col gap-4 p-6">
       <Alert>
-        <HugeiconsIcon icon={InformationCircleIcon} strokeWidth={2} />
+        <InfoIcon />
         <AlertTitle>Provider sync is running</AlertTitle>
         <AlertDescription>
           New source strings will appear after the current sync completes.
         </AlertDescription>
       </Alert>
       <Alert variant="destructive">
-        <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} />
+        <WarningIcon />
         <AlertTitle>Write-back failed</AlertTitle>
         <AlertDescription>
           Resolve the provider connection before retrying this job.
         </AlertDescription>
       </Alert>
       <Alert>
-        <HugeiconsIcon icon={InformationCircleIcon} strokeWidth={2} />
+        <InfoIcon />
         <AlertTitle>GitHub repository connected</AlertTitle>
         <AlertDescription>
           Automation can open translation pull requests for this project.

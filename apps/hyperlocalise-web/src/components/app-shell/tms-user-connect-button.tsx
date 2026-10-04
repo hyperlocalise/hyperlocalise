@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { Key01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { KeyIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -110,7 +109,7 @@ export function TmsUserConnectButton({
         disabled={isPending}
         onClick={handleClick}
       >
-        <HugeiconsIcon icon={Key01Icon} strokeWidth={2} className="size-4" />
+        <KeyIcon className="size-4" />
         {isPending ? (
           <FormattedMessage {...tmsUserConnectButtonMessages.connecting} />
         ) : (

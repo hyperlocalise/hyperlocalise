@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { AlertCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { WarningCircleIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/primitives/cn";
 import type { ComponentProps, ReactNode } from "react";
 import {
@@ -291,7 +290,7 @@ export const JSXPreviewError = memo(({ className, children, ...props }: JSXPrevi
         renderChildren(children, error)
       ) : (
         <>
-          <HugeiconsIcon icon={AlertCircleIcon} className="size-4 shrink-0" />
+          <WarningCircleIcon className="size-4 shrink-0" />
           <span>{error.message}</span>
         </>
       )}

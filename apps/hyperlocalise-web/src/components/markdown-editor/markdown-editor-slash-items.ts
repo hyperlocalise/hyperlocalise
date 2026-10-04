@@ -13,19 +13,19 @@
  * Version 2.0 or later.
  */
 import type { Editor, Range } from "@tiptap/core";
-import type { IconSvgElement } from "@hugeicons/react";
 import {
-  CheckListIcon,
+  ListChecksIcon,
   CodeIcon,
-  Heading01Icon,
-  Heading02Icon,
-  Heading03Icon,
-  Image01Icon,
-  LeftToRightBlockQuoteIcon,
-  LeftToRightListBulletIcon,
-  LeftToRightListNumberIcon,
-  Link01Icon,
-} from "@hugeicons/core-free-icons";
+  TextHOneIcon,
+  TextHTwoIcon,
+  TextHThreeIcon,
+  ImageIcon,
+  QuotesIcon,
+  ListBulletsIcon,
+  ListNumbersIcon,
+  LinkIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import type { IntlShape } from "react-intl";
 
 import {
@@ -43,7 +43,7 @@ export type MarkdownSlashShortcutPart = "mod" | "alt" | "shift" | (string & {});
 export type MarkdownSlashCommandItem = {
   id: string;
   title: string;
-  icon: IconSvgElement;
+  icon: Icon;
   keywords: string[];
   shortcut?: MarkdownSlashShortcutPart[];
   run: (props: { editor: Editor; range: Range }) => void;
@@ -90,7 +90,7 @@ export function buildMarkdownSlashCommandItems(
     {
       id: "heading1",
       title: intl.formatMessage(messages.slashHeading1Title),
-      icon: Heading01Icon,
+      icon: TextHOneIcon,
       keywords: ["heading", "h1", "title"],
       shortcut: ["mod", "alt", "1"],
       run: ({ editor, range }) => {
@@ -102,7 +102,7 @@ export function buildMarkdownSlashCommandItems(
     {
       id: "heading2",
       title: intl.formatMessage(messages.slashHeading2Title),
-      icon: Heading02Icon,
+      icon: TextHTwoIcon,
       keywords: ["heading", "h2", "title"],
       shortcut: ["mod", "alt", "2"],
       run: ({ editor, range }) => {
@@ -114,7 +114,7 @@ export function buildMarkdownSlashCommandItems(
     {
       id: "heading3",
       title: intl.formatMessage(messages.slashHeading3Title),
-      icon: Heading03Icon,
+      icon: TextHThreeIcon,
       keywords: ["heading", "h3", "subtitle"],
       shortcut: ["mod", "alt", "3"],
       run: ({ editor, range }) => {
@@ -126,7 +126,7 @@ export function buildMarkdownSlashCommandItems(
     {
       id: "bulletList",
       title: intl.formatMessage(messages.slashBulletListTitle),
-      icon: LeftToRightListBulletIcon,
+      icon: ListBulletsIcon,
       keywords: ["bullet", "bulleted", "list", "unordered", "ul"],
       shortcut: ["mod", "shift", "8"],
       run: ({ editor, range }) => {
@@ -136,7 +136,7 @@ export function buildMarkdownSlashCommandItems(
     {
       id: "orderedList",
       title: intl.formatMessage(messages.slashOrderedListTitle),
-      icon: LeftToRightListNumberIcon,
+      icon: ListNumbersIcon,
       keywords: ["numbered", "ordered", "list", "ol"],
       shortcut: ["mod", "shift", "9"],
       run: ({ editor, range }) => {
@@ -146,7 +146,7 @@ export function buildMarkdownSlashCommandItems(
     {
       id: "taskList",
       title: intl.formatMessage(messages.slashTaskListTitle),
-      icon: CheckListIcon,
+      icon: ListChecksIcon,
       keywords: ["checklist", "todo", "task", "checkbox"],
       shortcut: ["mod", "shift", "7"],
       run: ({ editor, range }) => {
@@ -166,7 +166,7 @@ export function buildMarkdownSlashCommandItems(
     {
       id: "blockquote",
       title: intl.formatMessage(messages.slashBlockquoteTitle),
-      icon: LeftToRightBlockQuoteIcon,
+      icon: QuotesIcon,
       keywords: ["quote", "blockquote"],
       shortcut: ["mod", "shift", "b"],
       run: ({ editor, range }) => {
@@ -176,7 +176,7 @@ export function buildMarkdownSlashCommandItems(
     {
       id: "image",
       title: intl.formatMessage(messages.slashImageTitle),
-      icon: Image01Icon,
+      icon: ImageIcon,
       keywords: ["image", "img", "picture", "photo", "upload"],
       run: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).run();
@@ -191,7 +191,7 @@ export function buildMarkdownSlashCommandItems(
     {
       id: "link",
       title: intl.formatMessage(messages.slashLinkTitle),
-      icon: Link01Icon,
+      icon: LinkIcon,
       keywords: ["link", "url", "href"],
       run: ({ editor, range }) => {
         const { from, to } = editor.state.selection;

@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useRef, useState } from "react";
-import { PencilEdit01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PencilSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -181,7 +180,7 @@ export function ContentEditorSegmentMaxLengthEditor({
             aria-label={intl.formatMessage(contentEditorIntelligencePanelMessages.maxLengthEdit)}
             onClick={() => setIsEditing(true)}
           >
-            <HugeiconsIcon icon={PencilEdit01Icon} className="size-3.5 text-beam-700" />
+            <PencilSimpleIcon className="size-3.5 text-beam-700" />
           </Button>
         ) : null}
       </div>

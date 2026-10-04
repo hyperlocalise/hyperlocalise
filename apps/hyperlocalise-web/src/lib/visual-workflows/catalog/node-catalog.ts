@@ -10,30 +10,29 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { Icon } from "@phosphor-icons/react";
 import {
-  BrainCircuitIcon,
-  Clock01Icon,
-  FlashIcon,
+  BrainIcon,
+  ClockIcon,
+  LightningIcon,
   GitBranchIcon,
-  Folder01Icon,
-  Globe02Icon,
-  Mail01Icon,
-  ReloadIcon,
-  Route01Icon,
-  Task01Icon,
-  Upload04Icon,
-  VariableIcon,
+  FolderIcon,
+  GlobeIcon,
+  EnvelopeIcon,
+  ArrowClockwiseIcon,
+  PathIcon,
+  CheckSquareIcon,
+  UploadSimpleIcon,
+  BracketsCurlyIcon,
   GitMergeIcon,
-} from "@hugeicons/core-free-icons";
-import type { ComponentProps } from "react";
-import type { HugeiconsIcon } from "@hugeicons/react";
+} from "@phosphor-icons/react/ssr";
 
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import type { VisualCatalogCategory, VisualCatalogType, VisualNodeConfig } from "../schema/types";
 import { createSwitchCaseId } from "../schema/switch-cases";
 
-export type CatalogIcon = ComponentProps<typeof HugeiconsIcon>["icon"];
+export type CatalogIcon = Icon;
 
 export type VisualNodeCatalogItem = {
   type: VisualCatalogType;
@@ -47,13 +46,13 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     type: "trigger.manual",
     category: "trigger",
     enabled: true,
-    icon: Clock01Icon,
+    icon: ClockIcon,
   },
   {
     type: "trigger.scheduled",
     category: "trigger",
     enabled: true,
-    icon: Clock01Icon,
+    icon: ClockIcon,
   },
   {
     type: "trigger.github",
@@ -65,31 +64,31 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     type: "trigger.source_upload",
     category: "trigger",
     enabled: true,
-    icon: Upload04Icon,
+    icon: UploadSimpleIcon,
   },
   {
     type: "action.http",
     category: "action",
     enabled: true,
-    icon: Globe02Icon,
+    icon: GlobeIcon,
   },
   {
     type: "action.content_sync",
     category: "action",
     enabled: true,
-    icon: Folder01Icon,
+    icon: FolderIcon,
   },
   {
     type: "action.notify_slack",
     category: "action",
     enabled: true,
-    icon: Mail01Icon,
+    icon: EnvelopeIcon,
   },
   {
     type: "action.notify_email",
     category: "action",
     enabled: true,
-    icon: Mail01Icon,
+    icon: EnvelopeIcon,
   },
   {
     type: "logic.if",
@@ -101,37 +100,37 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     type: "logic.switch",
     category: "logic",
     enabled: true,
-    icon: Route01Icon,
+    icon: PathIcon,
   },
   {
     type: "logic.set",
     category: "logic",
     enabled: true,
-    icon: VariableIcon,
+    icon: BracketsCurlyIcon,
   },
   {
     type: "ai.agent",
     category: "ai",
     enabled: true,
-    icon: BrainCircuitIcon,
+    icon: BrainIcon,
   },
   {
     type: "logic.for_each",
     category: "flow",
     enabled: true,
-    icon: Task01Icon,
+    icon: CheckSquareIcon,
   },
   {
     type: "logic.retry",
     category: "flow",
     enabled: true,
-    icon: ReloadIcon,
+    icon: ArrowClockwiseIcon,
   },
   {
     type: "flow.wait",
     category: "flow",
     enabled: true,
-    icon: Clock01Icon,
+    icon: ClockIcon,
   },
   {
     type: "logic.merge",
@@ -143,7 +142,7 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     type: "logic.sequence",
     category: "flow",
     enabled: true,
-    icon: Route01Icon,
+    icon: PathIcon,
   },
 ];
 
@@ -155,7 +154,7 @@ export const VISUAL_CATALOG_CATEGORY_ORDER: readonly VisualCatalogCategory[] = [
   "flow",
 ];
 
-export const TRIGGER_BADGE_ICON = FlashIcon;
+export const TRIGGER_BADGE_ICON = LightningIcon;
 
 export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
   switch (type) {

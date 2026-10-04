@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { PencilEdit01Icon } from "@hugeicons/core-free-icons";
+import { PencilSimpleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -147,7 +147,7 @@ export function ProjectContentEditorBehaviorSettings({
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
       <ProjectSettingsSectionHeading
-        icon={PencilEdit01Icon}
+        icon={PencilSimpleIcon}
         tone="grove"
         title={<FormattedMessage {...projectContentEditorBehaviorMessages.title} />}
         description={<FormattedMessage {...projectContentEditorBehaviorMessages.description} />}

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CheckmarkCircle02Icon, CircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckCircleIcon, CircleIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Spinner } from "@/components/ui/spinner";
@@ -53,7 +52,7 @@ export function getAgentTodoItems(value: unknown): AgentTodoItem[] | null {
 
 function TodoStatusIcon({ status }: { status: AgentTodoItem["status"] }) {
   if (status === "completed") {
-    return <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-4 text-green-600" />;
+    return <CheckCircleIcon className="size-4 text-green-600" />;
   }
   if (status === "in-progress") {
     return (
@@ -62,7 +61,7 @@ function TodoStatusIcon({ status }: { status: AgentTodoItem["status"] }) {
       </span>
     );
   }
-  return <HugeiconsIcon icon={CircleIcon} className="size-4 text-muted-foreground/60" />;
+  return <CircleIcon className="size-4 text-muted-foreground/60" />;
 }
 
 export function AgentTodoProgress({ items }: { items: AgentTodoItem[] }) {

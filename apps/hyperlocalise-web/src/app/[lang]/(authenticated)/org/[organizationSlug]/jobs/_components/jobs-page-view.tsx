@@ -13,13 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  KanbanIcon,
-  ListViewIcon,
-  CenterFocusIcon,
-  TranslateIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { KanbanIcon, ListIcon, CrosshairIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -356,7 +350,7 @@ function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRende
   if (kind === "content-editor") {
     return (
       <Button nativeButton={false} render={<a href={href} />} size="sm" className="w-fit">
-        <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
+        <TranslateIcon />
         {children}
       </Button>
     );
@@ -410,7 +404,7 @@ function JobsViewModeToggle({
         className="h-9"
         onClick={() => onViewModeChange("row")}
       >
-        <HugeiconsIcon icon={ListViewIcon} strokeWidth={1.8} />
+        <ListIcon />
         <FormattedMessage {...jobsPageViewMessages.viewModeRow} />
       </Button>
       <Button
@@ -420,7 +414,7 @@ function JobsViewModeToggle({
         className="h-9"
         onClick={() => onViewModeChange("kanban")}
       >
-        <HugeiconsIcon icon={KanbanIcon} strokeWidth={1.8} />
+        <KanbanIcon />
         <FormattedMessage {...jobsPageViewMessages.viewModeBoard} />
       </Button>
     </ButtonGroup>
@@ -805,7 +799,7 @@ export function JobsPageView({
     return (
       <ProjectPageShell>
         <ProjectSectionHeader
-          icon={CenterFocusIcon}
+          icon={CrosshairIcon}
           section={intl.formatMessage(jobsPageViewMessages.projectSectionLabel)}
           actions={headerActions}
         />
@@ -817,7 +811,7 @@ export function JobsPageView({
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={CenterFocusIcon}
+        icon={CrosshairIcon}
         label={intl.formatMessage(jobsPageViewMessages.workspaceLabel)}
         title={
           isPersonalWork

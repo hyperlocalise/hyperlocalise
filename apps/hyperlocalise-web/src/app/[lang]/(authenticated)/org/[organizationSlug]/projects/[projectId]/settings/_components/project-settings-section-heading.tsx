@@ -13,13 +13,13 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
 
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import type { Icon } from "../../../../_components/workspace-resource-shared";
+import { createElement } from "react";
 
 export const projectSettingsSectionTones = {
   dew: "bg-dew-100 text-dew-900",
@@ -55,7 +55,7 @@ export function ProjectSettingsSectionHeading({
           )}
           aria-hidden
         >
-          <HugeiconsIcon icon={icon} className="size-4" strokeWidth={1.8} />
+          {createElement(icon, { className: "size-4" })}
         </span>
         <div className="min-w-0">
           <ProjectSectionTitle>{title}</ProjectSectionTitle>

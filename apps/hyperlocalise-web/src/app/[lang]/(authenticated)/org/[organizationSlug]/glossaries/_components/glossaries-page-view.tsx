@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { BookOpenTextIcon, Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { BookOpenTextIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -250,7 +249,7 @@ export function GlossariesPageView({
               onClick={() => onCreateDialogOpenChange(true)}
               className="w-full sm:w-fit"
             >
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <PlusIcon />
               <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
             </Button>
           ) : null

@@ -14,8 +14,7 @@
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { useState } from "react";
-import { Delete02Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon, GitBranchIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -145,7 +144,7 @@ export function VisualWorkflowsPageContent({
                   disabled={deleteMutation.isPending}
                   onClick={() => setWorkflowToDelete(workflow)}
                 >
-                  <HugeiconsIcon icon={Delete02Icon} className="size-4" strokeWidth={2} />
+                  <TrashIcon className="size-4" />
                 </Button>
               </li>
             ))}

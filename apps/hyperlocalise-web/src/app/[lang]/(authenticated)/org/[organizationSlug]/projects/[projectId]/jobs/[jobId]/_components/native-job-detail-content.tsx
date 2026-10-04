@@ -17,12 +17,11 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  LeftToRightListBulletIcon,
-  LinkSquare02Icon,
-  RefreshIcon,
+  ListBulletsIcon,
+  ArrowSquareOutIcon,
+  ArrowClockwiseIcon,
   StopCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -275,7 +274,7 @@ export function NativeJobDetailContent({
           nativeButton={false}
           render={
             <a href={job.externalUrl} target="_blank" rel="noreferrer noopener">
-              <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} />
+              <ArrowSquareOutIcon />
               <FormattedMessage
                 {...messages.openInProvider}
                 values={{ providerKind: job.externalProviderKind }}
@@ -293,7 +292,7 @@ export function NativeJobDetailContent({
           disabled={retryJob.isPending || markJobFailed.isPending || cancelJob.isPending}
           onClick={() => retryJob.mutate()}
         >
-          <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
+          <ArrowClockwiseIcon />
           {retryJob.isPending ? (
             <FormattedMessage {...messages.retrying} />
           ) : (
@@ -318,13 +317,13 @@ export function NativeJobDetailContent({
           disabled={retryJob.isPending || markJobFailed.isPending || cancelJob.isPending}
           onClick={() => setMarkFailedDialogOpen(true)}
         >
-          <HugeiconsIcon icon={StopCircleIcon} strokeWidth={1.8} />
+          <StopCircleIcon />
           <FormattedMessage {...messages.markAsFailed} />
         </Button>
       ) : null}
       {showCatAction && contentEditorHref ? (
         <Button size="sm" render={<Link href={contentEditorHref} />}>
-          <HugeiconsIcon icon={LeftToRightListBulletIcon} />
+          <ListBulletsIcon />
           <FormattedMessage {...messages.openEditor} />
         </Button>
       ) : null}
@@ -438,7 +437,7 @@ export function NativeJobDetailContent({
               disabled={markJobFailed.isPending}
               onClick={() => markJobFailed.mutate()}
             >
-              <HugeiconsIcon icon={StopCircleIcon} strokeWidth={1.8} />
+              <StopCircleIcon />
               {markJobFailed.isPending ? (
                 <FormattedMessage {...messages.marking} />
               ) : (

@@ -12,16 +12,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  createElement,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
-import {
-  CheckListIcon,
-  LanguageCircleIcon,
-  TranslateIcon,
-  UserIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { ListChecksIcon, TranslateIcon, UserIcon, type Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
@@ -122,7 +123,7 @@ function toggleValue(values: string[], value: string) {
 }
 
 function CreateJobPropertyPicker({
-  icon,
+  icon: Icon,
   ariaLabel,
   triggerLabel,
   items,
@@ -136,7 +137,7 @@ function CreateJobPropertyPicker({
   disabled,
   multiple = true,
 }: {
-  icon: IconSvgElement;
+  icon: Icon;
   ariaLabel: string;
   triggerLabel: string;
   items: PropertyPickerItem[];
@@ -167,11 +168,7 @@ function CreateJobPropertyPicker({
           />
         }
       >
-        {isLoading ? (
-          <Spinner data-icon="inline-start" />
-        ) : (
-          <HugeiconsIcon icon={icon} strokeWidth={1.8} data-icon="inline-start" />
-        )}
+        {isLoading ? <Spinner data-icon="inline-start" /> : <Icon data-icon="inline-start" />}
         <span className="min-w-0 truncate">{triggerLabel}</span>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-0" sideOffset={6}>
@@ -746,11 +743,9 @@ export function CreateJobDialog({
                   className={propertyTriggerClassName}
                 >
                   <span className="flex items-center gap-1.5">
-                    <HugeiconsIcon
-                      icon={kind === "proofread" ? CheckListIcon : TranslateIcon}
-                      strokeWidth={1.8}
-                      className="size-3.5"
-                    />
+                    {createElement(kind === "proofread" ? ListChecksIcon : TranslateIcon, {
+                      className: "size-3.5",
+                    })}
                     {intl.formatMessage(
                       kind === "proofread"
                         ? createJobDialogMessages.taskTypeProofread
@@ -763,10 +758,10 @@ export function CreateJobDialog({
                     {kindItems.map((item) => (
                       <SelectItem key={item.value} value={item.value} label={item.label}>
                         <span className="flex items-center gap-2">
-                          <HugeiconsIcon
-                            icon={item.value === "proofread" ? CheckListIcon : TranslateIcon}
-                            strokeWidth={1.8}
-                          />
+                          {createElement(
+                            item.value === "proofread" ? ListChecksIcon : TranslateIcon,
+                            {},
+                          )}
                           {item.label}
                         </span>
                       </SelectItem>
@@ -776,7 +771,7 @@ export function CreateJobDialog({
               </Select>
 
               <CreateJobPropertyPicker
-                icon={LanguageCircleIcon}
+                icon={TranslateIcon}
                 ariaLabel={intl.formatMessage(createJobDialogMessages.targetLocalesLabel)}
                 triggerLabel={localeTriggerLabel}
                 items={localeItems}

@@ -13,16 +13,15 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  TextBoldIcon,
+  TextBIcon,
   TextItalicIcon,
-  LeftToRightListBulletIcon,
-  LeftToRightListNumberIcon,
-  LeftToRightBlockQuoteIcon,
-  SourceCodeIcon,
-  Image01Icon,
-} from "@hugeicons/core-free-icons";
+  ListBulletsIcon,
+  ListNumbersIcon,
+  QuotesIcon,
+  CodeIcon,
+  ImageIcon,
+} from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/core";
 import { useEditorState } from "@tiptap/react";
 import { useIntl } from "react-intl";
@@ -145,7 +144,7 @@ export function MarkdownEditorToolbar({
       <MarkdownToolbarButton
         label={
           document ? (
-            <HugeiconsIcon icon={TextBoldIcon} className="size-4" aria-hidden />
+            <TextBIcon className="size-4" aria-hidden />
           ) : (
             intl.formatMessage(markdownEditorMessages.boldLabel)
           )
@@ -158,7 +157,7 @@ export function MarkdownEditorToolbar({
       <MarkdownToolbarButton
         label={
           document ? (
-            <HugeiconsIcon icon={TextItalicIcon} className="size-4" aria-hidden />
+            <TextItalicIcon className="size-4" aria-hidden />
           ) : (
             intl.formatMessage(markdownEditorMessages.italicLabel)
           )
@@ -185,7 +184,7 @@ export function MarkdownEditorToolbar({
       <MarkdownToolbarButton
         label={
           document ? (
-            <HugeiconsIcon icon={LeftToRightListBulletIcon} className="size-4" aria-hidden />
+            <ListBulletsIcon className="size-4" aria-hidden />
           ) : (
             intl.formatMessage(markdownEditorMessages.bulletListLabel)
           )
@@ -198,7 +197,7 @@ export function MarkdownEditorToolbar({
       <MarkdownToolbarButton
         label={
           document ? (
-            <HugeiconsIcon icon={LeftToRightListNumberIcon} className="size-4" aria-hidden />
+            <ListNumbersIcon className="size-4" aria-hidden />
           ) : (
             intl.formatMessage(markdownEditorMessages.orderedListLabel)
           )
@@ -211,7 +210,7 @@ export function MarkdownEditorToolbar({
       <MarkdownToolbarButton
         label={
           document ? (
-            <HugeiconsIcon icon={LeftToRightBlockQuoteIcon} className="size-4" aria-hidden />
+            <QuotesIcon className="size-4" aria-hidden />
           ) : (
             intl.formatMessage(markdownEditorMessages.blockquoteLabel)
           )
@@ -224,7 +223,7 @@ export function MarkdownEditorToolbar({
       <MarkdownToolbarButton
         label={
           document ? (
-            <HugeiconsIcon icon={SourceCodeIcon} className="size-4" aria-hidden />
+            <CodeIcon className="size-4" aria-hidden />
           ) : (
             intl.formatMessage(markdownEditorMessages.codeLabel)
           )
@@ -237,7 +236,7 @@ export function MarkdownEditorToolbar({
       <MarkdownToolbarButton
         label={
           document ? (
-            <HugeiconsIcon icon={Image01Icon} className="size-4" aria-hidden />
+            <ImageIcon className="size-4" aria-hidden />
           ) : (
             intl.formatMessage(markdownEditorMessages.imageLabel)
           )

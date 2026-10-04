@@ -13,13 +13,12 @@
  * Version 2.0 or later.
  */
 import {
-  ArrowRight01Icon,
-  CancelCircleIcon,
-  CheckmarkCircle02Icon,
-  CircleDotIcon,
+  ArrowRightIcon,
+  XCircleIcon,
+  CheckCircleIcon,
+  CircleDashedIcon,
   CircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
@@ -98,7 +97,7 @@ export const TestResultsSummary = ({ className, children, ...props }: TestResult
             className="gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
             variant="secondary"
           >
-            <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3" />
+            <CheckCircleIcon className="size-3" />
             <FormattedMessage
               {...testResultsMessages.passedCount}
               values={{ count: summary.passed }}
@@ -109,7 +108,7 @@ export const TestResultsSummary = ({ className, children, ...props }: TestResult
               className="gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
               variant="secondary"
             >
-              <HugeiconsIcon icon={CancelCircleIcon} className="size-3" />
+              <XCircleIcon className="size-3" />
               <FormattedMessage
                 {...testResultsMessages.failedCount}
                 values={{ count: summary.failed }}
@@ -121,7 +120,7 @@ export const TestResultsSummary = ({ className, children, ...props }: TestResult
               className="gap-1 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
               variant="secondary"
             >
-              <HugeiconsIcon icon={CircleIcon} className="size-3" />
+              <CircleIcon className="size-3" />
               <FormattedMessage
                 {...testResultsMessages.skippedCount}
                 values={{ count: summary.skipped }}
@@ -225,10 +224,10 @@ const statusStyles: Record<TestStatus, string> = {
 };
 
 const statusIcons: Record<TestStatus, React.ReactNode> = {
-  failed: <HugeiconsIcon icon={CancelCircleIcon} className="size-4" />,
-  passed: <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-4" />,
-  running: <HugeiconsIcon icon={CircleDotIcon} className="size-4 animate-pulse" />,
-  skipped: <HugeiconsIcon icon={CircleIcon} className="size-4" />,
+  failed: <XCircleIcon className="size-4" />,
+  passed: <CheckCircleIcon className="size-4" />,
+  running: <CircleDashedIcon className="size-4 animate-pulse" />,
+  skipped: <CircleIcon className="size-4" />,
 };
 
 const TestStatusIcon = ({ status }: { status: TestStatus }) => (
@@ -265,10 +264,7 @@ export const TestSuiteName = ({ className, children, ...props }: TestSuiteNamePr
       )}
       {...props}
     >
-      <HugeiconsIcon
-        icon={ArrowRight01Icon}
-        className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90"
-      />
+      <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
       <TestStatusIcon status={status} />
       <span className="font-medium text-sm">{children ?? name}</span>
     </CollapsibleTrigger>

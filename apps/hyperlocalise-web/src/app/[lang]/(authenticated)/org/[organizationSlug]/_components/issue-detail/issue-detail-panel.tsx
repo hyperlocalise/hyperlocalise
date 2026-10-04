@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import {
+  createElement,
   forwardRef,
   useEffect,
   useImperativeHandle,
@@ -22,19 +23,18 @@ import {
   type ReactNode,
 } from "react";
 import {
-  ArrowLeft01Icon,
-  ArrowRight01Icon,
-  CheckmarkCircle02Icon,
-  File01Icon,
-  Flag01Icon,
-  LanguageCircleIcon,
-  LinkSquare02Icon,
-  MoreHorizontalCircle01Icon,
-  Tag01Icon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CheckCircleIcon,
+  FileIcon,
+  FlagIcon,
   TranslateIcon,
-  User02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  ArrowSquareOutIcon,
+  DotsThreeCircleIcon,
+  TagIcon,
+  UserIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -124,7 +124,7 @@ import {
   issuePropertyControlClassName,
 } from "./issue-property-control";
 
-type PropertyIcon = Parameters<typeof HugeiconsIcon>[0]["icon"];
+type PropertyIcon = Icon;
 
 export type IssueDetailPanelHandle = {
   isDirty: () => boolean;
@@ -173,7 +173,7 @@ function PropertyRow({
       )}
     >
       <dt className="flex w-[7.5rem] shrink-0 items-center gap-2 text-sm text-muted-foreground">
-        <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-3.5 shrink-0" />
+        {createElement(icon, { className: "size-3.5 shrink-0" })}
         <span className="truncate">{label}</span>
       </dt>
       <dd className="min-w-0 flex-1">{children}</dd>
@@ -718,11 +718,7 @@ export const IssueDetailPanel = forwardRef<
                     />
                   }
                 >
-                  <HugeiconsIcon
-                    icon={MoreHorizontalCircle01Icon}
-                    strokeWidth={1.8}
-                    className="size-4"
-                  />
+                  <DotsThreeCircleIcon className="size-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-40">
                   <DropdownMenuItem
@@ -819,11 +815,7 @@ export const IssueDetailPanel = forwardRef<
                   weight="medium"
                   tone="content"
                 >
-                  <HugeiconsIcon
-                    icon={LinkSquare02Icon}
-                    strokeWidth={1.8}
-                    className="size-3.5 text-muted-foreground"
-                  />
+                  <ArrowSquareOutIcon className="size-3.5 text-muted-foreground" />
                   <FormattedMessage {...messages.linkedContext} />
                 </TypographyP>
                 {issue.translationKeyId ? (
@@ -920,11 +912,7 @@ export const IssueDetailPanel = forwardRef<
                         <a href={contentEditorHref} target="_blank" rel="noopener noreferrer" />
                       }
                     >
-                      <HugeiconsIcon
-                        icon={TranslateIcon}
-                        strokeWidth={1.8}
-                        data-icon="inline-start"
-                      />
+                      <TranslateIcon data-icon="inline-start" />
                       <FormattedMessage {...messages.openInContentEditor} />
                     </Button>
                   ) : (
@@ -946,11 +934,7 @@ export const IssueDetailPanel = forwardRef<
                       />
                     }
                   >
-                    <HugeiconsIcon
-                      icon={ArrowRight01Icon}
-                      strokeWidth={1.8}
-                      className="size-4 rtl:rotate-180"
-                    />
+                    <ArrowRightIcon className="size-4 rtl:rotate-180" />
                   </CollapsibleTrigger>
                 </div>
                 {showExternalLink && issue.linkUrl ? (
@@ -967,11 +951,7 @@ export const IssueDetailPanel = forwardRef<
                       />
                     }
                   >
-                    <HugeiconsIcon
-                      icon={LinkSquare02Icon}
-                      strokeWidth={1.8}
-                      data-icon="inline-start"
-                    />
+                    <ArrowSquareOutIcon data-icon="inline-start" />
                     {issue.linkLabel || intl.formatMessage(messages.openLink)}
                   </Button>
                 ) : null}
@@ -998,7 +978,7 @@ export const IssueDetailPanel = forwardRef<
 
               <dl className="flex flex-col">
                 <PropertyRow
-                  icon={User02Icon}
+                  icon={UserIcon}
                   label={<FormattedMessage {...messages.fieldAssignee} />}
                 >
                   <IssueAssigneePicker
@@ -1016,7 +996,7 @@ export const IssueDetailPanel = forwardRef<
                 </PropertyRow>
 
                 <PropertyRow
-                  icon={CheckmarkCircle02Icon}
+                  icon={CheckCircleIcon}
                   label={<FormattedMessage {...messages.fieldStatus} />}
                 >
                   <Select
@@ -1056,7 +1036,7 @@ export const IssueDetailPanel = forwardRef<
                   </Select>
                 </PropertyRow>
 
-                <PropertyRow icon={Tag01Icon} label={<FormattedMessage {...messages.fieldType} />}>
+                <PropertyRow icon={TagIcon} label={<FormattedMessage {...messages.fieldType} />}>
                   <IssueTypePicker
                     value={issue.issueType as IssueTypeValue}
                     onValueChange={(value) => {
@@ -1071,7 +1051,7 @@ export const IssueDetailPanel = forwardRef<
 
                 {showPriorityField ? (
                   <PropertyRow
-                    icon={Flag01Icon}
+                    icon={FlagIcon}
                     label={<FormattedMessage {...messages.fieldPriority} />}
                   >
                     <Select
@@ -1116,7 +1096,7 @@ export const IssueDetailPanel = forwardRef<
 
                 {issue.templateKey ? (
                   <PropertyRow
-                    icon={Tag01Icon}
+                    icon={TagIcon}
                     label={<FormattedMessage {...messages.fieldTemplate} />}
                     interactive={false}
                   >
@@ -1129,7 +1109,7 @@ export const IssueDetailPanel = forwardRef<
                 ) : null}
 
                 <PropertyRow
-                  icon={LanguageCircleIcon}
+                  icon={TranslateIcon}
                   label={<FormattedMessage {...messages.fieldLocale} />}
                 >
                   <IssueLocalePicker
@@ -1147,7 +1127,7 @@ export const IssueDetailPanel = forwardRef<
                 </PropertyRow>
 
                 <PropertyRow
-                  icon={File01Icon}
+                  icon={FileIcon}
                   label={<FormattedMessage {...messages.fieldSourcePath} />}
                 >
                   <IssueSourcePathPicker
@@ -1210,11 +1190,7 @@ export const IssueDetailPanel = forwardRef<
                     />
                   }
                 >
-                  <HugeiconsIcon
-                    icon={ArrowLeft01Icon}
-                    strokeWidth={1.8}
-                    className="size-4 rtl:rotate-180"
-                  />
+                  <ArrowLeftIcon className="size-4 rtl:rotate-180" />
                 </CollapsibleTrigger>
                 {contentEditorHref ? (
                   <Button
@@ -1226,7 +1202,7 @@ export const IssueDetailPanel = forwardRef<
                       <a href={contentEditorHref} target="_blank" rel="noopener noreferrer" />
                     }
                   >
-                    <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} className="size-4" />
+                    <TranslateIcon className="size-4" />
                   </Button>
                 ) : null}
                 {showExternalLink && issue.linkUrl ? (
@@ -1244,7 +1220,7 @@ export const IssueDetailPanel = forwardRef<
                       />
                     }
                   >
-                    <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} className="size-4" />
+                    <ArrowSquareOutIcon className="size-4" />
                   </Button>
                 ) : null}
 
@@ -1312,7 +1288,7 @@ export const IssueDetailPanel = forwardRef<
                     aria-label={intl.formatMessage(messages.fieldType)}
                     title={issueTypeLabel(intl, issue.issueType)}
                   >
-                    <HugeiconsIcon icon={Tag01Icon} strokeWidth={1.8} className="size-3.5" />
+                    <TagIcon className="size-3.5" />
                   </SelectTrigger>
                   <SelectContent align="end">
                     {typeItems.map((type) => (
@@ -1343,7 +1319,7 @@ export const IssueDetailPanel = forwardRef<
                       {priority ? (
                         <IssuePriorityIcon priority={priority} size="sm" />
                       ) : (
-                        <HugeiconsIcon icon={Flag01Icon} strokeWidth={1.8} className="size-3.5" />
+                        <FlagIcon className="size-3.5" />
                       )}
                     </SelectTrigger>
                     <SelectContent align="end">

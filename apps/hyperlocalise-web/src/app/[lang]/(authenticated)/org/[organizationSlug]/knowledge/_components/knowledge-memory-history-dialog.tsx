@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { HistoryIcon, ReloadIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ClockCounterClockwiseIcon, ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { MultiFileDiff, type FileContents } from "@pierre/diffs/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -322,7 +321,7 @@ export function KnowledgeMemoryHistoryDialog({
         <DialogContent className="flex h-[min(85dvh,52rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
           <DialogHeader className="border-b border-border px-6 py-5 pe-14">
             <DialogTitle className="flex items-center gap-2">
-              <HugeiconsIcon icon={HistoryIcon} className="size-4" />
+              <ClockCounterClockwiseIcon className="size-4" />
               {projectId ? "Project guidance history" : "Global guidance history"}
             </DialogTitle>
             <DialogDescription>
@@ -424,7 +423,7 @@ export function KnowledgeMemoryHistoryDialog({
                           }
                           onClick={() => setRestoreRevision(selectedDetail)}
                         >
-                          <HugeiconsIcon icon={ReloadIcon} className="size-4" />
+                          <ArrowClockwiseIcon className="size-4" />
                           Restore
                         </Button>
                       ) : null}

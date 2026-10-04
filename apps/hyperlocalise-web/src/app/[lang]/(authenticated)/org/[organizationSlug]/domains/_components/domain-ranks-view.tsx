@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { Add01Icon, ReloadIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -128,16 +127,12 @@ export function DomainRanksView({
               void refreshRanks();
             }}
           >
-            {refreshPending ? (
-              <Spinner className="size-3.5" />
-            ) : (
-              <HugeiconsIcon icon={ReloadIcon} strokeWidth={1.8} />
-            )}
+            {refreshPending ? <Spinner className="size-3.5" /> : <ArrowClockwiseIcon />}
             <FormattedMessage {...messages.refreshCta} />
           </Button>
         ) : null}
         <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+          <PlusIcon />
           <FormattedMessage {...messages.addCta} />
         </Button>
       </div>

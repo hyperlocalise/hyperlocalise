@@ -18,8 +18,7 @@ import { useInView } from "react-intersection-observer";
 import { motion, useReducedMotion } from "motion/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { TranslateIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TranslateIcon } from "@phosphor-icons/react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -177,7 +176,7 @@ export function TranslationFlowIllustration({
         <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-2xl border border-border bg-card text-card-foreground">
-              <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} className="size-5" />
+              <TranslateIcon className="size-5" />
             </div>
             <div>
               <TypographyH4 tone="content">

@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from "react";
+import { createElement, useCallback, useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
   MarkerType,
   useEdgesState,
@@ -21,8 +21,7 @@ import {
   type OnEdgesChange,
   type OnNodesChange,
 } from "@xyflow/react";
-import { PauseIcon, PlayIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PauseIcon, PlayIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Canvas } from "@/components/ai-elements/canvas";
@@ -195,7 +194,7 @@ export function IntegrationWorkflowPreview({
             type="button"
             variant="outline"
           >
-            <HugeiconsIcon icon={isPlaying ? PauseIcon : PlayIcon} className="size-4" />
+            {createElement(isPlaying ? PauseIcon : PlayIcon, { className: "size-4" })}
           </Button>
 
           <div className="flex flex-wrap gap-1.5">

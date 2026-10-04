@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { AlertCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { WarningCircleIcon } from "@phosphor-icons/react";
 import { type ErrorInfo, type ReactNode } from "react";
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
 import { FormattedMessage } from "react-intl";
@@ -74,7 +73,7 @@ function ContentEditorPanelErrorFallback({
       role="alert"
     >
       <Alert variant="destructive" className="max-w-md">
-        <HugeiconsIcon icon={AlertCircleIcon} />
+        <WarningCircleIcon />
         <AlertTitle>
           <FormattedMessage {...panelTitleMessageByScope[scope]} />
         </AlertTitle>

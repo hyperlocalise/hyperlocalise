@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowRight01Icon, PlayIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRightIcon, PlayIcon } from "@phosphor-icons/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -390,7 +389,7 @@ function FormatPreview({ format }: { format: FormatId }) {
         <div className="overflow-hidden rounded-md">
           <CampaignArtwork />
           <div className="flex items-center gap-3 bg-white p-3 text-xs text-[#43556c]">
-            <HugeiconsIcon icon={PlayIcon} className="size-4 text-[#172541]" />
+            <PlayIcon className="size-4 text-[#172541]" />
             <span>00:08 / 00:30</span>
             <div className="h-1 flex-1 bg-[#cae7ff]">
               <div className="h-1 w-2/5 bg-[#006bff]" />
@@ -672,8 +671,7 @@ export function MultilingualContentStudioPage() {
                 nativeButton={false}
                 render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
               >
-                <FormattedMessage {...messages.requestDemo} />{" "}
-                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                <FormattedMessage {...messages.requestDemo} /> <ArrowRightIcon className="size-4" />
               </Button>
               <Button
                 size="lg"
@@ -894,7 +892,7 @@ export function MultilingualContentStudioPage() {
                   render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
                 >
                   <FormattedMessage {...messages.requestDemo} />{" "}
-                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                  <ArrowRightIcon className="size-4" />
                 </Button>
                 <span className="text-xs text-[#e5edf9]">
                   <FormattedMessage {...messages.ctaNote} />

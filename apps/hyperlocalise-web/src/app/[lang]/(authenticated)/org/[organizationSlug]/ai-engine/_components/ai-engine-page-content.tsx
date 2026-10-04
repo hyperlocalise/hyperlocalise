@@ -13,14 +13,7 @@
  * Version 2.0 or later.
  */
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
-import {
-  Delete02Icon,
-  Key01Icon,
-  SaveIcon,
-  ViewIcon,
-  ViewOffSlashIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon, KeyIcon, FloppyDiskIcon, EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import type { SimpleIcon } from "simple-icons";
 
 import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
@@ -535,11 +528,7 @@ export function AiEnginePageContent({
                       {intl.formatMessage(aiEnginePageContentMessages.apiKeyLabel)}
                     </FieldLabel>
                     <div className="relative">
-                      <HugeiconsIcon
-                        icon={Key01Icon}
-                        strokeWidth={1.8}
-                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                      />
+                      <KeyIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id={apiKeyFieldId}
                         type={showApiKey ? "text" : "password"}
@@ -562,11 +551,7 @@ export function AiEnginePageContent({
                             : aiEnginePageContentMessages.showApiKeyAriaLabel,
                         )}
                       >
-                        {showApiKey ? (
-                          <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
-                        ) : (
-                          <HugeiconsIcon icon={ViewIcon} size={16} />
-                        )}
+                        {showApiKey ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
                       </button>
                     </div>
                   </Field>
@@ -592,13 +577,13 @@ export function AiEnginePageContent({
                         saveCredential.isPending
                       }
                     >
-                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                      <TrashIcon />
                       {deleteCredential.isPending
                         ? intl.formatMessage(aiEnginePageContentMessages.disconnecting)
                         : intl.formatMessage(aiEnginePageContentMessages.disconnect)}
                     </Button>
                     <Button type="submit" disabled={!apiKey.trim() || saveCredential.isPending}>
-                      <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                      <FloppyDiskIcon />
                       {saveCredential.isPending
                         ? intl.formatMessage(aiEnginePageContentMessages.validating)
                         : intl.formatMessage(aiEnginePageContentMessages.saveProvider)}

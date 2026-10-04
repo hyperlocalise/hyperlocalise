@@ -15,8 +15,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpenTextIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { BookOpenTextIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { useProjectPageQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-page-shell";
@@ -139,7 +138,7 @@ function GuidelineDocument({
             className="flex size-10 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground"
             aria-hidden="true"
           >
-            <HugeiconsIcon icon={BookOpenTextIcon} strokeWidth={1.75} className="size-5" />
+            <BookOpenTextIcon className="size-5" />
           </div>
           <p className="max-w-xs text-sm text-pretty text-muted-foreground">{emptyMessage}</p>
           {action}

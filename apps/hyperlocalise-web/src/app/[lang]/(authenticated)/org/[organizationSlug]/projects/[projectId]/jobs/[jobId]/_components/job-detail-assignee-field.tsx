@@ -14,8 +14,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -279,11 +278,7 @@ export function CrowdinJobAssigneesField({
         <span className="min-w-0 flex-1 text-left text-sm">
           <JobAssigneeOverflowLabel labels={selectedLabels} emptyLabel={emptyLabel} />
         </span>
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          strokeWidth={2}
-          className="size-4 shrink-0 text-muted-foreground"
-        />
+        <CaretDownIcon className="size-4 shrink-0 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-0" sideOffset={4}>
         <Command>

@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { type FormEvent, useEffect, useId, useState } from "react";
-import { ArrowDown01Icon, SaveIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Spinner } from "@/components/ui/spinner";
@@ -184,13 +183,11 @@ export function ProjectDialog({
                     className="h-9 w-full justify-between px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <FormattedMessage {...projectDialogMessages.settings} />
-                    <HugeiconsIcon
-                      icon={ArrowDown01Icon}
+                    <CaretDownIcon
                       className={cn(
                         "size-4 shrink-0 transition-transform",
                         settingsOpen && "rotate-180",
                       )}
-                      strokeWidth={2}
                     />
                   </Button>
                 }
@@ -240,7 +237,7 @@ export function ProjectDialog({
               <FormattedMessage {...projectDialogMessages.cancel} />
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? <Spinner /> : <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />}
+              {isSaving ? <Spinner /> : <FloppyDiskIcon />}
               {isSaving ? (
                 <FormattedMessage {...projectDialogMessages.saving} />
               ) : (

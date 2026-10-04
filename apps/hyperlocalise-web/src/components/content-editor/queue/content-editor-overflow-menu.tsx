@@ -13,12 +13,11 @@
  * Version 2.0 or later.
  */
 import {
-  Download01Icon,
-  HistoryIcon,
+  DownloadSimpleIcon,
+  ClockCounterClockwiseIcon,
   KeyboardIcon,
-  MoreHorizontalIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  DotsThreeIcon,
+} from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -97,7 +96,7 @@ export const ContentEditorOverflowMenu = observer(function ContentEditorOverflow
           {isDownloadingFilteredView ? (
             <Spinner className="size-3.5" />
           ) : (
-            <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" aria-hidden />
+            <DotsThreeIcon className="size-4" aria-hidden />
           )}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60">
@@ -109,13 +108,13 @@ export const ContentEditorOverflowMenu = observer(function ContentEditorOverflow
                     disabled={isDownloadingFilteredView}
                     onClick={() => ui.openChromeDialog("export")}
                   >
-                    <HugeiconsIcon icon={Download01Icon} className="size-4" aria-hidden />
+                    <DownloadSimpleIcon className="size-4" aria-hidden />
                     <FormattedMessage {...messages.downloadFilteredView} />
                   </DropdownMenuItem>
                 ) : null}
                 {activityScope ? (
                   <DropdownMenuItem onClick={() => ui.openChromeDialog("activity")}>
-                    <HugeiconsIcon icon={HistoryIcon} className="size-4" aria-hidden />
+                    <ClockCounterClockwiseIcon className="size-4" aria-hidden />
                     <FormattedMessage {...messages.fileActivity} />
                   </DropdownMenuItem>
                 ) : null}
@@ -125,7 +124,7 @@ export const ContentEditorOverflowMenu = observer(function ContentEditorOverflow
           ) : null}
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => ui.openChromeDialog("shortcuts")}>
-              <HugeiconsIcon icon={KeyboardIcon} className="size-4" aria-hidden />
+              <KeyboardIcon className="size-4" aria-hidden />
               <FormattedMessage {...messages.keyboardShortcuts} />
               <DropdownMenuShortcut>?</DropdownMenuShortcut>
             </DropdownMenuItem>

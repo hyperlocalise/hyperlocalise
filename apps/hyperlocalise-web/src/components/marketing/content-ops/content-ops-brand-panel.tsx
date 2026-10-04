@@ -15,14 +15,13 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   BookOpenTextIcon,
-  Cancel01Icon,
-  Chat01Icon,
-  File01Icon,
-  FileSearchIcon,
-  RefreshIcon,
-  SentIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  XIcon,
+  ChatCircleIcon,
+  FileIcon,
+  FileMagnifyingGlassIcon,
+  ArrowClockwiseIcon,
+  PaperPlaneTiltIcon,
+} from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -201,11 +200,7 @@ export function ContentOpsBrandPanel({
 
           <div className="overflow-hidden rounded-xl border border-border/60 bg-background">
             <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2.5">
-              <HugeiconsIcon
-                icon={File01Icon}
-                strokeWidth={1.8}
-                className="size-4 shrink-0 text-primary"
-              />
+              <FileIcon className="size-4 shrink-0 text-primary" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-foreground">
                   <FormattedMessage {...contentOpsMockStageMessages.brandUploadedGuideFilename} />
@@ -265,7 +260,7 @@ export function ContentOpsBrandPanel({
               tabIndex={-1}
               aria-label={intl.formatMessage(contentOpsMockStageMessages.brandCloseLabel)}
             >
-              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+              <XIcon className="size-3.5" />
             </Button>
           </header>
 
@@ -273,7 +268,7 @@ export function ContentOpsBrandPanel({
             {phase === "idle" ? (
               <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-5 py-8 text-center">
                 <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} className="size-5" />
+                  <ChatCircleIcon className="size-5" />
                 </div>
                 <div className="max-w-sm space-y-1">
                   <h3 className="text-balance text-sm font-semibold text-foreground">
@@ -290,7 +285,7 @@ export function ContentOpsBrandPanel({
                   className="h-8 gap-1.5 rounded-full bg-background text-xs font-medium"
                   onClick={startPlayback}
                 >
-                  <HugeiconsIcon icon={FileSearchIcon} strokeWidth={1.8} className="size-3.5" />
+                  <FileMagnifyingGlassIcon className="size-3.5" />
                   <FormattedMessage {...contentOpsMockStageMessages.brandSuggestionCta} />
                 </Button>
               </div>
@@ -383,7 +378,7 @@ export function ContentOpsBrandPanel({
                   {MENTION_GLYPH}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[0.7rem] text-foreground">
-                  <HugeiconsIcon icon={BookOpenTextIcon} strokeWidth={1.8} className="size-3" />
+                  <BookOpenTextIcon className="size-3" />
                   <FormattedMessage {...contentOpsMockStageMessages.brandContextPill} />
                 </span>
               </div>
@@ -404,12 +399,7 @@ export function ContentOpsBrandPanel({
                     variant="secondary"
                     className="h-8 rounded-full px-3"
                   >
-                    <HugeiconsIcon
-                      data-icon="inline-start"
-                      icon={RefreshIcon}
-                      strokeWidth={2}
-                      className="size-3.5"
-                    />
+                    <ArrowClockwiseIcon data-icon="inline-start" className="size-3.5" />
                     <FormattedMessage {...contentOpsMockStageMessages.brandReplay} />
                   </Button>
                 ) : (
@@ -420,12 +410,7 @@ export function ContentOpsBrandPanel({
                     disabled={isBusy}
                     aria-label={intl.formatMessage(contentOpsMockStageMessages.brandSend)}
                   >
-                    <HugeiconsIcon
-                      data-icon="inline-start"
-                      icon={SentIcon}
-                      strokeWidth={2}
-                      className="size-3.5"
-                    />
+                    <PaperPlaneTiltIcon data-icon="inline-start" className="size-3.5" />
                     <FormattedMessage {...contentOpsMockStageMessages.brandSend} />
                   </Button>
                 )}

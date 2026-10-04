@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useRef, type ReactNode } from "react";
-import { BubbleChatNotificationIcon, Chat01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ChatCircleDotsIcon, ChatCircleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { ChatDockEmptyState } from "@/components/app-shell/chat-dock/chat-dock-empty-state";
@@ -120,11 +119,7 @@ export function ConversationPanel({
         <header className="border-b border-border">
           <Box paddingX="3u" paddingY="1.5u" display="flex" alignItems="center">
             <Row spacing="1.5u" alignY="center">
-              <HugeiconsIcon
-                icon={Chat01Icon}
-                strokeWidth={1.8}
-                className="size-5 shrink-0 text-muted-foreground"
-              />
+              <ChatCircleIcon className="size-5 shrink-0 text-muted-foreground" />
               <Rows spacing="0.5u">
                 <TypographyH4 lineClamp={1} size="medium">
                   <FormattedMessage {...conversationPanelMessages.newRequestTitle} />
@@ -284,11 +279,7 @@ function ConversationHeader({
     <header className="border-b border-border">
       <Box paddingX="3u" paddingY="1.5u" display="flex" alignItems="center">
         <Row spacing="1.5u" alignY="start">
-          <HugeiconsIcon
-            icon={BubbleChatNotificationIcon}
-            strokeWidth={1.8}
-            className="mt-0.5 size-5 shrink-0 text-muted-foreground"
-          />
+          <ChatCircleDotsIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
           <Rows spacing="1u">
             <TypographyH4 lineClamp={1} size="medium">
               {conversation.title}

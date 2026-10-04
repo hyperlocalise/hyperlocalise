@@ -16,16 +16,15 @@ import Link from "next/link";
 import { useIntl } from "react-intl";
 import {
   BookOpenTextIcon,
-  Building06Icon,
-  FolderLibraryIcon,
-  Key01Icon,
-  PuzzleIcon,
-  UserGroup02Icon,
+  BuildingOfficeIcon,
+  FoldersIcon,
+  KeyIcon,
+  PuzzlePieceIcon,
+  UsersThreeIcon,
   DatabaseIcon,
-  File01Icon,
-  TextFontIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  FileIcon,
+  TextTIcon,
+} from "@phosphor-icons/react";
 
 import type { ImplementedActivityEventType } from "@/lib/activity-log/activity-log-contract";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +33,7 @@ import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import { activityLogsPageContentMessages as messages } from "./activity-logs-page-content.messages";
+import { createElement } from "react";
 
 export type ActivityLogItem = {
   actor: { displayName: string; kind: string; userId: string | null };
@@ -93,36 +93,36 @@ const eventActions = {
 
 type ActivityVisual = {
   className: string;
-  icon: typeof UserGroup02Icon;
+  icon: typeof UsersThreeIcon;
 };
 
 function activityVisual(eventType: ImplementedActivityEventType): ActivityVisual {
   if (eventType.startsWith("member_")) {
-    return { icon: UserGroup02Icon, className: "bg-info/10 text-info" };
+    return { icon: UsersThreeIcon, className: "bg-info/10 text-info" };
   }
   if (eventType === "workspace_updated") {
-    return { icon: Building06Icon, className: "bg-primary/10 text-primary" };
+    return { icon: BuildingOfficeIcon, className: "bg-primary/10 text-primary" };
   }
   if (eventType.startsWith("personal_access_token_")) {
-    return { icon: Key01Icon, className: "bg-warning/10 text-warning" };
+    return { icon: KeyIcon, className: "bg-warning/10 text-warning" };
   }
   if (eventType.startsWith("integration_")) {
-    return { icon: PuzzleIcon, className: "bg-success/10 text-success" };
+    return { icon: PuzzlePieceIcon, className: "bg-success/10 text-success" };
   }
   if (eventType.startsWith("project_")) {
-    return { icon: FolderLibraryIcon, className: "bg-primary/10 text-primary" };
+    return { icon: FoldersIcon, className: "bg-primary/10 text-primary" };
   }
   if (eventType.startsWith("glossary_")) {
     return { icon: BookOpenTextIcon, className: "bg-warning/10 text-warning" };
   }
   if (eventType.startsWith("automation_")) {
-    return { icon: PuzzleIcon, className: "bg-success/10 text-success" };
+    return { icon: PuzzlePieceIcon, className: "bg-success/10 text-success" };
   }
   if (eventType.startsWith("file_")) {
-    return { icon: File01Icon, className: "bg-primary/10 text-primary" };
+    return { icon: FileIcon, className: "bg-primary/10 text-primary" };
   }
   if (eventType.startsWith("string_segment_")) {
-    return { icon: TextFontIcon, className: "bg-warning/10 text-warning" };
+    return { icon: TextTIcon, className: "bg-warning/10 text-warning" };
   }
   return { icon: DatabaseIcon, className: "bg-info/10 text-info" };
 }
@@ -189,7 +189,7 @@ export function ActivityLogList({
               )}
               aria-hidden="true"
             >
-              <HugeiconsIcon icon={visual.icon} strokeWidth={1.8} />
+              {createElement(visual.icon, {})}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">

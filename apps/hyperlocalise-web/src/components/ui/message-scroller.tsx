@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowDownIcon } from "@phosphor-icons/react";
 import {
   MessageScroller as MessageScrollerPrimitive,
   useMessageScroller,
@@ -122,7 +121,7 @@ export function MessageScrollerButton({
     >
       {children ?? (
         <>
-          <HugeiconsIcon icon={ArrowDown02Icon} strokeWidth={2} />
+          <ArrowDownIcon />
           <span className="sr-only">
             {direction === "end" ? (
               <FormattedMessage {...messageScrollerMessages.scrollToEnd} />

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -111,7 +110,7 @@ export function ContentEditorEditorHeader({
             shortcut: getCatShortcutLabel(isMac, "previous"),
           })}
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+          <ArrowLeftIcon className="size-4" />
         </Button>
         <Button
           variant="ghost"
@@ -123,7 +122,7 @@ export function ContentEditorEditorHeader({
             shortcut: getCatShortcutLabel(isMac, "next"),
           })}
         >
-          <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+          <ArrowRightIcon className="size-4" />
         </Button>
       </div>
     </div>

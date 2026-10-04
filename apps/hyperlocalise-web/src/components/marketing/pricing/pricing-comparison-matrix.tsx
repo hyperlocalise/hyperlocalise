@@ -11,14 +11,14 @@
  * Version 2.0 or later.
  */
 
+import type { Icon } from "@phosphor-icons/react";
 import {
-  FlashIcon,
+  LightningIcon,
   GaugeIcon,
-  LayerIcon,
-  Shield01Icon,
-  Tick02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+  StackIcon,
+  ShieldIcon,
+  CheckIcon,
+} from "@phosphor-icons/react/ssr";
 import { TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
@@ -29,6 +29,7 @@ import type {
   PricingPlanId,
 } from "./pricing-page-content";
 import { pricingPlanOrder } from "./pricing-page-content";
+import { createElement } from "react";
 
 type PricingComparisonMatrixProps = {
   plans: readonly PricingPlan[];
@@ -39,9 +40,9 @@ type PricingComparisonMatrixProps = {
   notIncludedAriaLabel: string;
 };
 
-const sectionIcons: Record<string, { icon: IconSvgElement; className: string }> = {
+const sectionIcons: Record<string, { icon: Icon; className: string }> = {
   workspace: {
-    icon: LayerIcon,
+    icon: StackIcon,
     className: "bg-blue-100 text-blue-900",
   },
   usage: {
@@ -49,11 +50,11 @@ const sectionIcons: Record<string, { icon: IconSvgElement; className: string }> 
     className: "bg-amber-100 text-amber-900",
   },
   "queries-automation": {
-    icon: FlashIcon,
+    icon: LightningIcon,
     className: "bg-emerald-100 text-emerald-900",
   },
   enterprise: {
-    icon: Shield01Icon,
+    icon: ShieldIcon,
     className: "bg-purple-100 text-purple-900",
   },
 };
@@ -68,13 +69,7 @@ function MatrixCellValue({
   notIncludedAriaLabel: string;
 }) {
   if (cell.kind === "check") {
-    return (
-      <HugeiconsIcon
-        icon={Tick02Icon}
-        className="size-4 text-foreground"
-        aria-label={includedAriaLabel}
-      />
-    );
+    return <CheckIcon className="size-4 text-foreground" aria-label={includedAriaLabel} />;
   }
 
   if (cell.kind === "dash") {
@@ -150,7 +145,7 @@ export function PricingComparisonMatrix({
                             sectionIcon.className,
                           )}
                         >
-                          <HugeiconsIcon icon={Icon} className="size-4" strokeWidth={1.75} />
+                          {createElement(Icon, { className: "size-4" })}
                         </span>
                       ) : null}
                       <TypographyH3 className="md:text-lg" size="large">

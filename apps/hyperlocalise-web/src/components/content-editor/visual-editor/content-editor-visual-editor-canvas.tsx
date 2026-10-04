@@ -13,12 +13,11 @@
  * Version 2.0 or later.
  */
 import {
-  ComputerIcon,
-  ReloadIcon,
-  SmartPhone01Icon,
-  Tablet01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  DesktopIcon,
+  ArrowClockwiseIcon,
+  DeviceMobileIcon,
+  DeviceTabletIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +33,7 @@ import type {
   ContentEditorVisualEditorSegment,
 } from "./content-editor-visual-editor.types";
 import { ContentEditorVisualEditorPreview } from "./content-editor-visual-editor-preview";
+import { createElement } from "react";
 
 const DEVICE_WIDTH: Record<ContentEditorVisualEditorDevice, string> = {
   desktop: "w-full max-w-none",
@@ -77,9 +77,9 @@ export function ContentEditorVisualEditorCanvas({
         <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
           {(
             [
-              ["desktop", ComputerIcon, contentEditorVisualEditorMessages.deviceDesktop],
-              ["tablet", Tablet01Icon, contentEditorVisualEditorMessages.deviceTablet],
-              ["mobile", SmartPhone01Icon, contentEditorVisualEditorMessages.deviceMobile],
+              ["desktop", DesktopIcon, contentEditorVisualEditorMessages.deviceDesktop],
+              ["tablet", DeviceTabletIcon, contentEditorVisualEditorMessages.deviceTablet],
+              ["mobile", DeviceMobileIcon, contentEditorVisualEditorMessages.deviceMobile],
             ] as const
           ).map(([value, icon, message]) => (
             <Button
@@ -90,7 +90,7 @@ export function ContentEditorVisualEditorCanvas({
               aria-pressed={device === value}
               onClick={() => onDeviceChange(value)}
             >
-              <HugeiconsIcon icon={icon} className="size-4" />
+              {createElement(icon, { className: "size-4" })}
             </Button>
           ))}
         </div>
@@ -107,7 +107,7 @@ export function ContentEditorVisualEditorCanvas({
             onClick={onRefresh}
             aria-label={intl.formatMessage(contentEditorVisualEditorMessages.refreshPreview)}
           >
-            <HugeiconsIcon icon={ReloadIcon} className="size-4" />
+            <ArrowClockwiseIcon className="size-4" />
           </Button>
         </div>
 

@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useRef } from "react";
-import { Delete02Icon, File01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon, FileIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -202,7 +201,7 @@ export function WorkspaceAutomationKnowledgeFilesPanel({
           disabled={disabled || uploadMutation.isPending || atLimit}
           onClick={() => inputRef.current?.click()}
         >
-          <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-3.5" />
+          <UploadSimpleIcon className="size-3.5" />
           <FormattedMessage {...workspaceAutomationFormMessages.uploadKnowledgeFile} />
         </Button>
       </div>
@@ -222,11 +221,7 @@ export function WorkspaceAutomationKnowledgeFilesPanel({
               key={file.id}
               className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2"
             >
-              <HugeiconsIcon
-                icon={File01Icon}
-                strokeWidth={1.8}
-                className="size-4 shrink-0 text-muted-foreground"
-              />
+              <FileIcon className="size-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs text-foreground">{file.filename}</p>
                 <p className="text-[11px] text-muted-foreground">
@@ -250,7 +245,7 @@ export function WorkspaceAutomationKnowledgeFilesPanel({
                 )}
                 onClick={() => deleteMutation.mutate(file.id)}
               >
-                <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+                <TrashIcon className="size-4" />
               </Button>
             </li>
           ))}

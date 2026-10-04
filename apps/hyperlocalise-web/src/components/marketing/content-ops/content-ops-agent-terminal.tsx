@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useState, type ReactNode } from "react";
-import { PlusSignIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { FormattedMessage } from "react-intl";
@@ -156,7 +155,7 @@ function AgentSetupPanel({ scene }: { scene: ContentOpsTerminalScene }) {
               />
             ))}
             <div className="flex items-center gap-1.5 px-2.5 py-2 text-[0.68rem] font-medium text-muted-foreground">
-              <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.8} className="size-3.5" />
+              <PlusIcon className="size-3.5" />
               <FormattedMessage {...automationEditorIllustrationMessages.addTool} />
             </div>
           </SetupPanel>

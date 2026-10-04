@@ -14,8 +14,7 @@
  */
 import type { FileUIPart } from "ai";
 import { memo, useEffect, useState } from "react";
-import { FileAttachmentIcon, SentIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { FileArrowDownIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -230,7 +229,7 @@ export function ReplyComposerView({
                 tooltip={addAttachmentsLabel}
                 onClick={() => attachments.openFileDialog()}
               >
-                <HugeiconsIcon icon={FileAttachmentIcon} strokeWidth={1.8} className="size-4" />
+                <FileArrowDownIcon className="size-4" />
               </PromptInputButton>
             </PromptInputTools>
 
@@ -265,7 +264,7 @@ export function ReplyComposerView({
                   shortcut: "Enter",
                 }}
               >
-                <HugeiconsIcon icon={SentIcon} strokeWidth={2} />
+                <PaperPlaneTiltIcon />
                 <FormattedMessage {...replyComposerMessages.send} />
               </PromptInputSubmit>
             </PromptInputTools>

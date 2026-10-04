@@ -14,14 +14,7 @@
  */
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Add01Icon,
-  ArrowDown01Icon,
-  Delete02Icon,
-  FilterIcon,
-  Link01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, CaretDownIcon, TrashIcon, FunnelIcon, LinkIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -843,11 +836,7 @@ export function GlossaryConceptDetail({
           <div className="min-h-0 min-w-0">
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative min-w-0 flex-1">
-                <HugeiconsIcon
-                  icon={FilterIcon}
-                  className="absolute left-2 top-2.5 size-4 text-muted-foreground"
-                  strokeWidth={1.8}
-                />
+                <FunnelIcon className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
                 <Input
                   className="pl-8"
                   placeholder={intl.formatMessage(messages.filterLanguages)}
@@ -867,7 +856,7 @@ export function GlossaryConceptDetail({
                 disabled={!canContribute || availableTermLocales.length === 0}
                 onClick={() => setLocalePickerOpen(true)}
               >
-                <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                <PlusIcon />
                 <FormattedMessage {...messages.addTerm} />
               </Button>
             </div>
@@ -984,7 +973,7 @@ export function GlossaryConceptDetail({
                                   setExpandedCreatingTermIds((current) => new Set(current).add(id));
                                 }}
                               >
-                                <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                                <PlusIcon />
                                 <FormattedMessage {...messages.addTerm} />
                               </Button>
                             ) : null}
@@ -1136,9 +1125,7 @@ export function GlossaryConceptDetail({
                                               })
                                             }
                                           >
-                                            <HugeiconsIcon
-                                              icon={ArrowDown01Icon}
-                                              strokeWidth={1.8}
+                                            <CaretDownIcon
                                               className={isExpanded ? "" : "-rotate-90"}
                                             />
                                           </Button>
@@ -1214,10 +1201,7 @@ export function GlossaryConceptDetail({
                                                         )
                                                       }
                                                     >
-                                                      <HugeiconsIcon
-                                                        icon={Link01Icon}
-                                                        strokeWidth={1.8}
-                                                      />
+                                                      <LinkIcon />
                                                     </Button>
                                                   </div>
                                                 </Field>
@@ -1264,10 +1248,7 @@ export function GlossaryConceptDetail({
                                                       });
                                                     }}
                                                   >
-                                                    <HugeiconsIcon
-                                                      icon={Delete02Icon}
-                                                      strokeWidth={1.8}
-                                                    />
+                                                    <TrashIcon />
                                                     <FormattedMessage {...messages.deleteTerm} />
                                                   </Button>
                                                 </div>
@@ -1318,7 +1299,7 @@ export function GlossaryConceptDetail({
                               setNewTermDraft(emptyTermDraft);
                             }}
                           >
-                            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                            <PlusIcon />
                             <FormattedMessage {...messages.addTerm} />
                           </Button>
                         ) : null}
@@ -1478,9 +1459,7 @@ export function GlossaryConceptDetail({
                                             })
                                           }
                                         >
-                                          <HugeiconsIcon
-                                            icon={ArrowDown01Icon}
-                                            strokeWidth={1.8}
+                                          <CaretDownIcon
                                             className={isExpanded ? "" : "-rotate-90"}
                                           />
                                         </Button>
@@ -1543,10 +1522,7 @@ export function GlossaryConceptDetail({
                                                     )
                                                   }
                                                 >
-                                                  <HugeiconsIcon
-                                                    icon={Link01Icon}
-                                                    strokeWidth={1.8}
-                                                  />
+                                                  <LinkIcon />
                                                 </Button>
                                               </div>
                                             </Field>
@@ -1584,10 +1560,7 @@ export function GlossaryConceptDetail({
                                                 variant="destructive"
                                                 onClick={() => setTermToDeleteId(term.id)}
                                               >
-                                                <HugeiconsIcon
-                                                  icon={Delete02Icon}
-                                                  strokeWidth={1.8}
-                                                />
+                                                <TrashIcon />
                                                 <FormattedMessage {...messages.deleteTerm} />
                                               </Button>
                                             ) : null}
@@ -1701,7 +1674,7 @@ export function GlossaryConceptDetail({
                                           setNewTermDraft(emptyTermDraft);
                                         }}
                                       >
-                                        <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                                        <TrashIcon />
                                       </Button>
                                     </div>
                                   </td>
@@ -1759,7 +1732,7 @@ export function GlossaryConceptDetail({
                                                 )
                                               }
                                             >
-                                              <HugeiconsIcon icon={Link01Icon} strokeWidth={1.8} />
+                                              <LinkIcon />
                                             </Button>
                                           </div>
                                         </Field>
@@ -1807,7 +1780,7 @@ export function GlossaryConceptDetail({
                   deleteConcept.mutate(conceptId);
               }}
             >
-              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+              <TrashIcon />
               <FormattedMessage {...messages.deleteConcept} />
             </Button>
             <div className="flex gap-2">

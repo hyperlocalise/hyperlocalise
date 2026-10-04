@@ -14,7 +14,7 @@
  */
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { QaFindingsTable, qaCheckLabel } from "@/components/qa/qa-findings-table";
@@ -120,7 +120,7 @@ export function QaWorkspacePageContent({
   const all = { value: "all", label: intl.formatMessage(m.all) };
   return (
     <WorkspacePageShell>
-      <PageHeader icon={CheckmarkCircle02Icon} title={intl.formatMessage(messages.title)} />
+      <PageHeader icon={CheckCircleIcon} title={intl.formatMessage(messages.title)} />
       <p className="max-w-3xl text-sm text-muted-foreground">
         {intl.formatMessage(m.workspaceHelp)}
       </p>

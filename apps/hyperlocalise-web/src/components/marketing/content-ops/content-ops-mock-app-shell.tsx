@@ -13,28 +13,28 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { createElement, useState } from "react";
 import Image from "next/image";
 
 import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import {
   BookOpenTextIcon,
-  Bookmark01Icon,
-  Cancel01Icon,
-  Chat01Icon,
-  CheckmarkCircle02Icon,
-  Copy01Icon,
+  BookmarkIcon,
+  XIcon,
+  ChatCircleIcon,
+  CheckCircleIcon,
+  CopyIcon,
   CreditCardIcon,
   CubeIcon,
-  CustomerSupportIcon,
-  DashboardSquare01Icon,
-  File01Icon,
-  FlashIcon,
-  InboxIcon,
-  Menu01Icon,
-  MinusSignCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  HeadsetIcon,
+  SquaresFourIcon,
+  FileIcon,
+  LightningIcon,
+  TrayIcon,
+  ListIcon,
+  MinusCircleIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { appShellClientMessages } from "@/components/app-shell/app-shell-client.messages";
@@ -59,16 +59,16 @@ type MockNavId = "dashboard" | "inbox" | "issues" | "projects" | "automations" |
 type MockNavItem = {
   id: MockNavId;
   labelKey: keyof typeof contentOpsMockStageMessages;
-  icon: React.ComponentProps<typeof HugeiconsIcon>["icon"];
+  icon: Icon;
 };
 
 const NAV_ITEMS: MockNavItem[] = [
-  { id: "inbox", labelKey: "mockNavInbox", icon: InboxIcon },
-  { id: "issues", labelKey: "mockNavIssues", icon: Copy01Icon },
-  { id: "dashboard", labelKey: "mockNavDashboard", icon: DashboardSquare01Icon },
+  { id: "inbox", labelKey: "mockNavInbox", icon: TrayIcon },
+  { id: "issues", labelKey: "mockNavIssues", icon: CopyIcon },
+  { id: "dashboard", labelKey: "mockNavDashboard", icon: SquaresFourIcon },
   { id: "projects", labelKey: "mockNavProjects", icon: CubeIcon },
-  { id: "automations", labelKey: "mockNavAutomations", icon: FlashIcon },
-  { id: "knowledge", labelKey: "mockNavKnowledge", icon: Bookmark01Icon },
+  { id: "automations", labelKey: "mockNavAutomations", icon: LightningIcon },
+  { id: "knowledge", labelKey: "mockNavKnowledge", icon: BookmarkIcon },
 ];
 
 const ACTIVE_NAV_BY_TAB: Record<ContentOpsMockTabId, MockNavId> = {
@@ -103,7 +103,7 @@ function MockNavButton({ item, active }: { item: MockNavItem; active: boolean })
       aria-current={active ? "page" : undefined}
       title={label}
     >
-      <HugeiconsIcon icon={item.icon} strokeWidth={1.8} className="size-4 shrink-0" />
+      {createElement(item.icon, { className: "size-4 shrink-0" })}
       <span className="sr-only">{label}</span>
     </div>
   );
@@ -138,7 +138,7 @@ function MockFloatingFooterPanel({
           aria-label={closeLabel}
           onClick={onClose}
         >
-          <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+          <XIcon className="size-3.5" />
         </button>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
@@ -183,17 +183,9 @@ function MockEditorGlossaryPanel({
             <div className="flex items-start justify-between gap-2">
               <span className="text-sm font-medium text-foreground">{entry.term}</span>
               {entry.tone === "preferred" ? (
-                <HugeiconsIcon
-                  icon={CheckmarkCircle02Icon}
-                  className="size-4 shrink-0 text-emerald-500"
-                  aria-hidden
-                />
+                <CheckCircleIcon className="size-4 shrink-0 text-emerald-500" aria-hidden />
               ) : (
-                <HugeiconsIcon
-                  icon={MinusSignCircleIcon}
-                  className="size-4 shrink-0 text-rose-500"
-                  aria-hidden
-                />
+                <MinusCircleIcon className="size-4 shrink-0 text-rose-500" aria-hidden />
               )}
             </div>
             <p className="mt-1 text-[11px] text-muted-foreground">{entry.note}</p>
@@ -278,7 +270,7 @@ function MockEditorChatPanel({ onClose, closeLabel }: { onClose: () => void; clo
       ) : (
         <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
           <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} className="size-4" />
+            <ChatCircleIcon className="size-4" />
           </div>
           <div className="max-w-xs space-y-1">
             <p className="text-sm font-medium text-foreground">
@@ -327,7 +319,7 @@ function MockEditorFooter() {
       <footer className="flex h-10 shrink-0 items-stretch border-t border-border px-2">
         <div className="flex h-10 w-full min-w-0 items-center gap-2">
           <Button type="button" variant="outline" size="xs" tabIndex={-1} className="shrink-0">
-            <HugeiconsIcon icon={CreditCardIcon} strokeWidth={2} data-icon="inline-start" />
+            <CreditCardIcon data-icon="inline-start" />
             <span className="max-w-40 truncate">
               <FormattedMessage {...contentOpsMockStageMessages.mockShellPlanButton} />
             </span>
@@ -342,24 +334,14 @@ function MockEditorFooter() {
               aria-expanded={openPanel === "glossary"}
               onClick={() => togglePanel("glossary")}
             >
-              <HugeiconsIcon icon={BookOpenTextIcon} strokeWidth={2} className="size-3.5" />
+              <BookOpenTextIcon className="size-3.5" />
               <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
               <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
-                <HugeiconsIcon
-                  icon={CheckmarkCircle02Icon}
-                  strokeWidth={2}
-                  className="size-4"
-                  aria-hidden="true"
-                />
+                <CheckCircleIcon className="size-4" aria-hidden="true" />
                 <span className="tabular-nums">{MOCK_EDITOR_GLOSSARY_PREFERRED}</span>
               </span>
               <span className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500">
-                <HugeiconsIcon
-                  icon={MinusSignCircleIcon}
-                  strokeWidth={2}
-                  className="size-4"
-                  aria-hidden="true"
-                />
+                <MinusCircleIcon className="size-4" aria-hidden="true" />
                 <span className="tabular-nums">{MOCK_EDITOR_GLOSSARY_NOT_RECOMMENDED}</span>
               </span>
             </Button>
@@ -372,7 +354,7 @@ function MockEditorFooter() {
               aria-expanded={openPanel === "issues"}
               onClick={() => togglePanel("issues")}
             >
-              <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} className="size-3.5" />
+              <CopyIcon className="size-3.5" />
               <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
               <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">
                 {MOCK_EDITOR_OPEN_ISSUES}
@@ -387,7 +369,7 @@ function MockEditorFooter() {
               aria-expanded={openPanel === "chat"}
               onClick={() => togglePanel("chat")}
             >
-              <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-3.5" />
+              <ChatCircleIcon className="size-3.5" />
               <FormattedMessage {...chatDockMessages.newChat} />
             </Button>
 
@@ -398,7 +380,7 @@ function MockEditorFooter() {
               tabIndex={-1}
               className="shrink-0 gap-1.5 px-2"
             >
-              <HugeiconsIcon icon={CustomerSupportIcon} strokeWidth={2} className="size-3.5" />
+              <HeadsetIcon className="size-3.5" />
               <FormattedMessage {...appShellFooterMessages.supportLabel} />
             </Button>
           </div>
@@ -483,7 +465,7 @@ export function ContentOpsMockAppShell({
           <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4 sm:px-5">
             <div className="flex min-w-0 items-center gap-2">
               <span className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground sm:hidden">
-                <HugeiconsIcon icon={Menu01Icon} strokeWidth={1.8} className="size-4" />
+                <ListIcon className="size-4" />
               </span>
               <Separator orientation="vertical" className="hidden h-4 sm:block" />
               <p className="truncate text-sm text-muted-foreground">{breadcrumb}</p>
@@ -491,7 +473,7 @@ export function ContentOpsMockAppShell({
             <div className="flex shrink-0 items-center gap-2">
               {activeTab === "editor" ? (
                 <span className="hidden items-center gap-1.5 rounded-md border border-border/70 bg-muted/30 px-2 py-1 text-[10px] font-medium text-muted-foreground sm:inline-flex">
-                  <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-3" />
+                  <FileIcon className="size-3" />
                   hero-section.tsx
                 </span>
               ) : null}

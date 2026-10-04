@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { HugeiconsIcon } from "@hugeicons/react";
 import { Handle, Position, useEdges, type NodeProps } from "@xyflow/react";
 import { defineMessages, FormattedMessage, useIntl } from "react-intl";
 
@@ -39,6 +38,7 @@ import { cn } from "@/lib/primitives/cn";
 import { useVisualWorkflowCanvasActions } from "../visual-workflow-canvas-actions";
 import { visualWorkflowEditorMessages as messages } from "../visual-workflow-editor.messages";
 import { VisualWorkflowQuickAddButton } from "./visual-workflow-quick-add-button";
+import { createElement } from "react";
 
 const nodeStatusMessages = defineMessages({
   running: { defaultMessage: "Running", id: "ZWQ+8S8rpv", description: "Workflow node status" },
@@ -216,7 +216,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           className="absolute top-2 left-2 text-primary"
           title={intl.formatMessage(messages.triggerBadge)}
         >
-          <HugeiconsIcon icon={TRIGGER_BADGE_ICON} className="size-3.5" strokeWidth={2} />
+          {createElement(TRIGGER_BADGE_ICON, { className: "size-3.5" })}
         </span>
       ) : data.config.kind === "logic.merge" ? (
         mergeInputs.map((input, index) => (
@@ -393,7 +393,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       )}
 
       <div className="flex flex-col items-center gap-1.5 pt-1 text-center">
-        <HugeiconsIcon icon={catalog.icon} className="size-7 text-foreground" strokeWidth={1.6} />
+        {createElement(catalog.icon, { className: "size-7 text-foreground" })}
         <p className="text-sm font-medium text-foreground">{title}</p>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>

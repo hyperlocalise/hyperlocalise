@@ -14,8 +14,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Add01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -712,11 +711,7 @@ const HyperlabExperimentDetailConnected = observer(function HyperlabExperimentDe
                       onOpenChange={(open) => uiStore.setAddVariantOpen(open)}
                     >
                       <DialogTrigger render={<Button variant="secondary" />}>
-                        <HugeiconsIcon
-                          icon={Add01Icon}
-                          strokeWidth={1.8}
-                          data-icon="inline-start"
-                        />
+                        <PlusIcon data-icon="inline-start" />
                         <FormattedMessage {...messages.addVariant} />
                       </DialogTrigger>
                       <DialogContent>
@@ -905,7 +900,7 @@ const HyperlabVariantCard = observer(function HyperlabVariantCard({
           {canWrite && canDeleteVariant ? (
             <AlertDialog>
               <AlertDialogTrigger render={<Button variant="ghost" size="sm" />}>
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
+                <TrashIcon data-icon="inline-start" />
                 <FormattedMessage {...messages.deleteVariant} />
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -973,7 +968,7 @@ const HyperlabVariantCard = observer(function HyperlabVariantCard({
                   size="sm"
                   onClick={() => uiStore.setVariantSheetOpen(variant.id, true)}
                 >
-                  <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
+                  <PlusIcon data-icon="inline-start" />
                   <FormattedMessage {...messages.attachFlag} />
                 </Button>
               ) : null}

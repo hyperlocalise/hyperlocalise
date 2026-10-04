@@ -12,9 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
-import { ArrowDown01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { createElement, useState } from "react";
+import { CaretDownIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -107,7 +106,7 @@ function StatusGroupHeader({
     status === "other"
       ? intl.formatMessage(messages.otherGroup)
       : intl.formatMessage(getJobStatusMessage(status));
-  const chevron = collapsed ? ArrowRight01Icon : ArrowDown01Icon;
+  const chevron = collapsed ? ArrowRightIcon : CaretDownIcon;
 
   return (
     <button
@@ -122,7 +121,7 @@ function StatusGroupHeader({
       )}
       onClick={onToggle}
     >
-      <HugeiconsIcon icon={chevron} strokeWidth={2} className="size-3.5 text-muted-foreground" />
+      {createElement(chevron, { className: "size-3.5 text-muted-foreground" })}
       <span>{label}</span>
       <span className="text-muted-foreground tabular-nums">{count}</span>
     </button>

@@ -16,8 +16,7 @@ import { NativeTargetProvider } from "./content-editor-native-target-context";
 import { ContentEditorPageWindowProvider } from "./content-editor-page-window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { WarningCircleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import {
@@ -1143,7 +1142,7 @@ export function ProjectFileContentEditorWorkspace({
   if (contentEditorQuery.isError) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-flame-100">
-        <HugeiconsIcon icon={AlertCircleIcon} className="size-4" />
+        <WarningCircleIcon className="size-4" />
         <TypographyP size="small">
           {contentEditorQuery.error instanceof Error
             ? contentEditorQuery.error.message

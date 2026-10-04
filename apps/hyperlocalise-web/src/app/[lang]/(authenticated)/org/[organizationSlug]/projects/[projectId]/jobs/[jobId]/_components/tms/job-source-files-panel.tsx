@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { LeftToRightListBulletIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ListBulletsIcon } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -258,7 +257,7 @@ export function JobSourceFilesPanel({
                 disabled={!stringsHrefForSelected}
                 render={stringsHrefForSelected ? <Link href={stringsHrefForSelected} /> : undefined}
               >
-                <HugeiconsIcon icon={LeftToRightListBulletIcon} />
+                <ListBulletsIcon />
                 <FormattedMessage {...messages.openEditor} />
               </Button>
             </div>

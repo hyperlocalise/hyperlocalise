@@ -14,8 +14,7 @@
  */
 
 import Link from "next/link";
-import { Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckIcon } from "@phosphor-icons/react";
 
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Badge } from "@/components/ui/badge";
@@ -101,11 +100,7 @@ export function PricingPlansSection({ plans, popularBadge }: PricingPlansSection
           <ul className="mb-8 flex flex-col gap-3">
             {plan.features.map((feature) => (
               <li key={feature} className="flex items-start gap-3 text-sm text-muted-foreground">
-                <HugeiconsIcon
-                  icon={Tick02Icon}
-                  className="mt-0.5 size-4 shrink-0 text-foreground"
-                  aria-hidden
-                />
+                <CheckIcon className="mt-0.5 size-4 shrink-0 text-foreground" aria-hidden />
                 <span>{feature}</span>
               </li>
             ))}

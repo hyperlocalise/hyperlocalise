@@ -14,13 +14,12 @@
  */
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import {
-  ArrowRight01Icon,
-  BrainCircuitIcon,
-  Database01Icon,
-  LanguageCircleIcon,
-  SparklesIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  ArrowRightIcon,
+  BrainIcon,
+  DatabaseIcon,
+  TranslateIcon,
+  SparkleIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +28,7 @@ import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 import { knowledgeMockMessages } from "./knowledge-mock-ui.messages";
 import { KnowledgeWaveGlobe } from "./knowledge-wave-globe";
+import { createElement } from "react";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -82,7 +82,7 @@ function HeroSignal({
   title,
   description,
 }: {
-  icon: typeof BrainCircuitIcon;
+  icon: typeof BrainIcon;
   title: React.ReactNode;
   description: React.ReactNode;
 }) {
@@ -93,7 +93,7 @@ function HeroSignal({
       className="flex items-center gap-3 rounded-lg border border-primary/30 bg-background/75 px-3 py-2 backdrop-blur-md"
     >
       <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/8 text-primary">
-        <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-3.5" />
+        {createElement(icon, { className: "size-3.5" })}
       </span>
       <div className="min-w-0 text-left">
         <p className="text-[11px] font-medium text-foreground">{title}</p>
@@ -135,24 +135,24 @@ export function KnowledgeHero({
               render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
             >
               <FormattedMessage {...knowledgeMockMessages.requestDemo} />
-              <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
+              <ArrowRightIcon data-icon="inline-end" className="size-4" />
             </Button>
           </Reveal>
 
           <Reveal className="mt-14 w-full max-w-3xl">
             <div className="grid gap-2 sm:grid-cols-3">
               <HeroSignal
-                icon={Database01Icon}
+                icon={DatabaseIcon}
                 title={<FormattedMessage {...knowledgeMockMessages.captureTitle} />}
                 description={<FormattedMessage {...knowledgeMockMessages.captureDesc} />}
               />
               <HeroSignal
-                icon={LanguageCircleIcon}
+                icon={TranslateIcon}
                 title={<FormattedMessage {...knowledgeMockMessages.understandTitle} />}
                 description={<FormattedMessage {...knowledgeMockMessages.understandDesc} />}
               />
               <HeroSignal
-                icon={SparklesIcon}
+                icon={SparkleIcon}
                 title={<FormattedMessage {...knowledgeMockMessages.recallTitle} />}
                 description={<FormattedMessage {...knowledgeMockMessages.recallDesc} />}
               />

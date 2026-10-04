@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useMemo, useRef, useState } from "react";
-import { Upload01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { UploadSimpleIcon } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
@@ -374,7 +373,7 @@ export function IssueSheetImportDialog({
               className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed bg-muted/20 px-6 py-10 text-center"
               onClick={() => fileInputRef.current?.click()}
             >
-              <HugeiconsIcon icon={Upload01Icon} className="size-8 text-muted-foreground" />
+              <UploadSimpleIcon className="size-8 text-muted-foreground" />
               <div>
                 <TypographyP weight="medium">
                   <FormattedMessage {...messages.chooseFile} />

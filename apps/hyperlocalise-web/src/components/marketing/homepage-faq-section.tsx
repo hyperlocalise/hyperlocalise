@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon, ArrowUpRight01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, ArrowUpRightIcon, XIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FormattedMessage } from "react-intl";
@@ -73,7 +72,7 @@ export function HomepageFaqSection({ items, heading, subheading }: HomepageFaqSe
               aria-hidden
               className="inline-flex size-7 items-center justify-center rounded-full border border-border text-foreground transition-colors group-hover/contact:border-foreground group-hover/contact:bg-foreground group-hover/contact:text-background"
             >
-              <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={2} className="size-3.5" />
+              <ArrowUpRightIcon className="size-3.5" />
             </span>
           </Link>
         </div>
@@ -94,15 +93,11 @@ export function HomepageFaqSection({ items, heading, subheading }: HomepageFaqSe
             >
               <span className="pe-2">{item.question}</span>
               <span className="ms-auto inline-flex size-5 shrink-0 items-center justify-center text-foreground">
-                <HugeiconsIcon
-                  icon={Add01Icon}
-                  strokeWidth={2}
+                <PlusIcon
                   className="size-5 group-aria-expanded/accordion-trigger:hidden"
                   aria-hidden
                 />
-                <HugeiconsIcon
-                  icon={Cancel01Icon}
-                  strokeWidth={2}
+                <XIcon
                   className="hidden size-5 group-aria-expanded/accordion-trigger:inline"
                   aria-hidden
                 />

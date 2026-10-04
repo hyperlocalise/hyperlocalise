@@ -13,12 +13,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import Link from "next/link";
 import { expect, userEvent } from "storybook/test";
-import {
-  LeftToRightListBulletIcon,
-  LinkSquare02Icon,
-  RefreshIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ListBulletsIcon, ArrowSquareOutIcon, ArrowClockwiseIcon } from "@phosphor-icons/react/ssr";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
@@ -162,7 +157,7 @@ function liveCrowdinHeaderActions() {
         nativeButton={false}
         render={
           <a href={liveJob.externalUrl!} target="_blank" rel="noreferrer noopener">
-            <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} />
+            <ArrowSquareOutIcon />
             Open in crowdin
           </a>
         }
@@ -170,12 +165,12 @@ function liveCrowdinHeaderActions() {
         variant="outline"
       />
       <Button size="sm" variant="outline">
-        <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
+        <ArrowClockwiseIcon />
         Refresh
       </Button>
       {liveJobContentEditorHref ? (
         <Button size="sm" render={<Link href={liveJobContentEditorHref} />}>
-          <HugeiconsIcon icon={LeftToRightListBulletIcon} />
+          <ListBulletsIcon />
           Open Editor
         </Button>
       ) : null}

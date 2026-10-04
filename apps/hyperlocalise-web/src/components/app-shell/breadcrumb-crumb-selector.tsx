@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -119,7 +118,7 @@ export function BreadcrumbCrumbSelector({
           {isLoading ? (
             <Skeleton aria-hidden className="size-3.5 rounded-sm" />
           ) : (
-            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5" />
+            <CaretDownIcon className="size-3.5" />
           )}
           {menuLabel ? <span className="sr-only">{menuLabel}</span> : null}
         </DropdownMenuTrigger>

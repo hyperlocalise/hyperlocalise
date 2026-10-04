@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -47,7 +46,7 @@ export function ContentEditorShowMoreFade({
         onClick={onClick}
       >
         {label}
-        <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" strokeWidth={1.8} />
+        <CaretDownIcon className="size-3.5" />
       </Button>
     </div>
   );
@@ -73,7 +72,7 @@ export function ContentEditorShowLessButton({
         onClick={onClick}
       >
         {label}
-        <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 rotate-180" strokeWidth={1.8} />
+        <CaretDownIcon className="size-3.5 rotate-180" />
       </Button>
     </div>
   );

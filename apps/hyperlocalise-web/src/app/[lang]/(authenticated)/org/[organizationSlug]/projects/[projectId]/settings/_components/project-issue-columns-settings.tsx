@@ -12,16 +12,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { type FormEvent, useMemo, useState } from "react";
+import { createElement, type FormEvent, useMemo, useState } from "react";
 import {
-  ArrowDown01Icon,
-  ArrowUp01Icon,
-  Delete02Icon,
+  CaretDownIcon,
+  CaretUpIcon,
+  TrashIcon,
   EyeIcon,
-  LayoutTable01Icon,
-  ViewOffSlashIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  TableIcon,
+  EyeSlashIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -344,7 +343,7 @@ export function ProjectIssueColumnsSettings({
             aria-label={intl.formatMessage(messages.moveUp)}
             onClick={() => moveColumn(column, group, -1)}
           >
-            <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={1.8} />
+            <CaretUpIcon />
           </Button>
           <Button
             type="button"
@@ -354,7 +353,7 @@ export function ProjectIssueColumnsSettings({
             aria-label={intl.formatMessage(messages.moveDown)}
             onClick={() => moveColumn(column, group, 1)}
           >
-            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} />
+            <CaretDownIcon />
           </Button>
           <Button
             type="button"
@@ -369,7 +368,7 @@ export function ProjectIssueColumnsSettings({
               })
             }
           >
-            <HugeiconsIcon icon={column.hidden ? EyeIcon : ViewOffSlashIcon} strokeWidth={1.8} />
+            {createElement(column.hidden ? EyeIcon : EyeSlashIcon, {})}
           </Button>
           <Button
             type="button"
@@ -400,7 +399,7 @@ export function ProjectIssueColumnsSettings({
               aria-label={intl.formatMessage(messages.delete)}
               onClick={() => setDeleteColumn(column)}
             >
-              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+              <TrashIcon />
             </Button>
           ) : null}
         </div>
@@ -411,7 +410,7 @@ export function ProjectIssueColumnsSettings({
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
       <ProjectSettingsSectionHeading
-        icon={LayoutTable01Icon}
+        icon={TableIcon}
         tone="dew"
         title={<FormattedMessage {...messages.title} />}
         description={<FormattedMessage {...messages.description} />}
@@ -719,11 +718,7 @@ export function ProjectIssueColumnsSettings({
                 }
               }}
             >
-              {removeColumn.isPending ? (
-                <Spinner />
-              ) : (
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-              )}
+              {removeColumn.isPending ? <Spinner /> : <TrashIcon />}
               {removeColumn.isPending ? (
                 <FormattedMessage {...messages.deleting} />
               ) : (

@@ -13,21 +13,21 @@
  * Version 2.0 or later.
  */
 import {
-  Copy01Icon,
-  File01Icon,
+  CopyIcon,
+  FileIcon,
   GitCommitIcon,
-  MinusSignIcon,
-  PlusSignIcon,
-  Tick02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type HugeiconsProps } from "@hugeicons/react";
+  MinusIcon,
+  PlusIcon,
+  CheckIcon,
+  type IconProps,
+} from "@phosphor-icons/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
 import type { ComponentProps, HTMLAttributes } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createElement, useCallback, useEffect, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 
 import { commitMessages } from "./commit.messages";
@@ -62,7 +62,7 @@ export type CommitHashProps = HTMLAttributes<HTMLSpanElement>;
 
 export const CommitHash = ({ className, children, ...props }: CommitHashProps) => (
   <span className={cn("font-mono text-xs", className)} {...props}>
-    <HugeiconsIcon icon={GitCommitIcon} className="me-1 inline-block size-3" />
+    <GitCommitIcon className="me-1 inline-block size-3" />
     {children}
   </span>
 );
@@ -215,7 +215,7 @@ export const CommitCopyButton = ({
     [],
   );
 
-  const Icon = isCopied ? Tick02Icon : Copy01Icon;
+  const Icon = isCopied ? CheckIcon : CopyIcon;
   const tooltipText = isCopied
     ? intl.formatMessage(commitMessages.copied)
     : intl.formatMessage(commitMessages.copyHash);
@@ -232,7 +232,7 @@ export const CommitCopyButton = ({
             variant="ghost"
             {...props}
           >
-            {children ?? <HugeiconsIcon icon={Icon} size={14} />}
+            {children ?? createElement(Icon, { size: 14 })}
           </Button>
         }
       />
@@ -311,14 +311,10 @@ export const CommitFileStatus = ({
   </span>
 );
 
-export type CommitFileIconProps = Omit<HugeiconsProps, "icon">;
+export type CommitFileIconProps = IconProps;
 
 export const CommitFileIcon = ({ className, ...props }: CommitFileIconProps) => (
-  <HugeiconsIcon
-    icon={File01Icon}
-    className={cn("size-3.5 shrink-0 text-muted-foreground", className)}
-    {...props}
-  />
+  <FileIcon className={cn("size-3.5 shrink-0 text-muted-foreground", className)} {...props} />
 );
 
 export type CommitFilePathProps = HTMLAttributes<HTMLSpanElement>;
@@ -355,7 +351,7 @@ export const CommitFileAdditions = ({
     <span className={cn("text-green-600 dark:text-green-400", className)} {...props}>
       {children ?? (
         <>
-          <HugeiconsIcon icon={PlusSignIcon} className="inline-block size-3" />
+          <PlusIcon className="inline-block size-3" />
           {count}
         </>
       )}
@@ -381,7 +377,7 @@ export const CommitFileDeletions = ({
     <span className={cn("text-red-600 dark:text-red-400", className)} {...props}>
       {children ?? (
         <>
-          <HugeiconsIcon icon={MinusSignIcon} className="inline-block size-3" />
+          <MinusIcon className="inline-block size-3" />
           {count}
         </>
       )}

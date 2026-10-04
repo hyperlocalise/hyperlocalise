@@ -16,15 +16,14 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Add01Icon,
+  PlusIcon,
   BookOpenTextIcon,
-  Delete02Icon,
-  Download01Icon,
-  FilterIcon,
-  Upload01Icon,
-  WorkHistoryIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  TrashIcon,
+  DownloadSimpleIcon,
+  FunnelIcon,
+  UploadSimpleIcon,
+  ClockCounterClockwiseIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -706,11 +705,7 @@ export function NativeGlossaryDetail({
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <HugeiconsIcon
-            icon={BookOpenTextIcon}
-            className="size-5 text-muted-foreground"
-            strokeWidth={1.8}
-          />
+          <BookOpenTextIcon className="size-5 text-muted-foreground" />
           <Badge variant="outline">
             {glossary.controlLevel === "team" ? (
               teamControlLevelDisplayLabel(glossary, intl)
@@ -784,7 +779,7 @@ export function NativeGlossaryDetail({
             variant="outline"
             render={<Link href={`${glossaryHref}/history`} />}
           >
-            <HugeiconsIcon icon={WorkHistoryIcon} strokeWidth={1.8} data-icon="inline-start" />
+            <ClockCounterClockwiseIcon data-icon="inline-start" />
             <FormattedMessage {...messages.glossaryHistory} />
           </Button>
           <Button
@@ -792,7 +787,7 @@ export function NativeGlossaryDetail({
             variant="outline"
             render={<Link href={`${glossaryHref}/imports`} />}
           >
-            <HugeiconsIcon icon={WorkHistoryIcon} strokeWidth={1.8} data-icon="inline-start" />
+            <ClockCounterClockwiseIcon data-icon="inline-start" />
             <FormattedMessage {...messages.glossaryInterchangeHistory} />
           </Button>
           {canManage ? (
@@ -802,7 +797,7 @@ export function NativeGlossaryDetail({
               onClick={() => setDeleteGlossaryDialogOpen(true)}
               disabled={deleteGlossary.isPending}
             >
-              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
+              <TrashIcon data-icon="inline-start" />
               <FormattedMessage {...messages.deleteGlossary} />
             </Button>
           ) : null}
@@ -827,7 +822,7 @@ export function NativeGlossaryDetail({
                   variant={activeDropdownFilterCount > 0 ? "default" : "outline"}
                   onClick={openFilterDialog}
                 >
-                  <HugeiconsIcon icon={FilterIcon} strokeWidth={1.8} data-icon="inline-start" />
+                  <FunnelIcon data-icon="inline-start" />
                   <FormattedMessage {...messages.filtersButton} />
                   {activeDropdownFilterCount > 0 ? ` (${activeDropdownFilterCount})` : ""}
                 </Button>
@@ -841,11 +836,7 @@ export function NativeGlossaryDetail({
                     {importConcepts.isPending ? (
                       <Spinner data-icon="inline-start" />
                     ) : (
-                      <HugeiconsIcon
-                        icon={Upload01Icon}
-                        strokeWidth={1.8}
-                        data-icon="inline-start"
-                      />
+                      <UploadSimpleIcon data-icon="inline-start" />
                     )}
                     <FormattedMessage {...messages.importGlossary} />
                   </Button>
@@ -863,18 +854,14 @@ export function NativeGlossaryDetail({
                     {exportGlossary.isPending ? (
                       <Spinner data-icon="inline-start" />
                     ) : (
-                      <HugeiconsIcon
-                        icon={Download01Icon}
-                        strokeWidth={1.8}
-                        data-icon="inline-start"
-                      />
+                      <DownloadSimpleIcon data-icon="inline-start" />
                     )}
                     <FormattedMessage {...messages.exportGlossary} />
                   </Button>
                 ) : null}
                 {canContribute ? (
                   <Button type="button" onClick={() => router.push(`${glossaryHref}/concepts/new`)}>
-                    <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
+                    <PlusIcon data-icon="inline-start" />
                     <FormattedMessage {...messages.addConcept} />
                   </Button>
                 ) : null}
@@ -1215,11 +1202,7 @@ export function NativeGlossaryDetail({
                         type="button"
                         onClick={() => router.push(`${glossaryHref}/concepts/new`)}
                       >
-                        <HugeiconsIcon
-                          icon={Add01Icon}
-                          strokeWidth={1.8}
-                          data-icon="inline-start"
-                        />
+                        <PlusIcon data-icon="inline-start" />
                         <FormattedMessage {...messages.addConcept} />
                       </Button>
                     ) : null}
@@ -1229,11 +1212,7 @@ export function NativeGlossaryDetail({
                         variant="outline"
                         onClick={() => setImportDialogOpen(true)}
                       >
-                        <HugeiconsIcon
-                          icon={Upload01Icon}
-                          strokeWidth={1.8}
-                          data-icon="inline-start"
-                        />
+                        <UploadSimpleIcon data-icon="inline-start" />
                         <FormattedMessage {...messages.importGlossary} />
                       </Button>
                     ) : null}
@@ -1460,7 +1439,7 @@ export function NativeGlossaryDetail({
               {exportGlossary.isPending ? (
                 <Spinner data-icon="inline-start" />
               ) : (
-                <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} data-icon="inline-start" />
+                <DownloadSimpleIcon data-icon="inline-start" />
               )}
               <FormattedMessage {...messages.exportStart} />
             </Button>
@@ -1513,7 +1492,7 @@ export function NativeGlossaryDetail({
               {importConcepts.isPending ? (
                 <Spinner className="size-5" />
               ) : (
-                <HugeiconsIcon icon={Upload01Icon} className="size-5" strokeWidth={1.8} />
+                <UploadSimpleIcon className="size-5" />
               )}
               <span className="text-sm font-medium text-foreground">
                 {importFile?.name ?? <FormattedMessage {...messages.selectGlossaryFile} />}
@@ -1591,11 +1570,7 @@ export function NativeGlossaryDetail({
               disabled={deleteGlossary.isPending}
               onClick={() => deleteGlossary.mutate()}
             >
-              {deleteGlossary.isPending ? (
-                <Spinner />
-              ) : (
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-              )}
+              {deleteGlossary.isPending ? <Spinner /> : <TrashIcon />}
               <FormattedMessage {...messages.deleteGlossary} />
             </Button>
           </AlertDialogFooter>

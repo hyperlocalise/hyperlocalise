@@ -14,8 +14,7 @@
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Add01Icon, GridViewIcon, Search01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, SquaresFourIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -388,7 +387,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         className="w-full rounded-lg sm:w-fit"
         disabled={isSavingProject}
       >
-        <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+        <PlusIcon />
         <FormattedMessage {...projectsPageContentMessages.createNativeProject} />
       </Button>
     ) : (
@@ -398,7 +397,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         className="w-full rounded-lg sm:w-fit"
         disabled={isSavingProject}
       >
-        <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+        <PlusIcon />
         <FormattedMessage {...projectsPageContentMessages.createProject} />
       </Button>
     );
@@ -466,7 +465,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   return (
     <WorkspacePageShell className="min-w-0">
       <PageHeader
-        icon={GridViewIcon}
+        icon={SquaresFourIcon}
         label={intl.formatMessage(projectsPageContentMessages.pageLabel)}
         title={intl.formatMessage(projectsPageContentMessages.pageTitle)}
         actions={createProjectAction}
@@ -525,8 +524,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       {hasAnyProjects ? (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-90">
-            <HugeiconsIcon
-              icon={Search01Icon}
+            <MagnifyingGlassIcon
               aria-hidden="true"
               className="pointer-events-none absolute start-3 top-2.5 size-4 text-muted-foreground"
             />

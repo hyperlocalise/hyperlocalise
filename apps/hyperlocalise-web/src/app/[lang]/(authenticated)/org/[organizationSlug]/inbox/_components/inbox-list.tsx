@@ -12,14 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  Chat01Icon,
-  CheckmarkCircle02Icon,
-  FilterIcon,
-  SparklesIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { createElement, memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ChatCircleIcon, CheckCircleIcon, FunnelIcon, SparkleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 
@@ -269,7 +263,7 @@ function InboxListFiltersToolbar({
                 />
               }
             >
-              <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3" />
+              <FunnelIcon className="size-3" />
               <span className="max-w-24 truncate">{inboxTypeFilterLabel(filters.type, intl)}</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
@@ -590,12 +584,10 @@ function InboxListItemAvatar({
         className="absolute -end-0.5 -bottom-0.5 z-10 flex size-[18px] items-center justify-center rounded-full bg-card shadow-sm ring-2 ring-background"
         aria-label={visual.typeIconLabel}
       >
-        <HugeiconsIcon
-          icon={visual.typeIcon}
-          strokeWidth={2}
-          size={12}
-          className={cn("shrink-0", visual.badgeClassName)}
-        />
+        {createElement(visual.typeIcon, {
+          size: 12,
+          className: cn("shrink-0", visual.badgeClassName),
+        })}
       </span>
     </div>
   );
@@ -636,7 +628,7 @@ function InboxListItemContent({
 const NewRequestListItem = memo(function NewRequestListItem() {
   const intl = useIntl();
   const visual: InboxListItemVisual = {
-    typeIcon: SparklesIcon,
+    typeIcon: SparkleIcon,
     typeIconLabel: intl.formatMessage(inboxListMessages.newRequestTitle),
     badgeClassName: "text-primary",
   };
@@ -645,7 +637,7 @@ const NewRequestListItem = memo(function NewRequestListItem() {
     <div aria-current="page" className={listItemClassName(true)}>
       <InboxListItemAvatar visual={visual}>
         <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
-          <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-4" />
+          <ChatCircleIcon className="size-4" />
         </AvatarFallback>
       </InboxListItemAvatar>
       <InboxListItemContent
@@ -770,11 +762,7 @@ const NotificationListItem = memo(function NotificationListItem({
           <AvatarImage src={notification.actor.avatarUrl} alt={actorName} />
         ) : null}
         <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
-          {notification.qaRunId ? (
-            <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4" />
-          ) : (
-            avatarLabel
-          )}
+          {notification.qaRunId ? <CheckCircleIcon className="size-4" /> : avatarLabel}
         </AvatarFallback>
       </InboxListItemAvatar>
       <InboxListItemContent

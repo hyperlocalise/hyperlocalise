@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useMemo, useRef, useState } from "react";
-import { TextFontIcon } from "@hugeicons/core-free-icons";
+import { TextTIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -336,7 +336,7 @@ export function DictionaryDetailPageContent({
 
   return (
     <WorkspacePageShell>
-      <PageHeader icon={TextFontIcon} title={dictionary?.name ?? dictionaryId} />
+      <PageHeader icon={TextTIcon} title={dictionary?.name ?? dictionaryId} />
 
       {dictionaryQuery.isError ? (
         <TypographyP className="text-flame-100" size="small">

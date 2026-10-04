@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
-import { Globe02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { GlobeIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
@@ -43,7 +42,7 @@ export function DomainResearchEmpty({
     <Empty className="border border-dashed border-border">
       <EmptyHeader>
         <EmptyMedia variant="icon">
-          <HugeiconsIcon icon={Globe02Icon} strokeWidth={1.8} />
+          <GlobeIcon />
         </EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>
         {description ? <EmptyDescription>{description}</EmptyDescription> : null}

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { SearchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
 import Image from "next/image";
@@ -100,7 +99,7 @@ export function PricingModelsBrowser({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <InputGroup className="min-w-0 flex-1">
             <InputGroupAddon>
-              <HugeiconsIcon aria-hidden icon={SearchIcon} />
+              <MagnifyingGlassIcon aria-hidden />
             </InputGroupAddon>
             <InputGroupInput
               aria-label={searchLabel}

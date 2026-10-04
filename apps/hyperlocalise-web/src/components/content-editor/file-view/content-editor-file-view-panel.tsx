@@ -21,16 +21,15 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
-  AiPaintbrushIcon,
-  ArrowLeft01Icon,
-  ArrowRight01Icon,
-  MoreHorizontalIcon,
-  SparklesIcon,
-  Upload01Icon,
-  ViewIcon,
-  ViewOffSlashIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  PaintBrushIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  DotsThreeIcon,
+  SparkleIcon,
+  UploadSimpleIcon,
+  EyeIcon,
+  EyeSlashIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { ContentEditorWorkspaceViewSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-view-switcher-connected";
@@ -267,7 +266,7 @@ export function ContentEditorFileViewPanel({
             disabled={!canEdit || isImageBusy}
             onClick={() => uploadInputRef.current?.click()}
           >
-            <HugeiconsIcon icon={Upload01Icon} data-icon="inline-start" aria-hidden />
+            <UploadSimpleIcon data-icon="inline-start" aria-hidden />
             <FormattedMessage
               {...(viewerId === "image"
                 ? imageViewerMessages.upload
@@ -336,7 +335,7 @@ export function ContentEditorFileViewPanel({
                   disabled={!hasPreviousSegment || !onPrevious}
                   aria-label={intl.formatMessage(contentEditorFileViewMessages.previousFileAria)}
                 >
-                  <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
+                  <ArrowLeftIcon aria-hidden />
                 </Button>
                 <Button
                   variant="outline"
@@ -345,7 +344,7 @@ export function ContentEditorFileViewPanel({
                   disabled={!hasNextSegment || !onNext}
                   aria-label={intl.formatMessage(contentEditorFileViewMessages.nextFileAria)}
                 >
-                  <HugeiconsIcon icon={ArrowRight01Icon} aria-hidden />
+                  <ArrowRightIcon aria-hidden />
                 </Button>
               </Row>
             </Column>
@@ -369,7 +368,7 @@ export function ContentEditorFileViewPanel({
                   variant="outline"
                   className="hidden items-center gap-1 border-blue-500/30 bg-blue-500/10 text-xs font-normal text-blue-600 sm:inline-flex dark:text-blue-400"
                 >
-                  <HugeiconsIcon icon={AiPaintbrushIcon} className="size-3" />
+                  <PaintBrushIcon className="size-3" />
                   <FormattedMessage {...contentEditorWorkspacePersonaMessages.designerPersona} />
                 </Badge>
               ) : null}
@@ -385,11 +384,11 @@ export function ContentEditorFileViewPanel({
                 aria-pressed={sourcePaneVisible}
                 onClick={toggleSourcePane}
               >
-                <HugeiconsIcon
-                  icon={sourcePaneVisible ? ViewOffSlashIcon : ViewIcon}
-                  data-icon="inline-start"
-                  aria-hidden
-                />
+                {sourcePaneVisible ? (
+                  <EyeSlashIcon data-icon="inline-start" aria-hidden />
+                ) : (
+                  <EyeIcon data-icon="inline-start" aria-hidden />
+                )}
                 <FormattedMessage
                   {...(sourcePaneVisible
                     ? isDocumentViewer || isMediaViewer
@@ -417,11 +416,7 @@ export function ContentEditorFileViewPanel({
                     description: "Accessible label for AI context button in file view",
                   })}
                 >
-                  <HugeiconsIcon
-                    icon={SparklesIcon}
-                    data-icon="inline-start"
-                    className="size-3.5 text-blue-500"
-                  />
+                  <SparkleIcon data-icon="inline-start" className="size-3.5 text-blue-500" />
                   <FormattedMessage
                     defaultMessage="AI Context"
                     id="HCZzZ6mMQr"
@@ -447,7 +442,7 @@ export function ContentEditorFileViewPanel({
                       />
                     }
                   >
-                    <HugeiconsIcon icon={MoreHorizontalIcon} aria-hidden />
+                    <DotsThreeIcon aria-hidden />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
@@ -713,7 +708,7 @@ export function ContentEditorFileViewPanel({
           <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
             <SheetHeader className="border-b border-border px-6 py-4">
               <div className="flex items-center gap-2">
-                <HugeiconsIcon icon={SparklesIcon} className="size-4 text-blue-500" />
+                <SparkleIcon className="size-4 text-blue-500" />
                 <SheetTitle className="text-base font-medium">
                   <FormattedMessage
                     defaultMessage="Asset Intelligence"

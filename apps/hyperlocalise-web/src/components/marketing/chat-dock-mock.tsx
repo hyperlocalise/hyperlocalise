@@ -14,13 +14,12 @@
  */
 import { useEffect, useRef, useState } from "react";
 import {
-  Cancel01Icon,
-  Chat01Icon,
-  File01Icon,
-  RefreshIcon,
-  SentIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  XIcon,
+  ChatCircleIcon,
+  FileIcon,
+  ArrowClockwiseIcon,
+  PaperPlaneTiltIcon,
+} from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -234,7 +233,7 @@ export function ChatDockMockSection({
           tabIndex={-1}
           aria-label={intl.formatMessage(chatDockMockMessages.closeLabel)}
         >
-          <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+          <XIcon className="size-3.5" />
         </Button>
       </header>
 
@@ -242,7 +241,7 @@ export function ChatDockMockSection({
         {phase === "idle" ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-5 py-8 text-center">
             <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-              <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} className="size-5" />
+              <ChatCircleIcon className="size-5" />
             </div>
             <div className="max-w-sm space-y-1">
               <h3 className="text-balance text-sm font-semibold text-foreground">
@@ -320,7 +319,7 @@ export function ChatDockMockSection({
               {MENTION_GLYPH}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[0.7rem] text-foreground">
-              <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-3" />
+              <FileIcon className="size-3" />
               <FormattedMessage {...chatDockMockMessages.contextPill} />
             </span>
           </div>
@@ -342,12 +341,7 @@ export function ChatDockMockSection({
                 className="h-8 rounded-full px-3"
                 onClick={resetPlayback}
               >
-                <HugeiconsIcon
-                  data-icon="inline-start"
-                  icon={RefreshIcon}
-                  strokeWidth={2}
-                  className="size-3.5"
-                />
+                <ArrowClockwiseIcon data-icon="inline-start" className="size-3.5" />
                 <FormattedMessage {...chatDockMockMessages.replayLabel} />
               </Button>
             ) : (
@@ -359,12 +353,7 @@ export function ChatDockMockSection({
                 aria-label={intl.formatMessage(chatDockMockMessages.sendLabel)}
                 onClick={startPlayback}
               >
-                <HugeiconsIcon
-                  data-icon="inline-start"
-                  icon={SentIcon}
-                  strokeWidth={2}
-                  className="size-3.5"
-                />
+                <PaperPlaneTiltIcon data-icon="inline-start" className="size-3.5" />
                 <FormattedMessage {...chatDockMockMessages.sendLabel} />
               </Button>
             )}
@@ -404,7 +393,7 @@ export function ChatDockMockSection({
             transition={{ duration: shouldReduceMotion ? 0 : 0.8, ease: EASE_OUT }}
           >
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-3.5" />
+              <FileIcon className="size-3.5" />
               <span className="font-mono tracking-tight">
                 <FormattedMessage {...chatDockMockMessages.backgroundDocTitle} />
               </span>

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -93,7 +92,7 @@ export function HyperlabCriterionBuilder({
             variant="outline"
             onClick={() => onChange({ ...group, rules: [...group.rules, emptyAttributeRule()] })}
           >
-            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
+            <PlusIcon data-icon="inline-start" />
             <FormattedMessage {...messages.addRule} />
           </Button>
         )}
@@ -243,11 +242,7 @@ export function HyperlabCriterionBuilder({
                         })
                       }
                     >
-                      <HugeiconsIcon
-                        icon={Delete02Icon}
-                        strokeWidth={1.8}
-                        data-icon="inline-start"
-                      />
+                      <TrashIcon data-icon="inline-start" />
                       <FormattedMessage {...messages.removeRule} />
                     </Button>
                   )}

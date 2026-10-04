@@ -14,13 +14,7 @@
  */
 import type { ReactNode } from "react";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
-import {
-  Add01Icon,
-  Delete01Icon,
-  MoreHorizontalCircle01Icon,
-  UserGroupIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, TrashIcon, DotsThreeCircleIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -72,11 +66,7 @@ function defaultRenderTeamLink({ href, children, className }: Parameters<TeamsLi
 function TeamAvatar() {
   return (
     <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background/60">
-      <HugeiconsIcon
-        icon={UserGroupIcon}
-        strokeWidth={1.7}
-        className="size-4 text-muted-foreground"
-      />
+      <UsersThreeIcon className="size-4 text-muted-foreground" />
     </div>
   );
 }
@@ -151,7 +141,7 @@ function TeamRowActions({
           />
         }
       >
-        <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={1.8} className="size-4" />
+        <DotsThreeCircleIcon className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-48">
         <DropdownMenuGroup>
@@ -233,7 +223,7 @@ export function TeamsPageView({
       <WorkspacePeopleNav organizationSlug={organizationSlug} />
 
       <PageHeader
-        icon={UserGroupIcon}
+        icon={UsersThreeIcon}
         label={intl.formatMessage(teamsPageViewMessages.pageLabel)}
         title={intl.formatMessage(teamsPageViewMessages.pageTitle)}
         actions={
@@ -244,7 +234,7 @@ export function TeamsPageView({
               className="w-full sm:w-fit"
               disabled={isCreating}
             >
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <PlusIcon />
               <FormattedMessage {...teamsPageViewMessages.createTeam} />
             </Button>
           ) : null
@@ -436,7 +426,7 @@ export function TeamsPageView({
               disabled={!deletingTeam || isDeletingTeam}
               onClick={onDeleteTeam}
             >
-              <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} />
+              <TrashIcon />
               <FormattedMessage {...teamsPageViewMessages.deleteTeamConfirm} />
             </Button>
           </DialogFooter>

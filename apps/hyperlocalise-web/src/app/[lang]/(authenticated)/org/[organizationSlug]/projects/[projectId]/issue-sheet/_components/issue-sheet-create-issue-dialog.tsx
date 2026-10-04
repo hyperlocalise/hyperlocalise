@@ -24,13 +24,12 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import {
-  File01Icon,
-  LanguageCircleIcon,
-  Link01Icon,
-  MoreHorizontalCircle01Icon,
-  Tag01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  FileIcon,
+  TranslateIcon,
+  LinkIcon,
+  DotsThreeCircleIcon,
+  TagIcon,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 import { IssueColumnIcon } from "@/components/issue-column-icon/issue-column-icon";
@@ -838,7 +837,7 @@ export function IssueSheetCreateIssueDialog({
                   className={propertyTriggerClassName}
                 >
                   <span className="flex items-center gap-1.5">
-                    <HugeiconsIcon icon={Tag01Icon} strokeWidth={1.8} className="size-3.5" />
+                    <TagIcon className="size-3.5" />
                     {templateKey
                       ? issueSheetTemplateLabel(intl, templateKey)
                       : intl.formatMessage(issueSheetTemplateMessages.noTemplateLabel)}
@@ -909,13 +908,13 @@ export function IssueSheetCreateIssueDialog({
                     />
                   }
                 >
-                  <HugeiconsIcon icon={MoreHorizontalCircle01Icon} className="size-4" />
+                  <DotsThreeCircleIcon className="size-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="min-w-56" sideOffset={6}>
                   <DropdownMenuGroup>
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
-                        <HugeiconsIcon icon={Tag01Icon} strokeWidth={1.8} className="size-4" />
+                        <TagIcon className="size-4" />
                         <FormattedMessage {...messages.setType} />
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="min-w-52">
@@ -938,11 +937,7 @@ export function IssueSheetCreateIssueDialog({
 
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
-                        <HugeiconsIcon
-                          icon={LanguageCircleIcon}
-                          strokeWidth={1.8}
-                          className="size-4"
-                        />
+                        <TranslateIcon className="size-4" />
                         <FormattedMessage {...messages.setLocale} />
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-72 p-2">
@@ -967,7 +962,7 @@ export function IssueSheetCreateIssueDialog({
 
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
-                        <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-4" />
+                        <FileIcon className="size-4" />
                         <FormattedMessage {...messages.setSourcePath} />
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-72 p-2">
@@ -990,7 +985,7 @@ export function IssueSheetCreateIssueDialog({
 
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
-                        <HugeiconsIcon icon={Link01Icon} strokeWidth={1.8} className="size-4" />
+                        <LinkIcon className="size-4" />
                         <FormattedMessage {...messages.addLink} />
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-72 space-y-2 p-2">

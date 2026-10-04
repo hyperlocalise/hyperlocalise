@@ -12,8 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon, CheckListIcon, FilterIcon, SearchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  CaretDownIcon,
+  ListChecksIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+} from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -163,10 +167,7 @@ export function ContentEditorQueueToolbar({
         <>
           {onSearchChange ? (
             <div className="relative min-w-0 flex-1 basis-40">
-              <HugeiconsIcon
-                icon={SearchIcon}
-                className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-              />
+              <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
@@ -196,7 +197,7 @@ export function ContentEditorQueueToolbar({
                   />
                 }
               >
-                <HugeiconsIcon icon={FilterIcon} className="size-3.5" />
+                <FunnelIcon className="size-3.5" />
                 <span className="text-xs">
                   <FormattedMessage {...queueFilterMessageByValue[queueFilter]} />
                 </span>
@@ -237,7 +238,7 @@ export function ContentEditorQueueToolbar({
             aria-pressed={isSelecting}
             onClick={() => onSelectionModeChange?.(!isSelecting)}
           >
-            <HugeiconsIcon icon={CheckListIcon} className="size-3.5" aria-hidden />
+            <ListChecksIcon className="size-3.5" aria-hidden />
             <span className="text-xs">
               <FormattedMessage {...contentEditorBulkBarMessages.select} />
             </span>
@@ -346,7 +347,7 @@ function ContentEditorBulkBar({
             }
           >
             <FormattedMessage {...contentEditorBulkBarMessages.more} />
-            <HugeiconsIcon icon={ArrowDown01Icon} className="size-3" aria-hidden />
+            <CaretDownIcon className="size-3" aria-hidden />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
             {moreActions.length > 0 ? (

@@ -15,8 +15,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { DownloadSimpleIcon, TranslateIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import type {
@@ -374,7 +373,7 @@ export function ProjectFileDetailPanelView({
           <div className="flex flex-wrap gap-2 pt-1">
             <AiFeatureAction organizationSlug={organizationSlug} size="sm">
               <Button type="button" size="sm" onClick={() => setTranslateDialogOpen(true)}>
-                <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
+                <TranslateIcon />
                 <FormattedMessage {...messages.translateWithAgent} />
               </Button>
             </AiFeatureAction>
@@ -384,7 +383,7 @@ export function ProjectFileDetailPanelView({
               variant="outline"
               onClick={() => setImportDialogOpen(true)}
             >
-              <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
+              <UploadSimpleIcon />
               <FormattedMessage {...messages.importTranslations} />
             </Button>
             {downloadableLocales.length > 0
@@ -396,7 +395,7 @@ export function ProjectFileDetailPanelView({
                     variant="outline"
                     onClick={() => downloadTranslation(locale)}
                   >
-                    <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
+                    <DownloadSimpleIcon />
                     <FormattedMessage {...messages.downloadLocale} values={{ locale }} />
                   </Button>
                 ))

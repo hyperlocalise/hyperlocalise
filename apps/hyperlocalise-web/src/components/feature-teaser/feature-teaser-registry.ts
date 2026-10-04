@@ -14,12 +14,12 @@
  */
 import { defineMessages, type MessageDescriptor } from "react-intl";
 import {
-  Bookmark01Icon,
-  ChartHistogramIcon,
-  FlashIcon,
-  FlaskConicalIcon,
-  Globe02Icon,
-} from "@hugeicons/core-free-icons";
+  BookmarkIcon,
+  ChartBarIcon,
+  LightningIcon,
+  FlaskIcon,
+  GlobeIcon,
+} from "@phosphor-icons/react";
 
 import type { NavigationIcon } from "@/components/app-shell/navigation-config";
 
@@ -292,7 +292,7 @@ export const featureTeaserMessages = defineMessages({
 
 export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig> = {
   automations: {
-    icon: FlashIcon,
+    icon: LightningIcon,
     pageLabel: featureTeaserMessages.automationsPageLabel,
     pageLabelProject: featureTeaserMessages.automationsPageLabelProject,
     pageTitle: featureTeaserMessages.automationsTitle,
@@ -305,7 +305,7 @@ export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig>
     ],
   },
   guideline: {
-    icon: Bookmark01Icon,
+    icon: BookmarkIcon,
     pageLabel: featureTeaserMessages.guidelinePageLabel,
     pageLabelProject: featureTeaserMessages.guidelinePageLabelProject,
     pageTitle: featureTeaserMessages.guidelineTitle,
@@ -318,7 +318,7 @@ export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig>
     ],
   },
   domains: {
-    icon: Globe02Icon,
+    icon: GlobeIcon,
     pageLabel: featureTeaserMessages.domainsPageLabel,
     pageLabelProject: featureTeaserMessages.domainsPageLabelProject,
     pageTitle: featureTeaserMessages.domainsTitle,
@@ -331,7 +331,7 @@ export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig>
     ],
   },
   hyperlab: {
-    icon: FlaskConicalIcon,
+    icon: FlaskIcon,
     pageLabel: featureTeaserMessages.hyperlabPageLabel,
     pageLabelProject: featureTeaserMessages.hyperlabPageLabelProject,
     pageTitle: featureTeaserMessages.hyperlabTitle,
@@ -344,7 +344,7 @@ export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig>
     ],
   },
   reports: {
-    icon: ChartHistogramIcon,
+    icon: ChartBarIcon,
     pageLabel: featureTeaserMessages.reportsPageLabel,
     pageLabelProject: featureTeaserMessages.reportsPageLabelProject,
     pageTitle: featureTeaserMessages.reportsTitle,

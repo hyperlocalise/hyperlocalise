@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { observer } from "mobx-react-lite";
-import { Cancel01Icon, Chat01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { XIcon, ChatCircleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -86,7 +85,7 @@ export const ChatDockTabBar = observer(function ChatDockTabBar({
                   onCloseTab(tab.id);
                 }}
               >
-                <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3" />
+                <XIcon className="size-3" />
               </Button>
             </div>
           );
@@ -100,7 +99,7 @@ export const ChatDockTabBar = observer(function ChatDockTabBar({
           aria-label={intl.formatMessage(chatDockMessages.newChat)}
           onClick={onNewTab}
         >
-          <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} data-icon="inline-start" />
+          <ChatCircleIcon data-icon="inline-start" />
           <FormattedMessage {...chatDockMessages.newChat} />
         </Button>
       </AiFeatureAction>

@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { PlusSignIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 
@@ -73,7 +72,7 @@ export function IssuesActions({
           onClick={() => setCreateOpen(true)}
           disabled={projectsQuery.isLoading}
         >
-          <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
+          <PlusIcon data-icon="inline-start" />
           <FormattedMessage {...issuesActionsMessages.issue} />
         </Button>
       </div>

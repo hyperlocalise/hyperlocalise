@@ -15,14 +15,13 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
-  Brain01Icon,
-  CheckmarkCircle02Icon,
-  BookOpen01Icon,
-  LanguageCircleIcon,
-  UserCheck01Icon,
-  GlobalIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  BrainIcon,
+  CheckCircleIcon,
+  BookOpenIcon,
+  TranslateIcon,
+  UserCircleCheckIcon,
+  GlobeIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -68,39 +67,35 @@ const ALL_ITEMS: MemoryItem[] = [
     titleKey: "memoryItem0Title",
     tagKey: "tagGlossary",
     timestampKey: "tsLastWeek",
-    tagIcon: <HugeiconsIcon icon={BookOpen01Icon} strokeWidth={1.8} className="size-3" />,
+    tagIcon: <BookOpenIcon className="size-3" />,
   },
   {
     id: "markets",
     titleKey: "memoryItem1Title",
     tagKey: "tagMarkets",
     timestampKey: "tsYesterday",
-    tagIcon: <HugeiconsIcon icon={GlobalIcon} strokeWidth={1.8} className="size-3" />,
+    tagIcon: <GlobeIcon className="size-3" />,
   },
   {
     id: "reviewers",
     titleKey: "memoryItem2Title",
     tagKey: "tagReviewers",
     timestampKey: "ts3hAgo",
-    tagIcon: <HugeiconsIcon icon={UserCheck01Icon} strokeWidth={1.8} className="size-3" />,
+    tagIcon: <UserCircleCheckIcon className="size-3" />,
   },
   {
     id: "translations",
     titleKey: "memoryItem3Title",
     tagKey: "tagTranslations",
     timestampKey: "tsJustNow",
-    tagIcon: <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} className="size-3" />,
+    tagIcon: <TranslateIcon className="size-3" />,
   },
 ];
 
 function MemoryItemRow({ item }: { item: MemoryItem }) {
   return (
     <div className="flex items-start gap-3">
-      <HugeiconsIcon
-        icon={CheckmarkCircle02Icon}
-        strokeWidth={1.8}
-        className="mt-0.5 size-4 shrink-0 text-primary/80"
-      />
+      <CheckCircleIcon className="mt-0.5 size-4 shrink-0 text-primary/80" />
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">
           <FormattedMessage {...knowledgeMockMessages[item.titleKey]} />
@@ -209,7 +204,7 @@ function MemoryPanel({
       >
         <div className="flex items-center justify-between">
           <div className="flex min-w-0 items-center gap-2.5">
-            <HugeiconsIcon icon={Brain01Icon} strokeWidth={1.8} className="size-4 text-primary" />
+            <BrainIcon className="size-4 text-primary" />
             <span className="truncate text-sm font-semibold text-foreground">
               <FormattedMessage {...knowledgeMockMessages.memoryLayerTitle} />
             </span>

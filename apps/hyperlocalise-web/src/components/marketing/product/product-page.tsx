@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 
@@ -76,7 +75,7 @@ function ProductHero({ content }: ProductPageProps) {
   //         render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
   //       >
   //         <ProductMessage messageKey="ctaJoinWaitlist" />
-  //         <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
+  //         <ArrowRightIcon data-icon="inline-end" className="size-4" />
   //       </Button>
   //     </div>
   //   );
@@ -106,7 +105,7 @@ function ProductHero({ content }: ProductPageProps) {
               render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
             >
               <ProductMessage messageKey="ctaJoinWaitlist" />
-              <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
+              <ArrowRightIcon data-icon="inline-end" className="size-4" />
             </Button>
           </div>
         </div>
@@ -226,11 +225,7 @@ function ProductDetailsSection({ content }: ProductPageProps) {
                 render={<Link href={rewriteAppLocalePath(link.href, locale)} />}
               >
                 <ProductMessage messageKey={link.labelKey} />
-                <HugeiconsIcon
-                  icon={ArrowRight01Icon}
-                  data-icon="inline-end"
-                  className="size-3.5"
-                />
+                <ArrowRightIcon data-icon="inline-end" className="size-3.5" />
               </Button>
             ))}
           </div>

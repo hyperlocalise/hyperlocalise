@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ComponentProps } from "react";
+import type { Icon } from "@phosphor-icons/react";
 import type { IntlShape } from "react-intl";
 
 import { normalizeAppLocale } from "@/lib/app-i18n/locales";
@@ -31,35 +31,34 @@ import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-ed
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   BookOpenTextIcon,
-  Bookmark01Icon,
-  CenterFocusIcon,
-  ChartHistogramIcon,
-  Chat01Icon,
-  CheckmarkCircle02Icon,
-  Copy01Icon,
+  BookmarkIcon,
+  CrosshairIcon,
+  ChartBarIcon,
+  ChatCircleIcon,
+  CheckCircleIcon,
+  CopyIcon,
   CubeIcon,
-  DashboardSquare01Icon,
-  Database01Icon,
-  File01Icon,
-  Flag01Icon,
-  FlashIcon,
-  FlaskConicalIcon,
-  Globe02Icon,
-  InboxIcon,
-  Key01Icon,
-  LanguageCircleIcon,
-  Message01Icon,
-  SearchIcon,
-  SearchList01Icon,
-  Settings01Icon,
-  SparklesIcon,
-  TextFontIcon,
-  UserMultiple02Icon,
-  Video01Icon,
-} from "@hugeicons/core-free-icons";
-import type { HugeiconsIcon } from "@hugeicons/react";
+  SquaresFourIcon,
+  DatabaseIcon,
+  FileIcon,
+  FlagIcon,
+  LightningIcon,
+  FlaskIcon,
+  GlobeIcon,
+  TrayIcon,
+  KeyIcon,
+  TranslateIcon,
+  ChatTextIcon,
+  MagnifyingGlassIcon,
+  ListMagnifyingGlassIcon,
+  GearIcon,
+  SparkleIcon,
+  TextTIcon,
+  UsersIcon,
+  VideoIcon,
+} from "@phosphor-icons/react/ssr";
 
-export type NavigationIcon = ComponentProps<typeof HugeiconsIcon>["icon"];
+export type NavigationIcon = Icon;
 
 export type NavigationItem = {
   label: string;
@@ -152,7 +151,7 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("inbox/new"),
           exact: true,
-          icon: Chat01Icon,
+          icon: ChatCircleIcon,
           description: intl.formatMessage({
             defaultMessage: "Ask the localisation agent to prepare work",
             id: "z45OPLD254",
@@ -166,7 +165,7 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for the workspace dashboard overview",
           }),
           href: org("dashboard"),
-          icon: DashboardSquare01Icon,
+          icon: SquaresFourIcon,
         },
         {
           label: intl.formatMessage({
@@ -193,7 +192,7 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for the workspace inbox",
           }),
           href: org("inbox"),
-          icon: InboxIcon,
+          icon: TrayIcon,
         },
         {
           label: intl.formatMessage({
@@ -202,7 +201,7 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for the current user’s jobs",
           }),
           href: org("my-work"),
-          icon: CenterFocusIcon,
+          icon: CrosshairIcon,
         },
         {
           label: intl.formatMessage({
@@ -211,7 +210,7 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for workspace Queries",
           }),
           href: org("issues"),
-          icon: Copy01Icon,
+          icon: CopyIcon,
           featureFlagKey: WORKSPACE_QUERIES_BOARD_FLAG,
         },
         {
@@ -221,7 +220,7 @@ export function buildGlobalNavigationGroups(
             description: "Workspace translation reports",
           }),
           href: org("reports"),
-          icon: ChartHistogramIcon,
+          icon: ChartBarIcon,
           featureFlagKey: WORKSPACE_REPORTS_FLAG,
         },
         {
@@ -231,7 +230,7 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for workspace translation QA reports",
           }),
           href: org("qa"),
-          icon: CheckmarkCircle02Icon,
+          icon: CheckCircleIcon,
         },
         {
           label: intl.formatMessage({
@@ -240,7 +239,7 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for workspace automations",
           }),
           href: org("automations"),
-          icon: FlashIcon,
+          icon: LightningIcon,
           featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
         },
       ],
@@ -268,7 +267,7 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for translation memories",
           }),
           href: org("translation-memories"),
-          icon: Database01Icon,
+          icon: DatabaseIcon,
         },
         {
           label: intl.formatMessage({
@@ -277,7 +276,7 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for spellcheck dictionaries",
           }),
           href: org("dictionaries"),
-          icon: TextFontIcon,
+          icon: TextTIcon,
         },
         {
           label: intl.formatMessage({
@@ -286,7 +285,7 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for workspace guideline",
           }),
           href: org("knowledge"),
-          icon: Bookmark01Icon,
+          icon: BookmarkIcon,
           description: intl.formatMessage({
             defaultMessage: "Shared guidance for agents and teams",
             id: "dEzuHMWHq4",
@@ -305,7 +304,7 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for workspace settings",
           }),
           href: org("settings"),
-          icon: Settings01Icon,
+          icon: GearIcon,
         },
       ],
     },
@@ -329,7 +328,7 @@ export function buildProjectNavigationGroups(
         description: "Project sidebar navigation item for project files",
       }),
       href: project("files"),
-      icon: File01Icon,
+      icon: FileIcon,
     },
   ];
 
@@ -341,7 +340,7 @@ export function buildProjectNavigationGroups(
         description: "Project sidebar navigation item for the Content Editor",
       }),
       href: project("strings"),
-      icon: LanguageCircleIcon,
+      icon: TranslateIcon,
       featureFlagKey: RELEASE_CAT_ALL_FILES_FLAG,
     });
   }
@@ -353,7 +352,7 @@ export function buildProjectNavigationGroups(
       description: "Project sidebar navigation item for the Video Editor",
     }),
     href: project("videos"),
-    icon: Video01Icon,
+    icon: VideoIcon,
     description: intl.formatMessage({
       defaultMessage: "Localize on-screen video text and speech",
       id: "hbEoUHCttQ",
@@ -377,7 +376,7 @@ export function buildProjectNavigationGroups(
         description: "Project sidebar navigation item for translation QA reports",
       }),
       href: project("qa"),
-      icon: CheckmarkCircle02Icon,
+      icon: CheckCircleIcon,
     });
   }
 
@@ -389,7 +388,7 @@ export function buildProjectNavigationGroups(
         description: "Project sidebar navigation item for project jobs",
       }),
       href: project("jobs"),
-      icon: CenterFocusIcon,
+      icon: CrosshairIcon,
     },
     {
       label: intl.formatMessage({
@@ -398,7 +397,7 @@ export function buildProjectNavigationGroups(
         description: "Project sidebar navigation item for project Queries",
       }),
       href: project("issue-sheet"),
-      icon: Copy01Icon,
+      icon: CopyIcon,
       featureFlagKey: WORKSPACE_QUERIES_BOARD_FLAG,
     },
     {
@@ -408,7 +407,7 @@ export function buildProjectNavigationGroups(
         description: "Project sidebar navigation item for project automations",
       }),
       href: project("automations"),
-      icon: FlashIcon,
+      icon: LightningIcon,
       featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
     },
   );
@@ -452,7 +451,7 @@ export function buildProjectNavigationGroups(
             description: "Project sidebar navigation item for project settings",
           }),
           href: project("settings"),
-          icon: Settings01Icon,
+          icon: GearIcon,
         },
       ],
     },
@@ -482,7 +481,7 @@ export function buildDomainNavigationItems(
         description: "Domain sidebar navigation item for domain overview",
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId),
-      icon: Globe02Icon,
+      icon: GlobeIcon,
     },
     {
       label: intl.formatMessage({
@@ -491,7 +490,7 @@ export function buildDomainNavigationItems(
         description: "Domain sidebar navigation item for keyword research",
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "keywords"),
-      icon: SearchIcon,
+      icon: MagnifyingGlassIcon,
     },
     {
       label: intl.formatMessage({
@@ -500,7 +499,7 @@ export function buildDomainNavigationItems(
         description: "Domain sidebar navigation item for rank tracking",
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "ranks"),
-      icon: ChartHistogramIcon,
+      icon: ChartBarIcon,
     },
     {
       label: intl.formatMessage({
@@ -509,7 +508,7 @@ export function buildDomainNavigationItems(
         description: "Domain sidebar navigation item for AI visibility",
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "brand"),
-      icon: SparklesIcon,
+      icon: SparkleIcon,
     },
     {
       label: intl.formatMessage({
@@ -518,7 +517,7 @@ export function buildDomainNavigationItems(
         description: "Domain sidebar navigation item for prompt explorer",
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "prompts"),
-      icon: Message01Icon,
+      icon: ChatTextIcon,
     },
     {
       label: intl.formatMessage({
@@ -527,7 +526,7 @@ export function buildDomainNavigationItems(
         description: "Domain sidebar navigation item for Google Search Console",
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "search-console"),
-      icon: SearchList01Icon,
+      icon: ListMagnifyingGlassIcon,
     },
   ];
 }
@@ -546,7 +545,7 @@ export function buildHyperlabNavigationItems(
         description: "Hyperlab sub-navigation item for the home page",
       }),
       href: hyperlab(),
-      icon: DashboardSquare01Icon,
+      icon: SquaresFourIcon,
       exact: true,
     },
     {
@@ -556,7 +555,7 @@ export function buildHyperlabNavigationItems(
         description: "Hyperlab sub-navigation item for experiments",
       }),
       href: hyperlab("experiments"),
-      icon: FlaskConicalIcon,
+      icon: FlaskIcon,
     },
     {
       label: intl.formatMessage({
@@ -565,7 +564,7 @@ export function buildHyperlabNavigationItems(
         description: "Hyperlab sub-navigation item for audiences",
       }),
       href: hyperlab("audiences"),
-      icon: UserMultiple02Icon,
+      icon: UsersIcon,
     },
     {
       label: intl.formatMessage({
@@ -574,7 +573,7 @@ export function buildHyperlabNavigationItems(
         description: "Hyperlab sub-navigation item for flags",
       }),
       href: hyperlab("flags"),
-      icon: Flag01Icon,
+      icon: FlagIcon,
     },
     {
       label: intl.formatMessage({
@@ -583,7 +582,7 @@ export function buildHyperlabNavigationItems(
         description: "Hyperlab sub-navigation item for API keys",
       }),
       href: hyperlab("keys"),
-      icon: Key01Icon,
+      icon: KeyIcon,
     },
   ];
 }

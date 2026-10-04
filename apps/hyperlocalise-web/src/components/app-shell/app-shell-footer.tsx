@@ -16,14 +16,13 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import {
   BookOpenTextIcon,
-  Bookmark01Icon,
-  CheckmarkCircle02Icon,
-  Copy01Icon,
-  CustomerSupportIcon,
-  MinusSignCircleIcon,
-  TextFontIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  BookmarkIcon,
+  CheckCircleIcon,
+  CopyIcon,
+  HeadsetIcon,
+  MinusCircleIcon,
+  TextTIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
@@ -162,7 +161,7 @@ export function AppShellFooter({
                     }}
                     aria-label={intl.formatMessage(appShellFooterMessages.guidelineAriaLabel)}
                   >
-                    <HugeiconsIcon icon={Bookmark01Icon} strokeWidth={2} data-icon="inline-start" />
+                    <BookmarkIcon data-icon="inline-start" />
                     <FormattedMessage {...appShellFooterMessages.guidelineLabel} />
                   </Button>
                 ) : null}
@@ -176,7 +175,7 @@ export function AppShellFooter({
                     }}
                     aria-label={intl.formatMessage(appShellFooterMessages.styleGuideAriaLabel)}
                   >
-                    <HugeiconsIcon icon={TextFontIcon} strokeWidth={2} data-icon="inline-start" />
+                    <TextTIcon data-icon="inline-start" />
                     <FormattedMessage {...appShellFooterMessages.styleGuideLabel} />
                   </Button>
                 ) : null}
@@ -193,20 +192,11 @@ export function AppShellFooter({
                         : appShellFooterMessages.glossaryGuidanceAriaLabel,
                     )}
                   >
-                    <HugeiconsIcon
-                      icon={BookOpenTextIcon}
-                      strokeWidth={2}
-                      data-icon="inline-start"
-                    />
+                    <BookOpenTextIcon data-icon="inline-start" />
                     <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
                     {glossaryGuidanceStatus.preferredCount > 0 ? (
                       <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
-                        <HugeiconsIcon
-                          icon={CheckmarkCircle02Icon}
-                          strokeWidth={2}
-                          className="size-4"
-                          aria-hidden="true"
-                        />
+                        <CheckCircleIcon className="size-4" aria-hidden="true" />
                         <span className="tabular-nums">
                           {glossaryGuidanceStatus.preferredCount}
                         </span>
@@ -214,12 +204,7 @@ export function AppShellFooter({
                     ) : null}
                     {glossaryGuidanceStatus.notRecommendedCount > 0 ? (
                       <span className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500">
-                        <HugeiconsIcon
-                          icon={MinusSignCircleIcon}
-                          strokeWidth={2}
-                          className="size-4"
-                          aria-hidden="true"
-                        />
+                        <MinusCircleIcon className="size-4" aria-hidden="true" />
                         <span className="tabular-nums">
                           {glossaryGuidanceStatus.notRecommendedCount}
                         </span>
@@ -241,7 +226,7 @@ export function AppShellFooter({
                         : undefined,
                     )}
                   >
-                    <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} data-icon="inline-start" />
+                    <CopyIcon data-icon="inline-start" />
                     <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
                     {issueGuidanceStatus.openIssueCount > 0 ? (
                       <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">
@@ -258,11 +243,7 @@ export function AppShellFooter({
                   render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
                   aria-label={intl.formatMessage(appShellFooterMessages.emailSupportAriaLabel)}
                 >
-                  <HugeiconsIcon
-                    icon={CustomerSupportIcon}
-                    strokeWidth={2}
-                    data-icon="inline-start"
-                  />
+                  <HeadsetIcon data-icon="inline-start" />
                   <FormattedMessage {...appShellFooterMessages.supportLabel} />
                 </Button>
               </Row>

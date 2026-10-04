@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { RefreshIcon, SparklesIcon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowClockwiseIcon, SparkleIcon, CheckIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { FormattedMessage } from "react-intl";
 
@@ -58,11 +57,7 @@ export function ContentEditorEditorAiRecommendation({
       aria-busy={isLoading}
     >
       <div className="flex items-center gap-1.5">
-        <HugeiconsIcon
-          icon={SparklesIcon}
-          className="size-3.5 shrink-0 text-grove-400"
-          aria-hidden
-        />
+        <SparkleIcon className="size-3.5 shrink-0 text-grove-400" aria-hidden />
         <p className="text-xs font-medium text-muted-foreground">
           <FormattedMessage {...contentEditorEditorPanelMessages.aiRecommendation} />
         </p>
@@ -101,7 +96,7 @@ export function ContentEditorEditorAiRecommendation({
             useActions
           ) : (
             <Button variant="outline" size="xs" onClick={onUseAiSuggestion} disabled={isLoading}>
-              <HugeiconsIcon icon={Tick02Icon} className="size-3" aria-hidden />
+              <CheckIcon className="size-3" aria-hidden />
               <FormattedMessage {...contentEditorEditorPanelMessages.use} />
             </Button>
           )}
@@ -121,7 +116,7 @@ export function ContentEditorEditorAiRecommendation({
               {isLoading ? (
                 <Spinner className="size-3" />
               ) : (
-                <HugeiconsIcon icon={RefreshIcon} className="size-3" aria-hidden />
+                <ArrowClockwiseIcon className="size-3" aria-hidden />
               )}
               {hasSuggestion ? (
                 <FormattedMessage {...contentEditorEditorPanelMessages.regenerate} />

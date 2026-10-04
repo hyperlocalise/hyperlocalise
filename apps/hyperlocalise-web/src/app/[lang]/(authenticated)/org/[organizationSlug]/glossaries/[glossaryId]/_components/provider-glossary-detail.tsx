@@ -12,8 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpenTextIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { BookOpenTextIcon } from "@phosphor-icons/react";
 
 import type { GlossaryConceptRecord } from "@/api/routes/glossary/glossary.schema";
 import { Badge } from "@/components/ui/badge";
@@ -87,7 +86,7 @@ export function ProviderGlossaryDetail({
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <HugeiconsIcon icon={BookOpenTextIcon} className="size-5 text-muted-foreground" />
+          <BookOpenTextIcon className="size-5 text-muted-foreground" />
           <Badge variant="outline">
             <FormattedMessage {...messages.sourceProvider} />
           </Badge>

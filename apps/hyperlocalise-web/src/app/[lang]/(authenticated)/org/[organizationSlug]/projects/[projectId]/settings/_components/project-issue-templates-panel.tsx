@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { File01Icon } from "@hugeicons/core-free-icons";
+import { FileIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -182,7 +182,7 @@ export function ProjectIssueTemplatesPanel({
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
       <ProjectSettingsSectionHeading
-        icon={File01Icon}
+        icon={FileIcon}
         tone="beam"
         title={<FormattedMessage {...messages.title} />}
         description={<FormattedMessage {...messages.description} />}

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon, TextFontIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, TextTIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import {
@@ -87,7 +86,7 @@ export function DictionariesPageView({
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={TextFontIcon}
+        icon={TextTIcon}
         label={intl.formatMessage(dictionariesPageViewMessages.pageLabel)}
         title={intl.formatMessage(dictionariesPageViewMessages.pageTitle)}
         statusLabel={intl.formatMessage(dictionariesPageViewMessages.dictionaryCount, {
@@ -96,7 +95,7 @@ export function DictionariesPageView({
         actions={
           canWriteDictionaries ? (
             <Button size="sm" onClick={() => onCreateDialogOpenChange(true)}>
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <PlusIcon />
               <FormattedMessage {...dictionariesPageViewMessages.createDictionary} />
             </Button>
           ) : null

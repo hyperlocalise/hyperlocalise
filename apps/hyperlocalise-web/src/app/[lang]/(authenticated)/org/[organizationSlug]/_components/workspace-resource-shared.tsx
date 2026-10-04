@@ -13,7 +13,6 @@
  * Version 2.0 or later.
  */
 import type { ComponentProps, ReactNode } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -23,8 +22,11 @@ import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import { workspaceResourceSharedMessages as messages } from "./workspace-resource-shared.messages";
+import { createElement } from "react";
+import { type Icon } from "@phosphor-icons/react";
 
-export type Icon = ComponentProps<typeof HugeiconsIcon>["icon"];
+export type { Icon };
+
 export type Tone = "safe" | "watch" | "risk" | "info";
 
 type WorkspacePageShellProps = ComponentProps<"main">;
@@ -255,11 +257,7 @@ export function ResourceCard({
             <CardTitle className="text-xl text-foreground">{title}</CardTitle>
             <CardDescription className="mt-1 text-muted-foreground">{description}</CardDescription>
           </div>
-          <HugeiconsIcon
-            icon={icon}
-            strokeWidth={1.8}
-            className="mt-1 size-5 text-muted-foreground"
-          />
+          {createElement(icon, { className: "mt-1 size-5 text-muted-foreground" })}
         </div>
       </CardHeader>
       <Separator className="bg-skeleton" />

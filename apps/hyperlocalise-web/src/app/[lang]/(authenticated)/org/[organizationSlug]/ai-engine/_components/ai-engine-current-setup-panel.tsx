@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
-import { Settings02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { GearSixIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { formatRelativeTimestamp } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/workspace-files-shared";
@@ -88,7 +87,7 @@ export function AiEngineCurrentSetupPanel({
             disabled={manageDisabled}
             onClick={onManageProvider}
           >
-            <HugeiconsIcon icon={Settings02Icon} strokeWidth={1.8} className="size-4" />
+            <GearSixIcon className="size-4" />
             <FormattedMessage {...aiEnginePageContentMessages.manageProviderAction} />
           </Button>
         ) : null}

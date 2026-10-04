@@ -15,8 +15,7 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { File01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { FileIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -590,7 +589,7 @@ export function ProjectFilesPageContentView({
   return (
     <ProjectPageShell className="gap-4">
       <ProjectSectionHeader
-        icon={File01Icon}
+        icon={FileIcon}
         section={intl.formatMessage(messages.sectionTitle)}
         actions={
           canUploadFiles ? (
@@ -600,7 +599,7 @@ export function ProjectFilesPageContentView({
               disabled={isUploading}
               className="w-full sm:w-fit"
             >
-              <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
+              <UploadSimpleIcon />
               <FormattedMessage {...messages.addFiles} />
             </Button>
           ) : null
@@ -642,7 +641,7 @@ export function ProjectFilesPageContentView({
               onClick={onUploadSelectedFiles}
               className="w-full sm:w-fit"
             >
-              {isUploading ? <Spinner /> : <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />}
+              {isUploading ? <Spinner /> : <UploadSimpleIcon />}
               {isUploading ? (
                 <FormattedMessage {...messages.uploading} />
               ) : (
