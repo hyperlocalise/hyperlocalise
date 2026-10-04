@@ -83,12 +83,12 @@ describe("ProjectContentEditorBehaviorSettings", () => {
     const user = userEvent.setup();
     renderSettings();
     const setting = await screen.findByRole("switch", {
-      name: "Automatically group identical strings",
+      name: "Automatically merge identical strings",
     });
 
     await user.click(setting);
 
-    expect(await screen.findByText(/7 occurrences into 3 groups/)).toBeInTheDocument();
+    expect(await screen.findByText(/7 occurrences into 3 strings/)).toBeInTheDocument();
     expect(screen.getByText(/Existing translations will not be changed/)).toBeInTheDocument();
     expect(apiMocks.previewContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1");
   });
@@ -96,7 +96,7 @@ describe("ProjectContentEditorBehaviorSettings", () => {
   it("keeps the setting read-only for non-managers", async () => {
     renderSettings(false);
     const setting = await screen.findByRole("switch", {
-      name: "Automatically group identical strings",
+      name: "Automatically merge identical strings",
     });
     await waitFor(() => expect(setting).toHaveAttribute("aria-disabled", "true"));
     expect(screen.getByText("Only project managers can change this setting.")).toBeInTheDocument();

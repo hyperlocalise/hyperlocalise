@@ -83,6 +83,7 @@ export async function AppShell({
       canWriteProjects={hasCapability(auth.membership.role, "projects:write")}
       canDeleteQueries={hasCapability(auth.membership.role, "write_back:translation")}
       user={{
+        id: auth.user.localUserId,
         name: displayName,
         email: auth.sessionUser.email,
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,

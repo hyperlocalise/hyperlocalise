@@ -12,11 +12,21 @@
  * use of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CaretDownIcon, CopyIcon, EraserIcon, CheckIcon } from "@phosphor-icons/react";
+import {
+  ArrowClockwiseIcon,
+  CaretDownIcon,
+  CheckIcon,
+  CopyIcon,
+  EraserIcon,
+  InfoIcon,
+  LockSimpleIcon,
+  SparkleIcon,
+} from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +39,9 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMac } from "@/hooks/use-is-mac";
+import { useAiFeaturesUpgradeHref } from "@/lib/billing/ai-features-upgrade-href";
 import type { CatGroupVariant } from "@/lib/go-svc/go-svc-cat-groups.types";
 import { cn } from "@/lib/primitives/cn";
 import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
@@ -38,10 +50,10 @@ import type {
   ContentEditorSegmentIntelligence,
 } from "@/components/content-editor/shared/types";
 
-import { ContentEditorEditorAiRecommendation } from "../editor/content-editor-editor-ai-recommendation";
 import { ContentEditorEditorShortcutKbd } from "../editor/content-editor-editor-shortcut-kbd";
 import { ContentEditorTargetEditor } from "../editor/content-editor-target-editor";
 import { MultilingualDrafts } from "../multilingual/content-editor-multilingual-drafts";
+import { GenerateAiSuggestionButton } from "../side-by-side/content-editor-side-by-side-ai-suggestion";
 import { ContentEditorSideBySideInlineQa } from "../side-by-side/content-editor-side-by-side-inline-qa";
 import {
   qaHighlightTokens,
@@ -61,6 +73,7 @@ import {
 } from "./use-content-editor-group-variants";
 
 const VISIBLE_OCCURRENCE_KEYS = 3;
+const SKELETON_VARIANT_COUNT = 2;
 
 /** The row's AI recommendation; the source is identical, so one suggestion fits every translation. */
 export type ContentEditorGroupVariantsAi = {
@@ -79,19 +92,28 @@ export function ContentEditorGroupVariantsGate({
   segment,
   locale,
   ai,
+  actions,
   children,
   className,
 }: {
   segment: ContentEditorSegment;
   locale: string;
   ai?: ContentEditorGroupVariantsAi;
+  /** Row-level controls (e.g. the string menu) shown at the end of the variants header. */
+  actions?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
   const divergent = useHasGroupTranslationVariants(segment, locale);
   if (!divergent) return children;
   return (
-    <GroupVariantsContent segment={segment} locale={locale} ai={ai} className={className}>
+    <GroupVariantsContent
+      segment={segment}
+      locale={locale}
+      ai={ai}
+      actions={actions}
+      className={className}
+    >
       {children}
     </GroupVariantsContent>
   );
@@ -155,12 +177,14 @@ function GroupVariantsContent({
   segment,
   locale,
   ai,
+  actions,
   className,
   children,
 }: {
   segment: ContentEditorSegment;
   locale: string;
   ai?: ContentEditorGroupVariantsAi;
+  actions?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
@@ -186,13 +210,7 @@ function GroupVariantsContent({
   }, [workspace, hideSingleTarget, segment.id, locale]);
 
   if (variants.isPending) {
-    return (
-      <div className={cn("space-y-2", className)}>
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-20 w-full rounded-md" />
-        <Skeleton className="h-20 w-full rounded-md" />
-      </div>
-    );
+    return <GroupVariantsSkeleton className={className} />;
   }
   if (variants.isError) {
     return (
@@ -216,7 +234,29 @@ function GroupVariantsContent({
       locale={locale}
       variants={variants.data}
       ai={ai}
+      actions={actions}
     />
+  );
+}
+
+/** Mirrors the loaded list's structure so the row does not jump when variants arrive. */
+function GroupVariantsSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn("flex flex-col gap-2", className)} aria-busy>
+      <div className="flex min-h-8 items-center">
+        <Skeleton className="h-4 w-40" />
+      </div>
+      <div className="divide-y divide-border rounded-lg border border-border">
+        {Array.from({ length: SKELETON_VARIANT_COUNT }, (_, index) => (
+          <div key={index} className="space-y-2 p-2.5">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-44" />
+            <Skeleton className="h-10 w-full rounded-md" />
+            <Skeleton className="h-8 w-40" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -226,12 +266,14 @@ export const ContentEditorGroupVariantList = observer(function ContentEditorGrou
   locale,
   variants,
   ai,
+  actions,
   className,
 }: {
   segment: ContentEditorSegment;
   locale: string;
   variants: CatGroupVariant[];
   ai?: ContentEditorGroupVariantsAi;
+  actions?: ReactNode;
   className?: string;
 }) {
   const intl = useIntl();
@@ -265,26 +307,73 @@ export const ContentEditorGroupVariantList = observer(function ContentEditorGrou
   }, [group, variants]);
   useEffect(() => workspace?.groupVariants.register(group), [workspace, group]);
 
+  const hint = intl.formatMessage(m.variantsHint);
+
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
-      <div className="space-y-1">
-        <p className="font-medium text-sm">
-          <FormattedMessage {...m.variantsHeading} values={{ count: group.variants.length }} />
-        </p>
-        <p className="text-muted-foreground text-xs">
-          <FormattedMessage {...m.variantsHint} />
-        </p>
+    <TooltipProvider>
+      <div className={cn("flex flex-col gap-2", className)}>
+        <div className="flex min-h-8 items-center gap-1">
+          <p className="font-medium text-sm">
+            <FormattedMessage {...m.variantsHeading} values={{ count: group.variants.length }} />
+          </p>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  className="text-muted-foreground"
+                  aria-label={hint}
+                />
+              }
+            >
+              <InfoIcon className="size-3.5" aria-hidden />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-64">{hint}</TooltipContent>
+          </Tooltip>
+          <div className="ms-auto flex items-center gap-0.5">
+            {ai ? <GroupVariantsAiTrigger group={group} ai={ai} /> : null}
+            {actions}
+          </div>
+        </div>
+        {ai ? <GroupVariantsAiSuggestion group={group} ai={ai} /> : null}
+        {group.applyError ? <p className="text-destructive text-xs">{group.applyError}</p> : null}
+        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-background">
+          {group.variants.map((variant) => (
+            <VariantEditor key={variant.id} group={group} variant={variant} />
+          ))}
+        </div>
       </div>
-      {ai ? <GroupVariantsAiRecommendation group={group} ai={ai} /> : null}
-      {group.applyError ? <p className="text-destructive text-xs">{group.applyError}</p> : null}
-      {group.variants.map((variant) => (
-        <VariantEditor key={variant.id} group={group} variant={variant} />
-      ))}
-    </div>
+    </TooltipProvider>
   );
 });
 
-const GroupVariantsAiRecommendation = observer(function GroupVariantsAiRecommendation({
+/** Header control; matches the single-target sparkle so grouped rows don't reserve a card. */
+const GroupVariantsAiTrigger = observer(function GroupVariantsAiTrigger({
+  group,
+  ai,
+}: {
+  group: ContentEditorGroupVariants;
+  ai: ContentEditorGroupVariantsAi;
+}) {
+  const upgradeHref = useAiFeaturesUpgradeHref();
+  if (upgradeHref) {
+    return (
+      <UpgradePlanButton
+        organizationSlug={upgradeHref.organizationSlug}
+        variant="ghost"
+        size="xs"
+      />
+    );
+  }
+  const hasSuggestion = Boolean(ai.intelligence.aiSuggestion?.trim());
+  if (hasSuggestion || ai.isLoading || ai.error || !group.canEdit) return null;
+  if (!ai.onGenerateAiRecommendation) return null;
+  return <GenerateAiSuggestionButton onClick={ai.onGenerateAiRecommendation} />;
+});
+
+const GroupVariantsAiSuggestion = observer(function GroupVariantsAiSuggestion({
   group,
   ai,
 }: {
@@ -292,20 +381,42 @@ const GroupVariantsAiRecommendation = observer(function GroupVariantsAiRecommend
   ai: ContentEditorGroupVariantsAi;
 }) {
   const intl = useIntl();
-  const suggestion = ai.intelligence.aiSuggestion ?? "";
+  const upgradeHref = useAiFeaturesUpgradeHref();
+  const suggestion = ai.intelligence.aiSuggestion?.trim() ?? "";
+  if (upgradeHref || (!suggestion && !ai.isLoading && !ai.error)) return null;
+
   const hasEditableVariant = group.variants.some((variant) => variant.canEdit);
+  const onRegenerate = group.canEdit ? ai.onGenerateAiRecommendation : undefined;
+  const regenerateLabel = intl.formatMessage(contentEditorEditorPanelMessages.regenerate);
 
   return (
-    <ContentEditorEditorAiRecommendation
-      intelligence={ai.intelligence}
-      isLoading={ai.isLoading}
-      error={ai.error}
-      onGenerateAiRecommendation={group.canEdit ? ai.onGenerateAiRecommendation : undefined}
-      useActions={
-        hasEditableVariant ? (
+    <aside
+      aria-label={intl.formatMessage(contentEditorEditorPanelMessages.aiRecommendation)}
+      aria-busy={ai.isLoading}
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-muted/50 px-2.5 py-1.5"
+    >
+      <div className="flex min-w-24 flex-1 items-start gap-2">
+        {ai.isLoading && !suggestion ? (
+          <Spinner className="mt-0.5 size-3.5 shrink-0" />
+        ) : (
+          <SparkleIcon className="mt-0.5 size-3.5 shrink-0 text-grove-900" aria-hidden />
+        )}
+        {ai.error ? (
+          <p className="line-clamp-1 text-destructive text-xs">{ai.error}</p>
+        ) : suggestion ? (
+          <p className="line-clamp-2 text-pretty text-xs">{suggestion}</p>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            <FormattedMessage {...contentEditorEditorPanelMessages.generatingAiSuggestion} />
+          </p>
+        )}
+      </div>
+      <div className="ms-auto flex shrink-0 items-center gap-0.5">
+        {suggestion && !ai.error && hasEditableVariant ? (
           <>
             <Button
-              variant="outline"
+              type="button"
+              variant="ghost"
               size="xs"
               disabled={ai.isLoading || !group.canApplyTextToAll}
               onClick={() => void group.applyTextToAll(suggestion)}
@@ -321,6 +432,7 @@ const GroupVariantsAiRecommendation = observer(function GroupVariantsAiRecommend
               <DropdownMenuTrigger
                 render={
                   <Button
+                    type="button"
                     variant="ghost"
                     size="xs"
                     disabled={ai.isLoading || group.isApplyingToAll}
@@ -330,7 +442,7 @@ const GroupVariantsAiRecommendation = observer(function GroupVariantsAiRecommend
                 <FormattedMessage {...m.useInVariant} />
                 <CaretDownIcon className="size-3" aria-hidden />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72">
+              <DropdownMenuContent align="end" className="w-72">
                 <DropdownMenuGroup>
                   {group.variants.map((variant) => (
                     <DropdownMenuItem
@@ -353,9 +465,32 @@ const GroupVariantsAiRecommendation = observer(function GroupVariantsAiRecommend
               </DropdownMenuContent>
             </DropdownMenu>
           </>
-        ) : null
-      }
-    />
+        ) : null}
+        {onRegenerate && (suggestion || ai.error) ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  disabled={ai.isLoading}
+                  onClick={onRegenerate}
+                  aria-label={regenerateLabel}
+                />
+              }
+            >
+              {ai.isLoading ? (
+                <Spinner className="size-3" />
+              ) : (
+                <ArrowClockwiseIcon className="size-3.5" aria-hidden />
+              )}
+            </TooltipTrigger>
+            <TooltipContent>{regenerateLabel}</TooltipContent>
+          </Tooltip>
+        ) : null}
+      </div>
+    </aside>
   );
 });
 
@@ -377,14 +512,15 @@ const VariantEditor = observer(function VariantEditor({
   const highlightTokens = useMemo(() => qaHighlightTokens(firstIssue, text), [firstIssue, text]);
   const showInlineQa = variant.isCheckingFormat || variant.qaIssues.length > 0;
   const occurrencesLabel = intl.formatMessage(m.occurrences, { count: occurrences.length });
+  const lockedLabel = intl.formatMessage(m.locked);
 
   return (
     <div
       role="group"
       aria-label={occurrencesLabel}
       className={cn(
-        "space-y-2 rounded-md border border-border p-2.5 transition-colors",
-        group.focusedVariantId === variant.id && "border-foreground/30",
+        "space-y-2 p-2.5 transition-colors",
+        group.focusedVariantId === variant.id && "bg-muted/40",
       )}
       onFocus={() => group.focus(variant.id)}
       onKeyDown={(event) => {
@@ -395,56 +531,46 @@ const VariantEditor = observer(function VariantEditor({
         void variant.approve();
       }}
     >
-      <div className="flex flex-wrap items-center gap-1.5 text-xs">
-        <span className="font-medium">{occurrencesLabel}</span>
-        {!variant.variant.text ? (
-          <Badge variant="outline">
-            <FormattedMessage {...m.untranslated} />
-          </Badge>
-        ) : variant.variant.isApproved ? (
-          <Badge variant="secondary">
-            <FormattedMessage {...m.approved} />
-          </Badge>
-        ) : null}
-        {unlockedCount === 0 ? (
-          <Badge variant="warning">
-            <FormattedMessage {...m.locked} />
-          </Badge>
-        ) : null}
+      <div className="flex min-h-6 items-center gap-1.5 text-xs">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          <span className="font-medium">{occurrencesLabel}</span>
+          {!variant.variant.text ? (
+            <Badge variant="outline">
+              <FormattedMessage {...m.untranslated} />
+            </Badge>
+          ) : variant.variant.isApproved ? (
+            <Badge variant="secondary">
+              <FormattedMessage {...m.approved} />
+            </Badge>
+          ) : null}
+          {unlockedCount === 0 ? <Badge variant="warning">{lockedLabel}</Badge> : null}
+        </div>
         {variant.canEdit ? (
-          <div className="ms-auto flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
+          <div className="flex shrink-0 items-center">
+            <VariantIconButton
+              label={intl.formatMessage(contentEditorEditorPanelMessages.copySource)}
               disabled={variant.pending}
               onClick={() => variant.copySource()}
             >
-              <CopyIcon className="size-3" aria-hidden />
-              <FormattedMessage {...contentEditorEditorPanelMessages.copySource} />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
+              <CopyIcon className="size-3.5" aria-hidden />
+            </VariantIconButton>
+            <VariantIconButton
+              label={intl.formatMessage(contentEditorEditorPanelMessages.clearTarget)}
               disabled={variant.pending || text.length === 0}
               onClick={() => variant.clear()}
             >
-              <EraserIcon className="size-3" aria-hidden />
-              <FormattedMessage {...contentEditorEditorPanelMessages.clearTarget} />
-            </Button>
+              <EraserIcon className="size-3.5" aria-hidden />
+            </VariantIconButton>
           </div>
         ) : null}
       </div>
       <ul className="space-y-0.5 text-muted-foreground text-xs">
         {occurrences.slice(0, VISIBLE_OCCURRENCE_KEYS).map((occurrence) => (
           <li key={occurrence.id} className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate font-mono">{occurrence.key}</span>
+            <span className="truncate font-mono text-foreground/80">{occurrence.key}</span>
             <span className="truncate">{occurrence.sourcePath}</span>
             {occurrence.isLocked && unlockedCount > 0 ? (
-              <Badge variant="warning" className="shrink-0">
-                <FormattedMessage {...m.locked} />
-              </Badge>
+              <LockSimpleIcon className="size-3 shrink-0" aria-label={lockedLabel} />
             ) : null}
           </li>
         ))}
@@ -478,29 +604,10 @@ const VariantEditor = observer(function VariantEditor({
         <p className="text-destructive text-xs">{variant.displayError}</p>
       ) : null}
       {variant.canEdit ? (
-        <div className="flex flex-wrap justify-end gap-1.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={!variant.canApplyToAll}
-            onClick={() => void variant.applyToAll()}
-          >
-            <FormattedMessage {...m.applyToAll} />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!variant.canSave}
-            onClick={() => void variant.saveDraft()}
-          >
-            <FormattedMessage {...m.saveDraft} />
-          </Button>
+        <div className="flex flex-wrap items-center gap-1.5">
           <Button
             type="button"
             size="sm"
-            className="gap-2"
             disabled={!variant.canApprove}
             onClick={() => void variant.approve()}
           >
@@ -514,8 +621,61 @@ const VariantEditor = observer(function VariantEditor({
               className="bg-primary-foreground/15 text-primary-foreground"
             />
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!variant.canSave}
+            onClick={() => void variant.saveDraft()}
+          >
+            {variant.pendingAction === "save" ? <Spinner className="size-3" /> : null}
+            <FormattedMessage {...m.saveDraft} />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="ms-auto"
+            disabled={!variant.canApplyToAll}
+            onClick={() => void variant.applyToAll()}
+          >
+            {variant.pendingAction === "all" ? <Spinner className="size-3" /> : null}
+            <FormattedMessage {...m.applyToAll} />
+          </Button>
         </div>
       ) : null}
     </div>
   );
 });
+
+function VariantIconButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            disabled={disabled}
+            onClick={onClick}
+            aria-label={label}
+          />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}

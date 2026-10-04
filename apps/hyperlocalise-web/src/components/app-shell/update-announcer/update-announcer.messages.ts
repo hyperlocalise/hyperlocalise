@@ -1,0 +1,44 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { defineMessages } from "react-intl";
+
+export const updateAnnouncerMessages = defineMessages({
+  notNow: {
+    defaultMessage: "Not now",
+    id: "0dKIqadKr+",
+    description: "Dismisses the product update announcement card",
+  },
+  tryNow: {
+    defaultMessage: "Try it now",
+    id: "hSHhxI/mnH",
+    description: "Opens the feature described in the product update announcement card",
+  },
+  dismiss: {
+    defaultMessage: "Dismiss update",
+    id: "lBt4D36OVV",
+    description: "Accessible label for the close button on the product update announcement card",
+  },
+  mergeStringsTitle: {
+    defaultMessage: "Merge strings: translate duplicates once",
+    id: "OT92Awvsrm",
+    description: "Title of the product update announcement for the Merge strings feature",
+  },
+  mergeStringsDescription: {
+    defaultMessage:
+      "Combine identical strings from across your files into one. Translate it once and every copy updates, with differing translations flagged for review.",
+    id: "GXBIiv5A0x",
+    description: "Body of the product update announcement for the Merge strings feature",
+  },
+});

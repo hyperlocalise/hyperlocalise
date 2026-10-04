@@ -539,6 +539,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                         }
                       : undefined
                   }
+                  actions={secondaryActions}
                 >
                   <Rows spacing="1.5u">
                     <ContentEditorTargetEditor

@@ -29,7 +29,7 @@ import { useAiFeaturesUpgradeHref } from "@/lib/billing/ai-features-upgrade-href
 import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorSegmentIntelligence } from "@/components/content-editor/shared/types";
 
-function GenerateAiSuggestionButton({
+export function GenerateAiSuggestionButton({
   isLoading,
   onClick,
 }: {

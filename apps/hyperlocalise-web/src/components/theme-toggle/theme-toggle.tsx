@@ -14,6 +14,7 @@
  */
 import * as React from "react";
 import { flushSync } from "react-dom";
+import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { DesktopIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -85,42 +86,49 @@ function useThemeToggleState() {
   return { activeTheme, mounted, changeTheme, triggerTheme };
 }
 
-function ThemeMenuRadioGroup() {
+const THEME_SEGMENTS = [
+  { value: "light", icon: SunIcon, label: themeToggleMessages.light },
+  { value: "dark", icon: MoonIcon, label: themeToggleMessages.dark },
+  { value: "system", icon: DesktopIcon, label: themeToggleMessages.system },
+] as const;
+
+/** Icon-only segmented control. Must be rendered inside a `DropdownMenuContent`. */
+function ThemeMenuSegmentedControl() {
   const intl = useIntl();
   const { activeTheme, changeTheme } = useThemeToggleState();
 
   return (
-    <DropdownMenuRadioGroup
+    <MenuPrimitive.RadioGroup
       aria-label={intl.formatMessage(themeToggleMessages.colorThemeAria)}
       value={activeTheme}
       onValueChange={(value) => changeTheme(value as ThemeOption)}
+      className="mx-1 my-1 grid grid-cols-3 gap-1 rounded-xl bg-muted p-1"
     >
-      <DropdownMenuRadioItem value="light">
-        <SunIcon className="size-4" />
-        <FormattedMessage {...themeToggleMessages.light} />
-      </DropdownMenuRadioItem>
-      <DropdownMenuRadioItem value="dark">
-        <MoonIcon className="size-4" />
-        <FormattedMessage {...themeToggleMessages.dark} />
-      </DropdownMenuRadioItem>
-      <DropdownMenuRadioItem value="system">
-        <DesktopIcon className="size-4" />
-        <FormattedMessage {...themeToggleMessages.system} />
-      </DropdownMenuRadioItem>
-    </DropdownMenuRadioGroup>
+      {THEME_SEGMENTS.map(({ value, icon: Icon, label }) => (
+        <MenuPrimitive.RadioItem
+          key={value}
+          value={value}
+          aria-label={intl.formatMessage(label)}
+          title={intl.formatMessage(label)}
+          className="flex h-8 cursor-default items-center justify-center rounded-lg text-muted-foreground outline-hidden transition-[background-color,color,box-shadow] duration-150 select-none data-checked:bg-background data-checked:text-foreground data-checked:shadow-sm data-highlighted:text-foreground data-highlighted:ring-2 data-highlighted:ring-ring/40 data-checked:dark:bg-accent"
+        >
+          <Icon className="size-4" />
+        </MenuPrimitive.RadioItem>
+      ))}
+    </MenuPrimitive.RadioGroup>
   );
 }
 
 type ThemeToggleProps = {
-  variant?: "dropdown" | "menu";
+  variant?: "dropdown" | "segmented";
 };
 
 export function ThemeToggle({ variant = "dropdown" }: ThemeToggleProps) {
   const intl = useIntl();
   const { activeTheme, changeTheme, triggerTheme } = useThemeToggleState();
 
-  if (variant === "menu") {
-    return <ThemeMenuRadioGroup />;
+  if (variant === "segmented") {
+    return <ThemeMenuSegmentedControl />;
   }
 
   return (

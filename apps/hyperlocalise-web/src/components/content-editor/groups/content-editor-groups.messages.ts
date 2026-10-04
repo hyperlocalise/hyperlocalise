@@ -26,9 +26,9 @@ export const groupMessages = defineMessages({
     description: "Individual string view option",
   },
   grouped: {
-    id: "6r2HnqYZDl",
-    defaultMessage: "Group identical strings",
-    description: "Grouped string view option",
+    id: "xi2pIQrpdh",
+    defaultMessage: "Merge identical strings",
+    description: "String view option that merges identical source strings into one row",
   },
   projectDefault: {
     id: "SJA7gyKsZV",
