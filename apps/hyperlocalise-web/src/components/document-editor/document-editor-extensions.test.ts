@@ -94,6 +94,10 @@ describe("document Markdown round trip", () => {
     expect(roundTrip(MARKDOWN_FIXTURE, "markdown")).toBe(MARKDOWN_FIXTURE);
   });
 
+  it("drops raw HTML wrappers from Markdown documents", () => {
+    expect(roundTrip('# T\n\n<div class="x">keep</div>\n', "markdown")).toBe("# T\n\nkeep");
+  });
+
   it("reads MDX into component, raw, and callout blocks", () => {
     const types = parseDocumentMarkdown(MDX_FIXTURE, "mdx").content?.map((node) => node.type);
 
@@ -138,12 +142,15 @@ describe("document Markdown round trip", () => {
 });
 
 describe("isLossyDocumentRoundTrip", () => {
-  it("keeps original MDX out of the save baseline when serialize changes it", () => {
+  it("keeps original Markdown and MDX out of the save baseline when serialize changes it", () => {
     expect(isLossyDocumentRoundTrip("mdx", "<Tabs>\n  <Tab />\n</Tabs>", "# Tabs")).toBe(true);
     expect(isLossyDocumentRoundTrip("mdx", "# Hello", "# Hello")).toBe(false);
     expect(isLossyDocumentRoundTrip("markdown", "# Hello\n\n\nWorld", "# Hello\n\nWorld")).toBe(
       false,
     );
+    expect(
+      isLossyDocumentRoundTrip("markdown", '# T\n\n<div class="x">keep</div>', "# T\n\nkeep"),
+    ).toBe(true);
   });
 });
 
