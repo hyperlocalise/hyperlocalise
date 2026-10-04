@@ -109,3 +109,38 @@ func TestCheckCommandAppliesCloudQAPolicyToRepositoryEntries(t *testing.T) {
 		t.Fatalf("missing numbers_mismatch in %+v", report.Findings)
 	}
 }
+
+func TestCheckCommandAppliesCloudQAPolicyWhenTargetFileMissing(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en.json")
+	targetPath := filepath.Join(dir, "fr.json")
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	policyPath := filepath.Join(dir, "qa-policy.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"headline":"Save"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr-FR"})
+	policy := qavalidate.DefaultPolicy()
+	policy.Checks["spelling"] = qavalidate.Setting{Enabled: false, Severity: "warning"}
+	data, _ := json.Marshal(policy)
+	if err := os.WriteFile(policyPath, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	report := executeCheckJSON(t, configPath, "", "--qa-policy", policyPath, "--no-fail")
+	foundMissingFile := false
+	foundNotLocalized := false
+	for _, finding := range report.Findings {
+		if finding.Type == checkMissingTargetFile {
+			foundMissingFile = true
+		}
+		if finding.Type == "not_localized" && finding.Key == "headline" {
+			foundNotLocalized = true
+		}
+	}
+	if !foundMissingFile {
+		t.Fatalf("missing target file finding in %+v", report.Findings)
+	}
+	if !foundNotLocalized {
+		t.Fatalf("missing not_localized finding in %+v", report.Findings)
+	}
+}

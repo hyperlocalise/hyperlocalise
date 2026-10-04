@@ -293,7 +293,7 @@ func collectSpelling(ctx context.Context, segments []Segment, policy Policy) (ma
 	if !policy.Checks["spelling"].Enabled {
 		return issues, skipped, nil
 	}
-	wordsByLocale := map[string]map[string]bool{}
+	wordsByLocale := map[string]map[string]string{}
 	accepted := map[string]map[string]bool{}
 	for locale, words := range policy.AcceptedWordsByLocale {
 		key := strings.ToLower(strings.ReplaceAll(locale, "_", "-"))
@@ -305,12 +305,16 @@ func collectSpelling(ctx context.Context, segments []Segment, policy Policy) (ma
 	for _, segment := range segments {
 		locale := segment.TargetLocale
 		if wordsByLocale[locale] == nil {
-			wordsByLocale[locale] = map[string]bool{}
+			wordsByLocale[locale] = map[string]string{}
 		}
+		localeKey := strings.ToLower(strings.ReplaceAll(locale, "_", "-"))
 		for _, word := range spellcheck.Tokenize(segment.TargetText) {
 			key := strings.ToLower(word)
-			if !accepted[strings.ToLower(strings.ReplaceAll(locale, "_", "-"))][key] {
-				wordsByLocale[locale][key] = true
+			if accepted[localeKey][key] {
+				continue
+			}
+			if _, exists := wordsByLocale[locale][key]; !exists {
+				wordsByLocale[locale][key] = word
 			}
 		}
 	}
@@ -333,7 +337,7 @@ func collectSpelling(ctx context.Context, segments []Segment, policy Policy) (ma
 			continue
 		}
 		ordered := make([]string, 0, len(words))
-		for word := range words {
+		for _, word := range words {
 			ordered = append(ordered, word)
 		}
 		sort.Strings(ordered)
@@ -348,7 +352,11 @@ func collectSpelling(ctx context.Context, segments []Segment, policy Policy) (ma
 			skipped[locale] = true
 			continue
 		}
-		issues[locale] = output
+		normalized := map[string][]string{}
+		for word, suggestions := range output {
+			normalized[strings.ToLower(word)] = suggestions
+		}
+		issues[locale] = normalized
 	}
 	return issues, skipped, nil
 }

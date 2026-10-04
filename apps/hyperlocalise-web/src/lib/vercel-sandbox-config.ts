@@ -199,6 +199,42 @@ export const installRequiredSandboxToolsCommand = [
   "fi",
 ].join("\n");
 
+/** Ensures Hunspell and the pinned dictionary set are available for QA CLI spelling checks. */
+export const installQaSpellingSandboxCommand = [
+  'DICPATH="${DICPATH:-/usr/share/hunspell}"',
+  'if command -v hunspell >/dev/null 2>&1 && [ -f "$DICPATH/en_US.aff" ] && [ -f "$DICPATH/en_US.dic" ]; then',
+  "  exit 0",
+  "fi",
+  "run_as_root() {",
+  '  if [ "$(id -u)" -eq 0 ]; then',
+  '    "$@"',
+  "  elif command -v sudo >/dev/null 2>&1; then",
+  '    sudo "$@"',
+  "  else",
+  '    "$@"',
+  "  fi",
+  "}",
+  "if command -v dnf >/dev/null 2>&1; then",
+  "  run_as_root dnf install -y hunspell curl tar gawk findutils",
+  "elif command -v apt-get >/dev/null 2>&1; then",
+  "  run_as_root apt-get update && run_as_root apt-get install -y hunspell curl tar gawk findutils",
+  "else",
+  '  echo "No supported package manager found for installing Hunspell." >&2',
+  "  exit 1",
+  "fi",
+  'REPO_ROOT="$(mktemp -d)"',
+  'mkdir -p "$REPO_ROOT/internal/i18n/spellcheck" "$REPO_ROOT/apps/go-svc/build"',
+  `HL_TAG="v${sandboxHyperlocaliseReleaseVersion}"`,
+  'curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/${HL_TAG}/internal/i18n/spellcheck/DICTIONARIES.md" -o "$REPO_ROOT/internal/i18n/spellcheck/DICTIONARIES.md" ||',
+  `  curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/v${sandboxHyperlocaliseReleaseVersion}/internal/i18n/spellcheck/DICTIONARIES.md" -o "$REPO_ROOT/internal/i18n/spellcheck/DICTIONARIES.md"`,
+  'curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/${HL_TAG}/apps/go-svc/build/fetch-dictionaries.sh" -o "$REPO_ROOT/apps/go-svc/build/fetch-dictionaries.sh" ||',
+  `  curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/v${sandboxHyperlocaliseReleaseVersion}/apps/go-svc/build/fetch-dictionaries.sh" -o "$REPO_ROOT/apps/go-svc/build/fetch-dictionaries.sh"`,
+  'chmod +x "$REPO_ROOT/apps/go-svc/build/fetch-dictionaries.sh"',
+  'run_as_root mkdir -p "$DICPATH"',
+  'bash "$REPO_ROOT/apps/go-svc/build/fetch-dictionaries.sh" "$REPO_ROOT" "$DICPATH" "$(mktemp -d)"',
+  'command -v hunspell >/dev/null 2>&1 && [ -f "$DICPATH/en_US.aff" ]',
+].join("\n");
+
 export async function createConfiguredVercelSandbox(
   options: VercelSandboxCreateOptions = {},
 ): Promise<Sandbox> {

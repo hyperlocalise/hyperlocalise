@@ -26,6 +26,7 @@ go_library(
         "//internal/i18n/htmltagparity",
         "//internal/i18n/icuparser",
         "//internal/i18n/locales",
+        "//internal/i18n/qavalidate",
         "//internal/i18n/segmentvalidate",
         "//internal/i18n/spellcheck",
         "//internal/pathguard",

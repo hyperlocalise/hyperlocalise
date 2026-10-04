@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -55,6 +56,56 @@ func TestPolicyRequiresCompleteCheckSet(t *testing.T) {
 	delete(policy.Checks, "format")
 	if err := policy.Validate(); err == nil {
 		t.Fatal("expected invalid policy")
+	}
+}
+
+func TestCollectSpellingPreservesWordCaseForHunspell(t *testing.T) {
+	root := t.TempDir()
+	dictDir := filepath.Join(root, "dict")
+	if err := os.Mkdir(dictDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dictDir, "en_US.aff"), []byte("SET UTF-8\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dictDir, "en_US.dic"), []byte("0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DICPATH", dictDir)
+
+	logPath := filepath.Join(root, "words.log")
+	binDir := filepath.Join(root, "bin")
+	if err := os.Mkdir(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\nprintf 'Hunspell 1.7\\n'\nwhile IFS= read -r word; do\n" +
+		"  [ -z \"$word\" ] && continue\n  printf '%s\\n' \"$word\" >> \"" + logPath + "\"\n  printf '*\\n\\n'\ndone\n"
+	if err := os.WriteFile(filepath.Join(binDir, "hunspell"), []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	policy := DefaultPolicy()
+	policy.AcceptedWordsByLocale = map[string][]string{}
+	_, skipped, err := collectSpelling(context.Background(), []Segment{
+		{ID: "one", SourceText: "Title", TargetText: "Bonjour Paris", TargetLocale: "en-US"},
+	}, policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if skipped["en-US"] {
+		t.Fatalf("skipped = %v", skipped)
+	}
+	logged, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(logged)
+	if !strings.Contains(text, "Paris") {
+		t.Fatalf("logged words = %q", text)
+	}
+	if strings.Contains(text, "paris\n") || strings.Contains(text, "paris\r") {
+		t.Fatalf("logged lowercase word = %q", text)
 	}
 }
 

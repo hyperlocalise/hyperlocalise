@@ -51,6 +51,14 @@ describe("validateQaPageInSandbox", () => {
 
   it("writes the captured policy and segments, then stops the sandbox", async () => {
     await expect(validateQaPageInSandbox(input)).resolves.toEqual([{ id: "0", checks: [] }]);
+    expect(createWorkspace).toHaveBeenCalledWith({
+      timeoutMs: 10 * 60 * 1000,
+      sandboxOptions: { snapshotExpiration: 0, keepLastSnapshots: { count: 1 } },
+    });
+    expect(runCommand).toHaveBeenCalledWith("bash", [
+      "-lc",
+      expect.stringMatching(/fetch-dictionaries\.sh/),
+    ]);
     expect(writeFile).toHaveBeenCalledWith(
       ".hyperlocalise-qa/policy.json",
       expect.stringContaining('"version":1'),
@@ -59,6 +67,7 @@ describe("validateQaPageInSandbox", () => {
       ".hyperlocalise-qa/segments.json",
       expect.stringContaining('"sourceText":"Hello"'),
     );
+    expect(runCommand).toHaveBeenCalledWith("bash", ["-lc", "rm -rf .hyperlocalise-qa"]);
     expect(stop).toHaveBeenCalledOnce();
   });
 

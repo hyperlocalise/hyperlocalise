@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "qavalidate",
+    srcs = ["validate.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/qavalidate",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/i18n/segmentvalidate",
+        "//internal/i18n/spellcheck",
+    ],
+)
+
+go_test(
+    name = "qavalidate_test",
+    srcs = ["validate_test.go"],
+    embed = [":qavalidate"],
+)

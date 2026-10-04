@@ -13,12 +13,14 @@
 import { z } from "zod";
 
 import { createVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
+import { installQaSpellingSandboxCommand } from "@/lib/vercel-sandbox-config";
 import type { QaCheckPolicy } from "./qa-policy";
 import type { TranslationQaGlossaryTerm } from "./types";
 
-const INPUT_PATH = ".hyperlocalise-qa/segments.json";
-const POLICY_PATH = ".hyperlocalise-qa/policy.json";
-const OUTPUT_PATH = ".hyperlocalise-qa/results.json";
+const QA_WORKSPACE_DIR = ".hyperlocalise-qa";
+const INPUT_PATH = `${QA_WORKSPACE_DIR}/segments.json`;
+const POLICY_PATH = `${QA_WORKSPACE_DIR}/policy.json`;
+const OUTPUT_PATH = `${QA_WORKSPACE_DIR}/results.json`;
 const SANDBOX_TIMEOUT_MS = 10 * 60 * 1000;
 
 export class QaCliUnavailableError extends Error {
@@ -55,18 +57,39 @@ export type QaPageSegment = {
   maxLength: number;
 };
 
+async function cleanupQaWorkspaceFiles(workspace: {
+  runCommand: (command: string, args: string[]) => Promise<{ exitCode: number }>;
+}) {
+  await workspace.runCommand("bash", ["-lc", `rm -rf ${QA_WORKSPACE_DIR}`]).catch(() => undefined);
+}
+
 export async function validateQaPageInSandbox(input: {
   segments: QaPageSegment[];
   policy: QaCheckPolicy;
   glossaryTerms: TranslationQaGlossaryTerm[];
   acceptedWordsByLocale: Record<string, string[]>;
 }) {
-  const workspace = await createVercelSandboxWorkspace({ timeoutMs: SANDBOX_TIMEOUT_MS });
+  const workspace = await createVercelSandboxWorkspace({
+    timeoutMs: SANDBOX_TIMEOUT_MS,
+    sandboxOptions: {
+      snapshotExpiration: 0,
+      keepLastSnapshots: { count: 1 },
+    },
+  });
   try {
     const availability = await workspace.runCommand("hl", ["validate", "--help"], {
       output: "stdout",
     });
     if (availability.exitCode !== 0) throw new QaCliUnavailableError();
+
+    const spellingInstall = await workspace.runCommand("bash", [
+      "-lc",
+      `export DICPATH=/usr/share/hunspell; ${installQaSpellingSandboxCommand}`,
+    ]);
+    if (spellingInstall.exitCode !== 0) {
+      throw new Error("QA sandbox spelling dependency installation failed");
+    }
+
     await workspace.writeFile(
       POLICY_PATH,
       JSON.stringify({
@@ -79,7 +102,7 @@ export async function validateQaPageInSandbox(input: {
     await workspace.writeFile(INPUT_PATH, JSON.stringify({ segments: input.segments }));
     const command = await workspace.runCommand("bash", [
       "-lc",
-      `export PATH="$HOME/.local/bin:$PATH"; hl validate --input-file ${INPUT_PATH} --policy-file ${POLICY_PATH} --format json > ${OUTPUT_PATH}`,
+      `export PATH="$HOME/.local/bin:$PATH"; export DICPATH=/usr/share/hunspell; hl validate --input-file ${INPUT_PATH} --policy-file ${POLICY_PATH} --format json > ${OUTPUT_PATH}`,
     ]);
     if (command.exitCode !== 0) {
       throw new Error(`QA CLI validation failed (exit ${command.exitCode})`);
@@ -95,6 +118,7 @@ export async function validateQaPageInSandbox(input: {
     }
     return parsed.data.results;
   } finally {
+    await cleanupQaWorkspaceFiles(workspace);
     await workspace.stop();
   }
 }

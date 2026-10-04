@@ -1010,11 +1010,7 @@ func collectCheckFindings(ctx context.Context, index *checkConfigIndex, enabledC
 
 	var findings []checkFinding
 	var qaSegments []qavalidate.Segment
-	type qaLocation struct {
-		bucket, locale, sourcePath, targetPath, key, sourceValue, targetValue string
-		missing                                                               bool
-	}
-	var qaLocations []qaLocation
+	var qaLocations []cloudQALocation
 	sourceEntryKeysByPacked := make(map[string]map[string]string)
 	for _, sourceDesc := range index.sources {
 		if !selection.allowsSource(sourceDesc.sourcePath) {
@@ -1060,30 +1056,15 @@ func collectCheckFindings(ctx context.Context, index *checkConfigIndex, enabledC
 						})
 					}
 				}
+				if qaPolicy != nil {
+					appendCloudQASegments(&qaSegments, &qaLocations, selection, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceEntries, nil, true)
+				}
 				continue
 			}
 
 			findings = append(findings, collectEntryCheckFindings(&resolver, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceEntries, targetEntries, checkSet, selection)...)
 			if qaPolicy != nil {
-				keys := make([]string, 0, len(sourceEntries))
-				for key := range sourceEntries {
-					keys = append(keys, key)
-				}
-				slices.Sort(keys)
-				for _, key := range keys {
-					if !selection.allowsKey(sourceDesc.sourcePath, key) {
-						continue
-					}
-					targetValue, exists := targetEntries[key]
-					qaSegments = append(qaSegments, qavalidate.Segment{
-						ID: fmt.Sprint(len(qaSegments)), SourceText: sourceEntries[key], TargetText: targetValue,
-						SourcePath: sourceDesc.sourcePath, TargetLocale: target.locale,
-					})
-					qaLocations = append(qaLocations, qaLocation{
-						sourceDesc.bucketName, target.locale,
-						sourceDesc.sourcePath, target.targetPath, key, sourceEntries[key], targetValue, !exists,
-					})
-				}
+				appendCloudQASegments(&qaSegments, &qaLocations, selection, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceEntries, targetEntries, false)
 			}
 			if selection.shouldRunFileScopedChecks() && hasCheck(checkSet, checkMarkdownAST) && isMarkdownPath(target.targetPath) {
 				findings = append(findings, collectMarkdownASTParityFindings(&resolver, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceContent, targetContent)...)
@@ -1114,6 +1095,47 @@ func collectCheckFindings(ctx context.Context, index *checkConfigIndex, enabledC
 		Findings:                findings,
 		sourceEntryKeysByPacked: sourceEntryKeysByPacked,
 	}, nil
+}
+
+type cloudQALocation struct {
+	bucket, locale, sourcePath, targetPath, key, sourceValue, targetValue string
+	missing                                                               bool
+}
+
+func appendCloudQASegments(
+	qaSegments *[]qavalidate.Segment,
+	qaLocations *[]cloudQALocation,
+	selection checkSelection,
+	bucket, locale, sourcePath, targetPath string,
+	sourceEntries map[string]string,
+	targetEntries map[string]string,
+	targetFileMissing bool,
+) {
+	keys := make([]string, 0, len(sourceEntries))
+	for key := range sourceEntries {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	for _, key := range keys {
+		if !selection.allowsKey(sourcePath, key) {
+			continue
+		}
+		sourceValue := sourceEntries[key]
+		targetValue := ""
+		missing := targetFileMissing
+		if !targetFileMissing {
+			var ok bool
+			targetValue, ok = targetEntries[key]
+			missing = !ok
+		}
+		*qaSegments = append(*qaSegments, qavalidate.Segment{
+			ID: fmt.Sprint(len(*qaSegments)), SourceText: sourceValue, TargetText: targetValue,
+			SourcePath: sourcePath, TargetLocale: locale,
+		})
+		*qaLocations = append(*qaLocations, cloudQALocation{
+			bucket, locale, sourcePath, targetPath, key, sourceValue, targetValue, missing,
+		})
+	}
 }
 
 func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath, locale string) (map[string]string, []byte, []byte, bool, error) {

@@ -334,13 +334,20 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
   }
 }
 
+type QaSandboxSnapshotOptions = {
+  keepLastSnapshots?: { count: number; deleteEvicted?: boolean };
+  snapshotExpiration?: number;
+};
+
 export async function createVercelSandboxWorkspace(input: {
   source?: GitWorkspaceSource;
   timeoutMs?: number;
+  sandboxOptions?: QaSandboxSnapshotOptions;
 }): Promise<WorkspaceRuntime> {
   const sandbox = await createConfiguredVercelSandbox({
     ...(input.source ? { source: input.source } : {}),
     timeout: input.timeoutMs ?? defaultSandboxTimeoutMs,
+    ...input.sandboxOptions,
   });
 
   return new VercelSandboxRuntime(sandbox.name);
